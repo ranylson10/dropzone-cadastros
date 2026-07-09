@@ -8,12 +8,13 @@ export type DropZoneRow = {
   auth_user_id: string | null
   profile_type: ProfileType | null
   username: string | null
+  public_id: number | null
   name: string | null
   token: string | null
   parent_id: string | null
   ref_id: string | null
   status: string
-  data: Record<string, unknown>
+  data: Record<string, any>
   created_by: string | null
   created_at: string
   updated_at: string

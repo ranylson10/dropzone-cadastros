@@ -61,6 +61,8 @@ export default function Home() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [recentProfiles, setRecentProfiles] = useState<any[]>([])
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [rows, setRows] = useState<DropZoneRow[]>([])
   const [message, setMessage] = useState('')
@@ -80,8 +82,8 @@ export default function Home() {
     logo_url: '',
     senha_dono: '',
   })
-  const [group, setGroup] = useState({ nome: '', campeonato_id: '' })
-  const [game, setGame] = useState({ nome: '', campeonato_id: '', data_jogo: '' })
+  const [group, setGroup] = useState({ nome: '', campeonato_id: '', slots: '12' })
+  const [game, setGame] = useState({ nome: '', campeonato_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] as string[] })
   const [selectedChampId, setSelectedChampId] = useState('')
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [teamInviteToken, setTeamInviteToken] = useState('')
@@ -129,11 +131,19 @@ export default function Home() {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) loadMeAndRows(data.session.access_token)
     })
+    const saved = localStorage.getItem('dropzone_recent_profiles')
+    if (saved) setRecentProfiles(JSON.parse(saved))
   }, [])
 
   async function getToken() {
     const { data } = await supabase.auth.getSession()
     return data.session?.access_token || ''
+  }
+
+  function saveRecentProfile(profile: any) {
+    const next = [profile, ...recentProfiles.filter((item) => item.id !== profile.id)].slice(0, 4)
+    setRecentProfiles(next)
+    localStorage.setItem('dropzone_recent_profiles', JSON.stringify(next))
   }
 
   async function loadMeAndRows(token?: string) {
@@ -146,6 +156,7 @@ export default function Home() {
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessao invalida.')
     setAccount(meJson.account)
+    saveRecentProfile(meJson.account)
 
     const rowsRes = await fetch('/api/dropzone', {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -171,6 +182,7 @@ export default function Home() {
             profile_type: profileType,
             username: clean,
             name,
+            email,
             password,
           }),
         })
@@ -303,7 +315,7 @@ export default function Home() {
         championship_name: champ.name,
       },
     }, 'Grupo criado no campeonato.')
-    setGroup({ nome: '', campeonato_id: champ.id })
+    setGroup({ nome: '', campeonato_id: champ.id, slots: '12' })
   }
 
   async function createGame() {
@@ -322,13 +334,19 @@ export default function Home() {
         championship_name: champ.name,
       },
     }, 'Jogo criado com token.')
-    setGame({ nome: '', campeonato_id: champ.id, data_jogo: '' })
+    setGame({ nome: '', campeonato_id: champ.id, data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] })
   }
 
   async function acceptTeamInvite() {
-    const invite = tokens.find((row) => row.token?.toUpperCase() === teamPanelToken.trim().toUpperCase() && row.data?.token_kind === 'team_invite')
-    if (!invite) return setError('Token de equipe nao encontrado.')
-    await addTeamToChamp(String(invite.parent_id || ''), String(invite.ref_id || ''))
+    const invite = tokens.find((row) => row.token?.toUpperCase() === teamPanelToken.trim().toUpperCase() && row.data?.token_kind === 'team_invite' && !row.data?.usado)
+    if (!invite) return setError('Token de equipe nao encontrado ou ja utilizado.')
+    await createRow({
+      entity_type: 'championship_team',
+      token: teamPanelToken.trim().toUpperCase(),
+      parent_id: invite.parent_id,
+      ref_id: invite.ref_id,
+      data: { token: teamPanelToken.trim().toUpperCase() },
+    }, 'Convite aceito. Token marcado como usado.')
     setTeamPanelToken('')
   }
 
@@ -405,6 +423,17 @@ export default function Home() {
             <section className="profile-picker">
               <p className="eyebrow">Escolha seu acesso</p>
               <h2>Tipo de usuario</h2>
+              {recentProfiles.length ? (
+                <div className="recent-profiles">
+                  {recentProfiles.map((profile) => (
+                    <button key={profile.id} type="button" className="recent-card" onClick={() => { setProfileType(profile.profile_type); setUsername(profile.username || '') }}>
+                      <span>{profile.data?.logo_url || profile.data?.avatar_url ? <img src={profile.data.logo_url || profile.data.avatar_url} alt="" /> : profileIcons[profile.profile_type as ProfileType]}</span>
+                      <strong>{profile.name}</strong>
+                      <small>@{profile.username}{profile.public_id ? ` · ID ${profile.public_id}` : ''}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="profile-cards">
                 {PROFILE_TYPES.map((type) => (
                   <button
@@ -435,12 +464,17 @@ export default function Home() {
                   </div>
                 </div>
                 {mode === 'criar' ? (
-                  <Field label="Nome exibido">
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome publico do perfil" />
-                  </Field>
+                  <>
+                    <Field label="Nome exibido">
+                      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome publico do perfil" />
+                    </Field>
+                    <Field label="E-mail de confirmação">
+                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
+                    </Field>
+                  </>
                 ) : null}
-                <Field label="Arroba unico">
-                  <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@seuarroba" />
+                <Field label="Login unico ou ID">
+                  <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID publico" />
                 </Field>
                 <Field label="Senha">
                   <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 6 caracteres" />
@@ -456,7 +490,7 @@ export default function Home() {
             <section className="account-strip">
               <div>
                 <p className="eyebrow">Conta ativa</p>
-                <strong>{account.name} <span>@{account.username}</span></strong>
+                <strong>{account.name} <span>@{account.username}{account.public_id ? ` · ID ${account.public_id}` : ''}</span></strong>
               </div>
               <div className="metric"><b>{championships.length}</b><span>Campeonatos</span></div>
               <div className="metric"><b>{teams.length}</b><span>Equipes</span></div>
@@ -557,9 +591,9 @@ function ProdutoraPanel(props: {
   setChampionship: (value: any) => void
   team: { nome: string; tag: string; logo_url: string; senha_dono: string }
   setTeam: (value: any) => void
-  group: { nome: string; campeonato_id: string }
+  group: { nome: string; campeonato_id: string; slots: string }
   setGroup: (value: any) => void
-  game: { nome: string; campeonato_id: string; data_jogo: string }
+  game: { nome: string; campeonato_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string; grupos_ids: string[] }
   setGame: (value: any) => void
   createChampionship: () => void
   createTeam: () => void
@@ -674,6 +708,7 @@ function ProdutoraPanel(props: {
             ))}
             {champGroups.length === 0 ? <p className="empty">Nenhum grupo criado.</p> : null}
             <Field label="Novo grupo"><input value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Grupo A" /></Field>
+            <Field label="Slots do grupo"><input type="number" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="12" /></Field>
             <button className="button" onClick={props.createGroup}>Criar grupo</button>
           </div>
           <div className="panel-soft">
@@ -688,6 +723,9 @@ function ProdutoraPanel(props: {
             {champGames.length === 0 ? <p className="empty">Nenhum jogo criado.</p> : null}
             <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Rodada 1" /></Field>
             <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
+            <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
+            <Field label="Número de partidas"><input type="number" value={props.game.numero_partidas} onChange={(e) => props.setGame({ ...props.game, numero_partidas: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
+            <Field label="Mapas"><input value={props.game.mapas} onChange={(e) => props.setGame({ ...props.game, mapas: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Bermuda, Purgatório, Alpine" /></Field>
             <button className="button" onClick={props.createGame}>Criar jogo</button>
           </div>
         </div>

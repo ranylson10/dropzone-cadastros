@@ -15,11 +15,19 @@ export function assertProfileType(value: unknown): ProfileType {
 export function assertUsername(value: unknown) {
   const username = cleanUsername(value)
   if (!/^[a-z0-9._]{3,24}$/.test(username)) {
-    throw new Error('Use um arroba com 3 a 24 caracteres: letras, numeros, ponto ou underline.')
+    throw new Error('Use um login com 3 a 24 caracteres: letras, numeros, ponto ou underline.')
   }
   return username
 }
 
+export function cleanEmail(value: unknown) {
+  const email = String(value || '').trim().toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe um e-mail valido.')
+  return email
+}
+
+// Mantem um login tecnico unico no Supabase Auth por tipo + usuario.
+// Assim o mesmo e-mail de contato pode ter um perfil de equipe, jogador, produtora e manager.
 export function authEmail(profileType: ProfileType, username: string) {
   return `${profileType}.${username}@dropzone.local`
 }
