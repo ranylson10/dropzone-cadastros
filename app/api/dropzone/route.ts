@@ -16,8 +16,8 @@ const PUBLIC_TYPES = [
 
 function canCreate(profileType: string | null, entityType: string) {
   if (profileType === 'produtora') return PUBLIC_TYPES.includes(entityType)
-  if (profileType === 'equipe') return ['team', 'invite_token', 'player_registration'].includes(entityType)
-  if (profileType === 'manager') return ['player_registration'].includes(entityType)
+  if (profileType === 'equipe') return ['team', 'championship_team', 'invite_token', 'player_registration'].includes(entityType)
+  if (profileType === 'manager') return ['team', 'championship_team', 'invite_token', 'player_registration'].includes(entityType)
   if (profileType === 'jogador') return ['player_registration'].includes(entityType)
   return false
 }
