@@ -47,7 +47,9 @@ const TABLE_BY_ENTITY: Record<string, string> = {
   team: 'equipes',
   player_team: 'equipe_jogadores',
   championship_team: 'campeonato_equipes',
+  phase: 'campeonato_fases',
   group: 'campeonato_grupos',
+  group_slot: 'campeonato_grupo_slots',
   game: 'campeonato_jogos',
   invite_token: 'convites_tokens',
   player_registration: 'inscricoes_jogadores',
@@ -58,7 +60,7 @@ const TABLE_BY_ENTITY: Record<string, string> = {
 const PUBLIC_TYPES = Object.keys(TABLE_BY_ENTITY)
 
 function canCreate(profileType: string | null, entityType: string) {
-  if (profileType === 'produtora') return ['championship', 'team', 'championship_team', 'group', 'game', 'invite_token', 'registration_link', 'lineup_rule'].includes(entityType)
+  if (profileType === 'produtora') return ['championship', 'team', 'championship_team', 'phase', 'group', 'group_slot', 'game', 'invite_token', 'registration_link', 'lineup_rule'].includes(entityType)
   if (profileType === 'equipe') return ['championship_team', 'invite_token', 'player_registration', 'player_team'].includes(entityType)
   if (profileType === 'manager') return ['championship_team', 'invite_token', 'player_registration', 'player_team'].includes(entityType)
   if (profileType === 'jogador') return ['player_registration'].includes(entityType)
@@ -179,8 +181,10 @@ export async function GET(req: NextRequest) {
       if (type === 'team') output.push(...await selectRows('equipes_perfis', type, (row) => baseRow(row, type, { data: { tag: row.tag, logo_url: row.logo_url, profile_team: true } })))
       if (type === 'championship_team') output.push(...await selectRows('campeonato_equipes', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, team_id: row.equipe_id, grupo_id: row.grupo_id, slot: row.slot_numero } })))
       if (type === 'player_team') output.push(...await selectRows('equipe_jogadores', type, (row) => baseRow(row, type, { data: { player_user_id: row.jogador_auth_user_id, team_id: row.equipe_id, origem: row.origem, nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, foto_url: row.foto_url } })))
-      if (type === 'group') output.push(...await selectRows('campeonato_grupos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, slots: row.slots } })))
-      if (type === 'game') output.push(...await selectRows('campeonato_jogos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, data_jogo: row.data_jogo, horario: row.horario, numero_partidas: row.numero_partidas, mapas: row.mapas, grupos_ids: row.grupos_ids } })))
+      if (type === 'phase') output.push(...await selectRows('campeonato_fases', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, ordem: row.ordem } })))
+      if (type === 'group') output.push(...await selectRows('campeonato_grupos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, slots: row.slots } })))
+      if (type === 'group_slot') output.push(...await selectRows('campeonato_grupo_slots', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, group_id: row.grupo_id, grupo_id: row.grupo_id, team_id: row.equipe_id, equipe_id: row.equipe_id, slot_numero: row.slot_numero } })))
+      if (type === 'game') output.push(...await selectRows('campeonato_jogos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, data_jogo: row.data_jogo, horario: row.horario, numero_partidas: row.numero_partidas, mapas: row.mapas, grupos_ids: row.grupos_ids } })))
       if (type === 'invite_token') output.push(...await selectRows('convites_tokens', type, (row) => baseRow(row, type, { data: { token_kind: row.tipo, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id, usado: row.usado, expira_em: row.expira_em } })))
       if (type === 'player_registration') output.push(...await selectRows('inscricoes_jogadores', type, (row) => baseRow(row, type, { data: { nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, localidade: row.localidade, team_tag: row.tag, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id, foto_url: row.foto_url } })))
       if (type === 'registration_link') output.push(...await selectRows('campeonato_links_inscricao', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, group_id: row.grupo_id, titulo: row.titulo, descricao: row.descricao, ativo: row.ativo, acompanhamento_publico: row.acompanhamento_publico, expira_em: row.expira_em, public_url: `/i/${row.token}` } })))
@@ -275,14 +279,44 @@ export async function POST(req: NextRequest) {
       }).select('*').single()
       if (error) throw error
       row = baseRow(inserted, entityType)
+    } else if (entityType === 'phase') {
+      const data = body.data || {}
+      await requireChampionshipOwner(body.parent_id || data.campeonato_id, user.id)
+      const { data: inserted, error } = await supabaseAdmin.from('campeonato_fases').insert({
+        campeonato_id: body.parent_id || data.campeonato_id,
+        nome: body.name || data.nome,
+        ordem: Number(data.ordem || 1),
+      }).select('*').single()
+      if (error) throw error
+      row = baseRow(inserted, entityType)
     } else if (entityType === 'group') {
       const data = body.data || {}
       await requireChampionshipOwner(body.parent_id || data.campeonato_id, user.id)
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_grupos').insert({
         campeonato_id: body.parent_id || data.campeonato_id,
+        fase_id: data.fase_id || null,
         nome: body.name || data.nome,
         slots: Number(data.slots || 12),
       }).select('*').single()
+      if (error) throw error
+      row = baseRow(inserted, entityType)
+    } else if (entityType === 'group_slot') {
+      const data = body.data || {}
+      const campeonatoId = body.parent_id || data.campeonato_id
+      await requireChampionshipOwner(campeonatoId, user.id)
+      if (!data.grupo_id || !data.equipe_id || !data.slot_numero) throw new Error('Grupo, equipe e slot sao obrigatorios.')
+      const { error: updateError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .update({ grupo_id: data.grupo_id, slot_numero: Number(data.slot_numero) })
+        .eq('campeonato_id', campeonatoId)
+        .eq('equipe_id', data.equipe_id)
+      if (updateError) throw updateError
+      const { data: inserted, error } = await supabaseAdmin.from('campeonato_grupo_slots').upsert({
+        campeonato_id: campeonatoId,
+        grupo_id: data.grupo_id,
+        equipe_id: data.equipe_id,
+        slot_numero: Number(data.slot_numero),
+      }, { onConflict: 'grupo_id,slot_numero' }).select('*').single()
       if (error) throw error
       row = baseRow(inserted, entityType)
     } else if (entityType === 'game') {
@@ -290,6 +324,7 @@ export async function POST(req: NextRequest) {
       await requireChampionshipOwner(body.parent_id || data.campeonato_id, user.id)
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_jogos').insert({
         campeonato_id: body.parent_id || data.campeonato_id,
+        fase_id: data.fase_id || null,
         nome: body.name || data.nome,
         data_jogo: data.data_jogo || null,
         horario: data.horario || null,

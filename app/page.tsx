@@ -413,8 +413,10 @@ export default function Home() {
     logo_url: '',
     senha_dono: '',
   })
-  const [group, setGroup] = useState({ nome: '', campeonato_id: '', slots: '12' })
-  const [game, setGame] = useState({ nome: '', campeonato_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] as string[] })
+  const [phase, setPhase] = useState({ nome: '', campeonato_id: '', ordem: '1' })
+  const [group, setGroup] = useState({ nome: '', campeonato_id: '', fase_id: '', slots: '12' })
+  const [slotAssignment, setSlotAssignment] = useState({ grupo_id: '', equipe_id: '', slot_numero: '1' })
+  const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] as string[] })
   const [registrationLink, setRegistrationLink] = useState({ grupo_id: '', vagas_por_equipe: '6', abre_em: '', encerra_em: '', permite_substituicao: false, max_substituicoes_por_equipe: '0', substituicao_encerra_em: '', descricao: '' })
   const [selectedChampId, setSelectedChampId] = useState('')
   const [selectedTeamId, setSelectedTeamId] = useState('')
@@ -435,7 +437,9 @@ export default function Home() {
   const championships = useMemo(() => rows.filter((row) => row.entity_type === 'championship'), [rows])
   const teams = useMemo(() => rows.filter((row) => row.entity_type === 'team'), [rows])
   const links = useMemo(() => rows.filter((row) => row.entity_type === 'championship_team'), [rows])
+  const phases = useMemo(() => rows.filter((row) => row.entity_type === 'phase'), [rows])
   const groups = useMemo(() => rows.filter((row) => row.entity_type === 'group'), [rows])
+  const groupSlots = useMemo(() => rows.filter((row) => row.entity_type === 'group_slot'), [rows])
   const games = useMemo(() => rows.filter((row) => row.entity_type === 'game'), [rows])
   const tokens = useMemo(() => rows.filter((row) => row.entity_type === 'invite_token'), [rows])
   const registrations = useMemo(() => rows.filter((row) => row.entity_type === 'player_registration'), [rows])
@@ -705,23 +709,61 @@ export default function Home() {
   async function generateTeamInvite() {
     const champ = selectedChamp
     const teamRow = teams.find((row) => row.id === selectedTeamId)
-    if (!champ || !teamRow) return setError('Selecione campeonato e equipe para gerar o convite.')
-    await createRow({
+    if (!champ) return setError('Selecione campeonato para gerar o convite.')
+    const row = await createRow({
       entity_type: 'invite_token',
-      name: `Convite equipe ${rowTitle(teamRow)}`,
+      name: teamRow ? `Convite equipe ${rowTitle(teamRow)}` : `Convite aberto ${rowTitle(champ)}`,
       parent_id: champ.id,
-      ref_id: teamRow.id,
+      ref_id: teamRow?.id || null,
       generate_token: true,
       token_prefix: 'EQ',
       data: {
         token_kind: 'team_invite',
         championship_id: champ.id,
         championship_name: champ.name,
-        team_id: teamRow.id,
-        team_name: teamRow.name,
-        team_tag: dataText(teamRow, 'tag'),
+        team_id: teamRow?.id || null,
+        team_name: teamRow?.name || null,
+        team_tag: teamRow ? dataText(teamRow, 'tag') : null,
       },
-    }, 'Token unico da equipe gerado.')
+    }, 'Token de convite para equipe gerado.')
+    if (row?.token) await copyToken(row.token)
+  }
+
+
+  async function createPhase() {
+    const champId = phase.campeonato_id || selectedChamp?.id
+    const champ = championships.find((row) => row.id === champId)
+    if (!champ || !phase.nome.trim()) return setError('Selecione o campeonato e informe o nome da fase.')
+    await createRow({
+      entity_type: 'phase',
+      name: phase.nome,
+      parent_id: champ.id,
+      data: {
+        ...phase,
+        campeonato_id: champ.id,
+        ordem: Number(phase.ordem || 1),
+      },
+    }, 'Fase criada.')
+    setPhase({ nome: '', campeonato_id: champ.id, ordem: String(Number(phase.ordem || 1) + 1) })
+  }
+
+  async function assignTeamToSlot() {
+    const champ = selectedChamp
+    if (!champ) return setError('Selecione um campeonato.')
+    if (!slotAssignment.grupo_id || !slotAssignment.equipe_id || !slotAssignment.slot_numero) return setError('Selecione grupo, equipe e slot.')
+    await createRow({
+      entity_type: 'group_slot',
+      name: `Slot ${slotAssignment.slot_numero}`,
+      parent_id: champ.id,
+      ref_id: slotAssignment.equipe_id,
+      data: {
+        campeonato_id: champ.id,
+        grupo_id: slotAssignment.grupo_id,
+        equipe_id: slotAssignment.equipe_id,
+        slot_numero: Number(slotAssignment.slot_numero),
+      },
+    }, 'Equipe colocada no slot.')
+    setSlotAssignment((current) => ({ ...current, equipe_id: '', slot_numero: String(Number(current.slot_numero || 1) + 1) }))
   }
 
   async function createGroup() {
@@ -735,10 +777,11 @@ export default function Home() {
       data: {
         ...group,
         campeonato_id: champ.id,
+        fase_id: group.fase_id || null,
         championship_name: champ.name,
       },
     }, 'Grupo criado no campeonato.')
-    setGroup({ nome: '', campeonato_id: champ.id, slots: '12' })
+    setGroup({ nome: '', campeonato_id: champ.id, fase_id: group.fase_id, slots: '12' })
   }
 
   async function createGame() {
@@ -757,7 +800,7 @@ export default function Home() {
         championship_name: champ.name,
       },
     }, 'Jogo criado com token.')
-    setGame({ nome: '', campeonato_id: champ.id, data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] })
+    setGame({ nome: '', campeonato_id: champ.id, fase_id: game.fase_id, data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] })
   }
 
 
@@ -786,7 +829,7 @@ export default function Home() {
       entity_type: 'championship_team',
       token: teamPanelToken.trim().toUpperCase(),
       parent_id: invite.parent_id,
-      ref_id: invite.ref_id,
+      ref_id: invite.ref_id || managedTeams[0]?.id || account?.id,
       data: { token: teamPanelToken.trim().toUpperCase() },
     }, 'Convite aceito. Token marcado como usado.')
     setTeamPanelToken('')
@@ -1033,7 +1076,9 @@ export default function Home() {
               <ProdutoraPanel
                 championships={championships}
                 teams={teams}
+                phases={phases}
                 groups={groups}
+                groupSlots={groupSlots}
                 games={games}
                 tokens={tokens}
                 registrationLinks={registrationLinks}
@@ -1051,13 +1096,19 @@ export default function Home() {
                 setChampionship={setChampionship}
                 team={team}
                 setTeam={setTeam}
+                phase={phase}
+                setPhase={setPhase}
                 group={group}
                 setGroup={setGroup}
+                slotAssignment={slotAssignment}
+                setSlotAssignment={setSlotAssignment}
                 game={game}
                 setGame={setGame}
                 createChampionship={createChampionship}
                 createTeam={createTeam}
+                createPhase={createPhase}
                 createGroup={createGroup}
+                assignTeamToSlot={assignTeamToSlot}
                 createGame={createGame}
                 addTeamToChamp={() => addTeamToChamp()}
                 generateTeamInvite={generateTeamInvite}
@@ -1121,7 +1172,9 @@ export default function Home() {
 function ProdutoraPanel(props: {
   championships: DropZoneRow[]
   teams: DropZoneRow[]
+  phases: DropZoneRow[]
   groups: DropZoneRow[]
+  groupSlots: DropZoneRow[]
   games: DropZoneRow[]
   tokens: DropZoneRow[]
   registrationLinks: DropZoneRow[]
@@ -1139,13 +1192,19 @@ function ProdutoraPanel(props: {
   setChampionship: (value: any) => void
   team: { nome: string; tag: string; logo_url: string; senha_dono: string }
   setTeam: (value: any) => void
-  group: { nome: string; campeonato_id: string; slots: string }
+  phase: { nome: string; campeonato_id: string; ordem: string }
+  setPhase: (value: any) => void
+  group: { nome: string; campeonato_id: string; fase_id: string; slots: string }
   setGroup: (value: any) => void
-  game: { nome: string; campeonato_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string; grupos_ids: string[] }
+  slotAssignment: { grupo_id: string; equipe_id: string; slot_numero: string }
+  setSlotAssignment: (value: any) => void
+  game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string; grupos_ids: string[] }
   setGame: (value: any) => void
   createChampionship: () => void
   createTeam: () => void
+  createPhase: () => void
   createGroup: () => void
+  assignTeamToSlot: () => void
   createGame: () => void
   addTeamToChamp: () => void
   generateTeamInvite: () => void
@@ -1153,14 +1212,36 @@ function ProdutoraPanel(props: {
   loading: boolean
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
-  const teamInvites = props.tokens.filter((row) => row.data?.token_kind === 'team_invite' && row.parent_id === props.selectedChamp?.id)
-  const champGroups = props.groups.filter((row) => row.parent_id === props.selectedChamp?.id)
-  const champGames = props.games.filter((row) => row.parent_id === props.selectedChamp?.id)
-  const champRegistrationLinks = props.registrationLinks.filter((row) => row.parent_id === props.selectedChamp?.id)
+  const [showCreateChamp, setShowCreateChamp] = useState(false)
+  const [tab, setTab] = useState<'equipes' | 'jogadores' | 'grupos' | 'jogos' | 'links'>('equipes')
+  const [selectedTeamDetailId, setSelectedTeamDetailId] = useState('')
+
+  const selectedChamp = props.selectedChamp
+  const champPhases = props.phases.filter((row) => row.parent_id === selectedChamp?.id)
+  const champGroups = props.groups.filter((row) => row.parent_id === selectedChamp?.id)
+  const champGames = props.games.filter((row) => row.parent_id === selectedChamp?.id)
+  const champSlots = props.groupSlots.filter((row) => row.parent_id === selectedChamp?.id)
+  const champRegistrationLinks = props.registrationLinks.filter((row) => row.parent_id === selectedChamp?.id)
+  const teamInvites = props.tokens.filter((row) => row.data?.token_kind === 'team_invite' && row.parent_id === selectedChamp?.id)
+  const selectedTeamDetail = props.selectedChampTeams.find((team) => team.id === selectedTeamDetailId) || props.selectedChampTeams[0]
+  const selectedTeamLink = selectedTeamDetail ? champSlots.find((slot) => slot.ref_id === selectedTeamDetail.id) : null
+  const selectedTeamRegs = props.lineupRules ? [] : []
+
+  function groupName(id?: string | null) {
+    return rowTitle(champGroups.find((row) => row.id === id)) || 'Sem grupo'
+  }
+
+  function phaseName(id?: string | null) {
+    return rowTitle(champPhases.find((row) => row.id === id)) || 'Sem fase'
+  }
+
+  function teamLogo(team?: DropZoneRow) {
+    return dataText(team, 'logo_url') || ''
+  }
 
   return (
-    <div className="dashboard">
-      <section className="panel">
+    <div className="producer-dashboard">
+      <section className="panel producer-sidebar">
         <div className="section-head">
           <div>
             <p className="eyebrow">Produtora</p>
@@ -1168,153 +1249,266 @@ function ProdutoraPanel(props: {
           </div>
           <Trophy />
         </div>
-        <div className="list">
+
+        <div className="list championship-list">
           {props.championships.length === 0 ? <p className="empty">Nenhum campeonato criado ainda.</p> : null}
-          {props.championships.map((champ) => (
-            <button
-              key={champ.id}
-              className={`list-item ${props.selectedChamp?.id === champ.id ? 'active' : ''}`}
-              onClick={() => props.setSelectedChampId(champ.id)}
-            >
-              <strong>{rowTitle(champ)}</strong>
-              <span>{dataText(champ, 'premiacao') || 'Premiacao nao informada'}</span>
-            </button>
-          ))}
+          {props.championships.map((champ) => {
+            const logo = dataText(champ, 'logo_url')
+            return (
+              <button
+                key={champ.id}
+                className={`champ-list-item ${selectedChamp?.id === champ.id ? 'active' : ''}`}
+                onClick={() => props.setSelectedChampId(champ.id)}
+              >
+                <span className="champ-thumb">{logo ? <img src={logo} alt="" /> : <Trophy size={18} />}</span>
+                <span>
+                  <strong>{rowTitle(champ)}</strong>
+                  <small>{dataText(champ, 'premiacao') || 'Premiação não informada'}</small>
+                </span>
+              </button>
+            )
+          })}
         </div>
+
+        <button className="button full" onClick={() => setShowCreateChamp((value) => !value)}>
+          {showCreateChamp ? 'Fechar formulário' : 'Novo campeonato'}
+        </button>
       </section>
 
-      <section className="panel span-2">
-        <div className="section-head">
-          <div>
-            <p className="eyebrow">Criar</p>
-            <h2>Novo campeonato</h2>
-          </div>
-          <CalendarDays />
-        </div>
-        <div className="form-grid">
-          <Field label="Nome"><input value={props.championship.nome} onChange={(e) => props.setChampionship({ ...props.championship, nome: e.target.value })} /></Field>
-          <UploadField label="Logo do campeonato" value={props.championship.logo_url} bucket="campeonato" onChange={(url) => props.setChampionship({ ...props.championship, logo_url: url })} onUpload={props.uploadPublicFile} />
-          <Field label="Premiacao"><input value={props.championship.premiacao} onChange={(e) => props.setChampionship({ ...props.championship, premiacao: e.target.value })} /></Field>
-          <Field label="Link das regras"><input value={props.championship.regras_url} onChange={(e) => props.setChampionship({ ...props.championship, regras_url: e.target.value })} /></Field>
-          <Field label="Divisao da premiacao"><textarea value={props.championship.divisao_premiacao} onChange={(e) => props.setChampionship({ ...props.championship, divisao_premiacao: e.target.value })} /></Field>
-        </div>
-        <button className="button" onClick={props.createChampionship} disabled={props.loading}>Salvar campeonato</button>
-      </section>
-
-      <section className="panel span-2">
-        <div className="section-head">
-          <div>
-            <p className="eyebrow">Organizar</p>
-            <h2>{rowTitle(props.selectedChamp)}</h2>
-          </div>
-          <Users />
-        </div>
-        <div className="mini-grid">
-          <div className="panel-soft">
-            <h3>Equipes no campeonato</h3>
-            {props.selectedChampTeams.length === 0 ? <p className="empty">Adicione equipe ou gere convite unico.</p> : null}
-            {props.selectedChampTeams.map((team) => (
-              <div className="compact-row" key={team.id}>
-                <strong>{dataText(team, 'tag') ? `[${dataText(team, 'tag')}] ` : ''}{rowTitle(team)}</strong>
+      <section className="panel producer-main">
+        {showCreateChamp ? (
+          <div className="drop-form-panel">
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">Criar</p>
+                <h2>Novo campeonato</h2>
               </div>
-            ))}
-          </div>
-          <div className="panel-soft">
-            <h3>Adicionar equipe</h3>
-            <Field label="Equipe existente">
-              <select value={props.selectedTeamId} onChange={(e) => props.setSelectedTeamId(e.target.value)}>
-                <option value="">Selecione</option>
-                {props.teams.map((team) => <option key={team.id} value={team.id}>{dataText(team, 'tag') ? `[${dataText(team, 'tag')}] ` : ''}{team.name}</option>)}
-              </select>
-            </Field>
-            <div className="button-row">
-              <button className="button secondary" onClick={props.addTeamToChamp}>Adicionar</button>
-              <button className="button" onClick={props.generateTeamInvite}>Gerar token</button>
+              <CalendarDays />
             </div>
+            <div className="form-grid">
+              <Field label="Nome"><input value={props.championship.nome} onChange={(e) => props.setChampionship({ ...props.championship, nome: e.target.value })} /></Field>
+              <UploadField label="Logo do campeonato" value={props.championship.logo_url} bucket="campeonato" onChange={(url) => props.setChampionship({ ...props.championship, logo_url: url })} onUpload={props.uploadPublicFile} />
+              <Field label="Premiação"><input value={props.championship.premiacao} onChange={(e) => props.setChampionship({ ...props.championship, premiacao: e.target.value })} /></Field>
+              <Field label="Link das regras"><input value={props.championship.regras_url} onChange={(e) => props.setChampionship({ ...props.championship, regras_url: e.target.value })} /></Field>
+              <Field label="Divisão da premiação"><textarea value={props.championship.divisao_premiacao} onChange={(e) => props.setChampionship({ ...props.championship, divisao_premiacao: e.target.value })} /></Field>
+            </div>
+            <button className="button" onClick={props.createChampionship} disabled={props.loading}>Salvar campeonato</button>
           </div>
-          <div className="panel-soft">
-            <h3>Cadastrar equipe manual</h3>
-            <Field label="Nome"><input value={props.team.nome} onChange={(e) => props.setTeam({ ...props.team, nome: e.target.value })} /></Field>
-            <Field label="Tag"><input value={props.team.tag} onChange={(e) => props.setTeam({ ...props.team, tag: e.target.value.toUpperCase() })} /></Field>
-            <UploadField label="Logo da equipe" value={props.team.logo_url} bucket="equipe" onChange={(url) => props.setTeam({ ...props.team, logo_url: url })} onUpload={props.uploadPublicFile} />
-            <Field label="Senha do dono"><input value={props.team.senha_dono} onChange={(e) => props.setTeam({ ...props.team, senha_dono: e.target.value })} /></Field>
-            <button className="button" onClick={props.createTeam}>Salvar equipe</button>
-          </div>
-          <div className="panel-soft">
-            <h3>Tokens de equipe</h3>
-            {teamInvites.length === 0 ? <p className="empty">Nenhum convite gerado.</p> : null}
-            {teamInvites.map((token) => (
-              <button key={token.id} className="token-card" onClick={() => props.copyToken(token.token)}>
-                <span>{dataText(token, 'team_tag') || 'Equipe'}</span>
-                <strong>{tokenText(token.token)}</strong>
-                <Copy size={15} />
-              </button>
-            ))}
-          </div>
-          <div className="panel-soft">
-            <h3>Grupos</h3>
-            {champGroups.map((group) => (
-              <div className="compact-row" key={group.id}><strong>{rowTitle(group)}</strong></div>
-            ))}
-            {champGroups.length === 0 ? <p className="empty">Nenhum grupo criado.</p> : null}
-            <Field label="Novo grupo"><input value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Grupo A" /></Field>
-            <Field label="Slots do grupo"><input type="number" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="12" /></Field>
-            <button className="button" onClick={props.createGroup}>Criar grupo</button>
-          </div>
+        ) : selectedChamp ? (
+          <>
+            <div className="champ-hero">
+              <div className="champ-hero-logo">
+                {dataText(selectedChamp, 'logo_url') ? <img src={dataText(selectedChamp, 'logo_url')} alt="" /> : <Trophy size={28} />}
+              </div>
+              <div>
+                <p className="eyebrow">Campeonato selecionado</p>
+                <h2>{rowTitle(selectedChamp)}</h2>
+                <p>{dataText(selectedChamp, 'premiacao') ? `Premiação: ${dataText(selectedChamp, 'premiacao')}` : 'Premiação não informada'}</p>
+                {dataText(selectedChamp, 'regras_url') ? <small>Regulamento: {dataText(selectedChamp, 'regras_url')}</small> : null}
+              </div>
+            </div>
 
-          <div className="panel-soft">
-            <h3>Links de inscrição</h3>
-            <p className="empty">Gere um link público para jogadores entrarem em equipes deste grupo e para líderes acompanharem inscrições.</p>
-            <Field label="Grupo do link">
-              <select value={props.registrationLink.grupo_id} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, grupo_id: e.target.value })}>
-                <option value="">Selecione</option>
-                {champGroups.map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
-              </select>
-            </Field>
-            <div className="mini-grid">
-              <Field label="Vagas por equipe"><input type="number" value={props.registrationLink.vagas_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, vagas_por_equipe: e.target.value })} /></Field>
-              <Field label="Encerrar escalação"><input type="datetime-local" value={props.registrationLink.encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })} /></Field>
+            <div className="tabs panel-tabs producer-tabs">
+              <button className={`tab ${tab === 'equipes' ? 'active' : ''}`} onClick={() => setTab('equipes')}>Equipes</button>
+              <button className={`tab ${tab === 'jogadores' ? 'active' : ''}`} onClick={() => setTab('jogadores')}>Jogadores</button>
+              <button className={`tab ${tab === 'grupos' ? 'active' : ''}`} onClick={() => setTab('grupos')}>Fases e grupos</button>
+              <button className={`tab ${tab === 'jogos' ? 'active' : ''}`} onClick={() => setTab('jogos')}>Jogos</button>
+              <button className={`tab ${tab === 'links' ? 'active' : ''}`} onClick={() => setTab('links')}>Links</button>
             </div>
-            <div className="mini-grid">
-              <Field label="Permite substituição">
-                <select value={props.registrationLink.permite_substituicao ? 'sim' : 'nao'} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, permite_substituicao: e.target.value === 'sim' })}>
-                  <option value="nao">Não</option>
-                  <option value="sim">Sim</option>
-                </select>
-              </Field>
-              <Field label="Máximo de substituições"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
-            </div>
-            <Field label="Prazo de substituição"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
-            <button className="button" onClick={props.createRegistrationLink}>Gerar link público</button>
-            <div className="token-list">
-              {champRegistrationLinks.map((link) => (
-                <button key={link.id} className="token-card" onClick={() => props.copyToken(`${window.location.origin}/i/${link.token}`)}>
-                  <span>{dataText(link, 'titulo') || 'Link de inscrição'}</span>
-                  <strong>{`/i/${link.token}`}</strong>
-                  <Copy size={15} />
-                </button>
-              ))}
-            </div>
-          </div>
 
-          <div className="panel-soft">
-            <h3>Jogos e rodadas</h3>
-            {champGames.map((game) => (
-              <button className="token-card" key={game.id} onClick={() => props.copyToken(game.token)}>
-                <span>{dataText(game, 'data_jogo') || 'Sem data'}</span>
-                <strong>{rowTitle(game)}</strong>
-                {game.token ? <small>{game.token}</small> : null}
-              </button>
-            ))}
-            {champGames.length === 0 ? <p className="empty">Nenhum jogo criado.</p> : null}
-            <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Rodada 1" /></Field>
-            <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
-            <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
-            <Field label="Número de partidas"><input type="number" value={props.game.numero_partidas} onChange={(e) => props.setGame({ ...props.game, numero_partidas: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
-            <Field label="Mapas"><input value={props.game.mapas} onChange={(e) => props.setGame({ ...props.game, mapas: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Bermuda, Purgatório, Alpine" /></Field>
-            <button className="button" onClick={props.createGame}>Criar jogo</button>
+            {tab === 'equipes' ? (
+              <div className="producer-tab-grid">
+                <div className="panel-soft">
+                  <h3>Equipes no campeonato</h3>
+                  {props.selectedChampTeams.length === 0 ? <p className="empty">Nenhuma equipe adicionada ainda.</p> : null}
+                  {props.selectedChampTeams.map((team) => {
+                    const slot = champSlots.find((item) => item.ref_id === team.id)
+                    return (
+                      <button className="compact-row with-logo" key={team.id} onClick={() => setSelectedTeamDetailId(team.id)}>
+                        <span className="tiny-logo">{teamLogo(team) ? <img src={teamLogo(team)} alt="" /> : <Shield size={15} />}</span>
+                        <strong>[{dataText(team, 'tag') || '--'}] {rowTitle(team)}</strong>
+                        <small>{slot ? `${groupName(slot.data?.grupo_id)} · Slot ${slot.data?.slot_numero}` : 'Sem slot definido'}</small>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="panel-soft">
+                  <h3>Adicionar equipe</h3>
+                  <Field label="Equipe existente">
+                    <select value={props.selectedTeamId} onChange={(e) => props.setSelectedTeamId(e.target.value)}>
+                      <option value="">Selecione</option>
+                      {props.teams.map((team) => <option key={team.id} value={team.id}>[{dataText(team, 'tag') || '--'}] {rowTitle(team)}</option>)}
+                    </select>
+                  </Field>
+                  <div className="button-row">
+                    <button className="button secondary" onClick={props.addTeamToChamp}>Adicionar</button>
+                    <button className="button" onClick={props.generateTeamInvite}>Gerar token aberto</button>
+                  </div>
+                  <p className="empty">Para gerar convite, não precisa selecionar equipe. O líder cola o token no painel da equipe.</p>
+                </div>
+                <div className="panel-soft">
+                  <h3>Tokens de equipe</h3>
+                  {teamInvites.length === 0 ? <p className="empty">Nenhum convite gerado.</p> : null}
+                  {teamInvites.map((token) => (
+                    <button key={token.id} className="token-card" onClick={() => props.copyToken(token.token)}>
+                      <span>{dataText(token, 'team_tag') || 'Convite aberto'}</span>
+                      <strong>{tokenText(token.token)}</strong>
+                      <Copy size={15} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {tab === 'jogadores' ? (
+              <div className="producer-tab-grid">
+                <div className="panel-soft">
+                  <h3>Equipes</h3>
+                  {props.selectedChampTeams.map((team) => (
+                    <button key={team.id} className={`compact-row with-logo ${selectedTeamDetail?.id === team.id ? 'active' : ''}`} onClick={() => setSelectedTeamDetailId(team.id)}>
+                      <span className="tiny-logo">{teamLogo(team) ? <img src={teamLogo(team)} alt="" /> : <Shield size={15} />}</span>
+                      <strong>{rowTitle(team)}</strong>
+                      <small>{dataText(team, 'tag') || 'sem tag'}</small>
+                    </button>
+                  ))}
+                </div>
+                <div className="panel-soft span-2-inner">
+                  <h3>{selectedTeamDetail ? `Escalação: ${rowTitle(selectedTeamDetail)}` : 'Escalação'}</h3>
+                  <p className="empty">Vagas e jogadores inscritos aparecem aqui quando houver inscrições feitas pelo link público ou token de jogador.</p>
+                  <div className="metric-row">
+                    <span>Grupo</span><strong>{groupName(selectedTeamLink?.data?.grupo_id)}</strong>
+                  </div>
+                  <div className="metric-row">
+                    <span>Slot</span><strong>{selectedTeamLink?.data?.slot_numero || '-'}</strong>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {tab === 'grupos' ? (
+              <div className="producer-tab-grid">
+                <div className="panel-soft">
+                  <h3>Fases</h3>
+                  {champPhases.map((phase) => <div key={phase.id} className="compact-row"><strong>{rowTitle(phase)}</strong><small>Ordem {phase.data?.ordem || '-'}</small></div>)}
+                  {champPhases.length === 0 ? <p className="empty">Crie a primeira fase do campeonato.</p> : null}
+                  <Field label="Nome da fase"><input value={props.phase.nome} onChange={(e) => props.setPhase({ ...props.phase, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Fase de grupos" /></Field>
+                  <Field label="Ordem"><input type="number" value={props.phase.ordem} onChange={(e) => props.setPhase({ ...props.phase, ordem: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                  <button className="button" onClick={props.createPhase}>Criar fase</button>
+                </div>
+                <div className="panel-soft">
+                  <h3>Grupos</h3>
+                  {champGroups.map((group) => <div className="compact-row" key={group.id}><strong>{rowTitle(group)}</strong><small>{phaseName(group.data?.fase_id)} · {group.data?.slots || 12} slots</small></div>)}
+                  <Field label="Fase">
+                    <select value={props.group.fase_id} onChange={(e) => props.setGroup({ ...props.group, fase_id: e.target.value, campeonato_id: selectedChamp.id })}>
+                      <option value="">Sem fase</option>
+                      {champPhases.map((phase) => <option key={phase.id} value={phase.id}>{rowTitle(phase)}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Novo grupo"><input value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Grupo A" /></Field>
+                  <Field label="Slots do grupo"><input type="number" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: selectedChamp.id })} placeholder="12" /></Field>
+                  <button className="button" onClick={props.createGroup}>Criar grupo</button>
+                </div>
+                <div className="panel-soft">
+                  <h3>Distribuir slots</h3>
+                  <Field label="Grupo">
+                    <select value={props.slotAssignment.grupo_id} onChange={(e) => props.setSlotAssignment({ ...props.slotAssignment, grupo_id: e.target.value })}>
+                      <option value="">Selecione</option>
+                      {champGroups.map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Equipe inscrita">
+                    <select value={props.slotAssignment.equipe_id} onChange={(e) => props.setSlotAssignment({ ...props.slotAssignment, equipe_id: e.target.value })}>
+                      <option value="">Selecione</option>
+                      {props.selectedChampTeams.map((team) => <option key={team.id} value={team.id}>[{dataText(team, 'tag') || '--'}] {rowTitle(team)}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Número do slot"><input type="number" value={props.slotAssignment.slot_numero} onChange={(e) => props.setSlotAssignment({ ...props.slotAssignment, slot_numero: e.target.value })} /></Field>
+                  <button className="button" onClick={props.assignTeamToSlot}>Salvar slot</button>
+                </div>
+              </div>
+            ) : null}
+
+            {tab === 'jogos' ? (
+              <div className="producer-tab-grid">
+                <div className="panel-soft">
+                  <h3>Jogos criados</h3>
+                  {champGames.map((game) => <div className="compact-row" key={game.id}><strong>{rowTitle(game)}</strong><small>{phaseName(game.data?.fase_id)} · {dataText(game, 'data_jogo') || 'sem data'}</small></div>)}
+                  {champGames.length === 0 ? <p className="empty">Nenhum jogo criado.</p> : null}
+                </div>
+                <div className="panel-soft span-2-inner">
+                  <h3>Novo jogo</h3>
+                  <Field label="Fase">
+                    <select value={props.game.fase_id} onChange={(e) => props.setGame({ ...props.game, fase_id: e.target.value, campeonato_id: selectedChamp.id, grupos_ids: [] })}>
+                      <option value="">Selecione</option>
+                      {champPhases.map((phase) => <option key={phase.id} value={phase.id}>{rowTitle(phase)}</option>)}
+                    </select>
+                  </Field>
+                  <div className="mini-grid">
+                    <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Rodada 1" /></Field>
+                    <Field label="Número de partidas"><input type="number" value={props.game.numero_partidas} onChange={(e) => props.setGame({ ...props.game, numero_partidas: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                  </div>
+                  <div className="mini-grid">
+                    <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                    <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                  </div>
+                  <Field label="Mapas"><input value={props.game.mapas} onChange={(e) => props.setGame({ ...props.game, mapas: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Bermuda, Purgatório, Alpine" /></Field>
+                  <Field label="Grupos participantes da fase">
+                    <select multiple value={props.game.grupos_ids} onChange={(e) => props.setGame({ ...props.game, grupos_ids: Array.from(e.target.selectedOptions).map((option) => option.value), campeonato_id: selectedChamp.id })}>
+                      {champGroups.filter((group) => !props.game.fase_id || group.data?.fase_id === props.game.fase_id).map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
+                    </select>
+                  </Field>
+                  <button className="button" onClick={props.createGame}>Criar jogo</button>
+                </div>
+              </div>
+            ) : null}
+
+            {tab === 'links' ? (
+              <div className="producer-tab-grid">
+                <div className="panel-soft span-2-inner">
+                  <h3>Link público de inscrição</h3>
+                  <Field label="Grupo do link">
+                    <select value={props.registrationLink.grupo_id} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, grupo_id: e.target.value })}>
+                      <option value="">Selecione</option>
+                      {champGroups.map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
+                    </select>
+                  </Field>
+                  <div className="mini-grid">
+                    <Field label="Vagas por equipe"><input type="number" value={props.registrationLink.vagas_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, vagas_por_equipe: e.target.value })} /></Field>
+                    <Field label="Encerrar escalação"><input type="datetime-local" value={props.registrationLink.encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })} /></Field>
+                  </div>
+                  <div className="mini-grid">
+                    <Field label="Permite substituição">
+                      <select value={props.registrationLink.permite_substituicao ? 'sim' : 'nao'} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, permite_substituicao: e.target.value === 'sim' })}>
+                        <option value="nao">Não</option>
+                        <option value="sim">Sim</option>
+                      </select>
+                    </Field>
+                    <Field label="Máximo de substituições"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
+                  </div>
+                  <Field label="Prazo de substituição"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
+                  <button className="button" onClick={props.createRegistrationLink}>Gerar link público</button>
+                </div>
+                <div className="panel-soft">
+                  <h3>Links gerados</h3>
+                  {champRegistrationLinks.length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}
+                  {champRegistrationLinks.map((link) => (
+                    <button key={link.id} className="token-card" onClick={() => props.copyToken(`${window.location.origin}/i/${link.token}`)}>
+                      <span>{groupName(link.data?.group_id)}</span>
+                      <strong>{`/i/${link.token}`}</strong>
+                      <Copy size={15} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="empty-state-big">
+            <Trophy size={36} />
+            <h2>Selecione ou crie um campeonato</h2>
+            <p>Ao selecionar, as abas de equipes, jogadores, fases, grupos e jogos aparecem aqui.</p>
           </div>
-        </div>
+        )}
       </section>
     </div>
   )
