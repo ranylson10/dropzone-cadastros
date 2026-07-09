@@ -9,7 +9,7 @@ async function getToken(ctx: any) {
 
 async function loadLink(token: string) {
   const { data: link, error } = await supabaseAdmin
-    .from('campeonato_links_inscricao')
+    .from('campeonato_links')
     .select('*')
     .eq('token', token)
     .eq('ativo', true)
@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest, ctx: any) {
     const [{ data: campeonato, error: champError }, { data: grupo, error: groupError }, { data: rule, error: ruleError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,premiacao,status').eq('id', link.campeonato_id).maybeSingle(),
       supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).maybeSingle(),
-      supabaseAdmin.from('campeonato_regras_escalacao').select('*').eq('campeonato_id', link.campeonato_id).or(`grupo_id.eq.${link.grupo_id},grupo_id.is.null`).order('grupo_id', { ascending: false, nullsFirst: false }).limit(1).maybeSingle(),
+      supabaseAdmin.from('campeonato_regras').select('*').eq('campeonato_id', link.campeonato_id).or(`grupo_id.eq.${link.grupo_id},grupo_id.is.null`).order('grupo_id', { ascending: false, nullsFirst: false }).limit(1).maybeSingle(),
     ])
     if (champError) throw champError
     if (groupError) throw groupError
@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, ctx: any) {
 
     const { data: teamLinks, error: teamsError } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,equipe_id,slot_numero,status,equipes_perfis:equipe_id(id,nome_exibido,username,tag,logo_url)')
+      .select('id,equipe_id,slot_numero,status,equipes:equipe_id(id,nome,username,tag,logo_url)')
       .eq('campeonato_id', link.campeonato_id)
       .eq('grupo_id', link.grupo_id)
       .neq('status', 'deletado')
@@ -52,18 +52,19 @@ export async function GET(_req: NextRequest, ctx: any) {
 
     const equipes = await Promise.all((teamLinks || []).map(async (item: any) => {
       const { count } = await supabaseAdmin
-        .from('inscricoes_jogadores')
+        .from('campeonato_jogadores')
         .select('id', { count: 'exact', head: true })
         .eq('campeonato_id', link.campeonato_id)
         .eq('equipe_id', item.equipe_id)
+        .neq('status', 'deletado')
       return {
         campeonato_equipe_id: item.id,
         id: item.equipe_id,
         slot_numero: item.slot_numero,
-        nome: item.equipes_perfis?.nome_exibido,
-        username: item.equipes_perfis?.username,
-        tag: item.equipes_perfis?.tag,
-        logo_url: item.equipes_perfis?.logo_url,
+        nome: item.equipes?.nome,
+        username: item.equipes?.username,
+        tag: item.equipes?.tag,
+        logo_url: item.equipes?.logo_url,
         vagas_usadas: count || 0,
       }
     }))
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest, ctx: any) {
     if (!champTeam) throw new Error('Essa equipe nao pertence ao grupo deste link.')
 
     const { data: rule, error: ruleError } = await supabaseAdmin
-      .from('campeonato_regras_escalacao')
+      .from('campeonato_regras')
       .select('*')
       .eq('campeonato_id', link.campeonato_id)
       .or(`grupo_id.eq.${link.grupo_id},grupo_id.is.null`)
@@ -113,50 +114,56 @@ export async function POST(req: NextRequest, ctx: any) {
 
     const vagas = Number(rule?.vagas_por_equipe || 6)
     const { count, error: countError } = await supabaseAdmin
-      .from('inscricoes_jogadores')
+      .from('campeonato_jogadores')
       .select('id', { count: 'exact', head: true })
       .eq('campeonato_id', link.campeonato_id)
       .eq('equipe_id', equipeId)
+      .neq('status', 'deletado')
     if (countError) throw countError
     if ((count || 0) >= vagas) throw new Error('Essa equipe ja atingiu o limite de vagas.')
 
     const { data: account, error: accountError } = await supabaseAdmin
-      .from('jogadores_perfis')
+      .from('jogadores')
       .select('*')
       .eq('auth_user_id', user.id)
       .maybeSingle()
     if (accountError) throw accountError
     if (!account) throw new Error('Entre com uma conta de jogador para se inscrever.')
 
-    const nick = String(body.nick || account.nome_exibido || '').trim()
+    const nick = String(body.nick || account.nome || '').trim()
     const idJogo = String(body.id_jogo || account.id_jogo || '').trim()
     const funcao = String(body.funcao || account.funcao || 'support')
     if (!nick || !idJogo) throw new Error('Nick e ID de jogo sao obrigatorios.')
 
-    const { error: teamPlayerError } = await supabaseAdmin.from('equipe_jogadores').upsert({
-      jogador_auth_user_id: user.id,
+    const { data: duplicate, error: duplicateError } = await supabaseAdmin
+      .from('campeonato_jogadores')
+      .select('id')
+      .eq('campeonato_id', link.campeonato_id)
+      .eq('id_jogo', idJogo)
+      .neq('status', 'deletado')
+      .maybeSingle()
+    if (duplicateError) throw duplicateError
+    if (duplicate) throw new Error('Esse ID de jogo ja esta inscrito neste campeonato.')
+
+    const { error: teamPlayerError } = await supabaseAdmin.from('jogadores_equipes').upsert({
+      jogador_id: account.id,
       equipe_id: equipeId,
-      nick,
-      id_jogo: idJogo,
-      foto_url: account.avatar_url || body.foto_url || null,
       funcao,
-      localidade: account.localidade || body.localidade || null,
-      origem: 'link_publico',
       status: 'ativo',
-    }, { onConflict: 'jogador_auth_user_id,equipe_id' })
+    }, { onConflict: 'jogador_id,equipe_id' })
     if (teamPlayerError) throw teamPlayerError
 
-    const { data: inserted, error } = await supabaseAdmin.from('inscricoes_jogadores').insert({
+    const { data: inserted, error } = await supabaseAdmin.from('campeonato_jogadores').insert({
       campeonato_id: link.campeonato_id,
       equipe_id: equipeId,
       jogo_id: null,
-      jogador_auth_user_id: user.id,
-      tag: body.tag || null,
+      jogador_id: account.id,
       nick,
       foto_url: account.avatar_url || body.foto_url || null,
       id_jogo: idJogo,
       funcao,
       localidade: account.localidade || body.localidade || null,
+      status: 'ativo',
     }).select('id,nick,id_jogo,funcao,created_at').single()
     if (error) throw error
 

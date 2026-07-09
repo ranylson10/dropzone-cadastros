@@ -6,7 +6,7 @@ export async function GET(_req: NextRequest, ctx: any) {
     const params = await ctx.params
     const token = String(params?.token || '').trim().toUpperCase()
     const { data: link, error: linkError } = await supabaseAdmin
-      .from('campeonato_links_inscricao')
+      .from('campeonato_links')
       .select('*')
       .eq('token', token)
       .eq('ativo', true)
@@ -17,24 +17,25 @@ export async function GET(_req: NextRequest, ctx: any) {
     const [{ data: campeonato }, { data: grupo }, { data: teamLinks, error: teamsError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).maybeSingle(),
       supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).maybeSingle(),
-      supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,slot_numero,equipes_perfis:equipe_id(id,nome_exibido,username,tag,logo_url)').eq('campeonato_id', link.campeonato_id).eq('grupo_id', link.grupo_id).order('slot_numero'),
+      supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,slot_numero,equipes:equipe_id(id,nome,username,tag,logo_url)').eq('campeonato_id', link.campeonato_id).eq('grupo_id', link.grupo_id).order('slot_numero'),
     ])
     if (teamsError) throw teamsError
 
     const equipes = await Promise.all((teamLinks || []).map(async (item: any) => {
       const { data: jogadores, error } = await supabaseAdmin
-        .from('inscricoes_jogadores')
+        .from('campeonato_jogadores')
         .select('id,nick,id_jogo,funcao,foto_url,created_at')
         .eq('campeonato_id', link.campeonato_id)
         .eq('equipe_id', item.equipe_id)
+        .neq('status', 'deletado')
         .order('created_at')
       if (error) throw error
       return {
         id: item.equipe_id,
-        nome: item.equipes_perfis?.nome_exibido,
-        username: item.equipes_perfis?.username,
-        tag: item.equipes_perfis?.tag,
-        logo_url: item.equipes_perfis?.logo_url,
+        nome: item.equipes?.nome,
+        username: item.equipes?.username,
+        tag: item.equipes?.tag,
+        logo_url: item.equipes?.logo_url,
         slot_numero: item.slot_numero,
         jogadores: jogadores || [],
       }

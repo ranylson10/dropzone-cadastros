@@ -14,10 +14,10 @@ export async function getBearerUser(req: NextRequest) {
 }
 
 const PROFILE_TABLES: Record<ProfileType, string> = {
-  produtora: 'produtoras_perfis',
-  equipe: 'equipes_perfis',
-  jogador: 'jogadores_perfis',
-  manager: 'managers_perfis',
+  produtora: 'produtoras',
+  equipe: 'equipes',
+  jogador: 'jogadores',
+  manager: 'managers',
 }
 
 export function profileTable(profileType: ProfileType) {
@@ -32,7 +32,7 @@ export function mapProfile(row: any, profileType: ProfileType): DropZoneRow {
     profile_type: profileType,
     username: row.username,
     public_id: row.public_id ?? null,
-    name: row.nome_exibido || row.nome || row.username,
+    name: row.nome || row.nome_exibido || row.username,
     token: null,
     parent_id: null,
     ref_id: null,
