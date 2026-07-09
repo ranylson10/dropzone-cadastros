@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createHash } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { assertProfileType, assertUsername, authEmail, cleanEmail } from '@/lib/validation'
 import { profileTable } from '@/lib/server-auth'
@@ -19,6 +20,10 @@ function buildLocalidade(details: Record<string, any>) {
   const estado = cleanText(details.estado)
   const cidade = cleanText(details.cidade)
   return [cidade, estado, pais].filter(Boolean).join(' - ')
+}
+
+function hashInvitePassword(value: string) {
+  return createHash('sha256').update(value).digest('hex')
 }
 
 export async function POST(req: Request) {
@@ -46,7 +51,30 @@ export async function POST(req: Request) {
       if (!['support', 'rush', 'sniper', 'bomber'].includes(cleanText(details.funcao))) throw new Error('Selecione uma função válida.')
     }
 
+    if (profileType === 'manager') {
+      if (!cleanText(details.token_convite)) throw new Error('Informe o token de convite do manager.')
+      if (!cleanText(details.senha_convite)) throw new Error('Informe a senha do convite do manager.')
+    }
+
     const table = profileTable(profileType)
+
+    let managerInvite: any = null
+    if (profileType === 'manager') {
+      const { data, error } = await supabaseAdmin
+        .from('convites_tokens')
+        .select('*')
+        .eq('token', cleanText(details.token_convite).toUpperCase())
+        .eq('tipo', 'manager_invite')
+        .eq('usado', false)
+        .maybeSingle()
+      if (error) throw error
+      if (!data) throw new Error('Token de manager invalido ou ja utilizado.')
+      if (data.expira_em && new Date(data.expira_em).getTime() < Date.now()) throw new Error('Token de manager expirado.')
+      if (data.senha_hash && data.senha_hash !== hashInvitePassword(cleanText(details.senha_convite))) {
+        throw new Error('Senha do convite de manager invalida.')
+      }
+      managerInvite = data
+    }
 
     const { data: existingLogin } = await supabaseAdmin
       .from(table)
@@ -122,7 +150,7 @@ export async function POST(req: Request) {
     if (profileType === 'manager') {
       payload.avatar_url = mediaUrl
       payload.token_convite = cleanText(details.token_convite) || null
-      payload.tipo_manager = cleanText(details.tipo_manager) || null
+      payload.tipo_manager = cleanText(details.tipo_manager) || managerInvite?.tipo_acesso || null
     }
 
     const { data: account, error: accountError } = await supabaseAdmin
@@ -134,6 +162,14 @@ export async function POST(req: Request) {
     if (accountError) {
       await supabaseAdmin.auth.admin.deleteUser(userData.user.id)
       throw new Error(`Perfil/${table}: ${accountError.message}`)
+    }
+
+    if (managerInvite) {
+      const { error: tokenError } = await supabaseAdmin
+        .from('convites_tokens')
+        .update({ usado: true, usado_em: new Date().toISOString() })
+        .eq('id', managerInvite.id)
+      if (tokenError) throw tokenError
     }
 
     return NextResponse.json({ account })

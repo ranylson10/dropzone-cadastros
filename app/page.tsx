@@ -382,6 +382,7 @@ export default function Home() {
     estado: '',
     cidade: '',
     token_convite: '',
+    senha_convite: '',
   })
   const [activeAuthType, setActiveAuthType] = useState<ProfileType | null>(null)
   const [recentProfiles, setRecentProfiles] = useState<any[]>([])
@@ -524,6 +525,7 @@ export default function Home() {
       estado: '',
       cidade: '',
       token_convite: '',
+      senha_convite: '',
     })
     if (nextType) setProfileType(nextType)
   }
@@ -758,21 +760,23 @@ export default function Home() {
   }
 
   async function registerPlayerByToken() {
-    if (!playerInvite) return setError('Digite um token valido enviado pela equipe.')
+    const cleanToken = playerToken.trim().toUpperCase()
+    if (!cleanToken) return setError('Digite o token enviado pela equipe.')
     if (!player.nick.trim() || !player.id_jogo.trim()) return setError('Informe nick e ID de jogo.')
     await createRow({
       entity_type: 'player_registration',
       name: player.nick,
-      parent_id: playerInvite.parent_id,
-      ref_id: playerInvite.ref_id,
+      parent_id: playerInvite?.parent_id,
+      ref_id: playerInvite?.ref_id,
+      token: cleanToken,
       data: {
         ...player,
-        token: playerInvite.token,
-        championship_id: playerInvite.parent_id,
-        championship_name: playerInvite.data?.championship_name,
-        team_id: playerInvite.ref_id,
-        team_name: playerInvite.data?.team_name,
-        team_tag: playerInvite.data?.team_tag,
+        token: cleanToken,
+        championship_id: playerInvite?.parent_id,
+        championship_name: playerInvite?.data?.championship_name,
+        team_id: playerInvite?.ref_id,
+        team_name: playerInvite?.data?.team_name,
+        team_tag: playerInvite?.data?.team_tag,
         player_username: account?.username,
       },
     }, 'Jogador inscrito e escalado na equipe.')
@@ -919,9 +923,14 @@ export default function Home() {
                         </div>
 
                         {profileType === 'manager' ? (
-                          <Field label="Token de convite">
-                            <input value={registerData.token_convite} onChange={(e) => updateRegisterData('token_convite', e.target.value.toUpperCase())} placeholder="Token recebido" />
-                          </Field>
+                          <div className="mini-grid tight-grid">
+                            <Field label="Token de convite">
+                              <input value={registerData.token_convite} onChange={(e) => updateRegisterData('token_convite', e.target.value.toUpperCase())} placeholder="MG-..." />
+                            </Field>
+                            <Field label="Senha do convite">
+                              <input type="password" value={registerData.senha_convite} onChange={(e) => updateRegisterData('senha_convite', e.target.value)} placeholder="Senha recebida" />
+                            </Field>
+                          </div>
                         ) : null}
 
                         <LocationSearch value={registerData} onSelect={selectLocation} />
