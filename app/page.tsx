@@ -366,6 +366,14 @@ function mediaForProfile(profile: any) {
   return profile?.data?.logo_url || profile?.data?.avatar_url || ''
 }
 
+function safeHeaderText(value: string) {
+  return String(value || '').trim().replace(/[^\x20-\x7E]/g, '')
+}
+
+function authHeaders(token: string) {
+  return { Authorization: `Bearer ${safeHeaderText(token)}` }
+}
+
 export default function Home() {
   const [mode, setMode] = useState<AuthMode>('entrar')
   const [profileType, setProfileType] = useState<ProfileType>('produtora')
@@ -535,7 +543,7 @@ export default function Home() {
     if (!accessToken) return
 
     const meRes = await fetch('/api/me', {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: authHeaders(accessToken),
     })
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessao invalida.')
@@ -543,7 +551,7 @@ export default function Home() {
     saveRecentProfile(meJson.account)
 
     const rowsRes = await fetch('/api/dropzone', {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: authHeaders(accessToken),
     })
     const rowsJson = await rowsRes.json()
     if (!rowsRes.ok) throw new Error(rowsJson.error || 'Erro ao listar dados.')
@@ -610,7 +618,7 @@ export default function Home() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...authHeaders(token),
         },
         body: JSON.stringify(payload),
       })
