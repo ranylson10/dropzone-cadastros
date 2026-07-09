@@ -82,6 +82,79 @@ function uploadTargetFor(bucket: string) {
   return uploadTargets[bucket as keyof typeof uploadTargets] || { width: 500, height: 500, kindLabel: 'imagem' }
 }
 
+const BRAZIL_LOCATIONS = [
+  { cidade: 'Belém', estado: 'PA', pais: 'Brasil' },
+  { cidade: 'Ananindeua', estado: 'PA', pais: 'Brasil' },
+  { cidade: 'Marituba', estado: 'PA', pais: 'Brasil' },
+  { cidade: 'Santarém', estado: 'PA', pais: 'Brasil' },
+  { cidade: 'Marabá', estado: 'PA', pais: 'Brasil' },
+  { cidade: 'São Paulo', estado: 'SP', pais: 'Brasil' },
+  { cidade: 'Rio de Janeiro', estado: 'RJ', pais: 'Brasil' },
+  { cidade: 'Belo Horizonte', estado: 'MG', pais: 'Brasil' },
+  { cidade: 'Brasília', estado: 'DF', pais: 'Brasil' },
+  { cidade: 'Salvador', estado: 'BA', pais: 'Brasil' },
+  { cidade: 'Fortaleza', estado: 'CE', pais: 'Brasil' },
+  { cidade: 'Recife', estado: 'PE', pais: 'Brasil' },
+  { cidade: 'Manaus', estado: 'AM', pais: 'Brasil' },
+  { cidade: 'Curitiba', estado: 'PR', pais: 'Brasil' },
+  { cidade: 'Porto Alegre', estado: 'RS', pais: 'Brasil' },
+  { cidade: 'Goiânia', estado: 'GO', pais: 'Brasil' },
+  { cidade: 'Florianópolis', estado: 'SC', pais: 'Brasil' },
+  { cidade: 'Cuiabá', estado: 'MT', pais: 'Brasil' },
+  { cidade: 'Maceió', estado: 'AL', pais: 'Brasil' },
+  { cidade: 'Macapá', estado: 'AP', pais: 'Brasil' },
+]
+
+function normalizeText(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+}
+
+function LocationSearch({ value, onSelect }: { value: { pais: string; estado: string; cidade: string }; onSelect: (location: { pais: string; estado: string; cidade: string }) => void }) {
+  const selectedLabel = [value.cidade, value.estado, value.pais].filter(Boolean).join(', ')
+  const [query, setQuery] = useState(selectedLabel)
+  const [open, setOpen] = useState(false)
+  const filtered = useMemo(() => {
+    const q = normalizeText(query)
+    if (!q) return BRAZIL_LOCATIONS.slice(0, 6)
+    return BRAZIL_LOCATIONS.filter((item) => normalizeText(`${item.cidade} ${item.estado} ${item.pais}`).includes(q)).slice(0, 8)
+  }, [query])
+
+  return (
+    <Field label="Localidade">
+      <div className="location-search">
+        <input
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Digite cidade, estado ou país"
+        />
+        {open ? (
+          <div className="location-results">
+            {filtered.length ? filtered.map((item) => (
+              <button
+                type="button"
+                key={`${item.cidade}-${item.estado}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onSelect(item)
+                  setQuery(`${item.cidade}, ${item.estado}, ${item.pais}`)
+                  setOpen(false)
+                }}
+              >
+                <strong>{item.cidade}</strong>
+                <span>{item.estado}, {item.pais}</span>
+              </button>
+            )) : <div className="location-empty">Nenhuma cidade encontrada.</div>}
+          </div>
+        ) : null}
+      </div>
+    </Field>
+  )
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="field">
@@ -413,6 +486,10 @@ export default function Home() {
 
   function updateRegisterData(key: string, value: string) {
     setRegisterData((current) => ({ ...current, [key]: value }))
+  }
+
+  function selectLocation(location: { pais: string; estado: string; cidade: string }) {
+    setRegisterData((current) => ({ ...current, ...location }))
   }
 
   function clearRegisterForm(nextType?: ProfileType) {
@@ -765,96 +842,91 @@ export default function Home() {
                   </div>
                 </>
               ) : (
-              <section className="auth-inline-panel">
-                <div className="auth-inline-head">
-              <div className="tabs auth-inline-tabs">
-                <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => setMode('entrar')}>Entrar</button>
-                <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => setMode('criar')}>Criar conta</button>
-              </div>
-              <button type="button" className="close-auth inline-close" onClick={() => setActiveAuthType(null)} aria-label="Fechar">
-                <X size={18} />
-              </button>
+              <section className="auth-inline-panel auth-light-panel">
+                <div className="auth-inline-head auth-light-head">
+                  <div className="auth-site-mark">
+                    <img src="/dropzone-icon.png" alt="DropZone" />
+                    <div>
+                      <span>DropZone</span>
+                      <strong>{typeLabels[profileType]}</strong>
+                    </div>
+                  </div>
+                  <div className="tabs auth-inline-tabs">
+                    <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => setMode('entrar')}>Entrar</button>
+                    <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => setMode('criar')}>Criar conta</button>
+                  </div>
+                  <button type="button" className="close-auth inline-close" onClick={() => setActiveAuthType(null)} aria-label="Fechar">
+                    <X size={18} />
+                  </button>
                 </div>
 
-                <form onSubmit={handleAuth} className="auth-inline-form">
-              <div className="selected-profile selected-profile-clean">
-                <span>{profileIcons[profileType]}</span>
-                <div>
-                  <strong>{typeLabels[profileType]}</strong>
-                  <p>{mode === 'criar' ? 'Cadastro completo na criação' : 'Entrar com login ou ID'}</p>
-                </div>
-              </div>
-              {mode === 'criar' ? (
-                <>
-                  <Field label={profileType === 'equipe' ? 'Nome da equipe' : profileType === 'jogador' ? 'Nick' : profileType === 'manager' ? 'Nome do manager' : 'Nome da produtora'}>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
-                  </Field>
+                <form onSubmit={handleAuth} className="auth-inline-form compact-auth-form">
+                  {mode === 'criar' ? (
+                    <div className="register-compact-grid">
+                      <UploadField
+                        label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo' : 'Foto'}
+                        value={mediaUrl}
+                        bucket={profileType}
+                        onChange={setMediaUrl}
+                        onUpload={uploadPublicFile}
+                      />
 
-                  {profileType === 'equipe' ? (
-                    <Field label="Tag da equipe">
-                      <input value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="Ex: 6B" />
-                    </Field>
-                  ) : null}
+                      <div className="register-main-fields">
+                        <div className="mini-grid tight-grid">
+                          <Field label={profileType === 'equipe' ? 'Nome da equipe' : profileType === 'jogador' ? 'Nick' : profileType === 'manager' ? 'Nome do manager' : 'Nome da produtora'}>
+                            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
+                          </Field>
 
-                  {profileType === 'jogador' ? (
-                    <div className="mini-grid">
-                      <Field label="ID de jogo">
-                        <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID único do Free Fire" />
-                      </Field>
-                      <Field label="Função">
-                        <select value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
-                          <option value="support">Support</option>
-                          <option value="rush">Rush</option>
-                          <option value="sniper">Sniper</option>
-                          <option value="bomber">Bomber</option>
-                        </select>
-                      </Field>
+                          {profileType === 'equipe' ? (
+                            <Field label="Tag">
+                              <input value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="6B" />
+                            </Field>
+                          ) : null}
+
+                          {profileType === 'jogador' ? (
+                            <>
+                              <Field label="ID de jogo">
+                                <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" />
+                              </Field>
+                              <Field label="Função">
+                                <select value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
+                                  <option value="support">Support</option>
+                                  <option value="rush">Rush</option>
+                                  <option value="sniper">Sniper</option>
+                                  <option value="bomber">Bomber</option>
+                                </select>
+                              </Field>
+                            </>
+                          ) : null}
+                        </div>
+
+                        {profileType === 'manager' ? (
+                          <Field label="Token de convite">
+                            <input value={registerData.token_convite} onChange={(e) => updateRegisterData('token_convite', e.target.value.toUpperCase())} placeholder="Token recebido" />
+                          </Field>
+                        ) : null}
+
+                        <LocationSearch value={registerData} onSelect={selectLocation} />
+                        <Field label="E-mail de confirmação">
+                          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
+                        </Field>
+                      </div>
                     </div>
                   ) : null}
 
-                  {profileType === 'manager' ? (
-                    <Field label="Token de convite">
-                      <input value={registerData.token_convite} onChange={(e) => updateRegisterData('token_convite', e.target.value.toUpperCase())} placeholder="Opcional nesta etapa" />
+                  <div className="mini-grid auth-base-grid">
+                    <Field label="Login único ou ID">
+                      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID público" />
                     </Field>
-                  ) : null}
-
-                  <UploadField
-                    label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo' : 'Foto'}
-                    value={mediaUrl}
-                    bucket={profileType}
-                    onChange={setMediaUrl}
-                    onUpload={uploadPublicFile}
-                  />
-
-                  <div className="location-grid">
-                    <Field label="País">
-                      <input value={registerData.pais} onChange={(e) => updateRegisterData('pais', e.target.value)} placeholder="Brasil" />
-                    </Field>
-                    <Field label="Estado">
-                      <input value={registerData.estado} onChange={(e) => updateRegisterData('estado', e.target.value)} placeholder="SP" />
-                    </Field>
-                    <Field label="Cidade">
-                      <input value={registerData.cidade} onChange={(e) => updateRegisterData('cidade', e.target.value)} placeholder="São Paulo" />
+                    <Field label="Senha">
+                      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
                     </Field>
                   </div>
 
-                  <Field label="E-mail de confirmação">
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
-                  </Field>
-                </>
-              ) : null}
-              <div className="mini-grid auth-base-grid">
-                <Field label="Login único ou ID">
-                  <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID público" />
-                </Field>
-                <Field label="Senha">
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
-                </Field>
-              </div>
-              <div className="auth-actions-row">
-                <button className="button" disabled={loading}>{mode === 'criar' ? 'Criar e entrar' : 'Entrar'}</button>
-                <button type="button" className="link-button auth-inline-link" onClick={() => setMessage('Recuperação de senha entra na próxima etapa: envio pelo e-mail confirmado do perfil.')}>Esqueci minha senha</button>
-              </div>
+                  <div className="auth-actions-row">
+                    <button className="button" disabled={loading}>{mode === 'criar' ? 'Criar e entrar' : 'Entrar'}</button>
+                    <button type="button" className="link-button auth-inline-link" onClick={() => setMessage('Recuperação de senha entra na próxima etapa: envio pelo e-mail confirmado do perfil.')}>Esqueci minha senha</button>
+                  </div>
                 </form>
                 {message ? <div className="message floating">{message}</div> : null}
                 {error ? <div className="message error floating">{error}</div> : null}
