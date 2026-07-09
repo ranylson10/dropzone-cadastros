@@ -38,6 +38,30 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+function UploadField({ label, value, bucket, onChange, onUpload }: { label: string; value: string; bucket: string; onChange: (value: string) => void; onUpload: (file: File, bucket: string) => Promise<string> }) {
+  return (
+    <Field label={label}>
+      <div className="upload-field">
+        <div className="upload-preview">
+          {value ? <img src={value} alt="" /> : <span>IMG</span>}
+        </div>
+        <div className="upload-controls">
+          <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="URL ou envie um arquivo" />
+          <label className="file-button">
+            Enviar arquivo
+            <input type="file" accept="image/*" onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              const url = await onUpload(file, bucket)
+              if (url) onChange(url)
+            }} />
+          </label>
+        </div>
+      </div>
+    </Field>
+  )
+}
+
 function rowTitle(row?: DropZoneRow | null) {
   if (!row) return '-'
   if (row.name) return row.name
@@ -62,6 +86,8 @@ export default function Home() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [mediaUrl, setMediaUrl] = useState('')
+  const [activeAuthType, setActiveAuthType] = useState<ProfileType | null>(null)
   const [recentProfiles, setRecentProfiles] = useState<any[]>([])
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [rows, setRows] = useState<DropZoneRow[]>([])
@@ -146,6 +172,27 @@ export default function Home() {
     localStorage.setItem('dropzone_recent_profiles', JSON.stringify(next))
   }
 
+  async function uploadPublicFile(file: File, bucket: string) {
+    setLoading(true)
+    setError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('bucket', bucket)
+
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao enviar arquivo.')
+      setMessage('Arquivo enviado.')
+      return String(json.url || '')
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao enviar arquivo.')
+      return ''
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function loadMeAndRows(token?: string) {
     const accessToken = token || await getToken()
     if (!accessToken) return
@@ -183,6 +230,7 @@ export default function Home() {
             username: clean,
             name,
             email,
+            media_url: mediaUrl,
             password,
           }),
         })
@@ -197,6 +245,7 @@ export default function Home() {
       if (loginError || !data.session) throw new Error(loginError?.message || 'Login invalido.')
 
       await loadMeAndRows(data.session.access_token)
+      setActiveAuthType(null)
       setMessage('Login realizado.')
     } catch (err: any) {
       setError(err?.message || 'Falha na autenticacao.')
@@ -419,14 +468,28 @@ export default function Home() {
         </div>
 
         {!account ? (
-          <div className="login-layout">
-            <section className="profile-picker">
-              <p className="eyebrow">Escolha seu acesso</p>
-              <h2>Tipo de usuario</h2>
+          <section className="login-stage">
+            <div className="phone-shell">
+              <div className="phone-header">
+                <p className="eyebrow">Escolha seu acesso</p>
+                <h2>Quem vai entrar?</h2>
+                <p>Selecione um card. Se a sessão ainda estiver salva, entra direto; se não, o próprio card abre login, cadastro e recuperação.</p>
+              </div>
+
               {recentProfiles.length ? (
                 <div className="recent-profiles">
                   {recentProfiles.map((profile) => (
-                    <button key={profile.id} type="button" className="recent-card" onClick={() => { setProfileType(profile.profile_type); setUsername(profile.username || '') }}>
+                    <button
+                      key={profile.id}
+                      type="button"
+                      className="recent-card"
+                      onClick={() => {
+                        setProfileType(profile.profile_type)
+                        setActiveAuthType(profile.profile_type)
+                        setMode('entrar')
+                        setUsername(profile.username || '')
+                      }}
+                    >
                       <span>{profile.data?.logo_url || profile.data?.avatar_url ? <img src={profile.data.logo_url || profile.data.avatar_url} alt="" /> : profileIcons[profile.profile_type as ProfileType]}</span>
                       <strong>{profile.name}</strong>
                       <small>@{profile.username}{profile.public_id ? ` · ID ${profile.public_id}` : ''}</small>
@@ -434,57 +497,74 @@ export default function Home() {
                   ))}
                 </div>
               ) : null}
-              <div className="profile-cards">
-                {PROFILE_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    className={`profile-card ${profileType === type ? 'active' : ''}`}
-                    onClick={() => setProfileType(type)}
-                  >
-                    <span>{profileIcons[type]}</span>
-                    <strong>{typeLabels[type]}</strong>
-                    <small>{typeDescriptions[type]}</small>
-                  </button>
-                ))}
-              </div>
-            </section>
 
-            <section className="panel auth-panel">
-              <div className="tabs">
-                <button className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => setMode('entrar')}>Entrar</button>
-                <button className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => setMode('criar')}>Criar conta</button>
+              <div className="profile-cards">
+                {PROFILE_TYPES.map((type) => {
+                  const active = activeAuthType === type
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      className={`profile-card ${active ? 'active expanded' : ''}`}
+                      onClick={() => {
+                        setProfileType(type)
+                        setActiveAuthType(active ? null : type)
+                      }}
+                    >
+                      <span>{profileIcons[type]}</span>
+                      <strong>{typeLabels[type]}</strong>
+                      <small>{typeDescriptions[type]}</small>
+                    </button>
+                  )
+                })}
               </div>
-              <form onSubmit={handleAuth}>
-                <div className="selected-profile">
-                  <span>{profileIcons[profileType]}</span>
-                  <div>
-                    <strong>{typeLabels[profileType]}</strong>
-                    <p>{typeDescriptions[profileType]}</p>
+
+              {activeAuthType ? (
+                <section className="auth-drawer">
+                  <div className="tabs">
+                    <button className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => setMode('entrar')}>Entrar</button>
+                    <button className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => setMode('criar')}>Criar conta</button>
                   </div>
-                </div>
-                {mode === 'criar' ? (
-                  <>
-                    <Field label="Nome exibido">
-                      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome publico do perfil" />
+                  <form onSubmit={handleAuth}>
+                    <div className="selected-profile">
+                      <span>{profileIcons[profileType]}</span>
+                      <div>
+                        <strong>{typeLabels[profileType]}</strong>
+                        <p>{typeDescriptions[profileType]}</p>
+                      </div>
+                    </div>
+                    {mode === 'criar' ? (
+                      <>
+                        <Field label="Nome exibido">
+                          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome publico do perfil" />
+                        </Field>
+                        <Field label="E-mail de confirmação">
+                          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
+                        </Field>
+                        <UploadField
+                          label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo do perfil' : 'Foto do perfil'}
+                          value={mediaUrl}
+                          bucket={profileType}
+                          onChange={setMediaUrl}
+                          onUpload={uploadPublicFile}
+                        />
+                      </>
+                    ) : null}
+                    <Field label="Login unico ou ID">
+                      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID publico" />
                     </Field>
-                    <Field label="E-mail de confirmação">
-                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
+                    <Field label="Senha">
+                      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 6 caracteres" />
                     </Field>
-                  </>
-                ) : null}
-                <Field label="Login unico ou ID">
-                  <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID publico" />
-                </Field>
-                <Field label="Senha">
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 6 caracteres" />
-                </Field>
-                <button className="button wide" disabled={loading}>{mode === 'criar' ? 'Criar e entrar' : 'Entrar'}</button>
-              </form>
-              {message ? <div className="message">{message}</div> : null}
-              {error ? <div className="message error">{error}</div> : null}
-            </section>
-          </div>
+                    <button className="button wide" disabled={loading}>{mode === 'criar' ? 'Criar e entrar' : 'Entrar'}</button>
+                    <button type="button" className="link-button" onClick={() => setMessage('Recuperação de senha entra na próxima etapa: envio pelo e-mail confirmado do perfil.')}>Esqueci minha senha</button>
+                  </form>
+                  {message ? <div className="message">{message}</div> : null}
+                  {error ? <div className="message error">{error}</div> : null}
+                </section>
+              ) : null}
+            </div>
+          </section>
         ) : (
           <>
             <section className="account-strip">
@@ -526,6 +606,7 @@ export default function Home() {
                 generateTeamInvite={generateTeamInvite}
                 copyToken={copyToken}
                 loading={loading}
+                uploadPublicFile={uploadPublicFile}
               />
             ) : null}
 
@@ -550,6 +631,7 @@ export default function Home() {
                 generatePlayerInvite={generatePlayerInvite}
                 copyToken={copyToken}
                 loading={loading}
+                uploadPublicFile={uploadPublicFile}
               />
             ) : null}
 
@@ -563,6 +645,7 @@ export default function Home() {
                 registerPlayerByToken={registerPlayerByToken}
                 registrations={myRegistrations}
                 loading={loading}
+                uploadPublicFile={uploadPublicFile}
               />
             ) : null}
 
@@ -603,6 +686,7 @@ function ProdutoraPanel(props: {
   generateTeamInvite: () => void
   copyToken: (value: string | null) => void
   loading: boolean
+  uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const teamInvites = props.tokens.filter((row) => row.data?.token_kind === 'team_invite' && row.parent_id === props.selectedChamp?.id)
   const champGroups = props.groups.filter((row) => row.parent_id === props.selectedChamp?.id)
@@ -643,7 +727,7 @@ function ProdutoraPanel(props: {
         </div>
         <div className="form-grid">
           <Field label="Nome"><input value={props.championship.nome} onChange={(e) => props.setChampionship({ ...props.championship, nome: e.target.value })} /></Field>
-          <Field label="Logo URL"><input value={props.championship.logo_url} onChange={(e) => props.setChampionship({ ...props.championship, logo_url: e.target.value })} /></Field>
+          <UploadField label="Logo do campeonato" value={props.championship.logo_url} bucket="campeonato" onChange={(url) => props.setChampionship({ ...props.championship, logo_url: url })} onUpload={props.uploadPublicFile} />
           <Field label="Premiacao"><input value={props.championship.premiacao} onChange={(e) => props.setChampionship({ ...props.championship, premiacao: e.target.value })} /></Field>
           <Field label="Link das regras"><input value={props.championship.regras_url} onChange={(e) => props.setChampionship({ ...props.championship, regras_url: e.target.value })} /></Field>
           <Field label="Divisao da premiacao"><textarea value={props.championship.divisao_premiacao} onChange={(e) => props.setChampionship({ ...props.championship, divisao_premiacao: e.target.value })} /></Field>
@@ -686,7 +770,7 @@ function ProdutoraPanel(props: {
             <h3>Cadastrar equipe manual</h3>
             <Field label="Nome"><input value={props.team.nome} onChange={(e) => props.setTeam({ ...props.team, nome: e.target.value })} /></Field>
             <Field label="Tag"><input value={props.team.tag} onChange={(e) => props.setTeam({ ...props.team, tag: e.target.value.toUpperCase() })} /></Field>
-            <Field label="Logo URL"><input value={props.team.logo_url} onChange={(e) => props.setTeam({ ...props.team, logo_url: e.target.value })} /></Field>
+            <UploadField label="Logo da equipe" value={props.team.logo_url} bucket="equipe" onChange={(url) => props.setTeam({ ...props.team, logo_url: url })} onUpload={props.uploadPublicFile} />
             <Field label="Senha do dono"><input value={props.team.senha_dono} onChange={(e) => props.setTeam({ ...props.team, senha_dono: e.target.value })} /></Field>
             <button className="button" onClick={props.createTeam}>Salvar equipe</button>
           </div>
@@ -754,6 +838,7 @@ function EquipePanel(props: {
   generatePlayerInvite: () => void
   copyToken: (value: string | null) => void
   loading: boolean
+  uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const playerInvites = props.tokens.filter((row) => row.data?.token_kind === 'player_invite' && row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id))
 
@@ -782,7 +867,7 @@ function EquipePanel(props: {
         <h2>Criar minha equipe</h2>
         <Field label="Nome"><input value={props.team.nome} onChange={(e) => props.setTeam({ ...props.team, nome: e.target.value })} /></Field>
         <Field label="Tag"><input value={props.team.tag} onChange={(e) => props.setTeam({ ...props.team, tag: e.target.value.toUpperCase() })} /></Field>
-        <Field label="Logo URL"><input value={props.team.logo_url} onChange={(e) => props.setTeam({ ...props.team, logo_url: e.target.value })} /></Field>
+        <UploadField label="Logo da equipe" value={props.team.logo_url} bucket="equipe" onChange={(url) => props.setTeam({ ...props.team, logo_url: url })} onUpload={props.uploadPublicFile} />
         <Field label="Senha do dono"><input value={props.team.senha_dono} onChange={(e) => props.setTeam({ ...props.team, senha_dono: e.target.value })} /></Field>
         <button className="button" onClick={props.createTeam}>Salvar equipe</button>
       </section>
@@ -841,6 +926,7 @@ function JogadorPanel(props: {
   registerPlayerByToken: () => void
   registrations: DropZoneRow[]
   loading: boolean
+  uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   return (
     <div className="dashboard">
@@ -864,7 +950,7 @@ function JogadorPanel(props: {
         <div className="form-grid">
           <Field label="Nick"><input value={props.player.nick} onChange={(e) => props.setPlayer({ ...props.player, nick: e.target.value })} /></Field>
           <Field label="ID de jogo"><input value={props.player.id_jogo} onChange={(e) => props.setPlayer({ ...props.player, id_jogo: e.target.value })} /></Field>
-          <Field label="Foto URL"><input value={props.player.foto_url} onChange={(e) => props.setPlayer({ ...props.player, foto_url: e.target.value })} /></Field>
+          <UploadField label="Foto do jogador" value={props.player.foto_url} bucket="jogador" onChange={(url) => props.setPlayer({ ...props.player, foto_url: url })} onUpload={props.uploadPublicFile} />
           <Field label="Funcao">
             <select value={props.player.funcao} onChange={(e) => props.setPlayer({ ...props.player, funcao: e.target.value })}>
               <option value="support">Support</option>

@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     const name = String(body.name || '').trim()
     const password = String(body.password || '')
     const emailContato = body.email ? cleanEmail(body.email) : null
+    const mediaUrl = String(body.media_url || '').trim() || null
 
     if (!name) throw new Error('Informe o nome.')
     if (password.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.')
@@ -63,6 +64,11 @@ export async function POST(req: Request) {
       email_contato: emailContato,
       email_verificado: false,
       status: 'ativo',
+    }
+
+    if (mediaUrl) {
+      if (profileType === 'produtora' || profileType === 'equipe') payload.logo_url = mediaUrl
+      else payload.avatar_url = mediaUrl
     }
 
     if (profileType !== 'jogador') {
