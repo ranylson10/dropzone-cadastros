@@ -2142,166 +2142,79 @@ body:has(.login-stage-bg) h1 {
   }
 }
 
-/* --- ajuste: acesso recente direto + painel por abas --- */
-.other-account-link {
+.login-other-account {
   display: block;
-  margin: 16px auto 0;
+  width: fit-content;
+  margin: 18px auto 0;
   border: 0;
   background: transparent;
-  color: rgba(48, 38, 74, .68);
+  color: #7b6f96;
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: .14em;
+  letter-spacing: .16em;
   text-transform: uppercase;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
-.other-account-link:hover {
-  color: var(--brand);
-}
-
-.dashboard-tabbed {
-  grid-template-columns: 1fr;
-}
-
-.profile-tabs-panel {
-  padding: 20px;
-}
-
-.compact-section-head {
-  margin-bottom: 16px;
-}
-
-.panel-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 0 0 18px;
-  padding: 8px;
-  border: 1px solid rgba(104, 80, 154, .14);
-  background: rgba(255,255,255,.55);
-  border-radius: 16px;
-}
-
-.panel-tabs button {
-  min-height: 40px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: #5f5574;
-  padding: 0 16px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.panel-tabs button.active,
-.panel-tabs button:hover {
-  border-color: rgba(123,91,214,.24);
-  background: linear-gradient(135deg, rgba(123,91,214,.16), rgba(167,119,227,.12));
-  color: #30264a;
-}
-
-.tab-content {
+.team-dashboard {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
-.inline-title {
+.team-tabs-panel {
+  padding-bottom: 18px;
+}
+
+.panel-tabs {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panel-tabs .tab {
+  min-width: 130px;
+}
+
+.championship-list-cards .card,
+.championship-team-card {
+  min-height: 150px;
+}
+
+.slot-row {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 0;
-}
-
-.pill-count {
-  display: inline-flex;
-  min-width: 42px;
-  min-height: 32px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(123,91,214,.12);
-  color: var(--brand);
-  font-weight: 950;
-}
-
-.championship-list-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-}
-
-.championship-card {
-  display: grid;
-  grid-template-columns: 54px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  min-height: 92px;
-  border: 1px solid rgba(104,80,154,.14);
-  background: rgba(255,255,255,.72);
-  color: var(--text);
-  padding: 12px;
-  border-radius: 16px;
-  text-align: left;
-  box-shadow: 0 14px 34px rgba(64,45,105,.08);
-}
-
-.championship-card:hover,
-.championship-card.active {
-  border-color: rgba(123,91,214,.42);
-  transform: translateY(-2px);
-}
-
-.championship-card strong {
-  display: block;
-  min-width: 0;
-  font-size: 15px;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.championship-card small {
-  display: block;
-  grid-column: 2;
-  color: var(--muted);
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(136, 94, 230, .18);
+  border-radius: 12px;
+  background: rgba(136, 94, 230, .08);
+  color: #776c8f;
   font-size: 12px;
+  font-weight: 800;
 }
 
-.champ-logo {
-  display: grid;
-  grid-row: span 2;
-  width: 54px;
-  height: 54px;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 14px;
-  background: rgba(123,91,214,.1);
-  color: var(--brand);
+.slot-row b {
+  color: #7c4de6;
 }
 
-.champ-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.compact-row {
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.clean-form-grid {
-  grid-template-columns: minmax(220px, 1fr) 140px minmax(220px, 1fr);
-  align-items: start;
-}
-
-.organizer-grid {
-  align-items: start;
+.muted-text {
+  margin: -2px 0 16px;
+  color: #80758f;
+  font-size: 13px;
 }
 
 @media (max-width: 760px) {
-  .panel-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .clean-form-grid {
+  .team-dashboard {
     grid-template-columns: 1fr;
   }
 }

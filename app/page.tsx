@@ -393,7 +393,6 @@ export default function Home() {
     senha_convite: '',
   })
   const [activeAuthType, setActiveAuthType] = useState<ProfileType | null>(null)
-  const [forceLoginSelection, setForceLoginSelection] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<any[]>([])
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [rows, setRows] = useState<DropZoneRow[]>([])
@@ -422,6 +421,8 @@ export default function Home() {
   const [teamPanelToken, setTeamPanelToken] = useState('')
   const [teamPlayerChampId, setTeamPlayerChampId] = useState('')
   const [teamPlayerTeamId, setTeamPlayerTeamId] = useState('')
+  const [teamStandaloneToken, setTeamStandaloneToken] = useState('')
+  const [teamPanelTab, setTeamPanelTab] = useState('campeonatos')
   const [playerToken, setPlayerToken] = useState('')
   const [player, setPlayer] = useState({
     nick: '',
@@ -439,13 +440,9 @@ export default function Home() {
   const games = useMemo(() => rows.filter((row) => row.entity_type === 'game'), [rows])
   const tokens = useMemo(() => rows.filter((row) => row.entity_type === 'invite_token'), [rows])
   const registrations = useMemo(() => rows.filter((row) => row.entity_type === 'player_registration'), [rows])
+  const teamPlayers = useMemo(() => rows.filter((row) => row.entity_type === 'team_player'), [rows])
 
-  const visibleChampionships = useMemo(() => {
-    if (account?.profile_type === 'produtora') return championships.filter((row) => row.created_by === account.auth_user_id)
-    return championships
-  }, [account, championships])
-
-  const selectedChamp = visibleChampionships.find((row) => row.id === selectedChampId) || visibleChampionships[0]
+  const selectedChamp = championships.find((row) => row.id === selectedChampId) || championships[0]
   const selectedChampTeams = links
     .filter((link) => link.parent_id === selectedChamp?.id)
     .map((link) => teams.find((teamRow) => teamRow.id === link.ref_id))
@@ -454,8 +451,8 @@ export default function Home() {
   const managedTeamIds = useMemo(() => {
     if (!account) return []
     const direct = teams.filter((row) => row.created_by === account.auth_user_id).map((row) => row.id)
-    const linked = links.filter((row) => row.created_by === account.auth_user_id).map((row) => String(row.ref_id || ''))
-    return Array.from(new Set([...direct, ...linked].filter(Boolean)))
+    const ownProfileTeam = account.profile_type === 'equipe' ? [account.id] : []
+    return Array.from(new Set([...direct, ...ownProfileTeam].filter(Boolean)))
   }, [account, teams, links])
 
   const managedTeams = teams.filter((row) => managedTeamIds.includes(row.id))
@@ -485,21 +482,34 @@ export default function Home() {
   }
 
   async function enterRecentProfile(type: ProfileType, recent: any) {
-    setLoading(true)
+    clearRegisterForm(type)
+    setProfileType(type)
     setError('')
     setMessage('')
-    try {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
-      if (!token) throw new Error('Sessao expirada. Use Logar com outra conta para entrar novamente.')
-      await loadMeAndRows(token, { id: recent.id, profile_type: type })
-      setActiveAuthType(null)
-      setForceLoginSelection(false)
-    } catch (err: any) {
-      setError(err?.message || 'Nao foi possivel abrir o acesso recente.')
-    } finally {
-      setLoading(false)
+
+    if (!recent) {
+      setMode('entrar')
+      setActiveAuthType(type)
+      return
     }
+
+    setUsername(recent.username || '')
+    setName(recent.name || '')
+    setMediaUrl(mediaForProfile(recent))
+    setMode('entrar')
+
+    const { data } = await supabase.auth.getSession()
+    if (data.session) {
+      try {
+        await loadMeAndRows(data.session.access_token)
+        return
+      } catch {
+        await supabase.auth.signOut()
+      }
+    }
+
+    setActiveAuthType(type)
+    setMessage('Digite a senha para acessar esta conta recente.')
   }
 
   async function uploadPublicFile(file: File, bucket: string) {
@@ -562,28 +572,24 @@ export default function Home() {
     if (nextType) setProfileType(nextType)
   }
 
-  async function loadMeAndRows(token?: string, expected?: { id?: string; profile_type?: ProfileType }) {
+  async function loadMeAndRows(token?: string) {
     const accessToken = token || await getToken()
-    if (!accessToken) return null
+    if (!accessToken) return
 
     const meRes = await fetch('/api/me', {
       headers: authHeaders(accessToken),
     })
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessao invalida.')
-    if (expected?.id && meJson.account?.id !== expected.id) throw new Error('Acesso recente nao pertence a sessao atual. Use Logar com outra conta.')
-    if (expected?.profile_type && meJson.account?.profile_type !== expected.profile_type) throw new Error('A sessao atual e de outro tipo de perfil. Use Logar com outra conta.')
+    setAccount(meJson.account)
+    saveRecentProfile(meJson.account)
 
     const rowsRes = await fetch('/api/dropzone', {
       headers: authHeaders(accessToken),
     })
     const rowsJson = await rowsRes.json()
     if (!rowsRes.ok) throw new Error(rowsJson.error || 'Erro ao listar dados.')
-
-    setAccount(meJson.account)
-    saveRecentProfile(meJson.account)
     setRows(rowsJson.rows || [])
-    return meJson.account
   }
 
   async function handleAuth(event: FormEvent) {
@@ -670,8 +676,7 @@ export default function Home() {
 
   async function createChampionship() {
     if (!championship.nome.trim()) return setError('Informe o nome do campeonato.')
-    const created = await createRow({ entity_type: 'championship', name: championship.nome, data: championship }, 'Campeonato criado.')
-    if (created?.id) setSelectedChampId(created.id)
+    await createRow({ entity_type: 'championship', name: championship.nome, data: championship }, 'Campeonato criado.')
     setChampionship({ nome: '', logo_url: '', premiacao: '', divisao_premiacao: '', regras_url: '' })
   }
 
@@ -762,21 +767,19 @@ export default function Home() {
   }
 
   async function acceptTeamInvite() {
-    const invite = tokens.find((row) => row.token?.toUpperCase() === teamPanelToken.trim().toUpperCase() && row.data?.token_kind === 'team_invite' && !row.data?.usado)
-    if (!invite) return setError('Token de equipe nao encontrado ou ja utilizado.')
+    const clean = teamPanelToken.trim().toUpperCase()
+    if (!clean) return setError('Cole o token do campeonato.')
     await createRow({
       entity_type: 'championship_team',
-      token: teamPanelToken.trim().toUpperCase(),
-      parent_id: invite.parent_id,
-      ref_id: invite.ref_id,
-      data: { token: teamPanelToken.trim().toUpperCase() },
-    }, 'Convite aceito. Token marcado como usado.')
+      token: clean,
+      data: { token: clean },
+    }, 'Convite aceito. Equipe adicionada ao campeonato.')
     setTeamPanelToken('')
   }
 
   async function generatePlayerInvite() {
     const champ = championships.find((row) => row.id === teamPlayerChampId)
-    const teamRow = teams.find((row) => row.id === teamPlayerTeamId)
+    const teamRow = teams.find((row) => row.id === teamPlayerTeamId) || managedTeams[0]
     if (!champ || !teamRow) return setError('Selecione campeonato e equipe.')
     await createRow({
       entity_type: 'invite_token',
@@ -794,6 +797,24 @@ export default function Home() {
         team_tag: dataText(teamRow, 'tag'),
       },
     }, 'Token de jogador gerado para envio.')
+  }
+
+  async function generateTeamPlayerInvite() {
+    const teamRow = managedTeams[0]
+    if (!teamRow) return setError('Equipe nao encontrada para gerar convite.')
+    await createRow({
+      entity_type: 'invite_token',
+      name: `Token jogador ${rowTitle(teamRow)}`,
+      ref_id: teamRow.id,
+      generate_token: true,
+      token_prefix: 'JG',
+      data: {
+        token_kind: 'player_invite',
+        team_id: teamRow.id,
+        team_name: teamRow.name,
+        team_tag: dataText(teamRow, 'tag'),
+      },
+    }, 'Token gerado para adicionar jogador na equipe.')
   }
 
   async function registerPlayerByToken() {
@@ -865,27 +886,13 @@ export default function Home() {
                               key={type}
                               type="button"
                               className={`profile-card gamer-card ${recent ? 'has-recent' : ''}`}
-                              onClick={() => {
-                                if (recent && !forceLoginSelection) {
-                                  enterRecentProfile(type, recent)
-                                  return
-                                }
-                                clearRegisterForm(type)
-                                setProfileType(type)
-                                if (recent) {
-                                  setUsername(recent.username || '')
-                                  setName(recent.name || '')
-                                  setMediaUrl(media)
-                                }
-                                setMode('entrar')
-                                setActiveAuthType(type)
-                              }}
+                              onClick={() => enterRecentProfile(type, recent)}
                             >
                               <div className="card-icon-frame">
                                 {media ? <img src={media} alt="" /> : <span>{profileIcons[type]}</span>}
                               </div>
                               <div className="card-copy">
-                                <div className="card-topline">{recent && !forceLoginSelection ? 'Acesso recente' : 'Novo acesso'}</div>
+                                <div className="card-topline">{recent ? 'Acesso recente' : 'Novo acesso'}</div>
                                 <strong>{typeLabels[type]}</strong>
                                 {recent ? (
                                   <>
@@ -903,14 +910,15 @@ export default function Home() {
                       </div>
                       <button
                         type="button"
-                        className="other-account-link"
+                        className="login-other-account"
                         onClick={() => {
-                          setForceLoginSelection((current) => !current)
-                          setError('')
-                          setMessage('')
+                          clearRegisterForm('produtora')
+                          setProfileType('produtora')
+                          setMode('entrar')
+                          setActiveAuthType('produtora')
                         }}
                       >
-                        {forceLoginSelection ? 'Usar acesso recente' : 'Logar com outra conta'}
+                        Logar com outra conta
                       </button>
                     </div>
                   </div>
@@ -1020,14 +1028,14 @@ export default function Home() {
                 <p className="eyebrow">Conta ativa</p>
                 <strong>{account.name} <span>@{account.username}{account.public_id ? ` · ID ${account.public_id}` : ''}</span></strong>
               </div>
-              <div className="metric"><b>{visibleChampionships.length}</b><span>Campeonatos</span></div>
+              <div className="metric"><b>{championships.length}</b><span>Campeonatos</span></div>
               <div className="metric"><b>{teams.length}</b><span>Equipes</span></div>
               <div className="metric"><b>{registrations.length}</b><span>Inscricoes</span></div>
             </section>
 
             {account.profile_type === 'produtora' ? (
               <ProdutoraPanel
-                championships={visibleChampionships}
+                championships={championships}
                 teams={teams}
                 groups={groups}
                 games={games}
@@ -1066,6 +1074,10 @@ export default function Home() {
                 managedChampionships={managedChampionships}
                 managedLinks={managedLinks}
                 tokens={tokens}
+                teamPlayers={teamPlayers}
+                registrations={registrations}
+                teamPanelTab={teamPanelTab}
+                setTeamPanelTab={setTeamPanelTab}
                 team={team}
                 setTeam={setTeam}
                 createTeam={createTeam}
@@ -1077,6 +1089,7 @@ export default function Home() {
                 teamPlayerTeamId={teamPlayerTeamId}
                 setTeamPlayerTeamId={setTeamPlayerTeamId}
                 generatePlayerInvite={generatePlayerInvite}
+                generateTeamPlayerInvite={generateTeamPlayerInvite}
                 copyToken={copyToken}
                 loading={loading}
                 uploadPublicFile={uploadPublicFile}
@@ -1136,188 +1149,131 @@ function ProdutoraPanel(props: {
   loading: boolean
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
-  const [activeTab, setActiveTab] = useState<'meus' | 'novo' | 'organizar' | 'equipes' | 'tokens'>('meus')
   const teamInvites = props.tokens.filter((row) => row.data?.token_kind === 'team_invite' && row.parent_id === props.selectedChamp?.id)
   const champGroups = props.groups.filter((row) => row.parent_id === props.selectedChamp?.id)
   const champGames = props.games.filter((row) => row.parent_id === props.selectedChamp?.id)
 
   return (
-    <div className="dashboard dashboard-tabbed">
-      <section className="panel span-2 profile-tabs-panel">
-        <div className="section-head compact-section-head">
+    <div className="dashboard">
+      <section className="panel">
+        <div className="section-head">
           <div>
             <p className="eyebrow">Produtora</p>
-            <h2>Painel da produtora</h2>
+            <h2>Campeonatos</h2>
           </div>
           <Trophy />
         </div>
-
-        <div className="panel-tabs" role="tablist" aria-label="Abas da produtora">
-          <button type="button" className={activeTab === 'meus' ? 'active' : ''} onClick={() => setActiveTab('meus')}>Meus campeonatos</button>
-          <button type="button" className={activeTab === 'novo' ? 'active' : ''} onClick={() => setActiveTab('novo')}>Novo campeonato</button>
-          <button type="button" className={activeTab === 'organizar' ? 'active' : ''} onClick={() => setActiveTab('organizar')}>Organizar</button>
-          <button type="button" className={activeTab === 'equipes' ? 'active' : ''} onClick={() => setActiveTab('equipes')}>Equipes</button>
-          <button type="button" className={activeTab === 'tokens' ? 'active' : ''} onClick={() => setActiveTab('tokens')}>Tokens</button>
+        <div className="list">
+          {props.championships.length === 0 ? <p className="empty">Nenhum campeonato criado ainda.</p> : null}
+          {props.championships.map((champ) => (
+            <button
+              key={champ.id}
+              className={`list-item ${props.selectedChamp?.id === champ.id ? 'active' : ''}`}
+              onClick={() => props.setSelectedChampId(champ.id)}
+            >
+              <strong>{rowTitle(champ)}</strong>
+              <span>{dataText(champ, 'premiacao') || 'Premiacao nao informada'}</span>
+            </button>
+          ))}
         </div>
+      </section>
 
-        {activeTab === 'meus' ? (
-          <div className="tab-content">
-            <div className="section-head inline-title">
-              <div>
-                <p className="eyebrow">Lista</p>
-                <h2>Meus campeonatos</h2>
+      <section className="panel span-2">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">Criar</p>
+            <h2>Novo campeonato</h2>
+          </div>
+          <CalendarDays />
+        </div>
+        <div className="form-grid">
+          <Field label="Nome"><input value={props.championship.nome} onChange={(e) => props.setChampionship({ ...props.championship, nome: e.target.value })} /></Field>
+          <UploadField label="Logo do campeonato" value={props.championship.logo_url} bucket="campeonato" onChange={(url) => props.setChampionship({ ...props.championship, logo_url: url })} onUpload={props.uploadPublicFile} />
+          <Field label="Premiacao"><input value={props.championship.premiacao} onChange={(e) => props.setChampionship({ ...props.championship, premiacao: e.target.value })} /></Field>
+          <Field label="Link das regras"><input value={props.championship.regras_url} onChange={(e) => props.setChampionship({ ...props.championship, regras_url: e.target.value })} /></Field>
+          <Field label="Divisao da premiacao"><textarea value={props.championship.divisao_premiacao} onChange={(e) => props.setChampionship({ ...props.championship, divisao_premiacao: e.target.value })} /></Field>
+        </div>
+        <button className="button" onClick={props.createChampionship} disabled={props.loading}>Salvar campeonato</button>
+      </section>
+
+      <section className="panel span-2">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">Organizar</p>
+            <h2>{rowTitle(props.selectedChamp)}</h2>
+          </div>
+          <Users />
+        </div>
+        <div className="mini-grid">
+          <div className="panel-soft">
+            <h3>Equipes no campeonato</h3>
+            {props.selectedChampTeams.length === 0 ? <p className="empty">Adicione equipe ou gere convite unico.</p> : null}
+            {props.selectedChampTeams.map((team) => (
+              <div className="compact-row" key={team.id}>
+                <strong>{dataText(team, 'tag') ? `[${dataText(team, 'tag')}] ` : ''}{rowTitle(team)}</strong>
               </div>
-              <span className="pill-count">{props.championships.length}</span>
-            </div>
-            {props.championships.length === 0 ? <p className="empty">Nenhum campeonato criado ainda.</p> : null}
-            <div className="championship-list-grid">
-              {props.championships.map((champ) => (
-                <button
-                  key={champ.id}
-                  className={`championship-card ${props.selectedChamp?.id === champ.id ? 'active' : ''}`}
-                  onClick={() => {
-                    props.setSelectedChampId(champ.id)
-                    setActiveTab('organizar')
-                  }}
-                >
-                  <span className="champ-logo">{dataText(champ, 'logo_url') ? <img src={dataText(champ, 'logo_url')} alt="" /> : <Trophy size={22} />}</span>
-                  <strong>{rowTitle(champ)}</strong>
-                  <small>{dataText(champ, 'premiacao') || 'Premiação não informada'}</small>
-                </button>
-              ))}
+            ))}
+          </div>
+          <div className="panel-soft">
+            <h3>Adicionar equipe</h3>
+            <Field label="Equipe existente">
+              <select value={props.selectedTeamId} onChange={(e) => props.setSelectedTeamId(e.target.value)}>
+                <option value="">Selecione</option>
+                {props.teams.map((team) => <option key={team.id} value={team.id}>{dataText(team, 'tag') ? `[${dataText(team, 'tag')}] ` : ''}{team.name}</option>)}
+              </select>
+            </Field>
+            <div className="button-row">
+              <button className="button secondary" onClick={props.addTeamToChamp}>Adicionar</button>
+              <button className="button" onClick={props.generateTeamInvite}>Gerar token</button>
             </div>
           </div>
-        ) : null}
-
-        {activeTab === 'novo' ? (
-          <div className="tab-content">
-            <div className="section-head inline-title">
-              <div>
-                <p className="eyebrow">Criar</p>
-                <h2>Novo campeonato</h2>
-              </div>
-              <CalendarDays />
-            </div>
-            <div className="form-grid clean-form-grid">
-              <Field label="Nome"><input value={props.championship.nome} onChange={(e) => props.setChampionship({ ...props.championship, nome: e.target.value })} /></Field>
-              <UploadField label="Logo do campeonato" value={props.championship.logo_url} bucket="campeonato" onChange={(url) => props.setChampionship({ ...props.championship, logo_url: url })} onUpload={props.uploadPublicFile} />
-              <Field label="Premiação"><input value={props.championship.premiacao} onChange={(e) => props.setChampionship({ ...props.championship, premiacao: e.target.value })} /></Field>
-              <Field label="Link das regras"><input value={props.championship.regras_url} onChange={(e) => props.setChampionship({ ...props.championship, regras_url: e.target.value })} /></Field>
-              <Field label="Divisão da premiação"><textarea value={props.championship.divisao_premiacao} onChange={(e) => props.setChampionship({ ...props.championship, divisao_premiacao: e.target.value })} /></Field>
-            </div>
-            <button className="button" onClick={props.createChampionship} disabled={props.loading}>Salvar campeonato</button>
+          <div className="panel-soft">
+            <h3>Cadastrar equipe manual</h3>
+            <Field label="Nome"><input value={props.team.nome} onChange={(e) => props.setTeam({ ...props.team, nome: e.target.value })} /></Field>
+            <Field label="Tag"><input value={props.team.tag} onChange={(e) => props.setTeam({ ...props.team, tag: e.target.value.toUpperCase() })} /></Field>
+            <UploadField label="Logo da equipe" value={props.team.logo_url} bucket="equipe" onChange={(url) => props.setTeam({ ...props.team, logo_url: url })} onUpload={props.uploadPublicFile} />
+            <Field label="Senha do dono"><input value={props.team.senha_dono} onChange={(e) => props.setTeam({ ...props.team, senha_dono: e.target.value })} /></Field>
+            <button className="button" onClick={props.createTeam}>Salvar equipe</button>
           </div>
-        ) : null}
-
-        {activeTab === 'organizar' ? (
-          <div className="tab-content">
-            <div className="section-head inline-title">
-              <div>
-                <p className="eyebrow">Organizar</p>
-                <h2>{rowTitle(props.selectedChamp)}</h2>
-              </div>
-              <Users />
-            </div>
-            {!props.selectedChamp ? <p className="empty">Crie ou selecione um campeonato primeiro.</p> : null}
-            {props.selectedChamp ? (
-              <div className="mini-grid organizer-grid">
-                <div className="panel-soft">
-                  <h3>Equipes no campeonato</h3>
-                  {props.selectedChampTeams.length === 0 ? <p className="empty">Adicione equipe ou gere convite único.</p> : null}
-                  {props.selectedChampTeams.map((team) => (
-                    <div className="compact-row" key={team.id}>
-                      <strong>{dataText(team, 'tag') ? `[${dataText(team, 'tag')}] ` : ''}{rowTitle(team)}</strong>
-                    </div>
-                  ))}
-                </div>
-                <div className="panel-soft">
-                  <h3>Grupos</h3>
-                  {champGroups.map((group) => <div className="compact-row" key={group.id}><strong>{rowTitle(group)}</strong><span>{dataText(group, 'slots')} slots</span></div>)}
-                  {champGroups.length === 0 ? <p className="empty">Nenhum grupo criado.</p> : null}
-                  <Field label="Nome do grupo"><input value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Grupo A" /></Field>
-                  <Field label="Slots"><input type="number" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="12" /></Field>
-                  <button className="button" onClick={props.createGroup}>Criar grupo</button>
-                </div>
-                <div className="panel-soft">
-                  <h3>Jogos e rodadas</h3>
-                  {champGames.map((game) => (
-                    <button className="token-card" key={game.id} onClick={() => props.copyToken(game.token)}>
-                      <span>{dataText(game, 'data_jogo') || 'Sem data'}</span>
-                      <strong>{rowTitle(game)}</strong>
-                      {game.token ? <small>{game.token}</small> : null}
-                    </button>
-                  ))}
-                  {champGames.length === 0 ? <p className="empty">Nenhum jogo criado.</p> : null}
-                  <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Rodada 1" /></Field>
-                  <div className="mini-grid tight-grid">
-                    <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
-                    <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
-                  </div>
-                  <Field label="Número de partidas"><input type="number" value={props.game.numero_partidas} onChange={(e) => props.setGame({ ...props.game, numero_partidas: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
-                  <Field label="Mapas"><input value={props.game.mapas} onChange={(e) => props.setGame({ ...props.game, mapas: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Bermuda, Purgatório, Alpine" /></Field>
-                  <button className="button" onClick={props.createGame}>Criar jogo</button>
-                </div>
-              </div>
-            ) : null}
+          <div className="panel-soft">
+            <h3>Tokens de equipe</h3>
+            {teamInvites.length === 0 ? <p className="empty">Nenhum convite gerado.</p> : null}
+            {teamInvites.map((token) => (
+              <button key={token.id} className="token-card" onClick={() => props.copyToken(token.token)}>
+                <span>{dataText(token, 'team_tag') || 'Equipe'}</span>
+                <strong>{tokenText(token.token)}</strong>
+                <Copy size={15} />
+              </button>
+            ))}
           </div>
-        ) : null}
-
-        {activeTab === 'equipes' ? (
-          <div className="tab-content">
-            <div className="section-head inline-title">
-              <div>
-                <p className="eyebrow">Equipes</p>
-                <h2>Equipes e convites</h2>
-              </div>
-              <Shield />
-            </div>
-            <div className="mini-grid organizer-grid">
-              <div className="panel-soft">
-                <h3>Adicionar equipe existente</h3>
-                <Field label="Equipe existente">
-                  <select value={props.selectedTeamId} onChange={(e) => props.setSelectedTeamId(e.target.value)}>
-                    <option value="">Selecione</option>
-                    {props.teams.map((team) => <option key={team.id} value={team.id}>{dataText(team, 'tag') ? `[${dataText(team, 'tag')}] ` : ''}{team.name}</option>)}
-                  </select>
-                </Field>
-                <div className="button-row">
-                  <button className="button secondary" onClick={props.addTeamToChamp}>Adicionar</button>
-                  <button className="button" onClick={props.generateTeamInvite}>Gerar token</button>
-                </div>
-              </div>
-              <div className="panel-soft">
-                <h3>Cadastrar equipe manual</h3>
-                <Field label="Nome"><input value={props.team.nome} onChange={(e) => props.setTeam({ ...props.team, nome: e.target.value })} /></Field>
-                <Field label="Tag"><input value={props.team.tag} onChange={(e) => props.setTeam({ ...props.team, tag: e.target.value.toUpperCase() })} /></Field>
-                <UploadField label="Logo da equipe" value={props.team.logo_url} bucket="equipe" onChange={(url) => props.setTeam({ ...props.team, logo_url: url })} onUpload={props.uploadPublicFile} />
-                <Field label="Senha do dono"><input value={props.team.senha_dono} onChange={(e) => props.setTeam({ ...props.team, senha_dono: e.target.value })} /></Field>
-                <button className="button" onClick={props.createTeam}>Salvar equipe</button>
-              </div>
-            </div>
+          <div className="panel-soft">
+            <h3>Grupos</h3>
+            {champGroups.map((group) => (
+              <div className="compact-row" key={group.id}><strong>{rowTitle(group)}</strong></div>
+            ))}
+            {champGroups.length === 0 ? <p className="empty">Nenhum grupo criado.</p> : null}
+            <Field label="Novo grupo"><input value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Grupo A" /></Field>
+            <Field label="Slots do grupo"><input type="number" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="12" /></Field>
+            <button className="button" onClick={props.createGroup}>Criar grupo</button>
           </div>
-        ) : null}
-
-        {activeTab === 'tokens' ? (
-          <div className="tab-content">
-            <div className="section-head inline-title">
-              <div>
-                <p className="eyebrow">Tokens</p>
-                <h2>Convites gerados</h2>
-              </div>
-              <Copy />
-            </div>
-            {teamInvites.length === 0 ? <p className="empty">Nenhum token para este campeonato.</p> : null}
-            <div className="token-list">
-              {teamInvites.map((token) => (
-                <button key={token.id} className="token-card" onClick={() => props.copyToken(token.token)}>
-                  <span>{dataText(token, 'team_tag') || 'Equipe'}</span>
-                  <strong>{tokenText(token.token)}</strong>
-                  <Copy size={15} />
-                </button>
-              ))}
-            </div>
+          <div className="panel-soft">
+            <h3>Jogos e rodadas</h3>
+            {champGames.map((game) => (
+              <button className="token-card" key={game.id} onClick={() => props.copyToken(game.token)}>
+                <span>{dataText(game, 'data_jogo') || 'Sem data'}</span>
+                <strong>{rowTitle(game)}</strong>
+                {game.token ? <small>{game.token}</small> : null}
+              </button>
+            ))}
+            {champGames.length === 0 ? <p className="empty">Nenhum jogo criado.</p> : null}
+            <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Rodada 1" /></Field>
+            <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
+            <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
+            <Field label="Número de partidas"><input type="number" value={props.game.numero_partidas} onChange={(e) => props.setGame({ ...props.game, numero_partidas: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} /></Field>
+            <Field label="Mapas"><input value={props.game.mapas} onChange={(e) => props.setGame({ ...props.game, mapas: e.target.value, campeonato_id: props.selectedChamp?.id || '' })} placeholder="Bermuda, Purgatório, Alpine" /></Field>
+            <button className="button" onClick={props.createGame}>Criar jogo</button>
           </div>
-        ) : null}
+        </div>
       </section>
     </div>
   )
@@ -1329,7 +1285,11 @@ function EquipePanel(props: {
   managedTeams: DropZoneRow[]
   managedChampionships: DropZoneRow[]
   managedLinks: DropZoneRow[]
+  teamPlayers: DropZoneRow[]
+  registrations: DropZoneRow[]
   tokens: DropZoneRow[]
+  teamPanelTab: string
+  setTeamPanelTab: (value: string) => void
   team: { nome: string; tag: string; logo_url: string; senha_dono: string }
   setTeam: (value: any) => void
   createTeam: () => void
@@ -1341,83 +1301,167 @@ function EquipePanel(props: {
   teamPlayerTeamId: string
   setTeamPlayerTeamId: (value: string) => void
   generatePlayerInvite: () => void
+  generateTeamPlayerInvite: () => void
   copyToken: (value: string | null) => void
   loading: boolean
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
-  const playerInvites = props.tokens.filter((row) => row.data?.token_kind === 'player_invite' && row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id))
+  const currentTeam = props.managedTeams[0]
+  const teamPlayerIds = new Set(props.managedTeams.map((team) => team.id))
+  const playerInvites = props.tokens.filter((row) => row.data?.token_kind === 'player_invite' && row.ref_id && teamPlayerIds.has(row.ref_id))
+  const standaloneInvites = playerInvites.filter((row) => !row.parent_id)
+  const championshipInvites = playerInvites.filter((row) => row.parent_id)
+  const teamMembers = props.teamPlayers.filter((row) => row.ref_id && teamPlayerIds.has(row.ref_id))
+  const TEAM_PLAYER_LIMIT = 6
 
   return (
-    <div className="dashboard">
-      <section className="panel">
+    <div className="team-dashboard">
+      <section className="panel span-2 team-tabs-panel">
         <div className="section-head">
           <div>
             <p className="eyebrow">{props.accountType === 'manager' ? 'Manager' : 'Equipe'}</p>
-            <h2>Minhas equipes</h2>
+            <h2>Painel da equipe</h2>
           </div>
           <Shield />
         </div>
-        {props.managedTeams.length === 0 ? <p className="empty">Crie uma equipe ou use um token enviado pela produtora.</p> : null}
-        <div className="cards compact">
-          {props.managedTeams.map((team) => (
-            <div className="card" key={team.id}>
-              <p>{dataText(team, 'tag') || 'TAG'}</p>
-              <strong>{rowTitle(team)}</strong>
+
+        <div className="tabs panel-tabs">
+          <button type="button" className={`tab ${props.teamPanelTab === 'campeonatos' ? 'active' : ''}`} onClick={() => props.setTeamPanelTab('campeonatos')}>Campeonatos</button>
+          <button type="button" className={`tab ${props.teamPanelTab === 'jogadores' ? 'active' : ''}`} onClick={() => props.setTeamPanelTab('jogadores')}>Jogadores</button>
+          <button type="button" className={`tab ${props.teamPanelTab === 'convites' ? 'active' : ''}`} onClick={() => props.setTeamPanelTab('convites')}>Convites</button>
+          <button type="button" className={`tab ${props.teamPanelTab === 'config' ? 'active' : ''}`} onClick={() => props.setTeamPanelTab('config')}>Configurações</button>
+        </div>
+      </section>
+
+      {props.teamPanelTab === 'campeonatos' ? (
+        <>
+          <section className="panel span-2">
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">Campeonatos</p>
+                <h2>Campeonatos inscritos</h2>
+              </div>
+              <Trophy />
             </div>
-          ))}
-        </div>
-      </section>
+            {props.managedChampionships.length === 0 ? <p className="empty">Sua equipe ainda não está inscrita em campeonatos.</p> : null}
+            <div className="cards compact championship-list-cards">
+              {props.managedChampionships.map((champ) => {
+                const link = props.managedLinks.find((item) => item.parent_id === champ.id)
+                const used = props.registrations.filter((item) => item.parent_id === champ.id && item.ref_id === link?.ref_id).length
+                const free = Math.max(0, TEAM_PLAYER_LIMIT - used)
+                return (
+                  <div className="card championship-team-card" key={champ.id}>
+                    <p>{dataText(champ, 'premiacao') ? `Premiação ${dataText(champ, 'premiacao')}` : 'Campeonato'}</p>
+                    <strong>{rowTitle(champ)}</strong>
+                    <small>Grupo: {dataText(link, 'grupo_id') || 'não definido'} · Slot: {dataText(link, 'slot') || 'não definido'}</small>
+                    <div className="slot-row">
+                      <span>{used}/{TEAM_PLAYER_LIMIT} jogadores escalados</span>
+                      <b>{free} vagas</b>
+                    </div>
+                    <div className="button-row compact-row">
+                      <button type="button" className="button secondary" onClick={() => {
+                        props.setTeamPlayerChampId(champ.id)
+                        props.setTeamPlayerTeamId(link?.ref_id || currentTeam?.id || '')
+                        props.setTeamPanelTab('convites')
+                      }}>Gerar token</button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
 
-      <section className="panel">
-        <h2>Criar minha equipe</h2>
-        <Field label="Nome"><input value={props.team.nome} onChange={(e) => props.setTeam({ ...props.team, nome: e.target.value })} /></Field>
-        <Field label="Tag"><input value={props.team.tag} onChange={(e) => props.setTeam({ ...props.team, tag: e.target.value.toUpperCase() })} /></Field>
-        <UploadField label="Logo da equipe" value={props.team.logo_url} bucket="equipe" onChange={(url) => props.setTeam({ ...props.team, logo_url: url })} onUpload={props.uploadPublicFile} />
-        <Field label="Senha do dono"><input value={props.team.senha_dono} onChange={(e) => props.setTeam({ ...props.team, senha_dono: e.target.value })} /></Field>
-        <button className="button" onClick={props.createTeam}>Salvar equipe</button>
-      </section>
+          <section className="panel span-2">
+            <h2>Entrar em novo campeonato</h2>
+            <p className="muted-text">Cole o token enviado pela produtora para adicionar esta equipe ao campeonato.</p>
+            <Field label="Token do campeonato">
+              <input value={props.teamPanelToken} onChange={(e) => props.setTeamPanelToken(e.target.value.toUpperCase())} placeholder="EQ-..." />
+            </Field>
+            <button className="button" onClick={props.acceptTeamInvite}>Aceitar convite</button>
+          </section>
+        </>
+      ) : null}
 
-      <section className="panel">
-        <h2>Entrar em campeonato</h2>
-        <Field label="Token enviado pela produtora">
-          <input value={props.teamPanelToken} onChange={(e) => props.setTeamPanelToken(e.target.value.toUpperCase())} placeholder="EQ-..." />
-        </Field>
-        <button className="button" onClick={props.acceptTeamInvite}>Aceitar convite</button>
-      </section>
-
-      <section className="panel span-2">
-        <div className="section-head">
-          <div>
-            <p className="eyebrow">Escalacao</p>
-            <h2>Gerar token para jogador</h2>
+      {props.teamPanelTab === 'jogadores' ? (
+        <section className="panel span-2">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">Elenco</p>
+              <h2>Jogadores da equipe</h2>
+            </div>
+            <Users />
           </div>
-          <Send />
-        </div>
-        <div className="form-grid">
-          <Field label="Campeonato">
-            <select value={props.teamPlayerChampId} onChange={(e) => props.setTeamPlayerChampId(e.target.value)}>
-              <option value="">Selecione</option>
-              {props.managedChampionships.map((champ) => <option key={champ.id} value={champ.id}>{champ.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Equipe">
-            <select value={props.teamPlayerTeamId} onChange={(e) => props.setTeamPlayerTeamId(e.target.value)}>
-              <option value="">Selecione</option>
-              {props.managedTeams.map((team) => <option key={team.id} value={team.id}>{dataText(team, 'tag') ? `[${dataText(team, 'tag')}] ` : ''}{team.name}</option>)}
-            </select>
-          </Field>
-        </div>
-        <button className="button" onClick={props.generatePlayerInvite}>Gerar token do jogador</button>
-        <div className="token-list">
-          {playerInvites.map((token) => (
-            <button key={token.id} className="token-card" onClick={() => props.copyToken(token.token)}>
-              <span>{dataText(token, 'championship_name')}</span>
-              <strong>{tokenText(token.token)}</strong>
-              <Copy size={15} />
-            </button>
-          ))}
-        </div>
-      </section>
+          {teamMembers.length === 0 ? <p className="empty">Nenhum jogador vinculado diretamente à equipe.</p> : null}
+          <div className="cards compact">
+            {teamMembers.map((row) => (
+              <div className="card" key={row.id}>
+                <p>{dataText(row, 'funcao') || 'Jogador'}</p>
+                <strong>{dataText(row, 'nick') || rowTitle(row)}</strong>
+                <small>ID: {dataText(row, 'id_jogo') || '-'}</small>
+              </div>
+            ))}
+          </div>
+
+          <h3>Escalados em campeonatos</h3>
+          <div className="cards compact">
+            {props.registrations.filter((row) => row.ref_id && teamPlayerIds.has(row.ref_id)).map((row) => (
+              <div className="card" key={row.id}>
+                <p>{dataText(row, 'funcao') || 'Jogador'}</p>
+                <strong>{dataText(row, 'nick') || rowTitle(row)}</strong>
+                <small>ID: {dataText(row, 'id_jogo') || '-'} · Campeonato vinculado</small>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {props.teamPanelTab === 'convites' ? (
+        <section className="panel span-2">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">Convites</p>
+              <h2>Tokens para jogadores</h2>
+            </div>
+            <Send />
+          </div>
+
+          <div className="form-grid">
+            <Field label="Campeonato para escalar jogador">
+              <select value={props.teamPlayerChampId} onChange={(e) => props.setTeamPlayerChampId(e.target.value)}>
+                <option value="">Sem campeonato / só adicionar na equipe</option>
+                {props.managedChampionships.map((champ) => <option key={champ.id} value={champ.id}>{champ.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Equipe">
+              <select value={props.teamPlayerTeamId || currentTeam?.id || ''} onChange={(e) => props.setTeamPlayerTeamId(e.target.value)}>
+                <option value="">Selecione</option>
+                {props.managedTeams.map((team) => <option key={team.id} value={team.id}>{dataText(team, 'tag') ? `[${dataText(team, 'tag')}] ` : ''}{team.name}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <div className="button-row compact-row">
+            <button className="button" onClick={props.teamPlayerChampId ? props.generatePlayerInvite : props.generateTeamPlayerInvite}>Gerar token</button>
+          </div>
+
+          <div className="token-list">
+            {[...championshipInvites, ...standaloneInvites].map((token) => (
+              <button key={token.id} className="token-card" onClick={() => props.copyToken(token.token)}>
+                <span>{dataText(token, 'championship_name') || 'Adicionar na equipe'}</span>
+                <strong>{tokenText(token.token)}</strong>
+                <Copy size={15} />
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {props.teamPanelTab === 'config' ? (
+        <section className="panel span-2">
+          <h2>Configurações</h2>
+          <p className="empty">Edição de nome, tag e logo entra aqui na próxima etapa. A equipe não cria outra equipe neste painel.</p>
+        </section>
+      ) : null}
     </div>
   )
 }
