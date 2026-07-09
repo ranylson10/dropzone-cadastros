@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Copy, Crown, Gamepad2, LogOut, RefreshCw, Send, Shield, Trophy, UserCog, Users } from 'lucide-react'
+import { CalendarDays, Copy, Gamepad2, LogOut, RefreshCw, Send, Shield, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { authEmail, cleanUsername } from '@/lib/validation'
@@ -16,17 +16,58 @@ const typeLabels: Record<ProfileType, string> = {
 }
 
 const typeDescriptions: Record<ProfileType, string> = {
-  produtora: 'Cria campeonatos, organiza equipes, grupos, jogos e convites.',
-  equipe: 'Aceita convite da produtora e gera tokens para escalar jogadores.',
-  jogador: 'Acompanha campeonatos inscritos e entra por token da equipe.',
-  manager: 'Ajuda a equipe a controlar inscricoes e tokens de jogadores.',
+  produtora: 'Painel de campeonatos e gestão geral.',
+  equipe: 'Acesso do líder para montar elenco e entrar em eventos.',
+  jogador: 'Cadastro competitivo e inscrições em partidas.',
+  manager: 'Ajudante com convite único para operar o painel.',
+}
+
+function ProducerIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" fill="none">
+      <path d="M15 48h34l-3-19-8 6-6-15-6 15-8-6-3 19Z" stroke="currentColor" strokeWidth="3.5" strokeLinejoin="miter" />
+      <path d="M23 48v5m18-5v5" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" />
+      <path d="M21 16h0m22 0h0" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function TeamIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" fill="none">
+      <path d="M32 12 47 18v12c0 11-7 18-15 22-8-4-15-11-15-22V18l15-6Z" stroke="currentColor" strokeWidth="3.5" strokeLinejoin="miter" />
+      <path d="M32 20v22M22 30h20" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" />
+    </svg>
+  )
+}
+
+function PlayerIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" fill="none">
+      <path d="M18 23 32 16l14 7v16L32 48 18 39V23Z" stroke="currentColor" strokeWidth="3.5" strokeLinejoin="miter" />
+      <path d="m24 28-7 8" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" />
+      <circle cx="26" cy="28" r="2.5" fill="currentColor" />
+      <circle cx="38" cy="36" r="2.5" fill="currentColor" />
+    </svg>
+  )
+}
+
+function ManagerIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" fill="none">
+      <circle cx="22" cy="26" r="6" stroke="currentColor" strokeWidth="3.5" />
+      <path d="M12 46c2.8-6 7.4-9 14-9" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" />
+      <circle cx="42" cy="22" r="5" stroke="currentColor" strokeWidth="3.5" />
+      <path d="M42 31v15m-7-7h15" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" />
+    </svg>
+  )
 }
 
 const profileIcons: Record<ProfileType, React.ReactNode> = {
-  produtora: <Crown size={21} />,
-  equipe: <Shield size={21} />,
-  jogador: <Gamepad2 size={21} />,
-  manager: <UserCog size={21} />,
+  produtora: <ProducerIcon />,
+  equipe: <TeamIcon />,
+  jogador: <PlayerIcon />,
+  manager: <ManagerIcon />,
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -79,6 +120,10 @@ function tokenText(token: string | null) {
   return token || 'sem-token'
 }
 
+function mediaForProfile(profile: any) {
+  return profile?.data?.logo_url || profile?.data?.avatar_url || ''
+}
+
 export default function Home() {
   const [mode, setMode] = useState<AuthMode>('entrar')
   const [profileType, setProfileType] = useState<ProfileType>('produtora')
@@ -87,6 +132,15 @@ export default function Home() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
+  const [registerData, setRegisterData] = useState({
+    tag: '',
+    id_jogo: '',
+    funcao: 'support',
+    pais: '',
+    estado: '',
+    cidade: '',
+    token_convite: '',
+  })
   const [activeAuthType, setActiveAuthType] = useState<ProfileType | null>(null)
   const [recentProfiles, setRecentProfiles] = useState<any[]>([])
   const [account, setAccount] = useState<DropZoneRow | null>(null)
@@ -152,6 +206,7 @@ export default function Home() {
   const managedChampionships = championships.filter((row) => managedLinks.some((link) => link.parent_id === row.id))
   const playerInvite = tokens.find((row) => row.token?.toUpperCase() === playerToken.trim().toUpperCase() && row.data?.token_kind === 'player_invite')
   const myRegistrations = registrations.filter((row) => row.created_by === account?.auth_user_id)
+  const recentProfileByType = useMemo(() => Object.fromEntries(recentProfiles.map((profile) => [profile.profile_type, profile])) as Partial<Record<ProfileType, any>>, [recentProfiles])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -193,6 +248,28 @@ export default function Home() {
     }
   }
 
+  function updateRegisterData(key: string, value: string) {
+    setRegisterData((current) => ({ ...current, [key]: value }))
+  }
+
+  function clearRegisterForm(nextType?: ProfileType) {
+    setName('')
+    setEmail('')
+    setUsername('')
+    setPassword('')
+    setMediaUrl('')
+    setRegisterData({
+      tag: '',
+      id_jogo: '',
+      funcao: 'support',
+      pais: '',
+      estado: '',
+      cidade: '',
+      token_convite: '',
+    })
+    if (nextType) setProfileType(nextType)
+  }
+
   async function loadMeAndRows(token?: string) {
     const accessToken = token || await getToken()
     if (!accessToken) return
@@ -232,6 +309,7 @@ export default function Home() {
             email,
             media_url: mediaUrl,
             password,
+            details: registerData,
           }),
         })
         const json = await res.json()
@@ -470,98 +548,144 @@ export default function Home() {
         {!account ? (
           <section className="login-stage">
             <div className="phone-shell">
-              <div className="phone-header">
+              <div className="phone-header compact">
                 <p className="eyebrow">Escolha seu acesso</p>
                 <h2>Quem vai entrar?</h2>
-                <p>Selecione um card. Se a sessão ainda estiver salva, entra direto; se não, o próprio card abre login, cadastro e recuperação.</p>
               </div>
 
-              {recentProfiles.length ? (
-                <div className="recent-profiles">
-                  {recentProfiles.map((profile) => (
-                    <button
-                      key={profile.id}
-                      type="button"
-                      className="recent-card"
-                      onClick={() => {
-                        setProfileType(profile.profile_type)
-                        setActiveAuthType(profile.profile_type)
-                        setMode('entrar')
-                        setUsername(profile.username || '')
-                      }}
-                    >
-                      <span>{profile.data?.logo_url || profile.data?.avatar_url ? <img src={profile.data.logo_url || profile.data.avatar_url} alt="" /> : profileIcons[profile.profile_type as ProfileType]}</span>
-                      <strong>{profile.name}</strong>
-                      <small>@{profile.username}{profile.public_id ? ` · ID ${profile.public_id}` : ''}</small>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="profile-cards">
+              <div className="profile-grid">
                 {PROFILE_TYPES.map((type) => {
                   const active = activeAuthType === type
+                  const recent = recentProfileByType[type]
+                  const media = mediaForProfile(recent)
                   return (
                     <button
                       key={type}
                       type="button"
-                      className={`profile-card ${active ? 'active expanded' : ''}`}
+                      className={`profile-card gamer-card ${active ? 'active' : ''} ${recent ? 'has-recent' : ''}`}
                       onClick={() => {
+                        clearRegisterForm(type)
                         setProfileType(type)
-                        setActiveAuthType(active ? null : type)
+                        if (recent) {
+                          setUsername(recent.username || '')
+                          setName(recent.name || '')
+                          setMediaUrl(media)
+                          setMode('entrar')
+                        }
+                        setActiveAuthType(type)
                       }}
                     >
-                      <span>{profileIcons[type]}</span>
-                      <strong>{typeLabels[type]}</strong>
-                      <small>{typeDescriptions[type]}</small>
+                      <div className="card-icon-frame">
+                        {media ? <img src={media} alt="" /> : <span>{profileIcons[type]}</span>}
+                      </div>
+                      <div className="card-copy">
+                        <div className="card-topline">{recent ? 'Acesso recente' : 'Novo acesso'}</div>
+                        <strong>{typeLabels[type]}</strong>
+                        {recent ? (
+                          <>
+                            <b className="recent-name">{recent.name}</b>
+                            <small>@{recent.username}{recent.public_id ? ` · ID ${recent.public_id}` : ''}</small>
+                          </>
+                        ) : (
+                          <small>Entrar, criar conta ou recuperar senha</small>
+                        )}
+                      </div>
+                      <i className="card-corner" />
                     </button>
                   )
                 })}
               </div>
 
               {activeAuthType ? (
-                <section className="auth-drawer">
-                  <div className="tabs">
-                    <button className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => setMode('entrar')}>Entrar</button>
-                    <button className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => setMode('criar')}>Criar conta</button>
-                  </div>
-                  <form onSubmit={handleAuth}>
-                    <div className="selected-profile">
-                      <span>{profileIcons[profileType]}</span>
-                      <div>
-                        <strong>{typeLabels[profileType]}</strong>
-                        <p>{typeDescriptions[profileType]}</p>
-                      </div>
+                <div className="auth-overlay" onClick={() => setActiveAuthType(null)}>
+                  <section className="auth-drawer auth-modal" onClick={(event) => event.stopPropagation()}>
+                    <button type="button" className="close-auth" onClick={() => setActiveAuthType(null)} aria-label="Fechar">
+                      <X size={18} />
+                    </button>
+                    <div className="tabs">
+                      <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => setMode('entrar')}>Entrar</button>
+                      <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => setMode('criar')}>Criar conta</button>
                     </div>
-                    {mode === 'criar' ? (
-                      <>
-                        <Field label="Nome exibido">
-                          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome publico do perfil" />
-                        </Field>
-                        <Field label="E-mail de confirmação">
-                          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
-                        </Field>
-                        <UploadField
-                          label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo do perfil' : 'Foto do perfil'}
-                          value={mediaUrl}
-                          bucket={profileType}
-                          onChange={setMediaUrl}
-                          onUpload={uploadPublicFile}
-                        />
-                      </>
-                    ) : null}
-                    <Field label="Login unico ou ID">
-                      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID publico" />
-                    </Field>
-                    <Field label="Senha">
-                      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 6 caracteres" />
-                    </Field>
-                    <button className="button wide" disabled={loading}>{mode === 'criar' ? 'Criar e entrar' : 'Entrar'}</button>
-                    <button type="button" className="link-button" onClick={() => setMessage('Recuperação de senha entra na próxima etapa: envio pelo e-mail confirmado do perfil.')}>Esqueci minha senha</button>
-                  </form>
-                  {message ? <div className="message">{message}</div> : null}
-                  {error ? <div className="message error">{error}</div> : null}
-                </section>
+                    <form onSubmit={handleAuth}>
+                      <div className="selected-profile selected-profile-clean">
+                        <span>{profileIcons[profileType]}</span>
+                        <div>
+                          <strong>{typeLabels[profileType]}</strong>
+                          <p>{mode === 'criar' ? 'Cadastro completo na criação' : 'Entrar com login ou ID'}</p>
+                        </div>
+                      </div>
+                      {mode === 'criar' ? (
+                        <>
+                          <Field label={profileType === 'equipe' ? 'Nome da equipe' : profileType === 'jogador' ? 'Nick' : profileType === 'manager' ? 'Nome do manager' : 'Nome da produtora'}>
+                            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
+                          </Field>
+
+                          {profileType === 'equipe' ? (
+                            <Field label="Tag da equipe">
+                              <input value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="Ex: 6B" />
+                            </Field>
+                          ) : null}
+
+                          {profileType === 'jogador' ? (
+                            <>
+                              <Field label="ID de jogo">
+                                <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID único do Free Fire" />
+                              </Field>
+                              <Field label="Função">
+                                <select value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
+                                  <option value="support">Support</option>
+                                  <option value="rush">Rush</option>
+                                  <option value="sniper">Sniper</option>
+                                  <option value="bomber">Bomber</option>
+                                </select>
+                              </Field>
+                            </>
+                          ) : null}
+
+                          {profileType === 'manager' ? (
+                            <Field label="Token de convite">
+                              <input value={registerData.token_convite} onChange={(e) => updateRegisterData('token_convite', e.target.value.toUpperCase())} placeholder="Opcional nesta etapa" />
+                            </Field>
+                          ) : null}
+
+                          <UploadField
+                            label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo' : 'Foto'}
+                            value={mediaUrl}
+                            bucket={profileType}
+                            onChange={setMediaUrl}
+                            onUpload={uploadPublicFile}
+                          />
+
+                          <div className="location-grid">
+                            <Field label="País">
+                              <input value={registerData.pais} onChange={(e) => updateRegisterData('pais', e.target.value)} placeholder="Brasil" />
+                            </Field>
+                            <Field label="Estado">
+                              <input value={registerData.estado} onChange={(e) => updateRegisterData('estado', e.target.value)} placeholder="SP" />
+                            </Field>
+                            <Field label="Cidade">
+                              <input value={registerData.cidade} onChange={(e) => updateRegisterData('cidade', e.target.value)} placeholder="São Paulo" />
+                            </Field>
+                          </div>
+
+                          <Field label="E-mail de confirmação">
+                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
+                          </Field>
+                        </>
+                      ) : null}
+                      <Field label="Login único ou ID">
+                        <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID público" />
+                      </Field>
+                      <Field label="Senha">
+                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                      </Field>
+                      <button className="button wide" disabled={loading}>{mode === 'criar' ? 'Criar e entrar' : 'Entrar'}</button>
+                      <button type="button" className="link-button" onClick={() => setMessage('Recuperação de senha entra na próxima etapa: envio pelo e-mail confirmado do perfil.')}>Esqueci minha senha</button>
+                    </form>
+                    {message ? <div className="message">{message}</div> : null}
+                    {error ? <div className="message error">{error}</div> : null}
+                  </section>
+                </div>
               ) : null}
             </div>
           </section>
