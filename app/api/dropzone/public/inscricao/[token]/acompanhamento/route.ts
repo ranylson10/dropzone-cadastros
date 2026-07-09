@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, ctx: any) {
     const [{ data: campeonato }, { data: grupo }, { data: teamLinks, error: teamsError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).maybeSingle(),
       supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).maybeSingle(),
-      supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,slot_numero,equipes:equipe_id(id,nome,username,tag,logo_url)').eq('campeonato_id', link.campeonato_id).eq('grupo_id', link.grupo_id).order('slot_numero'),
+      supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,slot_numero,equipes:equipe_id(id,nome,tag,logo_url)').eq('campeonato_id', link.campeonato_id).eq('grupo_id', link.grupo_id).order('slot_numero'),
     ])
     if (teamsError) throw teamsError
 

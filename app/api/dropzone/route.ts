@@ -47,7 +47,7 @@ const TABLE_BY_ENTITY: Record<string, string> = {
   group: 'campeonato_grupos',
   group_slot: 'campeonato_slots',
   game: 'campeonato_jogos',
-  invite_token: 'tokens',
+  invite_token: 'convites_tokens',
   registration_link: 'campeonato_links',
   lineup_rule: 'campeonato_regras',
 }
@@ -64,7 +64,10 @@ function canCreate(profileType: string | null, entityType: string) {
 
 async function selectRows(table: string, entityType: string, mapper = (row: any) => baseRow(row, entityType)) {
   const { data, error } = await supabaseAdmin.from(table).select('*').order('created_at', { ascending: false }).limit(300)
-  if (error) throw error
+  if (error) {
+    if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
+    throw error
+  }
   return (data || []).map(mapper)
 }
 
@@ -212,7 +215,7 @@ export async function GET(req: NextRequest) {
       if (type === 'group') output.push(...await selectRows('campeonato_grupos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, slots: row.slots } })))
       if (type === 'group_slot') output.push(...await selectRows('campeonato_slots', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, grupo_id: row.grupo_id, team_id: row.equipe_id, equipe_id: row.equipe_id, slot_numero: row.slot_numero } })))
       if (type === 'game') output.push(...await selectRows('campeonato_jogos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, data_jogo: row.data_jogo, horario: row.horario, numero_partidas: row.numero_partidas, mapas: row.mapas, grupos_ids: row.grupos_ids } })))
-      if (type === 'invite_token') output.push(...await selectRows('tokens', type, (row) => baseRow(row, type, { data: { token_kind: row.tipo, championship_id: row.campeonato_id, phase_id: row.fase_id, group_id: row.grupo_id, team_id: row.equipe_id, player_id: row.jogador_id, manager_id: row.manager_id, game_id: row.jogo_id, usado: row.usado, expira_em: row.expira_em } })))
+      if (type === 'invite_token') output.push(...await selectRows('convites_tokens', type, (row) => baseRow(row, type, { data: { token_kind: row.tipo, access_type: row.tipo_acesso, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id, usado: row.usado, expira_em: row.expira_em } })))
       if (type === 'registration_link') output.push(...await selectRows('campeonato_links', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, titulo: row.titulo, descricao: row.descricao, ativo: row.ativo, acompanhamento_publico: row.acompanhamento_publico, expira_em: row.expira_em, public_url: `/i/${row.token}` } })))
       if (type === 'lineup_rule') output.push(...await selectRows('campeonato_regras', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, vagas_por_equipe: row.vagas_por_equipe, abre_em: row.abre_em, encerra_em: row.encerra_em, permite_substituicao: row.permite_substituicao, max_substituicoes_por_equipe: row.max_substituicoes_por_equipe, substituicao_encerra_em: row.substituicao_encerra_em, bloquear_convites_apos_encerramento: row.bloquear_convites_apos_encerramento } })))
     }
@@ -246,13 +249,13 @@ export async function GET(req: NextRequest) {
 async function consumeToken(token: string | null | undefined, tipo?: string) {
   const clean = String(token || '').trim().toUpperCase()
   if (!clean) return null
-  let query = supabaseAdmin.from('tokens').select('*').eq('token', clean).eq('usado', false)
+  let query = supabaseAdmin.from('convites_tokens').select('*').eq('token', clean).eq('usado', false)
   if (tipo) query = query.eq('tipo', tipo)
   const { data, error } = await query.maybeSingle()
   if (error) throw error
   if (!data) throw new Error('Token invalido ou ja utilizado.')
   if (data.expira_em && new Date(data.expira_em).getTime() < Date.now()) throw new Error('Token expirado.')
-  const { error: updateError } = await supabaseAdmin.from('tokens').update({ usado: true, usado_em: new Date().toISOString() }).eq('id', data.id)
+  const { error: updateError } = await supabaseAdmin.from('convites_tokens').update({ usado: true, usado_em: new Date().toISOString() }).eq('id', data.id)
   if (updateError) throw updateError
   return data
 }
@@ -392,12 +395,10 @@ export async function POST(req: NextRequest) {
         await assertInviteAllowed(body.parent_id || data.championship_id, body.ref_id || data.team_id)
       }
       const prefix = String(body.token_prefix || (tipo === 'manager_invite' ? 'MG' : tipo === 'player_invite' ? 'JG' : 'EQ'))
-      const { data: inserted, error } = await supabaseAdmin.from('tokens').insert({
+      const { data: inserted, error } = await supabaseAdmin.from('convites_tokens').insert({
         token: body.generate_token ? randomToken(prefix) : body.token,
         tipo,
         campeonato_id: body.parent_id || data.championship_id || null,
-        fase_id: data.phase_id || data.fase_id || null,
-        grupo_id: data.group_id || data.grupo_id || null,
         equipe_id: body.ref_id || data.team_id || null,
         jogo_id: data.game_id || null,
         criado_por: user.id,
@@ -442,7 +443,7 @@ export async function POST(req: NextRequest) {
       const rule = await getLineupRule(campeonatoId, champTeam.grupo_id)
       assertLineupOpen(rule)
       await assertPlayerCapacity(campeonatoId, equipeId, Number(rule?.vagas_por_equipe || 6))
-      const { data: jogador, error: jogadorError } = await supabaseAdmin.from('jogadores').select('*').eq('auth_user_id', user.id).maybeSingle()
+      const { data: jogador, error: jogadorError } = await supabaseAdmin.from('jogadores_perfis').select('*').eq('auth_user_id', user.id).maybeSingle()
       if (jogadorError) throw jogadorError
       if (!jogador) throw new Error('Entre com uma conta de jogador.')
       const { error: linkError } = await supabaseAdmin.from('jogadores_equipes').upsert({
@@ -457,7 +458,7 @@ export async function POST(req: NextRequest) {
         equipe_id: equipeId,
         jogo_id: token?.jogo_id || data.game_id || null,
         jogador_id: jogador.id,
-        nick: body.name || data.nick || jogador.nome,
+        nick: body.name || data.nick || jogador.nome_exibido,
         foto_url: data.foto_url || jogador.avatar_url || null,
         id_jogo: data.id_jogo || jogador.id_jogo,
         funcao: data.funcao || jogador.funcao || 'support',

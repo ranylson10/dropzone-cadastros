@@ -128,6 +128,16 @@ create table if not exists public.equipes (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.campeonato_fases (
+  id uuid primary key default gen_random_uuid(),
+  campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
+  nome text not null,
+  ordem integer not null default 1,
+  status text not null default 'ativo',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.campeonato_equipes (
   id uuid primary key default gen_random_uuid(),
   campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
@@ -143,15 +153,32 @@ create table if not exists public.campeonato_equipes (
 create table if not exists public.campeonato_grupos (
   id uuid primary key default gen_random_uuid(),
   campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
+  fase_id uuid references public.campeonato_fases(id) on delete set null,
   nome text not null,
   slots integer not null default 12,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+alter table public.campeonato_grupos add column if not exists fase_id uuid references public.campeonato_fases(id) on delete set null;
+
+create table if not exists public.campeonato_slots (
+  id uuid primary key default gen_random_uuid(),
+  campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
+  fase_id uuid references public.campeonato_fases(id) on delete set null,
+  grupo_id uuid not null references public.campeonato_grupos(id) on delete cascade,
+  equipe_id uuid references public.equipes(id) on delete set null,
+  slot_numero integer not null,
+  status text not null default 'ativo',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint campeonato_slots_unique unique (grupo_id, slot_numero)
+);
+
 create table if not exists public.campeonato_jogos (
   id uuid primary key default gen_random_uuid(),
   campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
+  fase_id uuid references public.campeonato_fases(id) on delete set null,
   nome text not null,
   data_jogo date,
   horario time,
@@ -161,6 +188,18 @@ create table if not exists public.campeonato_jogos (
   status text not null default 'ativo',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+alter table public.campeonato_jogos add column if not exists fase_id uuid references public.campeonato_fases(id) on delete set null;
+alter table public.campeonato_jogos add column if not exists grupos_ids uuid[] not null default '{}';
+
+create table if not exists public.campeonato_jogos_grupos (
+  id uuid primary key default gen_random_uuid(),
+  campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
+  jogo_id uuid not null references public.campeonato_jogos(id) on delete cascade,
+  grupo_id uuid not null references public.campeonato_grupos(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  constraint campeonato_jogos_grupos_unique unique (jogo_id, grupo_id)
 );
 
 create table if not exists public.convites_tokens (
@@ -189,14 +228,18 @@ alter table public.convites_tokens
 
 create table if not exists public.jogadores_equipes (
   id uuid primary key default gen_random_uuid(),
-  jogador_auth_user_id uuid not null references auth.users(id) on delete cascade,
+  jogador_id uuid not null references public.jogadores_perfis(id) on delete cascade,
   equipe_id uuid not null references public.equipes(id) on delete cascade,
+  funcao text,
   origem text not null default 'manual',
   status text not null default 'ativo',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint jogadores_equipes_unique unique (jogador_auth_user_id, equipe_id)
+  constraint jogadores_equipes_unique unique (jogador_id, equipe_id)
 );
+
+alter table public.jogadores_equipes add column if not exists jogador_id uuid references public.jogadores_perfis(id) on delete cascade;
+alter table public.jogadores_equipes add column if not exists funcao text;
 
 do $$
 begin
@@ -211,7 +254,7 @@ create table if not exists public.campeonato_jogadores (
   campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
   equipe_id uuid not null references public.equipes(id) on delete cascade,
   jogo_id uuid references public.campeonato_jogos(id) on delete set null,
-  jogador_auth_user_id uuid not null references auth.users(id) on delete cascade,
+  jogador_id uuid not null references public.jogadores_perfis(id) on delete cascade,
   tag text,
   nick text not null,
   foto_url text,
@@ -219,12 +262,48 @@ create table if not exists public.campeonato_jogadores (
   funcao text not null,
   localidade text,
   senha text,
+  status text not null default 'ativo',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint campeonato_jogadores_unique unique (campeonato_id, equipe_id, jogador_auth_user_id)
+  constraint campeonato_jogadores_unique unique (campeonato_id, equipe_id, jogador_id)
 );
 
-alter table public.campeonato_jogadores add column if not exists jogador_auth_user_id uuid references auth.users(id) on delete cascade;
+alter table public.campeonato_jogadores add column if not exists jogador_id uuid references public.jogadores_perfis(id) on delete cascade;
+alter table public.campeonato_jogadores add column if not exists status text not null default 'ativo';
+
+create table if not exists public.campeonato_regras (
+  id uuid primary key default gen_random_uuid(),
+  campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
+  fase_id uuid references public.campeonato_fases(id) on delete set null,
+  grupo_id uuid references public.campeonato_grupos(id) on delete cascade,
+  vagas_por_equipe integer not null default 6,
+  abre_em timestamptz,
+  encerra_em timestamptz,
+  permite_substituicao boolean not null default false,
+  max_substituicoes_por_equipe integer not null default 0,
+  substituicao_encerra_em timestamptz,
+  bloquear_convites_apos_encerramento boolean not null default true,
+  status text not null default 'ativo',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.campeonato_links (
+  id uuid primary key default gen_random_uuid(),
+  campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
+  fase_id uuid references public.campeonato_fases(id) on delete set null,
+  grupo_id uuid not null references public.campeonato_grupos(id) on delete cascade,
+  token text not null unique,
+  tipo text not null default 'inscricao',
+  titulo text not null default 'Inscricao de jogadores',
+  descricao text,
+  ativo boolean not null default true,
+  acompanhamento_publico boolean not null default true,
+  criado_por uuid not null references auth.users(id) on delete cascade,
+  expira_em timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
 do $$
 begin
@@ -255,7 +334,7 @@ create index if not exists campeonato_equipes_campeonato_id_idx on public.campeo
 create index if not exists campeonato_equipes_equipe_id_idx on public.campeonato_equipes (equipe_id);
 create index if not exists campeonato_jogadores_campeonato_id_idx on public.campeonato_jogadores (campeonato_id);
 create index if not exists campeonato_jogadores_equipe_id_idx on public.campeonato_jogadores (equipe_id);
-create index if not exists campeonato_jogadores_jogador_idx on public.campeonato_jogadores (jogador_auth_user_id);
+create index if not exists campeonato_jogadores_jogador_idx on public.campeonato_jogadores (jogador_id);
 
 do $$
 declare
@@ -268,12 +347,17 @@ begin
     'managers_perfis',
     'campeonatos',
     'equipes',
+    'campeonato_fases',
     'campeonato_equipes',
     'campeonato_grupos',
+    'campeonato_slots',
     'campeonato_jogos',
+    'campeonato_jogos_grupos',
     'convites_tokens',
     'jogadores_equipes',
-    'campeonato_jogadores'
+    'campeonato_jogadores',
+    'campeonato_regras',
+    'campeonato_links'
   ]
   loop
     execute format('alter table public.%I enable row level security', table_name);
@@ -322,8 +406,20 @@ for select to authenticated using (status = 'ativo');
 
 drop policy if exists "players read own championship entries" on public.campeonato_jogadores;
 create policy "players read own championship entries" on public.campeonato_jogadores
-for select to authenticated using ((select auth.uid()) = jogador_auth_user_id);
+for select to authenticated using (
+  exists (
+    select 1 from public.jogadores_perfis jp
+    where jp.id = campeonato_jogadores.jogador_id
+      and jp.auth_user_id = (select auth.uid())
+  )
+);
 
 drop policy if exists "players insert own championship entries" on public.campeonato_jogadores;
 create policy "players insert own championship entries" on public.campeonato_jogadores
-for insert to authenticated with check ((select auth.uid()) = jogador_auth_user_id);
+for insert to authenticated with check (
+  exists (
+    select 1 from public.jogadores_perfis jp
+    where jp.id = campeonato_jogadores.jogador_id
+      and jp.auth_user_id = (select auth.uid())
+  )
+);

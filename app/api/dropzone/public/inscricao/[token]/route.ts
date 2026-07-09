@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, ctx: any) {
 
     const { data: teamLinks, error: teamsError } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,equipe_id,slot_numero,status,equipes:equipe_id(id,nome,username,tag,logo_url)')
+      .select('id,equipe_id,slot_numero,status,equipes:equipe_id(id,nome,tag,logo_url)')
       .eq('campeonato_id', link.campeonato_id)
       .eq('grupo_id', link.grupo_id)
       .neq('status', 'deletado')
@@ -123,14 +123,14 @@ export async function POST(req: NextRequest, ctx: any) {
     if ((count || 0) >= vagas) throw new Error('Essa equipe ja atingiu o limite de vagas.')
 
     const { data: account, error: accountError } = await supabaseAdmin
-      .from('jogadores')
+      .from('jogadores_perfis')
       .select('*')
       .eq('auth_user_id', user.id)
       .maybeSingle()
     if (accountError) throw accountError
     if (!account) throw new Error('Entre com uma conta de jogador para se inscrever.')
 
-    const nick = String(body.nick || account.nome || '').trim()
+    const nick = String(body.nick || account.nome_exibido || '').trim()
     const idJogo = String(body.id_jogo || account.id_jogo || '').trim()
     const funcao = String(body.funcao || account.funcao || 'support')
     if (!nick || !idJogo) throw new Error('Nick e ID de jogo sao obrigatorios.')

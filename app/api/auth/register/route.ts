@@ -172,6 +172,23 @@ export async function POST(req: Request) {
       throw new Error(`Perfil/${table}: ${accountError.message}`)
     }
 
+    if (profileType === 'equipe') {
+      const teamPayload = {
+        nome: name,
+        tag: cleanText(details.tag).toUpperCase(),
+        logo_url: mediaUrl,
+        dono_auth_user_id: userData.user.id,
+        status: 'ativo',
+      }
+      const { error: teamError } = await supabaseAdmin
+        .from('equipes')
+        .insert(teamPayload)
+      if (teamError && !['23505'].includes(teamError.code || '')) {
+        await supabaseAdmin.auth.admin.deleteUser(userData.user.id)
+        throw new Error(`Equipe: ${teamError.message}`)
+      }
+    }
+
     if (managerInvite) {
       const { error: tokenError } = await supabaseAdmin
         .from('convites_tokens')

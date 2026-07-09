@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
 
 :root {
   --bg: #071018;
@@ -2648,5 +2648,343 @@ body:has(.login-stage-bg) h1 {
   }
   .compact-token-panel {
     grid-template-columns: 1fr;
+  }
+}
+
+/* --- ajuste final: estilo claro alinhado ao projeto principal --- */
+:root {
+  color-scheme: light only;
+  --bg: #f7f7f7;
+  --bg-deep: #eef0f4;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --surface-3: #f4f4f5;
+  --line: #e4e4e7;
+  --line-strong: #ff4655;
+  --text: #111827;
+  --ink: #111827;
+  --muted: #71717a;
+  --brand: #ff4655;
+  --brand-2: #ff6b2c;
+  --primary: #ff4655;
+  --ok: #16a34a;
+  --danger: #dc2626;
+  --shadow: 0 10px 28px rgba(15, 23, 42, .06);
+}
+
+html,
+body {
+  background:
+    linear-gradient(90deg, rgba(17, 24, 39, .035) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(17, 24, 39, .025) 1px, transparent 1px),
+    var(--bg);
+  background-size: 48px 48px, 48px 48px, auto;
+  color: var(--text);
+  font-family: "Rajdhani", "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+}
+
+body::before {
+  background: none;
+}
+
+.page {
+  padding-top: 22px;
+}
+
+h1,
+h2,
+h3,
+.profile-card.gamer-card strong,
+.detail-title-ref h2,
+.subtab-actionbar h3,
+.phase-card h3 {
+  color: var(--text);
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+h1 {
+  font-size: clamp(36px, 5vw, 58px);
+  line-height: .95;
+}
+
+h2 {
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1;
+}
+
+.eyebrow,
+.card-topline,
+.card p,
+.detail-stat strong,
+.phase-card > header > strong,
+.metric b,
+.section-head svg,
+.token-card svg,
+.token-card small {
+  color: var(--brand);
+}
+
+.brand-mark,
+.button,
+.tab.active,
+.champ-subtabs-ref button.active {
+  background: var(--brand);
+  box-shadow: none;
+}
+
+.brand-mark,
+.button,
+.tab,
+.button.secondary,
+.file-button,
+.close-auth,
+.inline-icon-button,
+.auth-light-panel .button,
+.auth-light-panel .tab,
+.panel,
+.panel-soft,
+.account-strip,
+.list-item,
+.token-card,
+.card,
+.compact-row,
+.profile-card.gamer-card,
+.login-cards-panel,
+.auth-inline-panel,
+.floating-create-panel,
+.detail-hero-ref,
+.subtab-actionbar,
+.inline-action-panel,
+.phase-card,
+.group-mini-card,
+.detail-stat,
+.champ-list-item,
+.ref-champ-item,
+.champ-thumb,
+.tiny-logo,
+.detail-logo-ref,
+.upload-picker,
+.card-icon-frame,
+.message,
+.invite-preview {
+  clip-path: none !important;
+  border-radius: 6px !important;
+}
+
+.panel,
+.panel-soft,
+.account-strip,
+.list-item,
+.token-card,
+.card,
+.compact-row,
+.login-cards-panel,
+.auth-inline-panel,
+.floating-create-panel,
+.detail-hero-ref,
+.subtab-actionbar,
+.inline-action-panel,
+.phase-card,
+.group-mini-card,
+.detail-stat,
+.champ-list-item,
+.ref-champ-item,
+.event-row {
+  border: 1px solid var(--line) !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.panel::after,
+.profile-card::after,
+.recent-card::after,
+.auth-drawer::after,
+.phone-shell::before,
+.phone-shell::after,
+.login-cards-panel::before,
+.auth-inline-panel::before,
+.auth-light-panel::before {
+  display: none !important;
+}
+
+.field label,
+.empty,
+.card span,
+.list-item span,
+.token-card span,
+.detail-title-ref p,
+.detail-title-ref small,
+.group-mini-head small,
+.metric-row span,
+.profile-card.gamer-card small {
+  color: var(--muted) !important;
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: 42px;
+  border: 1px solid #d4d4d8 !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 3px rgba(255, 70, 85, .1) !important;
+}
+
+.button {
+  min-height: 42px;
+  color: #ffffff;
+  border: 1px solid var(--brand);
+  letter-spacing: .04em;
+}
+
+.button.secondary,
+.tab,
+.champ-subtabs-ref button {
+  border: 1px solid var(--line) !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+}
+
+.tab.active,
+.champ-subtabs-ref button.active {
+  border-color: var(--brand) !important;
+  color: #ffffff !important;
+}
+
+.link-button,
+.auth-inline-link,
+.other-account-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line) !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+  padding: 0 12px;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  text-transform: uppercase;
+}
+
+.profile-card.gamer-card,
+.login-stage.login-stage-bg .profile-card.gamer-card {
+  min-height: 132px;
+  border: 1px solid var(--line) !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.profile-card.gamer-card:hover,
+.profile-card.gamer-card.active,
+.profile-card.gamer-card.has-recent {
+  border-color: rgba(255, 70, 85, .45) !important;
+  transform: translateY(-2px);
+}
+
+.card-icon-frame,
+.upload-picker,
+.champ-thumb,
+.tiny-logo,
+.detail-logo-ref,
+.champ-hero-logo {
+  border: 1px solid var(--line) !important;
+  background: #f4f4f5 !important;
+  color: var(--brand) !important;
+}
+
+.login-stage.login-stage-bg {
+  min-height: calc(100vh - 110px);
+}
+
+.login-stage.login-stage-bg::before {
+  background:
+    linear-gradient(90deg, rgba(247, 247, 247, .82), rgba(247, 247, 247, .62)),
+    url("/login-dropzone-hero.png") center center / contain no-repeat,
+    #f7f7f7 !important;
+  filter: none !important;
+}
+
+.login-stage.login-stage-bg::after {
+  background:
+    linear-gradient(90deg, rgba(17, 24, 39, .045) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(17, 24, 39, .035) 1px, transparent 1px) !important;
+  background-size: 48px 48px, 48px 48px !important;
+}
+
+.login-stage.login-stage-bg .phone-shell.login-free-shell {
+  width: min(1060px, 100%);
+}
+
+.login-layout-header .eyebrow,
+.login-layout-header h2,
+body:has(.login-stage-bg) h1 {
+  color: var(--text) !important;
+  text-shadow: none !important;
+}
+
+.login-layout-header h2 {
+  font-size: clamp(34px, 4.6vw, 56px);
+}
+
+.login-cards-panel,
+.auth-inline-panel,
+.login-free-shell.auth-page .auth-inline-panel.auth-light-panel {
+  background: rgba(255, 255, 255, .96) !important;
+}
+
+.auth-overlay {
+  background: rgba(244, 244, 245, .78);
+  backdrop-filter: blur(6px);
+}
+
+.auth-site-mark img {
+  background: #f4f4f5;
+}
+
+.message {
+  background: #ffffff;
+}
+
+.message.error {
+  border-color: rgba(220, 38, 38, .28) !important;
+  background: #fff5f5 !important;
+  color: #b91c1c !important;
+}
+
+.cropper-overlay {
+  background: rgba(17, 24, 39, .38) !important;
+}
+
+.cropper-modal {
+  border-color: var(--line) !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+  border-radius: 6px !important;
+}
+
+.cropper-head,
+.cropper-actions {
+  background: #ffffff !important;
+}
+
+@media (max-width: 760px) {
+  .login-stage.login-stage-bg::before {
+    background:
+      linear-gradient(180deg, rgba(247, 247, 247, .88), rgba(247, 247, 247, .7)),
+      url("/login-dropzone-hero.png") center top / contain no-repeat,
+      #f7f7f7 !important;
   }
 }
