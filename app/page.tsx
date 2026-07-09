@@ -467,11 +467,23 @@ export default function Home() {
     setLoading(true)
     setError('')
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('bucket', bucket)
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result || ''))
+        reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'))
+        reader.readAsDataURL(file)
+      })
 
-      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bucket,
+          file_name: file.name || `${bucket}.png`,
+          content_type: 'image/png',
+          data_url: dataUrl,
+        }),
+      })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao enviar arquivo.')
       setMessage('Arquivo enviado.')

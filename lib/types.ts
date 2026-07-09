@@ -8,8 +8,8 @@ export type DropZoneRow = {
   auth_user_id: string | null
   profile_type: ProfileType | null
   username: string | null
-  public_id: number | null
   name: string | null
+  public_id?: number | null
   token: string | null
   parent_id: string | null
   ref_id: string | null
