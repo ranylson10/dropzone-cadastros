@@ -44,31 +44,30 @@ function hashInvitePassword(value: string) {
 
 const TABLE_BY_ENTITY: Record<string, string> = {
   championship: 'campeonatos',
-  team: 'equipes_perfis',
-  team_player: 'equipe_jogadores',
+  team: 'equipes',
+  player_team: 'equipe_jogadores',
   championship_team: 'campeonato_equipes',
   group: 'campeonato_grupos',
   game: 'campeonato_jogos',
   invite_token: 'convites_tokens',
   player_registration: 'inscricoes_jogadores',
+  registration_link: 'campeonato_links_inscricao',
+  lineup_rule: 'campeonato_regras_escalacao',
 }
 
 const PUBLIC_TYPES = Object.keys(TABLE_BY_ENTITY)
 
 function canCreate(profileType: string | null, entityType: string) {
-  if (profileType === 'produtora') return ['championship', 'championship_team', 'group', 'game', 'invite_token'].includes(entityType)
-  if (profileType === 'equipe') return ['championship_team', 'invite_token', 'player_registration', 'team_player'].includes(entityType)
-  if (profileType === 'manager') return ['championship_team', 'invite_token', 'player_registration', 'team_player'].includes(entityType)
+  if (profileType === 'produtora') return ['championship', 'team', 'championship_team', 'group', 'game', 'invite_token', 'registration_link', 'lineup_rule'].includes(entityType)
+  if (profileType === 'equipe') return ['championship_team', 'invite_token', 'player_registration', 'player_team'].includes(entityType)
+  if (profileType === 'manager') return ['championship_team', 'invite_token', 'player_registration', 'player_team'].includes(entityType)
   if (profileType === 'jogador') return ['player_registration'].includes(entityType)
   return false
 }
 
 async function selectRows(table: string, entityType: string, mapper = (row: any) => baseRow(row, entityType)) {
   const { data, error } = await supabaseAdmin.from(table).select('*').order('created_at', { ascending: false }).limit(300)
-  if (error) {
-    if (error.code === '42P01') return []
-    throw error
-  }
+  if (error) throw error
   return (data || []).map(mapper)
 }
 
@@ -100,13 +99,65 @@ async function requireTeamInChampionship(championshipId: string | null | undefin
   if (!championshipId || !teamId) throw new Error('Campeonato e equipe obrigatorios.')
   const { data, error } = await supabaseAdmin
     .from('campeonato_equipes')
-    .select('id')
+    .select('id, grupo_id')
     .eq('campeonato_id', championshipId)
     .eq('equipe_id', teamId)
     .maybeSingle()
   if (error) throw error
   if (!data) throw new Error('Essa equipe nao esta inscrita nesse campeonato.')
   return data
+}
+
+
+async function getLineupRule(campeonatoId: string, grupoId?: string | null) {
+  const { data, error } = await supabaseAdmin
+    .from('campeonato_regras_escalacao')
+    .select('*')
+    .eq('campeonato_id', campeonatoId)
+    .or(grupoId ? `grupo_id.eq.${grupoId},grupo_id.is.null` : 'grupo_id.is.null')
+    .order('grupo_id', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+function assertLineupOpen(rule: any, action = 'inscricao') {
+  const now = Date.now()
+  if (rule?.abre_em && new Date(rule.abre_em).getTime() > now) throw new Error('Escalacao ainda nao abriu.')
+  if (rule?.encerra_em && new Date(rule.encerra_em).getTime() < now) throw new Error('Escalacao encerrada.')
+  if (action === 'substituicao') {
+    if (!rule?.permite_substituicao) throw new Error('Substituicao nao permitida neste campeonato.')
+    if (rule?.substituicao_encerra_em && new Date(rule.substituicao_encerra_em).getTime() < now) throw new Error('Prazo de substituicao encerrado.')
+  }
+}
+
+async function assertPlayerCapacity(campeonatoId: string, equipeId: string, vagas = 6) {
+  const { count, error } = await supabaseAdmin
+    .from('inscricoes_jogadores')
+    .select('id', { count: 'exact', head: true })
+    .eq('campeonato_id', campeonatoId)
+    .eq('equipe_id', equipeId)
+  if (error) throw error
+  if ((count || 0) >= vagas) throw new Error('Essa equipe ja atingiu o limite de vagas de escalacao.')
+}
+
+async function assertInviteAllowed(campeonatoId: string, equipeId?: string | null) {
+  let grupoId: string | null = null
+  if (equipeId) {
+    const { data, error } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .select('grupo_id')
+      .eq('campeonato_id', campeonatoId)
+      .eq('equipe_id', equipeId)
+      .maybeSingle()
+    if (error) throw error
+    grupoId = data?.grupo_id || null
+  }
+  const rule = await getLineupRule(campeonatoId, grupoId)
+  if (rule?.bloquear_convites_apos_encerramento !== false) assertLineupOpen(rule)
+  return rule
 }
 
 function championshipsOwnedBy(row: any, rows: any[], userId: string) {
@@ -125,13 +176,15 @@ export async function GET(req: NextRequest) {
 
     async function add(type: string) {
       if (type === 'championship') output.push(...await selectRows('campeonatos', type, (row) => baseRow(row, type, { data: { nome: row.nome } })))
-      if (type === 'team') output.push(...await selectRows('equipes_perfis', type, (row) => baseRow(row, type, { data: { tag: row.tag, logo_url: row.logo_url, public_id: row.public_id } })))
+      if (type === 'team') output.push(...await selectRows('equipes_perfis', type, (row) => baseRow(row, type, { data: { tag: row.tag, logo_url: row.logo_url, profile_team: true } })))
       if (type === 'championship_team') output.push(...await selectRows('campeonato_equipes', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, team_id: row.equipe_id, grupo_id: row.grupo_id, slot: row.slot_numero } })))
-      if (type === 'team_player') output.push(...await selectRows('equipe_jogadores', type, (row) => baseRow(row, type, { data: { player_user_id: row.jogador_auth_user_id, team_id: row.equipe_id, nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, foto_url: row.foto_url, origem: row.origem } })))
+      if (type === 'player_team') output.push(...await selectRows('equipe_jogadores', type, (row) => baseRow(row, type, { data: { player_user_id: row.jogador_auth_user_id, team_id: row.equipe_id, origem: row.origem, nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, foto_url: row.foto_url } })))
       if (type === 'group') output.push(...await selectRows('campeonato_grupos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, slots: row.slots } })))
       if (type === 'game') output.push(...await selectRows('campeonato_jogos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, data_jogo: row.data_jogo, horario: row.horario, numero_partidas: row.numero_partidas, mapas: row.mapas, grupos_ids: row.grupos_ids } })))
       if (type === 'invite_token') output.push(...await selectRows('convites_tokens', type, (row) => baseRow(row, type, { data: { token_kind: row.tipo, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id, usado: row.usado, expira_em: row.expira_em } })))
-      if (type === 'player_registration') output.push(...await selectRows('inscricoes_jogadores', type, (row) => baseRow(row, type, { data: { nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, localidade: row.localidade, foto_url: row.foto_url, team_tag: row.tag, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id } })))
+      if (type === 'player_registration') output.push(...await selectRows('inscricoes_jogadores', type, (row) => baseRow(row, type, { data: { nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, localidade: row.localidade, team_tag: row.tag, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id, foto_url: row.foto_url } })))
+      if (type === 'registration_link') output.push(...await selectRows('campeonato_links_inscricao', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, group_id: row.grupo_id, titulo: row.titulo, descricao: row.descricao, ativo: row.ativo, acompanhamento_publico: row.acompanhamento_publico, expira_em: row.expira_em, public_url: `/i/${row.token}` } })))
+      if (type === 'lineup_rule') output.push(...await selectRows('campeonato_regras_escalacao', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, group_id: row.grupo_id, vagas_por_equipe: row.vagas_por_equipe, abre_em: row.abre_em, encerra_em: row.encerra_em, permite_substituicao: row.permite_substituicao, max_substituicoes_por_equipe: row.max_substituicoes_por_equipe, substituicao_encerra_em: row.substituicao_encerra_em, bloquear_convites_apos_encerramento: row.bloquear_convites_apos_encerramento } })))
     }
 
     if (entityType) await add(entityType)
@@ -139,16 +192,11 @@ export async function GET(req: NextRequest) {
 
     const managedTeamIds = new Set([
       ...output.filter((row) => row.entity_type === 'team' && row.created_by === user.id).map((row) => row.id),
-      ...(account.profile_type === 'equipe' ? [account.id] : []),
+      ...output.filter((row) => row.entity_type === 'championship_team' && row.created_by === user.id && row.ref_id).map((row) => row.ref_id),
     ])
 
     const visible = output.filter((row) => {
-      if (row.entity_type === 'invite_token') return row.created_by === user.id
-      if (row.entity_type === 'team_player') {
-        if (account.profile_type === 'jogador') return row.created_by === user.id
-        if (account.profile_type === 'equipe' || account.profile_type === 'manager') return managedTeamIds.has(row.ref_id)
-        return false
-      }
+      if (row.entity_type === 'invite_token' || row.entity_type === 'registration_link' || row.entity_type === 'lineup_rule') return row.created_by === user.id
       if (row.entity_type === 'player_registration') {
         if (account.profile_type === 'jogador') return row.created_by === user.id
         if (account.profile_type === 'produtora') return championshipsOwnedBy(row, output, user.id)
@@ -202,11 +250,20 @@ export async function POST(req: NextRequest) {
       if (error) throw error
       row = baseRow(inserted, entityType)
     } else if (entityType === 'team') {
-      throw new Error('A equipe ja e criada no cadastro inicial. Nao crie equipe dentro do painel.')
+      const data = body.data || {}
+      const { data: inserted, error } = await supabaseAdmin.from('equipes').insert({
+        nome: body.name || data.nome,
+        tag: data.tag,
+        logo_url: data.logo_url || null,
+        dono_auth_user_id: user.id,
+        senha_dono: data.senha_dono || null,
+      }).select('*').single()
+      if (error) throw error
+      row = baseRow(inserted, entityType)
     } else if (entityType === 'championship_team') {
       const token = await consumeToken(body.token, 'team_invite')
       const campeonatoId = body.parent_id || token?.campeonato_id
-      const equipeId = body.ref_id || token?.equipe_id || (account.profile_type === 'equipe' ? account.id : null)
+      const equipeId = body.ref_id || token?.equipe_id
       if (account.profile_type === 'produtora' && !token) await requireChampionshipOwner(campeonatoId, user.id)
       if ((account.profile_type === 'equipe' || account.profile_type === 'manager') && !token) await requireManagedTeam(equipeId, user.id)
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_equipes').insert({
@@ -252,7 +309,8 @@ export async function POST(req: NextRequest) {
       }
       if (tipo === 'player_invite') {
         await requireManagedTeam(body.ref_id || data.team_id, user.id)
-        if (body.parent_id || data.championship_id) await requireTeamInChampionship(body.parent_id || data.championship_id, body.ref_id || data.team_id)
+        await requireTeamInChampionship(body.parent_id || data.championship_id, body.ref_id || data.team_id)
+        await assertInviteAllowed(body.parent_id || data.championship_id, body.ref_id || data.team_id)
       }
       const prefix = String(body.token_prefix || (tipo === 'manager_invite' ? 'MG' : tipo === 'player_invite' ? 'JG' : 'EQ'))
       const { data: inserted, error } = await supabaseAdmin.from('convites_tokens').insert({
@@ -267,15 +325,75 @@ export async function POST(req: NextRequest) {
       }).select('*').single()
       if (error) throw error
       row = baseRow(inserted, entityType)
+     } else if (entityType === 'lineup_rule') {
+      const data = body.data || {}
+      const campeonatoId = body.parent_id || data.championship_id || data.campeonato_id
+      await requireChampionshipOwner(campeonatoId, user.id)
+      const { data: inserted, error } = await supabaseAdmin.from('campeonato_regras_escalacao').upsert({
+        campeonato_id: campeonatoId,
+        grupo_id: data.group_id || data.grupo_id || null,
+        vagas_por_equipe: Number(data.vagas_por_equipe || 6),
+        abre_em: data.abre_em || null,
+        encerra_em: data.encerra_em || null,
+        permite_substituicao: Boolean(data.permite_substituicao),
+        max_substituicoes_por_equipe: Number(data.max_substituicoes_por_equipe || 0),
+        substituicao_encerra_em: data.substituicao_encerra_em || null,
+        bloquear_convites_apos_encerramento: data.bloquear_convites_apos_encerramento !== false,
+      }, { onConflict: 'campeonato_id,grupo_id' }).select('*').single()
+      if (error) throw error
+      row = baseRow(inserted, entityType)
+    } else if (entityType === 'registration_link') {
+      const data = body.data || {}
+      const campeonatoId = body.parent_id || data.championship_id || data.campeonato_id
+      const grupoId = data.group_id || data.grupo_id
+      await requireChampionshipOwner(campeonatoId, user.id)
+      if (!grupoId) throw new Error('Grupo obrigatorio para gerar link de inscricao.')
+      const rulePayload = {
+        championship_id: campeonatoId,
+        group_id: grupoId,
+        vagas_por_equipe: data.vagas_por_equipe,
+        abre_em: data.abre_em,
+        encerra_em: data.encerra_em,
+        permite_substituicao: data.permite_substituicao,
+        max_substituicoes_por_equipe: data.max_substituicoes_por_equipe,
+        substituicao_encerra_em: data.substituicao_encerra_em,
+        bloquear_convites_apos_encerramento: data.bloquear_convites_apos_encerramento,
+      }
+      const { error: ruleError } = await supabaseAdmin.from('campeonato_regras_escalacao').upsert({
+        campeonato_id: campeonatoId,
+        grupo_id: grupoId,
+        vagas_por_equipe: Number(rulePayload.vagas_por_equipe || 6),
+        abre_em: rulePayload.abre_em || null,
+        encerra_em: rulePayload.encerra_em || null,
+        permite_substituicao: Boolean(rulePayload.permite_substituicao),
+        max_substituicoes_por_equipe: Number(rulePayload.max_substituicoes_por_equipe || 0),
+        substituicao_encerra_em: rulePayload.substituicao_encerra_em || null,
+        bloquear_convites_apos_encerramento: rulePayload.bloquear_convites_apos_encerramento !== false,
+      }, { onConflict: 'campeonato_id,grupo_id' })
+      if (ruleError) throw ruleError
+      const { data: inserted, error } = await supabaseAdmin.from('campeonato_links_inscricao').insert({
+        campeonato_id: campeonatoId,
+        grupo_id: grupoId,
+        token: body.generate_token ? randomToken('INSC') : body.token,
+        titulo: body.name || data.titulo || 'Inscricao de jogadores',
+        descricao: data.descricao || null,
+        ativo: data.ativo !== false,
+        acompanhamento_publico: data.acompanhamento_publico !== false,
+        criado_por: user.id,
+        expira_em: data.expira_em || data.encerra_em || null,
+      }).select('*').single()
+      if (error) throw error
+      row = baseRow(inserted, entityType)
     } else if (entityType === 'player_registration') {
       const token = await consumeToken(body.data?.token || body.token, 'player_invite')
       const data = body.data || {}
       const campeonatoId = body.parent_id || token?.campeonato_id
       const equipeId = body.ref_id || token?.equipe_id
-      if (!equipeId) throw new Error('Equipe obrigatoria.')
-      if (campeonatoId) await requireTeamInChampionship(campeonatoId, equipeId)
-
-      const memberPayload = {
+      const champTeam = await requireTeamInChampionship(campeonatoId, equipeId)
+      const rule = await getLineupRule(campeonatoId, champTeam.grupo_id)
+      assertLineupOpen(rule)
+      await assertPlayerCapacity(campeonatoId, equipeId, Number(rule?.vagas_por_equipe || 6))
+      const { error: linkError } = await supabaseAdmin.from('equipe_jogadores').upsert({
         jogador_auth_user_id: user.id,
         equipe_id: equipeId,
         nick: body.name || data.nick,
@@ -283,44 +401,35 @@ export async function POST(req: NextRequest) {
         id_jogo: data.id_jogo,
         funcao: data.funcao,
         localidade: data.localidade || null,
-        origem: campeonatoId ? 'token_campeonato' : 'token_equipe',
+        origem: 'token_jogador',
         status: 'ativo',
-      }
-
-      const { error: linkError } = await supabaseAdmin
-        .from('equipe_jogadores')
-        .upsert(memberPayload, { onConflict: 'jogador_auth_user_id,equipe_id' })
+      }, { onConflict: 'jogador_auth_user_id,equipe_id' })
       if (linkError) throw linkError
-
-      if (!campeonatoId) {
-        row = baseRow({ ...memberPayload, id: user.id, created_at: new Date().toISOString() }, 'team_player')
-      } else {
-        const { data: inserted, error } = await supabaseAdmin.from('inscricoes_jogadores').insert({
-          campeonato_id: campeonatoId,
-          equipe_id: equipeId,
-          jogo_id: token?.jogo_id || data.game_id || null,
-          tag: data.team_tag || null,
-          nick: body.name || data.nick,
-          foto_url: data.foto_url || null,
-          id_jogo: data.id_jogo,
-          funcao: data.funcao,
-          localidade: data.localidade || null,
-          senha: data.senha || null,
-          jogador_auth_user_id: user.id,
-        }).select('*').single()
-        if (error) throw error
-        row = baseRow(inserted, entityType)
-      }
-    } else if (entityType === 'team_player') {
-      const data = body.data || {}
-      await requireManagedTeam(body.ref_id || data.team_id, user.id)
-      const { data: inserted, error } = await supabaseAdmin.from('equipe_jogadores').insert({
-        jogador_auth_user_id: data.player_user_id,
-        equipe_id: body.ref_id || data.team_id,
-        nick: data.nick,
+      const { data: inserted, error } = await supabaseAdmin.from('inscricoes_jogadores').insert({
+        campeonato_id: campeonatoId,
+        equipe_id: equipeId,
+        jogo_id: token?.jogo_id || data.game_id || null,
+        tag: data.team_tag || null,
+        nick: body.name || data.nick,
         foto_url: data.foto_url || null,
         id_jogo: data.id_jogo,
         funcao: data.funcao,
+        localidade: data.localidade || null,
+        senha: data.senha || null,
+        jogador_auth_user_id: user.id,
+      }).select('*').single()
+      if (error) throw error
+      row = baseRow(inserted, entityType)
+    } else if (entityType === 'player_team') {
+      const data = body.data || {}
+      await requireManagedTeam(body.ref_id || data.team_id, user.id)
+      const { data: inserted, error } = await supabaseAdmin.from('equipe_jogadores').insert({
+        jogador_auth_user_id: data.player_user_id || null,
+        equipe_id: body.ref_id || data.team_id,
+        nick: body.name || data.nick,
+        foto_url: data.foto_url || null,
+        id_jogo: data.id_jogo || null,
+        funcao: data.funcao || null,
         localidade: data.localidade || null,
         origem: data.origem || 'manual',
         status: 'ativo',
