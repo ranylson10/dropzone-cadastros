@@ -709,10 +709,7 @@ export default function Home() {
         </div>
 
         {!account ? (
-          <section className="login-stage">
-            <div className="login-hero">
-              <img src="/login-dropzone-hero.png" alt="Ilustração temática da tela de login DropZone" />
-            </div>
+          <section className="login-stage login-stage-bg">
             <div className="phone-shell">
               <div className="phone-header compact">
                 <p className="eyebrow">Escolha seu acesso</p>

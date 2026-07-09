@@ -1087,3 +1087,86 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* --- correção: arte como background da tela inicial --- */
+.login-stage.login-stage-bg {
+  position: relative;
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 170px);
+  padding: 30px 0;
+  isolation: isolate;
+}
+
+.login-stage.login-stage-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(90deg, rgba(3, 7, 12, .94) 0%, rgba(3, 7, 12, .58) 45%, rgba(3, 7, 12, .86) 100%),
+    linear-gradient(180deg, rgba(3, 7, 12, .18) 0%, rgba(3, 7, 12, .88) 100%),
+    url("/login-dropzone-hero.png") center center / cover no-repeat;
+}
+
+.login-stage.login-stage-bg::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 70, 85, .22), transparent 34%),
+    linear-gradient(90deg, rgba(236, 232, 225, .035) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(236, 232, 225, .025) 1px, transparent 1px);
+  background-size: auto, 64px 64px, 64px 64px;
+}
+
+.login-hero {
+  display: none !important;
+}
+
+.login-stage.login-stage-bg .phone-shell {
+  width: min(780px, 100%);
+  background:
+    linear-gradient(180deg, rgba(9, 16, 26, .88), rgba(4, 8, 14, .92)),
+    var(--surface);
+  backdrop-filter: blur(5px);
+  box-shadow: 0 36px 120px rgba(0, 0, 0, .58);
+}
+
+.login-stage.login-stage-bg .profile-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.login-stage.login-stage-bg .profile-card.gamer-card {
+  grid-template-columns: 72px minmax(0, 1fr);
+  min-height: 172px;
+}
+
+.login-stage.login-stage-bg .profile-card.gamer-card strong {
+  max-width: 100%;
+  font-size: clamp(20px, 2.2vw, 28px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 760px) {
+  .login-stage.login-stage-bg {
+    padding: 14px 0;
+  }
+
+  .login-stage.login-stage-bg::before {
+    background:
+      linear-gradient(180deg, rgba(3, 7, 12, .72) 0%, rgba(3, 7, 12, .94) 100%),
+      url("/login-dropzone-hero.png") center center / cover no-repeat;
+  }
+
+  .login-stage.login-stage-bg .profile-card.gamer-card {
+    grid-template-columns: 1fr;
+  }
+}
