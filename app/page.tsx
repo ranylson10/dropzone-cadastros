@@ -263,9 +263,10 @@ function UploadField({ label, value, bucket, onChange, onUpload }: { label: stri
           accept="image/png,image/jpeg,image/webp"
           hidden
           onChange={async (e) => {
-            const file = e.target.files?.[0]
+            const input = e.currentTarget
+            const file = input.files?.[0]
+            input.value = ''
             if (file) await handleSelect(file)
-            e.currentTarget.value = ''
           }}
         />
 
