@@ -1383,3 +1383,48 @@ h3 {
     text-align: center;
   }
 }
+
+/* --- acesso em duas telas: escolha OU formulário --- */
+.login-free-shell.select-page,
+.login-free-shell.auth-page {
+  display: grid;
+  justify-items: center;
+}
+
+.login-free-shell.auth-page .login-workspace,
+.login-free-shell.auth-page .login-cards-panel,
+.login-free-shell.auth-page .profile-grid {
+  display: none !important;
+}
+
+.login-free-shell.auth-page .auth-inline-panel {
+  width: min(820px, calc(100vw - 36px));
+  margin: 0 auto;
+}
+
+.login-free-shell.auth-page .auth-inline-form {
+  width: 100%;
+}
+
+.login-free-shell.auth-page .auth-inline-head {
+  margin-bottom: 18px;
+}
+
+.login-free-shell.auth-page .selected-profile-clean {
+  margin-bottom: 14px;
+}
+
+.login-free-shell.select-page .login-workspace.cards-only {
+  grid-template-columns: minmax(0, 920px);
+}
+
+.login-free-shell.select-page .login-cards-panel {
+  width: min(920px, calc(100vw - 36px));
+}
+
+@media (max-width: 760px) {
+  .login-free-shell.auth-page .auth-inline-panel,
+  .login-free-shell.select-page .login-cards-panel {
+    width: 100%;
+  }
+}
