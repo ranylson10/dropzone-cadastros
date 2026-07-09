@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { CalendarDays, Check, Copy, Gamepad2, LogOut, RefreshCw, Send, Shield, Trash2, Trophy, Upload, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
-import { authEmail, cleanUsername } from '@/lib/validation'
+import { cleanUsername } from '@/lib/validation'
 
 type AuthMode = 'entrar' | 'criar'
 
@@ -374,6 +374,22 @@ function authHeaders(token: string) {
   return { Authorization: `Bearer ${safeHeaderText(token)}` }
 }
 
+function loginSuggestion(value: string) {
+  const base = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '.')
+    .replace(/-+/g, '.')
+    .replace(/\.+/g, '.')
+    .replace(/^\.|\.$/g, '')
+    .slice(0, 20)
+
+  return base.length >= 3 ? base : ''
+}
+
 export default function Home() {
   const [mode, setMode] = useState<AuthMode>('entrar')
   const [profileType, setProfileType] = useState<ProfileType>('produtora')
@@ -547,6 +563,14 @@ export default function Home() {
     setRegisterData((current) => ({ ...current, [key]: value }))
   }
 
+  function updateName(value: string) {
+    const currentSuggestion = loginSuggestion(name)
+    setName(value)
+    if (mode === 'criar' && (!username.trim() || username === currentSuggestion)) {
+      setUsername(loginSuggestion(value))
+    }
+  }
+
   function selectLocation(location: { pais: string; estado: string; cidade: string }) {
     setRegisterData((current) => ({ ...current, ...location }))
   }
@@ -598,31 +622,37 @@ export default function Home() {
 
     try {
       const clean = cleanUsername(username)
-      if (mode === 'criar') {
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            profile_type: profileType,
-            username: clean,
-            name,
-            email,
-            media_url: mediaUrl,
-            password,
-            details: registerData,
-          }),
+      const endpoint = mode === 'criar' ? '/api/auth/register' : '/api/auth/login'
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_type: profileType,
+          username: clean,
+          login: clean,
+          name,
+          email,
+          media_url: mediaUrl,
+          password,
+          details: registerData,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || (mode === 'criar' ? 'Erro ao cadastrar.' : 'Login invalido.'))
+
+      const session = json.session
+      if (!session?.access_token) throw new Error('Sessao invalida.')
+
+      try {
+        await supabase.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
         })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Erro ao cadastrar.')
+      } catch {
+        // Mesmo se o browser bloquear a persistencia local, o token retornado pela API entra no painel.
       }
 
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({
-        email: authEmail(profileType, clean),
-        password,
-      })
-      if (loginError || !data.session) throw new Error(loginError?.message || 'Login invalido.')
-
-      await loadMeAndRows(data.session.access_token)
+      await loadMeAndRows(session.access_token)
       setActiveAuthType(null)
       setMessage('Login realizado.')
     } catch (err: any) {
@@ -995,7 +1025,7 @@ export default function Home() {
                       <div className="register-main-fields">
                         <div className="mini-grid tight-grid">
                           <Field label={profileType === 'equipe' ? 'Nome da equipe' : profileType === 'jogador' ? 'Nick' : profileType === 'manager' ? 'Nome do manager' : 'Nome da produtora'}>
-                            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
+                            <input value={name} onChange={(e) => updateName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome publico'} />
                           </Field>
 
                           {profileType === 'equipe' ? (
@@ -1041,8 +1071,8 @@ export default function Home() {
                   ) : null}
 
                   <div className="mini-grid auth-base-grid">
-                    <Field label="Login único ou ID">
-                      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID público" />
+                    <Field label={mode === 'criar' ? 'Login' : 'Login ou ID publico'}>
+                      <input value={username} onChange={(e) => setUsername(cleanUsername(e.target.value))} placeholder={mode === 'criar' ? '@login sugerido pelo nome' : '@login ou ID publico'} />
                     </Field>
                     <Field label="Senha">
                       <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />

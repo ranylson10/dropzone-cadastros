@@ -11,6 +11,8 @@ const TYPE_PREFIX = {
   jogador: 'JG',
 } as const
 
+const PROFILE_TABLES = ['produtoras_perfis', 'equipes_perfis', 'jogadores_perfis', 'managers_perfis'] as const
+
 function cleanText(value: unknown) {
   return String(value || '').trim()
 }
@@ -24,6 +26,18 @@ function buildLocalidade(details: Record<string, any>) {
 
 function hashInvitePassword(value: string) {
   return createHash('sha256').update(value).digest('hex')
+}
+
+async function assertGlobalUsernameAvailable(username: string) {
+  for (const table of PROFILE_TABLES) {
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select('id')
+      .ilike('username', username)
+      .maybeSingle()
+    if (error) throw error
+    if (data) throw new Error('Esse login ja existe. Escolha outro login.')
+  }
 }
 
 export async function POST(req: Request) {
@@ -76,13 +90,7 @@ export async function POST(req: Request) {
       managerInvite = data
     }
 
-    const { data: existingLogin } = await supabaseAdmin
-      .from(table)
-      .select('id')
-      .ilike('username', username)
-      .maybeSingle()
-
-    if (existingLogin) throw new Error('Esse login ja existe para esse tipo de perfil.')
+    await assertGlobalUsernameAvailable(username)
 
     const { data: existingEmail } = await supabaseAdmin
       .from(table)
@@ -172,7 +180,20 @@ export async function POST(req: Request) {
       if (tokenError) throw tokenError
     }
 
-    return NextResponse.json({ account })
+    const { data: loginData, error: loginError } = await supabaseAdmin.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (loginError || !loginData.session) throw new Error(loginError?.message || 'Conta criada, mas nao foi possivel iniciar a sessao.')
+
+    return NextResponse.json({
+      account,
+      session: {
+        access_token: loginData.session.access_token,
+        refresh_token: loginData.session.refresh_token,
+      },
+    })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao cadastrar.' }, { status: 400 })
   }
