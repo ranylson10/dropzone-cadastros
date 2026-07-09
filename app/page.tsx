@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CalendarDays, Check, Copy, Gamepad2, LogOut, RefreshCw, Send, Shield, Trash2, Trophy, Upload, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
@@ -265,8 +266,11 @@ function UploadField({ label, value, bucket, onChange, onUpload }: { label: stri
           onChange={async (e) => {
             const input = e.currentTarget
             const file = input.files?.[0]
+
+            if (!file) return
+
             input.value = ''
-            if (file) await handleSelect(file)
+            await handleSelect(file)
           }}
         />
 
@@ -283,7 +287,7 @@ function UploadField({ label, value, bucket, onChange, onUpload }: { label: stri
           ) : null}
         </div>
 
-        {cropOpen ? (
+        {cropOpen && typeof document !== 'undefined' ? createPortal(
           <div className="cropper-overlay" onClick={closeCropper}>
             <div className="cropper-modal" onClick={(event) => event.stopPropagation()}>
               <div className="cropper-head">
@@ -333,7 +337,8 @@ function UploadField({ label, value, bucket, onChange, onUpload }: { label: stri
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         ) : null}
       </div>
     </Field>

@@ -1718,3 +1718,72 @@ body:has(.login-stage-bg) .message.error.floating {
     order: 3;
   }
 }
+
+
+/* --- cropper sempre por cima do formulario --- */
+.cropper-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  background: rgba(3, 7, 12, .78) !important;
+  backdrop-filter: blur(9px) !important;
+  overflow: auto !important;
+}
+
+.cropper-modal {
+  width: min(620px, calc(100vw - 32px)) !important;
+  max-height: calc(100vh - 32px) !important;
+  overflow: auto !important;
+  padding: 16px !important;
+  border: 1px solid rgba(255, 70, 85, .45) !important;
+  background: linear-gradient(180deg, rgba(15,25,35,.99), rgba(7,16,24,.99)) !important;
+  box-shadow: 0 36px 100px rgba(0,0,0,.72) !important;
+  clip-path: none !important;
+}
+
+.cropper-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-bottom: 10px;
+  background: linear-gradient(180deg, rgba(15,25,35,.99), rgba(15,25,35,.94));
+}
+
+.cropper-frame-wrap {
+  margin-bottom: 12px !important;
+}
+
+.cropper-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 10px !important;
+  padding-top: 10px;
+  background: linear-gradient(0deg, rgba(7,16,24,.99), rgba(7,16,24,.90));
+}
+
+body:has(.cropper-overlay) {
+  overflow: hidden !important;
+}
+
+@media (max-height: 760px) and (min-width: 761px) {
+  .cropper-overlay .cropper-modal {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .cropper-modal {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100vh - 20px) !important;
+    padding: 12px !important;
+  }
+
+  .crop-range-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

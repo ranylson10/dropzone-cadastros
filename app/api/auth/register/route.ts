@@ -48,30 +48,27 @@ export async function POST(req: Request) {
 
     const table = profileTable(profileType)
 
-    const { data: existingLogin, error: existingLoginError } = await supabaseAdmin
+    const { data: existingLogin } = await supabaseAdmin
       .from(table)
       .select('id')
       .ilike('username', username)
       .maybeSingle()
 
-    if (existingLoginError) throw new Error(`Consulta login/${table}: ${existingLoginError.message}`)
     if (existingLogin) throw new Error('Esse login ja existe para esse tipo de perfil.')
 
-    const { data: existingEmail, error: existingEmailError } = await supabaseAdmin
+    const { data: existingEmail } = await supabaseAdmin
       .from(table)
       .select('id')
       .eq('email_contato', emailContato)
       .maybeSingle()
-    if (existingEmailError) throw new Error(`Consulta email/${table}: ${existingEmailError.message}`)
     if (existingEmail) throw new Error('Esse e-mail ja tem uma conta desse tipo.')
 
     if (profileType === 'jogador') {
-      const { data: existingGameId, error: existingGameIdError } = await supabaseAdmin
+      const { data: existingGameId } = await supabaseAdmin
         .from(table)
         .select('id')
         .eq('id_jogo', cleanText(details.id_jogo))
         .maybeSingle()
-      if (existingGameIdError) throw new Error(`Consulta ID de jogo/${table}: ${existingGameIdError.message}`)
       if (existingGameId) throw new Error('Esse ID de jogo ja esta cadastrado.')
     }
 
@@ -88,9 +85,7 @@ export async function POST(req: Request) {
       },
     })
 
-    if (userError || !userData.user) {
-      throw new Error(`Auth/createUser: ${userError?.message || 'Nao foi possivel criar o usuario.'}`)
-    }
+    if (userError || !userData.user) throw new Error(`Auth/createUser: ${userError?.message || 'Nao foi possivel criar o usuario.'}`)
 
     const payload: Record<string, any> = {
       auth_user_id: userData.user.id,
@@ -138,10 +133,7 @@ export async function POST(req: Request) {
 
     if (accountError) {
       await supabaseAdmin.auth.admin.deleteUser(userData.user.id)
-      const parts = [accountError.message, accountError.details, accountError.hint, accountError.code]
-        .filter(Boolean)
-        .join(' | ')
-      throw new Error(`Perfil/${table}: ${parts}`)
+      throw new Error(`Perfil/${table}: ${accountError.message}`)
     }
 
     return NextResponse.json({ account })
