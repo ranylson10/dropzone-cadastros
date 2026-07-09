@@ -710,66 +710,71 @@ export default function Home() {
 
         {!account ? (
           <section className="login-stage login-stage-bg">
-            <div className="phone-shell">
-              <div className="phone-header compact">
+            <div className="phone-shell login-free-shell">
+              <div className="login-layout-header">
                 <p className="eyebrow">Escolha seu acesso</p>
                 <h2>Quem vai entrar?</h2>
               </div>
 
-              <div className="profile-grid">
-                {PROFILE_TYPES.map((type) => {
-                  const active = activeAuthType === type
-                  const recent = recentProfileByType[type]
-                  const media = mediaForProfile(recent)
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      className={`profile-card gamer-card ${active ? 'active' : ''} ${recent ? 'has-recent' : ''}`}
-                      onClick={() => {
-                        clearRegisterForm(type)
-                        setProfileType(type)
-                        if (recent) {
-                          setUsername(recent.username || '')
-                          setName(recent.name || '')
-                          setMediaUrl(media)
-                          setMode('entrar')
-                        }
-                        setActiveAuthType(type)
-                      }}
-                    >
-                      <div className="card-icon-frame">
-                        {media ? <img src={media} alt="" /> : <span>{profileIcons[type]}</span>}
-                      </div>
-                      <div className="card-copy">
-                        <div className="card-topline">{recent ? 'Acesso recente' : 'Novo acesso'}</div>
-                        <strong>{typeLabels[type]}</strong>
-                        {recent ? (
-                          <>
-                            <b className="recent-name">{recent.name}</b>
-                            <small>@{recent.username}{recent.public_id ? ` · ID ${recent.public_id}` : ''}</small>
-                          </>
-                        ) : (
-                          <small>Entrar, criar conta ou recuperar senha</small>
-                        )}
-                      </div>
-                      <i className="card-corner" />
-                    </button>
-                  )
-                })}
-              </div>
+              <div className={`login-workspace ${activeAuthType ? 'with-form' : 'cards-only'}`}>
+                <div className="login-cards-panel">
+                  <div className="profile-grid">
+                    {PROFILE_TYPES.map((type) => {
+                      const active = activeAuthType === type
+                      const recent = recentProfileByType[type]
+                      const media = mediaForProfile(recent)
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          className={`profile-card gamer-card ${active ? 'active' : ''} ${recent ? 'has-recent' : ''}`}
+                          onClick={() => {
+                            clearRegisterForm(type)
+                            setProfileType(type)
+                            if (recent) {
+                              setUsername(recent.username || '')
+                              setName(recent.name || '')
+                              setMediaUrl(media)
+                              setMode('entrar')
+                            }
+                            setActiveAuthType(type)
+                          }}
+                        >
+                          <div className="card-icon-frame">
+                            {media ? <img src={media} alt="" /> : <span>{profileIcons[type]}</span>}
+                          </div>
+                          <div className="card-copy">
+                            <div className="card-topline">{recent ? 'Acesso recente' : 'Novo acesso'}</div>
+                            <strong>{typeLabels[type]}</strong>
+                            {recent ? (
+                              <>
+                                <b className="recent-name">{recent.name}</b>
+                                <small>@{recent.username}{recent.public_id ? ` · ID ${recent.public_id}` : ''}</small>
+                              </>
+                            ) : (
+                              <small>Entrar, criar conta ou recuperar senha</small>
+                            )}
+                          </div>
+                          <i className="card-corner" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
 
-              {activeAuthType ? (
-                <div className="auth-overlay" onClick={() => setActiveAuthType(null)}>
-                  <section className="auth-drawer auth-modal" onClick={(event) => event.stopPropagation()}>
-                    <button type="button" className="close-auth" onClick={() => setActiveAuthType(null)} aria-label="Fechar">
-                      <X size={18} />
-                    </button>
-                    <div className="tabs">
-                      <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => setMode('entrar')}>Entrar</button>
-                      <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => setMode('criar')}>Criar conta</button>
+                {activeAuthType ? (
+                  <section className="auth-inline-panel">
+                    <div className="auth-inline-head">
+                      <div className="tabs auth-inline-tabs">
+                        <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => setMode('entrar')}>Entrar</button>
+                        <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => setMode('criar')}>Criar conta</button>
+                      </div>
+                      <button type="button" className="close-auth inline-close" onClick={() => setActiveAuthType(null)} aria-label="Fechar">
+                        <X size={18} />
+                      </button>
                     </div>
-                    <form onSubmit={handleAuth}>
+
+                    <form onSubmit={handleAuth} className="auth-inline-form">
                       <div className="selected-profile selected-profile-clean">
                         <span>{profileIcons[profileType]}</span>
                         <div>
@@ -790,7 +795,7 @@ export default function Home() {
                           ) : null}
 
                           {profileType === 'jogador' ? (
-                            <>
+                            <div className="mini-grid">
                               <Field label="ID de jogo">
                                 <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID único do Free Fire" />
                               </Field>
@@ -802,7 +807,7 @@ export default function Home() {
                                   <option value="bomber">Bomber</option>
                                 </select>
                               </Field>
-                            </>
+                            </div>
                           ) : null}
 
                           {profileType === 'manager' ? (
@@ -836,20 +841,24 @@ export default function Home() {
                           </Field>
                         </>
                       ) : null}
-                      <Field label="Login único ou ID">
-                        <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID público" />
-                      </Field>
-                      <Field label="Senha">
-                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
-                      </Field>
-                      <button className="button wide" disabled={loading}>{mode === 'criar' ? 'Criar e entrar' : 'Entrar'}</button>
-                      <button type="button" className="link-button" onClick={() => setMessage('Recuperação de senha entra na próxima etapa: envio pelo e-mail confirmado do perfil.')}>Esqueci minha senha</button>
+                      <div className="mini-grid auth-base-grid">
+                        <Field label="Login único ou ID">
+                          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@login ou ID público" />
+                        </Field>
+                        <Field label="Senha">
+                          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                        </Field>
+                      </div>
+                      <div className="auth-actions-row">
+                        <button className="button" disabled={loading}>{mode === 'criar' ? 'Criar e entrar' : 'Entrar'}</button>
+                        <button type="button" className="link-button auth-inline-link" onClick={() => setMessage('Recuperação de senha entra na próxima etapa: envio pelo e-mail confirmado do perfil.')}>Esqueci minha senha</button>
+                      </div>
                     </form>
-                    {message ? <div className="message">{message}</div> : null}
-                    {error ? <div className="message error">{error}</div> : null}
+                    {message ? <div className="message floating">{message}</div> : null}
+                    {error ? <div className="message error floating">{error}</div> : null}
                   </section>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           </section>
         ) : (

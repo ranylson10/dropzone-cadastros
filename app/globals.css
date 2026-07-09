@@ -1170,3 +1170,216 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- login layout revamp no modal --- */
+.login-stage.login-stage-bg {
+  min-height: calc(100vh - 160px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0 44px;
+}
+
+.login-stage.login-stage-bg .phone-shell.login-free-shell {
+  width: min(1240px, 100%);
+  max-width: 1240px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+}
+
+.login-stage.login-stage-bg .phone-shell.login-free-shell::before,
+.login-stage.login-stage-bg .phone-shell.login-free-shell::after {
+  display: none;
+}
+
+.login-layout-header {
+  margin: 0 auto 24px;
+  width: fit-content;
+  text-align: center;
+}
+
+.login-layout-header h2 {
+  margin: 6px 0 0;
+  font-size: clamp(42px, 6vw, 72px);
+  line-height: .94;
+  letter-spacing: -.05em;
+}
+
+.login-workspace {
+  display: grid;
+  gap: 22px;
+  justify-content: center;
+  align-items: start;
+}
+
+.login-workspace.cards-only {
+  grid-template-columns: minmax(860px, 920px);
+}
+
+.login-workspace.with-form {
+  grid-template-columns: minmax(370px, 430px) minmax(680px, 760px);
+}
+
+.login-cards-panel,
+.auth-inline-panel {
+  position: relative;
+  border: 1px solid rgba(236,232,225,.1);
+  background: linear-gradient(180deg, rgba(7,13,21,.88), rgba(5,10,16,.88));
+  box-shadow: 0 18px 64px rgba(0,0,0,.34);
+  overflow: hidden;
+}
+
+.login-cards-panel {
+  padding: 18px;
+  clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 0 100%);
+}
+
+.auth-inline-panel {
+  padding: 18px 18px 20px;
+  clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
+}
+
+.login-cards-panel::before,
+.auth-inline-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0 74%, rgba(255,255,255,.045) 74% 80%, transparent 80%);
+}
+
+.login-stage.login-stage-bg .profile-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.login-stage.login-stage-bg .profile-card.gamer-card {
+  min-height: 186px;
+}
+
+.auth-inline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.auth-inline-tabs {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.inline-close {
+  position: static;
+  flex: 0 0 auto;
+}
+
+.auth-inline-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-inline-form .selected-profile {
+  margin-bottom: 4px;
+}
+
+.location-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.auth-base-grid {
+  align-items: end;
+}
+
+.auth-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.auth-actions-row .button {
+  min-width: 220px;
+}
+
+.auth-inline-link {
+  width: auto;
+  margin-top: 0;
+  text-align: right;
+}
+
+/* neutralize old modal behavior */
+.auth-overlay {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto !important;
+  display: block !important;
+  padding: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  overflow: visible !important;
+}
+
+.auth-modal,
+.auth-drawer {
+  width: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  margin-top: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  clip-path: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+@media (max-width: 1180px) {
+  .login-workspace.cards-only,
+  .login-workspace.with-form {
+    grid-template-columns: minmax(0, 980px);
+  }
+
+  .auth-inline-panel {
+    max-width: 980px;
+  }
+}
+
+@media (max-width: 760px) {
+  .login-stage.login-stage-bg {
+    padding: 22px 0 34px;
+  }
+
+  .login-layout-header h2 {
+    font-size: 34px;
+  }
+
+  .login-workspace.cards-only,
+  .login-workspace.with-form {
+    grid-template-columns: 1fr;
+  }
+
+  .login-stage.login-stage-bg .profile-grid,
+  .location-grid,
+  .auth-base-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-inline-head,
+  .auth-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .auth-actions-row .button,
+  .auth-inline-link {
+    width: 100%;
+    text-align: center;
+  }
+}
