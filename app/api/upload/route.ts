@@ -4,13 +4,6 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'campeonato'])
 const MAX_FILE_SIZE = 4 * 1024 * 1024
 
-function safeExt(file: File) {
-  const byType = file.type.split('/')[1]
-  if (byType && ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(byType)) return byType === 'jpeg' ? 'jpg' : byType
-  const nameExt = file.name.split('.').pop()?.toLowerCase()
-  if (nameExt && ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(nameExt)) return nameExt === 'jpeg' ? 'jpg' : nameExt
-  return 'png'
-}
 
 export async function POST(req: Request) {
   try {
@@ -24,12 +17,12 @@ export async function POST(req: Request) {
     if (file.size > MAX_FILE_SIZE) throw new Error('Imagem muito pesada. Limite: 4 MB.')
 
     const bytes = await file.arrayBuffer()
-    const path = `${bucket}/${Date.now()}-${crypto.randomUUID()}.${safeExt(file)}`
+    const path = `${bucket}/${Date.now()}-${crypto.randomUUID()}.png`
 
     const { error } = await supabaseAdmin.storage
       .from(bucket)
       .upload(path, Buffer.from(bytes), {
-        contentType: file.type || 'image/png',
+        contentType: 'image/png',
         upsert: false,
       })
 
