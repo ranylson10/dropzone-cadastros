@@ -2141,3 +2141,167 @@ body:has(.login-stage-bg) h1 {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- ajuste: acesso recente direto + painel por abas --- */
+.other-account-link {
+  display: block;
+  margin: 16px auto 0;
+  border: 0;
+  background: transparent;
+  color: rgba(48, 38, 74, .68);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.other-account-link:hover {
+  color: var(--brand);
+}
+
+.dashboard-tabbed {
+  grid-template-columns: 1fr;
+}
+
+.profile-tabs-panel {
+  padding: 20px;
+}
+
+.compact-section-head {
+  margin-bottom: 16px;
+}
+
+.panel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 8px;
+  border: 1px solid rgba(104, 80, 154, .14);
+  background: rgba(255,255,255,.55);
+  border-radius: 16px;
+}
+
+.panel-tabs button {
+  min-height: 40px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #5f5574;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.panel-tabs button.active,
+.panel-tabs button:hover {
+  border-color: rgba(123,91,214,.24);
+  background: linear-gradient(135deg, rgba(123,91,214,.16), rgba(167,119,227,.12));
+  color: #30264a;
+}
+
+.tab-content {
+  display: grid;
+  gap: 16px;
+}
+
+.inline-title {
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+.pill-count {
+  display: inline-flex;
+  min-width: 42px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(123,91,214,.12);
+  color: var(--brand);
+  font-weight: 950;
+}
+
+.championship-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.championship-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 92px;
+  border: 1px solid rgba(104,80,154,.14);
+  background: rgba(255,255,255,.72);
+  color: var(--text);
+  padding: 12px;
+  border-radius: 16px;
+  text-align: left;
+  box-shadow: 0 14px 34px rgba(64,45,105,.08);
+}
+
+.championship-card:hover,
+.championship-card.active {
+  border-color: rgba(123,91,214,.42);
+  transform: translateY(-2px);
+}
+
+.championship-card strong {
+  display: block;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.championship-card small {
+  display: block;
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.champ-logo {
+  display: grid;
+  grid-row: span 2;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(123,91,214,.1);
+  color: var(--brand);
+}
+
+.champ-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.clean-form-grid {
+  grid-template-columns: minmax(220px, 1fr) 140px minmax(220px, 1fr);
+  align-items: start;
+}
+
+.organizer-grid {
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .panel-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .clean-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

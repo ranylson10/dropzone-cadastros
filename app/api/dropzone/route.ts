@@ -45,20 +45,19 @@ function hashInvitePassword(value: string) {
 const TABLE_BY_ENTITY: Record<string, string> = {
   championship: 'campeonatos',
   team: 'equipes',
-  player_team: 'jogadores_equipes',
   championship_team: 'campeonato_equipes',
   group: 'campeonato_grupos',
   game: 'campeonato_jogos',
   invite_token: 'convites_tokens',
-  player_registration: 'campeonato_jogadores',
+  player_registration: 'inscricoes_jogadores',
 }
 
 const PUBLIC_TYPES = Object.keys(TABLE_BY_ENTITY)
 
 function canCreate(profileType: string | null, entityType: string) {
   if (profileType === 'produtora') return ['championship', 'team', 'championship_team', 'group', 'game', 'invite_token'].includes(entityType)
-  if (profileType === 'equipe') return ['team', 'championship_team', 'invite_token', 'player_registration', 'player_team'].includes(entityType)
-  if (profileType === 'manager') return ['team', 'championship_team', 'invite_token', 'player_registration', 'player_team'].includes(entityType)
+  if (profileType === 'equipe') return ['team', 'championship_team', 'invite_token', 'player_registration'].includes(entityType)
+  if (profileType === 'manager') return ['team', 'championship_team', 'invite_token', 'player_registration'].includes(entityType)
   if (profileType === 'jogador') return ['player_registration'].includes(entityType)
   return false
 }
@@ -124,11 +123,10 @@ export async function GET(req: NextRequest) {
       if (type === 'championship') output.push(...await selectRows('campeonatos', type, (row) => baseRow(row, type, { data: { nome: row.nome } })))
       if (type === 'team') output.push(...await selectRows('equipes', type, (row) => baseRow(row, type, { data: { tag: row.tag, logo_url: row.logo_url } })))
       if (type === 'championship_team') output.push(...await selectRows('campeonato_equipes', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, team_id: row.equipe_id, grupo_id: row.grupo_id, slot: row.slot_numero } })))
-      if (type === 'player_team') output.push(...await selectRows('jogadores_equipes', type, (row) => baseRow(row, type, { data: { player_user_id: row.jogador_auth_user_id, team_id: row.equipe_id, origem: row.origem } })))
       if (type === 'group') output.push(...await selectRows('campeonato_grupos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, slots: row.slots } })))
       if (type === 'game') output.push(...await selectRows('campeonato_jogos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, data_jogo: row.data_jogo, horario: row.horario, numero_partidas: row.numero_partidas, mapas: row.mapas, grupos_ids: row.grupos_ids } })))
       if (type === 'invite_token') output.push(...await selectRows('convites_tokens', type, (row) => baseRow(row, type, { data: { token_kind: row.tipo, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id, usado: row.usado, expira_em: row.expira_em } })))
-      if (type === 'player_registration') output.push(...await selectRows('campeonato_jogadores', type, (row) => baseRow(row, type, { data: { nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, localidade: row.localidade, team_tag: row.tag, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id } })))
+      if (type === 'player_registration') output.push(...await selectRows('inscricoes_jogadores', type, (row) => baseRow(row, type, { data: { nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, localidade: row.localidade, championship_id: row.campeonato_id, team_id: row.equipe_id, game_id: row.jogo_id } })))
     }
 
     if (entityType) await add(entityType)
@@ -274,18 +272,10 @@ export async function POST(req: NextRequest) {
       const campeonatoId = body.parent_id || token?.campeonato_id
       const equipeId = body.ref_id || token?.equipe_id
       await requireTeamInChampionship(campeonatoId, equipeId)
-      const { error: linkError } = await supabaseAdmin.from('jogadores_equipes').upsert({
-        jogador_auth_user_id: user.id,
-        equipe_id: equipeId,
-        origem: 'token_jogador',
-        status: 'ativo',
-      }, { onConflict: 'jogador_auth_user_id,equipe_id' })
-      if (linkError) throw linkError
-      const { data: inserted, error } = await supabaseAdmin.from('campeonato_jogadores').insert({
+      const { data: inserted, error } = await supabaseAdmin.from('inscricoes_jogadores').insert({
         campeonato_id: campeonatoId,
         equipe_id: equipeId,
         jogo_id: token?.jogo_id || data.game_id || null,
-        tag: data.team_tag || null,
         nick: body.name || data.nick,
         foto_url: data.foto_url || null,
         id_jogo: data.id_jogo,
@@ -293,17 +283,6 @@ export async function POST(req: NextRequest) {
         localidade: data.localidade || null,
         senha: data.senha || null,
         jogador_auth_user_id: user.id,
-      }).select('*').single()
-      if (error) throw error
-      row = baseRow(inserted, entityType)
-    } else if (entityType === 'player_team') {
-      const data = body.data || {}
-      await requireManagedTeam(body.ref_id || data.team_id, user.id)
-      const { data: inserted, error } = await supabaseAdmin.from('jogadores_equipes').insert({
-        jogador_auth_user_id: data.player_user_id,
-        equipe_id: body.ref_id || data.team_id,
-        origem: data.origem || 'manual',
-        status: 'ativo',
       }).select('*').single()
       if (error) throw error
       row = baseRow(inserted, entityType)
