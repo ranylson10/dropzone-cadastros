@@ -320,15 +320,33 @@ export async function POST(req: NextRequest) {
       row = baseRow(inserted, entityType)
     } else if (entityType === 'group') {
       const data = body.data || {}
-      await requireChampionshipOwner(body.parent_id || data.campeonato_id, user.id)
-      const { data: inserted, error } = await supabaseAdmin.from('campeonato_grupos').insert({
-        campeonato_id: body.parent_id || data.campeonato_id,
-        fase_id: data.fase_id || null,
-        nome: body.name || data.nome,
-        slots: Number(data.slots || 12),
-      }).select('*').single()
-      if (error) throw error
-      row = baseRow(inserted, entityType)
+      const campeonatoId = body.parent_id || data.campeonato_id
+      const groupName = String(body.name || data.nome || '').trim()
+      await requireChampionshipOwner(campeonatoId, user.id)
+      let existingQuery = supabaseAdmin
+        .from('campeonato_grupos')
+        .select('*')
+        .eq('campeonato_id', campeonatoId)
+        .ilike('nome', groupName)
+        .limit(1)
+      existingQuery = data.fase_id ? existingQuery.eq('fase_id', data.fase_id) : existingQuery.is('fase_id', null)
+      const { data: existingGroup, error: existingGroupError } = await existingQuery.maybeSingle()
+      if (existingGroupError) throw existingGroupError
+      if (existingGroup) {
+        row = baseRow(existingGroup, entityType, { data: { championship_id: existingGroup.campeonato_id, fase_id: existingGroup.fase_id, slots: existingGroup.slots } })
+      } else {
+        const { data: inserted, error } = await supabaseAdmin.from('campeonato_grupos').insert({
+          campeonato_id: campeonatoId,
+          fase_id: data.fase_id || null,
+          nome: groupName,
+          slots: Number(data.slots || 12),
+        }).select('*').single()
+        if (error) {
+          if (error.code === '23505') throw new Error('Ja existe um grupo com esse nome. Use outro nome ou selecione o grupo existente.')
+          throw error
+        }
+        row = baseRow(inserted, entityType)
+      }
     } else if (entityType === 'group_slot') {
       const data = body.data || {}
       const campeonatoId = body.parent_id || data.campeonato_id

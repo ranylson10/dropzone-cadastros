@@ -161,6 +161,10 @@ create table if not exists public.campeonato_grupos (
 );
 
 alter table public.campeonato_grupos add column if not exists fase_id uuid references public.campeonato_fases(id) on delete set null;
+alter table public.campeonato_grupos drop constraint if exists campeonato_grupos_nome_unique;
+drop index if exists public.campeonato_grupos_nome_unique;
+create unique index if not exists campeonato_grupos_contexto_nome_idx
+  on public.campeonato_grupos (campeonato_id, coalesce(fase_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(nome));
 
 create table if not exists public.campeonato_slots (
   id uuid primary key default gen_random_uuid(),
