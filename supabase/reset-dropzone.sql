@@ -96,6 +96,7 @@ create table if not exists public.managers (
 create table if not exists public.campeonatos (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
+  tipo text not null default 'copa' check (tipo in ('diario', 'copa', 'liga', 'xtreino', 'confronto')),
   logo_url text,
   premiacao text,
   divisao_premiacao text,
@@ -129,6 +130,7 @@ create table if not exists public.campeonato_grupos (
 -- Old global uniqueness caused "Grupo A" to fail even when the visible phase was empty.
 alter table public.campeonato_grupos drop constraint if exists campeonato_grupos_nome_unique;
 drop index if exists public.campeonato_grupos_nome_unique;
+drop index if exists public.campeonato_grupos_contexto_nome_idx;
 create unique index if not exists campeonato_grupos_contexto_nome_idx
   on public.campeonato_grupos (campeonato_id, coalesce(fase_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(nome));
 

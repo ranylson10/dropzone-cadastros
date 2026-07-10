@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountByUserId, getBearerUser } from '@/lib/server-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS, type ChampionshipType } from '@/lib/dropzone-constants'
 import { randomToken } from '@/lib/validation'
 
 const HIDDEN_DATA_KEYS = new Set([
@@ -53,6 +54,7 @@ const TABLE_BY_ENTITY: Record<string, string> = {
 }
 
 const PUBLIC_TYPES = Object.keys(TABLE_BY_ENTITY)
+const DEFAULT_CHAMPIONSHIP_TYPE: ChampionshipType = 'copa'
 
 function canCreate(profileType: string | null, entityType: string) {
   if (profileType === 'produtora') return ['championship', 'team', 'championship_team', 'phase', 'group', 'group_slot', 'game', 'invite_token', 'registration_link', 'lineup_rule'].includes(entityType)
@@ -73,14 +75,47 @@ async function selectRows(table: string, entityType: string, mapper = (row: any)
 
 async function requireChampionshipOwner(championshipId: string | null | undefined, userId: string) {
   if (!championshipId) throw new Error('Campeonato obrigatorio.')
-  const { data, error } = await supabaseAdmin
+  let data: any
+  let error: any
+  const initial = await supabaseAdmin
     .from('campeonatos')
-    .select('id, criado_por')
+    .select('id, criado_por, tipo')
     .eq('id', championshipId)
     .maybeSingle()
+  data = initial.data
+  error = initial.error
+  if (error && ['PGRST204', '42703'].includes(error.code || '')) {
+    const fallback = await supabaseAdmin
+      .from('campeonatos')
+      .select('id, criado_por')
+      .eq('id', championshipId)
+      .maybeSingle()
+    data = fallback.data
+    error = fallback.error
+  }
   if (error) throw error
   if (!data || data.criado_por !== userId) throw new Error('Voce nao pode gerenciar esse campeonato.')
   return data
+}
+
+function normalizeChampionshipType(value: unknown): ChampionshipType {
+  const clean = String(value || '').trim().toLowerCase()
+  return CHAMPIONSHIP_TYPES.includes(clean as ChampionshipType) ? clean as ChampionshipType : DEFAULT_CHAMPIONSHIP_TYPE
+}
+
+function normalizeGroupName(rawName: unknown, championshipType: ChampionshipType) {
+  const clean = String(rawName || '').trim()
+  if (championshipType === 'diario') {
+    const hour = clean.replace(':00', 'h').replace(/\s+/g, '').toLowerCase()
+    const normalized = hour.match(/^([01]?\d|2[0-3])h$/)?.[0]
+    const padded = normalized ? `${normalized.replace('h', '').padStart(2, '0')}h` : ''
+    if (!padded || !DAILY_HOURS.includes(padded)) throw new Error('Selecione um horario valido para campeonato diario.')
+    return padded
+  }
+
+  const letter = clean.replace(/^grupo\s+/i, '').trim().toUpperCase()
+  if (!GROUP_LETTERS.includes(letter)) throw new Error('Selecione uma letra valida para o grupo.')
+  return `Grupo ${letter}`
 }
 
 async function requireManagedTeam(teamId: string | null | undefined, userId: string) {
@@ -206,7 +241,7 @@ export async function GET(req: NextRequest) {
     const output: any[] = []
 
     async function add(type: string) {
-      if (type === 'championship') output.push(...await selectRows('campeonatos', type, (row) => baseRow(row, type, { data: { nome: row.nome } })))
+      if (type === 'championship') output.push(...await selectRows('campeonatos', type, (row) => baseRow(row, type, { data: { nome: row.nome, tipo: row.tipo || DEFAULT_CHAMPIONSHIP_TYPE } })))
       if (type === 'team') output.push(...await selectRows('equipes', type, (row) => baseRow(row, type, { data: { tag: row.tag, logo_url: row.logo_url, profile_team: true } })))
       if (type === 'championship_team') output.push(...await selectRows('campeonato_equipes', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, team_id: row.equipe_id, grupo_id: row.grupo_id, slot: row.slot_numero } })))
       if (type === 'player_team') output.push(...await selectRows('equipe_jogadores', type, (row) => baseRow(row, type, { data: { player_user_id: row.jogador_auth_user_id, team_id: row.equipe_id, origem: row.origem, nick: row.nick, id_jogo: row.id_jogo, funcao: row.funcao, foto_url: row.foto_url } })))
@@ -272,16 +307,24 @@ export async function POST(req: NextRequest) {
     let row: any
     if (entityType === 'championship') {
       const data = body.data || {}
-      const { data: inserted, error } = await supabaseAdmin.from('campeonatos').insert({
+      const championshipPayload = {
         nome: body.name || data.nome,
+        tipo: normalizeChampionshipType(data.tipo),
         logo_url: data.logo_url || null,
         premiacao: data.premiacao || null,
         divisao_premiacao: data.divisao_premiacao || null,
         regras_url: data.regras_url || null,
         criado_por: user.id,
-      }).select('*').single()
+      }
+      let { data: inserted, error } = await supabaseAdmin.from('campeonatos').insert(championshipPayload).select('*').single()
+      if (error && ['PGRST204', '42703'].includes(error.code || '')) {
+        const { tipo, ...fallbackPayload } = championshipPayload
+        const fallback = await supabaseAdmin.from('campeonatos').insert(fallbackPayload).select('*').single()
+        inserted = fallback.data
+        error = fallback.error
+      }
       if (error) throw error
-      row = baseRow(inserted, entityType)
+      row = baseRow(inserted, entityType, { data: { tipo: inserted?.tipo || championshipPayload.tipo } })
     } else if (entityType === 'team') {
       const data = body.data || {}
       const { data: inserted, error } = await supabaseAdmin.from('equipes').insert({
@@ -321,8 +364,9 @@ export async function POST(req: NextRequest) {
     } else if (entityType === 'group') {
       const data = body.data || {}
       const campeonatoId = body.parent_id || data.campeonato_id
-      const groupName = String(body.name || data.nome || '').trim()
-      await requireChampionshipOwner(campeonatoId, user.id)
+      const championship = await requireChampionshipOwner(campeonatoId, user.id)
+      const championshipType = normalizeChampionshipType((championship as any).tipo || data.championship_type)
+      const groupName = normalizeGroupName(body.name || data.nome, championshipType)
       let existingQuery = supabaseAdmin
         .from('campeonato_grupos')
         .select('*')
@@ -333,18 +377,7 @@ export async function POST(req: NextRequest) {
       const { data: existingGroup, error: existingGroupError } = await existingQuery.maybeSingle()
       if (existingGroupError) throw existingGroupError
       if (existingGroup) {
-        if (!existingGroup.fase_id && data.fase_id) {
-          const { data: updatedGroup, error: updateGroupError } = await supabaseAdmin
-            .from('campeonato_grupos')
-            .update({ fase_id: data.fase_id, slots: Number(data.slots || existingGroup.slots || 12) })
-            .eq('id', existingGroup.id)
-            .select('*')
-            .single()
-          if (updateGroupError) throw updateGroupError
-          row = baseRow(updatedGroup, entityType, { data: { championship_id: updatedGroup.campeonato_id, fase_id: updatedGroup.fase_id, slots: updatedGroup.slots } })
-        } else {
-          row = baseRow(existingGroup, entityType, { data: { championship_id: existingGroup.campeonato_id, fase_id: existingGroup.fase_id, slots: existingGroup.slots } })
-        }
+        throw new Error(championshipType === 'diario' ? 'Ja existe esse horario nesta fase do campeonato.' : 'Ja existe esse grupo nesta fase do campeonato.')
       } else {
         const { data: inserted, error } = await supabaseAdmin.from('campeonato_grupos').insert({
           campeonato_id: campeonatoId,
@@ -353,7 +386,7 @@ export async function POST(req: NextRequest) {
           slots: Number(data.slots || 12),
         }).select('*').single()
         if (error) {
-          if (error.code === '23505') throw new Error('Ja existe um grupo com esse nome em outro lugar do banco. Remova a constraint antiga campeonato_grupos_nome_unique ou use outro nome.')
+          if (error.code === '23505') throw new Error(championshipType === 'diario' ? 'Ja existe esse horario nesta fase do campeonato.' : 'Ja existe esse grupo nesta fase do campeonato.')
           throw error
         }
         row = baseRow(inserted, entityType)

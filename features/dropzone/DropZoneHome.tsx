@@ -14,6 +14,15 @@ import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } fro
 
 type AuthMode = 'entrar' | 'criar'
 
+const emptyChampionship = {
+  nome: '',
+  tipo: 'copa',
+  logo_url: '',
+  premiacao: '',
+  divisao_premiacao: '',
+  regras_url: '',
+}
+
 const typeLabels: Record<ProfileType, string> = {
   produtora: 'Produtora',
   equipe: 'Equipe',
@@ -54,13 +63,7 @@ export function DropZoneHome() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const [championship, setChampionship] = useState({
-    nome: '',
-    logo_url: '',
-    premiacao: '',
-    divisao_premiacao: '',
-    regras_url: '',
-  })
+  const [championship, setChampionship] = useState(emptyChampionship)
   const [team, setTeam] = useState({
     nome: '',
     tag: '',
@@ -68,7 +71,7 @@ export function DropZoneHome() {
     senha_dono: '',
   })
   const [phase, setPhase] = useState({ nome: '', campeonato_id: '', ordem: '1' })
-  const [group, setGroup] = useState({ nome: '', campeonato_id: '', fase_id: '', slots: '12' })
+  const [group, setGroup] = useState({ nome: 'Grupo A', campeonato_id: '', fase_id: '', slots: '12' })
   const [slotAssignment, setSlotAssignment] = useState({ grupo_id: '', equipe_id: '', slot_numero: '1' })
   const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] as string[] })
   const [registrationLink, setRegistrationLink] = useState({ grupo_id: '', vagas_por_equipe: '6', abre_em: '', encerra_em: '', permite_substituicao: false, max_substituicoes_por_equipe: '0', substituicao_encerra_em: '', descricao: '' })
@@ -121,6 +124,17 @@ export function DropZoneHome() {
   const playerInvite = tokens.find((row) => row.token?.toUpperCase() === playerToken.trim().toUpperCase() && row.data?.token_kind === 'player_invite')
   const myRegistrations = registrations.filter((row) => row.created_by === account?.auth_user_id)
   const recentProfileByType = useMemo(() => Object.fromEntries(recentProfiles.map((profile) => [profile.profile_type, profile])) as Partial<Record<ProfileType, any>>, [recentProfiles])
+
+  useEffect(() => {
+    if (!selectedChamp) return
+    setGroup((current) => ({
+      ...current,
+      campeonato_id: selectedChamp.id,
+      nome: dataText(selectedChamp, 'tipo') === 'diario'
+        ? (current.nome.match(/^([01]\d|2[0-3])h$/) ? current.nome : '19h')
+        : (current.nome.startsWith('Grupo ') ? current.nome : 'Grupo A'),
+    }))
+  }, [selectedChamp?.id, selectedChamp?.data?.tipo])
 
   async function chooseAccess(type: ProfileType, recent?: any) {
     clearRegisterForm(type)
@@ -342,7 +356,7 @@ export function DropZoneHome() {
   async function createChampionship() {
     if (!championship.nome.trim()) return setError('Informe o nome do campeonato.')
     await createRow({ entity_type: 'championship', name: championship.nome, data: championship }, 'Campeonato criado.')
-    setChampionship({ nome: '', logo_url: '', premiacao: '', divisao_premiacao: '', regras_url: '' })
+    setChampionship(emptyChampionship)
   }
 
   async function createTeam() {
@@ -447,7 +461,7 @@ export function DropZoneHome() {
         championship_name: champ.name,
       },
     }, 'Grupo criado no campeonato.')
-    setGroup({ nome: '', campeonato_id: champ.id, fase_id: group.fase_id, slots: '12' })
+    setGroup({ nome: dataText(champ, 'tipo') === 'diario' ? '19h' : 'Grupo A', campeonato_id: champ.id, fase_id: group.fase_id, slots: '12' })
   }
 
   async function createGame() {

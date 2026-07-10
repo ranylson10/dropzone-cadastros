@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { CalendarDays, Copy, Shield, Trophy } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
+import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { Field, UploadField } from '../../components/form-fields'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
@@ -26,7 +27,7 @@ export function ProdutoraPanel(props: {
   setSelectedChampId: (value: string) => void
   selectedTeamId: string
   setSelectedTeamId: (value: string) => void
-  championship: { nome: string; logo_url: string; premiacao: string; divisao_premiacao: string; regras_url: string }
+  championship: { nome: string; tipo: string; logo_url: string; premiacao: string; divisao_premiacao: string; regras_url: string }
   setChampionship: (value: any) => void
   team: { nome: string; tag: string; logo_url: string; senha_dono: string }
   setTeam: (value: any) => void
@@ -56,6 +57,8 @@ export function ProdutoraPanel(props: {
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
 
   const selectedChamp = props.selectedChamp
+  const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
+  const isDailyChamp = selectedChampType === 'diario'
   const champPhases = props.phases.filter((row) => row.parent_id === selectedChamp?.id)
   const champGroups = props.groups.filter((row) => row.parent_id === selectedChamp?.id)
   const champGames = props.games.filter((row) => row.parent_id === selectedChamp?.id)
@@ -138,6 +141,11 @@ export function ProdutoraPanel(props: {
               <CalendarDays size={18} />
             </div>
             <Field label="Nome"><input value={props.championship.nome} onChange={(e) => props.setChampionship({ ...props.championship, nome: e.target.value })} /></Field>
+            <Field label="Tipo">
+              <select value={props.championship.tipo} onChange={(e) => props.setChampionship({ ...props.championship, tipo: e.target.value })}>
+                {CHAMPIONSHIP_TYPES.map((type) => <option key={type} value={type}>{CHAMPIONSHIP_TYPE_LABELS[type]}</option>)}
+              </select>
+            </Field>
             <UploadField label="Logo do campeonato" value={props.championship.logo_url} bucket="campeonato" onChange={(url) => props.setChampionship({ ...props.championship, logo_url: url })} onUpload={props.uploadPublicFile} />
             <Field label="Premiação"><input value={props.championship.premiacao} onChange={(e) => props.setChampionship({ ...props.championship, premiacao: e.target.value })} /></Field>
             <Field label="Link das regras"><input value={props.championship.regras_url} onChange={(e) => props.setChampionship({ ...props.championship, regras_url: e.target.value })} /></Field>
@@ -157,7 +165,7 @@ export function ProdutoraPanel(props: {
               <div className="detail-title-ref">
                 <p className="eyebrow">Campeonato selecionado</p>
                 <h2>{rowTitle(selectedChamp)}</h2>
-                <p>{dataText(selectedChamp, 'premiacao') ? `Premiação: ${dataText(selectedChamp, 'premiacao')}` : 'Premiação não informada'}</p>
+                <p>{CHAMPIONSHIP_TYPE_LABELS[selectedChampType as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Copa'} · {dataText(selectedChamp, 'premiacao') ? `Premiação: ${dataText(selectedChamp, 'premiacao')}` : 'Premiação não informada'}</p>
                 {dataText(selectedChamp, 'regras_url') ? <small>Regulamento: {dataText(selectedChamp, 'regras_url')}</small> : null}
               </div>
               <div className="detail-stats-ref">
@@ -300,7 +308,17 @@ export function ProdutoraPanel(props: {
                           {champPhases.map((phase) => <option key={phase.id} value={phase.id}>{rowTitle(phase)}</option>)}
                         </select>
                       </Field>
-                      <Field label="Novo grupo"><input value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Grupo A" /></Field>
+                      <Field label={isDailyChamp ? 'Horario' : 'Letra do grupo'}>
+                        {isDailyChamp ? (
+                          <select value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: selectedChamp.id })}>
+                            {DAILY_HOURS.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
+                          </select>
+                        ) : (
+                          <select value={props.group.nome.replace(/^Grupo\s+/i, '').trim() || 'A'} onChange={(e) => props.setGroup({ ...props.group, nome: `Grupo ${e.target.value}`, campeonato_id: selectedChamp.id })}>
+                            {GROUP_LETTERS.map((letter) => <option key={letter} value={letter}>Grupo {letter}</option>)}
+                          </select>
+                        )}
+                      </Field>
                       <Field label="Slots"><input type="number" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: selectedChamp.id })} placeholder="12" /></Field>
                       <button className="button" onClick={props.createGroup}>Criar grupo</button>
                     </div>
