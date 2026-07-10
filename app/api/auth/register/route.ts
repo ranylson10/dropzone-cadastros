@@ -11,7 +11,7 @@ const TYPE_PREFIX = {
   jogador: 'JG',
 } as const
 
-const PROFILE_TABLES = ['produtoras_perfis', 'equipes_perfis', 'jogadores_perfis', 'managers_perfis'] as const
+const PROFILE_TABLES = ['produtoras', 'equipes', 'jogadores', 'managers'] as const
 
 function cleanText(value: unknown) {
   return String(value || '').trim()
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     let managerInvite: any = null
     if (profileType === 'manager') {
       const { data, error } = await supabaseAdmin
-        .from('convites_tokens')
+        .from('tokens')
         .select('*')
         .eq('token', cleanText(details.token_convite).toUpperCase())
         .eq('tipo', 'manager_invite')
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
     const payload: Record<string, any> = {
       auth_user_id: userData.user.id,
       username,
-      nome_exibido: name,
+      nome: name,
       email_contato: emailContato,
       email_verificado: false,
       pais: pais || null,
@@ -136,7 +136,7 @@ export async function POST(req: Request) {
       status: 'ativo',
     }
 
-    if (profileType !== 'jogador') {
+    if (profileType !== 'jogador' || table !== 'jogadores') {
       payload.public_id_prefix = TYPE_PREFIX[profileType]
     }
 
@@ -147,6 +147,7 @@ export async function POST(req: Request) {
     if (profileType === 'equipe') {
       payload.logo_url = mediaUrl
       payload.tag = cleanText(details.tag).toUpperCase()
+      payload.dono_auth_user_id = userData.user.id
     }
 
     if (profileType === 'jogador') {
@@ -157,8 +158,6 @@ export async function POST(req: Request) {
 
     if (profileType === 'manager') {
       payload.avatar_url = mediaUrl
-      payload.token_convite = cleanText(details.token_convite) || null
-      payload.tipo_manager = cleanText(details.tipo_manager) || managerInvite?.tipo_acesso || null
     }
 
     const { data: account, error: accountError } = await supabaseAdmin
@@ -172,26 +171,9 @@ export async function POST(req: Request) {
       throw new Error(`Perfil/${table}: ${accountError.message}`)
     }
 
-    if (profileType === 'equipe') {
-      const teamPayload = {
-        nome: name,
-        tag: cleanText(details.tag).toUpperCase(),
-        logo_url: mediaUrl,
-        dono_auth_user_id: userData.user.id,
-        status: 'ativo',
-      }
-      const { error: teamError } = await supabaseAdmin
-        .from('equipes')
-        .insert(teamPayload)
-      if (teamError && !['23505'].includes(teamError.code || '')) {
-        await supabaseAdmin.auth.admin.deleteUser(userData.user.id)
-        throw new Error(`Equipe: ${teamError.message}`)
-      }
-    }
-
     if (managerInvite) {
       const { error: tokenError } = await supabaseAdmin
-        .from('convites_tokens')
+        .from('tokens')
         .update({ usado: true, usado_em: new Date().toISOString() })
         .eq('id', managerInvite.id)
       if (tokenError) throw tokenError

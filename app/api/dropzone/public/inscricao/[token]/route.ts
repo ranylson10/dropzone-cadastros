@@ -123,14 +123,14 @@ export async function POST(req: NextRequest, ctx: any) {
     if ((count || 0) >= vagas) throw new Error('Essa equipe ja atingiu o limite de vagas.')
 
     const { data: account, error: accountError } = await supabaseAdmin
-      .from('jogadores_perfis')
+      .from('jogadores')
       .select('*')
       .eq('auth_user_id', user.id)
       .maybeSingle()
     if (accountError) throw accountError
     if (!account) throw new Error('Entre com uma conta de jogador para se inscrever.')
 
-    const nick = String(body.nick || account.nome_exibido || '').trim()
+    const nick = String(body.nick || account.nome || '').trim()
     const idJogo = String(body.id_jogo || account.id_jogo || '').trim()
     const funcao = String(body.funcao || account.funcao || 'support')
     if (!nick || !idJogo) throw new Error('Nick e ID de jogo sao obrigatorios.')
@@ -145,12 +145,17 @@ export async function POST(req: NextRequest, ctx: any) {
     if (duplicateError) throw duplicateError
     if (duplicate) throw new Error('Esse ID de jogo ja esta inscrito neste campeonato.')
 
-    const { error: teamPlayerError } = await supabaseAdmin.from('jogadores_equipes').upsert({
-      jogador_id: account.id,
+    const { error: teamPlayerError } = await supabaseAdmin.from('equipe_jogadores').upsert({
       equipe_id: equipeId,
+      jogador_auth_user_id: user.id,
+      nick,
+      foto_url: account.avatar_url || body.foto_url || null,
+      id_jogo: idJogo,
       funcao,
+      localidade: account.localidade || body.localidade || null,
+      origem: 'link',
       status: 'ativo',
-    }, { onConflict: 'jogador_id,equipe_id' })
+    }, { onConflict: 'equipe_id,jogador_auth_user_id' })
     if (teamPlayerError) throw teamPlayerError
 
     const { data: inserted, error } = await supabaseAdmin.from('campeonato_jogadores').insert({

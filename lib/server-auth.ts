@@ -14,10 +14,10 @@ export async function getBearerUser(req: NextRequest) {
 }
 
 const PROFILE_TABLES: Record<ProfileType, string> = {
-  produtora: 'produtoras_perfis',
-  equipe: 'equipes_perfis',
-  jogador: 'jogadores_perfis',
-  manager: 'managers_perfis',
+  produtora: 'produtoras',
+  equipe: 'equipes',
+  jogador: 'jogadores',
+  manager: 'managers',
 }
 
 export function profileTable(profileType: ProfileType) {
