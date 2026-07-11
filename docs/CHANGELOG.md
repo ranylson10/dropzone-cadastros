@@ -85,3 +85,11 @@
 - A pesquisa de equipes informa quais lines já estão inscritas no campeonato e bloqueia sua seleção.
 - A API de entrada manual valida novamente a duplicidade de line no backend.
 - Adicionada migração para criar line principal nas equipes antigas e criar automaticamente a primeira line em novas equipes.
+
+## 2026-07-11 — Convites com referências administrativas
+
+- Removida a busca de equipe do fluxo de criação de convite.
+- A reserva por token agora usa referências livres para equipe e line, sem exigir correspondência com os cadastros reais.
+- A equipe e a line reais são definidas apenas quando o convite é aceito.
+- A página pública permite escolher uma line disponível ou criar uma nova.
+- Lines já inscritas no campeonato não podem ser usadas novamente.

@@ -2154,3 +2154,46 @@ body:has(.cropper-overlay) {
   font-size: 12px;
   line-height: 1.5;
 }
+
+.invite-reference-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line, #dfe3e8);
+  background: #f7f8fa;
+}
+
+.invite-reference-note p,
+.invite-line-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #667085;
+}
+
+.invite-team-confirmation,
+.invite-auth-box {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.invite-current-team {
+  display: grid;
+  gap: 3px;
+  padding: 14px;
+  border: 1px solid #dfe3e8;
+  background: #f7f8fa;
+  text-align: left;
+}
+
+.invite-current-team small {
+  color: #667085;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.invite-success-card > svg {
+  color: #22a06b;
+}

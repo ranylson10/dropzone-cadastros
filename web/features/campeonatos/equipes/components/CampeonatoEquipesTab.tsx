@@ -53,8 +53,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
   const [equipe, setEquipe] = useState<EquipeBusca | null>(null)
   const [lineId, setLineId] = useState('')
   const [nomeLine, setNomeLine] = useState('')
-  const [nomeEquipeConvite, setNomeEquipeConvite] = useState('')
-  const [nomeLineConvite, setNomeLineConvite] = useState('')
+  const [referenciaEquipe, setReferenciaEquipe] = useState('')
+  const [referenciaLine, setReferenciaLine] = useState('')
   const [processando, setProcessando] = useState(false)
   const [feedback, setFeedback] = useState('')
 
@@ -82,8 +82,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     setEquipe(null)
     setLineId('')
     setNomeLine('')
-    setNomeEquipeConvite('')
-    setNomeLineConvite('')
+    setReferenciaEquipe('')
+    setReferenciaLine('')
     setFeedback('')
   }
 
@@ -134,12 +134,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     try {
       const result = await campeonatoEquipesService.criarConvite(campeonatoId, {
         vaga_id: vagaAlvo.id,
-        equipe_destino_id: equipe?.id || null,
-        line_destino_id: lineId || null,
-        nome_equipe_reservada: equipe?.nome || nomeEquipeConvite,
-        nome_line_reservada: lineId
-          ? equipe?.lines.find((line) => line.id === lineId)?.nome
-          : nomeLineConvite,
+        referencia_equipe: referenciaEquipe,
+        referencia_line: referenciaLine,
       }) as { link: string }
       await navigator.clipboard.writeText(result.link)
       setFeedback('Convite criado e link copiado.')
@@ -156,7 +152,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     const convite = vaga.convite
     if (!convite) return
     const link = `${window.location.origin}/convite/equipe/${convite.token}`
-    const texto = `Você recebeu um convite para participar do campeonato ${data?.campeonato.nome}.\n\nVaga reservada: ${String(vaga.numero_vaga).padStart(2, '0')}\nEquipe: ${vaga.nome_equipe_reservada}\nLine: ${vaga.nome_line_reservada}\nValidade: 24 horas.\n\nAcesse: ${link}`
+    const texto = `Você recebeu um convite para participar do campeonato ${data?.campeonato.nome}.\n\nVaga reservada: ${String(vaga.numero_vaga).padStart(2, '0')}\nReferência da reserva: ${vaga.nome_equipe_reservada}\nReferência da line: ${vaga.nome_line_reservada}\nValidade: 24 horas.\n\nAcesse: ${link}`
     await navigator.clipboard.writeText(texto)
     setFeedback('Mensagem completa copiada.')
   }
@@ -321,8 +317,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
 
                   {vaga.status === 'reservada' ? (
                     <div className="vaga-detail-grid">
-                      <span><small>Equipe prevista</small><strong>{vaga.nome_equipe_reservada || '-'}</strong></span>
-                      <span><small>Line prevista</small><strong>{vaga.nome_line_reservada || '-'}</strong></span>
+                      <span><small>Referência da reserva</small><strong>{vaga.nome_equipe_reservada || '-'}</strong></span>
+                      <span><small>Referência da line</small><strong>{vaga.nome_line_reservada || '-'}</strong></span>
                       <span><small>Validade</small><strong>{formatDate(vaga.reserva_expira_em)}</strong></span>
                     </div>
                   ) : null}
@@ -376,88 +372,87 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
       <SystemModal
         open={Boolean(vagaAlvo && modo)}
         title={modo === 'adicionar' ? `Adicionar equipe à vaga ${vagaAlvo?.numero_vaga}` : `Reservar vaga ${vagaAlvo?.numero_vaga} por convite`}
-        description={modo === 'adicionar' ? 'Pesquise uma equipe e escolha ou crie uma line.' : 'Identifique a equipe e a line para impedir confusão entre managers.'}
+        description={modo === 'adicionar' ? 'Pesquise uma equipe e escolha ou crie uma line.' : 'Use referências internas para os administradores. Elas não precisam ser iguais aos nomes reais da equipe e da line.'}
         onClose={fechar}
         size="wide"
       >
         <div className="team-slot-modal">
-          <div className="team-search-row">
-            <input
-              value={busca}
-              onChange={(event) => setBusca(event.target.value)}
-              onKeyDown={(event) => { if (event.key === 'Enter') void pesquisar() }}
-              placeholder="Buscar equipe por nome ou tag"
-            />
-            <button className="button secondary" onClick={pesquisar} disabled={processando}>
-              <Search size={15} /> Pesquisar
-            </button>
-          </div>
-
-          {resultados.length ? (
-            <div className="team-search-results">
-              {resultados.map((item) => (
-                <button
-                  className={equipe?.id === item.id ? 'selected' : ''}
-                  key={item.id}
-                  onClick={() => {
-                    setEquipe(item)
-                    setNomeEquipeConvite(item.nome)
-                    setLineId('')
-                    setNomeLine('')
-                    setNomeLineConvite('')
-                  }}
-                >
-                  <span>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Users size={18} />}</span>
-                  <strong>{item.nome}</strong>
-                  <small>{item.tag || 'Sem tag'}</small>
+          {modo === 'adicionar' ? (
+            <>
+              <div className="team-search-row">
+                <input
+                  value={busca}
+                  onChange={(event) => setBusca(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') void pesquisar() }}
+                  placeholder="Buscar equipe por nome ou tag"
+                />
+                <button className="button secondary" onClick={pesquisar} disabled={processando}>
+                  <Search size={15} /> Pesquisar
                 </button>
-              ))}
-            </div>
-          ) : null}
+              </div>
 
-          {modo === 'convite' && !equipe ? (
-            <label className="field">
-              <span>Nome da equipe reservada</span>
-              <input value={nomeEquipeConvite} onChange={(event) => setNomeEquipeConvite(event.target.value)} placeholder="Ex.: ALOE GAMING" />
-            </label>
-          ) : null}
+              {resultados.length ? (
+                <div className="team-search-results">
+                  {resultados.map((item) => (
+                    <button
+                      className={equipe?.id === item.id ? 'selected' : ''}
+                      key={item.id}
+                      onClick={() => {
+                        setEquipe(item)
+                        setLineId('')
+                        setNomeLine('')
+                      }}
+                    >
+                      <span>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Users size={18} />}</span>
+                      <strong>{item.nome}</strong>
+                      <small>{item.tag || 'Sem tag'}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
-          {equipe ? (
-            <div className="selected-team-box">
-              <strong>Equipe selecionada: {equipe.nome}</strong>
-              {equipe.lines.length ? (
+              {equipe ? (
+                <div className="selected-team-box">
+                  <strong>Equipe selecionada: {equipe.nome}</strong>
+                  {equipe.lines.length ? (
+                    <label className="field">
+                      <span>Line existente</span>
+                      <select value={lineId} onChange={(event) => { setLineId(event.target.value); setNomeLine('') }}>
+                        <option value="">Criar nova line</option>
+                        {equipe.lines.map((line) => (
+                          <option key={line.id} value={line.id} disabled={line.ja_inscrita}>
+                            {line.nome}{line.ja_inscrita ? ` — já inscrita${line.vaga_numero ? ` na vaga ${String(line.vaga_numero).padStart(2, '0')}` : ''}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : <p>Esta equipe ainda não possui lines. Informe abaixo o nome da primeira line.</p>}
+                </div>
+              ) : null}
+
+              {equipe && !lineId ? (
                 <label className="field">
-                  <span>Line existente</span>
-                  <select
-                    value={lineId}
-                    onChange={(event) => {
-                      setLineId(event.target.value)
-                      setNomeLine('')
-                      setNomeLineConvite('')
-                    }}
-                  >
-                    <option value="">Criar/identificar nova line</option>
-                    {equipe.lines.map((line) => (
-                      <option key={line.id} value={line.id} disabled={line.ja_inscrita}>
-                        {line.nome}{line.ja_inscrita ? ` — já inscrita${line.vaga_numero ? ` na vaga ${String(line.vaga_numero).padStart(2, '0')}` : ''}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <span>Nome da nova line</span>
+                  <input value={nomeLine} onChange={(event) => setNomeLine(event.target.value)} placeholder="Ex.: ALOE ELITE" />
                 </label>
-              ) : <p>Esta equipe ainda não possui lines. Informe abaixo o nome da primeira line para continuar.</p>}
-            </div>
-          ) : null}
-
-          {!lineId ? (
-            <label className="field">
-              <span>{modo === 'adicionar' ? 'Nome da nova line' : 'Nome da line reservada'}</span>
-              <input
-                value={modo === 'adicionar' ? nomeLine : nomeLineConvite}
-                onChange={(event) => modo === 'adicionar' ? setNomeLine(event.target.value) : setNomeLineConvite(event.target.value)}
-                placeholder="Ex.: ALOE ELITE"
-              />
-            </label>
-          ) : null}
+              ) : null}
+            </>
+          ) : (
+            <>
+              <div className="invite-reference-note">
+                <Shield size={17} />
+                <p>Esses dados servem somente para organização interna. Quem receber o link poderá confirmar com a equipe e a line reais da própria conta.</p>
+              </div>
+              <label className="field">
+                <span>Identificação da reserva</span>
+                <input value={referenciaEquipe} onChange={(event) => setReferenciaEquipe(event.target.value)} placeholder="Ex.: Vaga do Lucas" />
+              </label>
+              <label className="field">
+                <span>Identificação da line</span>
+                <input value={referenciaLine} onChange={(event) => setReferenciaLine(event.target.value)} placeholder="Ex.: Line Elite" />
+              </label>
+            </>
+          )}
 
           {feedback ? <div className="teams-feedback">{feedback}</div> : null}
           <div className="modal-form-actions">
