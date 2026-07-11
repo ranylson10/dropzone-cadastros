@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Pencil, Trash2, Trophy } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, MessageCircle, Pencil, Plus, Trash2, Trophy, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { Field } from '../../components/form-fields'
@@ -11,6 +11,8 @@ import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
+
+const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
 
 export function ProdutoraPanel(props: {
   championships: DropZoneRow[]
@@ -39,11 +41,11 @@ export function ProdutoraPanel(props: {
   setPhase: (value: any) => void
   group: { nome: string; campeonato_id: string; fase_id: string; slots: string; whatsapp_url: string }
   setGroup: (value: any) => void
-  slotAssignment: { grupo_id: string; equipe_id: string; slot_numero: string }
+  slotAssignment: { slot_id: string; grupo_id: string; equipe_id: string; line_id: string; campeonato_equipe_id: string; slot_numero: string }
   setSlotAssignment: (value: any) => void
   game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string; grupos_ids: string[] }
   setGame: (value: any) => void
-  createChampionship: () => void
+  createChampionship: () => Promise<boolean>
   updateChampionship: (id: string, data: CampeonatoFormValue) => Promise<DropZoneRow | undefined>
   deleteChampionship: (id: string) => Promise<void>
   updateStructure: (entityType: 'phase' | 'group' | 'group_slot', id: string, data: Record<string, unknown>) => Promise<void>
@@ -67,6 +69,10 @@ export function ProdutoraPanel(props: {
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
   const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({})
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  const [slotModal, setSlotModal] = useState<{ id: string; grupo_id: string; slot_numero: string; letra: string; whatsapp_url: string } | null>(null)
+  const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
+  const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string } | null>(null)
 
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
@@ -118,7 +124,7 @@ export function ProdutoraPanel(props: {
   const champGames = props.games.filter((row) => row.parent_id === selectedChamp?.id)
   const champSlots = props.groupSlots.filter((row) => row.parent_id === selectedChamp?.id)
   const champRegistrationLinks = props.registrationLinks.filter((row) => row.parent_id === selectedChamp?.id)
-  const teamInvites = props.tokens.filter((row) => row.data?.token_kind === 'team_invite' && row.parent_id === selectedChamp?.id)
+  const teamInvites = props.tokens.filter((row) => TEAM_INVITE_TYPES.has(String(row.data?.token_kind || '')) && row.parent_id === selectedChamp?.id)
 
   function toggleAction(value: typeof openAction) {
     setOpenAction((current) => current === value ? '' : value)
@@ -195,7 +201,10 @@ export function ProdutoraPanel(props: {
         <CampeonatoForm
           value={props.championship}
           onChange={props.setChampionship}
-          onSubmit={props.createChampionship}
+          onSubmit={async () => {
+            const created = await props.createChampionship()
+            if (created) setShowCreateChamp(false)
+          }}
           onCancel={() => setShowCreateChamp(false)}
           loading={props.loading}
           uploadPublicFile={props.uploadPublicFile}
@@ -221,6 +230,46 @@ export function ProdutoraPanel(props: {
           loading={props.loading}
           uploadPublicFile={props.uploadPublicFile}
         />
+      </SystemModal>
+
+      <SystemModal
+        open={Boolean(slotModal)}
+        title={slotModal ? `Slot ${slotModal.letra}` : 'Gerenciar slot'}
+        description="Selecione uma das lines já inscritas neste campeonato para ocupar o slot."
+        onClose={() => setSlotModal(null)}
+      >
+        {slotModal ? (
+          <div className="slot-assignment-modal">
+            <div className={slotModal.whatsapp_url ? 'slot-whatsapp-info ready' : 'slot-whatsapp-info'}>
+              <MessageCircle size={18} />
+              <span>{slotModal.whatsapp_url ? 'Este grupo já possui link do WhatsApp configurado.' : 'Este grupo ainda não possui link do WhatsApp.'}</span>
+            </div>
+            <Field label="Line inscrita no campeonato">
+              <select value={props.slotAssignment.campeonato_equipe_id} onChange={(e) => {
+                const entry = props.selectedChampTeams.find((item) => item.data?.campeonato_equipe_id === e.target.value)
+                props.setSlotAssignment({
+                  ...props.slotAssignment,
+                  slot_id: slotModal.id,
+                  grupo_id: slotModal.grupo_id,
+                  slot_numero: slotModal.slot_numero,
+                  campeonato_equipe_id: String(entry?.data?.campeonato_equipe_id || ''),
+                  equipe_id: String(entry?.ref_id || ''),
+                  line_id: String(entry?.data?.line_id || ''),
+                })
+              }}>
+                <option value="">Selecione uma line</option>
+                {props.selectedChampTeams.map((entry) => (
+                  <option key={entry.id} value={String(entry.data?.campeonato_equipe_id || '')}>{rowTitle(entry)} · {dataText(entry, 'team_name')}</option>
+                ))}
+              </select>
+            </Field>
+            {props.selectedChampTeams.length === 0 ? <p className="empty"><Users size={18}/> Nenhuma line inscrita no campeonato.</p> : null}
+            <div className="modal-actions">
+              <button className="button secondary" onClick={() => setSlotModal(null)}>Cancelar</button>
+              <button className="button" disabled={!props.slotAssignment.campeonato_equipe_id || props.loading} onClick={async () => { await props.assignTeamToSlot(); setSlotModal(null) }}>Adicionar ao slot</button>
+            </div>
+          </div>
+        ) : null}
       </SystemModal>
 
       <section className="championship-detail-card panel">
@@ -265,67 +314,50 @@ export function ProdutoraPanel(props: {
 
               {tab === 'grupos' ? (
                 <div className="ref-section-stack">
-                  <div className="subtab-actionbar">
-                    <div>
-                      <p className="eyebrow">Organização</p>
-                      <h3>Fases, grupos e slots</h3>
-                    </div>
-                    <div className="button-row compact-actions">
-                      <button className="button secondary" onClick={() => toggleAction('phase')}>Criar fase</button>
-                      <button className="button secondary" onClick={() => toggleAction('group')}>Criar grupo</button>
-                      <button className="button" onClick={() => toggleAction('slot')}>Distribuir slot</button>
-                    </div>
+                  <div className="structure-quick-create">
+                    <button
+                      className="structure-plus-button"
+                      type="button"
+                      title="Adicionar fase ou grupo"
+                      aria-label="Adicionar fase ou grupo"
+                      aria-expanded={createMenuOpen}
+                      onClick={() => setCreateMenuOpen((value) => !value)}
+                    >
+                      <Plus size={20} />
+                    </button>
+                    {createMenuOpen ? (
+                      <div className="structure-create-menu">
+                        <button type="button" onClick={() => { setOpenAction('phase'); setCreateMenuOpen(false) }}>
+                          <FolderOpen size={17} />
+                          <span><strong>Criar fase</strong><small>Nova etapa do campeonato</small></span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!champPhases.length}
+                          onClick={() => {
+                            const phaseId = props.group.fase_id || champPhases[0]?.id || ''
+                            if (!phaseId) return
+                            props.setGroup({ ...props.group, fase_id: phaseId, campeonato_id: selectedChamp.id })
+                            setOpenPhases((value) => ({ ...value, [phaseId]: true }))
+                            setOpenAction('group')
+                            setCreateMenuOpen(false)
+                          }}
+                        >
+                          <Folder size={17} />
+                          <span><strong>Criar grupo</strong><small>{champPhases.length ? 'Dentro de uma fase' : 'Crie uma fase primeiro'}</small></span>
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
                   {openAction === 'phase' ? (
-                    <div className="inline-action-panel mini-grid">
+                    <div className="inline-action-panel structure-phase-form mini-grid">
                       <Field label="Nome da fase"><input value={props.phase.nome} onChange={(e) => props.setPhase({ ...props.phase, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Fase de grupos" /></Field>
                       <Field label="Ordem"><input type="number" value={props.phase.ordem} onChange={(e) => props.setPhase({ ...props.phase, ordem: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
-                      <button className="button" onClick={props.createPhase}>Criar fase</button>
-                    </div>
-                  ) : null}
-
-                  {openAction === 'group' ? (
-                    <div className="inline-action-panel mini-grid three">
-                      <Field label="Fase">
-                        <select value={props.group.fase_id} onChange={(e) => props.setGroup({ ...props.group, fase_id: e.target.value, campeonato_id: selectedChamp.id })}>
-                          <option value="">Sem fase</option>
-                          {champPhases.map((phase) => <option key={phase.id} value={phase.id}>{rowTitle(phase)}</option>)}
-                        </select>
-                      </Field>
-                      <Field label={isDailyChamp ? 'Horario' : 'Letra do grupo'}>
-                        {isDailyChamp ? (
-                          <select value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: selectedChamp.id })}>
-                            {DAILY_HOURS.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
-                          </select>
-                        ) : (
-                          <select value={props.group.nome.replace(/^Grupo\s+/i, '').trim() || 'A'} onChange={(e) => props.setGroup({ ...props.group, nome: `Grupo ${e.target.value}`, campeonato_id: selectedChamp.id })}>
-                            {GROUP_LETTERS.map((letter) => <option key={letter} value={letter}>Grupo {letter}</option>)}
-                          </select>
-                        )}
-                      </Field>
-                      <Field label="Slots"><input type="number" min="1" max="52" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: selectedChamp.id })} placeholder="12" /></Field>
-                      <Field label="Link do WhatsApp"><input value={props.group.whatsapp_url} onChange={(e) => props.setGroup({ ...props.group, whatsapp_url: e.target.value, campeonato_id: selectedChamp.id })} placeholder="https://chat.whatsapp.com/..." /></Field>
-                      <button className="button" onClick={props.createGroup}>Criar grupo</button>
-                    </div>
-                  ) : null}
-
-                  {openAction === 'slot' ? (
-                    <div className="inline-action-panel mini-grid three">
-                      <Field label="Grupo">
-                        <select value={props.slotAssignment.grupo_id} onChange={(e) => props.setSlotAssignment({ ...props.slotAssignment, grupo_id: e.target.value })}>
-                          <option value="">Selecione</option>
-                          {champGroups.map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
-                        </select>
-                      </Field>
-                      <Field label="Equipe inscrita">
-                        <select value={props.slotAssignment.equipe_id} onChange={(e) => props.setSlotAssignment({ ...props.slotAssignment, equipe_id: e.target.value })}>
-                          <option value="">Selecione</option>
-                          {props.selectedChampTeams.map((team) => <option key={team.id} value={team.id}>[{dataText(team, 'tag') || '--'}] {rowTitle(team)}</option>)}
-                        </select>
-                      </Field>
-                      <Field label="Número do slot"><input type="number" value={props.slotAssignment.slot_numero} onChange={(e) => props.setSlotAssignment({ ...props.slotAssignment, slot_numero: e.target.value })} /></Field>
-                      <button className="button" onClick={props.assignTeamToSlot}>Salvar slot</button>
+                      <div className="button-row">
+                        <button className="button" onClick={props.createPhase}>Criar fase</button>
+                        <button className="button secondary" type="button" onClick={() => setOpenAction('')}>Cancelar</button>
+                      </div>
                     </div>
                   ) : null}
 
@@ -337,21 +369,60 @@ export function ProdutoraPanel(props: {
                       return <section className="phase-folder" key={phase.id}>
                         <header className="folder-row phase-folder-row">
                           <button className="folder-toggle" onClick={() => setOpenPhases((v) => ({...v, [phase.id]: !phaseOpen}))}>{phaseOpen ? <ChevronDown size={18}/> : <ChevronRight size={18}/>} {phaseOpen ? <FolderOpen size={20}/> : <Folder size={20}/>}<span><strong>{rowTitle(phase)}</strong><small>{groupsOfPhase.length} grupos</small></span></button>
-                          {phase.id !== 'sem-fase' ? <div className="folder-actions"><button title="Editar fase" onClick={() => { const nome=window.prompt('Nome da fase', rowTitle(phase)); if (nome) props.updateStructure('phase', phase.id, { nome, ordem: phase.data?.ordem || 1 }) }}><Pencil size={15}/></button><button title="Excluir fase" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(phase)} e todos os grupos dela?`)) props.deleteStructure('phase', phase.id) }}><Trash2 size={15}/></button><button className="button secondary" onClick={() => { props.setGroup({...props.group, fase_id: phase.id, campeonato_id: selectedChamp.id}); setOpenAction('group') }}>Criar grupo</button></div> : null}
+                          {phase.id !== 'sem-fase' ? <div className="folder-actions"><button title="Adicionar grupo" className="phase-add-group" onClick={() => { setEditingGroup(null); props.setGroup({...props.group, fase_id: phase.id, campeonato_id: selectedChamp.id}); setOpenPhases((value) => ({ ...value, [phase.id]: true })); setOpenAction('group') }}><Plus size={16}/></button><button title="Editar fase" onClick={() => { setEditingGroup(null); setEditingPhase({ id: phase.id, nome: rowTitle(phase), ordem: String(phase.data?.ordem || 1) }); setOpenPhases((value) => ({ ...value, [phase.id]: true })) }}><Pencil size={15}/></button><button title="Excluir fase" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(phase)} e todos os grupos dela?`)) props.deleteStructure('phase', phase.id) }}><Trash2 size={15}/></button></div> : null}
                         </header>
-                        {phaseOpen ? <div className="phase-folder-content">{groupsOfPhase.map((group) => {
+                        {phaseOpen ? <div className="phase-folder-content">{editingPhase?.id === phase.id ? (
+                          <div className="inline-action-panel structure-edit-form mini-grid">
+                            <Field label="Nome da fase"><input value={editingPhase.nome} onChange={(event) => setEditingPhase({ ...editingPhase, nome: event.target.value })} /></Field>
+                            <Field label="Ordem"><input type="number" min="1" value={editingPhase.ordem} onChange={(event) => setEditingPhase({ ...editingPhase, ordem: event.target.value })} /></Field>
+                            <div className="button-row structure-edit-actions">
+                              <button className="button" type="button" onClick={async () => { await props.updateStructure('phase', phase.id, { nome: editingPhase.nome.trim(), ordem: Number(editingPhase.ordem || 1) }); setEditingPhase(null) }}>Salvar alterações</button>
+                              <button className="button secondary" type="button" onClick={() => setEditingPhase(null)}>Cancelar</button>
+                            </div>
+                          </div>
+                        ) : null}{openAction === 'group' && props.group.fase_id === phase.id ? (
+                          <div className="inline-action-panel phase-inline-group-form mini-grid three">
+                            <Field label={isDailyChamp ? 'Horário' : 'Letra do grupo'}>
+                              {isDailyChamp ? (
+                                <select value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })}>
+                                  {DAILY_HOURS.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
+                                </select>
+                              ) : (
+                                <select value={props.group.nome.replace(/^Grupo\s+/i, '').trim() || 'A'} onChange={(e) => props.setGroup({ ...props.group, nome: `Grupo ${e.target.value}`, campeonato_id: selectedChamp.id, fase_id: phase.id })}>
+                                  {GROUP_LETTERS.map((letter) => <option key={letter} value={letter}>Grupo {letter}</option>)}
+                                </select>
+                              )}
+                            </Field>
+                            <Field label="Slots"><input type="number" min="1" max="52" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })} placeholder="12" /></Field>
+                            <Field label="Link do WhatsApp"><input value={props.group.whatsapp_url} onChange={(e) => props.setGroup({ ...props.group, whatsapp_url: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })} placeholder="https://chat.whatsapp.com/..." /></Field>
+                            <div className="button-row phase-group-form-actions">
+                              <button className="button" onClick={props.createGroup}>Criar grupo</button>
+                              <button className="button secondary" type="button" onClick={() => setOpenAction('')}>Cancelar</button>
+                            </div>
+                          </div>
+                        ) : null}{groupsOfPhase.map((group) => {
                           const slotsOfGroup = champSlots.filter((slot) => slot.data?.grupo_id === group.id).sort((a,b)=>Number(a.data?.slot_numero||0)-Number(b.data?.slot_numero||0))
                           const groupOpen = openGroups[group.id] !== false
                           const slotCount = Number(group.data?.slots || 12)
                           return <article className="group-folder" key={group.id}>
                             <header className="folder-row group-folder-row">
-                              <button className="folder-toggle" onClick={() => setOpenGroups((v)=>({...v,[group.id]:!groupOpen}))}>{groupOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}<Folder size={18}/><span><strong>{rowTitle(group)}</strong><small>{slotCount} slots · {group.data?.whatsapp_url ? 'WhatsApp configurado' : 'Sem WhatsApp'}</small></span></button>
-                              <div className="folder-actions"><button title="Editar grupo" onClick={() => { const nome=window.prompt('Nome do grupo', rowTitle(group)); if(!nome) return; const slots=window.prompt('Quantidade de slots', String(slotCount)); if(!slots) return; const whatsapp_url=window.prompt('Link do WhatsApp', String(group.data?.whatsapp_url || '')) ?? String(group.data?.whatsapp_url || ''); props.updateStructure('group', group.id, { nome, slots: Number(slots), whatsapp_url }) }}><Pencil size={15}/></button><button title="Excluir grupo" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(group)} e seus slots?`)) props.deleteStructure('group', group.id) }}><Trash2 size={15}/></button></div>
+                              <button className="folder-toggle" onClick={() => setOpenGroups((v)=>({...v,[group.id]:!groupOpen}))}>{groupOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}<Folder size={18}/><span><strong>{rowTitle(group)}</strong><small className={group.data?.whatsapp_url ? 'whatsapp-ready' : 'whatsapp-missing'}>{group.data?.whatsapp_url ? <><CheckCircle2 size={13}/> WhatsApp configurado</> : <>WhatsApp não configurado</>} · {slotCount} slots</small></span></button>
+                              <div className="folder-actions"><button title="Editar grupo" onClick={() => { setEditingPhase(null); setEditingGroup({ id: group.id, nome: rowTitle(group), slots: String(slotCount), whatsapp_url: String(group.data?.whatsapp_url || '') }); setOpenGroups((value) => ({ ...value, [group.id]: true })) }}><Pencil size={15}/></button><button title="Excluir grupo" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(group)} e seus slots?`)) props.deleteStructure('group', group.id) }}><Trash2 size={15}/></button></div>
                             </header>
-                            {groupOpen ? <div className="slot-letter-list">{Array.from({length: slotCount}).map((_, index) => {
-                              const slotNumber=index+1; const slot=slotsOfGroup.find((item)=>Number(item.data?.slot_numero)===slotNumber); const team=props.selectedChampTeams.find((item)=>item.id===slot?.ref_id); const letter=String(slot?.data?.slot_letra || String.fromCharCode(65 + (index % 26)) + (index >= 26 ? Math.floor(index/26) : ''))
-                              return <div className={`slot-letter-row ${team ? 'occupied' : ''}`} key={slot?.id || slotNumber}><b>{letter}</b><span>{team ? rowTitle(team) : 'Disponível'}</span><small>{team ? dataText(team,'tag') : 'Slot livre'}</small><button title="Editar letra" onClick={() => { if(!slot?.id) return; const slot_letra=window.prompt('Letra do slot', letter); if(slot_letra) props.updateStructure('group_slot', slot.id, { slot_letra }) }}><Pencil size={14}/></button></div>
-                            })}</div> : null}
+                            {groupOpen ? <>{editingGroup?.id === group.id ? (
+                              <div className="inline-action-panel group-edit-form mini-grid three">
+                                <Field label={isDailyChamp ? 'Horário' : 'Nome do grupo'}><input value={editingGroup.nome} onChange={(event) => setEditingGroup({ ...editingGroup, nome: event.target.value })} /></Field>
+                                <Field label="Número de slots"><input type="number" min="1" max="52" value={editingGroup.slots} onChange={(event) => setEditingGroup({ ...editingGroup, slots: event.target.value })} /></Field>
+                                <Field label="Link do WhatsApp"><input value={editingGroup.whatsapp_url} onChange={(event) => setEditingGroup({ ...editingGroup, whatsapp_url: event.target.value })} placeholder="https://chat.whatsapp.com/..." /></Field>
+                                <div className="button-row structure-edit-actions">
+                                  <button className="button" type="button" onClick={async () => { await props.updateStructure('group', group.id, { nome: editingGroup.nome.trim(), slots: Number(editingGroup.slots || 1), whatsapp_url: editingGroup.whatsapp_url.trim() }); setEditingGroup(null) }}>Salvar alterações</button>
+                                  <button className="button secondary" type="button" onClick={() => setEditingGroup(null)}>Cancelar</button>
+                                </div>
+                              </div>
+                            ) : null}<div className="slot-letter-list">{Array.from({length: slotCount}).map((_, index) => {
+                              const slotNumber=index+1; const slot=slotsOfGroup.find((item)=>Number(item.data?.slot_numero)===slotNumber); const entry=props.selectedChampTeams.find((item)=>item.ref_id===slot?.data?.equipe_id && (!slot?.data?.line_id || item.data?.line_id===slot.data.line_id)); const letter=String(slot?.data?.slot_letra || String.fromCharCode(65 + (index % 26)) + (index >= 26 ? Math.floor(index/26) : ''))
+                              return <div className={`slot-letter-row ${entry ? 'occupied' : ''}`} key={slot?.id || slotNumber} role="button" tabIndex={0} onClick={() => slot?.id && setSlotModal({ id: slot.id, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') })} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && slot?.id) setSlotModal({ id: slot.id, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') }) }}><b>{letter}</b><span>{entry ? rowTitle(entry) : 'Disponível'}</span><small>{entry ? dataText(entry,'team_name') : 'Clique para adicionar uma line'}</small><button title="Editar letra" onClick={(event) => { event.stopPropagation(); if(!slot?.id) return; const slot_letra=window.prompt('Letra do slot', letter); if(slot_letra) props.updateStructure('group_slot', slot.id, { slot_letra }) }}><Pencil size={14}/></button></div>
+                            })}</div></> : null}
                           </article>
                         })}{groupsOfPhase.length===0 ? <p className="empty">Nenhum grupo nesta fase.</p> : null}</div> : null}
                       </section>

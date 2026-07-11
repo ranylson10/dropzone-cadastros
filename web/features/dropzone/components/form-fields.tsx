@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, Trash2, Upload, X } from 'lucide-react'
 
@@ -100,6 +100,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 
 export function UploadField({ label, value, bucket, onChange, onUpload }: { label: string; value: string; bucket: string; onChange: (value: string) => void; onUpload: (file: File, bucket: string) => Promise<string> }) {
   const target = uploadTargetFor(bucket)
+  const inputId = `${bucket}-upload-${useId().replace(/:/g, '')}`
   const previewWidth = 220
   const previewHeight = Math.round(previewWidth * (target.height / target.width))
   const [cropOpen, setCropOpen] = useState(false)
@@ -192,7 +193,7 @@ export function UploadField({ label, value, bucket, onChange, onUpload }: { labe
     <Field label={label}>
       <div className="upload-field compact-upload-field">
         <input
-          id={`${bucket}-upload-input`}
+          id={inputId}
           type="file"
           accept="image/png,image/jpeg,image/webp"
           hidden
@@ -207,7 +208,7 @@ export function UploadField({ label, value, bucket, onChange, onUpload }: { labe
           }}
         />
 
-        <label htmlFor={`${bucket}-upload-input`} className={`upload-picker ${value ? 'filled' : ''}`}>
+        <label htmlFor={inputId} className={`upload-picker ${value ? 'filled' : ''}`}>
           {value ? <img src={value} alt="" /> : <Upload size={24} />}
         </label>
 

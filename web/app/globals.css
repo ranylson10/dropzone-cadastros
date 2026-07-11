@@ -612,7 +612,7 @@ h3 {
 .cropper-overlay {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  z-index: 100100;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2363,3 +2363,59 @@ body:has(.cropper-overlay) {
     flex-direction: column;
   }
 }
+
+/* Fases, grupos e slots alinhados ao layout claro do sistema */
+.phase-folder-tree{gap:12px}
+.phase-folder,.group-folder{border:1px solid #dfe3ea;background:#fff;border-radius:10px;box-shadow:0 4px 14px rgba(16,24,40,.05);overflow:hidden}
+.phase-folder{border-left:4px solid var(--accent)}
+.group-folder{margin:10px 0;border-left:3px solid #cfd5df;background:#f8f9fb}
+.phase-folder-row{background:#f3f5f8;border-bottom:1px solid #e3e6eb}
+.group-folder-row{background:#fff;border-bottom:1px solid #e5e7eb}
+.folder-toggle{color:#172033}
+.folder-toggle svg{color:#596174}
+.folder-toggle strong{color:#172033}
+.folder-toggle small{color:#6b7280}
+.folder-toggle small.whatsapp-ready{display:flex;align-items:center;gap:5px;color:#138a52;font-weight:700}
+.folder-toggle small.whatsapp-ready svg{color:#138a52}
+.folder-toggle small.whatsapp-missing{color:#8a6470}
+.folder-actions>button:not(.button),.slot-letter-row>button{border:1px solid #d5dae3;background:#fff;color:#263044;border-radius:6px}
+.folder-actions>button:not(.button):hover,.slot-letter-row>button:hover{border-color:var(--accent);color:var(--accent)}
+.folder-actions .danger{color:#d92d20!important}
+.phase-folder-content{background:#fff}
+.slot-letter-list{gap:7px}
+.slot-letter-row{border:1px solid #e1e5eb;background:#fff;color:#172033;border-radius:8px;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.slot-letter-row:hover{border-color:#ff4655;box-shadow:0 5px 16px rgba(255,70,85,.10);transform:translateY(-1px)}
+.slot-letter-row>b{border-radius:6px;background:#ff4655;color:#fff}
+.slot-letter-row span{color:#172033}
+.slot-letter-row small{color:#667085}
+.slot-letter-row.occupied{background:#fff7f8;border-color:#ffc5cb}
+.slot-assignment-modal{display:grid;gap:16px}
+.slot-whatsapp-info{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #e3e6eb;background:#f7f8fa;color:#667085;border-radius:8px}
+.slot-whatsapp-info.ready{border-color:#b7e3cb;background:#effaf4;color:#117a48}
+.slot-assignment-modal .empty{display:flex;align-items:center;gap:8px}
+
+/* Compact phase/group creation controls */
+.structure-quick-create{position:relative;display:flex;justify-content:flex-end;min-height:42px;margin-bottom:8px}
+.structure-plus-button{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--accent);border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 6px 16px rgba(255,70,85,.18);transition:transform .16s ease,box-shadow .16s ease}
+.structure-plus-button:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(255,70,85,.25)}
+.structure-create-menu{position:absolute;top:46px;right:0;z-index:20;width:min(280px,calc(100vw - 48px));padding:6px;border:1px solid #dfe3ea;border-radius:10px;background:#fff;box-shadow:0 14px 34px rgba(16,24,40,.16)}
+.structure-create-menu>button{display:flex;width:100%;align-items:center;gap:10px;padding:10px;border:0;border-radius:7px;background:transparent;color:#172033;text-align:left;cursor:pointer}
+.structure-create-menu>button:hover{background:#f4f6f9}
+.structure-create-menu>button:disabled{cursor:not-allowed;opacity:.45}
+.structure-create-menu span{display:grid;gap:1px}
+.structure-create-menu strong{font-size:.85rem}
+.structure-create-menu small{font-size:.7rem;color:#667085}
+.structure-phase-form{margin:0 0 10px}
+.phase-inline-group-form{margin:10px 0 12px;padding:12px;border:1px dashed #cfd5df;border-radius:8px;background:#f8f9fb}
+.phase-group-form-actions{align-self:end}
+.phase-add-group{border-color:#ff4655!important;color:#ff4655!important}
+.phase-add-group:hover{background:#fff3f4!important}
+@media(max-width:760px){.structure-create-menu{right:0}.phase-inline-group-form{grid-template-columns:1fr}.phase-group-form-actions{width:100%}}
+
+/* Reliable add button and complete inline edit forms */
+.structure-plus-button{background:#ff4655!important;border-color:#ff4655!important;color:#fff!important;font-size:0!important}
+.structure-plus-button svg{display:block!important;width:21px!important;height:21px!important;stroke:#fff!important;stroke-width:2.6!important;opacity:1!important;visibility:visible!important}
+.structure-edit-form,.group-edit-form{margin:10px 0 12px;padding:12px;border:1px solid #dfe3ea;border-radius:8px;background:#f8f9fb}
+.group-edit-form{margin:10px 12px 4px 38px}
+.structure-edit-actions{align-self:end;grid-column:1/-1}
+@media(max-width:760px){.group-edit-form{margin-left:8px}.structure-edit-actions{width:100%}}

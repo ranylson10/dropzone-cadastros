@@ -55,6 +55,9 @@ const typeDescriptions: Record<ProfileType, string> = {
   manager: 'Ajudante com convite unico para operar o painel.',
 }
 
+const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
+const PLAYER_INVITE_TYPES = new Set(['convite_jogador_campeonato', 'convite_jogador_equipe', 'player_invite'])
+
 export function DropZoneHome() {
   const [mode, setMode] = useState<AuthMode>('entrar')
   const [profileType, setProfileType] = useState<ProfileType>('produtora')
@@ -98,7 +101,7 @@ export function DropZoneHome() {
   })
   const [phase, setPhase] = useState({ nome: '', campeonato_id: '', ordem: '1' })
   const [group, setGroup] = useState({ nome: 'Grupo A', campeonato_id: '', fase_id: '', slots: '12', whatsapp_url: '' })
-  const [slotAssignment, setSlotAssignment] = useState({ grupo_id: '', equipe_id: '', slot_numero: '1' })
+  const [slotAssignment, setSlotAssignment] = useState({ slot_id: '', grupo_id: '', equipe_id: '', line_id: '', campeonato_equipe_id: '', slot_numero: '1' })
   const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] as string[] })
   const [registrationLink, setRegistrationLink] = useState({ grupo_id: '', vagas_por_equipe: '6', abre_em: '', encerra_em: '', permite_substituicao: false, max_substituicoes_por_equipe: '0', substituicao_encerra_em: '', descricao: '' })
   const [selectedChampId, setSelectedChampId] = useState('')
@@ -119,6 +122,7 @@ export function DropZoneHome() {
 
   const championships = useMemo(() => rows.filter((row) => row.entity_type === 'championship'), [rows])
   const teams = useMemo(() => rows.filter((row) => row.entity_type === 'team'), [rows])
+  const teamLines = useMemo(() => rows.filter((row) => row.entity_type === 'team_line'), [rows])
   const links = useMemo(() => rows.filter((row) => row.entity_type === 'championship_team'), [rows])
   const phases = useMemo(() => rows.filter((row) => row.entity_type === 'phase'), [rows])
   const groups = useMemo(() => rows.filter((row) => row.entity_type === 'group'), [rows])
@@ -133,8 +137,30 @@ export function DropZoneHome() {
   const selectedChamp = championships.find((row) => row.id === selectedChampId) || championships[0]
   const selectedChampTeams = links
     .filter((link) => link.parent_id === selectedChamp?.id)
-    .map((link) => teams.find((teamRow) => teamRow.id === link.ref_id))
-    .filter(Boolean) as DropZoneRow[]
+    .flatMap((link) => {
+      const team = teams.find((teamRow) => teamRow.id === link.ref_id)
+      if (!team) return []
+      const enrolledLineId = String(link.data?.line_id || '')
+      const candidateLines = enrolledLineId
+        ? [teamLines.find((line) => line.id === enrolledLineId) || null]
+        : teamLines.filter((line) => line.ref_id === team.id)
+      const linesToShow = candidateLines.length ? candidateLines : [null]
+      return linesToShow.map((line) => ({
+        ...link,
+        id: line ? `${link.id}:${line.id}` : link.id,
+        name: line ? rowTitle(line) : String(link.data?.nome_exibicao || rowTitle(team)),
+        ref_id: team.id,
+        data: {
+          ...link.data,
+          campeonato_equipe_id: link.id,
+          line_id: line?.id || enrolledLineId || '',
+          line_name: line ? rowTitle(line) : String(link.data?.nome_exibicao || ''),
+          team_name: rowTitle(team),
+          tag: dataText(line || team, 'tag'),
+          logo_url: dataText(line || team, 'logo_url'),
+        },
+      } as DropZoneRow))
+    })
 
   const managedTeamIds = useMemo(() => {
     if (!account) return []
@@ -147,7 +173,7 @@ export function DropZoneHome() {
   const managedTeams = teams.filter((row) => managedTeamIds.includes(row.id))
   const managedLinks = links.filter((row) => row.ref_id && managedTeamIds.includes(row.ref_id))
   const managedChampionships = championships.filter((row) => managedLinks.some((link) => link.parent_id === row.id))
-  const playerInvite = tokens.find((row) => row.token?.toUpperCase() === playerToken.trim().toUpperCase() && row.data?.token_kind === 'player_invite')
+  const playerInvite = tokens.find((row) => row.token?.toUpperCase() === playerToken.trim().toUpperCase() && PLAYER_INVITE_TYPES.has(String(row.data?.token_kind || '')))
   const myRegistrations = registrations.filter((row) => row.created_by === account?.auth_user_id)
   const recentProfileByType = useMemo(() => Object.fromEntries(recentProfiles.map((profile) => [profile.profile_type, profile])) as Partial<Record<ProfileType, any>>, [recentProfiles])
   const resendBlocked = loading || resendCooldown > 0
@@ -542,7 +568,13 @@ export function DropZoneHome() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao salvar.')
-      await loadMeAndRows(token)
+      if (json.row?.entity_type === 'group_slot') {
+        setRows((current) => current.some((row) => row.id === json.row.id)
+          ? current.map((row) => row.id === json.row.id ? json.row : row)
+          : [json.row, ...current])
+      } else {
+        await loadMeAndRows(token)
+      }
       setMessage(success)
       return json.row as DropZoneRow
     } catch (err: any) {
@@ -599,9 +631,14 @@ export function DropZoneHome() {
   }
 
   async function createChampionship() {
-    if (!championship.nome.trim()) return setError('Informe o nome do campeonato.')
-    await createRow({ entity_type: 'championship', name: championship.nome, data: championship }, 'Campeonato criado.')
+    if (!championship.nome.trim()) {
+      setError('Informe o nome do campeonato.')
+      return false
+    }
+    const created = await createRow({ entity_type: 'championship', name: championship.nome, data: championship }, 'Campeonato criado.')
+    if (!created) return false
     setChampionship(emptyChampionship)
+    return true
   }
 
   async function updateChampionship(id: string, data: CampeonatoFormValue) {
@@ -708,12 +745,12 @@ export function DropZoneHome() {
       generate_token: true,
       token_prefix: 'EQ',
       data: {
-        token_kind: 'team_invite',
         championship_id: champ.id,
         championship_name: champ.name,
         team_id: teamRow?.id || null,
         team_name: teamRow?.name || null,
         team_tag: teamRow ? dataText(teamRow, 'tag') : null,
+        token_kind: 'convite_equipe_campeonato',
       },
     }, 'Token de convite para equipe gerado.')
     if (row?.token) await copyToken(row.token)
@@ -739,7 +776,7 @@ export function DropZoneHome() {
   async function assignTeamToSlot() {
     const champ = selectedChamp
     if (!champ) return setError('Selecione um campeonato.')
-    if (!slotAssignment.grupo_id || !slotAssignment.equipe_id || !slotAssignment.slot_numero) return setError('Selecione grupo, equipe e slot.')
+    if (!slotAssignment.grupo_id || !slotAssignment.equipe_id || !slotAssignment.slot_numero) return setError('Selecione grupo, line/equipe e slot.')
     await createRow({
       entity_type: 'group_slot',
       name: `Slot ${slotAssignment.slot_numero}`,
@@ -747,12 +784,15 @@ export function DropZoneHome() {
       ref_id: slotAssignment.equipe_id,
       data: {
         campeonato_id: champ.id,
+        slot_id: slotAssignment.slot_id || null,
         grupo_id: slotAssignment.grupo_id,
         equipe_id: slotAssignment.equipe_id,
+        line_id: slotAssignment.line_id || null,
+        campeonato_equipe_id: slotAssignment.campeonato_equipe_id || null,
         slot_numero: Number(slotAssignment.slot_numero),
       },
     }, 'Equipe colocada no slot.')
-    setSlotAssignment((current) => ({ ...current, equipe_id: '', slot_numero: String(Number(current.slot_numero || 1) + 1) }))
+    setSlotAssignment((current) => ({ ...current, slot_id: '', equipe_id: '', line_id: '', campeonato_equipe_id: '', slot_numero: String(Number(current.slot_numero || 1) + 1) }))
   }
 
   async function createGroup() {
@@ -811,7 +851,7 @@ export function DropZoneHome() {
   }
 
   async function acceptTeamInvite() {
-    const invite = tokens.find((row) => row.token?.toUpperCase() === teamPanelToken.trim().toUpperCase() && row.data?.token_kind === 'team_invite' && !row.data?.usado)
+    const invite = tokens.find((row) => row.token?.toUpperCase() === teamPanelToken.trim().toUpperCase() && TEAM_INVITE_TYPES.has(String(row.data?.token_kind || '')) && !row.data?.usado)
     if (!invite) return setError('Token de equipe nao encontrado ou ja utilizado.')
     await createRow({
       entity_type: 'championship_team',
@@ -835,12 +875,12 @@ export function DropZoneHome() {
       generate_token: true,
       token_prefix: 'JG',
       data: {
-        token_kind: 'player_invite',
         championship_id: champ.id,
         championship_name: champ.name,
         team_id: teamRow.id,
         team_name: teamRow.name,
         team_tag: dataText(teamRow, 'tag'),
+        token_kind: 'convite_jogador_campeonato',
       },
     }, 'Token de jogador gerado para envio.')
   }
@@ -1225,6 +1265,7 @@ export function DropZoneHome() {
                 tokens={tokens}
                 registrations={registrations}
                 playerTeams={playerTeams}
+                teamLines={teamLines}
                 lineupRules={lineupRules}
                 team={team}
                 setTeam={setTeam}

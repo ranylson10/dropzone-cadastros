@@ -6,6 +6,8 @@ import type { DropZoneRow } from '@/lib/types'
 import { Field } from '../../components/form-fields'
 import { dataText, rowTitle, tokenText } from '../../utils'
 
+const PLAYER_INVITE_TYPES = new Set(['convite_jogador_campeonato', 'convite_jogador_equipe', 'player_invite'])
+
 export function EquipePanel(props: {
   accountType: string | null
   teams: DropZoneRow[]
@@ -15,6 +17,7 @@ export function EquipePanel(props: {
   tokens: DropZoneRow[]
   registrations: DropZoneRow[]
   playerTeams: DropZoneRow[]
+  teamLines: DropZoneRow[]
   lineupRules: DropZoneRow[]
   team: { nome: string; tag: string; logo_url: string; senha_dono: string }
   setTeam: (value: any) => void
@@ -31,8 +34,8 @@ export function EquipePanel(props: {
   loading: boolean
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
-  const [tab, setTab] = useState<'campeonatos' | 'jogadores' | 'convites' | 'config'>('campeonatos')
-  const playerInvites = props.tokens.filter((row) => row.data?.token_kind === 'player_invite' && row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id))
+  const [tab, setTab] = useState<'campeonatos' | 'lines' | 'jogadores' | 'convites' | 'config'>('campeonatos')
+  const playerInvites = props.tokens.filter((row) => PLAYER_INVITE_TYPES.has(String(row.data?.token_kind || '')) && row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id))
   const teamRegistrations = props.registrations.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id))
 
   return (
@@ -47,6 +50,7 @@ export function EquipePanel(props: {
         </div>
         <div className="tabs panel-tabs">
           <button className={`tab ${tab === 'campeonatos' ? 'active' : ''}`} onClick={() => setTab('campeonatos')}>Campeonatos</button>
+          <button className={`tab ${tab === 'lines' ? 'active' : ''}`} onClick={() => setTab('lines')}>Lines</button>
           <button className={`tab ${tab === 'jogadores' ? 'active' : ''}`} onClick={() => setTab('jogadores')}>Jogadores</button>
           <button className={`tab ${tab === 'convites' ? 'active' : ''}`} onClick={() => setTab('convites')}>Convites</button>
           <button className={`tab ${tab === 'config' ? 'active' : ''}`} onClick={() => setTab('config')}>Configurações</button>
@@ -82,6 +86,24 @@ export function EquipePanel(props: {
                 <input value={props.teamPanelToken} onChange={(e) => props.setTeamPanelToken(e.target.value.toUpperCase())} placeholder="EQ-..." />
               </Field>
               <button className="button" onClick={props.acceptTeamInvite}>Aceitar convite</button>
+            </div>
+          </div>
+        ) : null}
+
+
+        {tab === 'lines' ? (
+          <div className="panel-tab-body">
+            <div className="panel-soft">
+              <h3>Lines da equipe</h3>
+              {props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)).length === 0 ? <p className="empty">Nenhuma line cadastrada para esta equipe.</p> : null}
+              <div className="list">
+                {props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)).map((line) => (
+                  <div key={line.id} className="list-item">
+                    <strong>{rowTitle(line)}</strong>
+                    <span>{dataText(line, 'tag') || 'sem tag'}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         ) : null}
