@@ -2200,3 +2200,166 @@ body:has(.cropper-overlay) {
 
 /* Fases e grupos em arvore/pastas */
 .phase-folder-tree{display:grid;gap:14px}.phase-folder,.group-folder{border:1px solid var(--line);background:rgba(10,13,20,.72);overflow:hidden}.phase-folder{border-left:3px solid var(--accent)}.group-folder{margin:10px 0;border-left:2px solid rgba(255,255,255,.16)}.folder-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px}.phase-folder-row{background:rgba(255,255,255,.035)}.group-folder-row{background:rgba(255,255,255,.025)}.folder-toggle{display:flex;align-items:center;gap:9px;min-width:0;background:none;border:0;color:inherit;text-align:left;cursor:pointer}.folder-toggle span{display:grid;gap:2px}.folder-toggle strong{font-size:.95rem}.folder-toggle small{color:var(--muted);font-size:.74rem}.folder-actions{display:flex;align-items:center;gap:7px}.folder-actions>button:not(.button),.slot-letter-row>button{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--text);cursor:pointer}.folder-actions .danger{color:#ff7777}.phase-folder-content{padding:0 12px 12px 34px}.slot-letter-list{display:grid;gap:6px;padding:8px 12px 12px 38px}.slot-letter-row{display:grid;grid-template-columns:46px minmax(120px,1fr) minmax(90px,.45fr) 34px;align-items:center;gap:10px;min-height:44px;padding:6px 8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)}.slot-letter-row>b{display:grid;place-items:center;width:34px;height:30px;background:var(--accent);color:#fff;font-size:.95rem}.slot-letter-row span{font-weight:700}.slot-letter-row small{color:var(--muted)}.slot-letter-row.occupied{background:rgba(255,255,255,.045)}@media(max-width:760px){.folder-row{align-items:flex-start;flex-direction:column}.folder-actions{width:100%;flex-wrap:wrap}.phase-folder-content{padding-left:8px}.slot-letter-list{padding-left:8px}.slot-letter-row{grid-template-columns:42px 1fr 34px}.slot-letter-row small{display:none}}
+
+
+/* Seletor de tipo do campeonato */
+.championship-type-step {
+  display: grid;
+  gap: 18px;
+}
+
+.championship-step-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.championship-step-copy h3,
+.championship-step-copy p {
+  margin: 0;
+}
+
+.championship-step-copy h3 {
+  font-size: 18px;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.championship-step-copy > p:last-child {
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.championship-type-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.championship-type-card {
+  width: 100%;
+  min-height: 86px;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #dfe2e8;
+  border-radius: 8px;
+  background: #fff;
+  color: #18202f;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.championship-type-card:hover {
+  border-color: #ff4655;
+  box-shadow: 0 8px 22px rgba(24, 32, 47, .09);
+  transform: translateY(-1px);
+}
+
+.championship-type-card:focus-visible {
+  outline: 3px solid rgba(255, 70, 85, .2);
+  outline-offset: 2px;
+  border-color: #ff4655;
+}
+
+.championship-type-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffd4d8;
+  border-radius: 7px;
+  background: #fff4f5;
+  color: #ff4655;
+}
+
+.championship-type-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.championship-type-card-copy strong {
+  font-size: 15px;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.championship-type-card-copy small {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.championship-type-format {
+  max-width: 190px;
+  padding: 7px 9px;
+  border: 1px solid #e3e6eb;
+  border-radius: 5px;
+  background: #f7f8fa;
+  color: #4b5565;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.championship-form-progress {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.championship-form-progress > div {
+  display: grid;
+  gap: 4px;
+}
+
+.championship-form-progress strong,
+.championship-form-progress small {
+  display: block;
+}
+
+.championship-form-progress strong {
+  font-size: 15px;
+  text-transform: uppercase;
+}
+
+.championship-form-progress small {
+  max-width: 540px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 700px) {
+  .championship-type-card {
+    grid-template-columns: 46px minmax(0, 1fr);
+    min-height: 80px;
+    padding: 12px;
+  }
+
+  .championship-type-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .championship-type-format {
+    grid-column: 2;
+    justify-self: start;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .championship-form-progress {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

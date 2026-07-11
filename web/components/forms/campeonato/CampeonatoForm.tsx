@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, CalendarDays, Dumbbell, Medal, Swords, Trophy } from 'lucide-react'
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
 import { Field, UploadField } from '@/features/dropzone/components/form-fields'
@@ -133,7 +133,11 @@ export function CampeonatoForm({
   mode?: 'create' | 'edit'
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
-  const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : value.tipo ? 'form' : 'type')
+  const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
+
+  useEffect(() => {
+    setStep(mode === 'edit' ? 'form' : 'type')
+  }, [mode])
 
   const selectedType = useMemo(
     () => TYPE_OPTIONS.find((option) => option.type === value.tipo),
