@@ -1,0 +1,155 @@
+import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import type { DirectoryItem, DirectoryKind, DirectoryProfile } from './types'
+
+function text(value: unknown, fallback = '') { return String(value ?? fallback).trim() }
+function first(...values: unknown[]) { return values.map((value) => text(value)).find(Boolean) || '' }
+function statusLabel(value: unknown) {
+  const raw = text(value, 'ativo').replaceAll('_', ' ')
+  return raw.charAt(0).toUpperCase() + raw.slice(1)
+}
+function money(value: unknown) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number <= 0) return 'Sem premiação informada'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
+}
+function location(row: any) { return first(row.localidade, [row.cidade, row.estado, row.pais].filter(Boolean).join(' · ')) }
+
+async function rows(table: string) {
+  const { data, error } = await supabaseAdmin.from(table).select('*').order('created_at', { ascending: false }).limit(500)
+  if (error) {
+    if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
+    throw error
+  }
+  return data || []
+}
+
+export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[]> {
+  if (kind === 'campeonatos') {
+    const [items, configs] = await Promise.all([rows('campeonatos'), rows('campeonato_configuracoes')])
+    const configByChamp = new Map(configs.map((row: any) => [row.campeonato_id, row]))
+    return items.map((row: any) => {
+      const config: any = configByChamp.get(row.id) || {}
+      const name = first(row.nome, 'Campeonato')
+      const tipo = statusLabel(row.tipo || config.formato || 'campeonato')
+      return {
+        id: row.id, kind, name, image: first(row.logo_url), eyebrow: tipo,
+        description: first(config.formato, `${tipo} competitivo`),
+        meta: [
+          { label: 'Premiação', value: money(config.premiacao) },
+          { label: 'Vagas', value: text(config.numero_vagas, 'A definir') },
+          { label: 'Status', value: statusLabel(row.status) },
+        ],
+        searchText: [name, tipo, config.formato, config.plataforma, config.servidor].join(' ').toLowerCase(),
+      }
+    })
+  }
+
+  if (kind === 'equipes') {
+    const [items, lines, participations] = await Promise.all([rows('equipes'), rows('equipe_lines'), rows('campeonato_equipes')])
+    return items.map((row: any) => {
+      const teamLines = lines.filter((line: any) => line.equipe_id === row.id)
+      const championships = participations.filter((item: any) => item.equipe_id === row.id)
+      const name = first(row.nome, 'Equipe')
+      return {
+        id: row.id, kind, name, username: text(row.username), image: first(row.logo_url), eyebrow: first(row.tag, 'Equipe'),
+        description: first(row.bio, location(row), 'Equipe competitiva cadastrada na DropZone.'),
+        meta: [
+          { label: 'Lines', value: String(teamLines.length) },
+          { label: 'Campeonatos', value: String(championships.length) },
+          { label: 'Status', value: statusLabel(row.status) },
+        ],
+        searchText: [name, row.tag, row.username, location(row), ...teamLines.map((line: any) => line.nome)].join(' ').toLowerCase(),
+      }
+    })
+  }
+
+  if (kind === 'jogadores') {
+    const [items, registrations] = await Promise.all([rows('jogadores'), rows('campeonato_jogadores')])
+    return items.map((row: any) => {
+      const playerRegs = registrations.filter((item: any) => item.jogador_id === row.id && item.status !== 'deletado')
+      const name = first(row.nick, row.nome, row.username, 'Jogador')
+      return {
+        id: row.id, kind, name, username: text(row.username), image: first(row.avatar_url, row.foto_url), eyebrow: first(row.funcao, 'Jogador'),
+        description: first(location(row), row.bio, 'Perfil competitivo cadastrado na DropZone.'),
+        meta: [
+          { label: 'ID de jogo', value: first(row.id_jogo, 'Não informado') },
+          { label: 'Campeonatos', value: String(playerRegs.length) },
+          { label: 'Status', value: statusLabel(row.status) },
+        ],
+        searchText: [name, row.username, row.id_jogo, row.funcao, location(row)].join(' ').toLowerCase(),
+      }
+    })
+  }
+
+  if (kind === 'managers') {
+    const [items, teamLinks, producerLinks, playerLinks] = await Promise.all([rows('managers'), rows('manager_equipe'), rows('manager_produtora'), rows('manager_jogador')])
+    return items.map((row: any) => {
+      const name = first(row.nome, row.username, 'Manager')
+      const total = teamLinks.filter((x: any) => x.manager_id === row.id).length + producerLinks.filter((x: any) => x.manager_id === row.id).length + playerLinks.filter((x: any) => x.manager_id === row.id).length
+      return {
+        id: row.id, kind, name, username: text(row.username), image: first(row.avatar_url, row.foto_url), eyebrow: 'Manager',
+        description: first(location(row), row.bio, 'Gestor de perfis competitivos.'),
+        meta: [
+          { label: 'Vínculos', value: String(total) },
+          { label: 'Localidade', value: first(location(row), 'Não informada') },
+          { label: 'Status', value: statusLabel(row.status) },
+        ],
+        searchText: [name, row.username, location(row)].join(' ').toLowerCase(),
+      }
+    })
+  }
+
+  const [items, championships] = await Promise.all([rows('produtoras'), rows('campeonatos')])
+  return items.map((row: any) => {
+    const produced = championships.filter((item: any) => item.criado_por === row.auth_user_id || item.produtora_id === row.id)
+    const name = first(row.nome, row.username, 'Produtora')
+    return {
+      id: row.id, kind, name, username: text(row.username), image: first(row.logo_url, row.avatar_url), eyebrow: 'Produtora',
+      description: first(location(row), row.bio, 'Produtora de eventos competitivos.'),
+      meta: [
+        { label: 'Campeonatos', value: String(produced.length) },
+        { label: 'Localidade', value: first(location(row), 'Não informada') },
+        { label: 'Status', value: statusLabel(row.status) },
+      ],
+      searchText: [name, row.username, location(row)].join(' ').toLowerCase(),
+    }
+  })
+}
+
+export async function getDirectoryProfile(kind: DirectoryKind, id: string): Promise<DirectoryProfile | null> {
+  const list = await listDirectory(kind)
+  const base = list.find((item) => item.id === id)
+  if (!base) return null
+  const sections: DirectoryProfile['sections'] = []
+  const details = [...base.meta]
+
+  if (kind === 'campeonatos') {
+    const [phases, groups, games, participations, teams] = await Promise.all([rows('campeonato_fases'), rows('campeonato_grupos'), rows('campeonato_jogos'), rows('campeonato_equipes'), rows('equipes')])
+    const teamById = new Map(teams.map((row: any) => [row.id, row]))
+    sections.push({ title: 'Fases e grupos', items: phases.filter((x: any) => x.campeonato_id === id).map((phase: any) => ({ id: phase.id, title: phase.nome, subtitle: `${groups.filter((g: any) => g.fase_id === phase.id).length} grupos` })) })
+    sections.push({ title: 'Próximos jogos', items: games.filter((x: any) => x.campeonato_id === id).map((game: any) => ({ id: game.id, title: game.nome, subtitle: [game.data_jogo, game.horario].filter(Boolean).join(' · ') || 'Data a definir' })) })
+    sections.push({ title: 'Equipes participantes', items: participations.filter((x: any) => x.campeonato_id === id).map((entry: any) => { const team: any = teamById.get(entry.equipe_id); return { id: entry.id, title: first(team?.nome, entry.nome_exibicao, 'Equipe'), image: first(team?.logo_url), href: team ? `/equipes/${team.id}` : undefined, subtitle: entry.slot_numero ? `Slot ${entry.slot_numero}` : 'Participação confirmada' } }) })
+  } else if (kind === 'equipes') {
+    const [lines, participations, championships] = await Promise.all([rows('equipe_lines'), rows('campeonato_equipes'), rows('campeonatos')])
+    const championshipById = new Map(championships.map((row: any) => [row.id, row]))
+    sections.push({ title: 'Lines', items: lines.filter((x: any) => x.equipe_id === id).map((line: any) => ({ id: line.id, title: line.nome, subtitle: first(line.tag, statusLabel(line.status)), image: first(line.logo_url) })) })
+    sections.push({ title: 'Campeonatos', items: participations.filter((x: any) => x.equipe_id === id).map((entry: any) => { const champ: any = championshipById.get(entry.campeonato_id); return { id: entry.id, title: first(champ?.nome, 'Campeonato'), subtitle: entry.slot_numero ? `Slot ${entry.slot_numero}` : statusLabel(entry.status), image: first(champ?.logo_url), href: champ ? `/campeonatos/${champ.id}` : undefined } }) })
+  } else if (kind === 'jogadores') {
+    const [regs, championships, teams] = await Promise.all([rows('campeonato_jogadores'), rows('campeonatos'), rows('equipes')])
+    const champById = new Map(championships.map((row: any) => [row.id, row]))
+    const teamById = new Map(teams.map((row: any) => [row.id, row]))
+    sections.push({ title: 'Participações', items: regs.filter((x: any) => x.jogador_id === id && x.status !== 'deletado').map((reg: any) => { const champ: any = champById.get(reg.campeonato_id); const team: any = teamById.get(reg.equipe_id); return { id: reg.id, title: first(champ?.nome, 'Campeonato'), subtitle: [team?.nome, reg.funcao].filter(Boolean).join(' · '), image: first(champ?.logo_url), href: champ ? `/campeonatos/${champ.id}` : undefined } }) })
+  } else if (kind === 'produtoras') {
+    const items = await rows('campeonatos')
+    const producerRow = (await rows('produtoras')).find((row: any) => row.id === id)
+    sections.push({ title: 'Campeonatos produzidos', items: items.filter((x: any) => x.produtora_id === id || x.criado_por === producerRow?.auth_user_id).map((champ: any) => ({ id: champ.id, title: champ.nome, subtitle: statusLabel(champ.status), image: first(champ.logo_url), href: `/campeonatos/${champ.id}` })) })
+  } else {
+    const [teamLinks, producerLinks, playerLinks, teams, producers, players] = await Promise.all([rows('manager_equipe'), rows('manager_produtora'), rows('manager_jogador'), rows('equipes'), rows('produtoras'), rows('jogadores')])
+    const mapItems = (links: any[], collection: any[], key: string, href: string) => links.filter((x: any) => x.manager_id === id).map((link: any) => { const target = collection.find((x: any) => x.id === link[key]); return target ? { id: link.id, title: first(target.nome, target.nick, target.username), image: first(target.logo_url, target.avatar_url), href: `/${href}/${target.id}`, subtitle: statusLabel(link.status) } : null }).filter(Boolean) as any[]
+    sections.push({ title: 'Equipes administradas', items: mapItems(teamLinks, teams, 'equipe_id', 'equipes') })
+    sections.push({ title: 'Produtoras vinculadas', items: mapItems(producerLinks, producers, 'produtora_id', 'produtoras') })
+    sections.push({ title: 'Jogadores vinculados', items: mapItems(playerLinks, players, 'jogador_id', 'jogadores') })
+  }
+
+  return { ...base, details, sections }
+}

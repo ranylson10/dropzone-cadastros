@@ -927,9 +927,11 @@ export function DropZoneHome() {
 
   const navItems = account ? [
     { label: 'Início', href: '#painel-inicio' },
-    { label: 'Campeonatos', href: '#campeonatos' },
-    { label: 'Equipes', href: '#equipes' },
-    { label: 'Jogadores', href: '#jogadores' },
+    { label: 'Campeonatos', href: '/campeonatos' },
+    { label: 'Equipes', href: '/equipes' },
+    { label: 'Jogadores', href: '/jogadores' },
+    { label: 'Managers', href: '/managers' },
+    { label: 'Produtoras', href: '/produtoras' },
   ] : []
 
   return (
