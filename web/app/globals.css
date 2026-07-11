@@ -2155,6 +2155,14 @@ body:has(.cropper-overlay) {
   line-height: 1.5;
 }
 
+.auth-password-hint {
+  display: block;
+  margin-top: -6px;
+  color: #747986;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .invite-reference-note {
   display: flex;
   align-items: flex-start;

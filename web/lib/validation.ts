@@ -26,6 +26,21 @@ export function cleanEmail(value: unknown) {
   return email
 }
 
+export function getPasswordIssue(value: unknown) {
+  const password = String(value || '')
+  if (password.length < 8) return 'A senha precisa ter pelo menos 8 caracteres.'
+  if (!/[A-Za-z]/.test(password)) return 'A senha precisa ter pelo menos uma letra.'
+  if (!/\d/.test(password)) return 'A senha precisa ter pelo menos um numero.'
+  if (!/[^A-Za-z0-9]/.test(password)) return 'A senha precisa ter pelo menos um caractere especial.'
+  return ''
+}
+
+export function assertPassword(value: unknown) {
+  const issue = getPasswordIssue(value)
+  if (issue) throw new Error(issue)
+  return String(value)
+}
+
 // Mantem um login tecnico unico no Supabase Auth por tipo + usuario.
 // Assim o mesmo e-mail de contato pode ter um perfil de equipe, jogador, produtora e manager.
 export function authEmail(profileType: ProfileType, username: string) {

@@ -7,6 +7,12 @@ function cleanText(value: unknown) {
   return String(value || '').trim()
 }
 
+function friendlyLoginError(message: string) {
+  if (/invalid login credentials/i.test(message)) return 'E-mail, login ou senha incorretos.'
+  if (/email not confirmed/i.test(message)) return 'Confirme o codigo enviado por e-mail antes de entrar.'
+  return message || 'E-mail, login ou senha incorretos.'
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -15,35 +21,43 @@ export async function POST(req: Request) {
     const password = String(body.password || '')
     const table = profileTable(profileType)
 
-    if (!login) throw new Error('Informe seu login.')
+    if (!login) throw new Error('Informe seu login, ID publico ou e-mail.')
     if (!password) throw new Error('Informe sua senha.')
 
-    let username = cleanUsername(login)
-    let emailContato: string | null = null
+    const emails: string[] = []
 
-    if (/^\d+$/.test(login)) {
-      const { data, error } = await supabaseAdmin
-        .from(table)
-        .select('username, email_contato')
-        .eq('public_id', Number(login))
-        .maybeSingle()
-      if (error) throw new Error('Login por ID público ainda não está disponível para esse perfil.')
-      if (!data?.username) throw new Error('ID público não encontrado para esse tipo de perfil.')
-      username = data.username
-      emailContato = data.email_contato ? cleanEmail(data.email_contato) : null
+    if (login.includes('@')) {
+      emails.push(cleanEmail(login))
     } else {
-      username = assertUsername(login)
-      const { data, error } = await supabaseAdmin
-        .from(table)
-        .select('email_contato')
-        .ilike('username', username)
-        .maybeSingle()
-      if (error) throw error
-      emailContato = data?.email_contato ? cleanEmail(data.email_contato) : null
+      let username = cleanUsername(login)
+      let emailContato: string | null = null
+
+      if (/^\d+$/.test(login)) {
+        const { data, error } = await supabaseAdmin
+          .from(table)
+          .select('username, email_contato')
+          .eq('public_id', Number(login))
+          .maybeSingle()
+        if (error) throw error
+        if (!data?.username) throw new Error('ID publico nao encontrado para esse tipo de perfil.')
+        username = data.username
+        emailContato = data.email_contato ? cleanEmail(data.email_contato) : null
+      } else {
+        username = assertUsername(login)
+        const { data, error } = await supabaseAdmin
+          .from(table)
+          .select('email_contato')
+          .ilike('username', username)
+          .maybeSingle()
+        if (error) throw error
+        emailContato = data?.email_contato ? cleanEmail(data.email_contato) : null
+      }
+
+      if (emailContato) emails.push(emailContato)
+      emails.push(authEmail(profileType, username))
     }
 
-    const emails = [emailContato, authEmail(profileType, username)].filter(Boolean) as string[]
-    let lastError = 'Login ou senha inválidos.'
+    let lastError = 'E-mail, login ou senha incorretos.'
 
     for (const email of [...new Set(emails)]) {
       const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password })
@@ -58,8 +72,8 @@ export async function POST(req: Request) {
       lastError = error?.message || lastError
     }
 
-    throw new Error(lastError === 'Invalid login credentials' ? 'Login ou senha inválidos.' : lastError)
+    throw new Error(friendlyLoginError(lastError))
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erro ao entrar.' }, { status: 400 })
+    return NextResponse.json({ error: friendlyLoginError(error?.message || 'Erro ao entrar.') }, { status: 400 })
   }
 }

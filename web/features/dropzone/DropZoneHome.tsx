@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Send, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
-import { cleanUsername } from '@/lib/validation'
+import { cleanUsername, getPasswordIssue } from '@/lib/validation'
 import { Field, LocationSearch, UploadField } from './components/form-fields'
 import { profileIcons } from './components/profile-icons'
 import { EquipePanel } from './panels/equipe/EquipePanel'
@@ -177,6 +177,7 @@ export function DropZoneHome() {
   const playerInvite = tokens.find((row) => row.token?.toUpperCase() === playerToken.trim().toUpperCase() && PLAYER_INVITE_TYPES.has(String(row.data?.token_kind || '')))
   const myRegistrations = registrations.filter((row) => row.created_by === account?.auth_user_id)
   const recentProfileByType = useMemo(() => Object.fromEntries(recentProfiles.map((profile) => [profile.profile_type, profile])) as Partial<Record<ProfileType, any>>, [recentProfiles])
+  const passwordIssue = getPasswordIssue(password)
   const resendBlocked = loading || resendCooldown > 0
   const resendLabel = resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar código'
 
@@ -1066,8 +1067,9 @@ export function DropZoneHome() {
                           />
                         </Field>
                         <Field label="Nova senha">
-                          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" disabled={!codeSent} />
+                          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 8, numero e especial" disabled={!codeSent} />
                         </Field>
+                        {codeSent ? <small className="auth-password-hint">{passwordIssue || 'Senha segura: letra, numero e caractere especial.'}</small> : null}
                         <Field label="Confirmar nova senha">
                           <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Digite novamente" disabled={!codeSent} />
                         </Field>
@@ -1080,7 +1082,7 @@ export function DropZoneHome() {
                           </button>
                         ) : (
                           <>
-                            <button className="button" disabled={loading || verificationCode.length !== 6}>Alterar senha</button>
+                            <button className="button" disabled={loading || verificationCode.length !== 6 || Boolean(passwordIssue) || password !== confirmPassword}>Alterar senha</button>
                             <button type="button" className="button secondary" disabled={resendBlocked} onClick={() => requestVerificationCode('reset_password')}>{resendLabel}</button>
                           </>
                         )}
@@ -1154,14 +1156,15 @@ export function DropZoneHome() {
                       ) : null}
 
                       <div className="mini-grid auth-base-grid">
-                        <Field label={mode === 'criar' ? 'Login' : 'Login ou ID público'}>
-                          <input value={username} onChange={(e) => { setUsername(cleanUsername(e.target.value)); if (mode === 'criar') resetVerificationState() }} placeholder={mode === 'criar' ? '@login sugerido pelo nome' : '@login ou ID público'} />
+                        <Field label={mode === 'criar' ? 'Login' : 'Login, ID publico ou e-mail'}>
+                          <input value={username} onChange={(e) => { setUsername(cleanUsername(e.target.value)); if (mode === 'criar') resetVerificationState() }} placeholder={mode === 'criar' ? '@login sugerido pelo nome' : '@login, ID ou e-mail'} />
                         </Field>
                         {!linkingProfile ? (
                           <>
                             <Field label="Senha">
-                              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 8, numero e especial" />
                             </Field>
+                            {mode === 'criar' ? <small className="auth-password-hint">{passwordIssue || 'Senha segura: letra, numero e caractere especial.'}</small> : null}
                             {mode === 'criar' ? (
                               <Field label="Confirmar senha">
                                 <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Digite a senha novamente" />
@@ -1180,7 +1183,7 @@ export function DropZoneHome() {
                         {linkingProfile ? (
                           <button className="button" disabled={loading || !username.trim()}>Criar perfil vinculado</button>
                         ) : mode === 'criar' && !codeSent ? (
-                          <button type="button" className="button" disabled={loading || !email.trim() || !username.trim() || password.length < 6 || password !== confirmPassword} onClick={() => requestVerificationCode('register')}>
+                          <button type="button" className="button" disabled={loading || !email.trim() || !username.trim() || Boolean(passwordIssue) || password !== confirmPassword} onClick={() => requestVerificationCode('register')}>
                             Enviar código
                           </button>
                         ) : (

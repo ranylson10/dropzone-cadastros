@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
-import { assertProfileType, assertUsername, cleanEmail } from '@/lib/validation'
+import { assertPassword, assertProfileType, assertUsername, cleanEmail } from '@/lib/validation'
 import { profileTable } from '@backend/auth/server-auth'
 
 const TYPE_PREFIX = {
@@ -25,6 +25,13 @@ function hashInvitePassword(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }
 
+function friendlyAuthError(message: string) {
+  if (/invalid token|expired/i.test(message)) return 'Codigo invalido ou expirado.'
+  if (/password/i.test(message)) return 'A senha precisa ter pelo menos 8 caracteres, uma letra, um numero e um caractere especial.'
+  if (/already registered|already been registered|already exists/i.test(message)) return 'Esse e-mail ja esta em uso. Entre com e-mail e senha ou recupere a conta.'
+  return message || 'Erro ao cadastrar.'
+}
+
 async function assertGlobalUsernameAvailable(username: string) {
   for (const table of PROFILE_TABLES) {
     const { data, error } = await supabaseAdmin.from(table).select('id').ilike('username', username).maybeSingle()
@@ -43,6 +50,8 @@ async function getLinkedUser(request: Request) {
 }
 
 export async function POST(req: Request) {
+  let pendingAuthUserId: string | null = null
+
   try {
     const body = await req.json()
     const profileType = assertProfileType(body.profile_type)
@@ -61,18 +70,18 @@ export async function POST(req: Request) {
       : body.email ? cleanEmail(body.email) : null
 
     if (!name) throw new Error('Informe o nome do cadastro.')
-    if (!emailContato) throw new Error('Informe o e-mail de confirmação.')
+    if (!emailContato) throw new Error('Informe o e-mail de confirmacao.')
 
     if (!linked) {
-      if (password.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.')
-      if (password !== confirmPassword) throw new Error('A confirmação da senha não confere.')
-      if (!/^\d{6}$/.test(verificationCode)) throw new Error('Informe o código de 6 dígitos enviado por e-mail.')
+      assertPassword(password)
+      if (password !== confirmPassword) throw new Error('A confirmacao da senha nao confere.')
+      if (!/^\d{6}$/.test(verificationCode)) throw new Error('Informe o codigo de 6 digitos enviado por e-mail.')
     }
 
     if (profileType === 'equipe' && !cleanText(details.tag)) throw new Error('Informe a tag da equipe.')
     if (profileType === 'jogador') {
       if (!cleanText(details.id_jogo)) throw new Error('Informe o ID de jogo.')
-      if (!['support', 'rush', 'sniper', 'bomber'].includes(cleanText(details.funcao))) throw new Error('Selecione uma função válida.')
+      if (!['support', 'rush', 'sniper', 'bomber'].includes(cleanText(details.funcao))) throw new Error('Selecione uma funcao valida.')
     }
     if (profileType === 'manager') {
       if (!cleanText(details.token_convite)) throw new Error('Informe o token de convite do manager.')
@@ -88,7 +97,7 @@ export async function POST(req: Request) {
         .eq('auth_user_id', linkedUser!.id)
         .maybeSingle()
       if (error) throw error
-      if (sameType) throw new Error(`Este login já possui um perfil de ${profileType}.`)
+      if (sameType) throw new Error(`Este login ja possui um perfil de ${profileType}.`)
     }
 
     let managerInvite: any = null
@@ -124,7 +133,7 @@ export async function POST(req: Request) {
         .select('id')
         .eq('id_jogo', cleanText(details.id_jogo))
         .maybeSingle()
-      if (existingGameId) throw new Error('Esse ID de jogo ja esta cadastrado. Faça login ou recupere a conta vinculada a esse ID.')
+      if (existingGameId) throw new Error('Esse ID de jogo ja esta cadastrado. Faca login ou recupere a conta vinculada a esse ID.')
     }
 
     let authUser = linkedUser
@@ -134,14 +143,19 @@ export async function POST(req: Request) {
       const { data: verified, error: verifyError } = await supabaseAdmin.auth.verifyOtp({
         email: emailContato,
         token: verificationCode,
-        type: 'signup',
+        type: 'email',
       })
-      if (verifyError || !verified.user) throw new Error(verifyError?.message || 'Código inválido ou expirado.')
+      if (verifyError || !verified.user) throw new Error(friendlyAuthError(verifyError?.message || 'Codigo invalido ou expirado.'))
+
       authUser = verified.user
       session = verified.session
+      pendingAuthUserId = authUser.id
+
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, { password })
+      if (passwordError) throw new Error(friendlyAuthError(passwordError.message))
     }
 
-    if (!authUser) throw new Error('Usuário de autenticação não encontrado.')
+    if (!authUser) throw new Error('Usuario de autenticacao nao encontrado.')
 
     const payload: Record<string, any> = {
       auth_user_id: authUser.id,
@@ -172,12 +186,14 @@ export async function POST(req: Request) {
 
     const { data: account, error: accountError } = await supabaseAdmin.from(table).insert(payload).select('*').single()
     if (accountError) {
-      if (!linked) await supabaseAdmin.auth.admin.deleteUser(authUser.id)
+      if (!linked && pendingAuthUserId) await supabaseAdmin.auth.admin.deleteUser(pendingAuthUserId)
       if (profileType === 'jogador' && accountError.code === '23505' && String(accountError.message || '').includes('id_jogo')) {
-        throw new Error('Esse ID de jogo ja esta cadastrado. Faça login ou recupere a conta vinculada a esse ID.')
+        throw new Error('Esse ID de jogo ja esta cadastrado. Faca login ou recupere a conta vinculada a esse ID.')
       }
       throw new Error(`Perfil/${table}: ${accountError.message}`)
     }
+
+    pendingAuthUserId = null
 
     if (managerInvite) {
       const { error: tokenError } = await supabaseAdmin
@@ -191,7 +207,7 @@ export async function POST(req: Request) {
 
     if (!session) {
       const { data: loginData, error: loginError } = await supabaseAdmin.auth.signInWithPassword({ email: emailContato, password })
-      if (loginError || !loginData.session) throw new Error(loginError?.message || 'Conta criada, mas não foi possível iniciar a sessão.')
+      if (loginError || !loginData.session) throw new Error(friendlyAuthError(loginError?.message || 'Conta criada, mas nao foi possivel iniciar a sessao.'))
       session = loginData.session
     }
 
@@ -200,6 +216,6 @@ export async function POST(req: Request) {
       session: { access_token: session.access_token, refresh_token: session.refresh_token },
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erro ao cadastrar.' }, { status: 400 })
+    return NextResponse.json({ error: friendlyAuthError(error?.message || 'Erro ao cadastrar.') }, { status: 400 })
   }
 }
