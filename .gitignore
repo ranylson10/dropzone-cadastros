@@ -6,3 +6,7 @@ tsconfig.tsbuildinfo
 
 .vercel
 supabase/.temp
+database/supabase/.temp/
+.env
+.env.local
+web/.env.local
