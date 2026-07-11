@@ -124,7 +124,7 @@ export async function POST(req: Request) {
         .select('id')
         .eq('id_jogo', cleanText(details.id_jogo))
         .maybeSingle()
-      if (existingGameId) throw new Error('Esse ID de jogo ja esta cadastrado.')
+      if (existingGameId) throw new Error('Esse ID de jogo ja esta cadastrado. Faça login ou recupere a conta vinculada a esse ID.')
     }
 
     let authUser = linkedUser
@@ -173,6 +173,9 @@ export async function POST(req: Request) {
     const { data: account, error: accountError } = await supabaseAdmin.from(table).insert(payload).select('*').single()
     if (accountError) {
       if (!linked) await supabaseAdmin.auth.admin.deleteUser(authUser.id)
+      if (profileType === 'jogador' && accountError.code === '23505' && String(accountError.message || '').includes('id_jogo')) {
+        throw new Error('Esse ID de jogo ja esta cadastrado. Faça login ou recupere a conta vinculada a esse ID.')
+      }
       throw new Error(`Perfil/${table}: ${accountError.message}`)
     }
 

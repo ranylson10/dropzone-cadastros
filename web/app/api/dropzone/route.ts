@@ -150,6 +150,7 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     tem_live: Boolean(data.tem_live),
     vagas_por_equipe: nullablePositiveInteger(data.vagas_por_equipe),
     jogadores_por_vaga: nullablePositiveInteger(data.jogadores_por_vaga),
+    permite_jogador_multiplas_equipes: Boolean(data.permite_jogador_multiplas_equipes),
     permite_troca_jogadores: permiteTroca,
     data_limite_trocas: permiteTroca ? nullableDate(data.data_limite_trocas) : null,
     data_limite_inscricao: nullableDate(data.data_limite_inscricao),
@@ -202,7 +203,7 @@ async function requireTeamInChampionship(championshipId: string | null | undefin
   if (!championshipId || !teamId) throw new Error('Campeonato e equipe obrigatorios.')
   const { data, error } = await supabaseAdmin
     .from('campeonato_equipes')
-    .select('id, grupo_id')
+    .select('id, grupo_id, line_id')
     .eq('campeonato_id', championshipId)
     .eq('equipe_id', teamId)
     .maybeSingle()
@@ -275,6 +276,32 @@ async function assertPlayerCapacity(campeonatoId: string, equipeId: string, vaga
     .neq('status', 'deletado')
   if (error) throw error
   if ((count || 0) >= vagas) throw new Error('Essa equipe ja atingiu o limite de vagas de escalacao.')
+}
+
+async function assertPlayerUniqueInChampionship(campeonatoId: string, campeonatoEquipeId: string | null | undefined, idJogo: string) {
+  const cleanId = String(idJogo || '').trim()
+  if (!cleanId) throw new Error('Informe o ID de jogo.')
+
+  const { data: config, error: configError } = await supabaseAdmin
+    .from('campeonato_configuracoes')
+    .select('permite_jogador_multiplas_equipes')
+    .eq('campeonato_id', campeonatoId)
+    .maybeSingle()
+  if (configError) throw configError
+  if (config?.permite_jogador_multiplas_equipes) return
+
+  const { data: existing, error } = await supabaseAdmin
+    .from('campeonato_jogadores')
+    .select('id, campeonato_equipe_id')
+    .eq('campeonato_id', campeonatoId)
+    .eq('id_jogo', cleanId)
+    .neq('status', 'deletado')
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  if (existing && existing.campeonato_equipe_id !== campeonatoEquipeId) {
+    throw new Error('Esse jogador ja esta inscrito em outra line deste campeonato.')
+  }
 }
 
 async function assertInviteAllowed(campeonatoId: string, equipeId?: string | null) {
@@ -639,12 +666,14 @@ export async function POST(req: NextRequest) {
       const { data: jogador, error: jogadorError } = await supabaseAdmin.from('jogadores').select('*').eq('auth_user_id', user.id).maybeSingle()
       if (jogadorError) throw jogadorError
       if (!jogador) throw new Error('Entre com uma conta de jogador.')
+      const idJogo = String(data.id_jogo || jogador.id_jogo || '').trim()
+      await assertPlayerUniqueInChampionship(campeonatoId, champTeam.id, idJogo)
       const { error: linkError } = await supabaseAdmin.from('equipe_jogadores').upsert({
         equipe_id: equipeId,
         jogador_auth_user_id: user.id,
         nick: body.name || data.nick || jogador.nome,
         foto_url: data.foto_url || jogador.avatar_url || null,
-        id_jogo: data.id_jogo || jogador.id_jogo,
+        id_jogo: idJogo,
         funcao: data.funcao || jogador.funcao || null,
         localidade: data.localidade || jogador.localidade || null,
         origem: 'token',
@@ -658,9 +687,12 @@ export async function POST(req: NextRequest) {
         jogador_id: jogador.id,
         nick: body.name || data.nick || jogador.nome,
         foto_url: data.foto_url || jogador.avatar_url || null,
-        id_jogo: data.id_jogo || jogador.id_jogo,
+        id_jogo: idJogo,
         funcao: data.funcao || jogador.funcao || 'support',
         localidade: data.localidade || jogador.localidade || null,
+        campeonato_equipe_id: champTeam.id,
+        line_id: token?.line_destino_id || data.line_id || champTeam.line_id || null,
+        origem: 'token',
         status: 'ativo',
       }).select('*').single()
       if (error) throw error

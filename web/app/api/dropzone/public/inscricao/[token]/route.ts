@@ -93,7 +93,7 @@ export async function POST(req: NextRequest, ctx: any) {
 
     const { data: champTeam, error: champTeamError } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,grupo_id')
+      .select('id,grupo_id,line_id')
       .eq('campeonato_id', link.campeonato_id)
       .eq('grupo_id', link.grupo_id)
       .eq('equipe_id', equipeId)
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest, ctx: any) {
       .from('campeonato_jogadores')
       .select('id', { count: 'exact', head: true })
       .eq('campeonato_id', link.campeonato_id)
-      .eq('equipe_id', equipeId)
+      .eq('campeonato_equipe_id', champTeam.id)
       .neq('status', 'deletado')
     if (countError) throw countError
     if ((count || 0) >= vagas) throw new Error('Essa equipe ja atingiu o limite de vagas.')
@@ -135,15 +135,25 @@ export async function POST(req: NextRequest, ctx: any) {
     const funcao = String(body.funcao || account.funcao || 'support')
     if (!nick || !idJogo) throw new Error('Nick e ID de jogo sao obrigatorios.')
 
+    const { data: config, error: configError } = await supabaseAdmin
+      .from('campeonato_configuracoes')
+      .select('permite_jogador_multiplas_equipes')
+      .eq('campeonato_id', link.campeonato_id)
+      .maybeSingle()
+    if (configError) throw configError
+
     const { data: duplicate, error: duplicateError } = await supabaseAdmin
       .from('campeonato_jogadores')
-      .select('id')
+      .select('id, campeonato_equipe_id')
       .eq('campeonato_id', link.campeonato_id)
       .eq('id_jogo', idJogo)
       .neq('status', 'deletado')
+      .limit(1)
       .maybeSingle()
     if (duplicateError) throw duplicateError
-    if (duplicate) throw new Error('Esse ID de jogo ja esta inscrito neste campeonato.')
+    if (duplicate && (!config?.permite_jogador_multiplas_equipes || duplicate.campeonato_equipe_id === champTeam.id)) {
+      throw new Error('Esse ID de jogo ja esta inscrito neste campeonato.')
+    }
 
     const { error: teamPlayerError } = await supabaseAdmin.from('equipe_jogadores').upsert({
       equipe_id: equipeId,
@@ -168,6 +178,9 @@ export async function POST(req: NextRequest, ctx: any) {
       id_jogo: idJogo,
       funcao,
       localidade: account.localidade || body.localidade || null,
+      campeonato_equipe_id: champTeam.id,
+      line_id: champTeam.line_id || null,
+      origem: 'link',
       status: 'ativo',
     }).select('id,nick,id_jogo,funcao,created_at').single()
     if (error) throw error

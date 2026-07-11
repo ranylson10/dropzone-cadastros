@@ -22,6 +22,7 @@ export type CampeonatoFormValue = {
   tem_live: boolean
   vagas_por_equipe: string
   jogadores_por_vaga: string
+  permite_jogador_multiplas_equipes: boolean
   permite_troca_jogadores: boolean
   data_limite_trocas: string
   data_limite_inscricao: string
@@ -45,6 +46,7 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   tem_live: false,
   vagas_por_equipe: '',
   jogadores_por_vaga: '',
+  permite_jogador_multiplas_equipes: false,
   permite_troca_jogadores: false,
   data_limite_trocas: '',
   data_limite_inscricao: '',
@@ -326,6 +328,7 @@ export function CampeonatoForm({
         </div>
         <div className="checkbox-row">
           <label><input type="checkbox" checked={value.aceita_novas_inscricoes_equipes} onChange={(e) => update('aceita_novas_inscricoes_equipes', e.target.checked)} /> Aceitar novas inscrições de equipes</label>
+          <label><input type="checkbox" checked={value.permite_jogador_multiplas_equipes} onChange={(e) => update('permite_jogador_multiplas_equipes', e.target.checked)} /> Permitir jogador em mais de uma line</label>
           <label><input type="checkbox" checked={value.permite_troca_jogadores} onChange={(e) => update('permite_troca_jogadores', e.target.checked)} /> Permitir troca de jogadores</label>
         </div>
         {value.permite_troca_jogadores ? (

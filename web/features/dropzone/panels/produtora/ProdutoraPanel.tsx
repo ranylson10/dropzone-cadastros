@@ -106,6 +106,7 @@ export function ProdutoraPanel(props: {
       tem_live: Boolean(champ.data?.tem_live),
       vagas_por_equipe: String(dataText(champ, 'vagas_por_equipe') || ''),
       jogadores_por_vaga: String(dataText(champ, 'jogadores_por_vaga') || ''),
+      permite_jogador_multiplas_equipes: Boolean(champ.data?.permite_jogador_multiplas_equipes),
       permite_troca_jogadores: Boolean(champ.data?.permite_troca_jogadores),
       data_limite_trocas: toInputDate(champ.data?.data_limite_trocas),
       data_limite_inscricao: toInputDate(champ.data?.data_limite_inscricao),

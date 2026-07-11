@@ -35,6 +35,7 @@ const emptyChampionship = {
   tem_live: false,
   vagas_por_equipe: '',
   jogadores_por_vaga: '',
+  permite_jogador_multiplas_equipes: false,
   permite_troca_jogadores: false,
   data_limite_trocas: '',
   data_limite_inscricao: '',
