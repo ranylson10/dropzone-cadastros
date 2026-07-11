@@ -57,6 +57,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const purpose = clean(body.purpose)
+    const isResend = Boolean(body.resend)
     const profileType = purpose === 'register' ? assertProfileType(body.profile_type) : null
 
     if (purpose === 'register') {
@@ -79,17 +80,25 @@ export async function POST(request: Request) {
       if (usernameError) throw usernameError
       if (existingUsername) throw new Error('Esse login já existe.')
 
-      const { error } = await supabaseAdmin.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            profile_type: profileType,
-            username,
+      if (isResend) {
+        const { error } = await supabaseAdmin.auth.resend({
+          type: 'signup',
+          email,
+        })
+        if (error) throw new Error(error.message)
+      } else {
+        const { error } = await supabaseAdmin.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              profile_type: profileType,
+              username,
+            },
           },
-        },
-      })
-      if (error) throw new Error(error.message)
+        })
+        if (error) throw new Error(error.message)
+      }
 
       return NextResponse.json({ ok: true, email_hint: maskEmail(email) })
     }

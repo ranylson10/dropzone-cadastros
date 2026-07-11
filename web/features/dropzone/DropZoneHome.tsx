@@ -15,6 +15,7 @@ import { AppHeader } from '@/components/layout/AppHeader'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
+const AUTH_RESEND_COOLDOWN_SECONDS = 60
 
 const emptyChampionship = {
   nome: '',
@@ -60,6 +61,7 @@ export function DropZoneHome() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
   const [codeSent, setCodeSent] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
@@ -146,6 +148,14 @@ export function DropZoneHome() {
   const playerInvite = tokens.find((row) => row.token?.toUpperCase() === playerToken.trim().toUpperCase() && row.data?.token_kind === 'player_invite')
   const myRegistrations = registrations.filter((row) => row.created_by === account?.auth_user_id)
   const recentProfileByType = useMemo(() => Object.fromEntries(recentProfiles.map((profile) => [profile.profile_type, profile])) as Partial<Record<ProfileType, any>>, [recentProfiles])
+  const resendBlocked = loading || resendCooldown > 0
+  const resendLabel = resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar código'
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = window.setTimeout(() => setResendCooldown((current) => Math.max(0, current - 1)), 1000)
+    return () => window.clearTimeout(timer)
+  }, [resendCooldown])
 
   useEffect(() => {
     if (!selectedChamp) return
@@ -306,14 +316,19 @@ export function DropZoneHome() {
     setRegisterData((current) => ({ ...current, ...location }))
   }
 
+  function resetVerificationState() {
+    setVerificationCode('')
+    setCodeSent(false)
+    setResendCooldown(0)
+  }
+
   function clearRegisterForm(nextType?: ProfileType) {
     setName('')
     setEmail('')
     setUsername('')
     setPassword('')
     setConfirmPassword('')
-    setVerificationCode('')
-    setCodeSent(false)
+    resetVerificationState()
     setMediaUrl('')
     setRegisterData({
       tag: '',
@@ -378,6 +393,7 @@ export function DropZoneHome() {
   }
 
   async function requestVerificationCode(purpose: 'register' | 'reset_password') {
+    if (resendCooldown > 0) return
     setLoading(true)
     setError('')
     setMessage('')
@@ -391,6 +407,7 @@ export function DropZoneHome() {
           profile_type: profileType,
           username: purpose === 'register' ? clean : undefined,
           email,
+          resend: codeSent,
           password: purpose === 'register' ? password : undefined,
           confirm_password: purpose === 'register' ? confirmPassword : undefined,
         }),
@@ -398,6 +415,7 @@ export function DropZoneHome() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Não foi possível enviar o código.')
       setCodeSent(true)
+      setResendCooldown(AUTH_RESEND_COOLDOWN_SECONDS)
       setMessage(`Código enviado para ${json.email_hint}. Digite os 6 números recebidos.`)
     } catch (err: any) {
       setError(err?.message || 'Não foi possível enviar o código.')
@@ -431,8 +449,7 @@ export function DropZoneHome() {
         setMode('entrar')
         setPassword('')
         setConfirmPassword('')
-        setVerificationCode('')
-        setCodeSent(false)
+        resetVerificationState()
         setMessage('Senha alterada. Entre com a nova senha.')
         return
       }
@@ -908,8 +925,8 @@ export function DropZoneHome() {
                     </div>
                   </div>
                   {!linkingProfile ? <div className="tabs auth-inline-tabs">
-                    <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => { setMode('entrar'); setCodeSent(false); setVerificationCode('') }}>Entrar</button>
-                    <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => { setMode('criar'); setCodeSent(false); setVerificationCode('') }}>Criar conta</button>
+                    <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => { setMode('entrar'); resetVerificationState() }}>Entrar</button>
+                    <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => { setMode('criar'); resetVerificationState() }}>Criar conta</button>
                   </div> : null}
                   <button type="button" className="close-auth inline-close" onClick={() => { setActiveAuthType(null); setLinkingProfile(false) }} aria-label="Fechar">
                     <X size={18} />
@@ -941,7 +958,7 @@ export function DropZoneHome() {
                     <div className="register-main-fields">
                       <div className="mini-grid auth-base-grid">
                         <Field label="E-mail da conta">
-                          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
+                          <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); resetVerificationState() }} placeholder="seuemail@gmail.com" />
                         </Field>
                         <Field label="Código de 6 dígitos">
                           <input
@@ -969,10 +986,10 @@ export function DropZoneHome() {
                         ) : (
                           <>
                             <button className="button" disabled={loading || verificationCode.length !== 6}>Alterar senha</button>
-                            <button type="button" className="button secondary" disabled={loading} onClick={() => requestVerificationCode('reset_password')}>Reenviar código</button>
+                            <button type="button" className="button secondary" disabled={resendBlocked} onClick={() => requestVerificationCode('reset_password')}>{resendLabel}</button>
                           </>
                         )}
-                        <button type="button" className="link-button auth-inline-link" onClick={() => { setMode('entrar'); setCodeSent(false); setVerificationCode(''); setPassword(''); setConfirmPassword('') }}>
+                        <button type="button" className="link-button auth-inline-link" onClick={() => { setMode('entrar'); resetVerificationState(); setPassword(''); setConfirmPassword('') }}>
                           Voltar para o login
                         </button>
                       </div>
@@ -1032,7 +1049,7 @@ export function DropZoneHome() {
                             <LocationSearch value={registerData} onSelect={selectLocation} />
                             {!linkingProfile ? (
                               <Field label="E-mail de confirmação">
-                                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setCodeSent(false) }} placeholder="seuemail@gmail.com" />
+                                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); resetVerificationState() }} placeholder="seuemail@gmail.com" />
                               </Field>
                             ) : (
                               <div className="linked-create-note">Este perfil usará o mesmo e-mail e a mesma senha do login ativo.</div>
@@ -1043,7 +1060,7 @@ export function DropZoneHome() {
 
                       <div className="mini-grid auth-base-grid">
                         <Field label={mode === 'criar' ? 'Login' : 'Login ou ID público'}>
-                          <input value={username} onChange={(e) => { setUsername(cleanUsername(e.target.value)); if (mode === 'criar') setCodeSent(false) }} placeholder={mode === 'criar' ? '@login sugerido pelo nome' : '@login ou ID público'} />
+                          <input value={username} onChange={(e) => { setUsername(cleanUsername(e.target.value)); if (mode === 'criar') resetVerificationState() }} placeholder={mode === 'criar' ? '@login sugerido pelo nome' : '@login ou ID público'} />
                         </Field>
                         {!linkingProfile ? (
                           <>
@@ -1077,10 +1094,10 @@ export function DropZoneHome() {
                           </button>
                         )}
                         {mode === 'criar' && codeSent && !linkingProfile ? (
-                          <button type="button" className="button secondary" disabled={loading} onClick={() => requestVerificationCode('register')}>Reenviar código</button>
+                          <button type="button" className="button secondary" disabled={resendBlocked} onClick={() => requestVerificationCode('register')}>{resendLabel}</button>
                         ) : null}
                         {mode === 'entrar' ? (
-                          <button type="button" className="link-button auth-inline-link" onClick={() => { setMode('recuperar'); setCodeSent(false); setVerificationCode(''); setPassword(''); setConfirmPassword('') }}>
+                          <button type="button" className="link-button auth-inline-link" onClick={() => { setMode('recuperar'); resetVerificationState(); setPassword(''); setConfirmPassword('') }}>
                             Esqueci minha senha
                           </button>
                         ) : null}
