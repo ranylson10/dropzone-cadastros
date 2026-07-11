@@ -100,3 +100,11 @@
 - Perfis de equipe vinculados ao mesmo login são detectados pelo convite mesmo quando outro perfil está ativo.
 - Após login, cadastro ou criação de perfil vinculado, o usuário retorna automaticamente ao convite.
 - A ação "Usar outra equipe" encerra a sessão atual e abre diretamente o login de equipe.
+
+## 2026-07-11 — Formulário de campeonatos em duas etapas
+
+- Adicionada seleção inicial por cards para Diário, Copa, Liga, X-Treino e Confronto.
+- O formato é preenchido automaticamente conforme o tipo; X-Treino e Confronto mantêm opções próprias.
+- Premiação e inscrição agora usam máscara em reais.
+- Tipo de premiação virou seletor com Sem premiação, PIX, Dinheiro e Brinde.
+- Brindes usam descrição própria; valores monetários são persistidos em campos numéricos.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Copy, Pencil, Trash2, Trophy } from 'lucide-react'
+import { ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Pencil, Trash2, Trophy } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { Field } from '../../components/form-fields'
@@ -37,7 +37,7 @@ export function ProdutoraPanel(props: {
   setTeam: (value: any) => void
   phase: { nome: string; campeonato_id: string; ordem: string }
   setPhase: (value: any) => void
-  group: { nome: string; campeonato_id: string; fase_id: string; slots: string }
+  group: { nome: string; campeonato_id: string; fase_id: string; slots: string; whatsapp_url: string }
   setGroup: (value: any) => void
   slotAssignment: { grupo_id: string; equipe_id: string; slot_numero: string }
   setSlotAssignment: (value: any) => void
@@ -46,6 +46,8 @@ export function ProdutoraPanel(props: {
   createChampionship: () => void
   updateChampionship: (id: string, data: CampeonatoFormValue) => Promise<DropZoneRow | undefined>
   deleteChampionship: (id: string) => Promise<void>
+  updateStructure: (entityType: 'phase' | 'group' | 'group_slot', id: string, data: Record<string, unknown>) => Promise<void>
+  deleteStructure: (entityType: 'phase' | 'group', id: string) => Promise<void>
   createTeam: () => void
   createPhase: () => void
   createGroup: () => void
@@ -63,6 +65,8 @@ export function ProdutoraPanel(props: {
   const [typeFilter, setTypeFilter] = useState('todos')
   const [tab, setTab] = useState<ProducerTab>('equipes')
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
+  const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({})
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
 
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
@@ -298,7 +302,8 @@ export function ProdutoraPanel(props: {
                           </select>
                         )}
                       </Field>
-                      <Field label="Slots"><input type="number" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: selectedChamp.id })} placeholder="12" /></Field>
+                      <Field label="Slots"><input type="number" min="1" max="52" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: selectedChamp.id })} placeholder="12" /></Field>
+                      <Field label="Link do WhatsApp"><input value={props.group.whatsapp_url} onChange={(e) => props.setGroup({ ...props.group, whatsapp_url: e.target.value, campeonato_id: selectedChamp.id })} placeholder="https://chat.whatsapp.com/..." /></Field>
                       <button className="button" onClick={props.createGroup}>Criar grupo</button>
                     </div>
                   ) : null}
@@ -322,45 +327,32 @@ export function ProdutoraPanel(props: {
                     </div>
                   ) : null}
 
-                  <div className="phase-board">
-                    {(champPhases.length ? champPhases : [{ id: 'sem-fase', name: 'Sem fase', data: {} } as DropZoneRow]).map((phase) => {
-                      const groupsOfPhase = phase.id === 'sem-fase'
-                        ? champGroups.filter((group) => !group.data?.fase_id)
-                        : champGroups.filter((group) => group.data?.fase_id === phase.id)
+                  <div className="phase-folder-tree">
+                    {(champPhases.length ? [...champPhases].sort((a,b) => Number(a.data?.ordem || 0)-Number(b.data?.ordem || 0)) : [{ id: 'sem-fase', name: 'Sem fase', data: {} } as DropZoneRow]).map((phase) => {
+                      const groupsOfPhase = phase.id === 'sem-fase' ? champGroups.filter((group) => !group.data?.fase_id) : champGroups.filter((group) => group.data?.fase_id === phase.id)
                       if (phase.id === 'sem-fase' && groupsOfPhase.length === 0 && champPhases.length > 0) return null
-                      return (
-                        <section className="phase-card" key={phase.id}>
-                          <header>
-                            <div>
-                              <p className="eyebrow">Fase</p>
-                              <h3>{rowTitle(phase)}</h3>
-                            </div>
-                            <strong>{groupsOfPhase.length} grupos</strong>
-                          </header>
-                          <div className="group-card-grid">
-                            {groupsOfPhase.map((group) => {
-                              const slotsOfGroup = champSlots.filter((slot) => slot.data?.grupo_id === group.id)
-                              return (
-                                <div className="group-mini-card" key={group.id}>
-                                  <div className="group-mini-head">
-                                    <strong>{rowTitle(group)}</strong>
-                                    <small>{dataText(group, 'slots') || group.data?.slots || 12} slots</small>
-                                  </div>
-                                  <div className="slot-pills">
-                                    {Array.from({ length: Number(group.data?.slots || 12) }).slice(0, 24).map((_, index) => {
-                                      const slotNumber = index + 1
-                                      const slot = slotsOfGroup.find((item) => Number(item.data?.slot_numero) === slotNumber)
-                                      const team = props.selectedChampTeams.find((item) => item.id === slot?.ref_id)
-                                      return <span key={slotNumber} className={team ? 'filled' : ''}>{slotNumber}{team ? ` · ${dataText(team, 'tag') || rowTitle(team)}` : ''}</span>
-                                    })}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                            {groupsOfPhase.length === 0 ? <p className="empty">Nenhum grupo nesta fase.</p> : null}
-                          </div>
-                        </section>
-                      )
+                      const phaseOpen = openPhases[phase.id] !== false
+                      return <section className="phase-folder" key={phase.id}>
+                        <header className="folder-row phase-folder-row">
+                          <button className="folder-toggle" onClick={() => setOpenPhases((v) => ({...v, [phase.id]: !phaseOpen}))}>{phaseOpen ? <ChevronDown size={18}/> : <ChevronRight size={18}/>} {phaseOpen ? <FolderOpen size={20}/> : <Folder size={20}/>}<span><strong>{rowTitle(phase)}</strong><small>{groupsOfPhase.length} grupos</small></span></button>
+                          {phase.id !== 'sem-fase' ? <div className="folder-actions"><button title="Editar fase" onClick={() => { const nome=window.prompt('Nome da fase', rowTitle(phase)); if (nome) props.updateStructure('phase', phase.id, { nome, ordem: phase.data?.ordem || 1 }) }}><Pencil size={15}/></button><button title="Excluir fase" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(phase)} e todos os grupos dela?`)) props.deleteStructure('phase', phase.id) }}><Trash2 size={15}/></button><button className="button secondary" onClick={() => { props.setGroup({...props.group, fase_id: phase.id, campeonato_id: selectedChamp.id}); setOpenAction('group') }}>Criar grupo</button></div> : null}
+                        </header>
+                        {phaseOpen ? <div className="phase-folder-content">{groupsOfPhase.map((group) => {
+                          const slotsOfGroup = champSlots.filter((slot) => slot.data?.grupo_id === group.id).sort((a,b)=>Number(a.data?.slot_numero||0)-Number(b.data?.slot_numero||0))
+                          const groupOpen = openGroups[group.id] !== false
+                          const slotCount = Number(group.data?.slots || 12)
+                          return <article className="group-folder" key={group.id}>
+                            <header className="folder-row group-folder-row">
+                              <button className="folder-toggle" onClick={() => setOpenGroups((v)=>({...v,[group.id]:!groupOpen}))}>{groupOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}<Folder size={18}/><span><strong>{rowTitle(group)}</strong><small>{slotCount} slots · {group.data?.whatsapp_url ? 'WhatsApp configurado' : 'Sem WhatsApp'}</small></span></button>
+                              <div className="folder-actions"><button title="Editar grupo" onClick={() => { const nome=window.prompt('Nome do grupo', rowTitle(group)); if(!nome) return; const slots=window.prompt('Quantidade de slots', String(slotCount)); if(!slots) return; const whatsapp_url=window.prompt('Link do WhatsApp', String(group.data?.whatsapp_url || '')) ?? String(group.data?.whatsapp_url || ''); props.updateStructure('group', group.id, { nome, slots: Number(slots), whatsapp_url }) }}><Pencil size={15}/></button><button title="Excluir grupo" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(group)} e seus slots?`)) props.deleteStructure('group', group.id) }}><Trash2 size={15}/></button></div>
+                            </header>
+                            {groupOpen ? <div className="slot-letter-list">{Array.from({length: slotCount}).map((_, index) => {
+                              const slotNumber=index+1; const slot=slotsOfGroup.find((item)=>Number(item.data?.slot_numero)===slotNumber); const team=props.selectedChampTeams.find((item)=>item.id===slot?.ref_id); const letter=String(slot?.data?.slot_letra || String.fromCharCode(65 + (index % 26)) + (index >= 26 ? Math.floor(index/26) : ''))
+                              return <div className={`slot-letter-row ${team ? 'occupied' : ''}`} key={slot?.id || slotNumber}><b>{letter}</b><span>{team ? rowTitle(team) : 'Disponível'}</span><small>{team ? dataText(team,'tag') : 'Slot livre'}</small><button title="Editar letra" onClick={() => { if(!slot?.id) return; const slot_letra=window.prompt('Letra do slot', letter); if(slot_letra) props.updateStructure('group_slot', slot.id, { slot_letra }) }}><Pencil size={14}/></button></div>
+                            })}</div> : null}
+                          </article>
+                        })}{groupsOfPhase.length===0 ? <p className="empty">Nenhum grupo nesta fase.</p> : null}</div> : null}
+                      </section>
                     })}
                   </div>
                 </div>

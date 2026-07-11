@@ -95,7 +95,7 @@ export function DropZoneHome() {
     senha_dono: '',
   })
   const [phase, setPhase] = useState({ nome: '', campeonato_id: '', ordem: '1' })
-  const [group, setGroup] = useState({ nome: 'Grupo A', campeonato_id: '', fase_id: '', slots: '12' })
+  const [group, setGroup] = useState({ nome: 'Grupo A', campeonato_id: '', fase_id: '', slots: '12', whatsapp_url: '' })
   const [slotAssignment, setSlotAssignment] = useState({ grupo_id: '', equipe_id: '', slot_numero: '1' })
   const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] as string[] })
   const [registrationLink, setRegistrationLink] = useState({ grupo_id: '', vagas_por_equipe: '6', abre_em: '', encerra_em: '', permite_substituicao: false, max_substituicoes_por_equipe: '0', substituicao_encerra_em: '', descricao: '' })
@@ -550,6 +550,46 @@ export function DropZoneHome() {
     }
   }
 
+  async function updateStructure(entityType: 'phase' | 'group' | 'group_slot', id: string, data: Record<string, unknown>) {
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/dropzone', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type) },
+        body: JSON.stringify({ entity_type: entityType, id, data }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao editar.')
+      await loadMeAndRows(token)
+      setMessage('Estrutura atualizada.')
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao editar.')
+    } finally { setLoading(false) }
+  }
+
+  async function deleteStructure(entityType: 'phase' | 'group', id: string) {
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/dropzone', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type) },
+        body: JSON.stringify({ entity_type: entityType, id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao excluir.')
+      await loadMeAndRows(token)
+      setMessage(entityType === 'phase' ? 'Fase excluída.' : 'Grupo excluído.')
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao excluir.')
+    } finally { setLoading(false) }
+  }
+
   async function copyToken(value: string | null) {
     if (!value) return
     await navigator.clipboard.writeText(value)
@@ -728,7 +768,7 @@ export function DropZoneHome() {
         championship_name: champ.name,
       },
     }, 'Grupo criado no campeonato.')
-    setGroup({ nome: dataText(champ, 'tipo') === 'diario' ? '19h' : 'Grupo A', campeonato_id: champ.id, fase_id: group.fase_id, slots: '12' })
+    setGroup({ nome: dataText(champ, 'tipo') === 'diario' ? '19h' : 'Grupo A', campeonato_id: champ.id, fase_id: group.fase_id, slots: '12', whatsapp_url: '' })
   }
 
   async function createGame() {
@@ -1158,6 +1198,8 @@ export function DropZoneHome() {
                 createChampionship={createChampionship}
                 updateChampionship={updateChampionship}
                 deleteChampionship={deleteChampionship}
+                updateStructure={updateStructure}
+                deleteStructure={deleteStructure}
                 createTeam={createTeam}
                 createPhase={createPhase}
                 createGroup={createGroup}
