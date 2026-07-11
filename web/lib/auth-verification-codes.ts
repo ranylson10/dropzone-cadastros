@@ -140,6 +140,9 @@ export async function sendVerificationEmail(params: {
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
     const message = payload?.message || payload?.error || `Resend HTTP ${response.status}`
+    if (/only send testing emails to your own email address/i.test(message)) {
+      throw new Error('A conta Resend ainda esta em modo teste. Verifique um dominio no Resend e atualize AUTH_EMAIL_FROM para um e-mail desse dominio, ou teste usando o e-mail dono da conta Resend.')
+    }
     throw new Error(`Erro ao enviar e-mail pelo Resend: ${message}`)
   }
 }
