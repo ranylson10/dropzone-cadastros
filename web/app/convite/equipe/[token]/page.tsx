@@ -176,13 +176,13 @@ export default function ConviteEquipePage() {
                 ) : null}
 
                 <button className="button invite-confirm" onClick={aceitar}>Confirmar entrada</button>
-                <a className="button secondary" href={`/?convite=${encodeURIComponent(token)}&trocar_conta=1`}>Usar outra conta</a>
+                <a className="button secondary" href={`/?convite=${encodeURIComponent(token)}&login=equipe&trocar_conta=1`}>Usar outra equipe</a>
               </div>
             ) : (
               <div className="invite-auth-box">
                 <p>Seu login está ativo, mas ainda não possui um perfil de equipe vinculado.</p>
-                <a className="button" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe&vincular=1`}>Criar equipe com meu login</a>
-                <a className="button secondary" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe&nova_conta=1`}>Criar com outro login</a>
+                <a className="button" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe&vincular=1`}>Criar equipe com meu login atual</a>
+                <a className="button secondary" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe&nova_conta=1`}>Criar equipe com outro login</a>
               </div>
             )
           ) : (

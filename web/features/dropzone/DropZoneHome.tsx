@@ -82,6 +82,8 @@ export function DropZoneHome() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [queryReady, setQueryReady] = useState(false)
+  const [inviteReturnTo, setInviteReturnTo] = useState('')
 
   const [championship, setChampionship] = useState(emptyChampionship)
   const [team, setTeam] = useState({
@@ -179,11 +181,69 @@ export function DropZoneHome() {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) loadMeAndRows(data.session.access_token)
-    })
-    const saved = localStorage.getItem('dropzone_recent_profiles')
-    if (saved) setRecentProfiles(JSON.parse(saved))
+    async function initialize() {
+      const params = new URLSearchParams(window.location.search)
+      const convite = String(params.get('convite') || '').trim()
+      const forcedType = params.get('login') === 'equipe' || params.get('cadastro') === 'equipe'
+      const wantsCreate = params.get('cadastro') === 'equipe'
+      const wantsLinked = params.get('vincular') === '1'
+      const wantsNewAccount = params.get('nova_conta') === '1'
+      const wantsSwitchAccount = params.get('trocar_conta') === '1'
+
+      const saved = localStorage.getItem('dropzone_recent_profiles')
+      if (saved) setRecentProfiles(JSON.parse(saved))
+
+      if (convite) setInviteReturnTo(`/convite/equipe/${encodeURIComponent(convite)}`)
+
+      if (forcedType) {
+        setProfileType('equipe')
+        setActiveAuthType('equipe')
+        clearRegisterForm('equipe')
+
+        if (wantsSwitchAccount || wantsNewAccount) {
+          await supabase.auth.signOut()
+          setAccount(null)
+          setAccounts([])
+          setRows([])
+          setLinkingProfile(false)
+          setMode(wantsCreate ? 'criar' : 'entrar')
+          setQueryReady(true)
+          return
+        }
+
+        const { data } = await supabase.auth.getSession()
+        if (data.session && wantsCreate && wantsLinked) {
+          try {
+            await loadMeAndRows(data.session.access_token)
+            clearRegisterForm('equipe')
+            setMode('criar')
+            setActiveAuthType('equipe')
+            setLinkingProfile(true)
+          } catch (err: any) {
+            setError(err?.message || 'Não foi possível carregar o login ativo.')
+          }
+          setQueryReady(true)
+          return
+        }
+
+        setLinkingProfile(false)
+        setMode(wantsCreate ? 'criar' : 'entrar')
+        setQueryReady(true)
+        return
+      }
+
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        try {
+          await loadMeAndRows(data.session.access_token)
+        } catch {
+          // Mantém a tela pública quando a sessão local não for válida.
+        }
+      }
+      setQueryReady(true)
+    }
+
+    void initialize()
   }, [])
 
   async function getToken() {
@@ -403,6 +463,10 @@ export function DropZoneHome() {
         setLinkingProfile(false)
         setActiveAuthType(null)
         await loadMeAndRows(token, profileType)
+        if (inviteReturnTo) {
+          window.location.assign(inviteReturnTo)
+          return
+        }
         setMessage('Perfil vinculado criado com sucesso.')
         return
       }
@@ -419,8 +483,12 @@ export function DropZoneHome() {
         // O token retornado pela API ainda permite carregar o painel.
       }
 
-      await loadMeAndRows(session.access_token)
+      await loadMeAndRows(session.access_token, inviteReturnTo ? 'equipe' : undefined)
       setActiveAuthType(null)
+      if (inviteReturnTo) {
+        window.location.assign(inviteReturnTo)
+        return
+      }
       setMessage('Login realizado.')
     } catch (err: any) {
       setError(err?.message || 'Falha na autenticação.')
@@ -741,6 +809,10 @@ export function DropZoneHome() {
     }, 'Jogador inscrito e escalado na equipe.')
     setPlayerToken('')
     setPlayer({ nick: '', foto_url: '', id_jogo: '', funcao: 'support', localidade: '', senha: '' })
+  }
+
+  if (!queryReady) {
+    return <main className="page page-loading"><div className="shell"><div className="message">Carregando acesso...</div></div></main>
   }
 
   const navItems = account ? [

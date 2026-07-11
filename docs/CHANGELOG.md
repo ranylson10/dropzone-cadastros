@@ -93,3 +93,10 @@
 - A equipe e a line reais são definidas apenas quando o convite é aceito.
 - A página pública permite escolher uma line disponível ou criar uma nova.
 - Lines já inscritas no campeonato não podem ser usadas novamente.
+
+## 2026-07-11 — Convite direcionado para equipe
+- O convite de campeonato não passa mais pela seleção geral de tipos de perfil.
+- Login e cadastro abertos pelo convite são forçados para o tipo equipe.
+- Perfis de equipe vinculados ao mesmo login são detectados pelo convite mesmo quando outro perfil está ativo.
+- Após login, cadastro ou criação de perfil vinculado, o usuário retorna automaticamente ao convite.
+- A ação "Usar outra equipe" encerra a sessão atual e abre diretamente o login de equipe.
