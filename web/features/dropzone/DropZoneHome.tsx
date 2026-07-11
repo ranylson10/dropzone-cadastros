@@ -223,8 +223,17 @@ export function DropZoneHome() {
     async function initialize() {
       const params = new URLSearchParams(window.location.search)
       const convite = String(params.get('convite') || '').trim()
-      const forcedType = params.get('login') === 'equipe' || params.get('cadastro') === 'equipe'
-      const wantsCreate = params.get('cadastro') === 'equipe'
+      const escala = String(params.get('escala') || '').trim()
+      const requestedLogin = String(params.get('login') || '').trim()
+      const requestedRegister = String(params.get('cadastro') || '').trim()
+      const forcedProfileType: ProfileType | null =
+        requestedLogin === 'equipe' || requestedRegister === 'equipe'
+          ? 'equipe'
+          : requestedLogin === 'jogador' || requestedRegister === 'jogador'
+            ? 'jogador'
+            : null
+      const forcedType = Boolean(forcedProfileType)
+      const wantsCreate = Boolean(forcedProfileType && requestedRegister === forcedProfileType)
       const wantsLinked = params.get('vincular') === '1'
       const wantsNewAccount = params.get('nova_conta') === '1'
       const wantsSwitchAccount = params.get('trocar_conta') === '1'
@@ -233,11 +242,12 @@ export function DropZoneHome() {
       if (saved) setRecentProfiles(JSON.parse(saved))
 
       if (convite) setInviteReturnTo(`/convite/equipe/${encodeURIComponent(convite)}`)
+      if (escala) setInviteReturnTo(`/escala/${encodeURIComponent(escala)}`)
 
-      if (forcedType) {
-        setProfileType('equipe')
-        setActiveAuthType('equipe')
-        clearRegisterForm('equipe')
+      if (forcedType && forcedProfileType) {
+        setProfileType(forcedProfileType)
+        setActiveAuthType(forcedProfileType)
+        clearRegisterForm(forcedProfileType)
 
         if (wantsSwitchAccount || wantsNewAccount) {
           await supabase.auth.signOut()
@@ -256,7 +266,7 @@ export function DropZoneHome() {
             await loadMeAndRows(data.session.access_token)
             clearRegisterForm('equipe')
             setMode('criar')
-            setActiveAuthType('equipe')
+            setActiveAuthType(forcedProfileType)
             setLinkingProfile(true)
           } catch (err: any) {
             setError(err?.message || 'Não foi possível carregar o login ativo.')
@@ -529,7 +539,7 @@ export function DropZoneHome() {
         // O token retornado pela API ainda permite carregar o painel.
       }
 
-      await loadMeAndRows(session.access_token, inviteReturnTo ? 'equipe' : undefined)
+      await loadMeAndRows(session.access_token, inviteReturnTo ? profileType : undefined)
       setActiveAuthType(null)
       if (inviteReturnTo) {
         window.location.assign(inviteReturnTo)
