@@ -57,10 +57,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const purpose = clean(body.purpose)
-    const profileType = assertProfileType(body.profile_type)
-    const username = assertUsername(body.username)
+    const profileType = purpose === 'register' ? assertProfileType(body.profile_type) : null
 
     if (purpose === 'register') {
+      const username = assertUsername(body.username)
       const email = cleanEmail(body.email)
       const password = String(body.password || '')
       const confirmPassword = String(body.confirm_password || '')
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
       await assertEmailAvailable(email)
 
-      const table = profileTable(profileType)
+      const table = profileTable(profileType!)
       const { data: existingUsername, error: usernameError } = await supabaseAdmin
         .from(table)
         .select('id')
@@ -95,16 +95,9 @@ export async function POST(request: Request) {
     }
 
     if (purpose === 'reset_password') {
-      const login = clean(body.username).toLowerCase()
-      if (!login) throw new Error('Informe seu login ou ID público.')
-
-      const account = await findAccount(profileType, login)
-      const email = cleanEmail(account.email_contato)
-      await ensureRealAuthEmail(account.auth_user_id, email)
-
+      const email = cleanEmail(body.email)
       const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email)
       if (error) throw new Error(error.message)
-
       return NextResponse.json({ ok: true, email_hint: maskEmail(email) })
     }
 

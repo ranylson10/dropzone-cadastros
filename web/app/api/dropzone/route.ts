@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAccountByUserId, getBearerUser } from '@backend/auth/server-auth'
+import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS, type ChampionshipType } from '@/lib/dropzone-constants'
 import { randomToken } from '@backend/shared/validation'
@@ -284,7 +284,7 @@ function championshipsOwnedBy(row: any, rows: any[], userId: string) {
 export async function GET(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getAccountByUserId(user.id)
+    const account = await getActiveAccount(req, user.id)
     const { searchParams } = new URL(req.url)
     const entityType = searchParams.get('entity_type')
 
@@ -357,7 +357,7 @@ async function consumeToken(token: string | null | undefined, tipo?: string) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getAccountByUserId(user.id)
+    const account = await getActiveAccount(req, user.id)
     const body = await req.json()
     const entityType = String(body.entity_type || '').trim()
 
@@ -636,7 +636,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getAccountByUserId(user.id)
+    const account = await getActiveAccount(req, user.id)
     const body = await req.json()
     if (String(body.entity_type || '') !== 'championship') throw new Error('Tipo de edição não suportado.')
     if (account.profile_type !== 'produtora') throw new Error('Somente a produtora pode editar campeonatos.')
@@ -674,7 +674,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getAccountByUserId(user.id)
+    const account = await getActiveAccount(req, user.id)
     const body = await req.json()
     if (String(body.entity_type || '') !== 'championship') throw new Error('Tipo de exclusão não suportado.')
     if (account.profile_type !== 'produtora') throw new Error('Somente a produtora pode excluir campeonatos.')

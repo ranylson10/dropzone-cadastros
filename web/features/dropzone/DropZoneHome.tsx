@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { LogOut, RefreshCw, Send, Users, X } from 'lucide-react'
+import { Send, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { cleanUsername } from '@/lib/validation'
@@ -11,6 +11,7 @@ import { EquipePanel } from './panels/equipe/EquipePanel'
 import { JogadorPanel } from './panels/jogador/JogadorPanel'
 import { ProdutoraPanel } from './panels/produtora/ProdutoraPanel'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
+import { AppHeader } from '@/components/layout/AppHeader'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
@@ -75,6 +76,8 @@ export function DropZoneHome() {
   const [activeAuthType, setActiveAuthType] = useState<ProfileType | null>(null)
   const [recentProfiles, setRecentProfiles] = useState<any[]>([])
   const [account, setAccount] = useState<DropZoneRow | null>(null)
+  const [accounts, setAccounts] = useState<DropZoneRow[]>([])
+  const [linkingProfile, setLinkingProfile] = useState(false)
   const [rows, setRows] = useState<DropZoneRow[]>([])
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -265,24 +268,53 @@ export function DropZoneHome() {
     if (nextType) setProfileType(nextType)
   }
 
-  async function loadMeAndRows(token?: string) {
+  async function loadMeAndRows(token?: string, preferredType?: ProfileType | null) {
     const accessToken = token || await getToken()
     if (!accessToken) return
+    const storedType = preferredType || (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null)
 
     const meRes = await fetch('/api/me', {
-      headers: authHeaders(accessToken),
+      headers: authHeaders(accessToken, storedType),
     })
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessao invalida.')
     setAccount(meJson.account)
+    setAccounts(meJson.accounts || [meJson.account])
     saveRecentProfile(meJson.account)
+    localStorage.setItem('dropzone_active_profile_type', meJson.account.profile_type)
 
     const rowsRes = await fetch('/api/dropzone', {
-      headers: authHeaders(accessToken),
+      headers: authHeaders(accessToken, meJson.account.profile_type),
     })
     const rowsJson = await rowsRes.json()
     if (!rowsRes.ok) throw new Error(rowsJson.error || 'Erro ao listar dados.')
     setRows(rowsJson.rows || [])
+  }
+
+  async function switchLinkedAccount(nextAccount: DropZoneRow) {
+    setLoading(true)
+    setError('')
+    try {
+      localStorage.setItem('dropzone_active_profile_type', String(nextAccount.profile_type || ''))
+      await loadMeAndRows(undefined, nextAccount.profile_type as ProfileType)
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível trocar de perfil.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function startLinkedProfile() {
+    const used = new Set(accounts.map((item) => item.profile_type))
+    const available = PROFILE_TYPES.find((type) => !used.has(type))
+    if (!available) {
+      setError('Este login já possui um perfil de cada tipo disponível.')
+      return
+    }
+    clearRegisterForm(available)
+    setMode('criar')
+    setActiveAuthType(available)
+    setLinkingProfile(true)
   }
 
   async function requestVerificationCode(purpose: 'register' | 'reset_password') {
@@ -297,8 +329,8 @@ export function DropZoneHome() {
         body: JSON.stringify({
           purpose,
           profile_type: profileType,
-          username: clean,
-          email: purpose === 'register' ? email : undefined,
+          username: purpose === 'register' ? clean : undefined,
+          email,
           password: purpose === 'register' ? password : undefined,
           confirm_password: purpose === 'register' ? confirmPassword : undefined,
         }),
@@ -328,8 +360,7 @@ export function DropZoneHome() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            profile_type: profileType,
-            username: clean,
+            email,
             code: verificationCode,
             password,
             confirm_password: confirmPassword,
@@ -347,9 +378,10 @@ export function DropZoneHome() {
       }
 
       const endpoint = mode === 'criar' ? '/api/auth/register' : '/api/auth/login'
+      const token = linkingProfile ? await getToken() : ''
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? authHeaders(token, profileType) : {}) },
         body: JSON.stringify({
           profile_type: profileType,
           username: clean,
@@ -361,10 +393,19 @@ export function DropZoneHome() {
           confirm_password: confirmPassword,
           verification_code: verificationCode,
           details: registerData,
+          link_existing: linkingProfile,
         }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || (mode === 'criar' ? 'Erro ao cadastrar.' : 'Login inválido.'))
+
+      if (linkingProfile && json.linked) {
+        setLinkingProfile(false)
+        setActiveAuthType(null)
+        await loadMeAndRows(token, profileType)
+        setMessage('Perfil vinculado criado com sucesso.')
+        return
+      }
 
       const session = json.session
       if (!session?.access_token) throw new Error('Sessão inválida.')
@@ -391,6 +432,8 @@ export function DropZoneHome() {
   async function signOut() {
     await supabase.auth.signOut()
     setAccount(null)
+    setAccounts([])
+    setLinkingProfile(false)
     setRows([])
     setMessage('')
     setError('')
@@ -406,7 +449,7 @@ export function DropZoneHome() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token),
+          ...authHeaders(token, account?.profile_type),
         },
         body: JSON.stringify(payload),
       })
@@ -444,7 +487,7 @@ export function DropZoneHome() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token),
+          ...authHeaders(token, account?.profile_type),
         },
         body: JSON.stringify({
           entity_type: 'championship',
@@ -477,7 +520,7 @@ export function DropZoneHome() {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token),
+          ...authHeaders(token, account?.profile_type),
         },
         body: JSON.stringify({
           entity_type: 'championship',
@@ -700,30 +743,32 @@ export function DropZoneHome() {
     setPlayer({ nick: '', foto_url: '', id_jogo: '', funcao: 'support', localidade: '', senha: '' })
   }
 
-  return (
-    <main className="page">
-      <div className="shell">
-        <div className="topbar">
-          <div className="brand">
-            <div className="brand-mark">DZ</div>
-            <div>
-              <p className="eyebrow">DropZone</p>
-              <h1>{account ? `Painel ${typeLabels[account.profile_type as ProfileType]}` : 'Cadastros'}</h1>
-            </div>
-          </div>
-          {account ? (
-            <div className="toolbar">
-              <button className="button secondary" onClick={() => loadMeAndRows()} disabled={loading}>
-                <RefreshCw size={16} /> Atualizar
-              </button>
-              <button className="button secondary" onClick={signOut}>
-                <LogOut size={16} /> Sair
-              </button>
-            </div>
-          ) : null}
-        </div>
+  const navItems = account ? [
+    { label: 'Início', href: '#painel-inicio' },
+    { label: 'Campeonatos', href: '#campeonatos' },
+    { label: 'Equipes', href: '#equipes' },
+    { label: 'Jogadores', href: '#jogadores' },
+  ] : []
 
-        {!account ? (
+  return (
+    <>
+      {account && !linkingProfile ? (
+        <AppHeader
+          navItems={navItems}
+          activeLabel="Início"
+          profileName={account.name || account.username || 'Conta DropZone'}
+          profileSubtitle={`${typeLabels[account.profile_type as ProfileType]} · @${account.username}`}
+          profileImage={mediaForProfile(account)}
+          accounts={accounts}
+          activeAccountId={account.id}
+          onSwitchAccount={switchLinkedAccount}
+          onCreateLinkedProfile={startLinkedProfile}
+          onSignOut={signOut}
+        />
+      ) : null}
+      <main className={`page ${account && !linkingProfile ? 'page-authenticated' : ''}`} id="painel-inicio">
+        <div className="shell">
+        {!account || linkingProfile ? (
           <section className="login-stage login-stage-bg">
             <div className={`phone-shell login-free-shell ${activeAuthType ? 'auth-page' : 'select-page'}`}>
               {!activeAuthType ? (
@@ -790,21 +835,41 @@ export function DropZoneHome() {
                       <strong>{typeLabels[profileType]}</strong>
                     </div>
                   </div>
-                  <div className="tabs auth-inline-tabs">
+                  {!linkingProfile ? <div className="tabs auth-inline-tabs">
                     <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => { setMode('entrar'); setCodeSent(false); setVerificationCode('') }}>Entrar</button>
                     <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => { setMode('criar'); setCodeSent(false); setVerificationCode('') }}>Criar conta</button>
-                  </div>
-                  <button type="button" className="close-auth inline-close" onClick={() => setActiveAuthType(null)} aria-label="Fechar">
+                  </div> : null}
+                  <button type="button" className="close-auth inline-close" onClick={() => { setActiveAuthType(null); setLinkingProfile(false) }} aria-label="Fechar">
                     <X size={18} />
                   </button>
                 </div>
+
+                {linkingProfile ? (
+                  <div className="linked-profile-type-picker">
+                    <span>Escolha o novo tipo de perfil:</span>
+                    {PROFILE_TYPES.map((type) => {
+                      const disabled = accounts.some((item) => item.profile_type === type)
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          disabled={disabled}
+                          className={profileType === type ? 'active' : ''}
+                          onClick={() => { clearRegisterForm(type); setMode('criar') }}
+                        >
+                          {typeLabels[type]} {disabled ? '— já existe' : ''}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
 
                 <form onSubmit={handleAuth} className="auth-inline-form compact-auth-form">
                   {mode === 'recuperar' ? (
                     <div className="register-main-fields">
                       <div className="mini-grid auth-base-grid">
-                        <Field label="Login ou ID público">
-                          <input value={username} onChange={(e) => setUsername(cleanUsername(e.target.value))} placeholder="@login ou ID público" />
+                        <Field label="E-mail da conta">
+                          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@gmail.com" />
                         </Field>
                         <Field label="Código de 6 dígitos">
                           <input
@@ -826,7 +891,7 @@ export function DropZoneHome() {
 
                       <div className="auth-actions-row">
                         {!codeSent ? (
-                          <button type="button" className="button" disabled={loading || !username.trim()} onClick={() => requestVerificationCode('reset_password')}>
+                          <button type="button" className="button" disabled={loading || !email.trim()} onClick={() => requestVerificationCode('reset_password')}>
                             Enviar código
                           </button>
                         ) : (
@@ -893,9 +958,13 @@ export function DropZoneHome() {
                             ) : null}
 
                             <LocationSearch value={registerData} onSelect={selectLocation} />
-                            <Field label="E-mail de confirmação">
-                              <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setCodeSent(false) }} placeholder="seuemail@gmail.com" />
-                            </Field>
+                            {!linkingProfile ? (
+                              <Field label="E-mail de confirmação">
+                                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setCodeSent(false) }} placeholder="seuemail@gmail.com" />
+                              </Field>
+                            ) : (
+                              <div className="linked-create-note">Este perfil usará o mesmo e-mail e a mesma senha do login ativo.</div>
+                            )}
                           </div>
                         </div>
                       ) : null}
@@ -904,29 +973,29 @@ export function DropZoneHome() {
                         <Field label={mode === 'criar' ? 'Login' : 'Login ou ID público'}>
                           <input value={username} onChange={(e) => { setUsername(cleanUsername(e.target.value)); if (mode === 'criar') setCodeSent(false) }} placeholder={mode === 'criar' ? '@login sugerido pelo nome' : '@login ou ID público'} />
                         </Field>
-                        <Field label="Senha">
-                          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
-                        </Field>
-                        {mode === 'criar' ? (
-                          <Field label="Confirmar senha">
-                            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Digite a senha novamente" />
-                          </Field>
-                        ) : null}
-                        {mode === 'criar' && codeSent ? (
-                          <Field label="Código enviado por e-mail">
-                            <input
-                              inputMode="numeric"
-                              maxLength={6}
-                              value={verificationCode}
-                              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              placeholder="000000"
-                            />
-                          </Field>
+                        {!linkingProfile ? (
+                          <>
+                            <Field label="Senha">
+                              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                            </Field>
+                            {mode === 'criar' ? (
+                              <Field label="Confirmar senha">
+                                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Digite a senha novamente" />
+                              </Field>
+                            ) : null}
+                            {mode === 'criar' && codeSent && !linkingProfile ? (
+                              <Field label="Código enviado por e-mail">
+                                <input inputMode="numeric" maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" />
+                              </Field>
+                            ) : null}
+                          </>
                         ) : null}
                       </div>
 
                       <div className="auth-actions-row">
-                        {mode === 'criar' && !codeSent ? (
+                        {linkingProfile ? (
+                          <button className="button" disabled={loading || !username.trim()}>Criar perfil vinculado</button>
+                        ) : mode === 'criar' && !codeSent ? (
                           <button type="button" className="button" disabled={loading || !email.trim() || !username.trim() || password.length < 6 || password !== confirmPassword} onClick={() => requestVerificationCode('register')}>
                             Enviar código
                           </button>
@@ -935,7 +1004,7 @@ export function DropZoneHome() {
                             {mode === 'criar' ? 'Confirmar e criar conta' : 'Entrar'}
                           </button>
                         )}
-                        {mode === 'criar' && codeSent ? (
+                        {mode === 'criar' && codeSent && !linkingProfile ? (
                           <button type="button" className="button secondary" disabled={loading} onClick={() => requestVerificationCode('register')}>Reenviar código</button>
                         ) : null}
                         {mode === 'entrar' ? (
@@ -1059,7 +1128,8 @@ export function DropZoneHome() {
             {error ? <div className="message error floating">{error}</div> : null}
           </>
         )}
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   )
 }

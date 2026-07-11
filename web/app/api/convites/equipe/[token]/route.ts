@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser, getAccountByUserId } from '@backend/auth/server-auth'
+import { getBearerUser, getActiveAccount } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function carregar(token: string) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
   try {
     const { token } = await context.params
     const user = await getBearerUser(req)
-    const account = await getAccountByUserId(user.id)
+    const account = await getActiveAccount(req, user.id)
     if (account.profile_type !== 'equipe') throw new Error('Entre com uma conta do tipo equipe para aceitar este convite.')
     const { convite, vaga } = await carregar(token)
     if (convite.status !== 'ativo' || convite.usado || !convite.expira_em || new Date(convite.expira_em).getTime() <= Date.now()) throw new Error('Este convite expirou ou já foi utilizado.')

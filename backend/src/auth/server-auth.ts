@@ -5,7 +5,6 @@ import type { DropZoneRow, ProfileType } from '../types/dropzone.types'
 export async function getBearerUser(req: NextRequest) {
   const header = req.headers.get('authorization') || ''
   const token = header.startsWith('Bearer ') ? header.slice(7) : ''
-
   if (!token) throw new Error('Sessao ausente.')
 
   const { data, error } = await supabaseAdmin.auth.getUser(token)
@@ -44,18 +43,38 @@ export function mapProfile(row: any, profileType: ProfileType): DropZoneRow {
   }
 }
 
-export async function getAccountByUserId(userId: string) {
+export async function getAccountsByUserId(userId: string) {
+  const accounts: DropZoneRow[] = []
   const types = Object.keys(PROFILE_TABLES) as ProfileType[]
+
   for (const type of types) {
     const { data, error } = await supabaseAdmin
       .from(profileTable(type))
       .select('*')
       .eq('auth_user_id', userId)
-      .maybeSingle()
+      .order('created_at', { ascending: true })
 
     if (error) throw error
-    if (data) return mapProfile(data, type)
+    accounts.push(...(data || []).map((row) => mapProfile(row, type)))
   }
 
-  throw new Error('Conta nao encontrada na DropZone.')
+  return accounts
+}
+
+export async function getAccountByUserId(userId: string, preferredType?: ProfileType | null) {
+  const accounts = await getAccountsByUserId(userId)
+  if (!accounts.length) throw new Error('Conta nao encontrada na DropZone.')
+
+  if (preferredType) {
+    const preferred = accounts.find((account) => account.profile_type === preferredType)
+    if (preferred) return preferred
+  }
+
+  return accounts[0]
+}
+
+export async function getActiveAccount(req: NextRequest, userId: string) {
+  const requested = String(req.headers.get('x-profile-type') || '').trim() as ProfileType
+  const valid = Object.prototype.hasOwnProperty.call(PROFILE_TABLES, requested) ? requested : null
+  return getAccountByUserId(userId, valid)
 }
