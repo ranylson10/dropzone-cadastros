@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { assertPassword, assertProfileType, assertUsername, cleanEmail } from '@/lib/validation'
 import { profileTable } from '@backend/auth/server-auth'
+import { verifyCode } from '@/lib/auth-verification-codes'
 
 const TYPE_PREFIX = {
   produtora: 'PD',
@@ -47,6 +48,17 @@ async function getLinkedUser(request: Request) {
   const { data, error } = await supabaseAdmin.auth.getUser(token)
   if (error || !data.user) throw new Error('Sessao invalida para criar perfil vinculado.')
   return data.user
+}
+
+async function findAuthUserByEmail(email: string) {
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) throw error
+    const user = data.users.find((item) => item.email?.toLowerCase() === email.toLowerCase())
+    if (user) return user
+    if (data.users.length < 1000) return null
+  }
+  return null
 }
 
 export async function POST(req: Request) {
@@ -140,19 +152,41 @@ export async function POST(req: Request) {
     let session: any = null
 
     if (!linked) {
-      const { data: verified, error: verifyError } = await supabaseAdmin.auth.verifyOtp({
+      await verifyCode({
         email: emailContato,
-        token: verificationCode,
-        type: 'email',
+        purpose: 'register',
+        code: verificationCode,
       })
-      if (verifyError || !verified.user) throw new Error(friendlyAuthError(verifyError?.message || 'Codigo invalido ou expirado.'))
 
-      authUser = verified.user
-      session = verified.session
-      pendingAuthUserId = authUser.id
+      const existingAuthUser = await findAuthUserByEmail(emailContato)
 
-      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, { password })
-      if (passwordError) throw new Error(friendlyAuthError(passwordError.message))
+      if (existingAuthUser) {
+        const { data: updatedUser, error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
+          password,
+          email_confirm: true,
+          user_metadata: {
+            ...existingAuthUser.user_metadata,
+            profile_type: profileType,
+            username,
+          },
+        })
+        if (updateUserError || !updatedUser.user) throw new Error(friendlyAuthError(updateUserError?.message || 'Usuario de autenticacao nao encontrado.'))
+        authUser = updatedUser.user
+      } else {
+        const { data: createdUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+          email: emailContato,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            profile_type: profileType,
+            username,
+          },
+        })
+        if (createUserError || !createdUser.user) throw new Error(friendlyAuthError(createUserError?.message || 'Usuario de autenticacao nao encontrado.'))
+        authUser = createdUser.user
+        pendingAuthUserId = authUser.id
+      }
+
     }
 
     if (!authUser) throw new Error('Usuario de autenticacao nao encontrado.')

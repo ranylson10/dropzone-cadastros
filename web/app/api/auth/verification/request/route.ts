@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { assertPassword, assertProfileType, assertUsername, cleanEmail } from '@/lib/validation'
 import { profileTable } from '@backend/auth/server-auth'
+import { createVerificationCode, sendVerificationEmail } from '@/lib/auth-verification-codes'
 
 function clean(value: unknown) {
   return String(value || '').trim()
@@ -25,6 +26,7 @@ async function assertEmailAvailable(email: string) {
 }
 
 function friendlyEmailError(message: string) {
+  if (/RESEND_API_KEY/i.test(message)) return message
   if (/rate limit|too many/i.test(message)) return 'Muitas tentativas de envio. Aguarde um pouco antes de reenviar o codigo.'
   if (/invalid email/i.test(message)) return 'Informe um e-mail valido.'
   if (/password/i.test(message)) return 'A senha precisa ter pelo menos 8 caracteres, uma letra, um numero e um caractere especial.'
@@ -35,7 +37,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const purpose = clean(body.purpose)
-    const isResend = Boolean(body.resend)
     const profileType = purpose === 'register' ? assertProfileType(body.profile_type) : null
 
     if (purpose === 'register') {
@@ -57,26 +58,26 @@ export async function POST(request: Request) {
       if (usernameError) throw usernameError
       if (existingUsername) throw new Error('Esse login ja existe.')
 
-      const { error } = await supabaseAdmin.auth.signInWithOtp({
+      const code = await createVerificationCode({
         email,
-        options: {
-          shouldCreateUser: true,
-          data: {
-            profile_type: profileType,
-            username,
-            requested_flow: isResend ? 'register_resend' : 'register',
-          },
-        },
+        purpose: 'register',
+        profileType: profileType!,
+        username,
       })
-      if (error) throw new Error(friendlyEmailError(error.message))
+      await sendVerificationEmail({ email, code, purpose: 'register' })
 
       return NextResponse.json({ ok: true, email_hint: maskEmail(email) })
     }
 
     if (purpose === 'reset_password') {
       const email = cleanEmail(body.email)
-      const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email)
-      if (error) throw new Error(friendlyEmailError(error.message))
+      const resetProfileType = assertProfileType(body.profile_type || 'jogador')
+      const code = await createVerificationCode({
+        email,
+        purpose: 'reset_password',
+        profileType: resetProfileType,
+      })
+      await sendVerificationEmail({ email, code, purpose: 'reset_password' })
       return NextResponse.json({ ok: true, email_hint: maskEmail(email) })
     }
 
