@@ -88,6 +88,8 @@ export function ProdutoraPanel(props: {
       tipo: String(dataText(champ, 'tipo') || 'copa'),
       logo_url: String(dataText(champ, 'logo_url') || ''),
       premiacao: String(dataText(champ, 'premiacao') || ''),
+      valor_inscricao: String(dataText(champ, 'valor_inscricao') || ''),
+      descricao_premiacao: String(dataText(champ, 'descricao_premiacao') || ''),
       divisao_premiacao: String(dataText(champ, 'divisao_premiacao') || ''),
       numero_vagas: String(dataText(champ, 'numero_vagas') || ''),
       formato: String(dataText(champ, 'formato') || ''),
