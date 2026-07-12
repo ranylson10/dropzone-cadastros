@@ -1056,7 +1056,7 @@ export function DropZoneHome() {
           intervalo_quedas_minutos: 25,
         }),
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error || 'Erro ao atualizar jogo.')
       await loadMeAndRows(token)
       setMessage('Jogo atualizado com sucesso.')
@@ -1083,7 +1083,7 @@ export function DropZoneHome() {
         method: 'DELETE',
         headers: authHeaders(token, account?.profile_type),
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error || 'Erro ao excluir jogo.')
       await loadMeAndRows(token)
       setMessage('Jogo excluído com sucesso.')
