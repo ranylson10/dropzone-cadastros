@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAccountsByUserId, getBearerUser } from '@backend/auth/server-auth'
+import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 
 export async function GET(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const accounts = await getAccountsByUserId(user.id)
+    const accounts = await getAccountsForUser(user)
     if (!accounts.length) throw new Error('Conta nao encontrada na DropZone.')
 
     const requested = String(req.headers.get('x-profile-type') || '').trim()

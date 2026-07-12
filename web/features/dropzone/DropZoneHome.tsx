@@ -554,6 +554,29 @@ export function DropZoneHome() {
     }
   }
 
+  async function signInWithGoogle() {
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      localStorage.setItem('dropzone_active_profile_type', profileType)
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.href,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      })
+      if (error) throw error
+    } catch (err: any) {
+      setError(err?.message || 'Nao foi possivel entrar com Google.')
+      setLoading(false)
+    }
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
     setAccount(null)
@@ -1180,6 +1203,11 @@ export function DropZoneHome() {
                       </div>
 
                       <div className="auth-actions-row">
+                        {!linkingProfile ? (
+                          <button type="button" className="button secondary google-auth-button" disabled={loading} onClick={signInWithGoogle}>
+                            Entrar com Google
+                          </button>
+                        ) : null}
                         {linkingProfile ? (
                           <button className="button" disabled={loading || !username.trim()}>Criar perfil vinculado</button>
                         ) : mode === 'criar' && !codeSent ? (

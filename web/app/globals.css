@@ -2163,6 +2163,12 @@ body:has(.cropper-overlay) {
   line-height: 1.4;
 }
 
+.google-auth-button {
+  background: #ffffff;
+  color: #1f2430;
+  border-color: #d9dde6;
+}
+
 .invite-reference-note {
   display: flex;
   align-items: flex-start;

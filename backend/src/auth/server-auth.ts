@@ -61,6 +61,82 @@ export async function getAccountsByUserId(userId: string) {
   return accounts
 }
 
+async function updateIfColumnExists(table: string, payload: Record<string, any>, column: string, value: string) {
+  const { error } = await supabaseAdmin.from(table).update(payload).eq(column, value)
+  if (error && !['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error.code || '')) throw error
+}
+
+async function migrateOwnedRows(oldUserId: string, newUserId: string) {
+  if (!oldUserId || oldUserId === newUserId) return
+  const creatorTables = [
+    'campeonatos',
+    'campeonato_fases',
+    'campeonato_grupos',
+    'campeonato_slots',
+    'campeonato_jogos',
+    'campeonato_equipes',
+    'campeonato_jogadores',
+    'campeonato_links',
+    'campeonato_regras',
+    'campeonato_partidas',
+    'campeonato_resultados_equipes',
+    'campeonato_resultados_jogadores',
+    'tokens',
+  ]
+
+  for (const table of creatorTables) {
+    await updateIfColumnExists(table, { criado_por: newUserId }, 'criado_por', oldUserId)
+  }
+
+  await updateIfColumnExists('equipe_jogadores', { jogador_auth_user_id: newUserId }, 'jogador_auth_user_id', oldUserId)
+  await updateIfColumnExists('jogadores_equipes', { jogador_auth_user_id: newUserId }, 'jogador_auth_user_id', oldUserId)
+}
+
+async function linkAccountsByVerifiedEmail(userId: string, email?: string | null) {
+  const cleanEmail = String(email || '').trim().toLowerCase()
+  if (!cleanEmail) return []
+
+  const linked: DropZoneRow[] = []
+  const types = Object.keys(PROFILE_TABLES) as ProfileType[]
+
+  for (const type of types) {
+    const table = profileTable(type)
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select('*')
+      .eq('email_contato', cleanEmail)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+
+    for (const row of data || []) {
+      const oldUserId = row.auth_user_id || row.dono_auth_user_id || ''
+      const payload: Record<string, any> = { auth_user_id: userId }
+      if (type === 'equipe') payload.dono_auth_user_id = userId
+
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from(table)
+        .update(payload)
+        .eq('id', row.id)
+        .select('*')
+        .single()
+
+      if (updateError) throw updateError
+      await migrateOwnedRows(oldUserId, userId)
+      linked.push(mapProfile(updated, type))
+    }
+  }
+
+  return linked
+}
+
+export async function getAccountsForUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
+  const direct = await getAccountsByUserId(user.id)
+  if (direct.length) return direct
+  if (!user.email_confirmed_at) return direct
+  return linkAccountsByVerifiedEmail(user.id, user.email)
+}
+
 export async function getAccountByUserId(userId: string, preferredType?: ProfileType | null) {
   const accounts = await getAccountsByUserId(userId)
   if (!accounts.length) throw new Error('Conta nao encontrada na DropZone.')
