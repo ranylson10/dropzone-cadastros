@@ -5,6 +5,7 @@ import { CalendarDays, Check, CheckCircle2, Clock, Loader2, Shield, UserRound, U
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
+import { SocialLogin } from '@/features/auth/SocialLogin'
 
 type Player = {
   id: string
@@ -211,9 +212,9 @@ export default function EscalaPublicaPage() {
               </div>
             )
           ) : (
-            <div className="invite-auth-actions">
-              <a className="button" href={buildLoginHref('jogador', `/escala/${encodeURIComponent(token)}`)}>Entrar para continuar</a>
-              <p className="invite-auth-hint">Você será direcionado ao login central e voltará automaticamente para esta escalação.</p>
+            <div className="invite-auth-actions invite-social-auth">
+              <strong>Entre com sua conta para continuar</strong>
+              <SocialLogin profileType="jogador" returnTo={`/escala/${encodeURIComponent(token)}`} compact />
             </div>
           )}
         </section>

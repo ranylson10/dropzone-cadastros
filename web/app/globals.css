@@ -2618,85 +2618,124 @@ body:has(.cropper-overlay) {
   font-size: 0.9rem;
 }
 
+
 /* Centralized authentication */
 .central-login-page {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% 20%, rgba(255, 51, 74, 0.12), transparent 34%),
-    #080a0f;
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)),
+    repeating-linear-gradient(0deg, transparent 0 47px, rgba(16,24,40,.05) 47px 48px),
+    repeating-linear-gradient(90deg, transparent 0 47px, rgba(16,24,40,.05) 47px 48px),
+    #f4f5f7;
 }
-
 .central-login-shell {
   min-height: calc(100vh - 64px);
   display: grid;
   place-items: center;
-  padding: 48px 20px;
+  padding: 42px 20px;
 }
-
 .central-login-card {
-  width: min(100%, 520px);
-  padding: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(17, 19, 25, 0.96);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.4);
-  color: #f7f8fb;
+  width: min(100%, 680px);
+  border: 1px solid #d9dde5;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 24px 70px rgba(15,23,42,.16);
+  color: #171b24;
 }
-
-.central-login-card h1 {
-  margin: 8px 0 12px;
-  font-size: clamp(32px, 5vw, 48px);
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.central-login-card > p:not(.eyebrow) {
-  margin: 0 0 24px;
-  color: #b7bdca;
-  line-height: 1.65;
-}
-
-.central-login-mark {
-  width: 52px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  margin-bottom: 20px;
-  background: #ff334a;
-  color: white;
-}
-
-.social-login-stack {
-  display: grid;
-  gap: 10px;
-}
-
-.social-login-button {
-  width: 100%;
-  justify-content: center;
-  min-height: 48px;
-}
-
-.social-login-google { background: #ffffff; color: #11151c; }
-.social-login-facebook { background: #1877f2; color: #ffffff; }
-.social-login-discord { background: #5865f2; color: #ffffff; }
-
-.central-login-loading {
+.central-login-card-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 150px;
-  color: #c8ccd5;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px;
+  border-bottom: 1px solid #e4e7ec;
 }
-
+.central-login-close {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d9dde5;
+  color: #171b24;
+  background: #fff;
+}
+.central-login-copy { padding: 28px 28px 18px; }
+.central-login-copy h1 {
+  margin: 7px 0 10px;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1;
+  text-transform: uppercase;
+  color: #111827;
+}
+.central-login-copy > p:not(.eyebrow) {
+  margin: 0;
+  color: #667085;
+  line-height: 1.6;
+}
+.central-login-card > .social-login-stack,
+.central-login-card > .central-login-loading,
+.central-login-card > .message,
+.central-login-card > .central-login-note { margin-left: 28px; margin-right: 28px; }
+.social-login-stack { display: grid; gap: 10px; }
+.social-login-button {
+  width: 100%;
+  min-height: 48px;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 0 16px;
+  border: 1px solid #d9dde5;
+  box-shadow: none;
+}
+.social-login-provider-mark {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  background: rgba(255,255,255,.96);
+  color: #111827;
+}
+.social-login-google { background:#fff; color:#1f2937; border-color:#cfd4dc; }
+.social-login-facebook { background:#1877f2; color:#fff; border-color:#1877f2; }
+.social-login-facebook .social-login-provider-mark { color:#1877f2; }
+.social-login-discord { background:#5865f2; color:#fff; border-color:#5865f2; }
+.social-login-discord .social-login-provider-mark { color:#5865f2; }
+.social-login-compact { gap: 8px; }
+.social-login-compact .social-login-button { min-height: 44px; }
+.central-login-loading {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  min-height:130px; color:#667085;
+}
 .central-login-note {
-  display: block;
-  margin-top: 20px;
-  color: #858c9b;
-  line-height: 1.55;
+  display:block;
+  margin-top:18px !important;
+  margin-bottom:26px;
+  color:#7b8494;
+  line-height:1.55;
 }
-
-@media (max-width: 640px) {
-  .central-login-shell { padding: 24px 14px; }
-  .central-login-card { padding: 24px 18px; }
+.invite-social-auth {
+  display:grid;
+  gap:12px;
+  margin-top:20px;
+  padding:18px;
+  border:1px solid #dfe3e8;
+  background:#fff;
+}
+.invite-social-auth > strong {
+  font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.google-only-auth .social-login-stack { margin-top: 14px; }
+@media (max-width:640px) {
+  .central-login-shell { padding:20px 12px; }
+  .central-login-card-head { padding:16px; }
+  .central-login-copy { padding:22px 18px 16px; }
+  .central-login-card > .social-login-stack,
+  .central-login-card > .central-login-loading,
+  .central-login-card > .message,
+  .central-login-card > .central-login-note { margin-left:18px; margin-right:18px; }
 }

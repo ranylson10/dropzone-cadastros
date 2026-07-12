@@ -5,6 +5,7 @@ import { CheckCircle2, Clock3, Loader2, Shield, Users } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
+import { SocialLogin } from '@/features/auth/SocialLogin'
 
 type InvitePayload = {
   error?: string
@@ -187,9 +188,9 @@ export default function ConviteEquipePage() {
               </div>
             )
           ) : (
-            <div className="invite-auth-actions">
-              <a className="button" href={buildLoginHref('equipe', `/convite/equipe/${encodeURIComponent(token)}`)}>Entrar para continuar</a>
-              <p className="invite-auth-hint">Você será direcionado ao login central e voltará automaticamente para este convite.</p>
+            <div className="invite-auth-actions invite-social-auth">
+              <strong>Entre com sua conta para continuar</strong>
+              <SocialLogin profileType="equipe" returnTo={`/convite/equipe/${encodeURIComponent(token)}`} compact />
             </div>
           )
         ) : (
