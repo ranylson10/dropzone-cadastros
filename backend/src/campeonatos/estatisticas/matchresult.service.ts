@@ -128,8 +128,10 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
       const idChanged = normalizeName(suppliedPlayer.id_jogo) !== normalizeName(player.id_jogo)
       return { ...player, nick: String(suppliedPlayer.nick || player.nick).trim(), id_jogo: String(suppliedPlayer.id_jogo || player.id_jogo).trim(), abates: Math.max(Number(suppliedPlayer.abates ?? player.abates), 0), jogador_id: idChanged ? null : player.jogador_id, jogador_temporario_id: idChanged ? null : player.jogador_temporario_id }
     })
-    if (!team.campeonato_equipe_id) throw new Error(`Vincule a equipe "${team.nome}" antes de confirmar.`)
   }
+
+  preview.equipes = preview.equipes.filter((team: any) => Boolean(team.campeonato_equipe_id))
+  if (!preview.equipes.length) throw new Error('Vincule pelo menos uma equipe para aplicar o MatchResult.')
 
   const duplicatedTeam = preview.equipes.find((team: any, index: number, all: any[]) =>
     all.findIndex(other => other.campeonato_equipe_id === team.campeonato_equipe_id) !== index,
