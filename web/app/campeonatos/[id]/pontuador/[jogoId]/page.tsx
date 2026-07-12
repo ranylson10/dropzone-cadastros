@@ -151,7 +151,17 @@ export default function PontuadorJogoPage() {
     try {
       const result = await request<{ preview: Row }>(`/api/campeonatos/${params.id}/sumula/matchresult/preview`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, conteudo_bruto: content }) })
       setPreview(result.preview)
-      setPreviewLinks(Object.fromEntries((result.preview.equipes || []).map((team: Row) => [team.nome_normalizado, team.campeonato_equipe_id || ''])))
+      const links = Object.fromEntries((result.preview.equipes || []).map((team: Row) => [team.nome_normalizado, team.campeonato_equipe_id || '']))
+      setPreviewLinks(links)
+      setEdits(current => {
+        const next = { ...current }
+        for (const team of result.preview.equipes || []) {
+          const teamId = links[team.nome_normalizado]
+          if (!teamId) continue
+          next[teamId] = { ...(next[teamId] || { punicao: '', motivo: '', jogadores: {} }), posicao: String(team.posicao), abates: String(team.abates) }
+        }
+        return next
+      })
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao ler Match Result.') }
     finally { setSaving(false) }
   }
@@ -171,6 +181,22 @@ export default function PontuadorJogoPage() {
       if (rawNormalized) next[rawNormalized] = teamId
       return next
     })
+    const team = (preview?.equipes || []).find((item: Row) => item.nome_normalizado === rawNormalized)
+    if (team) patchTeam(teamId, { posicao: String(team.posicao), abates: String(team.abates) })
+  }
+
+  function patchPreviewPlayer(teamName: string, order: number, patch: Row) {
+    const currentTeam = (preview?.equipes || []).find((team: Row) => team.nome_normalizado === teamName)
+    const nextPlayers = (currentTeam?.jogadores || []).map((player: Row) => player.ordem === order ? { ...player, ...patch } : player)
+    const linkedTeamId = previewLinks[teamName]
+    if (linkedTeamId) patchTeam(linkedTeamId, { abates: String(nextPlayers.reduce((sum: number, player: Row) => sum + number(player.abates), 0)) })
+    setPreview((current: Row | null) => current ? {
+      ...current,
+      equipes: current.equipes.map((team: Row) => team.nome_normalizado !== teamName ? team : {
+        ...team,
+        jogadores: team.jogadores.map((player: Row) => player.ordem === order ? { ...player, ...patch } : player),
+      }),
+    } : current)
   }
 
   async function confirmMatch() {
@@ -179,7 +205,11 @@ export default function PontuadorJogoPage() {
     if (missing) return setError(`Vincule "${missing.nome}" antes de confirmar.`)
     setSaving(true); setError('')
     try {
-      await request(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, equipes: preview.equipes.map((team: Row) => ({ nome: team.nome, campeonato_equipe_id: previewLinks[team.nome_normalizado] })) }) })
+      await request(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, equipes: preview.equipes.map((team: Row) => {
+        const teamId = previewLinks[team.nome_normalizado]
+        const edit = edits[teamId]
+        return { nome: team.nome, campeonato_equipe_id: teamId, posicao: number(edit?.posicao || team.posicao), abates: number(edit?.abates || team.abates), punicao_pontos: Math.min(number(edit?.punicao), 0), punicao_motivo: edit?.motivo || '', jogadores: team.jogadores.map((player: Row) => ({ ordem: player.ordem, nick: player.nick, id_jogo: player.id_jogo, abates: player.abates })) }
+      }) }) })
       setPreview(null); setMatchContent(''); setMatchName(''); setNotice('Match Result confirmado e queda pontuada.'); await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao confirmar Match Result.') }
     finally { setSaving(false) }
@@ -205,11 +235,11 @@ export default function PontuadorJogoPage() {
 
     {error ? <div className="scorer-feedback error">{error}<button onClick={() => setError('')}><X size={14}/></button></div> : null}
     {notice ? <div className="scorer-feedback success">{notice}<button onClick={() => setNotice('')}><X size={14}/></button></div> : null}
-    {preview ? <div className="scorer-match-strip"><span><strong>{matchName}</strong><small>{preview.equipes.length} equipes · selecione os vínculos na tabela</small></span><button className="button secondary" onClick={() => { setPreview(null); setMatchContent('') }}>Cancelar</button><button className="button" onClick={() => void confirmMatch()} disabled={saving}>Confirmar Match Result</button></div> : null}
+    {preview ? <><div className="scorer-match-strip"><span><strong>{matchName}</strong><small>{preview.equipes.length} equipes · vincule, revise os jogadores e confirme</small></span><button className="button secondary" onClick={() => { setPreview(null); setMatchContent('') }}>Cancelar</button><button className="button" onClick={() => void confirmMatch()} disabled={saving}>Confirmar Match Result</button></div><section className="match-player-review">{preview.equipes.map((team: Row) => <article key={team.nome_normalizado}><header><strong>{team.nome}</strong><span>{team.posicao}º · {team.abates} abates</span></header>{team.jogadores.map((player: Row) => { const editable = player.status_vinculo !== 'oficial'; return <div key={player.ordem}><span className={`player-link-state ${player.status_vinculo}`}>{player.status_vinculo === 'oficial' ? 'Oficial' : player.status_vinculo === 'temporario' ? 'Temporário' : 'Novo temporário'}</span><input value={player.nick} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { nick: event.target.value })}/><input value={player.id_jogo} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { id_jogo: event.target.value })}/><input className="player-kills-input" type="number" min="0" value={player.abates} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { abates: number(event.target.value) })}/></div>})}</article>)}</section></> : null}
 
-    {view === 'equipes' ? <div className="scorer-edit-table-wrap scorer-sheet-table-wrap"><table className="scorer-edit-table scorer-sheet-table"><thead><tr><th>Rank</th><th>Equipe</th><th>Tag</th><th>Grupo</th><th>Quedas</th><th>Booyah</th><th>Kills</th><th>Pontos</th><th>Vínculo</th><th>Pos. Q{selectedDrop?.numero_partida}</th><th>Abates</th><th>Pontos Q</th><th>Punição</th><th>Motivo</th></tr></thead><tbody>{data.slots.map(slot => {
+    {view === 'equipes' ? <div className="scorer-edit-table-wrap scorer-sheet-table-wrap"><table className="scorer-edit-table scorer-sheet-table"><thead><tr><th>#</th><th>Equipe</th><th>Grupo</th><th>Q</th><th>B</th><th>K</th><th>Pts</th><th>Vínculo</th><th>Pos.</th><th>Abates</th><th>Pts Q</th><th>Punição</th></tr></thead><tbody>{data.slots.filter(slot => !slot.slot_vazio).map(slot => {
       const id = slot.campeonato_equipe_id; const stats = ranking.find(row => row.campeonato_equipe_id === id); const edit = edits[id]; const savedLinks = data.vinculos_matchresult.filter(link => link.campeonato_equipe_id === id)
-      return <tr key={`${slot.grupo_id}:${slot.slot_numero}`} className={slot.slot_vazio ? 'is-empty' : ''}><td className="rank-cell">{stats?.colocacao || '—'}</td><td><div className="scorer-team">{slot.equipe_logo_url ? <img src={slot.equipe_logo_url} alt=""/> : <span/>}<strong>{slot.equipe_nome || 'Slot vazio'}</strong></div></td><td>{slot.equipe_tag || '—'}</td><td>{slot.grupo_nome}</td><td>{stats?.quedas || stats?.quedas_jogadas || 0}</td><td>{stats?.booyahs || 0}</td><td>{stats?.abates || 0}</td><td className="score-total">{stats?.pontos_total || 0}</td><td>{slot.slot_vazio ? '—' : preview ? <select className="inline-link-select" value={linkForTeam(id)} onChange={event => setTeamLink(id, event.target.value)}><option value="">Selecionar...</option>{preview.equipes.map((team: Row) => <option key={team.nome_normalizado} value={team.nome_normalizado}>{team.nome}</option>)}</select> : savedLinks.length ? savedLinks.map(link => <span className="link-chip" key={link.id}>{link.nome_raw}</span>) : <em>Será definido no Match Result</em>}</td><td>{slot.slot_vazio ? '—' : <input type="number" min="1" value={edit?.posicao || ''} onChange={event => patchTeam(id, { posicao: event.target.value })}/>}</td><td>{slot.slot_vazio ? '—' : <input type="number" min="0" value={edit?.abates || ''} onChange={event => patchTeam(id, { abates: event.target.value })}/>}</td><td className="drop-points-cell">{dropPoints(edit)}</td><td>{slot.slot_vazio ? '—' : <input className="penalty-input" type="number" max="0" value={edit?.punicao || ''} onChange={event => patchTeam(id, { punicao: String(Math.min(number(event.target.value), 0)) })} placeholder="-0"/>}</td><td>{slot.slot_vazio ? '—' : <input className="reason-input" value={edit?.motivo || ''} onChange={event => patchTeam(id, { motivo: event.target.value })} placeholder="Motivo da punição"/>}</td></tr>
+      return <tr key={`${slot.grupo_id}:${slot.slot_numero}`}><td className="rank-cell">{stats?.colocacao || '—'}</td><td><div className="scorer-team">{slot.equipe_logo_url ? <img src={slot.equipe_logo_url} alt=""/> : <span/>}<div><strong>{slot.equipe_nome}</strong><small>{slot.equipe_tag}</small></div></div></td><td>{slot.grupo_nome}</td><td>{stats?.quedas || stats?.quedas_jogadas || 0}</td><td>{stats?.booyahs || 0}</td><td>{stats?.abates || 0}</td><td className="score-total">{stats?.pontos_total || 0}</td><td>{preview ? <select className="inline-link-select" value={linkForTeam(id)} onChange={event => setTeamLink(id, event.target.value)}><option value="">Selecionar...</option>{preview.equipes.map((team: Row) => <option key={team.nome_normalizado} value={team.nome_normalizado}>{team.nome}</option>)}</select> : savedLinks.length ? savedLinks.map(link => <span className="link-chip" key={link.id}>{link.nome_raw}</span>) : <em>Match Result</em>}</td><td><input type="number" min="1" value={edit?.posicao || ''} onChange={event => patchTeam(id, { posicao: event.target.value })}/></td><td><input type="number" min="0" value={edit?.abates || ''} onChange={event => patchTeam(id, { abates: event.target.value })}/></td><td className="drop-points-cell">{dropPoints(edit)}</td><td><div className="penalty-cell"><input className="penalty-input" type="number" max="0" value={edit?.punicao || ''} onChange={event => patchTeam(id, { punicao: String(Math.min(number(event.target.value), 0)) })} placeholder="-0"/>{number(edit?.punicao) < 0 ? <input className="penalty-reason-inline" value={edit?.motivo || ''} onChange={event => patchTeam(id, { motivo: event.target.value })} placeholder="Informar motivo"/> : null}</div></td></tr>
     })}</tbody></table></div> : null}
 
     {view === 'mvp' ? <div className="scorer-edit-table-wrap"><table className="scorer-edit-table"><thead><tr><th>Equipe</th><th>Jogador</th><th>ID</th><th>Abates Q{selectedDrop?.numero_partida}</th><th>Abates jogo</th><th>Abates geral</th></tr></thead><tbody>{data.slots.filter(slot => !slot.slot_vazio).flatMap(slot => (playersByTeam.get(slot.campeonato_equipe_id) || []).map(player => { const id = playerId(player); const game = data.mvp_jogo.find(row => row.campeonato_jogador_id === id); const general = data.mvp_geral.find(row => row.campeonato_jogador_id === id); return <tr key={`${slot.campeonato_equipe_id}:${id}`}><td><strong>{slot.equipe_nome}</strong></td><td><strong>{player.nick || 'Jogador'}</strong></td><td>{player.id_jogo || '—'}</td><td><input type="number" min="0" value={edits[slot.campeonato_equipe_id]?.jogadores[id] || ''} onChange={event => patchPlayer(slot.campeonato_equipe_id, id, event.target.value)}/></td><td>{game?.abates || 0}</td><td className="score-total">{general?.abates || 0}</td></tr> }))}{!data.jogadores.length ? <tr><td colSpan={6} className="empty">Nenhum jogador escalado. O Match Result pode criar jogadores temporários.</td></tr> : null}</tbody></table></div> : null}

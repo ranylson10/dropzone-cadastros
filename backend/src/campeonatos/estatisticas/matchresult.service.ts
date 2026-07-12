@@ -114,9 +114,20 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
   const { data: partida } = await supabaseAdmin.from('campeonato_partidas').select('id,fase_id,jogo_id,grupo_id').eq('id', body.partida_id).single()
   if (!campeonato?.produtora_id || !partida) throw new Error('Contexto do campeonato inválido.')
 
-  for (const team of preview.equipes) {
+  for (const teamValue of preview.equipes) {
+    const team: any = teamValue
     const suppliedTeam = (body.equipes || []).find((x: any) => normalizeName(x.nome) === team.nome_normalizado)
     team.campeonato_equipe_id = suppliedTeam?.campeonato_equipe_id || team.campeonato_equipe_id
+    team.posicao = Number(suppliedTeam?.posicao ?? team.posicao)
+    team.abates = Number(suppliedTeam?.abates ?? team.abates)
+    team.punicao_pontos = Math.min(Number(suppliedTeam?.punicao_pontos || 0), 0)
+    team.punicao_motivo = String(suppliedTeam?.punicao_motivo || '').trim() || null
+    team.jogadores = team.jogadores.map((player: any) => {
+      const suppliedPlayer = (suppliedTeam?.jogadores || []).find((item: any) => Number(item.ordem) === player.ordem)
+      if (!suppliedPlayer) return player
+      const idChanged = normalizeName(suppliedPlayer.id_jogo) !== normalizeName(player.id_jogo)
+      return { ...player, nick: String(suppliedPlayer.nick || player.nick).trim(), id_jogo: String(suppliedPlayer.id_jogo || player.id_jogo).trim(), abates: Math.max(Number(suppliedPlayer.abates ?? player.abates), 0), jogador_id: idChanged ? null : player.jogador_id, jogador_temporario_id: idChanged ? null : player.jogador_temporario_id }
+    })
     if (!team.campeonato_equipe_id) throw new Error(`Vincule a equipe "${team.nome}" antes de confirmar.`)
   }
 
@@ -143,7 +154,8 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
   if (importError) throw importError
 
   const manualPayload: any = { partida_id: partida.id, origem: 'matchresult', equipes: [] }
-  for (const team of preview.equipes) {
+  for (const teamValue of preview.equipes) {
+    const team: any = teamValue
     const { data: ce, error: ceError } = await supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,grupo_id').eq('id', team.campeonato_equipe_id).eq('campeonato_id', campeonatoId).single()
     if (ceError) throw ceError
 
@@ -169,10 +181,16 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
     })
     if (linkError) throw linkError
 
-    const manualTeam: any = { campeonato_equipe_id: ce.id, posicao: team.posicao, abates: team.abates, raw_team_name: team.nome, importacao_equipe_id: importTeam.id, jogadores: [] }
+    const manualTeam: any = { campeonato_equipe_id: ce.id, posicao: team.posicao, abates: team.abates, punicao_pontos: team.punicao_pontos, punicao_motivo: team.punicao_motivo, raw_team_name: team.nome, importacao_equipe_id: importTeam.id, jogadores: [] }
     for (const player of team.jogadores) {
       let jogadorId = player.jogador_id
       let tempId = player.jogador_temporario_id
+      if (!jogadorId) {
+        const { data: officialCandidates, error: officialError } = await supabaseAdmin.from('jogadores').select('id,id_jogo').not('id_jogo', 'is', null)
+        if (officialError) throw officialError
+        jogadorId = (officialCandidates || []).find((candidate: any) => normalizeName(candidate.id_jogo) === normalizeName(player.id_jogo))?.id || null
+        if (jogadorId) tempId = null
+      }
       if (!jogadorId && !tempId) {
         const { data: temporaryCandidates, error: candidatesError } = await supabaseAdmin
           .from('jogadores_temporarios')
@@ -187,6 +205,8 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
             throw new Error(`O jogador temporário de ID ${player.id_jogo} não está ativo.`)
           }
           tempId = existingTemporary.id
+          const { error: updateTempError } = await supabaseAdmin.from('jogadores_temporarios').update({ nick: player.nick }).eq('id', tempId)
+          if (updateTempError) throw updateTempError
         } else {
           const { data: temp, error: tempError } = await supabaseAdmin.from('jogadores_temporarios').insert({
             produtora_id: campeonato.produtora_id,
