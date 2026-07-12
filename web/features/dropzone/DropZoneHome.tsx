@@ -24,6 +24,7 @@ const emptyChampionship = {
   nome: '',
   tipo: 'copa',
   logo_url: '',
+  banner_url: '',
   premiacao: '',
   valor_inscricao: '',
   descricao_premiacao: '',

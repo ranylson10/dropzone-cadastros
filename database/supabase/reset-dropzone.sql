@@ -98,6 +98,7 @@ create table if not exists public.campeonatos (
   nome text not null,
   tipo text not null default 'copa' check (tipo in ('diario', 'copa', 'liga', 'xtreino', 'confronto')),
   logo_url text,
+  banner_url text,
   premiacao text,
   divisao_premiacao text,
   regras_url text,

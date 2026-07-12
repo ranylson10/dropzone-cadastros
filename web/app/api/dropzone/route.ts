@@ -168,6 +168,7 @@ function championshipRow(row: any) {
     data: {
       nome: row.nome,
       logo_url: row.logo_url,
+      banner_url: row.banner_url,
       tipo: row.tipo || DEFAULT_CHAMPIONSHIP_TYPE,
       ...(configuration || {}),
     },
@@ -439,6 +440,7 @@ export async function POST(req: NextRequest) {
       const data = body.data || {}
       const nome = String(body.name || data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
+      const bannerUrl = String(data.banner_url || '').trim()
       if (!nome) throw new Error('Informe o nome do campeonato.')
       if (!logoUrl) throw new Error('Envie a logo do campeonato.')
 
@@ -446,6 +448,7 @@ export async function POST(req: NextRequest) {
         nome,
         tipo: normalizeChampionshipType(data.tipo),
         logo_url: logoUrl,
+        banner_url: bannerUrl || null,
         criado_por: user.id,
         produtora_id: account.id,
         status: 'ativo',
@@ -766,8 +769,9 @@ export async function PATCH(req: NextRequest) {
       await requireChampionshipOwner(id, user.id, account.id)
       const nome = String(data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
+      const bannerUrl = String(data.banner_url || '').trim()
       if (!nome || !logoUrl) throw new Error('Informe nome e logo do campeonato.')
-      const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({ nome, logo_url: logoUrl, tipo: normalizeChampionshipType(data.tipo) }).eq('id', id).select('*').single()
+      const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({ nome, logo_url: logoUrl, banner_url: bannerUrl || null, tipo: normalizeChampionshipType(data.tipo) }).eq('id', id).select('*').single()
       if (error) throw error
       const { data: configuration, error: configurationError } = await supabaseAdmin.from('campeonato_configuracoes').upsert(championshipConfigurationPayload(data, id), { onConflict: 'campeonato_id' }).select('*').single()
       if (configurationError) throw configurationError

@@ -8,6 +8,7 @@ const uploadTargets = {
   produtora: { width: 500, height: 500, kindLabel: 'logo' },
   equipe: { width: 500, height: 500, kindLabel: 'logo' },
   campeonato: { width: 500, height: 500, kindLabel: 'logo' },
+  campeonato_banner: { width: 1080, height: 1920, kindLabel: 'banner' },
   jogador: { width: 500, height: 600, kindLabel: 'foto' },
   manager: { width: 500, height: 600, kindLabel: 'foto' },
 } as const
@@ -98,9 +99,9 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   )
 }
 
-export function UploadField({ label, value, bucket, onChange, onUpload }: { label: string; value: string; bucket: string; onChange: (value: string) => void; onUpload: (file: File, bucket: string) => Promise<string> }) {
-  const target = uploadTargetFor(bucket)
-  const inputId = `${bucket}-upload-${useId().replace(/:/g, '')}`
+export function UploadField({ label, value, bucket, cropTarget, onChange, onUpload }: { label: string; value: string; bucket: string; cropTarget?: string; onChange: (value: string) => void; onUpload: (file: File, bucket: string) => Promise<string> }) {
+  const target = uploadTargetFor(cropTarget || bucket)
+  const inputId = `${cropTarget || bucket}-upload-${useId().replace(/:/g, '')}`
   const previewWidth = 300
   const previewHeight = Math.round(previewWidth * (target.height / target.width))
   const [cropOpen, setCropOpen] = useState(false)

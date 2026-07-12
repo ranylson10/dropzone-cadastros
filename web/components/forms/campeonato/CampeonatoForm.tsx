@@ -9,6 +9,7 @@ export type CampeonatoFormValue = {
   nome: string
   tipo: string
   logo_url: string
+  banner_url: string
   premiacao: string
   valor_inscricao: string
   descricao_premiacao: string
@@ -33,6 +34,7 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   nome: '',
   tipo: '',
   logo_url: '',
+  banner_url: '',
   premiacao: '',
   valor_inscricao: '',
   descricao_premiacao: '',
@@ -232,6 +234,7 @@ export function CampeonatoForm({
         <div className="mini-grid two">
           <Field label="Nome do campeonato"><input value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
           <UploadField label="Logo do campeonato" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
+          <UploadField label="Banner do campeonato" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
         </div>
       </section>
 
