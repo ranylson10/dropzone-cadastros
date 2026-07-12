@@ -2814,3 +2814,156 @@ body:has(.cropper-overlay) {
 @keyframes dropzone-button-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Shared structured selectors used by championship game forms. */
+.game-form-section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line, #dfe3ea);
+  background: var(--surface-soft, #f8f9fb);
+}
+
+.game-form-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.game-form-section-header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.game-form-section-header strong {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.game-form-section-header small,
+.selection-count {
+  color: var(--muted, #727784);
+  font-size: 12px;
+}
+
+.map-drop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.map-drop-field {
+  display: grid;
+  gap: 7px;
+}
+
+.map-drop-field > span {
+  color: var(--muted, #727784);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.map-drop-control {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  min-height: 54px;
+  overflow: hidden;
+  border: 1px solid var(--line, #dfe3ea);
+  background: var(--surface, #fff);
+}
+
+.map-drop-control img,
+.map-drop-placeholder {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  background: #eceff3;
+}
+
+.map-drop-control select {
+  min-width: 0;
+  height: 54px;
+  border: 0 !important;
+  background: transparent;
+}
+
+.group-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.group-check-card {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 11px 12px;
+  cursor: pointer;
+  border: 1px solid var(--line, #dfe3ea);
+  background: var(--surface, #fff);
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
+}
+
+.group-check-card:hover {
+  border-color: var(--accent, #ff4055);
+  transform: translateY(-1px);
+}
+
+.group-check-card.selected {
+  border-color: var(--accent, #ff4055);
+  background: color-mix(in srgb, var(--accent, #ff4055) 8%, white);
+}
+
+.group-check-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.group-check-box {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--line, #cfd4dc);
+  color: transparent;
+  background: #fff;
+}
+
+.group-check-card.selected .group-check-box {
+  border-color: var(--accent, #ff4055);
+  color: #fff;
+  background: var(--accent, #ff4055);
+}
+
+.group-check-card > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.group-check-card strong {
+  font-size: 13px;
+}
+
+.group-check-card small {
+  color: var(--muted, #727784);
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .map-drop-grid,
+  .group-check-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-form-section {
+    padding: 12px;
+  }
+}

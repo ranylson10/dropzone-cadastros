@@ -108,7 +108,7 @@ export function DropZoneHome() {
   const [phase, setPhase] = useState({ nome: '', campeonato_id: '', ordem: '1' })
   const [group, setGroup] = useState({ nome: 'Grupo A', campeonato_id: '', fase_id: '', slots: '12', whatsapp_url: '' })
   const [slotAssignment, setSlotAssignment] = useState({ slot_id: '', grupo_id: '', equipe_id: '', line_id: '', campeonato_equipe_id: '', slot_numero: '1' })
-  const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] as string[] })
+  const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill('') as string[], grupos_ids: [] as string[] })
   const [registrationLink, setRegistrationLink] = useState({ grupo_id: '', vagas_por_equipe: '6', abre_em: '', encerra_em: '', permite_substituicao: false, max_substituicoes_por_equipe: '0', substituicao_encerra_em: '', descricao: '' })
   const [selectedChampId, setSelectedChampId] = useState('')
   const [selectedTeamId, setSelectedTeamId] = useState('')
@@ -968,22 +968,56 @@ export function DropZoneHome() {
   }
 
   async function createGame() {
+    if (createLockRef.current) return
     const champId = game.campeonato_id || selectedChamp?.id
     const champ = championships.find((row) => row.id === champId)
     if (!champ || !game.nome.trim()) return setError('Selecione o campeonato e informe o nome do jogo.')
-    await createRow({
-      entity_type: 'game',
-      name: game.nome,
-      parent_id: champ.id,
-      generate_token: true,
-      token_prefix: 'JOGO',
-      data: {
-        ...game,
-        campeonato_id: champ.id,
-        championship_name: champ.name,
-      },
-    }, 'Jogo criado com token.')
-    setGame({ nome: '', campeonato_id: champ.id, fase_id: game.fase_id, data_jogo: '', horario: '', numero_partidas: '6', mapas: '', grupos_ids: [] })
+    if (!game.fase_id) return setError('Selecione a fase do jogo.')
+    const totalQuedas = Number(game.numero_partidas || 0)
+    if (!Number.isInteger(totalQuedas) || totalQuedas < 1) return setError('Informe uma quantidade válida de quedas.')
+    if (game.grupos_ids.length < 1) return setError('Selecione pelo menos um grupo participante.')
+    const mapas = game.mapas.slice(0, totalQuedas)
+    if (mapas.length !== totalQuedas || mapas.some((codigo) => !codigo)) {
+      return setError('Selecione um mapa para cada queda.')
+    }
+
+    createLockRef.current = true
+    setPendingCreate('game')
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/campeonatos/${champ.id}/jogos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders(token, account?.profile_type),
+        },
+        body: JSON.stringify({
+          fase_id: game.fase_id,
+          nome: game.nome.trim(),
+          data_jogo: game.data_jogo || null,
+          horario: game.horario || null,
+          numero_partidas: totalQuedas,
+          grupos_ids: game.grupos_ids,
+          quedas: mapas.map((mapa_codigo, index) => ({ numero: index + 1, mapa_codigo })),
+          intervalo_quedas_minutos: 25,
+          multiplicador_abates_ultima_queda: 1,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao criar jogo.')
+      await loadMeAndRows(token)
+      setGame({ nome: '', campeonato_id: champ.id, fase_id: game.fase_id, data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill(''), grupos_ids: [] })
+      setMessage('Jogo criado com sucesso.')
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao criar jogo.')
+    } finally {
+      createLockRef.current = false
+      setPendingCreate(null)
+      setLoading(false)
+    }
   }
 
   async function createRegistrationLink() {

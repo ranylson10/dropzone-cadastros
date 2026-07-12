@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Loader2, MessageCircle, Pencil, Plus, Trash2, Trophy, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
@@ -43,7 +43,7 @@ export function ProdutoraPanel(props: {
   setGroup: (value: any) => void
   slotAssignment: { slot_id: string; grupo_id: string; equipe_id: string; line_id: string; campeonato_equipe_id: string; slot_numero: string }
   setSlotAssignment: (value: any) => void
-  game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string; grupos_ids: string[] }
+  game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string[]; grupos_ids: string[] }
   setGame: (value: any) => void
   createChampionship: () => Promise<boolean>
   updateChampionship: (id: string, data: CampeonatoFormValue) => Promise<DropZoneRow | undefined>
@@ -74,6 +74,26 @@ export function ProdutoraPanel(props: {
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string } | null>(null)
+  const [mapCatalog, setMapCatalog] = useState<Array<{ codigo: string; nome: string; imagem_url: string | null; mapa_misterioso: boolean }>>([])
+  const [mapsLoading, setMapsLoading] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    setMapsLoading(true)
+    fetch('/api/mapas')
+      .then(async (response) => {
+        const json = await response.json()
+        if (!response.ok) throw new Error(json.error || 'Erro ao carregar mapas.')
+        if (active) setMapCatalog(Array.isArray(json.mapas) ? json.mapas : [])
+      })
+      .catch(() => {
+        if (active) setMapCatalog([])
+      })
+      .finally(() => {
+        if (active) setMapsLoading(false)
+      })
+    return () => { active = false }
+  }, [])
 
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
@@ -472,18 +492,81 @@ export function ProdutoraPanel(props: {
                           </select>
                         </Field>
                         <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Rodada 1" /></Field>
-                        <Field label="Número de partidas"><input type="number" value={props.game.numero_partidas} onChange={(e) => props.setGame({ ...props.game, numero_partidas: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                        <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => { const total = Math.max(1, Number(e.target.value || 1)); props.setGame({ ...props.game, numero_partidas: e.target.value, mapas: Array.from({ length: total }, (_, index) => props.game.mapas[index] || ''), campeonato_id: selectedChamp.id }) }} /></Field>
                       </div>
-                      <div className="mini-grid three">
+                      <div className="mini-grid two">
                         <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
                         <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
-                        <Field label="Mapas"><input value={props.game.mapas} onChange={(e) => props.setGame({ ...props.game, mapas: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Bermuda, Purgatório, Alpine" /></Field>
                       </div>
-                      <Field label="Grupos participantes da fase">
-                        <select multiple value={props.game.grupos_ids} onChange={(e) => props.setGame({ ...props.game, grupos_ids: Array.from(e.target.selectedOptions).map((option) => option.value), campeonato_id: selectedChamp.id })}>
-                          {champGroups.filter((group) => !props.game.fase_id || group.data?.fase_id === props.game.fase_id).map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
-                        </select>
-                      </Field>
+
+                      <div className="game-form-section">
+                        <div className="game-form-section-header">
+                          <div>
+                            <strong>Mapas por queda</strong>
+                            <small>Selecione um mapa para cada queda.</small>
+                          </div>
+                          {mapsLoading ? <Loader2 size={16} className="button-spinner" /> : null}
+                        </div>
+                        <div className="map-drop-grid">
+                          {Array.from({ length: Math.max(1, Number(props.game.numero_partidas || 1)) }).map((_, index) => {
+                            const selectedCode = props.game.mapas[index] || ''
+                            const selectedMap = mapCatalog.find((mapa) => mapa.codigo === selectedCode)
+                            return (
+                              <label className="map-drop-field" key={index}>
+                                <span>Queda {index + 1}</span>
+                                <div className="map-drop-control">
+                                  {selectedMap?.imagem_url ? <img src={selectedMap.imagem_url} alt="" /> : <div className="map-drop-placeholder" />}
+                                  <select
+                                    value={selectedCode}
+                                    disabled={mapsLoading || mapCatalog.length === 0}
+                                    onChange={(event) => {
+                                      const nextMaps = Array.from({ length: Math.max(1, Number(props.game.numero_partidas || 1)) }, (_, mapIndex) => props.game.mapas[mapIndex] || '')
+                                      nextMaps[index] = event.target.value
+                                      props.setGame({ ...props.game, mapas: nextMaps, campeonato_id: selectedChamp.id })
+                                    }}
+                                  >
+                                    <option value="">Selecione o mapa</option>
+                                    {mapCatalog.map((mapa) => <option key={mapa.codigo} value={mapa.codigo}>{mapa.nome}</option>)}
+                                  </select>
+                                </div>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="game-form-section">
+                        <div className="game-form-section-header">
+                          <div>
+                            <strong>Grupos participantes</strong>
+                            <small>Marque um ou mais grupos da fase selecionada.</small>
+                          </div>
+                          <span className="selection-count">{props.game.grupos_ids.length} selecionado(s)</span>
+                        </div>
+                        <div className="group-check-grid">
+                          {champGroups.filter((group) => Boolean(props.game.fase_id) && group.data?.fase_id === props.game.fase_id).map((group) => {
+                            const checked = props.game.grupos_ids.includes(group.id)
+                            return (
+                              <label className={`group-check-card ${checked ? 'selected' : ''}`} key={group.id}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    const grupos_ids = checked
+                                      ? props.game.grupos_ids.filter((id) => id !== group.id)
+                                      : [...props.game.grupos_ids, group.id]
+                                    props.setGame({ ...props.game, grupos_ids, campeonato_id: selectedChamp.id })
+                                  }}
+                                />
+                                <span className="group-check-box"><CheckCircle2 size={15} /></span>
+                                <span><strong>{rowTitle(group)}</strong><small>{Number(group.data?.slots || 0)} slots</small></span>
+                              </label>
+                            )
+                          })}
+                          {!props.game.fase_id ? <p className="empty">Selecione uma fase para ver os grupos.</p> : null}
+                          {props.game.fase_id && champGroups.filter((group) => group.data?.fase_id === props.game.fase_id).length === 0 ? <p className="empty">Nenhum grupo cadastrado nesta fase.</p> : null}
+                        </div>
+                      </div>
                       <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createGame}>{props.pendingCreate === 'game' ? <><Loader2 size={15} className="button-spinner" /> Criando jogo...</> : 'Criar jogo'}</button>
                     </div>
                   ) : null}
