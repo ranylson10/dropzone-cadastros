@@ -76,6 +76,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
     { data: slots, error: slotsError },
     { data: matriz, error: matrizError },
     { data: jogadores, error: jogadoresError },
+    { data: resultadosJogadores, error: resultadosJogadoresError },
     { data: classificacaoJogo, error: classificacaoError },
     { data: vinculos, error: vinculosError },
   ] = await Promise.all([
@@ -115,6 +116,11 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
       .order('campeonato_equipe_id', { ascending: true })
       .order('slot_jogador', { ascending: true }),
     supabaseAdmin
+      .from('campeonato_resultados_jogadores')
+      .select('partida_id,campeonato_equipe_id,campeonato_jogador_id,abates,dano,assistencias,revives,origem')
+      .eq('campeonato_id', campeonatoId)
+      .eq('jogo_id', jogoId),
+    supabaseAdmin
       .from('campeonato_classificacao_equipes_pontuador')
       .select('*')
       .eq('campeonato_id', campeonatoId)
@@ -134,6 +140,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
   if (slotsError) throw slotsError
   if (matrizError) throw matrizError
   if (jogadoresError) throw jogadoresError
+  if (resultadosJogadoresError) throw resultadosJogadoresError
   if (classificacaoError) throw classificacaoError
   if (vinculosError) throw vinculosError
 
@@ -156,6 +163,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
     slots: slots || [],
     matriz: matriz || [],
     jogadores: jogadores || [],
+    resultados_jogadores: resultadosJogadores || [],
     classificacao_geral: classificacaoGeral,
     classificacao_jogo: classificacaoOrdenada,
     mvp_geral: mvpGeral,
