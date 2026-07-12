@@ -232,8 +232,9 @@ export function DropZoneHome() {
 
         prepareGoogleProfile(data.session.user, type)
         return
-      } catch {
-        // Sessão expirada ou inválida: mostra o login social normalmente.
+      } catch (cause: any) {
+        setError(cause?.message || 'Não foi possível abrir este perfil.')
+        return
       } finally {
         setLoading(false)
       }
@@ -304,8 +305,14 @@ export function DropZoneHome() {
               window.location.assign(resolvedReturnTo)
               return
             }
-          } catch {
-            prepareGoogleProfile(data.session.user, forcedProfileType)
+          } catch (cause: any) {
+            const availableAccounts = await loadAccountsOnly(data.session.access_token).catch(() => [])
+            const existing = availableAccounts.find((item) => item.profile_type === forcedProfileType)
+            if (existing) {
+              setError(cause?.message || 'Não foi possível carregar o painel deste perfil.')
+            } else {
+              prepareGoogleProfile(data.session.user, forcedProfileType)
+            }
           }
           setQueryReady(true)
           return

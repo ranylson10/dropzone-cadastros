@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import { PublicDirectoryHeader } from '@/features/directory/components/PublicDirectoryHeader'
 import { supabase } from '@/lib/supabase-browser'
 import { SocialLogin } from '@/features/auth/SocialLogin'
@@ -43,8 +44,31 @@ export default function LoginPage() {
 
         const { data, error: sessionError } = await supabase.auth.getSession()
         if (sessionError) throw sessionError
+        let session: Session | null = data.session
 
-        if (!complete || !data.session) {
+        // O callback OAuth pode terminar instantes depois de a página montar.
+        if (complete && !session) {
+          session = await new Promise<Session | null>((resolve) => {
+            let settled = false
+            let timer = 0
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+              if (!session || settled) return
+              settled = true
+              window.clearTimeout(timer)
+              subscription.unsubscribe()
+              resolve(session)
+            })
+            timer = window.setTimeout(async () => {
+              if (settled) return
+              settled = true
+              subscription.unsubscribe()
+              const current = await supabase.auth.getSession()
+              resolve(current.data.session)
+            }, 4000)
+          })
+        }
+
+        if (!complete || !session) {
           if (active) setChecking(false)
           return
         }

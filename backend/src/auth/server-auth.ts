@@ -157,8 +157,13 @@ export async function getAccountByUserId(userId: string, preferredType?: Profile
   return accounts[0]
 }
 
-export async function getActiveAccount(req: NextRequest, userId: string) {
+export async function getActiveAccount(
+  req: NextRequest,
+  user: { id: string; email?: string | null; email_confirmed_at?: string | null },
+) {
   const requested = String(req.headers.get('x-profile-type') || '').trim() as ProfileType
   const valid = Object.prototype.hasOwnProperty.call(PROFILE_TABLES, requested) ? requested : null
-  return getAccountByUserId(userId, valid)
+  const accounts = await getAccountsForUser(user)
+  if (!accounts.length) throw new Error('Conta nao encontrada na DropZone.')
+  return (valid && accounts.find((account) => account.profile_type === valid)) || accounts[0]
 }

@@ -329,7 +329,7 @@ function championshipsOwnedBy(row: any, rows: any[], userId: string) {
 export async function GET(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getActiveAccount(req, user.id)
+    const account = await getActiveAccount(req, user)
     const { searchParams } = new URL(req.url)
     const entityType = searchParams.get('entity_type')
 
@@ -405,7 +405,7 @@ async function consumeToken(token: string | null | undefined, tipo?: string | st
 export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getActiveAccount(req, user.id)
+    const account = await getActiveAccount(req, user)
     const body = await req.json()
     const entityType = String(body.entity_type || '').trim()
 
@@ -728,7 +728,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getActiveAccount(req, user.id)
+    const account = await getActiveAccount(req, user)
     const body = await req.json()
     if (account.profile_type !== 'produtora') throw new Error('Somente a produtora pode editar esta estrutura.')
     const entityType = String(body.entity_type || '')
@@ -817,7 +817,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getActiveAccount(req, user.id)
+    const account = await getActiveAccount(req, user)
     const body = await req.json()
     if (account.profile_type !== 'produtora') throw new Error('Somente a produtora pode excluir esta estrutura.')
     const entityType = String(body.entity_type || '')
