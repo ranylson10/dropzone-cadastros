@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Send, Users, X } from 'lucide-react'
+import { Loader2, Send, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
@@ -92,6 +92,7 @@ export function DropZoneHome() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [accessLoadingType, setAccessLoadingType] = useState<ProfileType | null>(null)
   const [queryReady, setQueryReady] = useState(false)
   const [inviteReturnTo, setInviteReturnTo] = useState('')
 
@@ -210,11 +211,15 @@ export function DropZoneHome() {
 
     if (data.session) {
       setLoading(true)
+      setAccessLoadingType(type)
       try {
         if (recent) {
-          await loadMeAndRows(data.session.access_token, type)
+          const cachedRows = readPanelCache(recent.id)
+          setAccount(recent)
+          setRows(cachedRows)
           setActiveAuthType(null)
           setLinkingProfile(false)
+          await loadMeAndRows(data.session.access_token, type)
           return
         }
 
@@ -237,6 +242,7 @@ export function DropZoneHome() {
         return
       } finally {
         setLoading(false)
+        setAccessLoadingType(null)
       }
     }
 
@@ -363,6 +369,25 @@ export function DropZoneHome() {
     localStorage.setItem('dropzone_recent_profiles', JSON.stringify(next))
   }
 
+  function readPanelCache(accountId: string) {
+    try {
+      const cached = localStorage.getItem(`dropzone_panel_cache_${accountId}`)
+      return cached ? JSON.parse(cached) as DropZoneRow[] : []
+    } catch {
+      return []
+    }
+  }
+
+  function savePanelCache(accountId: string, nextRows: DropZoneRow[]) {
+    try {
+      const basicTypes = new Set(['championship', 'team', 'team_line', 'championship_team'])
+      const basicRows = nextRows.filter((row) => basicTypes.has(row.entity_type)).slice(0, 300)
+      localStorage.setItem(`dropzone_panel_cache_${accountId}`, JSON.stringify(basicRows))
+    } catch {
+      // O painel continua funcionando normalmente quando o navegador limita o cache.
+    }
+  }
+
   async function uploadPublicFile(file: File, bucket: string) {
     setLoading(true)
     setError('')
@@ -481,6 +506,14 @@ export function DropZoneHome() {
       throw new Error(`Perfil de ${typeLabels[preferredType].toLowerCase()} ainda não existe nesta conta.`)
     }
 
+    // Mostra imediatamente o perfil escolhido e os últimos dados conhecidos.
+    setAccounts(loadedAccounts)
+    setAccount(selectedAccount)
+    setRows(readPanelCache(selectedAccount.id))
+    setActiveAuthType(null)
+    setLinkingProfile(false)
+    localStorage.setItem('dropzone_active_profile_type', String(selectedAccount.profile_type || ''))
+
     const rowsRes = await fetch('/api/dropzone', {
       headers: authHeaders(accessToken, selectedAccount.profile_type),
     })
@@ -489,11 +522,9 @@ export function DropZoneHome() {
 
     // Atualiza a interface somente quando conta e dados estiverem prontos,
     // evitando piscar a seleção de perfil ou um painel incompleto.
-    setAccounts(loadedAccounts)
     setRows(rowsJson.rows || [])
-    setAccount(selectedAccount)
+    savePanelCache(selectedAccount.id, rowsJson.rows || [])
     saveRecentProfiles(loadedAccounts)
-    localStorage.setItem('dropzone_active_profile_type', String(selectedAccount.profile_type || ''))
   }
 
   async function switchLinkedAccount(nextAccount: DropZoneRow) {
@@ -1066,7 +1097,8 @@ export function DropZoneHome() {
                             <button
                               key={type}
                               type="button"
-                              className={`profile-card gamer-card ${recent ? 'has-recent' : ''}`}
+                              className={`profile-card gamer-card ${recent ? 'has-recent' : ''} ${accessLoadingType === type ? 'is-loading' : ''}`}
+                              disabled={Boolean(accessLoadingType)}
                               onClick={() => chooseAccess(type, recent)}
                             >
                               <div className="card-icon-frame">
@@ -1084,6 +1116,7 @@ export function DropZoneHome() {
                                   <small>Acessar ou criar com Google, Facebook ou Discord</small>
                                 )}
                               </div>
+                              {accessLoadingType === type ? <span className="profile-card-loading"><Loader2 className="spin" size={20} /> Abrindo painel</span> : null}
                               <i className="card-corner" />
                             </button>
                           )
@@ -1243,6 +1276,12 @@ export function DropZoneHome() {
               <div className="metric"><b>{teams.length}</b><span>Equipes</span></div>
               <div className="metric"><b>{registrations.length}</b><span>Inscricoes</span></div>
             </section>
+
+            {accessLoadingType ? (
+              <div className="panel-refresh-status" role="status" aria-live="polite">
+                <Loader2 className="spin" size={16} /> Atualizando dados de {typeLabels[accessLoadingType].toLowerCase()}...
+              </div>
+            ) : null}
 
             {account.profile_type === 'produtora' ? (
               <ProdutoraPanel
