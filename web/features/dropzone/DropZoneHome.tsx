@@ -203,22 +203,37 @@ export function DropZoneHome() {
   async function chooseAccess(type: ProfileType, recent?: any) {
     clearRegisterForm(type)
     setProfileType(type)
+    setError('')
+    setMessage('')
+
+    const { data } = await supabase.auth.getSession()
+    const session = data.session
+
+    if (session) {
+      try {
+        const found = await loadMeAndRows(session.access_token, type)
+        if (found) {
+          setActiveAuthType(null)
+          setLinkingProfile(false)
+          return
+        }
+
+        prepareGoogleProfile(session.user, type)
+        return
+      } catch {
+        // Sessão local inválida: exibe o login social para autenticar novamente.
+      }
+    }
+
     if (recent) {
       const media = mediaForProfile(recent)
       setUsername(recent.username || '')
       setName(recent.name || '')
       setMediaUrl(media)
       setMode('entrar')
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        try {
-          await loadMeAndRows(data.session.access_token)
-          return
-        } catch {
-          // se a sessao local nao for valida, cai no login preenchido
-        }
-      }
     }
+
+    setLinkingProfile(false)
     setActiveAuthType(type)
   }
 
@@ -271,10 +286,16 @@ export function DropZoneHome() {
         const { data } = await supabase.auth.getSession()
         if (data.session) {
           try {
-            await loadMeAndRows(data.session.access_token, forcedProfileType)
-            if (resolvedReturnTo) {
-              window.location.assign(resolvedReturnTo)
-              return
+            const found = await loadMeAndRows(data.session.access_token, forcedProfileType)
+            if (found) {
+              if (resolvedReturnTo) {
+                window.location.assign(resolvedReturnTo)
+                return
+              }
+              setActiveAuthType(null)
+              setLinkingProfile(false)
+            } else {
+              prepareGoogleProfile(data.session.user, forcedProfileType)
             }
           } catch {
             prepareGoogleProfile(data.session.user, forcedProfileType)
@@ -404,9 +425,9 @@ export function DropZoneHome() {
     setLinkingProfile(true)
   }
 
-  async function loadMeAndRows(token?: string, preferredType?: ProfileType | null) {
+  async function loadMeAndRows(token?: string, preferredType?: ProfileType | null): Promise<boolean> {
     const accessToken = token || await getToken()
-    if (!accessToken) return
+    if (!accessToken) return false
     const storedType = preferredType || (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null)
 
     const meRes = await fetch('/api/me', {
@@ -414,8 +435,15 @@ export function DropZoneHome() {
     })
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessao invalida.')
+
+    const linkedAccounts = (meJson.accounts || [meJson.account]) as DropZoneRow[]
+    setAccounts(linkedAccounts)
+
+    if (preferredType && !linkedAccounts.some((item) => item.profile_type === preferredType)) {
+      return false
+    }
+
     setAccount(meJson.account)
-    setAccounts(meJson.accounts || [meJson.account])
     saveRecentProfile(meJson.account)
     localStorage.setItem('dropzone_active_profile_type', meJson.account.profile_type)
 
@@ -425,6 +453,7 @@ export function DropZoneHome() {
     const rowsJson = await rowsRes.json()
     if (!rowsRes.ok) throw new Error(rowsJson.error || 'Erro ao listar dados.')
     setRows(rowsJson.rows || [])
+    return true
   }
 
   async function switchLinkedAccount(nextAccount: DropZoneRow) {
@@ -1010,7 +1039,7 @@ export function DropZoneHome() {
                                     <small>@{recent.username}{recent.public_id ? ` · ID ${recent.public_id}` : ''}</small>
                                   </>
                                 ) : (
-                                  <small>Acessar ou criar perfil com Google</small>
+                                  <small>Acessar ou criar com Google, Facebook ou Discord</small>
                                 )}
                               </div>
                               <i className="card-corner" />
