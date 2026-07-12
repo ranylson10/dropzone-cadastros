@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Clock3, Loader2, Shield, Users } from 'lucide-react'
+import { CheckCircle2, Clock3, Shield, Users } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
+import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 
 type InvitePayload = {
   error?: string
@@ -98,7 +99,7 @@ export default function ConviteEquipePage() {
     setData((current) => current ? { ...current, valido: false, aceito: true } : current)
   }
 
-  if (loading) return <main className="invite-page"><Loader2 className="spin" /></main>
+  if (loading) return <DropzoneLoader label="Carregando convite" />
 
   if (!data || data.error) {
     return (

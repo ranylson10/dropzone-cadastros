@@ -15,6 +15,7 @@ import { AppHeader } from '@/components/layout/AppHeader'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 import { safeInternalPath } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
+import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
@@ -1175,7 +1176,7 @@ export function DropZoneHome() {
   }
 
   if (!queryReady) {
-    return <main className="page page-loading"><div className="shell"><div className="message">Carregando acesso...</div></div></main>
+    return <DropzoneLoader label="Carregando acesso" />
   }
 
   const navItems = account ? [

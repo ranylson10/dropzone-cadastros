@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-labelledby="title desc">
+  <title id="title">DropZone carregando</title>
+  <desc id="desc">As três partes do símbolo DropZone entram e formam a marca.</desc>
+  <style>
+    .frame { fill: #0b0d11; }
+    .piece { fill: #fff; transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+    .left { animation: enter-left 1.8s cubic-bezier(.22,.8,.3,1) infinite; }
+    .right { animation: enter-right 1.8s cubic-bezier(.22,.8,.3,1) infinite; }
+    .bottom { animation: enter-bottom 1.8s cubic-bezier(.22,.8,.3,1) infinite; }
+    .pulse { fill: none; stroke: #ff4655; stroke-width: 2; opacity: 0; animation: pulse 1.8s ease-out infinite; }
+    @keyframes enter-left {
+      0%, 8% { opacity: 0; transform: translate(-22px,-12px) scale(.82); }
+      34%, 82% { opacity: 1; transform: translate(0,0) scale(1); filter: drop-shadow(0 0 5px rgba(255,255,255,.18)); }
+      100% { opacity: 0; transform: translate(0,0) scale(.96); }
+    }
+    @keyframes enter-right {
+      0%, 14% { opacity: 0; transform: translate(22px,-12px) scale(.82); }
+      40%, 82% { opacity: 1; transform: translate(0,0) scale(1); filter: drop-shadow(0 0 5px rgba(255,255,255,.18)); }
+      100% { opacity: 0; transform: translate(0,0) scale(.96); }
+    }
+    @keyframes enter-bottom {
+      0%, 22% { opacity: 0; transform: translate(0,22px) scale(.78); }
+      48%, 82% { opacity: 1; transform: translate(0,0) scale(1); filter: drop-shadow(0 0 5px rgba(255,255,255,.18)); }
+      100% { opacity: 0; transform: translate(0,0) scale(.96); }
+    }
+    @keyframes pulse {
+      44% { opacity: 0; transform: scale(.72); transform-origin: 90px 90px; }
+      62% { opacity: .7; }
+      88%, 100% { opacity: 0; transform: scale(1.08); transform-origin: 90px 90px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .piece { animation: none; }
+      .pulse { display: none; }
+    }
+  </style>
+  <rect class="frame" x="4" y="4" width="172" height="172" rx="34"/>
+  <circle class="pulse" cx="90" cy="91" r="66"/>
+  <path class="piece left" d="M45 64 82 42c4-2 7 0 7 4v48c0 3-2 5-4 7l-36 21c-4 2-7 0-7-4V70c0-3 1-5 3-6Z"/>
+  <path class="piece right" d="m135 64-37-22c-4-2-7 0-7 4v48c0 3 2 5 4 7l36 21c4 2 7 0 7-4V70c0-3-1-5-3-6Z"/>
+  <path class="piece bottom" d="m86 105-31 18c-4 2-4 6 0 8l31 18c3 2 6 2 9 0l31-18c4-2 4-6 0-8l-31-18c-3-2-6-2-9 0Z"/>
+</svg>

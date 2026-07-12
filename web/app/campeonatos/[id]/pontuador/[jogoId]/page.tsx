@@ -4,6 +4,7 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, FileUp, Loader2, RefreshCcw, Save, Trophy, Users, X } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
+import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 
 type Row = Record<string, any>
 type Scope = 'geral' | 'jogo' | 'mapa'
@@ -215,7 +216,7 @@ export default function PontuadorJogoPage() {
     finally { setSaving(false) }
   }
 
-  if (loading && !data) return <main className="fullscreen-scorer-state"><Loader2 className="spin"/> Carregando pontuador...</main>
+  if (loading && !data) return <DropzoneLoader label="Carregando pontuador" />
   if (error && !data) return <main className="fullscreen-scorer-state error"><strong>{error}</strong><button className="button secondary" onClick={() => void load()}>Tentar novamente</button></main>
   if (!data) return null
 

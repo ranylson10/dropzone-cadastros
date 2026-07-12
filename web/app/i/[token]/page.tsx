@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Check, RefreshCw, Shield, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 
 function safeToken(value: string) {
   return String(value || '').trim().toUpperCase()
@@ -75,6 +76,8 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
     }
   }
 
+  if (loading) return <DropzoneLoader label="Carregando inscrição" />
+
   return (
     <main className="page public-page">
       <div className="shell public-shell">
@@ -87,7 +90,6 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
             </div>
             <Shield />
           </div>
-          {loading ? <p className="empty">Carregando link...</p> : null}
           {error ? <div className="message error">{error}</div> : null}
           {message ? <div className="message">{message}</div> : null}
 

@@ -3171,3 +3171,5 @@ body:has(.cropper-overlay) {
 .fullscreen-link-names span { padding: 5px 8px; border: 1px solid #bad4c4; background: #edf8f1; font-size: 11px; font-weight: 800; }
 .fullscreen-link-names em { color: #b1192b; font-size: 12px; }
 @media (max-width: 760px) { .scorer-launcher-fields { grid-template-columns: 1fr; } .fullscreen-scorer-page { padding: 8px; } .fullscreen-scorer-header { align-items: flex-start; flex-direction: column; } }
+
+.dropzone-loader{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:24px;background:radial-gradient(circle at center,rgba(255,70,85,.06),transparent 34%),#f7f8fa;color:#171a22;text-align:center}.dropzone-loader img{width:112px;height:112px;display:block}.dropzone-loader strong{margin-top:4px;font-size:15px;font-weight:900;text-transform:uppercase}.dropzone-loader span{color:#777d87;font-size:11px;font-weight:700}.dropzone-loader.compact{min-height:220px;background:transparent}.dropzone-loader.compact img{width:72px;height:72px}.dropzone-loader.compact strong{font-size:12px}

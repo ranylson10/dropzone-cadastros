@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Check, CheckCircle2, Clock, Loader2, Shield, UserRound, Users } from 'lucide-react'
+import { CalendarDays, Check, CheckCircle2, Clock, Shield, UserRound, Users } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
+import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 
 type Player = {
   id: string
@@ -119,7 +120,7 @@ export default function EscalaPublicaPage() {
   const full = limit > 0 && players.length >= limit
 
   if (loading) {
-    return <main className="invite-page"><Loader2 className="spin" /></main>
+    return <DropzoneLoader label="Carregando escalação" />
   }
 
   if (!data || data.error) {
