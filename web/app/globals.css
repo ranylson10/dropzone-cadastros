@@ -3050,3 +3050,62 @@ body:has(.cropper-overlay) {
     grid-template-columns: 1fr;
   }
 }
+
+/* Estatísticas e pontuador do campeonato */
+.statistics-tab-shell { display: grid; gap: 14px; }
+.statistics-heading { margin-bottom: 0; }
+.statistics-inner-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border, #e1e4e9); background: #fff; }
+.statistics-inner-tabs button { display: flex; min-height: 48px; align-items: center; justify-content: center; gap: 8px; border: 0; border-right: 1px solid var(--border, #e1e4e9); background: #fff; font: inherit; font-size: 12px; font-weight: 800; text-transform: uppercase; cursor: pointer; }
+.statistics-inner-tabs button:last-child { border-right: 0; }
+.statistics-inner-tabs button.active { color: #fff; background: var(--accent, #ff4055); }
+.statistics-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.statistics-filters select { min-width: 0; height: 44px; }
+.statistics-table-wrap { overflow-x: auto; border: 1px solid var(--border, #e1e4e9); background: #fff; }
+.statistics-table { width: 100%; border-collapse: collapse; min-width: 760px; }
+.statistics-table th, .statistics-table td { padding: 12px 14px; border-bottom: 1px solid var(--border, #e8eaee); text-align: left; white-space: nowrap; }
+.statistics-table th { color: var(--muted, #727784); background: #f8f9fb; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.statistics-table tbody tr:last-child td { border-bottom: 0; }
+.statistics-total { font-size: 16px; font-weight: 900; }
+.statistics-identity { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.statistics-identity img, .statistics-avatar-fallback { width: 34px; height: 34px; flex: 0 0 34px; object-fit: cover; border: 1px solid var(--border, #dfe3e8); background: #edf0f4; }
+.statistics-avatar-fallback { display: grid; place-items: center; font-weight: 900; }
+.statistics-identity > span { display: grid; gap: 2px; }
+.statistics-identity small { color: var(--muted, #777e89); font-size: 10px; }
+.player-type-badge { display: inline-flex; padding: 4px 7px; border: 1px solid var(--border, #dce0e6); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.player-type-badge.temporario { color: #a66500; background: #fff6df; border-color: #efcf8b; }
+.statistics-message { padding: 11px 13px; border: 1px solid; font-size: 13px; }
+.statistics-message.error { color: #a21d2c; border-color: #efb7be; background: #fff0f2; }
+.statistics-message.success { color: #176b3a; border-color: #a9dbbd; background: #edf9f2; }
+.statistics-loading { display: flex; min-height: 90px; align-items: center; justify-content: center; gap: 9px; color: var(--muted, #777e89); }
+.scorer-shell { display: grid; gap: 14px; }
+.scorer-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) auto auto; align-items: end; gap: 10px; padding: 14px; border: 1px solid var(--border, #e1e4e9); background: #fff; }
+.scorer-toolbar > label { display: grid; gap: 6px; }
+.scorer-toolbar > label > span, .manual-team-inputs label span { color: var(--muted, #747b87); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.scorer-mode-buttons { display: flex; height: 42px; border: 1px solid var(--border, #dfe3e8); }
+.scorer-mode-buttons button { border: 0; border-right: 1px solid var(--border, #dfe3e8); padding: 0 14px; background: #fff; font-size: 11px; font-weight: 800; cursor: pointer; }
+.scorer-mode-buttons button:last-child { border-right: 0; }
+.scorer-mode-buttons button.active { color: #fff; background: #11151b; }
+.manual-score-list { display: grid; gap: 10px; }
+.manual-team-card { border: 1px solid var(--border, #e1e4e9); background: #fff; }
+.manual-team-card > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border-bottom: 1px solid var(--border, #e7e9ed); }
+.manual-team-inputs { display: grid; grid-template-columns: 90px 90px; gap: 8px; }
+.manual-team-inputs label { display: grid; gap: 4px; }
+.manual-team-inputs input { height: 38px; }
+.manual-player-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1px; background: var(--border, #e7e9ed); }
+.manual-player-grid > label { display: grid; grid-template-columns: minmax(0, 1fr) 70px; align-items: center; gap: 10px; padding: 11px 13px; background: #fff; }
+.manual-player-grid > label > span { display: grid; gap: 2px; }
+.manual-player-grid small { color: var(--muted, #777e89); font-size: 10px; }
+.manual-player-grid input { height: 36px; min-width: 0; }
+.matchresult-panel { display: grid; gap: 12px; }
+.matchresult-upload { display: flex; min-height: 110px; align-items: center; justify-content: center; gap: 12px; border: 1px dashed #aeb5bf; background: #fafbfc; cursor: pointer; }
+.matchresult-upload > span { display: grid; gap: 4px; }
+.matchresult-upload small { color: var(--muted, #777e89); }
+.matchresult-upload input { position: absolute; opacity: 0; pointer-events: none; }
+.matchresult-preview { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--border, #e1e4e9); background: #fff; }
+.matchresult-preview > article { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 260px); gap: 10px; padding: 12px; border: 1px solid var(--border, #e5e8ed); }
+.matchresult-preview > article > div:first-child { display: grid; gap: 3px; }
+.matchresult-preview small { color: var(--muted, #777e89); }
+.matchresult-players { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px; }
+.matchresult-players span { display: grid; gap: 2px; padding: 8px; background: #f6f7f9; }
+@media (max-width: 900px) { .statistics-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .scorer-toolbar { grid-template-columns: 1fr; align-items: stretch; } }
+@media (max-width: 640px) { .statistics-inner-tabs { grid-template-columns: 1fr; } .statistics-inner-tabs button { border-right: 0; border-bottom: 1px solid var(--border, #e1e4e9); } .statistics-filters { grid-template-columns: 1fr; } .manual-team-card > header { align-items: stretch; flex-direction: column; } .matchresult-preview > article { grid-template-columns: 1fr; } }

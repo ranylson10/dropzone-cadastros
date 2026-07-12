@@ -9,6 +9,7 @@ import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@
 import { SystemModal } from '@/components/layout/SystemModal'
 import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
+import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
 
@@ -663,6 +664,16 @@ export function ProdutoraPanel(props: {
                     {champPhases.length === 0 ? <p className="empty">Crie uma fase antes de cadastrar jogos.</p> : null}
                   </div>
                 </div>
+              ) : null}
+
+              {tab === 'estatisticas' ? (
+                <CampeonatoEstatisticasTab
+                  campeonatoId={selectedChamp.id}
+                  phases={champPhases}
+                  groups={champGroups}
+                  games={champGames}
+                  maps={mapCatalog}
+                />
               ) : null}
 
               {tab === 'links' ? (
