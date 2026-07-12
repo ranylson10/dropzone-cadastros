@@ -212,9 +212,8 @@ export default function EscalaPublicaPage() {
               </div>
             )
           ) : (
-            <div className="invite-auth-actions invite-social-auth">
-              <strong>Entre com sua conta para continuar</strong>
-              <SocialLogin profileType="jogador" returnTo={`/escala/${encodeURIComponent(token)}`} compact />
+            <div className="invite-auth-actions">
+              <SocialLogin profileType="jogador" returnTo={`/escala/${encodeURIComponent(token)}`} />
             </div>
           )}
         </section>

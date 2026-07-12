@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ShieldCheck } from 'lucide-react'
 import { PublicDirectoryHeader } from '@/features/directory/components/PublicDirectoryHeader'
 import { supabase } from '@/lib/supabase-browser'
 import { SocialLogin } from '@/features/auth/SocialLogin'
@@ -21,96 +20,77 @@ export default function LoginPage() {
 
   const description = useMemo(() => {
     if (!params.profileType) return 'Escolha uma conta para acessar o DropZone.'
-    return `Entre para continuar. Caso ainda não possua um perfil de ${profileLabels[params.profileType]}, o cadastro complementar será aberto automaticamente.`
+    return `Use uma das contas abaixo para acessar ou criar seu perfil de ${profileLabels[params.profileType]}.`
   }, [params.profileType])
 
   useEffect(() => {
+    let active = true
+
     async function initialize() {
       const search = new URLSearchParams(window.location.search)
       const returnTo = safeInternalPath(search.get('returnTo'))
       const profileType = parseProfileType(search.get('profileType'))
       const switchAccount = search.get('switch') === '1'
       const complete = search.get('complete') === '1'
-      setParams({ returnTo, profileType, switchAccount })
-
-      if (switchAccount && !complete) {
-        await supabase.auth.signOut()
-        setChecking(false)
-        return
-      }
-
-      const { data, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError) {
-        setError(sessionError.message)
-        setChecking(false)
-        return
-      }
-
-      if (!data.session) {
-        setChecking(false)
-        return
-      }
-
-      if (!complete && !switchAccount) {
-        setChecking(false)
-        return
-      }
+      if (active) setParams({ returnTo, profileType, switchAccount })
 
       try {
-        if (!profileType) {
-          window.location.replace(returnTo)
+        if (switchAccount && !complete) {
+          await supabase.auth.signOut()
+          if (active) setChecking(false)
           return
         }
 
-        const response = await fetch('/api/me', {
-          headers: {
-            Authorization: `Bearer ${data.session.access_token}`,
-            'x-profile-type': profileType,
-          },
-        })
-        const payload = await response.json().catch(() => ({}))
-        const accounts = Array.isArray(payload.accounts) ? payload.accounts : []
-        const hasRequiredProfile = accounts.some((account: any) => account?.profile_type === profileType)
+        const { data, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) throw sessionError
 
-        if (hasRequiredProfile) {
-          window.location.replace(returnTo)
+        if (!complete || !data.session) {
+          if (active) setChecking(false)
           return
         }
 
-        window.location.replace(buildProfileCreationHref(profileType, returnTo))
+        // A página de origem é responsável por verificar o perfil necessário.
+        // Assim o callback não fica preso aguardando /api/me e o retorno é imediato.
+        const destination = profileType
+          ? buildProfileCreationHref(profileType, returnTo)
+          : returnTo
+        window.location.replace(destination)
       } catch (cause: any) {
+        if (!active) return
         setError(cause?.message || 'Não foi possível concluir a autenticação.')
         setChecking(false)
       }
     }
 
-    initialize()
+    void initialize()
+    return () => { active = false }
   }, [])
 
   return (
     <main className="central-login-page">
       <PublicDirectoryHeader />
       <section className="central-login-shell">
-        <div className="central-login-card">
-          <div className="central-login-mark"><ShieldCheck size={28} /></div>
-          <p className="eyebrow">ACESSO CENTRALIZADO</p>
-          <h1>Entrar no DropZone</h1>
-          <p>{description}</p>
-
+        <div className="central-login-card central-login-card-light">
           {checking ? (
-            <div className="central-login-loading" role="status" aria-live="polite">
-              <div className="dropzone-login-loader" aria-hidden="true">
-                <span className="dropzone-login-loader-mark"><img src="/dropzone-icon.png" alt="" /></span>
+            <div className="dropzone-auth-validation" role="status" aria-live="polite">
+              <div className="dropzone-auth-validation-logo">
+                <img src="/dropzone-icon.png" alt="" />
               </div>
               <strong>Validando seu acesso</strong>
-              <span>Estamos preparando seu perfil...</span>
+              <span>Aguarde um instante...</span>
             </div>
           ) : (
-            <SocialLogin profileType={params.profileType} returnTo={params.returnTo} />
+            <>
+              <div className="auth-site-mark central-login-brand">
+                <img src="/dropzone-icon.png" alt="DropZone" />
+                <div><span>DropZone</span><strong>ACESSO</strong></div>
+              </div>
+              <h1>Entrar no DropZone</h1>
+              <p>{description}</p>
+              <SocialLogin profileType={params.profileType} returnTo={params.returnTo} />
+              {error ? <div className="message error">{error}</div> : null}
+            </>
           )}
-
-          {error ? <div className="message error">{error}</div> : null}
-          <small className="central-login-note">Google, Facebook ou Discord confirmam sua identidade. Os dados específicos do perfil DropZone são preenchidos separadamente.</small>
         </div>
       </section>
     </main>

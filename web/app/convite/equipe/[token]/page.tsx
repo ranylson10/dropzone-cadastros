@@ -188,9 +188,8 @@ export default function ConviteEquipePage() {
               </div>
             )
           ) : (
-            <div className="invite-auth-actions invite-social-auth">
-              <strong>Entre com sua conta para continuar</strong>
-              <SocialLogin profileType="equipe" returnTo={`/convite/equipe/${encodeURIComponent(token)}`} compact />
+            <div className="invite-auth-actions">
+              <SocialLogin profileType="equipe" returnTo={`/convite/equipe/${encodeURIComponent(token)}`} />
             </div>
           )
         ) : (

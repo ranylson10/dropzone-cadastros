@@ -9,7 +9,6 @@ import { safeInternalPath, type SocialProvider } from './auth-return'
 type Props = {
   profileType?: ProfileType | null
   returnTo?: string
-  compact?: boolean
 }
 
 const labels: Record<SocialProvider, string> = {
@@ -18,7 +17,7 @@ const labels: Record<SocialProvider, string> = {
   discord: 'Continuar com Discord',
 }
 
-export function SocialLogin({ profileType = null, returnTo = '/', compact = false }: Props) {
+export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
   const [loadingProvider, setLoadingProvider] = useState<SocialProvider | null>(null)
   const [error, setError] = useState('')
 
@@ -54,7 +53,7 @@ export function SocialLogin({ profileType = null, returnTo = '/', compact = fals
   }
 
   return (
-    <div className={`social-login-stack${compact ? ' social-login-compact' : ''}`}>
+    <div className="social-login-stack">
       {(Object.keys(labels) as SocialProvider[]).map((provider) => (
         <button
           key={provider}
@@ -63,10 +62,7 @@ export function SocialLogin({ profileType = null, returnTo = '/', compact = fals
           disabled={Boolean(loadingProvider)}
           onClick={() => startOAuth(provider)}
         >
-          <span className="social-login-provider-mark" aria-hidden="true">
-            {provider === 'google' ? 'G' : provider === 'facebook' ? 'f' : 'D'}
-          </span>
-          <span>{loadingProvider === provider ? `Abrindo ${labels[provider].replace('Continuar com ', '')}...` : labels[provider]}</span>
+          {loadingProvider === provider ? `Abrindo ${labels[provider].replace('Continuar com ', '')}...` : labels[provider]}
         </button>
       ))}
       {error ? <div className="message error">{error}</div> : null}

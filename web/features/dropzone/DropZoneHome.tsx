@@ -13,7 +13,8 @@ import { ProdutoraPanel } from './panels/produtora/ProdutoraPanel'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppHeader } from '@/components/layout/AppHeader'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
-import { buildLoginHref, safeInternalPath } from '@/features/auth/auth-return'
+import { safeInternalPath } from '@/features/auth/auth-return'
+import { SocialLogin } from '@/features/auth/SocialLogin'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
@@ -222,108 +223,85 @@ export function DropZoneHome() {
   }
 
   useEffect(() => {
-    let cancelled = false
-
     async function initialize() {
-      try {
-        const params = new URLSearchParams(window.location.search)
-        const convite = String(params.get('convite') || '').trim()
-        const escala = String(params.get('escala') || '').trim()
-        const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
-        const requestedLogin = String(params.get('login') || '').trim()
-        const requestedRegister = String(params.get('cadastro') || '').trim()
-        const forcedProfileType: ProfileType | null =
-          requestedLogin === 'equipe' || requestedRegister === 'equipe'
-            ? 'equipe'
-            : requestedLogin === 'jogador' || requestedRegister === 'jogador'
-              ? 'jogador'
-              : requestedLogin === 'produtora' || requestedRegister === 'produtora'
-                ? 'produtora'
-                : requestedLogin === 'manager' || requestedRegister === 'manager'
-                  ? 'manager'
-                  : null
-        const forcedType = Boolean(forcedProfileType)
-        const wantsSwitchAccount = params.get('trocar_conta') === '1'
-        const wantsNewAccount = params.get('nova_conta') === '1'
+      const params = new URLSearchParams(window.location.search)
+      const convite = String(params.get('convite') || '').trim()
+      const escala = String(params.get('escala') || '').trim()
+      const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
+      const requestedLogin = String(params.get('login') || '').trim()
+      const requestedRegister = String(params.get('cadastro') || '').trim()
+      const forcedProfileType: ProfileType | null =
+        requestedLogin === 'equipe' || requestedRegister === 'equipe'
+          ? 'equipe'
+          : requestedLogin === 'jogador' || requestedRegister === 'jogador'
+            ? 'jogador'
+            : null
+      const forcedType = Boolean(forcedProfileType)
+      const wantsCreate = Boolean(forcedProfileType && requestedRegister === forcedProfileType)
+      const wantsLinked = params.get('vincular') === '1'
+      const wantsNewAccount = params.get('nova_conta') === '1'
+      const wantsSwitchAccount = params.get('trocar_conta') === '1'
 
-        const saved = localStorage.getItem('dropzone_recent_profiles')
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved)
-            if (Array.isArray(parsed) && !cancelled) setRecentProfiles(parsed)
-          } catch {
-            localStorage.removeItem('dropzone_recent_profiles')
-          }
-        }
+      const saved = localStorage.getItem('dropzone_recent_profiles')
+      if (saved) setRecentProfiles(JSON.parse(saved))
 
-        const resolvedReturnTo = requestedReturnTo || (convite
-          ? `/convite/equipe/${encodeURIComponent(convite)}`
-          : escala
-            ? `/escala/${encodeURIComponent(escala)}`
-            : '')
+      const resolvedReturnTo = requestedReturnTo || (convite
+        ? `/convite/equipe/${encodeURIComponent(convite)}`
+        : escala
+          ? `/escala/${encodeURIComponent(escala)}`
+          : '')
+      if (resolvedReturnTo) setInviteReturnTo(resolvedReturnTo)
 
-        if (resolvedReturnTo && !cancelled) setInviteReturnTo(resolvedReturnTo)
+      if (forcedType && forcedProfileType) {
+        setProfileType(forcedProfileType)
+        setActiveAuthType(forcedProfileType)
+        clearRegisterForm(forcedProfileType)
 
-        if (forcedType && forcedProfileType && !cancelled) {
-          setProfileType(forcedProfileType)
-          setActiveAuthType(forcedProfileType)
-          clearRegisterForm(forcedProfileType)
-        }
-
-        // A interface não deve depender de chamadas remotas para ser exibida.
-        // A sessão e os perfis são carregados depois, sem manter a tela bloqueada.
-        if (!cancelled) setQueryReady(true)
-
-        if (forcedType && forcedProfileType && (wantsSwitchAccount || wantsNewAccount)) {
+        if (wantsSwitchAccount || wantsNewAccount) {
           await supabase.auth.signOut()
-          if (cancelled) return
           setAccount(null)
           setAccounts([])
           setRows([])
           setLinkingProfile(false)
           setMode('entrar')
+          setQueryReady(true)
           return
         }
 
-        const { data, error: sessionError } = await supabase.auth.getSession()
-        if (cancelled) return
-        if (sessionError) throw sessionError
-
-        if (!data.session) {
-          if (forcedType) {
-            setLinkingProfile(false)
-            setMode('entrar')
+        const { data } = await supabase.auth.getSession()
+        if (data.session) {
+          try {
+            await loadMeAndRows(data.session.access_token, forcedProfileType)
+            if (resolvedReturnTo) {
+              window.location.assign(resolvedReturnTo)
+              return
+            }
+          } catch {
+            prepareGoogleProfile(data.session.user, forcedProfileType)
           }
+          setQueryReady(true)
           return
         }
 
+        setLinkingProfile(false)
+        setMode('entrar')
+        setQueryReady(true)
+        return
+      }
+
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
         try {
-          await loadMeAndRows(data.session.access_token, forcedProfileType || undefined)
-          if (cancelled) return
-          if (forcedType && resolvedReturnTo) {
-            window.location.assign(resolvedReturnTo)
-          }
+          await loadMeAndRows(data.session.access_token)
         } catch {
-          if (cancelled) return
-          const storedType = forcedProfileType
-            || (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null)
-            || 'produtora'
+          const storedType = (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null) || 'produtora'
           prepareGoogleProfile(data.session.user, storedType)
         }
-      } catch (cause: any) {
-        if (!cancelled) {
-          setError(cause?.message || 'Não foi possível carregar sua sessão.')
-        }
-      } finally {
-        if (!cancelled) setQueryReady(true)
       }
+      setQueryReady(true)
     }
 
     void initialize()
-
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   async function getToken() {
@@ -514,7 +492,7 @@ export function DropZoneHome() {
     setMessage('')
 
     try {
-      const clean = cleanUsername(username || loginSuggestion(name))
+      const clean = cleanUsername(username)
 
       if (mode === 'recuperar') {
         const res = await fetch('/api/auth/verification/confirm-reset', {
@@ -1105,7 +1083,7 @@ export function DropZoneHome() {
                       <strong>Entre com sua conta</strong>
                       <p>Google, Facebook ou Discord confirmam sua identidade. Depois, caso ainda não exista um perfil DropZone, você preencherá os dados de {typeLabels[profileType].toLowerCase()}.</p>
                     </div>
-                    <a className="button google-auth-button" href={buildLoginHref(profileType, inviteReturnTo || '/')}>Entrar para continuar</a>
+                    <SocialLogin profileType={profileType} returnTo={inviteReturnTo || '/'} />
                   </div>
                 ) : (
                   <form onSubmit={handleAuth} className="auth-inline-form compact-auth-form">
@@ -1169,7 +1147,7 @@ export function DropZoneHome() {
                     </div>
 
                     <div className="auth-actions-row">
-                      <button className="button" disabled={loading || !name.trim()}>
+                      <button className="button" disabled={loading || !name.trim() || !username.trim()}>
                         {loading ? 'Criando perfil...' : `Criar perfil de ${typeLabels[profileType].toLowerCase()}`}
                       </button>
                       <button type="button" className="button secondary" onClick={signOut}>Usar outra conta</button>
