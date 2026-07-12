@@ -1,5 +1,21 @@
 import { supabaseAdmin } from '../../shared/supabase-admin'
 
+export type QuedaMapaInput = {
+  numero: number
+  mapa_codigo: string
+}
+
+export type MapaCatalogo = {
+  id: string
+  codigo: string
+  nome: string
+  imagem_url: string | null
+  ativo: boolean
+  ordem: number
+  permite_sorteio: boolean
+  mapa_misterioso: boolean
+}
+
 export type JogoInput = {
   fase_id: string
   rodada_id?: string | null
@@ -9,6 +25,7 @@ export type JogoInput = {
   horario?: string | null
   numero_partidas: number
   mapas: string[]
+  quedas?: QuedaMapaInput[]
   grupos_ids: string[]
   intervalo_quedas_minutos?: number
   tipo_pontuacao?: 'normal' | 'sem_pontuacao'
@@ -63,6 +80,78 @@ function numeric(value: unknown, field: string, options?: { min?: number; nullab
   return parsed
 }
 
+function normalizeCodigoMapa(value: unknown) {
+  return String(value ?? '').trim().toLowerCase()
+}
+
+function normalizeMapaLookup(value: unknown) {
+  return normalizeCodigoMapa(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s-]+/g, '_')
+}
+
+async function resolverCodigosMapasAtivos(valores: string[]) {
+  const { data, error } = await supabaseAdmin
+    .from('dropzone_mapas')
+    .select('id, codigo, nome, imagem_url, ativo, ordem, permite_sorteio, mapa_misterioso')
+    .eq('ativo', true)
+    .order('ordem')
+  if (error) throw error
+
+  const catalogo = (data || []) as MapaCatalogo[]
+  const porAlias = new Map<string, MapaCatalogo>()
+  for (const mapa of catalogo) {
+    porAlias.set(normalizeMapaLookup(mapa.codigo), mapa)
+    porAlias.set(normalizeMapaLookup(mapa.nome), mapa)
+  }
+
+  return valores.map((valor, index) => {
+    const mapa = porAlias.get(normalizeMapaLookup(valor))
+    if (!mapa) throw new Error(`O mapa informado na Queda ${index + 1} não existe ou está desativado.`)
+    return mapa.codigo
+  })
+}
+
+async function normalizeQuedasMapas(
+  numeroPartidas: number,
+  inputQuedas: unknown,
+  inputMapas: unknown,
+  existingMapas?: unknown,
+) {
+  let codigos: string[] = []
+
+  if (Array.isArray(inputQuedas)) {
+    const seen = new Set<number>()
+    const porNumero = new Map<number, string>()
+    for (const item of inputQuedas) {
+      const numero = positiveInt((item as any)?.numero, 'Número da queda') as number
+      if (numero > numeroPartidas) throw new Error(`A Queda ${numero} ultrapassa o total de ${numeroPartidas} quedas.`)
+      if (seen.has(numero)) throw new Error(`A Queda ${numero} foi informada mais de uma vez.`)
+      seen.add(numero)
+      porNumero.set(numero, normalizeCodigoMapa((item as any)?.mapa_codigo))
+    }
+    if (porNumero.size !== numeroPartidas) {
+      throw new Error(`Informe exatamente um mapa para cada uma das ${numeroPartidas} quedas.`)
+    }
+    codigos = Array.from({ length: numeroPartidas }, (_, index) => porNumero.get(index + 1) || '')
+  } else {
+    const origem = Array.isArray(inputMapas)
+      ? inputMapas
+      : Array.isArray(existingMapas)
+        ? existingMapas
+        : []
+    codigos = origem.map(normalizeCodigoMapa).slice(0, numeroPartidas)
+    while (codigos.length < numeroPartidas) codigos.push('')
+  }
+
+  if (codigos.some((codigo) => !codigo)) {
+    throw new Error('Selecione um mapa para cada queda.')
+  }
+
+  return resolverCodigosMapasAtivos(codigos)
+}
+
 async function assertCampeonatoFase(campeonatoId: string, faseId: string) {
   const { data, error } = await supabaseAdmin
     .from('campeonato_fases')
@@ -106,12 +195,14 @@ async function assertGruposDaFase(campeonatoId: string, faseId: string, grupoIds
   return data || []
 }
 
-function sanitizeJogoInput(input: Partial<JogoInput>, existing?: any): JogoInput {
+async function sanitizeJogoInput(input: Partial<JogoInput>, existing?: any): Promise<JogoInput> {
   const numeroPartidas = positiveInt(input.numero_partidas ?? existing?.numero_partidas, 'Número de quedas') as number
-  const mapas = Array.isArray(input.mapas ?? existing?.mapas)
-    ? (input.mapas ?? existing?.mapas).map((item: unknown) => String(item ?? '').trim()).slice(0, numeroPartidas)
-    : []
-  while (mapas.length < numeroPartidas) mapas.push('')
+  const mapas = await normalizeQuedasMapas(
+    numeroPartidas,
+    input.quedas,
+    input.mapas,
+    existing?.mapas,
+  )
 
   const grupos: string[] = Array.isArray(input.grupos_ids ?? existing?.grupos_ids)
     ? [...new Set<string>((input.grupos_ids ?? existing?.grupos_ids).map((id: unknown) => String(id || '').trim()).filter(Boolean))]
@@ -160,7 +251,7 @@ async function hydrateJogo(campeonatoId: string, jogoId: string) {
       .eq('jogo_id', jogoId)
       .order('created_at'),
     supabaseAdmin
-      .from('campeonato_partidas')
+      .from('campeonato_partidas_com_mapa')
       .select('*')
       .eq('jogo_id', jogoId)
       .order('numero_partida'),
@@ -193,7 +284,7 @@ export async function listarJogos(campeonatoId: string, filters?: { faseId?: str
       .select('jogo_id, grupo_id, campeonato_grupos(id, nome, fase_id, slots)')
       .in('jogo_id', ids),
     supabaseAdmin
-      .from('campeonato_partidas')
+      .from('campeonato_partidas_com_mapa')
       .select('*')
       .in('jogo_id', ids)
       .order('numero_partida'),
@@ -226,7 +317,7 @@ export async function obterJogo(campeonatoId: string, jogoId: string) {
 }
 
 export async function criarJogo(campeonatoId: string, input: Partial<JogoInput>) {
-  const payload = sanitizeJogoInput(input)
+  const payload = await sanitizeJogoInput(input)
   await assertCampeonatoFase(campeonatoId, payload.fase_id)
   await assertRodadaContexto(campeonatoId, payload.fase_id, payload.rodada_id)
   await assertGruposDaFase(campeonatoId, payload.fase_id, payload.grupos_ids)
@@ -266,7 +357,7 @@ export async function atualizarJogo(campeonatoId: string, jogoId: string, input:
     .eq('jogo_id', jogoId)
   if (relError) throw relError
 
-  const payload = sanitizeJogoInput(input, {
+  const payload = await sanitizeJogoInput(input, {
     ...atual,
     grupos_ids: (relacoes || []).map((item) => item.grupo_id),
   })
@@ -282,7 +373,7 @@ export async function atualizarJogo(campeonatoId: string, jogoId: string, input:
     .eq('campeonato_id', campeonatoId)
   if (error) throw error
 
-  const atuais = new Set((relacoes || []).map((item) => item.grupo_id))
+  const atuais = new Set<string>((relacoes || []).map((item: any) => String(item.grupo_id)))
   const desejados = new Set(grupos_ids)
   const adicionar = grupos_ids.filter((id) => !atuais.has(id))
   const remover = [...atuais].filter((id) => !desejados.has(id))
@@ -330,6 +421,74 @@ export async function excluirJogo(campeonatoId: string, jogoId: string, force = 
     .eq('id', jogoId)
     .eq('campeonato_id', campeonatoId)
   if (deleteError) throw deleteError
+}
+
+export async function listarMapasCatalogo(options?: { incluirInativos?: boolean }) {
+  let query = supabaseAdmin
+    .from('dropzone_mapas')
+    .select('id, codigo, nome, imagem_url, ativo, ordem, permite_sorteio, mapa_misterioso')
+    .order('ordem')
+  if (!options?.incluirInativos) query = query.eq('ativo', true)
+  const { data, error } = await query
+  if (error) throw error
+  return (data || []) as MapaCatalogo[]
+}
+
+export async function listarQuedasJogo(campeonatoId: string, jogoId: string) {
+  const { data: jogo, error: jogoError } = await supabaseAdmin
+    .from('campeonato_jogos')
+    .select('id')
+    .eq('id', jogoId)
+    .eq('campeonato_id', campeonatoId)
+    .maybeSingle()
+  if (jogoError) throw jogoError
+  if (!jogo) throw new Error('Jogo não encontrado.')
+
+  const { data: quedas, error } = await supabaseAdmin
+    .from('campeonato_partidas_com_mapa')
+    .select('*')
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+    .order('numero_partida')
+  if (error) throw error
+  return quedas || []
+}
+
+export async function atualizarMapaQueda(
+  campeonatoId: string,
+  jogoId: string,
+  quedaId: string,
+  mapaCodigo: unknown,
+) {
+  const informado = normalizeCodigoMapa(mapaCodigo)
+  if (!informado) throw new Error('Mapa é obrigatório.')
+  const [codigo] = await resolverCodigosMapasAtivos([informado])
+
+  const { data: queda, error: readError } = await supabaseAdmin
+    .from('campeonato_partidas')
+    .select('id, campeonato_id, jogo_id, numero_partida, status, finalizada_em, mapa_codigo')
+    .eq('id', quedaId)
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+    .maybeSingle()
+  if (readError) throw readError
+  if (!queda) throw new Error('Queda não encontrada neste jogo.')
+  if (queda.finalizada_em || queda.status === 'finalizada') {
+    throw new Error('Não é possível alterar o mapa de uma queda finalizada.')
+  }
+
+  const { error } = await supabaseAdmin
+    .from('campeonato_partidas')
+    .update({ mapa_codigo: codigo })
+    .eq('id', quedaId)
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+  if (error) throw error
+
+  const quedas = await listarQuedasJogo(campeonatoId, jogoId)
+  const atualizada = quedas.find((item: any) => item.id === quedaId)
+  if (!atualizada) throw new Error('Não foi possível recarregar a queda atualizada.')
+  return atualizada
 }
 
 export async function listarRodadas(campeonatoId: string, faseId?: string | null) {
