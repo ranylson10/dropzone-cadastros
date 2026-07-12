@@ -132,10 +132,13 @@ export async function carregarSumula(campeonatoId: string, partidaId?: string | 
 
 type ManualBody = {
   partida_id: string
+  origem?: 'manual' | 'matchresult'
   equipes: Array<{
     campeonato_equipe_id: string
     posicao: number
     abates: number
+    raw_team_name?: string | null
+    importacao_equipe_id?: string | null
     jogadores?: Array<{ campeonato_jogador_id: string; abates: number; dano?: number; assistencias?: number; revives?: number }>
   }>
 }
@@ -182,7 +185,8 @@ export async function salvarPontuacaoManual(campeonatoId: string, userId: string
       posicao: item.posicao,
       abates: item.abates,
       booyah: item.posicao === 1,
-      origem: 'manual',
+      origem: body.origem || 'manual',
+      raw_team_name: item.raw_team_name || null,
       criado_por: userId,
       updated_at: new Date().toISOString(),
     })
@@ -214,7 +218,7 @@ export async function salvarPontuacaoManual(campeonatoId: string, userId: string
         dano: Number(player.dano || 0),
         assistencias: Number(player.assistencias || 0),
         revives: Number(player.revives || 0),
-        origem: 'manual',
+        origem: body.origem || 'manual',
         criado_por: userId,
         updated_at: new Date().toISOString(),
       })
@@ -223,6 +227,27 @@ export async function salvarPontuacaoManual(campeonatoId: string, userId: string
 
   const { error: teamError } = await supabaseAdmin.from('campeonato_resultados_equipes').upsert(teamRows, { onConflict: 'partida_id,campeonato_equipe_id' })
   if (teamError) throw teamError
+
+  const presenceRows = teamRows.map(row => ({
+    campeonato_id: row.campeonato_id,
+    fase_id: row.fase_id,
+    jogo_id: row.jogo_id,
+    partida_id: row.partida_id,
+    grupo_id: row.grupo_id,
+    campeonato_equipe_id: row.campeonato_equipe_id,
+    slot_numero: row.slot_numero,
+    status: 'presente',
+    origem: row.origem === 'matchresult' ? 'matchresult' : 'manual',
+    matchresult_nome_raw: row.raw_team_name || null,
+    importacao_equipe_id: body.equipes.find(item => item.campeonato_equipe_id === row.campeonato_equipe_id)?.importacao_equipe_id || null,
+    confirmado_por: userId,
+    confirmado_em: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }))
+  const { error: presenceError } = await supabaseAdmin
+    .from('campeonato_partidas_equipes_presenca')
+    .upsert(presenceRows, { onConflict: 'partida_id,campeonato_equipe_id' })
+  if (presenceError) throw presenceError
   if (playerRows.length) {
     const { error: playerError } = await supabaseAdmin.from('campeonato_resultados_jogadores').upsert(playerRows, { onConflict: 'partida_id,campeonato_jogador_id' })
     if (playerError) throw playerError

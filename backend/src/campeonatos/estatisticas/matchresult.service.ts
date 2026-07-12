@@ -51,23 +51,35 @@ export async function previewMatchResult(campeonatoId: string, partidaId: string
   if (!partida) throw new Error('Queda não encontrada.')
   if (partida.status === 'finalizada') throw new Error('A queda já foi finalizada.')
 
-  const [{ data: links }, { data: officialPlayers }, { data: tempPlayers }] = await Promise.all([
-    supabaseAdmin.from('matchresult_vinculos_equipes').select('nome_normalizado,campeonato_equipe_id').eq('campeonato_id', campeonatoId).eq('jogo_id', partida.jogo_id),
+  const [{ data: links }, { data: officialPlayers }, { data: tempPlayers }, { data: slots }] = await Promise.all([
+    supabaseAdmin.from('matchresult_vinculos_equipes').select('nome_raw,nome_normalizado,campeonato_equipe_id').eq('campeonato_id', campeonatoId).eq('jogo_id', partida.jogo_id),
     supabaseAdmin.from('jogadores').select('id,id_jogo,nome,avatar_url').not('id_jogo', 'is', null),
     supabaseAdmin.from('jogadores_temporarios').select('id,id_jogo,nick,foto_url,status').eq('produtora_id', campeonato.produtora_id),
+    supabaseAdmin.from('campeonato_pontuador_slots_jogo').select('campeonato_equipe_id,equipe_nome,equipe_tag,equipe_logo_url,grupo_id,grupo_nome,slot_numero,slot_vazio').eq('campeonato_id', campeonatoId).eq('jogo_id', partida.jogo_id).eq('slot_vazio', false),
   ])
   const linkMap = new Map((links || []).map((row: any) => [row.nome_normalizado, row.campeonato_equipe_id]))
   const officialMap = new Map((officialPlayers || []).map((row: any) => [normalizeName(row.id_jogo), row]))
   const tempMap = new Map((tempPlayers || []).map((row: any) => [normalizeName(row.id_jogo), row]))
+  const availableTeams = (slots || []).filter((row: any) => row.campeonato_equipe_id)
+  const exactNameMap = new Map<string, string[]>()
+  for (const team of availableTeams) {
+    const normalized = normalizeName(team.equipe_nome || '')
+    if (!normalized) continue
+    const values = exactNameMap.get(normalized) || []
+    values.push(team.campeonato_equipe_id)
+    exactNameMap.set(normalized, values)
+  }
 
-  return {
-    partida_id: partidaId,
-    jogo_id: partida.jogo_id,
-    equipes: parsed.map(team => ({
+  const mappedTeams = parsed.map(team => {
+    const normalized = normalizeName(team.nome)
+    const persisted = linkMap.get(normalized) || null
+    const exactCandidates = exactNameMap.get(normalized) || []
+    const automatic = persisted || (exactCandidates.length === 1 ? exactCandidates[0] : null)
+    return {
       ...team,
-      nome_normalizado: normalizeName(team.nome),
-      campeonato_equipe_id: linkMap.get(normalizeName(team.nome)) || null,
-      status_vinculo: linkMap.has(normalizeName(team.nome)) ? 'automatico' : 'pendente',
+      nome_normalizado: normalized,
+      campeonato_equipe_id: automatic,
+      status_vinculo: persisted ? 'automatico_historico' : automatic ? 'automatico_nome' : exactCandidates.length > 1 ? 'conflito' : 'pendente',
       jogadores: team.jogadores.map(player => {
         const official = officialMap.get(normalizeName(player.id_jogo))
         const temporary = tempMap.get(normalizeName(player.id_jogo))
@@ -79,7 +91,20 @@ export async function previewMatchResult(campeonatoId: string, partidaId: string
           status_vinculo: official ? 'oficial' : temporary ? 'temporario' : 'pendente',
         }
       }),
-    })),
+    }
+  })
+
+  const linkedIds = new Set(mappedTeams.map(team => team.campeonato_equipe_id).filter(Boolean))
+  const equipesAusentes = availableTeams
+    .filter((team: any) => !linkedIds.has(team.campeonato_equipe_id))
+    .map((team: any) => ({ ...team, status_vinculo: 'vinculo_perdido', opcoes: ['selecionar_novo_nome', 'falta'] }))
+
+  return {
+    partida_id: partidaId,
+    jogo_id: partida.jogo_id,
+    equipes: mappedTeams,
+    equipes_disponiveis: availableTeams,
+    equipes_ausentes: equipesAusentes,
   }
 }
 
@@ -93,6 +118,13 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
     const suppliedTeam = (body.equipes || []).find((x: any) => normalizeName(x.nome) === team.nome_normalizado)
     team.campeonato_equipe_id = suppliedTeam?.campeonato_equipe_id || team.campeonato_equipe_id
     if (!team.campeonato_equipe_id) throw new Error(`Vincule a equipe "${team.nome}" antes de confirmar.`)
+  }
+
+  const duplicatedTeam = preview.equipes.find((team: any, index: number, all: any[]) =>
+    all.findIndex(other => other.campeonato_equipe_id === team.campeonato_equipe_id) !== index,
+  )
+  if (duplicatedTeam) {
+    throw new Error('Duas equipes do MatchResult foram vinculadas à mesma equipe do campeonato. Revise os vínculos.')
   }
 
   const { data: importacao, error: importError } = await supabaseAdmin.from('matchresult_importacoes').insert({
@@ -110,7 +142,7 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
   }).select('id').single()
   if (importError) throw importError
 
-  const manualPayload: any = { partida_id: partida.id, equipes: [] }
+  const manualPayload: any = { partida_id: partida.id, origem: 'matchresult', equipes: [] }
   for (const team of preview.equipes) {
     const { data: ce, error: ceError } = await supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,grupo_id').eq('id', team.campeonato_equipe_id).eq('campeonato_id', campeonatoId).single()
     if (ceError) throw ceError
@@ -129,7 +161,15 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
     }).select('id').single()
     if (importTeamError) throw importTeamError
 
-    const manualTeam: any = { campeonato_equipe_id: ce.id, posicao: team.posicao, abates: team.abates, jogadores: [] }
+    const { error: linkError } = await supabaseAdmin.rpc('fn_registrar_vinculo_matchresult_equipe', {
+      p_jogo_id: partida.jogo_id,
+      p_nome_raw: team.nome,
+      p_campeonato_equipe_id: ce.id,
+      p_criado_por: userId,
+    })
+    if (linkError) throw linkError
+
+    const manualTeam: any = { campeonato_equipe_id: ce.id, posicao: team.posicao, abates: team.abates, raw_team_name: team.nome, importacao_equipe_id: importTeam.id, jogadores: [] }
     for (const player of team.jogadores) {
       let jogadorId = player.jogador_id
       let tempId = player.jogador_temporario_id
