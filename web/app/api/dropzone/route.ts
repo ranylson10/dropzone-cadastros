@@ -137,6 +137,20 @@ function nullableDate(value: unknown) {
   return date.toISOString()
 }
 
+function normalizeWhatsappContacts(value: unknown) {
+  if (!Array.isArray(value)) return []
+  if (value.length > 10) throw new Error('Cadastre no maximo 10 contatos de WhatsApp.')
+  return value.map((item: any, index: number) => {
+    const nome = String(item?.nome || '').trim().slice(0, 80)
+    const pais = String(item?.pais || '').trim().slice(0, 60)
+    const bandeira = String(item?.bandeira || '').trim().slice(0, 8)
+    const ddiDigits = String(item?.ddi || '').replace(/\D/g, '').slice(0, 4)
+    const phoneDigits = String(item?.telefone || '').replace(/\D/g, '').slice(0, 15)
+    if (!nome || !pais || !ddiDigits || phoneDigits.length < 8) throw new Error(`Preencha corretamente o contato ${index + 1} do WhatsApp.`)
+    return { id: String(item?.id || crypto.randomUUID()).slice(0, 80), nome, pais, bandeira, ddi: `+${ddiDigits}`, telefone: phoneDigits }
+  })
+}
+
 function championshipConfigurationPayload(data: Record<string, any>, campeonatoId: string) {
   const permiteTroca = Boolean(data.permite_troca_jogadores)
   return {
@@ -157,6 +171,7 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     data_limite_trocas: permiteTroca ? nullableDate(data.data_limite_trocas) : null,
     data_limite_inscricao: nullableDate(data.data_limite_inscricao),
     aceita_novas_inscricoes_equipes: data.aceita_novas_inscricoes_equipes !== false,
+    contatos_whatsapp: normalizeWhatsappContacts(data.contatos_whatsapp),
   }
 }
 

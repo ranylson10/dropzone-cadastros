@@ -139,6 +139,7 @@ export function ProdutoraPanel(props: {
       data_limite_trocas: toInputDate(champ.data?.data_limite_trocas),
       data_limite_inscricao: toInputDate(champ.data?.data_limite_inscricao),
       aceita_novas_inscricoes_equipes: champ.data?.aceita_novas_inscricoes_equipes !== false,
+      contatos_whatsapp: Array.isArray(champ.data?.contatos_whatsapp) ? champ.data.contatos_whatsapp : [],
     }
   }
 

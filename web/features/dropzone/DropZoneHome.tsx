@@ -44,6 +44,7 @@ const emptyChampionship = {
   data_limite_trocas: '',
   data_limite_inscricao: '',
   aceita_novas_inscricoes_equipes: true,
+  contatos_whatsapp: [],
 }
 
 const typeLabels: Record<ProfileType, string> = {

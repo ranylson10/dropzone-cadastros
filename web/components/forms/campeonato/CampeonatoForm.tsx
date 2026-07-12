@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, Dumbbell, Medal, Swords, Trophy } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Dumbbell, Medal, Plus, Swords, Trash2, Trophy } from 'lucide-react'
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
 import { Field, UploadField } from '@/features/dropzone/components/form-fields'
 
@@ -28,7 +28,25 @@ export type CampeonatoFormValue = {
   data_limite_trocas: string
   data_limite_inscricao: string
   aceita_novas_inscricoes_equipes: boolean
+  contatos_whatsapp: CampeonatoWhatsappContact[]
 }
+
+export type CampeonatoWhatsappContact = {
+  id: string
+  nome: string
+  pais: string
+  bandeira: string
+  ddi: string
+  telefone: string
+}
+
+const WHATSAPP_COUNTRIES = [
+  { pais: 'Brasil', bandeira: '🇧🇷', ddi: '+55' },
+  { pais: 'Portugal', bandeira: '🇵🇹', ddi: '+351' },
+  { pais: 'Estados Unidos', bandeira: '🇺🇸', ddi: '+1' },
+  { pais: 'Argentina', bandeira: '🇦🇷', ddi: '+54' },
+  { pais: 'Paraguai', bandeira: '🇵🇾', ddi: '+595' },
+] as const
 
 export const emptyCampeonatoForm: CampeonatoFormValue = {
   nome: '',
@@ -53,6 +71,7 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   data_limite_trocas: '',
   data_limite_inscricao: '',
   aceita_novas_inscricoes_equipes: true,
+  contatos_whatsapp: [],
 }
 
 const TYPE_OPTIONS: Array<{
@@ -170,6 +189,21 @@ export function CampeonatoForm({
       descricao_premiacao: nextType === 'brinde' ? value.descricao_premiacao : '',
       divisao_premiacao: nextType === 'pix' || nextType === 'dinheiro' ? value.divisao_premiacao : '',
     })
+  }
+
+  function addWhatsappContact() {
+    update('contatos_whatsapp', [
+      ...value.contatos_whatsapp,
+      { id: crypto.randomUUID(), nome: '', pais: 'Brasil', bandeira: '🇧🇷', ddi: '+55', telefone: '' },
+    ])
+  }
+
+  function updateWhatsappContact(id: string, patch: Partial<CampeonatoWhatsappContact>) {
+    update('contatos_whatsapp', value.contatos_whatsapp.map((contact) => contact.id === id ? { ...contact, ...patch } : contact))
+  }
+
+  function removeWhatsappContact(id: string) {
+    update('contatos_whatsapp', value.contatos_whatsapp.filter((contact) => contact.id !== id))
   }
 
   if (step === 'type') {
@@ -337,6 +371,34 @@ export function CampeonatoForm({
         {value.permite_troca_jogadores ? (
           <Field label="Data limite para troca de jogadores"><input type="datetime-local" value={value.data_limite_trocas} onChange={(e) => update('data_limite_trocas', e.target.value)} /></Field>
         ) : null}
+      </section>
+
+      <section className="form-section-card whatsapp-contacts-section">
+        <div className="form-section-heading">
+          <div><p className="eyebrow">Venda de vagas</p><strong>Contatos do WhatsApp</strong></div>
+          <button className="button secondary" type="button" onClick={addWhatsappContact}><Plus size={15} /> Adicionar contato</button>
+        </div>
+        {value.contatos_whatsapp.length ? (
+          <div className="whatsapp-contact-list">
+            {value.contatos_whatsapp.map((contact) => (
+              <div className="whatsapp-contact-row" key={contact.id}>
+                <Field label="Nome do vendedor"><input value={contact.nome} onChange={(event) => updateWhatsappContact(contact.id, { nome: event.target.value })} placeholder="Ex.: Paulo" /></Field>
+                <Field label="País do contato">
+                  <select value={contact.ddi} onChange={(event) => {
+                    const country = WHATSAPP_COUNTRIES.find((item) => item.ddi === event.target.value) || WHATSAPP_COUNTRIES[0]
+                    updateWhatsappContact(contact.id, country)
+                  }}>
+                    {WHATSAPP_COUNTRIES.map((country) => <option value={country.ddi} key={country.ddi}>{country.bandeira} {country.pais} ({country.ddi})</option>)}
+                  </select>
+                </Field>
+                <Field label="Contato">
+                  <div className="phone-input-group"><span>{contact.bandeira} {contact.ddi}</span><input inputMode="tel" value={contact.telefone} onChange={(event) => updateWhatsappContact(contact.id, { telefone: event.target.value.replace(/[^0-9 ()-]/g, '') })} placeholder="(91) 99999-9999" /></div>
+                </Field>
+                <button className="inline-icon-button whatsapp-contact-remove" type="button" onClick={() => removeWhatsappContact(contact.id)} aria-label={`Remover contato de ${contact.nome || 'vendedor'}`}><Trash2 size={16} /></button>
+              </div>
+            ))}
+          </div>
+        ) : <p className="form-empty-note">Nenhum contato de venda cadastrado.</p>}
       </section>
 
       <div className="button-row">
