@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAccountsByUserId, getBearerUser } from '@backend/auth/server-auth'
+import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function carregar(token: string) {
@@ -23,7 +23,7 @@ async function carregar(token: string) {
 async function carregarEquipeDoLogin(req: NextRequest, campeonatoId: string) {
   try {
     const user = await getBearerUser(req)
-    const accounts = await getAccountsByUserId(user.id)
+    const accounts = await getAccountsForUser(user)
     const equipe = accounts.find((account) => account.profile_type === 'equipe') || null
     if (!equipe) return { autenticado: true, equipe: null, lines: [] }
 
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
   try {
     const { token } = await context.params
     const user = await getBearerUser(req)
-    const accounts = await getAccountsByUserId(user.id)
+    const accounts = await getAccountsForUser(user)
     const account = accounts.find((item) => item.profile_type === 'equipe')
     if (!account) throw new Error('Este login ainda não possui um perfil de equipe vinculado.')
 

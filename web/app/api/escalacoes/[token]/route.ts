@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser } from '@backend/auth/server-auth'
+import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function tokenFrom(ctx: any) {
@@ -24,13 +24,9 @@ async function loadLink(token: string) {
 async function optionalPlayer(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const { data, error } = await supabaseAdmin
-      .from('jogadores')
-      .select('id,auth_user_id,username,nome,avatar_url,id_jogo,funcao,localidade,status')
-      .eq('auth_user_id', user.id)
-      .maybeSingle()
-    if (error) throw error
-    return { autenticado: true, jogador: data || null }
+    const accounts = await getAccountsForUser(user)
+    const account = accounts.find((item) => item.profile_type === 'jogador')
+    return { autenticado: true, jogador: account?.data || null }
   } catch {
     return { autenticado: false, jogador: null }
   }
@@ -77,8 +73,9 @@ export async function POST(req: NextRequest, ctx: any) {
   try {
     const user = await getBearerUser(req)
     const link = await loadLink(await tokenFrom(ctx))
-    const { data: account, error: accountError } = await supabaseAdmin.from('jogadores').select('*').eq('auth_user_id', user.id).maybeSingle()
-    if (accountError) throw accountError
+    const accounts = await getAccountsForUser(user)
+    const profile = accounts.find((item) => item.profile_type === 'jogador')
+    const account = profile?.data || null
     if (!account) throw new Error('Seu login ainda não possui um perfil de jogador.')
 
     const { data: existing, error: existingError } = await supabaseAdmin

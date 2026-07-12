@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PublicDirectoryHeader } from '@/features/directory/components/PublicDirectoryHeader'
 import { supabase } from '@/lib/supabase-browser'
 import { SocialLogin } from '@/features/auth/SocialLogin'
-import { buildProfileCreationHref, parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
+import { parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
 
 const profileLabels = {
   produtora: 'produtora',
@@ -52,7 +52,7 @@ export default function LoginPage() {
         // A página de origem é responsável por verificar o perfil necessário.
         // Assim o callback não fica preso aguardando /api/me e o retorno é imediato.
         const destination = profileType
-          ? buildProfileCreationHref(profileType, returnTo)
+          ? `/?login=${profileType}${returnTo !== '/' ? `&returnTo=${encodeURIComponent(returnTo)}` : ''}`
           : returnTo
         window.location.replace(destination)
       } catch (cause: any) {

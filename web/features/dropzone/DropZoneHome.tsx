@@ -320,10 +320,13 @@ export function DropZoneHome() {
       const { data } = await supabase.auth.getSession()
       if (data.session) {
         try {
-          await loadMeAndRows(data.session.access_token)
+          await loadAccountsOnly(data.session.access_token)
+          setAccount(null)
+          setRows([])
         } catch {
-          const storedType = (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null) || 'produtora'
-          prepareGoogleProfile(data.session.user, storedType)
+          setAccount(null)
+          setAccounts([])
+          setRows([])
         }
       }
       setQueryReady(true)
@@ -339,6 +342,16 @@ export function DropZoneHome() {
 
   function saveRecentProfile(profile: any) {
     const next = [profile, ...recentProfiles.filter((item) => item.id !== profile.id)].slice(0, 4)
+    setRecentProfiles(next)
+    localStorage.setItem('dropzone_recent_profiles', JSON.stringify(next))
+  }
+
+  function saveRecentProfiles(profiles: DropZoneRow[]) {
+    const byType = new Map<ProfileType, DropZoneRow>()
+    for (const profile of profiles) {
+      if (profile.profile_type && !byType.has(profile.profile_type)) byType.set(profile.profile_type, profile)
+    }
+    const next = PROFILE_TYPES.map((type) => byType.get(type)).filter(Boolean) as DropZoneRow[]
     setRecentProfiles(next)
     localStorage.setItem('dropzone_recent_profiles', JSON.stringify(next))
   }
@@ -440,6 +453,7 @@ export function DropZoneHome() {
     if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
     const loadedAccounts = (meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[]
     setAccounts(loadedAccounts)
+    saveRecentProfiles(loadedAccounts)
     return loadedAccounts
   }
 
@@ -471,7 +485,7 @@ export function DropZoneHome() {
     setAccounts(loadedAccounts)
     setRows(rowsJson.rows || [])
     setAccount(selectedAccount)
-    saveRecentProfile(selectedAccount)
+    saveRecentProfiles(loadedAccounts)
     localStorage.setItem('dropzone_active_profile_type', String(selectedAccount.profile_type || ''))
   }
 

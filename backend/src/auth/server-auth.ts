@@ -61,6 +61,10 @@ export async function getAccountsByUserId(userId: string) {
   return accounts
 }
 
+export async function getAccountsForUser(user: { id: string }) {
+  return getAccountsByUser(user)
+}
+
 async function updateIfColumnExists(table: string, payload: Record<string, any>, column: string, value: string) {
   const { error } = await supabaseAdmin.from(table).update(payload).eq(column, value)
   if (error && !['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error.code || '')) throw error
@@ -68,6 +72,7 @@ async function updateIfColumnExists(table: string, payload: Record<string, any>,
 
 async function migrateOwnedRows(oldUserId: string, newUserId: string) {
   if (!oldUserId || oldUserId === newUserId) return
+
   const creatorTables = [
     'campeonatos',
     'campeonato_fases',
@@ -92,9 +97,9 @@ async function migrateOwnedRows(oldUserId: string, newUserId: string) {
   await updateIfColumnExists('jogadores_equipes', { jogador_auth_user_id: newUserId }, 'jogador_auth_user_id', oldUserId)
 }
 
-async function linkAccountsByVerifiedEmail(userId: string, email?: string | null) {
-  const cleanEmail = String(email || '').trim().toLowerCase()
-  if (!cleanEmail) return []
+async function linkAccountsByVerifiedEmail(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
+  const cleanEmail = String(user.email || '').trim().toLowerCase()
+  if (!cleanEmail || !user.email_confirmed_at) return []
 
   const linked: DropZoneRow[] = []
   const types = Object.keys(PROFILE_TABLES) as ProfileType[]
@@ -111,8 +116,8 @@ async function linkAccountsByVerifiedEmail(userId: string, email?: string | null
 
     for (const row of data || []) {
       const oldUserId = row.auth_user_id || row.dono_auth_user_id || ''
-      const payload: Record<string, any> = { auth_user_id: userId }
-      if (type === 'equipe') payload.dono_auth_user_id = userId
+      const payload: Record<string, any> = { auth_user_id: user.id }
+      if (type === 'equipe') payload.dono_auth_user_id = user.id
 
       const { data: updated, error: updateError } = await supabaseAdmin
         .from(table)
@@ -122,7 +127,7 @@ async function linkAccountsByVerifiedEmail(userId: string, email?: string | null
         .single()
 
       if (updateError) throw updateError
-      await migrateOwnedRows(oldUserId, userId)
+      await migrateOwnedRows(oldUserId, user.id)
       linked.push(mapProfile(updated, type))
     }
   }
@@ -130,11 +135,14 @@ async function linkAccountsByVerifiedEmail(userId: string, email?: string | null
   return linked
 }
 
-export async function getAccountsForUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
+export async function getAccountsByUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
   const direct = await getAccountsByUserId(user.id)
-  if (direct.length) return direct
-  if (!user.email_confirmed_at) return direct
-  return linkAccountsByVerifiedEmail(user.id, user.email)
+  if (direct.length) {
+    const linked = await linkAccountsByVerifiedEmail(user)
+    if (!linked.length) return direct
+    return getAccountsByUserId(user.id)
+  }
+  return linkAccountsByVerifiedEmail(user)
 }
 
 export async function getAccountByUserId(userId: string, preferredType?: ProfileType | null) {
