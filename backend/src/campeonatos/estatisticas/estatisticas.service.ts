@@ -137,6 +137,8 @@ type ManualBody = {
     campeonato_equipe_id: string
     posicao: number
     abates: number
+    punicao_pontos?: number
+    punicao_motivo?: string | null
     raw_team_name?: string | null
     importacao_equipe_id?: string | null
     jogadores?: Array<{ campeonato_jogador_id: string; abates: number; dano?: number; assistencias?: number; revives?: number }>
@@ -184,6 +186,8 @@ export async function salvarPontuacaoManual(campeonatoId: string, userId: string
       slot_numero: ce.slot_numero,
       posicao: item.posicao,
       abates: item.abates,
+      punicao_pontos: Math.min(Number(item.punicao_pontos || 0), 0),
+      punicao_motivo: item.punicao_motivo?.trim() || null,
       booyah: item.posicao === 1,
       origem: body.origem || 'manual',
       raw_team_name: item.raw_team_name || null,

@@ -80,7 +80,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
     { data: classificacaoJogo, error: classificacaoError },
     { data: vinculos, error: vinculosError },
   ] = await Promise.all([
-    supabaseAdmin.from('campeonatos').select('id,nome,logo_url,produtora_id').eq('id', campeonatoId).single(),
+    supabaseAdmin.from('campeonatos').select('id,nome,logo_url,produtora_id,campeonato_configuracoes(pontos_colocacao,pontos_por_abate)').eq('id', campeonatoId).single(),
     jogo.fase_id
       ? supabaseAdmin.from('campeonato_fases').select('id,nome,ordem').eq('id', jogo.fase_id).maybeSingle()
       : Promise.resolve({ data: null, error: null } as any),
@@ -144,10 +144,12 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
   if (classificacaoError) throw classificacaoError
   if (vinculosError) throw vinculosError
 
-  const [classificacaoGeral, mvpGeral, mvpJogo] = await Promise.all([
-    listarEstatisticasEquipes(campeonatoId, { faseId: jogo.fase_id || null }),
+  const mapas = Array.from(new Set((partidas || []).map((partida: any) => String(partida.mapa_codigo || '')).filter(Boolean)))
+  const [classificacaoGeral, mvpGeral, mvpJogo, ...classificacoesMapa] = await Promise.all([
+    listarEstatisticasEquipes(campeonatoId, {}),
     listarEstatisticasMvp(campeonatoId, { faseId: jogo.fase_id || null }),
     listarEstatisticasMvp(campeonatoId, { jogoId }),
+    ...mapas.map(mapaCodigo => listarEstatisticasEquipes(campeonatoId, { mapaCodigo })),
   ])
 
   const classificacaoOrdenada = [...(classificacaoJogo || [])]
@@ -166,6 +168,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
     resultados_jogadores: resultadosJogadores || [],
     classificacao_geral: classificacaoGeral,
     classificacao_jogo: classificacaoOrdenada,
+    classificacao_mapas: Object.fromEntries(mapas.map((mapa, index) => [mapa, classificacoesMapa[index] || []])),
     mvp_geral: mvpGeral,
     mvp_jogo: mvpJogo,
     vinculos_matchresult: vinculos || [],
