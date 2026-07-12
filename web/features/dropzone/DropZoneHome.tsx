@@ -13,15 +13,9 @@ import { ProdutoraPanel } from './panels/produtora/ProdutoraPanel'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppHeader } from '@/components/layout/AppHeader'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
+import { buildLoginHref, safeInternalPath } from '@/features/auth/auth-return'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
-type OAuthProvider = 'google' | 'facebook' | 'discord'
-
-const oauthProviderLabels: Record<OAuthProvider, string> = {
-  google: 'Google',
-  facebook: 'Facebook',
-  discord: 'Discord',
-}
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
 
 const emptyChampionship = {
@@ -97,7 +91,6 @@ export function DropZoneHome() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null)
   const [queryReady, setQueryReady] = useState(false)
   const [inviteReturnTo, setInviteReturnTo] = useState('')
 
@@ -233,6 +226,7 @@ export function DropZoneHome() {
       const params = new URLSearchParams(window.location.search)
       const convite = String(params.get('convite') || '').trim()
       const escala = String(params.get('escala') || '').trim()
+      const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
       const requestedLogin = String(params.get('login') || '').trim()
       const requestedRegister = String(params.get('cadastro') || '').trim()
       const forcedProfileType: ProfileType | null =
@@ -250,8 +244,12 @@ export function DropZoneHome() {
       const saved = localStorage.getItem('dropzone_recent_profiles')
       if (saved) setRecentProfiles(JSON.parse(saved))
 
-      if (convite) setInviteReturnTo(`/convite/equipe/${encodeURIComponent(convite)}`)
-      if (escala) setInviteReturnTo(`/escala/${encodeURIComponent(escala)}`)
+      const resolvedReturnTo = requestedReturnTo || (convite
+        ? `/convite/equipe/${encodeURIComponent(convite)}`
+        : escala
+          ? `/escala/${encodeURIComponent(escala)}`
+          : '')
+      if (resolvedReturnTo) setInviteReturnTo(resolvedReturnTo)
 
       if (forcedType && forcedProfileType) {
         setProfileType(forcedProfileType)
@@ -273,12 +271,12 @@ export function DropZoneHome() {
         if (data.session) {
           try {
             await loadMeAndRows(data.session.access_token, forcedProfileType)
-            if (inviteReturnTo || convite || escala) {
-              window.location.assign(convite ? `/convite/equipe/${encodeURIComponent(convite)}` : `/escala/${encodeURIComponent(escala)}`)
+            if (resolvedReturnTo) {
+              window.location.assign(resolvedReturnTo)
               return
             }
           } catch {
-            prepareSocialProfile(data.session.user, forcedProfileType)
+            prepareGoogleProfile(data.session.user, forcedProfileType)
           }
           setQueryReady(true)
           return
@@ -296,7 +294,7 @@ export function DropZoneHome() {
           await loadMeAndRows(data.session.access_token)
         } catch {
           const storedType = (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null) || 'produtora'
-          prepareSocialProfile(data.session.user, storedType)
+          prepareGoogleProfile(data.session.user, storedType)
         }
       }
       setQueryReady(true)
@@ -392,14 +390,14 @@ export function DropZoneHome() {
     if (nextType) setProfileType(nextType)
   }
 
-  function prepareSocialProfile(user: { email?: string | null; user_metadata?: Record<string, any> }, nextType: ProfileType) {
+  function prepareGoogleProfile(user: { email?: string | null; user_metadata?: Record<string, any> }, nextType: ProfileType) {
     clearRegisterForm(nextType)
-    const socialName = String(user.user_metadata?.full_name || user.user_metadata?.name || '').trim()
-    const socialAvatar = String(user.user_metadata?.avatar_url || user.user_metadata?.picture || '').trim()
+    const googleName = String(user.user_metadata?.full_name || user.user_metadata?.name || '').trim()
+    const googleAvatar = String(user.user_metadata?.avatar_url || user.user_metadata?.picture || '').trim()
     setEmail(String(user.email || '').trim())
-    setName(socialName)
-    setUsername(loginSuggestion(socialName))
-    setMediaUrl(socialAvatar)
+    setName(googleName)
+    setUsername(loginSuggestion(googleName))
+    setMediaUrl(googleAvatar)
     setMode('criar')
     setActiveAuthType(nextType)
     setLinkingProfile(true)
@@ -576,35 +574,6 @@ export function DropZoneHome() {
     }
   }
 
-  async function signInWithProvider(provider: OAuthProvider) {
-    setLoading(true)
-    setLoadingProvider(provider)
-    setError('')
-    setMessage('')
-    try {
-      localStorage.setItem('dropzone_active_profile_type', profileType)
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: window.location.href,
-          ...(provider === 'google'
-            ? {
-                queryParams: {
-                  access_type: 'offline',
-                  prompt: 'select_account',
-                },
-              }
-            : {}),
-        },
-      })
-      if (error) throw error
-    } catch (err: any) {
-      setError(err?.message || `Nao foi possivel entrar com ${oauthProviderLabels[provider]}.`)
-      setLoading(false)
-      setLoadingProvider(null)
-    }
-  }
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -1040,7 +1009,7 @@ export function DropZoneHome() {
                                     <small>@{recent.username}{recent.public_id ? ` · ID ${recent.public_id}` : ''}</small>
                                   </>
                                 ) : (
-                                  <small>Acessar ou criar perfil com conta social</small>
+                                  <small>Acessar ou criar perfil com Google</small>
                                 )}
                               </div>
                               <i className="card-corner" />
@@ -1057,7 +1026,7 @@ export function DropZoneHome() {
                           setActiveAuthType('produtora')
                         }}
                       >
-                        Usar outra conta
+                        Usar outra conta Google
                       </button>
                     </div>
                   </div>
@@ -1108,29 +1077,17 @@ export function DropZoneHome() {
                 ) : null}
 
                 {!linkingProfile ? (
-                  <div className="social-only-auth">
-                    <div className="social-only-copy">
-                      <strong>Escolha como deseja entrar</strong>
-                      <p>Google, Facebook ou Discord confirmam sua identidade. Caso ainda não exista um perfil DropZone, você preencherá os dados de {typeLabels[profileType].toLowerCase()}.</p>
+                  <div className="google-only-auth">
+                    <div className="google-only-copy">
+                      <strong>Entre com sua conta</strong>
+                      <p>Google, Facebook ou Discord confirmam sua identidade. Depois, caso ainda não exista um perfil DropZone, você preencherá os dados de {typeLabels[profileType].toLowerCase()}.</p>
                     </div>
-                    <div className="social-auth-buttons">
-                      {(Object.keys(oauthProviderLabels) as OAuthProvider[]).map((provider) => (
-                        <button
-                          key={provider}
-                          type="button"
-                          className={`button social-auth-button ${provider}`}
-                          disabled={loading}
-                          onClick={() => signInWithProvider(provider)}
-                        >
-                          {loadingProvider === provider ? `Abrindo ${oauthProviderLabels[provider]}...` : `Continuar com ${oauthProviderLabels[provider]}`}
-                        </button>
-                      ))}
-                    </div>
+                    <a className="button google-auth-button" href={buildLoginHref(profileType, inviteReturnTo || '/')}>Entrar para continuar</a>
                   </div>
                 ) : (
                   <form onSubmit={handleAuth} className="auth-inline-form compact-auth-form">
-                    <div className="social-confirmed-note">
-                      <strong>Conta social confirmada</strong>
+                    <div className="google-confirmed-note">
+                      <strong>Conta confirmada</strong>
                       <span>{email}</span>
                       <small>Complete os dados abaixo para criar seu perfil DropZone.</small>
                     </div>
@@ -1195,7 +1152,7 @@ export function DropZoneHome() {
                       <button className="button" disabled={loading || !name.trim() || !username.trim()}>
                         {loading ? 'Criando perfil...' : `Criar perfil de ${typeLabels[profileType].toLowerCase()}`}
                       </button>
-                      <button type="button" className="button secondary" onClick={signOut}>Usar outra conta</button>
+                      <button type="button" className="button secondary" onClick={signOut}>Usar outra conta Google</button>
                     </div>
                   </form>
                 )}

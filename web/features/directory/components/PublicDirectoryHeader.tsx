@@ -112,7 +112,7 @@ export function PublicDirectoryHeader({ active }: { active?: string }) {
               </div>
             ) : null}
           </div>
-        ) : <a className="public-directory-access" href="/">Entrar no sistema</a>}
+        ) : <a className="public-directory-access" href="/login?returnTo=%2F">Entrar no sistema</a>}
       </div>
     </header>
   )

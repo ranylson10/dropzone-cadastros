@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Check, CheckCircle2, Clock, Loader2, Shield, UserRound, Users } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
+import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
 
 type Player = {
   id: string
@@ -199,20 +200,20 @@ export default function EscalaPublicaPage() {
                 <button className="button invite-confirm" disabled={full || joining} onClick={join}>
                   <Check size={16} /> {joining ? 'Confirmando...' : full ? 'Escalação completa' : `Inscrever como ${data.jogador.nome || data.jogador.username}`}
                 </button>
-                <a className="button secondary" href={`/?escala=${encodeURIComponent(token)}&login=jogador&trocar_conta=1`}>Usar outro jogador</a>
+                <a className="button secondary" href={buildLoginHref('jogador', `/escala/${encodeURIComponent(token)}`, true)}>Usar outro jogador</a>
               </div>
             ) : (
               <div className="invite-auth-box">
                 <UserRound size={26} />
                 <p>Seu login está ativo, mas ainda não possui um perfil de jogador vinculado.</p>
-                <a className="button" href={`/?escala=${encodeURIComponent(token)}&cadastro=jogador&vincular=1`}>Criar jogador com meu login atual</a>
-                <a className="button secondary" href={`/?escala=${encodeURIComponent(token)}&cadastro=jogador&nova_conta=1`}>Criar jogador com outro login</a>
+                <a className="button" href={buildProfileCreationHref('jogador', `/escala/${encodeURIComponent(token)}`)}>Criar jogador com meu login atual</a>
+                <a className="button secondary" href={buildLoginHref('jogador', `/escala/${encodeURIComponent(token)}`, true)}>Criar jogador com outro login</a>
               </div>
             )
           ) : (
             <div className="invite-auth-actions">
-              <a className="button" href={`/?escala=${encodeURIComponent(token)}&cadastro=jogador`}>Entrar ou criar conta</a>
-              <p className="invite-auth-hint">Escolha Google, Facebook ou Discord. Depois da autenticação, você volta para completar o perfil de jogador caso ele ainda não exista.</p>
+              <a className="button" href={buildLoginHref('jogador', `/escala/${encodeURIComponent(token)}`)}>Entrar para continuar</a>
+              <p className="invite-auth-hint">Você será direcionado ao login central e voltará automaticamente para esta escalação.</p>
             </div>
           )}
         </section>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Clock3, Loader2, Shield, Users } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
+import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
 
 type InvitePayload = {
   error?: string
@@ -176,19 +177,19 @@ export default function ConviteEquipePage() {
                 ) : null}
 
                 <button className="button invite-confirm" onClick={aceitar}>Confirmar entrada</button>
-                <a className="button secondary" href={`/?convite=${encodeURIComponent(token)}&login=equipe&trocar_conta=1`}>Usar outra equipe</a>
+                <a className="button secondary" href={buildLoginHref('equipe', `/convite/equipe/${encodeURIComponent(token)}`, true)}>Usar outra equipe</a>
               </div>
             ) : (
               <div className="invite-auth-box">
                 <p>Seu login está ativo, mas ainda não possui um perfil de equipe vinculado.</p>
-                <a className="button" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe&vincular=1`}>Criar equipe com meu login atual</a>
-                <a className="button secondary" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe&nova_conta=1`}>Criar equipe com outro login</a>
+                <a className="button" href={buildProfileCreationHref('equipe', `/convite/equipe/${encodeURIComponent(token)}`)}>Criar equipe com meu login atual</a>
+                <a className="button secondary" href={buildLoginHref('equipe', `/convite/equipe/${encodeURIComponent(token)}`, true)}>Criar equipe com outro login</a>
               </div>
             )
           ) : (
             <div className="invite-auth-actions">
-              <a className="button" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe`}>Entrar ou criar conta</a>
-              <p className="invite-auth-hint">Escolha Google, Facebook ou Discord. Depois da autenticação, você volta para completar os dados da equipe caso ainda não tenha um perfil.</p>
+              <a className="button" href={buildLoginHref('equipe', `/convite/equipe/${encodeURIComponent(token)}`)}>Entrar para continuar</a>
+              <p className="invite-auth-hint">Você será direcionado ao login central e voltará automaticamente para este convite.</p>
             </div>
           )
         ) : (

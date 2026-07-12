@@ -2618,174 +2618,85 @@ body:has(.cropper-overlay) {
   font-size: 0.9rem;
 }
 
-/* Legal pages */
-.legal-page-shell {
+/* Centralized authentication */
+.central-login-page {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% 0%, rgba(240, 35, 47, 0.12), transparent 30rem),
-    linear-gradient(180deg, #0a0b0e 0%, #101116 100%);
-  color: #f4f5f7;
+    radial-gradient(circle at 12% 20%, rgba(255, 51, 74, 0.12), transparent 34%),
+    #080a0f;
 }
 
-.legal-page {
-  width: min(1080px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 56px 0 72px;
+.central-login-shell {
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+  padding: 48px 20px;
 }
 
-.legal-hero {
-  max-width: 820px;
-  padding: 42px 0 34px;
+.central-login-card {
+  width: min(100%, 520px);
+  padding: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(17, 19, 25, 0.96);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.4);
+  color: #f7f8fb;
 }
 
-.legal-eyebrow {
-  display: inline-flex;
-  margin-bottom: 16px;
-  color: #ff4b55;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+.central-login-card h1 {
+  margin: 8px 0 12px;
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1;
   text-transform: uppercase;
 }
 
-.legal-hero h1 {
-  margin: 0;
-  font-size: clamp(2.15rem, 5vw, 4.25rem);
-  line-height: 0.98;
-  letter-spacing: -0.055em;
+.central-login-card > p:not(.eyebrow) {
+  margin: 0 0 24px;
+  color: #b7bdca;
+  line-height: 1.65;
 }
 
-.legal-hero p {
-  max-width: 760px;
-  margin: 22px 0 14px;
-  color: #b9bdc7;
-  font-size: 1.05rem;
-  line-height: 1.75;
-}
-
-.legal-hero small {
-  color: #747985;
-  font-size: 0.82rem;
-}
-
-.legal-document {
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 18px;
-  background: rgba(18, 19, 24, 0.88);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.26);
-}
-
-.legal-section {
+.central-login-mark {
+  width: 52px;
+  height: 52px;
   display: grid;
-  grid-template-columns: minmax(210px, 0.36fr) minmax(0, 1fr);
-  gap: 34px;
-  padding: 30px 34px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  place-items: center;
+  margin-bottom: 20px;
+  background: #ff334a;
+  color: white;
 }
 
-.legal-section:last-child {
-  border-bottom: 0;
+.social-login-stack {
+  display: grid;
+  gap: 10px;
 }
 
-.legal-section h2 {
-  margin: 0;
-  color: #fff;
-  font-size: 1rem;
-  line-height: 1.45;
+.social-login-button {
+  width: 100%;
+  justify-content: center;
+  min-height: 48px;
 }
 
-.legal-section p,
-.legal-section li {
-  color: #b9bdc7;
-  font-size: 0.94rem;
-  line-height: 1.75;
-}
+.social-login-google { background: #ffffff; color: #11151c; }
+.social-login-facebook { background: #1877f2; color: #ffffff; }
+.social-login-discord { background: #5865f2; color: #ffffff; }
 
-.legal-section p {
-  margin: 0 0 14px;
-}
-
-.legal-section p:last-child {
-  margin-bottom: 0;
-}
-
-.legal-section ul {
-  margin: 0;
-  padding-left: 19px;
-}
-
-.legal-section li + li {
-  margin-top: 7px;
-}
-
-.legal-section a {
-  color: #ff626b;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.legal-section a:hover {
-  text-decoration: underline;
-}
-
-.legal-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(6, 7, 9, 0.7);
-}
-
-.legal-footer > div {
+.central-login-loading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  width: min(1080px, calc(100% - 32px));
-  min-height: 82px;
-  margin: 0 auto;
+  justify-content: center;
+  gap: 10px;
+  min-height: 150px;
+  color: #c8ccd5;
 }
 
-.legal-footer span,
-.legal-footer a {
-  color: #7f8490;
-  font-size: 0.78rem;
-  text-decoration: none;
+.central-login-note {
+  display: block;
+  margin-top: 20px;
+  color: #858c9b;
+  line-height: 1.55;
 }
 
-.legal-footer nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 18px;
-}
-
-.legal-footer a:hover {
-  color: #fff;
-}
-
-@media (max-width: 760px) {
-  .legal-page {
-    width: min(100% - 22px, 1080px);
-    padding: 30px 0 48px;
-  }
-
-  .legal-hero {
-    padding: 28px 4px 26px;
-  }
-
-  .legal-section {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 24px 20px;
-  }
-
-  .legal-footer > div {
-    align-items: flex-start;
-    flex-direction: column;
-    width: min(100% - 32px, 1080px);
-    padding: 24px 0;
-  }
-
-  .legal-footer nav {
-    justify-content: flex-start;
-  }
+@media (max-width: 640px) {
+  .central-login-shell { padding: 24px 14px; }
+  .central-login-card { padding: 24px 18px; }
 }
