@@ -2618,124 +2618,236 @@ body:has(.cropper-overlay) {
   font-size: 0.9rem;
 }
 
-
 /* Centralized authentication */
 .central-login-page {
   min-height: 100vh;
   background:
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)),
-    repeating-linear-gradient(0deg, transparent 0 47px, rgba(16,24,40,.05) 47px 48px),
-    repeating-linear-gradient(90deg, transparent 0 47px, rgba(16,24,40,.05) 47px 48px),
-    #f4f5f7;
+    radial-gradient(circle at 12% 20%, rgba(255, 51, 74, 0.12), transparent 34%),
+    #080a0f;
 }
+
 .central-login-shell {
   min-height: calc(100vh - 64px);
   display: grid;
   place-items: center;
-  padding: 42px 20px;
+  padding: 48px 20px;
 }
+
 .central-login-card {
-  width: min(100%, 680px);
-  border: 1px solid #d9dde5;
-  background: rgba(255,255,255,.98);
-  box-shadow: 0 24px 70px rgba(15,23,42,.16);
-  color: #171b24;
+  width: min(100%, 520px);
+  padding: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(17, 19, 25, 0.96);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.4);
+  color: #f7f8fb;
 }
-.central-login-card-head {
+
+.central-login-card h1 {
+  margin: 8px 0 12px;
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.central-login-card > p:not(.eyebrow) {
+  margin: 0 0 24px;
+  color: #b7bdca;
+  line-height: 1.65;
+}
+
+.central-login-mark {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+  background: #ff334a;
+  color: white;
+}
+
+.social-login-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.social-login-button {
+  width: 100%;
+  justify-content: center;
+  min-height: 48px;
+}
+
+.social-login-google { background: #ffffff; color: #11151c; }
+.social-login-facebook { background: #1877f2; color: #ffffff; }
+.social-login-discord { background: #5865f2; color: #ffffff; }
+
+.central-login-loading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 22px;
-  border-bottom: 1px solid #e4e7ec;
+  justify-content: center;
+  gap: 10px;
+  min-height: 150px;
+  color: #c8ccd5;
 }
-.central-login-close {
+
+.central-login-note {
+  display: block;
+  margin-top: 20px;
+  color: #858c9b;
+  line-height: 1.55;
+}
+
+@media (max-width: 640px) {
+  .central-login-shell { padding: 24px 14px; }
+  .central-login-card { padding: 24px 18px; }
+}
+
+/* Interactive image cropper */
+.cropper-modal-interactive {
+  width: min(680px, calc(100vw - 24px));
+}
+
+.cropper-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 8px 0 4px;
+}
+
+.cropper-frame-interactive {
+  justify-self: center;
+  max-width: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  overscroll-behavior: contain;
+  background:
+    linear-gradient(45deg, #f2f3f5 25%, transparent 25%),
+    linear-gradient(-45deg, #f2f3f5 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f2f3f5 75%),
+    linear-gradient(-45deg, transparent 75%, #f2f3f5 75%),
+    #fff;
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+}
+
+.cropper-frame-interactive:active { cursor: grabbing; }
+.cropper-frame-interactive img { pointer-events: none; user-select: none; }
+
+.cropper-drag-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(9, 12, 18, .72);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: .86;
+}
+
+.cropper-zoom-controls {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.cropper-zoom-controls button {
   width: 40px;
   height: 40px;
   display: grid;
   place-items: center;
-  border: 1px solid #d9dde5;
-  color: #171b24;
-  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111318;
+  color: #fff;
+  cursor: pointer;
 }
-.central-login-copy { padding: 28px 28px 18px; }
-.central-login-copy h1 {
-  margin: 7px 0 10px;
-  font-size: clamp(28px, 4vw, 42px);
-  line-height: 1;
+
+.cropper-zoom-controls button:hover { background: #ff334a; }
+.cropper-zoom-controls span { color: var(--muted); font-size: 12px; font-weight: 800; }
+.cropper-touch-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+
+/* Fast OAuth validation state */
+.central-login-loading {
+  min-height: 180px;
+  flex-direction: column;
+  gap: 7px;
+  text-align: center;
+}
+
+.central-login-loading strong {
+  color: #fff;
   text-transform: uppercase;
-  color: #111827;
+  letter-spacing: .08em;
 }
-.central-login-copy > p:not(.eyebrow) {
-  margin: 0;
-  color: #667085;
-  line-height: 1.6;
+
+.central-login-loading > span {
+  color: #858c9b;
+  font-size: .9rem;
 }
-.central-login-card > .social-login-stack,
-.central-login-card > .central-login-loading,
-.central-login-card > .message,
-.central-login-card > .central-login-note { margin-left: 28px; margin-right: 28px; }
-.social-login-stack { display: grid; gap: 10px; }
-.social-login-button {
-  width: 100%;
-  min-height: 48px;
-  justify-content: flex-start;
-  gap: 12px;
-  padding: 0 16px;
-  border: 1px solid #d9dde5;
-  box-shadow: none;
-}
-.social-login-provider-mark {
-  width: 26px;
-  height: 26px;
+
+.dropzone-login-loader {
+  position: relative;
+  width: 70px;
+  height: 70px;
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  font-family: Arial, sans-serif;
-  font-size: 15px;
+  margin-bottom: 10px;
+}
+
+.dropzone-login-loader::before,
+.dropzone-login-loader::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(255, 51, 74, .18);
+  transform: rotate(45deg);
+  animation: dz-loader-pulse 1s ease-in-out infinite;
+}
+
+.dropzone-login-loader::after {
+  inset: 8px;
+  animation-delay: .15s;
+}
+
+.dropzone-login-loader-mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: #ff334a;
+  color: #fff !important;
+  font-size: 12px !important;
   font-weight: 900;
-  background: rgba(255,255,255,.96);
-  color: #111827;
+  letter-spacing: .08em;
+  animation: dz-loader-mark 1s ease-in-out infinite;
 }
-.social-login-google { background:#fff; color:#1f2937; border-color:#cfd4dc; }
-.social-login-facebook { background:#1877f2; color:#fff; border-color:#1877f2; }
-.social-login-facebook .social-login-provider-mark { color:#1877f2; }
-.social-login-discord { background:#5865f2; color:#fff; border-color:#5865f2; }
-.social-login-discord .social-login-provider-mark { color:#5865f2; }
-.social-login-compact { gap: 8px; }
-.social-login-compact .social-login-button { min-height: 44px; }
-.central-login-loading {
-  display:flex; align-items:center; justify-content:center; gap:10px;
-  min-height:130px; color:#667085;
+
+@keyframes dz-loader-pulse {
+  0%, 100% { opacity: .35; transform: rotate(45deg) scale(.88); }
+  50% { opacity: 1; transform: rotate(45deg) scale(1); }
 }
-.central-login-note {
-  display:block;
-  margin-top:18px !important;
-  margin-bottom:26px;
-  color:#7b8494;
-  line-height:1.55;
+
+@keyframes dz-loader-mark {
+  0%, 100% { transform: scale(.92); }
+  50% { transform: scale(1); }
 }
-.invite-social-auth {
-  display:grid;
-  gap:12px;
-  margin-top:20px;
-  padding:18px;
-  border:1px solid #dfe3e8;
-  background:#fff;
+
+@media (max-width: 640px) {
+  .cropper-modal-interactive { padding: 14px; }
+  .cropper-workspace { grid-template-columns: 1fr; }
+  .cropper-zoom-controls { grid-template-columns: 40px auto 40px; }
+  .cropper-drag-hint { font-size: 10px; }
 }
-.invite-social-auth > strong {
-  font-size:13px;
-  text-transform:uppercase;
-  letter-spacing:.04em;
-}
-.google-only-auth .social-login-stack { margin-top: 14px; }
-@media (max-width:640px) {
-  .central-login-shell { padding:20px 12px; }
-  .central-login-card-head { padding:16px; }
-  .central-login-copy { padding:22px 18px 16px; }
-  .central-login-card > .social-login-stack,
-  .central-login-card > .central-login-loading,
-  .central-login-card > .message,
-  .central-login-card > .central-login-note { margin-left:18px; margin-right:18px; }
-}
+
+.dropzone-login-loader-mark img { width: 30px; height: 30px; object-fit: contain; }
+@media (max-width: 340px) { .cropper-workspace { overflow-x: auto; justify-content: start; } }

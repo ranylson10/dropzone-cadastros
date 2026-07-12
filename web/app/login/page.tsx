@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, X } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import { PublicDirectoryHeader } from '@/features/directory/components/PublicDirectoryHeader'
 import { supabase } from '@/lib/supabase-browser'
 import { SocialLogin } from '@/features/auth/SocialLogin'
@@ -92,26 +92,21 @@ export default function LoginPage() {
       <PublicDirectoryHeader />
       <section className="central-login-shell">
         <div className="central-login-card">
-          <div className="central-login-card-head">
-            <div className="auth-site-mark">
-              <img src="/dropzone-icon.png" alt="DropZone" />
-              <div>
-                <span>DropZone</span>
-                <strong>{params.profileType ? profileLabels[params.profileType] : 'Acesso'}</strong>
-              </div>
-            </div>
-            <a className="central-login-close" href={params.returnTo} aria-label="Voltar"><X size={18} /></a>
-          </div>
-          <div className="central-login-copy">
-            <p className="eyebrow">ACESSO CENTRALIZADO</p>
-            <h1>Entre com sua conta</h1>
-            <p>{description}</p>
-          </div>
+          <div className="central-login-mark"><ShieldCheck size={28} /></div>
+          <p className="eyebrow">ACESSO CENTRALIZADO</p>
+          <h1>Entrar no DropZone</h1>
+          <p>{description}</p>
 
           {checking ? (
-            <div className="central-login-loading"><Loader2 className="spin" /> Verificando sua sessão...</div>
+            <div className="central-login-loading" role="status" aria-live="polite">
+              <div className="dropzone-login-loader" aria-hidden="true">
+                <span className="dropzone-login-loader-mark"><img src="/dropzone-icon.png" alt="" /></span>
+              </div>
+              <strong>Validando seu acesso</strong>
+              <span>Estamos preparando seu perfil...</span>
+            </div>
           ) : (
-            <SocialLogin profileType={params.profileType} returnTo={params.returnTo} compact />
+            <SocialLogin profileType={params.profileType} returnTo={params.returnTo} />
           )}
 
           {error ? <div className="message error">{error}</div> : null}

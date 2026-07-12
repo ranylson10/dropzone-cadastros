@@ -14,7 +14,6 @@ import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppHeader } from '@/components/layout/AppHeader'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 import { buildLoginHref, safeInternalPath } from '@/features/auth/auth-return'
-import { SocialLogin } from '@/features/auth/SocialLogin'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
@@ -515,7 +514,7 @@ export function DropZoneHome() {
     setMessage('')
 
     try {
-      const clean = cleanUsername(username)
+      const clean = cleanUsername(username || loginSuggestion(name))
 
       if (mode === 'recuperar') {
         const res = await fetch('/api/auth/verification/confirm-reset', {
@@ -1050,7 +1049,7 @@ export function DropZoneHome() {
                           setActiveAuthType('produtora')
                         }}
                       >
-                        Usar outra conta Google
+                        Usar outra conta
                       </button>
                     </div>
                   </div>
@@ -1106,7 +1105,7 @@ export function DropZoneHome() {
                       <strong>Entre com sua conta</strong>
                       <p>Google, Facebook ou Discord confirmam sua identidade. Depois, caso ainda não exista um perfil DropZone, você preencherá os dados de {typeLabels[profileType].toLowerCase()}.</p>
                     </div>
-                    <SocialLogin profileType={profileType} returnTo={inviteReturnTo || '/'} compact />
+                    <a className="button google-auth-button" href={buildLoginHref(profileType, inviteReturnTo || '/')}>Entrar para continuar</a>
                   </div>
                 ) : (
                   <form onSubmit={handleAuth} className="auth-inline-form compact-auth-form">
@@ -1166,17 +1165,14 @@ export function DropZoneHome() {
                         ) : null}
 
                         <LocationSearch value={registerData} onSelect={selectLocation} />
-                        <Field label="Login público">
-                          <input value={username} onChange={(e) => setUsername(cleanUsername(e.target.value))} placeholder="@login sugerido pelo nome" />
-                        </Field>
                       </div>
                     </div>
 
                     <div className="auth-actions-row">
-                      <button className="button" disabled={loading || !name.trim() || !username.trim()}>
+                      <button className="button" disabled={loading || !name.trim()}>
                         {loading ? 'Criando perfil...' : `Criar perfil de ${typeLabels[profileType].toLowerCase()}`}
                       </button>
-                      <button type="button" className="button secondary" onClick={signOut}>Usar outra conta Google</button>
+                      <button type="button" className="button secondary" onClick={signOut}>Usar outra conta</button>
                     </div>
                   </form>
                 )}

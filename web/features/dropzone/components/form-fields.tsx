@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Trash2, Upload, X } from 'lucide-react'
+import { Check, Minus, Plus, Trash2, Upload, X } from 'lucide-react'
 
 const uploadTargets = {
   produtora: { width: 500, height: 500, kindLabel: 'logo' },
@@ -101,7 +101,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export function UploadField({ label, value, bucket, onChange, onUpload }: { label: string; value: string; bucket: string; onChange: (value: string) => void; onUpload: (file: File, bucket: string) => Promise<string> }) {
   const target = uploadTargetFor(bucket)
   const inputId = `${bucket}-upload-${useId().replace(/:/g, '')}`
-  const previewWidth = 220
+  const previewWidth = 300
   const previewHeight = Math.round(previewWidth * (target.height / target.width))
   const [cropOpen, setCropOpen] = useState(false)
   const [sourceUrl, setSourceUrl] = useState('')
@@ -110,14 +110,15 @@ export function UploadField({ label, value, bucket, onChange, onUpload }: { labe
   const [offsetX, setOffsetX] = useState(0)
   const [offsetY, setOffsetY] = useState(0)
   const [uploading, setUploading] = useState(false)
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>())
+  const gestureRef = useRef<{ distance: number; zoom: number } | null>(null)
+  const dragRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null)
 
   const imageRatio = naturalSize.width && naturalSize.height ? naturalSize.width / naturalSize.height : 1
   const frameRatio = previewWidth / previewHeight
   const coverBase = useMemo(() => {
     if (!naturalSize.width || !naturalSize.height) return { width: previewWidth, height: previewHeight }
-    if (imageRatio > frameRatio) {
-      return { width: previewHeight * imageRatio, height: previewHeight }
-    }
+    if (imageRatio > frameRatio) return { width: previewHeight * imageRatio, height: previewHeight }
     return { width: previewWidth, height: previewWidth / imageRatio }
   }, [frameRatio, imageRatio, naturalSize.height, naturalSize.width, previewHeight, previewWidth])
 
@@ -125,20 +126,26 @@ export function UploadField({ label, value, bucket, onChange, onUpload }: { labe
   const drawHeight = coverBase.height * zoom
   const limitX = Math.max(0, (drawWidth - previewWidth) / 2)
   const limitY = Math.max(0, (drawHeight - previewHeight) / 2)
-  const displayLeft = (previewWidth - drawWidth) / 2 + offsetX
-  const displayTop = (previewHeight - drawHeight) / 2 + offsetY
+  const clampedOffsetX = Math.max(-limitX, Math.min(limitX, offsetX))
+  const clampedOffsetY = Math.max(-limitY, Math.min(limitY, offsetY))
+  const displayLeft = (previewWidth - drawWidth) / 2 + clampedOffsetX
+  const displayTop = (previewHeight - drawHeight) / 2 + clampedOffsetY
 
   useEffect(() => {
-    return () => {
-      if (sourceUrl) URL.revokeObjectURL(sourceUrl)
-    }
-  }, [sourceUrl])
+    setOffsetX((current) => Math.max(-limitX, Math.min(limitX, current)))
+    setOffsetY((current) => Math.max(-limitY, Math.min(limitY, current)))
+  }, [limitX, limitY])
+
+  useEffect(() => () => { if (sourceUrl) URL.revokeObjectURL(sourceUrl) }, [sourceUrl])
 
   function resetCrop(url = '') {
     setZoom(1)
     setOffsetX(0)
     setOffsetY(0)
     setNaturalSize({ width: 0, height: 0 })
+    pointersRef.current.clear()
+    gestureRef.current = null
+    dragRef.current = null
     if (url) setSourceUrl(url)
   }
 
@@ -151,9 +158,59 @@ export function UploadField({ label, value, bucket, onChange, onUpload }: { labe
 
   async function handleSelect(file: File) {
     if (sourceUrl) URL.revokeObjectURL(sourceUrl)
-    const nextUrl = URL.createObjectURL(file)
-    resetCrop(nextUrl)
+    resetCrop(URL.createObjectURL(file))
     setCropOpen(true)
+  }
+
+  function updateZoom(next: number) {
+    setZoom(Math.max(1, Math.min(4, next)))
+  }
+
+  function pointerDistance(values: { x: number; y: number }[]) {
+    return Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y)
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    const points = Array.from(pointersRef.current.values())
+    if (points.length === 1) {
+      dragRef.current = { x: event.clientX, y: event.clientY, offsetX: clampedOffsetX, offsetY: clampedOffsetY }
+    } else if (points.length === 2) {
+      gestureRef.current = { distance: pointerDistance(points), zoom }
+      dragRef.current = null
+    }
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!pointersRef.current.has(event.pointerId)) return
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    const points = Array.from(pointersRef.current.values())
+    if (points.length === 2 && gestureRef.current) {
+      const distance = pointerDistance(points)
+      updateZoom(gestureRef.current.zoom * (distance / Math.max(1, gestureRef.current.distance)))
+      return
+    }
+    if (points.length === 1 && dragRef.current) {
+      setOffsetX(dragRef.current.offsetX + event.clientX - dragRef.current.x)
+      setOffsetY(dragRef.current.offsetY + event.clientY - dragRef.current.y)
+    }
+  }
+
+  function handlePointerEnd(event: ReactPointerEvent<HTMLDivElement>) {
+    pointersRef.current.delete(event.pointerId)
+    gestureRef.current = null
+    const remaining = Array.from(pointersRef.current.values())
+    if (remaining.length === 1) {
+      dragRef.current = { x: remaining[0].x, y: remaining[0].y, offsetX: clampedOffsetX, offsetY: clampedOffsetY }
+    } else {
+      dragRef.current = null
+    }
+  }
+
+  function handleWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    event.preventDefault()
+    updateZoom(zoom + (event.deltaY < 0 ? 0.12 : -0.12))
   }
 
   async function handleSaveCrop() {
@@ -163,25 +220,19 @@ export function UploadField({ label, value, bucket, onChange, onUpload }: { labe
       const image = new Image()
       image.src = sourceUrl
       await image.decode()
-
       const canvas = document.createElement('canvas')
       canvas.width = target.width
       canvas.height = target.height
       const ctx = canvas.getContext('2d')
       if (!ctx) throw new Error('Nao foi possivel preparar a imagem.')
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-
       const scale = target.width / previewWidth
       ctx.drawImage(image, displayLeft * scale, displayTop * scale, drawWidth * scale, drawHeight * scale)
-
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
       if (!blob) throw new Error('Nao foi possivel gerar o PNG final.')
       const croppedFile = new File([blob], `${bucket}-${Date.now()}.png`, { type: 'image/png' })
       const url = await onUpload(croppedFile, bucket)
-      if (url) {
-        onChange(url)
-        closeCropper()
-      }
+      if (url) { onChange(url); closeCropper() }
     } catch (error) {
       console.error(error)
     } finally {
@@ -192,89 +243,61 @@ export function UploadField({ label, value, bucket, onChange, onUpload }: { labe
   return (
     <Field label={label}>
       <div className="upload-field compact-upload-field">
-        <input
-          id={inputId}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          hidden
-          onChange={async (e) => {
-            const input = e.currentTarget
-            const file = input.files?.[0]
-
-            if (!file) return
-
-            input.value = ''
-            await handleSelect(file)
-          }}
-        />
-
+        <input id={inputId} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={async (e) => {
+          const input = e.currentTarget
+          const file = input.files?.[0]
+          if (!file) return
+          input.value = ''
+          await handleSelect(file)
+        }} />
         <label htmlFor={inputId} className={`upload-picker ${value ? 'filled' : ''}`}>
           {value ? <img src={value} alt="" /> : <Upload size={24} />}
         </label>
-
         <div className="upload-hint-row">
           <small>{target.kindLabel.toUpperCase()} · PNG · {target.width}x{target.height}</small>
-          {value ? (
-            <button type="button" className="inline-icon-button" onClick={() => onChange('')}>
-              <Trash2 size={15} /> Remover
-            </button>
-          ) : null}
+          {value ? <button type="button" className="inline-icon-button" onClick={() => onChange('')}><Trash2 size={15} /> Remover</button> : null}
         </div>
 
         {cropOpen && typeof document !== 'undefined' ? createPortal(
           <div className="cropper-overlay" onClick={closeCropper}>
-            <div className="cropper-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="cropper-modal cropper-modal-interactive" onClick={(event) => event.stopPropagation()}>
               <div className="cropper-head">
-                <div>
-                  <p className="eyebrow">Ajustar {target.kindLabel}</p>
-                  <h3>{target.width} x {target.height} px</h3>
-                </div>
-                <button type="button" className="close-auth" onClick={closeCropper} aria-label="Fechar ajuste da imagem">
-                  <X size={18} />
-                </button>
+                <div><p className="eyebrow">Ajustar {target.kindLabel}</p><h3>{target.width} x {target.height} px</h3></div>
+                <button type="button" className="close-auth" onClick={closeCropper} aria-label="Fechar ajuste da imagem"><X size={18} /></button>
               </div>
 
-              <div className="cropper-frame-wrap">
-                <div className="cropper-frame" style={{ width: previewWidth, height: previewHeight }}>
-                  {sourceUrl ? (
-                    <img
-                      src={sourceUrl}
-                      alt="Prévia"
-                      onLoad={(event) => {
-                        const element = event.currentTarget
-                        setNaturalSize({ width: element.naturalWidth, height: element.naturalHeight })
-                      }}
-                      style={{ width: drawWidth, height: drawHeight, left: displayLeft, top: displayTop }}
-                    />
-                  ) : null}
+              <div className="cropper-workspace">
+                <div
+                  className="cropper-frame cropper-frame-interactive"
+                  style={{ width: previewWidth, height: previewHeight }}
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerEnd}
+                  onPointerCancel={handlePointerEnd}
+                  onWheel={handleWheel}
+                >
+                  {sourceUrl ? <img src={sourceUrl} draggable={false} alt="Prévia" onLoad={(event) => {
+                    const element = event.currentTarget
+                    setNaturalSize({ width: element.naturalWidth, height: element.naturalHeight })
+                  }} style={{ width: drawWidth, height: drawHeight, left: displayLeft, top: displayTop }} /> : null}
+                  <span className="cropper-drag-hint">Arraste para posicionar</span>
+                </div>
+                <div className="cropper-zoom-controls" aria-label="Controles de zoom">
+                  <button type="button" onClick={() => updateZoom(zoom - 0.15)} aria-label="Diminuir"><Minus size={19} /></button>
+                  <span>{Math.round(zoom * 100)}%</span>
+                  <button type="button" onClick={() => updateZoom(zoom + 0.15)} aria-label="Aumentar"><Plus size={19} /></button>
                 </div>
               </div>
-
-              <div className="crop-controls">
-                <Field label="Tamanho">
-                  <input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} />
-                </Field>
-                <div className="crop-range-grid">
-                  <Field label="Posição horizontal">
-                    <input type="range" min={-Math.ceil(limitX)} max={Math.ceil(limitX)} step="1" value={offsetX} onChange={(e) => setOffsetX(Number(e.target.value))} disabled={limitX === 0} />
-                  </Field>
-                  <Field label="Posição vertical">
-                    <input type="range" min={-Math.ceil(limitY)} max={Math.ceil(limitY)} step="1" value={offsetY} onChange={(e) => setOffsetY(Number(e.target.value))} disabled={limitY === 0} />
-                  </Field>
-                </div>
-              </div>
-
+              <p className="cropper-touch-note">No computador, arraste com o mouse e use +/− ou a roda. No celular, arraste e use dois dedos para ampliar.</p>
               <div className="button-row cropper-actions">
                 <button type="button" className="button secondary" onClick={closeCropper}>Cancelar</button>
-                <button type="button" className="button" onClick={handleSaveCrop} disabled={uploading}>
-                  <Check size={16} /> {uploading ? 'Salvando...' : 'Usar imagem'}
-                </button>
+                <button type="button" className="button" onClick={handleSaveCrop} disabled={uploading}><Check size={16} /> {uploading ? 'Salvando...' : 'Usar imagem'}</button>
               </div>
             </div>
-          </div>,
-          document.body
+          </div>, document.body
         ) : null}
       </div>
     </Field>
   )
+
 }
