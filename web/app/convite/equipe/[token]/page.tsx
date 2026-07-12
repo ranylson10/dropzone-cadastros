@@ -187,8 +187,8 @@ export default function ConviteEquipePage() {
             )
           ) : (
             <div className="invite-auth-actions">
-              <a className="button" href={`/?convite=${encodeURIComponent(token)}&login=equipe`}>Entrar</a>
-              <a className="button secondary" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe`}>Criar conta de equipe</a>
+              <a className="button" href={`/?convite=${encodeURIComponent(token)}&cadastro=equipe`}>Entrar ou criar conta</a>
+              <p className="invite-auth-hint">Escolha Google, Facebook ou Discord. Depois da autenticação, você volta para completar os dados da equipe caso ainda não tenha um perfil.</p>
             </div>
           )
         ) : (

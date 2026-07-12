@@ -15,6 +15,13 @@ import { AppHeader } from '@/components/layout/AppHeader'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
+type OAuthProvider = 'google' | 'facebook' | 'discord'
+
+const oauthProviderLabels: Record<OAuthProvider, string> = {
+  google: 'Google',
+  facebook: 'Facebook',
+  discord: 'Discord',
+}
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
 
 const emptyChampionship = {
@@ -90,6 +97,7 @@ export function DropZoneHome() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null)
   const [queryReady, setQueryReady] = useState(false)
   const [inviteReturnTo, setInviteReturnTo] = useState('')
 
@@ -256,28 +264,28 @@ export function DropZoneHome() {
           setAccounts([])
           setRows([])
           setLinkingProfile(false)
-          setMode(wantsCreate ? 'criar' : 'entrar')
+          setMode('entrar')
           setQueryReady(true)
           return
         }
 
         const { data } = await supabase.auth.getSession()
-        if (data.session && wantsCreate && wantsLinked) {
+        if (data.session) {
           try {
-            await loadMeAndRows(data.session.access_token)
-            clearRegisterForm('equipe')
-            setMode('criar')
-            setActiveAuthType(forcedProfileType)
-            setLinkingProfile(true)
-          } catch (err: any) {
-            setError(err?.message || 'Não foi possível carregar o login ativo.')
+            await loadMeAndRows(data.session.access_token, forcedProfileType)
+            if (inviteReturnTo || convite || escala) {
+              window.location.assign(convite ? `/convite/equipe/${encodeURIComponent(convite)}` : `/escala/${encodeURIComponent(escala)}`)
+              return
+            }
+          } catch {
+            prepareSocialProfile(data.session.user, forcedProfileType)
           }
           setQueryReady(true)
           return
         }
 
         setLinkingProfile(false)
-        setMode(wantsCreate ? 'criar' : 'entrar')
+        setMode('entrar')
         setQueryReady(true)
         return
       }
@@ -287,7 +295,8 @@ export function DropZoneHome() {
         try {
           await loadMeAndRows(data.session.access_token)
         } catch {
-          // Mantém a tela pública quando a sessão local não for válida.
+          const storedType = (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null) || 'produtora'
+          prepareSocialProfile(data.session.user, storedType)
         }
       }
       setQueryReady(true)
@@ -381,6 +390,19 @@ export function DropZoneHome() {
       senha_convite: '',
     })
     if (nextType) setProfileType(nextType)
+  }
+
+  function prepareSocialProfile(user: { email?: string | null; user_metadata?: Record<string, any> }, nextType: ProfileType) {
+    clearRegisterForm(nextType)
+    const socialName = String(user.user_metadata?.full_name || user.user_metadata?.name || '').trim()
+    const socialAvatar = String(user.user_metadata?.avatar_url || user.user_metadata?.picture || '').trim()
+    setEmail(String(user.email || '').trim())
+    setName(socialName)
+    setUsername(loginSuggestion(socialName))
+    setMediaUrl(socialAvatar)
+    setMode('criar')
+    setActiveAuthType(nextType)
+    setLinkingProfile(true)
   }
 
   async function loadMeAndRows(token?: string, preferredType?: ProfileType | null) {
@@ -554,26 +576,33 @@ export function DropZoneHome() {
     }
   }
 
-  async function signInWithGoogle() {
+  async function signInWithProvider(provider: OAuthProvider) {
     setLoading(true)
+    setLoadingProvider(provider)
     setError('')
     setMessage('')
     try {
       localStorage.setItem('dropzone_active_profile_type', profileType)
+
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider,
         options: {
           redirectTo: window.location.href,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'select_account',
-          },
+          ...(provider === 'google'
+            ? {
+                queryParams: {
+                  access_type: 'offline',
+                  prompt: 'select_account',
+                },
+              }
+            : {}),
         },
       })
       if (error) throw error
     } catch (err: any) {
-      setError(err?.message || 'Nao foi possivel entrar com Google.')
+      setError(err?.message || `Nao foi possivel entrar com ${oauthProviderLabels[provider]}.`)
       setLoading(false)
+      setLoadingProvider(null)
     }
   }
 
@@ -1011,7 +1040,7 @@ export function DropZoneHome() {
                                     <small>@{recent.username}{recent.public_id ? ` · ID ${recent.public_id}` : ''}</small>
                                   </>
                                 ) : (
-                                  <small>Entrar, criar conta ou recuperar senha</small>
+                                  <small>Acessar ou criar perfil com conta social</small>
                                 )}
                               </div>
                               <i className="card-corner" />
@@ -1028,7 +1057,7 @@ export function DropZoneHome() {
                           setActiveAuthType('produtora')
                         }}
                       >
-                        Logar com outra conta
+                        Usar outra conta
                       </button>
                     </div>
                   </div>
@@ -1043,10 +1072,6 @@ export function DropZoneHome() {
                       <strong>{typeLabels[profileType]}</strong>
                     </div>
                   </div>
-                  {!linkingProfile ? <div className="tabs auth-inline-tabs">
-                    <button type="button" className={`tab ${mode === 'entrar' ? 'active' : ''}`} onClick={() => { setMode('entrar'); resetVerificationState() }}>Entrar</button>
-                    <button type="button" className={`tab ${mode === 'criar' ? 'active' : ''}`} onClick={() => { setMode('criar'); resetVerificationState() }}>Criar conta</button>
-                  </div> : null}
                   <button type="button" className="close-auth inline-close" onClick={() => { setActiveAuthType(null); setLinkingProfile(false) }} aria-label="Fechar">
                     <X size={18} />
                   </button>
@@ -1054,7 +1079,7 @@ export function DropZoneHome() {
 
                 {linkingProfile ? (
                   <div className="linked-profile-type-picker">
-                    <span>Escolha o novo tipo de perfil:</span>
+                    <span>Escolha o tipo de perfil que será criado:</span>
                     {PROFILE_TYPES.map((type) => {
                       const disabled = accounts.some((item) => item.profile_type === type)
                       return (
@@ -1063,7 +1088,17 @@ export function DropZoneHome() {
                           type="button"
                           disabled={disabled}
                           className={profileType === type ? 'active' : ''}
-                          onClick={() => { clearRegisterForm(type); setMode('criar') }}
+                          onClick={() => {
+                            const currentEmail = email
+                            const currentName = name
+                            const currentMedia = mediaUrl
+                            clearRegisterForm(type)
+                            setEmail(currentEmail)
+                            setName(currentName)
+                            setUsername(loginSuggestion(currentName))
+                            setMediaUrl(currentMedia)
+                            setMode('criar')
+                          }}
                         >
                           {typeLabels[type]} {disabled ? '— já existe' : ''}
                         </button>
@@ -1072,165 +1107,98 @@ export function DropZoneHome() {
                   </div>
                 ) : null}
 
-                <form onSubmit={handleAuth} className="auth-inline-form compact-auth-form">
-                  {mode === 'recuperar' ? (
-                    <div className="register-main-fields">
-                      <div className="mini-grid auth-base-grid">
-                        <Field label="E-mail da conta">
-                          <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); resetVerificationState() }} placeholder="seuemail@gmail.com" />
-                        </Field>
-                        <Field label="Código de 6 dígitos">
-                          <input
-                            inputMode="numeric"
-                            maxLength={6}
-                            value={verificationCode}
-                            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            placeholder="000000"
-                            disabled={!codeSent}
-                          />
-                        </Field>
-                        <Field label="Nova senha">
-                          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 8, numero e especial" disabled={!codeSent} />
-                        </Field>
-                        {codeSent ? <small className="auth-password-hint">{passwordIssue || 'Senha segura: letra, numero e caractere especial.'}</small> : null}
-                        <Field label="Confirmar nova senha">
-                          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Digite novamente" disabled={!codeSent} />
-                        </Field>
-                      </div>
-
-                      <div className="auth-actions-row">
-                        {!codeSent ? (
-                          <button type="button" className="button" disabled={loading || !email.trim()} onClick={() => requestVerificationCode('reset_password')}>
-                            Enviar código
-                          </button>
-                        ) : (
-                          <>
-                            <button className="button" disabled={loading || verificationCode.length !== 6 || Boolean(passwordIssue) || password !== confirmPassword}>Alterar senha</button>
-                            <button type="button" className="button secondary" disabled={resendBlocked} onClick={() => requestVerificationCode('reset_password')}>{resendLabel}</button>
-                          </>
-                        )}
-                        <button type="button" className="link-button auth-inline-link" onClick={() => { setMode('entrar'); resetVerificationState(); setPassword(''); setConfirmPassword('') }}>
-                          Voltar para o login
+                {!linkingProfile ? (
+                  <div className="social-only-auth">
+                    <div className="social-only-copy">
+                      <strong>Escolha como deseja entrar</strong>
+                      <p>Google, Facebook ou Discord confirmam sua identidade. Caso ainda não exista um perfil DropZone, você preencherá os dados de {typeLabels[profileType].toLowerCase()}.</p>
+                    </div>
+                    <div className="social-auth-buttons">
+                      {(Object.keys(oauthProviderLabels) as OAuthProvider[]).map((provider) => (
+                        <button
+                          key={provider}
+                          type="button"
+                          className={`button social-auth-button ${provider}`}
+                          disabled={loading}
+                          onClick={() => signInWithProvider(provider)}
+                        >
+                          {loadingProvider === provider ? `Abrindo ${oauthProviderLabels[provider]}...` : `Continuar com ${oauthProviderLabels[provider]}`}
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleAuth} className="auth-inline-form compact-auth-form">
+                    <div className="social-confirmed-note">
+                      <strong>Conta social confirmada</strong>
+                      <span>{email}</span>
+                      <small>Complete os dados abaixo para criar seu perfil DropZone.</small>
+                    </div>
+
+                    <div className="register-compact-grid">
+                      <UploadField
+                        label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo' : 'Foto'}
+                        value={mediaUrl}
+                        bucket={profileType}
+                        onChange={setMediaUrl}
+                        onUpload={uploadPublicFile}
+                      />
+
+                      <div className="register-main-fields">
+                        <div className="mini-grid tight-grid">
+                          <Field label={profileType === 'equipe' ? 'Nome da equipe' : profileType === 'jogador' ? 'Nick' : profileType === 'manager' ? 'Nome do manager' : 'Nome da produtora'}>
+                            <input value={name} onChange={(e) => updateName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
+                          </Field>
+
+                          {profileType === 'equipe' ? (
+                            <Field label="Tag">
+                              <input value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="6B" />
+                            </Field>
+                          ) : null}
+
+                          {profileType === 'jogador' ? (
+                            <>
+                              <Field label="ID de jogo">
+                                <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" />
+                              </Field>
+                              <Field label="Função">
+                                <select value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
+                                  <option value="support">Support</option>
+                                  <option value="rush">Rush</option>
+                                  <option value="sniper">Sniper</option>
+                                  <option value="bomber">Bomber</option>
+                                </select>
+                              </Field>
+                            </>
+                          ) : null}
+                        </div>
+
+                        {profileType === 'manager' ? (
+                          <div className="mini-grid tight-grid">
+                            <Field label="Token de convite">
+                              <input value={registerData.token_convite} onChange={(e) => updateRegisterData('token_convite', e.target.value.toUpperCase())} placeholder="MG-..." />
+                            </Field>
+                            <Field label="Senha do convite">
+                              <input type="password" value={registerData.senha_convite} onChange={(e) => updateRegisterData('senha_convite', e.target.value)} placeholder="Senha recebida" />
+                            </Field>
+                          </div>
+                        ) : null}
+
+                        <LocationSearch value={registerData} onSelect={selectLocation} />
+                        <Field label="Login público">
+                          <input value={username} onChange={(e) => setUsername(cleanUsername(e.target.value))} placeholder="@login sugerido pelo nome" />
+                        </Field>
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      {mode === 'criar' ? (
-                        <div className="register-compact-grid">
-                          <UploadField
-                            label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo' : 'Foto'}
-                            value={mediaUrl}
-                            bucket={profileType}
-                            onChange={setMediaUrl}
-                            onUpload={uploadPublicFile}
-                          />
 
-                          <div className="register-main-fields">
-                            <div className="mini-grid tight-grid">
-                              <Field label={profileType === 'equipe' ? 'Nome da equipe' : profileType === 'jogador' ? 'Nick' : profileType === 'manager' ? 'Nome do manager' : 'Nome da produtora'}>
-                                <input value={name} onChange={(e) => updateName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
-                              </Field>
-
-                              {profileType === 'equipe' ? (
-                                <Field label="Tag">
-                                  <input value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="6B" />
-                                </Field>
-                              ) : null}
-
-                              {profileType === 'jogador' ? (
-                                <>
-                                  <Field label="ID de jogo">
-                                    <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" />
-                                  </Field>
-                                  <Field label="Função">
-                                    <select value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
-                                      <option value="support">Support</option>
-                                      <option value="rush">Rush</option>
-                                      <option value="sniper">Sniper</option>
-                                      <option value="bomber">Bomber</option>
-                                    </select>
-                                  </Field>
-                                </>
-                              ) : null}
-                            </div>
-
-                            {profileType === 'manager' ? (
-                              <div className="mini-grid tight-grid">
-                                <Field label="Token de convite">
-                                  <input value={registerData.token_convite} onChange={(e) => updateRegisterData('token_convite', e.target.value.toUpperCase())} placeholder="MG-..." />
-                                </Field>
-                                <Field label="Senha do convite">
-                                  <input type="password" value={registerData.senha_convite} onChange={(e) => updateRegisterData('senha_convite', e.target.value)} placeholder="Senha recebida" />
-                                </Field>
-                              </div>
-                            ) : null}
-
-                            <LocationSearch value={registerData} onSelect={selectLocation} />
-                            {!linkingProfile ? (
-                              <Field label="E-mail de confirmação">
-                                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); resetVerificationState() }} placeholder="seuemail@gmail.com" />
-                              </Field>
-                            ) : (
-                              <div className="linked-create-note">Este perfil usará o mesmo e-mail e a mesma senha do login ativo.</div>
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      <div className="mini-grid auth-base-grid">
-                        <Field label={mode === 'criar' ? 'Login' : 'Login, ID publico ou e-mail'}>
-                          <input value={username} onChange={(e) => { setUsername(cleanUsername(e.target.value)); if (mode === 'criar') resetVerificationState() }} placeholder={mode === 'criar' ? '@login sugerido pelo nome' : '@login, ID ou e-mail'} />
-                        </Field>
-                        {!linkingProfile ? (
-                          <>
-                            <Field label="Senha">
-                              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 8, numero e especial" />
-                            </Field>
-                            {mode === 'criar' ? <small className="auth-password-hint">{passwordIssue || 'Senha segura: letra, numero e caractere especial.'}</small> : null}
-                            {mode === 'criar' ? (
-                              <Field label="Confirmar senha">
-                                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Digite a senha novamente" />
-                              </Field>
-                            ) : null}
-                            {mode === 'criar' && codeSent && !linkingProfile ? (
-                              <Field label="Código enviado por e-mail">
-                                <input inputMode="numeric" maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" />
-                              </Field>
-                            ) : null}
-                          </>
-                        ) : null}
-                      </div>
-
-                      <div className="auth-actions-row">
-                        {!linkingProfile ? (
-                          <button type="button" className="button secondary google-auth-button" disabled={loading} onClick={signInWithGoogle}>
-                            Entrar com Google
-                          </button>
-                        ) : null}
-                        {linkingProfile ? (
-                          <button className="button" disabled={loading || !username.trim()}>Criar perfil vinculado</button>
-                        ) : mode === 'criar' && !codeSent ? (
-                          <button type="button" className="button" disabled={loading || !email.trim() || !username.trim() || Boolean(passwordIssue) || password !== confirmPassword} onClick={() => requestVerificationCode('register')}>
-                            Enviar código
-                          </button>
-                        ) : (
-                          <button className="button" disabled={loading || (mode === 'criar' && verificationCode.length !== 6)}>
-                            {mode === 'criar' ? 'Confirmar e criar conta' : 'Entrar'}
-                          </button>
-                        )}
-                        {mode === 'criar' && codeSent && !linkingProfile ? (
-                          <button type="button" className="button secondary" disabled={resendBlocked} onClick={() => requestVerificationCode('register')}>{resendLabel}</button>
-                        ) : null}
-                        {mode === 'entrar' ? (
-                          <button type="button" className="link-button auth-inline-link" onClick={() => { setMode('recuperar'); resetVerificationState(); setPassword(''); setConfirmPassword('') }}>
-                            Esqueci minha senha
-                          </button>
-                        ) : null}
-                      </div>
-                    </>
-                  )}
-                </form>
+                    <div className="auth-actions-row">
+                      <button className="button" disabled={loading || !name.trim() || !username.trim()}>
+                        {loading ? 'Criando perfil...' : `Criar perfil de ${typeLabels[profileType].toLowerCase()}`}
+                      </button>
+                      <button type="button" className="button secondary" onClick={signOut}>Usar outra conta</button>
+                    </div>
+                  </form>
+                )}
                 {message ? <div className="message floating">{message}</div> : null}
                 {error ? <div className="message error floating">{error}</div> : null}
               </section>

@@ -211,8 +211,8 @@ export default function EscalaPublicaPage() {
             )
           ) : (
             <div className="invite-auth-actions">
-              <a className="button" href={`/?escala=${encodeURIComponent(token)}&login=jogador`}>Entrar com conta de jogador</a>
-              <a className="button secondary" href={`/?escala=${encodeURIComponent(token)}&cadastro=jogador`}>Criar conta de jogador</a>
+              <a className="button" href={`/?escala=${encodeURIComponent(token)}&cadastro=jogador`}>Entrar ou criar conta</a>
+              <p className="invite-auth-hint">Escolha Google, Facebook ou Discord. Depois da autenticação, você volta para completar o perfil de jogador caso ele ainda não exista.</p>
             </div>
           )}
         </section>

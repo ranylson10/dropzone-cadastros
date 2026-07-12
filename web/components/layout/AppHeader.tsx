@@ -74,7 +74,7 @@ export function AppHeader({
 
           {profileOpen ? (
             <div className="app-profile-menu linked-account-menu">
-              <div className="app-profile-menu-head"><strong>Perfis vinculados</strong><span>Mesmo e-mail e mesma senha</span></div>
+              <div className="app-profile-menu-head"><strong>Perfis vinculados</strong><span>Vinculados à mesma conta</span></div>
               {accounts.map((item) => {
                 const media = profileMedia(item)
                 return (
