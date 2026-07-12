@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, MessageCircle, Pencil, Plus, Trash2, Trophy, Users } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Loader2, MessageCircle, Pencil, Plus, Trash2, Trophy, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { Field } from '../../components/form-fields'
@@ -51,14 +51,15 @@ export function ProdutoraPanel(props: {
   updateStructure: (entityType: 'phase' | 'group' | 'group_slot', id: string, data: Record<string, unknown>) => Promise<void>
   deleteStructure: (entityType: 'phase' | 'group', id: string) => Promise<void>
   createTeam: () => void
-  createPhase: () => void
-  createGroup: () => void
+  createPhase: () => Promise<boolean>
+  createGroup: () => Promise<boolean>
   assignTeamToSlot: () => void
   createGame: () => void
   addTeamToChamp: () => void
   generateTeamInvite: () => void
   copyToken: (value: string | null) => void
   loading: boolean
+  pendingCreate: string | null
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [showCreateChamp, setShowCreateChamp] = useState(false)
@@ -356,7 +357,17 @@ export function ProdutoraPanel(props: {
                       <Field label="Nome da fase"><input value={props.phase.nome} onChange={(e) => props.setPhase({ ...props.phase, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Fase de grupos" /></Field>
                       <Field label="Ordem"><input type="number" value={props.phase.ordem} onChange={(e) => props.setPhase({ ...props.phase, ordem: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
                       <div className="button-row">
-                        <button className="button" onClick={props.createPhase}>Criar fase</button>
+                        <button
+                          className="button"
+                          type="button"
+                          disabled={Boolean(props.pendingCreate)}
+                          onClick={async () => {
+                            const created = await props.createPhase()
+                            if (created) setOpenAction('')
+                          }}
+                        >
+                          {props.pendingCreate === 'phase' ? <><Loader2 size={15} className="button-spinner" /> Criando fase...</> : 'Criar fase'}
+                        </button>
                         <button className="button secondary" type="button" onClick={() => setOpenAction('')}>Cancelar</button>
                       </div>
                     </div>
@@ -397,7 +408,17 @@ export function ProdutoraPanel(props: {
                             <Field label="Slots"><input type="number" min="1" max="52" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })} placeholder="12" /></Field>
                             <Field label="Link do WhatsApp"><input value={props.group.whatsapp_url} onChange={(e) => props.setGroup({ ...props.group, whatsapp_url: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })} placeholder="https://chat.whatsapp.com/..." /></Field>
                             <div className="button-row phase-group-form-actions">
-                              <button className="button" onClick={props.createGroup}>Criar grupo</button>
+                              <button
+                                className="button"
+                                type="button"
+                                disabled={Boolean(props.pendingCreate)}
+                                onClick={async () => {
+                                  const created = await props.createGroup()
+                                  if (created) setOpenAction('')
+                                }}
+                              >
+                                {props.pendingCreate === 'group' ? <><Loader2 size={15} className="button-spinner" /> Criando grupo...</> : 'Criar grupo'}
+                              </button>
                               <button className="button secondary" type="button" onClick={() => setOpenAction('')}>Cancelar</button>
                             </div>
                           </div>
@@ -463,7 +484,7 @@ export function ProdutoraPanel(props: {
                           {champGroups.filter((group) => !props.game.fase_id || group.data?.fase_id === props.game.fase_id).map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
                         </select>
                       </Field>
-                      <button className="button" onClick={props.createGame}>Criar jogo</button>
+                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createGame}>{props.pendingCreate === 'game' ? <><Loader2 size={15} className="button-spinner" /> Criando jogo...</> : 'Criar jogo'}</button>
                     </div>
                   ) : null}
                   <div className="ref-card-grid two">
@@ -504,7 +525,7 @@ export function ProdutoraPanel(props: {
                         <Field label="Máximo de substituições"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
                         <Field label="Prazo de substituição"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
                       </div>
-                      <button className="button" onClick={props.createRegistrationLink}>Gerar link público</button>
+                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createRegistrationLink}>{props.pendingCreate === 'registration_link' ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</> : 'Gerar link público'}</button>
                     </div>
                   ) : null}
                   <div className="ref-card-grid two">

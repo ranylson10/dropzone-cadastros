@@ -91,13 +91,13 @@ async function selectRows(table: string, entityType: string, mapper = (row: any)
   return (data || []).map(mapper)
 }
 
-async function requireChampionshipOwner(championshipId: string | null | undefined, userId: string) {
+async function requireChampionshipOwner(championshipId: string | null | undefined, userId: string, produtoraId?: string | null) {
   if (!championshipId) throw new Error('Campeonato obrigatorio.')
   let data: any
   let error: any
   const initial = await supabaseAdmin
     .from('campeonatos')
-    .select('id, criado_por, tipo')
+    .select('id, criado_por, produtora_id, tipo')
     .eq('id', championshipId)
     .maybeSingle()
   data = initial.data
@@ -105,14 +105,16 @@ async function requireChampionshipOwner(championshipId: string | null | undefine
   if (error && ['PGRST204', '42703'].includes(error.code || '')) {
     const fallback = await supabaseAdmin
       .from('campeonatos')
-      .select('id, criado_por')
+      .select('id, criado_por, produtora_id')
       .eq('id', championshipId)
       .maybeSingle()
     data = fallback.data
     error = fallback.error
   }
   if (error) throw error
-  if (!data || data.criado_por !== userId) throw new Error('Voce nao pode gerenciar esse campeonato.')
+  if (!data) throw new Error('Campeonato nao encontrado.')
+  if (data.criado_por !== userId) throw new Error('Voce nao pode gerenciar esse campeonato.')
+  if (produtoraId && data.produtora_id !== produtoraId) throw new Error('Este campeonato pertence a outra produtora.')
   return data
 }
 
@@ -334,15 +336,28 @@ export async function GET(req: NextRequest) {
     const entityType = searchParams.get('entity_type')
 
     const output: any[] = []
+    let producerChampionshipIds: string[] = []
+
+    if (account.profile_type === 'produtora') {
+      const { data: ownedChampionships, error: ownedChampionshipsError } = await supabaseAdmin
+        .from('campeonatos')
+        .select('id')
+        .eq('produtora_id', account.id)
+        .is('deleted_at', null)
+      if (ownedChampionshipsError) throw ownedChampionshipsError
+      producerChampionshipIds = (ownedChampionships || []).map((row: any) => String(row.id))
+    }
 
     async function add(type: string) {
       if (type === 'championship') {
-        const { data, error } = await supabaseAdmin
+        let championshipQuery = supabaseAdmin
           .from('campeonatos')
           .select('*, campeonato_configuracoes(*)')
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(300)
+        if (account.profile_type === 'produtora') championshipQuery = championshipQuery.eq('produtora_id', account.id)
+        const { data, error } = await championshipQuery
         if (error) throw error
         output.push(...(data || []).map(championshipRow))
       }
@@ -368,7 +383,15 @@ export async function GET(req: NextRequest) {
       ...output.filter((row) => row.entity_type === 'championship_team' && row.created_by === user.id && row.ref_id).map((row) => row.ref_id),
     ])
 
+    const championshipScopedTypes = new Set(['championship_team', 'player_registration', 'phase', 'group', 'group_slot', 'game', 'invite_token', 'registration_link', 'lineup_rule'])
     const visible = output.filter((row) => {
+      if (account.profile_type === 'produtora') {
+        if (row.entity_type === 'championship') return producerChampionshipIds.includes(row.id)
+        if (championshipScopedTypes.has(row.entity_type)) {
+          const championshipId = String(row.parent_id || row.data?.championship_id || '')
+          return producerChampionshipIds.includes(championshipId)
+        }
+      }
       if (row.entity_type === 'team_line') return managedTeamIds.has(row.ref_id)
       if (row.entity_type === 'invite_token' || row.entity_type === 'registration_link' || row.entity_type === 'lineup_rule') return row.created_by === user.id
       if (row.entity_type === 'player_registration') {
@@ -424,6 +447,7 @@ export async function POST(req: NextRequest) {
         tipo: normalizeChampionshipType(data.tipo),
         logo_url: logoUrl,
         criado_por: user.id,
+        produtora_id: account.id,
         status: 'ativo',
       }
       const { data: inserted, error } = await supabaseAdmin.from('campeonatos').insert(championshipPayload).select('*').single()
@@ -455,7 +479,7 @@ export async function POST(req: NextRequest) {
       const token = await consumeToken(body.token, TEAM_INVITE_TYPES)
       const campeonatoId = body.parent_id || token?.campeonato_id
       const equipeId = body.ref_id || token?.equipe_id
-      if (account.profile_type === 'produtora' && !token) await requireChampionshipOwner(campeonatoId, user.id)
+      if (account.profile_type === 'produtora' && !token) await requireChampionshipOwner(campeonatoId, user.id, account.id)
       if ((account.profile_type === 'equipe' || account.profile_type === 'manager') && !token) await requireManagedTeam(equipeId, user.id)
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_equipes').insert({
         campeonato_id: campeonatoId,
@@ -468,18 +492,21 @@ export async function POST(req: NextRequest) {
       row = baseRow(inserted, entityType)
     } else if (entityType === 'phase') {
       const data = body.data || {}
-      await requireChampionshipOwner(body.parent_id || data.campeonato_id, user.id)
+      await requireChampionshipOwner(body.parent_id || data.campeonato_id, user.id, account.id)
+      const phaseName = String(body.name || data.nome || '').trim()
+      if (!phaseName) throw new Error('Informe o nome da fase.')
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_fases').insert({
         campeonato_id: body.parent_id || data.campeonato_id,
-        nome: body.name || data.nome,
+        nome: phaseName,
         ordem: Number(data.ordem || 1),
       }).select('*').single()
+      if (error?.code === '23505') throw new Error('Ja existe uma fase com esse nome neste campeonato.')
       if (error) throw error
       row = baseRow(inserted, entityType)
     } else if (entityType === 'group') {
       const data = body.data || {}
       const campeonatoId = body.parent_id || data.campeonato_id
-      const championship = await requireChampionshipOwner(campeonatoId, user.id)
+      const championship = await requireChampionshipOwner(campeonatoId, user.id, account.id)
       const championshipType = normalizeChampionshipType((championship as any).tipo || data.championship_type)
       const groupName = normalizeGroupName(body.name || data.nome, championshipType)
       let existingQuery = supabaseAdmin
@@ -523,7 +550,7 @@ export async function POST(req: NextRequest) {
     } else if (entityType === 'group_slot') {
       const data = body.data || {}
       const campeonatoId = body.parent_id || data.campeonato_id
-      await requireChampionshipOwner(campeonatoId, user.id)
+      await requireChampionshipOwner(campeonatoId, user.id, account.id)
       if (!data.grupo_id || !data.slot_numero) throw new Error('Grupo e slot sao obrigatorios.')
       const slotPayload = {
         campeonato_id: campeonatoId,
@@ -581,7 +608,7 @@ export async function POST(req: NextRequest) {
     } else if (entityType === 'game') {
       const data = body.data || {}
       const campeonatoId = body.parent_id || data.campeonato_id
-      await requireChampionshipOwner(campeonatoId, user.id)
+      await requireChampionshipOwner(campeonatoId, user.id, account.id)
       const gruposIds = Array.isArray(data.grupos_ids) ? data.grupos_ids : []
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_jogos').insert({
         campeonato_id: campeonatoId,
@@ -603,8 +630,8 @@ export async function POST(req: NextRequest) {
     } else if (entityType === 'invite_token') {
       const data = body.data || {}
       const tipo = normalizeTokenKind(data.token_kind || body.tipo)
-      if (isTeamInviteKind(tipo)) await requireChampionshipOwner(body.parent_id || data.championship_id, user.id)
-      if (tipo === 'manager_invite') await requireChampionshipOwner(body.parent_id || data.championship_id, user.id)
+      if (isTeamInviteKind(tipo)) await requireChampionshipOwner(body.parent_id || data.championship_id, user.id, account.id)
+      if (tipo === 'manager_invite') await requireChampionshipOwner(body.parent_id || data.championship_id, user.id, account.id)
       if (isPlayerInviteKind(tipo)) {
         await requireManagedTeam(body.ref_id || data.team_id, user.id)
         await requireTeamInChampionship(body.parent_id || data.championship_id, body.ref_id || data.team_id)
@@ -629,14 +656,14 @@ export async function POST(req: NextRequest) {
     } else if (entityType === 'lineup_rule') {
       const data = body.data || {}
       const campeonatoId = body.parent_id || data.championship_id || data.campeonato_id
-      await requireChampionshipOwner(campeonatoId, user.id)
+      await requireChampionshipOwner(campeonatoId, user.id, account.id)
       const inserted = await saveLineupRule(data, campeonatoId)
       row = baseRow(inserted, entityType)
     } else if (entityType === 'registration_link') {
       const data = body.data || {}
       const campeonatoId = body.parent_id || data.championship_id || data.campeonato_id
       const grupoId = data.group_id || data.grupo_id
-      await requireChampionshipOwner(campeonatoId, user.id)
+      await requireChampionshipOwner(campeonatoId, user.id, account.id)
       if (!grupoId) throw new Error('Grupo obrigatorio para gerar link de inscricao.')
       await saveLineupRule({ ...data, grupo_id: grupoId }, campeonatoId)
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_links').insert({
@@ -720,7 +747,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ row })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erro ao salvar.' }, { status: 400 })
+    return NextResponse.json({ error: error?.message || 'Erro ao salvar.' }, { status: error?.code === '23505' ? 409 : 400 })
   }
 }
 
@@ -736,7 +763,7 @@ export async function PATCH(req: NextRequest) {
     const data = body.data || {}
 
     if (entityType === 'championship') {
-      await requireChampionshipOwner(id, user.id)
+      await requireChampionshipOwner(id, user.id, account.id)
       const nome = String(data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
       if (!nome || !logoUrl) throw new Error('Informe nome e logo do campeonato.')
@@ -750,8 +777,9 @@ export async function PATCH(req: NextRequest) {
     if (entityType === 'phase') {
       const { data: current, error: readError } = await supabaseAdmin.from('campeonato_fases').select('campeonato_id').eq('id', id).single()
       if (readError) throw readError
-      await requireChampionshipOwner(current.campeonato_id, user.id)
+      await requireChampionshipOwner(current.campeonato_id, user.id, account.id)
       const { data: updated, error } = await supabaseAdmin.from('campeonato_fases').update({ nome: String(data.nome || '').trim(), ordem: Number(data.ordem || 1), updated_at: new Date().toISOString() }).eq('id', id).select('*').single()
+      if (error?.code === '23505') throw new Error('Ja existe uma fase com esse nome neste campeonato.')
       if (error) throw error
       return NextResponse.json({ row: baseRow(updated, 'phase', { data: updated }) })
     }
@@ -759,11 +787,12 @@ export async function PATCH(req: NextRequest) {
     if (entityType === 'group') {
       const { data: current, error: readError } = await supabaseAdmin.from('campeonato_grupos').select('*').eq('id', id).single()
       if (readError) throw readError
-      await requireChampionshipOwner(current.campeonato_id, user.id)
+      await requireChampionshipOwner(current.campeonato_id, user.id, account.id)
       const requestedSlots = Number(data.slots || current.slots)
       const { count: occupied } = await supabaseAdmin.from('campeonato_slots').select('id', { count: 'exact', head: true }).eq('grupo_id', id).not('equipe_id', 'is', null).gt('slot_numero', requestedSlots)
       if ((occupied || 0) > 0) throw new Error('Não é possível remover slots ocupados.')
       const { data: updated, error } = await supabaseAdmin.from('campeonato_grupos').update({ nome: String(data.nome || current.nome).trim(), slots: requestedSlots, whatsapp_url: String(data.whatsapp_url || '').trim() || null, updated_at: new Date().toISOString() }).eq('id', id).select('*').single()
+      if (error?.code === '23505') throw new Error('Ja existe um grupo com esse nome nesta fase.')
       if (error) throw error
       if (requestedSlots > current.slots) {
         const additions = Array.from({ length: requestedSlots - current.slots }, (_, offset) => {
@@ -781,7 +810,7 @@ export async function PATCH(req: NextRequest) {
     if (entityType === 'group_slot') {
       const { data: current, error: readError } = await supabaseAdmin.from('campeonato_slots').select('*').eq('id', id).single()
       if (readError) throw readError
-      await requireChampionshipOwner(current.campeonato_id, user.id)
+      await requireChampionshipOwner(current.campeonato_id, user.id, account.id)
       const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
       if (data.slot_letra !== undefined) {
         const slotLetter = String(data.slot_letra || '').trim().toUpperCase()
@@ -823,16 +852,16 @@ export async function DELETE(req: NextRequest) {
     const entityType = String(body.entity_type || '')
     const id = String(body.id || '')
     if (entityType === 'championship') {
-      await requireChampionshipOwner(id, user.id)
+      await requireChampionshipOwner(id, user.id, account.id)
       const { error } = await supabaseAdmin.from('campeonatos').update({ deleted_at: new Date().toISOString(), status: 'excluido' }).eq('id', id)
       if (error) throw error
     } else if (entityType === 'phase') {
       const { data, error: readError } = await supabaseAdmin.from('campeonato_fases').select('campeonato_id').eq('id', id).single(); if (readError) throw readError
-      await requireChampionshipOwner(data.campeonato_id, user.id)
+      await requireChampionshipOwner(data.campeonato_id, user.id, account.id)
       const { error } = await supabaseAdmin.from('campeonato_fases').delete().eq('id', id); if (error) throw error
     } else if (entityType === 'group') {
       const { data, error: readError } = await supabaseAdmin.from('campeonato_grupos').select('campeonato_id').eq('id', id).single(); if (readError) throw readError
-      await requireChampionshipOwner(data.campeonato_id, user.id)
+      await requireChampionshipOwner(data.campeonato_id, user.id, account.id)
       const { error } = await supabaseAdmin.from('campeonato_grupos').delete().eq('id', id); if (error) throw error
     } else throw new Error('Tipo de exclusão não suportado.')
     return NextResponse.json({ success: true })

@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Send, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
@@ -92,6 +92,8 @@ export function DropZoneHome() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pendingCreate, setPendingCreate] = useState<string | null>(null)
+  const createLockRef = useRef(false)
   const [accessLoadingType, setAccessLoadingType] = useState<ProfileType | null>(null)
   const [queryReady, setQueryReady] = useState(false)
   const [inviteReturnTo, setInviteReturnTo] = useState('')
@@ -689,6 +691,10 @@ export function DropZoneHome() {
   }
 
   async function createRow(payload: Record<string, unknown>, success = 'Cadastro salvo na DropZone.') {
+    if (createLockRef.current) return undefined
+    createLockRef.current = true
+    const action = String(payload.entity_type || 'create')
+    setPendingCreate(action)
     setLoading(true)
     setError('')
     setMessage('')
@@ -716,6 +722,8 @@ export function DropZoneHome() {
     } catch (err: any) {
       setError(err?.message || 'Erro ao salvar.')
     } finally {
+      createLockRef.current = false
+      setPendingCreate(null)
       setLoading(false)
     }
   }
@@ -895,8 +903,11 @@ export function DropZoneHome() {
   async function createPhase() {
     const champId = phase.campeonato_id || selectedChamp?.id
     const champ = championships.find((row) => row.id === champId)
-    if (!champ || !phase.nome.trim()) return setError('Selecione o campeonato e informe o nome da fase.')
-    await createRow({
+    if (!champ || !phase.nome.trim()) {
+      setError('Selecione o campeonato e informe o nome da fase.')
+      return false
+    }
+    const created = await createRow({
       entity_type: 'phase',
       name: phase.nome,
       parent_id: champ.id,
@@ -906,7 +917,9 @@ export function DropZoneHome() {
         ordem: Number(phase.ordem || 1),
       },
     }, 'Fase criada.')
+    if (!created) return false
     setPhase({ nome: '', campeonato_id: champ.id, ordem: String(Number(phase.ordem || 1) + 1) })
+    return true
   }
 
   async function assignTeamToSlot() {
@@ -934,8 +947,11 @@ export function DropZoneHome() {
   async function createGroup() {
     const champId = group.campeonato_id || selectedChamp?.id
     const champ = championships.find((row) => row.id === champId)
-    if (!champ || !group.nome.trim()) return setError('Selecione o campeonato e informe o nome do grupo.')
-    await createRow({
+    if (!champ || !group.nome.trim()) {
+      setError('Selecione o campeonato e informe o nome do grupo.')
+      return false
+    }
+    const created = await createRow({
       entity_type: 'group',
       name: group.nome,
       parent_id: champ.id,
@@ -946,7 +962,9 @@ export function DropZoneHome() {
         championship_name: champ.name,
       },
     }, 'Grupo criado no campeonato.')
+    if (!created) return false
     setGroup({ nome: dataText(champ, 'tipo') === 'diario' ? '19h' : 'Grupo A', campeonato_id: champ.id, fase_id: group.fase_id, slots: '12', whatsapp_url: '' })
+    return true
   }
 
   async function createGame() {
@@ -1329,6 +1347,7 @@ export function DropZoneHome() {
                 generateTeamInvite={generateTeamInvite}
                 copyToken={copyToken}
                 loading={loading}
+                pendingCreate={pendingCreate}
                 uploadPublicFile={uploadPublicFile}
               />
             ) : null}
