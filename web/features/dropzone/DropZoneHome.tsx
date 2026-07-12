@@ -9,6 +9,7 @@ import { Field, LocationSearch, UploadField } from './components/form-fields'
 import { profileIcons } from './components/profile-icons'
 import { EquipePanel } from './panels/equipe/EquipePanel'
 import { JogadorPanel } from './panels/jogador/JogadorPanel'
+import { ManagerPanel } from './panels/manager/ManagerPanel'
 import { ProdutoraPanel } from './panels/produtora/ProdutoraPanel'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppHeader } from '@/components/layout/AppHeader'
@@ -1367,17 +1368,6 @@ export function DropZoneHome() {
                           ) : null}
                         </div>
 
-                        {profileType === 'manager' ? (
-                          <div className="mini-grid tight-grid">
-                            <Field label="Token de convite">
-                              <input value={registerData.token_convite} onChange={(e) => updateRegisterData('token_convite', e.target.value.toUpperCase())} placeholder="MG-..." />
-                            </Field>
-                            <Field label="Senha do convite">
-                              <input type="password" value={registerData.senha_convite} onChange={(e) => updateRegisterData('senha_convite', e.target.value)} placeholder="Senha recebida" />
-                            </Field>
-                          </div>
-                        ) : null}
-
                         <LocationSearch value={registerData} onSelect={selectLocation} />
                       </div>
                     </div>
@@ -1467,7 +1457,7 @@ export function DropZoneHome() {
               />
             ) : null}
 
-            {account.profile_type === 'equipe' || account.profile_type === 'manager' ? (
+            {account.profile_type === 'equipe' ? (
               <EquipePanel
                 accountType={account.profile_type}
                 teams={teams}
@@ -1482,9 +1472,6 @@ export function DropZoneHome() {
                 team={team}
                 setTeam={setTeam}
                 createTeam={createTeam}
-                teamPanelToken={teamPanelToken}
-                setTeamPanelToken={setTeamPanelToken}
-                acceptTeamInvite={acceptTeamInvite}
                 teamPlayerChampId={teamPlayerChampId}
                 setTeamPlayerChampId={setTeamPlayerChampId}
                 teamPlayerTeamId={teamPlayerTeamId}
@@ -1496,17 +1483,15 @@ export function DropZoneHome() {
               />
             ) : null}
 
+            {account.profile_type === 'manager' ? <ManagerPanel championships={managedChampionships} teams={managedTeams} players={registrations} /> : null}
+
             {account.profile_type === 'jogador' ? (
               <JogadorPanel
-                playerToken={playerToken}
-                setPlayerToken={setPlayerToken}
-                playerInvite={playerInvite}
-                player={player}
-                setPlayer={setPlayer}
-                registerPlayerByToken={registerPlayerByToken}
+                account={account}
                 registrations={myRegistrations}
-                loading={loading}
-                uploadPublicFile={uploadPublicFile}
+                playerTeams={playerTeams}
+                teams={teams}
+                teamLines={teamLines}
               />
             ) : null}
 

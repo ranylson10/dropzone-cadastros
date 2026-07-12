@@ -6,9 +6,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
 import { Field } from '../../components/form-fields'
-import { dataText, rowTitle, tokenText } from '../../utils'
-
-const PLAYER_INVITE_TYPES = new Set(['convite_jogador_campeonato', 'convite_jogador_equipe', 'player_invite'])
+import { dataText, rowTitle } from '../../utils'
 
 type Lineup = {
   campeonato_equipe_id: string
@@ -49,9 +47,6 @@ export function EquipePanel(props: {
   team: { nome: string; tag: string; logo_url: string; senha_dono: string }
   setTeam: (value: any) => void
   createTeam: () => void
-  teamPanelToken: string
-  setTeamPanelToken: (value: string) => void
-  acceptTeamInvite: () => void
   teamPlayerChampId: string
   setTeamPlayerChampId: (value: string) => void
   teamPlayerTeamId: string
@@ -70,8 +65,8 @@ export function EquipePanel(props: {
   const [editingInvite, setEditingInvite] = useState<Lineup | null>(null)
   const [inviteLimit, setInviteLimit] = useState('')
   const [inviteExpiresAt, setInviteExpiresAt] = useState('')
-
-  const playerInvites = props.tokens.filter((row) => PLAYER_INVITE_TYPES.has(String(row.data?.token_kind || '')) && row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id))
+  const [copiedLineupId, setCopiedLineupId] = useState('')
+  const [rosterInvite, setRosterInvite] = useState<{ teamId: string; teamName: string; texto: string } | null>(null)
   const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)), [props.teamLines, props.managedTeams])
   const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id)), [props.playerTeams, props.managedTeams])
 
@@ -97,6 +92,19 @@ export function EquipePanel(props: {
     } finally {
       setLineupLoading(false)
     }
+  }
+
+  async function createRosterInvite(team: DropZoneRow) {
+    setLineupLoading(true)
+    setLineupError('')
+    try {
+      const token = await authToken()
+      const response = await fetch('/api/equipes/convites-elenco', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ equipe_id: team.id }) })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || 'Erro ao criar convite de equipe.')
+      setRosterInvite({ teamId: team.id, teamName: rowTitle(team), texto: String(json.texto || json.url || '') })
+    } catch (error: any) { setLineupError(error?.message || 'Erro ao criar convite de equipe.') }
+    finally { setLineupLoading(false) }
   }
 
   async function createLineupLink(lineup: Lineup) {
@@ -202,8 +210,10 @@ export function EquipePanel(props: {
     }
   }
 
-  async function copyLink(value: string) {
+  async function copyLink(value: string, lineupId = '') {
     await navigator.clipboard.writeText(value)
+    setCopiedLineupId(lineupId)
+    window.setTimeout(() => setCopiedLineupId((current) => current === lineupId ? '' : current), 1800)
   }
 
   function shareText(lineup: Lineup) {
@@ -268,42 +278,51 @@ Acesse: ${url}`
                   </div>)}</div>
                   <div className="button-row lineup-actions">
                     {lineup.link_token ? <>
-                      <button className="button" onClick={() => void copyLink(shareText(lineup))}><Copy size={15}/> Copiar token</button>
+                      <button className={`button ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><Copy size={15}/> {copiedLineupId === lineup.campeonato_equipe_id ? 'Link copiado' : 'Copiar link'}</button>
                       <button className="button secondary" onClick={() => openInviteEditor(lineup)}>Alterar</button>
                       <button className="button secondary danger" onClick={() => void removeLineupInvite(lineup)}><Trash2 size={15}/> Remover</button>
-                    </> : <button className="button" onClick={() => void createLineupLink(lineup)} disabled={lineupLoading}><Link2 size={15}/> Criar token</button>}
+                    </> : <button className="button" onClick={() => void createLineupLink(lineup)} disabled={lineupLoading}><Link2 size={15}/> Criar link</button>}
                   </div>
                 </div> : null}
               </article>
             })}
           </div>
-          <div className="panel-soft compact-panel"><h3>Entrar em novo campeonato</h3><div className="inline-invite-form"><Field label="Token enviado pela produtora"><input value={props.teamPanelToken} onChange={(e) => props.setTeamPanelToken(e.target.value.toUpperCase())} placeholder="EQ-..." /></Field><button className="button" onClick={props.acceptTeamInvite}>Aceitar convite</button></div></div>
         </div> : null}
 
         {tab === 'lines' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Estrutura</p><h3>Lines da equipe</h3></div></div>{teamLines.length === 0 ? <p className="empty">Nenhuma line cadastrada.</p> : null}<div className="team-line-grid">{teamLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/favicon.ico'} alt=""/><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span><small>{lineups.filter((item) => item.line_id === line.id).length} campeonato(s)</small></div></article>)}</div></div> : null}
 
         {tab === 'jogadores' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Elenco</p><h3>Jogadores da equipe</h3></div><span className="count-pill"><Users size={14}/>{teamPlayers.length}</span></div>{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador vinculado ao elenco.</p> : null}<div className="team-player-grid">{teamPlayers.map((row) => <article className="team-player-card" key={row.id}><img src={dataText(row, 'foto_url') || '/favicon.ico'} alt=""/><div><strong>{dataText(row, 'nick') || rowTitle(row)}</strong><span>ID {dataText(row, 'id_jogo') || '-'}</span><small>{dataText(row, 'funcao') || 'Função não informada'}</small></div></article>)}</div></div> : null}
 
-        {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <button key={lineup.campeonato_equipe_id} className="token-card" onClick={() => void copyLink(shareText(lineup))}><span>{lineup.campeonato_nome} · {lineup.line_nome}</span><strong>{tokenText(lineup.link_token || '')}</strong><Copy size={15}/></button>)}</div></div><div className="panel-soft"><h3>Tokens antigos para jogador</h3>{playerInvites.length === 0 ? <p className="empty">Nenhum token antigo ativo.</p> : null}<div className="token-list">{playerInvites.map((token) => <button key={token.id} className="token-card" onClick={() => props.copyToken(token.token)}><span>{dataText(token, 'championship_name')}</span><strong>{tokenText(token.token)}</strong><Copy size={15}/></button>)}</div></div></div> : null}
+        {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Este convite adiciona o jogador ao elenco. Ele não inscreve o jogador em campeonato.</p><div className="token-list">{props.managedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <button key={lineup.campeonato_equipe_id} className={`token-card ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><span>{lineup.campeonato_nome} · {lineup.line_nome}</span><strong>{copiedLineupId === lineup.campeonato_equipe_id ? 'Link copiado' : 'Copiar convite'}</strong><Copy size={15}/></button>)}</div></div></div> : null}
 
         {tab === 'config' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Dados da equipe</h3>{props.managedTeams.map((team) => <div className="compact-row" key={team.id}><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'sem tag'}</span></div>)}</div></div> : null}
       </section>
 
       <SystemModal
+        open={Boolean(rosterInvite)}
+        title="Convite para entrar na equipe"
+        description="O jogador precisa acessar o link usando seu perfil de jogador."
+        size="medium"
+        onClose={() => setRosterInvite(null)}
+      >
+        {rosterInvite ? <div className="lineup-invite-result"><strong>{rosterInvite.teamName}</strong><pre className="lineup-invite-preview">{rosterInvite.texto}</pre><div className="button-row"><button className="button" onClick={() => void copyLink(rosterInvite.texto, 'roster')}><Copy size={15}/> {copiedLineupId === 'roster' ? 'Link copiado' : 'Copiar convite'}</button><button className="button secondary" onClick={() => setRosterInvite(null)}>Fechar</button></div></div> : null}
+      </SystemModal>
+
+      <SystemModal
         open={Boolean(generatedInvite)}
-        title="Token da escalação criado"
-        description="Ao copiar o token, a mensagem informativa e o link são copiados juntos."
+        title="Link de escalação criado"
+        description="Ao copiar, a mensagem informativa e o link são copiados juntos."
         size="medium"
         onClose={() => setGeneratedInvite(null)}
       >
         {generatedInvite ? <div className="lineup-invite-result">
           <div className="lineup-invite-token">
-            <span>Token da escalação</span>
-            <strong>{generatedInvite.token}</strong>
+            <span>Link de escalação</span>
+            <strong>{generatedInvite.link}</strong>
           </div>
           <pre className="lineup-invite-preview">{generatedInvite.texto}</pre>
           <div className="button-row">
-            <button className="button" type="button" onClick={() => void copyLink(generatedInvite.texto)}><Copy size={15}/> Copiar token</button>
+            <button className="button" type="button" onClick={() => void copyLink(generatedInvite.texto, 'modal')}><Copy size={15}/> {copiedLineupId === 'modal' ? 'Link copiado' : 'Copiar convite'}</button>
             <button className="button secondary" type="button" onClick={() => setGeneratedInvite(null)}>Fechar</button>
           </div>
         </div> : null}
@@ -311,7 +330,7 @@ Acesse: ${url}`
 
       <SystemModal
         open={Boolean(editingInvite)}
-        title="Alterar token da escalação"
+        title="Alterar link da escalação"
         description="Ajuste o limite de jogadores e a validade sem trocar o link atual."
         size="medium"
         onClose={() => setEditingInvite(null)}
@@ -320,7 +339,7 @@ Acesse: ${url}`
           <Field label="Limite de jogadores">
             <input type="number" min="1" value={inviteLimit} onChange={(event) => setInviteLimit(event.target.value)} />
           </Field>
-          <Field label="Validade do token">
+          <Field label="Validade do link">
             <input type="datetime-local" value={inviteExpiresAt} onChange={(event) => setInviteExpiresAt(event.target.value)} />
           </Field>
         </div>

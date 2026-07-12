@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { createHash } from 'crypto'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { assertPassword, assertProfileType, assertUsername, cleanEmail } from '@/lib/validation'
 import { profileTable } from '@backend/auth/server-auth'
@@ -22,9 +21,6 @@ function buildLocalidade(details: Record<string, any>) {
   return [cleanText(details.cidade), cleanText(details.estado), cleanText(details.pais)].filter(Boolean).join(' - ')
 }
 
-function hashInvitePassword(value: string) {
-  return createHash('sha256').update(value).digest('hex')
-}
 
 function friendlyAuthError(message: string) {
   if (/invalid token|expired/i.test(message)) return 'Codigo invalido ou expirado.'
@@ -95,10 +91,6 @@ export async function POST(req: Request) {
       if (!cleanText(details.id_jogo)) throw new Error('Informe o ID de jogo.')
       if (!['support', 'rush', 'sniper', 'bomber'].includes(cleanText(details.funcao))) throw new Error('Selecione uma funcao valida.')
     }
-    if (profileType === 'manager') {
-      if (!cleanText(details.token_convite)) throw new Error('Informe o token de convite do manager.')
-      if (!cleanText(details.senha_convite)) throw new Error('Informe a senha do convite do manager.')
-    }
 
     const table = profileTable(profileType)
 
@@ -110,24 +102,6 @@ export async function POST(req: Request) {
         .maybeSingle()
       if (error) throw error
       if (sameType) throw new Error(`Este login ja possui um perfil de ${profileType}.`)
-    }
-
-    let managerInvite: any = null
-    if (profileType === 'manager') {
-      const { data, error } = await supabaseAdmin
-        .from('tokens')
-        .select('*')
-        .eq('token', cleanText(details.token_convite).toUpperCase())
-        .eq('tipo', 'manager_invite')
-        .eq('usado', false)
-        .maybeSingle()
-      if (error) throw error
-      if (!data) throw new Error('Token de manager invalido ou ja utilizado.')
-      if (data.expira_em && new Date(data.expira_em).getTime() < Date.now()) throw new Error('Token de manager expirado.')
-      if (data.senha_hash && data.senha_hash !== hashInvitePassword(cleanText(details.senha_convite))) {
-        throw new Error('Senha do convite de manager invalida.')
-      }
-      managerInvite = data
     }
 
     await assertGlobalUsernameAvailable(username)
@@ -228,14 +202,6 @@ export async function POST(req: Request) {
     }
 
     pendingAuthUserId = null
-
-    if (managerInvite) {
-      const { error: tokenError } = await supabaseAdmin
-        .from('tokens')
-        .update({ usado: true, usado_em: new Date().toISOString() })
-        .eq('id', managerInvite.id)
-      if (tokenError) throw tokenError
-    }
 
     if (linked) return NextResponse.json({ account, linked: true })
 
