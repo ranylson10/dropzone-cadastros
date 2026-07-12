@@ -207,21 +207,35 @@ export function DropZoneHome() {
     setMessage('')
 
     const { data } = await supabase.auth.getSession()
-    const session = data.session
 
-    if (session) {
+    if (data.session) {
+      setLoading(true)
       try {
-        const found = await loadMeAndRows(session.access_token, type)
-        if (found) {
+        if (recent) {
+          await loadMeAndRows(data.session.access_token, type)
           setActiveAuthType(null)
           setLinkingProfile(false)
           return
         }
 
-        prepareGoogleProfile(session.user, type)
+        const availableAccounts = accounts.length
+          ? accounts
+          : await loadAccountsOnly(data.session.access_token)
+        const existing = availableAccounts.find((item) => item.profile_type === type)
+
+        if (existing) {
+          await loadMeAndRows(data.session.access_token, type)
+          setActiveAuthType(null)
+          setLinkingProfile(false)
+          return
+        }
+
+        prepareGoogleProfile(data.session.user, type)
         return
       } catch {
-        // Sessão local inválida: exibe o login social para autenticar novamente.
+        // Sessão expirada ou inválida: mostra o login social normalmente.
+      } finally {
+        setLoading(false)
       }
     }
 
@@ -230,9 +244,8 @@ export function DropZoneHome() {
       setUsername(recent.username || '')
       setName(recent.name || '')
       setMediaUrl(media)
-      setMode('entrar')
     }
-
+    setMode('entrar')
     setLinkingProfile(false)
     setActiveAuthType(type)
   }
@@ -286,16 +299,10 @@ export function DropZoneHome() {
         const { data } = await supabase.auth.getSession()
         if (data.session) {
           try {
-            const found = await loadMeAndRows(data.session.access_token, forcedProfileType)
-            if (found) {
-              if (resolvedReturnTo) {
-                window.location.assign(resolvedReturnTo)
-                return
-              }
-              setActiveAuthType(null)
-              setLinkingProfile(false)
-            } else {
-              prepareGoogleProfile(data.session.user, forcedProfileType)
+            await loadMeAndRows(data.session.access_token, forcedProfileType)
+            if (resolvedReturnTo) {
+              window.location.assign(resolvedReturnTo)
+              return
             }
           } catch {
             prepareGoogleProfile(data.session.user, forcedProfileType)
@@ -425,35 +432,47 @@ export function DropZoneHome() {
     setLinkingProfile(true)
   }
 
-  async function loadMeAndRows(token?: string, preferredType?: ProfileType | null): Promise<boolean> {
+  async function loadAccountsOnly(accessToken: string) {
+    const meRes = await fetch('/api/me', {
+      headers: authHeaders(accessToken),
+    })
+    const meJson = await meRes.json()
+    if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
+    const loadedAccounts = (meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[]
+    setAccounts(loadedAccounts)
+    return loadedAccounts
+  }
+
+  async function loadMeAndRows(token?: string, preferredType?: ProfileType | null) {
     const accessToken = token || await getToken()
-    if (!accessToken) return false
+    if (!accessToken) throw new Error('Sessão não encontrada.')
     const storedType = preferredType || (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null)
 
     const meRes = await fetch('/api/me', {
       headers: authHeaders(accessToken, storedType),
     })
     const meJson = await meRes.json()
-    if (!meRes.ok) throw new Error(meJson.error || 'Sessao invalida.')
+    if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
 
-    const linkedAccounts = (meJson.accounts || [meJson.account]) as DropZoneRow[]
-    setAccounts(linkedAccounts)
-
-    if (preferredType && !linkedAccounts.some((item) => item.profile_type === preferredType)) {
-      return false
+    const selectedAccount = meJson.account as DropZoneRow
+    const loadedAccounts = (meJson.accounts || [selectedAccount]).filter(Boolean) as DropZoneRow[]
+    if (preferredType && selectedAccount?.profile_type !== preferredType) {
+      throw new Error(`Perfil de ${typeLabels[preferredType].toLowerCase()} ainda não existe nesta conta.`)
     }
 
-    setAccount(meJson.account)
-    saveRecentProfile(meJson.account)
-    localStorage.setItem('dropzone_active_profile_type', meJson.account.profile_type)
-
     const rowsRes = await fetch('/api/dropzone', {
-      headers: authHeaders(accessToken, meJson.account.profile_type),
+      headers: authHeaders(accessToken, selectedAccount.profile_type),
     })
     const rowsJson = await rowsRes.json()
     if (!rowsRes.ok) throw new Error(rowsJson.error || 'Erro ao listar dados.')
+
+    // Atualiza a interface somente quando conta e dados estiverem prontos,
+    // evitando piscar a seleção de perfil ou um painel incompleto.
+    setAccounts(loadedAccounts)
     setRows(rowsJson.rows || [])
-    return true
+    setAccount(selectedAccount)
+    saveRecentProfile(selectedAccount)
+    localStorage.setItem('dropzone_active_profile_type', String(selectedAccount.profile_type || ''))
   }
 
   async function switchLinkedAccount(nextAccount: DropZoneRow) {
@@ -567,14 +586,16 @@ export function DropZoneHome() {
       if (!res.ok) throw new Error(json.error || (mode === 'criar' ? 'Erro ao cadastrar.' : 'Login inválido.'))
 
       if (linkingProfile && json.linked) {
+        // Mantém o formulário em "Criando perfil..." até o painel completo
+        // do novo tipo estar carregado. Só então troca a tela.
+        await loadMeAndRows(token, profileType)
         setLinkingProfile(false)
         setActiveAuthType(null)
-        await loadMeAndRows(token, profileType)
         if (inviteReturnTo) {
           window.location.assign(inviteReturnTo)
           return
         }
-        setMessage('Perfil vinculado criado com sucesso.')
+        setMessage('Perfil criado com sucesso.')
         return
       }
 
@@ -1050,7 +1071,8 @@ export function DropZoneHome() {
                       <button
                         type="button"
                         className="other-account-button"
-                        onClick={() => {
+                        onClick={async () => {
+                          await signOut()
                           clearRegisterForm('produtora')
                           setMode('entrar')
                           setActiveAuthType('produtora')
