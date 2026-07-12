@@ -325,41 +325,78 @@ export function CampeonatoEstatisticasTab(props: {
       ) : null}
 
       {tab === 'pontuador' ? (
-        <div className="scorer-shell">
-          <div className="scorer-toolbar">
-            <label><span>Queda</span><select value={selectedPartidaId} onChange={(event) => { setSelectedPartidaId(event.target.value); setPreview([]) }} disabled={sumulaLoading}>
-              <option value="">Selecione</option>{filteredPartidas.map((partida) => <option key={partida.id} value={partida.id}>{partida.jogo_nome || String(props.games.find((game) => game.id === partida.jogo_id)?.data?.nome || props.games.find((game) => game.id === partida.jogo_id)?.name || 'Jogo')} · Queda {partida.numero_partida} · {partida.mapa_nome || partida.mapa || 'Mapa'}</option>)}
-            </select></label>
-            <div className="scorer-mode-buttons"><button className={mode === 'manual' ? 'active' : ''} onClick={() => setMode('manual')}>Pontuação manual</button><button className={mode === 'matchresult' ? 'active' : ''} onClick={() => setMode('matchresult')}>MatchResult</button></div>
-            <button className="button danger" disabled={!selectedPartidaId || saving || selectedPartida?.status === 'finalizada'} onClick={() => void finalizeDrop()}>{selectedPartida?.status === 'finalizada' ? 'Queda finalizada' : 'Finalizar queda'}</button>
+        <div className="scorer-launcher">
+          <div className="scorer-launcher-copy">
+            <p className="eyebrow">Pontuador em tela cheia</p>
+            <h4>Selecione a fase e o jogo</h4>
+            <p>O pontuador será aberto em outra aba com todos os slots, quedas, classificação do jogo, MVP e vínculos do MatchResult.</p>
           </div>
 
-          {sumulaLoading ? <div className="statistics-loading"><Loader2 className="button-spinner" /> Carregando súmula...</div> : null}
+          <div className="scorer-launcher-fields">
+            <label>
+              <span>Fase</span>
+              <select
+                value={filters.fase_id}
+                onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, jogo_id: '' })}
+              >
+                <option value="">Selecione a fase</option>
+                {props.phases.map((phase) => (
+                  <option key={phase.id} value={phase.id}>
+                    {String(phase.data?.nome || phase.name || 'Fase')}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          {mode === 'manual' && !sumulaLoading ? (
-            <div className="manual-score-list">
-              {eligibleTeams.map((team) => {
-                const teamPlayers = sumulaPlayers.filter((player) => player.campeonato_equipe_id === team.id)
-                const values = manual[team.id] || { posicao: '', abates: '', jogadores: {} }
-                return <section className="manual-team-card" key={team.id}><header><div className="statistics-identity">{(team.equipe_lines?.logo_url || team.equipes?.logo_url) ? <img src={team.equipe_lines?.logo_url || team.equipes?.logo_url} alt="" /> : <span className="statistics-avatar-fallback">{rowName(team).slice(0, 1)}</span>}<strong>{rowName(team)}</strong></div><div className="manual-team-inputs"><label><span>Posição</span><input type="number" min="1" value={values.posicao} onChange={(event) => setManualTeam(team.id, { posicao: event.target.value })} /></label><label><span>Abates</span><input type="number" min="0" value={values.abates} onChange={(event) => setManualTeam(team.id, { abates: event.target.value })} /></label></div></header>
-                  <div className="manual-player-grid">{teamPlayers.map((player) => <label key={player.id}><span><strong>{playerName(player)}</strong><small>ID {player.jogadores?.id_jogo || player.jogadores_temporarios?.id_jogo || player.id_jogo}</small></span><input type="number" min="0" value={values.jogadores[player.id] || ''} onChange={(event) => setManualPlayer(team.id, player.id, event.target.value)} placeholder="Kills" /></label>)}{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador escalado. A pontuação da equipe ainda pode ser lançada.</p> : null}</div>
-                </section>
-              })}
-              {eligibleTeams.length === 0 ? <p className="empty">Nenhuma equipe encontrada para o jogo selecionado.</p> : null}
-              <div className="button-row"><button className="button" disabled={saving || !selectedPartidaId} onClick={() => void saveManual()}>{saving ? <><Loader2 size={15} className="button-spinner" /> Salvando...</> : <><Save size={15} /> Salvar pontuação</>}</button></div>
-            </div>
-          ) : null}
+            <label>
+              <span>Jogo</span>
+              <select
+                value={filters.jogo_id}
+                onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value })}
+                disabled={!filters.fase_id}
+              >
+                <option value="">Selecione o jogo</option>
+                {props.games
+                  .filter((game) => game.data?.fase_id === filters.fase_id)
+                  .map((game) => (
+                    <option key={game.id} value={game.id}>
+                      {String(game.data?.nome || game.name || 'Jogo')}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          </div>
 
-          {mode === 'matchresult' && !sumulaLoading ? (
-            <div className="matchresult-panel">
-              <label className="matchresult-upload"><FileUp size={24} /><span><strong>{matchFileName || 'Selecionar arquivo MatchResult'}</strong><small>Arquivo .txt ou .log da queda selecionada</small></span><input type="file" accept=".txt,.log,text/plain" onChange={(event) => void readMatchFile(event.target.files?.[0])} /></label>
-              <div className="button-row"><button className="button" disabled={saving || !matchContent || !selectedPartidaId} onClick={() => void previewMatchResult()}>{saving ? <Loader2 size={15} className="button-spinner" /> : null} Analisar arquivo</button></div>
-              {preview.length ? <div className="matchresult-preview"><div className="game-form-section-header"><div><strong>Prévia da importação</strong><small>{preview.length} equipes · {preview.reduce((total, team) => total + team.jogadores.length, 0)} jogadores</small></div></div>
-                {preview.map((team) => <article key={team.nome_normalizado}><div><strong>{team.posicao}º · {team.nome}</strong><small>{team.abates} abates · {team.jogadores.length} jogadores</small></div><select value={previewLinks[team.nome_normalizado] || ''} onChange={(event) => setPreviewLinks((current) => ({ ...current, [team.nome_normalizado]: event.target.value }))}><option value="">Vincular equipe</option>{eligibleTeams.map((candidate) => <option key={candidate.id} value={candidate.id}>{rowName(candidate)}</option>)}</select><div className="matchresult-players">{team.jogadores.map((player) => <span key={`${player.id_jogo}-${player.nick}`}><strong>{player.nick}</strong><small>ID {player.id_jogo} · {player.abates} kills · {player.status_vinculo}</small></span>)}</div></article>)}
-                <div className="button-row"><button className="button" disabled={saving} onClick={() => void confirmMatchResult()}>{saving ? <><Loader2 size={15} className="button-spinner" /> Confirmando...</> : 'Confirmar e pontuar'}</button></div>
-              </div> : null}
-            </div>
-          ) : null}
+          <div className="scorer-launcher-list">
+            {filters.fase_id ? props.games
+              .filter((game) => game.data?.fase_id === filters.fase_id)
+              .map((game) => {
+                const selected = filters.jogo_id === game.id
+                return (
+                  <button
+                    type="button"
+                    key={game.id}
+                    className={selected ? 'selected' : ''}
+                    onClick={() => setFilters({ ...filters, jogo_id: game.id })}
+                  >
+                    <span>
+                      <strong>{String(game.data?.nome || game.name || 'Jogo')}</strong>
+                      <small>{Number(game.data?.numero_partidas || 0)} quedas</small>
+                    </span>
+                    <span>{selected ? 'Selecionado' : 'Selecionar'}</span>
+                  </button>
+                )
+              }) : <p className="empty">Selecione uma fase para listar os jogos.</p>}
+          </div>
+
+          <button
+            type="button"
+            className="button scorer-open-button"
+            disabled={!filters.fase_id || !filters.jogo_id}
+            onClick={() => window.open(`/campeonatos/${props.campeonatoId}/pontuador/${filters.jogo_id}`, '_blank', 'noopener,noreferrer')}
+          >
+            Abrir pontuador em tela cheia
+          </button>
         </div>
       ) : null}
     </div>
