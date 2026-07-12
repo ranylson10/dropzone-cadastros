@@ -54,7 +54,9 @@ export function ProdutoraPanel(props: {
   createPhase: () => Promise<boolean>
   createGroup: () => Promise<boolean>
   assignTeamToSlot: () => void
-  createGame: () => void
+  createGame: () => Promise<boolean>
+  updateGame: (id: string) => Promise<boolean>
+  deleteGame: (id: string) => Promise<boolean>
   addTeamToChamp: () => void
   generateTeamInvite: () => void
   copyToken: (value: string | null) => void
@@ -76,6 +78,9 @@ export function ProdutoraPanel(props: {
   const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string } | null>(null)
   const [mapCatalog, setMapCatalog] = useState<Array<{ codigo: string; nome: string; imagem_url: string | null; mapa_misterioso: boolean }>>([])
   const [mapsLoading, setMapsLoading] = useState(false)
+  const [editingGameId, setEditingGameId] = useState('')
+  const [openGamePhases, setOpenGamePhases] = useState<Record<string, boolean>>({})
+  const [openGames, setOpenGames] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     let active = true
@@ -478,12 +483,29 @@ export function ProdutoraPanel(props: {
                   <div className="subtab-actionbar">
                     <div>
                       <p className="eyebrow">Jogos</p>
-                      <h3>Rodadas do campeonato</h3>
+                      <h3>Jogos por fase</h3>
                     </div>
-                    <button className="button" onClick={() => toggleAction('game')}>Novo jogo</button>
+                    <button
+                      className="button"
+                      onClick={() => {
+                        setEditingGameId('')
+                        props.setGame({ nome: '', campeonato_id: selectedChamp.id, fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill(''), grupos_ids: [] })
+                        setOpenAction('game')
+                      }}
+                    >
+                      Novo jogo
+                    </button>
                   </div>
+
                   {openAction === 'game' ? (
-                    <div className="inline-action-panel">
+                    <div className="inline-action-panel game-editor-panel">
+                      <div className="game-editor-heading">
+                        <div>
+                          <p className="eyebrow">{editingGameId ? 'Editar jogo' : 'Novo jogo'}</p>
+                          <h4>{editingGameId ? 'Atualize as informações do jogo' : 'Cadastre um jogo na fase selecionada'}</h4>
+                        </div>
+                        <button className="button secondary" type="button" onClick={() => { setOpenAction(''); setEditingGameId('') }}>Cancelar</button>
+                      </div>
                       <div className="mini-grid three">
                         <Field label="Fase">
                           <select value={props.game.fase_id} onChange={(e) => props.setGame({ ...props.game, fase_id: e.target.value, campeonato_id: selectedChamp.id, grupos_ids: [] })}>
@@ -491,7 +513,7 @@ export function ProdutoraPanel(props: {
                             {champPhases.map((phase) => <option key={phase.id} value={phase.id}>{rowTitle(phase)}</option>)}
                           </select>
                         </Field>
-                        <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Rodada 1" /></Field>
+                        <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Jogo 1 - A x B" /></Field>
                         <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => { const total = Math.max(1, Number(e.target.value || 1)); props.setGame({ ...props.game, numero_partidas: e.target.value, mapas: Array.from({ length: total }, (_, index) => props.game.mapas[index] || ''), campeonato_id: selectedChamp.id }) }} /></Field>
                       </div>
                       <div className="mini-grid two">
@@ -501,10 +523,7 @@ export function ProdutoraPanel(props: {
 
                       <div className="game-form-section">
                         <div className="game-form-section-header">
-                          <div>
-                            <strong>Mapas por queda</strong>
-                            <small>Selecione um mapa para cada queda.</small>
-                          </div>
+                          <div><strong>Mapas por queda</strong><small>Selecione um mapa para cada queda.</small></div>
                           {mapsLoading ? <Loader2 size={16} className="button-spinner" /> : null}
                         </div>
                         <div className="map-drop-grid">
@@ -516,15 +535,11 @@ export function ProdutoraPanel(props: {
                                 <span>Queda {index + 1}</span>
                                 <div className="map-drop-control">
                                   {selectedMap?.imagem_url ? <img src={selectedMap.imagem_url} alt="" /> : <div className="map-drop-placeholder" />}
-                                  <select
-                                    value={selectedCode}
-                                    disabled={mapsLoading || mapCatalog.length === 0}
-                                    onChange={(event) => {
-                                      const nextMaps = Array.from({ length: Math.max(1, Number(props.game.numero_partidas || 1)) }, (_, mapIndex) => props.game.mapas[mapIndex] || '')
-                                      nextMaps[index] = event.target.value
-                                      props.setGame({ ...props.game, mapas: nextMaps, campeonato_id: selectedChamp.id })
-                                    }}
-                                  >
+                                  <select value={selectedCode} disabled={mapsLoading || mapCatalog.length === 0} onChange={(event) => {
+                                    const nextMaps = Array.from({ length: Math.max(1, Number(props.game.numero_partidas || 1)) }, (_, mapIndex) => props.game.mapas[mapIndex] || '')
+                                    nextMaps[index] = event.target.value
+                                    props.setGame({ ...props.game, mapas: nextMaps, campeonato_id: selectedChamp.id })
+                                  }}>
                                     <option value="">Selecione o mapa</option>
                                     {mapCatalog.map((mapa) => <option key={mapa.codigo} value={mapa.codigo}>{mapa.nome}</option>)}
                                   </select>
@@ -537,10 +552,7 @@ export function ProdutoraPanel(props: {
 
                       <div className="game-form-section">
                         <div className="game-form-section-header">
-                          <div>
-                            <strong>Grupos participantes</strong>
-                            <small>Marque um ou mais grupos da fase selecionada.</small>
-                          </div>
+                          <div><strong>Grupos participantes</strong><small>Marque um ou mais grupos da fase selecionada.</small></div>
                           <span className="selection-count">{props.game.grupos_ids.length} selecionado(s)</span>
                         </div>
                         <div className="group-check-grid">
@@ -548,16 +560,10 @@ export function ProdutoraPanel(props: {
                             const checked = props.game.grupos_ids.includes(group.id)
                             return (
                               <label className={`group-check-card ${checked ? 'selected' : ''}`} key={group.id}>
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => {
-                                    const grupos_ids = checked
-                                      ? props.game.grupos_ids.filter((id) => id !== group.id)
-                                      : [...props.game.grupos_ids, group.id]
-                                    props.setGame({ ...props.game, grupos_ids, campeonato_id: selectedChamp.id })
-                                  }}
-                                />
+                                <input type="checkbox" checked={checked} onChange={() => {
+                                  const grupos_ids = checked ? props.game.grupos_ids.filter((id) => id !== group.id) : [...props.game.grupos_ids, group.id]
+                                  props.setGame({ ...props.game, grupos_ids, campeonato_id: selectedChamp.id })
+                                }} />
                                 <span className="group-check-box"><CheckCircle2 size={15} /></span>
                                 <span><strong>{rowTitle(group)}</strong><small>{Number(group.data?.slots || 0)} slots</small></span>
                               </label>
@@ -567,12 +573,94 @@ export function ProdutoraPanel(props: {
                           {props.game.fase_id && champGroups.filter((group) => group.data?.fase_id === props.game.fase_id).length === 0 ? <p className="empty">Nenhum grupo cadastrado nesta fase.</p> : null}
                         </div>
                       </div>
-                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createGame}>{props.pendingCreate === 'game' ? <><Loader2 size={15} className="button-spinner" /> Criando jogo...</> : 'Criar jogo'}</button>
+                      <div className="button-row">
+                        <button
+                          className="button"
+                          type="button"
+                          disabled={Boolean(props.pendingCreate)}
+                          onClick={async () => {
+                            const saved = editingGameId ? await props.updateGame(editingGameId) : await props.createGame()
+                            if (saved) { setOpenAction(''); setEditingGameId('') }
+                          }}
+                        >
+                          {props.pendingCreate === 'game' || props.pendingCreate === 'game_update' ? <><Loader2 size={15} className="button-spinner" /> {editingGameId ? 'Salvando jogo...' : 'Criando jogo...'}</> : editingGameId ? 'Salvar alterações' : 'Criar jogo'}
+                        </button>
+                        <button className="button secondary" type="button" onClick={() => { setOpenAction(''); setEditingGameId('') }}>Cancelar</button>
+                      </div>
                     </div>
                   ) : null}
-                  <div className="ref-card-grid two">
-                    {champGames.map((game) => <div className="compact-row event-row" key={game.id}><strong>{rowTitle(game)}</strong><small>{phaseName(game.data?.fase_id)} · {dataText(game, 'data_jogo') || 'sem data'} · {dataText(game, 'numero_partidas') || game.data?.numero_partidas || 1} partidas</small></div>)}
-                    {champGames.length === 0 ? <p className="empty">Nenhum jogo criado.</p> : null}
+
+                  <div className="folder-structure game-folder-structure">
+                    {champPhases.map((phase) => {
+                      const gamesOfPhase = champGames.filter((game) => game.data?.fase_id === phase.id)
+                      const phaseOpen = openGamePhases[phase.id] !== false
+                      return (
+                        <section className="folder-card phase-folder-card" key={phase.id}>
+                          <header className="folder-row phase-folder-row">
+                            <button className="folder-toggle" onClick={() => setOpenGamePhases((value) => ({ ...value, [phase.id]: !phaseOpen }))}>
+                              {phaseOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                              {phaseOpen ? <FolderOpen size={18} /> : <Folder size={18} />}
+                              <span><strong>{rowTitle(phase)}</strong><small>{gamesOfPhase.length} jogo(s)</small></span>
+                            </button>
+                          </header>
+                          {phaseOpen ? (
+                            <div className="phase-groups-list game-list-in-phase">
+                              {gamesOfPhase.map((gameRow) => {
+                                const gameOpen = Boolean(openGames[gameRow.id])
+                                const total = Number(gameRow.data?.numero_partidas || 1)
+                                const rawMaps = Array.isArray(gameRow.data?.mapas) ? gameRow.data?.mapas as string[] : []
+                                const groupIds = Array.isArray(gameRow.data?.grupos_ids) ? gameRow.data?.grupos_ids as string[] : []
+                                const mapNames = rawMaps.slice(0, total).map((value) => mapCatalog.find((mapa) => mapa.codigo === value || mapa.nome.toLowerCase() === String(value).toLowerCase())?.nome || value).filter(Boolean)
+                                return (
+                                  <article className="folder-card game-folder-card" key={gameRow.id}>
+                                    <header className="folder-row game-folder-row">
+                                      <button className="folder-toggle" onClick={() => setOpenGames((value) => ({ ...value, [gameRow.id]: !gameOpen }))}>
+                                        {gameOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                        <Folder size={18} />
+                                        <span><strong>{rowTitle(gameRow)}</strong><small>{dataText(gameRow, 'data_jogo') || 'Sem data'} · {total} queda(s)</small></span>
+                                      </button>
+                                      <div className="folder-actions">
+                                        <button title="Editar jogo" onClick={() => {
+                                          const normalizedMaps = Array.from({ length: total }, (_, index) => {
+                                            const value = rawMaps[index] || ''
+                                            return mapCatalog.find((mapa) => mapa.codigo === value || mapa.nome.toLowerCase() === String(value).toLowerCase())?.codigo || value
+                                          })
+                                          setEditingGameId(gameRow.id)
+                                          props.setGame({
+                                            nome: rowTitle(gameRow),
+                                            campeonato_id: selectedChamp.id,
+                                            fase_id: String(gameRow.data?.fase_id || phase.id),
+                                            data_jogo: String(gameRow.data?.data_jogo || '').slice(0, 10),
+                                            horario: String(gameRow.data?.horario || '').slice(0, 5),
+                                            numero_partidas: String(total),
+                                            mapas: normalizedMaps,
+                                            grupos_ids: groupIds,
+                                          })
+                                          setOpenAction('game')
+                                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                                        }}><Pencil size={15} /></button>
+                                        <button title="Excluir jogo" className="danger" onClick={async () => { if (window.confirm(`Excluir o jogo ${rowTitle(gameRow)}?`)) await props.deleteGame(gameRow.id) }}><Trash2 size={15} /></button>
+                                      </div>
+                                    </header>
+                                    {gameOpen ? (
+                                      <div className="game-folder-details">
+                                        <div><span>Fase</span><strong>{rowTitle(phase)}</strong></div>
+                                        <div><span>Data e horário</span><strong>{dataText(gameRow, 'data_jogo') || 'Não definida'}{gameRow.data?.horario ? ` · ${String(gameRow.data.horario).slice(0, 5)}` : ''}</strong></div>
+                                        <div><span>Quedas</span><strong>{total}</strong></div>
+                                        <div><span>Grupos</span><strong>{groupIds.map((id) => groupName(id)).join(', ') || 'Nenhum grupo'}</strong></div>
+                                        <div className="wide"><span>Mapas</span><strong>{mapNames.join(' · ') || 'Não definidos'}</strong></div>
+                                      </div>
+                                    ) : null}
+                                  </article>
+                                )
+                              })}
+                              {gamesOfPhase.length === 0 ? <p className="empty">Nenhum jogo nesta fase.</p> : null}
+                            </div>
+                          ) : null}
+                        </section>
+                      )
+                    })}
+                    {champPhases.length === 0 ? <p className="empty">Crie uma fase antes de cadastrar jogos.</p> : null}
                   </div>
                 </div>
               ) : null}

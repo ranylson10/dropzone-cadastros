@@ -967,18 +967,19 @@ export function DropZoneHome() {
     return true
   }
 
-  async function createGame() {
-    if (createLockRef.current) return
+  async function createGame(): Promise<boolean> {
+    if (createLockRef.current) return false
     const champId = game.campeonato_id || selectedChamp?.id
     const champ = championships.find((row) => row.id === champId)
-    if (!champ || !game.nome.trim()) return setError('Selecione o campeonato e informe o nome do jogo.')
-    if (!game.fase_id) return setError('Selecione a fase do jogo.')
+    if (!champ || !game.nome.trim()) { setError('Selecione o campeonato e informe o nome do jogo.'); return false }
+    if (!game.fase_id) { setError('Selecione a fase do jogo.'); return false }
     const totalQuedas = Number(game.numero_partidas || 0)
-    if (!Number.isInteger(totalQuedas) || totalQuedas < 1) return setError('Informe uma quantidade válida de quedas.')
-    if (game.grupos_ids.length < 1) return setError('Selecione pelo menos um grupo participante.')
+    if (!Number.isInteger(totalQuedas) || totalQuedas < 1) { setError('Informe uma quantidade válida de quedas.'); return false }
+    if (game.grupos_ids.length < 1) { setError('Selecione pelo menos um grupo participante.'); return false }
     const mapas = game.mapas.slice(0, totalQuedas)
     if (mapas.length !== totalQuedas || mapas.some((codigo) => !codigo)) {
-      return setError('Selecione um mapa para cada queda.')
+      setError('Selecione um mapa para cada queda.')
+      return false
     }
 
     createLockRef.current = true
@@ -1011,11 +1012,86 @@ export function DropZoneHome() {
       await loadMeAndRows(token)
       setGame({ nome: '', campeonato_id: champ.id, fase_id: game.fase_id, data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill(''), grupos_ids: [] })
       setMessage('Jogo criado com sucesso.')
+      return true
     } catch (err: any) {
       setError(err?.message || 'Erro ao criar jogo.')
+      return false
     } finally {
       createLockRef.current = false
       setPendingCreate(null)
+      setLoading(false)
+    }
+  }
+
+  async function updateGame(gameId: string): Promise<boolean> {
+    if (createLockRef.current) return false
+    const champId = game.campeonato_id || selectedChamp?.id
+    const champ = championships.find((row) => row.id === champId)
+    if (!champ || !game.nome.trim()) { setError('Selecione o campeonato e informe o nome do jogo.'); return false }
+    if (!game.fase_id) { setError('Selecione a fase do jogo.'); return false }
+    const totalQuedas = Number(game.numero_partidas || 0)
+    if (!Number.isInteger(totalQuedas) || totalQuedas < 1) { setError('Informe uma quantidade válida de quedas.'); return false }
+    if (game.grupos_ids.length < 1) { setError('Selecione pelo menos um grupo participante.'); return false }
+    const mapas = game.mapas.slice(0, totalQuedas)
+    if (mapas.length !== totalQuedas || mapas.some((codigo) => !codigo)) { setError('Selecione um mapa para cada queda.'); return false }
+
+    createLockRef.current = true
+    setPendingCreate('game_update')
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/campeonatos/${champ.id}/jogos/${gameId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type) },
+        body: JSON.stringify({
+          fase_id: game.fase_id,
+          nome: game.nome.trim(),
+          data_jogo: game.data_jogo || null,
+          horario: game.horario || null,
+          numero_partidas: totalQuedas,
+          grupos_ids: game.grupos_ids,
+          quedas: mapas.map((mapa_codigo, index) => ({ numero: index + 1, mapa_codigo })),
+          intervalo_quedas_minutos: 25,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao atualizar jogo.')
+      await loadMeAndRows(token)
+      setMessage('Jogo atualizado com sucesso.')
+      return true
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao atualizar jogo.')
+      return false
+    } finally {
+      createLockRef.current = false
+      setPendingCreate(null)
+      setLoading(false)
+    }
+  }
+
+  async function deleteGame(gameId: string): Promise<boolean> {
+    const champ = selectedChamp
+    if (!champ) { setError('Selecione um campeonato.'); return false }
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/campeonatos/${champ.id}/jogos/${gameId}`, {
+        method: 'DELETE',
+        headers: authHeaders(token, account?.profile_type),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao excluir jogo.')
+      await loadMeAndRows(token)
+      setMessage('Jogo excluído com sucesso.')
+      return true
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao excluir jogo.')
+      return false
+    } finally {
       setLoading(false)
     }
   }
@@ -1377,6 +1453,8 @@ export function DropZoneHome() {
                 createGroup={createGroup}
                 assignTeamToSlot={assignTeamToSlot}
                 createGame={createGame}
+                updateGame={updateGame}
+                deleteGame={deleteGame}
                 addTeamToChamp={() => addTeamToChamp()}
                 generateTeamInvite={generateTeamInvite}
                 copyToken={copyToken}
