@@ -7,6 +7,14 @@ function novoToken() {
   return randomBytes(18).toString('base64url')
 }
 
+function validFutureDate(value: unknown) {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) return null
+  return date.toISOString()
+}
+
 async function managedTeamIds(userId: string) {
   const { data, error } = await supabaseAdmin
     .from('equipes')
@@ -97,6 +105,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     const token = novoToken()
+    const expiresAt = validFutureDate(body.expira_em) || validFutureDate(rule?.encerra_em)
     const { data, error } = await supabaseAdmin
       .from('campeonato_links_inscricao')
       .insert({
@@ -112,7 +121,7 @@ export async function POST(req: NextRequest) {
         ativo: true,
         acompanhamento_publico: true,
         criado_por: user.id,
-        expira_em: body.expira_em || rule?.encerra_em || null,
+        expira_em: expiresAt,
       })
       .select('*')
       .single()

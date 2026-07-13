@@ -68,6 +68,25 @@ async function upsertSellerContact(convite: any, account: any, body: any, whatsa
   if (updateError && !missingRelation(updateError)) throw updateError
 }
 
+async function upsertSellerLink(convite: any, account: any, body: any, whatsappUrl: string, userId: string) {
+  const { error } = await supabaseAdmin
+    .from('campeonato_vendedores')
+    .upsert({
+      token: convite.token,
+      campeonato_id: convite.campeonato_id,
+      produtora_id: convite.produtora_id,
+      manager_id: account.id,
+      manager_auth_user_id: userId,
+      nome_publico: String(body.nome_publico || '').trim() || account.name,
+      whatsapp_url: whatsappUrl,
+      status: 'ativo',
+      criado_por: convite.criado_por || null,
+      aceito_em: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'token' })
+  if (error && !missingRelation(error)) throw error
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params
@@ -121,6 +140,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .single()
 
     if (error) throw error
+    await upsertSellerLink(convite, account, body, whatsappUrl, user.id)
     await upsertSellerContact(convite, account, body, whatsappUrl)
     return NextResponse.json({ vendedor: data, painel_url: `/vendedores/${account.id}` })
   } catch (error) {
