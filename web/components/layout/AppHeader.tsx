@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, LogOut, Menu, Plus, X } from 'lucide-react'
+import { ChevronDown, Loader2, LogOut, Menu, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { DropZoneRow } from '@/lib/types'
 
@@ -14,6 +14,7 @@ type AppHeaderProps = {
   profileImage?: string
   accounts?: DropZoneRow[]
   activeAccountId?: string
+  switchingAccountId?: string
   onSwitchAccount?: (account: DropZoneRow) => void
   onCreateLinkedProfile?: () => void
   onSignOut: () => void
@@ -31,6 +32,7 @@ export function AppHeader({
   profileImage,
   accounts = [],
   activeAccountId,
+  switchingAccountId,
   onSwitchAccount,
   onCreateLinkedProfile,
   onSignOut,
@@ -50,23 +52,23 @@ export function AppHeader({
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <a className="app-brand" href="#painel-inicio" aria-label="Ir para o início do painel">
+        <a className="app-brand" href="/#painel-inicio" aria-label="Ir para o inicio do painel">
           <span className="app-brand-logo"><img src="/dropzone-icon.png" alt="" /></span>
           <span className="app-brand-copy"><strong>DROPZONE</strong><small>COMPETITIVE SYSTEM</small></span>
         </a>
 
-        <button className="app-mobile-toggle" type="button" onClick={() => setMobileOpen((v) => !v)} aria-expanded={mobileOpen} aria-label="Abrir menu">
+        <button className="app-mobile-toggle" type="button" onClick={() => setMobileOpen((value) => !value)} aria-expanded={mobileOpen} aria-label="Abrir menu">
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
 
-        <nav className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegação principal">
+        <nav className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegacao principal">
           {navItems.map((item) => (
             <a key={item.label} href={item.href} className={activeLabel === item.label ? 'active' : ''} onClick={() => setMobileOpen(false)}>{item.label}</a>
           ))}
         </nav>
 
         <div className="app-profile" ref={profileRef}>
-          <button type="button" className="app-profile-trigger" onClick={() => setProfileOpen((v) => !v)} aria-expanded={profileOpen}>
+          <button type="button" className="app-profile-trigger" onClick={() => setProfileOpen((value) => !value)} aria-expanded={profileOpen}>
             <span className="app-profile-avatar">{profileImage ? <img src={profileImage} alt="" /> : <b>{profileName.slice(0, 2).toUpperCase()}</b>}</span>
             <span className="app-profile-copy"><strong>{profileName}</strong><small>{profileSubtitle || 'Conta DropZone'}</small></span>
             <ChevronDown size={16} className={profileOpen ? 'rotated' : ''} />
@@ -74,18 +76,22 @@ export function AppHeader({
 
           {profileOpen ? (
             <div className="app-profile-menu linked-account-menu">
-              <div className="app-profile-menu-head"><strong>Perfis vinculados</strong><span>Perfis ligados à mesma conta</span></div>
+              <div className="app-profile-menu-head"><strong>Perfis vinculados</strong><span>Perfis ligados a mesma conta</span></div>
               {accounts.map((item) => {
                 const media = profileMedia(item)
+                const isActive = item.id === activeAccountId
+                const isSwitching = item.id === switchingAccountId
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    className={`linked-account-option ${item.id === activeAccountId ? 'active' : ''}`}
+                    className={`linked-account-option ${isActive ? 'active' : ''} ${isSwitching ? 'is-switching' : ''}`}
+                    disabled={isActive || Boolean(switchingAccountId)}
                     onClick={() => { onSwitchAccount?.(item); setProfileOpen(false) }}
                   >
                     <span className="linked-account-avatar">{media ? <img src={media} alt="" /> : String(item.name || item.username || 'DZ').slice(0, 2).toUpperCase()}</span>
-                    <span><b>{item.name}</b><small>{item.profile_type} · @{item.username}</small></span>
+                    <span><b>{item.name}</b><small>{isSwitching ? 'Abrindo painel...' : `${item.profile_type} - @${item.username}`}</small></span>
+                    {isSwitching ? <Loader2 className="spin linked-account-spinner" size={15} /> : null}
                   </button>
                 )
               })}

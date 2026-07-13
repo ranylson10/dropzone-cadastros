@@ -130,6 +130,13 @@ function nullablePositiveInteger(value: unknown) {
   return parsed
 }
 
+function nullableMoney(value: unknown) {
+  if (value === '' || value === null || value === undefined) return null
+  const parsed = Number(String(value).replace(',', '.'))
+  if (!Number.isFinite(parsed) || parsed < 0) throw new Error('Os valores financeiros devem ser maiores ou iguais a zero.')
+  return parsed
+}
+
 function nullableDate(value: unknown) {
   if (!value) return null
   const date = new Date(String(value))
@@ -156,6 +163,8 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
   return {
     campeonato_id: campeonatoId,
     premiacao: String(data.premiacao || '').trim() || null,
+    valor_inscricao: nullableMoney(data.valor_inscricao),
+    descricao_premiacao: String(data.descricao_premiacao || '').trim() || null,
     divisao_premiacao: String(data.divisao_premiacao || '').trim() || null,
     numero_vagas: nullablePositiveInteger(data.numero_vagas),
     formato: String(data.formato || '').trim() || null,

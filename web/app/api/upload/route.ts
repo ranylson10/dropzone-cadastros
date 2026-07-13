@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin, serviceRoleKey, supabaseUrl } from '@backend/shared/supabase-admin'
 
 export const runtime = 'nodejs'
@@ -11,6 +12,7 @@ type UploadPayload = {
 }
 
 const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'campeonato'])
+const PROFILE_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager'])
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -95,12 +97,24 @@ async function uploadToStorage(bucket: string, path: string, buffer: Buffer) {
   }
 }
 
-export async function POST(req: Request) {
+function assertCanUpload(bucket: string, profileType?: string | null) {
+  if (PROFILE_BUCKETS.has(bucket) && bucket !== profileType) {
+    throw new Error('Este perfil nao pode enviar arquivos para esse bucket.')
+  }
+  if (bucket === 'campeonato' && profileType !== 'produtora') {
+    throw new Error('Somente produtoras podem enviar imagens de campeonato.')
+  }
+}
+
+export async function POST(req: NextRequest) {
   try {
+    const user = await getBearerUser(req)
+    const account = await getActiveAccount(req, user)
     const payload = (await req.json()) as UploadPayload
     const bucket = String(payload.bucket || '').replace(/^\uFEFF/, '').trim()
 
     if (!ALLOWED_BUCKETS.has(bucket)) throw new Error('Bucket invalido.')
+    assertCanUpload(bucket, account.profile_type)
 
     const base64 = normalizeBase64(payload)
     const buffer = Buffer.from(base64, 'base64')

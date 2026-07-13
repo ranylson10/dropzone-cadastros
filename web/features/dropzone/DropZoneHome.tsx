@@ -64,6 +64,14 @@ const typeDescriptions: Record<ProfileType, string> = {
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
 const PLAYER_INVITE_TYPES = new Set(['convite_jogador_campeonato', 'convite_jogador_equipe', 'player_invite'])
+const PANEL_CACHE_TTL_MS = 5 * 60 * 1000
+
+type PanelSnapshot = {
+  account: DropZoneRow
+  accounts: DropZoneRow[]
+  rows: DropZoneRow[]
+  savedAt: number
+}
 
 export function DropZoneHome() {
   const [mode, setMode] = useState<AuthMode>('entrar')
@@ -99,6 +107,7 @@ export function DropZoneHome() {
   const [pendingCreate, setPendingCreate] = useState<string | null>(null)
   const createLockRef = useRef(false)
   const [accessLoadingType, setAccessLoadingType] = useState<ProfileType | null>(null)
+  const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null)
   const [queryReady, setQueryReady] = useState(false)
   const [inviteReturnTo, setInviteReturnTo] = useState('')
 
@@ -345,6 +354,13 @@ export function DropZoneHome() {
       if (data.session) {
         try {
           const storedType = localStorage.getItem('dropzone_active_profile_type') as ProfileType | null
+          const cachedSnapshot = readPanelSnapshot(storedType)
+          if (cachedSnapshot) {
+            setAccount(cachedSnapshot.account)
+            setAccounts(cachedSnapshot.accounts)
+            setRows(cachedSnapshot.rows)
+            setQueryReady(true)
+          }
           await loadMeAndRows(data.session.access_token, storedType)
         } catch {
           setAccount(null)
@@ -391,11 +407,33 @@ export function DropZoneHome() {
     }
   }
 
-  function savePanelCache(accountId: string, nextRows: DropZoneRow[]) {
+  function readPanelSnapshot(profileType?: ProfileType | null) {
+    try {
+      const key = profileType ? `dropzone_panel_snapshot_${profileType}` : 'dropzone_panel_snapshot_last'
+      const cached = localStorage.getItem(key)
+      if (!cached) return null
+      const snapshot = JSON.parse(cached) as PanelSnapshot
+      if (!snapshot?.account || !Array.isArray(snapshot.rows)) return null
+      if (Date.now() - Number(snapshot.savedAt || 0) > PANEL_CACHE_TTL_MS) return null
+      return snapshot
+    } catch {
+      return null
+    }
+  }
+
+  function savePanelSnapshot(nextAccount: DropZoneRow, nextAccounts: DropZoneRow[], nextRows: DropZoneRow[]) {
     try {
       const basicTypes = new Set(['championship', 'team', 'team_line', 'championship_team'])
       const basicRows = nextRows.filter((row) => basicTypes.has(row.entity_type)).slice(0, 300)
-      localStorage.setItem(`dropzone_panel_cache_${accountId}`, JSON.stringify(basicRows))
+      localStorage.setItem(`dropzone_panel_cache_${nextAccount.id}`, JSON.stringify(basicRows))
+      const snapshot: PanelSnapshot = {
+        account: nextAccount,
+        accounts: nextAccounts,
+        rows: basicRows,
+        savedAt: Date.now(),
+      }
+      localStorage.setItem('dropzone_panel_snapshot_last', JSON.stringify(snapshot))
+      localStorage.setItem(`dropzone_panel_snapshot_${nextAccount.profile_type}`, JSON.stringify(snapshot))
     } catch {
       // O painel continua funcionando normalmente quando o navegador limita o cache.
     }
@@ -411,10 +449,11 @@ export function DropZoneHome() {
         reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'))
         reader.readAsDataURL(file)
       })
+      const token = await getToken()
 
       const res = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type) },
         body: JSON.stringify({
           bucket,
           file_name: file.name || `${bucket}.png`,
@@ -536,20 +575,29 @@ export function DropZoneHome() {
     // Atualiza a interface somente quando conta e dados estiverem prontos,
     // evitando piscar a seleção de perfil ou um painel incompleto.
     setRows(rowsJson.rows || [])
-    savePanelCache(selectedAccount.id, rowsJson.rows || [])
+    savePanelSnapshot(selectedAccount, loadedAccounts, rowsJson.rows || [])
     saveRecentProfiles(loadedAccounts)
   }
 
   async function switchLinkedAccount(nextAccount: DropZoneRow) {
+    if (nextAccount.id === account?.id) return
     setLoading(true)
+    setAccessLoadingType(nextAccount.profile_type as ProfileType)
+    setSwitchingAccountId(nextAccount.id)
     setError('')
     try {
       localStorage.setItem('dropzone_active_profile_type', String(nextAccount.profile_type || ''))
+      setAccount(nextAccount)
+      setRows(readPanelCache(nextAccount.id))
+      setMessage(`Trocando para ${typeLabels[nextAccount.profile_type as ProfileType].toLowerCase()}...`)
       await loadMeAndRows(undefined, nextAccount.profile_type as ProfileType)
+      setMessage('')
     } catch (err: any) {
       setError(err?.message || 'Não foi possível trocar de perfil.')
     } finally {
       setLoading(false)
+      setAccessLoadingType(null)
+      setSwitchingAccountId(null)
     }
   }
 
@@ -1209,6 +1257,7 @@ export function DropZoneHome() {
           profileImage={mediaForProfile(account)}
           accounts={accounts}
           activeAccountId={account.id}
+          switchingAccountId={switchingAccountId || undefined}
           onSwitchAccount={switchLinkedAccount}
           onCreateLinkedProfile={startLinkedProfile}
           onSignOut={signOut}

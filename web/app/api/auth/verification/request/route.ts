@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { assertPassword, assertProfileType, assertUsername, cleanEmail } from '@/lib/validation'
-import { profileTable } from '@backend/auth/server-auth'
 import { createVerificationCode, sendVerificationEmail } from '@/lib/auth-verification-codes'
 
 function clean(value: unknown) {
@@ -22,6 +21,19 @@ async function assertEmailAvailable(email: string) {
       .maybeSingle()
     if (error) throw error
     if (data) throw new Error('Esse e-mail ja esta vinculado a uma conta. Use login ou recupere a senha.')
+  }
+}
+
+async function assertGlobalUsernameAvailable(username: string) {
+  const tables = ['produtoras', 'equipes', 'jogadores', 'managers'] as const
+  for (const table of tables) {
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select('id')
+      .ilike('username', username)
+      .maybeSingle()
+    if (error) throw error
+    if (data) throw new Error('Esse login ja existe.')
   }
 }
 
@@ -49,14 +61,7 @@ export async function POST(request: Request) {
 
       await assertEmailAvailable(email)
 
-      const table = profileTable(profileType!)
-      const { data: existingUsername, error: usernameError } = await supabaseAdmin
-        .from(table)
-        .select('id')
-        .ilike('username', username)
-        .maybeSingle()
-      if (usernameError) throw usernameError
-      if (existingUsername) throw new Error('Esse login ja existe.')
+      await assertGlobalUsernameAvailable(username)
 
       const code = await createVerificationCode({
         email,

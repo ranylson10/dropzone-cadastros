@@ -2110,11 +2110,29 @@ body:has(.cropper-overlay) {
   gap: 10px;
   text-align: left;
   border-left: 3px solid transparent !important;
+  transition: background .16s ease, border-color .16s ease, opacity .16s ease;
 }
 
 .linked-account-option.active {
   border-left-color: var(--accent, #ff4655) !important;
   background: rgba(255, 70, 85, 0.08);
+}
+
+.linked-account-option:disabled {
+  cursor: default;
+  opacity: .72;
+}
+
+.linked-account-option.is-switching {
+  border-left-color: var(--accent, #ff4655) !important;
+  background: linear-gradient(90deg, rgba(255, 70, 85, .12), rgba(255, 255, 255, .96));
+  opacity: 1;
+}
+
+.linked-account-spinner {
+  margin-left: auto;
+  color: var(--accent, #ff4655);
+  flex: 0 0 auto;
 }
 
 .linked-account-avatar {

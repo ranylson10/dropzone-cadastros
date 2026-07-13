@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function tokenFrom(ctx: any) {
   const params = await ctx.params
-  return String(params?.token || '').trim().toUpperCase()
+  return String(params?.token || '').trim()
 }
 
 async function loadLink(token: string) {
