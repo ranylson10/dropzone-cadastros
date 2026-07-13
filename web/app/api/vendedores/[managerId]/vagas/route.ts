@@ -5,39 +5,40 @@ function missingRelation(error: any) {
   return ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code || '')
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 async function resolveManager(managerId: string) {
+  const normalized = String(managerId || '').trim()
+  if (!isUuid(normalized)) return null
   const { data: manager, error: managerError } = await supabaseAdmin
     .from('managers')
-    .select('id,nome,username,avatar_url,bio,status')
-    .eq('id', managerId)
+    .select('id,nome,username,avatar_url,status,auth_user_id')
+    .eq('id', normalized)
     .maybeSingle()
   if (managerError) throw managerError
-  if (manager) return manager
-
-  const { data: fallbackManager, error: fallbackError } = await supabaseAdmin
-    .from('managers')
-    .select('id,nome,username,avatar_url,bio,status')
-    .eq('auth_user_id', managerId)
-    .maybeSingle()
-  if (fallbackError) throw fallbackError
-  return fallbackManager
+  return manager
 }
 
 export async function GET(_req: NextRequest, context: { params: Promise<{ managerId: string }> }) {
   try {
     const { managerId } = await context.params
     const manager = await resolveManager(managerId)
+    if (!manager || ['suspenso', 'banido', 'excluido'].includes(String(manager.status || 'ativo'))) {
+      throw new Error('Vendedor nao encontrado.')
+    }
     const sellerLinksResult = await supabaseAdmin
       .from('campeonato_vendedores')
       .select('id,campeonato_id,produtora_id,nome_publico,whatsapp_url,created_at')
-      .eq('manager_id', manager?.id)
+      .eq('manager_id', manager.id)
       .eq('status', 'ativo')
       .order('created_at', { ascending: false })
     const tokenLinksResult = await supabaseAdmin
       .from('tokens')
       .select('id,campeonato_id,produtora_id,created_at')
       .eq('tipo', 'manager_invite')
-      .eq('manager_id', manager?.id)
+      .eq('manager_id', manager.id)
       .eq('status', 'ativo')
       .order('created_at', { ascending: false })
     

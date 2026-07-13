@@ -1,42 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function missingRelation(error: any) {
   return ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code || '')
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 async function resolveManager(managerId: string) {
+  const normalized = String(managerId || '').trim()
+  if (!isUuid(normalized)) return null
   const { data: manager, error: managerError } = await supabaseAdmin
     .from('managers')
-    .select('id,nome,username,avatar_url,bio,status')
-    .eq('id', managerId)
+    .select('id,nome,username,avatar_url,status,auth_user_id')
+    .eq('id', normalized)
     .maybeSingle()
   if (managerError) throw managerError
-  if (manager) return manager
-
-  const { data: fallbackManager, error: fallbackError } = await supabaseAdmin
-    .from('managers')
-    .select('id,nome,username,avatar_url,bio,status')
-    .eq('auth_user_id', managerId)
-    .maybeSingle()
-  if (fallbackError) throw fallbackError
-  return fallbackManager
+  return manager
 }
 
 export async function GET(_req: Request, context: { params: Promise<{ managerId: string }> }) {
   try {
     const { managerId } = await context.params
-    const manager = await resolveManager(managerId)
+    console.log('[vendedores/campeonatos] request for managerId:', managerId)
+    let manager: any = null
+    try {
+      manager = await resolveManager(managerId)
+      console.log('[vendedores/campeonatos] managerId:', managerId, 'resolvedManager:', !!manager)
+    } catch (err: any) {
+      console.error('[vendedores/campeonatos] resolveManager error:', err?.message || err, err?.stack || '')
+      throw err
+    }
+    if (!manager || ['suspenso', 'banido', 'excluido'].includes(String(manager.status || 'ativo'))) throw new Error('Vendedor não encontrado.')
     const { data: vínculos, error: vínculosError } = await supabaseAdmin
       .from('tokens')
       .select('id,campeonato_id,produtora_id,manager_id,status,created_at')
       .eq('tipo', 'manager_invite')
-      .eq('manager_id', manager?.id)
+      .eq('manager_id', manager.id)
       .order('created_at', { ascending: false })
 
     if (vínculosError) throw vínculosError
-    if (!manager || ['suspenso', 'banido', 'excluido'].includes(String(manager.status || 'ativo'))) throw new Error('Vendedor não encontrado.')
 
     const campeonatoIds = Array.from(new Set([...(vínculos || []).map((item) => item.campeonato_id), ...[]].filter(Boolean)))
     const produtoraIds = Array.from(new Set((vínculos || []).map((item) => item.produtora_id).filter(Boolean)))
