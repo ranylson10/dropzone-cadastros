@@ -15,6 +15,10 @@ function validFutureDate(value: unknown) {
   return date.toISOString()
 }
 
+function defaultExpiration() {
+  return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+}
+
 async function managedTeamIds(userId: string) {
   const { data, error } = await supabaseAdmin
     .from('equipes')
@@ -67,15 +71,40 @@ export async function GET(req: NextRequest) {
       if (result.error) throw result.error
       players = result.data || []
     }
+    let links: any[] = []
+    if (participationIds.length) {
+      const result = await supabaseAdmin
+        .from('campeonato_links_inscricao')
+        .select('id,campeonato_equipe_id,token,ativo,expira_em,limite_jogadores,created_at')
+        .in('campeonato_equipe_id', participationIds)
+        .eq('tipo', 'escalacao_line')
+        .eq('ativo', true)
+        .order('created_at', { ascending: false })
+      if (result.error) throw result.error
+      const now = Date.now()
+      links = (result.data || []).filter((link: any) => !link.expira_em || new Date(link.expira_em).getTime() > now)
+    }
+    const linksByParticipation = new Map<string, any>()
+    for (const link of links) {
+      if (!linksByParticipation.has(link.campeonato_equipe_id)) linksByParticipation.set(link.campeonato_equipe_id, link)
+    }
 
     return NextResponse.json({
-      escalacoes: (summaries || []).map((summary: any) => ({
-        ...summary,
-        equipe_nome: (teams || []).find((team: any) => team.id === summary.equipe_id)?.nome || 'Equipe',
-        equipe_tag: (teams || []).find((team: any) => team.id === summary.equipe_id)?.tag || null,
-        equipe_logo_url: (teams || []).find((team: any) => team.id === summary.equipe_id)?.logo_url || null,
-        jogadores: players.filter((player) => player.campeonato_equipe_id === summary.campeonato_equipe_id),
-      })),
+      escalacoes: (summaries || []).map((summary: any) => {
+        const link = linksByParticipation.get(summary.campeonato_equipe_id)
+        return {
+          ...summary,
+          link_id: link?.id || summary.link_id || null,
+          link_token: link?.token || summary.link_token || null,
+          link_ativo: link ? true : summary.link_ativo || false,
+          link_expira_em: link?.expira_em || summary.link_expira_em || null,
+          limite_jogadores: Number(link?.limite_jogadores || summary.limite_jogadores || 6),
+          equipe_nome: (teams || []).find((team: any) => team.id === summary.equipe_id)?.nome || 'Equipe',
+          equipe_tag: (teams || []).find((team: any) => team.id === summary.equipe_id)?.tag || null,
+          equipe_logo_url: (teams || []).find((team: any) => team.id === summary.equipe_id)?.logo_url || null,
+          jogadores: players.filter((player) => player.campeonato_equipe_id === summary.campeonato_equipe_id),
+        }
+      }),
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao carregar escalações.' }, { status: 400 })
@@ -105,7 +134,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     const token = novoToken()
-    const expiresAt = validFutureDate(body.expira_em) || validFutureDate(rule?.encerra_em)
+    const expiresAt = validFutureDate(body.expira_em) || validFutureDate(rule?.encerra_em) || defaultExpiration()
     const { data, error } = await supabaseAdmin
       .from('campeonato_links_inscricao')
       .insert({
