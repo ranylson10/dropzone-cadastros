@@ -52,7 +52,7 @@ type ScalePayload = {
 
 export default function EscalaPublicaPage() {
   const params = useParams<{ token: string }>()
-  const token = String(params?.token || '').trim().toUpperCase()
+  const token = String(params?.token || '').trim()
   const [data, setData] = useState<ScalePayload | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
