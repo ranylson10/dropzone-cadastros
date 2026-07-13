@@ -40,7 +40,7 @@ export type CampeonatoWhatsappContact = {
   telefone: string
 }
 
-const WHATSAPP_COUNTRIES = [
+export const WHATSAPP_COUNTRIES = [
   { pais: 'Brasil', bandeira: '🇧🇷', ddi: '+55' },
   { pais: 'Portugal', bandeira: '🇵🇹', ddi: '+351' },
   { pais: 'Estados Unidos', bandeira: '🇺🇸', ddi: '+1' },

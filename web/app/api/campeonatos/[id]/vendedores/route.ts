@@ -8,15 +8,6 @@ function novoToken() {
   return randomBytes(18).toString('base64url').toUpperCase()
 }
 
-function normalizeWhatsapp(value: unknown) {
-  const raw = String(value || '').trim()
-  if (!raw) return null
-  if (/^https:\/\/(wa\.me|api\.whatsapp\.com)\//i.test(raw)) return raw
-  const digits = raw.replace(/\D/g, '')
-  if (digits.length < 10) throw new Error('Informe um WhatsApp válido.')
-  return `https://wa.me/${digits}`
-}
-
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
@@ -25,13 +16,26 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
     const { data, error } = await supabaseAdmin
       .from('campeonato_vendedores')
-      .select('*, managers(id,nome,username,avatar_url,foto_url)')
+      .select('*')
       .eq('campeonato_id', id)
       .neq('status', 'cancelado')
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    return NextResponse.json({ vendedores: data || [] })
+
+    const rows = data || []
+    const managerIds = Array.from(new Set(rows.map((row) => row.manager_id).filter(Boolean)))
+    let managersById = new Map<string, any>()
+    if (managerIds.length) {
+      const { data: managers, error: managersError } = await supabaseAdmin
+        .from('managers')
+        .select('id,nome,username,avatar_url,foto_url')
+        .in('id', managerIds)
+      if (managersError) throw managersError
+      managersById = new Map((managers || []).map((manager) => [manager.id, manager]))
+    }
+
+    return NextResponse.json({ vendedores: rows.map((row) => ({ ...row, managers: row.manager_id ? managersById.get(row.manager_id) || null : null })) })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao listar vendedores.' }, { status: 400 })
   }
@@ -53,7 +57,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         produtora_id: permission.produtoraId,
         token,
         nome_publico: String(body.nome_publico || '').trim() || null,
-        whatsapp_url: normalizeWhatsapp(body.whatsapp_url),
+        whatsapp_url: null,
         status: 'pendente',
         criado_por: user.id,
       })

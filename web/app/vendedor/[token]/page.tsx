@@ -4,16 +4,31 @@ import { useEffect, useState } from 'react'
 import { Check, MessageCircle, Shield, UserRound } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { WHATSAPP_COUNTRIES } from '@/components/forms/campeonato/CampeonatoForm'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
 import { supabase } from '@/lib/supabase-browser'
+
+const DEFAULT_WHATSAPP_COUNTRY = WHATSAPP_COUNTRIES[0]
+
+type PhoneContact = {
+  pais: string
+  bandeira: string
+  ddi: string
+  telefone: string
+}
 
 export default function ConviteVendedorPage() {
   const params = useParams<{ token: string }>()
   const token = String(params?.token || '').trim().toUpperCase()
   const [data, setData] = useState<any>(null)
   const [nomePublico, setNomePublico] = useState('')
-  const [whatsapp, setWhatsapp] = useState('')
+  const [phoneContact, setPhoneContact] = useState<PhoneContact>({
+    pais: DEFAULT_WHATSAPP_COUNTRY.pais,
+    bandeira: DEFAULT_WHATSAPP_COUNTRY.bandeira,
+    ddi: DEFAULT_WHATSAPP_COUNTRY.ddi,
+    telefone: '',
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -31,7 +46,6 @@ export default function ConviteVendedorPage() {
       if (!response.ok) throw new Error(json.error || 'Erro ao carregar convite.')
       setData(json)
       setNomePublico((current) => current || json.convite?.nome_publico || json.manager?.nome || '')
-      setWhatsapp((current) => current || json.convite?.whatsapp_url || '')
     } catch (err: any) {
       setError(err?.message || 'Erro ao carregar convite.')
     } finally {
@@ -52,7 +66,7 @@ export default function ConviteVendedorPage() {
       const response = await fetch(`/api/vendedores/convite/${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome_publico: nomePublico, whatsapp_url: whatsapp }),
+        body: JSON.stringify({ nome_publico: nomePublico, whatsapp_url: `${phoneContact.ddi}${phoneContact.telefone}` }),
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || 'Erro ao aceitar convite.')
@@ -94,7 +108,22 @@ export default function ConviteVendedorPage() {
               <div className="panel-soft">
                 <h3>Dados públicos de venda</h3>
                 <Field label="Nome exibido"><input value={nomePublico} onChange={(event) => setNomePublico(event.target.value)} placeholder="Seu nome ou operação comercial" /></Field>
-                <Field label="WhatsApp de contato"><input value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} placeholder="5511999999999 ou link wa.me" /></Field>
+                <div className="whatsapp-contact-list">
+                  <div className="whatsapp-contact-row seller-contact-row">
+                    <Field label="País do contato">
+                      <select value={phoneContact.pais} onChange={(event) => {
+                        const country = WHATSAPP_COUNTRIES.find((item) => item.pais === event.target.value) || DEFAULT_WHATSAPP_COUNTRY
+                        setPhoneContact((current) => ({ ...current, ...country }))
+                      }}>
+                        {WHATSAPP_COUNTRIES.map((country) => <option value={country.pais} key={country.ddi}>{country.bandeira} {country.pais} ({country.ddi})</option>)}
+                      </select>
+                    </Field>
+                    <Field label="DDI"><input inputMode="tel" value={phoneContact.ddi} onChange={(event) => setPhoneContact((current) => ({ ...current, ddi: event.target.value.replace(/[^0-9+]/g, '') }))} placeholder="+55" /></Field>
+                    <Field label="Contato">
+                      <div className="phone-input-group"><span>{phoneContact.bandeira} {phoneContact.ddi}</span><input inputMode="tel" value={phoneContact.telefone} onChange={(event) => setPhoneContact((current) => ({ ...current, telefone: event.target.value.replace(/[^0-9 ()-]/g, '') }))} placeholder="(91) 99999-9999" /></div>
+                    </Field>
+                  </div>
+                </div>
                 <button className="button" disabled={saving} onClick={accept}><Check size={16} /> {saving ? 'Ativando...' : 'Aceitar e ativar vendas'}</button>
               </div>
               <div className="panel-soft">

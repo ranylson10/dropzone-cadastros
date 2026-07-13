@@ -83,7 +83,7 @@ export function ProdutoraPanel(props: {
   const [editingGameId, setEditingGameId] = useState('')
   const [openGamePhases, setOpenGamePhases] = useState<Record<string, boolean>>({})
   const [openGames, setOpenGames] = useState<Record<string, boolean>>({})
-  const [sellerInvite, setSellerInvite] = useState({ nome_publico: '', whatsapp_url: '' })
+  const [sellerInvite, setSellerInvite] = useState({ nome_publico: '' })
   const [sellerRows, setSellerRows] = useState<any[]>([])
   const [sellerLink, setSellerLink] = useState('')
   const [sellerLoading, setSellerLoading] = useState(false)
@@ -148,7 +148,7 @@ export function ProdutoraPanel(props: {
         body: JSON.stringify(sellerInvite),
       })
       setSellerLink(json.link)
-      setSellerInvite({ nome_publico: '', whatsapp_url: '' })
+      setSellerInvite({ nome_publico: '' })
       await loadSellers(championshipId)
     } catch (error) {
       setSellerError(error instanceof Error ? error.message : 'Erro ao gerar convite.')
@@ -751,11 +751,8 @@ export function ProdutoraPanel(props: {
                   </div>
 
                   <div className="inline-action-panel">
-                    <div className="mini-grid two">
-                      <Field label="Nome público sugerido"><input value={sellerInvite.nome_publico} onChange={(event) => setSellerInvite({ ...sellerInvite, nome_publico: event.target.value })} placeholder="Ex.: Paulo Vagas" /></Field>
-                      <Field label="WhatsApp sugerido"><input value={sellerInvite.whatsapp_url} onChange={(event) => setSellerInvite({ ...sellerInvite, whatsapp_url: event.target.value })} placeholder="5511999999999 ou link wa.me" /></Field>
-                    </div>
-                    <p className="empty">O manager aceitará o link, definirá o WhatsApp de venda e terá permissão limitada para gerar convites de equipe deste campeonato.</p>
+                    <Field label="Nome público sugerido"><input value={sellerInvite.nome_publico} onChange={(event) => setSellerInvite({ ...sellerInvite, nome_publico: event.target.value })} placeholder="Ex.: Paulo Vagas" /></Field>
+                    <p className="empty">Esta página gera apenas o convite. O manager aceitará o link, definirá o WhatsApp de venda e terá permissão limitada para gerar convites de equipe deste campeonato.</p>
                     {sellerError ? <div className="message error">{sellerError}</div> : null}
                     {sellerLink ? (
                       <button className="token-card full-token-card" type="button" onClick={() => props.copyToken(sellerLink)}>
