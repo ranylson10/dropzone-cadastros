@@ -20,7 +20,7 @@ type PhoneContact = {
 
 export default function ConviteVendedorPage() {
   const params = useParams<{ token: string }>()
-  const token = String(params?.token || '').trim().toUpperCase()
+  const token = String(params?.token || '').trim()
   const [data, setData] = useState<any>(null)
   const [nomePublico, setNomePublico] = useState('')
   const [phoneContact, setPhoneContact] = useState<PhoneContact>({

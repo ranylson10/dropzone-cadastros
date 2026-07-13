@@ -90,7 +90,7 @@ async function upsertSellerLink(convite: any, account: any, body: any, whatsappU
 export async function GET(req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params
-    const convite = await carregar(String(token || '').trim().toUpperCase())
+    const convite = await carregar(String(token || '').trim())
     let autenticado = false
     let manager = null as any
     try {
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (!account) throw new Error('Entre ou crie uma conta de manager para aceitar este convite.')
 
     const body = await req.json().catch(() => ({}))
-    const convite = await carregar(String(token || '').trim().toUpperCase())
+    const convite = await carregar(String(token || '').trim())
     if (convite.status !== 'ativo') throw new Error('Este convite não está mais disponível.')
     if (convite.manager_id && convite.manager_id !== account.id) throw new Error('Este convite já foi aceito por outro manager.')
 

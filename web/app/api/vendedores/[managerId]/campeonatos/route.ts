@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function missingRelation(error: any) {
@@ -15,7 +16,6 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
         .select('id,campeonato_id,produtora_id,manager_id,status,created_at')
         .eq('tipo', 'manager_invite')
         .eq('manager_id', managerId)
-        .eq('status', 'ativo')
         .order('created_at', { ascending: false }),
     ])
 
@@ -53,8 +53,10 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
         const contact = (contactsByChampId.get(item.campeonato_id) || null) as any
         return {
           id: item.id,
+          campeonato_id: item.campeonato_id,
           nome_publico: contact?.nome || manager.nome || manager.username,
           whatsapp_url: contact?.url || null,
+          status: item.status,
           campeonatos: campeonatosById.get(item.campeonato_id) || null,
           produtoras: produtorasById.get(item.produtora_id) || null,
         }
@@ -62,5 +64,48 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
     })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao carregar vendedor.' }, { status: 404 })
+  }
+}
+
+async function requireManagerAccount(req: NextRequest, managerId: string) {
+  const user = await getBearerUser(req)
+  const accounts = await getAccountsForUser(user)
+  const account = accounts.find((item) => item.profile_type === 'manager' && item.id === managerId)
+  if (!account) throw new Error('Acesso negado.')
+  return account
+}
+
+export async function PATCH(req: NextRequest, context: { params: Promise<{ managerId: string }> }) {
+  try {
+    const { managerId } = await context.params
+    await requireManagerAccount(req, managerId)
+    const body = await req.json().catch(() => ({}))
+    const campeonatoId = String(body.campeonatoId || '').trim()
+    const publish = Boolean(body.publish)
+
+    if (!campeonatoId) throw new Error('Informe o campeonato a ser atualizado.')
+
+    const { data: tokenRow, error: tokenError } = await supabaseAdmin
+      .from('tokens')
+      .select('id')
+      .eq('tipo', 'manager_invite')
+      .eq('manager_id', managerId)
+      .eq('campeonato_id', campeonatoId)
+      .maybeSingle()
+    if (tokenError) throw tokenError
+    if (!tokenRow) throw new Error('Convite de venda não encontrado para este manager.')
+
+    const newStatus = publish ? 'ativo' : 'cancelado'
+    const updates = [
+      supabaseAdmin.from('tokens').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', tokenRow.id),
+      supabaseAdmin.from('campeonato_vendedores').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('manager_id', managerId).eq('campeonato_id', campeonatoId),
+    ]
+    const [{ error: tokenUpdateError }, { error: sellerUpdateError }] = await Promise.all(updates)
+    if (tokenUpdateError) throw tokenUpdateError
+    if (sellerUpdateError && !missingRelation(sellerUpdateError)) throw sellerUpdateError
+
+    return NextResponse.json({ success: true, published: publish, campeonatoId })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao atualizar publicação.' }, { status: 400 })
   }
 }

@@ -1539,7 +1539,7 @@ export function DropZoneHome() {
               />
             ) : null}
 
-            {account.profile_type === 'manager' ? <ManagerPanel championships={managedChampionships} teams={managedTeams} players={registrations} /> : null}
+            {account.profile_type === 'manager' ? <ManagerPanel championships={managedChampionships} teams={managedTeams} players={registrations} account={account} /> : null}
 
             {account.profile_type === 'jogador' ? (
               <JogadorPanel
