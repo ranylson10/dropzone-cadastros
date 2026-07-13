@@ -86,6 +86,7 @@ export function ProdutoraPanel(props: {
   const [sellerInvite, setSellerInvite] = useState({ nome_publico: '' })
   const [sellerRows, setSellerRows] = useState<any[]>([])
   const [sellerLink, setSellerLink] = useState('')
+  const [sellerWhatsappLink, setSellerWhatsappLink] = useState('')
   const [sellerLoading, setSellerLoading] = useState(false)
   const [sellerError, setSellerError] = useState('')
 
@@ -142,12 +143,14 @@ export function ProdutoraPanel(props: {
     setSellerLoading(true)
     setSellerError('')
     setSellerLink('')
+    setSellerWhatsappLink('')
     try {
       const json = await sellerRequest(`/api/campeonatos/${championshipId}/vendedores`, {
         method: 'POST',
         body: JSON.stringify(sellerInvite),
       })
       setSellerLink(json.link)
+      setSellerWhatsappLink(json.whatsapp_url || '')
       setSellerInvite({ nome_publico: '' })
       await loadSellers(championshipId)
     } catch (error) {
@@ -755,11 +758,14 @@ export function ProdutoraPanel(props: {
                     <p className="empty">Esta página gera apenas o convite. O manager aceitará o link, definirá o WhatsApp de venda e terá permissão limitada para gerar convites de equipe deste campeonato.</p>
                     {sellerError ? <div className="message error">{sellerError}</div> : null}
                     {sellerLink ? (
-                      <button className="token-card full-token-card" type="button" onClick={() => props.copyToken(sellerLink)}>
-                        <span>Link de convite do vendedor</span>
-                        <strong>{sellerLink}</strong>
-                        <Copy size={15} />
-                      </button>
+                      <div className="ref-section-stack">
+                        <button className="token-card full-token-card" type="button" onClick={() => props.copyToken(sellerLink)}>
+                          <span>Link de convite do vendedor</span>
+                          <strong>{sellerLink}</strong>
+                          <Copy size={15} />
+                        </button>
+                        {sellerWhatsappLink ? <a className="button secondary" href={sellerWhatsappLink} target="_blank" rel="noreferrer"><MessageCircle size={15} /> Enviar pelo WhatsApp</a> : null}
+                      </div>
                     ) : null}
                   </div>
 

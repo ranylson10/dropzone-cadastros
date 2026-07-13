@@ -61,7 +61,7 @@ export default function VendedorCampeonatosPage() {
                 <span>Status: {champ.status || 'ativo'}</span>
               </span>
               <span className="directory-list-meta">
-                <a className="button seller-whatsapp-button" href={item.whatsapp_url} target="_blank" rel="noreferrer"><MessageCircle size={15} /> Comprar vaga</a>
+                {item.whatsapp_url ? <a className="button seller-whatsapp-button" href={item.whatsapp_url} target="_blank" rel="noreferrer"><MessageCircle size={15} /> Comprar vaga</a> : <small>WhatsApp pendente</small>}
               </span>
             </article>
           )

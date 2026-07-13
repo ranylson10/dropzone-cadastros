@@ -66,7 +66,14 @@ export default function ConviteVendedorPage() {
       const response = await fetch(`/api/vendedores/convite/${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome_publico: nomePublico, whatsapp_url: `${phoneContact.ddi}${phoneContact.telefone}` }),
+        body: JSON.stringify({
+          nome_publico: nomePublico,
+          whatsapp_url: `${phoneContact.ddi}${phoneContact.telefone}`,
+          pais: phoneContact.pais,
+          bandeira: phoneContact.bandeira,
+          ddi: phoneContact.ddi,
+          telefone: phoneContact.telefone,
+        }),
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || 'Erro ao aceitar convite.')

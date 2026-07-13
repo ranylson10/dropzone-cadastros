@@ -72,8 +72,9 @@ export async function getCampeonatoPermission(userId: string, campeonatoId: stri
   }
 
   const { data: vendedor, error: vendedorError } = await supabaseAdmin
-    .from('campeonato_vendedores')
+    .from('tokens')
     .select('id')
+    .eq('tipo', 'manager_invite')
     .eq('campeonato_id', campeonatoId)
     .eq('manager_id', manager.id)
     .eq('status', 'ativo')
