@@ -22,7 +22,7 @@ export function DirectoryProfileTabs({ sections }: { sections: DirectoryProfile[
         {section.items.length ? (
           <div className="directory-related-list">
             {section.items.map((item) => {
-              const body = <><span>{item.image ? <img src={item.image} alt="" /> : item.title.slice(0, 2).toUpperCase()}</span><div><strong>{item.title}</strong>{item.subtitle ? <small>{item.subtitle}</small> : null}</div>{item.href ? <ExternalLink size={15} /> : null}</>
+              const body = <><span>{item.image ? <img src={item.image} alt="" /> : item.title.slice(0, 2).toUpperCase()}</span><div><strong>{item.title}</strong>{item.subtitle ? <small>{item.subtitle}</small> : null}{item.meta?.length ? <em>{item.meta.map((meta) => `${meta.label}: ${meta.value}`).join(' · ')}</em> : null}</div>{item.href ? <ExternalLink size={15} /> : null}</>
               return item.href ? <a key={item.id} href={item.href}>{body}</a> : <article key={item.id}>{body}</article>
             })}
           </div>

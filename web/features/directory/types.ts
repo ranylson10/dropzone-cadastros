@@ -14,8 +14,17 @@ export type DirectoryItem = {
 
 export type DirectoryProfile = DirectoryItem & {
   details: Array<{ label: string; value: string }>
+  actions?: Array<{ label: string; href: string; variant?: 'primary' | 'secondary' }>
   sections: Array<{
     title: string
-    items: Array<{ id: string; title: string; subtitle?: string; href?: string; image?: string }>
+    layout?: 'list' | 'table' | 'stats'
+    items: Array<{
+      id: string
+      title: string
+      subtitle?: string
+      href?: string
+      image?: string
+      meta?: Array<{ label: string; value: string }>
+    }>
   }>
 }

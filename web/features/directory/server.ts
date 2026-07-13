@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
 import type { DirectoryItem, DirectoryKind, DirectoryProfile } from './types'
 
 function text(value: unknown, fallback = '') { return String(value ?? fallback).trim() }
@@ -122,13 +123,93 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   if (!base) return null
   const sections: DirectoryProfile['sections'] = []
   const details = [...base.meta]
+  const actions: DirectoryProfile['actions'] = []
 
   if (kind === 'campeonatos') {
-    const [phases, groups, games, participations, teams] = await Promise.all([rows('campeonato_fases'), rows('campeonato_grupos'), rows('campeonato_jogos'), rows('campeonato_equipes'), rows('equipes')])
+    const [phases, groups, games, participations, teams, teamStats, mvpStats] = await Promise.all([
+      rows('campeonato_fases'),
+      rows('campeonato_grupos'),
+      rows('campeonato_jogos'),
+      rows('campeonato_equipes'),
+      rows('equipes'),
+      listarEstatisticasEquipes(id, {}).catch(() => []),
+      listarEstatisticasMvp(id, {}).catch(() => []),
+    ])
     const teamById = new Map(teams.map((row: any) => [row.id, row]))
-    sections.push({ title: 'Fases e grupos', items: phases.filter((x: any) => x.campeonato_id === id).map((phase: any) => ({ id: phase.id, title: phase.nome, subtitle: `${groups.filter((g: any) => g.fase_id === phase.id).length} grupos` })) })
-    sections.push({ title: 'Próximos jogos', items: games.filter((x: any) => x.campeonato_id === id).map((game: any) => ({ id: game.id, title: game.nome, subtitle: [game.data_jogo, game.horario].filter(Boolean).join(' · ') || 'Data a definir' })) })
-    sections.push({ title: 'Equipes participantes', items: participations.filter((x: any) => x.campeonato_id === id).map((entry: any) => { const team: any = teamById.get(entry.equipe_id); return { id: entry.id, title: first(team?.nome, entry.nome_exibicao, 'Equipe'), image: first(team?.logo_url), href: team ? `/equipes/${team.id}` : undefined, subtitle: entry.slot_numero ? `Slot ${entry.slot_numero}` : 'Participação confirmada' } }) })
+    const champPhases = phases.filter((row: any) => row.campeonato_id === id)
+    const champGroups = groups.filter((row: any) => row.campeonato_id === id)
+    const champGames = games.filter((row: any) => row.campeonato_id === id)
+
+    actions.push(
+      { label: 'Ver tabela', href: '#tabela', variant: 'primary' },
+      { label: 'Grupos', href: '#fases-e-grupos' },
+      { label: 'Jogos', href: '#jogos' },
+    )
+    sections.push({
+      title: 'Tabela',
+      layout: 'stats',
+      items: teamStats.slice(0, 30).map((row: any) => ({
+        id: row.campeonato_equipe_id,
+        title: `${row.colocacao}º · ${row.nome}`,
+        subtitle: `${row.pontos_total} pts · ${row.abates} abates · ${row.booyahs} booyah(s)`,
+        image: first(row.logo_url),
+        meta: [
+          { label: 'Quedas', value: String(row.quedas) },
+          { label: 'P. posição', value: String(row.pontos_posicao) },
+          { label: 'P. abates', value: String(row.pontos_abates) },
+        ],
+      })),
+    })
+    sections.push({
+      title: 'MVP',
+      layout: 'stats',
+      items: mvpStats.slice(0, 30).map((row: any) => ({
+        id: row.campeonato_jogador_id,
+        title: `${row.colocacao}º · ${row.nick}`,
+        subtitle: `${row.abates} abates · ${row.quedas} quedas`,
+        image: first(row.foto_url),
+        meta: [
+          { label: 'Dano', value: String(row.dano) },
+          { label: 'Assist.', value: String(row.assistencias) },
+          { label: 'Revives', value: String(row.revives) },
+        ],
+      })),
+    })
+    sections.push({
+      title: 'Fases e grupos',
+      items: champPhases.map((phase: any) => {
+        const phaseGroups = champGroups.filter((group: any) => group.fase_id === phase.id)
+        const slots = phaseGroups.reduce((sum: number, group: any) => sum + Number(group.slots || 0), 0)
+        return {
+          id: phase.id,
+          title: phase.nome,
+          subtitle: `${phaseGroups.length} grupos · ${slots} slots`,
+          meta: phaseGroups.slice(0, 6).map((group: any) => ({ label: group.nome, value: `${group.slots || 0} slots` })),
+        }
+      }),
+    })
+    sections.push({
+      title: 'Jogos',
+      items: champGames.map((game: any) => ({
+        id: game.id,
+        title: game.nome,
+        subtitle: [game.data_jogo, game.horario ? String(game.horario).slice(0, 5) : '', `${game.numero_partidas || 0} quedas`].filter(Boolean).join(' · ') || 'Data a definir',
+        meta: Array.isArray(game.grupos_ids) ? game.grupos_ids.slice(0, 6).map((groupId: string) => ({ label: 'Grupo', value: first(champGroups.find((group: any) => group.id === groupId)?.nome, groupId) })) : [],
+      })),
+    })
+    sections.push({
+      title: 'Equipes participantes',
+      items: participations.filter((row: any) => row.campeonato_id === id).map((entry: any) => {
+        const team: any = teamById.get(entry.equipe_id)
+        return {
+          id: entry.id,
+          title: first(entry.nome_exibicao, team?.nome, 'Equipe'),
+          image: first(team?.logo_url),
+          href: team ? `/equipes/${team.id}` : undefined,
+          subtitle: entry.slot_numero ? `Slot ${entry.slot_numero}` : 'Participação confirmada',
+        }
+      }),
+    })
   } else if (kind === 'equipes') {
     const [lines, participations, championships] = await Promise.all([rows('equipe_lines'), rows('campeonato_equipes'), rows('campeonatos')])
     const championshipById = new Map(championships.map((row: any) => [row.id, row]))
@@ -151,5 +232,5 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     sections.push({ title: 'Jogadores vinculados', items: mapItems(playerLinks, players, 'jogador_id', 'jogadores') })
   }
 
-  return { ...base, details, sections }
+  return { ...base, details, actions, sections }
 }

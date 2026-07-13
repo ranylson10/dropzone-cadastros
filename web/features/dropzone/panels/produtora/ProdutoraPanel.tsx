@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Loader2, MessageCircle, Pencil, Plus, Trash2, Trophy, Users } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Loader2, MessageCircle, Pencil, Plus, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
+import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { Field } from '../../components/form-fields'
 import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@/components/forms/campeonato'
@@ -82,6 +83,11 @@ export function ProdutoraPanel(props: {
   const [editingGameId, setEditingGameId] = useState('')
   const [openGamePhases, setOpenGamePhases] = useState<Record<string, boolean>>({})
   const [openGames, setOpenGames] = useState<Record<string, boolean>>({})
+  const [sellerInvite, setSellerInvite] = useState({ nome_publico: '', whatsapp_url: '' })
+  const [sellerRows, setSellerRows] = useState<any[]>([])
+  const [sellerLink, setSellerLink] = useState('')
+  const [sellerLoading, setSellerLoading] = useState(false)
+  const [sellerError, setSellerError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -100,6 +106,56 @@ export function ProdutoraPanel(props: {
       })
     return () => { active = false }
   }, [])
+
+  async function sellerRequest(path: string, options?: RequestInit) {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) throw new Error('Sessão expirada. Entre novamente.')
+    const response = await fetch(path, {
+      ...options,
+      headers: {
+        ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
+        Authorization: `Bearer ${token}`,
+        ...(options?.headers || {}),
+      },
+    })
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(json.error || 'Não foi possível concluir a operação.')
+    return json
+  }
+
+  async function loadSellers(championshipId: string) {
+    setSellerLoading(true)
+    setSellerError('')
+    try {
+      const json = await sellerRequest(`/api/campeonatos/${championshipId}/vendedores`)
+      setSellerRows(json.vendedores || [])
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro ao carregar vendedores.')
+      setSellerRows([])
+    } finally {
+      setSellerLoading(false)
+    }
+  }
+
+  async function createSellerInvite(championshipId: string) {
+    setSellerLoading(true)
+    setSellerError('')
+    setSellerLink('')
+    try {
+      const json = await sellerRequest(`/api/campeonatos/${championshipId}/vendedores`, {
+        method: 'POST',
+        body: JSON.stringify(sellerInvite),
+      })
+      setSellerLink(json.link)
+      setSellerInvite({ nome_publico: '', whatsapp_url: '' })
+      await loadSellers(championshipId)
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro ao gerar convite.')
+    } finally {
+      setSellerLoading(false)
+    }
+  }
 
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
@@ -155,6 +211,10 @@ export function ProdutoraPanel(props: {
   const champSlots = props.groupSlots.filter((row) => row.parent_id === selectedChamp?.id)
   const champRegistrationLinks = props.registrationLinks.filter((row) => row.parent_id === selectedChamp?.id)
   const teamInvites = props.tokens.filter((row) => TEAM_INVITE_TYPES.has(String(row.data?.token_kind || '')) && row.parent_id === selectedChamp?.id)
+
+  useEffect(() => {
+    if (tab === 'vendedores' && selectedChamp?.id) void loadSellers(selectedChamp.id)
+  }, [tab, selectedChamp?.id])
 
   function toggleAction(value: typeof openAction) {
     setOpenAction((current) => current === value ? '' : value)
@@ -676,6 +736,53 @@ export function ProdutoraPanel(props: {
                   games={champGames}
                   maps={mapCatalog}
                 />
+              ) : null}
+
+              {tab === 'vendedores' ? (
+                <div className="ref-section-stack">
+                  <div className="subtab-actionbar">
+                    <div>
+                      <p className="eyebrow">Afiliados</p>
+                      <h3>Vendedores de vagas</h3>
+                    </div>
+                    <button className="button" type="button" disabled={sellerLoading} onClick={() => createSellerInvite(selectedChamp.id)}>
+                      <UserPlus size={16} /> Gerar convite
+                    </button>
+                  </div>
+
+                  <div className="inline-action-panel">
+                    <div className="mini-grid two">
+                      <Field label="Nome público sugerido"><input value={sellerInvite.nome_publico} onChange={(event) => setSellerInvite({ ...sellerInvite, nome_publico: event.target.value })} placeholder="Ex.: Paulo Vagas" /></Field>
+                      <Field label="WhatsApp sugerido"><input value={sellerInvite.whatsapp_url} onChange={(event) => setSellerInvite({ ...sellerInvite, whatsapp_url: event.target.value })} placeholder="5511999999999 ou link wa.me" /></Field>
+                    </div>
+                    <p className="empty">O manager aceitará o link, definirá o WhatsApp de venda e terá permissão limitada para gerar convites de equipe deste campeonato.</p>
+                    {sellerError ? <div className="message error">{sellerError}</div> : null}
+                    {sellerLink ? (
+                      <button className="token-card full-token-card" type="button" onClick={() => props.copyToken(sellerLink)}>
+                        <span>Link de convite do vendedor</span>
+                        <strong>{sellerLink}</strong>
+                        <Copy size={15} />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="ref-card-grid two">
+                    {sellerRows.map((seller) => {
+                      const manager = seller.managers || {}
+                      const publicPanel = seller.manager_id ? `${window.location.origin}/vendedores/${seller.manager_id}` : ''
+                      return (
+                        <article className="token-card seller-token-card" key={seller.id}>
+                          <span>{seller.status === 'ativo' ? 'Ativo' : 'Pendente'}</span>
+                          <strong>{seller.nome_publico || manager.nome || manager.username || 'Vendedor convidado'}</strong>
+                          <small>{seller.whatsapp_url || 'WhatsApp ainda não definido'}</small>
+                          {seller.status === 'ativo' && publicPanel ? <button type="button" onClick={() => props.copyToken(publicPanel)}><Copy size={14} /> Copiar painel</button> : null}
+                        </article>
+                      )
+                    })}
+                    {sellerLoading ? <p className="empty">Carregando vendedores...</p> : null}
+                    {!sellerLoading && sellerRows.length === 0 ? <p className="empty">Nenhum vendedor convidado para este campeonato.</p> : null}
+                  </div>
+                </div>
               ) : null}
 
               {tab === 'links' ? (
