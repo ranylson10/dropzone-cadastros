@@ -5,27 +5,42 @@ function missingRelation(error: any) {
   return ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code || '')
 }
 
+async function resolveManager(managerId: string) {
+  const { data: manager, error: managerError } = await supabaseAdmin
+    .from('managers')
+    .select('id,nome,username,avatar_url,bio,status')
+    .eq('id', managerId)
+    .maybeSingle()
+  if (managerError) throw managerError
+  if (manager) return manager
+
+  const { data: fallbackManager, error: fallbackError } = await supabaseAdmin
+    .from('managers')
+    .select('id,nome,username,avatar_url,bio,status')
+    .eq('auth_user_id', managerId)
+    .maybeSingle()
+  if (fallbackError) throw fallbackError
+  return fallbackManager
+}
+
 export async function GET(_req: NextRequest, context: { params: Promise<{ managerId: string }> }) {
   try {
     const { managerId } = await context.params
-    const [{ data: manager, error: managerError }, sellerLinksResult, tokenLinksResult] = await Promise.all([
-      supabaseAdmin.from('managers').select('id,nome,username,avatar_url,bio,status').eq('id', managerId).maybeSingle(),
-      supabaseAdmin
-        .from('campeonato_vendedores')
-        .select('id,campeonato_id,produtora_id,nome_publico,whatsapp_url,created_at')
-        .eq('manager_id', managerId)
-        .eq('status', 'ativo')
-        .order('created_at', { ascending: false }),
-      supabaseAdmin
-        .from('tokens')
-        .select('id,campeonato_id,produtora_id,created_at')
-        .eq('tipo', 'manager_invite')
-        .eq('manager_id', managerId)
-        .eq('status', 'ativo')
-        .order('created_at', { ascending: false }),
-    ])
-
-    if (managerError) throw managerError
+    const manager = await resolveManager(managerId)
+    const sellerLinksResult = await supabaseAdmin
+      .from('campeonato_vendedores')
+      .select('id,campeonato_id,produtora_id,nome_publico,whatsapp_url,created_at')
+      .eq('manager_id', manager?.id)
+      .eq('status', 'ativo')
+      .order('created_at', { ascending: false })
+    const tokenLinksResult = await supabaseAdmin
+      .from('tokens')
+      .select('id,campeonato_id,produtora_id,created_at')
+      .eq('tipo', 'manager_invite')
+      .eq('manager_id', manager?.id)
+      .eq('status', 'ativo')
+      .order('created_at', { ascending: false })
+    
     if (sellerLinksResult.error && !missingRelation(sellerLinksResult.error)) throw sellerLinksResult.error
     if (tokenLinksResult.error) throw tokenLinksResult.error
     if (!manager || ['suspenso', 'banido', 'excluido'].includes(String(manager.status || 'ativo'))) throw new Error('Vendedor nao encontrado.')
