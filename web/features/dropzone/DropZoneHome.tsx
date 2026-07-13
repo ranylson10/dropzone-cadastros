@@ -344,9 +344,8 @@ export function DropZoneHome() {
       const { data } = await supabase.auth.getSession()
       if (data.session) {
         try {
-          await loadAccountsOnly(data.session.access_token)
-          setAccount(null)
-          setRows([])
+          const storedType = localStorage.getItem('dropzone_active_profile_type') as ProfileType | null
+          await loadMeAndRows(data.session.access_token, storedType)
         } catch {
           setAccount(null)
           setAccounts([])

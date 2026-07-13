@@ -24,9 +24,24 @@ export function PublicDirectoryHeader({ active }: { active?: string }) {
   useEffect(() => {
     let activeRequest = true
 
-    async function loadAccount() {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
+    try {
+      const cached = JSON.parse(localStorage.getItem('dropzone_recent_profiles') || '[]') as DropZoneRow[]
+      const preferred = localStorage.getItem('dropzone_active_profile_type') || ''
+      const recent = cached.find((item) => item.profile_type === preferred) || cached[0]
+      if (recent) {
+        setAccount(recent)
+        setAccounts(cached)
+      }
+    } catch {
+      // A sessão do Supabase continuará sendo a fonte principal.
+    }
+
+    async function loadAccount(accessToken?: string | null) {
+      let token = accessToken
+      if (!token) {
+        const { data } = await supabase.auth.getSession()
+        token = data.session?.access_token
+      }
       if (!token) {
         if (activeRequest) { setAccount(null); setAccounts([]) }
         return
@@ -45,10 +60,16 @@ export function PublicDirectoryHeader({ active }: { active?: string }) {
       if (!activeRequest) return
       setAccount(payload.account || null)
       setAccounts(payload.accounts || [])
+      if (payload.account) {
+        localStorage.setItem('dropzone_active_profile_type', String(payload.account.profile_type || ''))
+        localStorage.setItem('dropzone_recent_profiles', JSON.stringify(payload.accounts || [payload.account]))
+      }
     }
 
-    loadAccount()
-    const { data: listener } = supabase.auth.onAuthStateChange(() => loadAccount())
+    void loadAccount()
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => { if (activeRequest) void loadAccount(session?.access_token) }, 0)
+    })
     return () => {
       activeRequest = false
       listener.subscription.unsubscribe()
