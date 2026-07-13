@@ -2714,6 +2714,7 @@ body:has(.cropper-overlay) {
   justify-content: center;
   min-height: 48px;
 }
+.social-login-button img{width:20px;height:20px;flex:0 0 auto}.social-login-google{border-color:#d9dde3}.social-login-facebook{border-color:#1877f2}.social-login-discord{border-color:#5865f2}
 
 .social-login-google { background: #ffffff; color: #11151c; }
 .social-login-facebook { background: #1877f2; color: #ffffff; }

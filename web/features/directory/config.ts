@@ -10,6 +10,7 @@ export const DIRECTORY_CONFIG: Record<DirectoryKind, { title: string; singular: 
 
 export const DIRECTORY_NAV = [
   { label: 'Início', href: '/' },
+  { label: 'Vagas abertas', href: '/vagas' },
   { label: 'Campeonatos', href: '/campeonatos' },
   { label: 'Equipes', href: '/equipes' },
   { label: 'Jogadores', href: '/jogadores' },

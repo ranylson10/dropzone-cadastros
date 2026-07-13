@@ -62,6 +62,7 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
           disabled={Boolean(loadingProvider)}
           onClick={() => startOAuth(provider)}
         >
+          <img src={`/social-${provider}.svg`} alt="" />
           {loadingProvider === provider ? `Abrindo ${labels[provider].replace('Continuar com ', '')}...` : labels[provider]}
         </button>
       ))}

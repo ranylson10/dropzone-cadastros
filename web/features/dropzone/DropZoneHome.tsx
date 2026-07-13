@@ -284,7 +284,12 @@ export function DropZoneHome() {
       const wantsSwitchAccount = params.get('trocar_conta') === '1'
 
       const saved = localStorage.getItem('dropzone_recent_profiles')
-      if (saved) setRecentProfiles(JSON.parse(saved))
+      let hasRecentLogin = false
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        hasRecentLogin = Array.isArray(parsed) && parsed.length > 0
+        setRecentProfiles(parsed)
+      }
 
       const resolvedReturnTo = requestedReturnTo || (convite
         ? `/convite/equipe/${encodeURIComponent(convite)}`
@@ -347,6 +352,9 @@ export function DropZoneHome() {
           setAccounts([])
           setRows([])
         }
+      } else if (!hasRecentLogin) {
+        window.location.replace(`/login?returnTo=${encodeURIComponent(resolvedReturnTo || '/')}`)
+        return
       }
       setQueryReady(true)
     }
