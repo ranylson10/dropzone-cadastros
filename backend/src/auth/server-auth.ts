@@ -9,6 +9,17 @@ export async function getBearerUser(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin.auth.getUser(token)
   if (error || !data.user) throw new Error('Sessao invalida.')
+  const { data: restriction, error: restrictionError } = await supabaseAdmin
+    .from('sistema_restricoes_conta')
+    .select('tipo,motivo,expira_em,ativo')
+    .eq('auth_user_id', data.user.id)
+    .eq('ativo', true)
+    .maybeSingle()
+  if (restrictionError && !['42P01', 'PGRST205'].includes(restrictionError.code || '')) throw restrictionError
+  if (restriction && (!restriction.expira_em || new Date(restriction.expira_em).getTime() > Date.now())) {
+    const label = restriction.tipo === 'banimento' ? 'banida' : 'suspensa'
+    throw new Error(`Conta ${label}: ${restriction.motivo}`)
+  }
   return data.user
 }
 
