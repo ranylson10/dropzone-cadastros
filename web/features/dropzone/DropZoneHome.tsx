@@ -821,7 +821,7 @@ export function DropZoneHome() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao excluir.')
       await loadMeAndRows(token)
-      setMessage(entityType === 'phase' ? 'Fase excluída.' : 'Grupo excluído.')
+      setMessage(entityType === 'phase' ? 'Fase excluida.' : entityType === 'registration_link' ? 'Link excluido.' : 'Grupo excluido.')
     } catch (err: any) {
       setError(err?.message || 'Erro ao excluir.')
     } finally { setLoading(false) }

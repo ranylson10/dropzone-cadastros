@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Loader2, MessageCircle, Pencil, Plus, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Loader2, MessageCircle, Pause, Pencil, Play, Plus, RefreshCw, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
@@ -818,7 +818,7 @@ export function ProdutoraPanel(props: {
                   <div className="subtab-actionbar">
                     <div>
                       <p className="eyebrow">Links</p>
-                      <h3>InscriÃ§Ã£o pÃºblica</h3>
+                      <h3>Inscrição pública</h3>
                     </div>
                     <button className="button" onClick={() => toggleAction('link')}>Gerar link</button>
                   </div>
@@ -827,7 +827,7 @@ export function ProdutoraPanel(props: {
                       <div className="mini-grid three">
                         <Field label="Tipo de link">
                           <select value={props.registrationLink.tipo} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, tipo: e.target.value })}>
-                            <option value="jogadores">Inscri??o de jogadores</option>
+                            <option value="jogadores">Inscrição de jogadores</option>
                             <option value="equipes">Entrada de equipes por grupo</option>
                           </select>
                         </Field>
@@ -847,34 +847,42 @@ export function ProdutoraPanel(props: {
                         <>
                           <div className="mini-grid three">
                             <Field label="Vagas por equipe"><input type="number" value={props.registrationLink.vagas_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, vagas_por_equipe: e.target.value })} /></Field>
-                            <Field label="Permite substitui??o">
+                            <Field label="Permite substituição">
                               <select value={props.registrationLink.permite_substituicao ? 'sim' : 'nao'} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, permite_substituicao: e.target.value === 'sim' })}>
-                                <option value="nao">N?o</option>
+                                <option value="nao">Não</option>
                                 <option value="sim">Sim</option>
                               </select>
                             </Field>
-                            <Field label="M?ximo de substitui??es"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
+                            <Field label="Máximo de substituições"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
                           </div>
-                          <Field label="Prazo de substitui??o"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
+                          <Field label="Prazo de substituição"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
                         </>
                       )}
-                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createRegistrationLink}>{props.pendingCreate === 'registration_link' ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</> : props.registrationLink.tipo === 'equipes' ? 'Gerar link de equipes' : 'Gerar link p?blico'}</button>
+                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createRegistrationLink}>{props.pendingCreate === 'registration_link' ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</> : props.registrationLink.tipo === 'equipes' ? 'Gerar link de equipes' : 'Gerar link público'}</button>
                     </div>
                   ) : null}
                   <div className="ref-card-grid two">
                     {champRegistrationLinks.map((link) => {
                       const isTeamGroupLink = link.data?.tipo === 'inscricao_equipes_grupo'
                       const path = isTeamGroupLink ? `/convite/grupo/${link.token}` : `/i/${link.token}`
+                      const isPaused = link.data?.ativo === false
                       return (
-                        <div key={link.id} className="token-card">
+                        <div key={link.id} className="token-card link-token-card">
                           <button type="button" onClick={() => props.copyToken(`${window.location.origin}${path}`)}>
-                            <span>{isTeamGroupLink ? 'Equipes ? ' : 'Jogadores ? '}{groupName(link.data?.group_id)}</span>
+                            <span>{isTeamGroupLink ? 'Equipes' : 'Jogadores'} · {groupName(link.data?.group_id)}{isPaused ? ' · Pausado' : ''}</span>
                             <strong>{path}</strong>
                             <Copy size={15} />
                           </button>
-                          <div className="folder-actions">
-                            <button title={link.data?.ativo === false ? 'Ativar link' : 'Desativar link'} onClick={() => props.updateStructure('registration_link', link.id, { ativo: link.data?.ativo === false })}>{link.data?.ativo === false ? 'Ativar' : 'Pausar'}</button>
-                            <button title="Excluir link" className="danger" onClick={() => { if(window.confirm('Excluir este link?')) props.deleteStructure('registration_link', link.id) }}><Trash2 size={15}/></button>
+                          <div className="folder-actions link-card-actions">
+                            <button type="button" title={isPaused ? 'Ativar link' : 'Pausar link'} onClick={() => props.updateStructure('registration_link', link.id, { ativo: isPaused })}>
+                              {isPaused ? <Play size={15} /> : <Pause size={15} />}
+                            </button>
+                            <button type="button" title="Gerar novo token" onClick={() => { if (window.confirm('Gerar um novo token? O link atual deixará de funcionar.')) props.updateStructure('registration_link', link.id, { regenerate_token: true }) }}>
+                              <RefreshCw size={15} />
+                            </button>
+                            <button type="button" title="Excluir link" className="danger" onClick={() => { if (window.confirm('Excluir este link?')) props.deleteStructure('registration_link', link.id) }}>
+                              <Trash2 size={15} />
+                            </button>
                           </div>
                         </div>
                       )

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS, type ChampionshipType } from '@/lib/dropzone-constants'
+import { encodeLinkDescricao, isMissingMetadataColumn, normalizeExpectedTeams, parseLinkMetadata, registrationLinkData } from '@backend/shared/campeonato-link-metadata'
 import { randomToken } from '@backend/shared/validation'
 
 const HIDDEN_DATA_KEYS = new Set([
@@ -396,7 +397,7 @@ export async function GET(req: NextRequest) {
       if (type === 'group_slot') output.push(...await selectRows('campeonato_slots', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, grupo_id: row.grupo_id, team_id: row.equipe_id, equipe_id: row.equipe_id, line_id: row.line_id, slot_numero: row.slot_numero, slot_letra: row.slot_letra, status: row.status } })))
       if (type === 'game') output.push(...await selectRows('campeonato_jogos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, data_jogo: row.data_jogo, horario: row.horario, numero_partidas: row.numero_partidas, mapas: row.mapas, grupos_ids: row.grupos_ids } })))
       if (type === 'invite_token') output.push(...await selectRows('tokens', type, (row) => baseRow(row, type, { data: { token_kind: row.tipo, championship_id: row.campeonato_id, phase_id: row.fase_id, group_id: row.grupo_id, team_id: row.equipe_id, player_id: row.jogador_id, manager_id: row.manager_id, game_id: row.jogo_id, usado: row.usado, expira_em: row.expira_em } })))
-      if (type === 'registration_link') output.push(...await selectRows('campeonato_links', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, tipo: row.tipo, titulo: row.titulo, descricao: row.descricao, metadata: row.metadata || {}, ativo: row.ativo, acompanhamento_publico: row.acompanhamento_publico, expira_em: row.expira_em, public_url: row.tipo === 'inscricao_equipes_grupo' ? `/convite/grupo/${row.token}` : `/i/${row.token}` } })))
+      if (type === 'registration_link') output.push(...await selectRows('campeonato_links', type, (row) => baseRow(row, type, { data: registrationLinkData(row) })))
       if (type === 'lineup_rule') output.push(...await selectRows('campeonato_regras', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, vagas_por_equipe: row.vagas_por_equipe, abre_em: row.abre_em, encerra_em: row.encerra_em, permite_substituicao: row.permite_substituicao, max_substituicoes_por_equipe: row.max_substituicoes_por_equipe, substituicao_encerra_em: row.substituicao_encerra_em, bloquear_convites_apos_encerramento: row.bloquear_convites_apos_encerramento } })))
     }
 
@@ -712,20 +713,28 @@ export async function POST(req: NextRequest) {
         if (expectedTeams.length > Number(group.slots || 0)) throw new Error('A lista nao pode ter mais equipes que o numero de slots do grupo.')
       }
       await saveLineupRule({ ...data, grupo_id: grupoId }, campeonatoId)
-      const { data: inserted, error } = await supabaseAdmin.from('campeonato_links').insert({
+      const linkPayload: Record<string, unknown> = {
         campeonato_id: campeonatoId,
         fase_id: data.fase_id || null,
         grupo_id: grupoId,
         token: body.generate_token ? randomToken(tipoLink === 'inscricao_equipes_grupo' ? 'EQS' : 'INSC') : body.token,
         tipo: tipoLink,
         titulo: body.name || data.titulo || (tipoLink === 'inscricao_equipes_grupo' ? 'Entrada de equipes' : 'Inscricao de jogadores'),
-        descricao: data.descricao || null,
-        metadata: tipoLink === 'inscricao_equipes_grupo' ? { expected_teams: expectedTeams } : {},
+        descricao: tipoLink === 'inscricao_equipes_grupo' ? encodeLinkDescricao(expectedTeams, data.descricao) : (data.descricao || null),
         ativo: data.ativo !== false,
         acompanhamento_publico: data.acompanhamento_publico !== false,
         criado_por: user.id,
         expira_em: data.expira_em || data.encerra_em || null,
+      }
+      let { data: inserted, error } = await supabaseAdmin.from('campeonato_links').insert({
+        ...linkPayload,
+        metadata: tipoLink === 'inscricao_equipes_grupo' ? { expected_teams: expectedTeams } : {},
       }).select('*').single()
+      if (error && isMissingMetadataColumn(error)) {
+        const retry = await supabaseAdmin.from('campeonato_links').insert(linkPayload).select('*').single()
+        inserted = retry.data
+        error = retry.error
+      }
       if (error) throw error
       row = baseRow(inserted, entityType)
     } else if (entityType === 'player_registration') {
@@ -897,7 +906,38 @@ export async function PATCH(req: NextRequest) {
       if (error) throw error
       return NextResponse.json({ row: baseRow(updated, 'group_slot', { data: updated }) })
     }
-    throw new Error('Tipo de ediÃ§Ã£o nÃ£o suportado.')
+
+    if (entityType === 'registration_link') {
+      const { data: current, error: readError } = await supabaseAdmin.from('campeonato_links').select('*').eq('id', id).single()
+      if (readError) throw readError
+      await requireChampionshipOwner(current.campeonato_id, user.id, account.id)
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+      if (data.ativo !== undefined) patch.ativo = Boolean(data.ativo)
+      if (data.expira_em !== undefined || data.encerra_em !== undefined) patch.expira_em = data.expira_em || data.encerra_em || null
+      if (data.regenerate_token) {
+        patch.token = randomToken(current.tipo === 'inscricao_equipes_grupo' ? 'EQS' : 'INSC')
+      }
+      if (data.expected_teams !== undefined) {
+        const expectedTeams = normalizeExpectedTeams(data.expected_teams)
+        patch.descricao = encodeLinkDescricao(expectedTeams, data.descricao ?? current.descricao)
+      } else if (data.descricao !== undefined) {
+        patch.descricao = data.descricao || null
+      }
+
+      let { data: updated, error } = await supabaseAdmin.from('campeonato_links').update({
+        ...patch,
+        ...(data.expected_teams !== undefined ? { metadata: { expected_teams: normalizeExpectedTeams(data.expected_teams) } } : {}),
+      }).eq('id', id).select('*').single()
+      if (error && isMissingMetadataColumn(error)) {
+        const retry = await supabaseAdmin.from('campeonato_links').update(patch).eq('id', id).select('*').single()
+        updated = retry.data
+        error = retry.error
+      }
+      if (error) throw error
+      return NextResponse.json({ row: baseRow(updated, 'registration_link', { data: registrationLinkData(updated) }) })
+    }
+
+    throw new Error('Tipo de edicao nao suportado.')
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao editar.' }, { status: 400 })
   }
@@ -937,7 +977,14 @@ export async function DELETE(req: NextRequest) {
         const { error: participationError } = await participationUpdate
         if (participationError) throw participationError
       }
-      const { error } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: new Date().toISOString() }).eq('id', id); if (error) throw error    } else throw new Error('Tipo de exclusão não suportado.')
+      const { error } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: new Date().toISOString() }).eq('id', id); if (error) throw error
+    } else if (entityType === 'registration_link') {
+      const { data, error: readError } = await supabaseAdmin.from('campeonato_links').select('campeonato_id').eq('id', id).single()
+      if (readError) throw readError
+      await requireChampionshipOwner(data.campeonato_id, user.id, account.id)
+      const { error } = await supabaseAdmin.from('campeonato_links').delete().eq('id', id)
+      if (error) throw error
+    } else throw new Error('Tipo de exclusao nao suportado.')
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao excluir.' }, { status: 400 })

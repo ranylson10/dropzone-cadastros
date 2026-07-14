@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
+import { parseLinkMetadata } from '@backend/shared/campeonato-link-metadata'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function loadLink(token: string) {
@@ -39,7 +40,7 @@ async function sessionTeam(req: NextRequest, campeonatoId: string) {
 
 async function payloadFor(req: NextRequest, token: string) {
   const link = await loadLink(token)
-  const expected = Array.isArray(link.metadata?.expected_teams) ? link.metadata.expected_teams.map((name: unknown) => String(name || '').trim()).filter(Boolean) : []
+  const expected = parseLinkMetadata(link).expected_teams
   const [{ data: campeonato }, { data: grupo }, { data: slots }] = await Promise.all([
     supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).single(),
     supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).single(),
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const lineIdInformada = String(body.line_id || '').trim()
     const nomeNovaLine = String(body.nome_line || '').trim()
     const link = await loadLink(token)
-    const expected = Array.isArray(link.metadata?.expected_teams) ? link.metadata.expected_teams.map((name: unknown) => String(name || '').trim()).filter(Boolean) : []
+    const expected = parseLinkMetadata(link).expected_teams
     if (!Number.isInteger(vagaIndex) || vagaIndex < 0 || vagaIndex >= expected.length) throw new Error('Selecione uma vaga esperada.')
 
     const { data: slot } = await supabaseAdmin

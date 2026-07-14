@@ -446,6 +446,34 @@ h3 {
   transform: translateY(-50%);
 }
 
+.link-token-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  padding-right: 12px;
+}
+
+.link-token-card > button[type='button']:first-child {
+  position: relative;
+  width: 100%;
+  padding: 12px 42px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-token-card > button[type='button']:first-child:hover {
+  border-color: var(--accent);
+}
+
+.link-card-actions {
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
 .invite-preview {
   display: grid;
   gap: 4px;
