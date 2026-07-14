@@ -265,6 +265,7 @@ create table if not exists public.campeonato_links (
   tipo text not null default 'inscricao',
   titulo text not null default 'Inscricao de jogadores',
   descricao text,
+  metadata jsonb not null default '{}'::jsonb,
   ativo boolean not null default true,
   acompanhamento_publico boolean not null default true,
   criado_por uuid not null references auth.users(id) on delete cascade,

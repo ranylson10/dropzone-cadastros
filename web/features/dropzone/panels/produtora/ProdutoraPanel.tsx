@@ -26,7 +26,7 @@ export function ProdutoraPanel(props: {
   tokens: DropZoneRow[]
   registrationLinks: DropZoneRow[]
   lineupRules: DropZoneRow[]
-  registrationLink: { grupo_id: string; vagas_por_equipe: string; abre_em: string; encerra_em: string; permite_substituicao: boolean; max_substituicoes_por_equipe: string; substituicao_encerra_em: string; descricao: string }
+  registrationLink: { tipo: string; grupo_id: string; vagas_por_equipe: string; abre_em: string; encerra_em: string; permite_substituicao: boolean; max_substituicoes_por_equipe: string; substituicao_encerra_em: string; descricao: string; nomes_equipes: string }
   setRegistrationLink: (value: any) => void
   createRegistrationLink: () => void
   selectedChamp?: DropZoneRow
@@ -50,8 +50,8 @@ export function ProdutoraPanel(props: {
   createChampionship: () => Promise<boolean>
   updateChampionship: (id: string, data: CampeonatoFormValue) => Promise<DropZoneRow | undefined>
   deleteChampionship: (id: string) => Promise<void>
-  updateStructure: (entityType: 'phase' | 'group' | 'group_slot', id: string, data: Record<string, unknown>) => Promise<void>
-  deleteStructure: (entityType: 'phase' | 'group' | 'group_slot', id: string) => Promise<void>
+  updateStructure: (entityType: 'phase' | 'group' | 'group_slot' | 'registration_link', id: string, data: Record<string, unknown>) => Promise<void>
+  deleteStructure: (entityType: 'phase' | 'group' | 'group_slot' | 'registration_link', id: string) => Promise<void>
   createTeam: () => void
   createPhase: () => Promise<boolean>
   createGroup: () => Promise<boolean>
@@ -825,36 +825,60 @@ export function ProdutoraPanel(props: {
                   {openAction === 'link' ? (
                     <div className="inline-action-panel">
                       <div className="mini-grid three">
+                        <Field label="Tipo de link">
+                          <select value={props.registrationLink.tipo} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, tipo: e.target.value })}>
+                            <option value="jogadores">Inscri??o de jogadores</option>
+                            <option value="equipes">Entrada de equipes por grupo</option>
+                          </select>
+                        </Field>
                         <Field label="Grupo do link">
                           <select value={props.registrationLink.grupo_id} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, grupo_id: e.target.value })}>
                             <option value="">Selecione</option>
                             {champGroups.map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
                           </select>
                         </Field>
-                        <Field label="Vagas por equipe"><input type="number" value={props.registrationLink.vagas_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, vagas_por_equipe: e.target.value })} /></Field>
-                        <Field label="Encerrar escalaÃ§Ã£o"><input type="datetime-local" value={props.registrationLink.encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })} /></Field>
+                        <Field label="Encerrar link"><input type="datetime-local" value={props.registrationLink.encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })} /></Field>
                       </div>
-                      <div className="mini-grid three">
-                        <Field label="Permite substituiÃ§Ã£o">
-                          <select value={props.registrationLink.permite_substituicao ? 'sim' : 'nao'} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, permite_substituicao: e.target.value === 'sim' })}>
-                            <option value="nao">NÃ£o</option>
-                            <option value="sim">Sim</option>
-                          </select>
+                      {props.registrationLink.tipo === 'equipes' ? (
+                        <Field label="Vagas esperadas do grupo">
+                          <textarea value={props.registrationLink.nomes_equipes} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, nomes_equipes: e.target.value })} placeholder={'ALOE ELITE\nALOE BASE\nPAYSANDU\nREMO'} rows={6} />
                         </Field>
-                        <Field label="MÃ¡ximo de substituiÃ§Ãµes"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
-                        <Field label="Prazo de substituiÃ§Ã£o"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
-                      </div>
-                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createRegistrationLink}>{props.pendingCreate === 'registration_link' ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</> : 'Gerar link pÃºblico'}</button>
+                      ) : (
+                        <>
+                          <div className="mini-grid three">
+                            <Field label="Vagas por equipe"><input type="number" value={props.registrationLink.vagas_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, vagas_por_equipe: e.target.value })} /></Field>
+                            <Field label="Permite substitui??o">
+                              <select value={props.registrationLink.permite_substituicao ? 'sim' : 'nao'} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, permite_substituicao: e.target.value === 'sim' })}>
+                                <option value="nao">N?o</option>
+                                <option value="sim">Sim</option>
+                              </select>
+                            </Field>
+                            <Field label="M?ximo de substitui??es"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
+                          </div>
+                          <Field label="Prazo de substitui??o"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
+                        </>
+                      )}
+                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createRegistrationLink}>{props.pendingCreate === 'registration_link' ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</> : props.registrationLink.tipo === 'equipes' ? 'Gerar link de equipes' : 'Gerar link p?blico'}</button>
                     </div>
                   ) : null}
                   <div className="ref-card-grid two">
-                    {champRegistrationLinks.map((link) => (
-                      <button key={link.id} className="token-card" onClick={() => props.copyToken(`${window.location.origin}/i/${link.token}`)}>
-                        <span>{groupName(link.data?.group_id)}</span>
-                        <strong>{`/i/${link.token}`}</strong>
-                        <Copy size={15} />
-                      </button>
-                    ))}
+                    {champRegistrationLinks.map((link) => {
+                      const isTeamGroupLink = link.data?.tipo === 'inscricao_equipes_grupo'
+                      const path = isTeamGroupLink ? `/convite/grupo/${link.token}` : `/i/${link.token}`
+                      return (
+                        <div key={link.id} className="token-card">
+                          <button type="button" onClick={() => props.copyToken(`${window.location.origin}${path}`)}>
+                            <span>{isTeamGroupLink ? 'Equipes ? ' : 'Jogadores ? '}{groupName(link.data?.group_id)}</span>
+                            <strong>{path}</strong>
+                            <Copy size={15} />
+                          </button>
+                          <div className="folder-actions">
+                            <button title={link.data?.ativo === false ? 'Ativar link' : 'Desativar link'} onClick={() => props.updateStructure('registration_link', link.id, { ativo: link.data?.ativo === false })}>{link.data?.ativo === false ? 'Ativar' : 'Pausar'}</button>
+                            <button title="Excluir link" className="danger" onClick={() => { if(window.confirm('Excluir este link?')) props.deleteStructure('registration_link', link.id) }}><Trash2 size={15}/></button>
+                          </div>
+                        </div>
+                      )
+                    })}
                     {champRegistrationLinks.length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}
                   </div>
                 </div>

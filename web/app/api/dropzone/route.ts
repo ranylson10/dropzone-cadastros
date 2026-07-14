@@ -396,7 +396,7 @@ export async function GET(req: NextRequest) {
       if (type === 'group_slot') output.push(...await selectRows('campeonato_slots', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, grupo_id: row.grupo_id, team_id: row.equipe_id, equipe_id: row.equipe_id, line_id: row.line_id, slot_numero: row.slot_numero, slot_letra: row.slot_letra, status: row.status } })))
       if (type === 'game') output.push(...await selectRows('campeonato_jogos', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, data_jogo: row.data_jogo, horario: row.horario, numero_partidas: row.numero_partidas, mapas: row.mapas, grupos_ids: row.grupos_ids } })))
       if (type === 'invite_token') output.push(...await selectRows('tokens', type, (row) => baseRow(row, type, { data: { token_kind: row.tipo, championship_id: row.campeonato_id, phase_id: row.fase_id, group_id: row.grupo_id, team_id: row.equipe_id, player_id: row.jogador_id, manager_id: row.manager_id, game_id: row.jogo_id, usado: row.usado, expira_em: row.expira_em } })))
-      if (type === 'registration_link') output.push(...await selectRows('campeonato_links', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, titulo: row.titulo, descricao: row.descricao, ativo: row.ativo, acompanhamento_publico: row.acompanhamento_publico, expira_em: row.expira_em, public_url: `/i/${row.token}` } })))
+      if (type === 'registration_link') output.push(...await selectRows('campeonato_links', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, tipo: row.tipo, titulo: row.titulo, descricao: row.descricao, metadata: row.metadata || {}, ativo: row.ativo, acompanhamento_publico: row.acompanhamento_publico, expira_em: row.expira_em, public_url: row.tipo === 'inscricao_equipes_grupo' ? `/convite/grupo/${row.token}` : `/i/${row.token}` } })))
       if (type === 'lineup_rule') output.push(...await selectRows('campeonato_regras', type, (row) => baseRow(row, type, { data: { championship_id: row.campeonato_id, fase_id: row.fase_id, group_id: row.grupo_id, vagas_por_equipe: row.vagas_por_equipe, abre_em: row.abre_em, encerra_em: row.encerra_em, permite_substituicao: row.permite_substituicao, max_substituicoes_por_equipe: row.max_substituicoes_por_equipe, substituicao_encerra_em: row.substituicao_encerra_em, bloquear_convites_apos_encerramento: row.bloquear_convites_apos_encerramento } })))
     }
 
@@ -701,15 +701,26 @@ export async function POST(req: NextRequest) {
       const grupoId = data.group_id || data.grupo_id
       await requireChampionshipOwner(campeonatoId, user.id, account.id)
       if (!grupoId) throw new Error('Grupo obrigatorio para gerar link de inscricao.')
+      const tipoLink = data.tipo === 'inscricao_equipes_grupo' ? 'inscricao_equipes_grupo' : 'inscricao'
+      const expectedTeams = Array.isArray(data.expected_teams)
+        ? data.expected_teams.map((name: unknown) => String(name || '').trim()).filter(Boolean)
+        : []
+      if (tipoLink === 'inscricao_equipes_grupo') {
+        const { data: group, error: groupError } = await supabaseAdmin.from('campeonato_grupos').select('slots').eq('id', grupoId).eq('campeonato_id', campeonatoId).single()
+        if (groupError) throw groupError
+        if (expectedTeams.length < 1) throw new Error('Informe as vagas esperadas do grupo.')
+        if (expectedTeams.length > Number(group.slots || 0)) throw new Error('A lista nao pode ter mais equipes que o numero de slots do grupo.')
+      }
       await saveLineupRule({ ...data, grupo_id: grupoId }, campeonatoId)
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_links').insert({
         campeonato_id: campeonatoId,
         fase_id: data.fase_id || null,
         grupo_id: grupoId,
-        token: body.generate_token ? randomToken('INSC') : body.token,
-        tipo: 'inscricao',
-        titulo: body.name || data.titulo || 'Inscricao de jogadores',
+        token: body.generate_token ? randomToken(tipoLink === 'inscricao_equipes_grupo' ? 'EQS' : 'INSC') : body.token,
+        tipo: tipoLink,
+        titulo: body.name || data.titulo || (tipoLink === 'inscricao_equipes_grupo' ? 'Entrada de equipes' : 'Inscricao de jogadores'),
         descricao: data.descricao || null,
+        metadata: tipoLink === 'inscricao_equipes_grupo' ? { expected_teams: expectedTeams } : {},
         ativo: data.ativo !== false,
         acompanhamento_publico: data.acompanhamento_publico !== false,
         criado_por: user.id,

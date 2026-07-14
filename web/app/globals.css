@@ -2455,6 +2455,7 @@ body:has(.cropper-overlay) {
 .phase-folder-content{background:#fff}
 .slot-letter-list{gap:7px}
 .slot-letter-row{border:1px solid #e1e5eb;background:#fff;color:#172033;border-radius:8px;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.slot-letter-row>img{width:38px;height:38px;max-width:38px;max-height:38px;object-fit:cover;border-radius:6px;justify-self:center}
 .slot-letter-row:hover{border-color:#ff4655;box-shadow:0 5px 16px rgba(255,70,85,.10);transform:translateY(-1px)}
 .slot-letter-row>b{border-radius:6px;background:#ff4655;color:#fff}
 .slot-letter-row span{color:#172033}
