@@ -237,7 +237,7 @@ export function ProdutoraPanel(props: {
   }
 
   function lineAvatar(entry?: DropZoneRow | null) {
-    return String(dataText(entry, 'logo_url') || '/favicon.ico')
+    return String(dataText(entry ?? undefined, 'logo_url') || '/favicon.ico')
   }
 
   const totalPlayers = 0
