@@ -22,6 +22,28 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       throw new Error('Informe a vaga e as referências internas da reserva e da line.')
     }
 
+    if (permission.role === 'seller') {
+      const { data: seller, error: sellerError } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .select('id,limite_vagas,permissoes')
+        .eq('campeonato_id', id)
+        .eq('manager_auth_user_id', user.id)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      if (sellerError) throw sellerError
+      if (!seller || seller.permissoes?.gerar_convites_equipe === false) throw new Error('Este vendedor não pode gerar convites de equipe.')
+      const limiteVagas = Number(seller.limite_vagas || 0)
+      if (limiteVagas > 0) {
+        const [{ count: equipesCount, error: equipesCountError }, { count: convitesCount, error: convitesCountError }] = await Promise.all([
+          supabaseAdmin.from('campeonato_equipes').select('id', { count: 'exact', head: true }).eq('campeonato_id', id).eq('criado_por', user.id).eq('origem_entrada', 'vendedor').eq('status', 'ativo'),
+          supabaseAdmin.from('tokens').select('id', { count: 'exact', head: true }).eq('campeonato_id', id).eq('tipo', 'convite_equipe_campeonato').eq('criado_por', user.id).eq('status', 'ativo').eq('usado', false),
+        ])
+        if (equipesCountError) throw equipesCountError
+        if (convitesCountError) throw convitesCountError
+        if (Number(equipesCount || 0) + Number(convitesCount || 0) >= limiteVagas) throw new Error(`Este vendedor atingiu o limite de ${limiteVagas} vaga(s).`)
+      }
+    }
+
     const { data: vaga } = await supabaseAdmin
       .from('campeonato_vagas')
       .select('*')

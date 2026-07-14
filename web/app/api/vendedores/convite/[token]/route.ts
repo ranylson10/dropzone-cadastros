@@ -80,6 +80,13 @@ async function upsertSellerLink(convite: any, account: any, body: any, whatsappU
       nome_publico: String(body.nome_publico || '').trim() || account.name,
       whatsapp_url: whatsappUrl,
       status: 'ativo',
+      limite_vagas: Number(convite.manager_limite_vagas || 0),
+      permissoes: convite.manager_permissoes || {
+        vendedor_vagas: true,
+        adicionar_equipes: true,
+        remover_proprias_equipes: true,
+        gerar_convites_equipe: true,
+      },
       criado_por: convite.criado_por || null,
       aceito_em: new Date().toISOString(),
       updated_at: new Date().toISOString(),

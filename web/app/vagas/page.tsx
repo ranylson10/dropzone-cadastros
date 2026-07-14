@@ -24,6 +24,7 @@ export default function VacanciesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<'all' | 'mine'>('all')
+  const [sellerFilter, setSellerFilter] = useState('')
   const [query, setQuery] = useState('')
   const [contacts, setContacts] = useState<any | null>(null)
   const [preview, setPreview] = useState<any | null>(null)
@@ -57,9 +58,22 @@ export default function VacanciesPage() {
     })()
   }, [])
 
+  const sellerOptions = useMemo(() => {
+    const sellers = new Map<string, string>()
+    for (const item of items) for (const seller of item.vendedores || []) if (seller.id) sellers.set(seller.id, seller.nome || 'Vendedor')
+    return Array.from(sellers.entries()).map(([id, nome]) => ({ id, nome })).sort((a, b) => a.nome.localeCompare(b.nome))
+  }, [items])
+
   const visible = useMemo(() => items.filter((item) =>
     (filter === 'all' || item.ja_tem_vaga)
-    && `${item.nome} ${item.tipo} ${item.proximo_grupo} ${item.servidor}`.toLowerCase().includes(query.toLowerCase())), [items, filter, query])
+    && (!sellerFilter || (item.vendedores || []).some((seller: any) => seller.id === sellerFilter))
+    && `${item.nome} ${item.tipo} ${item.proximo_grupo} ${item.servidor}`.toLowerCase().includes(query.toLowerCase())), [items, filter, query, sellerFilter])
+
+  function contactsFor(item: any) {
+    if (!sellerFilter) return item
+    const seller = (item.vendedores || []).find((entry: any) => entry.id === sellerFilter)
+    return seller?.contato?.url ? { ...item, contatos_whatsapp: [seller.contato] } : item
+  }
 
   function continueAsGuest() {
     sessionStorage.setItem('dropzone_vagas_guest', '1')
@@ -76,6 +90,10 @@ export default function VacanciesPage() {
 
       <section className="vacancies-toolbar">
         <div className="vacancies-filter"><Filter size={15} /><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Campeonatos gerais</button><button className={filter === 'mine' ? 'active' : ''} onClick={() => authenticated ? setFilter('mine') : setGate(true)}>Meus campeonatos</button></div>
+        <select value={sellerFilter} onChange={(event) => setSellerFilter(event.target.value)} aria-label="Filtrar por vendedor">
+          <option value="">Todos os vendedores</option>
+          {sellerOptions.map((seller) => <option key={seller.id} value={seller.id}>{seller.nome}</option>)}
+        </select>
         <label><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar campeonato" /></label>
       </section>
 
@@ -94,7 +112,7 @@ export default function VacanciesPage() {
               <div className="vacancy-meta"><span><Users size={14} /><b>{item.vagas_livres}</b> vagas</span><span><Ticket size={14} /><b>{money(item.valor_inscricao)}</b></span>{item.servidor ? <span><MapPin size={14} />{item.servidor}</span> : null}</div>
               <div className="vacancy-groups">{item.grupos.slice(0, 3).map((group: any) => <span key={group.id}>{group.nome}<b>{group.vagas_livres} livres</b></span>)}</div>
               <div className="vacancy-persuasion"><strong>Garanta sua vaga</strong><span>Fale agora com a organização para reservar seu slot.</span></div>
-              <button className="button vacancy-register" onClick={() => setContacts(item)}>Quero me inscrever</button>
+              <button className="button vacancy-register" onClick={() => setContacts(contactsFor(item))}>Quero me inscrever</button>
             </div>
           </article>)}
           {visible.length === 0 ? <div className="vacancies-empty"><Ticket size={32} /><strong>Nenhuma vaga encontrada</strong><span>Tente outro filtro ou volte mais tarde.</span></div> : null}

@@ -12,6 +12,11 @@ function missingRelation(error: any) {
   return ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code || '')
 }
 
+function sellerLimit(value: unknown) {
+  const limit = Number(value || 0)
+  return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
@@ -41,6 +46,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     }
 
     let contactsByManagerId = new Map<string, any>()
+    let sellersByManagerId = new Map<string, any>()
     const { data: config, error: configError } = await supabaseAdmin
       .from('campeonato_configuracoes')
       .select('contatos_whatsapp')
@@ -50,13 +56,25 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     if (Array.isArray(config?.contatos_whatsapp)) {
       contactsByManagerId = new Map(config.contatos_whatsapp.filter((contact: any) => contact?.manager_id).map((contact: any) => [contact.manager_id, contact]))
     }
+    if (managerIds.length) {
+      const { data: sellerLinks, error: sellerLinksError } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .select('manager_id,limite_vagas,permissoes,status')
+        .eq('campeonato_id', id)
+        .in('manager_id', managerIds)
+      if (sellerLinksError && !missingRelation(sellerLinksError)) throw sellerLinksError
+      sellersByManagerId = new Map((sellerLinks || []).map((seller: any) => [seller.manager_id, seller]))
+    }
 
     return NextResponse.json({
       vendedores: rows.map((row) => {
         const manager = row.manager_id ? managersById.get(row.manager_id) || null : null
         const contact = row.manager_id ? contactsByManagerId.get(row.manager_id) || null : null
+        const sellerLink = row.manager_id ? sellersByManagerId.get(row.manager_id) || null : null
         return {
           ...row,
+          limite_vagas: sellerLink?.limite_vagas || row.manager_limite_vagas || 0,
+          permissoes: sellerLink?.permissoes || row.manager_permissoes || {},
           status: row.manager_id ? 'ativo' : 'pendente',
           nome_publico: contact?.nome || manager?.nome || manager?.username || null,
           whatsapp_url: contact?.url || null,
@@ -77,6 +95,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (permission.role !== 'owner') throw new Error('Somente o dono da produtora pode convidar vendedores.')
 
     const body = await req.json().catch(() => ({}))
+    const limiteVagas = sellerLimit(body.limite_vagas)
     const token = novoToken()
     const { data: convite, error } = await supabaseAdmin
       .from('tokens')
@@ -88,6 +107,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         status: 'ativo',
         usado: false,
         criado_por: user.id,
+        manager_limite_vagas: limiteVagas,
+        manager_permissoes: {
+          vendedor_vagas: true,
+          adicionar_equipes: true,
+          remover_proprias_equipes: true,
+          gerar_convites_equipe: true,
+        },
       })
       .select('*')
       .single()
@@ -100,6 +126,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const textoWhatsapp = [
       `Voce recebeu um convite para vender vagas${campeonato?.nome ? ` do campeonato ${campeonato.nome}` : ''}.`,
       nomeSugerido ? `Nome publico sugerido: ${nomeSugerido}.` : '',
+      limiteVagas ? `Limite de vendas: ${limiteVagas} vaga(s).` : '',
       'Acesse o link, entre ou crie seu perfil de manager e cadastre seu WhatsApp de venda.',
       link,
     ].filter(Boolean).join('\n\n')

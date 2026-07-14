@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser } from '@backend/auth/server-auth'
-import { getCampeonatoPermission, requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import { getBearerUser, getAccountsForUser } from '@backend/auth/server-auth'
+import { getCampeonatoPermission, type CampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+
+function hasSellerPermission(seller: any, key: string) {
+  return seller?.permissoes?.[key] !== false
+}
 
 async function liberarExpirados(campeonatoId: string) {
   const agora = new Date().toISOString()
@@ -29,10 +33,25 @@ async function liberarExpirados(campeonatoId: string) {
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
-    let permission = { canView: true, canManage: false, canGenerateToken: false, role: 'none' as const, produtoraId: null as string | null }
+    let permission: CampeonatoPermission = { canView: true, canManage: false, canGenerateToken: false, role: 'none', produtoraId: null }
+    let bearerUser: any = null
     try {
       const user = await getBearerUser(req)
+      bearerUser = user
       permission = await getCampeonatoPermission(user.id, id) as typeof permission
+      // if user is a seller for this championship and was invited by the produtora
+      // allow management actions (so UI can show add-team controls)
+      if (permission.role === 'seller') {
+        const { data: sellerRow, error: sellerErr } = await supabaseAdmin
+          .from('campeonato_vendedores')
+          .select('id')
+          .eq('campeonato_id', id)
+          .eq('manager_auth_user_id', user.id)
+          .eq('status', 'ativo')
+          .maybeSingle()
+        if (sellerErr) throw sellerErr
+        if (sellerRow) permission.canManage = true
+      }
     } catch {
       // A listagem de participantes é pública; ações continuam protegidas.
     }
@@ -83,7 +102,44 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    const permission = await getCampeonatoPermission(user.id, id)
+    let allowedToManage = Boolean(permission.canManage)
+    let sellerPermission: any = null
+    if (!allowedToManage && permission.role === 'seller') {
+      const accounts = await getAccountsForUser(user)
+      const account = accounts.find((item) => item.profile_type === 'manager')
+      if (account) {
+        const { data: seller, error: sellerErr } = await supabaseAdmin
+          .from('campeonato_vendedores')
+          .select('id,limite_vagas,permissoes')
+          .eq('campeonato_id', id)
+          .eq('manager_auth_user_id', user.id)
+          .eq('status', 'ativo')
+          .maybeSingle()
+        if (sellerErr) throw sellerErr
+        if (seller) {
+          sellerPermission = seller
+          allowedToManage = true
+        }
+      }
+    }
+    if (!allowedToManage) throw new Error('Você não tem permissão para gerenciar este campeonato.')
+    if (permission.role === 'seller') {
+      if (!sellerPermission) throw new Error('Permissão de vendedor não encontrada para este campeonato.')
+      if (!hasSellerPermission(sellerPermission, 'adicionar_equipes')) throw new Error('Este vendedor não pode adicionar equipes.')
+      const limiteVagas = Number(sellerPermission.limite_vagas || 0)
+      if (limiteVagas > 0) {
+        const { count, error: countError } = await supabaseAdmin
+          .from('campeonato_equipes')
+          .select('id', { count: 'exact', head: true })
+          .eq('campeonato_id', id)
+          .eq('criado_por', user.id)
+          .eq('origem_entrada', 'vendedor')
+          .eq('status', 'ativo')
+        if (countError) throw countError
+        if (Number(count || 0) >= limiteVagas) throw new Error(`Este vendedor atingiu o limite de ${limiteVagas} vaga(s).`)
+      }
+    }
     const body = await req.json()
     const vagaId = String(body.vaga_id || '')
     const equipeId = String(body.equipe_id || '')
@@ -117,9 +173,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       .maybeSingle()
     if (participacaoExistente) throw new Error('Esta line já está inscrita neste campeonato.')
 
+    const origem = permission.role === 'seller' ? 'vendedor' : 'organizador'
     const { data: participacao, error: partError } = await supabaseAdmin.from('campeonato_equipes').insert({
       campeonato_id: id, equipe_id: equipeId, vaga_id: vagaId, line_id: lineId,
-      nome_exibicao: lineFinal?.nome || equipe.nome, origem_entrada: 'organizador', criado_por: user.id, status: 'ativo',
+      nome_exibicao: lineFinal?.nome || equipe.nome, origem_entrada: origem, criado_por: user.id, status: 'ativo',
     }).select('*').single()
     if (partError) throw partError
 
@@ -138,10 +195,23 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    const permission = await getCampeonatoPermission(user.id, id)
     const participacaoId = req.nextUrl.searchParams.get('participacao_id') || ''
-    const { data: participacao } = await supabaseAdmin.from('campeonato_equipes').select('id, vaga_id').eq('id', participacaoId).eq('campeonato_id', id).single()
+    const { data: participacao } = await supabaseAdmin.from('campeonato_equipes').select('id, vaga_id, criado_por, origem_entrada').eq('id', participacaoId).eq('campeonato_id', id).single()
     if (!participacao) throw new Error('Participação não encontrada.')
+    if (!permission.canManage) {
+      if (permission.role !== 'seller') throw new Error('Você não tem permissão para gerenciar este campeonato.')
+      const { data: seller, error: sellerError } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .select('id,permissoes')
+        .eq('campeonato_id', id)
+        .eq('manager_auth_user_id', user.id)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      if (sellerError) throw sellerError
+      if (!seller || !hasSellerPermission(seller, 'remover_proprias_equipes')) throw new Error('Este vendedor não pode remover equipes.')
+      if (participacao.criado_por !== user.id || participacao.origem_entrada !== 'vendedor') throw new Error('O vendedor só pode remover equipes que ele adicionou.')
+    }
     await supabaseAdmin.from('campeonato_equipes').update({ status: 'removido', vaga_id: null }).eq('id', participacaoId)
     if (participacao.vaga_id) {
       await supabaseAdmin.from('campeonato_vagas').update({ status: 'livre', campeonato_equipe_id: null, ocupada_em: null }).eq('id', participacao.vaga_id)

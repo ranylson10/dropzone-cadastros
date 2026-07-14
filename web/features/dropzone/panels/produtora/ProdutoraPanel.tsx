@@ -83,7 +83,7 @@ export function ProdutoraPanel(props: {
   const [editingGameId, setEditingGameId] = useState('')
   const [openGamePhases, setOpenGamePhases] = useState<Record<string, boolean>>({})
   const [openGames, setOpenGames] = useState<Record<string, boolean>>({})
-  const [sellerInvite, setSellerInvite] = useState({ nome_publico: '' })
+  const [sellerInvite, setSellerInvite] = useState({ nome_publico: '', limite_vagas: '' })
   const [sellerRows, setSellerRows] = useState<any[]>([])
   const [sellerLink, setSellerLink] = useState('')
   const [sellerWhatsappLink, setSellerWhatsappLink] = useState('')
@@ -151,7 +151,7 @@ export function ProdutoraPanel(props: {
       })
       setSellerLink(json.link)
       setSellerWhatsappLink(json.whatsapp_url || '')
-      setSellerInvite({ nome_publico: '' })
+      setSellerInvite({ nome_publico: '', limite_vagas: '' })
       await loadSellers(championshipId)
     } catch (error) {
       setSellerError(error instanceof Error ? error.message : 'Erro ao gerar convite.')
@@ -754,8 +754,11 @@ export function ProdutoraPanel(props: {
                   </div>
 
                   <div className="inline-action-panel">
-                    <Field label="Nome público sugerido"><input value={sellerInvite.nome_publico} onChange={(event) => setSellerInvite({ ...sellerInvite, nome_publico: event.target.value })} placeholder="Ex.: Paulo Vagas" /></Field>
-                    <p className="empty">Esta página gera apenas o convite. O manager aceitará o link, definirá o WhatsApp de venda e terá permissão limitada para gerar convites de equipe deste campeonato.</p>
+                    <div className="mini-grid two">
+                      <Field label="Nome público sugerido"><input value={sellerInvite.nome_publico} onChange={(event) => setSellerInvite({ ...sellerInvite, nome_publico: event.target.value })} placeholder="Ex.: Paulo Vagas" /></Field>
+                      <Field label="Limite de vagas"><input type="number" min="0" value={sellerInvite.limite_vagas} onChange={(event) => setSellerInvite({ ...sellerInvite, limite_vagas: event.target.value })} placeholder="0 = sem limite" /></Field>
+                    </div>
+                    <p className="empty">Esta página gera apenas o convite. O manager aceitará o link, definirá o WhatsApp de venda e poderá adicionar equipes ou gerar convites até o limite definido.</p>
                     {sellerError ? <div className="message error">{sellerError}</div> : null}
                     {sellerLink ? (
                       <div className="ref-section-stack">
@@ -778,6 +781,7 @@ export function ProdutoraPanel(props: {
                           <span>{seller.status === 'ativo' ? 'Ativo' : 'Pendente'}</span>
                           <strong>{seller.nome_publico || manager.nome || manager.username || 'Vendedor convidado'}</strong>
                           <small>{seller.whatsapp_url || 'WhatsApp ainda não definido'}</small>
+                          <small>{Number(seller.limite_vagas || 0) > 0 ? `Limite: ${seller.limite_vagas} vaga(s)` : 'Sem limite de vagas'}</small>
                           {seller.status === 'ativo' && publicPanel ? <button type="button" onClick={() => props.copyToken(publicPanel)}><Copy size={14} /> Copiar painel</button> : null}
                         </article>
                       )
