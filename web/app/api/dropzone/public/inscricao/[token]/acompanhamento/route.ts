@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, ctx: any) {
     const [{ data: campeonato }, { data: grupo }, { data: teamLinks, error: teamsError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).maybeSingle(),
       supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).maybeSingle(),
-      supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,slot_numero,equipes:equipe_id(id,nome,tag,logo_url)').eq('campeonato_id', link.campeonato_id).eq('grupo_id', link.grupo_id).order('slot_numero'),
+      supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,slot_numero,nome_exibicao,equipes:equipe_id(id,nome,tag,logo_url),equipe_lines:line_id(id,nome,tag,logo_url)').eq('campeonato_id', link.campeonato_id).eq('grupo_id', link.grupo_id).order('slot_numero'),
     ])
     if (teamsError) throw teamsError
 
@@ -26,16 +26,21 @@ export async function GET(_req: NextRequest, ctx: any) {
         .from('campeonato_jogadores')
         .select('id,nick,id_jogo,funcao,foto_url,created_at')
         .eq('campeonato_id', link.campeonato_id)
-        .eq('equipe_id', item.equipe_id)
+        .eq('campeonato_equipe_id', item.id)
         .neq('status', 'deletado')
         .order('created_at')
       if (error) throw error
+      const line = Array.isArray(item.equipe_lines) ? item.equipe_lines[0] : item.equipe_lines
       return {
-        id: item.equipe_id,
-        nome: item.equipes?.nome,
+        id: item.id,
+        equipe_id: item.equipe_id,
+        line_id: item.line_id,
+        nome: line?.nome || item.nome_exibicao || item.equipes?.nome,
+        line_nome: line?.nome || item.nome_exibicao || item.equipes?.nome,
+        equipe_nome: item.equipes?.nome,
         username: item.equipes?.username,
-        tag: item.equipes?.tag,
-        logo_url: item.equipes?.logo_url,
+        tag: line?.tag || item.equipes?.tag,
+        logo_url: line?.logo_url || item.equipes?.logo_url,
         slot_numero: item.slot_numero,
         jogadores: jogadores || [],
       }

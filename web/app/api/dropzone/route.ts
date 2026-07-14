@@ -579,9 +579,17 @@ export async function POST(req: NextRequest) {
       const campeonatoId = body.parent_id || data.campeonato_id
       await requireChampionshipOwner(campeonatoId, user.id, account.id)
       if (!data.grupo_id || !data.slot_numero) throw new Error('Grupo e slot sao obrigatorios.')
+      const { data: groupRef, error: groupRefError } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .select('fase_id')
+        .eq('id', data.grupo_id)
+        .eq('campeonato_id', campeonatoId)
+        .maybeSingle()
+      if (groupRefError) throw groupRefError
+      const faseId = data.fase_id || groupRef?.fase_id || null
       const slotPayload = {
         campeonato_id: campeonatoId,
-        fase_id: data.fase_id || null,
+        fase_id: faseId,
         grupo_id: data.grupo_id,
         equipe_id: data.equipe_id || null,
         line_id: data.line_id || null,
@@ -630,6 +638,7 @@ export async function POST(req: NextRequest) {
         ? supabaseAdmin.from('campeonato_slots').update(slotPayload).eq('id', existing.id)
         : supabaseAdmin.from('campeonato_slots').insert(slotPayload)
       const { data: inserted, error } = await query.select('*').single()
+      if (error?.code === '23505') throw new Error('Esta line já está em outro grupo desta fase.')
       if (error) throw error
       row = baseRow(inserted, entityType)
     } else if (entityType === 'game') {
@@ -858,6 +867,18 @@ export async function PATCH(req: NextRequest) {
               : participationUpdate.eq('equipe_id', data.equipe_id)
           const { error: participationError } = await participationUpdate
           if (participationError) throw participationError
+        } else if (current.equipe_id) {
+          let participationUpdate = supabaseAdmin
+            .from('campeonato_equipes')
+            .update({ grupo_id: null, slot_numero: null })
+            .eq('campeonato_id', current.campeonato_id)
+            .eq('grupo_id', current.grupo_id)
+            .eq('slot_numero', current.slot_numero)
+          participationUpdate = current.line_id
+            ? participationUpdate.eq('line_id', current.line_id)
+            : participationUpdate.eq('equipe_id', current.equipe_id)
+          const { error: participationError } = await participationUpdate
+          if (participationError) throw participationError
         }
       }
       const { data: updated, error } = await supabaseAdmin.from('campeonato_slots').update(patch).eq('id', id).select('*').single()
@@ -891,9 +912,24 @@ export async function DELETE(req: NextRequest) {
       const { data, error: readError } = await supabaseAdmin.from('campeonato_grupos').select('campeonato_id').eq('id', id).single(); if (readError) throw readError
       await requireChampionshipOwner(data.campeonato_id, user.id, account.id)
       const { error } = await supabaseAdmin.from('campeonato_grupos').delete().eq('id', id); if (error) throw error
-    } else throw new Error('Tipo de exclusão não suportado.')
+    } else if (entityType === 'group_slot') {
+      const { data, error: readError } = await supabaseAdmin.from('campeonato_slots').select('*').eq('id', id).single(); if (readError) throw readError
+      await requireChampionshipOwner(data.campeonato_id, user.id, account.id)
+      if (data.equipe_id) {
+        let participationUpdate = supabaseAdmin
+          .from('campeonato_equipes')
+          .update({ grupo_id: null, slot_numero: null })
+          .eq('campeonato_id', data.campeonato_id)
+          .eq('grupo_id', data.grupo_id)
+          .eq('slot_numero', data.slot_numero)
+        participationUpdate = data.line_id ? participationUpdate.eq('line_id', data.line_id) : participationUpdate.eq('equipe_id', data.equipe_id)
+        const { error: participationError } = await participationUpdate
+        if (participationError) throw participationError
+      }
+      const { error } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: new Date().toISOString() }).eq('id', id); if (error) throw error    } else throw new Error('Tipo de exclus�o n�o suportado.')
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao excluir.' }, { status: 400 })
   }
 }
+

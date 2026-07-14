@@ -120,7 +120,7 @@ export function DropZoneHome() {
   })
   const [phase, setPhase] = useState({ nome: '', campeonato_id: '', ordem: '1' })
   const [group, setGroup] = useState({ nome: 'Grupo A', campeonato_id: '', fase_id: '', slots: '12', whatsapp_url: '' })
-  const [slotAssignment, setSlotAssignment] = useState({ slot_id: '', grupo_id: '', equipe_id: '', line_id: '', campeonato_equipe_id: '', slot_numero: '1' })
+  const [slotAssignment, setSlotAssignment] = useState({ slot_id: '', fase_id: '', grupo_id: '', equipe_id: '', line_id: '', campeonato_equipe_id: '', slot_numero: '1' })
   const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill('') as string[], grupos_ids: [] as string[] })
   const [registrationLink, setRegistrationLink] = useState({ grupo_id: '', vagas_por_equipe: '6', abre_em: '', encerra_em: '', permite_substituicao: false, max_substituicoes_por_equipe: '0', substituicao_encerra_em: '', descricao: '' })
   const [selectedChampId, setSelectedChampId] = useState('')
@@ -807,7 +807,7 @@ export function DropZoneHome() {
     } finally { setLoading(false) }
   }
 
-  async function deleteStructure(entityType: 'phase' | 'group', id: string) {
+  async function deleteStructure(entityType: 'phase' | 'group' | 'group_slot', id: string) {
     setLoading(true)
     setError('')
     setMessage('')
@@ -993,6 +993,7 @@ export function DropZoneHome() {
       data: {
         campeonato_id: champ.id,
         slot_id: slotAssignment.slot_id || null,
+        fase_id: slotAssignment.fase_id || null,
         grupo_id: slotAssignment.grupo_id,
         equipe_id: slotAssignment.equipe_id,
         line_id: slotAssignment.line_id || null,

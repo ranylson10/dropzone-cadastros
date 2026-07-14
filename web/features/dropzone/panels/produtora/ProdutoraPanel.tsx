@@ -43,7 +43,7 @@ export function ProdutoraPanel(props: {
   setPhase: (value: any) => void
   group: { nome: string; campeonato_id: string; fase_id: string; slots: string; whatsapp_url: string }
   setGroup: (value: any) => void
-  slotAssignment: { slot_id: string; grupo_id: string; equipe_id: string; line_id: string; campeonato_equipe_id: string; slot_numero: string }
+  slotAssignment: { slot_id: string; fase_id: string; grupo_id: string; equipe_id: string; line_id: string; campeonato_equipe_id: string; slot_numero: string }
   setSlotAssignment: (value: any) => void
   game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string[]; grupos_ids: string[] }
   setGame: (value: any) => void
@@ -51,7 +51,7 @@ export function ProdutoraPanel(props: {
   updateChampionship: (id: string, data: CampeonatoFormValue) => Promise<DropZoneRow | undefined>
   deleteChampionship: (id: string) => Promise<void>
   updateStructure: (entityType: 'phase' | 'group' | 'group_slot', id: string, data: Record<string, unknown>) => Promise<void>
-  deleteStructure: (entityType: 'phase' | 'group', id: string) => Promise<void>
+  deleteStructure: (entityType: 'phase' | 'group' | 'group_slot', id: string) => Promise<void>
   createTeam: () => void
   createPhase: () => Promise<boolean>
   createGroup: () => Promise<boolean>
@@ -74,7 +74,7 @@ export function ProdutoraPanel(props: {
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
   const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({})
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
-  const [slotModal, setSlotModal] = useState<{ id: string; grupo_id: string; slot_numero: string; letra: string; whatsapp_url: string } | null>(null)
+  const [slotModal, setSlotModal] = useState<{ id: string; fase_id: string; grupo_id: string; slot_numero: string; letra: string; whatsapp_url: string } | null>(null)
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string } | null>(null)
@@ -231,6 +231,15 @@ export function ProdutoraPanel(props: {
     return rowTitle(champPhases.find((row) => row.id === id)) || 'Sem fase'
   }
 
+  function slotLineEntry(slot?: DropZoneRow) {
+    if (!slot?.data?.equipe_id) return null
+    return props.selectedChampTeams.find((item) => item.ref_id === slot.data?.equipe_id && (!slot.data?.line_id || item.data?.line_id === slot.data.line_id)) || null
+  }
+
+  function lineAvatar(entry?: DropZoneRow | null) {
+    return String(dataText(entry, 'logo_url') || '/favicon.ico')
+  }
+
   const totalPlayers = 0
   const stats = [
     { label: 'Equipes', value: props.selectedChampTeams.length },
@@ -337,28 +346,40 @@ export function ProdutoraPanel(props: {
               <MessageCircle size={18} />
               <span>{slotModal.whatsapp_url ? 'Este grupo já possui link do WhatsApp configurado.' : 'Este grupo ainda não possui link do WhatsApp.'}</span>
             </div>
-            <Field label="Line inscrita no campeonato">
-              <select value={props.slotAssignment.campeonato_equipe_id} onChange={(e) => {
-                const entry = props.selectedChampTeams.find((item) => item.data?.campeonato_equipe_id === e.target.value)
-                props.setSlotAssignment({
-                  ...props.slotAssignment,
-                  slot_id: slotModal.id,
-                  grupo_id: slotModal.grupo_id,
-                  slot_numero: slotModal.slot_numero,
-                  campeonato_equipe_id: String(entry?.data?.campeonato_equipe_id || ''),
-                  equipe_id: String(entry?.ref_id || ''),
-                  line_id: String(entry?.data?.line_id || ''),
-                })
-              }}>
-                <option value="">Selecione uma line</option>
-                {props.selectedChampTeams.map((entry) => (
-                  <option key={entry.id} value={String(entry.data?.campeonato_equipe_id || '')}>{rowTitle(entry)} · {dataText(entry, 'team_name')}</option>
-                ))}
-              </select>
-            </Field>
+            <div className="line-picker-list">
+              <p className="eyebrow">Line inscrita no campeonato</p>
+              {props.selectedChampTeams.filter((entry) => {
+                const lineId = String(entry.data?.line_id || '')
+                if (!lineId) return true
+                return !champSlots.some((slot) => slot.id !== slotModal.id && String(slot.data?.fase_id || '') === slotModal.fase_id && String(slot.data?.line_id || '') === lineId)
+              }).map((entry) => {
+                const selected = props.slotAssignment.campeonato_equipe_id === String(entry.data?.campeonato_equipe_id || '')
+                return (
+                  <button
+                    type="button"
+                    key={entry.id}
+                    className={`line-picker-card ${selected ? 'selected' : ''}`}
+                    onClick={() => props.setSlotAssignment({
+                      ...props.slotAssignment,
+                      slot_id: slotModal.id,
+                      fase_id: slotModal.fase_id,
+                      grupo_id: slotModal.grupo_id,
+                      slot_numero: slotModal.slot_numero,
+                      campeonato_equipe_id: String(entry.data?.campeonato_equipe_id || ''),
+                      equipe_id: String(entry.ref_id || ''),
+                      line_id: String(entry.data?.line_id || ''),
+                    })}
+                  >
+                    <img src={lineAvatar(entry)} alt="" />
+                    <span><strong>{rowTitle(entry)}</strong><small>{dataText(entry, 'team_name')}</small></span>
+                  </button>
+                )
+              })}
+            </div>
             {props.selectedChampTeams.length === 0 ? <p className="empty"><Users size={18}/> Nenhuma line inscrita no campeonato.</p> : null}
             <div className="modal-actions">
               <button className="button secondary" onClick={() => setSlotModal(null)}>Cancelar</button>
+              <button className="button secondary danger" disabled={props.loading} onClick={async () => { await props.updateStructure('group_slot', slotModal.id, { equipe_id: null, line_id: null, campeonato_equipe_id: null }); setSlotModal(null) }}>Remover line</button>
               <button className="button" disabled={!props.slotAssignment.campeonato_equipe_id || props.loading} onClick={async () => { await props.assignTeamToSlot(); setSlotModal(null) }}>Adicionar ao slot</button>
             </div>
           </div>
@@ -533,8 +554,8 @@ export function ProdutoraPanel(props: {
                                 </div>
                               </div>
                             ) : null}<div className="slot-letter-list">{Array.from({length: slotCount}).map((_, index) => {
-                              const slotNumber=index+1; const slot=slotsOfGroup.find((item)=>Number(item.data?.slot_numero)===slotNumber); const entry=props.selectedChampTeams.find((item)=>item.ref_id===slot?.data?.equipe_id && (!slot?.data?.line_id || item.data?.line_id===slot.data.line_id)); const letter=String(slot?.data?.slot_letra || String.fromCharCode(65 + (index % 26)) + (index >= 26 ? Math.floor(index/26) : ''))
-                              return <div className={`slot-letter-row ${entry ? 'occupied' : ''}`} key={slot?.id || slotNumber} role="button" tabIndex={0} onClick={() => slot?.id && setSlotModal({ id: slot.id, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') })} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && slot?.id) setSlotModal({ id: slot.id, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') }) }}><b>{letter}</b><span>{entry ? rowTitle(entry) : 'Disponível'}</span><small>{entry ? dataText(entry,'team_name') : 'Clique para adicionar uma line'}</small><button title="Editar letra" onClick={(event) => { event.stopPropagation(); if(!slot?.id) return; const slot_letra=window.prompt('Letra do slot', letter); if(slot_letra) props.updateStructure('group_slot', slot.id, { slot_letra }) }}><Pencil size={14}/></button></div>
+                              const slotNumber=index+1; const slot=slotsOfGroup.find((item)=>Number(item.data?.slot_numero)===slotNumber); const entry=slotLineEntry(slot); const letter=String(slot?.data?.slot_letra || String.fromCharCode(65 + (index % 26)) + (index >= 26 ? Math.floor(index/26) : '')); const slotFaseId=String(slot?.data?.fase_id || group.data?.fase_id || (phase.id === 'sem-fase' ? '' : phase.id))
+                              return <div className={`slot-letter-row ${entry ? 'occupied' : ''}`} key={slot?.id || slotNumber} role="button" tabIndex={0} onClick={() => slot?.id && setSlotModal({ id: slot.id, fase_id: slotFaseId, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') })} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && slot?.id) setSlotModal({ id: slot.id, fase_id: slotFaseId, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') }) }}><b>{letter}</b>{entry ? <img src={lineAvatar(entry)} alt="" /> : null}<span>{entry ? rowTitle(entry) : 'Dispon�vel'}</span><small>{entry ? dataText(entry,'team_name') : 'Clique para adicionar uma line'}</small><button title="Editar letra" onClick={(event) => { event.stopPropagation(); if(!slot?.id) return; const slot_letra=window.prompt('Letra do slot', letter); if(slot_letra) props.updateStructure('group_slot', slot.id, { slot_letra }) }}><Pencil size={14}/></button></div>
                             })}</div></> : null}
                           </article>
                         })}{groupsOfPhase.length===0 ? <p className="empty">Nenhum grupo nesta fase.</p> : null}</div> : null}
@@ -851,3 +872,5 @@ export function ProdutoraPanel(props: {
     </div>
   )
 }
+
+

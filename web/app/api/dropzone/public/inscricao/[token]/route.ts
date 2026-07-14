@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, ctx: any) {
 
     const { data: teamLinks, error: teamsError } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,equipe_id,slot_numero,status,equipes:equipe_id(id,nome,tag,logo_url)')
+      .select('id,equipe_id,line_id,slot_numero,status,nome_exibicao,equipes:equipe_id(id,nome,tag,logo_url),equipe_lines:line_id(id,nome,tag,logo_url)')
       .eq('campeonato_id', link.campeonato_id)
       .eq('grupo_id', link.grupo_id)
       .neq('status', 'deletado')
@@ -55,16 +55,21 @@ export async function GET(_req: NextRequest, ctx: any) {
         .from('campeonato_jogadores')
         .select('id', { count: 'exact', head: true })
         .eq('campeonato_id', link.campeonato_id)
-        .eq('equipe_id', item.equipe_id)
+        .eq('campeonato_equipe_id', item.id)
         .neq('status', 'deletado')
+      const line = Array.isArray(item.equipe_lines) ? item.equipe_lines[0] : item.equipe_lines
       return {
         campeonato_equipe_id: item.id,
-        id: item.equipe_id,
+        id: item.id,
+        equipe_id: item.equipe_id,
+        line_id: item.line_id,
         slot_numero: item.slot_numero,
-        nome: item.equipes?.nome,
+        nome: line?.nome || item.nome_exibicao || item.equipes?.nome,
+        line_nome: line?.nome || item.nome_exibicao || item.equipes?.nome,
+        equipe_nome: item.equipes?.nome,
         username: item.equipes?.username,
-        tag: item.equipes?.tag,
-        logo_url: item.equipes?.logo_url,
+        tag: line?.tag || item.equipes?.tag,
+        logo_url: line?.logo_url || item.equipes?.logo_url,
         vagas_usadas: count || 0,
       }
     }))
@@ -88,15 +93,15 @@ export async function POST(req: NextRequest, ctx: any) {
     const token = await getToken(ctx)
     const link = await loadLink(token)
     const body = await req.json()
-    const equipeId = String(body.equipe_id || '')
-    if (!equipeId) throw new Error('Selecione uma equipe.')
+    const campeonatoEquipeId = String(body.campeonato_equipe_id || body.equipe_id || '')
+    if (!campeonatoEquipeId) throw new Error('Selecione uma line.')
 
     const { data: champTeam, error: champTeamError } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,grupo_id,line_id')
+      .select('id,equipe_id,grupo_id,line_id')
       .eq('campeonato_id', link.campeonato_id)
       .eq('grupo_id', link.grupo_id)
-      .eq('equipe_id', equipeId)
+      .eq('id', campeonatoEquipeId)
       .maybeSingle()
     if (champTeamError) throw champTeamError
     if (!champTeam) throw new Error('Essa equipe nao pertence ao grupo deste link.')
@@ -156,7 +161,7 @@ export async function POST(req: NextRequest, ctx: any) {
     }
 
     const { error: teamPlayerError } = await supabaseAdmin.from('equipe_jogadores').upsert({
-      equipe_id: equipeId,
+      equipe_id: champTeam.equipe_id,
       jogador_auth_user_id: user.id,
       nick,
       foto_url: account.avatar_url || body.foto_url || null,
@@ -170,7 +175,7 @@ export async function POST(req: NextRequest, ctx: any) {
 
     const { data: inserted, error } = await supabaseAdmin.from('campeonato_jogadores').insert({
       campeonato_id: link.campeonato_id,
-      equipe_id: equipeId,
+      equipe_id: champTeam.equipe_id,
       jogo_id: null,
       jogador_id: account.id,
       nick,
