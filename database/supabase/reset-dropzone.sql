@@ -139,13 +139,23 @@ create table if not exists public.campeonato_equipes (
   id uuid primary key default gen_random_uuid(),
   campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
   equipe_id uuid not null references public.equipes(id) on delete cascade,
+  vaga_id uuid,
   grupo_id uuid references public.campeonato_grupos(id) on delete set null,
+  line_id uuid,
   slot_numero integer,
+  nome_exibicao text,
+  origem_entrada text not null default 'organizador',
+  criado_por uuid references auth.users(id) on delete set null,
   status text not null default 'ativo',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint campeonato_equipes_unique unique (campeonato_id, equipe_id)
 );
+
+alter table public.campeonato_equipes drop constraint if exists campeonato_equipes_unique;
+create unique index if not exists campeonato_equipes_line_unique
+  on public.campeonato_equipes (campeonato_id, line_id)
+  where line_id is not null and status = 'ativo';
 
 create table if not exists public.campeonato_slots (
   id uuid primary key default gen_random_uuid(),

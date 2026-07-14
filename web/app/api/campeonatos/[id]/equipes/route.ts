@@ -58,13 +58,20 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     if (campError) throw campError
     if (slotsError) throw slotsError
 
-    const equipeIds = (slots || []).map((s) => s.equipe_id).filter(Boolean)
-    const lineIds = (slots || []).map((s) => s.line_id).filter(Boolean)
-    
-    const [{ data: participacoes }, { data: equipes }, { data: lines }] = await Promise.all([
-      supabaseAdmin.from('campeonato_equipes').select('*').eq('campeonato_id', id).eq('status', 'ativo'),
-      equipeIds.length ? supabaseAdmin.from('equipes').select('id, nome, tag, logo_url').in('id', equipeIds) : Promise.resolve({ data: [] as any[] }),
-      lineIds.length ? supabaseAdmin.from('equipe_lines').select('id, nome, tag, logo_url').in('id', lineIds) : Promise.resolve({ data: [] as any[] }),
+    const { data: participacoes } = await supabaseAdmin.from('campeonato_equipes').select('*').eq('campeonato_id', id).eq('status', 'ativo')
+
+    const equipeIds = [
+      ...(slots || []).map((s) => s.equipe_id).filter(Boolean),
+      ...(participacoes || []).map((p) => p.equipe_id).filter(Boolean),
+    ]
+    const lineIds = [
+      ...(slots || []).map((s) => s.line_id).filter(Boolean),
+      ...(participacoes || []).map((p) => p.line_id).filter(Boolean),
+    ]
+
+    const [{ data: equipes }, { data: lines }] = await Promise.all([
+      equipeIds.length ? supabaseAdmin.from('equipes').select('id, nome, tag, logo_url').in('id', Array.from(new Set(equipeIds))) : Promise.resolve({ data: [] as any[] }),
+      lineIds.length ? supabaseAdmin.from('equipe_lines').select('id, nome, tag, logo_url').in('id', Array.from(new Set(lineIds))) : Promise.resolve({ data: [] as any[] }),
     ])
 
     const equipesMap = new Map((equipes || []).map((e) => [e.id, e]))
@@ -72,11 +79,16 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const partMap = new Map((participacoes || []).map((p) => [p.id, { ...p, equipe: equipesMap.get(p.equipe_id) || null, line: p.line_id ? linesMap.get(p.line_id) || null : null }]))
 
     const slotsWithParticipations = (slots || []).map((slot: any) => {
-      const participation = (participacoes || []).find((p: any) => 
-        p.line_id === slot.line_id && p.grupo_id === slot.grupo_id && p.slot_numero === slot.slot_numero
+      const participation = (participacoes || []).find((p: any) =>
+        p.grupo_id === slot.grupo_id &&
+        Number(p.slot_numero) === Number(slot.slot_numero) &&
+        (!slot.line_id || p.line_id === slot.line_id)
       )
       return {
         ...slot,
+        equipe_id: slot.equipe_id || participation?.equipe_id || null,
+        line_id: slot.line_id || participation?.line_id || null,
+        status: participation ? 'ocupada' : slot.status,
         campeonato_equipe: participation ? partMap.get(participation.id) || null : null,
         grupo: slot.grupos,
       }

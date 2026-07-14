@@ -71,6 +71,39 @@ async function payloadFor(req: NextRequest, token: string) {
   return { link: { token: link.token, titulo: link.titulo }, campeonato, grupo, vagas, ...session }
 }
 
+function isMissingLegacyVagas(error: { code?: string; message?: string } | null | undefined) {
+  const message = String(error?.message || '').toLowerCase()
+  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error?.code || '') || message.includes('campeonato_vagas') || message.includes('vaga_id')
+}
+
+async function findLegacyVaga(link: any, slotNumero: number) {
+  const { data, error } = await supabaseAdmin
+    .from('campeonato_vagas')
+    .select('id,status')
+    .eq('campeonato_id', link.campeonato_id)
+    .eq('numero_vaga', slotNumero)
+    .maybeSingle()
+  if (error) {
+    if (isMissingLegacyVagas(error)) return null
+    throw error
+  }
+  return data || null
+}
+
+async function updateLegacyVaga(vagaId: string | null, participacaoId: string, tokenId?: string | null) {
+  if (!vagaId) return
+  const { error } = await supabaseAdmin
+    .from('campeonato_vagas')
+    .update({
+      status: 'ocupada',
+      campeonato_equipe_id: participacaoId,
+      ocupada_em: new Date().toISOString(),
+      reservada_por_token_id: tokenId || null,
+    })
+    .eq('id', vagaId)
+  if (error && !isMissingLegacyVagas(error)) throw error
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params
@@ -135,18 +168,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .maybeSingle()
     if (duplicate) throw new Error('Esta line ja esta inscrita neste campeonato.')
 
-    const { data: participacao, error: partError } = await supabaseAdmin.from('campeonato_equipes').insert({
-      campeonato_id: link.campeonato_id,
-      equipe_id: account.id,
-      grupo_id: link.grupo_id,
-      slot_numero: slot.slot_numero,
-      line_id: lineId,
-      nome_exibicao: lineName,
-      origem_entrada: 'link',
-      criado_por: user.id,
-      status: 'ativo',
-    }).select('*').single()
-    if (partError) throw partError
+    const legacyVaga = await findLegacyVaga(link, Number(slot.slot_numero))
 
     const { data: updatedSlot, error: slotError } = await supabaseAdmin
       .from('campeonato_slots')
@@ -156,9 +178,35 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .select('id')
       .maybeSingle()
     if (slotError || !updatedSlot) {
-      await supabaseAdmin.from('campeonato_equipes').delete().eq('id', participacao.id)
       throw new Error('A vaga foi preenchida por outra equipe. Atualize e tente novamente.')
     }
+
+    const participationPayload: Record<string, unknown> = {
+      campeonato_id: link.campeonato_id,
+      equipe_id: account.id,
+      vaga_id: legacyVaga?.id || null,
+      grupo_id: link.grupo_id,
+      slot_numero: slot.slot_numero,
+      line_id: lineId,
+      nome_exibicao: lineName,
+      origem_entrada: 'link',
+      criado_por: user.id,
+      status: 'ativo',
+    }
+
+    let { data: participacao, error: partError } = await supabaseAdmin.from('campeonato_equipes').insert(participationPayload).select('*').single()
+    if (partError && isMissingLegacyVagas(partError)) {
+      const { vaga_id: _vagaId, ...fallbackPayload } = participationPayload
+      const retry = await supabaseAdmin.from('campeonato_equipes').insert(fallbackPayload).select('*').single()
+      participacao = retry.data
+      partError = retry.error
+    }
+    if (partError || !participacao) {
+      await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: new Date().toISOString() }).eq('id', slot.id).eq('equipe_id', account.id).eq('line_id', lineId)
+      throw partError || new Error('Nao foi possivel salvar a equipe no campeonato.')
+    }
+
+    await updateLegacyVaga(legacyVaga?.id || null, participacao.id, link.id)
 
     return NextResponse.json({ ok: true, participacao, equipe: { id: account.id, nome: account.name }, line: { id: lineId, nome: lineName }, referencia: expected[vagaIndex] })
   } catch (error) {
