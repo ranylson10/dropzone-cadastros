@@ -111,7 +111,7 @@ export function ProdutoraPanel(props: {
   async function sellerRequest(path: string, options?: RequestInit) {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
-    if (!token) throw new Error('Sessão expirada. Entre novamente.')
+    if (!token) throw new Error('SessÃ£o expirada. Entre novamente.')
     const response = await fetch(path, {
       ...options,
       headers: {
@@ -121,7 +121,7 @@ export function ProdutoraPanel(props: {
       },
     })
     const json = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(json.error || 'Não foi possível concluir a operação.')
+    if (!response.ok) throw new Error(json.error || 'NÃ£o foi possÃ­vel concluir a operaÃ§Ã£o.')
     return json
   }
 
@@ -281,7 +281,7 @@ export function ProdutoraPanel(props: {
                 <span className="champ-thumb">{logo ? <img src={logo} alt="" /> : <Trophy size={18} />}</span>
                 <span>
                   <strong>{rowTitle(champ)}</strong>
-                  <small>{dataText(champ, 'premiacao') || 'Premiação não informada'}</small>
+                  <small>{dataText(champ, 'premiacao') || 'PremiaÃ§Ã£o nÃ£o informada'}</small>
                 </span>
               </button>
             )
@@ -296,7 +296,7 @@ export function ProdutoraPanel(props: {
       <SystemModal
         open={showCreateChamp}
         title="Novo campeonato"
-        description="Cadastre os dados básicos, informações e controles do campeonato."
+        description="Cadastre os dados bÃ¡sicos, informaÃ§Ãµes e controles do campeonato."
         onClose={() => setShowCreateChamp(false)}
         size="wide"
       >
@@ -337,14 +337,14 @@ export function ProdutoraPanel(props: {
       <SystemModal
         open={Boolean(slotModal)}
         title={slotModal ? `Slot ${slotModal.letra}` : 'Gerenciar slot'}
-        description="Selecione uma das lines já inscritas neste campeonato para ocupar o slot."
+        description="Selecione uma das lines jÃ¡ inscritas neste campeonato para ocupar o slot."
         onClose={() => setSlotModal(null)}
       >
         {slotModal ? (
           <div className="slot-assignment-modal">
             <div className={slotModal.whatsapp_url ? 'slot-whatsapp-info ready' : 'slot-whatsapp-info'}>
               <MessageCircle size={18} />
-              <span>{slotModal.whatsapp_url ? 'Este grupo já possui link do WhatsApp configurado.' : 'Este grupo ainda não possui link do WhatsApp.'}</span>
+              <span>{slotModal.whatsapp_url ? 'Este grupo jÃ¡ possui link do WhatsApp configurado.' : 'Este grupo ainda nÃ£o possui link do WhatsApp.'}</span>
             </div>
             <div className="line-picker-list">
               <p className="eyebrow">Line inscrita no campeonato</p>
@@ -396,13 +396,13 @@ export function ProdutoraPanel(props: {
               <div className="detail-title-ref">
                 <p className="eyebrow">Campeonato selecionado</p>
                 <h2>{rowTitle(selectedChamp)}</h2>
-                <p>{CHAMPIONSHIP_TYPE_LABELS[selectedChampType as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Copa'} · {dataText(selectedChamp, 'premiacao') ? `Premiação: ${dataText(selectedChamp, 'premiacao')}` : 'Premiação não informada'}</p>
+                <p>{CHAMPIONSHIP_TYPE_LABELS[selectedChampType as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Copa'} Â· {dataText(selectedChamp, 'premiacao') ? `PremiaÃ§Ã£o: ${dataText(selectedChamp, 'premiacao')}` : 'PremiaÃ§Ã£o nÃ£o informada'}</p>
                 {dataText(selectedChamp, 'regras_url') ? <small>Regulamento: {dataText(selectedChamp, 'regras_url')}</small> : null}
               </div>
               <div className="championship-admin-actions">
                 <button className="icon-action-button" onClick={() => startEditChampionship(selectedChamp)} title="Editar campeonato"><Pencil size={16} /> Editar</button>
                 <button className="icon-action-button danger" onClick={() => {
-                  if (window.confirm(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficará oculto, mas os dados serão preservados.`)) props.deleteChampionship(selectedChamp.id)
+                  if (window.confirm(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficarÃ¡ oculto, mas os dados serÃ£o preservados.`)) props.deleteChampionship(selectedChamp.id)
                 }} title="Excluir campeonato"><Trash2 size={16} /> Excluir</button>
               </div>
               <div className="detail-stats-ref">
@@ -500,13 +500,13 @@ export function ProdutoraPanel(props: {
                             <Field label="Nome da fase"><input value={editingPhase.nome} onChange={(event) => setEditingPhase({ ...editingPhase, nome: event.target.value })} /></Field>
                             <Field label="Ordem"><input type="number" min="1" value={editingPhase.ordem} onChange={(event) => setEditingPhase({ ...editingPhase, ordem: event.target.value })} /></Field>
                             <div className="button-row structure-edit-actions">
-                              <button className="button" type="button" onClick={async () => { await props.updateStructure('phase', phase.id, { nome: editingPhase.nome.trim(), ordem: Number(editingPhase.ordem || 1) }); setEditingPhase(null) }}>Salvar alterações</button>
+                              <button className="button" type="button" onClick={async () => { await props.updateStructure('phase', phase.id, { nome: editingPhase.nome.trim(), ordem: Number(editingPhase.ordem || 1) }); setEditingPhase(null) }}>Salvar alteraÃ§Ãµes</button>
                               <button className="button secondary" type="button" onClick={() => setEditingPhase(null)}>Cancelar</button>
                             </div>
                           </div>
                         ) : null}{openAction === 'group' && props.group.fase_id === phase.id ? (
                           <div className="inline-action-panel phase-inline-group-form mini-grid three">
-                            <Field label={isDailyChamp ? 'Horário' : 'Letra do grupo'}>
+                            <Field label={isDailyChamp ? 'HorÃ¡rio' : 'Letra do grupo'}>
                               {isDailyChamp ? (
                                 <select value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })}>
                                   {DAILY_HOURS.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
@@ -540,22 +540,22 @@ export function ProdutoraPanel(props: {
                           const slotCount = Number(group.data?.slots || 12)
                           return <article className="group-folder" key={group.id}>
                             <header className="folder-row group-folder-row">
-                              <button className="folder-toggle" onClick={() => setOpenGroups((v)=>({...v,[group.id]:!groupOpen}))}>{groupOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}<Folder size={18}/><span><strong>{rowTitle(group)}</strong><small className={group.data?.whatsapp_url ? 'whatsapp-ready' : 'whatsapp-missing'}>{group.data?.whatsapp_url ? <><CheckCircle2 size={13}/> WhatsApp configurado</> : <>WhatsApp não configurado</>} · {slotCount} slots</small></span></button>
+                              <button className="folder-toggle" onClick={() => setOpenGroups((v)=>({...v,[group.id]:!groupOpen}))}>{groupOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}<Folder size={18}/><span><strong>{rowTitle(group)}</strong><small className={group.data?.whatsapp_url ? 'whatsapp-ready' : 'whatsapp-missing'}>{group.data?.whatsapp_url ? <><CheckCircle2 size={13}/> WhatsApp configurado</> : <>WhatsApp nÃ£o configurado</>} Â· {slotCount} slots</small></span></button>
                               <div className="folder-actions"><button title="Editar grupo" onClick={() => { setEditingPhase(null); setEditingGroup({ id: group.id, nome: rowTitle(group), slots: String(slotCount), whatsapp_url: String(group.data?.whatsapp_url || '') }); setOpenGroups((value) => ({ ...value, [group.id]: true })) }}><Pencil size={15}/></button><button title="Excluir grupo" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(group)} e seus slots?`)) props.deleteStructure('group', group.id) }}><Trash2 size={15}/></button></div>
                             </header>
                             {groupOpen ? <>{editingGroup?.id === group.id ? (
                               <div className="inline-action-panel group-edit-form mini-grid three">
-                                <Field label={isDailyChamp ? 'Horário' : 'Nome do grupo'}><input value={editingGroup.nome} onChange={(event) => setEditingGroup({ ...editingGroup, nome: event.target.value })} /></Field>
-                                <Field label="Número de slots"><input type="number" min="1" max="52" value={editingGroup.slots} onChange={(event) => setEditingGroup({ ...editingGroup, slots: event.target.value })} /></Field>
+                                <Field label={isDailyChamp ? 'HorÃ¡rio' : 'Nome do grupo'}><input value={editingGroup.nome} onChange={(event) => setEditingGroup({ ...editingGroup, nome: event.target.value })} /></Field>
+                                <Field label="NÃºmero de slots"><input type="number" min="1" max="52" value={editingGroup.slots} onChange={(event) => setEditingGroup({ ...editingGroup, slots: event.target.value })} /></Field>
                                 <Field label="Link do WhatsApp"><input value={editingGroup.whatsapp_url} onChange={(event) => setEditingGroup({ ...editingGroup, whatsapp_url: event.target.value })} placeholder="https://chat.whatsapp.com/..." /></Field>
                                 <div className="button-row structure-edit-actions">
-                                  <button className="button" type="button" onClick={async () => { await props.updateStructure('group', group.id, { nome: editingGroup.nome.trim(), slots: Number(editingGroup.slots || 1), whatsapp_url: editingGroup.whatsapp_url.trim() }); setEditingGroup(null) }}>Salvar alterações</button>
+                                  <button className="button" type="button" onClick={async () => { await props.updateStructure('group', group.id, { nome: editingGroup.nome.trim(), slots: Number(editingGroup.slots || 1), whatsapp_url: editingGroup.whatsapp_url.trim() }); setEditingGroup(null) }}>Salvar alteraÃ§Ãµes</button>
                                   <button className="button secondary" type="button" onClick={() => setEditingGroup(null)}>Cancelar</button>
                                 </div>
                               </div>
                             ) : null}<div className="slot-letter-list">{Array.from({length: slotCount}).map((_, index) => {
                               const slotNumber=index+1; const slot=slotsOfGroup.find((item)=>Number(item.data?.slot_numero)===slotNumber); const entry=slotLineEntry(slot); const letter=String(slot?.data?.slot_letra || String.fromCharCode(65 + (index % 26)) + (index >= 26 ? Math.floor(index/26) : '')); const slotFaseId=String(slot?.data?.fase_id || group.data?.fase_id || (phase.id === 'sem-fase' ? '' : phase.id))
-                              return <div className={`slot-letter-row ${entry ? 'occupied' : ''}`} key={slot?.id || slotNumber} role="button" tabIndex={0} onClick={() => slot?.id && setSlotModal({ id: slot.id, fase_id: slotFaseId, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') })} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && slot?.id) setSlotModal({ id: slot.id, fase_id: slotFaseId, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') }) }}><b>{letter}</b>{entry ? <img src={lineAvatar(entry)} alt="" /> : null}<span>{entry ? rowTitle(entry) : 'Dispon�vel'}</span><small>{entry ? dataText(entry,'team_name') : 'Clique para adicionar uma line'}</small><button title="Editar letra" onClick={(event) => { event.stopPropagation(); if(!slot?.id) return; const slot_letra=window.prompt('Letra do slot', letter); if(slot_letra) props.updateStructure('group_slot', slot.id, { slot_letra }) }}><Pencil size={14}/></button></div>
+                              return <div className={`slot-letter-row ${entry ? 'occupied' : ''}`} key={slot?.id || slotNumber} role="button" tabIndex={0} onClick={() => slot?.id && setSlotModal({ id: slot.id, fase_id: slotFaseId, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') })} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && slot?.id) setSlotModal({ id: slot.id, fase_id: slotFaseId, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') }) }}><b>{letter}</b>{entry ? <img src={lineAvatar(entry)} alt="" /> : null}<span>{entry ? rowTitle(entry) : 'Disponível'}</span><small>{entry ? dataText(entry,'team_name') : 'Clique para adicionar uma line'}</small><button title="Editar letra" onClick={(event) => { event.stopPropagation(); if(!slot?.id) return; const slot_letra=window.prompt('Letra do slot', letter); if(slot_letra) props.updateStructure('group_slot', slot.id, { slot_letra }) }}><Pencil size={14}/></button></div>
                             })}</div></> : null}
                           </article>
                         })}{groupsOfPhase.length===0 ? <p className="empty">Nenhum grupo nesta fase.</p> : null}</div> : null}
@@ -589,7 +589,7 @@ export function ProdutoraPanel(props: {
                       <div className="game-editor-heading">
                         <div>
                           <p className="eyebrow">{editingGameId ? 'Editar jogo' : 'Novo jogo'}</p>
-                          <h4>{editingGameId ? 'Atualize as informações do jogo' : 'Cadastre um jogo na fase selecionada'}</h4>
+                          <h4>{editingGameId ? 'Atualize as informaÃ§Ãµes do jogo' : 'Cadastre um jogo na fase selecionada'}</h4>
                         </div>
                         <button className="button secondary" type="button" onClick={() => { setOpenAction(''); setEditingGameId('') }}>Cancelar</button>
                       </div>
@@ -601,11 +601,11 @@ export function ProdutoraPanel(props: {
                           </select>
                         </Field>
                         <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Jogo 1 - A x B" /></Field>
-                        <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => { const total = Math.max(1, Number(e.target.value || 1)); props.setGame({ ...props.game, numero_partidas: e.target.value, mapas: Array.from({ length: total }, (_, index) => props.game.mapas[index] || ''), campeonato_id: selectedChamp.id }) }} /></Field>
+                        <Field label="NÃºmero de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => { const total = Math.max(1, Number(e.target.value || 1)); props.setGame({ ...props.game, numero_partidas: e.target.value, mapas: Array.from({ length: total }, (_, index) => props.game.mapas[index] || ''), campeonato_id: selectedChamp.id }) }} /></Field>
                       </div>
                       <div className="mini-grid two">
                         <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
-                        <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                        <Field label="HorÃ¡rio"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
                       </div>
 
                       <div className="game-form-section">
@@ -670,7 +670,7 @@ export function ProdutoraPanel(props: {
                             if (saved) { setOpenAction(''); setEditingGameId('') }
                           }}
                         >
-                          {props.pendingCreate === 'game' || props.pendingCreate === 'game_update' ? <><Loader2 size={15} className="button-spinner" /> {editingGameId ? 'Salvando jogo...' : 'Criando jogo...'}</> : editingGameId ? 'Salvar alterações' : 'Criar jogo'}
+                          {props.pendingCreate === 'game' || props.pendingCreate === 'game_update' ? <><Loader2 size={15} className="button-spinner" /> {editingGameId ? 'Salvando jogo...' : 'Criando jogo...'}</> : editingGameId ? 'Salvar alteraÃ§Ãµes' : 'Criar jogo'}
                         </button>
                         <button className="button secondary" type="button" onClick={() => { setOpenAction(''); setEditingGameId('') }}>Cancelar</button>
                       </div>
@@ -704,7 +704,7 @@ export function ProdutoraPanel(props: {
                                       <button className="folder-toggle" onClick={() => setOpenGames((value) => ({ ...value, [gameRow.id]: !gameOpen }))}>
                                         {gameOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                         <Folder size={18} />
-                                        <span><strong>{rowTitle(gameRow)}</strong><small>{dataText(gameRow, 'data_jogo') || 'Sem data'} · {total} queda(s)</small></span>
+                                        <span><strong>{rowTitle(gameRow)}</strong><small>{dataText(gameRow, 'data_jogo') || 'Sem data'} Â· {total} queda(s)</small></span>
                                       </button>
                                       <div className="folder-actions">
                                         <button title="Editar jogo" onClick={() => {
@@ -732,10 +732,10 @@ export function ProdutoraPanel(props: {
                                     {gameOpen ? (
                                       <div className="game-folder-details">
                                         <div><span>Fase</span><strong>{rowTitle(phase)}</strong></div>
-                                        <div><span>Data e horário</span><strong>{dataText(gameRow, 'data_jogo') || 'Não definida'}{gameRow.data?.horario ? ` · ${String(gameRow.data.horario).slice(0, 5)}` : ''}</strong></div>
+                                        <div><span>Data e horÃ¡rio</span><strong>{dataText(gameRow, 'data_jogo') || 'NÃ£o definida'}{gameRow.data?.horario ? ` Â· ${String(gameRow.data.horario).slice(0, 5)}` : ''}</strong></div>
                                         <div><span>Quedas</span><strong>{total}</strong></div>
                                         <div><span>Grupos</span><strong>{groupIds.map((id) => groupName(id)).join(', ') || 'Nenhum grupo'}</strong></div>
-                                        <div className="wide"><span>Mapas</span><strong>{mapNames.join(' · ') || 'Não definidos'}</strong></div>
+                                        <div className="wide"><span>Mapas</span><strong>{mapNames.join(' Â· ') || 'NÃ£o definidos'}</strong></div>
                                       </div>
                                     ) : null}
                                   </article>
@@ -776,10 +776,10 @@ export function ProdutoraPanel(props: {
 
                   <div className="inline-action-panel">
                     <div className="mini-grid two">
-                      <Field label="Nome público sugerido"><input value={sellerInvite.nome_publico} onChange={(event) => setSellerInvite({ ...sellerInvite, nome_publico: event.target.value })} placeholder="Ex.: Paulo Vagas" /></Field>
+                      <Field label="Nome pÃºblico sugerido"><input value={sellerInvite.nome_publico} onChange={(event) => setSellerInvite({ ...sellerInvite, nome_publico: event.target.value })} placeholder="Ex.: Paulo Vagas" /></Field>
                       <Field label="Limite de vagas"><input type="number" min="0" value={sellerInvite.limite_vagas} onChange={(event) => setSellerInvite({ ...sellerInvite, limite_vagas: event.target.value })} placeholder="0 = sem limite" /></Field>
                     </div>
-                    <p className="empty">Esta página gera apenas o convite. O manager aceitará o link, definirá o WhatsApp de venda e poderá adicionar equipes ou gerar convites até o limite definido.</p>
+                    <p className="empty">Esta pÃ¡gina gera apenas o convite. O manager aceitarÃ¡ o link, definirÃ¡ o WhatsApp de venda e poderÃ¡ adicionar equipes ou gerar convites atÃ© o limite definido.</p>
                     {sellerError ? <div className="message error">{sellerError}</div> : null}
                     {sellerLink ? (
                       <div className="ref-section-stack">
@@ -801,7 +801,7 @@ export function ProdutoraPanel(props: {
                         <article className="token-card seller-token-card" key={seller.id}>
                           <span>{seller.status === 'ativo' ? 'Ativo' : 'Pendente'}</span>
                           <strong>{seller.nome_publico || manager.nome || manager.username || 'Vendedor convidado'}</strong>
-                          <small>{seller.whatsapp_url || 'WhatsApp ainda não definido'}</small>
+                          <small>{seller.whatsapp_url || 'WhatsApp ainda nÃ£o definido'}</small>
                           <small>{Number(seller.limite_vagas || 0) > 0 ? `Limite: ${seller.limite_vagas} vaga(s)` : 'Sem limite de vagas'}</small>
                           {seller.status === 'ativo' && publicPanel ? <button type="button" onClick={() => props.copyToken(publicPanel)}><Copy size={14} /> Copiar painel</button> : null}
                         </article>
@@ -818,7 +818,7 @@ export function ProdutoraPanel(props: {
                   <div className="subtab-actionbar">
                     <div>
                       <p className="eyebrow">Links</p>
-                      <h3>Inscrição pública</h3>
+                      <h3>InscriÃ§Ã£o pÃºblica</h3>
                     </div>
                     <button className="button" onClick={() => toggleAction('link')}>Gerar link</button>
                   </div>
@@ -832,19 +832,19 @@ export function ProdutoraPanel(props: {
                           </select>
                         </Field>
                         <Field label="Vagas por equipe"><input type="number" value={props.registrationLink.vagas_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, vagas_por_equipe: e.target.value })} /></Field>
-                        <Field label="Encerrar escalação"><input type="datetime-local" value={props.registrationLink.encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })} /></Field>
+                        <Field label="Encerrar escalaÃ§Ã£o"><input type="datetime-local" value={props.registrationLink.encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })} /></Field>
                       </div>
                       <div className="mini-grid three">
-                        <Field label="Permite substituição">
+                        <Field label="Permite substituiÃ§Ã£o">
                           <select value={props.registrationLink.permite_substituicao ? 'sim' : 'nao'} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, permite_substituicao: e.target.value === 'sim' })}>
-                            <option value="nao">Não</option>
+                            <option value="nao">NÃ£o</option>
                             <option value="sim">Sim</option>
                           </select>
                         </Field>
-                        <Field label="Máximo de substituições"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
-                        <Field label="Prazo de substituição"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
+                        <Field label="MÃ¡ximo de substituiÃ§Ãµes"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
+                        <Field label="Prazo de substituiÃ§Ã£o"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
                       </div>
-                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createRegistrationLink}>{props.pendingCreate === 'registration_link' ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</> : 'Gerar link público'}</button>
+                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createRegistrationLink}>{props.pendingCreate === 'registration_link' ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</> : 'Gerar link pÃºblico'}</button>
                     </div>
                   ) : null}
                   <div className="ref-card-grid two">

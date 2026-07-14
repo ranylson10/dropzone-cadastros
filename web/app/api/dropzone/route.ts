@@ -126,7 +126,7 @@ function normalizeChampionshipType(value: unknown): ChampionshipType {
 function nullablePositiveInteger(value: unknown) {
   if (value === '' || value === null || value === undefined) return null
   const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error('Os campos numéricos devem ser maiores que zero.')
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error('Os campos numÃ©ricos devem ser maiores que zero.')
   return parsed
 }
 
@@ -140,7 +140,7 @@ function nullableMoney(value: unknown) {
 function nullableDate(value: unknown) {
   if (!value) return null
   const date = new Date(String(value))
-  if (Number.isNaN(date.getTime())) throw new Error('Data inválida.')
+  if (Number.isNaN(date.getTime())) throw new Error('Data invÃ¡lida.')
   return date.toISOString()
 }
 
@@ -605,7 +605,7 @@ export async function POST(req: NextRequest) {
             .eq('id', data.line_id)
             .eq('equipe_id', data.equipe_id)
             .single()
-          if (lineError || !selectedLine) throw new Error('A line selecionada não pertence à equipe.')
+          if (lineError || !selectedLine) throw new Error('A line selecionada nÃ£o pertence Ã  equipe.')
           participationPatch.line_id = selectedLine.id
           participationPatch.nome_exibicao = selectedLine.nome
         }
@@ -638,7 +638,7 @@ export async function POST(req: NextRequest) {
         ? supabaseAdmin.from('campeonato_slots').update(slotPayload).eq('id', existing.id)
         : supabaseAdmin.from('campeonato_slots').insert(slotPayload)
       const { data: inserted, error } = await query.select('*').single()
-      if (error?.code === '23505') throw new Error('Esta line já está em outro grupo desta fase.')
+      if (error?.code === '23505') throw new Error('Esta line jÃ¡ estÃ¡ em outro grupo desta fase.')
       if (error) throw error
       row = baseRow(inserted, entityType)
     } else if (entityType === 'game') {
@@ -827,7 +827,7 @@ export async function PATCH(req: NextRequest) {
       await requireChampionshipOwner(current.campeonato_id, user.id, account.id)
       const requestedSlots = Number(data.slots || current.slots)
       const { count: occupied } = await supabaseAdmin.from('campeonato_slots').select('id', { count: 'exact', head: true }).eq('grupo_id', id).not('equipe_id', 'is', null).gt('slot_numero', requestedSlots)
-      if ((occupied || 0) > 0) throw new Error('Não é possível remover slots ocupados.')
+      if ((occupied || 0) > 0) throw new Error('NÃ£o Ã© possÃ­vel remover slots ocupados.')
       const { data: updated, error } = await supabaseAdmin.from('campeonato_grupos').update({ nome: String(data.nome || current.nome).trim(), slots: requestedSlots, whatsapp_url: String(data.whatsapp_url || '').trim() || null, updated_at: new Date().toISOString() }).eq('id', id).select('*').single()
       if (error?.code === '23505') throw new Error('Ja existe um grupo com esse nome nesta fase.')
       if (error) throw error
@@ -882,11 +882,11 @@ export async function PATCH(req: NextRequest) {
         }
       }
       const { data: updated, error } = await supabaseAdmin.from('campeonato_slots').update(patch).eq('id', id).select('*').single()
-      if (error?.code === '23505') throw new Error('Essa letra já está sendo usada neste grupo ou esta line já está em outro grupo da fase.')
+      if (error?.code === '23505') throw new Error('Essa letra jÃ¡ estÃ¡ sendo usada neste grupo ou esta line jÃ¡ estÃ¡ em outro grupo da fase.')
       if (error) throw error
       return NextResponse.json({ row: baseRow(updated, 'group_slot', { data: updated }) })
     }
-    throw new Error('Tipo de edição não suportado.')
+    throw new Error('Tipo de ediÃ§Ã£o nÃ£o suportado.')
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao editar.' }, { status: 400 })
   }
@@ -926,7 +926,7 @@ export async function DELETE(req: NextRequest) {
         const { error: participationError } = await participationUpdate
         if (participationError) throw participationError
       }
-      const { error } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: new Date().toISOString() }).eq('id', id); if (error) throw error    } else throw new Error('Tipo de exclus�o n�o suportado.')
+      const { error } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: new Date().toISOString() }).eq('id', id); if (error) throw error    } else throw new Error('Tipo de exclusão não suportado.')
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao excluir.' }, { status: 400 })
