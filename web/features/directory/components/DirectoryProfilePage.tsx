@@ -25,51 +25,51 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
       loadSession
       mainClassName={`directory-profile-page compact-profile directory-theme-${kind} page page-authenticated`}
     >
-      <section className={`directory-profile-banner theme-${kind}`}>
-        <div className="directory-profile-banner-inner">
-          <a className="directory-back on-banner" href={`/${kind}`}>
-            <ArrowLeft size={15} /> Voltar para {config.title.toLowerCase()}
-          </a>
-          <div className="directory-profile-hero compact on-banner">
-            <span className="directory-profile-avatar">
-              {profile.image ? <img src={profile.image} alt="" /> : <b>{profile.name.slice(0, 2).toUpperCase()}</b>}
-            </span>
-            <div className="directory-profile-copy">
-              <small>{profile.eyebrow || config.singular}</small>
-              <h1>{profile.name}</h1>
-              {profile.username ? <strong>@{profile.username}</strong> : null}
-              {profile.description ? (
-                <p className="directory-profile-desc">{profile.description}</p>
-              ) : null}
-              <div className="directory-profile-toolbar">
-                {profile.actions?.length ? (
-                  <div className="directory-profile-actions">
-                    {profile.actions.map((action) => (
-                      <a
-                        key={action.href}
-                        className={`directory-profile-action ${action.variant || 'secondary'}`}
-                        href={action.href}
-                      >
-                        {action.label}
-                      </a>
-                    ))}
-                  </div>
+      <div className="directory-page-body directory-page-body-with-banner">
+        <section className={`directory-profile-banner theme-${kind} is-compact`} data-theme={kind}>
+          <div className="directory-profile-banner-inner">
+            <a className="directory-back on-banner" href={`/${kind}`}>
+              <ArrowLeft size={15} /> Voltar para {config.title.toLowerCase()}
+            </a>
+            <div className="directory-profile-hero compact on-banner">
+              <span className="directory-profile-avatar">
+                {profile.image ? <img src={profile.image} alt="" /> : <b>{profile.name.slice(0, 2).toUpperCase()}</b>}
+              </span>
+              <div className="directory-profile-copy">
+                <small>{profile.eyebrow || config.singular}</small>
+                <h1>{profile.name}</h1>
+                {profile.username ? <strong>@{profile.username}</strong> : null}
+                {profile.description ? (
+                  <p className="directory-profile-desc">{profile.description}</p>
                 ) : null}
-                <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
+                <div className="directory-profile-toolbar">
+                  {profile.actions?.length ? (
+                    <div className="directory-profile-actions">
+                      {profile.actions.map((action) => (
+                        <a
+                          key={action.href}
+                          className={`directory-profile-action ${action.variant || 'secondary'}`}
+                          href={action.href}
+                        >
+                          {action.label}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+                  <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
+                </div>
+              </div>
+              <div className="directory-profile-details compact on-banner">
+                {profile.details.map((item) => (
+                  <div key={item.label}>
+                    <small>{item.label}</small>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="directory-profile-details compact on-banner">
-              {profile.details.map((item) => (
-                <div key={item.label}>
-                  <small>{item.label}</small>
-                  <strong>{item.value}</strong>
-                </div>
-              ))}
-            </div>
           </div>
-        </div>
-      </section>
-      <div className="directory-page-body">
+        </section>
         <DirectoryProfileTabs sections={profile.sections} />
       </div>
     </AppShell>

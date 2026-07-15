@@ -13,14 +13,14 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
       loadSession
       mainClassName={`directory-page directory-theme-${kind} page page-authenticated`}
     >
-      <section className={`directory-hero directory-hero-banner theme-${kind}`}>
-        <div className="directory-hero-inner">
-          <small>DIRETÓRIO PÚBLICO</small>
-          <h1>{config.title}</h1>
-          <p>{config.description}</p>
-        </div>
-      </section>
-      <div className="directory-page-body">
+      <div className="directory-page-body directory-page-body-with-banner">
+        <section className={`directory-hero directory-hero-banner theme-${kind}`} data-theme={kind}>
+          <div className="directory-hero-inner">
+            <small>DIRETÓRIO PÚBLICO</small>
+            <h1>{config.title}</h1>
+            <p>{config.description}</p>
+          </div>
+        </section>
         <DirectoryListClient items={items} />
       </div>
     </AppShell>
