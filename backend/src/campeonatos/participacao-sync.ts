@@ -354,12 +354,19 @@ export async function inserirParticipacaoNoSlot(params: {
   return participacao
 }
 
+const VIEW_COLUMNS =
+  'slot_id,campeonato_id,fase_id,grupo_id,slot_numero,slot_letra,slot_status,participacao_id,line_id,equipe_id,nome_exibicao,origem_entrada,participacao_status,line_nome,line_tag,line_logo_url,equipe_nome,equipe_tag,equipe_logo_url,grupo_nome,fase_nome,fase_ordem,status_ui'
+
 /** Lista slots do campeonato via view (fallback para query manual). */
-export async function listSlotsLinesView(campeonatoId: string) {
-  const { data, error } = await supabaseAdmin
+export async function listSlotsLinesView(campeonatoId: string, opts?: { grupoId?: string }) {
+  let query = supabaseAdmin
     .from('vw_campeonato_slots_lines')
-    .select('*')
+    .select(VIEW_COLUMNS)
     .eq('campeonato_id', campeonatoId)
+
+  if (opts?.grupoId) query = query.eq('grupo_id', opts.grupoId)
+
+  const { data, error } = await query
     .order('fase_ordem', { ascending: true, nullsFirst: true })
     .order('grupo_nome', { ascending: true, nullsFirst: true })
     .order('slot_numero', { ascending: true })

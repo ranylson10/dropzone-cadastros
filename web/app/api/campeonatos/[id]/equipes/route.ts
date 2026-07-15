@@ -14,36 +14,40 @@ function hasSellerPermission(seller: any, key: string) {
   return seller?.permissoes?.[key] !== false
 }
 
+/** Marca convites de slot expirados (não bloqueia a listagem se falhar). */
 async function liberarExpirados(campeonatoId: string) {
-  const agora = new Date().toISOString()
-  const { data: expirados } = await supabaseAdmin
-    .from('tokens')
-    .select('id,vaga_id,slot_id')
-    .eq('campeonato_id', campeonatoId)
-    .eq('tipo', 'convite_equipe_campeonato')
-    .eq('status', 'ativo')
-    .eq('usado', false)
-    .lte('expira_em', agora)
+  try {
+    const agora = new Date().toISOString()
+    const { data: expirados } = await supabaseAdmin
+      .from('tokens')
+      .select('id,vaga_id')
+      .eq('campeonato_id', campeonatoId)
+      .eq('tipo', 'convite_equipe_campeonato')
+      .eq('status', 'ativo')
+      .eq('usado', false)
+      .lte('expira_em', agora)
 
-  if (!expirados?.length) return
-  const ids = expirados.map((item) => item.id)
-  await supabaseAdmin.from('tokens').update({ status: 'expirado' }).in('id', ids)
+    if (!expirados?.length) return
+    const ids = expirados.map((item) => item.id)
+    await supabaseAdmin.from('tokens').update({ status: 'expirado' }).in('id', ids)
 
-  // Libera vagas comerciais legadas vinculadas a esses tokens.
-  const vagaIds = expirados.map((t) => t.vaga_id).filter(Boolean)
-  if (vagaIds.length) {
-    await supabaseAdmin
-      .from('campeonato_vagas')
-      .update({
-        status: 'livre',
-        reservada_por_token_id: null,
-        reservada_em: null,
-        reserva_expira_em: null,
-        nome_equipe_reservada: null,
-        nome_line_reservada: null,
-      })
-      .in('id', vagaIds)
-      .eq('status', 'reservada')
+    const vagaIds = expirados.map((t) => t.vaga_id).filter(Boolean)
+    if (vagaIds.length) {
+      await supabaseAdmin
+        .from('campeonato_vagas')
+        .update({
+          status: 'livre',
+          reservada_por_token_id: null,
+          reservada_em: null,
+          reserva_expira_em: null,
+          nome_equipe_reservada: null,
+          nome_line_reservada: null,
+        })
+        .in('id', vagaIds)
+        .eq('status', 'reservada')
+    }
+  } catch {
+    // listagem não depende disso
   }
 }
 
@@ -51,10 +55,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   try {
     const { id } = await context.params
     let permission: CampeonatoPermission = { canView: true, canManage: false, canGenerateToken: false, role: 'none', produtoraId: null }
-    let bearerUser: any = null
     try {
       const user = await getBearerUser(req)
-      bearerUser = user
       permission = await getCampeonatoPermission(user.id, id) as typeof permission
       if (permission.role === 'seller') {
         const { data: sellerRow, error: sellerErr } = await supabaseAdmin
@@ -70,29 +72,24 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     } catch {
     }
 
-    await liberarExpirados(id)
-
-    const [{ data: campeonato, error: campError }, viewResult] = await Promise.all([
+    const agoraIso = new Date().toISOString()
+    // liberarExpirados em paralelo com a leitura (não serializa a tela)
+    const [, { data: campeonato, error: campError }, viewResult, convitesRes] = await Promise.all([
+      liberarExpirados(id),
       supabaseAdmin.from('campeonatos').select('id, nome, logo_url').eq('id', id).is('deleted_at', null).single(),
       listSlotsLinesView(id),
-    ])
-    if (campError) throw campError
-
-    // Convites ativos por slot (modelo estrutural).
-    const agoraIso = new Date().toISOString()
-    let convites: any[] = []
-    {
-      const { data, error } = await supabaseAdmin
+      supabaseAdmin
         .from('tokens')
         .select('id,token,slot_id,vaga_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada')
         .eq('campeonato_id', id)
         .eq('tipo', 'convite_equipe_campeonato')
         .eq('status', 'ativo')
         .eq('usado', false)
-      if (!error) {
-        convites = (data || []).filter((t) => !t.expira_em || t.expira_em > agoraIso)
-      }
-    }
+        .or(`expira_em.is.null,expira_em.gt.${agoraIso}`),
+    ])
+    if (campError) throw campError
+
+    const convites = convitesRes.error ? [] : convitesRes.data || []
     const conviteBySlot = new Map<string, any>()
     for (const t of convites) {
       if (t.slot_id && !conviteBySlot.has(t.slot_id)) conviteBySlot.set(t.slot_id, t)

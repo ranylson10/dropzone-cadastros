@@ -77,28 +77,45 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (!slot) throw new Error('Slot não encontrado neste campeonato.')
     if (slot.equipe_id || slot.line_id) throw new Error('Este slot já está ocupado por uma line.')
 
-    // Já existe participação ativa neste lugar do grupo?
-    const { data: partAtiva } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id')
-      .eq('campeonato_id', id)
-      .eq('grupo_id', slot.grupo_id)
-      .eq('slot_numero', slot.slot_numero)
-      .eq('status', 'ativo')
-      .maybeSingle()
+    // Checks em paralelo: part ativa no slot + convite ativo
+    const agora = new Date()
+    const [partRes, conviteRes] = await Promise.all([
+      supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id')
+        .eq('status', 'ativo')
+        .eq('slot_id', slotId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('tokens')
+        .select('id,expira_em')
+        .eq('campeonato_id', id)
+        .eq('tipo', 'convite_equipe_campeonato')
+        .eq('status', 'ativo')
+        .eq('usado', false)
+        .eq('slot_id', slotId)
+        .maybeSingle(),
+    ])
+
+    let partAtiva = partRes.data
+    if (partRes.error && ['42703', 'PGRST204'].includes(partRes.error.code || '')) {
+      const fallback = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id')
+        .eq('campeonato_id', id)
+        .eq('grupo_id', slot.grupo_id)
+        .eq('slot_numero', slot.slot_numero)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      if (fallback.error) throw fallback.error
+      partAtiva = fallback.data
+    } else if (partRes.error) {
+      throw partRes.error
+    }
+    if (conviteRes.error) throw conviteRes.error
     if (partAtiva) throw new Error('Este slot já possui uma line inscrita. Escolha outro.')
 
-    // Já há convite ativo não usado neste slot?
-    const agora = new Date()
-    const { data: conviteAtivo } = await supabaseAdmin
-      .from('tokens')
-      .select('id,expira_em')
-      .eq('campeonato_id', id)
-      .eq('tipo', 'convite_equipe_campeonato')
-      .eq('status', 'ativo')
-      .eq('usado', false)
-      .eq('slot_id', slotId)
-      .maybeSingle()
+    const conviteAtivo = conviteRes.data
     if (conviteAtivo) {
       const aindaValido = !conviteAtivo.expira_em || new Date(conviteAtivo.expira_em).getTime() > agora.getTime()
       if (aindaValido) throw new Error('Já existe um convite ativo para este slot. Cancele ou renove o atual.')
