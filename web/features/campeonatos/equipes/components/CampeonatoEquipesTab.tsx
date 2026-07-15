@@ -186,7 +186,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
 
   async function remover(vaga: CampeonatoVaga) {
     const id = vaga.campeonato_equipe?.id
-    if (!id || !window.confirm(`Remover ${vaga.campeonato_equipe?.nome_exibicao || 'esta equipe'} e liberar a vaga?`)) return
+    const label = vaga.line_nome || vaga.campeonato_equipe?.line_nome || vaga.campeonato_equipe?.nome_exibicao || 'esta line'
+    if (!id || !window.confirm(`Remover ${label} e liberar o slot ${vaga.slot_letra || vaga.numero_vaga}?`)) return
     setProcessando(true)
     try {
       await campeonatoEquipesService.remover(campeonatoId, id)
@@ -273,16 +274,25 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
           <div className="vagas-empty-filter">Nenhuma vaga encontrada neste filtro.</div>
         ) : vagasFiltradas.map((vaga) => {
           const aberta = vagaAbertaId === vaga.id
+          // Unidade competitiva = line; pasta = equipe
           const nomePrincipal = vaga.status === 'reservada'
             ? vaga.nome_line_reservada || vaga.nome_equipe_reservada || 'Convite reservado'
             : vaga.status === 'ocupada'
-              ? vaga.campeonato_equipe?.nome_exibicao || vaga.campeonato_equipe?.line?.nome || vaga.campeonato_equipe?.equipe?.nome || 'Equipe inscrita'
-              : 'Sem equipe'
+              ? vaga.line_nome
+                || vaga.campeonato_equipe?.line_nome
+                || vaga.campeonato_equipe?.nome_exibicao
+                || vaga.campeonato_equipe?.line?.nome
+                || 'Line inscrita'
+              : `Slot ${vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')}`
           const detalhe = vaga.status === 'reservada'
-            ? vaga.nome_equipe_reservada || 'Equipe não vinculada'
+            ? vaga.nome_equipe_reservada || 'Reserva administrativa'
             : vaga.status === 'ocupada'
-              ? vaga.campeonato_equipe?.equipe?.nome || 'Equipe principal'
-              : 'Disponível para equipe ou convite'
+              ? [
+                  vaga.equipe_nome || vaga.campeonato_equipe?.equipe_nome || vaga.campeonato_equipe?.equipe?.nome,
+                  vaga.grupo?.nome,
+                  vaga.slot_letra ? `Slot ${vaga.slot_letra}` : null,
+                ].filter(Boolean).join(' · ') || 'Line no campeonato'
+              : [vaga.fase?.nome, vaga.grupo?.nome].filter(Boolean).join(' · ') || 'Livre para uma line'
 
           return (
             <article className={`championship-vaga-row status-${vaga.status} ${aberta ? 'is-open' : ''}`} key={vaga.id}>
@@ -292,7 +302,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
                 onClick={() => setVagaAbertaId(aberta ? null : vaga.id)}
                 aria-expanded={aberta}
               >
-                <span className="vaga-row-number">{String(vaga.numero_vaga).padStart(2, '0')}</span>
+                <span className="vaga-row-number">{vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')}</span>
                 <span className={`vaga-status-pill status-${vaga.status}`}>{statusLabel(vaga.status)}</span>
                 <span className="vaga-row-identity">
                   <strong>{nomePrincipal}</strong>
@@ -310,8 +320,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
                 <div className="vaga-row-details">
                   {vaga.status === 'livre' ? (
                     <div className="vaga-detail-copy">
-                      <strong>Vaga disponível</strong>
-                      <span>Adicione uma equipe cadastrada ou reserve a vaga por convite.</span>
+                      <strong>Slot {vaga.slot_letra || vaga.numero_vaga} livre</strong>
+                      <span>Pesquise a equipe (pasta), escolha uma line livre ou crie uma nova line para este lugar no grupo.</span>
                     </div>
                   ) : null}
 
@@ -326,12 +336,12 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
                   {vaga.status === 'ocupada' ? (
                     <div className="vaga-detail-team">
                       <span className="vaga-team-logo compact-logo">
-                        {vaga.campeonato_equipe?.line?.logo_url || vaga.campeonato_equipe?.equipe?.logo_url
-                          ? <img src={vaga.campeonato_equipe.line?.logo_url || vaga.campeonato_equipe.equipe?.logo_url || ''} alt="" />
+                        {vaga.line_logo_url || vaga.campeonato_equipe?.line_logo_url || vaga.campeonato_equipe?.line?.logo_url || vaga.campeonato_equipe?.equipe?.logo_url
+                          ? <img src={vaga.line_logo_url || vaga.campeonato_equipe?.line_logo_url || vaga.campeonato_equipe?.line?.logo_url || vaga.campeonato_equipe?.equipe?.logo_url || ''} alt="" />
                           : <Users size={18} />}
                       </span>
                       <div>
-                        <small>Participação competitiva</small>
+                        <small>Line no campeonato</small>
                         <strong>{nomePrincipal}</strong>
                         <span>{detalhe}</span>
                       </div>
@@ -342,7 +352,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
                     <div className="vaga-row-actions">
                       {vaga.status === 'livre' ? (
                         <>
-                          <button type="button" onClick={() => abrirModal(vaga, 'adicionar')}><Search size={14} /> Adicionar equipe</button>
+                          <button type="button" onClick={() => abrirModal(vaga, 'adicionar')}><Search size={14} /> Adicionar line</button>
                           {data.permission.canGenerateToken ? (
                             <button type="button" onClick={() => abrirModal(vaga, 'convite')}><Link2 size={14} /> Criar convite</button>
                           ) : null}
@@ -358,7 +368,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
                       ) : null}
 
                       {vaga.status === 'ocupada' ? (
-                        <button type="button" className="danger" onClick={() => void remover(vaga)}><Trash2 size={14} /> Remover e liberar vaga</button>
+                        <button type="button" className="danger" onClick={() => void remover(vaga)}><Trash2 size={14} /> Remover line e liberar slot</button>
                       ) : null}
                     </div>
                   ) : null}
@@ -371,8 +381,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
 
       <SystemModal
         open={Boolean(vagaAlvo && modo)}
-        title={modo === 'adicionar' ? `Adicionar equipe à vaga ${vagaAlvo?.numero_vaga}` : `Reservar vaga ${vagaAlvo?.numero_vaga} por convite`}
-        description={modo === 'adicionar' ? 'Pesquise uma equipe e escolha ou crie uma line.' : 'Use referências internas para os administradores. Elas não precisam ser iguais aos nomes reais da equipe e da line.'}
+        title={modo === 'adicionar' ? `Adicionar line ao slot ${vagaAlvo?.slot_letra || vagaAlvo?.numero_vaga}` : `Reservar slot ${vagaAlvo?.slot_letra || vagaAlvo?.numero_vaga} por convite`}
+        description={modo === 'adicionar' ? 'A equipe é só a pasta. Pesquise a equipe, escolha uma line livre ou crie uma nova (herda logo da equipe).' : 'Referências internas para o admin. Quem receber o link confirma com a equipe/line reais.'}
         onClose={fechar}
         size="wide"
       >
@@ -384,7 +394,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
                   value={busca}
                   onChange={(event) => setBusca(event.target.value)}
                   onKeyDown={(event) => { if (event.key === 'Enter') void pesquisar() }}
-                  placeholder="Buscar equipe por nome ou tag"
+                  placeholder="Buscar pasta/equipe por nome ou tag"
                 />
                 <button className="button secondary" onClick={pesquisar} disabled={processando}>
                   <Search size={15} /> Pesquisar
@@ -399,13 +409,14 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
                       key={item.id}
                       onClick={() => {
                         setEquipe(item)
-                        setLineId('')
+                        const livre = item.lines.find((line) => !line.ja_inscrita)
+                        setLineId(livre?.id || '')
                         setNomeLine('')
                       }}
                     >
                       <span>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Users size={18} />}</span>
                       <strong>{item.nome}</strong>
-                      <small>{item.tag || 'Sem tag'}</small>
+                      <small>{item.tag || 'Sem tag'} · {item.lines.filter((l) => !l.ja_inscrita).length} line(s) livre(s)</small>
                     </button>
                   ))}
                 </div>
@@ -413,26 +424,33 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
 
               {equipe ? (
                 <div className="selected-team-box">
-                  <strong>Equipe selecionada: {equipe.nome}</strong>
-                  {equipe.lines.length ? (
+                  <strong>Pasta: {equipe.nome}</strong>
+                  {equipe.lines.some((line) => !line.ja_inscrita) ? (
                     <label className="field">
-                      <span>Line existente</span>
+                      <span>Line livre (unidade no campeonato)</span>
                       <select value={lineId} onChange={(event) => { setLineId(event.target.value); setNomeLine('') }}>
-                        <option value="">Criar nova line</option>
-                        {equipe.lines.map((line) => (
-                          <option key={line.id} value={line.id} disabled={line.ja_inscrita}>
-                            {line.nome}{line.ja_inscrita ? ` — já inscrita${line.vaga_numero ? ` na vaga ${String(line.vaga_numero).padStart(2, '0')}` : ''}` : ''}
+                        {equipe.lines.filter((line) => !line.ja_inscrita).map((line) => (
+                          <option key={line.id} value={line.id}>
+                            {line.nome}
                           </option>
                         ))}
+                        <option value="">+ Criar nova line para este slot</option>
                       </select>
                     </label>
-                  ) : <p>Esta equipe ainda não possui lines. Informe abaixo o nome da primeira line.</p>}
+                  ) : (
+                    <p>Todas as lines desta pasta já estão no campeonato. Crie uma nova line abaixo (ex.: ALOE ELITE 2).</p>
+                  )}
+                  {equipe.lines.some((line) => line.ja_inscrita) ? (
+                    <p className="invite-empty">
+                      Já no campeonato: {equipe.lines.filter((l) => l.ja_inscrita).map((l) => l.nome).join(', ')}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
 
               {equipe && !lineId ? (
                 <label className="field">
-                  <span>Nome da nova line</span>
+                  <span>Nome da nova line (herda logo da pasta; o líder pode trocar depois)</span>
                   <input value={nomeLine} onChange={(event) => setNomeLine(event.target.value)} placeholder="Ex.: ALOE ELITE" />
                 </label>
               ) : null}
@@ -459,7 +477,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
             <button className="button secondary" onClick={fechar}>Cancelar</button>
             <button className="button" onClick={modo === 'adicionar' ? adicionar : criarConvite} disabled={processando}>
               {processando ? <Loader2 className="spin" size={15} /> : null}
-              {modo === 'adicionar' ? 'Adicionar equipe' : 'Gerar e copiar convite'}
+              {modo === 'adicionar' ? 'Adicionar line no slot' : 'Gerar e copiar convite'}
             </button>
           </div>
         </div>

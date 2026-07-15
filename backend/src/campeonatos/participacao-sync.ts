@@ -195,16 +195,29 @@ export async function resolveLineForInscricao(params: {
     return { id: existing.id, nome: existing.nome, criada_agora: false }
   }
 
+  // Nova line herda logo/tag da equipe-pasta; o lider pode trocar depois.
+  let tag = params.tag || null
+  let logoUrl = params.logoUrl || null
+  if (!tag || !logoUrl) {
+    const { data: equipe } = await supabaseAdmin
+      .from('equipes')
+      .select('tag,logo_url')
+      .eq('id', params.equipeId)
+      .maybeSingle()
+    tag = tag || equipe?.tag || null
+    logoUrl = logoUrl || equipe?.logo_url || null
+  }
+
   const { data: created, error } = await supabaseAdmin
     .from('equipe_lines')
     .insert({
       equipe_id: params.equipeId,
       nome: nomeNova,
-      tag: params.tag || null,
-      logo_url: params.logoUrl || null,
+      tag,
+      logo_url: logoUrl,
       status: 'ativo',
     })
-    .select('id,nome')
+    .select('id,nome,tag,logo_url')
     .single()
   if (error) {
     if (isUniqueViolation(error)) {

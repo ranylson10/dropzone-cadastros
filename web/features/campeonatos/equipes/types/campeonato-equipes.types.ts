@@ -2,9 +2,14 @@ export type VagaStatus = 'livre' | 'reservada' | 'ocupada' | 'bloqueada'
 
 export type CampeonatoEquipeResumo = {
   id: string
-  equipe_id: string
+  equipe_id: string | null
   line_id: string | null
   nome_exibicao: string | null
+  /** Nome competitivo (line-first) */
+  line_nome?: string | null
+  line_logo_url?: string | null
+  line_tag?: string | null
+  equipe_nome?: string | null
   origem_entrada: string
   equipe: { id: string; nome: string; tag: string | null; logo_url: string | null } | null
   line: { id: string; nome: string; tag: string | null; logo_url: string | null } | null
@@ -28,6 +33,16 @@ export type CampeonatoVaga = {
   nome_equipe_reservada: string | null
   nome_line_reservada: string | null
   reserva_expira_em: string | null
+  grupo_id?: string | null
+  fase_id?: string | null
+  fase?: { id: string; nome: string; ordem?: number } | null
+  grupo?: { id: string; nome: string; fase_id?: string | null } | null
+  slot_numero?: number | null
+  slot_letra?: string | null
+  line_nome?: string | null
+  line_logo_url?: string | null
+  line_tag?: string | null
+  equipe_nome?: string | null
   campeonato_equipe: CampeonatoEquipeResumo | null
   convite: ConviteResumo | null
 }

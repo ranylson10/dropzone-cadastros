@@ -54,15 +54,19 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     return NextResponse.json({
       equipes: (equipes || []).map((equipe) => ({
         ...equipe,
+        // Pasta = equipe; lines com logo herdada se vazia
         lines: (lines || []).filter((line) => line.equipe_id === equipe.id).map((line) => {
           const participacao = inscricaoMap.get(line.id)
           return {
             ...line,
+            logo_url: line.logo_url || equipe.logo_url || null,
+            tag: line.tag || equipe.tag || null,
             ja_inscrita: Boolean(participacao),
             vaga_numero: participacao?.vaga_id ? vagaMap.get(participacao.vaga_id) || null : null,
             participacao_id: participacao?.id || null,
           }
         }),
+        lines_livres: (lines || []).filter((line) => line.equipe_id === equipe.id && !inscricaoMap.has(line.id)).length,
       })),
     })
   } catch (error) {

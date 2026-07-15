@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser, getAccountsForUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission, type CampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
+import { mapParticipacaoDisplay } from '@backend/campeonatos/line-display'
+import {
+  assertSlotLivreNoGrupo,
+  friendlyParticipacaoUniqueError,
+  isUniqueViolation,
+  resolveLineForInscricao,
+  softRemoveParticipacao,
+} from '@backend/campeonatos/participacao-sync'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function hasSellerPermission(seller: any, key: string) {
@@ -76,11 +84,23 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
     const equipesMap = new Map((equipes || []).map((e) => [e.id, e]))
     const linesMap = new Map((lines || []).map((l) => [l.id, l]))
-    const partMap = new Map((participacoes || []).map((p) => [p.id, {
-      ...p,
-      equipe: equipesMap.get(p.equipe_id) || null,
-      line: p.line_id ? linesMap.get(p.line_id) || null : null,
-    }]))
+    const partMap = new Map((participacoes || []).map((p) => {
+      const equipe = equipesMap.get(p.equipe_id) || null
+      const line = p.line_id ? linesMap.get(p.line_id) || null : null
+      return [p.id, mapParticipacaoDisplay({ ...p, equipe, line })]
+    }))
+
+    // Hierarquia: fase → grupo → slot (pastas)
+    const grupoIds = [...new Set((slots || []).map((s: any) => s.grupo_id).filter(Boolean))]
+    const { data: gruposFull } = grupoIds.length
+      ? await supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id,slots').in('id', grupoIds)
+      : { data: [] as any[] }
+    const faseIds = [...new Set((gruposFull || []).map((g) => g.fase_id).filter(Boolean))]
+    const { data: fases } = faseIds.length
+      ? await supabaseAdmin.from('campeonato_fases').select('id,nome,ordem').in('id', faseIds).order('ordem')
+      : { data: [] as any[] }
+    const faseMap = new Map((fases || []).map((f) => [f.id, f]))
+    const grupoMap = new Map((gruposFull || []).map((g) => [g.id, { ...g, fase: g.fase_id ? faseMap.get(g.fase_id) || null : null }]))
 
     const usedParticipationIds = new Set<string>()
     const slotsWithParticipations = (slots || []).map((slot: any) => {
@@ -92,72 +112,87 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         && p.grupo_id === slot.grupo_id
         && Number(p.slot_numero) === Number(slot.slot_numero)
       )
-      const byEquipeSlot = slot.equipe_id
-        ? (participacoes || []).find((p: any) =>
-          !usedParticipationIds.has(p.id)
-          && p.equipe_id === slot.equipe_id
-          && p.grupo_id === slot.grupo_id
-          && (p.slot_numero == null || Number(p.slot_numero) === Number(slot.slot_numero))
-        )
-        : null
-      const participation = byLine || byGrupoSlot || byEquipeSlot || null
+      const participation = byLine || byGrupoSlot || null
       if (participation?.id) usedParticipationIds.add(participation.id)
 
       const equipeId = slot.equipe_id || participation?.equipe_id || null
       const lineId = slot.line_id || participation?.line_id || null
-      const filled = Boolean(participation || equipeId || lineId)
-      const status = filled ? 'ocupada' : (String(slot.status || '').toLowerCase() === 'reservada' ? 'reservada' : 'livre')
+      const filled = Boolean(participation || lineId)
+      const status = filled ? 'ocupada' : 'livre'
+      const equipe = equipeId ? equipesMap.get(equipeId) || null : null
+      const line = lineId ? linesMap.get(lineId) || null : null
       const campeonatoEquipe = participation
         ? partMap.get(participation.id) || null
-        : (equipeId || lineId)
-          ? {
-              id: null,
+        : (lineId || equipeId)
+          ? mapParticipacaoDisplay({
+              id: String(slot.id),
               equipe_id: equipeId,
               line_id: lineId,
-              nome_exibicao: linesMap.get(lineId || '')?.nome || equipesMap.get(equipeId || '')?.nome || null,
+              nome_exibicao: line?.nome || null,
               origem_entrada: 'slot',
-              equipe: equipeId ? equipesMap.get(equipeId) || null : null,
-              line: lineId ? linesMap.get(lineId) || null : null,
-            }
+              grupo_id: slot.grupo_id,
+              slot_numero: slot.slot_numero,
+              equipe,
+              line,
+            })
           : null
+
+      const grupo = grupoMap.get(slot.grupo_id) || slot.grupos || null
+      const display = campeonatoEquipe
 
       return {
         id: slot.id,
+        // "numero_vaga" mantido por compat UI; identidade real é slot_letra
         numero_vaga: Number(slot.slot_numero || 0),
         status,
         nome_equipe_reservada: null,
         nome_line_reservada: null,
         reserva_expira_em: null,
         grupo_id: slot.grupo_id,
-        grupo: slot.grupos || null,
+        fase_id: slot.fase_id || grupo?.fase_id || null,
+        fase: grupo?.fase || null,
+        grupo,
         slot_numero: slot.slot_numero,
         slot_letra: slot.slot_letra,
         equipe_id: equipeId,
         line_id: lineId,
+        // Line-first para UI
+        line_nome: display?.line_nome || null,
+        line_logo_url: display?.line_logo_url || null,
+        line_tag: display?.line_tag || null,
+        equipe_nome: display?.equipe_nome || null,
         campeonato_equipe: campeonatoEquipe,
         convite: null,
       }
     })
 
-    // Participações com grupo/slot que não bateram em nenhum slot ainda (fallback de listagem).
     const orphanParticipations = (participacoes || [])
       .filter((p: any) => !usedParticipationIds.has(p.id))
-      .map((p: any, index: number) => ({
-        id: p.id,
-        numero_vaga: Number(p.slot_numero || 1000 + index),
-        status: 'ocupada' as const,
-        nome_equipe_reservada: null,
-        nome_line_reservada: null,
-        reserva_expira_em: null,
-        grupo_id: p.grupo_id,
-        grupo: null,
-        slot_numero: p.slot_numero,
-        slot_letra: null,
-        equipe_id: p.equipe_id,
-        line_id: p.line_id,
-        campeonato_equipe: partMap.get(p.id) || null,
-        convite: null,
-      }))
+      .map((p: any, index: number) => {
+        const display = partMap.get(p.id) || null
+        return {
+          id: p.id,
+          numero_vaga: Number(p.slot_numero || 1000 + index),
+          status: 'ocupada' as const,
+          nome_equipe_reservada: null,
+          nome_line_reservada: null,
+          reserva_expira_em: null,
+          grupo_id: p.grupo_id,
+          fase_id: null,
+          fase: null,
+          grupo: p.grupo_id ? grupoMap.get(p.grupo_id) || null : null,
+          slot_numero: p.slot_numero,
+          slot_letra: null,
+          equipe_id: p.equipe_id,
+          line_id: p.line_id,
+          line_nome: display?.line_nome || null,
+          line_logo_url: display?.line_logo_url || null,
+          line_tag: display?.line_tag || null,
+          equipe_nome: display?.equipe_nome || null,
+          campeonato_equipe: display,
+          convite: null,
+        }
+      })
 
     return NextResponse.json({
       campeonato,
@@ -167,7 +202,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         canGenerateToken: permission.canGenerateToken,
         role: permission.role,
       },
+      // Modelo: slots estruturais (fase>grupo>letra). "vagas" = nome legado da UI.
       vagas: [...slotsWithParticipations, ...orphanParticipations],
+      modelo: {
+        unidade_competitiva: 'line',
+        pasta: 'equipe',
+        hierarquia: ['campeonato', 'fase', 'grupo', 'slot', 'line'],
+      },
     })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao carregar equipes.' }, { status: 400 })
@@ -217,57 +258,79 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       }
     }
     const body = await req.json()
-    // A UI da aba Equipes envia vaga_id; o modelo estrutural usa campeonato_slots.id.
+    // UI legada envia vaga_id com id do slot estrutural (campeonato_slots.id).
     const slotId = String(body.slot_id || body.vaga_id || '')
     const equipeId = String(body.equipe_id || '')
-    let lineId = body.line_id ? String(body.line_id) : null
-    const nomeLine = String(body.nome_line || '').trim()
-    if (!slotId || !equipeId) throw new Error('Selecione o slot e a equipe.')
+    if (!slotId || !equipeId) throw new Error('Selecione o slot e a equipe (pasta).')
 
     const { data: slot } = await supabaseAdmin.from('campeonato_slots').select('*').eq('id', slotId).eq('campeonato_id', id).single()
     if (!slot) throw new Error('Slot não encontrado.')
-    if (slot.equipe_id) throw new Error('Este slot já está ocupado.')
+    if (slot.equipe_id || slot.line_id) throw new Error('Este slot já está ocupado.')
+
+    await assertSlotLivreNoGrupo({
+      campeonatoId: id,
+      grupoId: slot.grupo_id,
+      slotNumero: Number(slot.slot_numero),
+      slotLetra: slot.slot_letra,
+    })
 
     const { data: equipe } = await supabaseAdmin.from('equipes').select('id, nome, tag, logo_url').eq('id', equipeId).single()
     if (!equipe) throw new Error('Equipe não encontrada.')
 
-    if (!lineId) {
-      if (!nomeLine) throw new Error('Informe o nome da line.')
-      const { data: criada, error: lineError } = await supabaseAdmin.from('equipe_lines').insert({ equipe_id: equipeId, nome: nomeLine, tag: equipe.tag, logo_url: equipe.logo_url, status: 'ativo' }).select('*').single()
-      if (lineError) throw lineError
-      lineId = criada.id
-    } else {
-      const { data: line } = await supabaseAdmin.from('equipe_lines').select('id, equipe_id, nome').eq('id', lineId).eq('equipe_id', equipeId).single()
-      if (!line) throw new Error('A line selecionada não pertence à equipe.')
-    }
+    // Unidade competitiva = line. Pasta = equipe.
+    const resolved = await resolveLineForInscricao({
+      equipeId,
+      campeonatoId: id,
+      lineId: body.line_id ? String(body.line_id) : null,
+      nomeLine: String(body.nome_line || '').trim() || null,
+      tag: equipe.tag,
+      logoUrl: equipe.logo_url,
+    })
 
-    const { data: lineFinal } = await supabaseAdmin.from('equipe_lines').select('id, nome').eq('id', lineId).single()
-    const { data: participacaoExistente } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id')
-      .eq('campeonato_id', id)
-      .eq('line_id', lineId)
-      .eq('status', 'ativo')
-      .maybeSingle()
-    if (participacaoExistente) throw new Error('Esta line já está inscrita neste campeonato.')
-
-    // Constraint real no banco: organizador | convite | inscricao
-    // "vendedor" ainda nao e aceito pelo check constraint em producao.
-    const origem = permission.role === 'seller' ? 'convite' : 'organizador'
+    const origem = permission.role === 'seller' ? 'inscricao' : 'organizador'
     const { data: participacao, error: partError } = await supabaseAdmin.from('campeonato_equipes').insert({
-      campeonato_id: id, equipe_id: equipeId, grupo_id: slot.grupo_id, slot_numero: slot.slot_numero, line_id: lineId,
-      nome_exibicao: lineFinal?.nome || equipe.nome, origem_entrada: origem, criado_por: user.id, status: 'ativo',
+      campeonato_id: id,
+      equipe_id: equipeId,
+      grupo_id: slot.grupo_id,
+      slot_numero: slot.slot_numero,
+      line_id: resolved.id,
+      // Sempre o nome da line (ex.: ALOE ELITE), não o da pasta.
+      nome_exibicao: resolved.nome,
+      origem_entrada: origem,
+      criado_por: user.id,
+      status: 'ativo',
     }).select('*').single()
-    if (partError) throw partError
-
-    const { error: slotError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: equipeId, line_id: lineId, status: 'ocupado', updated_at: new Date().toISOString() }).eq('id', slotId).is('equipe_id', null)
-    if (slotError) {
-      await supabaseAdmin.from('campeonato_equipes').delete().eq('id', participacao.id)
-      throw new Error('O slot foi preenchido por outra equipe. Atualize e tente novamente.')
+    if (partError) {
+      if (isUniqueViolation(partError)) {
+        throw new Error(friendlyParticipacaoUniqueError(partError, { slotLetra: slot.slot_letra, slotNumero: slot.slot_numero }))
+      }
+      throw partError
     }
-    return NextResponse.json({ ok: true, participacao }, { status: 201 })
+
+    const { error: slotError } = await supabaseAdmin
+      .from('campeonato_slots')
+      .update({
+        equipe_id: equipeId,
+        line_id: resolved.id,
+        status: 'ocupado',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', slotId)
+      .is('equipe_id', null)
+    if (slotError) {
+      await softRemoveParticipacao(participacao.id)
+      throw new Error('O slot foi preenchido por outra line. Atualize e tente novamente.')
+    }
+    return NextResponse.json({
+      ok: true,
+      participacao,
+      line: { id: resolved.id, nome: resolved.nome, criada_agora: resolved.criada_agora },
+      mensagem: resolved.criada_agora
+        ? `Line "${resolved.nome}" criada e adicionada ao slot ${slot.slot_letra || slot.slot_numero}.`
+        : `Line "${resolved.nome}" adicionada ao slot ${slot.slot_letra || slot.slot_numero}.`,
+    }, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao adicionar equipe.' }, { status: 400 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao adicionar line.' }, { status: 400 })
   }
 }
 
@@ -296,12 +359,9 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
         throw new Error('O vendedor só pode remover equipes que ele adicionou.')
       }
     }
-    await supabaseAdmin.from('campeonato_equipes').update({ status: 'removido' }).eq('id', participacaoId)
-    if (participacao.grupo_id && participacao.slot_numero && participacao.line_id) {
-      await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: new Date().toISOString() }).eq('campeonato_id', id).eq('grupo_id', participacao.grupo_id).eq('slot_numero', participacao.slot_numero).eq('line_id', participacao.line_id)
-    }
+    await softRemoveParticipacao(participacaoId)
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao remover equipe.' }, { status: 400 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao remover line.' }, { status: 400 })
   }
 }
