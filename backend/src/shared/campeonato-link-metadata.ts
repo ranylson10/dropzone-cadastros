@@ -134,6 +134,8 @@ export function encodeLinkDescricao(
     usos?: number
     expected_teams?: string[]
     entradas?: LinkEntrada[]
+    closed_reason?: string
+    closed_at?: string
   },
   humanDesc?: string | null,
 ) {
@@ -142,10 +144,33 @@ export function encodeLinkDescricao(
     usos: Math.max(0, Number(payload.usos || 0)),
     expected_teams: normalizeExpectedTeams(payload.expected_teams),
     entradas: normalizeEntradas(payload.entradas),
+    ...(payload.closed_reason ? { closed_reason: payload.closed_reason } : {}),
+    ...(payload.closed_at ? { closed_at: payload.closed_at } : {}),
   })
   const cleanDesc = String(humanDesc || '').trim()
   if (cleanDesc) return `${cleanDesc}\n${LINK_META_PREFIX}${body}`
   return `${LINK_META_PREFIX}${body}`
+}
+
+/** Parte humana de descricao, sem o bloco __dz_meta__. */
+export function extractHumanDescricao(descricao?: string | null) {
+  const text = String(descricao || '')
+  const markerIndex = text.indexOf(LINK_META_PREFIX)
+  if (markerIndex >= 0) return text.slice(0, markerIndex).trim()
+  try {
+    const parsed = JSON.parse(text)
+    if (parsed && typeof parsed === 'object' && (
+      'limite_vagas' in parsed
+      || 'expected_teams' in parsed
+      || 'usos' in parsed
+      || 'entradas' in parsed
+    )) {
+      return ''
+    }
+  } catch {
+    // plain text
+  }
+  return text.trim()
 }
 
 export function buildLinkMetaPayload(meta: LinkMetadata, extra: Record<string, unknown> = {}) {
@@ -159,6 +184,13 @@ export function buildLinkMetaPayload(meta: LinkMetadata, extra: Record<string, u
     ...extra,
   }
 }
+
+/** Select com metadata; se a coluna não existir no banco, tenta sem ela. */
+export const CAMPEONATO_LINK_SELECT_FULL =
+  'id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,fase_id,metadata,descricao,created_at,updated_at'
+
+export const CAMPEONATO_LINK_SELECT_NO_META =
+  'id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,fase_id,descricao,created_at,updated_at'
 
 export type LinkStatusUi = 'ativo' | 'esgotado' | 'expirado' | 'pausado' | 'grupo_cheio'
 
@@ -206,11 +238,14 @@ export function registrationLinkData(row: any) {
   }
 }
 
-export function isMissingMetadataColumn(error: { message?: string; code?: string } | null | undefined) {
-  const message = String(error?.message || '').toLowerCase()
+export function isMissingMetadataColumn(error: { message?: string; code?: string; details?: string; hint?: string } | null | undefined) {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
   return error?.code === 'PGRST204'
     || error?.code === '42703'
     || message.includes("'metadata'")
+    || message.includes('"metadata"')
+    || message.includes('metadata does not exist')
     || message.includes('metadata column')
+    || message.includes('column campeonato_links.metadata')
     || message.includes('schema cache')
 }

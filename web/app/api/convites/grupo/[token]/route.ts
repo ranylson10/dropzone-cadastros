@@ -7,10 +7,16 @@ import {
 } from '@backend/campeonatos/participacao-sync'
 import {
   buildLinkMetaPayload,
+  CAMPEONATO_LINK_SELECT_FULL,
+  CAMPEONATO_LINK_SELECT_NO_META,
+  encodeLinkDescricao,
+  extractHumanDescricao,
+  isMissingMetadataColumn,
   linkRestantes,
   parseLinkMetadata,
   resolveLinkLimiteVagas,
   type LinkEntrada,
+  type LinkMetadata,
 } from '@backend/shared/campeonato-link-metadata'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
@@ -30,27 +36,85 @@ function isMissingView(error: { code?: string; message?: string } | null | undef
   return error?.code === '42P01' || error?.code === 'PGRST205' || /vw_campeonato_slots_lines/i.test(msg)
 }
 
+/** Leitura de link: tenta com metadata; se a coluna não existe no Supabase, cai para descricao. */
+async function fetchCampeonatoLink(builder: (columns: string) => any) {
+  const withMeta = await builder(CAMPEONATO_LINK_SELECT_FULL)
+  if (!withMeta.error) return withMeta
+  if (!isMissingMetadataColumn(withMeta.error)) return withMeta
+  return builder(CAMPEONATO_LINK_SELECT_NO_META)
+}
+
+/**
+ * Persiste meta do link em metadata (se existir) e sempre em descricao (fallback).
+ * Assim o app funciona mesmo sem a migration da coluna metadata.
+ */
+async function persistLinkMeta(params: {
+  linkId: string
+  metaPayload: Record<string, unknown>
+  currentDescricao?: string | null
+  ativo?: boolean
+  onlyIfAtivo?: boolean
+}) {
+  const human = extractHumanDescricao(params.currentDescricao)
+  const descricao = encodeLinkDescricao(params.metaPayload, human)
+  const basePatch: Record<string, unknown> = {
+    descricao,
+    updated_at: new Date().toISOString(),
+  }
+  if (params.ativo !== undefined) basePatch.ativo = params.ativo
+
+  let query = supabaseAdmin
+    .from('campeonato_links')
+    .update({ ...basePatch, metadata: params.metaPayload })
+    .eq('id', params.linkId)
+  if (params.onlyIfAtivo) query = query.eq('ativo', true)
+
+  let { error } = await query
+  if (error && isMissingMetadataColumn(error)) {
+    let retry = supabaseAdmin
+      .from('campeonato_links')
+      .update(basePatch)
+      .eq('id', params.linkId)
+    if (params.onlyIfAtivo) retry = retry.eq('ativo', true)
+    const result = await retry
+    error = result.error
+  }
+  if (error) throw error
+}
+
+async function loadLinkRowById(linkId: string) {
+  const result = await fetchCampeonatoLink((columns) =>
+    supabaseAdmin.from('campeonato_links').select(columns).eq('id', linkId).maybeSingle(),
+  )
+  if (result.error) throw result.error
+  return result.data
+}
+
 async function loadLink(token: string) {
   const clean = decodeURIComponent(String(token || '').trim())
   if (!clean) throw new Error('Link de equipes invalido ou inativo.')
 
   let link: any = null
-  const exact = await supabaseAdmin
-    .from('campeonato_links')
-    .select('id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,metadata,descricao')
-    .eq('token', clean)
-    .eq('tipo', 'inscricao_equipes_grupo')
-    .maybeSingle()
+  const exact = await fetchCampeonatoLink((columns) =>
+    supabaseAdmin
+      .from('campeonato_links')
+      .select(columns)
+      .eq('token', clean)
+      .eq('tipo', 'inscricao_equipes_grupo')
+      .maybeSingle(),
+  )
   if (exact.error) throw exact.error
   link = exact.data
 
   if (!link) {
-    const byUpper = await supabaseAdmin
-      .from('campeonato_links')
-      .select('id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,metadata,descricao')
-      .eq('tipo', 'inscricao_equipes_grupo')
-      .ilike('token', clean.toUpperCase())
-      .maybeSingle()
+    const byUpper = await fetchCampeonatoLink((columns) =>
+      supabaseAdmin
+        .from('campeonato_links')
+        .select(columns)
+        .eq('tipo', 'inscricao_equipes_grupo')
+        .ilike('token', clean.toUpperCase())
+        .maybeSingle(),
+    )
     if (byUpper.error) throw byUpper.error
     link = byUpper.data
   }
@@ -76,11 +140,7 @@ async function deactivateGroupLink(
   reason: 'limite_atingido' | 'grupo_cheio',
   extraMeta: Record<string, unknown> = {},
 ) {
-  const { data: current } = await supabaseAdmin
-    .from('campeonato_links')
-    .select('metadata,descricao')
-    .eq('id', linkId)
-    .maybeSingle()
+  const current = await loadLinkRowById(linkId)
   const meta = parseLinkMetadata(current || {})
   const payload = buildLinkMetaPayload(meta, {
     ...extraMeta,
@@ -88,14 +148,13 @@ async function deactivateGroupLink(
     closed_at: new Date().toISOString(),
   })
 
-  await supabaseAdmin
-    .from('campeonato_links')
-    .update({
-      ativo: false,
-      metadata: payload,
-    })
-    .eq('id', linkId)
-    .eq('ativo', true)
+  await persistLinkMeta({
+    linkId,
+    metaPayload: payload,
+    currentDescricao: current?.descricao,
+    ativo: false,
+    onlyIfAtivo: true,
+  })
 }
 
 /** Fecha por limite do link ou grupo cheio. */
@@ -169,12 +228,7 @@ async function consumirVagaDoLink(link: {
   descricao?: string | null
   grupo_id: string
 }) {
-  const { data: fresh, error } = await supabaseAdmin
-    .from('campeonato_links')
-    .select('id,metadata,descricao,ativo,grupo_id')
-    .eq('id', link.id)
-    .maybeSingle()
-  if (error) throw error
+  const fresh = await loadLinkRowById(link.id)
   if (!fresh || fresh.ativo === false) throw new Error('Este link de equipes foi desativado pelo organizador.')
 
   const meta = parseLinkMetadata(fresh)
@@ -192,21 +246,19 @@ async function consumirVagaDoLink(link: {
   const nextUsos = meta.usos + 1
   const atLimit = nextUsos >= limite
   const nextMeta = buildLinkMetaPayload(
-    { ...meta, limite_vagas: limite, usos: nextUsos },
+    { ...meta, limite_vagas: limite, usos: nextUsos } as LinkMetadata,
     atLimit
       ? { closed_reason: 'limite_atingido', closed_at: new Date().toISOString() }
       : {},
   )
 
-  const { error: updateError } = await supabaseAdmin
-    .from('campeonato_links')
-    .update({
-      metadata: nextMeta,
-      ...(atLimit ? { ativo: false } : {}),
-    })
-    .eq('id', fresh.id)
-    .eq('ativo', true)
-  if (updateError) throw updateError
+  await persistLinkMeta({
+    linkId: fresh.id,
+    metaPayload: nextMeta,
+    currentDescricao: fresh.descricao,
+    ...(atLimit ? { ativo: false } : {}),
+    onlyIfAtivo: true,
+  })
 
   return {
     usos: nextUsos,
@@ -222,12 +274,7 @@ async function registrarEntradaNoLink(
   entrada: LinkEntrada,
   opts: { limite: number; usos: number },
 ) {
-  const { data: fresh, error } = await supabaseAdmin
-    .from('campeonato_links')
-    .select('id,metadata,descricao,ativo')
-    .eq('id', linkId)
-    .maybeSingle()
-  if (error) throw error
+  const fresh = await loadLinkRowById(linkId)
   if (!fresh) return
 
   const meta = parseLinkMetadata(fresh)
@@ -241,7 +288,7 @@ async function registrarEntradaNoLink(
       limite_vagas: opts.limite,
       usos,
       entradas,
-    },
+    } as LinkMetadata,
     atLimit
       ? {
           closed_reason: meta.closed_reason || 'limite_atingido',
@@ -250,13 +297,12 @@ async function registrarEntradaNoLink(
       : {},
   )
 
-  await supabaseAdmin
-    .from('campeonato_links')
-    .update({
-      metadata: nextMeta,
-      ...(atLimit ? { ativo: false } : {}),
-    })
-    .eq('id', linkId)
+  await persistLinkMeta({
+    linkId,
+    metaPayload: nextMeta,
+    currentDescricao: fresh.descricao,
+    ...(atLimit ? { ativo: false } : {}),
+  })
 }
 
 /** Grade do grupo via VIEW (1 query). Fallback se a view nao existir. */
@@ -684,18 +730,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       // Devolve o uso se a inscrição falhar (preserva histórico de entradas)
       try {
         const rolled = Math.max(0, consumo.usos - 1)
-        await supabaseAdmin
-          .from('campeonato_links')
-          .update({
-            ativo: true,
-            metadata: buildLinkMetaPayload({
-              ...meta,
-              limite_vagas: consumo.limite,
-              usos: rolled,
-              entradas: consumo.entradas || meta.entradas,
-            }),
-          })
-          .eq('id', link.id)
+        await persistLinkMeta({
+          linkId: link.id,
+          metaPayload: buildLinkMetaPayload({
+            ...meta,
+            limite_vagas: consumo.limite,
+            usos: rolled,
+            entradas: consumo.entradas || meta.entradas,
+          } as LinkMetadata),
+          currentDescricao: link.descricao,
+          ativo: true,
+        })
       } catch {
         // ignore rollback errors
       }

@@ -8,7 +8,14 @@ import {
 } from '@backend/campeonatos/participacao-sync'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS, type ChampionshipType } from '@/lib/dropzone-constants'
-import { encodeLinkDescricao, isMissingMetadataColumn, normalizeExpectedTeams, parseLinkMetadata, registrationLinkData } from '@backend/shared/campeonato-link-metadata'
+import {
+  encodeLinkDescricao,
+  extractHumanDescricao,
+  isMissingMetadataColumn,
+  normalizeExpectedTeams,
+  parseLinkMetadata,
+  registrationLinkData,
+} from '@backend/shared/campeonato-link-metadata'
 import { randomToken } from '@backend/shared/validation'
 
 const HIDDEN_DATA_KEYS = new Set([
@@ -1370,7 +1377,14 @@ export async function PATCH(req: NextRequest) {
         patch.token = randomToken(current.tipo === 'inscricao_equipes_grupo' ? 'EQS' : 'INSC')
       }
       const currentMeta = parseLinkMetadata(current)
-      if (data.limite_vagas !== undefined || data.expected_teams !== undefined || data.descricao !== undefined) {
+      // Sempre regrava descricao com meta embutida (funciona sem coluna metadata)
+      if (
+        data.limite_vagas !== undefined
+        || data.expected_teams !== undefined
+        || data.descricao !== undefined
+        || data.ativo !== undefined
+        || data.regenerate_token
+      ) {
         const limiteNext =
           data.limite_vagas !== undefined
             ? Math.max(1, Number(data.limite_vagas) || 1)
@@ -1382,8 +1396,15 @@ export async function PATCH(req: NextRequest) {
             data.expected_teams !== undefined
               ? normalizeExpectedTeams(data.expected_teams)
               : currentMeta.expected_teams,
+          entradas: currentMeta.entradas,
+          closed_reason: currentMeta.closed_reason,
+          closed_at: currentMeta.closed_at,
         }
-        patch.descricao = encodeLinkDescricao(metaNext, data.descricao ?? current.descricao)
+        const human =
+          data.descricao !== undefined
+            ? String(data.descricao || '')
+            : extractHumanDescricao(current.descricao)
+        patch.descricao = encodeLinkDescricao(metaNext, human)
         patch.metadata = metaNext
       }
 
