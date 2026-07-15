@@ -2483,6 +2483,144 @@ body:has(.cropper-overlay) {
   margin-top: 14px;
 }
 
+.invite-slot-grid {
+  width: 100%;
+}
+
+button.invite-slot-button {
+  width: 100%;
+  border: 1px solid #e4e7ec;
+  background: #fff;
+  text-align: left;
+  cursor: default;
+  font: inherit;
+  color: inherit;
+}
+
+button.invite-slot-button.clickable {
+  cursor: pointer;
+}
+
+button.invite-slot-button.clickable:hover {
+  border-color: #ff4655;
+  box-shadow: inset 0 0 0 1px #ff4655;
+}
+
+button.invite-slot-button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+button.invite-slot-button.free.clickable b {
+  background: #ff4655;
+}
+
+.invite-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: #111827cc;
+  backdrop-filter: blur(4px);
+}
+
+.invite-modal {
+  width: min(480px, 100%);
+  background: #fff;
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 24px 70px #0008;
+}
+
+.invite-modal > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.invite-modal > header h2 {
+  margin: 4px 0;
+  font-size: 22px;
+}
+
+.invite-modal > header span {
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.invite-modal > header button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e4e7ec;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+/* Gate de acesso (reuso do estilo de vagas) */
+.vacancies-access-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: #111827aa;
+}
+
+.vacancies-access-gate > section {
+  position: relative;
+  width: min(480px, 100%);
+  padding: 28px;
+  background: #fff;
+  text-align: center;
+}
+
+.vacancies-access-gate > section > img {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+}
+
+.vacancies-access-gate h2 {
+  margin: 5px 0;
+}
+
+.vacancies-access-gate > section > p:not(.eyebrow) {
+  color: #6d747e;
+}
+
+.gate-close {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #dfe2e7;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.continue-guest {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 9px;
+  border: 1px solid #cfd4da;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 /* Fases e grupos em arvore/pastas */
 .phase-folder-tree{display:grid;gap:14px}.phase-folder,.group-folder{border:1px solid var(--line);background:rgba(10,13,20,.72);overflow:hidden}.phase-folder{border-left:3px solid var(--accent)}.group-folder{margin:10px 0;border-left:2px solid rgba(255,255,255,.16)}.folder-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px}.phase-folder-row{background:rgba(255,255,255,.035)}.group-folder-row{background:rgba(255,255,255,.025)}.folder-toggle{display:flex;align-items:center;gap:9px;min-width:0;background:none;border:0;color:inherit;text-align:left;cursor:pointer}.folder-toggle span{display:grid;gap:2px}.folder-toggle strong{font-size:.95rem}.folder-toggle small{color:var(--muted);font-size:.74rem}.folder-actions{display:flex;align-items:center;gap:7px}.folder-actions>button:not(.button),.slot-letter-row>button{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--text);cursor:pointer}.folder-actions .danger{color:#ff7777}.phase-folder-content{padding:0 12px 12px 34px}.slot-letter-list{display:grid;gap:6px;padding:8px 12px 12px 38px}.slot-letter-row{display:grid;grid-template-columns:46px minmax(120px,1fr) minmax(90px,.45fr) 34px;align-items:center;gap:10px;min-height:44px;padding:6px 8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)}.slot-letter-row>b{display:grid;place-items:center;width:34px;height:30px;background:var(--accent);color:#fff;font-size:.95rem}.slot-letter-row span{font-weight:700}.slot-letter-row small{color:var(--muted)}.slot-letter-row.occupied{background:rgba(255,255,255,.045)}@media(max-width:760px){.folder-row{align-items:flex-start;flex-direction:column}.folder-actions{width:100%;flex-wrap:wrap}.phase-folder-content{padding-left:8px}.slot-letter-list{padding-left:8px}.slot-letter-row{grid-template-columns:42px 1fr 34px}.slot-letter-row small{display:none}}
 

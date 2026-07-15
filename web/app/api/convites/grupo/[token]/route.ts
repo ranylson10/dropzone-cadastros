@@ -191,26 +191,24 @@ async function loadGroupSlots(campeonatoId: string, grupoId: string) {
   return slots || []
 }
 
-function mapVagas(expected: string[], slots: any[]) {
-  const labels = expected.length
-    ? expected
-    : slots.map((slot, index) => `Vaga ${slot.slot_letra || slot.slot_numero || index + 1}`)
-
-  return labels.map((nome, index) => {
-    const slot = slots[index] || null
+function mapVagas(slots: any[]) {
+  return slots.map((slot, index) => {
     const line = Array.isArray(slot?.equipe_lines) ? slot.equipe_lines[0] : slot?.equipe_lines
     const team = Array.isArray(slot?.equipes) ? slot.equipes[0] : slot?.equipes
     const ocupada = Boolean(slot?.equipe_id || slot?.line_id)
+    const letra = String(slot?.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
     return {
       index,
-      nome,
+      // A letra do slot é o que o líder escolhe (avatar no jogo).
+      nome: `Slot ${letra}`,
       slot_id: slot?.id || null,
       slot_numero: slot?.slot_numero || index + 1,
-      slot_letra: slot?.slot_letra || null,
+      slot_letra: letra,
       ocupada,
       equipe_nome: team?.nome || null,
       line_nome: line?.nome || null,
       logo_url: line?.logo_url || team?.logo_url || null,
+      referencia_equipe: ocupada ? (slot?.nome_exibicao || null) : null,
     }
   })
 }
@@ -226,12 +224,32 @@ async function payloadFor(req: NextRequest, token: string) {
   if (campError) throw campError
   if (grupoError) throw grupoError
   const session = await sessionTeam(req, link.campeonato_id, link.grupo_id)
-  const vagas = mapVagas(expected, slots)
+  const vagas = mapVagas(slots)
+
+  // Referências da lista do organizador já usadas nas participações do grupo.
+  const { data: claimed } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('nome_exibicao,status')
+    .eq('campeonato_id', link.campeonato_id)
+    .eq('grupo_id', link.grupo_id)
+    .eq('status', 'ativo')
+  const usedNames = new Set(
+    (claimed || [])
+      .map((row) => String(row.nome_exibicao || '').trim().toLowerCase())
+      .filter(Boolean),
+  )
+  const equipesEsperadas = expected.map((nome) => ({
+    nome,
+    disponivel: !usedNames.has(nome.trim().toLowerCase()),
+  }))
+
   return {
     link: { token: link.token, titulo: link.titulo },
     campeonato,
     grupo,
     vagas,
+    equipes_esperadas: equipesEsperadas,
+    equipes_esperadas_disponiveis: equipesEsperadas.filter((item) => item.disponivel).map((item) => item.nome),
     resumo_grupo: {
       total: vagas.length,
       ocupadas: vagas.filter((v) => v.ocupada).length,
@@ -289,6 +307,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const slotIdInformado = String(body.slot_id || '').trim()
     const lineIdInformada = String(body.line_id || '').trim()
     const nomeNovaLine = String(body.nome_line || '').trim()
+    const referenciaEquipe = String(body.referencia_equipe || body.nome_lista || '').trim()
 
     const link = await loadLink(token)
     const expected = parseLinkMetadata(link).expected_teams
@@ -300,16 +319,28 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       : null
 
     if (!slot) {
-      if (!Number.isInteger(vagaIndex) || vagaIndex < 0) throw new Error('Selecione uma vaga esperada.')
-      // Usa a ordem real dos slots do grupo, nao assume que slot_numero === index + 1.
+      if (!Number.isInteger(vagaIndex) || vagaIndex < 0) throw new Error('Selecione um slot disponivel.')
       slot = slots[vagaIndex] || null
     }
 
-    if (!slot) throw new Error('Slot do grupo nao encontrado para a vaga selecionada.')
-    if (slot.equipe_id || slot.line_id) throw new Error('Essa vaga ja foi preenchida.')
+    if (!slot) throw new Error('Slot do grupo nao encontrado para a letra selecionada.')
+    if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Escolha outra letra.')
 
-    if (expected.length && Number.isInteger(vagaIndex) && (vagaIndex < 0 || vagaIndex >= expected.length)) {
-      throw new Error('Selecione uma vaga esperada valida.')
+    if (expected.length) {
+      if (!referenciaEquipe) throw new Error('Selecione qual equipe da lista voce esta representando.')
+      const existsInList = expected.some((nome) => nome.trim().toLowerCase() === referenciaEquipe.toLowerCase())
+      if (!existsInList) throw new Error('A equipe selecionada nao esta na lista deste grupo.')
+
+      const { data: claimed } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id,nome_exibicao')
+        .eq('campeonato_id', link.campeonato_id)
+        .eq('grupo_id', link.grupo_id)
+        .eq('status', 'ativo')
+      const already = (claimed || []).some(
+        (row) => String(row.nome_exibicao || '').trim().toLowerCase() === referenciaEquipe.toLowerCase(),
+      )
+      if (already) throw new Error('Essa equipe da lista ja foi reivindicada neste grupo.')
     }
 
     let lineId = lineIdInformada || null
@@ -353,16 +384,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (duplicateError) throw duplicateError
     if (duplicate) throw new Error('Esta line ja esta inscrita neste campeonato.')
 
-    // 1) Grava a participação no campeonato (vínculo real equipe/line/grupo).
+    // nome_exibicao guarda a referencia da lista do organizador (quando houver).
+    const nomeExibicao = referenciaEquipe || lineName
+
+    // 1) Grava a participação no campeonato (vínculo real equipe/line/grupo/slot).
     const participationPayload: Record<string, unknown> = {
       campeonato_id: link.campeonato_id,
       equipe_id: account.id,
       grupo_id: link.grupo_id,
       slot_numero: slot.slot_numero,
       line_id: lineId,
-      nome_exibicao: lineName,
+      nome_exibicao: nomeExibicao,
       // Constraint real no banco: organizador | convite | inscricao
-      // (valores como "link" / "vendedor" quebram o insert)
       origem_entrada: 'inscricao',
       criado_por: user.id,
       status: 'ativo',
@@ -431,7 +464,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       // Fluxo principal nao depende de campeonato_vagas.
     }
 
-    const referencia = expected[vagaIndex] || lineName || `Slot ${slot.slot_numero}`
+    const letra = String(slot.slot_letra || '').trim().toUpperCase() || String(slot.slot_numero)
     return NextResponse.json({
       ok: true,
       participacao,
@@ -439,7 +472,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       line: { id: lineId, nome: lineName },
       grupo_id: link.grupo_id,
       slot_id: slot.id,
-      referencia,
+      slot_letra: letra,
+      referencia: referenciaEquipe || lineName || `Slot ${letra}`,
     })
   } catch (error) {
     // Rollback de melhor esforço se algo falhou no meio.
