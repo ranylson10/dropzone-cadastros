@@ -12,19 +12,27 @@ export type DirectoryItem = {
   searchText: string
 }
 
+/** Item de seção do perfil (suporta árvore: fase → grupo → slot). */
+export type DirectorySectionItem = {
+  id: string
+  title: string
+  subtitle?: string
+  href?: string
+  image?: string
+  meta?: Array<{ label: string; value: string }>
+  /** Badge à esquerda (ex.: letra do slot) */
+  badge?: string
+  /** Estado visual do slot: livre | ocupada | reservada */
+  status?: 'livre' | 'ocupada' | 'reservada' | string
+  children?: DirectorySectionItem[]
+}
+
 export type DirectoryProfile = DirectoryItem & {
   details: Array<{ label: string; value: string }>
   actions?: Array<{ label: string; href: string; variant?: 'primary' | 'secondary' }>
   sections: Array<{
     title: string
-    layout?: 'list' | 'table' | 'stats'
-    items: Array<{
-      id: string
-      title: string
-      subtitle?: string
-      href?: string
-      image?: string
-      meta?: Array<{ label: string; value: string }>
-    }>
+    layout?: 'list' | 'table' | 'stats' | 'structure'
+    items: DirectorySectionItem[]
   }>
 }

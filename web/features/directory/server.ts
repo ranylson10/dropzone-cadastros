@@ -126,19 +126,26 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   const actions: DirectoryProfile['actions'] = []
 
   if (kind === 'campeonatos') {
-    const [phases, groups, games, participations, teams, teamStats, mvpStats] = await Promise.all([
+    const [phases, groups, slots, games, participations, teams, teamLines, teamStats, mvpStats] = await Promise.all([
       rows('campeonato_fases'),
       rows('campeonato_grupos'),
+      rows('campeonato_slots'),
       rows('campeonato_jogos'),
       rows('campeonato_equipes'),
       rows('equipes'),
+      rows('equipe_lines'),
       listarEstatisticasEquipes(id, {}).catch(() => []),
       listarEstatisticasMvp(id, {}).catch(() => []),
     ])
     const teamById = new Map(teams.map((row: any) => [row.id, row]))
-    const champPhases = phases.filter((row: any) => row.campeonato_id === id)
+    const lineById = new Map(teamLines.map((row: any) => [row.id, row]))
+    const champPhases = phases
+      .filter((row: any) => row.campeonato_id === id)
+      .sort((a: any, b: any) => Number(a.ordem || 0) - Number(b.ordem || 0))
     const champGroups = groups.filter((row: any) => row.campeonato_id === id)
+    const champSlots = slots.filter((row: any) => row.campeonato_id === id)
     const champGames = games.filter((row: any) => row.campeonato_id === id)
+    const champParts = participations.filter((row: any) => row.campeonato_id === id && String(row.status || 'ativo') === 'ativo')
 
     actions.push(
       { label: 'Ver tabela', href: '#tabela', variant: 'primary' },
@@ -175,16 +182,79 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
         ],
       })),
     })
+
+    // Leitura pública: fases → grupos → slots (sem ações de editar)
     sections.push({
       title: 'Fases e grupos',
+      layout: 'structure',
       items: champPhases.map((phase: any) => {
-        const phaseGroups = champGroups.filter((group: any) => group.fase_id === phase.id)
-        const slots = phaseGroups.reduce((sum: number, group: any) => sum + Number(group.slots || 0), 0)
+        const phaseGroups = champGroups
+          .filter((group: any) => group.fase_id === phase.id)
+          .sort((a: any, b: any) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'))
+        const totalSlots = phaseGroups.reduce((sum: number, group: any) => {
+          const groupSlotCount = champSlots.filter((s: any) => s.grupo_id === group.id).length
+          return sum + (groupSlotCount || Number(group.slots || 0))
+        }, 0)
+
         return {
           id: phase.id,
           title: phase.nome,
-          subtitle: `${phaseGroups.length} grupos · ${slots} slots`,
-          meta: phaseGroups.slice(0, 6).map((group: any) => ({ label: group.nome, value: `${group.slots || 0} slots` })),
+          subtitle: `${phaseGroups.length} grupo(s) · ${totalSlots} slot(s)`,
+          children: phaseGroups.map((group: any) => {
+            const groupSlots = champSlots
+              .filter((s: any) => s.grupo_id === group.id)
+              .sort((a: any, b: any) => Number(a.slot_numero || 0) - Number(b.slot_numero || 0))
+            const occupied = groupSlots.filter((s: any) => s.line_id || s.equipe_id).length
+
+            return {
+              id: group.id,
+              title: group.nome,
+              subtitle: `${occupied}/${groupSlots.length || Number(group.slots || 0)} slots preenchidos`,
+              children: (groupSlots.length
+                ? groupSlots
+                : Array.from({ length: Number(group.slots || 0) }, (_, index) => ({
+                    id: `${group.id}-ghost-${index + 1}`,
+                    slot_numero: index + 1,
+                    slot_letra: String.fromCharCode(65 + (index % 26)),
+                    line_id: null,
+                    equipe_id: null,
+                  }))
+              ).map((slot: any) => {
+                const slotNum = Number(slot.slot_numero || 0)
+                const letter = first(
+                  slot.slot_letra,
+                  slotNum > 0 ? String.fromCharCode(64 + Math.min(slotNum, 26)) : '?',
+                )
+                const line = slot.line_id ? lineById.get(slot.line_id) : null
+                const team = slot.equipe_id ? teamById.get(slot.equipe_id) : null
+                const part = champParts.find(
+                  (p: any) =>
+                    p.slot_id === slot.id
+                    || (p.grupo_id === group.id && Number(p.slot_numero) === slotNum && p.line_id === slot.line_id),
+                )
+                const filled = Boolean(slot.line_id || slot.equipe_id || part)
+                const lineName = first(
+                  line?.nome,
+                  part?.nome_exibicao,
+                  part?.line_nome,
+                  filled ? 'Line inscrita' : `Slot ${letter}`,
+                )
+                const teamName = first(team?.nome, part?.equipe_nome)
+                const logo = first(line?.logo_url, team?.logo_url)
+
+                return {
+                  id: String(slot.id || `${group.id}-${letter}`),
+                  badge: letter,
+                  title: lineName,
+                  subtitle: filled
+                    ? [teamName, group.nome].filter(Boolean).join(' · ') || 'Ocupado'
+                    : 'Disponível',
+                  image: logo || undefined,
+                  status: filled ? 'ocupada' : 'livre',
+                }
+              }),
+            }
+          }),
         }
       }),
     })
@@ -199,14 +269,19 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     })
     sections.push({
       title: 'Equipes participantes',
-      items: participations.filter((row: any) => row.campeonato_id === id).map((entry: any) => {
+      items: champParts.map((entry: any) => {
         const team: any = teamById.get(entry.equipe_id)
+        const line: any = entry.line_id ? lineById.get(entry.line_id) : null
         return {
           id: entry.id,
-          title: first(entry.nome_exibicao, team?.nome, 'Equipe'),
-          image: first(team?.logo_url),
+          title: first(line?.nome, entry.nome_exibicao, team?.nome, 'Line'),
+          image: first(line?.logo_url, team?.logo_url),
           href: team ? `/equipes/${team.id}` : undefined,
-          subtitle: entry.slot_numero ? `Slot ${entry.slot_numero}` : 'Participação confirmada',
+          subtitle: [
+            team?.nome,
+            entry.slot_letra || (entry.slot_numero ? `Slot ${entry.slot_numero}` : null),
+            entry.origem_entrada ? `via ${entry.origem_entrada}` : null,
+          ].filter(Boolean).join(' · ') || 'Participação confirmada',
         }
       }),
     })

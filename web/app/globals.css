@@ -3115,6 +3115,83 @@ button.invite-slot-button.free.clickable b {
 
 /* Diretórios públicos — conteúdo (header = AppHeader global) */
 .directory-page,.directory-profile-page{max-width:1180px;padding:24px 24px 64px;margin:0 auto}
+
+/* Árvore pública fases → grupos → slots (somente leitura) */
+.directory-structure{display:grid;gap:6px}
+.directory-structure-node{border:1px solid #e4e7ec;background:#fff;overflow:hidden}
+.directory-structure-node.depth-0{border-left:3px solid #ff4655}
+.directory-structure-node.depth-1{border-left:2px solid #d0d5dd;margin-left:0}
+.directory-structure-children{padding:0 0 6px 8px;background:#fafbfc}
+.directory-structure-children .directory-structure{gap:4px;padding:0 8px 4px}
+.directory-structure-row{
+  width:100%;
+  min-height:52px;
+  border:0;
+  background:transparent;
+  display:grid;
+  grid-template-columns:22px 40px minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:10px;
+  padding:8px 12px;
+  text-align:left;
+  color:#17191d;
+  font:inherit;
+  cursor:default;
+}
+.directory-structure-row.is-expandable{cursor:pointer}
+.directory-structure-row.is-expandable:hover{background:#fff7f8}
+.directory-structure-row.is-open{background:#fffafb}
+.directory-structure-chevron{display:grid;place-items:center;color:#90959e}
+.directory-structure-chevron.spacer{width:16px;height:16px}
+.directory-structure-badge{
+  width:34px;height:34px;display:grid;place-items:center;
+  border-radius:8px;background:#ff4655;color:#fff;
+  font-size:13px;font-weight:950;
+}
+.directory-structure-avatar{
+  width:40px;height:40px;display:grid;place-items:center;
+  overflow:hidden;border:1px solid #e2e8f0;background:#f4f5f7;
+  border-radius:8px;font-size:11px;font-weight:900;color:#64748b;
+}
+.directory-structure-avatar.compact{width:36px;height:36px}
+.directory-structure-avatar img{width:100%;height:100%;object-fit:cover}
+.directory-structure-avatar.initials{background:#fff4f5;color:#ff4655;border-color:#ffd4d8}
+.directory-structure-folder{
+  width:36px;height:36px;border-radius:8px;
+  background:linear-gradient(180deg,#fff 0%,#f1f5f9 100%);
+  border:1px solid #e2e8f0;
+}
+.directory-structure-dot{
+  width:10px;height:10px;margin:0 auto;border-radius:99px;background:#94a3b8;
+  box-shadow:0 0 0 4px #e2e8f0;
+}
+.directory-structure-copy{min-width:0;display:flex;flex-direction:column;grid-column:span 1}
+.directory-structure-copy strong{font-size:13px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.directory-structure-copy small{margin-top:2px;font-size:11px;color:#7a7f88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.directory-structure-copy em{margin-top:2px;font-style:normal;font-size:10px;color:#98a2b3}
+.directory-structure-count{
+  min-width:22px;height:22px;padding:0 6px;border-radius:99px;
+  display:grid;place-items:center;background:#eef0f3;color:#555b65;
+  font-size:10px;font-weight:900;
+}
+.directory-structure-pill{
+  padding:3px 8px;border-radius:4px;font-size:9px;font-weight:950;
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.directory-structure-pill.livre{background:#edf0f3;color:#515965}
+.directory-structure-pill.ocupada{background:#bbf7d0;color:#166534}
+.directory-structure-node.status-livre .directory-structure-row{background:linear-gradient(90deg,#f8fafc 0%,#fff 50%)}
+.directory-structure-node.status-ocupada .directory-structure-row{background:linear-gradient(90deg,#f0fdf4 0%,#fff 50%)}
+/* Slot row: badge + avatar + copy + pill */
+.directory-structure-node.depth-2 .directory-structure-row{
+  grid-template-columns:22px 34px 36px minmax(0,1fr) auto;
+  min-height:48px;
+}
+@media(max-width:640px){
+  .directory-structure-row{grid-template-columns:20px 34px minmax(0,1fr) auto;padding:8px}
+  .directory-structure-node.depth-2 .directory-structure-row{grid-template-columns:20px 30px minmax(0,1fr)}
+  .directory-structure-pill,.directory-structure-count{display:none}
+}
 .directory-hero{padding:14px 0 16px;margin-bottom:16px}.directory-hero h1{font-size:34px;margin:5px 0 7px}.directory-hero p{font-size:13px}
 .directory-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:10px}.directory-search{height:44px;flex:1}.directory-result-count{margin:0;white-space:nowrap}
 .directory-list{display:flex;flex-direction:column;border:1px solid #d9dde5;background:#fff}
