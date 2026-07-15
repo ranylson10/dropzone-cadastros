@@ -524,14 +524,14 @@ export function ProdutoraPanel(props: {
       <SystemModal
         open={Boolean(slotModal)}
         title={slotModal ? `Slot ${slotModal.letra}` : 'Gerenciar slot'}
-        description="Selecione uma das lines jÃ¡ inscritas neste campeonato para ocupar o slot."
+        description="Selecione uma das lines já inscritas neste campeonato para ocupar o slot."
         onClose={() => setSlotModal(null)}
       >
         {slotModal ? (
           <div className="slot-assignment-modal">
             <div className={slotModal.whatsapp_url ? 'slot-whatsapp-info ready' : 'slot-whatsapp-info'}>
               <MessageCircle size={18} />
-              <span>{slotModal.whatsapp_url ? 'Este grupo jÃ¡ possui link do WhatsApp configurado.' : 'Este grupo ainda nÃ£o possui link do WhatsApp.'}</span>
+              <span>{slotModal.whatsapp_url ? 'Este grupo já possui link do WhatsApp configurado.' : 'Este grupo ainda não possui link do WhatsApp.'}</span>
             </div>
             <div className="line-picker-list">
               <p className="eyebrow">Line inscrita no campeonato</p>
@@ -557,8 +557,11 @@ export function ProdutoraPanel(props: {
                       line_id: String(entry.data?.line_id || ''),
                     })}
                   >
-                    <img src={lineAvatar(entry) || '/favicon.ico'} alt="" />
-                    <span><strong>{rowTitle(entry)}</strong><small>{dataText(entry, 'team_name')}</small></span>
+                    <img className="line-picker-logo" src={lineAvatar(entry) || '/favicon.ico'} alt="" />
+                    <span className="line-picker-copy">
+                      <strong>{rowTitle(entry)}</strong>
+                      <small>{dataText(entry, 'team_name') || 'Sem organização'}</small>
+                    </span>
                   </button>
                 )
               })}

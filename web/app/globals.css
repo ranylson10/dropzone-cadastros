@@ -2900,6 +2900,66 @@ button.invite-slot-button.free.clickable b {
 .slot-whatsapp-info{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #e3e6eb;background:#f7f8fa;color:#667085;border-radius:8px}
 .slot-whatsapp-info.ready{border-color:#b7e3cb;background:#effaf4;color:#117a48}
 .slot-assignment-modal .empty{display:flex;align-items:center;gap:8px}
+.line-picker-list{display:grid;gap:8px}
+.line-picker-list>.eyebrow{margin:0 0 2px;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#ff4655}
+.line-picker-card{
+  width:100%;
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr);
+  align-items:center;
+  gap:12px;
+  padding:10px 12px;
+  border:1px solid #e2e5ea;
+  border-radius:8px;
+  background:#fff;
+  color:#17191d;
+  text-align:left;
+  cursor:pointer;
+  font:inherit;
+  transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+}
+.line-picker-card:hover{border-color:#ff4655;box-shadow:0 4px 14px rgba(255,70,85,.08)}
+.line-picker-card.selected{border-color:#ff4655;background:#fff7f8;box-shadow:inset 0 0 0 1px rgba(255,70,85,.18)}
+.line-picker-card>img,
+.line-picker-card .line-picker-logo{
+  width:44px;
+  height:44px;
+  max-width:44px;
+  max-height:44px;
+  object-fit:cover;
+  border-radius:8px;
+  border:1px solid #e6e8ec;
+  background:#f4f5f7;
+  flex-shrink:0;
+}
+.line-picker-card>span,
+.line-picker-card .line-picker-copy{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.line-picker-card strong{
+  font-size:13px;
+  font-weight:800;
+  color:#17191d;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.line-picker-card small{
+  font-size:11px;
+  color:#6f7681;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.slot-assignment-modal .modal-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+  padding-top:4px;
+}
 
 /* Compact phase/group creation controls */
 .structure-quick-create{position:relative;display:flex;justify-content:flex-end;min-height:42px;margin-bottom:8px}
