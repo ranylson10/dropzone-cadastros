@@ -53,7 +53,56 @@ async function loadLink(token: string) {
   if (link.ativo === false) throw new Error('Este link de equipes foi desativado pelo organizador.')
   if (link.expira_em && new Date(link.expira_em).getTime() < Date.now()) throw new Error('Link de equipes expirado.')
   if (!link.campeonato_id || !link.grupo_id) throw new Error('Este link de grupo esta incompleto no banco.')
+
+  // Expira quando não há mais slots livres no grupo
+  const closed = await maybeCloseGroupLinkIfFull(link)
+  if (closed) throw new Error('Este link de grupo expirou: todas as vagas do grupo foram preenchidas.')
+
   return link
+}
+
+/** Desativa link de grupo quando todos os slots estão ocupados. Retorna true se fechou agora. */
+async function maybeCloseGroupLinkIfFull(link: { id: string; campeonato_id: string; grupo_id: string; ativo?: boolean }) {
+  const { count: total, error: totalError } = await supabaseAdmin
+    .from('campeonato_slots')
+    .select('id', { count: 'exact', head: true })
+    .eq('campeonato_id', link.campeonato_id)
+    .eq('grupo_id', link.grupo_id)
+  if (totalError) throw totalError
+  if (!total || total < 1) return false
+
+  const { count: livres, error: freeError } = await supabaseAdmin
+    .from('campeonato_slots')
+    .select('id', { count: 'exact', head: true })
+    .eq('campeonato_id', link.campeonato_id)
+    .eq('grupo_id', link.grupo_id)
+    .is('line_id', null)
+    .is('equipe_id', null)
+  if (freeError) throw freeError
+
+  if (Number(livres || 0) > 0) return false
+
+  const { data: current } = await supabaseAdmin
+    .from('campeonato_links')
+    .select('metadata')
+    .eq('id', link.id)
+    .maybeSingle()
+  const prevMeta = current?.metadata && typeof current.metadata === 'object' ? current.metadata as Record<string, unknown> : {}
+
+  await supabaseAdmin
+    .from('campeonato_links')
+    .update({
+      ativo: false,
+      metadata: {
+        ...prevMeta,
+        closed_reason: 'grupo_cheio',
+        closed_at: new Date().toISOString(),
+      },
+    })
+    .eq('id', link.id)
+    .eq('ativo', true)
+
+  return true
 }
 
 /** Grade do grupo via VIEW (1 query). Fallback se a view nao existir. */
@@ -455,6 +504,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     })
     createdParticipacaoId = participacao.id
     occupiedSlotId = slot.id
+
+    // Se era o último slot livre, encerra o link de grupo
+    try {
+      await maybeCloseGroupLinkIfFull(link)
+    } catch {
+      // inscrição já concluída; fechamento do link é best-effort
+    }
 
     const letra = String(slot.slot_letra || '').trim().toUpperCase() || String(slot.slot_numero)
     return NextResponse.json({

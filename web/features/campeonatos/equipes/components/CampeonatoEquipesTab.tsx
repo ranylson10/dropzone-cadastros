@@ -323,12 +323,15 @@ Acesse: ${link}`
         </div>
       </div>
 
-      {!data.permission.canManage ? (
+      {!data.permission.canManage && !data.permission.canGenerateToken && !data.permission.canRemove ? (
         <div className="permission-note compact-note">
           <Shield size={16} />
           <div>
             <strong>Modo de visualização</strong>
-            <p>Somente o dono e managers autorizados podem alterar as vagas.</p>
+            <p>
+              Somente o administrador (ou manager/vendedor autorizado) pode adicionar, remover ou gerar convites.
+              Equipes entram pelo link único ou pelo link do grupo.
+            </p>
           </div>
         </div>
       ) : null}
@@ -433,11 +436,13 @@ Acesse: ${link}`
                     </div>
                   ) : null}
 
-                  {data.permission.canManage ? (
+                  {(data.permission.canManage || data.permission.canGenerateToken || data.permission.canRemove) ? (
                     <div className="vaga-row-actions">
                       {vaga.status === 'livre' ? (
                         <>
-                          <button type="button" onClick={() => abrirModal(vaga, 'adicionar')}><Search size={14} /> Adicionar line</button>
+                          {data.permission.canManage ? (
+                            <button type="button" onClick={() => abrirModal(vaga, 'adicionar')}><Search size={14} /> Adicionar line</button>
+                          ) : null}
                           {data.permission.canGenerateToken ? (
                             <button type="button" onClick={() => abrirModal(vaga, 'convite')}><Link2 size={14} /> Criar convite</button>
                           ) : null}
@@ -452,7 +457,7 @@ Acesse: ${link}`
                         </>
                       ) : null}
 
-                      {vaga.status === 'ocupada' ? (
+                      {vaga.status === 'ocupada' && (data.permission.canRemove || data.permission.canManage) ? (
                         <button type="button" className="danger" onClick={() => void remover(vaga)}><Trash2 size={14} /> Remover line e liberar slot</button>
                       ) : null}
                     </div>

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { getCampeonatoPermission, type CampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
+import {
+  getCampeonatoPermission,
+  permissionPublicPayload,
+  type CampeonatoPermission,
+} from '@backend/campeonatos/campeonato-permissions'
 import { mapParticipacaoDisplay } from '@backend/campeonatos/line-display'
 import { getCampeonatoCapacidade } from '@backend/campeonatos/capacidade'
 import {
@@ -11,8 +15,10 @@ import {
 } from '@backend/campeonatos/participacao-sync'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
-function hasSellerPermission(seller: any, key: string) {
-  return seller?.permissoes?.[key] !== false
+function hasSellerPermission(seller: any, key: string, optIn = false) {
+  const value = seller?.permissoes?.[key]
+  if (optIn) return value === true
+  return value !== false
 }
 
 /** Marca convites de slot expirados e libera status do slot (não bloqueia listagem). */
@@ -52,8 +58,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     let permission: CampeonatoPermission = {
       canView: true,
       canManage: false,
+      canRemove: false,
       canGenerateToken: false,
       canOrganizeGroups: false,
+      canManageGames: false,
       canScore: false,
       role: 'none',
       produtoraId: null,
@@ -172,14 +180,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
       return NextResponse.json({
         campeonato,
-        permission: {
-          canView: permission.canView,
-          canManage: permission.canManage,
-          canGenerateToken: permission.canGenerateToken,
-          canOrganizeGroups: permission.canOrganizeGroups,
-          canScore: permission.canScore,
-          role: permission.role,
-        },
+        permission: permissionPublicPayload(permission),
         capacidade,
         vagas,
         modelo: {
@@ -342,14 +343,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
     return NextResponse.json({
       campeonato,
-      permission: {
-        canView: permission.canView,
-        canManage: permission.canManage,
-        canGenerateToken: permission.canGenerateToken,
-        canOrganizeGroups: permission.canOrganizeGroups,
-        canScore: permission.canScore,
-        role: permission.role,
-      },
+      permission: permissionPublicPayload(permission),
       capacidade,
       vagas: [...slotsWithParticipations, ...orphanParticipations],
       modelo: {
@@ -370,6 +364,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const { id } = await context.params
     const user = await getBearerUser(req)
     const permission = await getCampeonatoPermission(user.id, id)
+    if (!permission.canManage) {
+      throw new Error('Você não tem permissão para adicionar equipes. Use o link de convite gerado pelo admin/vendedor.')
+    }
     let sellerPermission: any = null
     if (permission.role === 'seller') {
       const { data: seller, error: sellerErr } = await supabaseAdmin
@@ -382,8 +379,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       if (sellerErr) throw sellerErr
       sellerPermission = seller
       if (!sellerPermission) throw new Error('Permissão de vendedor não encontrada para este campeonato.')
-      if (!hasSellerPermission(sellerPermission, 'adicionar_equipes') && !permission.sellerPermissions?.adicionar_equipes) {
-        throw new Error('Este vendedor não pode adicionar equipes.')
+      if (!hasSellerPermission(sellerPermission, 'adicionar_equipes', true)) {
+        throw new Error('Este vendedor não pode adicionar equipes diretamente. Gere um link de convite.')
       }
       const limiteVagas = Number(sellerPermission.limite_vagas || 0)
       if (limiteVagas > 0) {
@@ -399,8 +396,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           throw new Error(`Este vendedor atingiu o limite de ${limiteVagas} vaga(s) (${count}/${limiteVagas}).`)
         }
       }
-    } else if (!permission.canManage) {
-      throw new Error('Você não tem permissão para gerenciar este campeonato.')
     }
     const body = await req.json()
     // UI pode enviar slot_id (canônico) ou vaga_id como alias do id do slot.
@@ -463,8 +458,14 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     const participacaoId = req.nextUrl.searchParams.get('participacao_id') || ''
     const { data: participacao } = await supabaseAdmin.from('campeonato_equipes').select('id, grupo_id, slot_numero, line_id, criado_por, origem_entrada').eq('id', participacaoId).eq('campeonato_id', id).single()
     if (!participacao) throw new Error('Participação não encontrada.')
-    if (!permission.canManage) {
-      if (permission.role !== 'seller') throw new Error('Você não tem permissão para gerenciar este campeonato.')
+    if (permission.role === 'owner' || permission.role === 'manager') {
+      if (!permission.canRemove && !permission.canManage) {
+        throw new Error('Você não tem permissão para remover equipes deste campeonato.')
+      }
+    } else if (permission.role === 'seller') {
+      if (!permission.canRemove) {
+        throw new Error('Este vendedor não pode remover equipes. Solicite ao administrador.')
+      }
       const { data: seller, error: sellerError } = await supabaseAdmin
         .from('campeonato_vendedores')
         .select('id,permissoes')
@@ -473,12 +474,15 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
         .eq('status', 'ativo')
         .maybeSingle()
       if (sellerError) throw sellerError
-      if (!seller || !hasSellerPermission(seller, 'remover_proprias_equipes')) throw new Error('Este vendedor não pode remover equipes.')
-      // Em producao o check constraint ainda nao aceita "vendedor"; usamos "convite" para seller.
-      const origemSeller = ['vendedor', 'convite', 'inscricao']
+      if (!seller || !hasSellerPermission(seller, 'remover_proprias_equipes', true)) {
+        throw new Error('Este vendedor não pode remover equipes.')
+      }
+      const origemSeller = ['vendedor', 'convite', 'inscricao', 'link']
       if (participacao.criado_por !== user.id || !origemSeller.includes(String(participacao.origem_entrada || ''))) {
         throw new Error('O vendedor só pode remover equipes que ele adicionou.')
       }
+    } else {
+      throw new Error('Você não tem permissão para remover equipes deste campeonato.')
     }
     await softRemoveParticipacao(participacaoId)
     return NextResponse.json({ ok: true })

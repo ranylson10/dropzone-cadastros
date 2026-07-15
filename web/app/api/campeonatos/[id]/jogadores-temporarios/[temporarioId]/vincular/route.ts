@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import { requireCampeonatoScore } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string; temporarioId: string }> }) {
   try {
     const { id, temporarioId } = await context.params
     const user = await getBearerUser(req)
-    const permission = await requireCampeonatoManage(user.id, id)
+    const permission = await requireCampeonatoScore(user.id, id)
     const body = await req.json()
     if (!body?.jogador_id) throw new Error('Informe o jogador oficial.')
     const { data: temp } = await supabaseAdmin.from('jogadores_temporarios').select('produtora_id').eq('id', temporarioId).maybeSingle()

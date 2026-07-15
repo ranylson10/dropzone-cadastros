@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import {
+  requireCampeonatoGamesWrite,
+  requireCampeonatoStructure,
+} from '@backend/campeonatos/campeonato-permissions'
 import { atualizarJogo, excluirJogo, listarQuedasJogo } from '@backend/campeonatos/jogos/jogos.service'
 
 export async function GET(
@@ -10,7 +13,7 @@ export async function GET(
   try {
     const { id, jogoId } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoStructure(user.id, id)
     const quedas = await listarQuedasJogo(id, jogoId)
     return NextResponse.json({ quedas })
   } catch (error) {
@@ -28,7 +31,7 @@ export async function PATCH(
   try {
     const { id, jogoId } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoGamesWrite(user.id, id)
     const jogo = await atualizarJogo(id, jogoId, await req.json())
     return NextResponse.json({ ok: true, jogo })
   } catch (error) {
@@ -46,7 +49,7 @@ export async function DELETE(
   try {
     const { id, jogoId } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoGamesWrite(user.id, id)
     await excluirJogo(id, jogoId, req.nextUrl.searchParams.get('force') === '1')
     return NextResponse.json({ ok: true })
   } catch (error) {

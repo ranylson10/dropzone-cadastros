@@ -24,6 +24,7 @@ function mapsArray(value: unknown) {
 }
 
 export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
+  const canManageGames = props.canManageGames !== false
   const [showForm, setShowForm] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -93,11 +94,19 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
             <option value="">Todas as fases</option>
             {props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}</option>)}
           </select>
-          <button className="button" onClick={() => { reset(false); setShowForm((current) => !current) }}><Plus size={16} /> Novo jogo</button>
+          {canManageGames ? (
+            <button className="button" onClick={() => { reset(false); setShowForm((current) => !current) }}><Plus size={16} /> Novo jogo</button>
+          ) : null}
         </div>
       </div>
 
-      {showForm ? (
+      {!canManageGames ? (
+        <p className="empty compact" style={{ marginBottom: 12 }}>
+          Visualização dos jogos. Somente o administrador ou manager autorizado pode criar/editar/excluir.
+        </p>
+      ) : null}
+
+      {showForm && canManageGames ? (
         <div className="game-form-panel">
           <div className="game-form-heading"><div><p className="eyebrow">{editingId ? 'Editar jogo' : 'Novo jogo'}</p><h4>{editingId ? props.value.nome : 'Configuração do jogo'}</h4></div><button className="button secondary" onClick={() => { setShowForm(false); reset(false) }}>Fechar</button></div>
           <div className="mini-grid three">
@@ -163,7 +172,15 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
             </button>
             {open ? <div className="game-card-details">
               <div className="game-detail-grid"><div><span>Grupos</span><strong>{groupNames.join(' × ') || 'Não definidos'}</strong></div><div><span>Quedas</span><strong>{game.data?.numero_partidas || 1}</strong></div><div><span>Mapas</span><strong>{mapsArray(game.data?.mapas).join(', ') || 'Não definidos'}</strong></div><div><span>Avançam</span><strong>{game.data?.define_campeao ? 'Define campeão' : game.data?.classificam_quantidade || 'Regra da fase'}</strong></div></div>
-              <div className="game-card-actions"><button className="button secondary" onClick={() => startEdit(game)}><Pencil size={15} /> Editar</button><button className="button secondary danger" onClick={() => props.deleteGame(game.id)}><Trash2 size={15} /> Excluir</button><button className="button secondary" disabled><Trophy size={15} /> Súmula</button></div>
+              <div className="game-card-actions">
+                {canManageGames ? (
+                  <>
+                    <button className="button secondary" onClick={() => startEdit(game)}><Pencil size={15} /> Editar</button>
+                    <button className="button secondary danger" onClick={() => props.deleteGame(game.id)}><Trash2 size={15} /> Excluir</button>
+                  </>
+                ) : null}
+                <button className="button secondary" disabled><Trophy size={15} /> Súmula</button>
+              </div>
             </div> : null}
           </article>
         })}

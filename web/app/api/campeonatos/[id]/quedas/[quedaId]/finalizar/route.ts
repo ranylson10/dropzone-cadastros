@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import { requireCampeonatoScore } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string; quedaId: string }> }) {
   try {
     const { id, quedaId } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoScore(user.id, id)
     const { count, error: countError } = await supabaseAdmin.from('campeonato_resultados_equipes').select('id', { count: 'exact', head: true }).eq('campeonato_id', id).eq('partida_id', quedaId)
     if (countError) throw countError
     if (!count) throw new Error('Não é possível finalizar uma queda sem resultados de equipes.')

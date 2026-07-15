@@ -156,7 +156,10 @@ export function ManagerVendasView(props: {
             const championship = item.campeonatos || {}
             const producer = item.produtoras || {}
             const active = item.status === 'ativo'
-            const canFill = active && item.permissoes?.adicionar_equipes !== false
+            const canFill = active && (
+              item.permissoes?.gerar_convites_equipe !== false
+              || item.permissoes?.adicionar_equipes === true
+            )
             return (
               <article key={item.id} className={`manager-vendas-row ${active ? '' : 'is-inactive'}`}>
                 <div className="manager-vendas-row-logo">

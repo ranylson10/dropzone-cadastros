@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import { requireCampeonatoTeamsWrite } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoTeamsWrite(user.id, id)
     const q = String(req.nextUrl.searchParams.get('q') || '').trim()
     if (q.length < 2) return NextResponse.json({ equipes: [] })
 

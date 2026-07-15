@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import { requireCampeonatoGamesWrite, requireCampeonatoScore } from '@backend/campeonatos/campeonato-permissions'
 import { aplicarBonusRanking } from '@backend/campeonatos/jogos/jogos.service'
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string; faseId: string }> }) {
   try {
     const { id, faseId } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoGamesWrite(user.id, id)
     const resultado = await aplicarBonusRanking(id, faseId, user.id)
     return NextResponse.json({ ok: true, ...resultado })
   } catch (error) {

@@ -92,9 +92,9 @@ export function ProdutoraPanel(props: {
   const [sellerLimite, setSellerLimite] = useState('')
   const [sellerBusy, setSellerBusy] = useState(false)
   const [sellerPerms, setSellerPerms] = useState({
-    adicionar_equipes: true,
+    adicionar_equipes: false,
     gerar_convites_equipe: true,
-    remover_proprias_equipes: true,
+    remover_proprias_equipes: false,
     ver_estrutura: true,
     organizar_grupos: false,
     pontuar_tabela: false,
@@ -200,9 +200,9 @@ export function ProdutoraPanel(props: {
           : '',
     )
     setSellerPerms({
-      adicionar_equipes: perms.adicionar_equipes !== false,
+      adicionar_equipes: perms.adicionar_equipes === true,
       gerar_convites_equipe: perms.gerar_convites_equipe !== false,
-      remover_proprias_equipes: perms.remover_proprias_equipes !== false,
+      remover_proprias_equipes: perms.remover_proprias_equipes === true,
       ver_estrutura: perms.ver_estrutura !== false,
       organizar_grupos: perms.organizar_grupos === true,
       pontuar_tabela: perms.pontuar_tabela === true,
@@ -1177,12 +1177,12 @@ export function ProdutoraPanel(props: {
                           Funções liberadas para este manager no evento (ele opera no painel de manager → Campeonatos).
                         </p>
                         {([
-                          ['adicionar_equipes', 'Adicionar equipes/lines nas vagas'],
-                          ['gerar_convites_equipe', 'Gerar convites de slot/grupo'],
+                          ['gerar_convites_equipe', 'Gerar link único de convite (expira após uso)'],
+                          ['adicionar_equipes', 'Adicionar equipes/lines direto (sem link) — só se necessário'],
                           ['remover_proprias_equipes', 'Remover equipes que ele adicionou'],
-                          ['ver_estrutura', 'Ver fases, grupos e jogos'],
-                          ['organizar_grupos', 'Organizar grupos (moderação avançada)'],
-                          ['pontuar_tabela', 'Pontuar tabela / sumula'],
+                          ['ver_estrutura', 'Ver fases, grupos e jogos (somente leitura)'],
+                          ['organizar_grupos', 'Editar grupos/estrutura (avançado)'],
+                          ['pontuar_tabela', 'Pontuar tabela / súmula'],
                         ] as const).map(([key, label]) => (
                           <label key={key} className="seller-perm-item">
                             <input

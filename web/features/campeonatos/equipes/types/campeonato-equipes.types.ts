@@ -80,9 +80,13 @@ export type CampeonatoEquipesPayload = {
   capacidade?: CampeonatoCapacidade | null
   permission: {
     canView: boolean
+    /** Adicionar line diretamente no slot */
     canManage: boolean
+    /** Remover line do campeonato */
+    canRemove?: boolean
     canGenerateToken: boolean
     canOrganizeGroups?: boolean
+    canManageGames?: boolean
     canScore?: boolean
     role: string
   }

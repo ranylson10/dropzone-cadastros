@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import {
+  requireCampeonatoGamesWrite,
+  requireCampeonatoStructure,
+} from '@backend/campeonatos/campeonato-permissions'
 import { criarJogo, listarJogos } from '@backend/campeonatos/jogos/jogos.service'
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoStructure(user.id, id)
     const jogos = await listarJogos(id, {
       faseId: req.nextUrl.searchParams.get('fase_id'),
       rodadaId: req.nextUrl.searchParams.get('rodada_id'),
@@ -22,7 +25,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoGamesWrite(user.id, id)
     const jogo = await criarJogo(id, await req.json())
     return NextResponse.json({ ok: true, jogo }, { status: 201 })
   } catch (error) {

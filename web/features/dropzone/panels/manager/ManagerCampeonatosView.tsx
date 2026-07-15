@@ -76,8 +76,9 @@ function permOn(perms: Record<string, boolean> | undefined, key: string, fallbac
 
 function permissionLabels(perms: Record<string, boolean> | undefined) {
   const labels: string[] = []
-  if (permOn(perms, 'adicionar_equipes', true)) labels.push('Adicionar equipes')
   if (permOn(perms, 'gerar_convites_equipe', true)) labels.push('Convites de vaga')
+  if (permOn(perms, 'adicionar_equipes', false)) labels.push('Adicionar equipes')
+  if (permOn(perms, 'remover_proprias_equipes', false)) labels.push('Remover próprias')
   if (permOn(perms, 'ver_estrutura', true)) labels.push('Ver estrutura')
   if (permOn(perms, 'organizar_grupos', false)) labels.push('Organizar grupos')
   if (permOn(perms, 'pontuar_tabela', false)) labels.push('Pontuar tabela')
@@ -492,14 +493,16 @@ export function ManagerCampeonatosView(props: {
               <h3>O que você pode fazer neste campeonato</h3>
               <ul>
                 <li>
-                  <strong>Adicionar equipes/lines:</strong>{' '}
-                  {permOn(perms, 'adicionar_equipes', true)
-                    ? `Sim — você já preencheu ${used}${limite > 0 ? ` de ${limite}` : ''} vaga(s).`
-                    : 'Não liberado pelo admin.'}
+                  <strong>Gerar convites de vaga:</strong>{' '}
+                  {permOn(perms, 'gerar_convites_equipe', true)
+                    ? `Sim — link único (expira após uso). Uso: ${used}${limite > 0 ? `/${limite}` : ''} vaga(s).`
+                    : 'Não liberado.'}
                 </li>
                 <li>
-                  <strong>Gerar convites de vaga:</strong>{' '}
-                  {permOn(perms, 'gerar_convites_equipe', true) ? 'Sim — envie link de slot/grupo.' : 'Não liberado.'}
+                  <strong>Adicionar equipes/lines direto:</strong>{' '}
+                  {permOn(perms, 'adicionar_equipes', false)
+                    ? 'Sim — liberado excepcionalmente pelo admin.'
+                    : 'Não — entrada padrão é por link de convite.'}
                 </li>
                 <li>
                   <strong>Ver fases/grupos/jogos:</strong>{' '}

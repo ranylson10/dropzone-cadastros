@@ -31,4 +31,6 @@ export type CampeonatoJogosTabProps = {
   updateGame: (id: string, data: Record<string, unknown>) => Promise<void>
   deleteGame: (id: string) => Promise<void>
   loading: boolean
+  /** Criar/editar/excluir jogos — adm ou manager autorizado */
+  canManageGames?: boolean
 }

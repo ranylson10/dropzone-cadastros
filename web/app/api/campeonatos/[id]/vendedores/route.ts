@@ -110,9 +110,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         manager_limite_vagas: limiteVagas,
         manager_permissoes: {
           vendedor_vagas: true,
-          adicionar_equipes: true,
-          remover_proprias_equipes: true,
+          adicionar_equipes: false,
+          remover_proprias_equipes: false,
           gerar_convites_equipe: true,
+          ver_estrutura: true,
+          organizar_grupos: false,
+          pontuar_tabela: false,
         },
       })
       .select('*')

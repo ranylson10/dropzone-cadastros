@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import { requireCampeonatoGamesWrite, requireCampeonatoScore } from '@backend/campeonatos/campeonato-permissions'
 import { atualizarMapaQueda } from '@backend/campeonatos/jogos/jogos.service'
 
 export async function PATCH(
@@ -10,7 +10,7 @@ export async function PATCH(
   try {
     const { id, jogoId, quedaId } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoGamesWrite(user.id, id)
     const body = await req.json()
     const queda = await atualizarMapaQueda(id, jogoId, quedaId, body?.mapa_codigo)
     return NextResponse.json({ ok: true, queda })

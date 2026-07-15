@@ -190,9 +190,19 @@ async function requireChampionshipOwner(championshipId: string | null | undefine
   }
   if (error) throw error
   if (!data) throw new Error('Campeonato nao encontrado.')
-  if (data.criado_por !== userId) throw new Error('Voce nao pode gerenciar esse campeonato.')
   if (produtoraId && data.produtora_id !== produtoraId) throw new Error('Este campeonato pertence a outra produtora.')
-  return data
+
+  // Dono = criado_por OU auth da produtora dona
+  if (data.criado_por === userId) return data
+  if (data.produtora_id) {
+    const { data: produtora } = await supabaseAdmin
+      .from('produtoras')
+      .select('id, auth_user_id')
+      .eq('id', data.produtora_id)
+      .maybeSingle()
+    if (produtora?.auth_user_id === userId) return data
+  }
+  throw new Error('Somente o administrador do campeonato pode executar esta ação.')
 }
 
 function normalizeChampionshipType(value: unknown): ChampionshipType {
