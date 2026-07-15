@@ -4923,3 +4923,138 @@ button.invite-slot-button.free.clickable b {
   }
   .group-folder .championship-vaga-row .vaga-row-identity small{display:none}
 }
+
+/* ===== Campeonato público mobile: nav de botões no banner ===== */
+.champ-public-banner .directory-profile-banner-inner{padding:10px 12px 12px}
+.champ-public-hero{margin-bottom:10px}
+.champ-public-nav{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+  margin-top:10px;
+}
+.champ-public-nav-btn{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  min-height:58px;
+  padding:8px 4px 6px;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:10px;
+  background:rgba(0,0,0,.18);
+  color:#fff;
+  font:inherit;
+  cursor:pointer;
+  transition:background .15s ease, border-color .15s ease, transform .12s ease;
+  backdrop-filter:blur(6px);
+}
+.champ-public-nav-btn:hover{
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.35);
+}
+.champ-public-nav-btn.active{
+  background:#fff;
+  color:#111827;
+  border-color:#fff;
+  box-shadow:0 6px 16px rgba(0,0,0,.18);
+}
+.champ-public-nav-btn svg{opacity:.95}
+.champ-public-nav-label{
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  line-height:1.1;
+}
+.champ-public-nav-count{
+  min-width:18px;
+  height:16px;
+  padding:0 5px;
+  border-radius:99px;
+  display:inline-grid;
+  place-items:center;
+  font-size:9px;
+  font-weight:900;
+  background:rgba(255,255,255,.16);
+  color:inherit;
+}
+.champ-public-nav-btn.active .champ-public-nav-count{
+  background:#f1f3f5;
+  color:#555b65;
+}
+.champ-public-panel{
+  margin-top:0;
+}
+.champ-public-panel-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+  color:#17191d;
+}
+.champ-public-panel-head svg{color:#ff4655;flex-shrink:0}
+.champ-public-panel-head strong{
+  display:block;
+  font-size:14px;
+  text-transform:uppercase;
+  letter-spacing:.02em;
+}
+.champ-public-panel-head small{
+  display:block;
+  margin-top:1px;
+  font-size:11px;
+  color:#6f7681;
+}
+.champ-public-section{
+  background:#fff;
+  border:1px solid #e4e7ec;
+  border-radius:8px;
+  padding:12px;
+  margin-bottom:10px;
+}
+.champ-public-info-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+.champ-public-info-card{
+  padding:12px 14px;
+  border:1px solid #e7eaf0;
+  border-radius:8px;
+  background:#fafbfc;
+  display:grid;
+  gap:4px;
+}
+.champ-public-info-card small{
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:#8a8f98;
+}
+.champ-public-info-card strong{
+  font-size:15px;
+  color:#17191d;
+}
+.champ-public-info-actions{margin-top:12px}
+.champ-public-desktop-tabs{display:none}
+.champ-public-banner .directory-profile-details{display:none}
+
+/* Desktop: botões em linha + abas clássicas opcionais escondidas (só nav de cima) */
+@media(min-width:900px){
+  .champ-public-nav{
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:8px;
+  }
+  .champ-public-nav-btn{
+    flex-direction:row;
+    min-height:44px;
+    padding:8px 12px;
+    gap:8px;
+  }
+  .champ-public-nav-label{font-size:11px}
+  .champ-public-info-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .champ-public-desktop-tabs{display:none}
+}

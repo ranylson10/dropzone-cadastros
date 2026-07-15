@@ -33,7 +33,7 @@ function SlotVagaRow({ item }: { item: DirectorySectionItem }) {
   )
 }
 
-function StructureTree({ items, depth = 0 }: { items: DirectorySectionItem[]; depth?: number }) {
+export function StructureTree({ items, depth = 0 }: { items: DirectorySectionItem[]; depth?: number }) {
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
     if (depth === 0) {
@@ -124,6 +124,41 @@ function StructureTree({ items, depth = 0 }: { items: DirectorySectionItem[]; de
   )
 }
 
+export function renderSectionItems(items: DirectorySectionItem[]) {
+  return (
+    <div className="directory-related-list">
+      {items.map((item) => {
+        const body = (
+          <>
+            <span>
+              {item.image ? (
+                <img src={item.image} alt="" />
+              ) : (
+                item.title.slice(0, 2).toUpperCase()
+              )}
+            </span>
+            <div>
+              <strong>{item.title}</strong>
+              {item.subtitle ? <small>{item.subtitle}</small> : null}
+              {item.meta?.length ? (
+                <em>{item.meta.map((meta) => `${meta.label}: ${meta.value}`).join(' · ')}</em>
+              ) : null}
+            </div>
+            {item.href ? <ExternalLink size={15} /> : null}
+          </>
+        )
+        return item.href ? (
+          <a key={item.id} href={item.href}>
+            {body}
+          </a>
+        ) : (
+          <article key={item.id}>{body}</article>
+        )
+      })}
+    </div>
+  )
+}
+
 export function DirectoryProfileTabs({ sections }: { sections: DirectoryProfile['sections'] }) {
   const [active, setActive] = useState(sections[0]?.title || '')
   if (!sections.length) return null
@@ -148,36 +183,7 @@ export function DirectoryProfileTabs({ sections }: { sections: DirectoryProfile[
         {section.layout === 'structure' ? (
           <StructureTree items={section.items} />
         ) : section.items.length ? (
-          <div className="directory-related-list">
-            {section.items.map((item) => {
-              const body = (
-                <>
-                  <span>
-                    {item.image ? (
-                      <img src={item.image} alt="" />
-                    ) : (
-                      item.title.slice(0, 2).toUpperCase()
-                    )}
-                  </span>
-                  <div>
-                    <strong>{item.title}</strong>
-                    {item.subtitle ? <small>{item.subtitle}</small> : null}
-                    {item.meta?.length ? (
-                      <em>{item.meta.map((meta) => `${meta.label}: ${meta.value}`).join(' · ')}</em>
-                    ) : null}
-                  </div>
-                  {item.href ? <ExternalLink size={15} /> : null}
-                </>
-              )
-              return item.href ? (
-                <a key={item.id} href={item.href}>
-                  {body}
-                </a>
-              ) : (
-                <article key={item.id}>{body}</article>
-              )
-            })}
-          </div>
+          renderSectionItems(section.items)
         ) : (
           <div className="directory-empty compact">Nenhuma informação cadastrada nesta seção.</div>
         )}

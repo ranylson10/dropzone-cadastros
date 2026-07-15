@@ -5,6 +5,7 @@ import { ReportButton } from '@/features/reports/ReportButton'
 import { DIRECTORY_CONFIG } from '../config'
 import { getDirectoryProfile } from '../server'
 import type { DirectoryKind } from '../types'
+import { ChampionshipPublicView } from './ChampionshipPublicView'
 import { DirectoryProfileTabs } from './DirectoryProfileTabs'
 
 export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; id: string }) {
@@ -18,6 +19,19 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
     managers: 'manager',
     produtoras: 'produtora',
   }[kind]
+
+  // Campeonato público: navegação por botões no topo (mobile-first)
+  if (kind === 'campeonatos') {
+    return (
+      <AppShell
+        activeLabel={config.title}
+        loadSession
+        mainClassName={`directory-profile-page compact-profile directory-theme-${kind} page page-authenticated`}
+      >
+        <ChampionshipPublicView profile={profile} kindLabel={kind} />
+      </AppShell>
+    )
+  }
 
   return (
     <AppShell
@@ -43,19 +57,6 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
                   <p className="directory-profile-desc">{profile.description}</p>
                 ) : null}
                 <div className="directory-profile-toolbar">
-                  {profile.actions?.length ? (
-                    <div className="directory-profile-actions">
-                      {profile.actions.map((action) => (
-                        <a
-                          key={action.href}
-                          className={`directory-profile-action ${action.variant || 'secondary'}`}
-                          href={action.href}
-                        >
-                          {action.label}
-                        </a>
-                      ))}
-                    </div>
-                  ) : null}
                   <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
                 </div>
               </div>

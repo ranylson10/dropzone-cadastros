@@ -147,11 +147,8 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     const champGames = games.filter((row: any) => row.campeonato_id === id)
     const champParts = participations.filter((row: any) => row.campeonato_id === id && String(row.status || 'ativo') === 'ativo')
 
-    actions.push(
-      { label: 'Ver tabela', href: '#tabela', variant: 'primary' },
-      { label: 'Grupos', href: '#fases-e-grupos' },
-      { label: 'Jogos', href: '#jogos' },
-    )
+    // Ações antigas removidas do banner — navegação via ChampionshipPublicView
+    actions.length = 0
     sections.push({
       title: 'Tabela',
       layout: 'stats',
