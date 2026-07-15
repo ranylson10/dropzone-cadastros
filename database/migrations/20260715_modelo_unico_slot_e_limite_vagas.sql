@@ -109,35 +109,36 @@ begin
   end if;
 
   -- 2a) participações com vaga_id: tenta achar slot pelo espelho ocupado / numero
+  --     (Postgres não permite referenciar a tabela alvo "p" dentro do JOIN do FROM)
   if exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'campeonato_equipes' and column_name = 'vaga_id'
   ) then
-    -- via campeonato_equipe_id na vaga
+    -- via line + equipe espelhados no slot
     update public.campeonato_equipes p
        set slot_id = s.id
-      from public.campeonato_vagas v
-      join public.campeonato_slots s
-        on s.campeonato_id = v.campeonato_id
-       and s.line_id is not distinct from p.line_id
-       and s.equipe_id is not distinct from p.equipe_id
+      from public.campeonato_vagas v,
+           public.campeonato_slots s
      where p.slot_id is null
        and p.vaga_id = v.id
        and p.status = 'ativo'
-       and p.line_id is not null;
+       and p.line_id is not null
+       and s.campeonato_id = v.campeonato_id
+       and s.line_id is not distinct from p.line_id
+       and s.equipe_id is not distinct from p.equipe_id;
 
     -- via numero_vaga = slot_numero no mesmo grupo da participação
     update public.campeonato_equipes p
        set slot_id = s.id
-      from public.campeonato_vagas v
-      join public.campeonato_slots s
-        on s.campeonato_id = v.campeonato_id
-       and s.grupo_id = p.grupo_id
-       and s.slot_numero = v.numero_vaga
+      from public.campeonato_vagas v,
+           public.campeonato_slots s
      where p.slot_id is null
        and p.vaga_id = v.id
        and p.grupo_id is not null
-       and v.numero_vaga is not null;
+       and v.numero_vaga is not null
+       and s.campeonato_id = v.campeonato_id
+       and s.grupo_id = p.grupo_id
+       and s.slot_numero = v.numero_vaga;
   end if;
 
   -- 2b) tokens.vaga_id → tokens.slot_id
@@ -157,30 +158,30 @@ begin
     -- se vaga tem grupo implícito via participação e numero
     update public.tokens t
        set slot_id = s.id
-      from public.campeonato_vagas v
-      join public.campeonato_equipes p
-        on p.vaga_id = v.id
-       and p.grupo_id is not null
-      join public.campeonato_slots s
-        on s.campeonato_id = v.campeonato_id
-       and s.grupo_id = p.grupo_id
-       and s.slot_numero = v.numero_vaga
+      from public.campeonato_vagas v,
+           public.campeonato_equipes p,
+           public.campeonato_slots s
      where t.slot_id is null
        and t.vaga_id = v.id
-       and v.numero_vaga is not null;
+       and p.vaga_id = v.id
+       and p.grupo_id is not null
+       and v.numero_vaga is not null
+       and s.campeonato_id = v.campeonato_id
+       and s.grupo_id = p.grupo_id
+       and s.slot_numero = v.numero_vaga;
 
     -- tokens com grupo_id + vaga.numero_vaga
     update public.tokens t
        set slot_id = s.id
-      from public.campeonato_vagas v
-      join public.campeonato_slots s
-        on s.campeonato_id = coalesce(t.campeonato_id, v.campeonato_id)
-       and s.grupo_id = t.grupo_id
-       and s.slot_numero = v.numero_vaga
+      from public.campeonato_vagas v,
+           public.campeonato_slots s
      where t.slot_id is null
        and t.vaga_id = v.id
        and t.grupo_id is not null
-       and v.numero_vaga is not null;
+       and v.numero_vaga is not null
+       and s.campeonato_id = coalesce(t.campeonato_id, v.campeonato_id)
+       and s.grupo_id = t.grupo_id
+       and s.slot_numero = v.numero_vaga;
   end if;
 
   -- 2c) espelha ocupação das vagas legadas nos slots (quando ainda não espelhado)
@@ -533,7 +534,14 @@ left join public.campeonato_grupos g
 left join public.campeonato_fases f
   on f.id = coalesce(s.fase_id, g.fase_id)
 left join lateral (
-  select tk.*
+  -- colunas explícitas (não tk.*) para não depender de tokens.vaga_id
+  select
+    tk.id,
+    tk.token,
+    tk.expira_em,
+    tk.nome_equipe_reservada,
+    tk.nome_line_reservada,
+    tk.created_at
   from public.tokens tk
   where tk.slot_id = s.id
     and tk.tipo = 'convite_equipe_campeonato'
@@ -551,7 +559,11 @@ comment on view public.vw_campeonato_slots_lines is
 -- 7) Remoção do legado (colunas e tabela)
 -- ---------------------------------------------------------------------------
 
--- 7a) FKs / índices em vaga_id
+-- 7a) Drop views que possam ainda depender de vaga_id (recriadas abaixo / já no passo 6)
+drop view if exists public.vw_campeonato_slots_lines cascade;
+drop view if exists public.vw_campeonato_capacidade cascade;
+
+-- 7b) FKs / índices em vaga_id
 do $$
 declare
   r record;
@@ -573,22 +585,20 @@ begin
   end if;
 end $$;
 
--- 7b) coluna vaga_id em campeonato_equipes
+-- 7c) coluna vaga_id em campeonato_equipes
 do $$
 begin
   if exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'campeonato_equipes' and column_name = 'vaga_id'
   ) then
-    -- participações ativas sem slot e com vaga: não dropa silenciosamente se houver muitas
-    -- (só dropa a coluna; dados órfãos já foram notificados no passo 3)
     drop index if exists public.campeonato_equipes_vaga_id_idx;
     drop index if exists public.campeonato_equipes_vaga_idx;
-    alter table public.campeonato_equipes drop column vaga_id;
+    alter table public.campeonato_equipes drop column if exists vaga_id;
   end if;
 end $$;
 
--- 7c) coluna vaga_id em tokens
+-- 7d) coluna vaga_id em tokens
 do $$
 begin
   if exists (
@@ -596,18 +606,125 @@ begin
     where table_schema = 'public' and table_name = 'tokens' and column_name = 'vaga_id'
   ) then
     drop index if exists public.tokens_vaga_id_idx;
-    alter table public.tokens drop column vaga_id;
+    alter table public.tokens drop column if exists vaga_id;
   end if;
 end $$;
 
--- 7d) tabela campeonato_vagas
+-- 7e) tabela campeonato_vagas
 drop table if exists public.campeonato_vagas cascade;
 
--- 7e) tabela paralela antiga, se existir
+-- 7f) tabela paralela antiga, se existir
 drop table if exists public.campeonato_grupo_slots cascade;
 
 -- ---------------------------------------------------------------------------
--- 8) Comentários finais do modelo
+-- 8) Recria views canônicas DEPOIS de dropar vaga_id (sem dependência legada)
+-- ---------------------------------------------------------------------------
+create or replace view public.vw_campeonato_capacidade as
+select
+  c.id as campeonato_id,
+  c.nome as campeonato_nome,
+  cfg.numero_vagas as limite_vagas,
+  coalesce(stats.slots_criados, 0) as slots_criados,
+  coalesce(stats.slots_ocupados, 0) as slots_ocupados,
+  coalesce(stats.slots_reservados, 0) as slots_reservados,
+  coalesce(stats.slots_livres, 0) as slots_livres,
+  case
+    when cfg.numero_vagas is null then null
+    else greatest(cfg.numero_vagas - coalesce(stats.slots_ocupados, 0), 0)
+  end as vagas_restantes_meta,
+  case
+    when cfg.numero_vagas is null then null
+    else greatest(cfg.numero_vagas - coalesce(stats.slots_criados, 0), 0)
+  end as slots_ainda_podem_ser_criados
+from public.campeonatos c
+left join public.campeonato_configuracoes cfg
+  on cfg.campeonato_id = c.id
+left join lateral (
+  select
+    count(*)::integer as slots_criados,
+    count(*) filter (where s.status = 'ocupado' or s.line_id is not null)::integer as slots_ocupados,
+    count(*) filter (where s.status = 'reservado' and s.line_id is null)::integer as slots_reservados,
+    count(*) filter (where s.status = 'livre' and s.line_id is null)::integer as slots_livres
+  from public.campeonato_slots s
+  where s.campeonato_id = c.id
+) stats on true
+where c.deleted_at is null;
+
+comment on view public.vw_campeonato_capacidade is
+  'Meta (limite_vagas) vs estrutura (slots_criados) vs preenchimento (slots_ocupados).';
+
+create or replace view public.vw_campeonato_slots_lines as
+select
+  s.id as slot_id,
+  s.campeonato_id,
+  s.fase_id,
+  s.grupo_id,
+  s.slot_numero,
+  s.slot_letra,
+  s.status as slot_status,
+  p.id as participacao_id,
+  p.line_id,
+  p.equipe_id,
+  p.nome_exibicao,
+  p.origem_entrada,
+  p.status as participacao_status,
+  p.criado_por,
+  p.created_at as participacao_created_at,
+  coalesce(nullif(trim(p.nome_exibicao), ''), l.nome, e.nome) as line_nome,
+  coalesce(l.tag, e.tag) as line_tag,
+  coalesce(l.logo_url, e.logo_url) as line_logo_url,
+  e.nome as equipe_nome,
+  e.tag as equipe_tag,
+  e.logo_url as equipe_logo_url,
+  g.nome as grupo_nome,
+  f.nome as fase_nome,
+  f.ordem as fase_ordem,
+  t.id as convite_id,
+  t.token as convite_token,
+  t.expira_em as convite_expira_em,
+  t.nome_equipe_reservada,
+  t.nome_line_reservada,
+  case
+    when p.id is not null and p.status = 'ativo' then 'ocupada'
+    when s.line_id is not null or s.status = 'ocupado' then 'ocupada'
+    when t.id is not null or s.status = 'reservado' then 'reservada'
+    else 'livre'
+  end as status_ui
+from public.campeonato_slots s
+left join public.campeonato_equipes p
+  on p.status = 'ativo'
+ and p.slot_id = s.id
+left join public.equipe_lines l
+  on l.id = coalesce(p.line_id, s.line_id)
+left join public.equipes e
+  on e.id = coalesce(p.equipe_id, l.equipe_id, s.equipe_id)
+left join public.campeonato_grupos g
+  on g.id = s.grupo_id
+left join public.campeonato_fases f
+  on f.id = coalesce(s.fase_id, g.fase_id)
+left join lateral (
+  select
+    tk.id,
+    tk.token,
+    tk.expira_em,
+    tk.nome_equipe_reservada,
+    tk.nome_line_reservada,
+    tk.created_at
+  from public.tokens tk
+  where tk.slot_id = s.id
+    and tk.tipo = 'convite_equipe_campeonato'
+    and tk.status = 'ativo'
+    and coalesce(tk.usado, false) = false
+    and (tk.expira_em is null or tk.expira_em > now())
+  order by tk.created_at desc
+  limit 1
+) t on true;
+
+comment on view public.vw_campeonato_slots_lines is
+  'Lista de equipes = view dos slots (livre/reservada/ocupada). Sem campeonato_vagas.';
+
+-- ---------------------------------------------------------------------------
+-- 9) Comentários finais do modelo
 -- ---------------------------------------------------------------------------
 comment on table public.campeonato_equipes is
   'Participação da LINE no campeonato. Escrita: campeonato_id + line_id + slot_id. Equipe = pasta via line.';

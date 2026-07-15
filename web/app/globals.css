@@ -2893,14 +2893,9 @@ button.invite-slot-button.free.clickable b {
 .folder-actions>button:not(.button):hover,.slot-letter-row>button:hover{border-color:var(--accent);color:var(--accent)}
 .folder-actions .danger{color:#d92d20!important}
 .phase-folder-content{background:#fff}
-.slot-letter-list{gap:7px}
-.slot-letter-row{border:1px solid #e1e5eb;background:#fff;color:#172033;border-radius:8px;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
-.slot-letter-row>img{width:38px;height:38px;max-width:38px;max-height:38px;object-fit:cover;border-radius:6px;justify-self:center}
-.slot-letter-row:hover{border-color:#ff4655;box-shadow:0 5px 16px rgba(255,70,85,.10);transform:translateY(-1px)}
-.slot-letter-row>b{border-radius:6px;background:#ff4655;color:#fff}
-.slot-letter-row span{color:#172033}
-.slot-letter-row small{color:#667085}
-.slot-letter-row.occupied{background:#fff7f8;border-color:#ffc5cb}
+/* slot-letter-row legado removido do JSX; regras mantidas neutras para não vazar em outras listas */
+.slot-letter-list{display:none}
+.slot-letter-row{display:none}
 .slot-assignment-modal{display:grid;gap:16px}
 .slot-whatsapp-info{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #e3e6eb;background:#f7f8fa;color:#667085;border-radius:8px}
 .slot-whatsapp-info.ready{border-color:#b7e3cb;background:#effaf4;color:#117a48}
@@ -4008,9 +4003,107 @@ button.invite-slot-button.free.clickable b {
 .teams-capacidade-bar strong{font-size:18px;line-height:1.1}
 .teams-capacidade-bar span{color:#6f7681;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 
-/* Slots na aba Grupos � mesmo padr�o visual da aba Equipes */
-.group-slots-list{padding:10px 12px 14px;display:grid;gap:8px;background:#f7f8fa}
-.group-folder .championship-vaga-row{background:#fff}
+/* Slots na aba Grupos — mesmo padrão visual da aba Equipes */
+.group-slots-list{
+  margin:0;
+  padding:0;
+  display:block;
+  background:#fff;
+  border:0;
+  border-top:1px solid #e7e9ed;
+  overflow:hidden;
+}
+.group-folder .championship-vaga-row{
+  border-radius:0;
+  box-shadow:none;
+}
+.group-folder .championship-vaga-row .vaga-row-summary{
+  width:100%;
+  min-height:58px;
+  border:0;
+  background:transparent;
+  display:grid;
+  grid-template-columns:44px 42px minmax(160px,1fr) minmax(90px,auto) 28px;
+  align-items:center;
+  gap:10px;
+  padding:8px 12px;
+  text-align:left;
+  cursor:pointer;
+  color:inherit;
+  font:inherit;
+  border-radius:0;
+  box-shadow:none;
+  transform:none;
+}
+.group-folder .championship-vaga-row .vaga-row-summary:hover{
+  filter:brightness(.985);
+  transform:none;
+  box-shadow:none;
+}
+.group-folder .championship-vaga-row .vaga-row-number{
+  font-size:15px;
+  font-weight:950;
+  color:#17191d;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+  background:transparent;
+  border:0;
+  width:auto;
+  height:auto;
+  border-radius:0;
+  display:block;
+  place-items:unset;
+}
+.group-folder .championship-vaga-row .vaga-row-number:before{
+  content:"SLOT ";
+  font-size:8px;
+  display:block;
+  letter-spacing:.12em;
+  color:#8a8f98;
+  margin-bottom:1px;
+}
+.group-folder .championship-vaga-row .vaga-row-avatar{
+  width:40px;
+  height:40px;
+  border-radius:8px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border:1px solid #e2e8f0;
+  background:#fff;
+  flex-shrink:0;
+  color:#64748b;
+  justify-self:center;
+}
+.group-folder .championship-vaga-row .vaga-row-avatar img{
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  object-fit:cover;
+  border-radius:0;
+}
+.group-folder .championship-vaga-row .vaga-row-identity{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+.group-folder .championship-vaga-row .vaga-row-identity strong{
+  font-size:13px;
+  color:#191b20;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-weight:700;
+}
+.group-folder .championship-vaga-row .vaga-row-identity small{
+  margin-top:2px;
+  font-size:11px;
+  color:#7a7f88;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 .group-folder .folder-row{background:#f3f4f6;border-bottom:1px solid #e5e7eb}
 .phase-folder,.group-folder{border:1px solid #e1e4e8;background:#fff;border-radius:0}
 .phase-folder{border-left:3px solid #ff4655}
@@ -4020,3 +4113,16 @@ button.invite-slot-button.free.clickable b {
 .phase-folder-content{background:#fafbfc}
 .group-folder-row .whatsapp-ready{color:#167445}
 .group-folder-row .whatsapp-missing{color:#b54708}
+@media(max-width:900px){
+  .group-folder .championship-vaga-row .vaga-row-summary{
+    grid-template-columns:40px 38px minmax(120px,1fr) 24px;
+  }
+  .group-folder .championship-vaga-row .vaga-row-meta{display:none}
+}
+@media(max-width:560px){
+  .group-folder .championship-vaga-row .vaga-row-summary{
+    grid-template-columns:36px 36px minmax(0,1fr) 22px;
+    padding-inline:8px;
+  }
+  .group-folder .championship-vaga-row .vaga-row-identity small{display:none}
+}

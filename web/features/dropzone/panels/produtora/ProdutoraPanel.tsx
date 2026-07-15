@@ -333,11 +333,22 @@ export function ProdutoraPanel(props: {
     if (!slot) return null
     const lineId = String(slot.data?.line_id || '')
     const equipeId = String(slot.data?.equipe_id || '')
-    if (!lineId && !equipeId) return null
+    const campeonatoEquipeId = String(slot.data?.campeonato_equipe_id || '')
+    if (!lineId && !equipeId && !campeonatoEquipeId) return null
+
+    if (campeonatoEquipeId) {
+      const byParticipation = props.selectedChampTeams.find(
+        (item) => String(item.data?.campeonato_equipe_id || item.id.split(':')[0] || '') === campeonatoEquipeId
+          && (!lineId || String(item.data?.line_id || '') === lineId),
+      )
+      if (byParticipation) return byParticipation
+    }
+
     if (lineId) {
       const byLine = props.selectedChampTeams.find((item) => String(item.data?.line_id || '') === lineId)
       if (byLine) return byLine
     }
+
     if (equipeId) {
       return (
         props.selectedChampTeams.find(
@@ -345,17 +356,75 @@ export function ProdutoraPanel(props: {
         ) || null
       )
     }
+
     return null
   }
 
-  function lineAvatar(entry?: DropZoneRow | null) {
-    return String(dataText(entry ?? undefined, 'logo_url') || '')
+  function lineAvatar(entry?: DropZoneRow | null, slot?: DropZoneRow | null) {
+    return String(
+      dataText(entry ?? undefined, 'logo_url')
+      || dataText(slot ?? undefined, 'line_logo_url')
+      || dataText(slot ?? undefined, 'logo_url')
+      || dataText(slot ?? undefined, 'equipe_logo_url')
+      || '',
+    )
   }
 
   function slotStatus(slot?: DropZoneRow, entry?: DropZoneRow | null) {
-    if (entry || slot?.data?.line_id || slot?.data?.equipe_id) return 'ocupada' as const
-    if (String(slot?.status || slot?.data?.status || '') === 'reservado') return 'reservada' as const
+    if (entry || slot?.data?.line_id || slot?.data?.equipe_id || slot?.data?.campeonato_equipe_id) {
+      return 'ocupada' as const
+    }
+    const raw = String(slot?.status || slot?.data?.status || '').toLowerCase()
+    if (raw === 'reservado' || raw === 'reservada') return 'reservada' as const
     return 'livre' as const
+  }
+
+  function slotLineName(slot: DropZoneRow, entry: DropZoneRow | null, status: 'livre' | 'reservada' | 'ocupada', letter: string) {
+    if (status === 'reservada') {
+      return String(
+        slot.data?.nome_line_reservada
+        || slot.data?.nome_equipe_reservada
+        || 'Convite reservado',
+      )
+    }
+    if (status === 'ocupada') {
+      return String(
+        (entry ? rowTitle(entry) : '')
+        || dataText(entry ?? undefined, 'line_name')
+        || slot.data?.line_name
+        || slot.data?.line_nome
+        || slot.data?.nome_exibicao
+        || 'Line inscrita',
+      )
+    }
+    return `Slot ${letter}`
+  }
+
+  function slotDetail(slot: DropZoneRow, entry: DropZoneRow | null, status: 'livre' | 'reservada' | 'ocupada', group: DropZoneRow, phase: DropZoneRow) {
+    if (status === 'reservada') {
+      return [
+        slot.data?.nome_equipe_reservada,
+        rowTitle(group),
+        slot.data?.reserva_expira_em ? 'Aguardando aceite' : null,
+      ].filter(Boolean).join(' · ') || 'Aguardando aceite do convite'
+    }
+    if (status === 'ocupada') {
+      return [
+        dataText(entry ?? undefined, 'team_name')
+          || dataText(entry ?? undefined, 'tag')
+          || slot.data?.equipe_nome
+          || slot.data?.team_name
+          || '',
+        rowTitle(group),
+        entry?.data?.origem_entrada
+          ? `via ${entry.data.origem_entrada}`
+          : slot.data?.origem_entrada
+            ? `via ${slot.data.origem_entrada}`
+            : null,
+      ].filter(Boolean).join(' · ') || 'Line no campeonato'
+    }
+    const phaseLabel = phase.id === 'sem-fase' ? '' : rowTitle(phase)
+    return [phaseLabel, rowTitle(group)].filter(Boolean).join(' · ') || 'Disponível'
   }
 
   const totalPlayers = 0
@@ -488,7 +557,7 @@ export function ProdutoraPanel(props: {
                       line_id: String(entry.data?.line_id || ''),
                     })}
                   >
-                    <img src={lineAvatar(entry)} alt="" />
+                    <img src={lineAvatar(entry) || '/favicon.ico'} alt="" />
                     <span><strong>{rowTitle(entry)}</strong><small>{dataText(entry, 'team_name')}</small></span>
                   </button>
                 )
@@ -658,7 +727,7 @@ export function ProdutoraPanel(props: {
                           const slotCount = Number(group.data?.slots || 12)
                           return <article className="group-folder" key={group.id}>
                             <header className="folder-row group-folder-row">
-                              <button className="folder-toggle" onClick={() => setOpenGroups((v)=>({...v,[group.id]:!groupOpen}))}>{groupOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}<Folder size={18}/><span><strong>{rowTitle(group)}</strong><small className={group.data?.whatsapp_url ? 'whatsapp-ready' : 'whatsapp-missing'}>{group.data?.whatsapp_url ? <><CheckCircle2 size={13}/> WhatsApp configurado</> : <>WhatsApp nÃ£o configurado</>} Â· {slotCount} slots</small></span></button>
+                              <button className="folder-toggle" onClick={() => setOpenGroups((v)=>({...v,[group.id]:!groupOpen}))}>{groupOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}<Folder size={18}/><span><strong>{rowTitle(group)}</strong><small className={group.data?.whatsapp_url ? 'whatsapp-ready' : 'whatsapp-missing'}>{group.data?.whatsapp_url ? <><CheckCircle2 size={13}/> WhatsApp configurado</> : <>WhatsApp não configurado</>} · {slotCount} slots</small></span></button>
                               <div className="folder-actions"><button title="Editar grupo" onClick={() => { setEditingPhase(null); setEditingGroup({ id: group.id, nome: rowTitle(group), slots: String(slotCount), whatsapp_url: String(group.data?.whatsapp_url || '') }); setOpenGroups((value) => ({ ...value, [group.id]: true })) }}><Pencil size={15}/></button><button title="Excluir grupo" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(group)} e seus slots?`)) props.deleteStructure('group', group.id) }}><Trash2 size={15}/></button></div>
                             </header>
                             {groupOpen ? <>{editingGroup?.id === group.id ? (
@@ -693,17 +762,9 @@ export function ProdutoraPanel(props: {
                                     || group.data?.fase_id
                                     || (phase.id === 'sem-fase' ? '' : phase.id),
                                   )
-                                  const logo = lineAvatar(entry)
-                                  const lineName = entry
-                                    ? rowTitle(entry)
-                                    : status === 'ocupada'
-                                      ? String(slot.data?.line_name || slot.data?.nome_exibicao || 'Line inscrita')
-                                      : `Slot ${letter}`
-                                  const teamName = entry
-                                    ? dataText(entry, 'team_name') || dataText(entry, 'tag') || ''
-                                    : status === 'livre'
-                                      ? 'Disponível · clique para adicionar line'
-                                      : 'Ocupado'
+                                  const logo = lineAvatar(entry, slot)
+                                  const nomePrincipal = slotLineName(slot, entry, status, letter)
+                                  const detalhe = slotDetail(slot, entry, status, group, phase)
 
                                   return (
                                     <article
@@ -736,26 +797,32 @@ export function ProdutoraPanel(props: {
                                         }}
                                       >
                                         <span className="vaga-row-number">{letter}</span>
+
                                         <span className={`vaga-row-avatar status-${status}`} aria-hidden>
                                           {status === 'ocupada' && logo ? (
                                             <img src={logo} alt="" />
                                           ) : status === 'ocupada' ? (
                                             <Users size={18} />
+                                          ) : status === 'reservada' ? (
+                                            <MessageCircle size={16} />
                                           ) : (
                                             <span className="vaga-avatar-dot" />
                                           )}
                                         </span>
+
                                         <span className="vaga-row-identity">
-                                          <strong>{lineName}</strong>
-                                          <small>{teamName}</small>
+                                          <strong>{nomePrincipal}</strong>
+                                          <small>{detalhe}</small>
                                         </span>
+
                                         <span className="vaga-row-meta">
-                                          <span className={`vaga-status-pill status-${status}`}>
-                                            {status === 'ocupada' ? 'Ocupado' : status === 'reservada' ? 'Reservado' : 'Livre'}
-                                          </span>
+                                          {status === 'reservada' ? (
+                                            <span className="vaga-status-pill status-reservada">Reservada</span>
+                                          ) : null}
                                         </span>
+
                                         <span className="vaga-row-chevron">
-                                          <Pencil size={15} />
+                                          <ChevronRight size={17} />
                                         </span>
                                       </button>
                                     </article>
