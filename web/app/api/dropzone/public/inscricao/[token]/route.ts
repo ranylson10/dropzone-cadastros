@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser } from '@backend/auth/server-auth'
+import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+
+async function optionalPlayer(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const accounts = await getAccountsForUser(user)
+    const account = accounts.find((item) => item.profile_type === 'jogador') || null
+    if (!account) return { autenticado: true, jogador: null }
+    const row = account.data || {}
+    return {
+      autenticado: true,
+      jogador: {
+        id: account.id,
+        username: account.username || row.username || null,
+        nome: account.name || row.nome || row.username || null,
+        avatar_url: row.avatar_url || row.foto_url || null,
+        id_jogo: row.id_jogo || null,
+        funcao: row.funcao || null,
+      },
+    }
+  } catch {
+    return { autenticado: false, jogador: null }
+  }
+}
 
 async function getToken(ctx: any) {
   const params = await ctx.params
@@ -28,10 +51,11 @@ function isOpen(rule: any, link: any) {
   return true
 }
 
-export async function GET(_req: NextRequest, ctx: any) {
+export async function GET(req: NextRequest, ctx: any) {
   try {
     const token = await getToken(ctx)
     const link = await loadLink(token)
+    const auth = await optionalPlayer(req)
     const [{ data: campeonato, error: champError }, { data: grupo, error: groupError }, { data: rule, error: ruleError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,premiacao,status').eq('id', link.campeonato_id).maybeSingle(),
       supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).maybeSingle(),
@@ -81,6 +105,8 @@ export async function GET(_req: NextRequest, ctx: any) {
       regras: rule,
       inscricao_aberta: isOpen(rule, link),
       equipes,
+      autenticado: auth.autenticado,
+      jogador: auth.jogador,
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao abrir link.' }, { status: 400 })
