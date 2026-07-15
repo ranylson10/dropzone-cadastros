@@ -76,14 +76,14 @@ async function upsertSellerContact(campeonatoId: string | null, account: any, bo
   if (updateError && !missingRelation(updateError)) throw updateError
 }
 
-async function upsertProdutoraRoster(convite: any, account: any, body: any, whatsappUrl: string, userId: string) {
+async function upsertProdutoraRoster(convite: any, account: any, body: any, whatsappUrl: string | null, userId: string) {
   if (!convite.produtora_id) return
   const payload = {
     produtora_id: convite.produtora_id,
     manager_id: account.id,
     manager_auth_user_id: userId,
     nome_publico: String(body.nome_publico || '').trim() || account.name,
-    whatsapp_url: whatsappUrl,
+    whatsapp_url: whatsappUrl || null,
     status: 'ativo',
     token_aceite: convite.token,
     criado_por: convite.criado_por || null,
@@ -110,7 +110,7 @@ async function upsertProdutoraRoster(convite: any, account: any, body: any, what
   }
 }
 
-async function upsertSellerLink(convite: any, account: any, body: any, whatsappUrl: string, userId: string) {
+async function upsertSellerLink(convite: any, account: any, body: any, whatsappUrl: string | null, userId: string) {
   if (!convite.campeonato_id) return
   const payload = {
     token: convite.token,
@@ -119,7 +119,7 @@ async function upsertSellerLink(convite: any, account: any, body: any, whatsappU
     manager_id: account.id,
     manager_auth_user_id: userId,
     nome_publico: String(body.nome_publico || '').trim() || account.name,
-    whatsapp_url: whatsappUrl,
+    whatsapp_url: whatsappUrl || null,
     status: 'ativo',
     limite_vagas: Number(convite.manager_limite_vagas || 0),
     permissoes: convite.manager_permissoes || {
@@ -150,14 +150,16 @@ async function upsertSellerLink(convite: any, account: any, body: any, whatsappU
   }
 }
 
-async function updateManagerProfile(accountId: string, body: any, whatsappUrl: string) {
+async function updateManagerProfile(accountId: string, body: any, whatsappUrl: string | null) {
   const patch: Record<string, unknown> = {
-    whatsapp_url: whatsappUrl,
-    nome_publico_vendas: String(body.nome_publico || '').trim() || null,
     updated_at: new Date().toISOString(),
   }
+  // WhatsApp é opcional no aceite — preenchido depois no painel do manager
+  if (whatsappUrl) patch.whatsapp_url = whatsappUrl
+  const nome = String(body.nome_publico || '').trim()
+  if (nome) patch.nome_publico_vendas = nome
+  if (Object.keys(patch).length <= 1) return
   const { error } = await supabaseAdmin.from('managers').update(patch).eq('id', accountId)
-  // colunas novas podem não existir ainda
   if (error && (error.code === 'PGRST204' || /whatsapp_url|nome_publico/i.test(error.message || ''))) {
     return
   }
@@ -204,12 +206,34 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const body = await req.json().catch(() => ({}))
     const convite = await carregar(String(token || '').trim())
     if (convite.status !== 'ativo') throw new Error('Este convite não está mais disponível.')
-    if (convite.manager_id && convite.manager_id !== account.id) {
+    if (convite.usado && convite.manager_id && convite.manager_id !== account.id) {
       throw new Error('Este convite já foi aceito por outro manager.')
     }
+    if (convite.usado && convite.manager_id === account.id) {
+      return NextResponse.json({
+        ok: true,
+        modo: convite.modo,
+        painel_url: '/',
+        mensagem: 'Convite já aceito. Configure seu WhatsApp no painel do manager.',
+      })
+    }
 
-    const whatsappUrl = normalizeWhatsapp(body.whatsapp_url)
-    if (!whatsappUrl) throw new Error('Informe seu WhatsApp de venda.')
+    // WhatsApp opcional no aceite (preenche depois no painel). Usa o que já tiver no perfil.
+    let whatsappUrl: string | null = null
+    try {
+      if (body.whatsapp_url) whatsappUrl = normalizeWhatsapp(body.whatsapp_url)
+    } catch {
+      whatsappUrl = null
+    }
+    if (!whatsappUrl) {
+      const existing = account.data?.whatsapp_url || null
+      whatsappUrl = existing || null
+    }
+
+    const acceptBody = {
+      ...body,
+      nome_publico: String(body.nome_publico || '').trim() || account.name,
+    }
 
     const { data, error } = await supabaseAdmin
       .from('tokens')
@@ -224,19 +248,23 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .single()
     if (error) throw error
 
-    await updateManagerProfile(account.id, body, whatsappUrl)
-    await upsertProdutoraRoster(convite, account, body, whatsappUrl, user.id)
-    await upsertSellerLink(convite, account, body, whatsappUrl, user.id)
-    await upsertSellerContact(convite.campeonato_id, account, body, whatsappUrl)
+    await updateManagerProfile(account.id, acceptBody, whatsappUrl)
+    await upsertProdutoraRoster(convite, account, acceptBody, whatsappUrl || '', user.id)
+    await upsertSellerLink(convite, account, acceptBody, whatsappUrl || '', user.id)
+    if (whatsappUrl && convite.campeonato_id) {
+      await upsertSellerContact(convite.campeonato_id, account, acceptBody, whatsappUrl)
+    }
 
     return NextResponse.json({
+      ok: true,
       vendedor: data,
       modo: convite.modo,
-      painel_url: `/vendedores/${account.id}`,
+      // Painel do manager no app (perfil manager), não a página pública de vendas
+      painel_url: '/',
       mensagem:
         convite.modo === 'produtora'
-          ? 'Você entrou na lista de vendedores da produtora. O produtor libera os campeonatos que você pode vender.'
-          : 'Vendas ativadas neste campeonato.',
+          ? 'Você entrou na lista de vendedores da produtora. Configure o WhatsApp no painel e aguarde o produtor liberar os campeonatos.'
+          : 'Convite aceito. Configure o WhatsApp no painel do manager para vender.',
     })
   } catch (error) {
     return NextResponse.json(
