@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, RefreshCw, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
@@ -28,7 +28,12 @@ export function ProdutoraPanel(props: {
   lineupRules: DropZoneRow[]
   registrationLink: { grupo_id: string; limite_vagas: string; encerra_em: string; descricao: string }
   setRegistrationLink: (value: any) => void
-  createRegistrationLink: () => void
+  createRegistrationLink: (overrides?: {
+    grupo_id?: string
+    limite_vagas?: string | number
+    encerra_em?: string
+    descricao?: string
+  }) => void
   selectedChamp?: DropZoneRow
   selectedChampTeams: DropZoneRow[]
   selectedChampId: string
@@ -1265,9 +1270,12 @@ export function ProdutoraPanel(props: {
                     <div>
                       <p className="eyebrow">Links</p>
                       <h3>Entrada de equipes por grupo</h3>
-                      <p className="muted-copy">Defina quantas equipes o link aceita. Ex.: 1 vaga = o link encerra após a primeira inscrição.</p>
+                      <p className="muted-copy">
+                        Você pode gerar vários links ao mesmo tempo — cada um tem token próprio e não cancela os outros.
+                        Ex.: 1 vaga = esse link encerra após a primeira inscrição.
+                      </p>
                     </div>
-                    <button className="button" onClick={() => toggleAction('link')}>Gerar link</button>
+                    <button className="button" onClick={() => toggleAction('link')}>Gerar novo link</button>
                   </div>
                   {openAction === 'link' ? (
                     <div className="inline-action-panel">
@@ -1327,13 +1335,14 @@ export function ProdutoraPanel(props: {
                         </Field>
                       </div>
                       <p className="muted-copy">
-                        O link também fecha se o grupo ficar sem slots livres, mesmo com usos sobrando.
+                        Cada geração cria um link novo. Links antigos permanecem ativos até esgotar, expirar ou você pausar/excluir.
+                        O link também fecha se o grupo ficar sem slots livres.
                       </p>
                       <button
                         className="button"
                         type="button"
                         disabled={Boolean(props.pendingCreate)}
-                        onClick={props.createRegistrationLink}
+                        onClick={() => props.createRegistrationLink()}
                       >
                         {props.pendingCreate === 'registration_link'
                           ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</>
@@ -1469,13 +1478,22 @@ export function ProdutoraPanel(props: {
                                   <button
                                     type="button"
                                     className="button secondary"
+                                    disabled={Boolean(props.pendingCreate)}
+                                    title="Cria outro link independente com o mesmo grupo e limite. O atual continua válido."
                                     onClick={() => {
-                                      if (window.confirm('Gerar um novo token? O link atual deixará de funcionar. O histórico de quem entrou é mantido.')) {
-                                        props.updateStructure('registration_link', link.id, { regenerate_token: true })
-                                      }
+                                      const grupoId = String(link.data?.group_id || link.data?.grupo_id || '')
+                                      const limite = Number(link.data?.limite_vagas || link.data?.metadata?.limite_vagas || 1) || 1
+                                      void props.createRegistrationLink({
+                                        grupo_id: grupoId,
+                                        limite_vagas: limite,
+                                        encerra_em: '',
+                                        descricao: '',
+                                      })
                                     }}
                                   >
-                                    <RefreshCw size={14} /> Novo token
+                                    {props.pendingCreate === 'registration_link'
+                                      ? <><Loader2 size={14} className="button-spinner" /> Criando...</>
+                                      : <><Plus size={14} /> Criar outro link</>}
                                   </button>
                                   <button
                                     type="button"

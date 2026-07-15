@@ -1187,20 +1187,31 @@ export function DropZoneHome() {
     }
   }
 
-  async function createRegistrationLink() {
+  /** Cria um NOVO link independente (não invalida os existentes). */
+  async function createRegistrationLink(overrides?: {
+    grupo_id?: string
+    limite_vagas?: string | number
+    encerra_em?: string
+    descricao?: string
+  }) {
     const champ = selectedChamp
     if (!champ) return setError('Selecione um campeonato.')
-    if (!registrationLink.grupo_id) return setError('Selecione o grupo do link.')
 
-    const limite = Number(registrationLink.limite_vagas)
+    const grupoId = String(overrides?.grupo_id || registrationLink.grupo_id || '').trim()
+    if (!grupoId) return setError('Selecione o grupo do link.')
+
+    const limite = Number(overrides?.limite_vagas ?? registrationLink.limite_vagas)
     if (!Number.isInteger(limite) || limite < 1) {
       return setError('Informe quantas vagas este link aceita (1, 2, 3...).')
     }
 
     // datetime-local é horário local do browser → ISO UTC antes de mandar ao servidor
     let encerraIso = ''
-    if (registrationLink.encerra_em?.trim()) {
-      const parsed = new Date(registrationLink.encerra_em)
+    const encerraRaw = overrides?.encerra_em !== undefined
+      ? overrides.encerra_em
+      : registrationLink.encerra_em
+    if (String(encerraRaw || '').trim()) {
+      const parsed = new Date(String(encerraRaw))
       if (Number.isNaN(parsed.getTime())) return setError('Data de encerramento do link inválida.')
       if (parsed.getTime() <= Date.now()) {
         return setError('A data de encerramento precisa ser no futuro — senão o link nasce expirado.')
@@ -1208,8 +1219,12 @@ export function DropZoneHome() {
       encerraIso = parsed.toISOString()
     }
 
-    const group = groups.find((row) => row.id === registrationLink.grupo_id)
+    const group = groups.find((row) => row.id === grupoId)
     const groupLabel = group ? rowTitle(group) : 'grupo'
+    const descricao = overrides?.descricao !== undefined
+      ? overrides.descricao
+      : registrationLink.descricao || ''
+
     const row = await createRow({
       entity_type: 'registration_link',
       name: limite === 1
@@ -1219,16 +1234,16 @@ export function DropZoneHome() {
       generate_token: true,
       data: {
         championship_id: champ.id,
-        group_id: registrationLink.grupo_id,
+        group_id: grupoId,
         limite_vagas: limite,
         encerra_em: encerraIso,
         expira_em: encerraIso || null,
-        descricao: registrationLink.descricao || '',
+        descricao,
         tipo: 'inscricao_equipes_grupo',
       },
     }, limite === 1
-      ? 'Link criado: expira após 1 equipe entrar.'
-      : `Link criado: expira após ${limite} equipes entrarem.`)
+      ? 'Novo link criado (os anteriores continuam válidos). Expira após 1 equipe entrar.'
+      : `Novo link criado (os anteriores continuam válidos). Expira após ${limite} equipes entrarem.`)
     if (row?.token) await copyToken(`${window.location.origin}/convite/grupo/${row.token}`)
   }
 
