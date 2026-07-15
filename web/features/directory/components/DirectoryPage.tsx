@@ -8,13 +8,21 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
   const config = DIRECTORY_CONFIG[kind]
   const items = await listDirectory(kind)
   return (
-    <AppShell activeLabel={config.title} loadSession mainClassName="directory-page page">
-      <section className="directory-hero">
-        <small>DIRETÓRIO PÚBLICO</small>
-        <h1>{config.title}</h1>
-        <p>{config.description}</p>
+    <AppShell
+      activeLabel={config.title}
+      loadSession
+      mainClassName={`directory-page directory-theme-${kind} page page-authenticated`}
+    >
+      <section className={`directory-hero directory-hero-banner theme-${kind}`}>
+        <div className="directory-hero-inner">
+          <small>DIRETÓRIO PÚBLICO</small>
+          <h1>{config.title}</h1>
+          <p>{config.description}</p>
+        </div>
       </section>
-      <DirectoryListClient items={items} />
+      <div className="directory-page-body">
+        <DirectoryListClient items={items} />
+      </div>
     </AppShell>
   )
 }
