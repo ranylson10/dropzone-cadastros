@@ -14,7 +14,7 @@ export async function DELETE(
 
     const { data: convite } = await supabaseAdmin
       .from('tokens')
-      .select('id, vaga_id, slot_id, usado, status')
+      .select('id, slot_id, usado, status')
       .eq('id', tokenId)
       .eq('campeonato_id', id)
       .single()
@@ -22,20 +22,13 @@ export async function DELETE(
 
     await supabaseAdmin.from('tokens').update({ status: 'cancelado' }).eq('id', tokenId)
 
-    // Libera vaga comercial legada, se houver.
-    if (convite.vaga_id) {
+    if (convite.slot_id) {
       await supabaseAdmin
-        .from('campeonato_vagas')
-        .update({
-          status: 'livre',
-          reservada_por_token_id: null,
-          reservada_em: null,
-          reserva_expira_em: null,
-          nome_equipe_reservada: null,
-          nome_line_reservada: null,
-        })
-        .eq('id', convite.vaga_id)
-        .eq('reservada_por_token_id', tokenId)
+        .from('campeonato_slots')
+        .update({ status: 'livre', updated_at: new Date().toISOString() })
+        .eq('id', convite.slot_id)
+        .eq('status', 'reservado')
+        .is('line_id', null)
     }
 
     return NextResponse.json({ ok: true })

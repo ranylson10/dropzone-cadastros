@@ -37,7 +37,7 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
         description: first(config.formato, `${tipo} competitivo`),
         meta: [
           { label: 'Premiação', value: money(config.premiacao) },
-          { label: 'Vagas', value: text(config.numero_vagas, 'A definir') },
+          { label: 'Limite de vagas', value: text(config.numero_vagas, 'Sem teto') },
           { label: 'Status', value: statusLabel(row.status) },
         ],
         searchText: [name, tipo, config.formato, config.plataforma, config.servidor].join(' ').toLowerCase(),

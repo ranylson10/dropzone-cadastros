@@ -112,44 +112,22 @@ export async function assertSlotLivreNoGrupo(params: {
 export async function softRemoveParticipacao(participacaoId: string) {
   const { data: part, error } = await supabaseAdmin
     .from('campeonato_equipes')
-    .select('id,campeonato_id,grupo_id,slot_numero,slot_id,line_id,equipe_id,vaga_id')
+    .select('id,campeonato_id,grupo_id,slot_numero,slot_id,line_id,equipe_id')
     .eq('id', participacaoId)
     .maybeSingle()
   if (error && !['42703', 'PGRST204'].includes(error.code || '')) throw error
   if (!part) return
 
-  if (part.vaga_id) {
-    await supabaseAdmin
-      .from('campeonato_vagas')
-      .update({
-        status: 'livre',
-        campeonato_equipe_id: null,
-        ocupada_em: null,
-        reservada_por_token_id: null,
-        reservada_em: null,
-        reserva_expira_em: null,
-        nome_equipe_reservada: null,
-        nome_line_reservada: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', part.vaga_id)
-  }
-
-  const updatePayload: Record<string, unknown> = {
-    status: 'removido',
-    slot_numero: null,
-    grupo_id: null,
-    updated_at: new Date().toISOString(),
-  }
-  // limpa slot_id se a coluna existir
-  updatePayload.slot_id = null
-
-  let { error: upErr } = await supabaseAdmin.from('campeonato_equipes').update(updatePayload).eq('id', participacaoId)
-  if (upErr && (upErr.code === 'PGRST204' || /slot_id/i.test(upErr.message || ''))) {
-    delete updatePayload.slot_id
-    const retry = await supabaseAdmin.from('campeonato_equipes').update(updatePayload).eq('id', participacaoId)
-    upErr = retry.error
-  }
+  const { error: upErr } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .update({
+      status: 'removido',
+      slot_id: null,
+      slot_numero: null,
+      grupo_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', participacaoId)
   if (upErr) throw upErr
 
   if (part.slot_id) {
@@ -274,7 +252,6 @@ export async function inserirParticipacaoNoSlot(params: {
   nomeExibicao: string
   origem: string
   criadoPor: string
-  vagaId?: string | null
 }) {
   const { data: slot, error: slotError } = await supabaseAdmin
     .from('campeonato_slots')
@@ -307,20 +284,12 @@ export async function inserirParticipacaoNoSlot(params: {
     criado_por: params.criadoPor,
     status: 'ativo',
   }
-  if (params.vagaId) base.vaga_id = params.vagaId
 
-  let { data: participacao, error } = await supabaseAdmin
+  const { data: participacao, error } = await supabaseAdmin
     .from('campeonato_equipes')
     .insert(base)
     .select('*')
     .single()
-
-  if (error && (error.code === 'PGRST204' || /slot_id/i.test(error.message || ''))) {
-    const { slot_id: _s, ...fallback } = base
-    const retry = await supabaseAdmin.from('campeonato_equipes').insert(fallback).select('*').single()
-    participacao = retry.data
-    error = retry.error
-  }
 
   if (error) {
     if (isUniqueViolation(error)) {
@@ -344,7 +313,7 @@ export async function inserirParticipacaoNoSlot(params: {
       updated_at: new Date().toISOString(),
     })
     .eq('id', params.slotId)
-    .is('equipe_id', null)
+    .is('line_id', null)
 
   if (slotUpError) {
     await softRemoveParticipacao(participacao.id)

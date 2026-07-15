@@ -20,9 +20,10 @@ export async function POST(
       .eq('campeonato_id', id)
       .single()
     if (!antigo || antigo.usado) throw new Error('Convite inválido para renovação.')
-    if (!antigo.slot_id && !antigo.vaga_id) throw new Error('Convite sem slot/vaga para renovar.')
+    if (!antigo.slot_id && !antigo.grupo_id) {
+      throw new Error('Convite sem slot/grupo para renovar.')
+    }
 
-    // Slot ainda livre?
     if (antigo.slot_id) {
       const { data: slot } = await supabaseAdmin
         .from('campeonato_slots')
@@ -46,7 +47,6 @@ export async function POST(
       fase_id: antigo.fase_id || null,
       grupo_id: antigo.grupo_id || null,
       slot_id: antigo.slot_id || null,
-      vaga_id: antigo.vaga_id || null,
       equipe_destino_id: antigo.equipe_destino_id,
       line_destino_id: antigo.line_destino_id,
       nome_equipe_reservada: antigo.nome_equipe_reservada,
@@ -57,25 +57,15 @@ export async function POST(
       status: 'ativo',
     }
 
-    let { data: novo, error } = await supabaseAdmin.from('tokens').insert(payload).select('*').single()
-    if (error && (error.code === 'PGRST204' || /slot_id/i.test(error.message || ''))) {
-      const { slot_id: _s, ...fallback } = payload
-      const retry = await supabaseAdmin.from('tokens').insert(fallback).select('*').single()
-      novo = retry.data
-      error = retry.error
-    }
+    const { data: novo, error } = await supabaseAdmin.from('tokens').insert(payload).select('*').single()
     if (error) throw error
 
-    if (antigo.vaga_id) {
+    if (antigo.slot_id) {
       await supabaseAdmin
-        .from('campeonato_vagas')
-        .update({
-          reservada_por_token_id: novo.id,
-          reservada_em: new Date().toISOString(),
-          reserva_expira_em: expiraEm,
-          status: 'reservada',
-        })
-        .eq('id', antigo.vaga_id)
+        .from('campeonato_slots')
+        .update({ status: 'reservado', updated_at: new Date().toISOString() })
+        .eq('id', antigo.slot_id)
+        .is('line_id', null)
     }
 
     return NextResponse.json({

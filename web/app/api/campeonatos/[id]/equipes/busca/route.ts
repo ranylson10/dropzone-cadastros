@@ -36,36 +36,39 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const { data: participacoes, error: participacoesError } = lineIds.length
       ? await supabaseAdmin
           .from('campeonato_equipes')
-          .select('id, line_id, vaga_id')
+          .select('id, line_id, slot_id, slot_numero')
           .eq('campeonato_id', id)
           .eq('status', 'ativo')
           .in('line_id', lineIds)
       : { data: [] as any[], error: null }
 
     if (participacoesError) throw participacoesError
-    const vagaIds = (participacoes || []).map((item) => item.vaga_id).filter(Boolean)
-    const { data: vagas } = vagaIds.length
-      ? await supabaseAdmin.from('campeonato_vagas').select('id, numero_vaga').in('id', vagaIds)
-      : { data: [] as any[] }
 
-    const vagaMap = new Map((vagas || []).map((vaga) => [vaga.id, vaga.numero_vaga]))
+    const slotIds = [...new Set((participacoes || []).map((item) => item.slot_id).filter(Boolean))]
+    const { data: slots } = slotIds.length
+      ? await supabaseAdmin.from('campeonato_slots').select('id, slot_numero, slot_letra').in('id', slotIds)
+      : { data: [] as any[] }
+    const slotMap = new Map((slots || []).map((slot) => [slot.id, slot]))
     const inscricaoMap = new Map((participacoes || []).map((item) => [item.line_id, item]))
 
     return NextResponse.json({
       equipes: (equipes || []).map((equipe) => ({
         ...equipe,
-        // Pasta = equipe; lines com logo herdada se vazia
-        lines: (lines || []).filter((line) => line.equipe_id === equipe.id).map((line) => {
-          const participacao = inscricaoMap.get(line.id)
-          return {
-            ...line,
-            logo_url: line.logo_url || equipe.logo_url || null,
-            tag: line.tag || equipe.tag || null,
-            ja_inscrita: Boolean(participacao),
-            vaga_numero: participacao?.vaga_id ? vagaMap.get(participacao.vaga_id) || null : null,
-            participacao_id: participacao?.id || null,
-          }
-        }),
+        lines: (lines || [])
+          .filter((line) => line.equipe_id === equipe.id)
+          .map((line) => {
+            const participacao = inscricaoMap.get(line.id)
+            const slot = participacao?.slot_id ? slotMap.get(participacao.slot_id) : null
+            return {
+              ...line,
+              logo_url: line.logo_url || equipe.logo_url || null,
+              tag: line.tag || equipe.tag || null,
+              ja_inscrita: Boolean(participacao),
+              vaga_numero: slot?.slot_numero ?? participacao?.slot_numero ?? null,
+              slot_letra: slot?.slot_letra || null,
+              participacao_id: participacao?.id || null,
+            }
+          }),
         lines_livres: (lines || []).filter((line) => line.equipe_id === equipe.id && !inscricaoMap.has(line.id)).length,
       })),
     })

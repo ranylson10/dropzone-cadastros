@@ -53,7 +53,7 @@ async function assertSellerCanInvite(userId: string, campeonatoId: string) {
  * Cria convite de equipe/line.
  *
  * Modos:
- * - slot: body.slot_id | vaga_id  → fixa um assento
+ * - slot: body.slot_id → fixa um assento
  * - grupo: body.grupo_id (sem slot) → convidado escolhe letra livre no grupo
  */
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const permission = await requireCampeonatoTokenPermission(user.id, id)
     const body = await req.json()
 
+    // body.vaga_id ainda aceito como alias do id do slot (UI antiga)
     const slotId = String(body.slot_id || body.vaga_id || '').trim()
     const grupoIdBody = String(body.grupo_id || '').trim()
     const referenciaEquipe = String(body.referencia_equipe || body.nome_equipe_reservada || '').trim()

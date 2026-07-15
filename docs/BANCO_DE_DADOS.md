@@ -11,8 +11,9 @@ Este documento registra somente o que foi confirmado. Campos, relacionamentos e 
 | `campeonatos` | cadastro principal de campeonatos | usada no código atual |
 | `campeonato_fases` | fases de um campeonato | usada no código atual |
 | `campeonato_grupos` | grupos vinculados a campeonato/fase | usada no código atual |
-| `campeonato_slots` | slots de grupos no modelo atual | usada; confirmar relação com `campeonato_grupo_slots` |
-| `campeonato_grupo_slots` | provável modelo específico de slots por grupo | não confirmado |
+| `campeonato_slots` | **única vaga física** (fase>grupo>letra) | canônica |
+| `campeonato_grupo_slots` | legado paralelo | **remover** (migration 20260715 modelo único) |
+| `campeonato_vagas` | vaga comercial numerada paralela | **remover** (mesmo migration) |
 | `campeonato_jogos` | jogos ou quedas do campeonato | usada no código atual |
 | `campeonato_jogos_grupos` | vínculo entre jogos e grupos | usada no código atual |
 | `campeonato_equipes` | vínculo de equipes com campeonato | usada no código atual |
@@ -51,9 +52,16 @@ Antes de consolidar o schema, coletar para todas as tabelas:
 - funções que escrevem nelas;
 - views dependentes.
 
-## Decisão aprovada para slots
+## Decisão aprovada para slots / vagas (2026-07-15)
 
-O frontend não cadastra slots individualmente. O backend recebe a quantidade de slots ao criar o grupo e executa a criação em transação.
+1. **`numero_vagas`** = limite/meta do campeonato (não cria rows).
+2. **Vaga física** = só `campeonato_slots`, criados ao montar o grupo.
+3. **Lista de equipes** = view dos slots (`vw_campeonato_slots_lines`).
+4. **Sem** `campeonato_vagas` / `vaga_id` no fluxo novo.
+5. Capacidade: `vw_campeonato_capacidade` (limite vs criados vs ocupados).
+6. Frontend não cadastra slots um a um; backend cria N slots na criação do grupo (transação).
+
+Migration: `database/migrations/20260715_modelo_unico_slot_e_limite_vagas.sql`
 
 ## Modelo confirmado: equipe × line × campeonato (2026-07-15)
 

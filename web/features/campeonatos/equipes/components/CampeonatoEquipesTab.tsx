@@ -110,7 +110,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     setFeedback('')
     try {
       await campeonatoEquipesService.adicionar(campeonatoId, {
-        vaga_id: vagaAlvo.id,
+        slot_id: vagaAlvo.id,
         equipe_id: equipe.id,
         line_id: lineId || null,
         nome_line: nomeLine,
@@ -134,10 +134,9 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     setFeedback('')
     try {
       // Padrão: convite de GRUPO (convidado escolhe letra). Opcional: fixar este slot.
-      const body = fixarSlot
+      const body: Record<string, unknown> = fixarSlot
         ? {
             slot_id: vagaAlvo.id,
-            vaga_id: vagaAlvo.id,
             fixar_slot: true,
             referencia_equipe: referenciaEquipe,
             referencia_line: referenciaLine,
@@ -149,9 +148,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
             referencia_line: referenciaLine,
           }
       if (!fixarSlot && !body.grupo_id) {
-        // Sem grupo na vaga: cai no slot fixo
+        // Sem grupo: convite fixo no slot
         body.slot_id = vagaAlvo.id
-        body.vaga_id = vagaAlvo.id
         body.fixar_slot = true
       }
       const result = await campeonatoEquipesService.criarConvite(campeonatoId, body) as {

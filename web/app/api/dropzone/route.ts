@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
+import { assertPodeCriarSlots } from '@backend/campeonatos/capacidade'
 import {
   inserirParticipacaoNoSlot,
   resolveLineForInscricao,
@@ -817,7 +818,6 @@ export async function POST(req: NextRequest) {
           nomeExibicao: resolved.nome,
           origem: token ? 'convite' : account.profile_type === 'produtora' ? 'organizador' : 'inscricao',
           criadoPor: user.id,
-          vagaId: token?.vaga_id || data.vaga_id || null,
         })
       } else {
         // Sem slot (legado / inscrição sem assento ainda)
@@ -891,6 +891,7 @@ export async function POST(req: NextRequest) {
           throw error
         }
         const slotCount = Number(data.slots || 12)
+        await assertPodeCriarSlots(campeonatoId, slotCount)
         const letters = Array.from({ length: slotCount }, (_, index) => {
           let value = index + 1
           let label = ''

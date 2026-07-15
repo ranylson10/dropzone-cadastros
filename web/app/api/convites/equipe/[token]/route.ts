@@ -8,7 +8,7 @@ import {
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 const TOKEN_SELECT =
-  'id,token,tipo,status,usado,expira_em,campeonato_id,grupo_id,fase_id,slot_id,vaga_id,nome_equipe_reservada,nome_line_reservada,equipe_id,line_destino_id'
+  'id,token,tipo,status,usado,expira_em,campeonato_id,grupo_id,fase_id,slot_id,nome_equipe_reservada,nome_line_reservada,equipe_id,line_destino_id'
 
 async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
   const { data: rows, error } = await supabaseAdmin
@@ -94,30 +94,21 @@ async function carregar(token: string) {
   const grupoId = slot?.grupo_id || convite.grupo_id || null
   const modoGrupo = Boolean(grupoId && !convite.slot_id)
 
-  const [grupoRes, vagaRes, vagas] = await Promise.all([
+  const [grupoRes, vagas] = await Promise.all([
     grupoId
       ? supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id').eq('id', grupoId).maybeSingle()
-      : Promise.resolve({ data: null as any, error: null }),
-    !slot && !modoGrupo && convite.vaga_id
-      ? supabaseAdmin
-          .from('campeonato_vagas')
-          .select('id,status,numero_vaga,reservada_por_token_id,campeonato_id')
-          .eq('id', convite.vaga_id)
-          .maybeSingle()
       : Promise.resolve({ data: null as any, error: null }),
     modoGrupo && grupoId
       ? loadGrupoVagas(convite.campeonato_id, grupoId)
       : Promise.resolve([] as any[]),
   ])
   if (grupoRes.error) throw grupoRes.error
-  if (vagaRes.error) throw vagaRes.error
 
   return {
     convite,
     campeonato: campRes.data,
     slot,
     grupo: grupoRes.data,
-    vaga: vagaRes.data,
     vagas,
     modoGrupo,
   }
@@ -184,7 +175,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
     const validoBase = conviteAindaValido(data.convite)
 
     let valido = validoBase
-    let assento: 'slot' | 'grupo' | 'vaga_legado' | null = null
+    let assento: 'slot' | 'grupo' | null = null
 
     if (data.slot) {
       assento = 'slot'
@@ -193,9 +184,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
       assento = 'grupo'
       const livres = (data.vagas || []).filter((v: any) => !v.ocupada).length
       valido = valido && livres > 0
-    } else if (data.vaga) {
-      assento = 'vaga_legado'
-      valido = valido && data.vaga.status === 'reservada'
     } else {
       valido = false
     }
@@ -232,10 +220,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
         : null,
       vaga: data.slot
         ? { numero_vaga: data.slot.slot_numero, letra: data.slot.slot_letra }
-        : data.vaga
-          ? { numero_vaga: data.vaga.numero_vaga }
-          : null,
-      modelo: { assento },
+        : null,
+      modelo: { assento, vaga_fisica: 'slot' },
       ...sessao,
       valido,
     })
@@ -257,7 +243,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (!account) throw new Error('Este login ainda não possui um perfil de equipe vinculado.')
 
     const body = await req.json().catch(() => ({}))
-    const { convite, slot: slotFixo, vaga, modoGrupo, grupo } = await carregar(token)
+    const { convite, slot: slotFixo, modoGrupo, grupo } = await carregar(token)
 
     if (!conviteAindaValido(convite)) {
       throw new Error('Este convite expirou ou já foi utilizado.')
@@ -285,7 +271,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         nomeExibicao: resolved.nome,
         origem: 'convite',
         criadoPor: user.id,
-        vagaId: convite.vaga_id || null,
       })
       participacaoId = participacao.id
     } else if (modoGrupo) {
@@ -313,51 +298,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         nomeExibicao: resolved.nome,
         origem: 'convite',
         criadoPor: user.id,
-        vagaId: convite.vaga_id || null,
       })
       participacaoId = participacao.id
       slotUsado = slotEscolhido
-    } else if (vaga) {
-      if (vaga.status !== 'reservada' || vaga.reservada_por_token_id !== convite.id) {
-        throw new Error('A vaga não está mais reservada para este convite.')
-      }
-      const { data: part, error: partError } = await supabaseAdmin
-        .from('campeonato_equipes')
-        .insert({
-          campeonato_id: convite.campeonato_id,
-          equipe_id: account.id,
-          vaga_id: vaga.id,
-          line_id: resolved.id,
-          nome_exibicao: resolved.nome,
-          origem_entrada: 'convite',
-          criado_por: user.id,
-          status: 'ativo',
-        })
-        .select('id,campeonato_id,equipe_id,line_id,vaga_id,nome_exibicao,status')
-        .single()
-      if (partError) throw partError
-      participacao = part
-      participacaoId = part.id
-
-      const { data: vagaOk, error: vagaError } = await supabaseAdmin
-        .from('campeonato_vagas')
-        .update({
-          status: 'ocupada',
-          campeonato_equipe_id: part.id,
-          ocupada_em: new Date().toISOString(),
-        })
-        .eq('id', vaga.id)
-        .eq('status', 'reservada')
-        .eq('reservada_por_token_id', convite.id)
-        .select('id')
-        .maybeSingle()
-      if (vagaError || !vagaOk) {
-        await softRemoveParticipacao(part.id)
-        participacaoId = null
-        throw new Error('A vaga foi alterada por outra operação. Atualize o convite e tente novamente.')
-      }
     } else {
-      throw new Error('Este convite não está vinculado a um slot, grupo ou vaga válida.')
+      throw new Error('Este convite não está vinculado a um slot ou grupo válido.')
     }
 
     const { data: tokenUsed, error: tokenError } = await supabaseAdmin

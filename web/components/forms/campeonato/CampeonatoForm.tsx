@@ -275,7 +275,15 @@ export function CampeonatoForm({
       <section className="form-section-card">
         <p className="eyebrow">Estrutura do campeonato</p>
         <div className="mini-grid three">
-          <Field label="Número de vagas"><input type="number" min="1" value={value.numero_vagas} onChange={(e) => update('numero_vagas', e.target.value)} /></Field>
+          <Field label="Limite de vagas (meta)">
+            <input
+              type="number"
+              min="1"
+              value={value.numero_vagas}
+              onChange={(e) => update('numero_vagas', e.target.value)}
+              placeholder="Ex.: 96 — não cria slots; só limita"
+            />
+          </Field>
 
           {value.tipo === 'xtreino' ? (
             <Field label="Formato do X-Treino">

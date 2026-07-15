@@ -23,7 +23,8 @@ export type ConviteResumo = {
   usado: boolean
   nome_equipe_reservada: string | null
   nome_line_reservada: string | null
-  vaga_id: string | null
+  /** @deprecated use slot_id — mantido só se a API ainda devolver o campo em convites antigos */
+  vaga_id?: string | null
   slot_id?: string | null
 }
 

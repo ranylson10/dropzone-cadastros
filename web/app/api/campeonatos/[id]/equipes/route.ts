@@ -14,13 +14,13 @@ function hasSellerPermission(seller: any, key: string) {
   return seller?.permissoes?.[key] !== false
 }
 
-/** Marca convites de slot expirados (não bloqueia a listagem se falhar). */
+/** Marca convites de slot expirados e libera status do slot (não bloqueia listagem). */
 async function liberarExpirados(campeonatoId: string) {
   try {
     const agora = new Date().toISOString()
     const { data: expirados } = await supabaseAdmin
       .from('tokens')
-      .select('id,vaga_id')
+      .select('id,slot_id')
       .eq('campeonato_id', campeonatoId)
       .eq('tipo', 'convite_equipe_campeonato')
       .eq('status', 'ativo')
@@ -31,20 +31,14 @@ async function liberarExpirados(campeonatoId: string) {
     const ids = expirados.map((item) => item.id)
     await supabaseAdmin.from('tokens').update({ status: 'expirado' }).in('id', ids)
 
-    const vagaIds = expirados.map((t) => t.vaga_id).filter(Boolean)
-    if (vagaIds.length) {
+    const slotIds = [...new Set(expirados.map((t) => t.slot_id).filter(Boolean))]
+    if (slotIds.length) {
       await supabaseAdmin
-        .from('campeonato_vagas')
-        .update({
-          status: 'livre',
-          reservada_por_token_id: null,
-          reservada_em: null,
-          reserva_expira_em: null,
-          nome_equipe_reservada: null,
-          nome_line_reservada: null,
-        })
-        .in('id', vagaIds)
-        .eq('status', 'reservada')
+        .from('campeonato_slots')
+        .update({ status: 'livre', updated_at: agora })
+        .in('id', slotIds)
+        .eq('status', 'reservado')
+        .is('line_id', null)
     }
   } catch {
     // listagem não depende disso
@@ -78,7 +72,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       listSlotsLinesView(id),
       supabaseAdmin
         .from('tokens')
-        .select('id,token,slot_id,vaga_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada')
+        .select('id,token,slot_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada')
         .eq('campeonato_id', id)
         .eq('tipo', 'convite_equipe_campeonato')
         .eq('status', 'ativo')
@@ -168,7 +162,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                 usado: convite.usado,
                 nome_equipe_reservada: convite.nome_equipe_reservada,
                 nome_line_reservada: convite.nome_line_reservada,
-                vaga_id: convite.vaga_id,
                 slot_id: convite.slot_id || row.slot_id,
               }
             : null,
@@ -189,6 +182,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         modelo: {
           unidade_competitiva: 'line',
           pasta: 'equipe',
+          vaga_fisica: 'slot',
           hierarquia: ['campeonato', 'fase', 'grupo', 'slot', 'line'],
           leitura: 'vw_campeonato_slots_lines',
         },
@@ -308,7 +302,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
               usado: convite.usado,
               nome_equipe_reservada: convite.nome_equipe_reservada,
               nome_line_reservada: convite.nome_line_reservada,
-              vaga_id: convite.vaga_id,
               slot_id: convite.slot_id || slot.id,
             }
           : null,
@@ -405,7 +398,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       throw new Error('Você não tem permissão para gerenciar este campeonato.')
     }
     const body = await req.json()
-    // UI legada envia vaga_id com id do slot estrutural (campeonato_slots.id).
+    // UI pode enviar slot_id (canônico) ou vaga_id como alias do id do slot.
     const slotId = String(body.slot_id || body.vaga_id || '')
     const equipeId = String(body.equipe_id || '')
     if (!slotId || !equipeId) throw new Error('Selecione o slot e a equipe (pasta).')
