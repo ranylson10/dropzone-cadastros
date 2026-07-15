@@ -1,10 +1,15 @@
 import { supabaseAdmin } from '../shared/supabase-admin'
 
 /**
- * Regras de domínio:
- * - 1 line = no máximo 1 participação ATIVA por campeonato
- * - 1 (grupo_id, slot_numero) = no máximo 1 participação ATIVA
- * - campeonato_slots deve espelhar a participação
+ * Modelo enxuto (escrita):
+ *   campeonato_id + line_id + slot_id (+ status, origem, criado_por)
+ * Leitura rica:
+ *   vw_campeonato_slots_lines
+ *
+ * Regras:
+ * - 1 line = 1 participação ATIVA por campeonato
+ * - 1 slot = 1 participação ATIVA
+ * - equipe = pasta (via line.equipe_id)
  */
 
 export function isUniqueViolation(error: { code?: string; message?: string; details?: string } | null | undefined) {
@@ -16,7 +21,7 @@ export function friendlyParticipacaoUniqueError(
   context?: { slotLetra?: string | null; slotNumero?: number | null },
 ) {
   const details = `${error?.details || ''} ${error?.message || ''}`.toLowerCase()
-  if (details.includes('grupo_id') && details.includes('slot_numero')) {
+  if (details.includes('slot_id') || (details.includes('grupo_id') && details.includes('slot_numero'))) {
     const letra = String(context?.slotLetra || context?.slotNumero || '').toUpperCase()
     return `O slot ${letra || 'selecionado'} ja esta ocupado. Escolha outra letra.`
   }
@@ -24,7 +29,7 @@ export function friendlyParticipacaoUniqueError(
     return 'Esta line ja esta inscrita neste campeonato. Cada vaga exige uma line diferente.'
   }
   if (details.includes('equipe_id') && !details.includes('line')) {
-    return 'Este campeonato ainda bloqueia multiplas vagas por equipe no banco. Aplique a migration de lines.'
+    return 'Este campeonato ainda bloqueia multiplas vagas por equipe no banco. Aplique a migration de lines/slot_id.'
   }
   if (details.includes('equipe_lines') || details.includes('equipe_nome')) {
     return 'Ja existe uma line com esse nome nesta equipe. Selecione a line livre na lista.'
@@ -72,7 +77,22 @@ export async function assertSlotLivreNoGrupo(params: {
   grupoId: string
   slotNumero: number
   slotLetra?: string | null
+  slotId?: string | null
 }) {
+  if (params.slotId) {
+    const { data, error } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id')
+      .eq('status', 'ativo')
+      .eq('slot_id', params.slotId)
+      .maybeSingle()
+    if (error && !['42703', 'PGRST204'].includes(error.code || '')) throw error
+    if (data) {
+      const letra = String(params.slotLetra || params.slotNumero).toUpperCase()
+      throw new Error(`O slot ${letra} ja esta ocupado. Escolha outra letra.`)
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from('campeonato_equipes')
     .select('id,equipe_id,line_id,nome_exibicao')
@@ -88,17 +108,16 @@ export async function assertSlotLivreNoGrupo(params: {
   }
 }
 
-/** Soft-remove participação e libera slot/vaga de forma segura. */
+/** Soft-remove participação e libera slot de forma segura. */
 export async function softRemoveParticipacao(participacaoId: string) {
   const { data: part, error } = await supabaseAdmin
     .from('campeonato_equipes')
-    .select('id,campeonato_id,grupo_id,slot_numero,line_id,equipe_id,vaga_id')
+    .select('id,campeonato_id,grupo_id,slot_numero,slot_id,line_id,equipe_id,vaga_id')
     .eq('id', participacaoId)
     .maybeSingle()
-  if (error) throw error
+  if (error && !['42703', 'PGRST204'].includes(error.code || '')) throw error
   if (!part) return
 
-  // Libera vaga comercial se existir (evita check constraints no delete).
   if (part.vaga_id) {
     await supabaseAdmin
       .from('campeonato_vagas')
@@ -116,18 +135,34 @@ export async function softRemoveParticipacao(participacaoId: string) {
       .eq('id', part.vaga_id)
   }
 
-  await supabaseAdmin
-    .from('campeonato_equipes')
-    .update({
-      status: 'removido',
-      // limpa unique (grupo,slot) se o índice não for parcial em ambientes antigos
-      slot_numero: null,
-      grupo_id: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', participacaoId)
+  const updatePayload: Record<string, unknown> = {
+    status: 'removido',
+    slot_numero: null,
+    grupo_id: null,
+    updated_at: new Date().toISOString(),
+  }
+  // limpa slot_id se a coluna existir
+  updatePayload.slot_id = null
 
-  if (part.grupo_id && part.slot_numero != null) {
+  let { error: upErr } = await supabaseAdmin.from('campeonato_equipes').update(updatePayload).eq('id', participacaoId)
+  if (upErr && (upErr.code === 'PGRST204' || /slot_id/i.test(upErr.message || ''))) {
+    delete updatePayload.slot_id
+    const retry = await supabaseAdmin.from('campeonato_equipes').update(updatePayload).eq('id', participacaoId)
+    upErr = retry.error
+  }
+  if (upErr) throw upErr
+
+  if (part.slot_id) {
+    await supabaseAdmin
+      .from('campeonato_slots')
+      .update({
+        equipe_id: null,
+        line_id: null,
+        status: 'livre',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', part.slot_id)
+  } else if (part.grupo_id && part.slot_numero != null) {
     await supabaseAdmin
       .from('campeonato_slots')
       .update({
@@ -195,7 +230,6 @@ export async function resolveLineForInscricao(params: {
     return { id: existing.id, nome: existing.nome, criada_agora: false }
   }
 
-  // Nova line herda logo/tag da equipe-pasta; o lider pode trocar depois.
   let tag = params.tag || null
   let logoUrl = params.logoUrl || null
   if (!tag || !logoUrl) {
@@ -226,4 +260,115 @@ export async function resolveLineForInscricao(params: {
     throw error
   }
   return { id: created.id, nome: created.nome, criada_agora: true }
+}
+
+/**
+ * Gravação enxuta: line + slot (+ denorm equipe/grupo/numero para compat).
+ * Preferir sempre slot_id.
+ */
+export async function inserirParticipacaoNoSlot(params: {
+  campeonatoId: string
+  slotId: string
+  lineId: string
+  equipeId: string
+  nomeExibicao: string
+  origem: string
+  criadoPor: string
+  vagaId?: string | null
+}) {
+  const { data: slot, error: slotError } = await supabaseAdmin
+    .from('campeonato_slots')
+    .select('id,campeonato_id,grupo_id,slot_numero,slot_letra,equipe_id,line_id')
+    .eq('id', params.slotId)
+    .eq('campeonato_id', params.campeonatoId)
+    .maybeSingle()
+  if (slotError) throw slotError
+  if (!slot) throw new Error('Slot nao encontrado.')
+  if (slot.equipe_id || slot.line_id) throw new Error('Este slot ja esta ocupado.')
+
+  await assertSlotLivreNoGrupo({
+    campeonatoId: params.campeonatoId,
+    grupoId: slot.grupo_id,
+    slotNumero: Number(slot.slot_numero),
+    slotLetra: slot.slot_letra,
+    slotId: slot.id,
+  })
+  await assertLineLivreNoCampeonato(params.campeonatoId, params.lineId)
+
+  const base: Record<string, unknown> = {
+    campeonato_id: params.campeonatoId,
+    equipe_id: params.equipeId,
+    line_id: params.lineId,
+    slot_id: params.slotId,
+    grupo_id: slot.grupo_id,
+    slot_numero: slot.slot_numero,
+    nome_exibicao: params.nomeExibicao,
+    origem_entrada: params.origem,
+    criado_por: params.criadoPor,
+    status: 'ativo',
+  }
+  if (params.vagaId) base.vaga_id = params.vagaId
+
+  let { data: participacao, error } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .insert(base)
+    .select('*')
+    .single()
+
+  if (error && (error.code === 'PGRST204' || /slot_id/i.test(error.message || ''))) {
+    const { slot_id: _s, ...fallback } = base
+    const retry = await supabaseAdmin.from('campeonato_equipes').insert(fallback).select('*').single()
+    participacao = retry.data
+    error = retry.error
+  }
+
+  if (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error(
+        friendlyParticipacaoUniqueError(error, {
+          slotLetra: slot.slot_letra,
+          slotNumero: slot.slot_numero,
+        }),
+      )
+    }
+    throw error
+  }
+
+  // Espelho no slot (trigger tambem faz; reforço app-level)
+  const { error: slotUpError } = await supabaseAdmin
+    .from('campeonato_slots')
+    .update({
+      equipe_id: params.equipeId,
+      line_id: params.lineId,
+      status: 'ocupado',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.slotId)
+    .is('equipe_id', null)
+
+  if (slotUpError) {
+    await softRemoveParticipacao(participacao.id)
+    throw new Error('O slot foi preenchido por outra line. Atualize e tente novamente.')
+  }
+
+  return participacao
+}
+
+/** Lista slots do campeonato via view (fallback para query manual). */
+export async function listSlotsLinesView(campeonatoId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('vw_campeonato_slots_lines')
+    .select('*')
+    .eq('campeonato_id', campeonatoId)
+    .order('fase_ordem', { ascending: true, nullsFirst: true })
+    .order('grupo_nome', { ascending: true, nullsFirst: true })
+    .order('slot_numero', { ascending: true })
+
+  if (!error && data) return { rows: data, source: 'view' as const }
+
+  // Fallback se a view ainda nao existir no Supabase
+  if (error && (error.code === '42P01' || error.code === 'PGRST205' || /vw_campeonato_slots_lines/i.test(error.message || ''))) {
+    return { rows: null, source: 'fallback' as const, error }
+  }
+  throw error
 }

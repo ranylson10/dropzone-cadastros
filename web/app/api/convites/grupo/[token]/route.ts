@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import {
-  assertSlotLivreNoGrupo,
-  friendlyParticipacaoUniqueError,
-  isUniqueViolation,
+  inserirParticipacaoNoSlot,
   resolveLineForInscricao,
   softRemoveParticipacao,
 } from '@backend/campeonatos/participacao-sync'
@@ -19,16 +17,6 @@ function errorMessage(error: unknown, fallback: string) {
     if (maybe.code) return `${fallback} (${maybe.code})`
   }
   return fallback
-}
-
-function isMissingRelation(error: { code?: string; message?: string } | null | undefined) {
-  const message = String(error?.message || '').toLowerCase()
-  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error?.code || '')
-    || message.includes('campeonato_vagas')
-    || message.includes('vaga_id')
-    || message.includes('origem_entrada')
-    || message.includes('nome_exibicao')
-    || message.includes('line_id')
 }
 
 async function loadLink(token: string) {
@@ -357,29 +345,6 @@ async function payloadFor(req: NextRequest, token: string) {
   }
 }
 
-async function insertParticipacao(payload: Record<string, unknown>) {
-  // Tenta payload completo e vai removendo colunas opcionais se o schema estiver desatualizado.
-  const attempts: Array<Record<string, unknown>> = [
-    payload,
-    Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'vaga_id')),
-    Object.fromEntries(Object.entries(payload).filter(([key]) => !['vaga_id', 'origem_entrada'].includes(key))),
-    Object.fromEntries(Object.entries(payload).filter(([key]) => !['vaga_id', 'origem_entrada', 'nome_exibicao'].includes(key))),
-  ]
-
-  let lastError: any = null
-  for (const attempt of attempts) {
-    const { data, error } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .insert(attempt)
-      .select('*')
-      .single()
-    if (!error && data) return data
-    lastError = error
-    if (!isMissingRelation(error)) break
-  }
-  throw lastError || new Error('Nao foi possivel salvar a equipe no campeonato.')
-}
-
 export async function GET(req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params
@@ -424,14 +389,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (!slot) throw new Error('Slot do grupo nao encontrado para a letra selecionada.')
     if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Escolha outra letra.')
 
-    // Constraint real: unique (grupo_id, slot_numero) em participações ativas.
-    await assertSlotLivreNoGrupo({
-      campeonatoId: link.campeonato_id,
-      grupoId: link.grupo_id,
-      slotNumero: Number(slot.slot_numero),
-      slotLetra: slot.slot_letra,
-    })
-
     if (expected.length) {
       if (!referenciaEquipe) throw new Error('Selecione qual equipe da lista voce esta representando.')
       const existsInList = expected.some((nome) => nome.trim().toLowerCase() === referenciaEquipe.toLowerCase())
@@ -465,63 +422,20 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     // nome_exibicao guarda a referencia da lista do organizador (quando houver).
     const nomeExibicao = referenciaEquipe || lineName
 
-    // 1) Grava a participação no campeonato (vínculo real equipe/line/grupo/slot).
-    const participationPayload: Record<string, unknown> = {
-      campeonato_id: link.campeonato_id,
-      equipe_id: account.id,
-      grupo_id: link.grupo_id,
-      slot_numero: slot.slot_numero,
-      line_id: lineId,
-      nome_exibicao: nomeExibicao,
-      origem_entrada: 'inscricao',
-      criado_por: user.id,
-      status: 'ativo',
-    }
-
-    let participacao: any
-    try {
-      participacao = await insertParticipacao(participationPayload)
-    } catch (partError: any) {
-      if (isUniqueViolation(partError)) {
-        throw new Error(
-          friendlyParticipacaoUniqueError(partError, {
-            slotLetra: slot.slot_letra,
-            slotNumero: slot.slot_numero,
-          }),
-        )
-      }
-      throw new Error(errorMessage(partError, 'Nao foi possivel salvar a equipe no campeonato.'))
-    }
+    // Escrita enxuta: line_id + slot_id (+ denorms no helper).
+    const participacao = await inserirParticipacaoNoSlot({
+      campeonatoId: link.campeonato_id,
+      slotId: slot.id,
+      lineId,
+      equipeId: account.id,
+      nomeExibicao,
+      origem: 'inscricao',
+      criadoPor: user.id,
+    })
     createdParticipacaoId = participacao.id
-
-    // 2) Ocupa o slot do grupo com a mesma line (trigger no banco tambem sincroniza).
-    const { data: updatedSlot, error: slotError } = await supabaseAdmin
-      .from('campeonato_slots')
-      .update({
-        equipe_id: account.id,
-        line_id: lineId,
-        status: 'ocupado',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', slot.id)
-      .eq('campeonato_id', link.campeonato_id)
-      .eq('grupo_id', link.grupo_id)
-      .is('equipe_id', null)
-      .select('id')
-      .maybeSingle()
-
-    if (slotError || !updatedSlot) {
-      await softRemoveParticipacao(participacao.id)
-      createdParticipacaoId = null
-      if (isUniqueViolation(slotError)) {
-        throw new Error('Esta line ja esta posicionada em outro slot desta fase.')
-      }
-      // Se a part foi gravada e o slot ja estava ocupado por desync, tenta curar e avisa.
-      throw new Error(errorMessage(slotError, 'A vaga foi preenchida por outra equipe. Atualize e tente novamente.'))
-    }
     occupiedSlotId = slot.id
 
-    // 3) Melhor esforço: sincroniza campeonato_vagas legado, se existir.
+    // Melhor esforço: sincroniza campeonato_vagas legado, se existir.
     try {
       const { data: legacyVaga } = await supabaseAdmin
         .from('campeonato_vagas')

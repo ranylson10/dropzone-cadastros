@@ -3,9 +3,8 @@ import { getBearerUser, getAccountsForUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission, type CampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { mapParticipacaoDisplay } from '@backend/campeonatos/line-display'
 import {
-  assertSlotLivreNoGrupo,
-  friendlyParticipacaoUniqueError,
-  isUniqueViolation,
+  inserirParticipacaoNoSlot,
+  listSlotsLinesView,
   resolveLineForInscricao,
   softRemoveParticipacao,
 } from '@backend/campeonatos/participacao-sync'
@@ -72,15 +71,139 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     }
 
     await liberarExpirados(id)
-    const [{ data: campeonato, error: campError }, { data: slots, error: slotsError }] = await Promise.all([
+
+    const [{ data: campeonato, error: campError }, viewResult] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id, nome, logo_url').eq('id', id).is('deleted_at', null).single(),
-      supabaseAdmin
-        .from('campeonato_slots')
-        .select('id,campeonato_id,fase_id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status,equipes:equipe_id(id,nome,tag,logo_url),equipe_lines:line_id(id,nome,tag,logo_url),grupos:grupo_id(id,nome)')
-        .eq('campeonato_id', id)
-        .order('slot_numero'),
+      listSlotsLinesView(id),
     ])
     if (campError) throw campError
+
+    // Convites ativos por slot (modelo estrutural).
+    const agoraIso = new Date().toISOString()
+    let convites: any[] = []
+    {
+      const { data, error } = await supabaseAdmin
+        .from('tokens')
+        .select('id,token,slot_id,vaga_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada')
+        .eq('campeonato_id', id)
+        .eq('tipo', 'convite_equipe_campeonato')
+        .eq('status', 'ativo')
+        .eq('usado', false)
+      if (!error) {
+        convites = (data || []).filter((t) => !t.expira_em || t.expira_em > agoraIso)
+      }
+    }
+    const conviteBySlot = new Map<string, any>()
+    for (const t of convites) {
+      if (t.slot_id && !conviteBySlot.has(t.slot_id)) conviteBySlot.set(t.slot_id, t)
+    }
+
+    // Caminho rápido: view enxuta (1 query joinada). Fallback se migration ainda não rodou.
+    if (viewResult.source === 'view' && Array.isArray(viewResult.rows)) {
+      const vagas = (viewResult.rows as any[]).map((row) => {
+        const filled = Boolean(row.participacao_id || row.line_id)
+        const convite = !filled ? conviteBySlot.get(row.slot_id) || null : null
+        const status = filled ? 'ocupada' : convite ? 'reservada' : 'livre'
+        const line = row.line_id
+          ? { id: row.line_id, nome: row.line_nome, tag: row.line_tag, logo_url: row.line_logo_url }
+          : null
+        const equipe = row.equipe_id
+          ? { id: row.equipe_id, nome: row.equipe_nome, tag: row.equipe_tag, logo_url: row.equipe_logo_url }
+          : null
+        const campeonatoEquipe = row.participacao_id
+          ? mapParticipacaoDisplay({
+              id: row.participacao_id,
+              equipe_id: row.equipe_id,
+              line_id: row.line_id,
+              nome_exibicao: row.nome_exibicao,
+              origem_entrada: row.origem_entrada,
+              grupo_id: row.grupo_id,
+              slot_numero: row.slot_numero,
+              equipe,
+              line,
+            })
+          : (row.line_id || row.equipe_id)
+            ? mapParticipacaoDisplay({
+                id: String(row.slot_id),
+                equipe_id: row.equipe_id,
+                line_id: row.line_id,
+                nome_exibicao: row.line_nome || null,
+                origem_entrada: 'slot',
+                grupo_id: row.grupo_id,
+                slot_numero: row.slot_numero,
+                equipe,
+                line,
+              })
+            : null
+
+        const fase = row.fase_id
+          ? { id: row.fase_id, nome: row.fase_nome, ordem: row.fase_ordem }
+          : null
+        const grupo = row.grupo_id
+          ? { id: row.grupo_id, nome: row.grupo_nome, fase_id: row.fase_id, fase }
+          : null
+
+        return {
+          id: row.slot_id,
+          numero_vaga: Number(row.slot_numero || 0),
+          status,
+          nome_equipe_reservada: convite?.nome_equipe_reservada || null,
+          nome_line_reservada: convite?.nome_line_reservada || null,
+          reserva_expira_em: convite?.expira_em || null,
+          grupo_id: row.grupo_id,
+          fase_id: row.fase_id,
+          fase,
+          grupo,
+          slot_id: row.slot_id,
+          slot_numero: row.slot_numero,
+          slot_letra: row.slot_letra,
+          equipe_id: row.equipe_id,
+          line_id: row.line_id,
+          line_nome: campeonatoEquipe?.line_nome || row.line_nome || null,
+          line_logo_url: campeonatoEquipe?.line_logo_url || row.line_logo_url || null,
+          line_tag: campeonatoEquipe?.line_tag || row.line_tag || null,
+          equipe_nome: campeonatoEquipe?.equipe_nome || row.equipe_nome || null,
+          campeonato_equipe: campeonatoEquipe,
+          convite: convite
+            ? {
+                id: convite.id,
+                token: convite.token,
+                expira_em: convite.expira_em,
+                status: convite.status,
+                usado: convite.usado,
+                nome_equipe_reservada: convite.nome_equipe_reservada,
+                nome_line_reservada: convite.nome_line_reservada,
+                vaga_id: convite.vaga_id,
+                slot_id: convite.slot_id || row.slot_id,
+              }
+            : null,
+        }
+      })
+
+      return NextResponse.json({
+        campeonato,
+        permission: {
+          canView: permission.canView,
+          canManage: permission.canManage,
+          canGenerateToken: permission.canGenerateToken,
+          role: permission.role,
+        },
+        vagas,
+        modelo: {
+          unidade_competitiva: 'line',
+          pasta: 'equipe',
+          hierarquia: ['campeonato', 'fase', 'grupo', 'slot', 'line'],
+          leitura: 'vw_campeonato_slots_lines',
+        },
+      })
+    }
+
+    // Fallback: queries manuais se a view ainda não existir no Supabase.
+    const { data: slots, error: slotsError } = await supabaseAdmin
+      .from('campeonato_slots')
+      .select('id,campeonato_id,fase_id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status,equipes:equipe_id(id,nome,tag,logo_url),equipe_lines:line_id(id,nome,tag,logo_url),grupos:grupo_id(id,nome)')
+      .eq('campeonato_id', id)
+      .order('slot_numero')
     if (slotsError) throw slotsError
 
     const { data: participacoes } = await supabaseAdmin.from('campeonato_equipes').select('*').eq('campeonato_id', id).eq('status', 'ativo')
@@ -107,7 +230,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       return [p.id, mapParticipacaoDisplay({ ...p, equipe, line })]
     }))
 
-    // Hierarquia: fase → grupo → slot (pastas)
     const grupoIds = [...new Set((slots || []).map((s: any) => s.grupo_id).filter(Boolean))]
     const { data: gruposFull } = grupoIds.length
       ? await supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id,slots').in('id', grupoIds)
@@ -119,28 +241,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const faseMap = new Map((fases || []).map((f) => [f.id, f]))
     const grupoMap = new Map((gruposFull || []).map((g) => [g.id, { ...g, fase: g.fase_id ? faseMap.get(g.fase_id) || null : null }]))
 
-    // Convites ativos por slot (modelo estrutural).
-    const agoraIso = new Date().toISOString()
-    let convites: any[] = []
-    {
-      const { data, error } = await supabaseAdmin
-        .from('tokens')
-        .select('id,token,slot_id,vaga_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada')
-        .eq('campeonato_id', id)
-        .eq('tipo', 'convite_equipe_campeonato')
-        .eq('status', 'ativo')
-        .eq('usado', false)
-      if (!error) {
-        convites = (data || []).filter((t) => !t.expira_em || t.expira_em > agoraIso)
-      }
-    }
-    const conviteBySlot = new Map<string, any>()
-    for (const t of convites) {
-      if (t.slot_id && !conviteBySlot.has(t.slot_id)) conviteBySlot.set(t.slot_id, t)
-    }
-
     const usedParticipationIds = new Set<string>()
     const slotsWithParticipations = (slots || []).map((slot: any) => {
+      const bySlotId = (participacoes || []).find((p: any) => p.slot_id === slot.id && !usedParticipationIds.has(p.id))
       const byLine = slot.line_id
         ? (participacoes || []).find((p: any) => p.line_id === slot.line_id && !usedParticipationIds.has(p.id))
         : null
@@ -149,7 +252,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         && p.grupo_id === slot.grupo_id
         && Number(p.slot_numero) === Number(slot.slot_numero)
       )
-      const participation = byLine || byGrupoSlot || null
+      const participation = bySlotId || byLine || byGrupoSlot || null
       if (participation?.id) usedParticipationIds.add(participation.id)
 
       const equipeId = slot.equipe_id || participation?.equipe_id || null
@@ -180,7 +283,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
       return {
         id: slot.id,
-        // "numero_vaga" mantido por compat UI; identidade real é slot_letra
         numero_vaga: Number(slot.slot_numero || 0),
         status,
         nome_equipe_reservada: convite?.nome_equipe_reservada || null,
@@ -190,11 +292,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         fase_id: slot.fase_id || grupo?.fase_id || null,
         fase: grupo?.fase || null,
         grupo,
+        slot_id: slot.id,
         slot_numero: slot.slot_numero,
         slot_letra: slot.slot_letra,
         equipe_id: equipeId,
         line_id: lineId,
-        // Line-first para UI
         line_nome: display?.line_nome || null,
         line_logo_url: display?.line_logo_url || null,
         line_tag: display?.line_tag || null,
@@ -231,6 +333,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           fase_id: null,
           fase: null,
           grupo: p.grupo_id ? grupoMap.get(p.grupo_id) || null : null,
+          slot_id: p.slot_id || null,
           slot_numero: p.slot_numero,
           slot_letra: null,
           equipe_id: p.equipe_id,
@@ -252,12 +355,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         canGenerateToken: permission.canGenerateToken,
         role: permission.role,
       },
-      // Modelo: slots estruturais (fase>grupo>letra). "vagas" = nome legado da UI.
       vagas: [...slotsWithParticipations, ...orphanParticipations],
       modelo: {
         unidade_competitiva: 'line',
         pasta: 'equipe',
         hierarquia: ['campeonato', 'fase', 'grupo', 'slot', 'line'],
+        leitura: 'fallback',
       },
     })
   } catch (error) {
@@ -313,16 +416,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const equipeId = String(body.equipe_id || '')
     if (!slotId || !equipeId) throw new Error('Selecione o slot e a equipe (pasta).')
 
-    const { data: slot } = await supabaseAdmin.from('campeonato_slots').select('*').eq('id', slotId).eq('campeonato_id', id).single()
+    const { data: slot } = await supabaseAdmin
+      .from('campeonato_slots')
+      .select('id,grupo_id,slot_numero,slot_letra,equipe_id,line_id')
+      .eq('id', slotId)
+      .eq('campeonato_id', id)
+      .maybeSingle()
     if (!slot) throw new Error('Slot não encontrado.')
     if (slot.equipe_id || slot.line_id) throw new Error('Este slot já está ocupado.')
-
-    await assertSlotLivreNoGrupo({
-      campeonatoId: id,
-      grupoId: slot.grupo_id,
-      slotNumero: Number(slot.slot_numero),
-      slotLetra: slot.slot_letra,
-    })
 
     const { data: equipe } = await supabaseAdmin.from('equipes').select('id, nome, tag, logo_url').eq('id', equipeId).single()
     if (!equipe) throw new Error('Equipe não encontrada.')
@@ -338,39 +439,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     })
 
     const origem = permission.role === 'seller' ? 'inscricao' : 'organizador'
-    const { data: participacao, error: partError } = await supabaseAdmin.from('campeonato_equipes').insert({
-      campeonato_id: id,
-      equipe_id: equipeId,
-      grupo_id: slot.grupo_id,
-      slot_numero: slot.slot_numero,
-      line_id: resolved.id,
-      // Sempre o nome da line (ex.: ALOE ELITE), não o da pasta.
-      nome_exibicao: resolved.nome,
-      origem_entrada: origem,
-      criado_por: user.id,
-      status: 'ativo',
-    }).select('*').single()
-    if (partError) {
-      if (isUniqueViolation(partError)) {
-        throw new Error(friendlyParticipacaoUniqueError(partError, { slotLetra: slot.slot_letra, slotNumero: slot.slot_numero }))
-      }
-      throw partError
-    }
+    // Escrita enxuta: campeonato_id + line_id + slot_id
+    const participacao = await inserirParticipacaoNoSlot({
+      campeonatoId: id,
+      slotId,
+      lineId: resolved.id,
+      equipeId,
+      nomeExibicao: resolved.nome,
+      origem,
+      criadoPor: user.id,
+    })
 
-    const { error: slotError } = await supabaseAdmin
-      .from('campeonato_slots')
-      .update({
-        equipe_id: equipeId,
-        line_id: resolved.id,
-        status: 'ocupado',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', slotId)
-      .is('equipe_id', null)
-    if (slotError) {
-      await softRemoveParticipacao(participacao.id)
-      throw new Error('O slot foi preenchido por outra line. Atualize e tente novamente.')
-    }
     return NextResponse.json({
       ok: true,
       participacao,

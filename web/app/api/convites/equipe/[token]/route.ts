@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import {
-  assertSlotLivreNoGrupo,
-  friendlyParticipacaoUniqueError,
-  isUniqueViolation,
+  inserirParticipacaoNoSlot,
   resolveLineForInscricao,
   softRemoveParticipacao,
 } from '@backend/campeonatos/participacao-sync'
@@ -199,62 +197,19 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     let participacao: any
 
     if (slot) {
-      // --- Fluxo estrutural (preferido): ocupa o SLOT ---
+      // --- Fluxo estrutural (preferido): line_id + slot_id ---
       if (slot.equipe_id || slot.line_id) throw new Error('Este slot já foi ocupado. Peça um novo convite.')
-      await assertSlotLivreNoGrupo({
+      participacao = await inserirParticipacaoNoSlot({
         campeonatoId: convite.campeonato_id,
-        grupoId: slot.grupo_id,
-        slotNumero: Number(slot.slot_numero),
-        slotLetra: slot.slot_letra,
+        slotId: slot.id,
+        lineId: resolved.id,
+        equipeId: account.id,
+        nomeExibicao: resolved.nome,
+        origem: 'convite',
+        criadoPor: user.id,
+        vagaId: convite.vaga_id || null,
       })
-
-      const { data: part, error: partError } = await supabaseAdmin
-        .from('campeonato_equipes')
-        .insert({
-          campeonato_id: convite.campeonato_id,
-          equipe_id: account.id,
-          line_id: resolved.id,
-          grupo_id: slot.grupo_id,
-          slot_numero: slot.slot_numero,
-          nome_exibicao: resolved.nome,
-          origem_entrada: 'convite',
-          criado_por: user.id,
-          status: 'ativo',
-          vaga_id: convite.vaga_id || null,
-        })
-        .select('*')
-        .single()
-      if (partError) {
-        if (isUniqueViolation(partError)) {
-          throw new Error(
-            friendlyParticipacaoUniqueError(partError, {
-              slotLetra: slot.slot_letra,
-              slotNumero: slot.slot_numero,
-            }),
-          )
-        }
-        throw partError
-      }
-      participacao = part
-      participacaoId = part.id
-
-      const { data: slotUp, error: slotErr } = await supabaseAdmin
-        .from('campeonato_slots')
-        .update({
-          equipe_id: account.id,
-          line_id: resolved.id,
-          status: 'ocupado',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', slot.id)
-        .is('equipe_id', null)
-        .select('id')
-        .maybeSingle()
-      if (slotErr || !slotUp) {
-        await softRemoveParticipacao(part.id)
-        participacaoId = null
-        throw new Error('O slot foi preenchido por outra operação. Atualize e tente novamente.')
-      }
+      participacaoId = participacao.id
     } else if (vaga) {
       // --- Legado: campeonato_vagas ---
       if (vaga.status !== 'reservada' || vaga.reservada_por_token_id !== convite.id) {
