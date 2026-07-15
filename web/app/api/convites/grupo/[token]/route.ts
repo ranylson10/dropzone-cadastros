@@ -25,27 +25,123 @@ function isMissingRelation(error: { code?: string; message?: string } | null | u
 }
 
 async function loadLink(token: string) {
-  const { data: link, error } = await supabaseAdmin
+  const clean = decodeURIComponent(String(token || '').trim())
+  if (!clean) throw new Error('Link de equipes invalido ou inativo.')
+
+  // Tenta token exato e depois case-insensitive (URLs/copias alteram caixa).
+  let link: any = null
+  const exact = await supabaseAdmin
     .from('campeonato_links')
     .select('*')
-    .eq('token', token)
+    .eq('token', clean)
     .eq('tipo', 'inscricao_equipes_grupo')
-    .eq('ativo', true)
     .maybeSingle()
-  if (error) throw error
+  if (exact.error) throw exact.error
+  link = exact.data
+
+  if (!link) {
+    const upper = clean.toUpperCase()
+    const byUpper = await supabaseAdmin
+      .from('campeonato_links')
+      .select('*')
+      .eq('tipo', 'inscricao_equipes_grupo')
+      .ilike('token', upper)
+      .maybeSingle()
+    if (byUpper.error) throw byUpper.error
+    link = byUpper.data
+  }
+
   if (!link) throw new Error('Link de equipes invalido ou inativo.')
+  if (link.ativo === false) throw new Error('Este link de equipes foi desativado pelo organizador.')
   if (link.expira_em && new Date(link.expira_em).getTime() < Date.now()) throw new Error('Link de equipes expirado.')
   if (!link.campeonato_id || !link.grupo_id) throw new Error('Este link de grupo esta incompleto no banco.')
   return link
 }
 
-async function sessionTeam(req: NextRequest, campeonatoId: string) {
+async function loadMinhasParticipacoes(equipeId: string, campeonatoId: string, grupoId: string) {
+  const { data: parts, error } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('id,equipe_id,line_id,grupo_id,slot_numero,nome_exibicao,origem_entrada,status')
+    .eq('campeonato_id', campeonatoId)
+    .eq('grupo_id', grupoId)
+    .eq('equipe_id', equipeId)
+    .eq('status', 'ativo')
+    .order('slot_numero', { ascending: true })
+  if (error) throw error
+  if (!parts?.length) return [] as any[]
+
+  const partIds = parts.map((p) => p.id)
+  const lineIds = parts.map((p) => p.line_id).filter(Boolean)
+
+  const [{ data: lines }, { data: jogadores }, { data: links }] = await Promise.all([
+    lineIds.length
+      ? supabaseAdmin.from('equipe_lines').select('id,nome,tag,logo_url').in('id', lineIds)
+      : Promise.resolve({ data: [] as any[] }),
+    supabaseAdmin
+      .from('campeonato_jogadores')
+      .select('id,campeonato_equipe_id,nick,foto_url,id_jogo,funcao,status,slot_numero,created_at')
+      .in('campeonato_equipe_id', partIds)
+      .eq('status', 'ativo')
+      .order('slot_numero', { ascending: true }),
+    supabaseAdmin
+      .from('campeonato_links_inscricao')
+      .select('id,campeonato_equipe_id,token,ativo,expira_em,limite_jogadores,created_at')
+      .in('campeonato_equipe_id', partIds)
+      .eq('tipo', 'escalacao_line')
+      .eq('ativo', true)
+      .order('created_at', { ascending: false }),
+  ])
+
+  const lineMap = new Map((lines || []).map((l) => [l.id, l]))
+  const now = Date.now()
+  const linkByPart = new Map<string, any>()
+  for (const link of links || []) {
+    if (link.expira_em && new Date(link.expira_em).getTime() <= now) continue
+    if (!linkByPart.has(link.campeonato_equipe_id)) linkByPart.set(link.campeonato_equipe_id, link)
+  }
+
+  return parts.map((part) => {
+    const line = part.line_id ? lineMap.get(part.line_id) || null : null
+    const players = (jogadores || []).filter((j) => j.campeonato_equipe_id === part.id)
+    const link = linkByPart.get(part.id) || null
+    const limite = Number(link?.limite_jogadores || 6)
+    return {
+      id: part.id,
+      campeonato_equipe_id: part.id,
+      equipe_id: part.equipe_id,
+      line_id: part.line_id,
+      grupo_id: part.grupo_id,
+      slot_numero: part.slot_numero,
+      nome_exibicao: part.nome_exibicao || line?.nome || 'Line',
+      line: line
+        ? { id: line.id, nome: line.nome, tag: line.tag, logo_url: line.logo_url }
+        : null,
+      jogadores: players,
+      quantidade_jogadores: players.length,
+      limite_jogadores: limite,
+      vagas_disponiveis: Math.max(0, limite - players.length),
+      link_escalacao: link
+        ? {
+            id: link.id,
+            token: link.token,
+            expira_em: link.expira_em,
+            limite_jogadores: limite,
+            public_path: `/escala/${link.token}`,
+          }
+        : null,
+    }
+  })
+}
+
+async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: string) {
   try {
     const user = await getBearerUser(req)
     const accounts = await getAccountsForUser(user)
     const equipe = accounts.find((account) => account.profile_type === 'equipe') || null
-    if (!equipe) return { autenticado: true, equipe: null, lines: [] as any[] }
-    const [{ data: lines }, { data: participacoes }] = await Promise.all([
+    if (!equipe) {
+      return { autenticado: true, equipe: null, lines: [] as any[], minhas_participacoes: [] as any[], inscrita: false }
+    }
+    const [{ data: lines }, { data: participacoesCampeonato }, minhasParticipacoes] = await Promise.all([
       supabaseAdmin
         .from('equipe_lines')
         .select('id,nome,tag,logo_url,status')
@@ -58,8 +154,9 @@ async function sessionTeam(req: NextRequest, campeonatoId: string) {
         .eq('campeonato_id', campeonatoId)
         .eq('equipe_id', equipe.id)
         .eq('status', 'ativo'),
+      loadMinhasParticipacoes(equipe.id, campeonatoId, grupoId),
     ])
-    const used = new Set((participacoes || []).map((item) => item.line_id).filter(Boolean))
+    const used = new Set((participacoesCampeonato || []).map((item) => item.line_id).filter(Boolean))
     return {
       autenticado: true,
       equipe: {
@@ -69,9 +166,17 @@ async function sessionTeam(req: NextRequest, campeonatoId: string) {
         logo_url: equipe.data?.logo_url || null,
       },
       lines: (lines || []).map((line) => ({ ...line, ja_inscrita: used.has(line.id) })),
+      minhas_participacoes: minhasParticipacoes,
+      inscrita: minhasParticipacoes.length > 0,
     }
   } catch {
-    return { autenticado: false, equipe: null, lines: [] as any[] }
+    return {
+      autenticado: false,
+      equipe: null,
+      lines: [] as any[],
+      minhas_participacoes: [] as any[],
+      inscrita: false,
+    }
   }
 }
 
@@ -120,12 +225,18 @@ async function payloadFor(req: NextRequest, token: string) {
   ])
   if (campError) throw campError
   if (grupoError) throw grupoError
-  const session = await sessionTeam(req, link.campeonato_id)
+  const session = await sessionTeam(req, link.campeonato_id, link.grupo_id)
+  const vagas = mapVagas(expected, slots)
   return {
     link: { token: link.token, titulo: link.titulo },
     campeonato,
     grupo,
-    vagas: mapVagas(expected, slots),
+    vagas,
+    resumo_grupo: {
+      total: vagas.length,
+      ocupadas: vagas.filter((v) => v.ocupada).length,
+      livres: vagas.filter((v) => !v.ocupada).length,
+    },
     ...session,
   }
 }
