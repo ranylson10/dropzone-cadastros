@@ -152,7 +152,17 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     const convite = vaga.convite
     if (!convite) return
     const link = `${window.location.origin}/convite/equipe/${convite.token}`
-    const texto = `Você recebeu um convite para participar do campeonato ${data?.campeonato.nome}.\n\nVaga reservada: ${String(vaga.numero_vaga).padStart(2, '0')}\nReferência da reserva: ${vaga.nome_equipe_reservada}\nReferência da line: ${vaga.nome_line_reservada}\nValidade: 24 horas.\n\nAcesse: ${link}`
+    const slotLabel = vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')
+    const texto = `Você recebeu um convite para o campeonato ${data?.campeonato.nome}.
+
+Slot: ${slotLabel}${vaga.grupo?.nome ? ` (${vaga.grupo.nome})` : ''}
+Referência: ${vaga.nome_equipe_reservada || '-'}
+Line informada: ${vaga.nome_line_reservada || '-'}
+Validade: 24 horas.
+
+A line é quem joga e pontua. Entre e confirme a line real da sua equipe.
+
+Acesse: ${link}`
     await navigator.clipboard.writeText(texto)
     setFeedback('Mensagem completa copiada.')
   }
@@ -171,7 +181,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
   }
 
   async function cancelar(vaga: CampeonatoVaga) {
-    if (!vaga.convite || !window.confirm(`Liberar a vaga ${vaga.numero_vaga} e cancelar o convite?`)) return
+    if (!vaga.convite || !window.confirm(`Liberar o slot ${vaga.slot_letra || vaga.numero_vaga} e cancelar o convite?`)) return
     setProcessando(true)
     try {
       await campeonatoEquipesService.cancelarConvite(campeonatoId, vaga.convite.id)

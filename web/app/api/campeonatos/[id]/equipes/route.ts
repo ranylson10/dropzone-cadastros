@@ -19,7 +19,7 @@ async function liberarExpirados(campeonatoId: string) {
   const agora = new Date().toISOString()
   const { data: expirados } = await supabaseAdmin
     .from('tokens')
-    .select('id')
+    .select('id,vaga_id,slot_id')
     .eq('campeonato_id', campeonatoId)
     .eq('tipo', 'convite_equipe_campeonato')
     .eq('status', 'ativo')
@@ -29,6 +29,23 @@ async function liberarExpirados(campeonatoId: string) {
   if (!expirados?.length) return
   const ids = expirados.map((item) => item.id)
   await supabaseAdmin.from('tokens').update({ status: 'expirado' }).in('id', ids)
+
+  // Libera vagas comerciais legadas vinculadas a esses tokens.
+  const vagaIds = expirados.map((t) => t.vaga_id).filter(Boolean)
+  if (vagaIds.length) {
+    await supabaseAdmin
+      .from('campeonato_vagas')
+      .update({
+        status: 'livre',
+        reservada_por_token_id: null,
+        reservada_em: null,
+        reserva_expira_em: null,
+        nome_equipe_reservada: null,
+        nome_line_reservada: null,
+      })
+      .in('id', vagaIds)
+      .eq('status', 'reservada')
+  }
 }
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -102,6 +119,26 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const faseMap = new Map((fases || []).map((f) => [f.id, f]))
     const grupoMap = new Map((gruposFull || []).map((g) => [g.id, { ...g, fase: g.fase_id ? faseMap.get(g.fase_id) || null : null }]))
 
+    // Convites ativos por slot (modelo estrutural).
+    const agoraIso = new Date().toISOString()
+    let convites: any[] = []
+    {
+      const { data, error } = await supabaseAdmin
+        .from('tokens')
+        .select('id,token,slot_id,vaga_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada')
+        .eq('campeonato_id', id)
+        .eq('tipo', 'convite_equipe_campeonato')
+        .eq('status', 'ativo')
+        .eq('usado', false)
+      if (!error) {
+        convites = (data || []).filter((t) => !t.expira_em || t.expira_em > agoraIso)
+      }
+    }
+    const conviteBySlot = new Map<string, any>()
+    for (const t of convites) {
+      if (t.slot_id && !conviteBySlot.has(t.slot_id)) conviteBySlot.set(t.slot_id, t)
+    }
+
     const usedParticipationIds = new Set<string>()
     const slotsWithParticipations = (slots || []).map((slot: any) => {
       const byLine = slot.line_id
@@ -118,7 +155,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       const equipeId = slot.equipe_id || participation?.equipe_id || null
       const lineId = slot.line_id || participation?.line_id || null
       const filled = Boolean(participation || lineId)
-      const status = filled ? 'ocupada' : 'livre'
+      const convite = !filled ? conviteBySlot.get(slot.id) || null : null
+      const status = filled ? 'ocupada' : convite ? 'reservada' : 'livre'
       const equipe = equipeId ? equipesMap.get(equipeId) || null : null
       const line = lineId ? linesMap.get(lineId) || null : null
       const campeonatoEquipe = participation
@@ -145,9 +183,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         // "numero_vaga" mantido por compat UI; identidade real é slot_letra
         numero_vaga: Number(slot.slot_numero || 0),
         status,
-        nome_equipe_reservada: null,
-        nome_line_reservada: null,
-        reserva_expira_em: null,
+        nome_equipe_reservada: convite?.nome_equipe_reservada || null,
+        nome_line_reservada: convite?.nome_line_reservada || null,
+        reserva_expira_em: convite?.expira_em || null,
         grupo_id: slot.grupo_id,
         fase_id: slot.fase_id || grupo?.fase_id || null,
         fase: grupo?.fase || null,
@@ -162,7 +200,19 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         line_tag: display?.line_tag || null,
         equipe_nome: display?.equipe_nome || null,
         campeonato_equipe: campeonatoEquipe,
-        convite: null,
+        convite: convite
+          ? {
+              id: convite.id,
+              token: convite.token,
+              expira_em: convite.expira_em,
+              status: convite.status,
+              usado: convite.usado,
+              nome_equipe_reservada: convite.nome_equipe_reservada,
+              nome_line_reservada: convite.nome_line_reservada,
+              vaga_id: convite.vaga_id,
+              slot_id: convite.slot_id || slot.id,
+            }
+          : null,
       }
     })
 

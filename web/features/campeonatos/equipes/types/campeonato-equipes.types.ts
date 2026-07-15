@@ -24,6 +24,7 @@ export type ConviteResumo = {
   nome_equipe_reservada: string | null
   nome_line_reservada: string | null
   vaga_id: string | null
+  slot_id?: string | null
 }
 
 export type CampeonatoVaga = {

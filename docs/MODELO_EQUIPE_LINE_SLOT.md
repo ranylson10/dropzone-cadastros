@@ -45,7 +45,16 @@ campeonato
 |---|---|
 | Admin: buscar pasta → line livre / criar line → slot | `campeonato_equipes` + ocupa `campeonato_slots` |
 | Link de grupo: líder escolhe letra + line | idem |
-| Convite por vaga comercial (`campeonato_vagas`) | participação (+ vaga); ideal sincronizar com slot depois |
+| Convite individual (`/convite/equipe/[token]`) | token com **`slot_id`** → aceita line → `campeonato_equipes` + ocupa **slot** |
+
+### Convite por slot (unificado)
+
+1. Admin no slot livre: **Criar convite** (referências internas).
+2. Token grava `slot_id` + `grupo_id` (+ `fase_id` se houver).
+3. Líder entra, escolhe/cria **line livre**, confirma.
+4. Sistema grava participação com `line_id`, `grupo_id`, `slot_numero` e marca o slot ocupado.
+
+`campeonato_vagas` fica só como **legado** (tokens antigos com `vaga_id`).
 
 ## O que ainda é legado / dual
 
