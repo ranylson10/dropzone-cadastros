@@ -777,7 +777,7 @@ body:has(.cropper-overlay) {
 .profile-card.gamer-card {
   position: relative;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: 58px minmax(0, 1fr);
   gap: 16px;
   align-items: center;
   min-height: 132px;
@@ -790,6 +790,39 @@ body:has(.cropper-overlay) {
   text-align: left;
   text-transform: uppercase;
   transition: transform .16s ease, border-color .16s ease;
+  overflow: hidden;
+}
+
+.login-stage img,
+.login-free-shell img,
+.profile-card.gamer-card img {
+  max-width: 100%;
+}
+
+.login-stage .profile-card.gamer-card .card-icon-frame,
+.login-free-shell .profile-card.gamer-card .card-icon-frame {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  min-height: 58px;
+  max-width: 58px;
+  max-height: 58px;
+}
+
+.login-stage .profile-card.gamer-card .card-icon-frame img,
+.login-free-shell .profile-card.gamer-card .card-icon-frame img {
+  width: 58px !important;
+  height: 58px !important;
+  max-width: 58px !important;
+  max-height: 58px !important;
+}
+
+.social-login-button img {
+  width: 20px !important;
+  height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
+  flex: 0 0 20px;
 }
 
 .profile-card.gamer-card:hover,
@@ -802,12 +835,28 @@ body:has(.cropper-overlay) {
 .card-icon-frame {
   width: 58px;
   height: 58px;
+  min-width: 58px;
+  min-height: 58px;
+  max-width: 58px;
+  max-height: 58px;
+  flex: 0 0 58px;
+}
+
+.card-icon-frame img {
+  width: 58px !important;
+  height: 58px !important;
+  max-width: 58px !important;
+  max-height: 58px !important;
+  object-fit: cover;
+  display: block;
 }
 
 .card-icon-frame svg,
 .card-icon-frame span {
   width: 34px;
   height: 34px;
+  max-width: 34px;
+  max-height: 34px;
 }
 
 .card-copy {
@@ -952,8 +1001,13 @@ body:has(.cropper-overlay) {
 }
 
 .auth-site-mark img {
-  width: 46px;
-  height: 46px;
+  width: 46px !important;
+  height: 46px !important;
+  max-width: 46px !important;
+  max-height: 46px !important;
+  object-fit: cover;
+  display: block;
+  flex: 0 0 46px;
 }
 
 .auth-site-mark span {
@@ -3954,7 +4008,7 @@ button.invite-slot-button.free.clickable b {
 .teams-capacidade-bar strong{font-size:18px;line-height:1.1}
 .teams-capacidade-bar span{color:#6f7681;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 
-/* Slots na aba Grupos — mesmo padrão visual da aba Equipes */
+/* Slots na aba Grupos ï¿½ mesmo padrï¿½o visual da aba Equipes */
 .group-slots-list{padding:10px 12px 14px;display:grid;gap:8px;background:#f7f8fa}
 .group-folder .championship-vaga-row{background:#fff}
 .group-folder .folder-row{background:#f3f4f6;border-bottom:1px solid #e5e7eb}
