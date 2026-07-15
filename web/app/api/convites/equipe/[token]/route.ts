@@ -114,7 +114,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (lineId) {
       const { data: line } = await supabaseAdmin
         .from('equipe_lines')
-        .select('id, nome')
+        .select('id, nome, status')
         .eq('id', lineId)
         .eq('equipe_id', account.id)
         .single()
@@ -122,20 +122,39 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       nomeLineReal = line.nome
     } else {
       if (!nomeNovaLine) throw new Error('Selecione uma line ou informe o nome de uma nova line.')
-      const { data: nova, error } = await supabaseAdmin
+      const target = nomeNovaLine.trim().toLowerCase()
+      const { data: existingLines, error: listError } = await supabaseAdmin
         .from('equipe_lines')
-        .insert({
-          equipe_id: account.id,
-          nome: nomeNovaLine,
-          tag: account.data?.tag || null,
-          logo_url: account.data?.logo_url || null,
-          status: 'ativo',
-        })
-        .select('id, nome')
-        .single()
-      if (error) throw error
-      lineId = nova.id
-      nomeLineReal = nova.nome
+        .select('id, nome, status')
+        .eq('equipe_id', account.id)
+      if (listError) throw listError
+      const existing = (existingLines || []).find(
+        (row) => String(row.nome || '').trim().toLowerCase() === target,
+      )
+      if (existing) {
+        lineId = existing.id
+        nomeLineReal = existing.nome
+      } else {
+        const { data: nova, error } = await supabaseAdmin
+          .from('equipe_lines')
+          .insert({
+            equipe_id: account.id,
+            nome: nomeNovaLine.trim(),
+            tag: account.data?.tag || null,
+            logo_url: account.data?.logo_url || null,
+            status: 'ativo',
+          })
+          .select('id, nome')
+          .single()
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Ja existe uma line com esse nome nesta equipe. Selecione a line existente.')
+          }
+          throw error
+        }
+        lineId = nova.id
+        nomeLineReal = nova.nome
+      }
     }
 
     const { data: duplicada } = await supabaseAdmin

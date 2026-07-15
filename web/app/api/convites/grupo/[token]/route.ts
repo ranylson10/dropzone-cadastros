@@ -349,29 +349,79 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (lineId) {
       const { data: line, error: lineError } = await supabaseAdmin
         .from('equipe_lines')
-        .select('id,nome')
+        .select('id,nome,status')
         .eq('id', lineId)
         .eq('equipe_id', account.id)
         .maybeSingle()
       if (lineError) throw lineError
       if (!line) throw new Error('A line selecionada nao pertence a sua equipe.')
+      if (String(line.status || '').toLowerCase() === 'inativo') {
+        throw new Error('A line selecionada esta inativa. Escolha outra ou reative no painel.')
+      }
       lineName = line.nome
     } else {
       if (!nomeNovaLine) throw new Error('Selecione uma line ou informe uma nova.')
-      const { data: created, error } = await supabaseAdmin
+
+      // Unique (equipe_id, lower(trim(nome))) — se o nome ja existe, reutiliza em vez de inserir de novo.
+      const { data: existingLines, error: existingLineError } = await supabaseAdmin
         .from('equipe_lines')
-        .insert({
-          equipe_id: account.id,
-          nome: nomeNovaLine,
-          tag: account.data?.tag || null,
-          logo_url: account.data?.logo_url || null,
-          status: 'ativo',
-        })
-        .select('id,nome')
-        .single()
-      if (error) throw error
-      lineId = created.id
-      lineName = created.nome
+        .select('id,nome,status')
+        .eq('equipe_id', account.id)
+      if (existingLineError) throw existingLineError
+
+      const target = nomeNovaLine.trim().toLowerCase()
+      const existing = (existingLines || []).find(
+        (row) => String(row.nome || '').trim().toLowerCase() === target,
+      )
+
+      if (existing) {
+        if (String(existing.status || '').toLowerCase() === 'inativo') {
+          const { data: reactivated, error: reactivateError } = await supabaseAdmin
+            .from('equipe_lines')
+            .update({ status: 'ativo', updated_at: new Date().toISOString() })
+            .eq('id', existing.id)
+            .select('id,nome')
+            .single()
+          if (reactivateError) throw reactivateError
+          lineId = reactivated.id
+          lineName = reactivated.nome
+        } else {
+          lineId = existing.id
+          lineName = existing.nome
+        }
+      } else {
+        const { data: created, error } = await supabaseAdmin
+          .from('equipe_lines')
+          .insert({
+            equipe_id: account.id,
+            nome: nomeNovaLine.trim(),
+            tag: account.data?.tag || null,
+            logo_url: account.data?.logo_url || null,
+            status: 'ativo',
+          })
+          .select('id,nome')
+          .single()
+        if (error) {
+          if (error.code === '23505') {
+            // Corrida: outra request criou o mesmo nome. Recarrega e reutiliza.
+            const { data: retryLines } = await supabaseAdmin
+              .from('equipe_lines')
+              .select('id,nome,status')
+              .eq('equipe_id', account.id)
+            const retry = (retryLines || []).find(
+              (row) => String(row.nome || '').trim().toLowerCase() === target,
+            )
+            if (!retry) throw new Error('Ja existe uma line com esse nome nesta equipe.')
+            lineId = retry.id
+            lineName = retry.nome
+          } else {
+            throw error
+          }
+        } else {
+          lineId = created.id
+          lineName = created.nome
+        }
+      }
     }
 
     const { data: duplicate, error: duplicateError } = await supabaseAdmin

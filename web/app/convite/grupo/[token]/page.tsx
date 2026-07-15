@@ -171,6 +171,22 @@ export default function ConviteGrupoPage() {
     }
     if (!lineId && !nomeNovaLine.trim()) return setMessage('Selecione uma line ou crie uma nova.')
 
+    // Se digitou um nome que ja existe na equipe, usa a line existente.
+    let resolvedLineId = lineId || null
+    let resolvedNomeLine = lineId ? null : nomeNovaLine.trim()
+    if (!resolvedLineId && resolvedNomeLine) {
+      const match = (data?.lines || []).find(
+        (line) => String(line.nome || '').trim().toLowerCase() === resolvedNomeLine!.toLowerCase(),
+      )
+      if (match) {
+        if (match.ja_inscrita) {
+          return setMessage('Essa line ja esta inscrita neste campeonato. Escolha outra line.')
+        }
+        resolvedLineId = match.id
+        resolvedNomeLine = null
+      }
+    }
+
     setBusy(true)
     setMessage('')
     const response = await fetch(`/api/convites/grupo/${encodeURIComponent(token)}`, {
@@ -183,8 +199,8 @@ export default function ConviteGrupoPage() {
         slot_id: slotModal.slot_id,
         vaga_index: slotModal.index,
         referencia_equipe: referenciaEquipe || null,
-        line_id: lineId || null,
-        nome_line: lineId ? null : nomeNovaLine.trim(),
+        line_id: resolvedLineId,
+        nome_line: resolvedNomeLine,
       }),
     })
     const payload = await response.json()
