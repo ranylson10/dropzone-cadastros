@@ -226,24 +226,85 @@ async function loadGroupSlots(campeonatoId: string, grupoId: string) {
   return slots || []
 }
 
-function mapVagas(slots: any[]) {
+async function loadGroupParticipations(campeonatoId: string, grupoId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('id,equipe_id,line_id,grupo_id,slot_numero,status,nome_exibicao')
+    .eq('campeonato_id', campeonatoId)
+    .eq('grupo_id', grupoId)
+    .eq('status', 'ativo')
+  if (error) throw error
+  return data || []
+}
+
+async function healSlotFromParticipation(slot: any, part: any) {
+  // Corrige desync: participacao ativa no slot_numero, mas campeonato_slots ainda livre.
+  if (!slot?.id || !part) return
+  if (slot.equipe_id && slot.line_id) return
+  await supabaseAdmin
+    .from('campeonato_slots')
+    .update({
+      equipe_id: part.equipe_id,
+      line_id: part.line_id,
+      status: 'ocupado',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', slot.id)
+    .is('equipe_id', null)
+}
+
+async function mapVagas(slots: any[], participacoes: any[]) {
+  const partBySlot = new Map<number, any>()
+  for (const part of participacoes) {
+    if (part.slot_numero == null) continue
+    // Unique real do banco: (grupo_id, slot_numero)
+    if (!partBySlot.has(Number(part.slot_numero))) partBySlot.set(Number(part.slot_numero), part)
+  }
+
+  const equipeIds = [...new Set(participacoes.map((p) => p.equipe_id).filter(Boolean))]
+  const lineIds = [...new Set(participacoes.map((p) => p.line_id).filter(Boolean))]
+  const [{ data: equipes }, { data: lines }] = await Promise.all([
+    equipeIds.length
+      ? supabaseAdmin.from('equipes').select('id,nome,tag,logo_url').in('id', equipeIds)
+      : Promise.resolve({ data: [] as any[] }),
+    lineIds.length
+      ? supabaseAdmin.from('equipe_lines').select('id,nome,tag,logo_url').in('id', lineIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
+  const equipeMap = new Map((equipes || []).map((e) => [e.id, e]))
+  const lineMap = new Map((lines || []).map((l) => [l.id, l]))
+
+  // Heal desync em background-friendly sequential updates (poucos slots).
+  for (const slot of slots) {
+    const part = partBySlot.get(Number(slot.slot_numero))
+    if (part && !slot.equipe_id) {
+      await healSlotFromParticipation(slot, part)
+      slot.equipe_id = part.equipe_id
+      slot.line_id = part.line_id
+      slot.status = 'ocupado'
+    }
+  }
+
   return slots.map((slot, index) => {
-    const line = Array.isArray(slot?.equipe_lines) ? slot.equipe_lines[0] : slot?.equipe_lines
-    const team = Array.isArray(slot?.equipes) ? slot.equipes[0] : slot?.equipes
-    const ocupada = Boolean(slot?.equipe_id || slot?.line_id)
+    const part = partBySlot.get(Number(slot.slot_numero)) || null
+    const lineFromJoin = Array.isArray(slot?.equipe_lines) ? slot.equipe_lines[0] : slot?.equipe_lines
+    const teamFromJoin = Array.isArray(slot?.equipes) ? slot.equipes[0] : slot?.equipes
+    const line = lineFromJoin || (part?.line_id ? lineMap.get(part.line_id) : null) || null
+    const team = teamFromJoin || (part?.equipe_id ? equipeMap.get(part.equipe_id) : null) || null
+    const ocupada = Boolean(slot?.equipe_id || slot?.line_id || part)
     const letra = String(slot?.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
     return {
       index,
-      // A letra do slot é o que o líder escolhe (avatar no jogo).
       nome: `Slot ${letra}`,
       slot_id: slot?.id || null,
       slot_numero: slot?.slot_numero || index + 1,
       slot_letra: letra,
       ocupada,
       equipe_nome: team?.nome || null,
-      line_nome: line?.nome || null,
+      line_nome: line?.nome || part?.nome_exibicao || null,
       logo_url: line?.logo_url || team?.logo_url || null,
-      referencia_equipe: ocupada ? (slot?.nome_exibicao || null) : null,
+      referencia_equipe: ocupada ? part?.nome_exibicao || line?.nome || null : null,
+      campeonato_equipe_id: part?.id || null,
     }
   })
 }
@@ -251,25 +312,20 @@ function mapVagas(slots: any[]) {
 async function payloadFor(req: NextRequest, token: string) {
   const link = await loadLink(token)
   const expected = parseLinkMetadata(link).expected_teams
-  const [{ data: campeonato, error: campError }, { data: grupo, error: grupoError }, slots] = await Promise.all([
-    supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).single(),
-    supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).single(),
-    loadGroupSlots(link.campeonato_id, link.grupo_id),
-  ])
+  const [{ data: campeonato, error: campError }, { data: grupo, error: grupoError }, slots, participacoes] =
+    await Promise.all([
+      supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).single(),
+      supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).single(),
+      loadGroupSlots(link.campeonato_id, link.grupo_id),
+      loadGroupParticipations(link.campeonato_id, link.grupo_id),
+    ])
   if (campError) throw campError
   if (grupoError) throw grupoError
   const session = await sessionTeam(req, link.campeonato_id, link.grupo_id)
-  const vagas = mapVagas(slots)
+  const vagas = await mapVagas(slots, participacoes)
 
-  // Referências da lista do organizador já usadas nas participações do grupo.
-  const { data: claimed } = await supabaseAdmin
-    .from('campeonato_equipes')
-    .select('nome_exibicao,status')
-    .eq('campeonato_id', link.campeonato_id)
-    .eq('grupo_id', link.grupo_id)
-    .eq('status', 'ativo')
   const usedNames = new Set(
-    (claimed || [])
+    participacoes
       .map((row) => String(row.nome_exibicao || '').trim().toLowerCase())
       .filter(Boolean),
   )
@@ -360,6 +416,25 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
 
     if (!slot) throw new Error('Slot do grupo nao encontrado para a letra selecionada.')
     if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Escolha outra letra.')
+
+    // Constraint real: unique (grupo_id, slot_numero) em campeonato_equipes.
+    // O slot pode parecer livre e ainda assim existir participacao ativa (desync).
+    const { data: slotTaken, error: slotTakenError } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id,equipe_id,line_id,nome_exibicao,status')
+      .eq('campeonato_id', link.campeonato_id)
+      .eq('grupo_id', link.grupo_id)
+      .eq('slot_numero', slot.slot_numero)
+      .eq('status', 'ativo')
+      .maybeSingle()
+    if (slotTakenError) throw slotTakenError
+    if (slotTaken) {
+      // Tenta auto-corrigir o slot visual e bloqueia a inscricao nesta letra.
+      await healSlotFromParticipation(slot, slotTaken)
+      throw new Error(
+        `O slot ${String(slot.slot_letra || slot.slot_numero).toUpperCase()} ja esta ocupado por outra equipe/line. Escolha outra letra.`,
+      )
+    }
 
     if (expected.length) {
       if (!referenciaEquipe) throw new Error('Selecione qual equipe da lista voce esta representando.')
@@ -504,7 +579,26 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       participacao = await insertParticipacao(participationPayload)
     } catch (partError: any) {
       if (partError?.code === '23505') {
-        throw new Error('Esta equipe/line ja esta vinculada a este campeonato. Se for multi-line, confira se a migration de line unica foi aplicada.')
+        const details = String(partError?.details || partError?.message || '').toLowerCase()
+        if (details.includes('grupo_id') && details.includes('slot_numero')) {
+          throw new Error(
+            `O slot ${String(slot.slot_letra || slot.slot_numero).toUpperCase()} ja possui uma inscricao. Escolha outra letra.`,
+          )
+        }
+        if (details.includes('line_id') || details.includes('campeonato_equipes_line')) {
+          throw new Error('Esta line ja esta inscrita neste campeonato. Cada vaga exige uma line diferente.')
+        }
+        if (details.includes('equipe_id') && !details.includes('line')) {
+          throw new Error(
+            'Este campeonato ainda bloqueia mais de uma vaga por equipe no banco. Rode a migration de lines (campeonato_equipes por line).',
+          )
+        }
+        throw new Error(
+          errorMessage(
+            partError,
+            'Nao foi possivel salvar a inscricao (conflito de unicidade no banco). Atualize a pagina e tente outro slot/line.',
+          ),
+        )
       }
       throw new Error(errorMessage(partError, 'Nao foi possivel salvar a equipe no campeonato.'))
     }
@@ -527,7 +621,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .maybeSingle()
 
     if (slotError || !updatedSlot) {
-      await supabaseAdmin.from('campeonato_equipes').delete().eq('id', participacao.id)
+      // Soft-remove: hard delete pode quebrar triggers de campeonato_vagas.
+      await supabaseAdmin
+        .from('campeonato_equipes')
+        .update({ status: 'removido', slot_numero: null, grupo_id: null, updated_at: new Date().toISOString() })
+        .eq('id', participacao.id)
       createdParticipacaoId = null
       if (slotError?.code === '23505') {
         throw new Error('Esta line ja esta posicionada em outro slot desta fase.')
@@ -580,7 +678,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     // Rollback de melhor esforço se algo falhou no meio.
     if (createdParticipacaoId && !occupiedSlotId) {
       try {
-        await supabaseAdmin.from('campeonato_equipes').delete().eq('id', createdParticipacaoId)
+        await supabaseAdmin
+          .from('campeonato_equipes')
+          .update({ status: 'removido', slot_numero: null, grupo_id: null, updated_at: new Date().toISOString() })
+          .eq('id', createdParticipacaoId)
       } catch {
         // ignore rollback failure
       }
