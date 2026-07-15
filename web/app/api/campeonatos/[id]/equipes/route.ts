@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission, type CampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { mapParticipacaoDisplay } from '@backend/campeonatos/line-display'
+import { getCampeonatoCapacidade } from '@backend/campeonatos/capacidade'
 import {
   inserirParticipacaoNoSlot,
   listSlotsLinesView,
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
     const agoraIso = new Date().toISOString()
     // liberarExpirados em paralelo com a leitura (não serializa a tela)
-    const [, { data: campeonato, error: campError }, viewResult, convitesRes] = await Promise.all([
+    const [, { data: campeonato, error: campError }, viewResult, convitesRes, capacidade] = await Promise.all([
       liberarExpirados(id),
       supabaseAdmin.from('campeonatos').select('id, nome, logo_url').eq('id', id).is('deleted_at', null).single(),
       listSlotsLinesView(id),
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         .eq('status', 'ativo')
         .eq('usado', false)
         .or(`expira_em.is.null,expira_em.gt.${agoraIso}`),
+      getCampeonatoCapacidade(id).catch(() => null),
     ])
     if (campError) throw campError
 
@@ -178,6 +180,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           canScore: permission.canScore,
           role: permission.role,
         },
+        capacidade,
         vagas,
         modelo: {
           unidade_competitiva: 'line',
@@ -347,10 +350,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         canScore: permission.canScore,
         role: permission.role,
       },
+      capacidade,
       vagas: [...slotsWithParticipations, ...orphanParticipations],
       modelo: {
         unidade_competitiva: 'line',
         pasta: 'equipe',
+        vaga_fisica: 'slot',
         hierarquia: ['campeonato', 'fase', 'grupo', 'slot', 'line'],
         leitura: 'fallback',
       },

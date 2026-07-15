@@ -248,8 +248,41 @@ Acesse: ${link}`
 
   if (!data) return null
 
+  const capacidade = data.capacidade
+  const metaLabel =
+    capacidade?.limite_vagas != null
+      ? `${capacidade.slots_ocupados}/${capacidade.limite_vagas}`
+      : `${capacidade?.slots_ocupados ?? stats.ocupadas} preenchidas`
+
   return (
     <section className="championship-teams-tab compact">
+      {capacidade ? (
+        <div className="teams-capacidade-bar" aria-label="Capacidade do campeonato">
+          <div>
+            <strong>{metaLabel}</strong>
+            <span>
+              {capacidade.limite_vagas != null
+                ? 'preenchidas no limite do campeonato'
+                : 'preenchidas (sem limite de meta)'}
+            </span>
+          </div>
+          <div>
+            <strong>{capacidade.slots_criados}</strong>
+            <span>slots criados nos grupos</span>
+          </div>
+          <div>
+            <strong>{capacidade.slots_livres_estrutura}</strong>
+            <span>slots livres na estrutura</span>
+          </div>
+          {capacidade.slots_ainda_podem_ser_criados != null ? (
+            <div>
+              <strong>{capacidade.slots_ainda_podem_ser_criados}</strong>
+              <span>ainda podem ser criados</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="teams-compact-toolbar">
         <div className="teams-status-filters" role="tablist" aria-label="Filtrar vagas">
           {FILTROS.map((item) => {
@@ -279,7 +312,7 @@ Acesse: ${link}`
 
         <div className="teams-toolbar-right">
           <div className="teams-mini-stats" aria-label="Resumo das vagas">
-            <span><strong>{stats.total}</strong> total</span>
+            <span><strong>{stats.total}</strong> slots</span>
             <span className="is-free"><strong>{stats.livres}</strong> livres</span>
             <span className="is-reserved"><strong>{stats.reservadas}</strong> reservadas</span>
             <span className="is-filled"><strong>{stats.ocupadas}</strong> preenchidas</span>

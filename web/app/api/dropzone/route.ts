@@ -1183,12 +1183,28 @@ export async function PATCH(req: NextRequest) {
       if (error?.code === '23505') throw new Error('Ja existe um grupo com esse nome nesta fase.')
       if (error) throw error
       if (requestedSlots > current.slots) {
-        const additions = Array.from({ length: requestedSlots - current.slots }, (_, offset) => {
-          const number = current.slots + offset + 1; let value = number; let label = ''
-          while (value > 0) { value -= 1; label = String.fromCharCode(65 + value % 26) + label; value = Math.floor(value / 26) }
-          return { campeonato_id: current.campeonato_id, fase_id: current.fase_id, grupo_id: id, slot_numero: number, slot_letra: label, status: 'livre' }
+        const novos = requestedSlots - Number(current.slots || 0)
+        await assertPodeCriarSlots(current.campeonato_id, novos)
+        const additions = Array.from({ length: novos }, (_, offset) => {
+          const number = Number(current.slots || 0) + offset + 1
+          let value = number
+          let label = ''
+          while (value > 0) {
+            value -= 1
+            label = String.fromCharCode(65 + (value % 26)) + label
+            value = Math.floor(value / 26)
+          }
+          return {
+            campeonato_id: current.campeonato_id,
+            fase_id: current.fase_id,
+            grupo_id: id,
+            slot_numero: number,
+            slot_letra: label,
+            status: 'livre',
+          }
         })
-        const { error: addError } = await supabaseAdmin.from('campeonato_slots').insert(additions); if (addError) throw addError
+        const { error: addError } = await supabaseAdmin.from('campeonato_slots').insert(additions)
+        if (addError) throw addError
       } else if (requestedSlots < current.slots) {
         const { error: removeError } = await supabaseAdmin.from('campeonato_slots').delete().eq('grupo_id', id).gt('slot_numero', requestedSlots).is('equipe_id', null); if (removeError) throw removeError
       }

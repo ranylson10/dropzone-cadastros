@@ -65,9 +65,19 @@ export type EquipeBusca = {
   }>
 }
 
+export type CampeonatoCapacidade = {
+  limite_vagas: number | null
+  slots_criados: number
+  slots_ocupados: number
+  slots_livres_estrutura: number
+  slots_ainda_podem_ser_criados: number | null
+  vagas_restantes_meta: number | null
+}
+
 export type CampeonatoEquipesPayload = {
   campeonato: { id: string; nome: string; logo_url: string | null }
   vagas: CampeonatoVaga[]
+  capacidade?: CampeonatoCapacidade | null
   permission: {
     canView: boolean
     canManage: boolean
