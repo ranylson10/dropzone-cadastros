@@ -38,21 +38,25 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
               <small>{profile.eyebrow || config.singular}</small>
               <h1>{profile.name}</h1>
               {profile.username ? <strong>@{profile.username}</strong> : null}
-              <p>{profile.description}</p>
-              {profile.actions?.length ? (
-                <div className="directory-profile-actions">
-                  {profile.actions.map((action) => (
-                    <a
-                      key={action.href}
-                      className={`directory-profile-action ${action.variant || 'secondary'}`}
-                      href={action.href}
-                    >
-                      {action.label}
-                    </a>
-                  ))}
-                </div>
+              {profile.description ? (
+                <p className="directory-profile-desc">{profile.description}</p>
               ) : null}
-              <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
+              <div className="directory-profile-toolbar">
+                {profile.actions?.length ? (
+                  <div className="directory-profile-actions">
+                    {profile.actions.map((action) => (
+                      <a
+                        key={action.href}
+                        className={`directory-profile-action ${action.variant || 'secondary'}`}
+                        href={action.href}
+                      >
+                        {action.label}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+                <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
+              </div>
             </div>
             <div className="directory-profile-details compact on-banner">
               {profile.details.map((item) => (
