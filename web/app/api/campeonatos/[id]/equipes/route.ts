@@ -401,10 +401,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           .select('id', { count: 'exact', head: true })
           .eq('campeonato_id', id)
           .eq('criado_por', user.id)
-          .eq('origem_entrada', 'vendedor')
+          .in('origem_entrada', ['vendedor', 'convite', 'inscricao'])
           .eq('status', 'ativo')
         if (countError) throw countError
-        if (Number(count || 0) >= limiteVagas) throw new Error(`Este vendedor atingiu o limite de ${limiteVagas} vaga(s).`)
+        if (Number(count || 0) >= limiteVagas) {
+          throw new Error(`Este vendedor atingiu o limite de ${limiteVagas} vaga(s) (${count}/${limiteVagas}).`)
+        }
       }
     }
     const body = await req.json()
@@ -435,7 +437,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       logoUrl: equipe.logo_url,
     })
 
-    const origem = permission.role === 'seller' ? 'inscricao' : 'organizador'
+    const origem = permission.role === 'seller' ? 'vendedor' : 'organizador'
     // Escrita enxuta: campeonato_id + line_id + slot_id
     const participacao = await inserirParticipacaoNoSlot({
       campeonatoId: id,

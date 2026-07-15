@@ -206,6 +206,29 @@ export function ProdutoraPanel(props: {
     }
   }
 
+  async function detachSellerFromChampionship(managerId: string) {
+    if (!selectedChamp?.id) return
+    if (!window.confirm('Remover este vendedor apenas deste campeonato? Ele continua na lista da produtora.')) return
+    setSellerBusy(true)
+    setSellerError('')
+    try {
+      await sellerRequest('/api/produtora/vendedores', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'detach',
+          manager_id: managerId,
+          campeonato_id: selectedChamp.id,
+        }),
+      })
+      setSellerSelected(null)
+      await loadSellers(selectedChamp.id)
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro ao remover do campeonato.')
+    } finally {
+      setSellerBusy(false)
+    }
+  }
+
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
   const filteredChampionships = typeFilter === 'todos'
@@ -843,44 +866,67 @@ export function ProdutoraPanel(props: {
                     ) : null}
                   </div>
 
-                  <div className="ref-card-grid two">
+                  <div className="seller-roster-grid">
                     {sellerRows.map((seller) => {
                       const manager = seller.managers || {}
                       const publicPanel = seller.manager_id
                         ? `${window.location.origin}/vendedores/${seller.manager_id}`
                         : ''
                       const onChamp = Boolean(seller.no_campeonato || seller.vinculo_atual)
-                      const limite = seller.vinculo_atual?.limite_vagas ?? seller.limite_vagas_atual
+                      const limite = Number(seller.vinculo_atual?.limite_vagas ?? seller.limite_vagas_atual ?? 0)
+                      const usadas = Number(seller.vagas_usadas || 0)
+                      const restam = seller.vagas_restantes
                       return (
                         <article
-                          className={`token-card seller-token-card ${sellerSelected?.manager_id === seller.manager_id ? 'selected' : ''}`}
+                          className={`seller-roster-card ${onChamp ? 'is-on-champ' : 'is-roster-only'} ${sellerSelected?.manager_id === seller.manager_id ? 'selected' : ''}`}
                           key={seller.manager_id || seller.id}
                         >
-                          <span>{onChamp ? 'Neste campeonato' : 'Só na produtora'}</span>
+                          <div className="seller-roster-top">
+                            <span className={`seller-status-pill ${onChamp ? 'on' : 'off'}`}>
+                              {onChamp ? 'Neste evento' : 'Só produtora'}
+                            </span>
+                            {onChamp && limite > 0 ? (
+                              <span className={`seller-usage-pill ${restam === 0 ? 'full' : ''}`}>
+                                {usadas}/{limite} vagas
+                              </span>
+                            ) : onChamp ? (
+                              <span className="seller-usage-pill open">Sem limite</span>
+                            ) : null}
+                          </div>
                           <strong>
                             {seller.nome_publico || manager.nome || manager.username || 'Vendedor'}
                           </strong>
-                          <small>{seller.whatsapp_url || 'WhatsApp ainda não definido'}</small>
-                          <small>
-                            {onChamp
-                              ? Number(limite || 0) > 0
-                                ? `Limite neste evento: ${limite} vaga(s)`
-                                : 'Sem limite neste evento'
-                              : `${(seller.campeonatos || []).length} campeonato(s) liberado(s)`}
+                          <small className="seller-whatsapp-line">
+                            {seller.whatsapp_url || 'WhatsApp ainda não definido'}
                           </small>
-                          <div className="compact-row-actions" style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <small>
+                            {(seller.campeonatos || []).filter((c: any) => c.status === 'ativo').length} evento(s)
+                            liberado(s) na produtora
+                          </small>
+                          <div className="seller-roster-actions">
                             <button
                               type="button"
+                              className="button small"
                               onClick={() => {
                                 setSellerSelected(seller)
-                                setSellerLimite(String(limite || ''))
+                                setSellerLimite(limite ? String(limite) : '')
                               }}
                             >
-                              {onChamp ? 'Editar limite' : 'Adicionar neste campeonato'}
+                              {onChamp ? 'Editar limite' : 'Liberar neste evento'}
                             </button>
+                            {onChamp ? (
+                              <button
+                                type="button"
+                                className="button small secondary"
+                                disabled={sellerBusy}
+                                onClick={() => void detachSellerFromChampionship(seller.manager_id)}
+                              >
+                                Remover do evento
+                              </button>
+                            ) : null}
                             {publicPanel ? (
-                              <button type="button" onClick={() => props.copyToken(publicPanel)}>
-                                <Copy size={14} /> Link de vendas
+                              <button type="button" className="button small secondary" onClick={() => props.copyToken(publicPanel)}>
+                                <Copy size={14} /> Link vendas
                               </button>
                             ) : null}
                           </div>
@@ -894,10 +940,22 @@ export function ProdutoraPanel(props: {
                   </div>
 
                   {sellerSelected ? (
-                    <div className="inline-action-panel" style={{ marginTop: 12 }}>
+                    <div className="inline-action-panel seller-edit-panel" style={{ marginTop: 12 }}>
                       <h4 style={{ margin: '0 0 8px' }}>
                         {sellerSelected.nome_publico || 'Vendedor'} · {rowTitle(selectedChamp)}
                       </h4>
+                      {sellerSelected.no_campeonato ? (
+                        <p className="empty" style={{ marginBottom: 10 }}>
+                          Uso atual:{' '}
+                          <strong>
+                            {Number(sellerSelected.vagas_usadas || 0)}
+                            {Number(sellerSelected.limite_vagas_atual || 0) > 0
+                              ? ` / ${sellerSelected.limite_vagas_atual}`
+                              : ' (sem limite)'}
+                          </strong>{' '}
+                          vaga(s) preenchida(s) por este vendedor.
+                        </p>
+                      ) : null}
                       <div className="mini-grid two">
                         <Field label="Limite de vagas neste campeonato">
                           <input
@@ -910,14 +968,14 @@ export function ProdutoraPanel(props: {
                         </Field>
                       </div>
                       <p className="empty">
-                        Libera o vendedor neste evento com permissão para adicionar equipes e gerar convites de line/slot.
+                        Com permissão para adicionar lines e gerar convites de slot/grupo, até o limite.
                       </p>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button className="button" type="button" disabled={sellerBusy} onClick={() => void attachSellerToChampionship()}>
                           {sellerBusy ? 'Salvando...' : sellerSelected.no_campeonato ? 'Atualizar limite' : 'Liberar neste campeonato'}
                         </button>
                         <button className="button secondary" type="button" onClick={() => setSellerSelected(null)}>
-                          Cancelar
+                          Fechar
                         </button>
                       </div>
                     </div>

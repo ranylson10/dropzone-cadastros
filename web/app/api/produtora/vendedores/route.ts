@@ -81,13 +81,13 @@ export async function GET(req: NextRequest) {
       managerIds.length
         ? supabaseAdmin
             .from('managers')
-            .select('id,nome,username,avatar_url,whatsapp_url,nome_publico_vendas,status')
+            .select('id,nome,username,avatar_url,whatsapp_url,nome_publico_vendas,status,auth_user_id')
             .in('id', managerIds)
         : Promise.resolve({ data: [] as any[] }),
       managerIds.length
         ? supabaseAdmin
             .from('campeonato_vendedores')
-            .select('id,campeonato_id,manager_id,limite_vagas,permissoes,status,nome_publico,whatsapp_url')
+            .select('id,campeonato_id,manager_id,manager_auth_user_id,limite_vagas,permissoes,status,nome_publico,whatsapp_url')
             .eq('produtora_id', produtora.id)
             .in('manager_id', managerIds)
             .neq('status', 'cancelado')
@@ -119,6 +119,50 @@ export async function GET(req: NextRequest) {
     }
     const champsById = new Map((champs || []).map((c) => [c.id, c]))
 
+    // Uso de vagas por vendedor no campeonato filtrado (criado_por = auth do manager)
+    const usageByAuth = new Map<string, number>()
+    if (campeonatoFilter) {
+      const authIds = Array.from(
+        new Set(
+          (links || [])
+            .filter((l) => l.campeonato_id === campeonatoFilter)
+            .map((l) => {
+              const m = managersById.get(l.manager_id)
+              return m?.auth_user_id || roster.find((r) => r.manager_id === l.manager_id)?.manager_auth_user_id
+            })
+            .filter(Boolean),
+        ),
+      )
+      // managers select didn't include auth_user_id — fetch usage via manager_auth from links table
+      const { data: linksWithAuth } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .select('manager_id,manager_auth_user_id')
+        .eq('campeonato_id', campeonatoFilter)
+        .eq('produtora_id', produtora.id)
+        .eq('status', 'ativo')
+      const authList = (linksWithAuth || []).map((l) => l.manager_auth_user_id).filter(Boolean)
+      if (authList.length) {
+        const { data: parts } = await supabaseAdmin
+          .from('campeonato_equipes')
+          .select('criado_por')
+          .eq('campeonato_id', campeonatoFilter)
+          .eq('status', 'ativo')
+          .in('origem_entrada', ['vendedor', 'convite', 'inscricao'])
+          .in('criado_por', authList)
+        for (const p of parts || []) {
+          if (!p.criado_por) continue
+          usageByAuth.set(p.criado_por, (usageByAuth.get(p.criado_por) || 0) + 1)
+        }
+      }
+      // map manager_id -> usage via auth
+      for (const l of linksWithAuth || []) {
+        if (l.manager_id && l.manager_auth_user_id) {
+          const used = usageByAuth.get(l.manager_auth_user_id) || 0
+          usageByAuth.set(`m:${l.manager_id}`, used)
+        }
+      }
+    }
+
     const vendedores = roster.map((row) => {
       const manager = managersById.get(row.manager_id) || null
       const assignments = (linksByManager.get(row.manager_id) || []).map((link) => ({
@@ -129,9 +173,12 @@ export async function GET(req: NextRequest) {
       const onCurrent = campeonatoFilter
         ? assignments.find((a) => a.campeonato_id === campeonatoFilter) || null
         : null
+      const vagasUsadas = usageByAuth.get(`m:${row.manager_id}`) || 0
+      const limite = onCurrent?.limite_vagas != null ? Number(onCurrent.limite_vagas) : null
       return {
         id: row.id || row.manager_id,
         manager_id: row.manager_id,
+        manager_auth_user_id: row.manager_auth_user_id || manager?.auth_user_id || null,
         nome_publico:
           row.nome_publico
           || manager?.nome_publico_vendas
@@ -145,7 +192,9 @@ export async function GET(req: NextRequest) {
         campeonatos: assignments,
         no_campeonato: Boolean(onCurrent),
         vinculo_atual: onCurrent,
-        limite_vagas_atual: onCurrent?.limite_vagas ?? null,
+        limite_vagas_atual: limite,
+        vagas_usadas: vagasUsadas,
+        vagas_restantes: limite && limite > 0 ? Math.max(0, limite - vagasUsadas) : null,
         public_url: `/vendedores/${row.manager_id}`,
       }
     })
@@ -175,6 +224,27 @@ export async function POST(req: NextRequest) {
     const { user, produtora } = await requireProdutoraAccount(req)
     const body = await req.json().catch(() => ({}))
     const action = String(body.action || 'invite').trim()
+
+    // Remover vendedor deste campeonato (não remove da produtora)
+    if (action === 'detach') {
+      const managerId = String(body.manager_id || '').trim()
+      const campeonatoId = String(body.campeonato_id || '').trim()
+      if (!managerId || !campeonatoId) throw new Error('Informe o vendedor e o campeonato.')
+      const { data: camp } = await supabaseAdmin
+        .from('campeonatos')
+        .select('id,produtora_id')
+        .eq('id', campeonatoId)
+        .eq('produtora_id', produtora.id)
+        .maybeSingle()
+      if (!camp) throw new Error('Campeonato não encontrado nesta produtora.')
+      const { error } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .update({ status: 'cancelado', updated_at: new Date().toISOString() })
+        .eq('campeonato_id', campeonatoId)
+        .eq('manager_id', managerId)
+      if (error) throw error
+      return NextResponse.json({ ok: true, mensagem: 'Vendedor removido deste campeonato.' })
+    }
 
     // Adicionar manager existente a um campeonato
     if (action === 'attach') {

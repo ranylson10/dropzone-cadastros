@@ -204,14 +204,16 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
           const championship = item.campeonatos || {}
           const producer = item.produtoras || {}
           const active = item.status === 'ativo'
+          const limite = Number(item.limite_vagas || 0)
           return (
             <div className="compact-row" key={item.id}>
               <div>
                 <strong>{championship.nome || 'Campeonato'}</strong>
                 <span>{producer.nome ? `Produtora ${producer.nome}` : 'Campeonato'}</span>
                 <span>
-                  {active ? 'Liberado' : 'Oculto/inativo'}
-                  {Number(item.limite_vagas || 0) > 0 ? ` · limite ${item.limite_vagas} vaga(s)` : ' · sem limite'}
+                  {active ? 'Liberado para vender' : 'Removido/oculto pelo produtor'}
+                  {limite > 0 ? ` · até ${limite} vaga(s)` : ' · sem limite de vagas'}
+                  {item.anunciando ? ' · no seu link' : ' · fora do link'}
                 </span>
               </div>
               <div className="compact-row-actions">
@@ -220,9 +222,13 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
                   type="button"
                   disabled={!active || Boolean(publishing[item.campeonato_id])}
                   onClick={() => void toggleAnuncio(item.campeonato_id, !item.anunciando)}
-                  title={active ? 'Mostrar ou ocultar no seu link público' : 'Vínculo inativo'}
+                  title={
+                    active
+                      ? 'Incluir ou tirar este campeonato do seu link público (portfólio)'
+                      : 'Vínculo inativo'
+                  }
                 >
-                  {item.anunciando ? 'No link' : 'Anunciar'}
+                  {item.anunciando ? 'No portfólio' : 'Anunciar'}
                 </button>
               </div>
             </div>
