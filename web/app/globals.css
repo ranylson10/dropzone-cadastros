@@ -2338,6 +2338,16 @@ body:has(.cropper-overlay) {
   background: #fff7f8;
 }
 
+.invite-hub-option-primary {
+  border-color: #ff4655;
+  background: linear-gradient(180deg, #fff8f9 0%, #fff 100%);
+  box-shadow: 0 0 0 1px rgba(255, 70, 85, 0.08);
+}
+
+.invite-hub-option-primary:hover {
+  background: #fff1f3;
+}
+
 .invite-hub-option strong {
   display: block;
   font-size: 14px;

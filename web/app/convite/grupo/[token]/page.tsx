@@ -109,6 +109,15 @@ export default function ConviteGrupoPage() {
     minhasParticipacoes.find((item) => item.id === selectedParticipacaoId) || minhasParticipacoes[0] || null
   const canManage = Boolean(data?.autenticado && data?.equipe)
   const equipesDisponiveis = data?.equipes_esperadas_disponiveis || []
+  // Mesma pasta (equipe) pode ter várias vagas no grupo — 1 line por vaga.
+  const slotsLivres = Number(data?.resumo_grupo?.livres || 0)
+  const podeNovaInscricao = canManage && slotsLivres > 0
+
+  function irParaNovaInscricao() {
+    setMessage('')
+    setSlotModal(null)
+    setView('entrada')
+  }
 
   async function carregar(opts?: { preferHub?: boolean }) {
     setLoading(true)
@@ -328,7 +337,15 @@ export default function ConviteGrupoPage() {
             <Users size={42} />
           )}
 
-          <p className="eyebrow">{showHub ? 'Equipe inscrita' : 'Entrada de equipes'}</p>
+          <p className="eyebrow">
+            {showHub
+              ? minhasParticipacoes.length > 1
+                ? `${minhasParticipacoes.length} lines inscritas`
+                : 'Equipe inscrita'
+              : canManage && minhasParticipacoes.length
+                ? 'Nova inscrição no grupo'
+                : 'Entrada de equipes'}
+          </p>
           <h1>{data.campeonato?.nome}</h1>
           <p>
             {data.grupo?.nome}
@@ -351,11 +368,27 @@ export default function ConviteGrupoPage() {
             <>
               <p className="invite-section-copy" style={{ textAlign: 'center', marginBottom: 4 }}>
                 {canManage
-                  ? 'Toque no slot (letra) livre que preferir. Cada letra corresponde ao avatar da equipe na partida.'
+                  ? minhasParticipacoes.length
+                    ? `Sua equipe já tem ${minhasParticipacoes.length} line(s) neste grupo. Toque em outro slot livre para uma nova vaga (precisa de outra line).`
+                    : 'Toque no slot (letra) livre que preferir. Cada letra corresponde ao avatar da equipe na partida.'
                   : guest
                     ? 'Voce esta no modo visitante: pode ver o grupo, mas nao pode se inscrever nem escalar.'
                     : 'Entre com uma conta de equipe para escolher um slot e se inscrever.'}
               </p>
+
+              {canManage && minhasParticipacoes.length ? (
+                <div className="invite-lines-note" style={{ marginBottom: 12 }}>
+                  <small>Já inscritas neste grupo</small>
+                  <p>
+                    {minhasParticipacoes
+                      .map(
+                        (part) =>
+                          `${part.nome_exibicao}${part.slot_numero ? ` (slot ${part.slot_numero})` : ''}`,
+                      )
+                      .join(' · ')}
+                  </p>
+                </div>
+              ) : null}
 
               <div className="lineup-slots public-lineup-slots invite-slot-grid">
                 {(data.vagas || []).map((vaga) => {
@@ -452,6 +485,17 @@ export default function ConviteGrupoPage() {
 
               {view === 'hub' ? (
                 <div className="invite-hub-actions">
+                  {podeNovaInscricao ? (
+                    <button className="invite-hub-option invite-hub-option-primary" type="button" onClick={irParaNovaInscricao}>
+                      <UserPlus size={20} />
+                      <span>
+                        <strong>Nova inscrição</strong>
+                        <small>
+                          Mesma equipe, outra line em outro slot ({slotsLivres} livre{slotsLivres === 1 ? '' : 's'})
+                        </small>
+                      </span>
+                    </button>
+                  ) : null}
                   <button className="invite-hub-option" type="button" onClick={() => setView('acompanhar')}>
                     <Users size={20} />
                     <span>
@@ -484,24 +528,55 @@ export default function ConviteGrupoPage() {
                       Voltar
                     </button>
                   </div>
-                  <div className="lineup-slots public-lineup-slots">
-                    {(data.vagas || []).map((vaga) => (
-                      <div className={`lineup-slot ${vaga.ocupada ? 'occupied' : ''}`} key={vaga.index}>
-                        <b>{vaga.slot_letra || vaga.index + 1}</b>
-                        {vaga.logo_url ? <img src={vaga.logo_url} alt="" /> : null}
-                        <div>
-                          <strong>
-                            {vaga.ocupada
-                              ? vaga.line_nome || vaga.referencia_equipe || 'Ocupado'
-                              : `Slot ${vaga.slot_letra}`}
-                          </strong>
-                          <span>
-                            {vaga.ocupada ? vaga.equipe_nome || 'Equipe' : 'Disponível'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                  {podeNovaInscricao ? (
+                    <p className="invite-section-copy">
+                      Toque em um slot <strong>livre</strong> para inscrever outra line da sua equipe.
+                    </p>
+                  ) : null}
+                  <div className="lineup-slots public-lineup-slots invite-slot-grid">
+                    {(data.vagas || []).map((vaga) => {
+                      const clickable = !vaga.ocupada && podeNovaInscricao
+                      return (
+                        <button
+                          type="button"
+                          key={vaga.slot_id || vaga.index}
+                          className={`lineup-slot invite-slot-button ${vaga.ocupada ? 'occupied' : 'free'} ${clickable ? 'clickable' : ''}`}
+                          onClick={() => (clickable ? openSlot(vaga) : undefined)}
+                          disabled={!clickable}
+                          title={
+                            vaga.ocupada
+                              ? 'Slot ocupado'
+                              : clickable
+                                ? `Nova inscrição no slot ${vaga.slot_letra}`
+                                : `Slot ${vaga.slot_letra}`
+                          }
+                        >
+                          <b>{vaga.slot_letra || vaga.index + 1}</b>
+                          {vaga.logo_url ? <img src={vaga.logo_url} alt="" /> : null}
+                          <div>
+                            <strong>
+                              {vaga.ocupada
+                                ? vaga.line_nome || vaga.referencia_equipe || 'Ocupado'
+                                : `Slot ${vaga.slot_letra}`}
+                            </strong>
+                            <span>
+                              {vaga.ocupada
+                                ? vaga.equipe_nome || 'Equipe'
+                                : clickable
+                                  ? 'Toque para nova inscrição'
+                                  : 'Disponível'}
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
+                  {podeNovaInscricao ? (
+                    <button className="button invite-confirm" type="button" onClick={irParaNovaInscricao} style={{ width: '100%', marginTop: 12 }}>
+                      <UserPlus size={16} />
+                      Nova inscrição (escolher outro slot)
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -616,11 +691,6 @@ export default function ConviteGrupoPage() {
 
               {view === 'hub' ? (
                 <div className="invite-footer-links">
-                  {(data.resumo_grupo?.livres || 0) > 0 ? (
-                    <button className="button secondary" type="button" onClick={() => setView('entrada')}>
-                      Inscrever outra line em outro slot
-                    </button>
-                  ) : null}
                   <a className="button secondary" href="/">
                     Painel da equipe
                   </a>
