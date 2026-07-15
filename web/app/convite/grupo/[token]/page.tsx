@@ -67,6 +67,9 @@ type GroupInvitePayload = {
   resumo_grupo?: { total: number; ocupadas: number; livres: number }
   equipe?: { id: string; nome: string; tag: string | null; logo_url: string | null } | null
   lines?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita: boolean }>
+  lines_disponiveis?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita?: boolean }>
+  lines_inscritas?: Array<{ id: string; nome: string; slot_numero?: number | null; nome_exibicao?: string | null }>
+  total_lines_inscritas_campeonato?: number
   minhas_participacoes?: Participacao[]
 }
 
@@ -95,7 +98,12 @@ export default function ConviteGrupoPage() {
   const [lineId, setLineId] = useState('')
   const [nomeNovaLine, setNomeNovaLine] = useState('')
 
-  const linesDisponiveis = useMemo(() => (data?.lines || []).filter((line) => !line.ja_inscrita), [data?.lines])
+  // 1 line = 1 vaga no campeonato. So mostra lines ainda livres.
+  const linesDisponiveis = useMemo(() => {
+    if (data?.lines_disponiveis?.length) return data.lines_disponiveis
+    return (data?.lines || []).filter((line) => !line.ja_inscrita)
+  }, [data?.lines, data?.lines_disponiveis])
+  const linesInscritas = data?.lines_inscritas || []
   const minhasParticipacoes = data?.minhas_participacoes || []
   const selectedParticipacao =
     minhasParticipacoes.find((item) => item.id === selectedParticipacaoId) || minhasParticipacoes[0] || null
@@ -124,8 +132,10 @@ export default function ConviteGrupoPage() {
     if (opts?.preferHub || (payload.inscrita && hasSession)) setView('hub')
     else setView('entrada')
 
-    const firstLine = (payload.lines || []).find((line: any) => !line.ja_inscrita)
-    setLineId(firstLine?.id || '')
+    const freeLines =
+      payload.lines_disponiveis ||
+      (payload.lines || []).filter((line: any) => !line.ja_inscrita)
+    setLineId(freeLines[0]?.id || '')
     setLoading(false)
   }
 
@@ -152,9 +162,14 @@ export default function ConviteGrupoPage() {
     }
     setSlotModal(vaga)
     setReferenciaEquipe(equipesDisponiveis[0] || '')
-    const firstLine = linesDisponiveis[0]
-    setLineId(firstLine?.id || '')
-    setNomeNovaLine('')
+    // Se nao ha line livre, forca criacao de nova line para esta vaga.
+    if (linesDisponiveis[0]) {
+      setLineId(linesDisponiveis[0].id)
+      setNomeNovaLine('')
+    } else {
+      setLineId('')
+      setNomeNovaLine('')
+    }
     setMessage('')
   }
 
@@ -169,21 +184,31 @@ export default function ConviteGrupoPage() {
     if ((data.equipes_esperadas || []).length && !referenciaEquipe.trim()) {
       return setMessage('Selecione qual equipe da lista voce esta representando.')
     }
-    if (!lineId && !nomeNovaLine.trim()) return setMessage('Selecione uma line ou crie uma nova.')
+    if (!lineId && !nomeNovaLine.trim()) {
+      return setMessage('Selecione uma line livre ou crie uma nova line para esta vaga.')
+    }
 
-    // Se digitou um nome que ja existe na equipe, usa a line existente.
+    // Cada vaga exige uma line diferente. So reutiliza se a line ainda estiver livre no campeonato.
     let resolvedLineId = lineId || null
     let resolvedNomeLine = lineId ? null : nomeNovaLine.trim()
     if (!resolvedLineId && resolvedNomeLine) {
-      const match = (data?.lines || []).find(
+      const freeMatch = linesDisponiveis.find(
         (line) => String(line.nome || '').trim().toLowerCase() === resolvedNomeLine!.toLowerCase(),
       )
-      if (match) {
-        if (match.ja_inscrita) {
-          return setMessage('Essa line ja esta inscrita neste campeonato. Escolha outra line.')
-        }
-        resolvedLineId = match.id
+      if (freeMatch) {
+        resolvedLineId = freeMatch.id
         resolvedNomeLine = null
+      } else {
+        const enrolled = (data?.lines || []).find(
+          (line) =>
+            line.ja_inscrita &&
+            String(line.nome || '').trim().toLowerCase() === resolvedNomeLine!.toLowerCase(),
+        )
+        if (enrolled) {
+          return setMessage(
+            `A line "${enrolled.nome}" ja esta neste campeonato. Cada vaga precisa de outra line — crie uma nova (ex.: ${enrolled.nome} 2).`,
+          )
+        }
       }
     }
 
@@ -209,7 +234,8 @@ export default function ConviteGrupoPage() {
 
     setSlotModal(null)
     setMessage(
-      `${payload.line?.nome || 'Line'} entrou no slot ${payload.slot_letra || ''} como ${payload.referencia || 'equipe'}.`,
+      payload.mensagem ||
+        `${payload.line?.nome || 'Line'} entrou no slot ${payload.slot_letra || ''} como ${payload.referencia || 'equipe'}.`,
     )
     await carregar({ preferHub: true })
   }
@@ -600,7 +626,10 @@ export default function ConviteGrupoPage() {
               <div>
                 <p className="eyebrow">Inscrição no grupo</p>
                 <h2>Slot {slotModal.slot_letra}</h2>
-                <span>Escolha a equipe da lista e a line real que vai ocupar esta letra.</span>
+                <span>
+                  Cada vaga do campeonato precisa de uma <strong>line diferente</strong> (para pontuar certo).
+                  Aqui só aparecem lines que ainda não estão no campeonato.
+                </span>
               </div>
               <button type="button" onClick={() => setSlotModal(null)} aria-label="Fechar">
                 <X size={18} />
@@ -624,9 +653,16 @@ export default function ConviteGrupoPage() {
               </label>
             ) : null}
 
+            {linesInscritas.length ? (
+              <div className="invite-lines-note">
+                <small>Já inscritas neste campeonato (não podem ser reutilizadas)</small>
+                <p>{linesInscritas.map((line) => line.nome).join(' · ')}</p>
+              </div>
+            ) : null}
+
             {linesDisponiveis.length ? (
               <label className="field">
-                <span>Line real da sua equipe</span>
+                <span>Line livre da sua equipe</span>
                 <select
                   value={lineId}
                   onChange={(e) => {
@@ -639,18 +675,27 @@ export default function ConviteGrupoPage() {
                       {line.nome}
                     </option>
                   ))}
-                  <option value="">Criar nova line</option>
+                  <option value="">+ Criar nova line para esta vaga</option>
                 </select>
               </label>
-            ) : null}
+            ) : (
+              <div className="invite-lines-note">
+                <small>Nenhuma line livre</small>
+                <p>
+                  Todas as lines da sua equipe já estão neste campeonato.
+                  Crie uma nova line abaixo — ela será inscrita automaticamente neste slot.
+                </p>
+              </div>
+            )}
 
             {!lineId ? (
               <label className="field">
-                <span>Nome da nova line</span>
+                <span>Nome da nova line (será criada e inscrita neste slot)</span>
                 <input
                   value={nomeNovaLine}
                   onChange={(e) => setNomeNovaLine(e.target.value)}
-                  placeholder="Ex.: UA ELITE"
+                  placeholder="Ex.: ALOE ELITE"
+                  autoFocus={!linesDisponiveis.length}
                 />
               </label>
             ) : null}

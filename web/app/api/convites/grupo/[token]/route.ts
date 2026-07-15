@@ -139,7 +139,16 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
     const accounts = await getAccountsForUser(user)
     const equipe = accounts.find((account) => account.profile_type === 'equipe') || null
     if (!equipe) {
-      return { autenticado: true, equipe: null, lines: [] as any[], minhas_participacoes: [] as any[], inscrita: false }
+      return {
+        autenticado: true,
+        equipe: null,
+        lines: [] as any[],
+        lines_disponiveis: [] as any[],
+        lines_inscritas: [] as any[],
+        minhas_participacoes: [] as any[],
+        inscrita: false,
+        total_lines_inscritas_campeonato: 0,
+      }
     }
     const [{ data: lines }, { data: participacoesCampeonato }, minhasParticipacoes] = await Promise.all([
       supabaseAdmin
@@ -148,15 +157,34 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
         .eq('equipe_id', equipe.id)
         .neq('status', 'inativo')
         .order('created_at', { ascending: true }),
+      // 1 line = 1 vaga no campeonato (regra de pontuacao/slots).
       supabaseAdmin
         .from('campeonato_equipes')
-        .select('line_id,status')
+        .select('id,line_id,status,grupo_id,slot_numero,nome_exibicao')
         .eq('campeonato_id', campeonatoId)
         .eq('equipe_id', equipe.id)
         .eq('status', 'ativo'),
       loadMinhasParticipacoes(equipe.id, campeonatoId, grupoId),
     ])
     const used = new Set((participacoesCampeonato || []).map((item) => item.line_id).filter(Boolean))
+    const allLines = (lines || []).map((line) => ({
+      ...line,
+      ja_inscrita: used.has(line.id),
+    }))
+    const linesDisponiveis = allLines.filter((line) => !line.ja_inscrita)
+    const linesInscritas = allLines
+      .filter((line) => line.ja_inscrita)
+      .map((line) => {
+        const part = (participacoesCampeonato || []).find((p) => p.line_id === line.id)
+        return {
+          ...line,
+          participacao_id: part?.id || null,
+          grupo_id: part?.grupo_id || null,
+          slot_numero: part?.slot_numero || null,
+          nome_exibicao: part?.nome_exibicao || line.nome,
+        }
+      })
+
     return {
       autenticado: true,
       equipe: {
@@ -165,17 +193,24 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
         tag: equipe.data?.tag || null,
         logo_url: equipe.data?.logo_url || null,
       },
-      lines: (lines || []).map((line) => ({ ...line, ja_inscrita: used.has(line.id) })),
+      // Compat: "lines" continua existindo, mas UI deve preferir lines_disponiveis.
+      lines: allLines,
+      lines_disponiveis: linesDisponiveis,
+      lines_inscritas: linesInscritas,
       minhas_participacoes: minhasParticipacoes,
       inscrita: minhasParticipacoes.length > 0,
+      total_lines_inscritas_campeonato: used.size,
     }
   } catch {
     return {
       autenticado: false,
       equipe: null,
       lines: [] as any[],
+      lines_disponiveis: [] as any[],
+      lines_inscritas: [] as any[],
       minhas_participacoes: [] as any[],
       inscrita: false,
+      total_lines_inscritas_campeonato: 0,
     }
   }
 }
@@ -343,8 +378,19 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       if (already) throw new Error('Essa equipe da lista ja foi reivindicada neste grupo.')
     }
 
+    // Lines ja usadas no campeonato (1 line = 1 vaga).
+    const { data: usedParts, error: usedPartsError } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id,line_id')
+      .eq('campeonato_id', link.campeonato_id)
+      .eq('equipe_id', account.id)
+      .eq('status', 'ativo')
+    if (usedPartsError) throw usedPartsError
+    const usedLineIds = new Set((usedParts || []).map((row) => row.line_id).filter(Boolean))
+
     let lineId = lineIdInformada || null
     let lineName = ''
+    let lineCriadaAgora = false
 
     if (lineId) {
       const { data: line, error: lineError } = await supabaseAdmin
@@ -358,23 +404,33 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       if (String(line.status || '').toLowerCase() === 'inativo') {
         throw new Error('A line selecionada esta inativa. Escolha outra ou reative no painel.')
       }
+      if (usedLineIds.has(line.id)) {
+        throw new Error('Essa line ja esta inscrita neste campeonato. Cada vaga precisa de uma line diferente.')
+      }
       lineName = line.nome
     } else {
-      if (!nomeNovaLine) throw new Error('Selecione uma line ou informe uma nova.')
+      if (!nomeNovaLine) {
+        throw new Error('Selecione uma line livre ou informe o nome de uma nova line para esta vaga.')
+      }
 
-      // Unique (equipe_id, lower(trim(nome))) — se o nome ja existe, reutiliza em vez de inserir de novo.
+      const target = nomeNovaLine.trim().toLowerCase()
       const { data: existingLines, error: existingLineError } = await supabaseAdmin
         .from('equipe_lines')
         .select('id,nome,status')
         .eq('equipe_id', account.id)
       if (existingLineError) throw existingLineError
 
-      const target = nomeNovaLine.trim().toLowerCase()
       const existing = (existingLines || []).find(
         (row) => String(row.nome || '').trim().toLowerCase() === target,
       )
 
       if (existing) {
+        // Nome ja existe: so reutiliza se a line AINDA NAO estiver no campeonato.
+        if (usedLineIds.has(existing.id)) {
+          throw new Error(
+            `A line "${existing.nome}" ja esta inscrita neste campeonato. Crie outra line para a nova vaga (ex.: ${existing.nome} 2).`,
+          )
+        }
         if (String(existing.status || '').toLowerCase() === 'inativo') {
           const { data: reactivated, error: reactivateError } = await supabaseAdmin
             .from('equipe_lines')
@@ -390,6 +446,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
           lineName = existing.nome
         }
       } else {
+        // Cria line nova ja pensada para esta vaga/slot e usa na inscricao em seguida.
         const { data: created, error } = await supabaseAdmin
           .from('equipe_lines')
           .insert({
@@ -403,24 +460,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
           .single()
         if (error) {
           if (error.code === '23505') {
-            // Corrida: outra request criou o mesmo nome. Recarrega e reutiliza.
-            const { data: retryLines } = await supabaseAdmin
-              .from('equipe_lines')
-              .select('id,nome,status')
-              .eq('equipe_id', account.id)
-            const retry = (retryLines || []).find(
-              (row) => String(row.nome || '').trim().toLowerCase() === target,
-            )
-            if (!retry) throw new Error('Ja existe uma line com esse nome nesta equipe.')
-            lineId = retry.id
-            lineName = retry.nome
-          } else {
-            throw error
+            throw new Error('Ja existe uma line com esse nome nesta equipe. Selecione a line livre na lista.')
           }
-        } else {
-          lineId = created.id
-          lineName = created.nome
+          throw error
         }
+        lineId = created.id
+        lineName = created.nome
+        lineCriadaAgora = true
       }
     }
 
@@ -432,7 +478,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .eq('status', 'ativo')
       .maybeSingle()
     if (duplicateError) throw duplicateError
-    if (duplicate) throw new Error('Esta line ja esta inscrita neste campeonato.')
+    if (duplicate) {
+      throw new Error('Esta line ja esta inscrita neste campeonato. Cada vaga exige uma line diferente.')
+    }
 
     // nome_exibicao guarda a referencia da lista do organizador (quando houver).
     const nomeExibicao = referenciaEquipe || lineName
@@ -519,11 +567,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       ok: true,
       participacao,
       equipe: { id: account.id, nome: account.name },
-      line: { id: lineId, nome: lineName },
+      line: { id: lineId, nome: lineName, criada_agora: lineCriadaAgora },
       grupo_id: link.grupo_id,
       slot_id: slot.id,
       slot_letra: letra,
       referencia: referenciaEquipe || lineName || `Slot ${letra}`,
+      mensagem: lineCriadaAgora
+        ? `Line "${lineName}" criada e inscrita no slot ${letra}.`
+        : `Line "${lineName}" inscrita no slot ${letra}.`,
     })
   } catch (error) {
     // Rollback de melhor esforço se algo falhou no meio.
