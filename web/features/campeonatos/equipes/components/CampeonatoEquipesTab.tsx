@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react'
 import {
   ChevronDown,
   ChevronRight,
-  Clock3,
   Copy,
   Link2,
   Loader2,
@@ -34,12 +33,6 @@ function formatDate(value: string | null) {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(value))
-}
-
-function statusLabel(status: CampeonatoVaga['status']) {
-  if (status === 'reservada') return 'Reservada'
-  if (status === 'ocupada') return 'Preenchida'
-  return 'Livre'
 }
 
 export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string }) {
@@ -284,7 +277,14 @@ Acesse: ${link}`
           <div className="vagas-empty-filter">Nenhuma vaga encontrada neste filtro.</div>
         ) : vagasFiltradas.map((vaga) => {
           const aberta = vagaAbertaId === vaga.id
+          const letra = vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')
           // Unidade competitiva = line; pasta = equipe
+          const logoUrl =
+            vaga.line_logo_url
+            || vaga.campeonato_equipe?.line_logo_url
+            || vaga.campeonato_equipe?.line?.logo_url
+            || vaga.campeonato_equipe?.equipe?.logo_url
+            || null
           const nomePrincipal = vaga.status === 'reservada'
             ? vaga.nome_line_reservada || vaga.nome_equipe_reservada || 'Convite reservado'
             : vaga.status === 'ocupada'
@@ -293,16 +293,22 @@ Acesse: ${link}`
                 || vaga.campeonato_equipe?.nome_exibicao
                 || vaga.campeonato_equipe?.line?.nome
                 || 'Line inscrita'
-              : `Slot ${vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')}`
+              : `Slot ${letra}`
           const detalhe = vaga.status === 'reservada'
-            ? vaga.nome_equipe_reservada || 'Reserva administrativa'
+            ? [
+                vaga.nome_equipe_reservada,
+                vaga.grupo?.nome,
+                `Expira ${formatDate(vaga.reserva_expira_em)}`,
+              ].filter(Boolean).join(' · ') || 'Aguardando aceite do convite'
             : vaga.status === 'ocupada'
               ? [
                   vaga.equipe_nome || vaga.campeonato_equipe?.equipe_nome || vaga.campeonato_equipe?.equipe?.nome,
                   vaga.grupo?.nome,
-                  vaga.slot_letra ? `Slot ${vaga.slot_letra}` : null,
+                  vaga.campeonato_equipe?.origem_entrada
+                    ? `via ${vaga.campeonato_equipe.origem_entrada}`
+                    : null,
                 ].filter(Boolean).join(' · ') || 'Line no campeonato'
-              : [vaga.fase?.nome, vaga.grupo?.nome].filter(Boolean).join(' · ') || 'Livre para uma line'
+              : [vaga.fase?.nome, vaga.grupo?.nome].filter(Boolean).join(' · ') || 'Disponível'
 
           return (
             <article className={`championship-vaga-row status-${vaga.status} ${aberta ? 'is-open' : ''}`} key={vaga.id}>
@@ -312,17 +318,31 @@ Acesse: ${link}`
                 onClick={() => setVagaAbertaId(aberta ? null : vaga.id)}
                 aria-expanded={aberta}
               >
-                <span className="vaga-row-number">{vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')}</span>
-                <span className={`vaga-status-pill status-${vaga.status}`}>{statusLabel(vaga.status)}</span>
+                <span className="vaga-row-number">{letra}</span>
+
+                <span className={`vaga-row-avatar status-${vaga.status}`} aria-hidden>
+                  {vaga.status === 'ocupada' && logoUrl ? (
+                    <img src={logoUrl} alt="" />
+                  ) : vaga.status === 'ocupada' ? (
+                    <Users size={18} />
+                  ) : vaga.status === 'reservada' ? (
+                    <Link2 size={16} />
+                  ) : (
+                    <span className="vaga-avatar-dot" />
+                  )}
+                </span>
+
                 <span className="vaga-row-identity">
                   <strong>{nomePrincipal}</strong>
                   <small>{detalhe}</small>
                 </span>
+
                 <span className="vaga-row-meta">
-                  {vaga.status === 'reservada' ? `Expira ${formatDate(vaga.reserva_expira_em)}` : null}
-                  {vaga.status === 'ocupada' ? `Entrada: ${vaga.campeonato_equipe?.origem_entrada || '-'}` : null}
-                  {vaga.status === 'livre' ? 'Disponível' : null}
+                  {vaga.status === 'reservada' ? (
+                    <span className="vaga-status-pill status-reservada">Reservada</span>
+                  ) : null}
                 </span>
+
                 <span className="vaga-row-chevron">{aberta ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</span>
               </button>
 
@@ -330,7 +350,7 @@ Acesse: ${link}`
                 <div className="vaga-row-details">
                   {vaga.status === 'livre' ? (
                     <div className="vaga-detail-copy">
-                      <strong>Slot {vaga.slot_letra || vaga.numero_vaga} livre</strong>
+                      <strong>Slot {letra} livre</strong>
                       <span>Pesquise a equipe (pasta), escolha uma line livre ou crie uma nova line para este lugar no grupo.</span>
                     </div>
                   ) : null}
@@ -344,17 +364,9 @@ Acesse: ${link}`
                   ) : null}
 
                   {vaga.status === 'ocupada' ? (
-                    <div className="vaga-detail-team">
-                      <span className="vaga-team-logo compact-logo">
-                        {vaga.line_logo_url || vaga.campeonato_equipe?.line_logo_url || vaga.campeonato_equipe?.line?.logo_url || vaga.campeonato_equipe?.equipe?.logo_url
-                          ? <img src={vaga.line_logo_url || vaga.campeonato_equipe?.line_logo_url || vaga.campeonato_equipe?.line?.logo_url || vaga.campeonato_equipe?.equipe?.logo_url || ''} alt="" />
-                          : <Users size={18} />}
-                      </span>
-                      <div>
-                        <small>Line no campeonato</small>
-                        <strong>{nomePrincipal}</strong>
-                        <span>{detalhe}</span>
-                      </div>
+                    <div className="vaga-detail-copy">
+                      <strong>{nomePrincipal}</strong>
+                      <span>{detalhe}</span>
                     </div>
                   ) : null}
 
