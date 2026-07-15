@@ -330,12 +330,32 @@ export function ProdutoraPanel(props: {
   }
 
   function slotLineEntry(slot?: DropZoneRow) {
-    if (!slot?.data?.equipe_id) return null
-    return props.selectedChampTeams.find((item) => item.ref_id === slot.data?.equipe_id && (!slot.data?.line_id || item.data?.line_id === slot.data.line_id)) || null
+    if (!slot) return null
+    const lineId = String(slot.data?.line_id || '')
+    const equipeId = String(slot.data?.equipe_id || '')
+    if (!lineId && !equipeId) return null
+    if (lineId) {
+      const byLine = props.selectedChampTeams.find((item) => String(item.data?.line_id || '') === lineId)
+      if (byLine) return byLine
+    }
+    if (equipeId) {
+      return (
+        props.selectedChampTeams.find(
+          (item) => item.ref_id === equipeId && (!lineId || String(item.data?.line_id || '') === lineId),
+        ) || null
+      )
+    }
+    return null
   }
 
   function lineAvatar(entry?: DropZoneRow | null) {
-    return String(dataText(entry ?? undefined, 'logo_url') || '/favicon.ico')
+    return String(dataText(entry ?? undefined, 'logo_url') || '')
+  }
+
+  function slotStatus(slot?: DropZoneRow, entry?: DropZoneRow | null) {
+    if (entry || slot?.data?.line_id || slot?.data?.equipe_id) return 'ocupada' as const
+    if (String(slot?.status || slot?.data?.status || '') === 'reservado') return 'reservada' as const
+    return 'livre' as const
   }
 
   const totalPlayers = 0
@@ -651,10 +671,99 @@ export function ProdutoraPanel(props: {
                                   <button className="button secondary" type="button" onClick={() => setEditingGroup(null)}>Cancelar</button>
                                 </div>
                               </div>
-                            ) : null}<div className="slot-letter-list">{Array.from({length: slotCount}).map((_, index) => {
-                              const slotNumber=index+1; const slot=slotsOfGroup.find((item)=>Number(item.data?.slot_numero)===slotNumber); const entry=slotLineEntry(slot); const letter=String(slot?.data?.slot_letra || String.fromCharCode(65 + (index % 26)) + (index >= 26 ? Math.floor(index/26) : '')); const slotFaseId=String(slot?.data?.fase_id || group.data?.fase_id || (phase.id === 'sem-fase' ? '' : phase.id))
-                              return <div className={`slot-letter-row ${entry ? 'occupied' : ''}`} key={slot?.id || slotNumber} role="button" tabIndex={0} onClick={() => slot?.id && setSlotModal({ id: slot.id, fase_id: slotFaseId, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') })} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && slot?.id) setSlotModal({ id: slot.id, fase_id: slotFaseId, grupo_id: group.id, slot_numero: String(slotNumber), letra: letter, whatsapp_url: String(group.data?.whatsapp_url || '') }) }}><b>{letter}</b>{entry ? <img src={lineAvatar(entry)} alt="" /> : null}<span>{entry ? rowTitle(entry) : 'Disponível'}</span><small>{entry ? dataText(entry,'team_name') : 'Clique para adicionar uma line'}</small><button title="Editar letra" onClick={(event) => { event.stopPropagation(); if(!slot?.id) return; const slot_letra=window.prompt('Letra do slot', letter); if(slot_letra) props.updateStructure('group_slot', slot.id, { slot_letra }) }}><Pencil size={14}/></button></div>
-                            })}</div></> : null}
+                            ) : null}
+                            <div className="championship-vagas-list group-slots-list">
+                              {slotsOfGroup.length === 0 ? (
+                                <div className="vagas-empty-filter">
+                                  Nenhum slot criado neste grupo. Edite o grupo e salve o número de slots, ou recarregue o painel.
+                                </div>
+                              ) : (
+                                slotsOfGroup.map((slot) => {
+                                  const entry = slotLineEntry(slot)
+                                  const status = slotStatus(slot, entry)
+                                  const slotNumber = Number(slot.data?.slot_numero || 0)
+                                  const letter = String(
+                                    slot.data?.slot_letra
+                                    || (slotNumber > 0
+                                      ? String.fromCharCode(64 + Math.min(slotNumber, 26))
+                                      : '?'),
+                                  )
+                                  const slotFaseId = String(
+                                    slot.data?.fase_id
+                                    || group.data?.fase_id
+                                    || (phase.id === 'sem-fase' ? '' : phase.id),
+                                  )
+                                  const logo = lineAvatar(entry)
+                                  const lineName = entry
+                                    ? rowTitle(entry)
+                                    : status === 'ocupada'
+                                      ? String(slot.data?.line_name || slot.data?.nome_exibicao || 'Line inscrita')
+                                      : `Slot ${letter}`
+                                  const teamName = entry
+                                    ? dataText(entry, 'team_name') || dataText(entry, 'tag') || ''
+                                    : status === 'livre'
+                                      ? 'Disponível · clique para adicionar line'
+                                      : 'Ocupado'
+
+                                  return (
+                                    <article
+                                      key={slot.id}
+                                      className={`championship-vaga-row status-${status}`}
+                                    >
+                                      <button
+                                        type="button"
+                                        className="vaga-row-summary"
+                                        onClick={() => {
+                                          if (!slot.id) return
+                                          setSlotModal({
+                                            id: slot.id,
+                                            fase_id: slotFaseId,
+                                            grupo_id: group.id,
+                                            slot_numero: String(slotNumber || ''),
+                                            letra: letter,
+                                            whatsapp_url: String(group.data?.whatsapp_url || ''),
+                                          })
+                                          props.setSlotAssignment({
+                                            ...props.slotAssignment,
+                                            slot_id: slot.id,
+                                            fase_id: slotFaseId,
+                                            grupo_id: group.id,
+                                            slot_numero: String(slotNumber || ''),
+                                            campeonato_equipe_id: '',
+                                            equipe_id: '',
+                                            line_id: '',
+                                          })
+                                        }}
+                                      >
+                                        <span className="vaga-row-number">{letter}</span>
+                                        <span className={`vaga-row-avatar status-${status}`} aria-hidden>
+                                          {status === 'ocupada' && logo ? (
+                                            <img src={logo} alt="" />
+                                          ) : status === 'ocupada' ? (
+                                            <Users size={18} />
+                                          ) : (
+                                            <span className="vaga-avatar-dot" />
+                                          )}
+                                        </span>
+                                        <span className="vaga-row-identity">
+                                          <strong>{lineName}</strong>
+                                          <small>{teamName}</small>
+                                        </span>
+                                        <span className="vaga-row-meta">
+                                          <span className={`vaga-status-pill status-${status}`}>
+                                            {status === 'ocupada' ? 'Ocupado' : status === 'reservada' ? 'Reservado' : 'Livre'}
+                                          </span>
+                                        </span>
+                                        <span className="vaga-row-chevron">
+                                          <Pencil size={15} />
+                                        </span>
+                                      </button>
+                                    </article>
+                                  )
+                                })
+                              )}
+                            </div>
+                            </> : null}
                           </article>
                         })}{groupsOfPhase.length===0 ? <p className="empty">Nenhum grupo nesta fase.</p> : null}</div> : null}
                       </section>
