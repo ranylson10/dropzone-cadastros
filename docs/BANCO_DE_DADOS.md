@@ -54,3 +54,34 @@ Antes de consolidar o schema, coletar para todas as tabelas:
 ## Decisão aprovada para slots
 
 O frontend não cadastra slots individualmente. O backend recebe a quantidade de slots ao criar o grupo e executa a criação em transação.
+
+## Modelo confirmado: equipe × line × campeonato (2026-07-15)
+
+Regras de domínio validadas no código e no banco:
+
+| Regra | Detalhe |
+|---|---|
+| Equipe | Pode ter várias **lines** |
+| Line | Unidade que joga / pontua |
+| Campeonato | Uma **line** só pode ter **1 participação ativa** |
+| Multi-vaga | Mesma equipe pode ter várias vagas **se** usar lines diferentes |
+| Slot de grupo | Letra A/B/C… = avatar no jogo; unique ativo `(grupo_id, slot_numero)` |
+| Sync | `campeonato_slots` deve espelhar `campeonato_equipes` ativa |
+
+Uniques importantes:
+
+- `campeonato_equipes (campeonato_id, line_id) where status = 'ativo'`
+- `campeonato_equipes (grupo_id, slot_numero) where status = 'ativo'`
+- `equipe_lines (equipe_id, lower(trim(nome)))`
+
+Migrations de consolidação:
+
+- `database/migrations/20260715_regras_equipes_lines_slots.sql`
+- `database/migrations/20260715_origem_entrada_link_vendedor.sql`
+- `database/migrations/20260715_campeonato_equipes_slot_unique_ativo.sql`
+
+Script de auditoria local:
+
+```bash
+node scripts/audit-db-logic.mjs
+```

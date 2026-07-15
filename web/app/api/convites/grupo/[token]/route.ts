@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
+import {
+  assertSlotLivreNoGrupo,
+  friendlyParticipacaoUniqueError,
+  isUniqueViolation,
+  resolveLineForInscricao,
+  softRemoveParticipacao,
+} from '@backend/campeonatos/participacao-sync'
 import { parseLinkMetadata } from '@backend/shared/campeonato-link-metadata'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
@@ -417,24 +424,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (!slot) throw new Error('Slot do grupo nao encontrado para a letra selecionada.')
     if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Escolha outra letra.')
 
-    // Constraint real: unique (grupo_id, slot_numero) em campeonato_equipes.
-    // O slot pode parecer livre e ainda assim existir participacao ativa (desync).
-    const { data: slotTaken, error: slotTakenError } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id,equipe_id,line_id,nome_exibicao,status')
-      .eq('campeonato_id', link.campeonato_id)
-      .eq('grupo_id', link.grupo_id)
-      .eq('slot_numero', slot.slot_numero)
-      .eq('status', 'ativo')
-      .maybeSingle()
-    if (slotTakenError) throw slotTakenError
-    if (slotTaken) {
-      // Tenta auto-corrigir o slot visual e bloqueia a inscricao nesta letra.
-      await healSlotFromParticipation(slot, slotTaken)
-      throw new Error(
-        `O slot ${String(slot.slot_letra || slot.slot_numero).toUpperCase()} ja esta ocupado por outra equipe/line. Escolha outra letra.`,
-      )
-    }
+    // Constraint real: unique (grupo_id, slot_numero) em participações ativas.
+    await assertSlotLivreNoGrupo({
+      campeonatoId: link.campeonato_id,
+      grupoId: link.grupo_id,
+      slotNumero: Number(slot.slot_numero),
+      slotLetra: slot.slot_letra,
+    })
 
     if (expected.length) {
       if (!referenciaEquipe) throw new Error('Selecione qual equipe da lista voce esta representando.')
@@ -453,109 +449,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       if (already) throw new Error('Essa equipe da lista ja foi reivindicada neste grupo.')
     }
 
-    // Lines ja usadas no campeonato (1 line = 1 vaga).
-    const { data: usedParts, error: usedPartsError } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id,line_id')
-      .eq('campeonato_id', link.campeonato_id)
-      .eq('equipe_id', account.id)
-      .eq('status', 'ativo')
-    if (usedPartsError) throw usedPartsError
-    const usedLineIds = new Set((usedParts || []).map((row) => row.line_id).filter(Boolean))
-
-    let lineId = lineIdInformada || null
-    let lineName = ''
-    let lineCriadaAgora = false
-
-    if (lineId) {
-      const { data: line, error: lineError } = await supabaseAdmin
-        .from('equipe_lines')
-        .select('id,nome,status')
-        .eq('id', lineId)
-        .eq('equipe_id', account.id)
-        .maybeSingle()
-      if (lineError) throw lineError
-      if (!line) throw new Error('A line selecionada nao pertence a sua equipe.')
-      if (String(line.status || '').toLowerCase() === 'inativo') {
-        throw new Error('A line selecionada esta inativa. Escolha outra ou reative no painel.')
-      }
-      if (usedLineIds.has(line.id)) {
-        throw new Error('Essa line ja esta inscrita neste campeonato. Cada vaga precisa de uma line diferente.')
-      }
-      lineName = line.nome
-    } else {
-      if (!nomeNovaLine) {
-        throw new Error('Selecione uma line livre ou informe o nome de uma nova line para esta vaga.')
-      }
-
-      const target = nomeNovaLine.trim().toLowerCase()
-      const { data: existingLines, error: existingLineError } = await supabaseAdmin
-        .from('equipe_lines')
-        .select('id,nome,status')
-        .eq('equipe_id', account.id)
-      if (existingLineError) throw existingLineError
-
-      const existing = (existingLines || []).find(
-        (row) => String(row.nome || '').trim().toLowerCase() === target,
-      )
-
-      if (existing) {
-        // Nome ja existe: so reutiliza se a line AINDA NAO estiver no campeonato.
-        if (usedLineIds.has(existing.id)) {
-          throw new Error(
-            `A line "${existing.nome}" ja esta inscrita neste campeonato. Crie outra line para a nova vaga (ex.: ${existing.nome} 2).`,
-          )
-        }
-        if (String(existing.status || '').toLowerCase() === 'inativo') {
-          const { data: reactivated, error: reactivateError } = await supabaseAdmin
-            .from('equipe_lines')
-            .update({ status: 'ativo', updated_at: new Date().toISOString() })
-            .eq('id', existing.id)
-            .select('id,nome')
-            .single()
-          if (reactivateError) throw reactivateError
-          lineId = reactivated.id
-          lineName = reactivated.nome
-        } else {
-          lineId = existing.id
-          lineName = existing.nome
-        }
-      } else {
-        // Cria line nova ja pensada para esta vaga/slot e usa na inscricao em seguida.
-        const { data: created, error } = await supabaseAdmin
-          .from('equipe_lines')
-          .insert({
-            equipe_id: account.id,
-            nome: nomeNovaLine.trim(),
-            tag: account.data?.tag || null,
-            logo_url: account.data?.logo_url || null,
-            status: 'ativo',
-          })
-          .select('id,nome')
-          .single()
-        if (error) {
-          if (error.code === '23505') {
-            throw new Error('Ja existe uma line com esse nome nesta equipe. Selecione a line livre na lista.')
-          }
-          throw error
-        }
-        lineId = created.id
-        lineName = created.nome
-        lineCriadaAgora = true
-      }
-    }
-
-    const { data: duplicate, error: duplicateError } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id')
-      .eq('campeonato_id', link.campeonato_id)
-      .eq('line_id', lineId)
-      .eq('status', 'ativo')
-      .maybeSingle()
-    if (duplicateError) throw duplicateError
-    if (duplicate) {
-      throw new Error('Esta line ja esta inscrita neste campeonato. Cada vaga exige uma line diferente.')
-    }
+    // 1 line = 1 vaga: resolve line livre ou cria nova ja para este slot.
+    const resolvedLine = await resolveLineForInscricao({
+      equipeId: account.id,
+      campeonatoId: link.campeonato_id,
+      lineId: lineIdInformada || null,
+      nomeLine: nomeNovaLine || null,
+      tag: account.data?.tag || null,
+      logoUrl: account.data?.logo_url || null,
+    })
+    const lineId = resolvedLine.id
+    const lineName = resolvedLine.nome
+    const lineCriadaAgora = resolvedLine.criada_agora
 
     // nome_exibicao guarda a referencia da lista do organizador (quando houver).
     const nomeExibicao = referenciaEquipe || lineName
@@ -568,7 +473,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       slot_numero: slot.slot_numero,
       line_id: lineId,
       nome_exibicao: nomeExibicao,
-      // Constraint real no banco: organizador | convite | inscricao
       origem_entrada: 'inscricao',
       criado_por: user.id,
       status: 'ativo',
@@ -578,33 +482,19 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     try {
       participacao = await insertParticipacao(participationPayload)
     } catch (partError: any) {
-      if (partError?.code === '23505') {
-        const details = String(partError?.details || partError?.message || '').toLowerCase()
-        if (details.includes('grupo_id') && details.includes('slot_numero')) {
-          throw new Error(
-            `O slot ${String(slot.slot_letra || slot.slot_numero).toUpperCase()} ja possui uma inscricao. Escolha outra letra.`,
-          )
-        }
-        if (details.includes('line_id') || details.includes('campeonato_equipes_line')) {
-          throw new Error('Esta line ja esta inscrita neste campeonato. Cada vaga exige uma line diferente.')
-        }
-        if (details.includes('equipe_id') && !details.includes('line')) {
-          throw new Error(
-            'Este campeonato ainda bloqueia mais de uma vaga por equipe no banco. Rode a migration de lines (campeonato_equipes por line).',
-          )
-        }
+      if (isUniqueViolation(partError)) {
         throw new Error(
-          errorMessage(
-            partError,
-            'Nao foi possivel salvar a inscricao (conflito de unicidade no banco). Atualize a pagina e tente outro slot/line.',
-          ),
+          friendlyParticipacaoUniqueError(partError, {
+            slotLetra: slot.slot_letra,
+            slotNumero: slot.slot_numero,
+          }),
         )
       }
       throw new Error(errorMessage(partError, 'Nao foi possivel salvar a equipe no campeonato.'))
     }
     createdParticipacaoId = participacao.id
 
-    // 2) Ocupa o slot do grupo com a mesma line.
+    // 2) Ocupa o slot do grupo com a mesma line (trigger no banco tambem sincroniza).
     const { data: updatedSlot, error: slotError } = await supabaseAdmin
       .from('campeonato_slots')
       .update({
@@ -621,15 +511,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .maybeSingle()
 
     if (slotError || !updatedSlot) {
-      // Soft-remove: hard delete pode quebrar triggers de campeonato_vagas.
-      await supabaseAdmin
-        .from('campeonato_equipes')
-        .update({ status: 'removido', slot_numero: null, grupo_id: null, updated_at: new Date().toISOString() })
-        .eq('id', participacao.id)
+      await softRemoveParticipacao(participacao.id)
       createdParticipacaoId = null
-      if (slotError?.code === '23505') {
+      if (isUniqueViolation(slotError)) {
         throw new Error('Esta line ja esta posicionada em outro slot desta fase.')
       }
+      // Se a part foi gravada e o slot ja estava ocupado por desync, tenta curar e avisa.
       throw new Error(errorMessage(slotError, 'A vaga foi preenchida por outra equipe. Atualize e tente novamente.'))
     }
     occupiedSlotId = slot.id
@@ -678,10 +565,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     // Rollback de melhor esforço se algo falhou no meio.
     if (createdParticipacaoId && !occupiedSlotId) {
       try {
-        await supabaseAdmin
-          .from('campeonato_equipes')
-          .update({ status: 'removido', slot_numero: null, grupo_id: null, updated_at: new Date().toISOString() })
-          .eq('id', createdParticipacaoId)
+        await softRemoveParticipacao(createdParticipacaoId)
       } catch {
         // ignore rollback failure
       }
