@@ -92,7 +92,7 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
             .in('campeonato_id', campeonatoIds)
             .eq('criado_por', authUserId)
             .eq('status', 'ativo')
-            .in('origem_entrada', ['vendedor', 'convite', 'inscricao'])
+            .in('origem_entrada', ['vendedor', 'convite', 'inscricao', 'link'])
         : Promise.resolve({ data: [] as any[] }),
     ])
 

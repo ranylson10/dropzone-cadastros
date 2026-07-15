@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
           .select('criado_por')
           .eq('campeonato_id', campeonatoFilter)
           .eq('status', 'ativo')
-          .in('origem_entrada', ['vendedor', 'convite', 'inscricao'])
+          .in('origem_entrada', ['vendedor', 'convite', 'inscricao', 'link'])
           .in('criado_por', authList)
         for (const p of parts || []) {
           if (!p.criado_por) continue

@@ -450,7 +450,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       lineId: resolvedLine.id,
       equipeId: account.id,
       nomeExibicao,
-      origem: 'inscricao',
+      origem: 'link',
       criadoPor: user.id,
     })
     createdParticipacaoId = participacao.id
@@ -471,7 +471,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         : `Line "${resolvedLine.nome}" inscrita no slot ${letra}.`,
     })
   } catch (error) {
-    if (createdParticipacaoId && !occupiedSlotId) {
+    if (createdParticipacaoId) {
       try {
         await softRemoveParticipacao(createdParticipacaoId)
       } catch {

@@ -29,7 +29,7 @@ async function assertSellerCanInvite(userId: string, campeonatoId: string) {
           .select('id', { count: 'exact', head: true })
           .eq('campeonato_id', campeonatoId)
           .eq('criado_por', userId)
-          .in('origem_entrada', ['vendedor', 'convite', 'inscricao'])
+          .in('origem_entrada', ['vendedor', 'convite', 'inscricao', 'link'])
           .eq('status', 'ativo'),
         supabaseAdmin
           .from('tokens')

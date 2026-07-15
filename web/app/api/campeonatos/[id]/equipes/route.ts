@@ -392,7 +392,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           .select('id', { count: 'exact', head: true })
           .eq('campeonato_id', id)
           .eq('criado_por', user.id)
-          .in('origem_entrada', ['vendedor', 'convite', 'inscricao'])
+          .in('origem_entrada', ['vendedor', 'convite', 'inscricao', 'link'])
           .eq('status', 'ativo')
         if (countError) throw countError
         if (Number(count || 0) >= limiteVagas) {

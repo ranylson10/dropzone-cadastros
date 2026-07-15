@@ -67,10 +67,10 @@ export async function GET(req: NextRequest, ctx: any) {
 
     const { data: teamLinks, error: teamsError } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,equipe_id,line_id,slot_numero,status,nome_exibicao,equipes:equipe_id(id,nome,tag,logo_url),equipe_lines:line_id(id,nome,tag,logo_url)')
+      .select('id,equipe_id,line_id,slot_id,slot_numero,status,nome_exibicao,equipes:equipe_id(id,nome,tag,logo_url),equipe_lines:line_id(id,nome,tag,logo_url)')
       .eq('campeonato_id', link.campeonato_id)
       .eq('grupo_id', link.grupo_id)
-      .neq('status', 'deletado')
+      .eq('status', 'ativo')
       .order('slot_numero')
     if (teamsError) throw teamsError
 
@@ -124,13 +124,14 @@ export async function POST(req: NextRequest, ctx: any) {
 
     const { data: champTeam, error: champTeamError } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,equipe_id,grupo_id,line_id')
+      .select('id,equipe_id,grupo_id,line_id,status')
       .eq('campeonato_id', link.campeonato_id)
       .eq('grupo_id', link.grupo_id)
       .eq('id', campeonatoEquipeId)
+      .eq('status', 'ativo')
       .maybeSingle()
     if (champTeamError) throw champTeamError
-    if (!champTeam) throw new Error('Essa equipe nao pertence ao grupo deste link.')
+    if (!champTeam) throw new Error('Essa equipe nao pertence ao grupo deste link ou foi removida.')
 
     const { data: rule, error: ruleError } = await supabaseAdmin
       .from('campeonato_regras')
