@@ -15,9 +15,18 @@ async function resolveManager(managerId: string) {
   if (!isUuid(normalized)) return null
   const { data: manager, error: managerError } = await supabaseAdmin
     .from('managers')
-    .select('id,nome,username,avatar_url,status,auth_user_id')
+    .select('id,nome,username,avatar_url,status,auth_user_id,whatsapp_url,nome_publico_vendas,portfolio_anuncios')
     .eq('id', normalized)
     .maybeSingle()
+  if (managerError && (managerError.code === 'PGRST204' || /column/i.test(managerError.message || ''))) {
+    const fallback = await supabaseAdmin
+      .from('managers')
+      .select('id,nome,username,avatar_url,status,auth_user_id')
+      .eq('id', normalized)
+      .maybeSingle()
+    if (fallback.error) throw fallback.error
+    return fallback.data ? { ...fallback.data, whatsapp_url: null, nome_publico_vendas: null, portfolio_anuncios: [] } : null
+  }
   if (managerError) throw managerError
   return manager
 }
@@ -25,66 +34,96 @@ async function resolveManager(managerId: string) {
 export async function GET(_req: Request, context: { params: Promise<{ managerId: string }> }) {
   try {
     const { managerId } = await context.params
-    console.log('[vendedores/campeonatos] request for managerId:', managerId)
-    let manager: any = null
-    try {
-      manager = await resolveManager(managerId)
-      console.log('[vendedores/campeonatos] managerId:', managerId, 'resolvedManager:', !!manager)
-    } catch (err: any) {
-      console.error('[vendedores/campeonatos] resolveManager error:', err?.message || err, err?.stack || '')
-      throw err
+    const manager = await resolveManager(managerId)
+    if (!manager || ['suspenso', 'banido', 'excluido'].includes(String(manager.status || 'ativo'))) {
+      throw new Error('Vendedor não encontrado.')
     }
-    if (!manager || ['suspenso', 'banido', 'excluido'].includes(String(manager.status || 'ativo'))) throw new Error('Vendedor não encontrado.')
-    const { data: vínculos, error: vínculosError } = await supabaseAdmin
-      .from('tokens')
-      .select('id,campeonato_id,produtora_id,manager_id,status,created_at')
-      .eq('tipo', 'manager_invite')
+
+    // Fonte principal: vínculos de campeonato
+    const { data: vinculos, error: vinculosError } = await supabaseAdmin
+      .from('campeonato_vendedores')
+      .select('id,campeonato_id,produtora_id,manager_id,status,limite_vagas,permissoes,whatsapp_url,nome_publico,created_at')
       .eq('manager_id', manager.id)
       .order('created_at', { ascending: false })
+    if (vinculosError && !missingRelation(vinculosError)) throw vinculosError
 
-    if (vínculosError) throw vínculosError
+    let rows = vinculos || []
 
-    const campeonatoIds = Array.from(new Set([...(vínculos || []).map((item) => item.campeonato_id), ...[]].filter(Boolean)))
-    const produtoraIds = Array.from(new Set((vínculos || []).map((item) => item.produtora_id).filter(Boolean)))
+    // Fallback legado: tokens manager_invite
+    if (!rows.length) {
+      const { data: tokens, error: tokensError } = await supabaseAdmin
+        .from('tokens')
+        .select('id,campeonato_id,produtora_id,manager_id,status,created_at')
+        .eq('tipo', 'manager_invite')
+        .eq('manager_id', manager.id)
+        .not('campeonato_id', 'is', null)
+        .order('created_at', { ascending: false })
+      if (tokensError) throw tokensError
+      rows = (tokens || []).map((t) => ({
+        id: t.id,
+        campeonato_id: t.campeonato_id,
+        produtora_id: t.produtora_id,
+        manager_id: t.manager_id,
+        status: t.status,
+        limite_vagas: 0,
+        permissoes: {},
+        whatsapp_url: manager.whatsapp_url,
+        nome_publico: manager.nome_publico_vendas || manager.nome,
+        created_at: t.created_at,
+      }))
+    }
 
-    const [
-      { data: campeonatos, error: campeonatosError },
-      { data: produtoras, error: produtorasError },
-      { data: configs, error: configsError },
-    ] = await Promise.all([
-      campeonatoIds.length ? supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').in('id', campeonatoIds) : Promise.resolve({ data: [] as any[], error: null } as any),
-      produtoraIds.length ? supabaseAdmin.from('produtoras').select('id,nome,logo_url').in('id', produtoraIds) : Promise.resolve({ data: [] as any[], error: null } as any),
-      campeonatoIds.length ? supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,contatos_whatsapp').in('campeonato_id', campeonatoIds) : Promise.resolve({ data: [] as any[], error: null } as any),
+    const campeonatoIds = Array.from(new Set(rows.map((item) => item.campeonato_id).filter(Boolean)))
+    const produtoraIds = Array.from(new Set(rows.map((item) => item.produtora_id).filter(Boolean)))
+    const portfolio = Array.isArray(manager.portfolio_anuncios) ? manager.portfolio_anuncios.map(String) : []
+
+    const [{ data: campeonatos }, { data: produtoras }] = await Promise.all([
+      campeonatoIds.length
+        ? supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status,banner_url').in('id', campeonatoIds)
+        : Promise.resolve({ data: [] as any[] }),
+      produtoraIds.length
+        ? supabaseAdmin.from('produtoras').select('id,nome,logo_url').in('id', produtoraIds)
+        : Promise.resolve({ data: [] as any[] }),
     ])
-
-    if (campeonatosError) throw campeonatosError
-    if (produtorasError) throw produtorasError
-    if (configsError && !missingRelation(configsError)) throw configsError
 
     const campeonatosById = new Map((campeonatos || []).map((item: any) => [item.id, item]))
     const produtorasById = new Map((produtoras || []).map((item: any) => [item.id, item]))
-    const contactsByChampId = new Map((configs || []).map((config: any) => [
-      config.campeonato_id,
-      Array.isArray(config.contatos_whatsapp) ? config.contatos_whatsapp.find((contact: any) => contact?.manager_id === managerId) || null : null,
-    ]))
 
     return NextResponse.json({
-      manager,
-      campeonatos: (vínculos || []).map((item: any) => {
-        const contact = (contactsByChampId.get(item.campeonato_id) || null) as any
+      manager: {
+        id: manager.id,
+        nome: manager.nome,
+        username: manager.username,
+        avatar_url: manager.avatar_url,
+        whatsapp_url: manager.whatsapp_url || null,
+        nome_publico_vendas: manager.nome_publico_vendas || manager.nome || manager.username,
+        portfolio_anuncios: portfolio,
+      },
+      public_url: `/vendedores/${manager.id}`,
+      campeonatos: rows.map((item: any) => {
+        const camp = campeonatosById.get(item.campeonato_id) || null
+        const anunciando =
+          item.status === 'ativo'
+          && (portfolio.length === 0 || portfolio.includes(String(item.campeonato_id)))
         return {
           id: item.id,
           campeonato_id: item.campeonato_id,
-          nome_publico: contact?.nome || manager.nome || manager.username,
-          whatsapp_url: contact?.url || null,
+          nome_publico: item.nome_publico || manager.nome_publico_vendas || manager.nome,
+          whatsapp_url: item.whatsapp_url || manager.whatsapp_url || null,
           status: item.status,
-          campeonatos: campeonatosById.get(item.campeonato_id) || null,
+          limite_vagas: item.limite_vagas || 0,
+          permissoes: item.permissoes || {},
+          anunciando,
+          campeonatos: camp,
           produtoras: produtorasById.get(item.produtora_id) || null,
         }
       }),
     })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao carregar vendedor.' }, { status: 404 })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro ao carregar vendedor.' },
+      { status: 404 },
+    )
   }
 }
 
@@ -101,32 +140,82 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ manag
     const { managerId } = await context.params
     await requireManagerAccount(req, managerId)
     const body = await req.json().catch(() => ({}))
-    const campeonatoId = String(body.campeonatoId || '').trim()
-    const publish = Boolean(body.publish)
+    const campeonatoId = String(body.campeonatoId || body.campeonato_id || '').trim()
+    const publish = body.publish !== undefined ? Boolean(body.publish) : null
+    const anunciar = body.anunciar !== undefined ? Boolean(body.anunciar) : null
 
     if (!campeonatoId) throw new Error('Informe o campeonato a ser atualizado.')
 
-    const { data: tokenRow, error: tokenError } = await supabaseAdmin
-      .from('tokens')
-      .select('id')
-      .eq('tipo', 'manager_invite')
-      .eq('manager_id', managerId)
-      .eq('campeonato_id', campeonatoId)
-      .maybeSingle()
-    if (tokenError) throw tokenError
-    if (!tokenRow) throw new Error('Convite de venda não encontrado para este manager.')
+    // Publicar/ocultar vínculo (status no campeonato)
+    if (publish !== null) {
+      const newStatus = publish ? 'ativo' : 'cancelado'
+      const { error: sellerUpdateError } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('manager_id', managerId)
+        .eq('campeonato_id', campeonatoId)
+      if (sellerUpdateError && !missingRelation(sellerUpdateError)) throw sellerUpdateError
 
-    const newStatus = publish ? 'ativo' : 'cancelado'
-    const updates = [
-      supabaseAdmin.from('tokens').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', tokenRow.id),
-      supabaseAdmin.from('campeonato_vendedores').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('manager_id', managerId).eq('campeonato_id', campeonatoId),
-    ]
-    const [{ error: tokenUpdateError }, { error: sellerUpdateError }] = await Promise.all(updates)
-    if (tokenUpdateError) throw tokenUpdateError
-    if (sellerUpdateError && !missingRelation(sellerUpdateError)) throw sellerUpdateError
+      await supabaseAdmin
+        .from('tokens')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('tipo', 'manager_invite')
+        .eq('manager_id', managerId)
+        .eq('campeonato_id', campeonatoId)
+    }
 
-    return NextResponse.json({ success: true, published: publish, campeonatoId })
+    // Portfolio: quais campeonatos aparecem no link público (Shopee-style)
+    if (anunciar !== null) {
+      const { data: manager, error: managerError } = await supabaseAdmin
+        .from('managers')
+        .select('portfolio_anuncios')
+        .eq('id', managerId)
+        .maybeSingle()
+      if (managerError && (managerError.code === 'PGRST204' || /portfolio/i.test(managerError.message || ''))) {
+        // sem coluna ainda: usa status cancelado/ativo como fallback
+        if (publish === null) {
+          const newStatus = anunciar ? 'ativo' : 'cancelado'
+          await supabaseAdmin
+            .from('campeonato_vendedores')
+            .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .eq('manager_id', managerId)
+            .eq('campeonato_id', campeonatoId)
+        }
+      } else {
+        if (managerError) throw managerError
+        const current = Array.isArray(manager?.portfolio_anuncios)
+          ? manager.portfolio_anuncios.map(String)
+          : []
+        // Se lista vazia = anuncia todos; ao marcar/desmarcar explicitamente, materializa lista
+        let next: string[]
+        if (current.length === 0) {
+          // pega todos os ativos e remove/adiciona
+          const { data: all } = await supabaseAdmin
+            .from('campeonato_vendedores')
+            .select('campeonato_id')
+            .eq('manager_id', managerId)
+            .eq('status', 'ativo')
+          const allIds = (all || []).map((r) => String(r.campeonato_id))
+          next = anunciar
+            ? Array.from(new Set([...allIds, campeonatoId]))
+            : allIds.filter((id) => id !== campeonatoId)
+        } else {
+          next = anunciar
+            ? Array.from(new Set([...current, campeonatoId]))
+            : current.filter((id) => id !== campeonatoId)
+        }
+        await supabaseAdmin
+          .from('managers')
+          .update({ portfolio_anuncios: next, updated_at: new Date().toISOString() })
+          .eq('id', managerId)
+      }
+    }
+
+    return NextResponse.json({ success: true, campeonatoId, publish, anunciar })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao atualizar publicação.' }, { status: 400 })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro ao atualizar publicação.' },
+      { status: 400 },
+    )
   }
 }

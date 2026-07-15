@@ -83,12 +83,14 @@ export function ProdutoraPanel(props: {
   const [editingGameId, setEditingGameId] = useState('')
   const [openGamePhases, setOpenGamePhases] = useState<Record<string, boolean>>({})
   const [openGames, setOpenGames] = useState<Record<string, boolean>>({})
-  const [sellerInvite, setSellerInvite] = useState({ nome_publico: '', limite_vagas: '' })
   const [sellerRows, setSellerRows] = useState<any[]>([])
   const [sellerLink, setSellerLink] = useState('')
   const [sellerWhatsappLink, setSellerWhatsappLink] = useState('')
   const [sellerLoading, setSellerLoading] = useState(false)
   const [sellerError, setSellerError] = useState('')
+  const [sellerSelected, setSellerSelected] = useState<any | null>(null)
+  const [sellerLimite, setSellerLimite] = useState('')
+  const [sellerBusy, setSellerBusy] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -125,38 +127,82 @@ export function ProdutoraPanel(props: {
     return json
   }
 
-  async function loadSellers(championshipId: string) {
+  async function loadSellers(championshipId?: string) {
     setSellerLoading(true)
     setSellerError('')
     try {
-      const json = await sellerRequest(`/api/campeonatos/${championshipId}/vendedores`)
+      const qs = championshipId ? `?campeonato_id=${encodeURIComponent(championshipId)}` : ''
+      const json = await sellerRequest(`/api/produtora/vendedores${qs}`)
       setSellerRows(json.vendedores || [])
     } catch (error) {
-      setSellerError(error instanceof Error ? error.message : 'Erro ao carregar vendedores.')
-      setSellerRows([])
+      // fallback legado por campeonato
+      try {
+        if (championshipId) {
+          const json = await sellerRequest(`/api/campeonatos/${championshipId}/vendedores`)
+          setSellerRows(
+            (json.vendedores || []).map((row: any) => ({
+              ...row,
+              no_campeonato: row.status === 'ativo' && Boolean(row.manager_id),
+              vinculo_atual: row.manager_id ? { limite_vagas: row.limite_vagas, status: row.status } : null,
+              campeonatos: [],
+              public_url: row.manager_id ? `/vendedores/${row.manager_id}` : null,
+            })),
+          )
+        } else {
+          setSellerRows([])
+        }
+      } catch (err2) {
+        setSellerError(err2 instanceof Error ? err2.message : 'Erro ao carregar vendedores.')
+        setSellerRows([])
+      }
     } finally {
       setSellerLoading(false)
     }
   }
 
-  async function createSellerInvite(championshipId: string) {
+  /** Convite único da produtora (não por campeonato). */
+  async function createSellerInvite() {
     setSellerLoading(true)
     setSellerError('')
     setSellerLink('')
     setSellerWhatsappLink('')
     try {
-      const json = await sellerRequest(`/api/campeonatos/${championshipId}/vendedores`, {
+      const json = await sellerRequest('/api/produtora/vendedores', {
         method: 'POST',
-        body: JSON.stringify(sellerInvite),
+        body: JSON.stringify({ action: 'invite' }),
       })
       setSellerLink(json.link)
       setSellerWhatsappLink(json.whatsapp_url || '')
-      setSellerInvite({ nome_publico: '', limite_vagas: '' })
-      await loadSellers(championshipId)
+      await loadSellers(selectedChamp?.id)
     } catch (error) {
       setSellerError(error instanceof Error ? error.message : 'Erro ao gerar convite.')
     } finally {
       setSellerLoading(false)
+    }
+  }
+
+  /** Adiciona vendedor já da produtora neste campeonato e define limite. */
+  async function attachSellerToChampionship() {
+    if (!sellerSelected?.manager_id || !selectedChamp?.id) return
+    setSellerBusy(true)
+    setSellerError('')
+    try {
+      await sellerRequest('/api/produtora/vendedores', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'attach',
+          manager_id: sellerSelected.manager_id,
+          campeonato_id: selectedChamp.id,
+          limite_vagas: sellerLimite,
+        }),
+      })
+      setSellerSelected(null)
+      setSellerLimite('')
+      await loadSellers(selectedChamp.id)
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro ao adicionar no campeonato.')
+    } finally {
+      setSellerBusy(false)
     }
   }
 
@@ -216,7 +262,7 @@ export function ProdutoraPanel(props: {
   const teamInvites = props.tokens.filter((row) => TEAM_INVITE_TYPES.has(String(row.data?.token_kind || '')) && row.parent_id === selectedChamp?.id)
 
   useEffect(() => {
-    if (tab === 'vendedores' && selectedChamp?.id) void loadSellers(selectedChamp.id)
+    if (tab === 'vendedores') void loadSellers(selectedChamp?.id)
   }, [tab, selectedChamp?.id])
 
   function toggleAction(value: typeof openAction) {
@@ -766,29 +812,33 @@ export function ProdutoraPanel(props: {
                 <div className="ref-section-stack">
                   <div className="subtab-actionbar">
                     <div>
-                      <p className="eyebrow">Afiliados</p>
-                      <h3>Vendedores de vagas</h3>
+                      <p className="eyebrow">Afiliados da produtora</p>
+                      <h3>Vendedores</h3>
                     </div>
-                    <button className="button" type="button" disabled={sellerLoading} onClick={() => createSellerInvite(selectedChamp.id)}>
-                      <UserPlus size={16} /> Gerar convite
+                    <button className="button" type="button" disabled={sellerLoading} onClick={() => void createSellerInvite()}>
+                      <UserPlus size={16} /> Gerar link de convite
                     </button>
                   </div>
 
                   <div className="inline-action-panel">
-                    <div className="mini-grid two">
-                      <Field label="Nome pÃºblico sugerido"><input value={sellerInvite.nome_publico} onChange={(event) => setSellerInvite({ ...sellerInvite, nome_publico: event.target.value })} placeholder="Ex.: Paulo Vagas" /></Field>
-                      <Field label="Limite de vagas"><input type="number" min="0" value={sellerInvite.limite_vagas} onChange={(event) => setSellerInvite({ ...sellerInvite, limite_vagas: event.target.value })} placeholder="0 = sem limite" /></Field>
-                    </div>
-                    <p className="empty">Esta pÃ¡gina gera apenas o convite. O manager aceitarÃ¡ o link, definirÃ¡ o WhatsApp de venda e poderÃ¡ adicionar equipes ou gerar convites atÃ© o limite definido.</p>
+                    <p className="empty">
+                      Um convite serve para a <strong>produtora inteira</strong>. Depois de aceitar, o vendedor entra na lista.
+                      Neste campeonato ({rowTitle(selectedChamp)}), clique no vendedor para liberar e definir o limite de vagas.
+                      Ele pode adicionar equipes e gerar convites como o admin (dentro do limite).
+                    </p>
                     {sellerError ? <div className="message error">{sellerError}</div> : null}
                     {sellerLink ? (
                       <div className="ref-section-stack">
                         <button className="token-card full-token-card" type="button" onClick={() => props.copyToken(sellerLink)}>
-                          <span>Link de convite do vendedor</span>
+                          <span>Link de convite (produtora)</span>
                           <strong>{sellerLink}</strong>
                           <Copy size={15} />
                         </button>
-                        {sellerWhatsappLink ? <a className="button secondary" href={sellerWhatsappLink} target="_blank" rel="noreferrer"><MessageCircle size={15} /> Enviar pelo WhatsApp</a> : null}
+                        {sellerWhatsappLink ? (
+                          <a className="button secondary" href={sellerWhatsappLink} target="_blank" rel="noreferrer">
+                            <MessageCircle size={15} /> Enviar pelo WhatsApp
+                          </a>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -796,20 +846,82 @@ export function ProdutoraPanel(props: {
                   <div className="ref-card-grid two">
                     {sellerRows.map((seller) => {
                       const manager = seller.managers || {}
-                      const publicPanel = seller.manager_id ? `${window.location.origin}/vendedores/${seller.manager_id}` : ''
+                      const publicPanel = seller.manager_id
+                        ? `${window.location.origin}/vendedores/${seller.manager_id}`
+                        : ''
+                      const onChamp = Boolean(seller.no_campeonato || seller.vinculo_atual)
+                      const limite = seller.vinculo_atual?.limite_vagas ?? seller.limite_vagas_atual
                       return (
-                        <article className="token-card seller-token-card" key={seller.id}>
-                          <span>{seller.status === 'ativo' ? 'Ativo' : 'Pendente'}</span>
-                          <strong>{seller.nome_publico || manager.nome || manager.username || 'Vendedor convidado'}</strong>
-                          <small>{seller.whatsapp_url || 'WhatsApp ainda nÃ£o definido'}</small>
-                          <small>{Number(seller.limite_vagas || 0) > 0 ? `Limite: ${seller.limite_vagas} vaga(s)` : 'Sem limite de vagas'}</small>
-                          {seller.status === 'ativo' && publicPanel ? <button type="button" onClick={() => props.copyToken(publicPanel)}><Copy size={14} /> Copiar painel</button> : null}
+                        <article
+                          className={`token-card seller-token-card ${sellerSelected?.manager_id === seller.manager_id ? 'selected' : ''}`}
+                          key={seller.manager_id || seller.id}
+                        >
+                          <span>{onChamp ? 'Neste campeonato' : 'Só na produtora'}</span>
+                          <strong>
+                            {seller.nome_publico || manager.nome || manager.username || 'Vendedor'}
+                          </strong>
+                          <small>{seller.whatsapp_url || 'WhatsApp ainda não definido'}</small>
+                          <small>
+                            {onChamp
+                              ? Number(limite || 0) > 0
+                                ? `Limite neste evento: ${limite} vaga(s)`
+                                : 'Sem limite neste evento'
+                              : `${(seller.campeonatos || []).length} campeonato(s) liberado(s)`}
+                          </small>
+                          <div className="compact-row-actions" style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSellerSelected(seller)
+                                setSellerLimite(String(limite || ''))
+                              }}
+                            >
+                              {onChamp ? 'Editar limite' : 'Adicionar neste campeonato'}
+                            </button>
+                            {publicPanel ? (
+                              <button type="button" onClick={() => props.copyToken(publicPanel)}>
+                                <Copy size={14} /> Link de vendas
+                              </button>
+                            ) : null}
+                          </div>
                         </article>
                       )
                     })}
                     {sellerLoading ? <p className="empty">Carregando vendedores...</p> : null}
-                    {!sellerLoading && sellerRows.length === 0 ? <p className="empty">Nenhum vendedor convidado para este campeonato.</p> : null}
+                    {!sellerLoading && sellerRows.length === 0 ? (
+                      <p className="empty">Nenhum vendedor ainda. Gere o link de convite da produtora.</p>
+                    ) : null}
                   </div>
+
+                  {sellerSelected ? (
+                    <div className="inline-action-panel" style={{ marginTop: 12 }}>
+                      <h4 style={{ margin: '0 0 8px' }}>
+                        {sellerSelected.nome_publico || 'Vendedor'} · {rowTitle(selectedChamp)}
+                      </h4>
+                      <div className="mini-grid two">
+                        <Field label="Limite de vagas neste campeonato">
+                          <input
+                            type="number"
+                            min="0"
+                            value={sellerLimite}
+                            onChange={(e) => setSellerLimite(e.target.value)}
+                            placeholder="0 = sem limite"
+                          />
+                        </Field>
+                      </div>
+                      <p className="empty">
+                        Libera o vendedor neste evento com permissão para adicionar equipes e gerar convites de line/slot.
+                      </p>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="button" type="button" disabled={sellerBusy} onClick={() => void attachSellerToChampionship()}>
+                          {sellerBusy ? 'Salvando...' : sellerSelected.no_campeonato ? 'Atualizar limite' : 'Liberar neste campeonato'}
+                        </button>
+                        <button className="button secondary" type="button" onClick={() => setSellerSelected(null)}>
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

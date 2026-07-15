@@ -14,9 +14,20 @@ async function resolveManager(managerId: string) {
   if (!isUuid(normalized)) return null
   const { data: manager, error: managerError } = await supabaseAdmin
     .from('managers')
-    .select('id,nome,username,avatar_url,status,auth_user_id')
+    .select('id,nome,username,avatar_url,status,auth_user_id,whatsapp_url,nome_publico_vendas,portfolio_anuncios')
     .eq('id', normalized)
     .maybeSingle()
+  if (managerError && (managerError.code === 'PGRST204' || /column/i.test(managerError.message || ''))) {
+    const fallback = await supabaseAdmin
+      .from('managers')
+      .select('id,nome,username,avatar_url,status,auth_user_id')
+      .eq('id', normalized)
+      .maybeSingle()
+    if (fallback.error) throw fallback.error
+    return fallback.data
+      ? { ...fallback.data, whatsapp_url: null, nome_publico_vendas: null, portfolio_anuncios: [] }
+      : null
+  }
   if (managerError) throw managerError
   return manager
 }
@@ -44,16 +55,28 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
     
     if (sellerLinksResult.error && !missingRelation(sellerLinksResult.error)) throw sellerLinksResult.error
     if (tokenLinksResult.error) throw tokenLinksResult.error
-    if (!manager || ['suspenso', 'banido', 'excluido'].includes(String(manager.status || 'ativo'))) throw new Error('Vendedor nao encontrado.')
+
+    const portfolio = Array.isArray((manager as any).portfolio_anuncios)
+      ? (manager as any).portfolio_anuncios.map(String)
+      : []
 
     const linksByChampionship = new Map<string, any>()
     for (const item of [...(sellerLinksResult.data || []), ...(tokenLinksResult.data || [])]) {
       if (!item.campeonato_id || linksByChampionship.has(item.campeonato_id)) continue
+      // Portfolio afiliado: se lista preenchida, só anuncia os escolhidos
+      if (portfolio.length && !portfolio.includes(String(item.campeonato_id))) continue
       linksByChampionship.set(item.campeonato_id, item)
     }
     const links = Array.from(linksByChampionship.values())
     const campeonatoIds = links.map((item) => item.campeonato_id).filter(Boolean)
-    if (!campeonatoIds.length) return NextResponse.json({ manager, announcements: [] })
+    const publicManager = {
+      id: manager.id,
+      nome: (manager as any).nome_publico_vendas || manager.nome || manager.username,
+      username: manager.username,
+      avatar_url: manager.avatar_url,
+      whatsapp_url: (manager as any).whatsapp_url || null,
+    }
+    if (!campeonatoIds.length) return NextResponse.json({ manager: publicManager, announcements: [] })
 
     const [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,tipo,logo_url,banner_url,status').in('id', campeonatoIds).eq('status', 'ativo').is('deleted_at', null),
@@ -86,14 +109,24 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
       }).filter(Boolean) as any[]
       if (!openGroups.length) return []
 
-      const configContact = Array.isArray(config.contatos_whatsapp)
-        ? config.contatos_whatsapp.find((item: any) => item?.manager_id === managerId) || null
-        : null
+      // Contato do vendedor (portfólio), não a lista de admins do campeonato
+      const sellerWhatsapp =
+        (manager as any).whatsapp_url
+        || seller.whatsapp_url
+        || (Array.isArray(config.contatos_whatsapp)
+          ? config.contatos_whatsapp.find((item: any) => item?.manager_id === managerId)?.url
+          : null)
+        || null
       const contact = {
         id: `manager-${managerId}`,
         manager_id: managerId,
-        nome: seller.nome_publico || configContact?.nome || manager.nome || manager.username || 'Vendedor',
-        url: seller.whatsapp_url || configContact?.url || null,
+        nome:
+          (manager as any).nome_publico_vendas
+          || seller.nome_publico
+          || manager.nome
+          || manager.username
+          || 'Vendedor',
+        url: sellerWhatsapp,
       }
       const dated = openGroups.filter((group: any) => group.proximo_jogo).sort((a: any, b: any) => `${a.proximo_jogo.data_jogo} ${a.proximo_jogo.horario || ''}`.localeCompare(`${b.proximo_jogo.data_jogo} ${b.proximo_jogo.horario || ''}`))
       const next = dated[0] || openGroups[0]
@@ -117,7 +150,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
       }]
     }).sort((a: any, b: any) => (a.proxima_data ? 0 : 1) - (b.proxima_data ? 0 : 1) || String(a.proxima_data || '9999').localeCompare(String(b.proxima_data || '9999')))
 
-    return NextResponse.json({ manager, announcements })
+    return NextResponse.json({ manager: publicManager, announcements })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao carregar vagas do vendedor.' }, { status: 404 })
   }

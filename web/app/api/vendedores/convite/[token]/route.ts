@@ -15,12 +15,14 @@ function normalizeWhatsapp(value: unknown) {
   return `https://wa.me/${digits}`
 }
 
+const INVITE_TYPES = ['manager_invite', 'manager_invite_produtora']
+
 async function carregar(token: string) {
   const { data: convite, error } = await supabaseAdmin
     .from('tokens')
     .select('*')
     .eq('token', token)
-    .eq('tipo', 'manager_invite')
+    .in('tipo', INVITE_TYPES)
     .maybeSingle()
   if (error) throw error
   if (!convite) throw new Error('Convite não encontrado.')
@@ -36,14 +38,20 @@ async function carregar(token: string) {
   if (campeonatoError) throw campeonatoError
   if (produtoraError) throw produtoraError
 
-  return { ...convite, campeonatos: campeonato, produtoras: produtora }
+  return {
+    ...convite,
+    campeonatos: campeonato,
+    produtoras: produtora,
+    modo: convite.campeonato_id ? 'campeonato' : 'produtora',
+  }
 }
 
-async function upsertSellerContact(convite: any, account: any, body: any, whatsappUrl: string) {
+async function upsertSellerContact(campeonatoId: string | null, account: any, body: any, whatsappUrl: string) {
+  if (!campeonatoId) return
   const { data: config, error } = await supabaseAdmin
     .from('campeonato_configuracoes')
     .select('id,contatos_whatsapp')
-    .eq('campeonato_id', convite.campeonato_id)
+    .eq('campeonato_id', campeonatoId)
     .maybeSingle()
   if (error && !missingRelation(error)) throw error
   if (error || !config) return
@@ -68,30 +76,92 @@ async function upsertSellerContact(convite: any, account: any, body: any, whatsa
   if (updateError && !missingRelation(updateError)) throw updateError
 }
 
-async function upsertSellerLink(convite: any, account: any, body: any, whatsappUrl: string, userId: string) {
+async function upsertProdutoraRoster(convite: any, account: any, body: any, whatsappUrl: string, userId: string) {
+  if (!convite.produtora_id) return
+  const payload = {
+    produtora_id: convite.produtora_id,
+    manager_id: account.id,
+    manager_auth_user_id: userId,
+    nome_publico: String(body.nome_publico || '').trim() || account.name,
+    whatsapp_url: whatsappUrl,
+    status: 'ativo',
+    token_aceite: convite.token,
+    criado_por: convite.criado_por || null,
+    aceito_em: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
   const { error } = await supabaseAdmin
-    .from('campeonato_vendedores')
-    .upsert({
-      token: convite.token,
-      campeonato_id: convite.campeonato_id,
-      produtora_id: convite.produtora_id,
-      manager_id: account.id,
-      manager_auth_user_id: userId,
-      nome_publico: String(body.nome_publico || '').trim() || account.name,
-      whatsapp_url: whatsappUrl,
-      status: 'ativo',
-      limite_vagas: Number(convite.manager_limite_vagas || 0),
-      permissoes: convite.manager_permissoes || {
-        vendedor_vagas: true,
-        adicionar_equipes: true,
-        remover_proprias_equipes: true,
-        gerar_convites_equipe: true,
-      },
-      criado_por: convite.criado_por || null,
-      aceito_em: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'token' })
-  if (error && !missingRelation(error)) throw error
+    .from('produtora_vendedores')
+    .upsert(payload, { onConflict: 'produtora_id,manager_id' })
+  if (error && !missingRelation(error)) {
+    // fallback insert se unique diferente
+    const existing = await supabaseAdmin
+      .from('produtora_vendedores')
+      .select('id')
+      .eq('produtora_id', convite.produtora_id)
+      .eq('manager_id', account.id)
+      .maybeSingle()
+    if (existing.data?.id) {
+      await supabaseAdmin.from('produtora_vendedores').update(payload).eq('id', existing.data.id)
+    } else {
+      const ins = await supabaseAdmin.from('produtora_vendedores').insert(payload)
+      if (ins.error && !missingRelation(ins.error)) throw ins.error
+    }
+  }
+}
+
+async function upsertSellerLink(convite: any, account: any, body: any, whatsappUrl: string, userId: string) {
+  if (!convite.campeonato_id) return
+  const payload = {
+    token: convite.token,
+    campeonato_id: convite.campeonato_id,
+    produtora_id: convite.produtora_id,
+    manager_id: account.id,
+    manager_auth_user_id: userId,
+    nome_publico: String(body.nome_publico || '').trim() || account.name,
+    whatsapp_url: whatsappUrl,
+    status: 'ativo',
+    limite_vagas: Number(convite.manager_limite_vagas || 0),
+    permissoes: convite.manager_permissoes || {
+      vendedor_vagas: true,
+      adicionar_equipes: true,
+      remover_proprias_equipes: true,
+      gerar_convites_equipe: true,
+    },
+    criado_por: convite.criado_por || null,
+    aceito_em: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+  const { error } = await supabaseAdmin.from('campeonato_vendedores').upsert(payload, { onConflict: 'token' })
+  if (error && !missingRelation(error)) {
+    const existing = await supabaseAdmin
+      .from('campeonato_vendedores')
+      .select('id')
+      .eq('campeonato_id', convite.campeonato_id)
+      .eq('manager_id', account.id)
+      .maybeSingle()
+    if (existing.data?.id) {
+      const up = await supabaseAdmin.from('campeonato_vendedores').update(payload).eq('id', existing.data.id)
+      if (up.error) throw up.error
+    } else {
+      const ins = await supabaseAdmin.from('campeonato_vendedores').insert(payload)
+      if (ins.error) throw ins.error
+    }
+  }
+}
+
+async function updateManagerProfile(accountId: string, body: any, whatsappUrl: string) {
+  const patch: Record<string, unknown> = {
+    whatsapp_url: whatsappUrl,
+    nome_publico_vendas: String(body.nome_publico || '').trim() || null,
+    updated_at: new Date().toISOString(),
+  }
+  const { error } = await supabaseAdmin.from('managers').update(patch).eq('id', accountId)
+  // colunas novas podem não existir ainda
+  if (error && (error.code === 'PGRST204' || /whatsapp_url|nome_publico/i.test(error.message || ''))) {
+    return
+  }
+  if (error) throw error
 }
 
 export async function GET(req: NextRequest, context: { params: Promise<{ token: string }> }) {
@@ -105,12 +175,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
       const accounts = await getAccountsForUser(user)
       const account = accounts.find((item) => item.profile_type === 'manager')
       autenticado = true
-      manager = account ? { id: account.id, nome: account.name, username: account.username, avatar_url: account.data?.avatar_url || account.data?.foto_url || null } : null
-    } catch {}
+      manager = account
+        ? { id: account.id, nome: account.name, username: account.username, avatar_url: account.data?.avatar_url || account.data?.foto_url || null }
+        : null
+    } catch {
+      // guest
+    }
     return NextResponse.json({
       convite,
       autenticado,
       manager,
+      modo: convite.modo,
       valido: convite.status === 'ativo' && (!convite.usado || convite.manager_id === manager?.id),
     })
   } catch (error) {
@@ -129,7 +204,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const body = await req.json().catch(() => ({}))
     const convite = await carregar(String(token || '').trim())
     if (convite.status !== 'ativo') throw new Error('Este convite não está mais disponível.')
-    if (convite.manager_id && convite.manager_id !== account.id) throw new Error('Este convite já foi aceito por outro manager.')
+    if (convite.manager_id && convite.manager_id !== account.id) {
+      throw new Error('Este convite já foi aceito por outro manager.')
+    }
 
     const whatsappUrl = normalizeWhatsapp(body.whatsapp_url)
     if (!whatsappUrl) throw new Error('Informe seu WhatsApp de venda.')
@@ -145,12 +222,26 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .eq('id', convite.id)
       .select('*')
       .single()
-
     if (error) throw error
+
+    await updateManagerProfile(account.id, body, whatsappUrl)
+    await upsertProdutoraRoster(convite, account, body, whatsappUrl, user.id)
     await upsertSellerLink(convite, account, body, whatsappUrl, user.id)
-    await upsertSellerContact(convite, account, body, whatsappUrl)
-    return NextResponse.json({ vendedor: data, painel_url: `/vendedores/${account.id}` })
+    await upsertSellerContact(convite.campeonato_id, account, body, whatsappUrl)
+
+    return NextResponse.json({
+      vendedor: data,
+      modo: convite.modo,
+      painel_url: `/vendedores/${account.id}`,
+      mensagem:
+        convite.modo === 'produtora'
+          ? 'Você entrou na lista de vendedores da produtora. O produtor libera os campeonatos que você pode vender.'
+          : 'Vendas ativadas neste campeonato.',
+    })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao aceitar convite.' }, { status: 400 })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro ao aceitar convite.' },
+      { status: 400 },
+    )
   }
 }

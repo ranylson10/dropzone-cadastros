@@ -77,7 +77,7 @@ export default function ConviteVendedorPage() {
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || 'Erro ao aceitar convite.')
-      setMessage('Convite aceito. Seu painel público de vendas está ativo.')
+      setMessage(json.mensagem || 'Convite aceito. Seu painel de vendas está ativo.')
       window.location.href = json.painel_url
     } catch (err: any) {
       setError(err?.message || 'Erro ao aceitar convite.')
@@ -101,8 +101,18 @@ export default function ConviteVendedorPage() {
           <div className="section-head">
             <div>
               <p className="eyebrow">Convite de vendedor</p>
-              <h2>{data.convite.campeonatos?.nome || 'Campeonato'}</h2>
-              <span>{data.convite.produtoras?.nome ? `Produtora ${data.convite.produtoras.nome}` : 'Painel de afiliado'}</span>
+              <h2>
+                {data.modo === 'produtora' || !data.convite.campeonatos?.nome
+                  ? data.convite.produtoras?.nome || 'Produtora'
+                  : data.convite.campeonatos.nome}
+              </h2>
+              <span>
+                {data.modo === 'produtora' || !data.convite.campeonato_id
+                  ? 'Convite da produtora — depois o produtor libera os campeonatos'
+                  : data.convite.produtoras?.nome
+                    ? `Produtora ${data.convite.produtoras.nome}`
+                    : 'Painel de afiliado'}
+              </span>
             </div>
             <MessageCircle />
           </div>
