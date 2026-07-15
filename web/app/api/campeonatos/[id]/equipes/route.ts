@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser, getAccountsForUser } from '@backend/auth/server-auth'
+import { getBearerUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission, type CampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { mapParticipacaoDisplay } from '@backend/campeonatos/line-display'
 import {
@@ -54,21 +54,19 @@ async function liberarExpirados(campeonatoId: string) {
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
-    let permission: CampeonatoPermission = { canView: true, canManage: false, canGenerateToken: false, role: 'none', produtoraId: null }
+    let permission: CampeonatoPermission = {
+      canView: true,
+      canManage: false,
+      canGenerateToken: false,
+      canOrganizeGroups: false,
+      canScore: false,
+      role: 'none',
+      produtoraId: null,
+      sellerPermissions: null,
+    }
     try {
       const user = await getBearerUser(req)
-      permission = await getCampeonatoPermission(user.id, id) as typeof permission
-      if (permission.role === 'seller') {
-        const { data: sellerRow, error: sellerErr } = await supabaseAdmin
-          .from('campeonato_vendedores')
-          .select('id')
-          .eq('campeonato_id', id)
-          .eq('manager_auth_user_id', user.id)
-          .eq('status', 'ativo')
-          .maybeSingle()
-        if (sellerErr) throw sellerErr
-        if (sellerRow) permission.canManage = true
-      }
+      permission = await getCampeonatoPermission(user.id, id)
     } catch {
     }
 
@@ -183,6 +181,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           canView: permission.canView,
           canManage: permission.canManage,
           canGenerateToken: permission.canGenerateToken,
+          canOrganizeGroups: permission.canOrganizeGroups,
+          canScore: permission.canScore,
           role: permission.role,
         },
         vagas,
@@ -350,6 +350,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         canView: permission.canView,
         canManage: permission.canManage,
         canGenerateToken: permission.canGenerateToken,
+        canOrganizeGroups: permission.canOrganizeGroups,
+        canScore: permission.canScore,
         role: permission.role,
       },
       vagas: [...slotsWithParticipations, ...orphanParticipations],
@@ -370,30 +372,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const { id } = await context.params
     const user = await getBearerUser(req)
     const permission = await getCampeonatoPermission(user.id, id)
-    let allowedToManage = Boolean(permission.canManage)
     let sellerPermission: any = null
-    if (!allowedToManage && permission.role === 'seller') {
-      const accounts = await getAccountsForUser(user)
-      const account = accounts.find((item) => item.profile_type === 'manager')
-      if (account) {
-        const { data: seller, error: sellerErr } = await supabaseAdmin
-          .from('campeonato_vendedores')
-          .select('id,limite_vagas,permissoes')
-          .eq('campeonato_id', id)
-          .eq('manager_auth_user_id', user.id)
-          .eq('status', 'ativo')
-          .maybeSingle()
-        if (sellerErr) throw sellerErr
-        if (seller) {
-          sellerPermission = seller
-          allowedToManage = true
-        }
-      }
-    }
-    if (!allowedToManage) throw new Error('Você não tem permissão para gerenciar este campeonato.')
     if (permission.role === 'seller') {
+      const { data: seller, error: sellerErr } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .select('id,limite_vagas,permissoes')
+        .eq('campeonato_id', id)
+        .eq('manager_auth_user_id', user.id)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      if (sellerErr) throw sellerErr
+      sellerPermission = seller
       if (!sellerPermission) throw new Error('Permissão de vendedor não encontrada para este campeonato.')
-      if (!hasSellerPermission(sellerPermission, 'adicionar_equipes')) throw new Error('Este vendedor não pode adicionar equipes.')
+      if (!hasSellerPermission(sellerPermission, 'adicionar_equipes') && !permission.sellerPermissions?.adicionar_equipes) {
+        throw new Error('Este vendedor não pode adicionar equipes.')
+      }
       const limiteVagas = Number(sellerPermission.limite_vagas || 0)
       if (limiteVagas > 0) {
         const { count, error: countError } = await supabaseAdmin
@@ -408,6 +401,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           throw new Error(`Este vendedor atingiu o limite de ${limiteVagas} vaga(s) (${count}/${limiteVagas}).`)
         }
       }
+    } else if (!permission.canManage) {
+      throw new Error('Você não tem permissão para gerenciar este campeonato.')
     }
     const body = await req.json()
     // UI legada envia vaga_id com id do slot estrutural (campeonato_slots.id).

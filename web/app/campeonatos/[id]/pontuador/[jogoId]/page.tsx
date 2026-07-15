@@ -23,7 +23,9 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const token = data.session?.access_token
   if (!token) {
     const returnTo = `${window.location.pathname}${window.location.search}`
-    window.location.replace(`/login?profileType=produtora&returnTo=${encodeURIComponent(returnTo)}`)
+    const profileType =
+      (typeof window !== 'undefined' && localStorage.getItem('dropzone_active_profile_type')) || 'manager'
+    window.location.replace(`/login?profileType=${encodeURIComponent(profileType)}&returnTo=${encodeURIComponent(returnTo)}`)
     throw new Error('Redirecionando para o login...')
   }
   const response = await fetch(url, {

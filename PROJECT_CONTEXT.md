@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 10 de julho de 2026  
-**Estado:** migração estrutural iniciada; funcionalidades existentes preservadas.
+**Última atualização:** 15 de julho de 2026  
+**Estado:** painel do manager multi-contexto (vendas/campeonatos/equipes/jogador); permissões de vendedor por campeonato.
 
 ## 1. Objetivo do sistema
 

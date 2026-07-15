@@ -91,6 +91,14 @@ export function ProdutoraPanel(props: {
   const [sellerSelected, setSellerSelected] = useState<any | null>(null)
   const [sellerLimite, setSellerLimite] = useState('')
   const [sellerBusy, setSellerBusy] = useState(false)
+  const [sellerPerms, setSellerPerms] = useState({
+    adicionar_equipes: true,
+    gerar_convites_equipe: true,
+    remover_proprias_equipes: true,
+    ver_estrutura: true,
+    organizar_grupos: false,
+    pontuar_tabela: false,
+  })
 
   useEffect(() => {
     let active = true
@@ -181,7 +189,27 @@ export function ProdutoraPanel(props: {
     }
   }
 
-  /** Adiciona vendedor já da produtora neste campeonato e define limite. */
+  function openSellerEditor(seller: any) {
+    const perms = seller?.vinculo_atual?.permissoes || seller?.permissoes || {}
+    setSellerSelected(seller)
+    setSellerLimite(
+      seller?.limite_vagas_atual != null && seller.limite_vagas_atual !== ''
+        ? String(seller.limite_vagas_atual)
+        : seller?.vinculo_atual?.limite_vagas != null
+          ? String(seller.vinculo_atual.limite_vagas)
+          : '',
+    )
+    setSellerPerms({
+      adicionar_equipes: perms.adicionar_equipes !== false,
+      gerar_convites_equipe: perms.gerar_convites_equipe !== false,
+      remover_proprias_equipes: perms.remover_proprias_equipes !== false,
+      ver_estrutura: perms.ver_estrutura !== false,
+      organizar_grupos: perms.organizar_grupos === true,
+      pontuar_tabela: perms.pontuar_tabela === true,
+    })
+  }
+
+  /** Adiciona vendedor já da produtora neste campeonato e define limite/funções. */
   async function attachSellerToChampionship() {
     if (!sellerSelected?.manager_id || !selectedChamp?.id) return
     setSellerBusy(true)
@@ -194,6 +222,7 @@ export function ProdutoraPanel(props: {
           manager_id: sellerSelected.manager_id,
           campeonato_id: selectedChamp.id,
           limite_vagas: sellerLimite,
+          permissoes: sellerPerms,
         }),
       })
       setSellerSelected(null)
@@ -907,12 +936,9 @@ export function ProdutoraPanel(props: {
                             <button
                               type="button"
                               className="button small"
-                              onClick={() => {
-                                setSellerSelected(seller)
-                                setSellerLimite(limite ? String(limite) : '')
-                              }}
+                              onClick={() => openSellerEditor(seller)}
                             >
-                              {onChamp ? 'Editar limite' : 'Liberar neste evento'}
+                              {onChamp ? 'Editar liberação' : 'Liberar neste evento'}
                             </button>
                             {onChamp ? (
                               <button
@@ -967,12 +993,31 @@ export function ProdutoraPanel(props: {
                           />
                         </Field>
                       </div>
-                      <p className="empty">
-                        Com permissão para adicionar lines e gerar convites de slot/grupo, até o limite.
-                      </p>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <div className="seller-perm-grid" style={{ marginTop: 12 }}>
+                        <p className="empty" style={{ marginBottom: 8 }}>
+                          Funções liberadas para este manager no evento (ele opera no painel de manager → Campeonatos).
+                        </p>
+                        {([
+                          ['adicionar_equipes', 'Adicionar equipes/lines nas vagas'],
+                          ['gerar_convites_equipe', 'Gerar convites de slot/grupo'],
+                          ['remover_proprias_equipes', 'Remover equipes que ele adicionou'],
+                          ['ver_estrutura', 'Ver fases, grupos e jogos'],
+                          ['organizar_grupos', 'Organizar grupos (moderação avançada)'],
+                          ['pontuar_tabela', 'Pontuar tabela / sumula'],
+                        ] as const).map(([key, label]) => (
+                          <label key={key} className="seller-perm-item">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(sellerPerms[key])}
+                              onChange={(e) => setSellerPerms((current) => ({ ...current, [key]: e.target.checked }))}
+                            />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
                         <button className="button" type="button" disabled={sellerBusy} onClick={() => void attachSellerToChampionship()}>
-                          {sellerBusy ? 'Salvando...' : sellerSelected.no_campeonato ? 'Atualizar limite' : 'Liberar neste campeonato'}
+                          {sellerBusy ? 'Salvando...' : sellerSelected.no_campeonato ? 'Atualizar liberação' : 'Liberar neste campeonato'}
                         </button>
                         <button className="button secondary" type="button" onClick={() => setSellerSelected(null)}>
                           Fechar

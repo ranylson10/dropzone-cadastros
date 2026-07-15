@@ -622,9 +622,13 @@ export function DropZoneHome() {
     }
   }
 
-  function startLinkedProfile() {
+  function startLinkedProfile(preferredType?: ProfileType) {
     const used = new Set(accounts.map((item) => item.profile_type))
-    const available = PROFILE_TYPES.find((type) => !used.has(type))
+    if (preferredType && used.has(preferredType)) {
+      setError(`Este login já possui um perfil de ${typeLabels[preferredType].toLowerCase()}.`)
+      return
+    }
+    const available = preferredType || PROFILE_TYPES.find((type) => !used.has(type))
     if (!available) {
       setError('Este login já possui um perfil de cada tipo disponível.')
       return
@@ -1566,7 +1570,14 @@ export function DropZoneHome() {
               />
             ) : null}
 
-            {account.profile_type === 'manager' ? <ManagerPanel account={account} /> : null}
+            {account.profile_type === 'manager' ? (
+              <ManagerPanel
+                account={account}
+                accounts={accounts}
+                onSwitchAccount={switchLinkedAccount}
+                onCreateLinkedProfile={startLinkedProfile}
+              />
+            ) : null}
 
             {account.profile_type === 'jogador' ? (
               <JogadorPanel

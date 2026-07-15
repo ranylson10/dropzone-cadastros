@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { requireCampeonatoManage } from '@backend/campeonatos/campeonato-permissions'
+import { requireCampeonatoScore } from '@backend/campeonatos/campeonato-permissions'
 import { listarJogosPontuador } from '@backend/campeonatos/pontuador/pontuador.service'
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
-    await requireCampeonatoManage(user.id, id)
+    await requireCampeonatoScore(user.id, id)
     const jogos = await listarJogosPontuador(id, {
       faseId: req.nextUrl.searchParams.get('fase_id'),
       rodadaId: req.nextUrl.searchParams.get('rodada_id'),

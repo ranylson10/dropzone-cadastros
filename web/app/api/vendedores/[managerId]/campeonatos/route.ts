@@ -77,17 +77,33 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
     const produtoraIds = Array.from(new Set(rows.map((item) => item.produtora_id).filter(Boolean)))
     const portfolio = Array.isArray(manager.portfolio_anuncios) ? manager.portfolio_anuncios.map(String) : []
 
-    const [{ data: campeonatos }, { data: produtoras }] = await Promise.all([
+    const authUserId = manager.auth_user_id || null
+    const [{ data: campeonatos }, { data: produtoras }, { data: usages }] = await Promise.all([
       campeonatoIds.length
         ? supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status,banner_url').in('id', campeonatoIds)
         : Promise.resolve({ data: [] as any[] }),
       produtoraIds.length
         ? supabaseAdmin.from('produtoras').select('id,nome,logo_url').in('id', produtoraIds)
         : Promise.resolve({ data: [] as any[] }),
+      campeonatoIds.length && authUserId
+        ? supabaseAdmin
+            .from('campeonato_equipes')
+            .select('id,campeonato_id,criado_por,origem_entrada,status')
+            .in('campeonato_id', campeonatoIds)
+            .eq('criado_por', authUserId)
+            .eq('status', 'ativo')
+            .in('origem_entrada', ['vendedor', 'convite', 'inscricao'])
+        : Promise.resolve({ data: [] as any[] }),
     ])
 
     const campeonatosById = new Map((campeonatos || []).map((item: any) => [item.id, item]))
     const produtorasById = new Map((produtoras || []).map((item: any) => [item.id, item]))
+    const usageByCamp = new Map<string, number>()
+    for (const row of usages || []) {
+      const campId = String(row.campeonato_id || '')
+      if (!campId) continue
+      usageByCamp.set(campId, (usageByCamp.get(campId) || 0) + 1)
+    }
 
     return NextResponse.json({
       manager: {
@@ -105,13 +121,17 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
         const anunciando =
           item.status === 'ativo'
           && (portfolio.length === 0 || portfolio.includes(String(item.campeonato_id)))
+        const limite = Number(item.limite_vagas || 0)
+        const vagasUsadas = usageByCamp.get(String(item.campeonato_id)) || 0
         return {
           id: item.id,
           campeonato_id: item.campeonato_id,
           nome_publico: item.nome_publico || manager.nome_publico_vendas || manager.nome,
           whatsapp_url: item.whatsapp_url || manager.whatsapp_url || null,
           status: item.status,
-          limite_vagas: item.limite_vagas || 0,
+          limite_vagas: limite,
+          vagas_usadas: vagasUsadas,
+          vagas_restantes: limite > 0 ? Math.max(0, limite - vagasUsadas) : null,
           permissoes: item.permissoes || {},
           anunciando,
           campeonatos: camp,

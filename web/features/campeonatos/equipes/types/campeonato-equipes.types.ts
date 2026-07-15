@@ -67,5 +67,12 @@ export type EquipeBusca = {
 export type CampeonatoEquipesPayload = {
   campeonato: { id: string; nome: string; logo_url: string | null }
   vagas: CampeonatoVaga[]
-  permission: { canView: boolean; canManage: boolean; canGenerateToken: boolean; role: string }
+  permission: {
+    canView: boolean
+    canManage: boolean
+    canGenerateToken: boolean
+    canOrganizeGroups?: boolean
+    canScore?: boolean
+    role: string
+  }
 }

@@ -1,13 +1,40 @@
 'use client'
 
-import { Copy, ExternalLink, MessageCircle, ShieldCheck, Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import type { DropZoneRow } from '@/lib/types'
+import { ArrowLeft, LayoutGrid, MessageCircle, Trophy, UserRound, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
+import { MANAGER_MODE_CARDS, type ManagerChampTab, type ManagerPanelMode } from './manager-modes'
+import { ManagerCampeonatosView } from './ManagerCampeonatosView'
+import { ManagerFlowStrip } from './ManagerFlowStrip'
+import { ManagerProfileSwitchView } from './ManagerProfileSwitchView'
+import { ManagerVendasView } from './ManagerVendasView'
 
-export function ManagerPanel({ account }: { account: DropZoneRow }) {
+const modeIcons: Record<Exclude<ManagerPanelMode, 'hub'>, typeof Trophy> = {
+  vendas: MessageCircle,
+  campeonatos: Trophy,
+  equipes: Users,
+  jogador: UserRound,
+}
+
+function remainingSlots(item: any) {
+  const used = Number(item.vagas_usadas || 0)
+  const limit = Number(item.limite_vagas || 0)
+  if (limit > 0) return Math.max(0, limit - used)
+  // sem limite: considera “pendente” se ainda não preencheu nada (lembrete de operar)
+  return used === 0 ? 1 : 0
+}
+
+export function ManagerPanel(props: {
+  account: DropZoneRow
+  accounts?: DropZoneRow[]
+  onSwitchAccount?: (account: DropZoneRow) => void
+  onCreateLinkedProfile?: (profileType?: ProfileType) => void
+  initialMode?: Exclude<ManagerPanelMode, 'hub'>
+}) {
+  const accounts = props.accounts || []
+  const [mode, setMode] = useState<ManagerPanelMode>(props.initialMode || 'hub')
   const [sellerItems, setSellerItems] = useState<any[]>([])
-  const [profile, setProfile] = useState<any>(null)
   const [sellerLoading, setSellerLoading] = useState(false)
   const [sellerError, setSellerError] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -15,6 +42,22 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
   const [whatsapp, setWhatsapp] = useState('')
   const [nomePublico, setNomePublico] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
+  const [selectedChampId, setSelectedChampId] = useState('')
+  const [champTab, setChampTab] = useState<ManagerChampTab>('equipes')
+
+  const equipeAccounts = useMemo(() => accounts.filter((a) => a.profile_type === 'equipe'), [accounts])
+  const jogadorAccounts = useMemo(() => accounts.filter((a) => a.profile_type === 'jogador'), [accounts])
+  const ativos = useMemo(() => sellerItems.filter((item) => item.status === 'ativo'), [sellerItems])
+  const anunciando = useMemo(() => sellerItems.filter((item) => item.anunciando), [sellerItems])
+  const hasWhatsapp = Boolean(whatsapp.trim())
+  const pendentesPreencher = useMemo(
+    () => ativos.filter((item) => remainingSlots(item) > 0).length,
+    [ativos],
+  )
+  const nextChampToFill = useMemo(
+    () => ativos.find((item) => remainingSlots(item) > 0) || ativos[0] || null,
+    [ativos],
+  )
 
   async function authHeaders() {
     const { data } = await supabase.auth.getSession()
@@ -24,13 +67,13 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
   }
 
   async function load() {
-    if (!account?.id) return
+    if (!props.account?.id) return
     setSellerLoading(true)
     setSellerError('')
     try {
       const [campRes, perfilRes] = await Promise.all([
-        fetch(`/api/vendedores/${encodeURIComponent(account.id)}/campeonatos`, { cache: 'no-store' }),
-        fetch(`/api/vendedores/${encodeURIComponent(account.id)}/perfil`, {
+        fetch(`/api/vendedores/${encodeURIComponent(props.account.id)}/campeonatos`, { cache: 'no-store' }),
+        fetch(`/api/vendedores/${encodeURIComponent(props.account.id)}/perfil`, {
           headers: await authHeaders().catch(() => ({} as any)),
           cache: 'no-store',
         }),
@@ -39,16 +82,14 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
       if (!campRes.ok) throw new Error(campJson.error || 'Não foi possível carregar campeonatos de venda.')
       setSellerItems(Array.isArray(campJson.campeonatos) ? campJson.campeonatos : [])
       if (campJson.manager) {
-        setProfile(campJson.manager)
         setWhatsapp(campJson.manager.whatsapp_url || '')
-        setNomePublico(campJson.manager.nome_publico_vendas || campJson.manager.nome || account.name || '')
+        setNomePublico(campJson.manager.nome_publico_vendas || campJson.manager.nome || props.account.name || '')
       }
       if (perfilRes.ok) {
         const perfilJson = await perfilRes.json()
         if (perfilJson.manager) {
-          setProfile(perfilJson.manager)
           setWhatsapp(perfilJson.manager.whatsapp_url || '')
-          setNomePublico(perfilJson.manager.nome_publico_vendas || perfilJson.manager.nome || account.name || '')
+          setNomePublico(perfilJson.manager.nome_publico_vendas || perfilJson.manager.nome || props.account.name || '')
         }
       }
     } catch (error: any) {
@@ -60,15 +101,15 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
 
   useEffect(() => {
     void load()
-  }, [account?.id])
+  }, [props.account?.id])
 
   async function saveProfile() {
-    if (!account?.id) return
+    if (!props.account?.id) return
     setSavingProfile(true)
     setFeedback('')
     setSellerError('')
     try {
-      const response = await fetch(`/api/vendedores/${encodeURIComponent(account.id)}/perfil`, {
+      const response = await fetch(`/api/vendedores/${encodeURIComponent(props.account.id)}/perfil`, {
         method: 'PATCH',
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -78,8 +119,7 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || 'Erro ao salvar perfil de vendas.')
-      setProfile(json.manager)
-      setFeedback('Perfil de vendas atualizado.')
+      setFeedback('Perfil de vendas atualizado. Próximo passo: anunciar e preencher vagas.')
       await load()
     } catch (error: any) {
       setSellerError(error?.message || 'Erro ao salvar perfil.')
@@ -89,11 +129,16 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
   }
 
   async function toggleAnuncio(campeonatoId: string, anunciar: boolean) {
-    if (!account?.id) return
+    if (!props.account?.id) return
+    if (anunciar && !whatsapp.trim()) {
+      setSellerError('Salve o WhatsApp de compra antes de anunciar no portfólio.')
+      setMode('vendas')
+      return
+    }
     setPublishing((current) => ({ ...current, [campeonatoId]: true }))
     setSellerError('')
     try {
-      const response = await fetch(`/api/vendedores/${encodeURIComponent(account.id)}/campeonatos`, {
+      const response = await fetch(`/api/vendedores/${encodeURIComponent(props.account.id)}/campeonatos`, {
         method: 'PATCH',
         headers: await authHeaders(),
         body: JSON.stringify({ campeonatoId, anunciar }),
@@ -105,6 +150,9 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
           item.campeonato_id === campeonatoId ? { ...item, anunciando: anunciar } : item,
         ),
       )
+      if (anunciar) {
+        setFeedback('Evento no portfólio. Quando vender a vaga, use Preencher vagas.')
+      }
     } catch (error: any) {
       setSellerError(error?.message || 'Não foi possível atualizar o anúncio.')
     } finally {
@@ -113,128 +161,224 @@ export function ManagerPanel({ account }: { account: DropZoneRow }) {
   }
 
   function copyPublicLink() {
-    const publicUrl = `${window.location.origin}/vendedores/${account.id}`
+    if (!whatsapp.trim()) {
+      setSellerError('Configure o WhatsApp antes de copiar o link de vendas.')
+      return
+    }
+    const publicUrl = `${window.location.origin}/vendedores/${props.account.id}`
     navigator.clipboard.writeText(publicUrl)
     setFeedback('Link de vendas copiado.')
   }
 
-  const ativos = sellerItems.filter((item) => item.status === 'ativo')
-  const anunciando = sellerItems.filter((item) => item.anunciando)
+  function openMode(next: Exclude<ManagerPanelMode, 'hub'>) {
+    setMode(next)
+    if (next !== 'campeonatos') {
+      setSelectedChampId('')
+      setChampTab('equipes')
+    }
+    if (next === 'campeonatos') {
+      void load()
+    }
+  }
+
+  function openChampionship(campeonatoId: string, tab: ManagerChampTab = 'equipes') {
+    setMode('campeonatos')
+    setSelectedChampId(campeonatoId)
+    setChampTab(tab)
+    void load()
+  }
+
+  function setSelectedChampIdAndRefresh(id: string) {
+    setSelectedChampId(id)
+    if (!id) void load()
+  }
 
   return (
     <div className="dashboard manager-dashboard">
-      <section className="panel span-3">
+      <section className="panel span-3 manager-hub-header">
         <div className="section-head">
           <div>
-            <p className="eyebrow">Manager / afiliado</p>
-            <h2>Central de vendas</h2>
+            <p className="eyebrow">Painel do manager</p>
+            <h2>
+              {mode === 'hub'
+                ? 'Fluxo do vendedor'
+                : MANAGER_MODE_CARDS.find((c) => c.id === mode)?.title || 'Manager'}
+            </h2>
+            <p className="empty" style={{ marginTop: 6 }}>
+              {mode === 'hub'
+                ? 'Vender no link, anunciar o evento e preencher a line no campeonato — sem perder o contexto.'
+                : 'Troque de contexto pelos chips ou volte ao hub.'}
+            </p>
           </div>
-          <ShieldCheck />
+          <LayoutGrid />
         </div>
-        <div className="player-summary-grid">
-          <div>
-            <Users size={18} />
-            <strong>{sellerItems.length}</strong>
-            <span>Campeonatos liberados</span>
-          </div>
-          <div>
-            <ShieldCheck size={18} />
-            <strong>{ativos.length}</strong>
-            <span>Ativos</span>
-          </div>
-          <div>
-            <MessageCircle size={18} />
-            <strong>{anunciando.length}</strong>
-            <span>No seu link</span>
-          </div>
-        </div>
-      </section>
 
-      <section className="panel">
-        <h2>Seu link de vendas (portfólio)</h2>
-        <p className="empty" style={{ marginBottom: 12 }}>
-          Igual às vagas abertas, mas com o <strong>seu WhatsApp</strong>. Escolha quais campeonatos da lista anunciar.
-        </p>
-        <div className="compact-row">
-          <div>
-            <strong>Link público</strong>
-            <span>{`${typeof window !== 'undefined' ? window.location.origin : ''}/vendedores/${account.id}`}</span>
-          </div>
-          <div className="compact-row-actions">
-            <button className="button small" type="button" onClick={copyPublicLink}>
-              <Copy size={14} /> Copiar
+        <div className="manager-mode-nav">
+          {mode !== 'hub' ? (
+            <button type="button" className="manager-mode-chip" onClick={() => setMode('hub')}>
+              <ArrowLeft size={14} /> Hub
             </button>
-            <a className="button small secondary" href={`/vendedores/${account.id}`} target="_blank" rel="noreferrer">
-              <ExternalLink size={14} /> Abrir
-            </a>
-          </div>
+          ) : null}
+          {MANAGER_MODE_CARDS.map((card) => {
+            const Icon = modeIcons[card.id]
+            const active = mode === card.id
+            const count =
+              card.id === 'vendas' || card.id === 'campeonatos'
+                ? ativos.length
+                : card.id === 'equipes'
+                  ? equipeAccounts.length
+                  : jogadorAccounts.length
+            return (
+              <button
+                key={card.id}
+                type="button"
+                className={`manager-mode-chip ${active ? 'active' : ''}`}
+                onClick={() => openMode(card.id)}
+              >
+                <Icon size={14} />
+                {card.title}
+                <span className="manager-mode-count">{count}</span>
+              </button>
+            )
+          })}
         </div>
-
-        <div className="mini-grid two" style={{ marginTop: 14 }}>
-          <label className="field">
-            <span>Nome público de vendas</span>
-            <input value={nomePublico} onChange={(e) => setNomePublico(e.target.value)} placeholder="Ex.: Paulo Vagas" />
-          </label>
-          <label className="field">
-            <span>WhatsApp de compra (seu contato)</span>
-            <input
-              value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
-              placeholder="5599999999999 ou https://wa.me/..."
-            />
-          </label>
-        </div>
-        <button className="button" type="button" disabled={savingProfile} onClick={() => void saveProfile()} style={{ marginTop: 10 }}>
-          {savingProfile ? 'Salvando...' : 'Salvar contato de vendas'}
-        </button>
       </section>
 
-      <section className="panel">
-        <h2>Campeonatos liberados pelo produtor</h2>
-        {sellerLoading ? <p className="empty">Carregando...</p> : null}
-        {sellerError ? <div className="message error">{sellerError}</div> : null}
-        {feedback ? <div className="message success">{feedback}</div> : null}
-        {!sellerLoading && sellerItems.length === 0 ? (
-          <p className="empty">
-            Nenhum campeonato ainda. Aceite o convite da produtora; depois o produtor libera os eventos que você pode
-            vender.
-          </p>
-        ) : null}
-        {sellerItems.map((item) => {
-          const championship = item.campeonatos || {}
-          const producer = item.produtoras || {}
-          const active = item.status === 'ativo'
-          const limite = Number(item.limite_vagas || 0)
-          return (
-            <div className="compact-row" key={item.id}>
+      {mode === 'hub' ? (
+        <>
+          <ManagerFlowStrip
+            hasWhatsapp={hasWhatsapp}
+            ativosCount={ativos.length}
+            anunciandoCount={anunciando.length}
+            pendentesPreencher={pendentesPreencher}
+            onGoVendas={() => openMode('vendas')}
+            onGoCampeonatos={() => openMode('campeonatos')}
+            onOpenNextChamp={() => {
+              if (nextChampToFill) openChampionship(nextChampToFill.campeonato_id)
+              else openMode('campeonatos')
+            }}
+          />
+
+          <section className="panel span-3">
+            <div className="section-head">
               <div>
-                <strong>{championship.nome || 'Campeonato'}</strong>
-                <span>{producer.nome ? `Produtora ${producer.nome}` : 'Campeonato'}</span>
-                <span>
-                  {active ? 'Liberado para vender' : 'Removido/oculto pelo produtor'}
-                  {limite > 0 ? ` · até ${limite} vaga(s)` : ' · sem limite de vagas'}
-                  {item.anunciando ? ' · no seu link' : ' · fora do link'}
-                </span>
-              </div>
-              <div className="compact-row-actions">
-                <button
-                  className={`button small ${item.anunciando ? '' : 'secondary'}`}
-                  type="button"
-                  disabled={!active || Boolean(publishing[item.campeonato_id])}
-                  onClick={() => void toggleAnuncio(item.campeonato_id, !item.anunciando)}
-                  title={
-                    active
-                      ? 'Incluir ou tirar este campeonato do seu link público (portfólio)'
-                      : 'Vínculo inativo'
-                  }
-                >
-                  {item.anunciando ? 'No portfólio' : 'Anunciar'}
-                </button>
+                <p className="eyebrow">Atalhos</p>
+                <h2>Tudo que você controla</h2>
               </div>
             </div>
-          )
-        })}
-      </section>
+            <div className="manager-hub-grid">
+              {MANAGER_MODE_CARDS.map((card) => {
+                const Icon = modeIcons[card.id]
+                const count =
+                  card.id === 'vendas' || card.id === 'campeonatos'
+                    ? ativos.length
+                    : card.id === 'equipes'
+                      ? equipeAccounts.length
+                      : jogadorAccounts.length
+                return (
+                  <button key={card.id} type="button" className="manager-hub-card" onClick={() => openMode(card.id)}>
+                    <span className="manager-hub-card-icon">
+                      <Icon size={22} />
+                    </span>
+                    <span className="manager-hub-card-copy">
+                      <small>{card.eyebrow}</small>
+                      <strong>{card.title}</strong>
+                      <span>{card.description}</span>
+                    </span>
+                    <span className="manager-hub-card-metric">
+                      <b>{count}</b>
+                      <small>
+                        {card.id === 'vendas' || card.id === 'campeonatos'
+                          ? 'eventos'
+                          : card.id === 'equipes'
+                            ? 'equipes'
+                            : 'perfil'}
+                      </small>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {ativos.length > 0 ? (
+              <div className="manager-hub-quick-champs">
+                <p className="eyebrow">Operação rápida</p>
+                <div className="manager-hub-quick-list">
+                  {ativos.slice(0, 4).map((item) => {
+                    const used = Number(item.vagas_usadas || 0)
+                    const limit = Number(item.limite_vagas || 0)
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="manager-hub-quick-item"
+                        onClick={() => openChampionship(item.campeonato_id)}
+                      >
+                        <strong>{item.campeonatos?.nome || 'Campeonato'}</strong>
+                        <small>
+                          {limit > 0 ? `${used}/${limit} vagas` : `${used} preenchida(s)`}
+                          {item.anunciando ? ' · no link' : ''}
+                        </small>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        </>
+      ) : null}
+
+      {mode === 'vendas' ? (
+        <ManagerVendasView
+          accountId={props.account.id}
+          sellerItems={sellerItems}
+          sellerLoading={sellerLoading}
+          sellerError={sellerError}
+          feedback={feedback}
+          whatsapp={whatsapp}
+          setWhatsapp={setWhatsapp}
+          nomePublico={nomePublico}
+          setNomePublico={setNomePublico}
+          savingProfile={savingProfile}
+          publishing={publishing}
+          onSaveProfile={() => void saveProfile()}
+          onToggleAnuncio={(id, value) => void toggleAnuncio(id, value)}
+          onCopyPublicLink={copyPublicLink}
+          onOpenChampionship={(id) => openChampionship(id)}
+        />
+      ) : null}
+
+      {mode === 'campeonatos' ? (
+        <ManagerCampeonatosView
+          sellerItems={sellerItems}
+          sellerLoading={sellerLoading}
+          sellerError={sellerError}
+          selectedChampId={selectedChampId}
+          setSelectedChampId={setSelectedChampIdAndRefresh}
+          tab={champTab}
+          setTab={setChampTab}
+          onRefreshUsage={() => void load()}
+        />
+      ) : null}
+
+      {mode === 'equipes' ? (
+        <ManagerProfileSwitchView
+          mode="equipes"
+          accounts={accounts}
+          onSwitchAccount={props.onSwitchAccount}
+          onCreateLinkedProfile={props.onCreateLinkedProfile}
+        />
+      ) : null}
+
+      {mode === 'jogador' ? (
+        <ManagerProfileSwitchView
+          mode="jogador"
+          accounts={accounts}
+          onSwitchAccount={props.onSwitchAccount}
+          onCreateLinkedProfile={props.onCreateLinkedProfile}
+        />
+      ) : null}
     </div>
   )
 }

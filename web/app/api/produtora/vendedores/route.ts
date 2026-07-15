@@ -29,6 +29,22 @@ const DEFAULT_PERMS = {
   adicionar_equipes: true,
   remover_proprias_equipes: true,
   gerar_convites_equipe: true,
+  ver_estrutura: true,
+  organizar_grupos: false,
+  pontuar_tabela: false,
+}
+
+function normalizePerms(raw: unknown) {
+  const value = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return {
+    vendedor_vagas: value.vendedor_vagas !== false,
+    adicionar_equipes: value.adicionar_equipes !== false,
+    remover_proprias_equipes: value.remover_proprias_equipes !== false,
+    gerar_convites_equipe: value.gerar_convites_equipe !== false,
+    ver_estrutura: value.ver_estrutura !== false,
+    organizar_grupos: value.organizar_grupos === true,
+    pontuar_tabela: value.pontuar_tabela === true,
+  }
 }
 
 /** Lista roster da produtora + em quais campeonatos cada um está. */
@@ -251,6 +267,7 @@ export async function POST(req: NextRequest) {
       const managerId = String(body.manager_id || '').trim()
       const campeonatoId = String(body.campeonato_id || '').trim()
       const limiteVagas = sellerLimit(body.limite_vagas)
+      const permissoes = body.permissoes ? normalizePerms(body.permissoes) : DEFAULT_PERMS
       if (!managerId || !campeonatoId) throw new Error('Informe o vendedor e o campeonato.')
 
       const { data: camp, error: campError } = await supabaseAdmin
@@ -300,7 +317,7 @@ export async function POST(req: NextRequest) {
             whatsapp_url: manager.whatsapp_url,
             status: 'ativo',
             limite_vagas: limiteVagas,
-            permissoes: DEFAULT_PERMS,
+            permissoes,
             criado_por: user.id,
             aceito_em: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -324,7 +341,7 @@ export async function POST(req: NextRequest) {
             .update({
               status: 'ativo',
               limite_vagas: limiteVagas,
-              permissoes: DEFAULT_PERMS,
+              permissoes,
               whatsapp_url: manager.whatsapp_url,
               nome_publico: manager.nome_publico_vendas || manager.nome || manager.username,
               updated_at: new Date().toISOString(),
@@ -348,7 +365,7 @@ export async function POST(req: NextRequest) {
             whatsapp_url: manager.whatsapp_url,
             status: 'ativo',
             limite_vagas: limiteVagas,
-            permissoes: DEFAULT_PERMS,
+            permissoes,
             criado_por: user.id,
             aceito_em: new Date().toISOString(),
           })
