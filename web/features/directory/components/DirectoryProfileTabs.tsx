@@ -1,14 +1,48 @@
 'use client'
 
-import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink, Users } from 'lucide-react'
 import { useState } from 'react'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 
+/** Slot no padrão da aba Equipes (SLOT + avatar + nome + detalhe). */
+function SlotVagaRow({ item }: { item: DirectorySectionItem }) {
+  const status = item.status === 'ocupada' ? 'ocupada' : item.status === 'reservada' ? 'reservada' : 'livre'
+  const letter = item.badge || '?'
+
+  return (
+    <article className={`championship-vaga-row status-${status} directory-public-slot`}>
+      <div className="vaga-row-summary is-static">
+        <span className="vaga-row-number">{letter}</span>
+        <span className={`vaga-row-avatar status-${status}`} aria-hidden>
+          {status === 'ocupada' && item.image ? (
+            <img src={item.image} alt="" />
+          ) : status === 'ocupada' ? (
+            <Users size={18} />
+          ) : (
+            <span className="vaga-avatar-dot" />
+          )}
+        </span>
+        <span className="vaga-row-identity">
+          <strong>{item.title}</strong>
+          {item.subtitle ? <small>{item.subtitle}</small> : null}
+        </span>
+        <span className="vaga-row-meta" />
+        <span className="vaga-row-chevron" aria-hidden />
+      </div>
+    </article>
+  )
+}
+
 function StructureTree({ items, depth = 0 }: { items: DirectorySectionItem[]; depth?: number }) {
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
-    // Fases (nível 0) abertas por padrão para o visitante ver os grupos
     const initial: Record<string, boolean> = {}
     if (depth === 0) {
+      for (const item of items) {
+        if (item.children?.length) initial[item.id] = true
+      }
+    }
+    // Grupos abertos por padrão no nível 1 (ver slots direto)
+    if (depth === 1) {
       for (const item of items) {
         if (item.children?.length) initial[item.id] = true
       }
@@ -18,6 +52,18 @@ function StructureTree({ items, depth = 0 }: { items: DirectorySectionItem[]; de
 
   if (!items.length) {
     return <div className="directory-empty compact">Nenhuma informação cadastrada nesta seção.</div>
+  }
+
+  // Lista de slots: mesmo visual da aba Equipes
+  const allSlots = items.every((item) => !item.children?.length && item.badge)
+  if (allSlots) {
+    return (
+      <div className="championship-vagas-list directory-public-slots">
+        {items.map((item) => (
+          <SlotVagaRow key={item.id} item={item} />
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -48,41 +94,18 @@ function StructureTree({ items, depth = 0 }: { items: DirectorySectionItem[]; de
                 <span className="directory-structure-chevron spacer" aria-hidden />
               )}
 
-              {item.badge ? (
-                <span className="directory-structure-badge">{item.badge}</span>
-              ) : item.image ? (
-                <span className="directory-structure-avatar">
-                  <img src={item.image} alt="" />
-                </span>
-              ) : depth === 0 ? (
+              {depth === 0 ? (
                 <span className="directory-structure-avatar initials">
                   {item.title.slice(0, 2).toUpperCase()}
                 </span>
-              ) : depth === 1 ? (
-                <span className="directory-structure-folder" aria-hidden />
               ) : (
-                <span className="directory-structure-dot" aria-hidden />
+                <span className="directory-structure-folder" aria-hidden />
               )}
-
-              {item.image && item.badge ? (
-                <span className="directory-structure-avatar compact">
-                  <img src={item.image} alt="" />
-                </span>
-              ) : null}
 
               <span className="directory-structure-copy">
                 <strong>{item.title}</strong>
                 {item.subtitle ? <small>{item.subtitle}</small> : null}
-                {item.meta?.length ? (
-                  <em>{item.meta.map((meta) => `${meta.label}: ${meta.value}`).join(' · ')}</em>
-                ) : null}
               </span>
-
-              {item.status === 'livre' ? (
-                <span className="directory-structure-pill livre">Livre</span>
-              ) : item.status === 'ocupada' ? (
-                <span className="directory-structure-pill ocupada">Ocupado</span>
-              ) : null}
 
               {hasChildren ? (
                 <span className="directory-structure-count">{item.children!.length}</span>

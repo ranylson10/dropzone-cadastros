@@ -233,12 +233,10 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
                     || (p.grupo_id === group.id && Number(p.slot_numero) === slotNum && p.line_id === slot.line_id),
                 )
                 const filled = Boolean(slot.line_id || slot.equipe_id || part)
-                const lineName = first(
-                  line?.nome,
-                  part?.nome_exibicao,
-                  part?.line_nome,
-                  filled ? 'Line inscrita' : `Slot ${letter}`,
-                )
+                // Mesmo padrão da aba Equipes: nome principal = line / "Slot X"
+                const lineName = filled
+                  ? first(line?.nome, part?.nome_exibicao, part?.line_nome, 'Line inscrita')
+                  : `Slot ${letter}`
                 const teamName = first(team?.nome, part?.equipe_nome)
                 const logo = first(line?.logo_url, team?.logo_url)
 
@@ -247,8 +245,8 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
                   badge: letter,
                   title: lineName,
                   subtitle: filled
-                    ? [teamName, group.nome].filter(Boolean).join(' · ') || 'Ocupado'
-                    : 'Disponível',
+                    ? [teamName, group.nome].filter(Boolean).join(' · ') || 'Line no campeonato'
+                    : [group.nome].filter(Boolean).join(' · ') || 'Disponível',
                   image: logo || undefined,
                   status: filled ? 'ocupada' : 'livre',
                 }
