@@ -13,7 +13,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const [{ data: campeonato, error: campeonatoError }, { data: configuracao }, { data: participacoes, error: participacoesError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id, nome, logo_url').eq('id', id).is('deleted_at', null).single(),
       supabaseAdmin.from('campeonato_configuracoes').select('jogadores_por_vaga').eq('campeonato_id', id).maybeSingle(),
-      supabaseAdmin.from('campeonato_equipes').select('id, equipe_id, line_id, vaga_id, nome_exibicao').eq('campeonato_id', id).eq('status', 'ativo').not('line_id', 'is', null).not('vaga_id', 'is', null),
+      supabaseAdmin.from('campeonato_equipes').select('id, equipe_id, line_id, vaga_id, grupo_id, slot_numero, nome_exibicao').eq('campeonato_id', id).eq('status', 'ativo').not('line_id', 'is', null),
     ])
 
     if (campeonatoError) throw campeonatoError
@@ -41,8 +41,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const resultado = itens.flatMap((participacao) => {
       const equipe = equipesMap.get(participacao.equipe_id)
       const line = linesMap.get(participacao.line_id)
-      const vaga = vagasMap.get(participacao.vaga_id)
-      if (!equipe || !line || !vaga) return []
+      // Link de grupo grava em campeonato_equipes sem depender de campeonato_vagas.
+      const vaga = participacao.vaga_id
+        ? vagasMap.get(participacao.vaga_id) || { id: participacao.vaga_id, numero_vaga: Number(participacao.slot_numero || 0) }
+        : { id: participacao.id, numero_vaga: Number(participacao.slot_numero || 0) }
+      if (!equipe || !line) return []
 
       const unidos = [
         ...(jogadores || []).filter((item) => item.campeonato_equipe_id === participacao.id).map((item) => ({ ...item, origem: 'campeonato_jogadores' as const })),
@@ -56,6 +59,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         equipe,
         line,
         vaga,
+        grupo_id: participacao.grupo_id || null,
         jogadores: unicos,
         quantidade_jogadores: unicos.length,
         limite_jogadores: limite,

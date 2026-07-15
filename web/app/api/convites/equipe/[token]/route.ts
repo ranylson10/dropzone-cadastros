@@ -156,6 +156,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         vaga_id: vaga.id,
         line_id: lineId,
         nome_exibicao: nomeLineReal,
+        // Constraint real: organizador | convite | inscricao
         origem_entrada: 'convite',
         criado_por: user.id,
         status: 'ativo',

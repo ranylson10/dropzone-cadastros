@@ -76,28 +76,98 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
     const equipesMap = new Map((equipes || []).map((e) => [e.id, e]))
     const linesMap = new Map((lines || []).map((l) => [l.id, l]))
-    const partMap = new Map((participacoes || []).map((p) => [p.id, { ...p, equipe: equipesMap.get(p.equipe_id) || null, line: p.line_id ? linesMap.get(p.line_id) || null : null }]))
+    const partMap = new Map((participacoes || []).map((p) => [p.id, {
+      ...p,
+      equipe: equipesMap.get(p.equipe_id) || null,
+      line: p.line_id ? linesMap.get(p.line_id) || null : null,
+    }]))
 
+    const usedParticipationIds = new Set<string>()
     const slotsWithParticipations = (slots || []).map((slot: any) => {
-      const participation = (participacoes || []).find((p: any) =>
-        p.grupo_id === slot.grupo_id &&
-        Number(p.slot_numero) === Number(slot.slot_numero) &&
-        (!slot.line_id || p.line_id === slot.line_id)
+      const byLine = slot.line_id
+        ? (participacoes || []).find((p: any) => p.line_id === slot.line_id && !usedParticipationIds.has(p.id))
+        : null
+      const byGrupoSlot = (participacoes || []).find((p: any) =>
+        !usedParticipationIds.has(p.id)
+        && p.grupo_id === slot.grupo_id
+        && Number(p.slot_numero) === Number(slot.slot_numero)
       )
+      const byEquipeSlot = slot.equipe_id
+        ? (participacoes || []).find((p: any) =>
+          !usedParticipationIds.has(p.id)
+          && p.equipe_id === slot.equipe_id
+          && p.grupo_id === slot.grupo_id
+          && (p.slot_numero == null || Number(p.slot_numero) === Number(slot.slot_numero))
+        )
+        : null
+      const participation = byLine || byGrupoSlot || byEquipeSlot || null
+      if (participation?.id) usedParticipationIds.add(participation.id)
+
+      const equipeId = slot.equipe_id || participation?.equipe_id || null
+      const lineId = slot.line_id || participation?.line_id || null
+      const filled = Boolean(participation || equipeId || lineId)
+      const status = filled ? 'ocupada' : (String(slot.status || '').toLowerCase() === 'reservada' ? 'reservada' : 'livre')
+      const campeonatoEquipe = participation
+        ? partMap.get(participation.id) || null
+        : (equipeId || lineId)
+          ? {
+              id: null,
+              equipe_id: equipeId,
+              line_id: lineId,
+              nome_exibicao: linesMap.get(lineId || '')?.nome || equipesMap.get(equipeId || '')?.nome || null,
+              origem_entrada: 'slot',
+              equipe: equipeId ? equipesMap.get(equipeId) || null : null,
+              line: lineId ? linesMap.get(lineId) || null : null,
+            }
+          : null
+
       return {
-        ...slot,
-        equipe_id: slot.equipe_id || participation?.equipe_id || null,
-        line_id: slot.line_id || participation?.line_id || null,
-        status: participation ? 'ocupada' : slot.status,
-        campeonato_equipe: participation ? partMap.get(participation.id) || null : null,
-        grupo: slot.grupos,
+        id: slot.id,
+        numero_vaga: Number(slot.slot_numero || 0),
+        status,
+        nome_equipe_reservada: null,
+        nome_line_reservada: null,
+        reserva_expira_em: null,
+        grupo_id: slot.grupo_id,
+        grupo: slot.grupos || null,
+        slot_numero: slot.slot_numero,
+        slot_letra: slot.slot_letra,
+        equipe_id: equipeId,
+        line_id: lineId,
+        campeonato_equipe: campeonatoEquipe,
+        convite: null,
       }
     })
 
+    // Participações com grupo/slot que não bateram em nenhum slot ainda (fallback de listagem).
+    const orphanParticipations = (participacoes || [])
+      .filter((p: any) => !usedParticipationIds.has(p.id))
+      .map((p: any, index: number) => ({
+        id: p.id,
+        numero_vaga: Number(p.slot_numero || 1000 + index),
+        status: 'ocupada' as const,
+        nome_equipe_reservada: null,
+        nome_line_reservada: null,
+        reserva_expira_em: null,
+        grupo_id: p.grupo_id,
+        grupo: null,
+        slot_numero: p.slot_numero,
+        slot_letra: null,
+        equipe_id: p.equipe_id,
+        line_id: p.line_id,
+        campeonato_equipe: partMap.get(p.id) || null,
+        convite: null,
+      }))
+
     return NextResponse.json({
       campeonato,
-      permission: { canView: permission.canView, canManage: permission.canManage, canGenerateToken: permission.canGenerateToken, role: permission.role },
-      vagas: slotsWithParticipations,
+      permission: {
+        canView: permission.canView,
+        canManage: permission.canManage,
+        canGenerateToken: permission.canGenerateToken,
+        role: permission.role,
+      },
+      vagas: [...slotsWithParticipations, ...orphanParticipations],
     })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao carregar equipes.' }, { status: 400 })
@@ -147,7 +217,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       }
     }
     const body = await req.json()
-    const slotId = String(body.slot_id || '')
+    // A UI da aba Equipes envia vaga_id; o modelo estrutural usa campeonato_slots.id.
+    const slotId = String(body.slot_id || body.vaga_id || '')
     const equipeId = String(body.equipe_id || '')
     let lineId = body.line_id ? String(body.line_id) : null
     const nomeLine = String(body.nome_line || '').trim()
@@ -180,7 +251,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       .maybeSingle()
     if (participacaoExistente) throw new Error('Esta line já está inscrita neste campeonato.')
 
-    const origem = permission.role === 'seller' ? 'vendedor' : 'organizador'
+    // Constraint real no banco: organizador | convite | inscricao
+    // "vendedor" ainda nao e aceito pelo check constraint em producao.
+    const origem = permission.role === 'seller' ? 'convite' : 'organizador'
     const { data: participacao, error: partError } = await supabaseAdmin.from('campeonato_equipes').insert({
       campeonato_id: id, equipe_id: equipeId, grupo_id: slot.grupo_id, slot_numero: slot.slot_numero, line_id: lineId,
       nome_exibicao: lineFinal?.nome || equipe.nome, origem_entrada: origem, criado_por: user.id, status: 'ativo',
@@ -217,7 +290,11 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
         .maybeSingle()
       if (sellerError) throw sellerError
       if (!seller || !hasSellerPermission(seller, 'remover_proprias_equipes')) throw new Error('Este vendedor não pode remover equipes.')
-      if (participacao.criado_por !== user.id || participacao.origem_entrada !== 'vendedor') throw new Error('O vendedor só pode remover equipes que ele adicionou.')
+      // Em producao o check constraint ainda nao aceita "vendedor"; usamos "convite" para seller.
+      const origemSeller = ['vendedor', 'convite', 'inscricao']
+      if (participacao.criado_por !== user.id || !origemSeller.includes(String(participacao.origem_entrada || ''))) {
+        throw new Error('O vendedor só pode remover equipes que ele adicionou.')
+      }
     }
     await supabaseAdmin.from('campeonato_equipes').update({ status: 'removido' }).eq('id', participacaoId)
     if (participacao.grupo_id && participacao.slot_numero && participacao.line_id) {

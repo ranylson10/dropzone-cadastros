@@ -13,7 +13,17 @@ type GroupInvitePayload = {
   autenticado?: boolean
   campeonato?: { id: string; nome: string; logo_url: string | null }
   grupo?: { id: string; nome: string }
-  vagas?: Array<{ index: number; nome: string; slot_letra: string | null; ocupada: boolean; equipe_nome: string | null; line_nome: string | null; logo_url: string | null }>
+  vagas?: Array<{
+    index: number
+    nome: string
+    slot_id?: string | null
+    slot_numero?: number | null
+    slot_letra: string | null
+    ocupada: boolean
+    equipe_nome: string | null
+    line_nome: string | null
+    logo_url: string | null
+  }>
   equipe?: { id: string; nome: string; tag: string | null; logo_url: string | null } | null
   lines?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita: boolean }>
 }
@@ -55,12 +65,22 @@ export default function ConviteGrupoPage() {
     if (vagaIndex === '') return setMessage('Selecione qual vaga esperada sua equipe vai ocupar.')
     if (!lineId && !nomeNovaLine.trim()) return setMessage('Selecione uma line disponivel ou crie uma nova.')
 
+    const vagaSelecionada = (data?.vagas || []).find((vaga) => String(vaga.index) === String(vagaIndex))
+    if (!vagaSelecionada) return setMessage('Vaga selecionada invalida. Atualize a pagina e tente novamente.')
+    if (vagaSelecionada.ocupada) return setMessage('Essa vaga ja foi preenchida. Escolha outra.')
+    if (!vagaSelecionada.slot_id) return setMessage('Esta vaga ainda nao tem slot no grupo. Peça ao organizador para recriar o grupo/slots.')
+
     setLoading(true)
     setMessage('')
     const response = await fetch(`/api/convites/grupo/${encodeURIComponent(token)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session.access_token}` },
-      body: JSON.stringify({ vaga_index: Number(vagaIndex), line_id: lineId || null, nome_line: lineId ? null : nomeNovaLine.trim() }),
+      body: JSON.stringify({
+        vaga_index: Number(vagaIndex),
+        slot_id: vagaSelecionada.slot_id,
+        line_id: lineId || null,
+        nome_line: lineId ? null : nomeNovaLine.trim(),
+      }),
     })
     const payload = await response.json()
     setLoading(false)
