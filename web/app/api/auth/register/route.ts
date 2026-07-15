@@ -201,6 +201,21 @@ export async function POST(req: Request) {
       throw new Error(`Perfil/${table}: ${accountError.message}`)
     }
 
+    // Equipe nova ja nasce com uma line principal para poder entrar em campeonatos.
+    if (profileType === 'equipe' && account?.id) {
+      const { error: lineError } = await supabaseAdmin.from('equipe_lines').insert({
+        equipe_id: account.id,
+        nome: name,
+        tag: payload.tag || null,
+        logo_url: mediaUrl,
+        status: 'ativo',
+      })
+      // Nao falha o cadastro se a line ja existir por trigger/corrida.
+      if (lineError && lineError.code !== '23505') {
+        console.error('Falha ao criar line principal da equipe:', lineError.message)
+      }
+    }
+
     pendingAuthUserId = null
 
     if (linked) return NextResponse.json({ account, linked: true })

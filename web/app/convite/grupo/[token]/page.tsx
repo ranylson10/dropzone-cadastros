@@ -143,6 +143,17 @@ export default function ConviteGrupoPage() {
     void carregar()
   }, [token])
 
+  // Login social sem perfil de equipe: manda direto para o formulario de criacao.
+  // Sem equipe nao existe line; sem line nao entra no campeonato.
+  useEffect(() => {
+    if (loading || !data) return
+    if (data.error) return
+    if (!data.autenticado) return
+    if (data.equipe) return
+    const href = buildProfileCreationHref('equipe', returnTo)
+    window.location.replace(href)
+  }, [loading, data?.autenticado, data?.equipe, data?.error, returnTo, token])
+
   function continueAsGuest() {
     sessionStorage.setItem(`${GUEST_KEY}:${token}`, '1')
     setGuest(true)
@@ -387,12 +398,15 @@ export default function ConviteGrupoPage() {
 
               {data.autenticado && !data.equipe ? (
                 <div className="invite-auth-box">
-                  <p>Este login não possui perfil de <strong>equipe</strong>. Para entrar no grupo e escalar, crie ou vincule uma equipe.</p>
+                  <p>
+                    Este login ainda não tem perfil de <strong>equipe</strong>. Sem equipe não dá para criar line nem
+                    entrar no campeonato. Abrindo o cadastro de equipe...
+                  </p>
                   <a className="button" href={buildProfileCreationHref('equipe', returnTo)}>
-                    Criar equipe com meu login atual
+                    Criar equipe agora
                   </a>
                   <a className="button secondary" href={buildLoginHref('equipe', returnTo, true)}>
-                    Usar outro login de equipe
+                    Usar outro login
                   </a>
                 </div>
               ) : null}
@@ -728,8 +742,8 @@ export default function ConviteGrupoPage() {
             <p className="eyebrow">Entrada de equipes</p>
             <h2>Como deseja continuar?</h2>
             <p>
-              Entre com uma conta que tenha <strong>perfil de equipe</strong> para escolher um slot e se inscrever.
-              Sem login você só visualiza o grupo.
+              Para se inscrever você precisa de um <strong>perfil de equipe</strong>. Entre com Google/Facebook/Discord
+              — se ainda não tiver equipe, o cadastro abre em seguida. Sem login você só visualiza o grupo.
             </p>
             <SocialLogin profileType="equipe" returnTo={returnTo} />
             <button className="continue-guest" type="button" onClick={continueAsGuest}>

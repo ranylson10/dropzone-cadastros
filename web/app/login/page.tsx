@@ -73,12 +73,45 @@ export default function LoginPage() {
           return
         }
 
-        // A página de origem é responsável por verificar o perfil necessário.
-        // Assim o callback não fica preso aguardando /api/me e o retorno é imediato.
-        const destination = profileType
-          ? `/?login=${profileType}${returnTo !== '/' ? `&returnTo=${encodeURIComponent(returnTo)}` : ''}`
-          : returnTo
-        window.location.replace(destination)
+        // Verifica se o login social ja tem o perfil exigido (ex.: equipe no link de grupo).
+        // Sem perfil, abre o formulario de criacao vinculado a este login.
+        if (profileType) {
+          try {
+            const meRes = await fetch('/api/me', {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                'X-Profile-Type': profileType,
+              },
+              cache: 'no-store',
+            })
+            const meJson = await meRes.json().catch(() => ({}))
+            const accounts = Array.isArray(meJson.accounts) ? meJson.accounts : meJson.account ? [meJson.account] : []
+            const hasProfile = accounts.some((item: any) => item?.profile_type === profileType)
+
+            if (hasProfile) {
+              window.location.replace(returnTo || '/')
+              return
+            }
+
+            const params = new URLSearchParams({
+              cadastro: profileType,
+              vincular: '1',
+              returnTo: returnTo || '/',
+            })
+            window.location.replace(`/?${params.toString()}`)
+            return
+          } catch {
+            const params = new URLSearchParams({
+              cadastro: profileType,
+              vincular: '1',
+              returnTo: returnTo || '/',
+            })
+            window.location.replace(`/?${params.toString()}`)
+            return
+          }
+        }
+
+        window.location.replace(returnTo || '/')
       } catch (cause: any) {
         if (!active) return
         setError(cause?.message || 'Não foi possível concluir a autenticação.')

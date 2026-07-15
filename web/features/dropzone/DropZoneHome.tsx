@@ -325,21 +325,42 @@ export function DropZoneHome() {
 
         const { data } = await supabase.auth.getSession()
         if (data.session) {
-          try {
-            await loadMeAndRows(data.session.access_token, forcedProfileType)
+          // Login social / vinculo: se nao tem o perfil exigido (ex. equipe no convite de grupo),
+          // abre o formulario de criacao em vez de mandar de volta sem perfil.
+          const availableAccounts = await loadAccountsOnly(data.session.access_token).catch(() => [] as DropZoneRow[])
+          const existing = availableAccounts.find((item) => item.profile_type === forcedProfileType)
+
+          if (existing && !wantsCreate) {
+            try {
+              await loadMeAndRows(data.session.access_token, forcedProfileType)
+              if (resolvedReturnTo) {
+                window.location.assign(resolvedReturnTo)
+                return
+              }
+            } catch (cause: any) {
+              setError(cause?.message || 'Não foi possível carregar o painel deste perfil.')
+            }
+            setQueryReady(true)
+            return
+          }
+
+          if (existing && wantsCreate) {
+            // Ja tem o perfil: volta ao fluxo de origem (convite/grupo).
             if (resolvedReturnTo) {
               window.location.assign(resolvedReturnTo)
               return
             }
-          } catch (cause: any) {
-            const availableAccounts = await loadAccountsOnly(data.session.access_token).catch(() => [])
-            const existing = availableAccounts.find((item) => item.profile_type === forcedProfileType)
-            if (existing) {
+            try {
+              await loadMeAndRows(data.session.access_token, forcedProfileType)
+            } catch (cause: any) {
               setError(cause?.message || 'Não foi possível carregar o painel deste perfil.')
-            } else {
-              prepareGoogleProfile(data.session.user, forcedProfileType)
             }
+            setQueryReady(true)
+            return
           }
+
+          // Sem perfil do tipo exigido: formulario de criacao vinculado ao login atual.
+          prepareGoogleProfile(data.session.user, forcedProfileType)
           setQueryReady(true)
           return
         }
