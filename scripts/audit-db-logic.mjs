@@ -46,15 +46,14 @@ const [
 ] = await Promise.all([
   sb.from('equipes').select('id,nome,tag,status,auth_user_id,dono_auth_user_id').limit(2000),
   sb.from('equipe_lines').select('id,equipe_id,nome,status').limit(5000),
-  sb.from('campeonato_equipes').select('id,campeonato_id,equipe_id,line_id,grupo_id,slot_numero,status,nome_exibicao,origem_entrada,vaga_id').limit(5000),
+  sb.from('campeonato_equipes').select('id,campeonato_id,equipe_id,line_id,grupo_id,slot_id,slot_numero,status,nome_exibicao,origem_entrada').limit(5000),
   sb.from('campeonato_slots').select('id,campeonato_id,grupo_id,fase_id,slot_numero,slot_letra,equipe_id,line_id,status').limit(5000),
   sb.from('campeonato_grupos').select('id,campeonato_id,nome,slots,fase_id').limit(2000),
   sb.from('campeonatos').select('id,nome,status,deleted_at').limit(500),
   sb.from('campeonato_links').select('id,token,tipo,ativo,campeonato_id,grupo_id,expira_em,descricao').eq('tipo', 'inscricao_equipes_grupo').limit(500),
-  sb.from('campeonato_vagas').select('id,campeonato_id,numero_vaga,status,campeonato_equipe_id').limit(5000),
 ])
 
-const errors = [equipes, lines, parts, slots, groups, champs, groupLinks, vagas]
+const errors = [equipes, lines, parts, slots, groups, champs, groupLinks]
   .map((r) => r.error)
   .filter(Boolean)
 if (errors.length) {
@@ -69,7 +68,7 @@ const S = slots.data || []
 const G = groups.data || []
 const C = champs.data || []
 const GL = groupLinks.data || []
-const V = vagas.data || []
+const V = [] // campeonato_vagas removida do modelo
 
 report.counts = {
   equipes: E.length,
