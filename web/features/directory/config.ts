@@ -8,12 +8,5 @@ export const DIRECTORY_CONFIG: Record<DirectoryKind, { title: string; singular: 
   produtoras: { title: 'Produtoras', singular: 'Produtora', description: 'Organizações responsáveis pela produção dos campeonatos.' },
 }
 
-export const DIRECTORY_NAV = [
-  { label: 'Início', href: '/' },
-  { label: 'Vagas abertas', href: '/vagas' },
-  { label: 'Campeonatos', href: '/campeonatos' },
-  { label: 'Equipes', href: '/equipes' },
-  { label: 'Jogadores', href: '/jogadores' },
-  { label: 'Managers', href: '/managers' },
-  { label: 'Produtoras', href: '/produtoras' },
-]
+/** @deprecated use APP_NAV from @/components/layout — mantido para imports antigos */
+export { APP_NAV as DIRECTORY_NAV } from '@/components/layout'

@@ -12,7 +12,7 @@ import { JogadorPanel } from './panels/jogador/JogadorPanel'
 import { ManagerPanel } from './panels/manager/ManagerPanel'
 import { ProdutoraPanel } from './panels/produtora/ProdutoraPanel'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
-import { AppHeader } from '@/components/layout/AppHeader'
+import { AppShell, APP_NAV } from '@/components/layout'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 import { safeInternalPath } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
@@ -1268,33 +1268,22 @@ export function DropZoneHome() {
     return <DropzoneLoader label="Carregando acesso" />
   }
 
-  const navItems = account ? [
-    { label: 'Início', href: '#painel-inicio' },
-    { label: 'Campeonatos', href: '/campeonatos' },
-    { label: 'Equipes', href: '/equipes' },
-    { label: 'Jogadores', href: '/jogadores' },
-    { label: 'Managers', href: '/managers' },
-    { label: 'Produtoras', href: '/produtoras' },
-  ] : []
-
   return (
-    <>
-      {account && !linkingProfile ? (
-        <AppHeader
-          navItems={navItems}
-          activeLabel="Início"
-          profileName={account.name || account.username || 'Conta DropZone'}
-          profileSubtitle={`${typeLabels[account.profile_type as ProfileType]} · @${account.username}`}
-          profileImage={mediaForProfile(account)}
-          accounts={accounts}
-          activeAccountId={account.id}
-          switchingAccountId={switchingAccountId || undefined}
-          onSwitchAccount={switchLinkedAccount}
-          onCreateLinkedProfile={startLinkedProfile}
-          onSignOut={signOut}
-        />
-      ) : null}
-      <main className={`page ${account && !linkingProfile ? 'page-authenticated' : ''}`} id="painel-inicio">
+    <AppShell
+      activeLabel="Início"
+      navItems={APP_NAV}
+      header={account && !linkingProfile ? 'always' : 'never'}
+      account={account}
+      accounts={accounts}
+      activeAccountId={account?.id}
+      switchingAccountId={switchingAccountId || undefined}
+      onSwitchAccount={switchLinkedAccount}
+      onCreateLinkedProfile={startLinkedProfile}
+      onSignOut={signOut}
+      mainClassName={`page ${account && !linkingProfile ? 'page-authenticated' : ''}`}
+      mainId="painel-inicio"
+      withAuthOffset={Boolean(account && !linkingProfile)}
+    >
         <div className="shell">
         {!account || linkingProfile ? (
           <section className="login-stage login-stage-bg">
@@ -1594,7 +1583,6 @@ export function DropZoneHome() {
           </>
         )}
         </div>
-      </main>
-    </>
+    </AppShell>
   )
 }

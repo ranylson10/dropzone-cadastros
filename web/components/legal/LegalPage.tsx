@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { PublicDirectoryHeader } from '@/features/directory/components/PublicDirectoryHeader'
+import { AppShell } from '@/components/layout'
 
 type LegalSection = {
   title: string
@@ -17,9 +17,7 @@ type LegalPageProps = {
 export function LegalPage({ eyebrow, title, description, updatedAt, sections }: LegalPageProps) {
   return (
     <div className="legal-page-shell">
-      <PublicDirectoryHeader />
-
-      <main className="legal-page">
+      <AppShell loadSession mainClassName="legal-page page">
         <header className="legal-hero">
           <span className="legal-eyebrow">{eyebrow}</span>
           <h1>{title}</h1>
@@ -35,7 +33,7 @@ export function LegalPage({ eyebrow, title, description, updatedAt, sections }: 
             </section>
           ))}
         </article>
-      </main>
+      </AppShell>
 
       <footer className="legal-footer">
         <div>

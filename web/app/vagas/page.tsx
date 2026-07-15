@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, CheckCircle2, Filter, MapPin, Search, Ticket, Users, X, ZoomIn } from 'lucide-react'
-import { PublicDirectoryHeader } from '@/features/directory/components/PublicDirectoryHeader'
+import { AppShell } from '@/components/layout'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
@@ -80,9 +80,8 @@ export default function VacanciesPage() {
     setGate(false)
   }
 
-  return <>
-    <PublicDirectoryHeader active="Vagas abertas" />
-    <main className="vacancies-page">
+  return (
+    <AppShell activeLabel="Vagas abertas" loadSession mainClassName="vacancies-page page">
       <section className="vacancies-hero">
         <div><p className="eyebrow">Agenda competitiva</p><h1>Campeonatos com vagas abertas</h1><p>Encontre a próxima data disponível e fale diretamente com a organização.</p></div>
         <div className="vacancies-hero-count"><Ticket /><strong>{items.reduce((sum, item) => sum + item.vagas_livres, 0)}</strong><span>vagas disponíveis</span></div>
@@ -118,10 +117,10 @@ export default function VacanciesPage() {
           {visible.length === 0 ? <div className="vacancies-empty"><Ticket size={32} /><strong>Nenhuma vaga encontrada</strong><span>Tente outro filtro ou volte mais tarde.</span></div> : null}
         </section>
       )}
-    </main>
 
-    {preview ? <div className="vacancy-preview-overlay" onClick={() => setPreview(null)}><button onClick={() => setPreview(null)} aria-label="Fechar banner"><X size={21} /></button><figure onClick={(event) => event.stopPropagation()}><img src={preview.banner_url} alt={`Banner completo de ${preview.nome}`} /><figcaption>{preview.nome}</figcaption></figure></div> : null}
-    {contacts ? <div className="report-modal-backdrop" onClick={() => setContacts(null)}><section className="report-modal vacancy-contact-modal" onClick={(event) => event.stopPropagation()}><header><div><p className="eyebrow">Inscrição</p><h2>Escolha um contato</h2><span>{contacts.nome}</span></div><button onClick={() => setContacts(null)}><X size={18} /></button></header>{contacts.contatos_whatsapp?.length ? <WhatsappContactSelector contacts={contacts.contatos_whatsapp} championshipName={contacts.nome} /> : <p className="empty">A organização ainda não cadastrou contato para venda.</p>}</section></div> : null}
-    {gate ? <div className="vacancies-access-gate"><section><button className="gate-close" onClick={continueAsGuest}><X size={18} /></button><img src="/dropzone-icon.png" alt="" /><p className="eyebrow">Vagas abertas</p><h2>Como deseja continuar?</h2><p>Entre para identificar campeonatos em que sua equipe já possui vaga.</p><SocialLogin returnTo="/vagas" /><button className="continue-guest" onClick={continueAsGuest}>Continuar sem login</button></section></div> : null}
-  </>
+      {preview ? <div className="vacancy-preview-overlay" onClick={() => setPreview(null)}><button onClick={() => setPreview(null)} aria-label="Fechar banner"><X size={21} /></button><figure onClick={(event) => event.stopPropagation()}><img src={preview.banner_url} alt={`Banner completo de ${preview.nome}`} /><figcaption>{preview.nome}</figcaption></figure></div> : null}
+      {contacts ? <div className="report-modal-backdrop" onClick={() => setContacts(null)}><section className="report-modal vacancy-contact-modal" onClick={(event) => event.stopPropagation()}><header><div><p className="eyebrow">Inscrição</p><h2>Escolha um contato</h2><span>{contacts.nome}</span></div><button onClick={() => setContacts(null)}><X size={18} /></button></header>{contacts.contatos_whatsapp?.length ? <WhatsappContactSelector contacts={contacts.contatos_whatsapp} championshipName={contacts.nome} /> : <p className="empty">A organização ainda não cadastrou contato para venda.</p>}</section></div> : null}
+      {gate ? <div className="vacancies-access-gate"><section><button className="gate-close" onClick={continueAsGuest}><X size={18} /></button><img src="/dropzone-icon.png" alt="" /><p className="eyebrow">Vagas abertas</p><h2>Como deseja continuar?</h2><p>Entre para identificar campeonatos em que sua equipe já possui vaga.</p><SocialLogin returnTo="/vagas" /><button className="continue-guest" onClick={continueAsGuest}>Continuar sem login</button></section></div> : null}
+    </AppShell>
+  )
 }

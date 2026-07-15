@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { PublicDirectoryHeader } from '@/features/directory/components/PublicDirectoryHeader'
+import { AppShell } from '@/components/layout'
 import { supabase } from '@/lib/supabase-browser'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
@@ -124,8 +124,7 @@ export default function LoginPage() {
   }, [])
 
   return (
-    <main className="central-login-page">
-      <PublicDirectoryHeader />
+    <AppShell loadSession mainClassName="central-login-page page" activeLabel="Início">
       <section className="central-login-shell">
         <div className="central-login-card central-login-card-light">
           {checking ? (
@@ -150,6 +149,6 @@ export default function LoginPage() {
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   )
 }

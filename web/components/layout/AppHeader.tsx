@@ -3,13 +3,15 @@
 import { ChevronDown, Loader2, LogOut, Menu, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { DropZoneRow } from '@/lib/types'
+import { APP_NAV, type AppNavItem } from './nav'
 
-export type AppHeaderNavItem = { label: string; href: string }
+export type AppHeaderNavItem = AppNavItem
 
 type AppHeaderProps = {
-  navItems: AppHeaderNavItem[]
+  /** Defaults to global APP_NAV — change only in nav.ts */
+  navItems?: AppHeaderNavItem[]
   activeLabel?: string
-  profileName: string
+  profileName?: string
   profileSubtitle?: string
   profileImage?: string
   accounts?: DropZoneRow[]
@@ -17,7 +19,10 @@ type AppHeaderProps = {
   switchingAccountId?: string
   onSwitchAccount?: (account: DropZoneRow) => void
   onCreateLinkedProfile?: () => void
-  onSignOut: () => void
+  onSignOut?: () => void
+  /** Guest CTA when not logged in */
+  loginHref?: string
+  loginLabel?: string
 }
 
 function profileMedia(account: DropZoneRow) {
@@ -25,7 +30,7 @@ function profileMedia(account: DropZoneRow) {
 }
 
 export function AppHeader({
-  navItems,
+  navItems = APP_NAV,
   activeLabel,
   profileName,
   profileSubtitle,
@@ -36,10 +41,13 @@ export function AppHeader({
   onSwitchAccount,
   onCreateLinkedProfile,
   onSignOut,
+  loginHref = '/login?returnTo=%2F',
+  loginLabel = 'Entrar no sistema',
 }: AppHeaderProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
+  const isAuthenticated = Boolean(profileName && onSignOut)
 
   useEffect(() => {
     function closeOutside(event: MouseEvent) {
@@ -52,56 +60,108 @@ export function AppHeader({
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <a className="app-brand" href="/#painel-inicio" aria-label="Ir para o inicio do painel">
+        <a className="app-brand" href="/" aria-label="DropZone — início">
           <span className="app-brand-logo"><img src="/dropzone-icon.png" alt="" /></span>
           <span className="app-brand-copy"><strong>DROPZONE</strong><small>COMPETITIVE SYSTEM</small></span>
         </a>
 
-        <button className="app-mobile-toggle" type="button" onClick={() => setMobileOpen((value) => !value)} aria-expanded={mobileOpen} aria-label="Abrir menu">
+        <button
+          className="app-mobile-toggle"
+          type="button"
+          onClick={() => setMobileOpen((value) => !value)}
+          aria-expanded={mobileOpen}
+          aria-label="Abrir menu"
+        >
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
 
-        <nav className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegacao principal">
+        <nav className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegação principal">
           {navItems.map((item) => (
-            <a key={item.label} href={item.href} className={activeLabel === item.label ? 'active' : ''} onClick={() => setMobileOpen(false)}>{item.label}</a>
+            <a
+              key={item.label}
+              href={item.href}
+              className={activeLabel === item.label ? 'active' : ''}
+              onClick={() => setMobileOpen(false)}
+            >
+              {item.label}
+            </a>
           ))}
         </nav>
 
-        <div className="app-profile" ref={profileRef}>
-          <button type="button" className="app-profile-trigger" onClick={() => setProfileOpen((value) => !value)} aria-expanded={profileOpen}>
-            <span className="app-profile-avatar">{profileImage ? <img src={profileImage} alt="" /> : <b>{profileName.slice(0, 2).toUpperCase()}</b>}</span>
-            <span className="app-profile-copy"><strong>{profileName}</strong><small>{profileSubtitle || 'Conta DropZone'}</small></span>
-            <ChevronDown size={16} className={profileOpen ? 'rotated' : ''} />
-          </button>
+        {isAuthenticated ? (
+          <div className="app-profile" ref={profileRef}>
+            <button
+              type="button"
+              className="app-profile-trigger"
+              onClick={() => setProfileOpen((value) => !value)}
+              aria-expanded={profileOpen}
+            >
+              <span className="app-profile-avatar">
+                {profileImage ? <img src={profileImage} alt="" /> : <b>{String(profileName).slice(0, 2).toUpperCase()}</b>}
+              </span>
+              <span className="app-profile-copy">
+                <strong>{profileName}</strong>
+                <small>{profileSubtitle || 'Conta DropZone'}</small>
+              </span>
+              <ChevronDown size={16} className={profileOpen ? 'rotated' : ''} />
+            </button>
 
-          {profileOpen ? (
-            <div className="app-profile-menu linked-account-menu">
-              <div className="app-profile-menu-head"><strong>Perfis vinculados</strong><span>Perfis ligados a mesma conta</span></div>
-              {accounts.map((item) => {
-                const media = profileMedia(item)
-                const isActive = item.id === activeAccountId
-                const isSwitching = item.id === switchingAccountId
-                return (
+            {profileOpen ? (
+              <div className="app-profile-menu linked-account-menu">
+                <div className="app-profile-menu-head">
+                  <strong>Perfis vinculados</strong>
+                  <span>Perfis ligados à mesma conta</span>
+                </div>
+                {accounts.map((item) => {
+                  const media = profileMedia(item)
+                  const isActive = item.id === activeAccountId
+                  const isSwitching = item.id === switchingAccountId
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`linked-account-option ${isActive ? 'active' : ''} ${isSwitching ? 'is-switching' : ''}`}
+                      disabled={isActive || Boolean(switchingAccountId)}
+                      onClick={() => {
+                        onSwitchAccount?.(item)
+                        setProfileOpen(false)
+                      }}
+                    >
+                      <span className="linked-account-avatar">
+                        {media ? <img src={media} alt="" /> : String(item.name || item.username || 'DZ').slice(0, 2).toUpperCase()}
+                      </span>
+                      <span>
+                        <b>{item.name}</b>
+                        <small>
+                          {isSwitching ? 'Abrindo painel...' : `${item.profile_type} · @${item.username}`}
+                        </small>
+                      </span>
+                      {isSwitching ? <Loader2 className="spin linked-account-spinner" size={15} /> : null}
+                    </button>
+                  )
+                })}
+                {onCreateLinkedProfile ? (
                   <button
-                    key={item.id}
                     type="button"
-                    className={`linked-account-option ${isActive ? 'active' : ''} ${isSwitching ? 'is-switching' : ''}`}
-                    disabled={isActive || Boolean(switchingAccountId)}
-                    onClick={() => { onSwitchAccount?.(item); setProfileOpen(false) }}
+                    onClick={() => {
+                      onCreateLinkedProfile()
+                      setProfileOpen(false)
+                    }}
                   >
-                    <span className="linked-account-avatar">{media ? <img src={media} alt="" /> : String(item.name || item.username || 'DZ').slice(0, 2).toUpperCase()}</span>
-                    <span><b>{item.name}</b><small>{isSwitching ? 'Abrindo painel...' : `${item.profile_type} - @${item.username}`}</small></span>
-                    {isSwitching ? <Loader2 className="spin linked-account-spinner" size={15} /> : null}
+                    <Plus size={16} /> Criar perfil vinculado
                   </button>
-                )
-              })}
-              {onCreateLinkedProfile ? (
-                <button type="button" onClick={() => { onCreateLinkedProfile(); setProfileOpen(false) }}><Plus size={16} /> Criar perfil vinculado</button>
-              ) : null}
-              <button type="button" onClick={onSignOut}><LogOut size={16} /> Sair de todos</button>
-            </div>
-          ) : null}
-        </div>
+                ) : null}
+                <button type="button" onClick={onSignOut}>
+                  <LogOut size={16} /> Sair de todos
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <a className="app-header-login" href={loginHref}>
+            {loginLabel}
+          </a>
+        )}
       </div>
     </header>
   )

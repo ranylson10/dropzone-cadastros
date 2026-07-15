@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Filter, MapPin, MessageCircle, Search, ShieldCheck, Ticket, Users, X, ZoomIn } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
-import { PublicDirectoryHeader } from '@/features/directory/components/PublicDirectoryHeader'
+import { AppShell } from '@/components/layout'
 import { WhatsappContactSelector } from '@/components/forms/campeonato'
 import '../../vagas/vagas.css'
 
@@ -83,9 +83,7 @@ export default function VendedorCampeonatosPage() {
   }
 
   return (
-    <>
-      <PublicDirectoryHeader active="Vagas abertas" />
-      <main className="vacancies-page">
+    <AppShell activeLabel="Vagas abertas" loadSession mainClassName="vacancies-page page">
         <section className="vacancies-hero">
           <div>
             <p className="eyebrow">Portfólio do afiliado</p>
@@ -212,7 +210,6 @@ export default function VendedorCampeonatosPage() {
             </div>
           ) : null}
         </section>
-      </main>
 
       {preview ? (
         <div className="vacancy-preview-overlay" onClick={() => setPreview(null)}>
@@ -246,6 +243,6 @@ export default function VendedorCampeonatosPage() {
           </section>
         </div>
       ) : null}
-    </>
+    </AppShell>
   )
 }
