@@ -44,13 +44,30 @@ Regras alinhadas em **banco**, **backend** e **frontend**.
 
 | Camada | Arquivo / local |
 |---|---|
-| Banco | `database/migrations/20260715_permissoes_campeonato_regras.sql` |
+| Banco (regras + RLS) | `database/migrations/20260715_seguranca_total_rls_e_permissoes.sql` **← rodar no Supabase** |
+| Banco (regras leves) | `database/migrations/20260715_permissoes_campeonato_regras.sql` (subconjunto; preferir o SQL total) |
 | Backend core | `backend/src/campeonatos/campeonato-permissions.ts` |
 | APIs | `web/app/api/campeonatos/**`, `web/app/api/convites/**`, `web/app/api/dropzone/route.ts` |
 | Frontend equipes | `CampeonatoEquipesTab` (botões por flag) |
 | Frontend jogos | `CampeonatoJogosTab` (`canManageGames`) |
 | Frontend vendedor | `ManagerCampeonatosView` (estrutura só leitura) |
 | Frontend admin | `ProdutoraPanel` (checkboxes de permissão do vendedor) |
+
+## Segurança total no banco (obrigatório em produção)
+
+Rode **uma vez** no Supabase → SQL Editor:
+
+`database/migrations/20260715_seguranca_total_rls_e_permissoes.sql`
+
+Isso:
+1. Liga **RLS + FORCE** nas tabelas de domínio
+2. **Revoga** `SELECT/INSERT/UPDATE/DELETE` de `anon` e `authenticated` nessas tabelas
+3. Mantém o **backend** (service_role) como único escritor de negócio
+4. Fecha **link de grupo** quando o grupo enche (trigger)
+5. Impede **reativar convite único** já usado
+6. Defaults de vendedor: só convite, sem add/remove
+
+Sem esse SQL, quem tiver a `anon key` + PostgREST ainda poderia tentar acessar tabelas se grants antigos existirem.
 
 ## Helpers backend
 
