@@ -122,7 +122,13 @@ export function DropZoneHome() {
   const [group, setGroup] = useState({ nome: 'Grupo A', campeonato_id: '', fase_id: '', slots: '12', whatsapp_url: '' })
   const [slotAssignment, setSlotAssignment] = useState({ slot_id: '', fase_id: '', grupo_id: '', equipe_id: '', line_id: '', campeonato_equipe_id: '', slot_numero: '1' })
   const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill('') as string[], grupos_ids: [] as string[] })
-  const [registrationLink, setRegistrationLink] = useState({ tipo: 'jogadores', grupo_id: '', vagas_por_equipe: '6', abre_em: '', encerra_em: '', permite_substituicao: false, max_substituicoes_por_equipe: '0', substituicao_encerra_em: '', descricao: '', nomes_equipes: '' })
+  const [registrationLink, setRegistrationLink] = useState({
+    grupo_id: '',
+    /** Quantas equipes este link aceita (1..slots do grupo). */
+    limite_vagas: '1',
+    encerra_em: '',
+    descricao: '',
+  })
   const [selectedChampId, setSelectedChampId] = useState('')
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [teamInviteToken, setTeamInviteToken] = useState('')
@@ -1185,23 +1191,45 @@ export function DropZoneHome() {
     const champ = selectedChamp
     if (!champ) return setError('Selecione um campeonato.')
     if (!registrationLink.grupo_id) return setError('Selecione o grupo do link.')
-    const isTeamGroupLink = registrationLink.tipo === 'equipes'
-    const expectedTeams = registrationLink.nomes_equipes.split(/\r?\n/).map((name) => name.trim()).filter(Boolean)
-    if (isTeamGroupLink && expectedTeams.length === 0) return setError('Informe pelo menos uma vaga esperada para o grupo.')
+
+    const limite = Number(registrationLink.limite_vagas)
+    if (!Number.isInteger(limite) || limite < 1) {
+      return setError('Informe quantas vagas este link aceita (1, 2, 3...).')
+    }
+
+    // datetime-local é horário local do browser → ISO UTC antes de mandar ao servidor
+    let encerraIso = ''
+    if (registrationLink.encerra_em?.trim()) {
+      const parsed = new Date(registrationLink.encerra_em)
+      if (Number.isNaN(parsed.getTime())) return setError('Data de encerramento do link inválida.')
+      if (parsed.getTime() <= Date.now()) {
+        return setError('A data de encerramento precisa ser no futuro — senão o link nasce expirado.')
+      }
+      encerraIso = parsed.toISOString()
+    }
+
+    const group = groups.find((row) => row.id === registrationLink.grupo_id)
+    const groupLabel = group ? rowTitle(group) : 'grupo'
     const row = await createRow({
       entity_type: 'registration_link',
-      name: isTeamGroupLink ? `Entrada de equipes ${rowTitle(champ)}` : `Inscricao ${rowTitle(champ)}`,
+      name: limite === 1
+        ? `Entrada de 1 equipe · ${groupLabel}`
+        : `Entrada de ${limite} equipes · ${groupLabel}`,
       parent_id: champ.id,
       generate_token: true,
       data: {
         championship_id: champ.id,
         group_id: registrationLink.grupo_id,
-        ...registrationLink,
-        tipo: isTeamGroupLink ? 'inscricao_equipes_grupo' : 'inscricao',
-        expected_teams: expectedTeams,
+        limite_vagas: limite,
+        encerra_em: encerraIso,
+        expira_em: encerraIso || null,
+        descricao: registrationLink.descricao || '',
+        tipo: 'inscricao_equipes_grupo',
       },
-    }, isTeamGroupLink ? 'Link de entrada de equipes criado.' : 'Link publico de inscricao criado.')
-    if (row?.token) await copyToken(`${window.location.origin}/${isTeamGroupLink ? 'convite/grupo' : 'i'}/${row.token}`)
+    }, limite === 1
+      ? 'Link criado: expira após 1 equipe entrar.'
+      : `Link criado: expira após ${limite} equipes entrarem.`)
+    if (row?.token) await copyToken(`${window.location.origin}/convite/grupo/${row.token}`)
   }
 
   async function acceptTeamInvite() {

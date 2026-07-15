@@ -229,11 +229,20 @@ export async function PATCH(req: NextRequest) {
       if (countError) throw countError
       if (limite < Number(count || 0)) throw new Error(`O limite não pode ser menor que os ${count || 0} jogadores já escalados.`)
 
+      // datetime-local → ISO UTC (mesma regra da criação)
+      let expiraEm: string | null = null
+      if (body.expira_em !== undefined && body.expira_em !== null && String(body.expira_em).trim()) {
+        const parsed = new Date(String(body.expira_em))
+        if (Number.isNaN(parsed.getTime())) throw new Error('Data de validade inválida.')
+        if (parsed.getTime() <= Date.now()) throw new Error('A validade do link precisa ser no futuro.')
+        expiraEm = parsed.toISOString()
+      }
+
       const { data: updated, error } = await supabaseAdmin
         .from('campeonato_links_inscricao')
         .update({
           limite_jogadores: limite,
-          expira_em: body.expira_em || null,
+          expira_em: expiraEm,
           updated_at: new Date().toISOString(),
         })
         .eq('id', link.id)

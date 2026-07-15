@@ -65,6 +65,15 @@ type GroupInvitePayload = {
   equipes_esperadas?: Array<{ nome: string; disponivel: boolean }>
   equipes_esperadas_disponiveis?: string[]
   resumo_grupo?: { total: number; ocupadas: number; livres: number }
+  resumo_link?: { limite_vagas: number; usos: number; restantes: number }
+  link?: {
+    token?: string
+    titulo?: string
+    limite_vagas?: number
+    usos?: number
+    restantes?: number
+    expira_em?: string | null
+  }
   equipe?: { id: string; nome: string; tag: string | null; logo_url: string | null } | null
   lines?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita: boolean }>
   lines_disponiveis?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita?: boolean }>
@@ -171,6 +180,10 @@ export default function ConviteGrupoPage() {
 
   function openSlot(vaga: Vaga) {
     if (vaga.ocupada) return
+    if (data?.resumo_link && data.resumo_link.restantes <= 0) {
+      setMessage('Este link esgotou as vagas. Peça um novo link ao organizador.')
+      return
+    }
     if (!data?.autenticado) {
       setGate(true)
       setMessage('Entre com uma conta de equipe para escolher um slot e se inscrever.')
@@ -362,7 +375,24 @@ export default function ConviteGrupoPage() {
             <span>
               <strong>{data.resumo_grupo?.total ?? 0}</strong> slots
             </span>
+            {data.resumo_link ? (
+              <span>
+                <strong>
+                  {data.resumo_link.usos}/{data.resumo_link.limite_vagas}
+                </strong>{' '}
+                no link
+              </span>
+            ) : null}
           </div>
+          {data.resumo_link ? (
+            <p className="invite-section-copy" style={{ textAlign: 'center', marginTop: 4 }}>
+              {data.resumo_link.restantes <= 0
+                ? 'Este link esgotou as vagas configuradas pelo organizador.'
+                : data.resumo_link.limite_vagas === 1
+                  ? 'Este link aceita 1 equipe e encerra após a inscrição.'
+                  : `Este link aceita mais ${data.resumo_link.restantes} equipe(s) de ${data.resumo_link.limite_vagas}.`}
+            </p>
+          ) : null}
 
           {!showHub ? (
             <>
@@ -392,7 +422,8 @@ export default function ConviteGrupoPage() {
 
               <div className="lineup-slots public-lineup-slots invite-slot-grid">
                 {(data.vagas || []).map((vaga) => {
-                  const clickable = !vaga.ocupada && canManage
+                  const linkAindaTemVaga = (data.resumo_link?.restantes ?? 1) > 0
+                  const clickable = !vaga.ocupada && canManage && linkAindaTemVaga
                   return (
                     <button
                       type="button"

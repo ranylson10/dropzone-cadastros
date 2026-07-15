@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Loader2, MessageCircle, Pause, Pencil, Play, Plus, RefreshCw, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, RefreshCw, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
@@ -26,7 +26,7 @@ export function ProdutoraPanel(props: {
   tokens: DropZoneRow[]
   registrationLinks: DropZoneRow[]
   lineupRules: DropZoneRow[]
-  registrationLink: { tipo: string; grupo_id: string; vagas_por_equipe: string; abre_em: string; encerra_em: string; permite_substituicao: boolean; max_substituicoes_por_equipe: string; substituicao_encerra_em: string; descricao: string; nomes_equipes: string }
+  registrationLink: { grupo_id: string; limite_vagas: string; encerra_em: string; descricao: string }
   setRegistrationLink: (value: any) => void
   createRegistrationLink: () => void
   selectedChamp?: DropZoneRow
@@ -72,6 +72,7 @@ export function ProdutoraPanel(props: {
   const [typeFilter, setTypeFilter] = useState('todos')
   const [tab, setTab] = useState<ProducerTab>('equipes')
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
+  const [openLinkIds, setOpenLinkIds] = useState<Record<string, boolean>>({})
   const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({})
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [slotModal, setSlotModal] = useState<{ id: string; fase_id: string; grupo_id: string; slot_numero: string; letra: string; whatsapp_url: string } | null>(null)
@@ -328,6 +329,57 @@ export function ProdutoraPanel(props: {
   function phaseName(id?: string | null) {
     return rowTitle(champPhases.find((row) => row.id === id)) || 'Sem fase'
   }
+
+  function formatDateTime(value?: string | null) {
+    if (!value) return '—'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return '—'
+    return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date)
+  }
+
+  function linkStatusInfo(link: DropZoneRow) {
+    const data = link.data || {}
+    const limite = Number(data.limite_vagas || data.metadata?.limite_vagas || 0) || null
+    const usos = Number(data.usos ?? data.metadata?.usos ?? 0)
+    const restantes = data.restantes != null
+      ? Number(data.restantes)
+      : limite != null
+        ? Math.max(0, limite - usos)
+        : null
+    const expiraEm = data.expira_em ? new Date(String(data.expira_em)) : null
+    const expiredByDate = Boolean(expiraEm && !Number.isNaN(expiraEm.getTime()) && expiraEm.getTime() <= Date.now())
+    const closedReason = String(data.closed_reason || data.metadata?.closed_reason || '')
+    const statusFromApi = String(data.status || '')
+    let status: 'ativo' | 'esgotado' | 'expirado' | 'pausado' | 'grupo_cheio' = 'ativo'
+    if (statusFromApi === 'expirado' || expiredByDate) status = 'expirado'
+    else if (statusFromApi === 'esgotado' || (limite != null && usos >= limite) || closedReason === 'limite_atingido') status = 'esgotado'
+    else if (statusFromApi === 'grupo_cheio' || closedReason === 'grupo_cheio') status = 'grupo_cheio'
+    else if (statusFromApi === 'pausado' || data.ativo === false) status = 'pausado'
+
+    const statusLabel =
+      status === 'ativo' ? 'Ativo'
+        : status === 'esgotado' ? 'Esgotado'
+          : status === 'expirado' ? 'Expirado'
+            : status === 'grupo_cheio' ? 'Grupo cheio'
+              : 'Pausado'
+
+    const entradas = Array.isArray(data.entradas)
+      ? data.entradas
+      : Array.isArray(data.metadata?.entradas)
+        ? data.metadata.entradas
+        : []
+
+    return { limite, usos, restantes, status, statusLabel, expiraEm, entradas }
+  }
+
+  const groupInviteLinks = useMemo(
+    () =>
+      champRegistrationLinks
+        .filter((link) => link.data?.tipo === 'inscricao_equipes_grupo' || !link.data?.tipo || link.data?.tipo === 'equipes')
+        .slice()
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))),
+    [champRegistrationLinks],
+  )
 
   function slotLineEntry(slot?: DropZoneRow) {
     if (!slot) return null
@@ -1212,76 +1264,235 @@ export function ProdutoraPanel(props: {
                   <div className="subtab-actionbar">
                     <div>
                       <p className="eyebrow">Links</p>
-                      <h3>Inscrição pública</h3>
+                      <h3>Entrada de equipes por grupo</h3>
+                      <p className="muted-copy">Defina quantas equipes o link aceita. Ex.: 1 vaga = o link encerra após a primeira inscrição.</p>
                     </div>
                     <button className="button" onClick={() => toggleAction('link')}>Gerar link</button>
                   </div>
                   {openAction === 'link' ? (
                     <div className="inline-action-panel">
                       <div className="mini-grid three">
-                        <Field label="Tipo de link">
-                          <select value={props.registrationLink.tipo} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, tipo: e.target.value })}>
-                            <option value="jogadores">Inscrição de jogadores</option>
-                            <option value="equipes">Entrada de equipes por grupo</option>
-                          </select>
-                        </Field>
                         <Field label="Grupo do link">
-                          <select value={props.registrationLink.grupo_id} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, grupo_id: e.target.value })}>
+                          <select
+                            value={props.registrationLink.grupo_id}
+                            onChange={(e) => {
+                              const grupoId = e.target.value
+                              const group = champGroups.find((g) => g.id === grupoId)
+                              const maxSlots = Math.max(1, Number(group?.data?.slots || 1))
+                              const current = Number(props.registrationLink.limite_vagas || 1)
+                              props.setRegistrationLink({
+                                ...props.registrationLink,
+                                grupo_id: grupoId,
+                                limite_vagas: String(Math.min(Math.max(1, current || 1), maxSlots)),
+                              })
+                            }}
+                          >
                             <option value="">Selecione</option>
-                            {champGroups.map((group) => <option key={group.id} value={group.id}>{rowTitle(group)}</option>)}
+                            {champGroups.map((group) => (
+                              <option key={group.id} value={group.id}>
+                                {rowTitle(group)} · {Number(group.data?.slots || 0)} slots
+                              </option>
+                            ))}
                           </select>
                         </Field>
-                        <Field label="Encerrar link"><input type="datetime-local" value={props.registrationLink.encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })} /></Field>
-                      </div>
-                      {props.registrationLink.tipo === 'equipes' ? (
-                        <Field label="Vagas esperadas do grupo">
-                          <textarea value={props.registrationLink.nomes_equipes} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, nomes_equipes: e.target.value })} placeholder={'ALOE ELITE\nALOE BASE\nPAYSANDU\nREMO'} rows={6} />
-                        </Field>
-                      ) : (
-                        <>
-                          <div className="mini-grid three">
-                            <Field label="Vagas por equipe"><input type="number" value={props.registrationLink.vagas_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, vagas_por_equipe: e.target.value })} /></Field>
-                            <Field label="Permite substituição">
-                              <select value={props.registrationLink.permite_substituicao ? 'sim' : 'nao'} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, permite_substituicao: e.target.value === 'sim' })}>
-                                <option value="nao">Não</option>
-                                <option value="sim">Sim</option>
+                        <Field label="Vagas neste link">
+                          {(() => {
+                            const group = champGroups.find((g) => g.id === props.registrationLink.grupo_id)
+                            const maxSlots = Math.max(1, Number(group?.data?.slots || 1))
+                            return (
+                              <select
+                                value={props.registrationLink.limite_vagas}
+                                disabled={!props.registrationLink.grupo_id}
+                                onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, limite_vagas: e.target.value })}
+                              >
+                                {!props.registrationLink.grupo_id ? (
+                                  <option value="1">Selecione o grupo</option>
+                                ) : (
+                                  Array.from({ length: maxSlots }, (_, index) => index + 1).map((n) => (
+                                    <option key={n} value={String(n)}>
+                                      {n === 1 ? '1 equipe (encerra após 1 uso)' : `${n} equipes (encerra após ${n} usos)`}
+                                    </option>
+                                  ))
+                                )}
                               </select>
-                            </Field>
-                            <Field label="Máximo de substituições"><input type="number" value={props.registrationLink.max_substituicoes_por_equipe} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, max_substituicoes_por_equipe: e.target.value })} /></Field>
-                          </div>
-                          <Field label="Prazo de substituição"><input type="datetime-local" value={props.registrationLink.substituicao_encerra_em} onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, substituicao_encerra_em: e.target.value })} /></Field>
-                        </>
-                      )}
-                      <button className="button" type="button" disabled={Boolean(props.pendingCreate)} onClick={props.createRegistrationLink}>{props.pendingCreate === 'registration_link' ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</> : props.registrationLink.tipo === 'equipes' ? 'Gerar link de equipes' : 'Gerar link público'}</button>
+                            )
+                          })()}
+                        </Field>
+                        <Field label="Encerrar em (opcional)">
+                          <input
+                            type="datetime-local"
+                            value={props.registrationLink.encerra_em}
+                            onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })}
+                          />
+                        </Field>
+                      </div>
+                      <p className="muted-copy">
+                        O link também fecha se o grupo ficar sem slots livres, mesmo com usos sobrando.
+                      </p>
+                      <button
+                        className="button"
+                        type="button"
+                        disabled={Boolean(props.pendingCreate)}
+                        onClick={props.createRegistrationLink}
+                      >
+                        {props.pendingCreate === 'registration_link'
+                          ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</>
+                          : 'Gerar link de equipes'}
+                      </button>
                     </div>
                   ) : null}
-                  <div className="ref-card-grid two">
-                    {champRegistrationLinks.map((link) => {
-                      const isTeamGroupLink = link.data?.tipo === 'inscricao_equipes_grupo'
-                      const path = isTeamGroupLink ? `/convite/grupo/${link.token}` : `/i/${link.token}`
-                      const isPaused = link.data?.ativo === false
-                      return (
-                        <div key={link.id} className="token-card link-token-card">
-                          <button type="button" onClick={() => props.copyToken(`${window.location.origin}${path}`)}>
-                            <span>{isTeamGroupLink ? 'Equipes' : 'Jogadores'} · {groupName(link.data?.group_id)}{isPaused ? ' · Pausado' : ''}</span>
-                            <strong>{path}</strong>
-                            <Copy size={15} />
-                          </button>
-                          <div className="folder-actions link-card-actions">
-                            <button type="button" title={isPaused ? 'Ativar link' : 'Pausar link'} onClick={() => props.updateStructure('registration_link', link.id, { ativo: isPaused })}>
-                              {isPaused ? <Play size={15} /> : <Pause size={15} />}
+                  <div className="links-invite-list">
+                    <div className="section-head compact-head">
+                      <div>
+                        <p className="eyebrow">Convites gerados</p>
+                        <h3>Lista de links do campeonato</h3>
+                      </div>
+                      <span className="selection-count">{groupInviteLinks.length} link(s)</span>
+                    </div>
+
+                    {groupInviteLinks.length === 0 ? (
+                      <p className="empty">Nenhum link de equipes gerado ainda.</p>
+                    ) : (
+                      groupInviteLinks.map((link) => {
+                        const path = `/convite/grupo/${link.token}`
+                        const fullUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}${path}`
+                        const info = linkStatusInfo(link)
+                        const isOpen = openLinkIds[link.id] === true
+                        const isPaused = link.data?.ativo === false
+                        const canReactivate = isPaused && info.status === 'pausado'
+
+                        return (
+                          <article key={link.id} className={`link-invite-row status-${info.status} ${isOpen ? 'is-open' : ''}`}>
+                            <button
+                              type="button"
+                              className="link-invite-summary"
+                              onClick={() => setOpenLinkIds((prev) => ({ ...prev, [link.id]: !isOpen }))}
+                              aria-expanded={isOpen}
+                            >
+                              <span className="link-invite-icon" aria-hidden>
+                                <Link2 size={16} />
+                              </span>
+                              <span className="link-invite-main">
+                                <strong>{groupName(String(link.data?.group_id || link.data?.grupo_id || ''))}</strong>
+                                <small>
+                                  {info.limite != null ? `${info.usos}/${info.limite} vaga(s)` : `${info.usos} uso(s)`}
+                                  {' · '}
+                                  criado {formatDateTime(link.created_at)}
+                                  {link.data?.expira_em ? ` · encerra ${formatDateTime(String(link.data.expira_em))}` : ''}
+                                </small>
+                              </span>
+                              <span className={`link-status-pill status-${info.status}`}>{info.statusLabel}</span>
+                              <span className="link-invite-chevron">
+                                {isOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+                              </span>
                             </button>
-                            <button type="button" title="Gerar novo token" onClick={() => { if (window.confirm('Gerar um novo token? O link atual deixará de funcionar.')) props.updateStructure('registration_link', link.id, { regenerate_token: true }) }}>
-                              <RefreshCw size={15} />
-                            </button>
-                            <button type="button" title="Excluir link" className="danger" onClick={() => { if (window.confirm('Excluir este link?')) props.deleteStructure('registration_link', link.id) }}>
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {champRegistrationLinks.length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}
+
+                            {isOpen ? (
+                              <div className="link-invite-details">
+                                <div className="link-invite-meta-grid">
+                                  <span>
+                                    <small>Token / caminho</small>
+                                    <strong>{path}</strong>
+                                  </span>
+                                  <span>
+                                    <small>Uso</small>
+                                    <strong>
+                                      {info.limite != null
+                                        ? `${info.usos} de ${info.limite}`
+                                        : `${info.usos}`}
+                                      {info.restantes != null ? ` · restam ${info.restantes}` : ''}
+                                    </strong>
+                                  </span>
+                                  <span>
+                                    <small>Validade</small>
+                                    <strong>
+                                      {link.data?.expira_em
+                                        ? formatDateTime(String(link.data.expira_em))
+                                        : 'Sem data de encerramento'}
+                                    </strong>
+                                  </span>
+                                  <span>
+                                    <small>Status</small>
+                                    <strong>{info.statusLabel}</strong>
+                                  </span>
+                                </div>
+
+                                <div className="link-invite-entries">
+                                  <div className="link-invite-entries-head">
+                                    <strong>Quem entrou por este link</strong>
+                                    <small>{info.entradas.length} inscrição(ões)</small>
+                                  </div>
+                                  {info.entradas.length === 0 ? (
+                                    <p className="empty compact-empty">Ninguém entrou ainda por este link.</p>
+                                  ) : (
+                                    <div className="link-entry-table">
+                                      {info.entradas.map((entrada: any, index: number) => (
+                                        <div key={entrada.participacao_id || index} className="link-entry-row">
+                                          <span className="link-entry-slot">
+                                            {entrada.slot_letra || (entrada.slot_numero != null ? String(entrada.slot_numero) : '—')}
+                                          </span>
+                                          <span className="link-entry-identity">
+                                            <strong>{entrada.line_nome || entrada.equipe_nome || 'Line'}</strong>
+                                            <small>
+                                              {entrada.equipe_nome && entrada.line_nome && entrada.equipe_nome !== entrada.line_nome
+                                                ? entrada.equipe_nome
+                                                : 'via link de grupo'}
+                                            </small>
+                                          </span>
+                                          <span className="link-entry-when">
+                                            {formatDateTime(entrada.entrou_em)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="link-invite-actions">
+                                  <button
+                                    type="button"
+                                    className="button secondary"
+                                    onClick={() => props.copyToken(fullUrl || `${window.location.origin}${path}`)}
+                                  >
+                                    <Copy size={14} /> Copiar link
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="button secondary"
+                                    title={canReactivate ? 'Ativar link' : isPaused ? 'Link encerrado' : 'Pausar link'}
+                                    disabled={info.status === 'esgotado' || info.status === 'expirado' || info.status === 'grupo_cheio'}
+                                    onClick={() => props.updateStructure('registration_link', link.id, { ativo: isPaused })}
+                                  >
+                                    {isPaused ? <Play size={14} /> : <Pause size={14} />}
+                                    {isPaused ? 'Reativar' : 'Pausar'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="button secondary"
+                                    onClick={() => {
+                                      if (window.confirm('Gerar um novo token? O link atual deixará de funcionar. O histórico de quem entrou é mantido.')) {
+                                        props.updateStructure('registration_link', link.id, { regenerate_token: true })
+                                      }
+                                    }}
+                                  >
+                                    <RefreshCw size={14} /> Novo token
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="button secondary danger"
+                                    onClick={() => {
+                                      if (window.confirm('Excluir este link?')) props.deleteStructure('registration_link', link.id)
+                                    }}
+                                  >
+                                    <Trash2 size={14} /> Excluir
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </article>
+                        )
+                      })
+                    )}
                   </div>
                 </div>
               ) : null}

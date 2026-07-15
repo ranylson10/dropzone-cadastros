@@ -135,7 +135,16 @@ export function EquipePanel(props: {
   function openInviteEditor(lineup: Lineup) {
     setEditingInvite(lineup)
     setInviteLimit(String(lineup.limite_jogadores || 6))
-    setInviteExpiresAt(lineup.link_expira_em ? new Date(lineup.link_expira_em).toISOString().slice(0, 16) : '')
+    // datetime-local espera horário local — toISOString().slice usava UTC e "encurtava" a validade
+    if (lineup.link_expira_em) {
+      const d = new Date(lineup.link_expira_em)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      setInviteExpiresAt(
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      )
+    } else {
+      setInviteExpiresAt('')
+    }
   }
 
   async function updateLineupInvite() {

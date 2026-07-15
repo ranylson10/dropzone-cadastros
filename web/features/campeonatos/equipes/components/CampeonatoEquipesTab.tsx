@@ -49,9 +49,11 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
   const [referenciaEquipe, setReferenciaEquipe] = useState('')
   const [referenciaLine, setReferenciaLine] = useState('')
   /** Convite: por padrão o convidado escolhe qualquer slot livre do grupo. */
-  const [fixarSlot, setFixarSlot] = useState(false)
+  /** Default: reserva o slot clicado (visível na lista). Opcional: qualquer letra do grupo. */
+  const [fixarSlot, setFixarSlot] = useState(true)
   const [processando, setProcessando] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [linkGerado, setLinkGerado] = useState('')
 
   const stats = useMemo(() => {
     const vagas = data?.vagas || []
@@ -79,15 +81,26 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     setNomeLine('')
     setReferenciaEquipe('')
     setReferenciaLine('')
-    setFixarSlot(false)
+    setFixarSlot(true)
     setFeedback('')
+    setLinkGerado('')
   }
 
   function abrirModal(vaga: CampeonatoVaga, proximoModo: 'adicionar' | 'convite') {
     setVagaAlvo(vaga)
     setModo(proximoModo)
-    setFixarSlot(false)
+    setFixarSlot(true)
     setFeedback('')
+    setLinkGerado('')
+  }
+
+  async function copiarTexto(texto: string) {
+    try {
+      await navigator.clipboard.writeText(texto)
+      return true
+    } catch {
+      return false
+    }
   }
 
   async function pesquisar() {
@@ -132,8 +145,9 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     }
     setProcessando(true)
     setFeedback('')
+    setLinkGerado('')
     try {
-      // Padrão: convite de GRUPO (convidado escolhe letra). Opcional: fixar este slot.
+      // Padrão: reserva o slot clicado (visível). Opcional: qualquer letra do grupo.
       const body: Record<string, unknown> = fixarSlot
         ? {
             slot_id: vagaAlvo.id,
@@ -156,14 +170,19 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
         link: string
         modo?: string
       }
-      await navigator.clipboard.writeText(result.link)
+      setLinkGerado(result.link)
+      const copiou = await copiarTexto(result.link)
       setFeedback(
         result.modo === 'grupo'
-          ? 'Convite de grupo criado e link copiado. O convidado escolhe o slot livre.'
-          : 'Convite do slot criado e link copiado.',
+          ? copiou
+            ? 'Convite de grupo criado e link copiado. O convidado escolhe o slot livre.'
+            : 'Convite de grupo criado. Copie o link abaixo (o navegador bloqueou a cópia automática).'
+          : copiou
+            ? 'Convite do slot criado e link copiado.'
+            : 'Convite do slot criado. Copie o link abaixo (o navegador bloqueou a cópia automática).',
       )
       await reload()
-      setTimeout(fechar, 1200)
+      // Mantém o modal aberto com o link — antes fechava e o convite de grupo sumia da lista
     } catch (err) {
       setFeedback(err instanceof Error ? err.message : 'Erro ao criar convite.')
     } finally {
@@ -186,16 +205,36 @@ Validade: 24 horas.
 A line é quem joga e pontua. Entre e confirme a line real da sua equipe.
 
 Acesse: ${link}`
-    await navigator.clipboard.writeText(texto)
-    setFeedback('Mensagem completa copiada.')
+    const copiou = await copiarTexto(texto)
+    setFeedback(copiou ? 'Mensagem completa copiada.' : 'Não foi possível copiar automaticamente. Selecione e copie o texto manualmente.')
   }
 
-  async function renovar(vaga: CampeonatoVaga) {
-    if (!vaga.convite) return
+  async function copiarConviteGrupo(convite: NonNullable<CampeonatoVaga['convite']>) {
+    const link = `${window.location.origin}/convite/equipe/${convite.token}`
+    const grupoNome =
+      data?.vagas.find((v) => v.grupo_id === convite.grupo_id)?.grupo?.nome
+      || 'grupo'
+    const texto = `Você recebeu um convite para o campeonato ${data?.campeonato.nome}.
+
+Grupo: ${grupoNome}
+Referência: ${convite.nome_equipe_reservada || '-'}
+Line informada: ${convite.nome_line_reservada || '-'}
+Validade: 24 horas.
+
+Escolha um slot livre do grupo e confirme a line real da sua equipe.
+
+Acesse: ${link}`
+    const copiou = await copiarTexto(texto)
+    setFeedback(copiou ? 'Convite de grupo copiado.' : 'Não foi possível copiar automaticamente.')
+  }
+
+  async function renovar(tokenId: string) {
+    if (!tokenId) return
     setProcessando(true)
     try {
-      await campeonatoEquipesService.renovarConvite(campeonatoId, vaga.convite.id)
+      await campeonatoEquipesService.renovarConvite(campeonatoId, tokenId)
       await reload()
+      setFeedback('Convite renovado por mais 24 horas.')
     } catch (err) {
       setFeedback(err instanceof Error ? err.message : 'Erro ao renovar.')
     } finally {
@@ -203,13 +242,16 @@ Acesse: ${link}`
     }
   }
 
-  async function cancelar(vaga: CampeonatoVaga) {
-    if (!vaga.convite || !window.confirm(`Liberar o slot ${vaga.slot_letra || vaga.numero_vaga} e cancelar o convite?`)) return
+  async function cancelar(tokenId: string, label?: string) {
+    if (!tokenId) return
+    const confirmLabel = label || 'este convite'
+    if (!window.confirm(`Cancelar ${confirmLabel}?`)) return
     setProcessando(true)
     try {
-      await campeonatoEquipesService.cancelarConvite(campeonatoId, vaga.convite.id)
+      await campeonatoEquipesService.cancelarConvite(campeonatoId, tokenId)
       setVagaAbertaId(null)
       await reload()
+      setFeedback('Convite cancelado.')
     } catch (err) {
       setFeedback(err instanceof Error ? err.message : 'Erro ao cancelar.')
     } finally {
@@ -338,6 +380,52 @@ Acesse: ${link}`
 
       {feedback ? <div className="teams-feedback">{feedback}</div> : null}
 
+      {(data.convites_grupo || []).length > 0 ? (
+        <div className="teams-group-invites panel-soft">
+          <div className="section-head compact-head">
+            <div>
+              <p className="eyebrow">Convites de grupo</p>
+              <h3>Links sem slot fixo</h3>
+            </div>
+          </div>
+          <div className="token-list">
+            {(data.convites_grupo || []).map((convite) => {
+              const grupoNome =
+                data.vagas.find((v) => v.grupo_id === convite.grupo_id)?.grupo?.nome
+                || 'Grupo'
+              return (
+                <div key={convite.id} className="token-card">
+                  <span>
+                    {grupoNome}
+                    {' · '}
+                    {convite.nome_equipe_reservada || 'Reserva'}
+                    {' / '}
+                    {convite.nome_line_reservada || 'Line'}
+                  </span>
+                  <strong>Expira {formatDate(convite.expira_em)}</strong>
+                  <div className="folder-actions">
+                    <button type="button" onClick={() => void copiarConviteGrupo(convite)} title="Copiar convite">
+                      <Copy size={15} />
+                    </button>
+                    <button type="button" onClick={() => void renovar(convite.id)} title="Renovar 24h">
+                      <RefreshCw size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => void cancelar(convite.id, `o convite de grupo (${convite.nome_equipe_reservada || 'reserva'})`)}
+                      title="Cancelar convite"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
       <div className="championship-vagas-list">
         {vagasFiltradas.length === 0 ? (
           <div className="vagas-empty-filter">Nenhuma vaga encontrada neste filtro.</div>
@@ -449,11 +537,17 @@ Acesse: ${link}`
                         </>
                       ) : null}
 
-                      {vaga.status === 'reservada' && data.permission.canGenerateToken ? (
+                      {vaga.status === 'reservada' && data.permission.canGenerateToken && vaga.convite ? (
                         <>
                           <button type="button" onClick={() => void copiarConvite(vaga)}><Copy size={14} /> Copiar convite</button>
-                          <button type="button" onClick={() => void renovar(vaga)}><RefreshCw size={14} /> Renovar 24h</button>
-                          <button type="button" className="danger" onClick={() => void cancelar(vaga)}><Trash2 size={14} /> Cancelar reserva</button>
+                          <button type="button" onClick={() => void renovar(vaga.convite!.id)}><RefreshCw size={14} /> Renovar 24h</button>
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() => void cancelar(vaga.convite!.id, `a reserva do slot ${vaga.slot_letra || vaga.numero_vaga}`)}
+                          >
+                            <Trash2 size={14} /> Cancelar reserva
+                          </button>
                         </>
                       ) : null}
 
@@ -564,18 +658,6 @@ Acesse: ${link}`
               </div>
 
               <div className="invite-scope-options" role="radiogroup" aria-label="Escopo do convite">
-                <label className={`invite-scope-card ${!fixarSlot ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="escopo-convite"
-                    checked={!fixarSlot}
-                    onChange={() => setFixarSlot(false)}
-                  />
-                  <span>
-                    <strong>Qualquer slot livre do grupo</strong>
-                    <small>Tela igual ao link de grupo: o convidado escolhe a letra e já entra no assento.</small>
-                  </span>
-                </label>
                 <label className={`invite-scope-card ${fixarSlot ? 'selected' : ''}`}>
                   <input
                     type="radio"
@@ -585,7 +667,19 @@ Acesse: ${link}`
                   />
                   <span>
                     <strong>Só o slot {vagaAlvo?.slot_letra || vagaAlvo?.numero_vaga}</strong>
-                    <small>Reserva fixa nesta letra (como antes).</small>
+                    <small>Reserva fixa nesta letra — aparece como Reservada na lista.</small>
+                  </span>
+                </label>
+                <label className={`invite-scope-card ${!fixarSlot ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="escopo-convite"
+                    checked={!fixarSlot}
+                    onChange={() => setFixarSlot(false)}
+                  />
+                  <span>
+                    <strong>Qualquer slot livre do grupo</strong>
+                    <small>O convidado escolhe a letra. O link fica na lista de convites de grupo.</small>
                   </span>
                 </label>
               </div>
@@ -598,20 +692,39 @@ Acesse: ${link}`
                 <span>Identificação da line</span>
                 <input value={referenciaLine} onChange={(event) => setReferenciaLine(event.target.value)} placeholder="Ex.: Line Elite" />
               </label>
+
+              {linkGerado ? (
+                <div className="invite-link-result">
+                  <small>Link gerado (válido 24h)</small>
+                  <code>{linkGerado}</code>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    onClick={async () => {
+                      const ok = await copiarTexto(linkGerado)
+                      setFeedback(ok ? 'Link copiado.' : 'Não foi possível copiar automaticamente.')
+                    }}
+                  >
+                    <Copy size={14} /> Copiar link
+                  </button>
+                </div>
+              ) : null}
             </>
           )}
 
           {feedback ? <div className="teams-feedback">{feedback}</div> : null}
           <div className="modal-form-actions">
-            <button className="button secondary" onClick={fechar}>Cancelar</button>
-            <button className="button" onClick={modo === 'adicionar' ? adicionar : criarConvite} disabled={processando}>
-              {processando ? <Loader2 className="spin" size={15} /> : null}
-              {modo === 'adicionar'
-                ? 'Adicionar line no slot'
-                : fixarSlot
-                  ? 'Gerar convite deste slot'
-                  : 'Gerar convite do grupo'}
-            </button>
+            <button className="button secondary" onClick={fechar}>{linkGerado ? 'Fechar' : 'Cancelar'}</button>
+            {!linkGerado ? (
+              <button className="button" onClick={modo === 'adicionar' ? adicionar : criarConvite} disabled={processando}>
+                {processando ? <Loader2 className="spin" size={15} /> : null}
+                {modo === 'adicionar'
+                  ? 'Adicionar line no slot'
+                  : fixarSlot
+                    ? 'Gerar convite deste slot'
+                    : 'Gerar convite do grupo'}
+              </button>
+            ) : null}
           </div>
         </div>
       </SystemModal>

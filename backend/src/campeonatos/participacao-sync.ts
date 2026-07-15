@@ -324,7 +324,7 @@ export async function inserirParticipacaoNoSlot(params: {
 }
 
 const VIEW_COLUMNS =
-  'slot_id,campeonato_id,fase_id,grupo_id,slot_numero,slot_letra,slot_status,participacao_id,line_id,equipe_id,nome_exibicao,origem_entrada,participacao_status,line_nome,line_tag,line_logo_url,equipe_nome,equipe_tag,equipe_logo_url,grupo_nome,fase_nome,fase_ordem,status_ui'
+  'slot_id,campeonato_id,fase_id,grupo_id,slot_numero,slot_letra,slot_status,participacao_id,line_id,equipe_id,nome_exibicao,origem_entrada,participacao_status,line_nome,line_tag,line_logo_url,equipe_nome,equipe_tag,equipe_logo_url,grupo_nome,fase_nome,fase_ordem,status_ui,convite_id,convite_token,convite_expira_em,nome_equipe_reservada,nome_line_reservada'
 
 /** Lista slots do campeonato via view (fallback para query manual). */
 export async function listSlotsLinesView(campeonatoId: string, opts?: { grupoId?: string }) {

@@ -21,20 +21,48 @@ function hasSellerPermission(seller: any, key: string, optIn = false) {
   return value !== false
 }
 
+function conviteAindaValido(row: { expira_em?: string | null; status?: string; usado?: boolean }, nowMs = Date.now()) {
+  if (row.status && row.status !== 'ativo') return false
+  if (row.usado) return false
+  if (row.expira_em && new Date(row.expira_em).getTime() <= nowMs) return false
+  return true
+}
+
+function mapConviteResumo(convite: any, slotIdFallback?: string | null) {
+  if (!convite) return null
+  return {
+    id: convite.id,
+    token: convite.token,
+    expira_em: convite.expira_em || null,
+    status: convite.status || 'ativo',
+    usado: Boolean(convite.usado),
+    nome_equipe_reservada: convite.nome_equipe_reservada || null,
+    nome_line_reservada: convite.nome_line_reservada || null,
+    slot_id: convite.slot_id || slotIdFallback || null,
+    grupo_id: convite.grupo_id || null,
+    modo: convite.slot_id ? 'slot' : 'grupo',
+  }
+}
+
 /** Marca convites de slot expirados e libera status do slot (não bloqueia listagem). */
 async function liberarExpirados(campeonatoId: string) {
   try {
     const agora = new Date().toISOString()
-    const { data: expirados } = await supabaseAdmin
+    // Busca ativos e filtra no JS — evita filtro PostgREST com ISO (dois-pontos quebram .or())
+    const { data: ativos } = await supabaseAdmin
       .from('tokens')
-      .select('id,slot_id')
+      .select('id,slot_id,expira_em')
       .eq('campeonato_id', campeonatoId)
       .eq('tipo', 'convite_equipe_campeonato')
       .eq('status', 'ativo')
       .eq('usado', false)
-      .lte('expira_em', agora)
 
-    if (!expirados?.length) return
+    const nowMs = Date.now()
+    const expirados = (ativos || []).filter(
+      (item) => item.expira_em && new Date(item.expira_em).getTime() <= nowMs,
+    )
+    if (!expirados.length) return
+
     const ids = expirados.map((item) => item.id)
     await supabaseAdmin.from('tokens').update({ status: 'expirado' }).in('id', ids)
 
@@ -73,7 +101,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     } catch {
     }
 
-    const agoraIso = new Date().toISOString()
     // liberarExpirados em paralelo com a leitura (não serializa a tela)
     const [, { data: campeonato, error: campError }, viewResult, convitesRes, capacidade] = await Promise.all([
       liberarExpirados(id),
@@ -81,28 +108,54 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       listSlotsLinesView(id),
       supabaseAdmin
         .from('tokens')
-        .select('id,token,slot_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada')
+        .select('id,token,slot_id,grupo_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada,created_at')
         .eq('campeonato_id', id)
         .eq('tipo', 'convite_equipe_campeonato')
         .eq('status', 'ativo')
         .eq('usado', false)
-        .or(`expira_em.is.null,expira_em.gt.${agoraIso}`),
+        .order('created_at', { ascending: false }),
       getCampeonatoCapacidade(id).catch(() => null),
     ])
     if (campError) throw campError
 
-    const convites = convitesRes.error ? [] : convitesRes.data || []
+    const nowMs = Date.now()
+    // Filtra expiração no JS: PostgREST .or com ISO (dois-pontos) falhava e escondia convites válidos
+    const convites = (convitesRes.error ? [] : convitesRes.data || []).filter((t) => conviteAindaValido(t, nowMs))
     const conviteBySlot = new Map<string, any>()
+    const convitesGrupo: any[] = []
     for (const t of convites) {
-      if (t.slot_id && !conviteBySlot.has(t.slot_id)) conviteBySlot.set(t.slot_id, t)
+      if (t.slot_id) {
+        if (!conviteBySlot.has(t.slot_id)) conviteBySlot.set(t.slot_id, t)
+      } else if (t.grupo_id) {
+        convitesGrupo.push(t)
+      }
     }
 
     // Caminho rápido: view enxuta (1 query joinada). Fallback se migration ainda não rodou.
     if (viewResult.source === 'view' && Array.isArray(viewResult.rows)) {
       const vagas = (viewResult.rows as any[]).map((row) => {
         const filled = Boolean(row.participacao_id || row.line_id)
-        const convite = !filled ? conviteBySlot.get(row.slot_id) || null : null
-        const status = filled ? 'ocupada' : convite ? 'reservada' : 'livre'
+        // Preferência: token da query (sempre fresco) → campos da view (convite_* já filtrados no SQL)
+        const fromQuery = !filled ? conviteBySlot.get(row.slot_id) || null : null
+        const fromView = !filled && row.convite_id
+          ? {
+              id: row.convite_id,
+              token: row.convite_token,
+              expira_em: row.convite_expira_em,
+              status: 'ativo',
+              usado: false,
+              nome_equipe_reservada: row.nome_equipe_reservada,
+              nome_line_reservada: row.nome_line_reservada,
+              slot_id: row.slot_id,
+              grupo_id: row.grupo_id,
+            }
+          : null
+        const convite = fromQuery || fromView
+        const status = filled
+          ? 'ocupada'
+          : convite || String(row.status_ui || '') === 'reservada' || row.slot_status === 'reservado'
+            ? 'reservada'
+            : 'livre'
         const line = row.line_id
           ? { id: row.line_id, nome: row.line_nome, tag: row.line_tag, logo_url: row.line_logo_url }
           : null
@@ -163,18 +216,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           line_tag: campeonatoEquipe?.line_tag || row.line_tag || null,
           equipe_nome: campeonatoEquipe?.equipe_nome || row.equipe_nome || null,
           campeonato_equipe: campeonatoEquipe,
-          convite: convite
-            ? {
-                id: convite.id,
-                token: convite.token,
-                expira_em: convite.expira_em,
-                status: convite.status,
-                usado: convite.usado,
-                nome_equipe_reservada: convite.nome_equipe_reservada,
-                nome_line_reservada: convite.nome_line_reservada,
-                slot_id: convite.slot_id || row.slot_id,
-              }
-            : null,
+          convite: mapConviteResumo(convite, row.slot_id),
         }
       })
 
@@ -183,6 +225,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         permission: permissionPublicPayload(permission),
         capacidade,
         vagas,
+        convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item)),
         modelo: {
           unidade_competitiva: 'line',
           pasta: 'equipe',
@@ -254,7 +297,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       const lineId = slot.line_id || participation?.line_id || null
       const filled = Boolean(participation || lineId)
       const convite = !filled ? conviteBySlot.get(slot.id) || null : null
-      const status = filled ? 'ocupada' : convite ? 'reservada' : 'livre'
+      const status = filled
+        ? 'ocupada'
+        : convite || slot.status === 'reservado'
+          ? 'reservada'
+          : 'livre'
       const equipe = equipeId ? equipesMap.get(equipeId) || null : null
       const line = lineId ? linesMap.get(lineId) || null : null
       const campeonatoEquipe = participation
@@ -297,18 +344,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         line_tag: display?.line_tag || null,
         equipe_nome: display?.equipe_nome || null,
         campeonato_equipe: campeonatoEquipe,
-        convite: convite
-          ? {
-              id: convite.id,
-              token: convite.token,
-              expira_em: convite.expira_em,
-              status: convite.status,
-              usado: convite.usado,
-              nome_equipe_reservada: convite.nome_equipe_reservada,
-              nome_line_reservada: convite.nome_line_reservada,
-              slot_id: convite.slot_id || slot.id,
-            }
-          : null,
+        convite: mapConviteResumo(convite, slot.id),
       }
     })
 
@@ -346,6 +382,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       permission: permissionPublicPayload(permission),
       capacidade,
       vagas: [...slotsWithParticipations, ...orphanParticipations],
+      convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item)),
       modelo: {
         unidade_competitiva: 'line',
         pasta: 'equipe',

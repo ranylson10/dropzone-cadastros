@@ -26,6 +26,9 @@ export type ConviteResumo = {
   /** @deprecated use slot_id — mantido só se a API ainda devolver o campo em convites antigos */
   vaga_id?: string | null
   slot_id?: string | null
+  grupo_id?: string | null
+  /** slot = reserva fixa; grupo = convidado escolhe qualquer letra livre */
+  modo?: 'slot' | 'grupo' | null
 }
 
 export type CampeonatoVaga = {
@@ -77,6 +80,8 @@ export type CampeonatoCapacidade = {
 export type CampeonatoEquipesPayload = {
   campeonato: { id: string; nome: string; logo_url: string | null }
   vagas: CampeonatoVaga[]
+  /** Convites de grupo (sem slot fixo) — não aparecem em nenhum assento */
+  convites_grupo?: ConviteResumo[]
   capacidade?: CampeonatoCapacidade | null
   permission: {
     canView: boolean

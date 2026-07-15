@@ -45,6 +45,28 @@ function baseRow(row: any, entityType: string, extra: Partial<any> = {}) {
   }
 }
 
+/**
+ * Aceita ISO com fuso (preferido, convertido no browser) ou datetime-local.
+ * Rejeita validade no passado para não gravar link já expirado.
+ */
+function parseOptionalDateTime(
+  value: unknown,
+  options?: { fieldLabel?: string; requireFuture?: boolean },
+): string | null {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`${options?.fieldLabel || 'Data'} inválida.`)
+  }
+  if (options?.requireFuture && date.getTime() <= Date.now()) {
+    throw new Error(
+      `${options.fieldLabel || 'Data'} precisa ser no futuro. O link nasceria já expirado.`,
+    )
+  }
+  return date.toISOString()
+}
+
 const TABLE_BY_ENTITY: Record<string, string> = {
   championship: 'campeonatos',
   team: 'equipes',
@@ -346,11 +368,13 @@ async function saveLineupRule(data: Record<string, any>, createdByChampionshipId
     fase_id: data.fase_id || null,
     grupo_id: data.group_id || data.grupo_id || null,
     vagas_por_equipe: Number(data.vagas_por_equipe || 6),
-    abre_em: data.abre_em || null,
-    encerra_em: data.encerra_em || null,
+    abre_em: parseOptionalDateTime(data.abre_em, { fieldLabel: 'Data de abertura da escalação' }),
+    encerra_em: parseOptionalDateTime(data.encerra_em, { fieldLabel: 'Data de encerramento da escalação' }),
     permite_substituicao: Boolean(data.permite_substituicao),
     max_substituicoes_por_equipe: Number(data.max_substituicoes_por_equipe || 0),
-    substituicao_encerra_em: data.substituicao_encerra_em || null,
+    substituicao_encerra_em: parseOptionalDateTime(data.substituicao_encerra_em, {
+      fieldLabel: 'Prazo de substituição',
+    }),
     bloquear_convites_apos_encerramento: data.bloquear_convites_apos_encerramento !== false,
     status: 'ativo',
   }
@@ -1043,33 +1067,84 @@ export async function POST(req: NextRequest) {
       const grupoId = data.group_id || data.grupo_id
       await requireChampionshipOwner(campeonatoId, user.id, account.id)
       if (!grupoId) throw new Error('Grupo obrigatorio para gerar link de inscricao.')
-      const tipoLink = data.tipo === 'inscricao_equipes_grupo' ? 'inscricao_equipes_grupo' : 'inscricao'
-      const expectedTeams = Array.isArray(data.expected_teams)
-        ? data.expected_teams.map((name: unknown) => String(name || '').trim()).filter(Boolean)
-        : []
-      if (tipoLink === 'inscricao_equipes_grupo') {
-        const { data: group, error: groupError } = await supabaseAdmin.from('campeonato_grupos').select('slots').eq('id', grupoId).eq('campeonato_id', campeonatoId).single()
-        if (groupError) throw groupError
-        if (expectedTeams.length < 1) throw new Error('Informe as vagas esperadas do grupo.')
-        if (expectedTeams.length > Number(group.slots || 0)) throw new Error('A lista nao pode ter mais equipes que o numero de slots do grupo.')
+
+      // Só existe link de entrada de equipes por grupo (inscrição individual removida)
+      const tipoLink = 'inscricao_equipes_grupo'
+      const { data: group, error: groupError } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .select('slots,nome')
+        .eq('id', grupoId)
+        .eq('campeonato_id', campeonatoId)
+        .single()
+      if (groupError) throw groupError
+
+      const slotsGrupo = Math.max(1, Number(group.slots || 1))
+      const limiteRaw = Number(data.limite_vagas ?? data.vagas_link ?? data.quantidade_vagas)
+      if (!Number.isFinite(limiteRaw) || !Number.isInteger(limiteRaw) || limiteRaw < 1) {
+        throw new Error(`Informe quantas vagas este link aceita (1 a ${slotsGrupo}).`)
       }
-      await saveLineupRule({ ...data, grupo_id: grupoId }, campeonatoId)
+      if (limiteRaw > slotsGrupo) {
+        throw new Error(`O limite maximo deste grupo e ${slotsGrupo} vaga(s).`)
+      }
+      const limiteVagas = limiteRaw
+
+      // Conta slots livres reais no grupo — o link não pode vender mais do que cabe
+      const { count: livresCount, error: livresError } = await supabaseAdmin
+        .from('campeonato_slots')
+        .select('id', { count: 'exact', head: true })
+        .eq('campeonato_id', campeonatoId)
+        .eq('grupo_id', grupoId)
+        .is('line_id', null)
+        .is('equipe_id', null)
+      if (livresError) throw livresError
+      const livres = Number(livresCount || 0)
+      if (livres < 1) throw new Error('Este grupo nao tem slots livres para gerar link.')
+      if (limiteVagas > livres) {
+        throw new Error(`So restam ${livres} slot(s) livre(s) neste grupo. Reduza o limite do link.`)
+      }
+
+      const expiraEm = parseOptionalDateTime(data.expira_em || data.encerra_em, {
+        fieldLabel: 'Data de encerramento do link',
+        requireFuture: true,
+      })
+      const meta = {
+        limite_vagas: limiteVagas,
+        usos: 0,
+        expected_teams: [] as string[],
+        entradas: [] as Array<{
+          participacao_id: string
+          equipe_id: string | null
+          equipe_nome: string | null
+          line_id: string | null
+          line_nome: string | null
+          slot_id: string | null
+          slot_letra: string | null
+          slot_numero: number | null
+          entrou_em: string
+        }>,
+      }
+      const titulo =
+        body.name
+        || data.titulo
+        || (limiteVagas === 1
+          ? `Entrada de 1 equipe · ${group.nome || 'grupo'}`
+          : `Entrada de ${limiteVagas} equipes · ${group.nome || 'grupo'}`)
       const linkPayload: Record<string, unknown> = {
         campeonato_id: campeonatoId,
         fase_id: data.fase_id || null,
         grupo_id: grupoId,
-        token: body.generate_token ? randomToken(tipoLink === 'inscricao_equipes_grupo' ? 'EQS' : 'INSC') : body.token,
+        token: body.generate_token ? randomToken('EQS') : body.token,
         tipo: tipoLink,
-        titulo: body.name || data.titulo || (tipoLink === 'inscricao_equipes_grupo' ? 'Entrada de equipes' : 'Inscricao de jogadores'),
-        descricao: tipoLink === 'inscricao_equipes_grupo' ? encodeLinkDescricao(expectedTeams, data.descricao) : (data.descricao || null),
+        titulo,
+        descricao: encodeLinkDescricao(meta, data.descricao),
         ativo: data.ativo !== false,
         acompanhamento_publico: data.acompanhamento_publico !== false,
         criado_por: user.id,
-        expira_em: data.expira_em || data.encerra_em || null,
+        expira_em: expiraEm,
       }
       let { data: inserted, error } = await supabaseAdmin.from('campeonato_links').insert({
         ...linkPayload,
-        metadata: tipoLink === 'inscricao_equipes_grupo' ? { expected_teams: expectedTeams } : {},
+        metadata: meta,
       }).select('*').single()
       if (error && isMissingMetadataColumn(error)) {
         const retry = await supabaseAdmin.from('campeonato_links').insert(linkPayload).select('*').single()
@@ -1285,23 +1360,37 @@ export async function PATCH(req: NextRequest) {
       await requireChampionshipOwner(current.campeonato_id, user.id, account.id)
       const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
       if (data.ativo !== undefined) patch.ativo = Boolean(data.ativo)
-      if (data.expira_em !== undefined || data.encerra_em !== undefined) patch.expira_em = data.expira_em || data.encerra_em || null
+      if (data.expira_em !== undefined || data.encerra_em !== undefined) {
+        patch.expira_em = parseOptionalDateTime(data.expira_em || data.encerra_em, {
+          fieldLabel: 'Data de encerramento do link',
+          requireFuture: Boolean(data.expira_em || data.encerra_em),
+        })
+      }
       if (data.regenerate_token) {
         patch.token = randomToken(current.tipo === 'inscricao_equipes_grupo' ? 'EQS' : 'INSC')
       }
-      if (data.expected_teams !== undefined) {
-        const expectedTeams = normalizeExpectedTeams(data.expected_teams)
-        patch.descricao = encodeLinkDescricao(expectedTeams, data.descricao ?? current.descricao)
-      } else if (data.descricao !== undefined) {
-        patch.descricao = data.descricao || null
+      const currentMeta = parseLinkMetadata(current)
+      if (data.limite_vagas !== undefined || data.expected_teams !== undefined || data.descricao !== undefined) {
+        const limiteNext =
+          data.limite_vagas !== undefined
+            ? Math.max(1, Number(data.limite_vagas) || 1)
+            : currentMeta.limite_vagas
+        const metaNext = {
+          limite_vagas: limiteNext,
+          usos: currentMeta.usos,
+          expected_teams:
+            data.expected_teams !== undefined
+              ? normalizeExpectedTeams(data.expected_teams)
+              : currentMeta.expected_teams,
+        }
+        patch.descricao = encodeLinkDescricao(metaNext, data.descricao ?? current.descricao)
+        patch.metadata = metaNext
       }
 
-      let { data: updated, error } = await supabaseAdmin.from('campeonato_links').update({
-        ...patch,
-        ...(data.expected_teams !== undefined ? { metadata: { expected_teams: normalizeExpectedTeams(data.expected_teams) } } : {}),
-      }).eq('id', id).select('*').single()
+      let { data: updated, error } = await supabaseAdmin.from('campeonato_links').update(patch).eq('id', id).select('*').single()
       if (error && isMissingMetadataColumn(error)) {
-        const retry = await supabaseAdmin.from('campeonato_links').update(patch).eq('id', id).select('*').single()
+        const { metadata: _meta, ...withoutMeta } = patch
+        const retry = await supabaseAdmin.from('campeonato_links').update(withoutMeta).eq('id', id).select('*').single()
         updated = retry.data
         error = retry.error
       }
