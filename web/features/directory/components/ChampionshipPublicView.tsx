@@ -6,30 +6,70 @@ import {
   Flag,
   Gamepad2,
   Info,
-  Layers,
   Users,
   UserCircle2,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ReportButton } from '@/features/reports/ReportButton'
-import type { DirectoryProfile } from '../types'
-import { DirectoryProfileTabs, StructureTree, renderSectionItems } from './DirectoryProfileTabs'
+import type { DirectoryProfile, DirectorySectionItem } from '../types'
+import {
+  DirectoryProfileTabs,
+  SlotVagaRow,
+  StructureTree,
+  renderSectionItems,
+} from './DirectoryProfileTabs'
 
-type TabId = 'info' | 'equipes' | 'jogadores' | 'grupos' | 'jogos' | 'estatisticas'
+type TabId = 'info' | 'equipes' | 'jogadores' | 'jogos' | 'estatisticas'
+type EquipesFilterMode = 'geral' | 'fase' | 'grupo'
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Info }> = [
   { id: 'info', label: 'Informações', icon: Info },
   { id: 'equipes', label: 'Equipes', icon: Users },
   { id: 'jogadores', label: 'Jogadores', icon: UserCircle2 },
-  { id: 'grupos', label: 'Grupos', icon: Layers },
   { id: 'jogos', label: 'Jogos', icon: Gamepad2 },
   { id: 'estatisticas', label: 'Estatísticas', icon: BarChart3 },
 ]
+
+type FlatSlot = DirectorySectionItem & {
+  phaseId: string
+  phaseTitle: string
+  groupId: string
+  groupTitle: string
+}
 
 function findSection(profile: DirectoryProfile, ...titles: string[]) {
   return profile.sections.find((section) =>
     titles.some((title) => section.title.toLowerCase() === title.toLowerCase()),
   )
+}
+
+/** Achata fase → grupo → slot para lista com filtros. */
+function flattenStructure(section?: DirectoryProfile['sections'][number]) {
+  const slots: FlatSlot[] = []
+  const phases: Array<{ id: string; title: string }> = []
+  const groups: Array<{ id: string; title: string; phaseId: string }> = []
+
+  if (!section?.items?.length) return { slots, phases, groups }
+
+  for (const phase of section.items) {
+    phases.push({ id: phase.id, title: phase.title })
+    for (const group of phase.children || []) {
+      groups.push({ id: group.id, title: group.title, phaseId: phase.id })
+      for (const slot of group.children || []) {
+        slots.push({
+          ...slot,
+          phaseId: phase.id,
+          phaseTitle: phase.title,
+          groupId: group.id,
+          groupTitle: group.title,
+          // detalhe legível no padrão Equipes
+          subtitle: slot.subtitle || [group.title, phase.title].filter(Boolean).join(' · '),
+        })
+      }
+    }
+  }
+
+  return { slots, phases, groups }
 }
 
 export function ChampionshipPublicView({
@@ -39,11 +79,14 @@ export function ChampionshipPublicView({
   profile: DirectoryProfile
   kindLabel?: string
 }) {
-  const [tab, setTab] = useState<TabId>('grupos')
+  const [tab, setTab] = useState<TabId>('equipes')
+  const [equipesMode, setEquipesMode] = useState<EquipesFilterMode>('geral')
+  const [faseId, setFaseId] = useState('')
+  const [grupoId, setGrupoId] = useState('')
 
   const sectionMap = useMemo(
     () => ({
-      equipes: findSection(profile, 'Equipes participantes'),
+      equipesList: findSection(profile, 'Equipes participantes'),
       jogadores: findSection(profile, 'MVP'),
       grupos: findSection(profile, 'Fases e grupos'),
       jogos: findSection(profile, 'Jogos'),
@@ -53,11 +96,32 @@ export function ChampionshipPublicView({
     [profile],
   )
 
+  const structure = useMemo(() => flattenStructure(sectionMap.grupos), [sectionMap.grupos])
+
+  const filteredSlots = useMemo(() => {
+    let list = structure.slots
+    if (equipesMode === 'fase' && faseId) {
+      list = list.filter((slot) => slot.phaseId === faseId)
+    }
+    if (equipesMode === 'grupo' && grupoId) {
+      list = list.filter((slot) => slot.groupId === grupoId)
+    }
+    return list
+  }, [structure.slots, equipesMode, faseId, grupoId])
+
+  const groupsForFase = useMemo(() => {
+    if (equipesMode === 'fase' && faseId) {
+      return structure.groups.filter((group) => group.phaseId === faseId)
+    }
+    return structure.groups
+  }, [structure.groups, equipesMode, faseId])
+
+  const occupiedCount = structure.slots.filter((slot) => slot.status === 'ocupada').length
+
   const counts: Record<TabId, number> = {
     info: profile.details.length,
-    equipes: sectionMap.equipes?.items.length || 0,
+    equipes: occupiedCount || structure.slots.length,
     jogadores: sectionMap.jogadores?.items.length || 0,
-    grupos: sectionMap.grupos?.items.length || 0,
     jogos: sectionMap.jogos?.items.length || 0,
     estatisticas: sectionMap.estatisticas?.items.length || 0,
   }
@@ -84,7 +148,7 @@ export function ChampionshipPublicView({
             </div>
           </div>
 
-          <nav className="champ-public-nav" aria-label="Seções do campeonato">
+          <nav className="champ-public-nav champ-public-nav-5" aria-label="Seções do campeonato">
             {TABS.map((item) => {
               const Icon = item.icon
               const active = tab === item.id
@@ -130,13 +194,94 @@ export function ChampionshipPublicView({
         ) : null}
 
         {tab === 'equipes' ? (
-          <SectionPanel
-            title="Equipes"
-            subtitle="Lines inscritas no campeonato"
-            icon={<Users size={16} />}
-            empty="Nenhuma equipe inscrita ainda."
-            section={sectionMap.equipes}
-          />
+          <section className="champ-public-section">
+            <header className="champ-public-panel-head">
+              <Users size={16} />
+              <div>
+                <strong>Equipes</strong>
+                <small>
+                  {occupiedCount}/{structure.slots.length || 0} slots preenchidos
+                </small>
+              </div>
+            </header>
+
+            {/* Filtros: Geral · Fases · Grupos */}
+            <div className="champ-equipes-filters" role="tablist" aria-label="Filtro de equipes">
+              <button
+                type="button"
+                className={equipesMode === 'geral' ? 'active' : ''}
+                onClick={() => {
+                  setEquipesMode('geral')
+                  setFaseId('')
+                  setGrupoId('')
+                }}
+              >
+                Geral
+              </button>
+              <button
+                type="button"
+                className={equipesMode === 'fase' ? 'active' : ''}
+                onClick={() => {
+                  setEquipesMode('fase')
+                  setGrupoId('')
+                  if (!faseId && structure.phases[0]) setFaseId(structure.phases[0].id)
+                }}
+              >
+                Fases
+              </button>
+              <button
+                type="button"
+                className={equipesMode === 'grupo' ? 'active' : ''}
+                onClick={() => {
+                  setEquipesMode('grupo')
+                  setFaseId('')
+                  if (!grupoId && structure.groups[0]) setGrupoId(structure.groups[0].id)
+                }}
+              >
+                Grupos
+              </button>
+            </div>
+
+            {equipesMode === 'fase' && structure.phases.length > 0 ? (
+              <div className="champ-equipes-chips" aria-label="Escolher fase">
+                {structure.phases.map((phase) => (
+                  <button
+                    key={phase.id}
+                    type="button"
+                    className={faseId === phase.id ? 'active' : ''}
+                    onClick={() => setFaseId(phase.id)}
+                  >
+                    {phase.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {equipesMode === 'grupo' && groupsForFase.length > 0 ? (
+              <div className="champ-equipes-chips" aria-label="Escolher grupo">
+                {groupsForFase.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    className={grupoId === group.id ? 'active' : ''}
+                    onClick={() => setGrupoId(group.id)}
+                  >
+                    {group.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {filteredSlots.length === 0 ? (
+              <div className="directory-empty compact">Nenhum slot neste filtro.</div>
+            ) : (
+              <div className="championship-vagas-list directory-public-slots champ-equipes-list">
+                {filteredSlots.map((slot) => (
+                  <SlotVagaRow key={slot.id} item={slot} />
+                ))}
+              </div>
+            )}
+          </section>
         ) : null}
 
         {tab === 'jogadores' ? (
@@ -146,16 +291,6 @@ export function ChampionshipPublicView({
             icon={<UserCircle2 size={16} />}
             empty="Nenhum jogador listado ainda."
             section={sectionMap.jogadores}
-          />
-        ) : null}
-
-        {tab === 'grupos' ? (
-          <SectionPanel
-            title="Grupos"
-            subtitle="Fases, grupos e slots"
-            icon={<Layers size={16} />}
-            empty="Nenhuma fase ou grupo cadastrado."
-            section={sectionMap.grupos}
           />
         ) : null}
 
@@ -191,7 +326,6 @@ export function ChampionshipPublicView({
         ) : null}
       </div>
 
-      {/* Desktop: mantém abas completas em telas largas via CSS; mobile usa só nav de cima */}
       <div className="champ-public-desktop-tabs">
         <DirectoryProfileTabs sections={profile.sections} />
       </div>

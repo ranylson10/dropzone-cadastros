@@ -5058,3 +5058,64 @@ button.invite-slot-button.free.clickable b {
   .champ-public-info-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .champ-public-desktop-tabs{display:none}
 }
+
+/* Filtros da aba Equipes (mobile campeonato público) */
+.champ-public-nav-5{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+@media(min-width:420px){
+  .champ-public-nav-5{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+.champ-equipes-filters{
+  display:flex;
+  gap:6px;
+  margin:0 0 10px;
+  padding:4px;
+  border:1px solid #e4e7ec;
+  border-radius:10px;
+  background:#f4f5f7;
+}
+.champ-equipes-filters button{
+  flex:1;
+  min-height:36px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:#5f6673;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  cursor:pointer;
+}
+.champ-equipes-filters button.active{
+  background:#fff;
+  color:#111827;
+  box-shadow:0 2px 8px rgba(16,24,40,.08);
+}
+.champ-equipes-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin:0 0 12px;
+}
+.champ-equipes-chips button{
+  min-height:32px;
+  padding:0 12px;
+  border:1px solid #e1e4e8;
+  border-radius:99px;
+  background:#fff;
+  color:#475467;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+.champ-equipes-chips button.active{
+  border-color:#ff4655;
+  background:#fff5f6;
+  color:#c41e2a;
+}
+.champ-equipes-list{
+  border-radius:8px;
+  overflow:hidden;
+}

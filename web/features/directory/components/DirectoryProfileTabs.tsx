@@ -5,7 +5,7 @@ import { useState } from 'react'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 
 /** Slot no padrão da aba Equipes (SLOT + avatar + nome + detalhe). */
-function SlotVagaRow({ item }: { item: DirectorySectionItem }) {
+export function SlotVagaRow({ item }: { item: DirectorySectionItem }) {
   const status = item.status === 'ocupada' ? 'ocupada' : item.status === 'reservada' ? 'reservada' : 'livre'
   const letter = item.badge || '?'
 
