@@ -48,6 +48,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
   const [nomeLine, setNomeLine] = useState('')
   const [referenciaEquipe, setReferenciaEquipe] = useState('')
   const [referenciaLine, setReferenciaLine] = useState('')
+  /** Convite: por padrão o convidado escolhe qualquer slot livre do grupo. */
+  const [fixarSlot, setFixarSlot] = useState(false)
   const [processando, setProcessando] = useState(false)
   const [feedback, setFeedback] = useState('')
 
@@ -77,12 +79,14 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     setNomeLine('')
     setReferenciaEquipe('')
     setReferenciaLine('')
+    setFixarSlot(false)
     setFeedback('')
   }
 
   function abrirModal(vaga: CampeonatoVaga, proximoModo: 'adicionar' | 'convite') {
     setVagaAlvo(vaga)
     setModo(proximoModo)
+    setFixarSlot(false)
     setFeedback('')
   }
 
@@ -122,18 +126,46 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
 
   async function criarConvite() {
     if (!vagaAlvo) return
+    if (!referenciaEquipe.trim() || !referenciaLine.trim()) {
+      setFeedback('Preencha as referências da reserva e da line.')
+      return
+    }
     setProcessando(true)
     setFeedback('')
     try {
-      const result = await campeonatoEquipesService.criarConvite(campeonatoId, {
-        vaga_id: vagaAlvo.id,
-        referencia_equipe: referenciaEquipe,
-        referencia_line: referenciaLine,
-      }) as { link: string }
+      // Padrão: convite de GRUPO (convidado escolhe letra). Opcional: fixar este slot.
+      const body = fixarSlot
+        ? {
+            slot_id: vagaAlvo.id,
+            vaga_id: vagaAlvo.id,
+            fixar_slot: true,
+            referencia_equipe: referenciaEquipe,
+            referencia_line: referenciaLine,
+          }
+        : {
+            grupo_id: vagaAlvo.grupo_id || vagaAlvo.grupo?.id || null,
+            fixar_slot: false,
+            referencia_equipe: referenciaEquipe,
+            referencia_line: referenciaLine,
+          }
+      if (!fixarSlot && !body.grupo_id) {
+        // Sem grupo na vaga: cai no slot fixo
+        body.slot_id = vagaAlvo.id
+        body.vaga_id = vagaAlvo.id
+        body.fixar_slot = true
+      }
+      const result = await campeonatoEquipesService.criarConvite(campeonatoId, body) as {
+        link: string
+        modo?: string
+      }
       await navigator.clipboard.writeText(result.link)
-      setFeedback('Convite criado e link copiado.')
+      setFeedback(
+        result.modo === 'grupo'
+          ? 'Convite de grupo criado e link copiado. O convidado escolhe o slot livre.'
+          : 'Convite do slot criado e link copiado.',
+      )
       await reload()
-      setTimeout(fechar, 900)
+      setTimeout(fechar, 1200)
     } catch (err) {
       setFeedback(err instanceof Error ? err.message : 'Erro ao criar convite.')
     } finally {
@@ -403,8 +435,16 @@ Acesse: ${link}`
 
       <SystemModal
         open={Boolean(vagaAlvo && modo)}
-        title={modo === 'adicionar' ? `Adicionar line ao slot ${vagaAlvo?.slot_letra || vagaAlvo?.numero_vaga}` : `Reservar slot ${vagaAlvo?.slot_letra || vagaAlvo?.numero_vaga} por convite`}
-        description={modo === 'adicionar' ? 'A equipe é só a pasta. Pesquise a equipe, escolha uma line livre ou crie uma nova (herda logo da equipe).' : 'Referências internas para o admin. Quem receber o link confirma com a equipe/line reais.'}
+        title={
+          modo === 'adicionar'
+            ? `Adicionar line ao slot ${vagaAlvo?.slot_letra || vagaAlvo?.numero_vaga}`
+            : `Convite · ${vagaAlvo?.grupo?.nome || 'grupo'} · slot ${vagaAlvo?.slot_letra || vagaAlvo?.numero_vaga}`
+        }
+        description={
+          modo === 'adicionar'
+            ? 'A equipe é só a pasta. Pesquise a equipe, escolha uma line livre ou crie uma nova (herda logo da equipe).'
+            : 'Quem receber o link entra no campeonato e escolhe o slot no grupo (ou o slot fixo, se você travar).'
+        }
         onClose={fechar}
         size="wide"
       >
@@ -481,8 +521,39 @@ Acesse: ${link}`
             <>
               <div className="invite-reference-note">
                 <Shield size={17} />
-                <p>Esses dados servem somente para organização interna. Quem receber o link poderá confirmar com a equipe e a line reais da própria conta.</p>
+                <p>
+                  Grupo: <strong>{vagaAlvo?.grupo?.nome || '—'}</strong>
+                  {vagaAlvo?.fase?.nome ? ` · ${vagaAlvo.fase.nome}` : ''}. Referências são só internas; o convidado confirma line real da conta.
+                </p>
               </div>
+
+              <div className="invite-scope-options" role="radiogroup" aria-label="Escopo do convite">
+                <label className={`invite-scope-card ${!fixarSlot ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="escopo-convite"
+                    checked={!fixarSlot}
+                    onChange={() => setFixarSlot(false)}
+                  />
+                  <span>
+                    <strong>Qualquer slot livre do grupo</strong>
+                    <small>Tela igual ao link de grupo: o convidado escolhe a letra e já entra no assento.</small>
+                  </span>
+                </label>
+                <label className={`invite-scope-card ${fixarSlot ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="escopo-convite"
+                    checked={fixarSlot}
+                    onChange={() => setFixarSlot(true)}
+                  />
+                  <span>
+                    <strong>Só o slot {vagaAlvo?.slot_letra || vagaAlvo?.numero_vaga}</strong>
+                    <small>Reserva fixa nesta letra (como antes).</small>
+                  </span>
+                </label>
+              </div>
+
               <label className="field">
                 <span>Identificação da reserva</span>
                 <input value={referenciaEquipe} onChange={(event) => setReferenciaEquipe(event.target.value)} placeholder="Ex.: Vaga do Lucas" />
@@ -499,7 +570,11 @@ Acesse: ${link}`
             <button className="button secondary" onClick={fechar}>Cancelar</button>
             <button className="button" onClick={modo === 'adicionar' ? adicionar : criarConvite} disabled={processando}>
               {processando ? <Loader2 className="spin" size={15} /> : null}
-              {modo === 'adicionar' ? 'Adicionar line no slot' : 'Gerar e copiar convite'}
+              {modo === 'adicionar'
+                ? 'Adicionar line no slot'
+                : fixarSlot
+                  ? 'Gerar convite deste slot'
+                  : 'Gerar convite do grupo'}
             </button>
           </div>
         </div>

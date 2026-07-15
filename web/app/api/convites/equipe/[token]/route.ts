@@ -10,6 +10,58 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 const TOKEN_SELECT =
   'id,token,tipo,status,usado,expira_em,campeonato_id,grupo_id,fase_id,slot_id,vaga_id,nome_equipe_reservada,nome_line_reservada,equipe_id,line_destino_id'
 
+async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
+  const { data: rows, error } = await supabaseAdmin
+    .from('vw_campeonato_slots_lines')
+    .select(
+      'slot_id,slot_numero,slot_letra,status_ui,line_id,equipe_id,line_nome,line_logo_url,equipe_nome,nome_exibicao,participacao_id',
+    )
+    .eq('campeonato_id', campeonatoId)
+    .eq('grupo_id', grupoId)
+    .order('slot_numero', { ascending: true })
+
+  if (!error && rows) {
+    return rows.map((row: any, index: number) => {
+      const ocupada = String(row.status_ui || '') === 'ocupada' || Boolean(row.participacao_id || row.line_id)
+      const letra = String(row.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
+      return {
+        index,
+        slot_id: row.slot_id,
+        slot_numero: row.slot_numero ?? index + 1,
+        slot_letra: letra,
+        ocupada,
+        equipe_nome: row.equipe_nome || null,
+        line_nome: row.line_nome || row.nome_exibicao || null,
+        logo_url: row.line_logo_url || null,
+      }
+    })
+  }
+
+  // Fallback sem view
+  const { data: slots, error: slotsError } = await supabaseAdmin
+    .from('campeonato_slots')
+    .select('id,slot_numero,slot_letra,equipe_id,line_id')
+    .eq('campeonato_id', campeonatoId)
+    .eq('grupo_id', grupoId)
+    .order('slot_numero', { ascending: true })
+  if (slotsError) throw slotsError
+
+  return (slots || []).map((slot: any, index: number) => {
+    const ocupada = Boolean(slot.equipe_id || slot.line_id)
+    const letra = String(slot.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
+    return {
+      index,
+      slot_id: slot.id,
+      slot_numero: slot.slot_numero || index + 1,
+      slot_letra: letra,
+      ocupada,
+      equipe_nome: null,
+      line_nome: null,
+      logo_url: null,
+    }
+  })
+}
+
 async function carregar(token: string) {
   const clean = decodeURIComponent(String(token || '').trim())
   const { data: convite, error } = await supabaseAdmin
@@ -21,7 +73,6 @@ async function carregar(token: string) {
   if (error) throw error
   if (!convite) throw new Error('Convite não encontrado.')
 
-  // Campeonato + slot (se houver) em paralelo
   const [campRes, slotRes] = await Promise.all([
     supabaseAdmin
       .from('campeonatos')
@@ -41,19 +92,22 @@ async function carregar(token: string) {
 
   const slot = slotRes.data
   const grupoId = slot?.grupo_id || convite.grupo_id || null
+  const modoGrupo = Boolean(grupoId && !convite.slot_id)
 
-  // Grupo e vaga legada só se precisarem
-  const [grupoRes, vagaRes] = await Promise.all([
+  const [grupoRes, vagaRes, vagas] = await Promise.all([
     grupoId
       ? supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id').eq('id', grupoId).maybeSingle()
       : Promise.resolve({ data: null as any, error: null }),
-    !slot && convite.vaga_id
+    !slot && !modoGrupo && convite.vaga_id
       ? supabaseAdmin
           .from('campeonato_vagas')
           .select('id,status,numero_vaga,reservada_por_token_id,campeonato_id')
           .eq('id', convite.vaga_id)
           .maybeSingle()
       : Promise.resolve({ data: null as any, error: null }),
+    modoGrupo && grupoId
+      ? loadGrupoVagas(convite.campeonato_id, grupoId)
+      : Promise.resolve([] as any[]),
   ])
   if (grupoRes.error) throw grupoRes.error
   if (vagaRes.error) throw vagaRes.error
@@ -64,6 +118,8 @@ async function carregar(token: string) {
     slot,
     grupo: grupoRes.data,
     vaga: vagaRes.data,
+    vagas,
+    modoGrupo,
   }
 }
 
@@ -128,9 +184,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
     const validoBase = conviteAindaValido(data.convite)
 
     let valido = validoBase
+    let assento: 'slot' | 'grupo' | 'vaga_legado' | null = null
+
     if (data.slot) {
+      assento = 'slot'
       valido = valido && !data.slot.equipe_id && !data.slot.line_id
+    } else if (data.modoGrupo) {
+      assento = 'grupo'
+      const livres = (data.vagas || []).filter((v: any) => !v.ocupada).length
+      valido = valido && livres > 0
     } else if (data.vaga) {
+      assento = 'vaga_legado'
       valido = valido && data.vaga.status === 'reservada'
     } else {
       valido = false
@@ -146,6 +210,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
         status: data.convite.status,
         usado: data.convite.usado,
         slot_id: data.convite.slot_id || null,
+        grupo_id: data.convite.grupo_id || data.grupo?.id || null,
       },
       campeonato: data.campeonato,
       slot: data.slot
@@ -157,14 +222,20 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
           }
         : null,
       grupo: data.grupo,
+      vagas: data.vagas || [],
+      resumo_grupo: data.modoGrupo
+        ? {
+            total: data.vagas.length,
+            ocupadas: data.vagas.filter((v: any) => v.ocupada).length,
+            livres: data.vagas.filter((v: any) => !v.ocupada).length,
+          }
+        : null,
       vaga: data.slot
         ? { numero_vaga: data.slot.slot_numero, letra: data.slot.slot_letra }
         : data.vaga
           ? { numero_vaga: data.vaga.numero_vaga }
           : null,
-      modelo: {
-        assento: data.slot ? 'slot' : data.vaga ? 'vaga_legado' : null,
-      },
+      modelo: { assento },
       ...sessao,
       valido,
     })
@@ -186,7 +257,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (!account) throw new Error('Este login ainda não possui um perfil de equipe vinculado.')
 
     const body = await req.json().catch(() => ({}))
-    const { convite, slot, vaga } = await carregar(token)
+    const { convite, slot: slotFixo, vaga, modoGrupo, grupo } = await carregar(token)
 
     if (!conviteAindaValido(convite)) {
       throw new Error('Este convite expirou ou já foi utilizado.')
@@ -202,12 +273,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     })
 
     let participacao: any
+    let slotUsado: any = slotFixo
 
-    if (slot) {
-      if (slot.equipe_id || slot.line_id) throw new Error('Este slot já foi ocupado. Peça um novo convite.')
+    if (slotFixo) {
+      if (slotFixo.equipe_id || slotFixo.line_id) throw new Error('Este slot já foi ocupado. Peça um novo convite.')
       participacao = await inserirParticipacaoNoSlot({
         campeonatoId: convite.campeonato_id,
-        slotId: slot.id,
+        slotId: slotFixo.id,
         lineId: resolved.id,
         equipeId: account.id,
         nomeExibicao: resolved.nome,
@@ -216,8 +288,36 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         vagaId: convite.vaga_id || null,
       })
       participacaoId = participacao.id
+    } else if (modoGrupo) {
+      const slotIdEscolhido = String(body.slot_id || '').trim()
+      if (!slotIdEscolhido) throw new Error('Escolha um slot livre do grupo para entrar.')
+
+      const { data: slotEscolhido, error: slotError } = await supabaseAdmin
+        .from('campeonato_slots')
+        .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
+        .eq('id', slotIdEscolhido)
+        .eq('campeonato_id', convite.campeonato_id)
+        .eq('grupo_id', convite.grupo_id)
+        .maybeSingle()
+      if (slotError) throw slotError
+      if (!slotEscolhido) throw new Error('Slot não pertence a este grupo do convite.')
+      if (slotEscolhido.equipe_id || slotEscolhido.line_id) {
+        throw new Error('Esse slot já foi preenchido. Escolha outra letra.')
+      }
+
+      participacao = await inserirParticipacaoNoSlot({
+        campeonatoId: convite.campeonato_id,
+        slotId: slotEscolhido.id,
+        lineId: resolved.id,
+        equipeId: account.id,
+        nomeExibicao: resolved.nome,
+        origem: 'convite',
+        criadoPor: user.id,
+        vagaId: convite.vaga_id || null,
+      })
+      participacaoId = participacao.id
+      slotUsado = slotEscolhido
     } else if (vaga) {
-      // Legado: tokens antigos sem slot_id
       if (vaga.status !== 'reservada' || vaga.reservada_por_token_id !== convite.id) {
         throw new Error('A vaga não está mais reservada para este convite.')
       }
@@ -257,10 +357,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         throw new Error('A vaga foi alterada por outra operação. Atualize o convite e tente novamente.')
       }
     } else {
-      throw new Error('Este convite não está vinculado a um slot nem a uma vaga válida.')
+      throw new Error('Este convite não está vinculado a um slot, grupo ou vaga válida.')
     }
 
-    // Marca token usado (e falha se já foi usado em corrida)
     const { data: tokenUsed, error: tokenError } = await supabaseAdmin
       .from('tokens')
       .update({
@@ -269,6 +368,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         status: 'usado',
         equipe_id: account.id,
         line_destino_id: resolved.id,
+        // grava o slot escolhido no token (modo grupo)
+        ...(slotUsado?.id ? { slot_id: slotUsado.id } : {}),
       })
       .eq('id', convite.id)
       .eq('usado', false)
@@ -276,7 +377,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .maybeSingle()
     if (tokenError) throw tokenError
     if (!tokenUsed) {
-      // Corrida: outra aceitação ganhou — desfaz a part
       await softRemoveParticipacao(participacao.id)
       participacaoId = null
       throw new Error('Este convite já foi utilizado. Atualize a página.')
@@ -287,7 +387,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       participacao,
       equipe: { id: account.id, nome: account.name },
       line: { id: resolved.id, nome: resolved.nome, criada_agora: resolved.criada_agora },
-      slot: slot ? { id: slot.id, letra: slot.slot_letra, numero: slot.slot_numero } : null,
+      grupo: grupo ? { id: grupo.id, nome: grupo.nome } : null,
+      slot: slotUsado
+        ? { id: slotUsado.id, letra: slotUsado.slot_letra, numero: slotUsado.slot_numero }
+        : null,
     })
   } catch (error) {
     if (participacaoId) {
