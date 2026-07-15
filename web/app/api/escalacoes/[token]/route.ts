@@ -21,12 +21,29 @@ async function loadLink(token: string) {
   return data
 }
 
+function mapJogadorProfile(account: any) {
+  if (!account) return null
+  const row = account.data || account
+  return {
+    id: account.id || row.id,
+    username: account.username || row.username || null,
+    nome: account.name || row.nome || row.nome_exibido || row.username || null,
+    avatar_url: row.avatar_url || row.foto_url || null,
+    id_jogo: row.id_jogo || null,
+    funcao: row.funcao || null,
+  }
+}
+
 async function optionalPlayer(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const accounts = await getAccountsForUser(user)
-    const account = accounts.find((item) => item.profile_type === 'jogador')
-    return { autenticado: true, jogador: account?.data || null }
+    const account = accounts.find((item) => item.profile_type === 'jogador') || null
+    return {
+      autenticado: true,
+      // null = logado sem perfil de jogo → UI manda pro formulário de criação
+      jogador: mapJogadorProfile(account),
+    }
   } catch {
     return { autenticado: false, jogador: null }
   }

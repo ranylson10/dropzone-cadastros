@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Check, CheckCircle2, Clock, Shield, UserRound, Users } from 'lucide-react'
+import { CalendarDays, Check, CheckCircle2, Clock, Shield, UserRound, Users, X } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
@@ -50,24 +50,37 @@ type ScalePayload = {
   jogadores?: Player[]
 }
 
+const GUEST_KEY = 'dropzone_escala_guest'
+
 export default function EscalaPublicaPage() {
   const params = useParams<{ token: string }>()
   const token = String(params?.token || '').trim()
+  const returnTo = `/escala/${encodeURIComponent(token)}`
+
   const [data, setData] = useState<ScalePayload | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
+  const [gate, setGate] = useState(true)
+  const [guest, setGuest] = useState(false)
 
   async function load() {
     setLoading(true)
     setError('')
     try {
       const { data: sessionData } = await supabase.auth.getSession()
+      const hasSession = Boolean(sessionData.session)
+      const isGuest = sessionStorage.getItem(`${GUEST_KEY}:${token}`) === '1'
+      setGuest(isGuest && !hasSession)
+      // Gate: sem login e sem visitante → pede tipo de login (padrão do sistema)
+      setGate(!hasSession && !isGuest)
+
       const response = await fetch(`/api/escalacoes/${encodeURIComponent(token)}`, {
         headers: sessionData.session
           ? { Authorization: `Bearer ${sessionData.session.access_token}` }
           : undefined,
+        cache: 'no-store',
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || 'Erro ao carregar escalação.')
@@ -83,6 +96,21 @@ export default function EscalaPublicaPage() {
     if (token) void load()
   }, [token])
 
+  // Logado sem perfil de jogador → formulário de criação (padrão do sistema)
+  useEffect(() => {
+    if (loading || !data) return
+    if (data.error) return
+    if (!data.autenticado) return
+    if (data.jogador) return
+    window.location.replace(buildProfileCreationHref('jogador', returnTo))
+  }, [loading, data?.autenticado, data?.jogador, data?.error, returnTo, token])
+
+  function continueAsGuest() {
+    sessionStorage.setItem(`${GUEST_KEY}:${token}`, '1')
+    setGuest(true)
+    setGate(false)
+  }
+
   async function join() {
     setError('')
     setMessage('')
@@ -90,7 +118,14 @@ export default function EscalaPublicaPage() {
     try {
       const { data: session } = await supabase.auth.getSession()
       const accessToken = session.session?.access_token
-      if (!accessToken) throw new Error('Entre com uma conta de jogador para continuar.')
+      if (!accessToken) {
+        setGate(true)
+        throw new Error('Entre com uma conta de jogador para continuar.')
+      }
+      if (!data?.jogador) {
+        window.location.assign(buildProfileCreationHref('jogador', returnTo))
+        return
+      }
 
       const response = await fetch(`/api/escalacoes/${encodeURIComponent(token)}`, {
         method: 'POST',
@@ -135,90 +170,175 @@ export default function EscalaPublicaPage() {
     )
   }
 
+  // Redirecionando para criar perfil de jogador
+  if (data.autenticado && !data.jogador) {
+    return (
+      <main className="invite-page">
+        <div className="invite-card">
+          <UserRound size={42} />
+          <p className="eyebrow">Perfil de jogador</p>
+          <h1>Criando seu perfil de jogo...</h1>
+          <p>
+            Este convite de escalação exige um <strong>perfil de jogador</strong>. Abrindo o cadastro...
+          </p>
+          <a className="button invite-confirm" href={buildProfileCreationHref('jogador', returnTo)}>
+            Criar jogador agora
+          </a>
+          <a className="button secondary" href={buildLoginHref('jogador', returnTo, true)}>
+            Usar outro login
+          </a>
+        </div>
+      </main>
+    )
+  }
+
   return (
-    <main className="page public-page">
-      <div className="shell public-shell">
-        <section className="panel span-3 public-card scale-invite-card">
-          <div className="section-head">
-            <div>
-              <p className="eyebrow">Convite de escalação</p>
-              <h2>{data.campeonato_nome || 'Escalação'}</h2>
-              <span>{data.line_nome || ''}</span>
+    <>
+      <main className="page public-page">
+        <div className="shell public-shell">
+          <section className="panel span-3 public-card scale-invite-card">
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">Convite de escalação</p>
+                <h2>{data.campeonato_nome || 'Escalação'}</h2>
+                <span>
+                  {data.line_nome || ''}
+                  {guest ? ' · modo visitante' : ''}
+                </span>
+              </div>
+              <Shield />
             </div>
-            <Shield />
-          </div>
 
-          <div className="lineup-public-meta">
-            <span><Users size={16} /> {players.length}/{limit} jogadores</span>
-            <span><CalendarDays size={16} /> {data.data_jogo ? new Date(`${data.data_jogo}T00:00:00`).toLocaleDateString('pt-BR') : 'Data não definida'}</span>
-            <span><Clock size={16} /> {data.horario ? String(data.horario).slice(0, 5) : 'Horário não definido'}</span>
-          </div>
-
-          <div className="invite-details scale-context-details">
-            <span><strong>Fase</strong>{data.fase_nome || 'Não definida'}</span>
-            <span><strong>Grupo</strong>{data.grupo_nome || 'Não definido'}</span>
-            <span><strong>Slot da equipe</strong>{data.slot_equipe || '-'}</span>
-          </div>
-
-          <div className="lineup-slots public-lineup-slots">
-            {slots.map((player, index) => (
-              <div className={`lineup-slot ${player ? 'occupied' : ''}`} key={index}>
-                <b>{index + 1}</b>
-                {player ? (
-                  <>
-                    <img src={player.foto_url || '/favicon.ico'} alt="" />
-                    <div>
-                      <strong>{player.nick}</strong>
-                      <span>{player.funcao}{player.capitao ? ' · Capitão' : ''}</span>
-                    </div>
-                  </>
-                ) : <span>Disponível</span>}
-              </div>
-            ))}
-          </div>
-
-          {error ? <div className="message error">{error}</div> : null}
-          {message ? <div className="message">{message}</div> : null}
-
-          {data.ja_inscrito ? (
-            <div className="invite-team-confirmation scale-current-player">
-              <div className="invite-current-team">
-                <small>Você já está nesta escalação</small>
-                <strong>{data.jogador?.nome || data.jogador?.username || data.inscricao_atual?.nick}</strong>
-                <span>Slot {data.inscricao_atual?.slot_numero || '-'}</span>
-              </div>
-              <div className="invite-expired scale-confirmed-state">
-                <CheckCircle2 size={20} /> Acompanhe acima os jogadores já confirmados.
-              </div>
+            <div className="lineup-public-meta">
+              <span>
+                <Users size={16} /> {players.length}/{limit} jogadores
+              </span>
+              <span>
+                <CalendarDays size={16} />{' '}
+                {data.data_jogo
+                  ? new Date(`${data.data_jogo}T00:00:00`).toLocaleDateString('pt-BR')
+                  : 'Data não definida'}
+              </span>
+              <span>
+                <Clock size={16} /> {data.horario ? String(data.horario).slice(0, 5) : 'Horário não definido'}
+              </span>
             </div>
-          ) : data.autenticado ? (
-            data.jogador ? (
+
+            <div className="invite-details scale-context-details">
+              <span>
+                <strong>Fase</strong>
+                {data.fase_nome || 'Não definida'}
+              </span>
+              <span>
+                <strong>Grupo</strong>
+                {data.grupo_nome || 'Não definido'}
+              </span>
+              <span>
+                <strong>Slot da equipe</strong>
+                {data.slot_equipe || '-'}
+              </span>
+            </div>
+
+            <div className="lineup-slots public-lineup-slots">
+              {slots.map((player, index) => (
+                <div className={`lineup-slot ${player ? 'occupied' : ''}`} key={index}>
+                  <b>{index + 1}</b>
+                  {player ? (
+                    <>
+                      <img src={player.foto_url || '/favicon.ico'} alt="" />
+                      <div>
+                        <strong>{player.nick}</strong>
+                        <span>
+                          {player.funcao}
+                          {player.capitao ? ' · Capitão' : ''}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <span>Disponível</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {error ? <div className="message error">{error}</div> : null}
+            {message ? <div className="message">{message}</div> : null}
+
+            {data.ja_inscrito ? (
               <div className="invite-team-confirmation scale-current-player">
                 <div className="invite-current-team">
-                  <small>Inscrever com o perfil de jogador vinculado</small>
-                  <strong>{data.jogador.nome || data.jogador.username}</strong>
-                  <span>{data.jogador.id_jogo ? `ID: ${data.jogador.id_jogo}` : 'ID de jogo não informado'}</span>
+                  <small>Você já está nesta escalação</small>
+                  <strong>{data.jogador?.nome || data.jogador?.username || data.inscricao_atual?.nick}</strong>
+                  <span>Slot {data.inscricao_atual?.slot_numero || '-'}</span>
                 </div>
-                <button className="button invite-confirm" disabled={full || joining} onClick={join}>
-                  <Check size={16} /> {joining ? 'Confirmando...' : full ? 'Escalação completa' : `Inscrever como ${data.jogador.nome || data.jogador.username}`}
+                <div className="invite-expired scale-confirmed-state">
+                  <CheckCircle2 size={20} /> Acompanhe acima os jogadores já confirmados.
+                </div>
+              </div>
+            ) : data.autenticado && data.jogador ? (
+              <div className="invite-team-confirmation scale-current-player">
+                <div className="invite-current-team">
+                  <small>Inscrever com o perfil de jogador</small>
+                  <strong>{data.jogador.nome || data.jogador.username}</strong>
+                  <span>
+                    {data.jogador.id_jogo ? `ID: ${data.jogador.id_jogo}` : 'ID de jogo não informado'}
+                  </span>
+                </div>
+                <button className="button invite-confirm" disabled={full || joining} onClick={() => void join()}>
+                  <Check size={16} />{' '}
+                  {joining
+                    ? 'Confirmando...'
+                    : full
+                      ? 'Escalação completa'
+                      : `Inscrever como ${data.jogador.nome || data.jogador.username}`}
                 </button>
-                <a className="button secondary" href={buildLoginHref('jogador', `/escala/${encodeURIComponent(token)}`, true)}>Usar outro jogador</a>
+                <a className="button secondary" href={buildLoginHref('jogador', returnTo, true)}>
+                  Usar outro jogador
+                </a>
               </div>
-            ) : (
+            ) : guest || !data.autenticado ? (
               <div className="invite-auth-box">
-                <UserRound size={26} />
-                <p>Seu login está ativo, mas ainda não possui um perfil de jogador vinculado.</p>
-                <a className="button" href={buildProfileCreationHref('jogador', `/escala/${encodeURIComponent(token)}`)}>Criar jogador com meu login atual</a>
-                <a className="button secondary" href={buildLoginHref('jogador', `/escala/${encodeURIComponent(token)}`, true)}>Criar jogador com outro login</a>
+                <p>
+                  Você está no <strong>modo visitante</strong>: pode ver a escalação, mas para se inscrever precisa de
+                  um <strong>perfil de jogador</strong>.
+                </p>
+                <button className="button invite-confirm" type="button" onClick={() => setGate(true)}>
+                  Entrar com conta de jogador
+                </button>
               </div>
-            )
-          ) : (
-            <div className="invite-auth-actions">
-              <SocialLogin profileType="jogador" returnTo={`/escala/${encodeURIComponent(token)}`} />
-            </div>
-          )}
-        </section>
-      </div>
-    </main>
+            ) : null}
+          </section>
+        </div>
+      </main>
+
+      {gate ? (
+        <div className="vacancies-access-gate">
+          <section>
+            <button className="gate-close" type="button" onClick={continueAsGuest} aria-label="Fechar">
+              <X size={18} />
+            </button>
+            <img src="/dropzone-icon.png" alt="" />
+            <p className="eyebrow">Escalação da line</p>
+            <h2>Como deseja continuar?</h2>
+            <p>
+              Para entrar na escalação você precisa de um <strong>perfil de jogador</strong>. Entre com
+              Google/Facebook/Discord — se ainda não tiver jogador, o cadastro abre em seguida. Sem login você só
+              visualiza os slots.
+            </p>
+            <SocialLogin profileType="jogador" returnTo={returnTo} />
+            <button className="continue-guest" type="button" onClick={continueAsGuest}>
+              Continuar sem login
+            </button>
+            <a
+              className="button secondary"
+              href={buildLoginHref('jogador', returnTo)}
+              style={{ width: '100%', marginTop: 8, placeContent: 'center' }}
+            >
+              Entrar com login e senha
+            </a>
+          </section>
+        </div>
+      ) : null}
+    </>
   )
 }
