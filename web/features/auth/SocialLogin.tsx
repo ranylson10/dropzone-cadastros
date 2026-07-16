@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { Provider } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase-browser'
+import { getSupabasePublicConfig, supabase } from '@/lib/supabase-browser'
 import type { ProfileType } from '@/lib/types'
 import { safeInternalPath, type SocialProvider } from './auth-return'
 
@@ -26,6 +26,15 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
     setError('')
 
     try {
+      const config = getSupabasePublicConfig()
+      if (!config.ok) {
+        throw new Error(
+          'Login indisponível: configuração do Supabase ausente neste deploy. ' +
+            'No Vercel, defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY ' +
+            '(Production e Preview) e faça Redeploy.',
+        )
+      }
+
       if (profileType) localStorage.setItem('dropzone_active_profile_type', profileType)
       const normalizedReturnTo = safeInternalPath(returnTo)
       const callback = new URL('/login', window.location.origin)
@@ -47,7 +56,15 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
       })
       if (oauthError) throw oauthError
     } catch (cause: any) {
-      setError(cause?.message || `Não foi possível entrar com ${labels[provider].replace('Continuar com ', '')}.`)
+      const msg = String(cause?.message || '')
+      if (/placeholder\.supabase|127\.0\.0\.1:9|configuração do supabase|configuracao do supabase/i.test(msg)) {
+        setError(
+          'Login indisponível: as variáveis NEXT_PUBLIC_SUPABASE_URL / ANON_KEY não estão no build. ' +
+            'Configure no Vercel (Production + Preview) e faça Redeploy.',
+        )
+      } else {
+        setError(msg || `Não foi possível entrar com ${labels[provider].replace('Continuar com ', '')}.`)
+      }
       setLoadingProvider(null)
     }
   }
