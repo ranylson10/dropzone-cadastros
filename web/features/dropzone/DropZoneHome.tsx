@@ -283,129 +283,195 @@ export function DropZoneHome() {
   }
 
   useEffect(() => {
-    async function initialize() {
-      const params = new URLSearchParams(window.location.search)
-      const convite = String(params.get('convite') || '').trim()
-      const escala = String(params.get('escala') || '').trim()
-      const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
-      const requestedLogin = String(params.get('login') || '').trim()
-      const requestedRegister = String(params.get('cadastro') || '').trim()
-      const forcedProfileType: ProfileType | null =
-        requestedLogin === 'equipe' || requestedRegister === 'equipe'
-          ? 'equipe'
-          : requestedLogin === 'jogador' || requestedRegister === 'jogador'
-            ? 'jogador'
-            : null
-      const forcedType = Boolean(forcedProfileType)
-      const wantsCreate = Boolean(forcedProfileType && requestedRegister === forcedProfileType)
-      const wantsLinked = params.get('vincular') === '1'
-      const wantsNewAccount = params.get('nova_conta') === '1'
-      const wantsSwitchAccount = params.get('trocar_conta') === '1'
-
-      const saved = localStorage.getItem('dropzone_recent_profiles')
-      let hasRecentLogin = false
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        hasRecentLogin = Array.isArray(parsed) && parsed.length > 0
-        setRecentProfiles(parsed)
+    let cancelled = false
+    // Nunca deixar a tela presa em "Carregando acesso"
+    const safetyTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setQueryReady(true)
+        setLoading(false)
+        setAccessLoadingType(null)
       }
+    }, 12000)
 
-      const resolvedReturnTo = requestedReturnTo || (convite
-        ? `/convite/equipe/${encodeURIComponent(convite)}`
-        : escala
-          ? `/escala/${encodeURIComponent(escala)}`
-          : '')
-      if (resolvedReturnTo) setInviteReturnTo(resolvedReturnTo)
+    async function initialize() {
+      try {
+        const params = new URLSearchParams(window.location.search)
+        const convite = String(params.get('convite') || '').trim()
+        const escala = String(params.get('escala') || '').trim()
+        const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
+        const requestedLogin = String(params.get('login') || '').trim()
+        const requestedRegister = String(params.get('cadastro') || '').trim()
+        const forcedProfileType: ProfileType | null =
+          requestedLogin === 'equipe' || requestedRegister === 'equipe'
+            ? 'equipe'
+            : requestedLogin === 'jogador' || requestedRegister === 'jogador'
+              ? 'jogador'
+              : null
+        const forcedType = Boolean(forcedProfileType)
+        const wantsCreate = Boolean(forcedProfileType && requestedRegister === forcedProfileType)
+        const wantsNewAccount = params.get('nova_conta') === '1'
+        const wantsSwitchAccount = params.get('trocar_conta') === '1'
 
-      if (forcedType && forcedProfileType) {
-        setProfileType(forcedProfileType)
-        setActiveAuthType(forcedProfileType)
-        clearRegisterForm(forcedProfileType)
-
-        if (wantsSwitchAccount || wantsNewAccount) {
-          await supabase.auth.signOut()
-          setAccount(null)
-          setAccounts([])
-          setRows([])
-          setLinkingProfile(false)
-          setMode('entrar')
-          setQueryReady(true)
-          return
+        let hasRecentLogin = false
+        try {
+          const saved = localStorage.getItem('dropzone_recent_profiles')
+          if (saved) {
+            const parsed = JSON.parse(saved)
+            hasRecentLogin = Array.isArray(parsed) && parsed.length > 0
+            if (hasRecentLogin) setRecentProfiles(parsed)
+          }
+        } catch {
+          // localStorage corrompido — ignora e segue
         }
 
-        const { data } = await supabase.auth.getSession()
-        if (data.session) {
-          // Login social / vinculo: se nao tem o perfil exigido (ex. equipe no convite de grupo),
-          // abre o formulario de criacao em vez de mandar de volta sem perfil.
-          const availableAccounts = await loadAccountsOnly(data.session.access_token).catch(() => [] as DropZoneRow[])
-          const existing = availableAccounts.find((item) => item.profile_type === forcedProfileType)
+        const resolvedReturnTo = requestedReturnTo || (convite
+          ? `/convite/equipe/${encodeURIComponent(convite)}`
+          : escala
+            ? `/escala/${encodeURIComponent(escala)}`
+            : '')
+        if (resolvedReturnTo) setInviteReturnTo(resolvedReturnTo)
 
-          if (existing && !wantsCreate) {
+        // Sessão com timeout — evita hang infinito no getSession/refresh
+        async function getSessionSafe() {
+          const timeoutMs = 8000
+          const result = await Promise.race([
+            supabase.auth.getSession(),
+            new Promise<never>((_, reject) =>
+              window.setTimeout(() => reject(new Error('Tempo esgotado ao verificar sessão.')), timeoutMs),
+            ),
+          ])
+          return result
+        }
+
+        if (forcedType && forcedProfileType) {
+          setProfileType(forcedProfileType)
+          setActiveAuthType(forcedProfileType)
+          clearRegisterForm(forcedProfileType)
+
+          if (wantsSwitchAccount || wantsNewAccount) {
             try {
-              await loadMeAndRows(data.session.access_token, forcedProfileType)
+              await supabase.auth.signOut()
+            } catch {
+              // ignore
+            }
+            setAccount(null)
+            setAccounts([])
+            setRows([])
+            setLinkingProfile(false)
+            setMode('entrar')
+            return
+          }
+
+          let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null
+          try {
+            const { data } = await getSessionSafe()
+            session = data.session
+          } catch (cause: any) {
+            setError(cause?.message || 'Não foi possível verificar a sessão.')
+            setMode('entrar')
+            return
+          }
+
+          if (session) {
+            // Login social / vinculo: se nao tem o perfil exigido (ex. equipe no convite de grupo),
+            // abre o formulario de criacao em vez de mandar de volta sem perfil.
+            const availableAccounts = await loadAccountsOnly(session.access_token).catch(() => [] as DropZoneRow[])
+            const existing = availableAccounts.find((item) => item.profile_type === forcedProfileType)
+
+            if (existing && !wantsCreate) {
+              try {
+                await loadMeAndRows(session.access_token, forcedProfileType)
+                if (resolvedReturnTo) {
+                  window.location.assign(resolvedReturnTo)
+                  return
+                }
+              } catch (cause: any) {
+                setError(cause?.message || 'Não foi possível carregar o painel deste perfil.')
+              }
+              return
+            }
+
+            if (existing && wantsCreate) {
+              // Ja tem o perfil: volta ao fluxo de origem (convite/grupo).
               if (resolvedReturnTo) {
                 window.location.assign(resolvedReturnTo)
                 return
               }
-            } catch (cause: any) {
-              setError(cause?.message || 'Não foi possível carregar o painel deste perfil.')
-            }
-            setQueryReady(true)
-            return
-          }
-
-          if (existing && wantsCreate) {
-            // Ja tem o perfil: volta ao fluxo de origem (convite/grupo).
-            if (resolvedReturnTo) {
-              window.location.assign(resolvedReturnTo)
+              try {
+                await loadMeAndRows(session.access_token, forcedProfileType)
+              } catch (cause: any) {
+                setError(cause?.message || 'Não foi possível carregar o painel deste perfil.')
+              }
               return
             }
-            try {
-              await loadMeAndRows(data.session.access_token, forcedProfileType)
-            } catch (cause: any) {
-              setError(cause?.message || 'Não foi possível carregar o painel deste perfil.')
-            }
-            setQueryReady(true)
+
+            // Sem perfil do tipo exigido: formulario de criacao vinculado ao login atual.
+            prepareGoogleProfile(session.user, forcedProfileType)
             return
           }
 
-          // Sem perfil do tipo exigido: formulario de criacao vinculado ao login atual.
-          prepareGoogleProfile(data.session.user, forcedProfileType)
-          setQueryReady(true)
+          setLinkingProfile(false)
+          setMode('entrar')
           return
         }
 
-        setLinkingProfile(false)
-        setMode('entrar')
-        setQueryReady(true)
-        return
-      }
-
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
+        let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null
         try {
-          const storedType = localStorage.getItem('dropzone_active_profile_type') as ProfileType | null
-          const cachedSnapshot = readPanelSnapshot(storedType)
-          if (cachedSnapshot) {
-            setAccount(cachedSnapshot.account)
-            setAccounts(cachedSnapshot.accounts)
-            setRows(cachedSnapshot.rows)
-            setQueryReady(true)
-          }
-          await loadMeAndRows(data.session.access_token, storedType)
-        } catch {
+          const { data } = await getSessionSafe()
+          session = data.session
+        } catch (cause: any) {
+          setError(cause?.message || 'Não foi possível verificar a sessão.')
           setAccount(null)
           setAccounts([])
           setRows([])
+          if (!hasRecentLogin) {
+            setMode('entrar')
+          }
+          return
         }
-      } else if (!hasRecentLogin) {
-        window.location.replace(`/login?returnTo=${encodeURIComponent(resolvedReturnTo || '/')}`)
-        return
+
+        if (session) {
+          try {
+            const storedType = localStorage.getItem('dropzone_active_profile_type') as ProfileType | null
+            const cachedSnapshot = readPanelSnapshot(storedType)
+            if (cachedSnapshot) {
+              setAccount(cachedSnapshot.account)
+              setAccounts(cachedSnapshot.accounts)
+              setRows(cachedSnapshot.rows)
+              // Libera a UI cedo com cache; loadMeAndRows atualiza em seguida
+              if (!cancelled) setQueryReady(true)
+            }
+            await loadMeAndRows(session.access_token, storedType)
+          } catch {
+            setAccount(null)
+            setAccounts([])
+            setRows([])
+          }
+        } else if (!hasRecentLogin) {
+          window.location.replace(`/login?returnTo=${encodeURIComponent(resolvedReturnTo || '/')}`)
+          return
+        }
+      } catch (cause: any) {
+        setError(cause?.message || 'Falha ao iniciar o acesso.')
+        setAccount(null)
+        setAccounts([])
+        setRows([])
+        setMode('entrar')
+      } finally {
+        if (!cancelled) {
+          setQueryReady(true)
+          setLoading(false)
+          setAccessLoadingType(null)
+        }
+        window.clearTimeout(safetyTimer)
       }
-      setQueryReady(true)
     }
 
     void initialize()
+    return () => {
+      cancelled = true
+      window.clearTimeout(safetyTimer)
+    }
   }, [])
 
   async function getToken() {

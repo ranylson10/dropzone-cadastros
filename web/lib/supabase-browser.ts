@@ -60,7 +60,10 @@ function getBrowserClient(): SupabaseClient {
 
   if (typeof window !== 'undefined') {
     if (!ok) {
-      throw new Error(CONFIG_ERROR)
+      // Não trava a UI: stub local + erro só em mutações de auth.
+      // getSession resolve vazio em vez de throw (evita "Carregando acesso" infinito).
+      _client = createBuildStubClient()
+      return _client
     }
     _client = createRealClient(url, anonKey)
     return _client
@@ -75,9 +78,47 @@ function getBrowserClient(): SupabaseClient {
   return _client
 }
 
+function wrapAuthMethod(method: unknown, name: string) {
+  if (typeof method !== 'function') return method
+  const { ok } = getSupabasePublicConfig()
+  if (ok || typeof window === 'undefined') return method
+
+  // Sem env no browser: getSession / onAuthStateChange não devem travar a app
+  if (name === 'getSession') {
+    return async () => ({ data: { session: null }, error: null })
+  }
+  if (name === 'getUser') {
+    return async () => ({ data: { user: null }, error: null })
+  }
+  if (name === 'onAuthStateChange') {
+    return (_cb: unknown) => ({
+      data: { subscription: { unsubscribe() {} } },
+    })
+  }
+  if (name === 'signOut') {
+    return async () => ({ error: null })
+  }
+  // signInWithOAuth / signInWithPassword etc. — erro legível
+  return async (...args: unknown[]) => {
+    throw new Error(CONFIG_ERROR)
+  }
+}
+
 export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
     const client = getBrowserClient()
+    if (prop === 'auth') {
+      return new Proxy(client.auth, {
+        get(authTarget, authProp) {
+          const value = Reflect.get(authTarget, authProp, authTarget)
+          if (typeof authProp === 'string') {
+            const wrapped = wrapAuthMethod(value, authProp)
+            return typeof wrapped === 'function' ? wrapped.bind(authTarget) : wrapped
+          }
+          return typeof value === 'function' ? value.bind(authTarget) : value
+        },
+      })
+    }
     const value = Reflect.get(client, prop, client)
     return typeof value === 'function' ? value.bind(client) : value
   },

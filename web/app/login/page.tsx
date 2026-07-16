@@ -26,6 +26,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     let active = true
+    const safetyTimer = window.setTimeout(() => {
+      if (active) setChecking(false)
+    }, 12000)
 
     async function initialize() {
       const search = new URLSearchParams(window.location.search)
@@ -37,12 +40,21 @@ export default function LoginPage() {
 
       try {
         if (switchAccount && !complete) {
-          await supabase.auth.signOut()
-          if (active) setChecking(false)
+          try {
+            await supabase.auth.signOut()
+          } catch {
+            // ignore
+          }
           return
         }
 
-        const { data, error: sessionError } = await supabase.auth.getSession()
+        const sessionRace = Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) =>
+            window.setTimeout(() => reject(new Error('Tempo esgotado ao verificar sessão.')), 8000),
+          ),
+        ])
+        const { data, error: sessionError } = await sessionRace
         if (sessionError) throw sessionError
         let session: Session | null = data.session
 
@@ -51,25 +63,28 @@ export default function LoginPage() {
           session = await new Promise<Session | null>((resolve) => {
             let settled = false
             let timer = 0
-            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-              if (!session || settled) return
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+              if (!nextSession || settled) return
               settled = true
               window.clearTimeout(timer)
               subscription.unsubscribe()
-              resolve(session)
+              resolve(nextSession)
             })
             timer = window.setTimeout(async () => {
               if (settled) return
               settled = true
               subscription.unsubscribe()
-              const current = await supabase.auth.getSession()
-              resolve(current.data.session)
+              try {
+                const current = await supabase.auth.getSession()
+                resolve(current.data.session)
+              } catch {
+                resolve(null)
+              }
             }, 4000)
           })
         }
 
         if (!complete || !session) {
-          if (active) setChecking(false)
           return
         }
 
@@ -93,20 +108,20 @@ export default function LoginPage() {
               return
             }
 
-            const params = new URLSearchParams({
+            const next = new URLSearchParams({
               cadastro: profileType,
               vincular: '1',
               returnTo: returnTo || '/',
             })
-            window.location.replace(`/?${params.toString()}`)
+            window.location.replace(`/?${next.toString()}`)
             return
           } catch {
-            const params = new URLSearchParams({
+            const next = new URLSearchParams({
               cadastro: profileType,
               vincular: '1',
               returnTo: returnTo || '/',
             })
-            window.location.replace(`/?${params.toString()}`)
+            window.location.replace(`/?${next.toString()}`)
             return
           }
         }
@@ -115,12 +130,17 @@ export default function LoginPage() {
       } catch (cause: any) {
         if (!active) return
         setError(cause?.message || 'Não foi possível concluir a autenticação.')
-        setChecking(false)
+      } finally {
+        if (active) setChecking(false)
+        window.clearTimeout(safetyTimer)
       }
     }
 
     void initialize()
-    return () => { active = false }
+    return () => {
+      active = false
+      window.clearTimeout(safetyTimer)
+    }
   }, [])
 
   return (
