@@ -176,6 +176,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       permission: {
         canView: permission.canView,
         canManage: permission.canManage,
+        canRemove: permission.canRemove,
         canGenerateToken: permission.canGenerateToken,
         canOrganizeGroups: permission.canOrganizeGroups,
         canManageGames: permission.canManageGames,

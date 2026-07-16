@@ -11,34 +11,45 @@ import { supabaseAdmin } from '../shared/supabase-admin'
  *   - pode_gerar_token → convites únicos
  *   - pode_gerenciar_campeonato → editar grupos/jogos/tabelas + equipes + convites
  *
- * seller (campeonato_vendedores):
- *   - padrão: só gerar convite único + ver estrutura + vender vagas
- *   - entrada de equipes: via link (único ou de grupo), não por botão direto
- *   - flags opt-in: adicionar_equipes, remover_proprias_equipes, organizar_grupos, pontuar_tabela
+ * seller / manager de campeonato (campeonato_vendedores):
+ *   - opera o evento liberado (não a produtora inteira)
+ *   - defaults: add/remover equipes, estrutura (fases/grupos), jogos, pontuar, convites
+ *   - flags podem ser restringidas pelo adm no convite/liberação
  *
  * demais: leitura pública quando aplicável; sem mutações
  */
 
 export type SellerPermissions = {
   vendedor_vagas: boolean
-  /** Direto na UI/API — desligado por padrão; entrada deve ser por link. */
+  /** Adicionar line/equipe no slot (direto). */
   adicionar_equipes: boolean
+  /**
+   * Remover line de qualquer slot do campeonato.
+   * Mantém alias legado `remover_proprias_equipes` na normalização.
+   */
+  remover_equipes: boolean
+  /** @deprecated use remover_equipes — mantido na leitura de JSON antigo */
   remover_proprias_equipes: boolean
   gerar_convites_equipe: boolean
   ver_estrutura: boolean
+  /** Criar/editar/excluir fases e grupos. */
   organizar_grupos: boolean
+  /** Criar/editar/excluir jogos e rodadas. */
+  gerenciar_jogos: boolean
   pontuar_tabela: boolean
 }
 
-/** Defaults de vendedor: vende/convite; não monta estrutura nem adiciona line na mão. */
+/** Defaults do manager no campeonato: operação completa no evento. */
 export const DEFAULT_SELLER_PERMISSIONS: SellerPermissions = {
   vendedor_vagas: true,
-  adicionar_equipes: false,
-  remover_proprias_equipes: false,
+  adicionar_equipes: true,
+  remover_equipes: true,
+  remover_proprias_equipes: true,
   gerar_convites_equipe: true,
   ver_estrutura: true,
-  organizar_grupos: false,
-  pontuar_tabela: false,
+  organizar_grupos: true,
+  gerenciar_jogos: true,
+  pontuar_tabela: true,
 }
 
 export type CampeonatoPermission = {
@@ -63,15 +74,27 @@ function missingRelation(error: any) {
 
 export function normalizeSellerPermissions(raw: unknown): SellerPermissions {
   const value = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const bool = (key: string, fallback: boolean) => {
+    if (!(key in value)) return fallback
+    return Boolean(value[key])
+  }
+  // remoção: flag nova ou legada; default true (manager opera o evento)
+  const remover = 'remover_equipes' in value
+    ? Boolean(value.remover_equipes)
+    : 'remover_proprias_equipes' in value
+      ? Boolean(value.remover_proprias_equipes)
+      : DEFAULT_SELLER_PERMISSIONS.remover_equipes
+
   return {
-    vendedor_vagas: value.vendedor_vagas !== false,
-    // opt-in: só true se explícito
-    adicionar_equipes: value.adicionar_equipes === true,
-    remover_proprias_equipes: value.remover_proprias_equipes === true,
-    gerar_convites_equipe: value.gerar_convites_equipe !== false,
-    ver_estrutura: value.ver_estrutura !== false,
-    organizar_grupos: value.organizar_grupos === true,
-    pontuar_tabela: value.pontuar_tabela === true,
+    vendedor_vagas: bool('vendedor_vagas', DEFAULT_SELLER_PERMISSIONS.vendedor_vagas),
+    adicionar_equipes: bool('adicionar_equipes', DEFAULT_SELLER_PERMISSIONS.adicionar_equipes),
+    remover_equipes: remover,
+    remover_proprias_equipes: remover,
+    gerar_convites_equipe: bool('gerar_convites_equipe', DEFAULT_SELLER_PERMISSIONS.gerar_convites_equipe),
+    ver_estrutura: bool('ver_estrutura', DEFAULT_SELLER_PERMISSIONS.ver_estrutura),
+    organizar_grupos: bool('organizar_grupos', DEFAULT_SELLER_PERMISSIONS.organizar_grupos),
+    gerenciar_jogos: bool('gerenciar_jogos', DEFAULT_SELLER_PERMISSIONS.gerenciar_jogos),
+    pontuar_tabela: bool('pontuar_tabela', DEFAULT_SELLER_PERMISSIONS.pontuar_tabela),
   }
 }
 
@@ -223,11 +246,10 @@ function sellerPermissionFromRow(produtoraId: string | null, rawPerms: unknown):
   return {
     canView: true,
     canManage: sellerPermissions.adicionar_equipes,
-    canRemove: sellerPermissions.remover_proprias_equipes,
+    canRemove: sellerPermissions.remover_equipes || sellerPermissions.remover_proprias_equipes,
     canGenerateToken: sellerPermissions.gerar_convites_equipe,
     canOrganizeGroups: sellerPermissions.organizar_grupos,
-    // Vendedor NÃO cria/edita jogos — só adm ou manager staff
-    canManageGames: false,
+    canManageGames: sellerPermissions.gerenciar_jogos,
     canScore: sellerPermissions.pontuar_tabela,
     role: 'seller',
     produtoraId,
@@ -280,7 +302,7 @@ export async function requireCampeonatoTeamsRemove(userId: string, campeonatoId:
 
 /**
  * Criar/editar/excluir jogos e rodadas:
- * adm (owner) ou manager staff com gestão. Vendedor nunca.
+ * adm (owner), manager staff com gestão, ou seller com gerenciar_jogos.
  */
 export async function requireCampeonatoGamesWrite(userId: string, campeonatoId: string) {
   const permission = await getCampeonatoPermission(userId, campeonatoId)

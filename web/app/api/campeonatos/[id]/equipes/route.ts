@@ -511,12 +511,19 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
         .eq('status', 'ativo')
         .maybeSingle()
       if (sellerError) throw sellerError
-      if (!seller || !hasSellerPermission(seller, 'remover_proprias_equipes', true)) {
+      if (!seller) throw new Error('Permissão de vendedor não encontrada para este campeonato.')
+      // remoção plena se remover_equipes; senão (legado) só as próprias
+      const perms = seller.permissoes || {}
+      const fullRemove = perms.remover_equipes === true || perms.remover_equipes === undefined
+      const ownOnly = !fullRemove && (perms.remover_proprias_equipes === true || hasSellerPermission(seller, 'remover_proprias_equipes', true))
+      if (!fullRemove && !ownOnly) {
         throw new Error('Este vendedor não pode remover equipes.')
       }
-      const origemSeller = ['vendedor', 'convite', 'inscricao', 'link']
-      if (participacao.criado_por !== user.id || !origemSeller.includes(String(participacao.origem_entrada || ''))) {
-        throw new Error('O vendedor só pode remover equipes que ele adicionou.')
+      if (!fullRemove) {
+        const origemSeller = ['vendedor', 'convite', 'inscricao', 'link']
+        if (participacao.criado_por !== user.id || !origemSeller.includes(String(participacao.origem_entrada || ''))) {
+          throw new Error('O vendedor só pode remover equipes que ele adicionou.')
+        }
       }
     } else {
       throw new Error('Você não tem permissão para remover equipes deste campeonato.')

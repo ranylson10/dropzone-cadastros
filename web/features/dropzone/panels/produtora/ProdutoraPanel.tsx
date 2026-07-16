@@ -108,12 +108,13 @@ export function ProdutoraPanel(props: {
   const [sellerLimite, setSellerLimite] = useState('')
   const [sellerBusy, setSellerBusy] = useState(false)
   const [sellerPerms, setSellerPerms] = useState({
-    adicionar_equipes: false,
+    adicionar_equipes: true,
     gerar_convites_equipe: true,
-    remover_proprias_equipes: false,
+    remover_equipes: true,
     ver_estrutura: true,
-    organizar_grupos: false,
-    pontuar_tabela: false,
+    organizar_grupos: true,
+    gerenciar_jogos: true,
+    pontuar_tabela: true,
   })
   // Convite por pesquisa (correio) — por campeonato
   const [mgrQuery, setMgrQuery] = useState('')
@@ -123,12 +124,13 @@ export function ProdutoraPanel(props: {
   const [mgrValidade, setMgrValidade] = useState('7')
   const [mgrLimite, setMgrLimite] = useState('')
   const [mgrPerms, setMgrPerms] = useState({
-    adicionar_equipes: false,
+    adicionar_equipes: true,
     gerar_convites_equipe: true,
-    remover_proprias_equipes: false,
+    remover_equipes: true,
     ver_estrutura: true,
-    organizar_grupos: false,
-    pontuar_tabela: false,
+    organizar_grupos: true,
+    gerenciar_jogos: true,
+    pontuar_tabela: true,
   })
   const [mgrInvites, setMgrInvites] = useState<any[]>([])
   const [mgrInviteMsg, setMgrInviteMsg] = useState('')
@@ -237,12 +239,15 @@ export function ProdutoraPanel(props: {
           : '',
     )
     setSellerPerms({
-      adicionar_equipes: perms.adicionar_equipes === true,
+      adicionar_equipes: perms.adicionar_equipes !== false,
       gerar_convites_equipe: perms.gerar_convites_equipe !== false,
-      remover_proprias_equipes: perms.remover_proprias_equipes === true,
+      remover_equipes:
+        perms.remover_equipes !== false
+        && (perms.remover_equipes !== undefined || perms.remover_proprias_equipes !== false),
       ver_estrutura: perms.ver_estrutura !== false,
-      organizar_grupos: perms.organizar_grupos === true,
-      pontuar_tabela: perms.pontuar_tabela === true,
+      organizar_grupos: perms.organizar_grupos !== false,
+      gerenciar_jogos: perms.gerenciar_jogos !== false,
+      pontuar_tabela: perms.pontuar_tabela !== false,
     })
   }
 
@@ -309,12 +314,13 @@ export function ProdutoraPanel(props: {
     setMgrValidade('7')
     setMgrLimite('')
     setMgrPerms({
-      adicionar_equipes: false,
+      adicionar_equipes: true,
       gerar_convites_equipe: true,
-      remover_proprias_equipes: false,
+      remover_equipes: true,
       ver_estrutura: true,
-      organizar_grupos: false,
-      pontuar_tabela: false,
+      organizar_grupos: true,
+      gerenciar_jogos: true,
+      pontuar_tabela: true,
     })
   }
 
@@ -1460,16 +1466,17 @@ ${params.url}`
                                     <div className="seller-perm-grid compact">
                                       {([
                                         ['gerar_convites_equipe', 'Gerar convites'],
-                                        ['adicionar_equipes', 'Add equipes'],
-                                        ['remover_proprias_equipes', 'Remover próprias'],
+                                        ['adicionar_equipes', 'Adicionar equipes'],
+                                        ['remover_equipes', 'Remover equipes'],
                                         ['ver_estrutura', 'Ver estrutura'],
-                                        ['organizar_grupos', 'Organizar grupos'],
+                                        ['organizar_grupos', 'Fases e grupos'],
+                                        ['gerenciar_jogos', 'Criar/editar jogos'],
                                         ['pontuar_tabela', 'Pontuar'],
                                       ] as const).map(([key, label]) => (
                                         <label key={key} className="seller-perm-item">
                                           <input
                                             type="checkbox"
-                                            checked={Boolean(sellerPerms[key])}
+                                            checked={Boolean((sellerPerms as any)[key])}
                                             onChange={(e) =>
                                               setSellerPerms((current) => ({ ...current, [key]: e.target.checked }))
                                             }
@@ -1564,16 +1571,17 @@ ${params.url}`
                                     <div className="seller-perm-grid compact">
                                       {([
                                         ['gerar_convites_equipe', 'Gerar convites'],
-                                        ['adicionar_equipes', 'Add equipes'],
-                                        ['remover_proprias_equipes', 'Remover próprias'],
+                                        ['adicionar_equipes', 'Adicionar equipes'],
+                                        ['remover_equipes', 'Remover equipes'],
                                         ['ver_estrutura', 'Ver estrutura'],
-                                        ['organizar_grupos', 'Organizar grupos'],
+                                        ['organizar_grupos', 'Fases e grupos'],
+                                        ['gerenciar_jogos', 'Criar/editar jogos'],
                                         ['pontuar_tabela', 'Pontuar'],
                                       ] as const).map(([key, label]) => (
                                         <label key={key} className="seller-perm-item">
                                           <input
                                             type="checkbox"
-                                            checked={Boolean(sellerPerms[key])}
+                                            checked={Boolean((sellerPerms as any)[key])}
                                             onChange={(e) =>
                                               setSellerPerms((current) => ({ ...current, [key]: e.target.checked }))
                                             }
@@ -1715,16 +1723,17 @@ ${params.url}`
                         <div className="seller-perm-grid compact">
                           {([
                             ['gerar_convites_equipe', 'Gerar convites'],
-                            ['adicionar_equipes', 'Add equipes'],
-                            ['remover_proprias_equipes', 'Remover próprias'],
+                            ['adicionar_equipes', 'Adicionar equipes'],
+                            ['remover_equipes', 'Remover equipes'],
                             ['ver_estrutura', 'Ver estrutura'],
-                            ['organizar_grupos', 'Organizar grupos'],
+                            ['organizar_grupos', 'Fases e grupos'],
+                            ['gerenciar_jogos', 'Criar/editar jogos'],
                             ['pontuar_tabela', 'Pontuar'],
                           ] as const).map(([key, label]) => (
                             <label key={key} className="seller-perm-item">
                               <input
                                 type="checkbox"
-                                checked={Boolean(mgrPerms[key])}
+                                checked={Boolean((mgrPerms as any)[key])}
                                 onChange={(e) => setMgrPerms((c) => ({ ...c, [key]: e.target.checked }))}
                               />
                               <span>{label}</span>

@@ -14,8 +14,11 @@ import {
   Users,
 } from 'lucide-react'
 import { Field } from '@/features/dropzone/components/form-fields'
+import { SystemModal } from '@/components/layout/SystemModal'
 import { supabase } from '@/lib/supabase-browser'
 import { GROUP_LETTERS } from '@/lib/dropzone-constants'
+import { campeonatoEquipesService } from '@/features/campeonatos/equipes/services/campeonato-equipes.service'
+import type { CampeonatoVaga, EquipeBusca } from '@/features/campeonatos/equipes/types/campeonato-equipes.types'
 
 type Fase = { id: string; nome: string; ordem?: number }
 type Grupo = {
@@ -46,6 +49,8 @@ type Slot = {
 type Permission = {
   canOrganizeGroups?: boolean
   canManage?: boolean
+  canRemove?: boolean
+  canGenerateToken?: boolean
   role?: string
 }
 
@@ -79,7 +84,24 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
   const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string } | null>(null)
 
+  // Slot: adicionar / remover line
+  const [slotAlvo, setSlotAlvo] = useState<Slot | null>(null)
+  const [slotModo, setSlotModo] = useState<'adicionar' | 'convite' | null>(null)
+  const [busca, setBusca] = useState('')
+  const [resultados, setResultados] = useState<EquipeBusca[]>([])
+  const [equipe, setEquipe] = useState<EquipeBusca | null>(null)
+  const [lineId, setLineId] = useState('')
+  const [nomeLine, setNomeLine] = useState('')
+  const [refEquipe, setRefEquipe] = useState('')
+  const [refLine, setRefLine] = useState('')
+  const [slotBusy, setSlotBusy] = useState(false)
+  const [slotFeedback, setSlotFeedback] = useState('')
+  const [vagasIndex, setVagasIndex] = useState<Record<string, CampeonatoVaga>>({})
+
   const canEdit = Boolean(permission.canOrganizeGroups)
+  const canAdd = Boolean(permission.canManage)
+  const canRemove = Boolean(permission.canRemove)
+  const canInvite = Boolean(permission.canGenerateToken)
 
   const load = useCallback(async () => {
     if (!campeonatoId) return
@@ -97,6 +119,26 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
       setGrupos(Array.isArray(json.grupos) ? json.grupos : [])
       setSlots(Array.isArray(json.slots) ? json.slots : [])
       setPermission(json.permission || {})
+      // index de vagas para participacao_id ao remover
+      try {
+        const eq = await campeonatoEquipesService.listar(campeonatoId) as any
+        const map: Record<string, CampeonatoVaga> = {}
+        for (const v of eq.vagas || []) {
+          if (v.id) map[v.id] = v
+        }
+        setVagasIndex(map)
+        if (eq.permission) {
+          setPermission((p) => ({
+            ...p,
+            canManage: eq.permission.canManage ?? p.canManage,
+            canRemove: eq.permission.canRemove ?? p.canRemove,
+            canGenerateToken: eq.permission.canGenerateToken ?? p.canGenerateToken,
+            canOrganizeGroups: eq.permission.canOrganizeGroups ?? p.canOrganizeGroups,
+          }))
+        }
+      } catch {
+        // opcional
+      }
     } catch (err: any) {
       setError(err?.message || 'Erro ao carregar estrutura.')
       setFases([])
@@ -115,6 +157,109 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
     () => [...fases].sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0)),
     [fases],
   )
+
+  function fecharSlot() {
+    setSlotAlvo(null)
+    setSlotModo(null)
+    setBusca('')
+    setResultados([])
+    setEquipe(null)
+    setLineId('')
+    setNomeLine('')
+    setRefEquipe('')
+    setRefLine('')
+    setSlotFeedback('')
+  }
+
+  async function pesquisarEquipe() {
+    if (!busca.trim()) return
+    setSlotBusy(true)
+    setSlotFeedback('')
+    try {
+      const json = await campeonatoEquipesService.buscarEquipes(campeonatoId, busca.trim()) as any
+      setResultados(Array.isArray(json.equipes) ? json.equipes : json.items || [])
+      if (!(json.equipes || json.items || []).length) setSlotFeedback('Nenhuma equipe encontrada.')
+    } catch (err: any) {
+      setSlotFeedback(err?.message || 'Erro na busca.')
+      setResultados([])
+    } finally {
+      setSlotBusy(false)
+    }
+  }
+
+  async function adicionarNoSlot() {
+    if (!slotAlvo?.id || !equipe?.id) {
+      setSlotFeedback('Selecione a equipe.')
+      return
+    }
+    setSlotBusy(true)
+    setSlotFeedback('')
+    try {
+      await campeonatoEquipesService.adicionar(campeonatoId, {
+        slot_id: slotAlvo.id,
+        equipe_id: equipe.id,
+        line_id: lineId || undefined,
+        nome_line: nomeLine || undefined,
+      })
+      fecharSlot()
+      await load()
+    } catch (err: any) {
+      setSlotFeedback(err?.message || 'Erro ao adicionar.')
+    } finally {
+      setSlotBusy(false)
+    }
+  }
+
+  async function criarConviteSlot() {
+    if (!slotAlvo?.id || !refEquipe.trim() || !refLine.trim()) {
+      setSlotFeedback('Informe referências da equipe e da line.')
+      return
+    }
+    setSlotBusy(true)
+    setSlotFeedback('')
+    try {
+      const json = await campeonatoEquipesService.criarConvite(campeonatoId, {
+        slot_id: slotAlvo.id,
+        grupo_id: slotAlvo.grupo_id,
+        fixar_slot: true,
+        nome_equipe_reservada: refEquipe.trim(),
+        nome_line_reservada: refLine.trim(),
+      }) as any
+      const token = json.token?.token || json.convite?.token || json.token
+      if (token) {
+        const link = `${window.location.origin}/convite/equipe/${token}`
+        await navigator.clipboard?.writeText(link).catch(() => null)
+        setSlotFeedback(`Convite criado e copiado: ${link}`)
+      } else {
+        setSlotFeedback(json.mensagem || 'Convite criado.')
+      }
+      await load()
+    } catch (err: any) {
+      setSlotFeedback(err?.message || 'Erro ao criar convite.')
+    } finally {
+      setSlotBusy(false)
+    }
+  }
+
+  async function removerDoSlot(slot: Slot) {
+    const vaga = vagasIndex[slot.id]
+    const participacaoId = vaga?.campeonato_equipe?.id || (vaga as any)?.participacao_id
+    if (!participacaoId) {
+      setError('Não foi possível identificar a participação deste slot. Use a aba Equipes.')
+      return
+    }
+    if (!window.confirm('Remover a line deste slot?')) return
+    setBusy(true)
+    setError('')
+    try {
+      await campeonatoEquipesService.remover(campeonatoId, participacaoId)
+      await load()
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao remover line.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function mutate(method: 'POST' | 'PATCH' | 'DELETE', body: Record<string, unknown>) {
     setBusy(true)
@@ -572,12 +717,26 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
                                           .join(' · ') || group.nome
                                       : [phase.nome, group.nome].filter(Boolean).join(' · ')
 
+                                  const clickable = (status === 'livre' && (canAdd || canInvite)) || (status === 'ocupada' && canRemove)
                                   return (
                                     <article
                                       key={slot.id}
                                       className={`championship-vaga-row status-${status}`}
                                     >
-                                      <div className="vaga-row-summary" style={{ cursor: 'default' }}>
+                                      <button
+                                        type="button"
+                                        className="vaga-row-summary"
+                                        style={{ cursor: clickable ? 'pointer' : 'default' }}
+                                        onClick={() => {
+                                          if (status === 'livre' && (canAdd || canInvite)) {
+                                            setSlotAlvo(slot)
+                                            setSlotModo(canAdd ? 'adicionar' : 'convite')
+                                            setSlotFeedback('')
+                                          } else if (status === 'ocupada' && canRemove) {
+                                            void removerDoSlot(slot)
+                                          }
+                                        }}
+                                      >
                                         <span className="vaga-row-number">{letter}</span>
                                         <span className={`vaga-row-avatar status-${status}`} aria-hidden>
                                           {status === 'ocupada' && slot.line_logo_url ? (
@@ -593,9 +752,18 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
                                           <strong>{nomePrincipal}</strong>
                                           <small>{detalhe}</small>
                                         </span>
-                                        <span className="vaga-row-meta" />
-                                        <span className="vaga-row-chevron" aria-hidden />
-                                      </div>
+                                        <span className="vaga-row-meta">
+                                          {status === 'livre' && canAdd ? (
+                                            <span className="vaga-status-pill status-livre">Add</span>
+                                          ) : null}
+                                          {status === 'ocupada' && canRemove ? (
+                                            <span className="vaga-status-pill status-ocupada">Remover</span>
+                                          ) : null}
+                                        </span>
+                                        <span className="vaga-row-chevron" aria-hidden>
+                                          {clickable ? <ChevronRight size={17} /> : null}
+                                        </span>
+                                      </button>
                                     </article>
                                   )
                                 })
@@ -614,6 +782,111 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
           )
         })}
       </div>
+
+      <SystemModal
+        open={Boolean(slotAlvo && slotModo)}
+        title={
+          slotModo === 'convite'
+            ? `Convite · slot ${slotAlvo?.slot_letra || ''}`
+            : `Adicionar line · slot ${slotAlvo?.slot_letra || ''}`
+        }
+        description={
+          slotModo === 'convite'
+            ? 'Gera link único para a equipe ocupar este slot.'
+            : 'Pesquise a equipe (pasta) e escolha/crie a line.'
+        }
+        onClose={fecharSlot}
+        size="medium"
+      >
+        <div className="seller-invite-modal">
+          {slotFeedback ? <div className="message success">{slotFeedback}</div> : null}
+
+          {slotModo === 'adicionar' ? (
+            <>
+              <Field label="Buscar equipe">
+                <div className="staff-search-row">
+                  <input
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Nome da equipe"
+                    onKeyDown={(e) => { if (e.key === 'Enter') void pesquisarEquipe() }}
+                  />
+                  <button type="button" className="button secondary" disabled={slotBusy} onClick={() => void pesquisarEquipe()}>
+                    Buscar
+                  </button>
+                </div>
+              </Field>
+              {resultados.length > 0 ? (
+                <div className="staff-search-results">
+                  {resultados.map((item: any) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`staff-search-card ${equipe?.id === item.id ? 'selected' : ''}`}
+                      onClick={() => {
+                        setEquipe(item)
+                        setLineId('')
+                        setNomeLine('')
+                      }}
+                    >
+                      <strong>{item.nome}</strong>
+                      <span>{item.tag || 'Equipe'}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {equipe ? (
+                <>
+                  <Field label="Line existente (opcional)">
+                    <select value={lineId} onChange={(e) => setLineId(e.target.value)}>
+                      <option value="">Criar line nova</option>
+                      {(equipe.lines || []).map((l: any) => (
+                        <option key={l.id} value={l.id}>{l.nome}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  {!lineId ? (
+                    <Field label="Nome da line nova">
+                      <input value={nomeLine} onChange={(e) => setNomeLine(e.target.value)} placeholder="Ex.: ALOE BASE" />
+                    </Field>
+                  ) : null}
+                </>
+              ) : null}
+              <div className="modal-form-actions">
+                {canInvite ? (
+                  <button type="button" className="button secondary" onClick={() => setSlotModo('convite')}>
+                    Gerar convite
+                  </button>
+                ) : null}
+                <button type="button" className="button secondary" onClick={fecharSlot}>Cancelar</button>
+                <button type="button" className="button" disabled={slotBusy || !equipe} onClick={() => void adicionarNoSlot()}>
+                  {slotBusy ? 'Salvando...' : 'Adicionar ao slot'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Field label="Referência da equipe">
+                <input value={refEquipe} onChange={(e) => setRefEquipe(e.target.value)} placeholder="Nome interno" />
+              </Field>
+              <Field label="Referência da line">
+                <input value={refLine} onChange={(e) => setRefLine(e.target.value)} placeholder="Nome da line" />
+              </Field>
+              <div className="modal-form-actions">
+                {canAdd ? (
+                  <button type="button" className="button secondary" onClick={() => setSlotModo('adicionar')}>
+                    Adicionar direto
+                  </button>
+                ) : null}
+                <button type="button" className="button secondary" onClick={fecharSlot}>Cancelar</button>
+                <button type="button" className="button" disabled={slotBusy} onClick={() => void criarConviteSlot()}>
+                  {slotBusy ? 'Gerando...' : 'Criar convite'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </SystemModal>
     </div>
   )
 }
