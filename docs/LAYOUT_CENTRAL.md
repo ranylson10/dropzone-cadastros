@@ -44,9 +44,14 @@ export default function MinhaPage() {
 1. **Menu:** edite só `APP_NAV` em `nav.ts`
 2. **Aparência do header:** edite `.app-header` / `.app-main-nav` em `globals.css`
 3. **Comportamento:** edite `AppHeader.tsx` ou `AppShell.tsx`
+4. **Cores / tema do sistema:** edite só o bloco `:root` em `web/app/globals.css`  
+   (`--bg`, `--surface`, `--text`, `--brand`, `--bg-texture`, etc.).  
+   Páginas e painéis devem usar `var(--*)` — não hardcode `#fff` / `#000` solto.
 
 Não crie outro header (ex.: `PublicDirectoryHeader` custom).  
 `PublicDirectoryHeader` é só alias legado.
+
+Tema de **campeonato** (cores escolhidas pelo admin) é escopo local via `.champ-theme` e não substitui o tema global do app.
 
 ## Páginas já no shell
 
