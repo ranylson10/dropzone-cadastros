@@ -4,6 +4,7 @@ import { ChevronDown, Loader2, LogOut, Menu, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { DropZoneRow } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { SystemLogo } from '@/components/brand/SystemLogo'
 import { APP_NAV, type AppNavItem } from './nav'
 
 export type AppHeaderNavItem = AppNavItem
@@ -63,7 +64,7 @@ export function AppHeader({
       <div className="app-header-inner">
         <a className="app-brand" href="/" aria-label="DropZone — início">
           <span className="app-brand-logo">
-            <img src="/dropzone-icon.png" alt="" width={42} height={42} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <SystemLogo size={42} alt="" fit="cover" />
           </span>
           <span className="app-brand-copy"><strong>DROPZONE</strong><small>COMPETITIVE SYSTEM</small></span>
         </a>

@@ -1042,43 +1042,53 @@ body:has(.cropper-overlay) {
   gap: 10px;
 }
 
+/* Logo do sistema — NUNCA width:auto / 100% sem box pai com tamanho fixo */
+.system-logo,
 .auth-site-mark img,
 .central-login-brand img,
 .dropzone-auth-validation-logo img,
 .site-logo-img {
+  box-sizing: border-box !important;
   width: 46px !important;
   height: 46px !important;
   max-width: 46px !important;
   max-height: 46px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
   object-fit: contain !important;
   display: block !important;
   flex: 0 0 46px !important;
 }
 
-/* Trava a marca do sistema: nunca herda 100% do card/container */
-img[src='/dropzone-icon.png'],
-img[src='/dropzone-loading.svg'] {
-  max-width: 64px;
-  max-height: 64px;
-  width: auto;
-  height: auto;
-  object-fit: contain;
+.app-brand-logo {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+  overflow: hidden !important;
 }
 
-.app-brand-logo img[src='/dropzone-icon.png'] {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
+.app-brand-logo .system-logo,
+.app-brand-logo img {
+  width: 42px !important;
+  height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
   object-fit: cover !important;
+  flex: 0 0 42px !important;
 }
 
 .dropzone-auth-validation-logo {
-  width: 72px !important;
-  height: 72px !important;
-  overflow: hidden;
+  width: 56px !important;
+  height: 56px !important;
+  overflow: hidden !important;
+  display: grid !important;
+  place-items: center !important;
 }
 
+.dropzone-auth-validation-logo .system-logo,
 .dropzone-auth-validation-logo img {
   width: 42px !important;
   height: 42px !important;
@@ -4976,7 +4986,7 @@ button.invite-slot-button.selected strong {
 .fullscreen-link-names em { color: #b1192b; font-size: 12px; }
 @media (max-width: 760px) { .scorer-launcher-fields { grid-template-columns: 1fr; } .fullscreen-scorer-page { padding: 8px; } .fullscreen-scorer-header { align-items: flex-start; flex-direction: column; } }
 
-.dropzone-loader{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:24px;background:radial-gradient(circle at center,rgba(201, 162, 39,.06),transparent 34%),#f7f8fa;color:#171a22;text-align:center}.dropzone-loader img{width:112px;height:112px;display:block}.dropzone-loader strong{margin-top:4px;font-size:15px;font-weight:900;text-transform:uppercase}.dropzone-loader span{color:#777d87;font-size:11px;font-weight:700}.dropzone-loader.compact{min-height:220px;background:transparent}.dropzone-loader.compact img{width:72px;height:72px}.dropzone-loader.compact strong{font-size:12px}
+.dropzone-loader{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:24px;background:radial-gradient(circle at center,rgba(201, 162, 39,.06),transparent 34%),#f7f8fa;color:#171a22;text-align:center}.dropzone-loader img{width:56px!important;height:56px!important;max-width:56px!important;max-height:56px!important;display:block;object-fit:contain}.dropzone-loader strong{margin-top:4px;font-size:15px;font-weight:900;text-transform:uppercase}.dropzone-loader span{color:#777d87;font-size:11px;font-weight:700}.dropzone-loader.compact{min-height:220px;background:transparent}.dropzone-loader.compact img{width:48px!important;height:48px!important;max-width:48px!important;max-height:48px!important}.dropzone-loader.compact strong{font-size:12px}
 
 .form-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.form-section-heading strong{display:block;margin-top:3px;font-size:17px}.whatsapp-contact-list{display:grid;gap:8px;margin-top:14px}.whatsapp-contact-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(190px,1fr) minmax(220px,1.2fr) 38px;align-items:end;gap:10px;padding:11px;border: 1px solid var(--line);background: var(--surface-soft)}.seller-contact-row{grid-template-columns:minmax(170px,1fr) minmax(90px,.45fr) minmax(220px,1.3fr)}.phone-input-group{display:grid;grid-template-columns:auto 1fr}.phone-input-group>span{display:flex;align-items:center;padding:0 10px;border:1px solid #d7d9de;border-right:0;background:#f0f2f4;font-size:12px;font-weight:800;white-space:nowrap}.phone-input-group input{min-width:0}.whatsapp-contact-remove{height:44px;justify-content:center;color:#bf2332}.form-empty-note{margin:14px 0 0;padding:14px;border:1px dashed #d7dbe1;color:#7d828b;text-align:center}.whatsapp-seller-list{display:grid;gap:8px}.whatsapp-seller-list a{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:10px;padding:11px 13px;border:1px solid #dce2df;background: var(--surface);color:#171a22;text-decoration:none}.whatsapp-seller-list a:hover{border-color:#25d366;background:#f3fcf7}.whatsapp-seller-list a>span{font-size:24px}.whatsapp-seller-list a>div{display:flex;min-width:0;flex-direction:column}.whatsapp-seller-list small{color:#737a82}@media(max-width:850px){.whatsapp-contact-row,.seller-contact-row{grid-template-columns:1fr 1fr}.whatsapp-contact-remove{width:100%}}@media(max-width:560px){.form-section-heading{align-items:flex-start;flex-direction:column}.whatsapp-contact-row,.seller-contact-row{grid-template-columns:1fr}.whatsapp-contact-remove{width:100%}}
 
@@ -6499,7 +6509,7 @@ input::placeholder, textarea::placeholder {
 .export-midia-item:hover{border-color:var(--brand)}
 @media(max-width:700px){.export-tab-head{flex-direction:column}.export-actions-grid{grid-template-columns:1fr}}
 
-/* Export tab v2 � filtros e tabela */
+/* Export tab v2 � filtros e tabela */
 .export-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .export-filter-grid .field{margin:0}
 .export-filter-grid .field>span{display:block;margin-bottom:6px;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
@@ -6514,3 +6524,46 @@ input::placeholder, textarea::placeholder {
 .export-table tr:last-child td{border-bottom:0}
 .export-cell-with-logo{display:inline-flex;align-items:center;gap:8px}
 .export-cell-with-logo img{width:22px;height:22px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+
+
+/* SYSTEM LOGO HARD LOCK — nao remover */
+.system-logo {
+  box-sizing: border-box !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+/* Login: nenhuma imagem da marca pode crescer com o card */
+.central-login-page .system-logo,
+.central-login-page .auth-site-mark img,
+.central-login-page .central-login-brand img,
+.central-login-page .dropzone-auth-validation-logo img,
+.central-login-page .app-brand-logo img {
+  max-width: 46px !important;
+  max-height: 46px !important;
+}
+.central-login-page .app-brand-logo {
+  width: 42px !important;
+  height: 42px !important;
+  overflow: hidden !important;
+}
+.central-login-page .app-brand-logo .system-logo,
+.central-login-page .app-brand-logo img {
+  width: 42px !important;
+  height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+}
+/* Loader de rota: nunca 100% da viewport */
+.dropzone-loader img {
+  width: 56px !important;
+  height: 56px !important;
+  max-width: 56px !important;
+  max-height: 56px !important;
+  object-fit: contain !important;
+}
+.dropzone-loader.compact img {
+  width: 48px !important;
+  height: 48px !important;
+  max-width: 48px !important;
+  max-height: 48px !important;
+}
