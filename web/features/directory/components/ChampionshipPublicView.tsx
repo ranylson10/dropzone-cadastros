@@ -9,8 +9,9 @@ import {
   Users,
   UserCircle2,
 } from 'lucide-react'
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState } from 'react'
 import { ReportButton } from '@/features/reports/ReportButton'
+import { championshipThemeStyle } from '@/lib/championship-theme'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 import {
   DirectoryProfileTabs,
@@ -126,19 +127,14 @@ export function ChampionshipPublicView({
     estatisticas: sectionMap.estatisticas?.items.length || 0,
   }
 
-  const themeStyle = useMemo(() => {
-    const t = profile.theme || {}
-    const primary = t.cor_principal || '#ff4655'
-    const secondary = t.cor_secundaria || '#17191d'
-    const textLight = t.cor_texto_clara || '#ffffff'
-    const textDark = t.cor_texto_escura || '#17191d'
-    return {
-      ['--dz-primary' as string]: primary,
-      ['--dz-secondary' as string]: secondary,
-      ['--dz-text-on-dark' as string]: textLight,
-      ['--dz-text-on-light' as string]: textDark,
-    } as CSSProperties
-  }, [profile.theme])
+  const themeStyle = useMemo(
+    () =>
+      championshipThemeStyle({
+        cor_principal: profile.theme?.cor_principal,
+        cor_secundaria: profile.theme?.cor_secundaria,
+      }),
+    [profile.theme?.cor_principal, profile.theme?.cor_secundaria],
+  )
 
   return (
     <div

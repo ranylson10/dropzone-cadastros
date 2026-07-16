@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, CalendarDays, Dumbbell, Medal, Plus, Swords, Trash2, Trophy } from 'lucide-react'
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
+import { championshipThemeStyle } from '@/lib/championship-theme'
 import { Field, UploadField } from '@/features/dropzone/components/form-fields'
 
 export type CampeonatoFormValue = {
@@ -284,46 +285,36 @@ export function CampeonatoForm({
       <section className="form-section-card">
         <p className="eyebrow">Identidade visual</p>
         <p className="empty" style={{ margin: '0 0 12px' }}>
-          Cores usadas na página pública do campeonato, links de inscrição e painéis relacionados.
+          Escolha só 2 cores. O sistema monta o layout inteiro: fundo claro, cards, botões e texto com contraste
+          automático (texto escuro em área clara, texto claro em área escura).
         </p>
         <div className="mini-grid two">
-          <Field label="Cor principal">
+          <Field label="Cor principal (botões e destaques)">
             <div className="color-field-row">
               <input type="color" value={value.cor_principal || '#ff4655'} onChange={(e) => update('cor_principal', e.target.value)} />
               <input value={value.cor_principal || ''} onChange={(e) => update('cor_principal', e.target.value)} placeholder="#ff4655" />
             </div>
           </Field>
-          <Field label="Cor secundária">
+          <Field label="Cor secundária (banner e suporte)">
             <div className="color-field-row">
               <input type="color" value={value.cor_secundaria || '#17191d'} onChange={(e) => update('cor_secundaria', e.target.value)} />
               <input value={value.cor_secundaria || ''} onChange={(e) => update('cor_secundaria', e.target.value)} placeholder="#17191d" />
             </div>
           </Field>
-          <Field label="Texto claro (fundos escuros)">
-            <div className="color-field-row">
-              <input type="color" value={value.cor_texto_clara || '#ffffff'} onChange={(e) => update('cor_texto_clara', e.target.value)} />
-              <input value={value.cor_texto_clara || ''} onChange={(e) => update('cor_texto_clara', e.target.value)} placeholder="#ffffff" />
-            </div>
-          </Field>
-          <Field label="Texto escuro (fundos claros)">
-            <div className="color-field-row">
-              <input type="color" value={value.cor_texto_escura || '#17191d'} onChange={(e) => update('cor_texto_escura', e.target.value)} />
-              <input value={value.cor_texto_escura || ''} onChange={(e) => update('cor_texto_escura', e.target.value)} placeholder="#17191d" />
-            </div>
-          </Field>
         </div>
         <div
-          className="champ-theme-preview"
-          style={{
-            ['--dz-primary' as string]: value.cor_principal || '#ff4655',
-            ['--dz-secondary' as string]: value.cor_secundaria || '#17191d',
-            ['--dz-text-on-dark' as string]: value.cor_texto_clara || '#ffffff',
-            ['--dz-text-on-light' as string]: value.cor_texto_escura || '#17191d',
-          }}
+          className="champ-theme-preview champ-theme"
+          style={championshipThemeStyle({
+            cor_principal: value.cor_principal,
+            cor_secundaria: value.cor_secundaria,
+          })}
         >
           <div className="champ-theme-preview-banner">Prévia do banner</div>
           <div className="champ-theme-preview-body">
-            <strong>Texto em fundo claro</strong>
+            <div>
+              <strong>Área clara do layout</strong>
+              <small style={{ display: 'block', marginTop: 4, opacity: 0.75 }}>Texto com contraste automático</small>
+            </div>
             <button type="button" className="champ-theme-preview-btn">Botão principal</button>
           </div>
         </div>

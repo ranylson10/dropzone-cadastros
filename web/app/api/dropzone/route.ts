@@ -303,17 +303,44 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     data_limite_inscricao: nullableDate(data.data_limite_inscricao),
     aceita_novas_inscricoes_equipes: data.aceita_novas_inscricoes_equipes !== false,
     contatos_whatsapp: normalizeWhatsappContacts(data.contatos_whatsapp),
-    cor_principal: normalizeHexColor(data.cor_principal, '#ff4655'),
-    cor_secundaria: normalizeHexColor(data.cor_secundaria, '#17191d'),
-    cor_texto_clara: normalizeHexColor(data.cor_texto_clara, '#ffffff'),
-    cor_texto_escura: normalizeHexColor(data.cor_texto_escura, '#17191d'),
+    ...buildThemeColumns(data),
   }
 }
 
 function normalizeHexColor(value: unknown, fallback: string) {
   const raw = String(value || '').trim()
-  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw)) return raw.toLowerCase()
+  if (/^#([0-9a-fA-F]{3})$/.test(raw)) {
+    const m = raw.match(/^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/)
+    if (m) return `#${m[1]}${m[1]}${m[2]}${m[2]}${m[3]}${m[3]}`.toLowerCase()
+  }
+  if (/^#([0-9a-fA-F]{6})$/.test(raw)) return raw.toLowerCase()
   return fallback
+}
+
+/** Adm escolhe só principal/secundária; contraste de texto é calculado no servidor. */
+function buildThemeColumns(data: Record<string, any>) {
+  const primary = normalizeHexColor(data.cor_principal, '#ff4655')
+  const secondary = normalizeHexColor(data.cor_secundaria, '#17191d')
+  const onPrimary = contrastTextForBg(primary)
+  const onLight = contrastTextForBg('#f7f8fa')
+  return {
+    cor_principal: primary,
+    cor_secundaria: secondary,
+    // Persistidos só como cache legado; a UI recalcula sempre no client
+    cor_texto_clara: onPrimary === '#ffffff' ? '#ffffff' : '#ffffff',
+    cor_texto_escura: onLight,
+  }
+}
+
+function relativeLuminanceHex(hex: string) {
+  const h = normalizeHexColor(hex, '#000000').slice(1)
+  const rgb = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+  const lin = rgb.map((s) => (s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+}
+
+function contrastTextForBg(bgHex: string) {
+  return relativeLuminanceHex(bgHex) > 0.45 ? '#17191d' : '#ffffff'
 }
 
 function isMissingThemeColumnError(error: any) {

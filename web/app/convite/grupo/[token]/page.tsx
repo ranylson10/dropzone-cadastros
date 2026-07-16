@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { championshipThemeStyle } from '@/lib/championship-theme'
 import {
   CheckCircle2,
   ClipboardCopy,
@@ -161,15 +162,14 @@ export default function ConviteGrupoPage() {
   const restantesLink = data?.resumo_link?.restantes ?? 1
   const podeInscrever = Boolean(inscricaoAberta && slotsLivres > 0 && restantesLink > 0)
 
-  const themeStyle = useMemo(() => {
-    const t = data?.tema || {}
-    return {
-      ['--dz-primary' as string]: t.cor_principal || '#ff4655',
-      ['--dz-secondary' as string]: t.cor_secundaria || '#17191d',
-      ['--dz-text-on-dark' as string]: t.cor_texto_clara || '#ffffff',
-      ['--dz-text-on-light' as string]: t.cor_texto_escura || '#17191d',
-    } as CSSProperties
-  }, [data?.tema])
+  const themeStyle = useMemo(
+    () =>
+      championshipThemeStyle({
+        cor_principal: data?.tema?.cor_principal,
+        cor_secundaria: data?.tema?.cor_secundaria,
+      }),
+    [data?.tema?.cor_principal, data?.tema?.cor_secundaria],
+  )
 
   function markSessionContext(hasSession: boolean) {
     try {

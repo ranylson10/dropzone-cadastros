@@ -5990,12 +5990,13 @@ button.invite-slot-button.free.clickable b {
 }
 .champ-theme-preview {
   margin-top: 14px;
-  border: 1px solid #e4e7ec;
+  border: 1px solid var(--dz-border, #e4e7ec);
   overflow: hidden;
+  background: var(--dz-bg, #f4f5f7);
 }
 .champ-theme-preview-banner {
-  background: linear-gradient(135deg, var(--dz-primary, #ff4655), var(--dz-secondary, #17191d));
-  color: var(--dz-text-on-dark, #fff);
+  background: linear-gradient(135deg, var(--dz-banner-from, var(--dz-primary, #ff4655)), var(--dz-banner-to, var(--dz-secondary, #17191d)));
+  color: var(--dz-on-banner, var(--dz-on-dark, #fff));
   padding: 16px 18px;
   font-weight: 800;
   font-size: 13px;
@@ -6006,13 +6007,13 @@ button.invite-slot-button.free.clickable b {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #fff;
-  color: var(--dz-text-on-light, #17191d);
+  background: var(--dz-surface, #fff);
+  color: var(--dz-text, var(--dz-on-light, #17191d));
 }
 .champ-theme-preview-btn {
   border: 0;
-  background: var(--dz-primary, #ff4655);
-  color: var(--dz-text-on-dark, #fff);
+  background: var(--dz-btn, var(--dz-primary, #ff4655));
+  color: var(--dz-btn-text, var(--dz-on-primary, #fff));
   min-height: 36px;
   padding: 0 14px;
   font-weight: 800;
@@ -6022,78 +6023,232 @@ button.invite-slot-button.free.clickable b {
   cursor: default;
 }
 
+/* ===== Tema completo do campeonato (2 cores + contraste auto) ===== */
 .champ-theme {
   --dz-primary: #ff4655;
   --dz-secondary: #17191d;
+  --dz-btn: #ff4655;
+  --dz-btn-text: #ffffff;
+  --dz-bg: #f4f5f7;
+  --dz-surface: #ffffff;
+  --dz-surface-soft: #f7f8fa;
+  --dz-border: #e4e7ec;
+  --dz-text: #17191d;
+  --dz-text-muted: #6f7681;
+  --dz-on-primary: #ffffff;
+  --dz-on-secondary: #ffffff;
+  --dz-on-dark: #ffffff;
+  --dz-on-light: #17191d;
   --dz-text-on-dark: #ffffff;
   --dz-text-on-light: #17191d;
+  --dz-banner-from: #ff4655;
+  --dz-banner-to: #17191d;
+  --dz-on-banner: #ffffff;
+  --dz-accent-soft: #ffe8ea;
+  background: var(--dz-bg) !important;
+  color: var(--dz-text);
 }
+
+/* Página / corpo */
+.champ-theme.directory-page-body,
+.champ-theme.champ-public {
+  background: var(--dz-bg) !important;
+  color: var(--dz-text);
+}
+
+/* Banner escuro (gradiente das 2 cores) + texto com contraste auto */
 .champ-theme .directory-profile-banner.theme-campeonatos,
 .champ-theme .champ-public-banner {
-  background: linear-gradient(135deg, var(--dz-primary), var(--dz-secondary)) !important;
-}
-.champ-theme .champ-public-nav-btn.active,
-.champ-theme .button:not(.secondary):not(.danger),
-.champ-theme .invite-confirm,
-.champ-theme .teams-status-filters button.active,
-.champ-theme .champ-equipes-filters button.active,
-.champ-theme .champ-equipes-chips button.active {
-  background: var(--dz-primary) !important;
-  border-color: var(--dz-primary) !important;
-  color: var(--dz-text-on-dark) !important;
-}
-.champ-theme .champ-public-nav-btn.active .champ-public-nav-count,
-.champ-theme .teams-status-filters button.active span {
-  background: rgba(255, 255, 255, 0.2) !important;
-  color: var(--dz-text-on-dark) !important;
+  background: linear-gradient(135deg, var(--dz-banner-from), var(--dz-banner-to)) !important;
 }
 .champ-theme .directory-profile-banner,
 .champ-theme .directory-profile-banner h1,
 .champ-theme .directory-profile-banner small,
 .champ-theme .directory-profile-banner p,
+.champ-theme .directory-profile-banner strong,
 .champ-theme .directory-back.on-banner {
-  color: var(--dz-text-on-dark) !important;
+  color: var(--dz-on-banner) !important;
 }
-.champ-theme .vaga-status-pill.status-ocupada,
-.champ-theme .seller-status-pill.on {
-  background: color-mix(in srgb, var(--dz-primary) 22%, #fff);
-  color: var(--dz-text-on-light);
+
+/* Nav no banner */
+.champ-theme .champ-public-nav-btn {
+  background: color-mix(in srgb, #000 22%, transparent) !important;
+  border-color: color-mix(in srgb, var(--dz-on-banner) 28%, transparent) !important;
+  color: var(--dz-on-banner) !important;
+}
+.champ-theme .champ-public-nav-btn:hover {
+  background: color-mix(in srgb, var(--dz-on-banner) 14%, transparent) !important;
+}
+.champ-theme .champ-public-nav-btn.active {
+  background: var(--dz-btn) !important;
+  border-color: var(--dz-btn) !important;
+  color: var(--dz-btn-text) !important;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--dz-btn) 35%, transparent);
+}
+.champ-theme .champ-public-nav-count {
+  background: color-mix(in srgb, var(--dz-on-banner) 16%, transparent) !important;
+  color: inherit !important;
+}
+.champ-theme .champ-public-nav-btn.active .champ-public-nav-count {
+  background: color-mix(in srgb, var(--dz-btn-text) 18%, transparent) !important;
+  color: var(--dz-btn-text) !important;
+}
+
+/* Botões de ação (área escura / forte) */
+.champ-theme .button:not(.secondary):not(.danger),
+.champ-theme .invite-confirm,
+.champ-theme button.primary {
+  background: var(--dz-btn) !important;
+  border-color: var(--dz-btn) !important;
+  color: var(--dz-btn-text) !important;
+}
+.champ-theme .button.secondary {
+  background: var(--dz-surface) !important;
+  border: 1px solid var(--dz-border) !important;
+  color: var(--dz-text) !important;
+}
+
+/* Painéis e cards (áreas claras) */
+.champ-theme .champ-public-panel,
+.champ-theme .champ-public-section,
+.champ-theme .champ-public-info,
+.champ-theme .invite-card {
+  background: var(--dz-surface) !important;
+  color: var(--dz-text) !important;
+  border-color: var(--dz-border) !important;
+}
+.champ-theme .champ-public-panel-head {
+  color: var(--dz-text) !important;
+}
+.champ-theme .champ-public-panel-head svg {
+  color: var(--dz-primary) !important;
+}
+.champ-theme .champ-public-panel-head small,
+.champ-theme .champ-public-info-card small {
+  color: var(--dz-text-muted) !important;
+}
+.champ-theme .champ-public-info-card {
+  background: var(--dz-surface-soft) !important;
+  border-color: var(--dz-border) !important;
+}
+.champ-theme .champ-public-info-card strong {
+  color: var(--dz-text) !important;
+}
+
+/* Filtros / chips */
+.champ-theme .champ-equipes-filters,
+.champ-theme .teams-status-filters {
+  background: var(--dz-surface-soft) !important;
+  border-color: var(--dz-border) !important;
+}
+.champ-theme .champ-equipes-filters button,
+.champ-theme .champ-equipes-chips button:not(.active),
+.champ-theme .teams-status-filters button:not(.active) {
+  color: var(--dz-text-muted) !important;
+  background: transparent !important;
+}
+.champ-theme .champ-equipes-filters button.active,
+.champ-theme .champ-equipes-chips button.active,
+.champ-theme .teams-status-filters button.active {
+  background: var(--dz-btn) !important;
+  border-color: var(--dz-btn) !important;
+  color: var(--dz-btn-text) !important;
+  box-shadow: none !important;
+}
+.champ-theme .champ-equipes-chips button {
+  border: 1px solid var(--dz-border);
+  background: var(--dz-surface);
+  color: var(--dz-text);
+}
+
+/* Listas / vagas / slots */
+.champ-theme .championship-vaga-row,
+.champ-theme .vaga-row-summary,
+.champ-theme .lineup-slot,
+.champ-theme .directory-section-card {
+  border-color: var(--dz-border) !important;
+  background: var(--dz-surface) !important;
+  color: var(--dz-text) !important;
 }
 .champ-theme .championship-vaga-row.status-ocupada {
   border-left-color: var(--dz-primary) !important;
+  background: var(--dz-surface-soft) !important;
 }
-.champ-theme a:not(.button) {
-  color: var(--dz-primary);
+.champ-theme .vaga-status-pill.status-ocupada,
+.champ-theme .seller-status-pill.on {
+  background: var(--dz-accent-soft) !important;
+  color: var(--dz-text) !important;
+}
+.champ-theme .lineup-slot.occupied,
+.champ-theme .invite-slot-button.occupied {
+  border-color: color-mix(in srgb, var(--dz-primary) 45%, var(--dz-border)) !important;
+  background: var(--dz-accent-soft) !important;
+  color: var(--dz-text) !important;
+}
+.champ-theme .lineup-slot.free,
+.champ-theme .invite-slot-button.free {
+  background: var(--dz-surface-soft) !important;
+  border-color: var(--dz-border) !important;
+  color: var(--dz-text-muted) !important;
 }
 
-/* Links de inscrição / convite com tema do campeonato */
+/* Links e acentos */
+.champ-theme a:not(.button):not(.directory-back) {
+  color: var(--dz-primary);
+}
+.champ-theme .eyebrow {
+  color: var(--dz-primary) !important;
+}
+
+/* Stats / rankings leves */
+.champ-theme .invite-mini-stats {
+  background: var(--dz-surface-soft) !important;
+  border-color: var(--dz-border) !important;
+}
+.champ-theme .invite-mini-stats strong {
+  color: var(--dz-primary) !important;
+}
+.champ-theme .invite-mini-stats span {
+  color: var(--dz-text-muted) !important;
+}
+
+/* ===== Página de convite (layout inteiro tingido) ===== */
 .invite-page.champ-theme {
   background:
-    radial-gradient(circle at top, color-mix(in srgb, var(--dz-primary) 42%, #1a1214) 0, transparent 48%),
-    radial-gradient(circle at bottom right, color-mix(in srgb, var(--dz-secondary) 55%, #0b0c0f) 0, #08090b 70%);
+    radial-gradient(circle at top, color-mix(in srgb, var(--dz-primary) 28%, var(--dz-bg)) 0, transparent 50%),
+    radial-gradient(circle at bottom right, color-mix(in srgb, var(--dz-secondary) 22%, var(--dz-bg)) 0, var(--dz-bg) 72%) !important;
+  color: var(--dz-text);
 }
 .invite-page.champ-theme .invite-card {
-  border-top: 4px solid var(--dz-primary);
+  background: var(--dz-surface) !important;
+  color: var(--dz-text) !important;
+  border-top: 4px solid var(--dz-btn);
+  box-shadow: 0 28px 80px color-mix(in srgb, var(--dz-secondary) 28%, transparent);
 }
 .invite-page.champ-theme .eyebrow {
   color: var(--dz-primary) !important;
 }
-.invite-page.champ-theme h1 {
-  color: var(--dz-text-on-light);
+.invite-page.champ-theme h1,
+.invite-page.champ-theme p,
+.invite-page.champ-theme strong {
+  color: var(--dz-text);
 }
 .invite-page.champ-theme .invite-confirm,
 .invite-page.champ-theme .button:not(.secondary):not(.danger) {
-  background: var(--dz-primary) !important;
-  border-color: var(--dz-primary) !important;
-  color: var(--dz-text-on-dark) !important;
+  background: var(--dz-btn) !important;
+  border-color: var(--dz-btn) !important;
+  color: var(--dz-btn-text) !important;
 }
-.invite-page.champ-theme .lineup-slot.occupied,
-.invite-page.champ-theme .invite-slot-button.occupied {
-  border-color: color-mix(in srgb, var(--dz-primary) 55%, #dfe2e7);
-  background: color-mix(in srgb, var(--dz-primary) 10%, #fff);
+.invite-page.champ-theme .button.secondary {
+  background: var(--dz-surface-soft) !important;
+  border: 1px solid var(--dz-border) !important;
+  color: var(--dz-text) !important;
 }
-.invite-page.champ-theme .invite-mini-stats strong {
-  color: var(--dz-primary);
+.invite-page.champ-theme .invite-details,
+.invite-page.champ-theme .invite-auth-box {
+  border-color: var(--dz-border) !important;
+  background: var(--dz-surface-soft) !important;
+  color: var(--dz-text) !important;
 }
 .invite-page.champ-theme a:not(.button) {
   color: var(--dz-primary);
