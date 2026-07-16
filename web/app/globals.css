@@ -1067,10 +1067,34 @@ body:has(.cropper-overlay) {
   grid-template-columns: 56px 1fr;
   gap: 12px;
   align-items: center;
+  width: 100%;
   min-height: 78px;
   padding: 12px 14px;
   border-color: var(--line);
+  text-align: left;
   cursor: pointer;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+.champ-list-item > span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.champ-list-item strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.champ-list-item small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .champ-list-item.active,
@@ -1082,6 +1106,15 @@ body:has(.cropper-overlay) {
 .champ-thumb {
   width: 50px;
   height: 50px;
+  border-radius: 10px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #f2f4f7;
+  color: #475467;
+  font-weight: 900;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .tiny-logo {
@@ -4865,42 +4898,74 @@ button.invite-slot-button.free.clickable b {
 
 /* ===== Manager hub / multi-context panel ===== */
 .manager-hub-header .section-head { margin-bottom: 12px; }
+.manager-hub-header-compact {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+}
 .manager-mode-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
 }
+.manager-mode-nav-main {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  width: 100%;
+}
 .manager-mode-chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 0 12px;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
   border: 1px solid #e1e4e8;
+  border-radius: 10px;
   background: #fff;
   color: #171a22;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: .03em;
   cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.manager-mode-chip:hover {
+  border-color: #cfd4dc;
+  background: #fafbfc;
 }
 .manager-mode-chip.active {
   border-color: #171a22;
   background: #171a22;
   color: #fff;
+  box-shadow: 0 6px 16px rgba(23, 26, 34, .16);
+}
+.manager-mode-chip-sm {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 10px;
+  border-radius: 8px;
 }
 .manager-mode-count {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
   border-radius: 99px;
   display: inline-grid;
   place-items: center;
   background: #ff4655;
   color: #fff;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+.manager-mode-chip.active .manager-mode-count {
+  background: #ff4655;
+  color: #fff;
 }
 .manager-mode-chip:not(.active) .manager-mode-count {
   background: #eef0f3;
@@ -5688,7 +5753,13 @@ button.invite-slot-button.free.clickable b {
 .manager-subnav {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  padding-top: 2px;
+}
+@media (max-width: 700px) {
+  .manager-mode-nav-main {
+    grid-template-columns: 1fr;
+  }
 }
 .manager-staff-inline {
   display: flex;
@@ -5753,3 +5824,104 @@ button.invite-slot-button.free.clickable b {
 }
 .manager-staff-card .button { grid-column: 1 / -1; }
 .manager-profile-card-create { border-style: dashed; }
+
+/* Manager master-detail (mesmo padrão do campeonato da produtora) */
+.manager-context-stack.span-3,
+.manager-champ-layout.span-3 {
+  grid-column: 1 / -1;
+}
+.manager-detail-panel {
+  min-height: 420px;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+.manager-detail-empty {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  min-height: 360px;
+  text-align: center;
+  color: #98a2b3;
+  padding: 24px;
+}
+.manager-detail-empty > div {
+  max-width: 360px;
+  display: grid;
+  gap: 6px;
+}
+.manager-detail-empty strong {
+  display: block;
+  color: #101828;
+  font-size: 15px;
+}
+.manager-detail-empty p {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.manager-detail-thumb {
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #f2f4f7;
+  font-weight: 900;
+  color: #475467;
+}
+.manager-detail-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.manager-detail-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.manager-detail-meta > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  background: #fafbfc;
+}
+.manager-detail-meta small {
+  color: #98a2b3;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.manager-detail-meta strong {
+  font-size: 13px;
+  color: #101828;
+  word-break: break-word;
+}
+.manager-detail-block {
+  display: grid;
+  gap: 8px;
+}
+.manager-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
+.manager-champ-layout .manager-champ-body {
+  margin-top: 4px;
+}
+@media (max-width: 900px) {
+  .manager-detail-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .manager-detail-meta {
+    grid-template-columns: 1fr;
+  }
+}

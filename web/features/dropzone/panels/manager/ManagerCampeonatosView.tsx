@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft,
   CalendarDays,
   ExternalLink,
   FolderOpen,
@@ -238,361 +237,392 @@ export function ManagerCampeonatosView(props: {
 
   const fasesById = useMemo(() => new Map((estrutura?.fases || []).map((fase) => [fase.id, fase])), [estrutura?.fases])
 
-  if (props.selectedChampId && selected) {
-    const champ = selected.campeonatos || {}
-    const producer = selected.produtoras || {}
-    const limite = Number(selected.limite_vagas || 0)
-    const used = Number(selected.vagas_usadas || 0)
-    const resumo = estrutura?.resumo
+  // Auto-seleciona o primeiro campeonato ativo se nada estiver selecionado
+  useEffect(() => {
+    if (props.sellerLoading) return
+    if (!ativos.length) {
+      if (props.selectedChampId) props.setSelectedChampId('')
+      return
+    }
+    const stillValid = ativos.some((item) => item.campeonato_id === props.selectedChampId)
+    if (!stillValid) {
+      props.setSelectedChampId(ativos[0].campeonato_id)
+      props.setTab('equipes')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.sellerLoading, ativos.map((a) => a.campeonato_id).join('|'), props.selectedChampId])
 
-    return (
-      <section className="panel span-3 manager-champ-panel">
-        <div className="section-head">
-          <div>
-            <button
-              type="button"
-              className="button small secondary manager-back-btn"
-              onClick={() => {
-                props.setSelectedChampId('')
-                props.setTab('equipes')
-                props.onRefreshUsage?.()
-              }}
-            >
-              <ArrowLeft size={14} /> Campeonatos
-            </button>
-            <p className="eyebrow" style={{ marginTop: 10 }}>
-              Painel de operação · {producer.nome || 'Produtora'}
-            </p>
-            <h2>{champ.nome || 'Campeonato'}</h2>
-            <p className="empty" style={{ marginTop: 6 }}>
-              {limite > 0 ? `Seu uso: ${used}/${limite} vaga(s)` : `Você preencheu ${used} vaga(s)`}
-              {canOrganize ? ' · grupos liberados' : ''}
-              {canScore ? ' · pontuação liberada' : ''}
-            </p>
-          </div>
-          {champ.logo_url ? (
-            <img className="manager-champ-logo" src={champ.logo_url} alt="" />
-          ) : (
-            <Trophy />
-          )}
-        </div>
-
-        {resumo ? (
-          <div className="player-summary-grid manager-champ-summary">
-            <div>
-              <FolderOpen size={18} />
-              <strong>{resumo.fases}</strong>
-              <span>Fases</span>
-            </div>
-            <div>
-              <Users size={18} />
-              <strong>
-                {resumo.slots_ocupados}/{resumo.slots_total || 0}
-              </strong>
-              <span>Slots ocupados</span>
-            </div>
-            <div>
-              <CalendarDays size={18} />
-              <strong>{resumo.jogos}</strong>
-              <span>Jogos</span>
-            </div>
-            <div>
-              <Shield size={18} />
-              <strong>
-                {used}
-                {limite > 0 ? `/${limite}` : ''}
-              </strong>
-              <span>Suas vagas</span>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="manager-perm-chips">
-          {labels.map((label) => (
-            <span key={label} className="manager-perm-chip">
-              <Shield size={12} /> {label}
-            </span>
-          ))}
-          {!labels.length ? <span className="manager-perm-chip muted">Sem permissões extras</span> : null}
-        </div>
-
-        <div className="producer-tabs manager-champ-tabs">
-          <button type="button" className={props.tab === 'equipes' ? 'active' : ''} onClick={() => props.setTab('equipes')}>
-            Equipes / vagas
-          </button>
-          <button type="button" className={props.tab === 'jogadores' ? 'active' : ''} onClick={() => props.setTab('jogadores')}>
-            Jogadores
-          </button>
-          {canViewStructure ? (
-            <button type="button" className={props.tab === 'grupos' ? 'active' : ''} onClick={() => props.setTab('grupos')}>
-              Fases e grupos
-            </button>
-          ) : null}
-          {canViewStructure ? (
-            <button type="button" className={props.tab === 'jogos' ? 'active' : ''} onClick={() => props.setTab('jogos')}>
-              Jogos
-            </button>
-          ) : null}
-          <button type="button" className={props.tab === 'estatisticas' ? 'active' : ''} onClick={() => props.setTab('estatisticas')}>
-            Estatísticas
-          </button>
-          <button type="button" className={props.tab === 'info' ? 'active' : ''} onClick={() => props.setTab('info')}>
-            Funções
-          </button>
-        </div>
-
-        <div className="manager-champ-body">
-          {props.tab === 'equipes' ? (
-            <div className="manager-equipes-wrap">
-              <div className="manager-equipes-hint">
-                <strong>Fluxo de preenchimento</strong>
-                <p>
-                  Slot livre → Adicionar line (equipe vendida) ou gerar convite. Seu limite neste evento:{' '}
-                  <b>
-                    {used}
-                    {limite > 0 ? `/${limite}` : ''}
-                  </b>
-                  .
-                </p>
-                <button type="button" className="button small secondary" onClick={() => props.onRefreshUsage?.()}>
-                  Atualizar meu uso de vagas
-                </button>
-              </div>
-              <CampeonatoEquipesTab campeonatoId={selected.campeonato_id} />
-            </div>
-          ) : null}
-          {props.tab === 'jogadores' ? <CampeonatoJogadoresTab campeonatoId={selected.campeonato_id} /> : null}
-
-          {props.tab === 'grupos' ? (
-            <div className="manager-structure-view">
-              {estruturaLoading ? (
-                <p className="empty">
-                  <Loader2 className="spin" size={16} /> Carregando fases e grupos...
-                </p>
-              ) : null}
-              {estruturaError ? <div className="message error">{estruturaError}</div> : null}
-              {!estruturaLoading && !estruturaError && !(estrutura?.grupos || []).length ? (
-                <p className="empty">Nenhum grupo cadastrado ainda neste campeonato.</p>
-              ) : null}
-
-              {(estrutura?.fases || []).map((fase) => {
-                const grupos = (estrutura?.grupos || []).filter((grupo) => grupo.fase_id === fase.id)
-                return (
-                  <div key={fase.id} className="manager-fase-block">
-                    <header>
-                      <p className="eyebrow">Fase {fase.ordem ?? ''}</p>
-                      <h3>{fase.nome}</h3>
-                    </header>
-                    {grupos.length === 0 ? <p className="empty">Sem grupos nesta fase.</p> : null}
-                    <div className="manager-grupo-grid">
-                      {grupos.map((grupo) => (
-                        <article key={grupo.id} className="manager-grupo-card">
-                          <strong>{grupo.nome}</strong>
-                          <span>
-                            {grupo.slots_ocupados || 0}/{grupo.slots_total || 0} slots ocupados
-                          </span>
-                          <small>{grupo.slots_livres || 0} livres</small>
-                          {grupo.whatsapp_url ? (
-                            <a href={grupo.whatsapp_url} target="_blank" rel="noreferrer">
-                              WhatsApp do grupo
-                            </a>
-                          ) : (
-                            <small className="muted">Sem WhatsApp do grupo</small>
-                          )}
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {canOrganize ? (
-                <div className="permission-note compact-note" style={{ marginTop: 14 }}>
-                  <Shield size={16} />
-                  <div>
-                    <strong>Organizar grupos liberado</strong>
-                    <p>
-                      Você pode ver a estrutura. A criação/edição completa de fases e slots continua no painel da
-                      produtora nesta versão; use a aba Equipes para preencher vagas vendidas.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="empty" style={{ marginTop: 12 }}>
-                  Visualização da estrutura. Peça ao admin para liberar “Organizar grupos” se precisar montar fases.
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          {props.tab === 'jogos' ? (
-            <div className="manager-structure-view">
-              {estruturaLoading ? (
-                <p className="empty">
-                  <Loader2 className="spin" size={16} /> Carregando jogos...
-                </p>
-              ) : null}
-              {estruturaError ? <div className="message error">{estruturaError}</div> : null}
-              {!estruturaLoading && !(estrutura?.jogos || []).length ? (
-                <p className="empty">Nenhum jogo cadastrado ainda.</p>
-              ) : null}
-
-              <div className="manager-jogo-list">
-                {(estrutura?.jogos || []).map((jogo) => {
-                  const fase = jogo.fase_id ? fasesById.get(jogo.fase_id) : null
-                  return (
-                    <article key={jogo.id} className="manager-jogo-card">
-                      <div>
-                        <strong>{jogo.nome || 'Jogo'}</strong>
-                        <span>
-                          {fase?.nome || 'Sem fase'} · {formatDate(jogo.data_jogo)}
-                          {jogo.horario ? ` · ${String(jogo.horario).slice(0, 5)}` : ''}
-                        </span>
-                        <small>
-                          {(jogo.mapas || []).length
-                            ? `${(jogo.mapas || []).length} mapa(s): ${(jogo.mapas || []).slice(0, 3).join(', ')}`
-                            : 'Mapas a definir'}
-                        </small>
-                      </div>
-                      <div className="compact-row-actions">
-                        {canScore ? (
-                          <a className="button small" href={`/campeonatos/${selected.campeonato_id}/pontuador/${jogo.id}`}>
-                            Pontuar
-                          </a>
-                        ) : (
-                          <span className="manager-perm-chip muted">Pontuação bloqueada</span>
-                        )}
-                        <a
-                          className="button small secondary"
-                          href={`/campeonatos/${selected.campeonato_id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <ExternalLink size={14} /> Público
-                        </a>
-                      </div>
-                    </article>
-                  )
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          {props.tab === 'estatisticas' ? (
-            <CampeonatoEstatisticasTab
-              campeonatoId={selected.campeonato_id}
-              phases={phaseRows}
-              groups={groupRows}
-              games={gameRows}
-              maps={maps}
-            />
-          ) : null}
-
-          {props.tab === 'info' ? (
-            <div className="manager-champ-info">
-              <h3>O que você pode fazer neste campeonato</h3>
-              <ul>
-                <li>
-                  <strong>Gerar convites de vaga:</strong>{' '}
-                  {permOn(perms, 'gerar_convites_equipe', true)
-                    ? `Sim — link único (expira após uso). Uso: ${used}${limite > 0 ? `/${limite}` : ''} vaga(s).`
-                    : 'Não liberado.'}
-                </li>
-                <li>
-                  <strong>Adicionar equipes/lines direto:</strong>{' '}
-                  {permOn(perms, 'adicionar_equipes', false)
-                    ? 'Sim — liberado excepcionalmente pelo admin.'
-                    : 'Não — entrada padrão é por link de convite.'}
-                </li>
-                <li>
-                  <strong>Ver fases/grupos/jogos:</strong>{' '}
-                  {canViewStructure ? 'Sim — abas Fases e grupos / Jogos.' : 'Não liberado.'}
-                </li>
-                <li>
-                  <strong>Organizar grupos:</strong>{' '}
-                  {canOrganize
-                    ? 'Sim — liberado pelo admin (montagem avançada em evolução).'
-                    : 'Ainda bloqueado. Peça ao admin do campeonato para liberar.'}
-                </li>
-                <li>
-                  <strong>Pontuar tabela:</strong>{' '}
-                  {canScore
-                    ? 'Sim — use a aba Jogos → Pontuar em cada partida.'
-                    : 'Ainda bloqueado. O admin pode liberar pontuação para você.'}
-                </li>
-              </ul>
-              <p className="empty">
-                Funções avançadas são controladas pela produtora em Vendedores → Liberar neste evento.
-              </p>
-            </div>
-          ) : null}
-        </div>
-      </section>
-    )
-  }
+  const champ = selected?.campeonatos || {}
+  const producer = selected?.produtoras || {}
+  const limite = Number(selected?.limite_vagas || 0)
+  const used = Number(selected?.vagas_usadas || 0)
+  const resumo = estrutura?.resumo
 
   return (
-    <section className="panel span-3">
-      <div className="section-head">
-        <div>
-          <p className="eyebrow">Operação de campeonatos</p>
-          <h2>Campeonatos liberados para você</h2>
-          <p className="empty" style={{ marginTop: 6 }}>
-            Abra um campeonato para adicionar as equipes/lines que vendeu, ver vagas, grupos, jogos e pontuar se o admin
-            liberar.
-          </p>
+    <div className="producer-layout-ref span-3 manager-champ-layout">
+      <aside className="championship-nav-card panel">
+        <div className="section-head compact-head">
+          <div>
+            <p className="eyebrow">Manager</p>
+            <h2>Campeonatos</h2>
+          </div>
+          <Trophy />
         </div>
-        <Trophy />
-      </div>
 
-      {props.sellerLoading ? <p className="empty">Carregando...</p> : null}
-      {props.sellerError ? <div className="message error">{props.sellerError}</div> : null}
+        <div className="championship-list ref-list">
+          {props.sellerLoading ? <p className="empty">Carregando...</p> : null}
+          {props.sellerError ? <div className="message error">{props.sellerError}</div> : null}
+          {!props.sellerLoading && ativos.length === 0 ? (
+            <p className="empty">
+              Nenhum campeonato ativo. Quando a produtora te liberar em um evento, ele aparece aqui.
+            </p>
+          ) : null}
 
-      {!props.sellerLoading && ativos.length === 0 ? (
-        <p className="empty">
-          Nenhum campeonato ativo. Quando a produtora te liberar em um evento, ele aparece aqui para operação (não só
-          venda).
-        </p>
-      ) : null}
+          {ativos.map((item) => {
+            const c = item.campeonatos || {}
+            const p = item.produtoras || {}
+            const isActive = selected?.campeonato_id === item.campeonato_id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`champ-list-item ref-champ-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  props.setSelectedChampId(item.campeonato_id)
+                  props.setTab('equipes')
+                }}
+              >
+                <span className="champ-thumb">
+                  {c.logo_url ? <img src={c.logo_url} alt="" /> : <Trophy size={18} />}
+                </span>
+                <span>
+                  <strong>{c.nome || 'Campeonato'}</strong>
+                  <small>
+                    {p.nome || 'Evento liberado'} · {formatUsage(item)}
+                    {item.anunciando ? ' · portfólio' : ''}
+                  </small>
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
-      <div className="manager-champ-grid">
-        {ativos.map((item) => {
-          const champ = item.campeonatos || {}
-          const producer = item.produtoras || {}
-          const labels = permissionLabels(item.permissoes)
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="manager-champ-card"
-              onClick={() => {
-                props.setSelectedChampId(item.campeonato_id)
-                props.setTab('equipes')
-              }}
-            >
-              <div className="manager-champ-card-logo">
-                {champ.logo_url ? <img src={champ.logo_url} alt="" /> : <Trophy size={22} />}
+        <button type="button" className="button secondary full" onClick={() => props.onRefreshUsage?.()}>
+          Atualizar lista
+        </button>
+      </aside>
+
+      <section className="championship-detail-card panel manager-detail-panel manager-champ-panel">
+        {!selected ? (
+          <div className="manager-detail-empty">
+            <Trophy size={28} />
+            <div>
+              <strong>Selecione um campeonato</strong>
+              <p>
+                O manager não administra a produtora — só opera os campeonatos liberados para venda e preenchimento de
+                vagas. Escolha um evento à esquerda.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="section-head compact-head">
+              <div>
+                <p className="eyebrow">Operação · {producer.nome || 'Produtora'}</p>
+                <h2>{champ.nome || 'Campeonato'}</h2>
+                <p className="empty" style={{ marginTop: 6 }}>
+                  {limite > 0 ? `Seu uso: ${used}/${limite} vaga(s)` : `Você preencheu ${used} vaga(s)`}
+                  {canOrganize ? ' · grupos liberados' : ''}
+                  {canScore ? ' · pontuação liberada' : ''}
+                </p>
               </div>
-              <div className="manager-champ-card-copy">
-                <strong>{champ.nome || 'Campeonato'}</strong>
-                <span>{producer.nome ? `Produtora ${producer.nome}` : 'Evento liberado'}</span>
-                <small>
-                  {formatUsage(item)}
-                  {item.anunciando ? ' · no portfólio' : ''}
-                </small>
-                <div className="manager-perm-chips compact">
-                  {labels.slice(0, 3).map((label) => (
-                    <span key={label} className="manager-perm-chip">
-                      {label}
-                    </span>
-                  ))}
+              {champ.logo_url ? (
+                <img className="manager-champ-logo" src={champ.logo_url} alt="" />
+              ) : (
+                <Trophy />
+              )}
+            </div>
+
+            {resumo ? (
+              <div className="player-summary-grid manager-champ-summary">
+                <div>
+                  <FolderOpen size={18} />
+                  <strong>{resumo.fases}</strong>
+                  <span>Fases</span>
+                </div>
+                <div>
+                  <Users size={18} />
+                  <strong>
+                    {resumo.slots_ocupados}/{resumo.slots_total || 0}
+                  </strong>
+                  <span>Slots ocupados</span>
+                </div>
+                <div>
+                  <CalendarDays size={18} />
+                  <strong>{resumo.jogos}</strong>
+                  <span>Jogos</span>
+                </div>
+                <div>
+                  <Shield size={18} />
+                  <strong>
+                    {used}
+                    {limite > 0 ? `/${limite}` : ''}
+                  </strong>
+                  <span>Suas vagas</span>
                 </div>
               </div>
-              <Users size={18} className="manager-champ-card-icon" />
-            </button>
-          )
-        })}
-      </div>
-    </section>
+            ) : null}
+
+            <div className="manager-perm-chips">
+              {labels.map((label) => (
+                <span key={label} className="manager-perm-chip">
+                  <Shield size={12} /> {label}
+                </span>
+              ))}
+              {!labels.length ? <span className="manager-perm-chip muted">Sem permissões extras</span> : null}
+            </div>
+
+            <div className="producer-tabs manager-champ-tabs">
+              <button
+                type="button"
+                className={props.tab === 'equipes' ? 'active' : ''}
+                onClick={() => props.setTab('equipes')}
+              >
+                Equipes / vagas
+              </button>
+              <button
+                type="button"
+                className={props.tab === 'jogadores' ? 'active' : ''}
+                onClick={() => props.setTab('jogadores')}
+              >
+                Jogadores
+              </button>
+              {canViewStructure ? (
+                <button
+                  type="button"
+                  className={props.tab === 'grupos' ? 'active' : ''}
+                  onClick={() => props.setTab('grupos')}
+                >
+                  Fases e grupos
+                </button>
+              ) : null}
+              {canViewStructure ? (
+                <button
+                  type="button"
+                  className={props.tab === 'jogos' ? 'active' : ''}
+                  onClick={() => props.setTab('jogos')}
+                >
+                  Jogos
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={props.tab === 'estatisticas' ? 'active' : ''}
+                onClick={() => props.setTab('estatisticas')}
+              >
+                Estatísticas
+              </button>
+              <button
+                type="button"
+                className={props.tab === 'info' ? 'active' : ''}
+                onClick={() => props.setTab('info')}
+              >
+                Funções
+              </button>
+            </div>
+
+            <div className="manager-champ-body">
+              {props.tab === 'equipes' ? (
+                <div className="manager-equipes-wrap">
+                  <div className="manager-equipes-hint">
+                    <strong>Fluxo de preenchimento</strong>
+                    <p>
+                      Slot livre → Adicionar line (equipe vendida) ou gerar convite. Seu limite neste evento:{' '}
+                      <b>
+                        {used}
+                        {limite > 0 ? `/${limite}` : ''}
+                      </b>
+                      .
+                    </p>
+                    <button type="button" className="button small secondary" onClick={() => props.onRefreshUsage?.()}>
+                      Atualizar meu uso de vagas
+                    </button>
+                  </div>
+                  <CampeonatoEquipesTab campeonatoId={selected.campeonato_id} />
+                </div>
+              ) : null}
+              {props.tab === 'jogadores' ? <CampeonatoJogadoresTab campeonatoId={selected.campeonato_id} /> : null}
+
+              {props.tab === 'grupos' ? (
+                <div className="manager-structure-view">
+                  {estruturaLoading ? (
+                    <p className="empty">
+                      <Loader2 className="spin" size={16} /> Carregando fases e grupos...
+                    </p>
+                  ) : null}
+                  {estruturaError ? <div className="message error">{estruturaError}</div> : null}
+                  {!estruturaLoading && !estruturaError && !(estrutura?.grupos || []).length ? (
+                    <p className="empty">Nenhum grupo cadastrado ainda neste campeonato.</p>
+                  ) : null}
+
+                  {(estrutura?.fases || []).map((fase) => {
+                    const grupos = (estrutura?.grupos || []).filter((grupo) => grupo.fase_id === fase.id)
+                    return (
+                      <div key={fase.id} className="manager-fase-block">
+                        <header>
+                          <p className="eyebrow">Fase {fase.ordem ?? ''}</p>
+                          <h3>{fase.nome}</h3>
+                        </header>
+                        {grupos.length === 0 ? <p className="empty">Sem grupos nesta fase.</p> : null}
+                        <div className="manager-grupo-grid">
+                          {grupos.map((grupo) => (
+                            <article key={grupo.id} className="manager-grupo-card">
+                              <strong>{grupo.nome}</strong>
+                              <span>
+                                {grupo.slots_ocupados || 0}/{grupo.slots_total || 0} slots ocupados
+                              </span>
+                              <small>{grupo.slots_livres || 0} livres</small>
+                              {grupo.whatsapp_url ? (
+                                <a href={grupo.whatsapp_url} target="_blank" rel="noreferrer">
+                                  WhatsApp do grupo
+                                </a>
+                              ) : (
+                                <small className="muted">Sem WhatsApp do grupo</small>
+                              )}
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {canOrganize ? (
+                    <div className="permission-note compact-note" style={{ marginTop: 14 }}>
+                      <Shield size={16} />
+                      <div>
+                        <strong>Organizar grupos liberado</strong>
+                        <p>
+                          Você pode ver a estrutura. A criação/edição completa de fases e slots continua no painel da
+                          produtora nesta versão; use a aba Equipes para preencher vagas vendidas.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="empty" style={{ marginTop: 12 }}>
+                      Visualização da estrutura. Peça ao admin para liberar “Organizar grupos” se precisar montar fases.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              {props.tab === 'jogos' ? (
+                <div className="manager-structure-view">
+                  {estruturaLoading ? (
+                    <p className="empty">
+                      <Loader2 className="spin" size={16} /> Carregando jogos...
+                    </p>
+                  ) : null}
+                  {estruturaError ? <div className="message error">{estruturaError}</div> : null}
+                  {!estruturaLoading && !(estrutura?.jogos || []).length ? (
+                    <p className="empty">Nenhum jogo cadastrado ainda.</p>
+                  ) : null}
+
+                  <div className="manager-jogo-list">
+                    {(estrutura?.jogos || []).map((jogo) => {
+                      const fase = jogo.fase_id ? fasesById.get(jogo.fase_id) : null
+                      return (
+                        <article key={jogo.id} className="manager-jogo-card">
+                          <div>
+                            <strong>{jogo.nome || 'Jogo'}</strong>
+                            <span>
+                              {fase?.nome || 'Sem fase'} · {formatDate(jogo.data_jogo)}
+                              {jogo.horario ? ` · ${String(jogo.horario).slice(0, 5)}` : ''}
+                            </span>
+                            <small>
+                              {(jogo.mapas || []).length
+                                ? `${(jogo.mapas || []).length} mapa(s): ${(jogo.mapas || []).slice(0, 3).join(', ')}`
+                                : 'Mapas a definir'}
+                            </small>
+                          </div>
+                          <div className="compact-row-actions">
+                            {canScore ? (
+                              <a
+                                className="button small"
+                                href={`/campeonatos/${selected.campeonato_id}/pontuador/${jogo.id}`}
+                              >
+                                Pontuar
+                              </a>
+                            ) : (
+                              <span className="manager-perm-chip muted">Pontuação bloqueada</span>
+                            )}
+                            <a
+                              className="button small secondary"
+                              href={`/campeonatos/${selected.campeonato_id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <ExternalLink size={14} /> Público
+                            </a>
+                          </div>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {props.tab === 'estatisticas' ? (
+                <CampeonatoEstatisticasTab
+                  campeonatoId={selected.campeonato_id}
+                  phases={phaseRows}
+                  groups={groupRows}
+                  games={gameRows}
+                  maps={maps}
+                />
+              ) : null}
+
+              {props.tab === 'info' ? (
+                <div className="manager-champ-info">
+                  <h3>O que você pode fazer neste campeonato</h3>
+                  <ul>
+                    <li>
+                      <strong>Gerar convites de vaga:</strong>{' '}
+                      {permOn(perms, 'gerar_convites_equipe', true)
+                        ? `Sim — link único (expira após uso). Uso: ${used}${limite > 0 ? `/${limite}` : ''} vaga(s).`
+                        : 'Não liberado.'}
+                    </li>
+                    <li>
+                      <strong>Adicionar equipes/lines direto:</strong>{' '}
+                      {permOn(perms, 'adicionar_equipes', false)
+                        ? 'Sim — liberado excepcionalmente pelo admin.'
+                        : 'Não — entrada padrão é por link de convite.'}
+                    </li>
+                    <li>
+                      <strong>Ver fases/grupos/jogos:</strong>{' '}
+                      {canViewStructure ? 'Sim — abas Fases e grupos / Jogos.' : 'Não liberado.'}
+                    </li>
+                    <li>
+                      <strong>Organizar grupos:</strong>{' '}
+                      {canOrganize
+                        ? 'Sim — liberado pelo admin (montagem avançada em evolução).'
+                        : 'Ainda bloqueado. Peça ao admin do campeonato para liberar.'}
+                    </li>
+                    <li>
+                      <strong>Pontuar tabela:</strong>{' '}
+                      {canScore
+                        ? 'Sim — use a aba Jogos → Pontuar em cada partida.'
+                        : 'Ainda bloqueado. O admin pode liberar pontuação para você.'}
+                    </li>
+                  </ul>
+                  <p className="empty">
+                    Funções avançadas são controladas pela produtora em Vendedores → Liberar neste evento.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </>
+        )}
+      </section>
+    </div>
   )
 }
