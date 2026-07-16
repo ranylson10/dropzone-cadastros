@@ -762,19 +762,63 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
       selected = controllable[0]
     }
 
+    // Multi-equipe sem preferência: prioriza equipe já inscrita neste grupo
+    // (link fechado / acompanhamento → manager ainda precisa gerenciar escalação)
+    let equipesInscritasNoGrupo: string[] = []
+    if (!selected && controllable.length > 1) {
+      const { data: partsInGroup, error: partsInGroupError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('equipe_id')
+        .eq('campeonato_id', campeonatoId)
+        .eq('grupo_id', grupoId)
+        .eq('status', 'ativo')
+        .in(
+          'equipe_id',
+          controllable.map((e) => e.id),
+        )
+      if (partsInGroupError) throw partsInGroupError
+      equipesInscritasNoGrupo = [
+        ...new Set((partsInGroup || []).map((p) => String(p.equipe_id)).filter(Boolean)),
+      ]
+      if (equipesInscritasNoGrupo.length === 1) {
+        selected = controllable.find((e) => e.id === equipesInscritasNoGrupo[0]) || null
+      }
+    }
+
+    const mapEquipe = (e: (typeof controllable)[number], inscrita?: boolean) => ({
+      id: e.id,
+      nome: e.nome,
+      username: e.username,
+      logo_url: e.logo_url,
+      tag: e.tag,
+      papel: e.papel,
+      inscrita_no_grupo: Boolean(inscrita),
+    })
+
     if (!selected) {
+      // Marca quais pastas já estão no grupo (UI de escolha / escalação)
+      if (!equipesInscritasNoGrupo.length && controllable.length > 1) {
+        const { data: partsInGroup } = await supabaseAdmin
+          .from('campeonato_equipes')
+          .select('equipe_id')
+          .eq('campeonato_id', campeonatoId)
+          .eq('grupo_id', grupoId)
+          .eq('status', 'ativo')
+          .in(
+            'equipe_id',
+            controllable.map((e) => e.id),
+          )
+        equipesInscritasNoGrupo = [
+          ...new Set((partsInGroup || []).map((p) => String(p.equipe_id)).filter(Boolean)),
+        ]
+      }
+      const inscribed = new Set(equipesInscritasNoGrupo)
       return {
         ...emptySession,
         autenticado: true,
         papel_sessao: papelSessao,
-        equipes_disponiveis: controllable.map((e) => ({
-          id: e.id,
-          nome: e.nome,
-          username: e.username,
-          logo_url: e.logo_url,
-          tag: e.tag,
-          papel: e.papel,
-        })),
+        equipes_disponiveis: controllable.map((e) => mapEquipe(e, inscribed.has(e.id))),
+        tem_equipe_inscrita_no_grupo: inscribed.size > 0,
       }
     }
 
@@ -788,14 +832,10 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
     return {
       ...session,
       papel_sessao: papelSessao,
-      equipes_disponiveis: controllable.map((e) => ({
-        id: e.id,
-        nome: e.nome,
-        username: e.username,
-        logo_url: e.logo_url,
-        tag: e.tag,
-        papel: e.papel,
-      })),
+      equipes_disponiveis: controllable.map((e) =>
+        mapEquipe(e, e.id === selected!.id ? session.inscrita : undefined),
+      ),
+      tem_equipe_inscrita_no_grupo: Boolean(session.inscrita),
     }
   } catch {
     return { ...emptySession }

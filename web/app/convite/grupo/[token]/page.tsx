@@ -104,12 +104,15 @@ type GroupInvitePayload = {
     logo_url?: string | null
     tag?: string | null
     papel?: string
+    inscrita_no_grupo?: boolean
   }>
   papel_sessao?: 'equipe' | 'manager' | null
   lines?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita: boolean }>
   lines_disponiveis?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita?: boolean }>
   total_lines_inscritas_campeonato?: number
   minhas_participacoes?: Participacao[]
+  /** Alguma equipe controlada já está inscrita neste grupo (escalação / hub) */
+  tem_equipe_inscrita_no_grupo?: boolean
 }
 
 /**
@@ -212,9 +215,10 @@ export default function ConviteGrupoPage() {
   }
 
   /**
-   * - Link fechado → acompanhamento (público). CTA "Escalar" decide auth depois.
+   * - Link fechado + equipe já inscrita → hub (escalação / jogadores).
+   * - Link fechado + multi-equipe inscrita sem pasta → escolher_equipe.
+   * - Link fechado sem vínculo → acompanhamento público.
    * - Link aberto + sem login → login (com opção acompanhar).
-   * - Link aberto + logado sem equipe → criar equipe.
    * - Link aberto + logado com equipe:
    *     · sessão prévia → confirmar equipe (1x)
    *     · login neste fluxo → direto na line
@@ -225,16 +229,23 @@ export default function ConviteGrupoPage() {
   ): Step {
     const open = payload.inscricao_aberta !== false && payload.modo !== 'acompanhamento'
     const parts = payload.minhas_participacoes || []
+    const multi = (payload.equipes_disponiveis || []).length > 1
+    const hasInscrita =
+      parts.length > 0
+      || payload.tem_equipe_inscrita_no_grupo === true
+      || (payload.equipes_disponiveis || []).some((e) => e.inscrita_no_grupo)
 
     if (opts.forceAcompanhar) return 'acompanhar'
 
+    // Link esgotado/fechado: ainda libera hub de escalação para quem já entrou
     if (!open) {
       if (payload.autenticado && parts.length > 0) return 'hub'
+      // Várias pastas e alguma inscrita: escolher qual gerenciar
+      if (payload.autenticado && multi && hasInscrita) return 'escolher_equipe'
       return 'acompanhar'
     }
 
     if (!payload.autenticado) return 'login'
-    const multi = (payload.equipes_disponiveis || []).length > 1
     // Manager / multi-equipe: escolher com qual pasta entrar
     if (!payload.equipe && (payload.equipes_disponiveis || []).length > 0) return 'escolher_equipe'
     if (!payload.equipe) return 'sem_equipe'
@@ -328,7 +339,9 @@ export default function ConviteGrupoPage() {
   async function escolherEquipe(equipeId: string) {
     setSelectedEquipeId(equipeId)
     setMessage('')
-    await carregar({ forceStep: 'escolher_line', equipeId })
+    // Não força "escolher_line": se o link estiver fechado e a equipe já estiver
+    // inscrita, resolveStep manda para o hub de escalação.
+    await carregar({ equipeId })
   }
 
   function confirmarEstaEquipe() {
@@ -637,16 +650,27 @@ export default function ConviteGrupoPage() {
                 <p>
                   {data.papel_sessao === 'manager' ? (
                   <>
-                    Você entrou como <strong>manager</strong>. Escolha com qual equipe deseja se inscrever neste campeonato.
+                    Você entrou como <strong>manager</strong>.{' '}
+                    {!inscricaoAberta
+                      ? 'Escolha a equipe inscrita neste grupo para gerenciar a escalação.'
+                      : 'Escolha com qual equipe deseja se inscrever neste campeonato.'}
                   </>
                 ) : (
-                  'Você controla mais de uma equipe. Escolha com qual deseja entrar.'
+                  !inscricaoAberta
+                    ? 'Você controla mais de uma equipe. Escolha a inscrita neste grupo para gerenciar a escalação.'
+                    : 'Você controla mais de uma equipe. Escolha com qual deseja entrar.'
                 )}
                 </p>
               </div>
               <div className="championship-vagas-list">
-                {(data.equipes_disponiveis || []).map((eq) => (
-                  <article key={eq.id} className="championship-vaga-row status-ocupada">
+                {(data.equipes_disponiveis || [])
+                  .slice()
+                  .sort((a, b) => Number(Boolean(b.inscrita_no_grupo)) - Number(Boolean(a.inscrita_no_grupo)))
+                  .map((eq) => (
+                  <article
+                    key={eq.id}
+                    className={`championship-vaga-row ${eq.inscrita_no_grupo ? 'status-ocupada' : 'status-livre'}`}
+                  >
                     <button
                       type="button"
                       className="vaga-row-summary"
@@ -654,7 +678,7 @@ export default function ConviteGrupoPage() {
                       disabled={busy}
                     >
                       <span className="vaga-row-number">{eq.papel === 'dono' ? 'DN' : 'ST'}</span>
-                      <span className="vaga-row-avatar status-ocupada" aria-hidden>
+                      <span className={`vaga-row-avatar ${eq.inscrita_no_grupo ? 'status-ocupada' : 'status-livre'}`} aria-hidden>
                         {eq.logo_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={eq.logo_url} alt="" />
@@ -671,14 +695,16 @@ export default function ConviteGrupoPage() {
                         </small>
                       </span>
                       <span className="vaga-row-meta">
-                        <span className="vaga-status-pill status-ocupada">Usar</span>
+                        <span className={`vaga-status-pill ${eq.inscrita_no_grupo ? 'status-ocupada' : 'status-livre'}`}>
+                          {eq.inscrita_no_grupo ? 'Inscrita' : 'Usar'}
+                        </span>
                       </span>
                       <span className="vaga-row-chevron" aria-hidden />
                     </button>
                   </article>
                 ))}
               </div>
-              {data.equipe ? (
+              {data.equipe && inscricaoAberta ? (
                 <button
                   type="button"
                   className="button secondary"
@@ -911,11 +937,11 @@ export default function ConviteGrupoPage() {
                 <button
                   className="button invite-confirm"
                   type="button"
-                  onClick={() => setStep('escalar')}
+                  onClick={() => setStep('hub')}
                   style={{ width: '100%', marginTop: 16 }}
                 >
                   <Link2 size={16} />
-                  Escalar elenco
+                  Gerenciar escalação
                 </button>
               ) : (
                 <>
@@ -929,7 +955,21 @@ export default function ConviteGrupoPage() {
                       onClick={() => setStep('login')}
                       style={{ width: '100%', marginTop: 8 }}
                     >
-                      Entrar para escalar elenco
+                      Entrar para gerenciar escalação
+                    </button>
+                  ) : (data.equipes_disponiveis || []).length > 0 || data.tem_equipe_inscrita_no_grupo ? (
+                    <button
+                      className="button invite-confirm"
+                      type="button"
+                      onClick={() => {
+                        if ((data.equipes_disponiveis || []).length > 1) setStep('escolher_equipe')
+                        else if (data.equipe?.id) void carregar({ equipeId: data.equipe.id })
+                        else setStep('escolher_equipe')
+                      }}
+                      style={{ width: '100%', marginTop: 8 }}
+                    >
+                      <Link2 size={16} />
+                      Gerenciar escalação da minha equipe
                     </button>
                   ) : null}
                 </>
