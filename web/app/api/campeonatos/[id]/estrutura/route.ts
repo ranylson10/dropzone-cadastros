@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
+import {
+  getCampeonatoPermission,
+  requireCampeonatoStructureWrite,
+} from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function canReadStructure(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
@@ -20,6 +23,144 @@ function canReadStructure(permission: Awaited<ReturnType<typeof getCampeonatoPer
   return false
 }
 
+function slotLetterFromNumber(number: number) {
+  let value = number
+  let label = ''
+  while (value > 0) {
+    value -= 1
+    label = String.fromCharCode(65 + (value % 26)) + label
+    value = Math.floor(value / 26)
+  }
+  return label
+}
+
+async function loadStructure(campeonatoId: string) {
+  const [
+    { data: campeonato, error: campError },
+    { data: fases, error: fasesError },
+    { data: grupos, error: gruposError },
+    { data: slots, error: slotsError },
+    { data: jogos, error: jogosError },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from('campeonatos')
+      .select('id,nome,logo_url,status,banner_url')
+      .eq('id', campeonatoId)
+      .is('deleted_at', null)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('campeonato_fases')
+      .select('id,nome,ordem,status,created_at')
+      .eq('campeonato_id', campeonatoId)
+      .order('ordem', { ascending: true }),
+    supabaseAdmin
+      .from('campeonato_grupos')
+      .select('id,nome,fase_id,slots,whatsapp_url,created_at')
+      .eq('campeonato_id', campeonatoId)
+      .order('created_at', { ascending: true }),
+    supabaseAdmin
+      .from('campeonato_slots')
+      .select('id,grupo_id,fase_id,slot_numero,slot_letra,equipe_id,line_id,status')
+      .eq('campeonato_id', campeonatoId)
+      .order('slot_numero', { ascending: true }),
+    supabaseAdmin
+      .from('campeonato_jogos')
+      .select('id,nome,fase_id,rodada_id,data_jogo,horario,numero_partidas,mapas,grupos_ids,status,created_at')
+      .eq('campeonato_id', campeonatoId)
+      .order('created_at', { ascending: true }),
+  ])
+
+  if (campError) throw campError
+  if (!campeonato) throw new Error('Campeonato não encontrado.')
+  if (fasesError) throw fasesError
+  if (gruposError) throw gruposError
+  if (slotsError) throw slotsError
+  if (jogosError) throw jogosError
+
+  // Enriquecer slots com line/equipe
+  const lineIds = [...new Set((slots || []).map((s) => s.line_id).filter(Boolean))]
+  const equipeIds = [...new Set((slots || []).map((s) => s.equipe_id).filter(Boolean))]
+  const [{ data: lines }, { data: equipes }, { data: parts }] = await Promise.all([
+    lineIds.length
+      ? supabaseAdmin.from('equipe_lines').select('id,nome,logo_url,equipe_id').in('id', lineIds)
+      : Promise.resolve({ data: [] as any[] }),
+    equipeIds.length
+      ? supabaseAdmin.from('equipes').select('id,nome,logo_url').in('id', equipeIds)
+      : Promise.resolve({ data: [] as any[] }),
+    supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id,line_id,equipe_id,nome_exibicao,line_nome,equipe_nome,origem_entrada,status,slot_id')
+      .eq('campeonato_id', campeonatoId)
+      .eq('status', 'ativo'),
+  ])
+  const lineMap = new Map((lines || []).map((l) => [l.id, l]))
+  const equipeMap = new Map((equipes || []).map((e) => [e.id, e]))
+  const partByLine = new Map((parts || []).filter((p) => p.line_id).map((p) => [p.line_id, p]))
+  const partBySlot = new Map((parts || []).filter((p) => p.slot_id).map((p) => [p.slot_id, p]))
+
+  const slotsEnriquecidos = (slots || []).map((slot) => {
+    const line = slot.line_id ? lineMap.get(slot.line_id) : null
+    const equipe = slot.equipe_id ? equipeMap.get(slot.equipe_id) : null
+    const part = (slot.id && partBySlot.get(slot.id)) || (slot.line_id && partByLine.get(slot.line_id)) || null
+    return {
+      ...slot,
+      line_nome: part?.line_nome || part?.nome_exibicao || line?.nome || null,
+      equipe_nome: part?.equipe_nome || equipe?.nome || null,
+      line_logo_url: line?.logo_url || equipe?.logo_url || null,
+      origem_entrada: part?.origem_entrada || null,
+    }
+  })
+
+  const slotsByGrupo = new Map<string, { total: number; ocupados: number; livres: number }>()
+  for (const slot of slotsEnriquecidos) {
+    const key = String(slot.grupo_id || '')
+    if (!key) continue
+    const current = slotsByGrupo.get(key) || { total: 0, ocupados: 0, livres: 0 }
+    current.total += 1
+    if (slot.equipe_id || slot.line_id) current.ocupados += 1
+    else current.livres += 1
+    slotsByGrupo.set(key, current)
+  }
+
+  const gruposEnriquecidos = (grupos || []).map((grupo) => {
+    const stats = slotsByGrupo.get(grupo.id) || {
+      total: Number(grupo.slots || 0),
+      ocupados: 0,
+      livres: Number(grupo.slots || 0),
+    }
+    return {
+      ...grupo,
+      slots_total: stats.total || Number(grupo.slots || 0),
+      slots_ocupados: stats.ocupados,
+      slots_livres: stats.livres || Math.max(0, (stats.total || Number(grupo.slots || 0)) - stats.ocupados),
+    }
+  })
+
+  return {
+    campeonato,
+    fases: fases || [],
+    grupos: gruposEnriquecidos,
+    slots: slotsEnriquecidos,
+    jogos: (jogos || []).map((jogo) => ({
+      ...jogo,
+      mapas: Array.isArray(jogo.mapas)
+        ? jogo.mapas
+        : String(jogo.mapas || '')
+            .split(',')
+            .map((m: string) => m.trim())
+            .filter(Boolean),
+      grupos_ids: Array.isArray(jogo.grupos_ids) ? jogo.grupos_ids : [],
+    })),
+    resumo: {
+      fases: (fases || []).length,
+      grupos: (grupos || []).length,
+      slots_total: slotsEnriquecidos.length,
+      slots_ocupados: slotsEnriquecidos.filter((s) => s.equipe_id || s.line_id).length,
+      jogos: (jogos || []).length,
+    },
+  }
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
@@ -29,89 +170,15 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       throw new Error('Você não tem permissão para ver a estrutura deste campeonato.')
     }
 
-    const [{ data: campeonato, error: campError }, { data: fases, error: fasesError }, { data: grupos, error: gruposError }, { data: slots, error: slotsError }, { data: jogos, error: jogosError }] =
-      await Promise.all([
-        supabaseAdmin
-          .from('campeonatos')
-          .select('id,nome,logo_url,status,banner_url')
-          .eq('id', id)
-          .is('deleted_at', null)
-          .maybeSingle(),
-        supabaseAdmin
-          .from('campeonato_fases')
-          .select('id,nome,ordem,status,created_at')
-          .eq('campeonato_id', id)
-          .order('ordem', { ascending: true }),
-        supabaseAdmin
-          .from('campeonato_grupos')
-          // schema real: sem coluna status (só id/nome/slots/fase_id/whatsapp_url/timestamps)
-          .select('id,nome,fase_id,slots,whatsapp_url,created_at')
-          .eq('campeonato_id', id)
-          .order('created_at', { ascending: true }),
-        supabaseAdmin
-          .from('campeonato_slots')
-          .select('id,grupo_id,fase_id,slot_numero,slot_letra,equipe_id,line_id,status')
-          .eq('campeonato_id', id),
-        supabaseAdmin
-          .from('campeonato_jogos')
-          .select('id,nome,fase_id,rodada_id,data_jogo,horario,numero_partidas,mapas,grupos_ids,status,created_at')
-          .eq('campeonato_id', id)
-          .order('created_at', { ascending: true }),
-      ])
-
-    if (campError) throw campError
-    if (!campeonato) throw new Error('Campeonato não encontrado.')
-    if (fasesError) throw fasesError
-    if (gruposError) throw gruposError
-    if (slotsError) throw slotsError
-    if (jogosError) throw jogosError
-
-    const slotsByGrupo = new Map<string, { total: number; ocupados: number; livres: number }>()
-    for (const slot of slots || []) {
-      const key = String(slot.grupo_id || '')
-      if (!key) continue
-      const current = slotsByGrupo.get(key) || { total: 0, ocupados: 0, livres: 0 }
-      current.total += 1
-      if (slot.equipe_id || slot.line_id) current.ocupados += 1
-      else current.livres += 1
-      slotsByGrupo.set(key, current)
-    }
-
-    const gruposEnriquecidos = (grupos || []).map((grupo) => {
-      const stats = slotsByGrupo.get(grupo.id) || {
-        total: Number(grupo.slots || 0),
-        ocupados: 0,
-        livres: Number(grupo.slots || 0),
-      }
-      return {
-        ...grupo,
-        slots_total: stats.total || Number(grupo.slots || 0),
-        slots_ocupados: stats.ocupados,
-        slots_livres: stats.livres || Math.max(0, (stats.total || Number(grupo.slots || 0)) - stats.ocupados),
-      }
-    })
-
+    const structure = await loadStructure(id)
     return NextResponse.json({
-      campeonato,
-      fases: fases || [],
-      grupos: gruposEnriquecidos,
-      jogos: (jogos || []).map((jogo) => ({
-        ...jogo,
-        mapas: Array.isArray(jogo.mapas) ? jogo.mapas : String(jogo.mapas || '').split(',').map((m: string) => m.trim()).filter(Boolean),
-        grupos_ids: Array.isArray(jogo.grupos_ids) ? jogo.grupos_ids : [],
-      })),
-      resumo: {
-        fases: (fases || []).length,
-        grupos: (grupos || []).length,
-        slots_total: (slots || []).length,
-        slots_ocupados: (slots || []).filter((s) => s.equipe_id || s.line_id).length,
-        jogos: (jogos || []).length,
-      },
+      ...structure,
       permission: {
         canView: permission.canView,
         canManage: permission.canManage,
         canGenerateToken: permission.canGenerateToken,
         canOrganizeGroups: permission.canOrganizeGroups,
+        canManageGames: permission.canManageGames,
         canScore: permission.canScore,
         role: permission.role,
       },
@@ -122,8 +189,250 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       || error?.message
       || error?.error_description
       || 'Erro ao carregar estrutura.'
+    return NextResponse.json({ error: message }, { status: 400 })
+  }
+}
+
+/** Criar fase ou grupo (adm / seller com organizar_grupos). */
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: campeonatoId } = await context.params
+    const user = await getBearerUser(req)
+    await requireCampeonatoStructureWrite(user.id, campeonatoId)
+    const body = await req.json().catch(() => ({}))
+    const action = String(body.action || '')
+
+    if (action === 'create_phase') {
+      const nome = String(body.nome || '').trim()
+      const ordem = Number(body.ordem || 1)
+      if (!nome) throw new Error('Informe o nome da fase.')
+      const { data, error } = await supabaseAdmin
+        .from('campeonato_fases')
+        .insert({
+          campeonato_id: campeonatoId,
+          nome,
+          ordem: Number.isFinite(ordem) ? ordem : 1,
+          status: 'ativo',
+        })
+        .select('*')
+        .single()
+      if (error?.code === '23505') throw new Error('Já existe uma fase com esse nome neste campeonato.')
+      if (error) throw error
+      return NextResponse.json({ ok: true, fase: data })
+    }
+
+    if (action === 'create_group') {
+      const nome = String(body.nome || '').trim()
+      const faseId = String(body.fase_id || '').trim()
+      const slotsCount = Math.max(1, Math.min(52, Number(body.slots || 12)))
+      const whatsapp = String(body.whatsapp_url || '').trim() || null
+      if (!nome) throw new Error('Informe o nome do grupo.')
+      if (!faseId) throw new Error('Informe a fase do grupo.')
+
+      const { data: fase } = await supabaseAdmin
+        .from('campeonato_fases')
+        .select('id')
+        .eq('id', faseId)
+        .eq('campeonato_id', campeonatoId)
+        .maybeSingle()
+      if (!fase) throw new Error('Fase não encontrada neste campeonato.')
+
+      const { data: grupo, error } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .insert({
+          campeonato_id: campeonatoId,
+          fase_id: faseId,
+          nome,
+          slots: slotsCount,
+          whatsapp_url: whatsapp,
+        })
+        .select('*')
+        .single()
+      if (error?.code === '23505') throw new Error('Já existe um grupo com esse nome nesta fase.')
+      if (error) throw error
+
+      const additions = Array.from({ length: slotsCount }, (_, offset) => {
+        const number = offset + 1
+        return {
+          campeonato_id: campeonatoId,
+          fase_id: faseId,
+          grupo_id: grupo.id,
+          slot_numero: number,
+          slot_letra: slotLetterFromNumber(number),
+          status: 'livre',
+        }
+      })
+      const { error: slotsError } = await supabaseAdmin.from('campeonato_slots').insert(additions)
+      if (slotsError) throw slotsError
+
+      return NextResponse.json({ ok: true, grupo })
+    }
+
+    throw new Error('Ação inválida.')
+  } catch (error: any) {
     return NextResponse.json(
-      { error: message },
+      { error: error instanceof Error ? error.message : error?.message || 'Erro ao criar estrutura.' },
+      { status: 400 },
+    )
+  }
+}
+
+/** Atualizar fase ou grupo. */
+export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: campeonatoId } = await context.params
+    const user = await getBearerUser(req)
+    await requireCampeonatoStructureWrite(user.id, campeonatoId)
+    const body = await req.json().catch(() => ({}))
+    const entity = String(body.entity || '')
+    const entityId = String(body.id || '').trim()
+    if (!entityId) throw new Error('id obrigatório.')
+
+    if (entity === 'phase') {
+      const nome = String(body.nome || '').trim()
+      const ordem = Number(body.ordem || 1)
+      if (!nome) throw new Error('Informe o nome da fase.')
+      const { data, error } = await supabaseAdmin
+        .from('campeonato_fases')
+        .update({
+          nome,
+          ordem: Number.isFinite(ordem) ? ordem : 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', entityId)
+        .eq('campeonato_id', campeonatoId)
+        .select('*')
+        .single()
+      if (error?.code === '23505') throw new Error('Já existe uma fase com esse nome neste campeonato.')
+      if (error) throw error
+      return NextResponse.json({ ok: true, fase: data })
+    }
+
+    if (entity === 'group') {
+      const { data: current, error: readError } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .select('*')
+        .eq('id', entityId)
+        .eq('campeonato_id', campeonatoId)
+        .single()
+      if (readError) throw readError
+      if (!current) throw new Error('Grupo não encontrado.')
+
+      const nome = String(body.nome || current.nome).trim()
+      const requestedSlots = Math.max(1, Math.min(52, Number(body.slots ?? current.slots ?? 12)))
+      const whatsapp =
+        body.whatsapp_url === undefined
+          ? current.whatsapp_url
+          : String(body.whatsapp_url || '').trim() || null
+
+      const { count: occupiedBeyond } = await supabaseAdmin
+        .from('campeonato_slots')
+        .select('id', { count: 'exact', head: true })
+        .eq('grupo_id', entityId)
+        .not('equipe_id', 'is', null)
+        .gt('slot_numero', requestedSlots)
+      if ((occupiedBeyond || 0) > 0) {
+        throw new Error('Não é possível remover slots ocupados.')
+      }
+
+      const { data: updated, error } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .update({
+          nome,
+          slots: requestedSlots,
+          whatsapp_url: whatsapp,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', entityId)
+        .select('*')
+        .single()
+      if (error?.code === '23505') throw new Error('Já existe um grupo com esse nome nesta fase.')
+      if (error) throw error
+
+      const currentSlots = Number(current.slots || 0)
+      if (requestedSlots > currentSlots) {
+        const additions = Array.from({ length: requestedSlots - currentSlots }, (_, offset) => {
+          const number = currentSlots + offset + 1
+          return {
+            campeonato_id: campeonatoId,
+            fase_id: current.fase_id,
+            grupo_id: entityId,
+            slot_numero: number,
+            slot_letra: slotLetterFromNumber(number),
+            status: 'livre',
+          }
+        })
+        const { error: addError } = await supabaseAdmin.from('campeonato_slots').insert(additions)
+        if (addError) throw addError
+      } else if (requestedSlots < currentSlots) {
+        const { error: removeError } = await supabaseAdmin
+          .from('campeonato_slots')
+          .delete()
+          .eq('grupo_id', entityId)
+          .gt('slot_numero', requestedSlots)
+          .is('equipe_id', null)
+          .is('line_id', null)
+        if (removeError) throw removeError
+      }
+
+      return NextResponse.json({ ok: true, grupo: updated })
+    }
+
+    throw new Error('Entidade inválida.')
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : error?.message || 'Erro ao atualizar estrutura.' },
+      { status: 400 },
+    )
+  }
+}
+
+/** Excluir fase ou grupo. */
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: campeonatoId } = await context.params
+    const user = await getBearerUser(req)
+    await requireCampeonatoStructureWrite(user.id, campeonatoId)
+    const body = await req.json().catch(() => ({}))
+    const entity = String(body.entity || '')
+    const entityId = String(body.id || '').trim()
+    if (!entityId) throw new Error('id obrigatório.')
+
+    if (entity === 'phase') {
+      const { data: grupos } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .select('id')
+        .eq('fase_id', entityId)
+        .eq('campeonato_id', campeonatoId)
+      const grupoIds = (grupos || []).map((g) => g.id)
+      if (grupoIds.length) {
+        await supabaseAdmin.from('campeonato_slots').delete().in('grupo_id', grupoIds)
+        await supabaseAdmin.from('campeonato_grupos').delete().in('id', grupoIds)
+      }
+      const { error } = await supabaseAdmin
+        .from('campeonato_fases')
+        .delete()
+        .eq('id', entityId)
+        .eq('campeonato_id', campeonatoId)
+      if (error) throw error
+      return NextResponse.json({ ok: true })
+    }
+
+    if (entity === 'group') {
+      await supabaseAdmin.from('campeonato_slots').delete().eq('grupo_id', entityId)
+      const { error } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .delete()
+        .eq('id', entityId)
+        .eq('campeonato_id', campeonatoId)
+      if (error) throw error
+      return NextResponse.json({ ok: true })
+    }
+
+    throw new Error('Entidade inválida.')
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : error?.message || 'Erro ao excluir estrutura.' },
       { status: 400 },
     )
   }

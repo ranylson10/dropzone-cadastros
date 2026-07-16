@@ -100,12 +100,6 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
         </div>
       </div>
 
-      {!canManageGames ? (
-        <p className="empty compact" style={{ marginBottom: 12 }}>
-          Visualização dos jogos. Somente o administrador ou manager autorizado pode criar/editar/excluir.
-        </p>
-      ) : null}
-
       {showForm && canManageGames ? (
         <div className="game-form-panel">
           <div className="game-form-heading"><div><p className="eyebrow">{editingId ? 'Editar jogo' : 'Novo jogo'}</p><h4>{editingId ? props.value.nome : 'Configuração do jogo'}</h4></div><button className="button secondary" onClick={() => { setShowForm(false); reset(false) }}>Fechar</button></div>

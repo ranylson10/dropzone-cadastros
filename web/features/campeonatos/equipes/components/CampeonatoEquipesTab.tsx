@@ -365,19 +365,6 @@ Acesse: ${link}`
         </div>
       </div>
 
-      {!data.permission.canManage && !data.permission.canGenerateToken && !data.permission.canRemove ? (
-        <div className="permission-note compact-note">
-          <Shield size={16} />
-          <div>
-            <strong>Modo de visualização</strong>
-            <p>
-              Somente o administrador (ou manager/vendedor autorizado) pode adicionar, remover ou gerar convites.
-              Equipes entram pelo link único ou pelo link do grupo.
-            </p>
-          </div>
-        </div>
-      ) : null}
-
       {feedback ? <div className="teams-feedback">{feedback}</div> : null}
 
       {(data.convites_grupo || []).length > 0 ? (
