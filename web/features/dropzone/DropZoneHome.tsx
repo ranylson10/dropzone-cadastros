@@ -126,6 +126,8 @@ export function DropZoneHome() {
     grupo_id: '',
     /** Quantas equipes este link aceita (1..slots do grupo). */
     limite_vagas: '1',
+    /** Um nome de referência por vaga (ex.: TEAM SIX). */
+    nomes_equipes: [''] as string[],
     encerra_em: '',
     descricao: '',
   })
@@ -1191,6 +1193,7 @@ export function DropZoneHome() {
   async function createRegistrationLink(overrides?: {
     grupo_id?: string
     limite_vagas?: string | number
+    nomes_equipes?: string[]
     encerra_em?: string
     descricao?: string
   }) {
@@ -1203,6 +1206,18 @@ export function DropZoneHome() {
     const limite = Number(overrides?.limite_vagas ?? registrationLink.limite_vagas)
     if (!Number.isInteger(limite) || limite < 1) {
       return setError('Informe quantas vagas este link aceita (1, 2, 3...).')
+    }
+
+    const nomesRaw = overrides?.nomes_equipes ?? registrationLink.nomes_equipes ?? []
+    const expectedTeams = nomesRaw.map((n) => String(n || '').trim()).filter(Boolean)
+    if (expectedTeams.length !== limite) {
+      return setError(
+        `Preencha exatamente ${limite} nome(s) de referência na lista (um por vaga). Preenchidos: ${expectedTeams.length}.`,
+      )
+    }
+    const unique = new Set(expectedTeams.map((n) => n.toLowerCase()))
+    if (unique.size !== expectedTeams.length) {
+      return setError('Os nomes da lista não podem se repetir.')
     }
 
     // datetime-local é horário local do browser → ISO UTC antes de mandar ao servidor
@@ -1236,15 +1251,26 @@ export function DropZoneHome() {
         championship_id: champ.id,
         group_id: grupoId,
         limite_vagas: limite,
+        expected_teams: expectedTeams,
         encerra_em: encerraIso,
         expira_em: encerraIso || null,
         descricao,
         tipo: 'inscricao_equipes_grupo',
       },
     }, limite === 1
-      ? 'Novo link criado (os anteriores continuam válidos). Expira após 1 equipe entrar.'
-      : `Novo link criado (os anteriores continuam válidos). Expira após ${limite} equipes entrarem.`)
-    if (row?.token) await copyToken(`${window.location.origin}/convite/grupo/${row.token}`)
+      ? 'Link criado. Mensagem profissional copiada — envie no WhatsApp/Discord.'
+      : `Link criado com ${limite} vagas. Mensagem profissional copiada.`)
+
+    const share =
+      String(row?.data?.share_texto || '')
+      || `${window.location.origin}/convite/grupo/${row?.token || ''}`
+    if (share) await copyToken(share)
+
+    // limpa lista mantendo o mesmo número de vagas
+    setRegistrationLink((prev) => ({
+      ...prev,
+      nomes_equipes: Array.from({ length: limite }, () => ''),
+    }))
   }
 
   async function acceptTeamInvite() {

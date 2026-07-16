@@ -26,11 +26,18 @@ export function ProdutoraPanel(props: {
   tokens: DropZoneRow[]
   registrationLinks: DropZoneRow[]
   lineupRules: DropZoneRow[]
-  registrationLink: { grupo_id: string; limite_vagas: string; encerra_em: string; descricao: string }
+  registrationLink: {
+    grupo_id: string
+    limite_vagas: string
+    nomes_equipes: string[]
+    encerra_em: string
+    descricao: string
+  }
   setRegistrationLink: (value: any) => void
   createRegistrationLink: (overrides?: {
     grupo_id?: string
     limite_vagas?: string | number
+    nomes_equipes?: string[]
     encerra_em?: string
     descricao?: string
   }) => void
@@ -340,6 +347,44 @@ export function ProdutoraPanel(props: {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return '—'
     return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date)
+  }
+
+  function buildShareFromLink(params: {
+    campeonatoNome: string
+    grupoNome: string
+    limite: number
+    teams: string[]
+    url: string
+    expiraEm?: string | null
+  }) {
+    const lista = params.teams.length
+      ? params.teams.map((nome, i) => `${i + 1}. ${nome}`).join('\n')
+      : `(${params.limite} vaga${params.limite === 1 ? '' : 's'})`
+    const validade = params.expiraEm
+      ? `\nValidade: ${formatDateTime(params.expiraEm)}`
+      : ''
+    return `🏆 DropZone — Convite de inscrição
+
+Campeonato: ${params.campeonatoNome}
+Grupo: ${params.grupoNome}
+Vagas neste link: ${params.limite}${validade}
+
+Vagas de referência (use a que o organizador combinou com você):
+${lista}
+
+Como se inscrever (passo a passo):
+1) Abra o link abaixo no celular ou PC
+2) Entre com sua conta (Google, Facebook, Discord ou e-mail)
+3) Use ou crie um perfil de EQUIPE
+4) Confirme a equipe e escolha a vaga de referência da lista
+5) Escolha o SLOT (letra) e a LINE que vai jogar
+6) Confirme — pronto! Você entra no acompanhamento do grupo
+
+⚠️ Cada vaga de referência só pode ser usada uma vez.
+⚠️ A line é quem joga e pontua no campeonato.
+
+Acesse:
+${params.url}`
   }
 
   function linkStatusInfo(link: DropZoneRow) {
@@ -1271,8 +1316,8 @@ export function ProdutoraPanel(props: {
                       <p className="eyebrow">Links</p>
                       <h3>Entrada de equipes por grupo</h3>
                       <p className="muted-copy">
-                        Você pode gerar vários links ao mesmo tempo — cada um tem token próprio e não cancela os outros.
-                        Ex.: 1 vaga = esse link encerra após a primeira inscrição.
+                        Defina quantas vagas e a lista de referência (ex.: TEAM SIX). O convidado escolhe a referência dele e a line real.
+                        Ao gerar, a mensagem profissional já vai copiada para enviar.
                       </p>
                     </div>
                     <button className="button" onClick={() => toggleAction('link')}>Gerar novo link</button>
@@ -1288,10 +1333,13 @@ export function ProdutoraPanel(props: {
                               const group = champGroups.find((g) => g.id === grupoId)
                               const maxSlots = Math.max(1, Number(group?.data?.slots || 1))
                               const current = Number(props.registrationLink.limite_vagas || 1)
+                              const limite = Math.min(Math.max(1, current || 1), maxSlots)
+                              const nomes = Array.from({ length: limite }, (_, i) => props.registrationLink.nomes_equipes?.[i] || '')
                               props.setRegistrationLink({
                                 ...props.registrationLink,
                                 grupo_id: grupoId,
-                                limite_vagas: String(Math.min(Math.max(1, current || 1), maxSlots)),
+                                limite_vagas: String(limite),
+                                nomes_equipes: nomes,
                               })
                             }}
                           >
@@ -1311,14 +1359,22 @@ export function ProdutoraPanel(props: {
                               <select
                                 value={props.registrationLink.limite_vagas}
                                 disabled={!props.registrationLink.grupo_id}
-                                onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, limite_vagas: e.target.value })}
+                                onChange={(e) => {
+                                  const limite = Math.max(1, Number(e.target.value) || 1)
+                                  const nomes = Array.from({ length: limite }, (_, i) => props.registrationLink.nomes_equipes?.[i] || '')
+                                  props.setRegistrationLink({
+                                    ...props.registrationLink,
+                                    limite_vagas: String(limite),
+                                    nomes_equipes: nomes,
+                                  })
+                                }}
                               >
                                 {!props.registrationLink.grupo_id ? (
                                   <option value="1">Selecione o grupo</option>
                                 ) : (
                                   Array.from({ length: maxSlots }, (_, index) => index + 1).map((n) => (
                                     <option key={n} value={String(n)}>
-                                      {n === 1 ? '1 equipe (encerra após 1 uso)' : `${n} equipes (encerra após ${n} usos)`}
+                                      {n === 1 ? '1 equipe (1 nome na lista)' : `${n} equipes (${n} nomes na lista)`}
                                     </option>
                                   ))
                                 )}
@@ -1334,9 +1390,35 @@ export function ProdutoraPanel(props: {
                           />
                         </Field>
                       </div>
+
+                      <div className="link-ref-list-panel">
+                        <div className="link-ref-list-head">
+                          <strong>Lista de referência</strong>
+                          <small>
+                            {Number(props.registrationLink.limite_vagas || 1)} nome(s) — um por vaga. Não precisa ser o nome oficial da conta.
+                          </small>
+                        </div>
+                        <div className="link-ref-list-fields">
+                          {Array.from({ length: Math.max(1, Number(props.registrationLink.limite_vagas) || 1) }, (_, index) => (
+                            <label className="field" key={index}>
+                              <span>Vaga {index + 1}</span>
+                              <input
+                                value={props.registrationLink.nomes_equipes?.[index] || ''}
+                                onChange={(e) => {
+                                  const limite = Math.max(1, Number(props.registrationLink.limite_vagas) || 1)
+                                  const nomes = Array.from({ length: limite }, (_, i) => props.registrationLink.nomes_equipes?.[i] || '')
+                                  nomes[index] = e.target.value
+                                  props.setRegistrationLink({ ...props.registrationLink, nomes_equipes: nomes })
+                                }}
+                                placeholder={index === 0 ? 'Ex.: TEAM SIX' : `Ex.: referência ${index + 1}`}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
                       <p className="muted-copy">
-                        Cada geração cria um link novo. Links antigos permanecem ativos até esgotar, expirar ou você pausar/excluir.
-                        O link também fecha se o grupo ficar sem slots livres.
+                        Ao gerar, copiamos uma mensagem pronta (passo a passo + lista + link) para você colar no WhatsApp/Discord.
                       </p>
                       <button
                         className="button"
@@ -1346,7 +1428,7 @@ export function ProdutoraPanel(props: {
                       >
                         {props.pendingCreate === 'registration_link'
                           ? <><Loader2 size={15} className="button-spinner" /> Gerando link...</>
-                          : 'Gerar link de equipes'}
+                          : 'Gerar link e copiar mensagem'}
                       </button>
                     </div>
                   ) : null}
@@ -1427,42 +1509,104 @@ export function ProdutoraPanel(props: {
 
                                 <div className="link-invite-entries">
                                   <div className="link-invite-entries-head">
-                                    <strong>Quem entrou por este link</strong>
-                                    <small>{info.entradas.length} inscrição(ões)</small>
+                                    <strong>Controle da lista de referência</strong>
+                                    <small>
+                                      {(link.data?.vagas_controle || link.data?.expected_teams || []).length || info.entradas.length} vaga(s)
+                                    </small>
                                   </div>
-                                  {info.entradas.length === 0 ? (
-                                    <p className="empty compact-empty">Ninguém entrou ainda por este link.</p>
-                                  ) : (
-                                    <div className="link-entry-table">
-                                      {info.entradas.map((entrada: any, index: number) => (
-                                        <div key={entrada.participacao_id || index} className="link-entry-row">
-                                          <span className="link-entry-slot">
-                                            {entrada.slot_letra || (entrada.slot_numero != null ? String(entrada.slot_numero) : '—')}
-                                          </span>
-                                          <span className="link-entry-identity">
-                                            <strong>{entrada.line_nome || entrada.equipe_nome || 'Line'}</strong>
-                                            <small>
-                                              {entrada.equipe_nome && entrada.line_nome && entrada.equipe_nome !== entrada.line_nome
-                                                ? entrada.equipe_nome
-                                                : 'via link de grupo'}
-                                            </small>
-                                          </span>
-                                          <span className="link-entry-when">
-                                            {formatDateTime(entrada.entrou_em)}
-                                          </span>
+                                  {(() => {
+                                    const controle = Array.isArray(link.data?.vagas_controle)
+                                      ? link.data.vagas_controle
+                                      : (Array.isArray(link.data?.expected_teams) ? link.data.expected_teams : []).map((nome: string, i: number) => {
+                                          const key = String(nome || '').trim().toLowerCase()
+                                          const match = info.entradas.find((e: any) =>
+                                            String(e.referencia_lista || e.equipe_nome || '').trim().toLowerCase() === key,
+                                          )
+                                          return {
+                                            ordem: i + 1,
+                                            referencia: nome,
+                                            status: match ? 'inscrita' : 'pendente',
+                                            entrada: match || null,
+                                          }
+                                        })
+                                    if (!controle.length && !info.entradas.length) {
+                                      return <p className="empty compact-empty">Sem lista de referência neste link (link antigo). Gere um novo com a lista.</p>
+                                    }
+                                    if (!controle.length) {
+                                      return (
+                                        <div className="link-entry-table">
+                                          {info.entradas.map((entrada: any, index: number) => (
+                                            <div key={entrada.participacao_id || index} className="link-entry-row">
+                                              <span className="link-entry-slot">
+                                                {entrada.slot_letra || (entrada.slot_numero != null ? String(entrada.slot_numero) : '—')}
+                                              </span>
+                                              <span className="link-entry-identity">
+                                                <strong>{entrada.line_nome || entrada.equipe_nome || 'Line'}</strong>
+                                                <small>{entrada.referencia_lista || entrada.equipe_nome || 'via link'}</small>
+                                              </span>
+                                              <span className="link-entry-when">{formatDateTime(entrada.entrou_em)}</span>
+                                            </div>
+                                          ))}
                                         </div>
-                                      ))}
-                                    </div>
-                                  )}
+                                      )
+                                    }
+                                    return (
+                                      <div className="link-entry-table">
+                                        {controle.map((item: any) => (
+                                          <div
+                                            key={`${item.ordem}-${item.referencia}`}
+                                            className={`link-entry-row status-ref-${item.status}`}
+                                          >
+                                            <span className={`link-entry-slot status-${item.status}`}>
+                                              {item.status === 'inscrita'
+                                                ? (item.entrada?.slot_letra || item.ordem)
+                                                : item.ordem}
+                                            </span>
+                                            <span className="link-entry-identity">
+                                              <strong>{item.referencia}</strong>
+                                              <small>
+                                                {item.status === 'inscrita'
+                                                  ? `${item.entrada?.line_nome || item.entrada?.equipe_nome || 'Inscrita'}${item.entrada?.equipe_nome && item.entrada?.line_nome ? ` · ${item.entrada.equipe_nome}` : ''}`
+                                                  : 'Aguardando inscrição'}
+                                              </small>
+                                            </span>
+                                            <span className={`link-ref-status-pill status-${item.status}`}>
+                                              {item.status === 'inscrita' ? 'Inscrita' : 'Pendente'}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )
+                                  })()}
                                 </div>
 
                                 <div className="link-invite-actions">
                                   <button
                                     type="button"
                                     className="button secondary"
+                                    onClick={() => {
+                                      const teams = Array.isArray(link.data?.expected_teams)
+                                        ? link.data.expected_teams as string[]
+                                        : []
+                                      const texto = buildShareFromLink({
+                                        campeonatoNome: selectedChamp ? rowTitle(selectedChamp) : 'Campeonato',
+                                        grupoNome: groupName(String(link.data?.group_id || link.data?.grupo_id || '')),
+                                        limite: info.limite || teams.length || 1,
+                                        teams,
+                                        url: fullUrl || `${window.location.origin}${path}`,
+                                        expiraEm: link.data?.expira_em ? String(link.data.expira_em) : null,
+                                      })
+                                      props.copyToken(texto)
+                                    }}
+                                  >
+                                    <Copy size={14} /> Copiar mensagem
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="button secondary"
                                     onClick={() => props.copyToken(fullUrl || `${window.location.origin}${path}`)}
                                   >
-                                    <Copy size={14} /> Copiar link
+                                    <Copy size={14} /> Só o link
                                   </button>
                                   <button
                                     type="button"
@@ -1496,22 +1640,22 @@ export function ProdutoraPanel(props: {
                                   <button
                                     type="button"
                                     className="button secondary"
-                                    disabled={Boolean(props.pendingCreate)}
-                                    title="Cria outro link independente com o mesmo grupo e limite. O atual continua válido."
+                                    title="Abre o formulário com o mesmo grupo/vagas para você preencher a nova lista."
                                     onClick={() => {
                                       const grupoId = String(link.data?.group_id || link.data?.grupo_id || '')
                                       const limite = Number(link.data?.limite_vagas || link.data?.metadata?.limite_vagas || 1) || 1
-                                      void props.createRegistrationLink({
+                                      props.setRegistrationLink({
                                         grupo_id: grupoId,
-                                        limite_vagas: limite,
+                                        limite_vagas: String(limite),
+                                        nomes_equipes: Array.from({ length: limite }, () => ''),
                                         encerra_em: '',
                                         descricao: '',
                                       })
+                                      setOpenAction('link')
+                                      window.scrollTo({ top: 0, behavior: 'smooth' })
                                     }}
                                   >
-                                    {props.pendingCreate === 'registration_link'
-                                      ? <><Loader2 size={14} className="button-spinner" /> Criando...</>
-                                      : <><Plus size={14} /> Criar outro link</>}
+                                    <Plus size={14} /> Novo link (mesmo grupo)
                                   </button>
                                   <button
                                     type="button"

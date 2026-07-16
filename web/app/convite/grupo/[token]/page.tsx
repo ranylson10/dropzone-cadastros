@@ -770,10 +770,13 @@ export default function ConviteGrupoPage() {
 
             {(data.equipes_esperadas || []).length ? (
               <label className="field">
-                <span>Qual equipe da lista é a sua?</span>
+                <span>Sua vaga de referência na lista do organizador</span>
                 <select value={referenciaEquipe} onChange={(e) => setReferenciaEquipe(e.target.value)}>
+                  <option value="">Selecione a referência combinada (ex.: TEAM SIX)</option>
                   {equipesDisponiveis.length === 0 ? (
-                    <option value="">Nenhuma referência disponível</option>
+                    <option value="" disabled>
+                      Todas as referências já foram usadas
+                    </option>
                   ) : (
                     equipesDisponiveis.map((nome) => (
                       <option key={nome} value={nome}>
@@ -782,6 +785,9 @@ export default function ConviteGrupoPage() {
                     ))
                   )}
                 </select>
+                <small style={{ display: 'block', marginTop: 6, color: '#667085' }}>
+                  Não precisa ser o nome da sua conta — é só a etiqueta da vaga que o admin passou para você.
+                </small>
               </label>
             ) : null}
 

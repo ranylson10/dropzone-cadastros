@@ -759,11 +759,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (!slot) throw new Error('Slot do grupo nao encontrado para a letra selecionada.')
     if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Escolha outra letra.')
 
-    // Legado: lista nominal de equipes (links antigos). Links novos usam só limite_vagas.
+    // Lista de referência do admin (obrigatória nos links novos): 1 nome = 1 vaga do link
     if (expected.length) {
-      if (!referenciaEquipe) throw new Error('Selecione qual equipe da lista voce esta representando.')
+      if (!referenciaEquipe) throw new Error('Selecione qual vaga de referência da lista é a sua.')
       const existsInList = expected.some((nome) => nome.trim().toLowerCase() === referenciaEquipe.toLowerCase())
-      if (!existsInList) throw new Error('A equipe selecionada nao esta na lista deste grupo.')
+      if (!existsInList) throw new Error('A referência selecionada não está na lista deste link.')
+
+      const refKey = referenciaEquipe.trim().toLowerCase()
+      const alreadyOnLink = meta.entradas.some((entrada) => {
+        const key = String(entrada.referencia_lista || entrada.equipe_nome || '').trim().toLowerCase()
+        return key === refKey
+      })
+      if (alreadyOnLink) throw new Error('Essa vaga de referência já foi usada neste link.')
 
       const { data: claimed } = await supabaseAdmin
         .from('campeonato_equipes')
@@ -772,9 +779,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         .eq('grupo_id', link.grupo_id)
         .eq('status', 'ativo')
       const already = (claimed || []).some(
-        (row) => String(row.nome_exibicao || '').trim().toLowerCase() === referenciaEquipe.toLowerCase(),
+        (row) => String(row.nome_exibicao || '').trim().toLowerCase() === refKey,
       )
-      if (already) throw new Error('Essa equipe da lista ja foi reivindicada neste grupo.')
+      if (already) throw new Error('Essa vaga de referência já foi reivindicada neste grupo.')
+    } else {
+      // Links antigos sem lista: ainda funcionam, mas admin deve recriar com lista
     }
 
     // Consome vaga do link ANTES de gravar (evita overflow se o limite for 1)
@@ -827,7 +836,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
 
     const letra = String(slot.slot_letra || '').trim().toUpperCase() || String(slot.slot_numero)
 
-    // Histórico: quem entrou por este link
+    // Histórico: quem entrou por este link (+ referência da lista do admin)
     try {
       await registrarEntradaNoLink(
         link.id,
@@ -840,6 +849,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
           slot_id: slot.id,
           slot_letra: letra,
           slot_numero: slot.slot_numero != null ? Number(slot.slot_numero) : null,
+          referencia_lista: referenciaEquipe || null,
           entrou_em: new Date().toISOString(),
         },
         { limite: consumo.limite, usos: consumo.usos },

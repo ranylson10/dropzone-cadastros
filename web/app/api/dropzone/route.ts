@@ -9,6 +9,7 @@ import {
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS, type ChampionshipType } from '@/lib/dropzone-constants'
 import {
+  buildGroupInviteShareMessage,
   encodeLinkDescricao,
   extractHumanDescricao,
   isMissingMetadataColumn,
@@ -1095,6 +1096,24 @@ export async function POST(req: NextRequest) {
       }
       const limiteVagas = limiteRaw
 
+      const expectedTeams = Array.isArray(data.expected_teams)
+        ? normalizeExpectedTeams(data.expected_teams)
+        : normalizeExpectedTeams(
+            String(data.nomes_equipes || '')
+              .split(/\r?\n/)
+              .map((name: string) => name.trim())
+              .filter(Boolean),
+          )
+      if (expectedTeams.length !== limiteVagas) {
+        throw new Error(
+          `Informe exatamente ${limiteVagas} nome(s) de referência na lista (um por vaga). Você enviou ${expectedTeams.length}.`,
+        )
+      }
+      const uniqueNames = new Set(expectedTeams.map((n) => n.toLowerCase()))
+      if (uniqueNames.size !== expectedTeams.length) {
+        throw new Error('Os nomes da lista de referência não podem se repetir.')
+      }
+
       // Conta slots livres reais no grupo — o link não pode vender mais do que cabe
       const { count: livresCount, error: livresError } = await supabaseAdmin
         .from('campeonato_slots')
@@ -1117,7 +1136,7 @@ export async function POST(req: NextRequest) {
       const meta = {
         limite_vagas: limiteVagas,
         usos: 0,
-        expected_teams: [] as string[],
+        expected_teams: expectedTeams,
         entradas: [] as Array<{
           participacao_id: string
           equipe_id: string | null
@@ -1127,6 +1146,7 @@ export async function POST(req: NextRequest) {
           slot_id: string | null
           slot_letra: string | null
           slot_numero: number | null
+          referencia_lista?: string | null
           entrou_em: string
         }>,
       }
@@ -1159,7 +1179,30 @@ export async function POST(req: NextRequest) {
         error = retry.error
       }
       if (error) throw error
-      row = baseRow(inserted, entityType)
+
+      const origin = req.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || ''
+      const publicUrl = `${String(origin).replace(/\/$/, '')}/convite/grupo/${inserted.token}`
+      const { data: campRow } = await supabaseAdmin
+        .from('campeonatos')
+        .select('nome')
+        .eq('id', campeonatoId)
+        .maybeSingle()
+      const shareTexto = buildGroupInviteShareMessage({
+        campeonatoNome: campRow?.nome || body.name || 'Campeonato',
+        grupoNome: group.nome || 'Grupo',
+        limiteVagas,
+        expectedTeams,
+        publicUrl,
+        expiraEm,
+      })
+
+      row = baseRow(inserted, entityType, {
+        data: {
+          ...registrationLinkData(inserted),
+          share_texto: shareTexto,
+          public_url_full: publicUrl,
+        },
+      })
     } else if (entityType === 'player_registration') {
       const token = await consumeToken(body.data?.token || body.token, PLAYER_INVITE_TYPES)
       const data = body.data || {}

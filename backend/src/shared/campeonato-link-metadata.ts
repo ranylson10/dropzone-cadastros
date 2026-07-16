@@ -9,6 +9,8 @@ export type LinkEntrada = {
   slot_id: string | null
   slot_letra: string | null
   slot_numero: number | null
+  /** Nome da lista de referência do admin (ex.: TEAM SIX). */
+  referencia_lista?: string | null
   entrou_em: string
 }
 
@@ -57,10 +59,88 @@ function normalizeEntradas(value: unknown): LinkEntrada[] {
         slot_numero: item.slot_numero != null && Number.isFinite(Number(item.slot_numero))
           ? Number(item.slot_numero)
           : null,
+        referencia_lista: item.referencia_lista ? String(item.referencia_lista) : null,
         entrou_em: item.entrou_em ? String(item.entrou_em) : new Date().toISOString(),
       } satisfies LinkEntrada
     })
     .filter(Boolean) as LinkEntrada[]
+}
+
+/** Lista de controle: cada nome da reserva + se já se inscreveu. */
+export function buildVagasControle(meta: LinkMetadata) {
+  const claimed = new Map<string, LinkEntrada>()
+  for (const entrada of meta.entradas) {
+    const key = String(entrada.referencia_lista || entrada.equipe_nome || entrada.line_nome || '')
+      .trim()
+      .toLowerCase()
+    if (key && !claimed.has(key)) claimed.set(key, entrada)
+  }
+
+  const fromList = meta.expected_teams.map((nome, index) => {
+    const match = claimed.get(nome.trim().toLowerCase()) || null
+    return {
+      ordem: index + 1,
+      referencia: nome,
+      status: match ? ('inscrita' as const) : ('pendente' as const),
+      entrada: match,
+    }
+  })
+
+  // Entradas sem match na lista (links antigos / sem referência)
+  const listed = new Set(meta.expected_teams.map((n) => n.trim().toLowerCase()))
+  const extras = meta.entradas
+    .filter((e) => {
+      const key = String(e.referencia_lista || e.equipe_nome || e.line_nome || '').trim().toLowerCase()
+      return !key || !listed.has(key)
+    })
+    .map((entrada, index) => ({
+      ordem: meta.expected_teams.length + index + 1,
+      referencia: entrada.referencia_lista || entrada.equipe_nome || entrada.line_nome || 'Sem referência',
+      status: 'inscrita' as const,
+      entrada,
+    }))
+
+  return [...fromList, ...extras]
+}
+
+export function buildGroupInviteShareMessage(params: {
+  campeonatoNome: string
+  grupoNome: string
+  limiteVagas: number
+  expectedTeams: string[]
+  publicUrl: string
+  expiraEm?: string | null
+}) {
+  const lista = params.expectedTeams.length
+    ? params.expectedTeams.map((nome, i) => `${i + 1}. ${nome}`).join('\n')
+    : `(${params.limiteVagas} vaga${params.limiteVagas === 1 ? '' : 's'} neste link)`
+
+  const validade = params.expiraEm
+    ? `\nValidade: ${new Date(params.expiraEm).toLocaleString('pt-BR')}`
+    : ''
+
+  return `🏆 DropZone — Convite de inscrição
+
+Campeonato: ${params.campeonatoNome}
+Grupo: ${params.grupoNome}
+Vagas neste link: ${params.limiteVagas}${validade}
+
+Vagas de referência (use a que o organizador combinou com você):
+${lista}
+
+Como se inscrever (passo a passo):
+1) Abra o link abaixo no celular ou PC
+2) Entre com sua conta (Google, Facebook, Discord ou e-mail)
+3) Use ou crie um perfil de EQUIPE
+4) Confirme a equipe e escolha a vaga de referência da lista
+5) Escolha o SLOT (letra) e a LINE que vai jogar
+6) Confirme — pronto! Você entra no acompanhamento do grupo
+
+⚠️ Cada vaga de referência só pode ser usada uma vez.
+⚠️ A line é quem joga e pontua no campeonato.
+
+Acesse:
+${params.publicUrl}`
 }
 
 function emptyMeta(): LinkMetadata {
@@ -214,6 +294,7 @@ export function registrationLinkData(row: any) {
   const metadata = parseLinkMetadata(row)
   const limite = resolveLinkLimiteVagas(metadata)
   const status = resolveLinkStatus(row)
+  const vagas_controle = buildVagasControle(metadata)
   return {
     championship_id: row.campeonato_id,
     fase_id: row.fase_id,
@@ -227,6 +308,7 @@ export function registrationLinkData(row: any) {
     restantes: Math.max(0, limite - metadata.usos),
     entradas: metadata.entradas,
     expected_teams: metadata.expected_teams,
+    vagas_controle,
     closed_reason: metadata.closed_reason || null,
     closed_at: metadata.closed_at || null,
     status,
