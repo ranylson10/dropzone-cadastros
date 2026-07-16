@@ -28,17 +28,20 @@ Regras alinhadas em **banco**, **backend** e **frontend**.
 
 ## Links de entrada
 
+Fluxo completo (UX, auto-slot, equipes esperadas, soft-delete): **`docs/FLUXO_CONVITES_EQUIPES.md`**.
+
 ### Link único (`tokens.tipo = convite_equipe_campeonato`)
 - Gerado por **admin** ou **vendedor** autorizado.
 - **Expira após o uso** (`usado = true`, `status = usado`).
 - Também tem `expira_em` (app: 24h) como segurança.
+- URL: `/convite/equipe/[token]`. Indisponível → acompanhamento público (não tela de erro).
 
 ### Link de grupo (`campeonato_links.tipo = inscricao_equipes_grupo`)
 - Gerado pelo **admin**.
-- Multi-uso até encher o grupo.
-- **Expira quando todas as vagas do grupo estão preenchidas** (`ativo = false`), via:
-  - trigger `trg_fechar_link_grupo_slot` / `fn_fechar_link_grupo_se_cheio`
-  - e checagem na API `convites/grupo/[token]`
+- Multi-uso até o **limite do link** ou slots do grupo acabarem.
+- Fecha por: limite de usos, grupo cheio, pausa, `expira_em` ou soft-delete (`deleted_at` / `closed_reason: excluido`).
+- URL: `/convite/grupo/[token]`.
+- Consumo atômico: RPC `fn_consumir_vaga_link_grupo` (migration `20260716_links_soft_delete_e_consumo_atomico.sql`).
 
 ## Onde está implementado
 

@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 15 de julho de 2026  
-**Estado:** painel do manager multi-contexto (vendas/campeonatos/equipes/jogador); permissões de vendedor por campeonato.
+**Última atualização:** 16 de julho de 2026  
+**Estado:** fluxo de convites de equipes reorganizado (link de grupo multi-uso + link único); soft-delete e consumo atômico de vagas; doc em `docs/FLUXO_CONVITES_EQUIPES.md`.
 
 ## 1. Objetivo do sistema
 
@@ -165,14 +165,26 @@ Consulte `docs/BANCO_DE_DADOS.md`.
 
 - A API genérica atual pode buscar registros demais usando `service_role` e filtrar tarde demais.
 - O painel legado carrega entidades demais em uma única requisição.
-- Consumo de token e criação de inscrição não são totalmente transacionais.
-- Limites de vagas podem sofrer condição de corrida.
+- Consumo do **link de grupo** melhorou com RPC `fn_consumir_vaga_link_grupo` (migration `20260716_…`); ainda depende de a migration estar aplicada no Supabase. Fallback CAS com retentativas se a RPC não existir.
+- Inscrição completa (slot + participação + uso do link + histórico) ainda não é uma única transação SQL end-to-end.
 - Managers ainda não utilizam plenamente `manager_produtora`, `manager_equipe` e `manager_jogador` nas permissões.
 - Existem possíveis tabelas antigas e novas para a mesma finalidade.
+- `web/app/api/dropzone/route.ts` continua grande e mistura vários domínios.
 
-Esses pontos devem ser corrigidos antes de ampliar funcionalidades críticas.
+### Operação pendente em produção
 
-## 8. Estratégia de desempenho
+Rodar no Supabase SQL Editor:
+
+`database/migrations/20260716_links_soft_delete_e_consumo_atomico.sql`
+
+## 8. Convites de equipes (resumo)
+
+- Doc: `docs/FLUXO_CONVITES_EQUIPES.md`
+- Grupo: `/convite/grupo/[token]` · multi-uso · auto-slot · equipes esperadas opcionais (só admin)
+- Único: `/convite/equipe/[token]` · um uso · mesmo padrão de acompanhamento quando indisponível
+- Token morto → acompanhamento público (não tela de erro se o campeonato/grupo existir)
+
+## 9. Estratégia de desempenho
 
 - carregar somente dados da página ou aba ativa;
 - paginar listas grandes;
@@ -183,7 +195,7 @@ Esses pontos devem ser corrigidos antes de ampliar funcionalidades críticas.
 - evitar consultas N+1;
 - criar índices após confirmar os filtros reais.
 
-## 9. Comandos do projeto
+## 10. Comandos do projeto
 
 Na raiz:
 
@@ -196,7 +208,7 @@ npm run build
 
 Os scripts da raiz encaminham os comandos ao workspace `web`.
 
-## 10. Regra para futuras conversas
+## 11. Regra para futuras conversas
 
 Ao iniciar uma nova conversa:
 
@@ -206,10 +218,10 @@ Ao iniciar uma nova conversa:
 4. revisar `docs/CHANGELOG.md` para saber a última rodada concluída;
 5. não reconstruir a arquitetura com base apenas na conversa nova.
 
-## 11. Próxima etapa planejada
+## 12. Próxima etapa planejada
 
-1. criar o formulário reutilizável de campeonato;
-2. criar o formulário reutilizável de equipe;
-3. extrair fases, grupos e jogos do painel legado;
-4. implementar criação automática e transacional de slots;
-5. dividir a API genérica por recurso e corrigir isolamento de dados.
+1. Aplicar no Supabase a migration `20260716_links_soft_delete_e_consumo_atomico.sql`.
+2. Validar o checklist em `docs/TESTES_E_VALIDACOES.md` (seção convites).
+3. Dividir a API genérica `dropzone/route.ts` por recurso e corrigir isolamento de dados.
+4. Extrair fases, grupos e jogos do painel legado para `web/features/campeonatos/`.
+5. Transação end-to-end na inscrição (slot + participação + uso do link).

@@ -28,16 +28,18 @@ export function ProdutoraPanel(props: {
   lineupRules: DropZoneRow[]
   registrationLink: {
     grupo_id: string
+    nome_interno: string
     limite_vagas: string
-    nomes_equipes: string[]
+    equipes_esperadas_texto: string
     encerra_em: string
     descricao: string
   }
   setRegistrationLink: (value: any) => void
   createRegistrationLink: (overrides?: {
     grupo_id?: string
+    nome_interno?: string
     limite_vagas?: string | number
-    nomes_equipes?: string[]
+    equipes_esperadas_texto?: string
     encerra_em?: string
     descricao?: string
   }) => void
@@ -85,6 +87,7 @@ export function ProdutoraPanel(props: {
   const [tab, setTab] = useState<ProducerTab>('equipes')
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
   const [openLinkIds, setOpenLinkIds] = useState<Record<string, boolean>>({})
+  const [linkStatusFilter, setLinkStatusFilter] = useState<'todos' | 'ativo' | 'pausado' | 'esgotado' | 'expirado' | 'grupo_cheio'>('todos')
   const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({})
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [slotModal, setSlotModal] = useState<{ id: string; fase_id: string; grupo_id: string; slot_numero: string; letra: string; whatsapp_url: string } | null>(null)
@@ -330,6 +333,11 @@ export function ProdutoraPanel(props: {
     if (tab === 'vendedores') void loadSellers(selectedChamp?.id)
   }, [tab, selectedChamp?.id])
 
+  useEffect(() => {
+    setLinkStatusFilter('todos')
+    setOpenLinkIds({})
+  }, [selectedChamp?.id])
+
   function toggleAction(value: typeof openAction) {
     setOpenAction((current) => current === value ? '' : value)
   }
@@ -349,6 +357,13 @@ export function ProdutoraPanel(props: {
     return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date)
   }
 
+  function freeSlotsInGroup(grupoId: string) {
+    return champSlots.filter((slot) => {
+      if (String(slot.data?.grupo_id || slot.data?.group_id || '') !== grupoId) return false
+      return !slot.data?.line_id && !slot.data?.equipe_id && !slot.data?.team_id
+    }).length
+  }
+
   function buildShareFromLink(params: {
     campeonatoNome: string
     grupoNome: string
@@ -356,36 +371,24 @@ export function ProdutoraPanel(props: {
     teams: string[]
     url: string
     expiraEm?: string | null
+    titulo?: string | null
   }) {
-    const lista = params.teams.length
-      ? params.teams.map((nome, i) => `${i + 1}. ${nome}`).join('\n')
-      : `(${params.limite} vaga${params.limite === 1 ? '' : 's'})`
     const validade = params.expiraEm
       ? `\nValidade: ${formatDateTime(params.expiraEm)}`
       : ''
+    const tituloLine = params.titulo ? `\nLink: ${params.titulo}` : ''
     return `🏆 DropZone — Convite de inscrição
 
 Campeonato: ${params.campeonatoNome}
-Grupo: ${params.grupoNome}
+Grupo: ${params.grupoNome}${tituloLine}
 Vagas neste link: ${params.limite}${validade}
 
-Vagas de referência (use a que o organizador combinou com você):
-${lista}
+Abra o link, entre com a conta da equipe, escolha a line e confirme a inscrição.
 
-Como se inscrever (passo a passo):
-1) Abra o link abaixo no celular ou PC
-2) Entre com sua conta (Google, Facebook, Discord ou e-mail)
-3) Use ou crie um perfil de EQUIPE
-4) Confirme a equipe e escolha a vaga de referência da lista
-5) Escolha o SLOT (letra) e a LINE que vai jogar
-6) Confirme — pronto! Você entra no acompanhamento do grupo
-
-⚠️ Cada vaga de referência só pode ser usada uma vez.
-⚠️ A line é quem joga e pontua no campeonato.
-
-Acesse:
 ${params.url}`
   }
+
+  type LinkUiStatus = 'ativo' | 'esgotado' | 'expirado' | 'pausado' | 'grupo_cheio' | 'excluido'
 
   function linkStatusInfo(link: DropZoneRow) {
     const data = link.data || {}
@@ -400,8 +403,9 @@ ${params.url}`
     const expiredByDate = Boolean(expiraEm && !Number.isNaN(expiraEm.getTime()) && expiraEm.getTime() <= Date.now())
     const closedReason = String(data.closed_reason || data.metadata?.closed_reason || '')
     const statusFromApi = String(data.status || '')
-    let status: 'ativo' | 'esgotado' | 'expirado' | 'pausado' | 'grupo_cheio' = 'ativo'
-    if (statusFromApi === 'expirado' || expiredByDate) status = 'expirado'
+    let status: LinkUiStatus = 'ativo'
+    if (statusFromApi === 'excluido' || closedReason === 'excluido' || data.deleted_at) status = 'excluido'
+    else if (statusFromApi === 'expirado' || expiredByDate) status = 'expirado'
     else if (statusFromApi === 'esgotado' || (limite != null && usos >= limite) || closedReason === 'limite_atingido') status = 'esgotado'
     else if (statusFromApi === 'grupo_cheio' || closedReason === 'grupo_cheio') status = 'grupo_cheio'
     else if (statusFromApi === 'pausado' || data.ativo === false) status = 'pausado'
@@ -411,7 +415,8 @@ ${params.url}`
         : status === 'esgotado' ? 'Esgotado'
           : status === 'expirado' ? 'Expirado'
             : status === 'grupo_cheio' ? 'Grupo cheio'
-              : 'Pausado'
+              : status === 'excluido' ? 'Excluído'
+                : 'Pausado'
 
     const entradas = Array.isArray(data.entradas)
       ? data.entradas
@@ -419,7 +424,27 @@ ${params.url}`
         ? data.metadata.entradas
         : []
 
-    return { limite, usos, restantes, status, statusLabel, expiraEm, entradas }
+    const expected = Array.isArray(data.expected_teams) ? data.expected_teams : []
+    const controle = Array.isArray(data.vagas_controle) ? data.vagas_controle : []
+    const pendentes = controle.length
+      ? controle.filter((item: any) => item.status === 'pendente').length
+      : Math.max(0, expected.length - entradas.filter((e: any) => e.referencia_lista).length)
+    const inscritosLista = controle.length
+      ? controle.filter((item: any) => item.status === 'inscrita').length
+      : entradas.length
+
+    return {
+      limite,
+      usos,
+      restantes,
+      status,
+      statusLabel,
+      expiraEm,
+      entradas,
+      pendentes,
+      inscritosLista,
+      temListaEsperada: expected.length > 0 || controle.length > 0,
+    }
   }
 
   const groupInviteLinks = useMemo(
@@ -430,6 +455,27 @@ ${params.url}`
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))),
     [champRegistrationLinks],
   )
+
+  const linkFilterCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      todos: groupInviteLinks.length,
+      ativo: 0,
+      pausado: 0,
+      esgotado: 0,
+      expirado: 0,
+      grupo_cheio: 0,
+    }
+    for (const link of groupInviteLinks) {
+      const status = linkStatusInfo(link).status
+      if (status in counts) counts[status] += 1
+    }
+    return counts
+  }, [groupInviteLinks])
+
+  const filteredGroupInviteLinks = useMemo(() => {
+    if (linkStatusFilter === 'todos') return groupInviteLinks
+    return groupInviteLinks.filter((link) => linkStatusInfo(link).status === linkStatusFilter)
+  }, [groupInviteLinks, linkStatusFilter])
 
   function slotLineEntry(slot?: DropZoneRow) {
     if (!slot) return null
@@ -1316,65 +1362,80 @@ ${params.url}`
                       <p className="eyebrow">Links</p>
                       <h3>Entrada de equipes por grupo</h3>
                       <p className="muted-copy">
-                        Defina quantas vagas e a lista de referência (ex.: TEAM SIX). O convidado escolhe a referência dele e a line real.
-                        Ao gerar, a mensagem profissional já vai copiada para enviar.
+                        Crie um link com limite de vagas. “Equipes esperadas” é opcional e só para controle interno —
+                        o convidado não vê e não precisa escolher nada da lista.
                       </p>
                     </div>
                     <button className="button" onClick={() => toggleAction('link')}>Gerar novo link</button>
                   </div>
                   {openAction === 'link' ? (
                     <div className="inline-action-panel">
-                      <div className="mini-grid three">
+                      <div className="mini-grid two">
+                        <Field label="Nome interno do link">
+                          <input
+                            value={props.registrationLink.nome_interno}
+                            onChange={(e) =>
+                              props.setRegistrationLink({
+                                ...props.registrationLink,
+                                nome_interno: e.target.value,
+                              })
+                            }
+                            placeholder="Ex.: Vendedor João · Grupo A"
+                          />
+                        </Field>
                         <Field label="Grupo do link">
                           <select
                             value={props.registrationLink.grupo_id}
                             onChange={(e) => {
                               const grupoId = e.target.value
-                              const group = champGroups.find((g) => g.id === grupoId)
-                              const maxSlots = Math.max(1, Number(group?.data?.slots || 1))
+                              const livres = grupoId ? Math.max(1, freeSlotsInGroup(grupoId)) : 1
                               const current = Number(props.registrationLink.limite_vagas || 1)
-                              const limite = Math.min(Math.max(1, current || 1), maxSlots)
-                              const nomes = Array.from({ length: limite }, (_, i) => props.registrationLink.nomes_equipes?.[i] || '')
+                              const limite = Math.min(Math.max(1, current || 1), livres)
                               props.setRegistrationLink({
                                 ...props.registrationLink,
                                 grupo_id: grupoId,
                                 limite_vagas: String(limite),
-                                nomes_equipes: nomes,
                               })
                             }}
                           >
                             <option value="">Selecione</option>
-                            {champGroups.map((group) => (
-                              <option key={group.id} value={group.id}>
-                                {rowTitle(group)} · {Number(group.data?.slots || 0)} slots
-                              </option>
-                            ))}
+                            {champGroups.map((group) => {
+                              const livres = freeSlotsInGroup(group.id)
+                              const total = Number(group.data?.slots || 0)
+                              return (
+                                <option key={group.id} value={group.id} disabled={livres < 1}>
+                                  {rowTitle(group)} · {livres} livre{livres === 1 ? '' : 's'} de {total}
+                                </option>
+                              )
+                            })}
                           </select>
                         </Field>
-                        <Field label="Vagas neste link">
+                      </div>
+                      <div className="mini-grid two">
+                        <Field label="Máx. de equipes neste link">
                           {(() => {
-                            const group = champGroups.find((g) => g.id === props.registrationLink.grupo_id)
-                            const maxSlots = Math.max(1, Number(group?.data?.slots || 1))
+                            const grupoId = props.registrationLink.grupo_id
+                            const livres = grupoId ? freeSlotsInGroup(grupoId) : 0
+                            const max = Math.max(0, livres)
                             return (
                               <select
                                 value={props.registrationLink.limite_vagas}
-                                disabled={!props.registrationLink.grupo_id}
+                                disabled={!grupoId || max < 1}
                                 onChange={(e) => {
-                                  const limite = Math.max(1, Number(e.target.value) || 1)
-                                  const nomes = Array.from({ length: limite }, (_, i) => props.registrationLink.nomes_equipes?.[i] || '')
                                   props.setRegistrationLink({
                                     ...props.registrationLink,
-                                    limite_vagas: String(limite),
-                                    nomes_equipes: nomes,
+                                    limite_vagas: String(Math.max(1, Number(e.target.value) || 1)),
                                   })
                                 }}
                               >
-                                {!props.registrationLink.grupo_id ? (
+                                {!grupoId ? (
                                   <option value="1">Selecione o grupo</option>
+                                ) : max < 1 ? (
+                                  <option value="1">Sem vagas livres</option>
                                 ) : (
-                                  Array.from({ length: maxSlots }, (_, index) => index + 1).map((n) => (
+                                  Array.from({ length: max }, (_, index) => index + 1).map((n) => (
                                     <option key={n} value={String(n)}>
-                                      {n === 1 ? '1 equipe (1 nome na lista)' : `${n} equipes (${n} nomes na lista)`}
+                                      {n === 1 ? '1 equipe' : `${n} equipes`}
                                     </option>
                                   ))
                                 )}
@@ -1393,32 +1454,30 @@ ${params.url}`
 
                       <div className="link-ref-list-panel">
                         <div className="link-ref-list-head">
-                          <strong>Lista de referência</strong>
-                          <small>
-                            {Number(props.registrationLink.limite_vagas || 1)} nome(s) — um por vaga. Não precisa ser o nome oficial da conta.
-                          </small>
+                          <strong>Equipes esperadas (opcional)</strong>
+                          <small>Controle interno — cole a lista (uma por linha ou separadas por vírgula)</small>
                         </div>
-                        <div className="link-ref-list-fields">
-                          {Array.from({ length: Math.max(1, Number(props.registrationLink.limite_vagas) || 1) }, (_, index) => (
-                            <label className="field" key={index}>
-                              <span>Vaga {index + 1}</span>
-                              <input
-                                value={props.registrationLink.nomes_equipes?.[index] || ''}
-                                onChange={(e) => {
-                                  const limite = Math.max(1, Number(props.registrationLink.limite_vagas) || 1)
-                                  const nomes = Array.from({ length: limite }, (_, i) => props.registrationLink.nomes_equipes?.[i] || '')
-                                  nomes[index] = e.target.value
-                                  props.setRegistrationLink({ ...props.registrationLink, nomes_equipes: nomes })
-                                }}
-                                placeholder={index === 0 ? 'Ex.: TEAM SIX' : `Ex.: referência ${index + 1}`}
-                              />
-                            </label>
-                          ))}
-                        </div>
+                        <label className="field">
+                          <span>Lista</span>
+                          <textarea
+                            rows={5}
+                            value={props.registrationLink.equipes_esperadas_texto}
+                            onChange={(e) =>
+                              props.setRegistrationLink({
+                                ...props.registrationLink,
+                                equipes_esperadas_texto: e.target.value,
+                              })
+                            }
+                            placeholder={'TEAM SIX\nALOE\nLOUD, FURIA'}
+                          />
+                        </label>
+                        <p className="muted-copy" style={{ marginTop: 6 }}>
+                          Não interfere na inscrição. Conforme as equipes usarem o link, o sistema marca quem entrou e com qual line.
+                        </p>
                       </div>
 
                       <p className="muted-copy">
-                        Ao gerar, copiamos uma mensagem pronta (passo a passo + lista + link) para você colar no WhatsApp/Discord.
+                        Ao gerar, copiamos uma mensagem curta com o link para WhatsApp/Discord.
                       </p>
                       <button
                         className="button"
@@ -1438,18 +1497,57 @@ ${params.url}`
                         <p className="eyebrow">Convites gerados</p>
                         <h3>Lista de links do campeonato</h3>
                       </div>
-                      <span className="selection-count">{groupInviteLinks.length} link(s)</span>
+                      <span className="selection-count">
+                        {filteredGroupInviteLinks.length}
+                        {linkStatusFilter !== 'todos' ? ` de ${groupInviteLinks.length}` : ''} link(s)
+                      </span>
                     </div>
 
+                    {groupInviteLinks.length > 0 ? (
+                      <div className="link-status-filters" role="tablist" aria-label="Filtrar links por status">
+                        {([
+                          ['todos', 'Todos'],
+                          ['ativo', 'Ativos'],
+                          ['pausado', 'Pausados'],
+                          ['esgotado', 'Esgotados'],
+                          ['grupo_cheio', 'Grupo cheio'],
+                          ['expirado', 'Expirados'],
+                        ] as const).map(([key, label]) => {
+                          const count = linkFilterCounts[key] ?? 0
+                          if (key !== 'todos' && count === 0) return null
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              role="tab"
+                              aria-selected={linkStatusFilter === key}
+                              className={`link-status-filter ${linkStatusFilter === key ? 'active' : ''}`}
+                              onClick={() => setLinkStatusFilter(key)}
+                            >
+                              {label}
+                              <b>{count}</b>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+
                     {groupInviteLinks.length === 0 ? (
-                      <p className="empty">Nenhum link de equipes gerado ainda.</p>
+                      <p className="empty">Nenhum link de equipes gerado ainda. Use “Gerar novo link” acima.</p>
+                    ) : filteredGroupInviteLinks.length === 0 ? (
+                      <p className="empty">
+                        Nenhum link com status “{linkStatusFilter}”.{' '}
+                        <button type="button" className="link-inline-reset" onClick={() => setLinkStatusFilter('todos')}>
+                          Ver todos
+                        </button>
+                      </p>
                     ) : (
-                      groupInviteLinks.map((link) => {
+                      filteredGroupInviteLinks.map((link) => {
                         const path = `/convite/grupo/${link.token}`
                         const fullUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}${path}`
                         const info = linkStatusInfo(link)
                         const isOpen = openLinkIds[link.id] === true
-                        const isPaused = link.data?.ativo === false
+                        const isPaused = link.data?.ativo === false || info.status === 'pausado'
 
                         return (
                           <article key={link.id} className={`link-invite-row status-${info.status} ${isOpen ? 'is-open' : ''}`}>
@@ -1463,9 +1561,19 @@ ${params.url}`
                                 <Link2 size={16} />
                               </span>
                               <span className="link-invite-main">
-                                <strong>{groupName(String(link.data?.group_id || link.data?.grupo_id || ''))}</strong>
+                                <strong>
+                                  {String(link.data?.titulo || link.name || '').trim()
+                                    || groupName(String(link.data?.group_id || link.data?.grupo_id || ''))}
+                                </strong>
                                 <small>
+                                  {groupName(String(link.data?.group_id || link.data?.grupo_id || ''))}
+                                  {' · '}
                                   {info.limite != null ? `${info.usos}/${info.limite} vaga(s)` : `${info.usos} uso(s)`}
+                                  {info.temListaEsperada
+                                    ? ` · ${info.inscritosLista} inscrita(s)${info.pendentes > 0 ? ` · ${info.pendentes} pendente(s)` : ''}`
+                                    : info.entradas.length
+                                      ? ` · ${info.entradas.length} entrada(s)`
+                                      : ''}
                                   {' · '}
                                   criado {formatDateTime(link.created_at)}
                                   {link.data?.expira_em ? ` · encerra ${formatDateTime(String(link.data.expira_em))}` : ''}
@@ -1509,9 +1617,13 @@ ${params.url}`
 
                                 <div className="link-invite-entries">
                                   <div className="link-invite-entries-head">
-                                    <strong>Controle da lista de referência</strong>
+                                    <strong>Equipes esperadas / entradas</strong>
                                     <small>
-                                      {(link.data?.vagas_controle || link.data?.expected_teams || []).length || info.entradas.length} vaga(s)
+                                      {info.temListaEsperada
+                                        ? `${info.inscritosLista} inscrita(s) · ${info.pendentes} pendente(s)`
+                                        : info.entradas.length
+                                          ? `${info.entradas.length} entrada(s) (sem lista prévia)`
+                                          : 'Sem entradas ainda'}
                                     </small>
                                   </div>
                                   {(() => {
@@ -1530,7 +1642,7 @@ ${params.url}`
                                           }
                                         })
                                     if (!controle.length && !info.entradas.length) {
-                                      return <p className="empty compact-empty">Sem lista de referência neste link (link antigo). Gere um novo com a lista.</p>
+                                      return <p className="empty compact-empty">Sem lista de equipes esperadas. As entradas aparecerão aqui quando alguém se inscrever.</p>
                                     }
                                     if (!controle.length) {
                                       return (
@@ -1595,6 +1707,7 @@ ${params.url}`
                                         teams,
                                         url: fullUrl || `${window.location.origin}${path}`,
                                         expiraEm: link.data?.expira_em ? String(link.data.expira_em) : null,
+                                        titulo: String(link.data?.titulo || link.name || '') || null,
                                       })
                                       props.copyToken(texto)
                                     }}
@@ -1613,16 +1726,25 @@ ${params.url}`
                                     className="button secondary"
                                     title={
                                       info.status === 'esgotado'
-                                        ? 'Reabre o link e zera os usos (histórico de quem entrou é mantido)'
-                                        : isPaused
-                                          ? 'Reativar link'
-                                          : 'Pausar link'
+                                        ? 'Reabre o link. Usos passam a refletir quem já entrou (histórico mantido).'
+                                        : info.status === 'grupo_cheio'
+                                          ? 'Tenta reativar se o grupo voltar a ter vaga'
+                                          : info.status === 'expirado'
+                                            ? 'Link expirado por data — gere um novo ou altere a validade'
+                                            : isPaused
+                                              ? 'Reativar link'
+                                              : 'Pausar link'
                                     }
-                                    disabled={info.status === 'expirado'}
+                                    disabled={info.status === 'expirado' || info.status === 'excluido'}
                                     onClick={() => {
                                       if (info.status === 'esgotado' || info.status === 'grupo_cheio' || isPaused) {
-                                        const reset = info.status === 'esgotado'
-                                        if (reset && !window.confirm('Reabrir este link esgotado? Os usos voltam a 0 (o histórico de quem já entrou permanece).')) {
+                                        const reset = info.status === 'esgotado' || info.status === 'grupo_cheio'
+                                        if (
+                                          info.status === 'esgotado'
+                                          && !window.confirm(
+                                            'Reabrir este link esgotado? O contador de usos será recalculado com base em quem já entrou (não zera o histórico).',
+                                          )
+                                        ) {
                                           return
                                         }
                                         props.updateStructure('registration_link', link.id, {
@@ -1635,19 +1757,30 @@ ${params.url}`
                                     }}
                                   >
                                     {info.status === 'ativo' ? <Pause size={14} /> : <Play size={14} />}
-                                    {info.status === 'ativo' ? 'Pausar' : info.status === 'esgotado' ? 'Reabrir vagas' : 'Reativar'}
+                                    {info.status === 'ativo'
+                                      ? 'Pausar'
+                                      : info.status === 'esgotado'
+                                        ? 'Reabrir vagas'
+                                        : info.status === 'grupo_cheio'
+                                          ? 'Tentar reabrir'
+                                          : 'Reativar'}
                                   </button>
                                   <button
                                     type="button"
                                     className="button secondary"
-                                    title="Abre o formulário com o mesmo grupo/vagas para você preencher a nova lista."
+                                    title="Abre o formulário com o mesmo grupo para gerar outro link."
                                     onClick={() => {
                                       const grupoId = String(link.data?.group_id || link.data?.grupo_id || '')
-                                      const limite = Number(link.data?.limite_vagas || link.data?.metadata?.limite_vagas || 1) || 1
+                                      const livres = grupoId ? freeSlotsInGroup(grupoId) : 1
+                                      const limite = Math.min(
+                                        Number(link.data?.limite_vagas || link.data?.metadata?.limite_vagas || 1) || 1,
+                                        Math.max(1, livres),
+                                      )
                                       props.setRegistrationLink({
                                         grupo_id: grupoId,
+                                        nome_interno: '',
                                         limite_vagas: String(limite),
-                                        nomes_equipes: Array.from({ length: limite }, () => ''),
+                                        equipes_esperadas_texto: '',
                                         encerra_em: '',
                                         descricao: '',
                                       })
@@ -1661,7 +1794,13 @@ ${params.url}`
                                     type="button"
                                     className="button secondary danger"
                                     onClick={() => {
-                                      if (window.confirm('Excluir este link?')) props.deleteStructure('registration_link', link.id)
+                                      if (
+                                        window.confirm(
+                                          'Excluir este link? Ele deixa de aparecer na lista e não aceita novas inscrições, mas quem já tem o URL ainda pode acompanhar o grupo.',
+                                        )
+                                      ) {
+                                        props.deleteStructure('registration_link', link.id)
+                                      }
                                     }}
                                   >
                                     <Trash2 size={14} /> Excluir

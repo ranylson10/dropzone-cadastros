@@ -69,6 +69,36 @@ npm run build
 
 Validar visualmente filtros, expansão das linhas e abertura dos modais de adicionar/convidar.
 
+## Fluxo de convites de equipes (2026-07-16)
+
+Doc: `docs/FLUXO_CONVITES_EQUIPES.md`.
+
+### Pré-requisito
+- [ ] Rodar `database/migrations/20260716_links_soft_delete_e_consumo_atomico.sql` no Supabase.
+
+### Admin (aba Links)
+- [ ] Criar link com nome interno, limite ≤ vagas livres e **sem** equipes esperadas.
+- [ ] Criar link colando lista no textarea (linhas / vírgulas); não exigir N nomes = limite.
+- [ ] Filtros por status (Ativos, Pausados, Esgotados…) e contadores.
+- [ ] Pausar / reativar; reabrir esgotado sem zerar histórico.
+- [ ] Excluir: some da lista; URL ainda abre acompanhamento.
+
+### Público — link de grupo `/convite/grupo/[token]`
+- [ ] Token ativo + deslogado: login **ou** só acompanhar.
+- [ ] Login no fluxo: **não** pede confirmar equipe de novo.
+- [ ] Já logado ao abrir: pede confirmar / trocar equipe.
+- [ ] Só lines livres + criar nova (usa na hora).
+- [ ] Confirmar sem escolher slot (auto-slot).
+- [ ] Token esgotado/pausado: acompanhamento; clique em equipe mostra jogadores.
+- [ ] CTA “Escalar minha equipe” só quando o link ainda aceita inscrição.
+
+### Público — link único `/convite/equipe/[token]`
+- [ ] Mesmo padrão de acompanhamento quando usado/expirado.
+- [ ] Aceite com line + auto-slot se for modo grupo.
+
+### Concorrência
+- [ ] Dois POSTs quase simultâneos no mesmo link com limite 1: só um entra.
+
 ## Lines e aba Jogadores
 - [ ] Executar `database/migrations/20260710_lines_principais_automaticas.sql`.
 - [ ] Confirmar que toda equipe possui ao menos uma line.

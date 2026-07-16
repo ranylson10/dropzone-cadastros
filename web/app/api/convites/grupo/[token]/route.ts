@@ -8,11 +8,16 @@ import {
 import {
   buildLinkMetaPayload,
   CAMPEONATO_LINK_SELECT_FULL,
+  CAMPEONATO_LINK_SELECT_FULL_LEGACY,
   CAMPEONATO_LINK_SELECT_NO_META,
+  CAMPEONATO_LINK_SELECT_NO_META_LEGACY,
   encodeLinkDescricao,
   extractHumanDescricao,
+  isMissingConsumeRpc,
+  isMissingDeletedAtColumn,
   isMissingMetadataColumn,
   linkRestantes,
+  matchExpectedTeamReference,
   parseLinkMetadata,
   resolveLinkLimiteVagas,
   type LinkEntrada,
@@ -36,12 +41,26 @@ function isMissingView(error: { code?: string; message?: string } | null | undef
   return error?.code === '42P01' || error?.code === 'PGRST205' || /vw_campeonato_slots_lines/i.test(msg)
 }
 
-/** Leitura de link: tenta com metadata; se a coluna não existe no Supabase, cai para descricao. */
+/** Leitura de link: tenta com metadata + deleted_at; degrada se colunas não existirem. */
 async function fetchCampeonatoLink(builder: (columns: string) => any) {
   const withMeta = await builder(CAMPEONATO_LINK_SELECT_FULL)
   if (!withMeta.error) return withMeta
-  if (!isMissingMetadataColumn(withMeta.error)) return withMeta
-  return builder(CAMPEONATO_LINK_SELECT_NO_META)
+
+  if (isMissingDeletedAtColumn(withMeta.error) && !isMissingMetadataColumn(withMeta.error)) {
+    const legacyMeta = await builder(CAMPEONATO_LINK_SELECT_FULL_LEGACY)
+    if (!legacyMeta.error || !isMissingMetadataColumn(legacyMeta.error)) return legacyMeta
+  }
+
+  if (isMissingMetadataColumn(withMeta.error) || isMissingDeletedAtColumn(withMeta.error)) {
+    const noMeta = await builder(CAMPEONATO_LINK_SELECT_NO_META)
+    if (!noMeta.error) return noMeta
+    if (isMissingDeletedAtColumn(noMeta.error)) {
+      return builder(CAMPEONATO_LINK_SELECT_NO_META_LEGACY)
+    }
+    return noMeta
+  }
+
+  return withMeta
 }
 
 /**
@@ -91,7 +110,7 @@ async function loadLinkRowById(linkId: string) {
 }
 
 function linkClosedMessage(
-  reason: 'limite' | 'grupo_cheio' | 'pausado' | 'expirado' | 'invalido',
+  reason: 'limite' | 'grupo_cheio' | 'pausado' | 'expirado' | 'excluido' | 'invalido',
   limite?: number,
 ) {
   // Mensagens voltadas ao convidado (não ao admin) — nunca pedir para "gerar link".
@@ -108,6 +127,9 @@ function linkClosedMessage(
   }
   if (reason === 'pausado') {
     return 'Este link foi pausado pelo organizador e não aceita mais inscrições.'
+  }
+  if (reason === 'excluido') {
+    return 'Este link foi encerrado pelo organizador. Você ainda pode acompanhar o grupo.'
   }
   return 'Link de equipes inválido ou inativo.'
 }
@@ -155,10 +177,12 @@ async function evaluateLinkAvailability(link: {
   descricao?: string | null
   ativo?: boolean
   expira_em?: string | null
-}): Promise<'ok' | 'limite' | 'grupo_cheio' | 'pausado' | 'expirado'> {
+  deleted_at?: string | null
+}): Promise<'ok' | 'limite' | 'grupo_cheio' | 'pausado' | 'expirado' | 'excluido'> {
+  const meta = parseLinkMetadata(link)
+  if (link.deleted_at || meta.closed_reason === 'excluido') return 'excluido'
   if (link.expira_em && new Date(link.expira_em).getTime() < Date.now()) return 'expirado'
 
-  const meta = parseLinkMetadata(link)
   const { data: grupo } = await supabaseAdmin
     .from('campeonato_grupos')
     .select('slots')
@@ -185,7 +209,7 @@ async function evaluateLinkAvailability(link: {
   return 'ok'
 }
 
-type LinkAvailability = 'ok' | 'limite' | 'grupo_cheio' | 'pausado' | 'expirado'
+type LinkAvailability = 'ok' | 'limite' | 'grupo_cheio' | 'pausado' | 'expirado' | 'excluido'
 
 async function fetchLinkByToken(token: string) {
   const clean = decodeURIComponent(String(token || '').trim())
@@ -293,51 +317,80 @@ async function maybeCloseGroupLinkAfterUse(link: {
   return null
 }
 
-/** Consome 1 uso do link; fecha se atingir o limite. Retorna usos após o consumo. */
+/** Consome 1 uso do link de forma atômica (RPC) com fallback otimista. */
 async function consumirVagaDoLink(link: {
   id: string
   metadata?: unknown
   descricao?: string | null
   grupo_id: string
 }) {
-  const fresh = await loadLinkRowById(link.id)
-  if (!fresh || fresh.ativo === false) throw new Error('Este link de equipes foi desativado pelo organizador.')
-
-  const meta = parseLinkMetadata(fresh)
-  const { data: grupo } = await supabaseAdmin
-    .from('campeonato_grupos')
-    .select('slots')
-    .eq('id', fresh.grupo_id)
-    .maybeSingle()
-  const limite = resolveLinkLimiteVagas(meta, grupo?.slots)
-  if (meta.usos >= limite) {
-    await deactivateGroupLink(fresh.id, 'limite_atingido', { limite_vagas: limite, usos: meta.usos })
-    throw new Error('Este link expirou: o limite de vagas do link foi atingido.')
+  // Preferência: RPC com SELECT FOR UPDATE (migration 20260716)
+  const rpc = await supabaseAdmin.rpc('fn_consumir_vaga_link_grupo', { p_link_id: link.id })
+  if (!rpc.error && rpc.data) {
+    const payload = typeof rpc.data === 'string' ? JSON.parse(rpc.data) : rpc.data
+    return {
+      usos: Number(payload.usos || 0),
+      limite: Number(payload.limite || 1),
+      restantes: Number(payload.restantes ?? 0),
+      entradas: Array.isArray(payload.entradas) ? payload.entradas : parseLinkMetadata(link).entradas,
+    }
+  }
+  if (rpc.error && !isMissingConsumeRpc(rpc.error)) {
+    throw new Error(rpc.error.message || 'Não foi possível consumir a vaga deste link.')
   }
 
-  const nextUsos = meta.usos + 1
-  const atLimit = nextUsos >= limite
-  const nextMeta = buildLinkMetaPayload(
-    { ...meta, limite_vagas: limite, usos: nextUsos } as LinkMetadata,
-    atLimit
-      ? { closed_reason: 'limite_atingido', closed_at: new Date().toISOString() }
-      : {},
-  )
+  // Fallback sem RPC: retenta se outro request consumiu no meio
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const fresh = await loadLinkRowById(link.id)
+    if (!fresh) throw new Error('Este link de equipes foi desativado pelo organizador.')
+    if (fresh.deleted_at) throw new Error('Este link foi excluido pelo organizador.')
+    if (fresh.ativo === false) throw new Error('Este link de equipes foi desativado pelo organizador.')
 
-  await persistLinkMeta({
-    linkId: fresh.id,
-    metaPayload: nextMeta,
-    currentDescricao: fresh.descricao,
-    ...(atLimit ? { ativo: false } : {}),
-    onlyIfAtivo: true,
-  })
+    const meta = parseLinkMetadata(fresh)
+    const { data: grupo } = await supabaseAdmin
+      .from('campeonato_grupos')
+      .select('slots')
+      .eq('id', fresh.grupo_id)
+      .maybeSingle()
+    const limite = resolveLinkLimiteVagas(meta, grupo?.slots)
+    if (meta.usos >= limite) {
+      await deactivateGroupLink(fresh.id, 'limite_atingido', { limite_vagas: limite, usos: meta.usos })
+      throw new Error('Este link expirou: o limite de vagas do link foi atingido.')
+    }
 
-  return {
-    usos: nextUsos,
-    limite,
-    restantes: Math.max(0, limite - nextUsos),
-    entradas: meta.entradas,
+    const prevUsos = meta.usos
+    const nextUsos = prevUsos + 1
+    const atLimit = nextUsos >= limite
+    const nextMeta = buildLinkMetaPayload(
+      { ...meta, limite_vagas: limite, usos: nextUsos } as LinkMetadata,
+      atLimit
+        ? { closed_reason: 'limite_atingido', closed_at: new Date().toISOString() }
+        : {},
+    )
+
+    await persistLinkMeta({
+      linkId: fresh.id,
+      metaPayload: nextMeta,
+      currentDescricao: fresh.descricao,
+      ...(atLimit ? { ativo: false } : {}),
+      onlyIfAtivo: true,
+    })
+
+    const confirmed = await loadLinkRowById(link.id)
+    const confirmedMeta = parseLinkMetadata(confirmed || {})
+    // Aceita se o contador ficou no valor que gravamos (ninguém sobrescreveu com valor menor/outro)
+    if (confirmedMeta.usos === nextUsos) {
+      return {
+        usos: nextUsos,
+        limite,
+        restantes: Math.max(0, limite - nextUsos),
+        entradas: meta.entradas,
+      }
+    }
+    // Conflito: tenta de novo
   }
+
+  throw new Error('Muitas equipes tentando entrar ao mesmo tempo. Atualize e tente de novo.')
 }
 
 /** Registra quem entrou no histórico do link (preserva usos/limite). */
@@ -713,7 +766,7 @@ async function payloadFor(req: NextRequest, token: string) {
   if (campError) throw campError
   if (grupoError) throw grupoError
 
-  const vagas = grade.vagas
+  const vagasBase = grade.vagas
   const usos = meta.usos
   const restantes = inscricaoAberta ? linkRestantes(meta, grupo?.slots) : 0
   // Referências já usadas = entradas do link com referencia_lista (fonte da verdade do admin)
@@ -727,7 +780,39 @@ async function payloadFor(req: NextRequest, token: string) {
   const equipesEsperadas = expected.map((nome) => ({
     nome,
     disponivel: !usedNames.has(nome.trim().toLowerCase()),
+    status: usedNames.has(nome.trim().toLowerCase()) ? ('inscrita' as const) : ('pendente' as const),
+    entrada:
+      (meta.entradas || []).find(
+        (e) => String(e.referencia_lista || '').trim().toLowerCase() === nome.trim().toLowerCase(),
+      ) || null,
   }))
+
+  // Jogadores públicos por participação (acompanhamento: clicar na equipe)
+  const partIds = vagasBase.map((v) => v.campeonato_equipe_id).filter(Boolean) as string[]
+  let jogadoresByPart = new Map<string, any[]>()
+  if (partIds.length) {
+    const { data: jogadores } = await supabaseAdmin
+      .from('campeonato_jogadores')
+      .select('id,campeonato_equipe_id,nick,foto_url,id_jogo,funcao,status,slot_numero')
+      .in('campeonato_equipe_id', partIds)
+      .eq('status', 'ativo')
+      .order('slot_numero', { ascending: true })
+    for (const player of jogadores || []) {
+      const key = String(player.campeonato_equipe_id)
+      const list = jogadoresByPart.get(key) || []
+      list.push(player)
+      jogadoresByPart.set(key, list)
+    }
+  }
+  const vagas = vagasBase.map((vaga) => {
+    const partId = vaga.campeonato_equipe_id ? String(vaga.campeonato_equipe_id) : ''
+    const players = partId ? jogadoresByPart.get(partId) || [] : []
+    return {
+      ...vaga,
+      jogadores: players,
+      quantidade_jogadores: players.length,
+    }
+  })
 
   return {
     link: {
@@ -761,6 +846,7 @@ async function payloadFor(req: NextRequest, token: string) {
     modelo: {
       leitura: grade.source,
       unidade_competitiva: 'line',
+      auto_slot: true,
     },
     ...session,
   }
@@ -791,53 +877,36 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const slotIdInformado = String(body.slot_id || '').trim()
     const lineIdInformada = String(body.line_id || '').trim()
     const nomeNovaLine = String(body.nome_line || '').trim()
-    const referenciaEquipe = String(body.referencia_equipe || body.nome_lista || '').trim()
+    // referência da lista é opcional/legado; preferimos match automático
+    const referenciaInformada = String(body.referencia_equipe || body.nome_lista || '').trim()
 
     const link = await loadLinkForInscricao(token)
     const meta = parseLinkMetadata(link)
     const expected = meta.expected_teams
 
-    // Resolve slot sem join pesado
+    // Resolve slot: informado, índice, ou primeiro livre (auto-slot)
     let slot: any = null
+    const { data: slotsGrupo, error: slotsError } = await supabaseAdmin
+      .from('campeonato_slots')
+      .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
+      .eq('campeonato_id', link.campeonato_id)
+      .eq('grupo_id', link.grupo_id)
+      .order('slot_numero', { ascending: true })
+    if (slotsError) throw slotsError
+    if (!slotsGrupo?.length) {
+      throw new Error('Este grupo ainda nao possui slots. Crie o grupo novamente ou regenere os slots.')
+    }
+
     if (slotIdInformado) {
-      const { data, error } = await supabaseAdmin
-        .from('campeonato_slots')
-        .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
-        .eq('id', slotIdInformado)
-        .eq('campeonato_id', link.campeonato_id)
-        .eq('grupo_id', link.grupo_id)
-        .maybeSingle()
-      if (error) throw error
-      slot = data
+      slot = slotsGrupo.find((s) => s.id === slotIdInformado) || null
     } else if (Number.isInteger(vagaIndex) && vagaIndex >= 0) {
-      const { data: slots, error } = await supabaseAdmin
-        .from('campeonato_slots')
-        .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
-        .eq('campeonato_id', link.campeonato_id)
-        .eq('grupo_id', link.grupo_id)
-        .order('slot_numero', { ascending: true })
-      if (error) throw error
-      if (!slots?.length) throw new Error('Este grupo ainda nao possui slots. Crie o grupo novamente ou regenere os slots.')
-      slot = slots[vagaIndex] || null
+      slot = slotsGrupo[vagaIndex] || null
+    } else {
+      slot = slotsGrupo.find((s) => !s.equipe_id && !s.line_id) || null
     }
 
-    if (!slot) throw new Error('Slot do grupo nao encontrado para a letra selecionada.')
-    if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Escolha outra letra.')
-
-    // Lista de referência do admin: etiqueta de controle (ex.: ALOE) — NÃO vira nome da line/vaga.
-    // Serve só para o organizador saber quem da lista já preencheu (e quais faltam).
-    if (expected.length) {
-      if (!referenciaEquipe) throw new Error('Selecione qual vaga de referência da lista é a sua.')
-      const existsInList = expected.some((nome) => nome.trim().toLowerCase() === referenciaEquipe.toLowerCase())
-      if (!existsInList) throw new Error('A referência selecionada não está na lista deste link.')
-
-      const refKey = referenciaEquipe.trim().toLowerCase()
-      const alreadyOnLink = meta.entradas.some((entrada) => {
-        const key = String(entrada.referencia_lista || '').trim().toLowerCase()
-        return key === refKey
-      })
-      if (alreadyOnLink) throw new Error('Essa vaga de referência já foi usada neste link.')
-    }
+    if (!slot) throw new Error('Nenhum slot livre neste grupo no momento.')
+    if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Tente novamente.')
 
     // Consome vaga do link ANTES de gravar (evita overflow se o limite for 1)
     const consumo = await consumirVagaDoLink(link)
@@ -851,8 +920,33 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       logoUrl: account.data?.logo_url || null,
     })
 
-    // nome_exibicao = nome real da line (ALOE PARÁ), nunca a etiqueta de referência (ALOE)
+    // nome_exibicao = nome real da line, nunca a etiqueta de referência do admin
     const nomeExibicao = resolvedLine.nome
+
+    // Match automático da lista interna (não bloqueia inscrição)
+    const claimedRefs = (meta.entradas || [])
+      .map((e) => String(e.referencia_lista || '').trim())
+      .filter(Boolean)
+    let referenciaEquipe = referenciaInformada || ''
+    if (expected.length) {
+      if (referenciaEquipe) {
+        const existsInList = expected.some((nome) => nome.trim().toLowerCase() === referenciaEquipe.toLowerCase())
+        if (!existsInList) referenciaEquipe = ''
+        else {
+          const alreadyOnLink = claimedRefs.some((key) => key.toLowerCase() === referenciaEquipe.toLowerCase())
+          if (alreadyOnLink) referenciaEquipe = ''
+        }
+      }
+      if (!referenciaEquipe) {
+        referenciaEquipe =
+          matchExpectedTeamReference({
+            expectedTeams: expected,
+            claimedReferences: claimedRefs,
+            equipeNome: account.name,
+            lineNome: resolvedLine.nome,
+          }) || ''
+      }
+    }
 
     let participacao: any
     try {
@@ -890,7 +984,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
 
     const letra = String(slot.slot_letra || '').trim().toUpperCase() || String(slot.slot_numero)
 
-    // Histórico: quem entrou por este link (+ referência da lista do admin)
+    // Histórico: quem entrou por este link (+ match automático na lista do admin)
     try {
       await registrarEntradaNoLink(
         link.id,

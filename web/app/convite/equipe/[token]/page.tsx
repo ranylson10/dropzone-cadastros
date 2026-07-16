@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Clock3, Shield, Users } from 'lucide-react'
+import { CheckCircle2, LogIn, Shield, Users, UserPlus, X } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
@@ -17,13 +17,23 @@ type SlotVaga = {
   equipe_nome: string | null
   line_nome: string | null
   logo_url: string | null
+  jogadores?: Array<{
+    id: string
+    nick: string
+    foto_url?: string | null
+    id_jogo?: string | null
+    funcao?: string | null
+  }>
+  quantidade_jogadores?: number
 }
 
 type InvitePayload = {
   error?: string
   valido?: boolean
-  aceito?: boolean
   autenticado?: boolean
+  modo?: 'inscricao' | 'acompanhamento'
+  inscricao_aberta?: boolean
+  status_mensagem?: string | null
   campeonato?: { id: string; nome: string; logo_url: string | null }
   slot?: { id: string; letra: string | null; numero: number | null; grupo_id?: string | null } | null
   grupo?: { id: string; nome: string } | null
@@ -37,123 +47,160 @@ type InvitePayload = {
     grupo_id?: string | null
     slot_id?: string | null
   }
-  modelo?: { assento?: 'slot' | 'grupo' | 'vaga_legado' | null }
+  modelo?: { assento?: 'slot' | 'grupo' | null; auto_slot?: boolean }
   equipe?: { id: string; nome: string; tag: string | null; logo_url: string | null } | null
-  lines?: Array<{
-    id: string
-    nome: string
-    tag: string | null
-    logo_url: string | null
-    ja_inscrita: boolean
-  }>
-  lines_disponiveis?: Array<{
-    id: string
-    nome: string
-    tag: string | null
-    logo_url: string | null
-    ja_inscrita?: boolean
-  }>
+  lines?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita?: boolean }>
+  lines_disponiveis?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita?: boolean }>
 }
+
+type Step = 'acompanhar' | 'login' | 'sem_equipe' | 'confirmar_equipe' | 'escolher_line' | 'sucesso'
+
+const SESSION_WAS_LOGGED_KEY = 'dz_invite_eq_was_logged'
+const SESSION_JUST_LOGIN_KEY = 'dz_invite_eq_just_login'
 
 export default function ConviteEquipePage() {
   const params = useParams<{ token: string }>()
   const token = String(params?.token || '')
   const returnTo = `/convite/equipe/${encodeURIComponent(token)}`
+
   const [data, setData] = useState<InvitePayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [step, setStep] = useState<Step>('acompanhar')
   const [lineId, setLineId] = useState('')
   const [nomeNovaLine, setNomeNovaLine] = useState('')
-  const [slotModal, setSlotModal] = useState<SlotVaga | null>(null)
-  const [sucesso, setSucesso] = useState<{ equipe: string; line: string; slot?: string; grupo?: string } | null>(null)
+  const [detailVaga, setDetailVaga] = useState<SlotVaga | null>(null)
+  const [sucesso, setSucesso] = useState<{ line: string; slot?: string } | null>(null)
 
   const linesDisponiveis = useMemo(() => {
     if (data?.lines_disponiveis?.length) return data.lines_disponiveis
     return (data?.lines || []).filter((line) => !line.ja_inscrita)
   }, [data?.lines, data?.lines_disponiveis])
 
-  const modoGrupo = data?.modelo?.assento === 'grupo'
+  const inscricaoAberta = data?.inscricao_aberta !== false && data?.valido !== false && data?.modo !== 'acompanhamento'
+  const hasGroupBoard = Boolean(data?.vagas?.length)
+
+  function markSessionContext(hasSession: boolean) {
+    try {
+      const key = `${SESSION_WAS_LOGGED_KEY}:${token}`
+      const justKey = `${SESSION_JUST_LOGIN_KEY}:${token}`
+      if (!hasSession) {
+        sessionStorage.setItem(key, '0')
+        sessionStorage.removeItem(justKey)
+        return { wasLogged: false, justLoggedIn: false }
+      }
+      const prev = sessionStorage.getItem(key)
+      const justLoggedIn = prev === '0' || sessionStorage.getItem(justKey) === '1'
+      if (justLoggedIn) sessionStorage.setItem(justKey, '1')
+      sessionStorage.setItem(key, '1')
+      return { wasLogged: !justLoggedIn, justLoggedIn }
+    } catch {
+      return { wasLogged: hasSession, justLoggedIn: false }
+    }
+  }
+
+  function clearJustLoginFlag() {
+    try {
+      sessionStorage.removeItem(`${SESSION_JUST_LOGIN_KEY}:${token}`)
+    } catch {
+      // ignore
+    }
+  }
+
+  function resolveStep(
+    payload: InvitePayload,
+    opts: { wasLogged: boolean; justLoggedIn: boolean },
+  ): Step {
+    const open = payload.inscricao_aberta !== false && payload.valido !== false && payload.modo !== 'acompanhamento'
+    if (!open) return 'acompanhar'
+    if (!payload.autenticado) return 'login'
+    if (!payload.equipe) return 'sem_equipe'
+    if (opts.justLoggedIn) return 'escolher_line'
+    if (opts.wasLogged) return 'confirmar_equipe'
+    return 'escolher_line'
+  }
+
+  async function carregar(opts?: { forceStep?: Step }) {
+    setLoading(true)
+    setMessage('')
+    const { data: sessionData } = await supabase.auth.getSession()
+    const sessionCtx = markSessionContext(Boolean(sessionData.session))
+
+    const response = await fetch(`/api/convites/equipe/${encodeURIComponent(token)}`, {
+      headers: sessionData.session
+        ? { Authorization: `Bearer ${sessionData.session.access_token}` }
+        : undefined,
+      cache: 'no-store',
+    })
+    const payload: InvitePayload = await response.json()
+    setData(payload)
+
+    if (!response.ok && payload.error && !payload.campeonato) {
+      setLoading(false)
+      return
+    }
+
+    const livres = payload.lines_disponiveis || (payload.lines || []).filter((l: any) => !l.ja_inscrita)
+    setLineId(livres[0]?.id || '')
+    setNomeNovaLine('')
+    setStep(opts?.forceStep || resolveStep(payload, sessionCtx))
+    setLoading(false)
+  }
 
   useEffect(() => {
-    async function carregar() {
-      setLoading(true)
-      const { data: sessionData } = await supabase.auth.getSession()
-      const response = await fetch(`/api/convites/equipe/${encodeURIComponent(token)}`, {
-        headers: sessionData.session
-          ? { Authorization: `Bearer ${sessionData.session.access_token}` }
-          : undefined,
-        cache: 'no-store',
-      })
-      const payload = await response.json()
-      setData(payload)
-      const livres = payload.lines_disponiveis || (payload.lines || []).filter((line: any) => !line.ja_inscrita)
-      setLineId(livres[0]?.id || '')
-      setLoading(false)
-
-      if (payload.autenticado && !payload.equipe && !payload.error) {
-        window.location.replace(buildProfileCreationHref('equipe', returnTo))
-      }
-    }
     void carregar()
-  }, [token, returnTo])
+  }, [token])
 
-  function openSlot(vaga: SlotVaga) {
-    if (vaga.ocupada) return
-    if (!data?.autenticado) {
-      setMessage('Entre com uma conta de equipe para escolher um slot.')
+  function startInscricao() {
+    setMessage('')
+    if (!data) return
+    if (!inscricaoAberta) {
+      setMessage(data.status_mensagem || 'Este convite não aceita novas inscrições.')
+      setStep('acompanhar')
+      return
+    }
+    if (!data.autenticado) {
+      setStep('login')
       return
     }
     if (!data.equipe) {
-      window.location.assign(buildProfileCreationHref('equipe', returnTo))
+      setStep('sem_equipe')
       return
     }
-    setSlotModal(vaga)
-    if (linesDisponiveis[0]) {
-      setLineId(linesDisponiveis[0].id)
-      setNomeNovaLine('')
-    } else {
-      setLineId('')
-      setNomeNovaLine('')
+    try {
+      const wasLogged = sessionStorage.getItem(`${SESSION_WAS_LOGGED_KEY}:${token}`) === '1'
+      const justLoggedIn = sessionStorage.getItem(`${SESSION_JUST_LOGIN_KEY}:${token}`) === '1'
+      setStep(justLoggedIn || !wasLogged ? 'escolher_line' : 'confirmar_equipe')
+    } catch {
+      setStep('escolher_line')
     }
-    setMessage('')
   }
 
-  async function aceitar(opts?: { slotId?: string | null; slotLetra?: string | null }) {
+  async function aceitar() {
     const { data: session } = await supabase.auth.getSession()
     if (!session.session) {
-      setMessage('Entre com uma conta de equipe para continuar.')
-      return
+      setStep('login')
+      return setMessage('Entre com uma conta de equipe para continuar.')
     }
     if (!data?.equipe) {
       window.location.assign(buildProfileCreationHref('equipe', returnTo))
       return
     }
     if (!lineId && !nomeNovaLine.trim()) {
-      setMessage('Selecione uma line livre ou crie uma nova line para este slot.')
-      return
+      return setMessage('Selecione uma line livre ou crie uma nova line.')
     }
 
     let resolvedLineId = lineId || null
     let resolvedNome = lineId ? null : nomeNovaLine.trim()
     if (!resolvedLineId && resolvedNome) {
-      const enrolled = (data.lines || []).find(
-        (l) => l.ja_inscrita && l.nome.trim().toLowerCase() === resolvedNome!.toLowerCase(),
+      const free = linesDisponiveis.find(
+        (l) => l.nome.trim().toLowerCase() === resolvedNome!.toLowerCase(),
       )
-      if (enrolled) {
-        setMessage(`A line "${enrolled.nome}" já está neste campeonato. Crie outra line.`)
-        return
-      }
-      const free = linesDisponiveis.find((l) => l.nome.trim().toLowerCase() === resolvedNome!.toLowerCase())
       if (free) {
         resolvedLineId = free.id
         resolvedNome = null
       }
-    }
-
-    if (modoGrupo && !opts?.slotId && !data.slot?.id) {
-      setMessage('Escolha um slot livre do grupo.')
-      return
     }
 
     setBusy(true)
@@ -167,7 +214,8 @@ export default function ConviteEquipePage() {
       body: JSON.stringify({
         line_id: resolvedLineId,
         nome_line: resolvedNome,
-        slot_id: opts?.slotId || data.slot?.id || null,
+        // auto-slot no servidor se grupo sem slot fixo
+        slot_id: data.slot?.id || null,
       }),
     })
     const payload = await response.json()
@@ -178,315 +226,353 @@ export default function ConviteEquipePage() {
       return
     }
 
-    setSlotModal(null)
+    clearJustLoginFlag()
     setSucesso({
-      equipe: payload.equipe?.nome || 'Equipe',
-      line: payload.line?.nome || 'Line',
-      slot: payload.slot?.letra || opts?.slotLetra || data.slot?.letra || undefined,
-      grupo: payload.grupo?.nome || data.grupo?.nome || undefined,
+      line: payload.line?.nome || resolvedNome || 'Line',
+      slot: payload.slot?.letra || payload.slot_letra || data.slot?.letra || undefined,
     })
-    setData((current) => (current ? { ...current, valido: false, aceito: true } : current))
+    setStep('sucesso')
+    await carregar({ forceStep: 'sucesso' })
   }
 
   if (loading) return <DropzoneLoader label="Carregando convite" />
 
-  if (!data || data.error) {
+  if (!data || (data.error && !data.campeonato)) {
     return (
       <main className="invite-page">
         <div className="invite-card">
           <Shield size={38} />
-          <h1>Convite inválido</h1>
+          <h1>Convite indisponível</h1>
           <p>{data?.error || 'Não foi possível carregar este convite.'}</p>
-        </div>
-      </main>
-    )
-  }
-
-  const slotLabel =
-    data.slot?.letra || data.vaga?.letra || (data.vaga?.numero_vaga ? String(data.vaga.numero_vaga).padStart(2, '0') : '-')
-
-  if (sucesso) {
-    return (
-      <main className="invite-page">
-        <div className="invite-card invite-success-card">
-          <CheckCircle2 size={48} />
-          <p className="eyebrow">Entrada confirmada</p>
-          <h1>{data.campeonato?.nome}</h1>
-          <p>
-            <strong>{sucesso.line}</strong> entrou no slot <strong>{sucesso.slot || slotLabel}</strong>
-            {sucesso.grupo ? (
-              <>
-                {' '}
-                do <strong>{sucesso.grupo}</strong>
-              </>
-            ) : null}{' '}
-            pela pasta <strong>{sucesso.equipe}</strong>.
-          </p>
-          <div className="invite-details">
-            <span>
-              <strong>Slot</strong>
-              {sucesso.slot || slotLabel}
-            </span>
-            <span>
-              <strong>Line</strong>
-              {sucesso.line}
-            </span>
-          </div>
           <a className="button invite-confirm" href="/">
-            Ir para o painel da equipe
+            Ir para o início
           </a>
         </div>
       </main>
     )
   }
 
+  const slotLabel =
+    data.slot?.letra ||
+    data.vaga?.letra ||
+    (data.vaga?.numero_vaga ? String(data.vaga.numero_vaga).padStart(2, '0') : null)
+
+  const eyebrow =
+    step === 'login'
+      ? 'Convite de inscrição'
+      : step === 'sem_equipe'
+        ? 'Perfil de equipe'
+        : step === 'confirmar_equipe'
+          ? 'Confirmar equipe'
+          : step === 'escolher_line'
+            ? 'Escolher line'
+            : step === 'sucesso'
+              ? 'Entrada confirmada'
+              : !inscricaoAberta
+                ? 'Acompanhamento'
+                : 'Acompanhamento'
+
   return (
     <>
       <main className="invite-page">
-        <div className={`invite-card ${modoGrupo ? 'invite-hub-card' : ''}`}>
+        <div className={`invite-card ${step === 'acompanhar' || step === 'sucesso' ? 'invite-hub-card' : ''}`}>
           {data.campeonato?.logo_url ? (
             <img className="invite-champ-logo" src={data.campeonato.logo_url} alt="" />
+          ) : step === 'sucesso' ? (
+            <CheckCircle2 size={42} />
           ) : (
             <Users size={42} />
           )}
-          <p className="eyebrow">{modoGrupo ? 'Convite de grupo' : 'Convite de line no campeonato'}</p>
+
+          <p className="eyebrow">{eyebrow}</p>
           <h1>{data.campeonato?.nome}</h1>
           {data.grupo?.nome ? <p>{data.grupo.nome}</p> : null}
 
-          {modoGrupo ? (
+          {data.resumo_grupo ? (
             <div className="invite-mini-stats">
               <span>
-                <strong>{data.resumo_grupo?.ocupadas ?? 0}</strong> ocupadas
+                <strong>{data.resumo_grupo.ocupadas}</strong> ocupadas
               </span>
               <span>
-                <strong>{data.resumo_grupo?.livres ?? 0}</strong> livres
+                <strong>{data.resumo_grupo.livres}</strong> livres
               </span>
               <span>
-                <strong>{data.resumo_grupo?.total ?? 0}</strong> slots
+                <strong>{data.resumo_grupo.total}</strong> slots
               </span>
             </div>
-          ) : (
+          ) : slotLabel ? (
             <div className="invite-details">
               <span>
                 <strong>Slot</strong>
                 {slotLabel}
               </span>
-              <span>
-                <strong>Referência</strong>
-                {data.convite?.nome_equipe_reservada || '-'}
-              </span>
-              <span>
-                <strong>Line informada</strong>
-                {data.convite?.nome_line_reservada || '-'}
-              </span>
-              <span>
-                <strong>Validade</strong>
-                <Clock3 size={14} /> 24 horas
-              </span>
             </div>
-          )}
+          ) : null}
 
-          {data.valido ? (
-            data.autenticado ? (
-              data.equipe ? (
-                modoGrupo ? (
+          {!inscricaoAberta && data.status_mensagem && step === 'acompanhar' ? (
+            <p className="invite-section-copy" style={{ textAlign: 'center', marginTop: 6 }}>
+              {data.status_mensagem}
+            </p>
+          ) : null}
+
+          {step === 'login' ? (
+            <div className="invite-auth-box" style={{ marginTop: 16 }}>
+              <LogIn size={22} />
+              <p>
+                {inscricaoAberta ? (
                   <>
-                    <div className="invite-current-team">
-                      <small>Sua pasta</small>
-                      <strong>{data.equipe.nome}</strong>
-                      <span>Toque no slot livre para confirmar a line e entrar no grupo.</span>
-                    </div>
-                    <p className="invite-section-copy" style={{ textAlign: 'center', marginBottom: 4 }}>
-                      Referência: {data.convite?.nome_equipe_reservada || '—'} ·{' '}
-                      {data.convite?.nome_line_reservada || 'line'}
-                    </p>
-                    <div className="lineup-slots public-lineup-slots invite-slot-grid">
-                      {(data.vagas || []).map((vaga) => {
-                        const clickable = !vaga.ocupada
-                        return (
-                          <button
-                            type="button"
-                            key={vaga.slot_id}
-                            className={`lineup-slot invite-slot-button ${vaga.ocupada ? 'occupied' : 'free'} ${clickable ? 'clickable' : ''}`}
-                            onClick={() => openSlot(vaga)}
-                            disabled={vaga.ocupada || busy}
-                          >
-                            <b>{vaga.slot_letra}</b>
-                            {vaga.logo_url ? <img src={vaga.logo_url} alt="" /> : null}
-                            <div>
-                              <strong>
-                                {vaga.ocupada
-                                  ? vaga.line_nome || vaga.equipe_nome || 'Ocupado'
-                                  : `Slot ${vaga.slot_letra}`}
-                              </strong>
-                              <span>{vaga.ocupada ? vaga.equipe_nome || 'Equipe' : 'Toque para entrar'}</span>
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
+                    Para se inscrever, <strong>faça login</strong> com a conta da equipe. Ou continue só
+                    acompanhando.
                   </>
                 ) : (
-                  <div className="invite-team-confirmation">
-                    <div className="invite-current-team">
-                      <small>Pasta (equipe)</small>
-                      <strong>{data.equipe.nome}</strong>
-                      {data.equipe.tag ? <span>{data.equipe.tag}</span> : null}
-                    </div>
-
-                    <p className="invite-section-copy" style={{ textAlign: 'left' }}>
-                      A <strong>line</strong> é quem joga e pontua. Só aparecem lines ainda livres neste campeonato.
-                    </p>
-
-                    {linesDisponiveis.length ? (
-                      <label className="field">
-                        <span>Line livre para o slot {slotLabel}</span>
-                        <select
-                          value={lineId}
-                          onChange={(event) => {
-                            setLineId(event.target.value)
-                            setNomeNovaLine('')
-                          }}
-                        >
-                          {linesDisponiveis.map((line) => (
-                            <option value={line.id} key={line.id}>
-                              {line.nome}
-                            </option>
-                          ))}
-                          <option value="">+ Criar nova line para este slot</option>
-                        </select>
-                      </label>
-                    ) : (
-                      <p className="invite-line-note">
-                        Todas as lines desta pasta já estão no campeonato. Crie uma nova line abaixo.
-                      </p>
-                    )}
-
-                    {!lineId ? (
-                      <label className="field">
-                        <span>Nome da nova line (herda logo da pasta)</span>
-                        <input
-                          value={nomeNovaLine}
-                          onChange={(event) => setNomeNovaLine(event.target.value)}
-                          placeholder="Ex.: ALOE ELITE"
-                        />
-                      </label>
-                    ) : null}
-
-                    {(data.lines || []).some((line) => line.ja_inscrita) ? (
-                      <p className="invite-line-note">
-                        Já no campeonato:{' '}
-                        {(data.lines || [])
-                          .filter((l) => l.ja_inscrita)
-                          .map((l) => l.nome)
-                          .join(', ')}
-                      </p>
-                    ) : null}
-
-                    <button className="button invite-confirm" disabled={busy} onClick={() => void aceitar()}>
-                      Confirmar line no slot {slotLabel}
-                    </button>
-                    <a className="button secondary" href={buildLoginHref('equipe', returnTo, true)}>
-                      Usar outra equipe
-                    </a>
-                  </div>
-                )
-              ) : (
-                <div className="invite-auth-box">
-                  <p>Redirecionando para criar o perfil de equipe (pasta das lines)...</p>
-                  <a className="button" href={buildProfileCreationHref('equipe', returnTo)}>
-                    Criar equipe agora
+                  <>Este convite não aceita novas inscrições. Você pode acompanhar o grupo abaixo.</>
+                )}
+              </p>
+              {inscricaoAberta ? (
+                <>
+                  <SocialLogin profileType="equipe" returnTo={returnTo} />
+                  <a
+                    className="button secondary"
+                    href={buildLoginHref('equipe', returnTo)}
+                    style={{ width: '100%', marginTop: 8, placeContent: 'center' }}
+                  >
+                    Entrar com e-mail e senha
                   </a>
-                </div>
-              )
-            ) : (
-              <div className="invite-auth-actions">
-                <p style={{ marginBottom: 12, color: '#667085', fontSize: 13 }}>
-                  Entre com conta de <strong>equipe</strong>. Se ainda não tiver perfil, o cadastro abre em seguida.
-                </p>
-                <SocialLogin profileType="equipe" returnTo={returnTo} />
-              </div>
-            )
-          ) : (
-            <div className="invite-expired">
-              <CheckCircle2 size={20} />
-              {data.aceito ? 'Convite aceito.' : 'Este convite expirou, já foi utilizado ou o grupo está cheio.'}
+                </>
+              ) : null}
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => setStep('acompanhar')}
+                style={{ width: '100%', marginTop: 8 }}
+              >
+                Só acompanhar
+              </button>
             </div>
-          )}
+          ) : null}
+
+          {step === 'sem_equipe' ? (
+            <div className="invite-auth-box" style={{ marginTop: 16 }}>
+              <Shield size={22} />
+              <p>
+                Seu login está ativo, mas ainda <strong>não tem conta de equipe</strong>. Crie o perfil para
+                continuar.
+              </p>
+              <a className="button invite-confirm" href={buildProfileCreationHref('equipe', returnTo)}>
+                Criar perfil de equipe
+              </a>
+              <a className="button secondary" href={buildLoginHref('equipe', returnTo, true)}>
+                Usar outra conta
+              </a>
+            </div>
+          ) : null}
+
+          {step === 'confirmar_equipe' && data.equipe ? (
+            <div className="invite-auth-box" style={{ marginTop: 16 }}>
+              <div className="invite-current-team" style={{ width: '100%' }}>
+                <small>Equipe logada</small>
+                <strong>{data.equipe.nome}</strong>
+                <span>{data.equipe.tag ? `Tag ${data.equipe.tag}` : 'Sem tag'}</span>
+              </div>
+              <p>
+                Usar a equipe <strong>{data.equipe.nome}</strong>?
+              </p>
+              <button className="button invite-confirm" type="button" onClick={() => setStep('escolher_line')}>
+                Usar {data.equipe.nome}
+              </button>
+              <a className="button secondary" href={buildLoginHref('equipe', returnTo, true)}>
+                Trocar de equipe (outro login)
+              </a>
+            </div>
+          ) : null}
+
+          {step === 'escolher_line' ? (
+            <div className="invite-section" style={{ marginTop: 12 }}>
+              <div className="invite-current-team" style={{ marginBottom: 12 }}>
+                <small>Inscrevendo com</small>
+                <strong>{data.equipe?.nome}</strong>
+                <span>
+                  {slotLabel
+                    ? `Slot ${slotLabel} — escolha a line.`
+                    : 'O slot livre será atribuído automaticamente.'}
+                </span>
+              </div>
+
+              {linesDisponiveis.length ? (
+                <label className="field">
+                  <span>Line livre</span>
+                  <select
+                    value={lineId}
+                    onChange={(e) => {
+                      setLineId(e.target.value)
+                      setNomeNovaLine('')
+                    }}
+                  >
+                    {linesDisponiveis.map((line) => (
+                      <option key={line.id} value={line.id}>
+                        {line.nome}
+                      </option>
+                    ))}
+                    <option value="">+ Criar nova line</option>
+                  </select>
+                </label>
+              ) : (
+                <div className="invite-lines-note">
+                  <small>Criar line</small>
+                  <p>Crie uma nova line — ela será usada nesta inscrição automaticamente.</p>
+                </div>
+              )}
+
+              {!lineId ? (
+                <label className="field">
+                  <span>Nome da nova line</span>
+                  <input
+                    value={nomeNovaLine}
+                    onChange={(e) => setNomeNovaLine(e.target.value)}
+                    placeholder="Ex.: ALOE ELITE"
+                    autoFocus={!linesDisponiveis.length}
+                  />
+                </label>
+              ) : null}
+
+              <button
+                className="button invite-confirm"
+                type="button"
+                disabled={busy}
+                onClick={() => void aceitar()}
+                style={{ width: '100%', marginTop: 12 }}
+              >
+                {busy ? 'Confirmando...' : 'Confirmar inscrição'}
+              </button>
+              <button
+                className="button secondary"
+                type="button"
+                style={{ width: '100%', marginTop: 8 }}
+                onClick={() => setStep('acompanhar')}
+              >
+                Voltar ao acompanhamento
+              </button>
+            </div>
+          ) : null}
+
+          {step === 'sucesso' && sucesso ? (
+            <div className="invite-auth-box" style={{ marginTop: 16 }}>
+              <CheckCircle2 size={40} />
+              <p>
+                <strong>{sucesso.line}</strong> inscrita
+                {sucesso.slot ? (
+                  <>
+                    {' '}
+                    no slot <strong>{sucesso.slot}</strong>
+                  </>
+                ) : null}
+                .
+              </p>
+              <button className="button invite-confirm" type="button" onClick={() => setStep('acompanhar')}>
+                Ver grupo
+              </button>
+              <a className="button secondary" href="/">
+                Ir para o painel
+              </a>
+            </div>
+          ) : null}
+
+          {step === 'acompanhar' ? (
+            <div className="invite-section">
+              {hasGroupBoard ? (
+                <>
+                  <p className="invite-section-copy">
+                    Toque em uma equipe inscrita para ver a line e os jogadores.
+                  </p>
+                  <div className="lineup-slots public-lineup-slots invite-slot-grid">
+                    {(data.vagas || []).map((vaga) => (
+                      <button
+                        type="button"
+                        key={vaga.slot_id || vaga.index}
+                        className={`lineup-slot invite-slot-button ${vaga.ocupada ? 'occupied' : 'free'} ${vaga.ocupada ? 'clickable' : ''}`}
+                        onClick={() => vaga.ocupada && setDetailVaga(vaga)}
+                        disabled={!vaga.ocupada}
+                      >
+                        <b>{vaga.slot_letra}</b>
+                        {vaga.logo_url ? <img src={vaga.logo_url} alt="" /> : null}
+                        <div>
+                          <strong>
+                            {vaga.ocupada
+                              ? vaga.line_nome || vaga.equipe_nome || 'Ocupado'
+                              : `Slot ${vaga.slot_letra}`}
+                          </strong>
+                          <span>
+                            {vaga.ocupada
+                              ? `${vaga.equipe_nome || 'Equipe'}${vaga.quantidade_jogadores != null ? ` · ${vaga.quantidade_jogadores} jog.` : ''}`
+                              : 'Disponível'}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="invite-section-copy" style={{ textAlign: 'center' }}>
+                  {inscricaoAberta
+                    ? 'Use o botão abaixo para inscrever sua equipe neste convite.'
+                    : data.status_mensagem || 'Convite encerrado.'}
+                </p>
+              )}
+
+              {inscricaoAberta ? (
+                <button
+                  className="button invite-confirm"
+                  type="button"
+                  onClick={startInscricao}
+                  style={{ width: '100%', marginTop: 16 }}
+                >
+                  <UserPlus size={16} />
+                  Escalar minha equipe
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           {message ? <p className="invite-message">{message}</p> : null}
         </div>
       </main>
 
-      {slotModal ? (
-        <div className="invite-modal-backdrop" onClick={() => !busy && setSlotModal(null)}>
-          <section className="invite-modal" onClick={(event) => event.stopPropagation()}>
+      {detailVaga ? (
+        <div className="invite-modal-backdrop" onClick={() => setDetailVaga(null)}>
+          <section className="invite-modal" onClick={(e) => e.stopPropagation()}>
             <header>
               <div>
-                <p className="eyebrow">Confirmar entrada</p>
-                <h2>Slot {slotModal.slot_letra}</h2>
-                <span>
-                  {data.grupo?.nome || 'Grupo'} · cada vaga precisa de uma <strong>line diferente</strong>.
-                </span>
+                <p className="eyebrow">Slot {detailVaga.slot_letra}</p>
+                <h2>{detailVaga.line_nome || detailVaga.equipe_nome || 'Equipe'}</h2>
+                <span>{detailVaga.equipe_nome || 'Equipe'}</span>
               </div>
-              <button type="button" onClick={() => setSlotModal(null)} aria-label="Fechar">
-                ×
+              <button type="button" onClick={() => setDetailVaga(null)} aria-label="Fechar">
+                <X size={18} />
               </button>
             </header>
-
-            {linesDisponiveis.length ? (
-              <label className="field">
-                <span>Line livre da sua equipe</span>
-                <select
-                  value={lineId}
-                  onChange={(e) => {
-                    setLineId(e.target.value)
-                    setNomeNovaLine('')
-                  }}
-                >
-                  {linesDisponiveis.map((line) => (
-                    <option key={line.id} value={line.id}>
-                      {line.nome}
-                    </option>
-                  ))}
-                  <option value="">+ Criar nova line para este slot</option>
-                </select>
-              </label>
+            {(detailVaga.jogadores || []).length === 0 ? (
+              <p className="invite-empty">Nenhum jogador escalado ainda.</p>
             ) : (
-              <div className="invite-lines-note">
-                <small>Nenhuma line livre</small>
-                <p>Crie uma nova line abaixo — ela será inscrita neste slot do grupo.</p>
+              <div className="invite-player-list">
+                {detailVaga.jogadores!.map((player) => (
+                  <div className="invite-player-row" key={player.id}>
+                    <span className="invite-player-avatar">
+                      {player.foto_url ? <img src={player.foto_url} alt="" /> : <Users size={16} />}
+                    </span>
+                    <div>
+                      <strong>{player.nick}</strong>
+                      <small>
+                        {player.funcao || 'função'}
+                        {player.id_jogo ? ` · ID ${player.id_jogo}` : ''}
+                      </small>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-
-            {!lineId ? (
-              <label className="field">
-                <span>Nome da nova line</span>
-                <input
-                  value={nomeNovaLine}
-                  onChange={(e) => setNomeNovaLine(e.target.value)}
-                  placeholder="Ex.: ALOE ELITE"
-                />
-              </label>
-            ) : null}
-
-            {message ? <p className="invite-message">{message}</p> : null}
-
-            <div className="invite-inline-actions">
-              <button className="button secondary" type="button" disabled={busy} onClick={() => setSlotModal(null)}>
-                Cancelar
-              </button>
-              <button
-                className="button"
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void aceitar({ slotId: slotModal.slot_id, slotLetra: slotModal.slot_letra })
-                }
-              >
-                {busy ? 'Confirmando...' : `Confirmar no slot ${slotModal.slot_letra}`}
-              </button>
-            </div>
+            <button className="button secondary" type="button" onClick={() => setDetailVaga(null)} style={{ width: '100%', marginTop: 12 }}>
+              Fechar
+            </button>
           </section>
         </div>
       ) : null}

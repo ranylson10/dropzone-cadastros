@@ -20,8 +20,9 @@ async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
     .eq('grupo_id', grupoId)
     .order('slot_numero', { ascending: true })
 
+  let vagas: any[] = []
   if (!error && rows) {
-    return rows.map((row: any, index: number) => {
+    vagas = rows.map((row: any, index: number) => {
       const ocupada = String(row.status_ui || '') === 'ocupada' || Boolean(row.participacao_id || row.line_id)
       const letra = String(row.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
       return {
@@ -33,33 +34,60 @@ async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
         equipe_nome: row.equipe_nome || null,
         line_nome: row.line_nome || row.nome_exibicao || null,
         logo_url: row.line_logo_url || null,
+        campeonato_equipe_id: row.participacao_id || null,
+      }
+    })
+  } else {
+    const { data: slots, error: slotsError } = await supabaseAdmin
+      .from('campeonato_slots')
+      .select('id,slot_numero,slot_letra,equipe_id,line_id')
+      .eq('campeonato_id', campeonatoId)
+      .eq('grupo_id', grupoId)
+      .order('slot_numero', { ascending: true })
+    if (slotsError) throw slotsError
+
+    vagas = (slots || []).map((slot: any, index: number) => {
+      const ocupada = Boolean(slot.equipe_id || slot.line_id)
+      const letra = String(slot.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
+      return {
+        index,
+        slot_id: slot.id,
+        slot_numero: slot.slot_numero || index + 1,
+        slot_letra: letra,
+        ocupada,
+        equipe_nome: null,
+        line_nome: null,
+        logo_url: null,
+        campeonato_equipe_id: null,
       }
     })
   }
 
-  // Fallback sem view
-  const { data: slots, error: slotsError } = await supabaseAdmin
-    .from('campeonato_slots')
-    .select('id,slot_numero,slot_letra,equipe_id,line_id')
-    .eq('campeonato_id', campeonatoId)
-    .eq('grupo_id', grupoId)
-    .order('slot_numero', { ascending: true })
-  if (slotsError) throw slotsError
-
-  return (slots || []).map((slot: any, index: number) => {
-    const ocupada = Boolean(slot.equipe_id || slot.line_id)
-    const letra = String(slot.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
-    return {
-      index,
-      slot_id: slot.id,
-      slot_numero: slot.slot_numero || index + 1,
-      slot_letra: letra,
-      ocupada,
-      equipe_nome: null,
-      line_nome: null,
-      logo_url: null,
+  // Jogadores públicos por participação
+  const partIds = vagas.map((v) => v.campeonato_equipe_id).filter(Boolean)
+  if (partIds.length) {
+    const { data: jogadores } = await supabaseAdmin
+      .from('campeonato_jogadores')
+      .select('id,campeonato_equipe_id,nick,foto_url,id_jogo,funcao,status,slot_numero')
+      .in('campeonato_equipe_id', partIds)
+      .eq('status', 'ativo')
+      .order('slot_numero', { ascending: true })
+    const byPart = new Map<string, any[]>()
+    for (const player of jogadores || []) {
+      const key = String(player.campeonato_equipe_id)
+      const list = byPart.get(key) || []
+      list.push(player)
+      byPart.set(key, list)
     }
-  })
+    vagas = vagas.map((vaga) => {
+      const players = vaga.campeonato_equipe_id ? byPart.get(String(vaga.campeonato_equipe_id)) || [] : []
+      return { ...vaga, jogadores: players, quantidade_jogadores: players.length }
+    })
+  } else {
+    vagas = vagas.map((vaga) => ({ ...vaga, jogadores: [], quantidade_jogadores: 0 }))
+  }
+
+  return vagas
 }
 
 async function carregar(token: string) {
@@ -98,9 +126,7 @@ async function carregar(token: string) {
     grupoId
       ? supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id').eq('id', grupoId).maybeSingle()
       : Promise.resolve({ data: null as any, error: null }),
-    modoGrupo && grupoId
-      ? loadGrupoVagas(convite.campeonato_id, grupoId)
-      : Promise.resolve([] as any[]),
+    grupoId ? loadGrupoVagas(convite.campeonato_id, grupoId) : Promise.resolve([] as any[]),
   ])
   if (grupoRes.error) throw grupoRes.error
 
@@ -111,6 +137,7 @@ async function carregar(token: string) {
     grupo: grupoRes.data,
     vagas,
     modoGrupo,
+    grupoId,
   }
 }
 
@@ -120,7 +147,12 @@ async function carregarEquipeDoLogin(req: NextRequest, campeonatoId: string) {
     const accounts = await getAccountsForUser(user)
     const equipe = accounts.find((account) => account.profile_type === 'equipe') || null
     if (!equipe) {
-      return { autenticado: true, equipe: null, lines: [] as any[], lines_disponiveis: [] as any[] }
+      return {
+        autenticado: true,
+        equipe: null,
+        lines: [] as any[],
+        lines_disponiveis: [] as any[],
+      }
     }
 
     const [{ data: lines }, { data: participacoes }] = await Promise.all([
@@ -144,6 +176,7 @@ async function carregarEquipeDoLogin(req: NextRequest, campeonatoId: string) {
       logo_url: line.logo_url || equipe.data?.logo_url || null,
       ja_inscrita: usadas.has(line.id),
     }))
+    const livres = mapped.filter((l) => !l.ja_inscrita)
 
     return {
       autenticado: true,
@@ -153,8 +186,9 @@ async function carregarEquipeDoLogin(req: NextRequest, campeonatoId: string) {
         tag: equipe.data?.tag || null,
         logo_url: equipe.data?.logo_url || null,
       },
-      lines: mapped,
-      lines_disponiveis: mapped.filter((l) => !l.ja_inscrita),
+      // Só lines livres — evita opções inválidas
+      lines: livres,
+      lines_disponiveis: livres,
     }
   } catch {
     return { autenticado: false, equipe: null, lines: [], lines_disponiveis: [] }
@@ -167,6 +201,32 @@ function conviteAindaValido(convite: any) {
   return true
 }
 
+function statusMensagem(params: {
+  validoBase: boolean
+  valido: boolean
+  convite: any
+  slotOcupado: boolean
+  livres: number
+}) {
+  if (params.valido) return null
+  if (params.convite.usado || params.convite.status === 'usado') {
+    return 'Este convite já foi utilizado. Você ainda pode acompanhar o grupo.'
+  }
+  if (params.convite.expira_em && new Date(params.convite.expira_em).getTime() <= Date.now()) {
+    return 'Este convite expirou. Você ainda pode acompanhar o grupo.'
+  }
+  if (params.slotOcupado) {
+    return 'O slot deste convite já está ocupado. Você ainda pode acompanhar o grupo.'
+  }
+  if (params.livres <= 0) {
+    return 'Não há slots livres neste grupo no momento.'
+  }
+  if (params.convite.status !== 'ativo') {
+    return 'Este convite não está mais ativo. Você ainda pode acompanhar o grupo.'
+  }
+  return 'Este convite não aceita novas inscrições no momento.'
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params
@@ -176,17 +236,30 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
 
     let valido = validoBase
     let assento: 'slot' | 'grupo' | null = null
+    let slotOcupado = false
+    let livres = 0
 
     if (data.slot) {
       assento = 'slot'
-      valido = valido && !data.slot.equipe_id && !data.slot.line_id
+      slotOcupado = Boolean(data.slot.equipe_id || data.slot.line_id)
+      valido = valido && !slotOcupado
+      livres = slotOcupado ? 0 : 1
     } else if (data.modoGrupo) {
       assento = 'grupo'
-      const livres = (data.vagas || []).filter((v: any) => !v.ocupada).length
+      livres = (data.vagas || []).filter((v: any) => !v.ocupada).length
       valido = valido && livres > 0
     } else {
       valido = false
     }
+
+    const inscricaoAberta = valido
+    const mensagem = statusMensagem({
+      validoBase,
+      valido,
+      convite: data.convite,
+      slotOcupado,
+      livres,
+    })
 
     return NextResponse.json({
       convite: {
@@ -211,7 +284,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
         : null,
       grupo: data.grupo,
       vagas: data.vagas || [],
-      resumo_grupo: data.modoGrupo
+      resumo_grupo: data.grupoId
         ? {
             total: data.vagas.length,
             ocupadas: data.vagas.filter((v: any) => v.ocupada).length,
@@ -221,8 +294,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
       vaga: data.slot
         ? { numero_vaga: data.slot.slot_numero, letra: data.slot.slot_letra }
         : null,
-      modelo: { assento, vaga_fisica: 'slot' },
+      modelo: { assento, vaga_fisica: 'slot', auto_slot: true },
+      modo: inscricaoAberta ? 'inscricao' : 'acompanhamento',
+      inscricao_aberta: inscricaoAberta,
+      status_mensagem: mensagem,
       ...sessao,
+      // lines no response já filtradas
+      lines: sessao.lines_disponiveis || sessao.lines || [],
       valido,
     })
   } catch (error) {
@@ -262,7 +340,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     let slotUsado: any = slotFixo
 
     if (slotFixo) {
-      if (slotFixo.equipe_id || slotFixo.line_id) throw new Error('Este slot já foi ocupado. Peça um novo convite.')
+      if (slotFixo.equipe_id || slotFixo.line_id) {
+        throw new Error('Este slot já foi ocupado. Peça um novo convite.')
+      }
       participacao = await inserirParticipacaoNoSlot({
         campeonatoId: convite.campeonato_id,
         slotId: slotFixo.id,
@@ -274,20 +354,24 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       })
       participacaoId = participacao.id
     } else if (modoGrupo) {
-      const slotIdEscolhido = String(body.slot_id || '').trim()
-      if (!slotIdEscolhido) throw new Error('Escolha um slot livre do grupo para entrar.')
-
-      const { data: slotEscolhido, error: slotError } = await supabaseAdmin
+      // Auto-slot: usa slot informado ou o primeiro livre
+      const slotIdInformado = String(body.slot_id || '').trim()
+      const { data: slots, error: slotsError } = await supabaseAdmin
         .from('campeonato_slots')
         .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
-        .eq('id', slotIdEscolhido)
         .eq('campeonato_id', convite.campeonato_id)
         .eq('grupo_id', convite.grupo_id)
-        .maybeSingle()
-      if (slotError) throw slotError
-      if (!slotEscolhido) throw new Error('Slot não pertence a este grupo do convite.')
+        .order('slot_numero', { ascending: true })
+      if (slotsError) throw slotsError
+
+      let slotEscolhido =
+        (slotIdInformado && (slots || []).find((s) => s.id === slotIdInformado)) ||
+        (slots || []).find((s) => !s.equipe_id && !s.line_id) ||
+        null
+
+      if (!slotEscolhido) throw new Error('Nenhum slot livre neste grupo no momento.')
       if (slotEscolhido.equipe_id || slotEscolhido.line_id) {
-        throw new Error('Esse slot já foi preenchido. Escolha outra letra.')
+        throw new Error('Esse slot já foi preenchido. Tente novamente.')
       }
 
       participacao = await inserirParticipacaoNoSlot({
@@ -305,6 +389,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       throw new Error('Este convite não está vinculado a um slot ou grupo válido.')
     }
 
+    // Marca token como usado de forma condicional (atômico no nível do flag usado)
     const { data: tokenUsed, error: tokenError } = await supabaseAdmin
       .from('tokens')
       .update({
@@ -313,7 +398,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
         status: 'usado',
         equipe_id: account.id,
         line_destino_id: resolved.id,
-        // grava o slot escolhido no token (modo grupo)
         ...(slotUsado?.id ? { slot_id: slotUsado.id } : {}),
       })
       .eq('id', convite.id)
@@ -336,6 +420,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       slot: slotUsado
         ? { id: slotUsado.id, letra: slotUsado.slot_letra, numero: slotUsado.slot_numero }
         : null,
+      slot_letra: slotUsado?.slot_letra || null,
+      mensagem: resolved.criada_agora
+        ? `Line "${resolved.nome}" criada e inscrita.`
+        : `Line "${resolved.nome}" inscrita.`,
     })
   } catch (error) {
     if (participacaoId) {

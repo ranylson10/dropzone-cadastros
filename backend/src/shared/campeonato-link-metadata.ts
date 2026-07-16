@@ -40,6 +40,95 @@ export function normalizeExpectedTeams(value: unknown) {
   return value.map((name) => String(name || '').trim()).filter(Boolean)
 }
 
+/**
+ * Parseia lista colada pelo admin: uma por linha e/ou separadas por vírgula.
+ * Remove vazios e duplicatas (case-insensitive), preservando a ordem.
+ */
+export function parseExpectedTeamsFromText(value: unknown): string[] {
+  if (Array.isArray(value)) return normalizeExpectedTeams(value)
+  const text = String(value || '').trim()
+  if (!text) return []
+  const parts = text
+    .split(/[\n,;]+/)
+    .map((name) => name.trim())
+    .filter(Boolean)
+  const seen = new Set<string>()
+  const unique: string[] = []
+  for (const name of parts) {
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(name)
+  }
+  return unique
+}
+
+function normalizeNameKey(value: string) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+/**
+ * Casa a equipe/line que acabou de entrar com um item pendente da lista do admin.
+ * Não bloqueia inscrição: retorna null se não houver match claro.
+ */
+export function matchExpectedTeamReference(params: {
+  expectedTeams: string[]
+  claimedReferences: string[]
+  equipeNome?: string | null
+  lineNome?: string | null
+}): string | null {
+  const expected = normalizeExpectedTeams(params.expectedTeams)
+  if (!expected.length) return null
+
+  const claimed = new Set(
+    (params.claimedReferences || []).map((n) => n.trim().toLowerCase()).filter(Boolean),
+  )
+  const pending = expected.filter((nome) => !claimed.has(nome.trim().toLowerCase()))
+  if (!pending.length) return null
+
+  const candidates = [params.equipeNome, params.lineNome]
+    .map((v) => String(v || '').trim())
+    .filter(Boolean)
+  if (!candidates.length) return null
+
+  // 1) match exato (case-insensitive)
+  for (const cand of candidates) {
+    const hit = pending.find((nome) => nome.trim().toLowerCase() === cand.toLowerCase())
+    if (hit) return hit
+  }
+
+  // 2) match normalizado (sem acento/pontuação)
+  for (const cand of candidates) {
+    const candKey = normalizeNameKey(cand)
+    if (!candKey) continue
+    const hit = pending.find((nome) => normalizeNameKey(nome) === candKey)
+    if (hit) return hit
+  }
+
+  // 3) contém (só se um único pendente casar de forma não ambígua)
+  const containsHits = new Set<string>()
+  for (const cand of candidates) {
+    const candKey = normalizeNameKey(cand)
+    if (!candKey || candKey.length < 3) continue
+    for (const nome of pending) {
+      const nomeKey = normalizeNameKey(nome)
+      if (!nomeKey) continue
+      if (candKey.includes(nomeKey) || nomeKey.includes(candKey)) {
+        containsHits.add(nome)
+      }
+    }
+  }
+  if (containsHits.size === 1) return [...containsHits][0]
+
+  return null
+}
+
 function normalizeEntradas(value: unknown): LinkEntrada[] {
   if (!Array.isArray(value)) return []
   return value
@@ -110,36 +199,21 @@ export function buildGroupInviteShareMessage(params: {
   expectedTeams: string[]
   publicUrl: string
   expiraEm?: string | null
+  titulo?: string | null
 }) {
-  const lista = params.expectedTeams.length
-    ? params.expectedTeams.map((nome, i) => `${i + 1}. ${nome}`).join('\n')
-    : `(${params.limiteVagas} vaga${params.limiteVagas === 1 ? '' : 's'} neste link)`
-
   const validade = params.expiraEm
     ? `\nValidade: ${new Date(params.expiraEm).toLocaleString('pt-BR')}`
     : ''
+  const tituloLine = params.titulo ? `\nLink: ${params.titulo}` : ''
 
   return `🏆 DropZone — Convite de inscrição
 
 Campeonato: ${params.campeonatoNome}
-Grupo: ${params.grupoNome}
+Grupo: ${params.grupoNome}${tituloLine}
 Vagas neste link: ${params.limiteVagas}${validade}
 
-Vagas de referência (use a que o organizador combinou com você):
-${lista}
+Abra o link, entre com a conta da equipe, escolha a line e confirme a inscrição.
 
-Como se inscrever (passo a passo):
-1) Abra o link abaixo no celular ou PC
-2) Entre com sua conta (Google, Facebook, Discord ou e-mail)
-3) Use ou crie um perfil de EQUIPE
-4) Confirme a equipe e escolha a vaga de referência da lista
-5) Escolha o SLOT (letra) e a LINE que vai jogar
-6) Confirme — pronto! Você entra no acompanhamento do grupo
-
-⚠️ Cada vaga de referência só pode ser usada uma vez.
-⚠️ A line é quem joga e pontua no campeonato.
-
-Acesse:
 ${params.publicUrl}`
 }
 
@@ -267,22 +341,31 @@ export function buildLinkMetaPayload(meta: LinkMetadata, extra: Record<string, u
 
 /** Select com metadata; se a coluna não existir no banco, tenta sem ela. */
 export const CAMPEONATO_LINK_SELECT_FULL =
-  'id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,fase_id,metadata,descricao,created_at,updated_at'
+  'id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,fase_id,metadata,descricao,created_at,updated_at,deleted_at'
 
 export const CAMPEONATO_LINK_SELECT_NO_META =
+  'id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,fase_id,descricao,created_at,updated_at,deleted_at'
+
+/** Select sem deleted_at (bancos que ainda não rodaram a migration). */
+export const CAMPEONATO_LINK_SELECT_FULL_LEGACY =
+  'id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,fase_id,metadata,descricao,created_at,updated_at'
+
+export const CAMPEONATO_LINK_SELECT_NO_META_LEGACY =
   'id,token,titulo,tipo,ativo,expira_em,campeonato_id,grupo_id,fase_id,descricao,created_at,updated_at'
 
-export type LinkStatusUi = 'ativo' | 'esgotado' | 'expirado' | 'pausado' | 'grupo_cheio'
+export type LinkStatusUi = 'ativo' | 'esgotado' | 'expirado' | 'pausado' | 'grupo_cheio' | 'excluido'
 
 export function resolveLinkStatus(row: {
   ativo?: boolean
   expira_em?: string | null
+  deleted_at?: string | null
   metadata?: unknown
   descricao?: string | null
 }, groupSlots?: number | null): LinkStatusUi {
   const meta = parseLinkMetadata(row)
   const limite = resolveLinkLimiteVagas(meta, groupSlots)
   const now = Date.now()
+  if (row.deleted_at || meta.closed_reason === 'excluido') return 'excluido'
   if (row.expira_em && new Date(row.expira_em).getTime() <= now) return 'expirado'
   if (meta.usos >= limite || meta.closed_reason === 'limite_atingido') return 'esgotado'
   if (meta.closed_reason === 'grupo_cheio') return 'grupo_cheio'
@@ -313,6 +396,7 @@ export function registrationLinkData(row: any) {
     closed_at: metadata.closed_at || null,
     status,
     ativo: row.ativo,
+    deleted_at: row.deleted_at || null,
     acompanhamento_publico: row.acompanhamento_publico,
     expira_em: row.expira_em,
     created_at: row.created_at || null,
@@ -330,4 +414,20 @@ export function isMissingMetadataColumn(error: { message?: string; code?: string
     || message.includes('metadata column')
     || message.includes('column campeonato_links.metadata')
     || message.includes('schema cache')
+}
+
+export function isMissingDeletedAtColumn(error: { message?: string; code?: string; details?: string; hint?: string } | null | undefined) {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
+  return error?.code === 'PGRST204'
+    || error?.code === '42703'
+    || message.includes('deleted_at')
+}
+
+export function isMissingConsumeRpc(error: { message?: string; code?: string; details?: string; hint?: string } | null | undefined) {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
+  return error?.code === 'PGRST202'
+    || error?.code === '42883'
+    || message.includes('fn_consumir_vaga_link_grupo')
+    || message.includes('could not find the function')
+    || message.includes('function public.fn_consumir_vaga_link_grupo')
 }

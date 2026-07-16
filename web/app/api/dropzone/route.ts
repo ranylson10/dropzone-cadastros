@@ -10,10 +10,13 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS, type ChampionshipType } from '@/lib/dropzone-constants'
 import {
   buildGroupInviteShareMessage,
+  buildLinkMetaPayload,
   encodeLinkDescricao,
   extractHumanDescricao,
+  isMissingDeletedAtColumn,
   isMissingMetadataColumn,
   normalizeExpectedTeams,
+  parseExpectedTeamsFromText,
   parseLinkMetadata,
   registrationLinkData,
 } from '@backend/shared/campeonato-link-metadata'
@@ -686,9 +689,38 @@ export async function GET(req: NextRequest) {
         )
       }
       if (type === 'registration_link') {
-        return selectRows('campeonato_links', type, (row) => baseRow(row, type, { data: registrationLinkData(row) }), {
-          filters: scoped,
-        })
+        const mapLink = (row: any) =>
+          baseRow(row, type, {
+            name: row.titulo || row.token || null,
+            data: registrationLinkData(row),
+            status: row.deleted_at ? 'excluido' : row.ativo === false ? 'pausado' : 'ativo',
+          })
+        // selectRows engole erro de coluna ausente → [] ; por isso tentamos explicitamente
+        let query = supabaseAdmin
+          .from('campeonato_links')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(300)
+        if (scoped.length) {
+          const campFilter = scoped[0]
+          if (!Array.isArray(campFilter.value) || !campFilter.value.length) return []
+          query = query.in(campFilter.column, campFilter.value)
+        }
+        query = query.is('deleted_at', null)
+        const { data, error } = await query
+        if (error && isMissingDeletedAtColumn(error)) {
+          const retry = await selectRows('campeonato_links', type, mapLink, { filters: scoped })
+          return (retry || []).filter(
+            (row: any) => String(row.data?.closed_reason || '') !== 'excluido',
+          )
+        }
+        if (error) {
+          if (['42P01', 'PGRST205'].includes(error.code || '')) return []
+          throw error
+        }
+        return (data || [])
+          .filter((row: any) => parseLinkMetadata(row).closed_reason !== 'excluido')
+          .map(mapLink)
       }
       if (type === 'lineup_rule') {
         return selectRows(
@@ -1096,23 +1128,14 @@ export async function POST(req: NextRequest) {
       }
       const limiteVagas = limiteRaw
 
-      const expectedTeams = Array.isArray(data.expected_teams)
-        ? normalizeExpectedTeams(data.expected_teams)
-        : normalizeExpectedTeams(
-            String(data.nomes_equipes || '')
-              .split(/\r?\n/)
-              .map((name: string) => name.trim())
-              .filter(Boolean),
-          )
-      if (expectedTeams.length !== limiteVagas) {
-        throw new Error(
-          `Informe exatamente ${limiteVagas} nome(s) de referência na lista (um por vaga). Você enviou ${expectedTeams.length}.`,
-        )
-      }
-      const uniqueNames = new Set(expectedTeams.map((n) => n.toLowerCase()))
-      if (uniqueNames.size !== expectedTeams.length) {
-        throw new Error('Os nomes da lista de referência não podem se repetir.')
-      }
+      // Lista de controle opcional (não bloqueia inscrição; admin cola texto livre)
+      const expectedTeams = parseExpectedTeamsFromText(
+        data.expected_teams
+        ?? data.equipes_esperadas_texto
+        ?? data.nomes_equipes_texto
+        ?? data.nomes_equipes
+        ?? '',
+      )
 
       // Conta slots livres reais no grupo — o link não pode vender mais do que cabe
       const { count: livresCount, error: livresError } = await supabaseAdmin
@@ -1151,8 +1174,7 @@ export async function POST(req: NextRequest) {
         }>,
       }
       const titulo =
-        body.name
-        || data.titulo
+        String(body.name || data.titulo || data.nome_interno || '').trim()
         || (limiteVagas === 1
           ? `Entrada de 1 equipe · ${group.nome || 'grupo'}`
           : `Entrada de ${limiteVagas} equipes · ${group.nome || 'grupo'}`)
@@ -1194,6 +1216,7 @@ export async function POST(req: NextRequest) {
         expectedTeams,
         publicUrl,
         expiraEm,
+        titulo,
       })
 
       row = baseRow(inserted, entityType, {
@@ -1419,11 +1442,15 @@ export async function PATCH(req: NextRequest) {
       if (data.regenerate_token) {
         patch.token = randomToken(current.tipo === 'inscricao_equipes_grupo' ? 'EQS' : 'INSC')
       }
+      if (data.titulo !== undefined || data.nome_interno !== undefined) {
+        patch.titulo = String(data.titulo ?? data.nome_interno ?? '').trim() || current.titulo
+      }
       const currentMeta = parseLinkMetadata(current)
       // Sempre regrava descricao com meta embutida (funciona sem coluna metadata)
       if (
         data.limite_vagas !== undefined
         || data.expected_teams !== undefined
+        || data.equipes_esperadas_texto !== undefined
         || data.descricao !== undefined
         || data.ativo !== undefined
         || data.regenerate_token
@@ -1434,30 +1461,26 @@ export async function PATCH(req: NextRequest) {
             ? Math.max(1, Number(data.limite_vagas) || 1)
             : currentMeta.limite_vagas
 
-        // Reativar: limpa closed_reason. Se esgotado e pediu reset, zera usos (mantém histórico).
-        let usosNext = currentMeta.usos
+        // Reativar: limpa closed_reason. usos = entradas reais (nunca zerar cegamente).
+        let usosNext = Math.max(currentMeta.usos, currentMeta.entradas.length)
         let closedReason = currentMeta.closed_reason
         let closedAt = currentMeta.closed_at
-        if (data.ativo === true) {
+        if (data.ativo === true || data.reset_usos === true || data.reset_usos === 'true') {
           closedReason = undefined
           closedAt = undefined
-          if (data.reset_usos === true || data.reset_usos === 'true') {
-            usosNext = 0
-          }
+          // Histórico permanece; contador reflete quem já entrou
+          usosNext = currentMeta.entradas.length
         }
-        if (data.reset_usos === true || data.reset_usos === 'true') {
-          usosNext = 0
-          closedReason = undefined
-          closedAt = undefined
-        }
+
+        const expectedNext =
+          data.expected_teams !== undefined || data.equipes_esperadas_texto !== undefined
+            ? parseExpectedTeamsFromText(data.expected_teams ?? data.equipes_esperadas_texto)
+            : currentMeta.expected_teams
 
         const metaNext = {
           limite_vagas: limiteNext,
           usos: usosNext,
-          expected_teams:
-            data.expected_teams !== undefined
-              ? normalizeExpectedTeams(data.expected_teams)
-              : currentMeta.expected_teams,
+          expected_teams: expectedNext,
           entradas: currentMeta.entradas,
           ...(closedReason ? { closed_reason: closedReason } : {}),
           ...(closedAt ? { closed_at: closedAt } : {}),
@@ -1513,10 +1536,39 @@ export async function DELETE(req: NextRequest) {
       await requireChampionshipOwner(data.campeonato_id, user.id, account.id)
       await freeSlotParticipation(data)
     } else if (entityType === 'registration_link') {
-      const { data, error: readError } = await supabaseAdmin.from('campeonato_links').select('campeonato_id').eq('id', id).single()
+      const { data: current, error: readError } = await supabaseAdmin
+        .from('campeonato_links')
+        .select('*')
+        .eq('id', id)
+        .single()
       if (readError) throw readError
-      await requireChampionshipOwner(data.campeonato_id, user.id, account.id)
-      const { error } = await supabaseAdmin.from('campeonato_links').delete().eq('id', id)
+      await requireChampionshipOwner(current.campeonato_id, user.id, account.id)
+
+      // Soft-delete: mantém o token para acompanhamento público
+      const meta = parseLinkMetadata(current)
+      const closedAt = new Date().toISOString()
+      const payload = buildLinkMetaPayload(meta, {
+        closed_reason: 'excluido',
+        closed_at: closedAt,
+      })
+      const patch: Record<string, unknown> = {
+        ativo: false,
+        descricao: encodeLinkDescricao(payload, extractHumanDescricao(current.descricao)),
+        metadata: payload,
+        updated_at: closedAt,
+        deleted_at: closedAt,
+      }
+      let { error } = await supabaseAdmin.from('campeonato_links').update(patch).eq('id', id)
+      if (error && isMissingDeletedAtColumn(error)) {
+        const { deleted_at: _d, ...withoutDeleted } = patch
+        const retry = await supabaseAdmin.from('campeonato_links').update(withoutDeleted).eq('id', id)
+        error = retry.error
+      }
+      if (error && isMissingMetadataColumn(error)) {
+        const { metadata: _m, deleted_at: _d2, ...withoutMeta } = patch
+        const retry = await supabaseAdmin.from('campeonato_links').update(withoutMeta).eq('id', id)
+        error = retry.error
+      }
       if (error) throw error
     } else throw new Error('Tipo de exclusao nao suportado.')
     return NextResponse.json({ success: true })

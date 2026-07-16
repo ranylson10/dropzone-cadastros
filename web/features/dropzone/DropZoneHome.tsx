@@ -124,10 +124,12 @@ export function DropZoneHome() {
   const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill('') as string[], grupos_ids: [] as string[] })
   const [registrationLink, setRegistrationLink] = useState({
     grupo_id: '',
-    /** Quantas equipes este link aceita (1..slots do grupo). */
+    /** Nome interno para o admin identificar o link. */
+    nome_interno: '',
+    /** Quantas equipes este link aceita (1..vagas livres do grupo). */
     limite_vagas: '1',
-    /** Um nome de referência por vaga (ex.: TEAM SIX). */
-    nomes_equipes: [''] as string[],
+    /** Lista opcional de equipes esperadas (texto livre: linha ou vírgula). */
+    equipes_esperadas_texto: '',
     encerra_em: '',
     descricao: '',
   })
@@ -1192,7 +1194,9 @@ export function DropZoneHome() {
   /** Cria um NOVO link independente (não invalida os existentes). */
   async function createRegistrationLink(overrides?: {
     grupo_id?: string
+    nome_interno?: string
     limite_vagas?: string | number
+    equipes_esperadas_texto?: string
     nomes_equipes?: string[]
     encerra_em?: string
     descricao?: string
@@ -1208,17 +1212,26 @@ export function DropZoneHome() {
       return setError('Informe quantas vagas este link aceita (1, 2, 3...).')
     }
 
-    const nomesRaw = overrides?.nomes_equipes ?? registrationLink.nomes_equipes ?? []
-    const expectedTeams = nomesRaw.map((n) => String(n || '').trim()).filter(Boolean)
-    if (expectedTeams.length !== limite) {
-      return setError(
-        `Preencha exatamente ${limite} nome(s) de referência na lista (um por vaga). Preenchidos: ${expectedTeams.length}.`,
-      )
+    // Vagas livres reais do grupo (slots sem line/equipe)
+    const livres = groupSlots.filter((slot) => {
+      const g = String(slot.data?.grupo_id || slot.data?.group_id || '')
+      if (g !== grupoId) return false
+      const champId = String(slot.data?.championship_id || slot.data?.campeonato_id || slot.parent_id || '')
+      if (champId && champId !== champ.id) return false
+      return !slot.data?.line_id && !slot.data?.equipe_id && !slot.data?.team_id
+    }).length
+    if (livres < 1) {
+      return setError('Este grupo não tem slots livres para gerar link.')
     }
-    const unique = new Set(expectedTeams.map((n) => n.toLowerCase()))
-    if (unique.size !== expectedTeams.length) {
-      return setError('Os nomes da lista não podem se repetir.')
+    if (limite > livres) {
+      return setError(`Só restam ${livres} vaga(s) livre(s) neste grupo. Reduza o limite do link.`)
     }
+
+    const textoEsperadas = String(
+      overrides?.equipes_esperadas_texto
+      ?? registrationLink.equipes_esperadas_texto
+      ?? '',
+    ).trim()
 
     // datetime-local é horário local do browser → ISO UTC antes de mandar ao servidor
     let encerraIso = ''
@@ -1236,40 +1249,48 @@ export function DropZoneHome() {
 
     const group = groups.find((row) => row.id === grupoId)
     const groupLabel = group ? rowTitle(group) : 'grupo'
+    const nomeInterno = String(
+      overrides?.nome_interno ?? registrationLink.nome_interno ?? '',
+    ).trim()
+    const titulo =
+      nomeInterno
+      || (limite === 1
+        ? `Entrada de 1 equipe · ${groupLabel}`
+        : `Entrada de ${limite} equipes · ${groupLabel}`)
     const descricao = overrides?.descricao !== undefined
       ? overrides.descricao
       : registrationLink.descricao || ''
 
     const row = await createRow({
       entity_type: 'registration_link',
-      name: limite === 1
-        ? `Entrada de 1 equipe · ${groupLabel}`
-        : `Entrada de ${limite} equipes · ${groupLabel}`,
+      name: titulo,
       parent_id: champ.id,
       generate_token: true,
       data: {
         championship_id: champ.id,
         group_id: grupoId,
+        titulo,
+        nome_interno: nomeInterno || titulo,
         limite_vagas: limite,
-        expected_teams: expectedTeams,
+        equipes_esperadas_texto: textoEsperadas,
         encerra_em: encerraIso,
         expira_em: encerraIso || null,
         descricao,
         tipo: 'inscricao_equipes_grupo',
       },
     }, limite === 1
-      ? 'Link criado. Mensagem profissional copiada — envie no WhatsApp/Discord.'
-      : `Link criado com ${limite} vagas. Mensagem profissional copiada.`)
+      ? 'Link criado. Mensagem copiada — envie no WhatsApp/Discord.'
+      : `Link criado com ${limite} vagas. Mensagem copiada.`)
 
     const share =
       String(row?.data?.share_texto || '')
       || `${window.location.origin}/convite/grupo/${row?.token || ''}`
     if (share) await copyToken(share)
 
-    // limpa lista mantendo o mesmo número de vagas
     setRegistrationLink((prev) => ({
       ...prev,
-      nomes_equipes: Array.from({ length: limite }, () => ''),
+      nome_interno: '',
+      equipes_esperadas_texto: '',
     }))
   }
 

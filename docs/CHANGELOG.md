@@ -1,5 +1,18 @@
 # Histórico de alterações
 
+## 2026-07-16 — Fluxo de convites de equipes reorganizado
+
+- Link de grupo: nome interno, limite = vagas livres, equipes esperadas opcionais (textarea).
+- Convidado não escolhe referência da lista; match automático no backend.
+- Auto-slot no aceite; steps de inscrição enxutos (login → equipe se preciso → line → confirmar).
+- Token indisponível → acompanhamento público (slots + line/jogadores + CTA).
+- Skip de “confirmar equipe” quando o login acontece dentro do fluxo.
+- Soft-delete de links (`deleted_at` + `closed_reason: excluido`).
+- Consumo atômico de vagas via RPC `fn_consumir_vaga_link_grupo` (migration `20260716_…`).
+- Convite único (`/convite/equipe`) alinhado ao mesmo padrão de UX.
+- Doc: `docs/FLUXO_CONVITES_EQUIPES.md`.
+- UI admin: filtros por status e resumo de links.
+
 ## 10 de julho de 2026 — Fundação da nova arquitetura
 
 ### Alterado
