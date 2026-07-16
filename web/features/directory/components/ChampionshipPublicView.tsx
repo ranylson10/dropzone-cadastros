@@ -9,7 +9,7 @@ import {
   Users,
   UserCircle2,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { ReportButton } from '@/features/reports/ReportButton'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 import {
@@ -126,8 +126,25 @@ export function ChampionshipPublicView({
     estatisticas: sectionMap.estatisticas?.items.length || 0,
   }
 
+  const themeStyle = useMemo(() => {
+    const t = profile.theme || {}
+    const primary = t.cor_principal || '#ff4655'
+    const secondary = t.cor_secundaria || '#17191d'
+    const textLight = t.cor_texto_clara || '#ffffff'
+    const textDark = t.cor_texto_escura || '#17191d'
+    return {
+      ['--dz-primary' as string]: primary,
+      ['--dz-secondary' as string]: secondary,
+      ['--dz-text-on-dark' as string]: textLight,
+      ['--dz-text-on-light' as string]: textDark,
+    } as CSSProperties
+  }, [profile.theme])
+
   return (
-    <div className="directory-page-body directory-page-body-with-banner champ-public">
+    <div
+      className="directory-page-body directory-page-body-with-banner champ-public champ-theme"
+      style={themeStyle}
+    >
       <section className="directory-profile-banner theme-campeonatos is-compact champ-public-banner" data-theme="campeonatos">
         <div className="directory-profile-banner-inner">
           <a className="directory-back on-banner" href={`/${kindLabel}`}>

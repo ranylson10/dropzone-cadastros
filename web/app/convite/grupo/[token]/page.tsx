@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
   CheckCircle2,
   ClipboardCopy,
@@ -74,6 +74,12 @@ type GroupInvitePayload = {
   status_link?: string
   status_mensagem?: string | null
   campeonato?: { id: string; nome: string; logo_url: string | null }
+  tema?: {
+    cor_principal?: string | null
+    cor_secundaria?: string | null
+    cor_texto_clara?: string | null
+    cor_texto_escura?: string | null
+  } | null
   grupo?: { id: string; nome: string }
   vagas?: Vaga[]
   equipes_esperadas?: Array<{ nome: string; disponivel: boolean; status?: string }>
@@ -154,6 +160,16 @@ export default function ConviteGrupoPage() {
   const slotsLivres = Number(data?.resumo_grupo?.livres || 0)
   const restantesLink = data?.resumo_link?.restantes ?? 1
   const podeInscrever = Boolean(inscricaoAberta && slotsLivres > 0 && restantesLink > 0)
+
+  const themeStyle = useMemo(() => {
+    const t = data?.tema || {}
+    return {
+      ['--dz-primary' as string]: t.cor_principal || '#ff4655',
+      ['--dz-secondary' as string]: t.cor_secundaria || '#17191d',
+      ['--dz-text-on-dark' as string]: t.cor_texto_clara || '#ffffff',
+      ['--dz-text-on-light' as string]: t.cor_texto_escura || '#17191d',
+    } as CSSProperties
+  }, [data?.tema])
 
   function markSessionContext(hasSession: boolean) {
     try {
@@ -499,7 +515,7 @@ export default function ConviteGrupoPage() {
 
   return (
     <>
-      <main className="invite-page">
+      <main className="invite-page champ-theme" style={themeStyle}>
         <div className={`invite-card ${showTrackingChrome ? 'invite-hub-card' : ''}`}>
           {data.campeonato?.logo_url ? (
             <img className="invite-champ-logo" src={data.campeonato.logo_url} alt="" />

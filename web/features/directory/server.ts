@@ -104,15 +104,17 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
   return items.map((row: any) => {
     const produced = championships.filter((item: any) => item.criado_por === row.auth_user_id || item.produtora_id === row.id)
     const name = first(row.nome, row.username, 'Produtora')
+    const bio = text(row.bio)
     return {
       id: row.id, kind, name, username: text(row.username), image: first(row.logo_url, row.avatar_url), eyebrow: 'Produtora',
-      description: first(location(row), row.bio, 'Produtora de eventos competitivos.'),
+      // Bio pública em destaque; localidade só se não houver bio
+      description: first(bio, location(row), 'Produtora de eventos competitivos.'),
       meta: [
         { label: 'Campeonatos', value: String(produced.length) },
         { label: 'Localidade', value: first(location(row), 'Não informada') },
         { label: 'Status', value: statusLabel(row.status) },
       ],
-      searchText: [name, row.username, location(row)].join(' ').toLowerCase(),
+      searchText: [name, row.username, bio, location(row)].join(' ').toLowerCase(),
     }
   })
 }
@@ -125,8 +127,10 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   const details = [...base.meta]
   const actions: DirectoryProfile['actions'] = []
 
+  let theme: DirectoryProfile['theme'] = null
+
   if (kind === 'campeonatos') {
-    const [phases, groups, slots, games, participations, teams, teamLines, teamStats, mvpStats] = await Promise.all([
+    const [phases, groups, slots, games, participations, teams, teamLines, teamStats, mvpStats, configs] = await Promise.all([
       rows('campeonato_fases'),
       rows('campeonato_grupos'),
       rows('campeonato_slots'),
@@ -136,7 +140,15 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
       rows('equipe_lines'),
       listarEstatisticasEquipes(id, {}).catch(() => []),
       listarEstatisticasMvp(id, {}).catch(() => []),
+      rows('campeonato_configuracoes'),
     ])
+    const cfg: any = configs.find((row: any) => row.campeonato_id === id) || {}
+    theme = {
+      cor_principal: cfg.cor_principal || null,
+      cor_secundaria: cfg.cor_secundaria || null,
+      cor_texto_clara: cfg.cor_texto_clara || null,
+      cor_texto_escura: cfg.cor_texto_escura || null,
+    }
     const teamById = new Map(teams.map((row: any) => [row.id, row]))
     const lineById = new Map(teamLines.map((row: any) => [row.id, row]))
     const champPhases = phases
@@ -293,6 +305,11 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   } else if (kind === 'produtoras') {
     const items = await rows('campeonatos')
     const producerRow = (await rows('produtoras')).find((row: any) => row.id === id)
+    const producerBio = text(producerRow?.bio)
+    // Bio já aparece no banner (description); nos detalhes só se for diferente da localidade
+    if (producerBio) {
+      details.unshift({ label: 'Sobre', value: producerBio })
+    }
     sections.push({ title: 'Campeonatos produzidos', items: items.filter((x: any) => x.produtora_id === id || x.criado_por === producerRow?.auth_user_id).map((champ: any) => ({ id: champ.id, title: champ.nome, subtitle: statusLabel(champ.status), image: first(champ.logo_url), href: `/campeonatos/${champ.id}` })) })
   } else {
     const [teamLinks, producerLinks, playerLinks, teams, producers, players] = await Promise.all([rows('manager_equipe'), rows('manager_produtora'), rows('manager_jogador'), rows('equipes'), rows('produtoras'), rows('jogadores')])
@@ -302,5 +319,11 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     sections.push({ title: 'Jogadores vinculados', items: mapItems(playerLinks, players, 'jogador_id', 'jogadores') })
   }
 
-  return { ...base, details, actions, sections }
+  return {
+    ...base,
+    details,
+    actions,
+    sections,
+    theme,
+  }
 }

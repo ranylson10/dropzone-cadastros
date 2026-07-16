@@ -27,9 +27,20 @@ export type DirectorySectionItem = {
   children?: DirectorySectionItem[]
 }
 
+export type ChampionshipTheme = {
+  cor_principal?: string | null
+  cor_secundaria?: string | null
+  cor_texto_clara?: string | null
+  cor_texto_escura?: string | null
+}
+
 export type DirectoryProfile = DirectoryItem & {
   details: Array<{ label: string; value: string }>
   actions?: Array<{ label: string; href: string; variant?: 'primary' | 'secondary' }>
+  /** Tema visual (campeonato) */
+  theme?: ChampionshipTheme | null
+  /** Bio completa (quando description é resumo) */
+  bio?: string | null
   sections: Array<{
     title: string
     layout?: 'list' | 'table' | 'stats' | 'structure'

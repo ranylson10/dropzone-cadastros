@@ -47,6 +47,10 @@ const emptyChampionship = {
   data_limite_inscricao: '',
   aceita_novas_inscricoes_equipes: true,
   contatos_whatsapp: [],
+  cor_principal: '#ff4655',
+  cor_secundaria: '#17191d',
+  cor_texto_clara: '#ffffff',
+  cor_texto_escura: '#17191d',
 }
 
 const typeLabels: Record<ProfileType, string> = {

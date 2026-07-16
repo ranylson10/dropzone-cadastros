@@ -102,7 +102,7 @@ async function carregar(token: string) {
   if (error) throw error
   if (!convite) throw new Error('Convite não encontrado.')
 
-  const [campRes, slotRes] = await Promise.all([
+  const [campRes, slotRes, temaRes] = await Promise.all([
     supabaseAdmin
       .from('campeonatos')
       .select('id,nome,logo_url')
@@ -115,6 +115,11 @@ async function carregar(token: string) {
           .eq('id', convite.slot_id)
           .maybeSingle()
       : Promise.resolve({ data: null as any, error: null }),
+    supabaseAdmin
+      .from('campeonato_configuracoes')
+      .select('cor_principal,cor_secundaria,cor_texto_clara,cor_texto_escura')
+      .eq('campeonato_id', convite.campeonato_id)
+      .maybeSingle(),
   ])
   if (campRes.error) throw campRes.error
   if (slotRes.error) throw slotRes.error
@@ -122,6 +127,7 @@ async function carregar(token: string) {
   const slot = slotRes.data
   const grupoId = slot?.grupo_id || convite.grupo_id || null
   const modoGrupo = Boolean(grupoId && !convite.slot_id)
+  const temaRow = temaRes.error ? null : temaRes.data
 
   const [grupoRes, vagas] = await Promise.all([
     grupoId
@@ -134,6 +140,12 @@ async function carregar(token: string) {
   return {
     convite,
     campeonato: campRes.data,
+    tema: {
+      cor_principal: temaRow?.cor_principal || '#ff4655',
+      cor_secundaria: temaRow?.cor_secundaria || '#17191d',
+      cor_texto_clara: temaRow?.cor_texto_clara || '#ffffff',
+      cor_texto_escura: temaRow?.cor_texto_escura || '#17191d',
+    },
     slot,
     grupo: grupoRes.data,
     vagas,
@@ -300,6 +312,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
         grupo_id: data.convite.grupo_id || data.grupo?.id || null,
       },
       campeonato: data.campeonato,
+      tema: data.tema,
       slot: data.slot
         ? {
             id: data.slot.id,

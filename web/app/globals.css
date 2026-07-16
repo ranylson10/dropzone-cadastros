@@ -5972,6 +5972,148 @@ button.invite-slot-button.free.clickable b {
 .seller-invite-modal .staff-search-results {
   margin-top: 0;
 }
+
+/* Tema do campeonato (cores do adm) */
+.color-field-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.color-field-row input[type='color'] {
+  width: 48px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid #dfe2e7;
+  background: #fff;
+  cursor: pointer;
+}
+.champ-theme-preview {
+  margin-top: 14px;
+  border: 1px solid #e4e7ec;
+  overflow: hidden;
+}
+.champ-theme-preview-banner {
+  background: linear-gradient(135deg, var(--dz-primary, #ff4655), var(--dz-secondary, #17191d));
+  color: var(--dz-text-on-dark, #fff);
+  padding: 16px 18px;
+  font-weight: 800;
+  font-size: 13px;
+}
+.champ-theme-preview-body {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff;
+  color: var(--dz-text-on-light, #17191d);
+}
+.champ-theme-preview-btn {
+  border: 0;
+  background: var(--dz-primary, #ff4655);
+  color: var(--dz-text-on-dark, #fff);
+  min-height: 36px;
+  padding: 0 14px;
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: default;
+}
+
+.champ-theme {
+  --dz-primary: #ff4655;
+  --dz-secondary: #17191d;
+  --dz-text-on-dark: #ffffff;
+  --dz-text-on-light: #17191d;
+}
+.champ-theme .directory-profile-banner.theme-campeonatos,
+.champ-theme .champ-public-banner {
+  background: linear-gradient(135deg, var(--dz-primary), var(--dz-secondary)) !important;
+}
+.champ-theme .champ-public-nav-btn.active,
+.champ-theme .button:not(.secondary):not(.danger),
+.champ-theme .invite-confirm,
+.champ-theme .teams-status-filters button.active,
+.champ-theme .champ-equipes-filters button.active,
+.champ-theme .champ-equipes-chips button.active {
+  background: var(--dz-primary) !important;
+  border-color: var(--dz-primary) !important;
+  color: var(--dz-text-on-dark) !important;
+}
+.champ-theme .champ-public-nav-btn.active .champ-public-nav-count,
+.champ-theme .teams-status-filters button.active span {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: var(--dz-text-on-dark) !important;
+}
+.champ-theme .directory-profile-banner,
+.champ-theme .directory-profile-banner h1,
+.champ-theme .directory-profile-banner small,
+.champ-theme .directory-profile-banner p,
+.champ-theme .directory-back.on-banner {
+  color: var(--dz-text-on-dark) !important;
+}
+.champ-theme .vaga-status-pill.status-ocupada,
+.champ-theme .seller-status-pill.on {
+  background: color-mix(in srgb, var(--dz-primary) 22%, #fff);
+  color: var(--dz-text-on-light);
+}
+.champ-theme .championship-vaga-row.status-ocupada {
+  border-left-color: var(--dz-primary) !important;
+}
+.champ-theme a:not(.button) {
+  color: var(--dz-primary);
+}
+
+/* Links de inscrição / convite com tema do campeonato */
+.invite-page.champ-theme {
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--dz-primary) 42%, #1a1214) 0, transparent 48%),
+    radial-gradient(circle at bottom right, color-mix(in srgb, var(--dz-secondary) 55%, #0b0c0f) 0, #08090b 70%);
+}
+.invite-page.champ-theme .invite-card {
+  border-top: 4px solid var(--dz-primary);
+}
+.invite-page.champ-theme .eyebrow {
+  color: var(--dz-primary) !important;
+}
+.invite-page.champ-theme h1 {
+  color: var(--dz-text-on-light);
+}
+.invite-page.champ-theme .invite-confirm,
+.invite-page.champ-theme .button:not(.secondary):not(.danger) {
+  background: var(--dz-primary) !important;
+  border-color: var(--dz-primary) !important;
+  color: var(--dz-text-on-dark) !important;
+}
+.invite-page.champ-theme .lineup-slot.occupied,
+.invite-page.champ-theme .invite-slot-button.occupied {
+  border-color: color-mix(in srgb, var(--dz-primary) 55%, #dfe2e7);
+  background: color-mix(in srgb, var(--dz-primary) 10%, #fff);
+}
+.invite-page.champ-theme .invite-mini-stats strong {
+  color: var(--dz-primary);
+}
+.invite-page.champ-theme a:not(.button) {
+  color: var(--dz-primary);
+}
+
+/* Bio da produtora no perfil público */
+.directory-profile-desc {
+  margin-top: 6px !important;
+  max-width: 52ch;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.directory-profile-banner .directory-profile-desc {
+  opacity: 0.95;
+}
+.directory-profile-details .directory-profile-about,
+.directory-profile-details strong {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 @media (max-width: 900px) {
   .manager-detail-meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));

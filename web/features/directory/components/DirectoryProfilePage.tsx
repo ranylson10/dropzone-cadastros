@@ -62,7 +62,7 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
               </div>
               <div className="directory-profile-details compact on-banner">
                 {profile.details.map((item) => (
-                  <div key={item.label}>
+                  <div key={item.label} className={item.label === 'Sobre' ? 'directory-profile-about' : undefined}>
                     <small>{item.label}</small>
                     <strong>{item.value}</strong>
                   </div>

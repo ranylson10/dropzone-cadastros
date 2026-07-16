@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { CheckCircle2, LogIn, Shield, Users, UserPlus, X } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
@@ -35,6 +35,12 @@ type InvitePayload = {
   inscricao_aberta?: boolean
   status_mensagem?: string | null
   campeonato?: { id: string; nome: string; logo_url: string | null }
+  tema?: {
+    cor_principal?: string | null
+    cor_secundaria?: string | null
+    cor_texto_clara?: string | null
+    cor_texto_escura?: string | null
+  } | null
   slot?: { id: string; letra: string | null; numero: number | null; grupo_id?: string | null } | null
   grupo?: { id: string; nome: string } | null
   vagas?: SlotVaga[]
@@ -77,6 +83,16 @@ export default function ConviteEquipePage() {
     if (data?.lines_disponiveis?.length) return data.lines_disponiveis
     return (data?.lines || []).filter((line) => !line.ja_inscrita)
   }, [data?.lines, data?.lines_disponiveis])
+
+  const themeStyle = useMemo(() => {
+    const t = data?.tema || {}
+    return {
+      ['--dz-primary' as string]: t.cor_principal || '#ff4655',
+      ['--dz-secondary' as string]: t.cor_secundaria || '#17191d',
+      ['--dz-text-on-dark' as string]: t.cor_texto_clara || '#ffffff',
+      ['--dz-text-on-light' as string]: t.cor_texto_escura || '#17191d',
+    } as CSSProperties
+  }, [data?.tema])
 
   const inscricaoAberta = data?.inscricao_aberta !== false && data?.valido !== false && data?.modo !== 'acompanhamento'
   const hasGroupBoard = Boolean(data?.vagas?.length)
@@ -274,7 +290,7 @@ export default function ConviteEquipePage() {
 
   return (
     <>
-      <main className="invite-page">
+      <main className="invite-page champ-theme" style={themeStyle}>
         <div className={`invite-card ${step === 'acompanhar' || step === 'sucesso' ? 'invite-hub-card' : ''}`}>
           {data.campeonato?.logo_url ? (
             <img className="invite-champ-logo" src={data.campeonato.logo_url} alt="" />

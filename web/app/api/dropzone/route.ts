@@ -278,6 +278,8 @@ function normalizeWhatsappContacts(value: unknown) {
   })
 }
 
+const THEME_COLOR_KEYS = ['cor_principal', 'cor_secundaria', 'cor_texto_clara', 'cor_texto_escura'] as const
+
 function championshipConfigurationPayload(data: Record<string, any>, campeonatoId: string) {
   const permiteTroca = Boolean(data.permite_troca_jogadores)
   return {
@@ -301,6 +303,52 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     data_limite_inscricao: nullableDate(data.data_limite_inscricao),
     aceita_novas_inscricoes_equipes: data.aceita_novas_inscricoes_equipes !== false,
     contatos_whatsapp: normalizeWhatsappContacts(data.contatos_whatsapp),
+    cor_principal: normalizeHexColor(data.cor_principal, '#ff4655'),
+    cor_secundaria: normalizeHexColor(data.cor_secundaria, '#17191d'),
+    cor_texto_clara: normalizeHexColor(data.cor_texto_clara, '#ffffff'),
+    cor_texto_escura: normalizeHexColor(data.cor_texto_escura, '#17191d'),
+  }
+}
+
+function normalizeHexColor(value: unknown, fallback: string) {
+  const raw = String(value || '').trim()
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw)) return raw.toLowerCase()
+  return fallback
+}
+
+function isMissingThemeColumnError(error: any) {
+  const code = String(error?.code || '')
+  const message = String(error?.message || error?.details || '')
+  return (
+    code === '42703' ||
+    code === 'PGRST204' ||
+    THEME_COLOR_KEYS.some((key) => message.includes(key)) ||
+    /column .* does not exist/i.test(message)
+  )
+}
+
+/** Upsert config; se colunas de tema ainda não existem no DB, grava o resto e avisa. */
+async function saveChampionshipConfiguration(payload: Record<string, any>) {
+  const first = await supabaseAdmin
+    .from('campeonato_configuracoes')
+    .upsert(payload, { onConflict: 'campeonato_id' })
+    .select('*')
+    .single()
+  if (!first.error) return { data: first.data, warning: null as string | null }
+
+  if (!isMissingThemeColumnError(first.error)) throw first.error
+
+  const withoutTheme = { ...payload }
+  for (const key of THEME_COLOR_KEYS) delete withoutTheme[key]
+  const retry = await supabaseAdmin
+    .from('campeonato_configuracoes')
+    .upsert(withoutTheme, { onConflict: 'campeonato_id' })
+    .select('*')
+    .single()
+  if (retry.error) throw retry.error
+  return {
+    data: retry.data,
+    warning: 'Colunas de tema ainda não existem. Rode database/migrations/20260716_campeonato_cores_tema.sql',
   }
 }
 
@@ -842,12 +890,11 @@ export async function POST(req: NextRequest) {
       if (error) throw error
 
       const configurationPayload = championshipConfigurationPayload(data, inserted.id)
-      const { data: configuration, error: configurationError } = await supabaseAdmin
-        .from('campeonato_configuracoes')
-        .insert(configurationPayload)
-        .select('*')
-        .single()
-      if (configurationError) {
+      let configuration: any
+      try {
+        const saved = await saveChampionshipConfiguration(configurationPayload)
+        configuration = saved.data
+      } catch (configurationError) {
         await supabaseAdmin.from('campeonatos').delete().eq('id', inserted.id)
         throw configurationError
       }
@@ -1315,9 +1362,13 @@ export async function PATCH(req: NextRequest) {
       if (!nome || !logoUrl) throw new Error('Informe nome e logo do campeonato.')
       const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({ nome, logo_url: logoUrl, banner_url: bannerUrl || null, tipo: normalizeChampionshipType(data.tipo) }).eq('id', id).select('*').single()
       if (error) throw error
-      const { data: configuration, error: configurationError } = await supabaseAdmin.from('campeonato_configuracoes').upsert(championshipConfigurationPayload(data, id), { onConflict: 'campeonato_id' }).select('*').single()
-      if (configurationError) throw configurationError
-      return NextResponse.json({ row: championshipRow({ ...updated, campeonato_configuracoes: configuration }) })
+      const { data: configuration, warning } = await saveChampionshipConfiguration(
+        championshipConfigurationPayload(data, id),
+      )
+      return NextResponse.json({
+        row: championshipRow({ ...updated, campeonato_configuracoes: configuration }),
+        ...(warning ? { warning } : {}),
+      })
     }
 
     if (entityType === 'phase') {

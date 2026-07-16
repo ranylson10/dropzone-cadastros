@@ -448,6 +448,10 @@ export function ProdutoraPanel(props: {
       data_limite_inscricao: toInputDate(champ.data?.data_limite_inscricao),
       aceita_novas_inscricoes_equipes: champ.data?.aceita_novas_inscricoes_equipes !== false,
       contatos_whatsapp: Array.isArray(champ.data?.contatos_whatsapp) ? champ.data.contatos_whatsapp : [],
+      cor_principal: String(dataText(champ, 'cor_principal') || '#ff4655'),
+      cor_secundaria: String(dataText(champ, 'cor_secundaria') || '#17191d'),
+      cor_texto_clara: String(dataText(champ, 'cor_texto_clara') || '#ffffff'),
+      cor_texto_escura: String(dataText(champ, 'cor_texto_escura') || '#17191d'),
     }
   }
 

@@ -29,6 +29,11 @@ export type CampeonatoFormValue = {
   data_limite_inscricao: string
   aceita_novas_inscricoes_equipes: boolean
   contatos_whatsapp: CampeonatoWhatsappContact[]
+  /** Tema visual do campeonato (#hex) */
+  cor_principal: string
+  cor_secundaria: string
+  cor_texto_clara: string
+  cor_texto_escura: string
 }
 
 export type CampeonatoWhatsappContact = {
@@ -72,6 +77,10 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   data_limite_inscricao: '',
   aceita_novas_inscricoes_equipes: true,
   contatos_whatsapp: [],
+  cor_principal: '#ff4655',
+  cor_secundaria: '#17191d',
+  cor_texto_clara: '#ffffff',
+  cor_texto_escura: '#17191d',
 }
 
 const TYPE_OPTIONS: Array<{
@@ -269,6 +278,54 @@ export function CampeonatoForm({
           <Field label="Nome do campeonato"><input value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
           <UploadField label="Logo do campeonato" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
           <UploadField label="Banner do campeonato" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
+        </div>
+      </section>
+
+      <section className="form-section-card">
+        <p className="eyebrow">Identidade visual</p>
+        <p className="empty" style={{ margin: '0 0 12px' }}>
+          Cores usadas na página pública do campeonato, links de inscrição e painéis relacionados.
+        </p>
+        <div className="mini-grid two">
+          <Field label="Cor principal">
+            <div className="color-field-row">
+              <input type="color" value={value.cor_principal || '#ff4655'} onChange={(e) => update('cor_principal', e.target.value)} />
+              <input value={value.cor_principal || ''} onChange={(e) => update('cor_principal', e.target.value)} placeholder="#ff4655" />
+            </div>
+          </Field>
+          <Field label="Cor secundária">
+            <div className="color-field-row">
+              <input type="color" value={value.cor_secundaria || '#17191d'} onChange={(e) => update('cor_secundaria', e.target.value)} />
+              <input value={value.cor_secundaria || ''} onChange={(e) => update('cor_secundaria', e.target.value)} placeholder="#17191d" />
+            </div>
+          </Field>
+          <Field label="Texto claro (fundos escuros)">
+            <div className="color-field-row">
+              <input type="color" value={value.cor_texto_clara || '#ffffff'} onChange={(e) => update('cor_texto_clara', e.target.value)} />
+              <input value={value.cor_texto_clara || ''} onChange={(e) => update('cor_texto_clara', e.target.value)} placeholder="#ffffff" />
+            </div>
+          </Field>
+          <Field label="Texto escuro (fundos claros)">
+            <div className="color-field-row">
+              <input type="color" value={value.cor_texto_escura || '#17191d'} onChange={(e) => update('cor_texto_escura', e.target.value)} />
+              <input value={value.cor_texto_escura || ''} onChange={(e) => update('cor_texto_escura', e.target.value)} placeholder="#17191d" />
+            </div>
+          </Field>
+        </div>
+        <div
+          className="champ-theme-preview"
+          style={{
+            ['--dz-primary' as string]: value.cor_principal || '#ff4655',
+            ['--dz-secondary' as string]: value.cor_secundaria || '#17191d',
+            ['--dz-text-on-dark' as string]: value.cor_texto_clara || '#ffffff',
+            ['--dz-text-on-light' as string]: value.cor_texto_escura || '#17191d',
+          }}
+        >
+          <div className="champ-theme-preview-banner">Prévia do banner</div>
+          <div className="champ-theme-preview-body">
+            <strong>Texto em fundo claro</strong>
+            <button type="button" className="champ-theme-preview-btn">Botão principal</button>
+          </div>
         </div>
       </section>
 

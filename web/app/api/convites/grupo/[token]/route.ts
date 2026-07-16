@@ -818,15 +818,21 @@ async function payloadFor(req: NextRequest, token: string) {
   }
 
   // 1 link + 3 queries em paralelo (camp/grupo/view + session)
-  const [{ data: campeonato, error: campError }, { data: grupo, error: grupoError }, grade, session] =
+  const [{ data: campeonato, error: campError }, { data: grupo, error: grupoError }, grade, session, temaRes] =
     await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).single(),
       supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).single(),
       loadGrupoVagas(link.campeonato_id, link.grupo_id, refByParticipacaoId),
       sessionTeam(req, link.campeonato_id, link.grupo_id),
+      supabaseAdmin
+        .from('campeonato_configuracoes')
+        .select('cor_principal,cor_secundaria,cor_texto_clara,cor_texto_escura')
+        .eq('campeonato_id', link.campeonato_id)
+        .maybeSingle(),
     ])
   if (campError) throw campError
   if (grupoError) throw grupoError
+  const tema = temaRes.error ? null : temaRes.data
 
   const vagasBase = grade.vagas
   const usos = meta.usos
@@ -891,6 +897,12 @@ async function payloadFor(req: NextRequest, token: string) {
     status_link: status,
     status_mensagem: inscricaoAberta ? null : linkClosedMessage(status, limite),
     campeonato,
+    tema: {
+      cor_principal: tema?.cor_principal || '#ff4655',
+      cor_secundaria: tema?.cor_secundaria || '#17191d',
+      cor_texto_clara: tema?.cor_texto_clara || '#ffffff',
+      cor_texto_escura: tema?.cor_texto_escura || '#17191d',
+    },
     grupo,
     vagas,
     equipes_esperadas: equipesEsperadas,
