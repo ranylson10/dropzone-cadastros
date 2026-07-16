@@ -90,9 +90,103 @@ async function loadLinkRowById(linkId: string) {
   return result.data
 }
 
+function linkClosedMessage(
+  reason: 'limite' | 'grupo_cheio' | 'pausado' | 'expirado' | 'invalido',
+  limite?: number,
+) {
+  if (reason === 'limite') {
+    return limite === 1
+      ? 'Este link ja foi usado (limite de 1 equipe). Gere um novo link na aba Links.'
+      : `Este link esgotou as vagas (limite de ${limite} equipes). Gere um novo link na aba Links.`
+  }
+  if (reason === 'grupo_cheio') {
+    return 'Este link nao pode ser usado: o grupo nao tem slots livres no momento.'
+  }
+  if (reason === 'expirado') {
+    return 'Este link expirou pela data de encerramento definida pelo organizador.'
+  }
+  if (reason === 'pausado') {
+    return 'Este link foi pausado pelo organizador.'
+  }
+  return 'Link de equipes invalido ou inativo.'
+}
+
+async function countSlotsLivres(campeonatoId: string, grupoId: string): Promise<number | null> {
+  try {
+    const { data: rows, error: viewError } = await supabaseAdmin
+      .from('vw_campeonato_slots_lines')
+      .select('status_ui,line_id,participacao_id')
+      .eq('campeonato_id', campeonatoId)
+      .eq('grupo_id', grupoId)
+
+    if (!viewError && rows && rows.length > 0) {
+      return rows.filter(
+        (row: any) =>
+          String(row.status_ui || '') !== 'ocupada'
+          && !row.participacao_id
+          && !row.line_id,
+      ).length
+    }
+
+    const { count: livres, error: freeError } = await supabaseAdmin
+      .from('campeonato_slots')
+      .select('id', { count: 'exact', head: true })
+      .eq('campeonato_id', campeonatoId)
+      .eq('grupo_id', grupoId)
+      .is('line_id', null)
+      .is('equipe_id', null)
+    if (freeError) return null
+    return Number(livres || 0)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Checagem SOMENTE LEITURA no GET.
+ * Não grava ativo=false aqui — isso confundia com "desativado pelo organizador".
+ */
+async function evaluateLinkAvailability(link: {
+  id: string
+  campeonato_id: string
+  grupo_id: string
+  metadata?: unknown
+  descricao?: string | null
+  ativo?: boolean
+  expira_em?: string | null
+}): Promise<'ok' | 'limite' | 'grupo_cheio' | 'pausado' | 'expirado'> {
+  if (link.expira_em && new Date(link.expira_em).getTime() < Date.now()) return 'expirado'
+
+  const meta = parseLinkMetadata(link)
+  const { data: grupo } = await supabaseAdmin
+    .from('campeonato_grupos')
+    .select('slots')
+    .eq('id', link.grupo_id)
+    .maybeSingle()
+  const limite = resolveLinkLimiteVagas(meta, grupo?.slots)
+
+  // Esgotado por uso (mesmo se alguém reativou o flag ativo)
+  if (meta.usos >= limite || meta.closed_reason === 'limite_atingido') return 'limite'
+
+  if (link.ativo === false) {
+    if (meta.closed_reason === 'grupo_cheio') {
+      // Revalida: se o grupo voltou a ter vaga, não bloqueia só pelo flag antigo
+      const livres = await countSlotsLivres(link.campeonato_id, link.grupo_id)
+      if (livres != null && livres > 0) return 'ok'
+      return 'grupo_cheio'
+    }
+    if (meta.closed_reason === 'limite_atingido') return 'limite'
+    return 'pausado'
+  }
+
+  const livres = await countSlotsLivres(link.campeonato_id, link.grupo_id)
+  if (livres === 0) return 'grupo_cheio'
+  return 'ok'
+}
+
 async function loadLink(token: string) {
   const clean = decodeURIComponent(String(token || '').trim())
-  if (!clean) throw new Error('Link de equipes invalido ou inativo.')
+  if (!clean) throw new Error(linkClosedMessage('invalido'))
 
   let link: any = null
   const exact = await fetchCampeonatoLink((columns) =>
@@ -107,34 +201,40 @@ async function loadLink(token: string) {
   link = exact.data
 
   if (!link) {
+    // Match case-insensitive sem ilike solto (evita pegar token errado)
     const byUpper = await fetchCampeonatoLink((columns) =>
       supabaseAdmin
         .from('campeonato_links')
         .select(columns)
         .eq('tipo', 'inscricao_equipes_grupo')
-        .ilike('token', clean.toUpperCase())
+        .ilike('token', clean)
         .maybeSingle(),
     )
     if (byUpper.error) throw byUpper.error
     link = byUpper.data
   }
 
-  if (!link) throw new Error('Link de equipes invalido ou inativo.')
-  if (link.ativo === false) throw new Error('Este link de equipes foi desativado pelo organizador.')
-  if (link.expira_em && new Date(link.expira_em).getTime() < Date.now()) throw new Error('Link de equipes expirado.')
-  if (!link.campeonato_id || !link.grupo_id) throw new Error('Este link de grupo esta incompleto no banco.')
-
-  const closed = await maybeCloseGroupLink(link)
-  if (closed === 'limite') {
-    throw new Error('Este link expirou: o limite de vagas do link foi atingido.')
+  if (!link) throw new Error(linkClosedMessage('invalido'))
+  if (!link.campeonato_id || !link.grupo_id) {
+    throw new Error('Este link de grupo esta incompleto no banco.')
   }
-  if (closed === 'grupo_cheio') {
-    throw new Error('Este link de grupo expirou: todas as vagas do grupo foram preenchidas.')
+
+  const status = await evaluateLinkAvailability(link)
+  if (status !== 'ok') {
+    const meta = parseLinkMetadata(link)
+    const { data: grupo } = await supabaseAdmin
+      .from('campeonato_grupos')
+      .select('slots')
+      .eq('id', link.grupo_id)
+      .maybeSingle()
+    const limite = resolveLinkLimiteVagas(meta, grupo?.slots)
+    throw new Error(linkClosedMessage(status, limite))
   }
 
   return link
 }
 
+/** Fecha de verdade só no POST (após uso) ou quando o grupo fica sem slot no aceite. */
 async function deactivateGroupLink(
   linkId: string,
   reason: 'limite_atingido' | 'grupo_cheio',
@@ -157,14 +257,12 @@ async function deactivateGroupLink(
   })
 }
 
-/** Fecha por limite do link ou grupo cheio. */
-async function maybeCloseGroupLink(link: {
+async function maybeCloseGroupLinkAfterUse(link: {
   id: string
   campeonato_id: string
   grupo_id: string
   metadata?: unknown
   descricao?: string | null
-  ativo?: boolean
 }): Promise<'limite' | 'grupo_cheio' | null> {
   const meta = parseLinkMetadata(link)
   const { data: grupo } = await supabaseAdmin
@@ -178,47 +276,12 @@ async function maybeCloseGroupLink(link: {
     return 'limite'
   }
 
-  // Conta livres via view (status real) com fallback nos slots
-  try {
-    const { data: rows, error: viewError } = await supabaseAdmin
-      .from('vw_campeonato_slots_lines')
-      .select('status_ui,line_id,participacao_id')
-      .eq('campeonato_id', link.campeonato_id)
-      .eq('grupo_id', link.grupo_id)
-
-    if (!viewError && rows && rows.length > 0) {
-      const livres = rows.filter(
-        (row: any) =>
-          String(row.status_ui || '') !== 'ocupada'
-          && !row.participacao_id
-          && !row.line_id,
-      ).length
-      if (livres > 0) return null
-    } else {
-      const { count: total, error: totalError } = await supabaseAdmin
-        .from('campeonato_slots')
-        .select('id', { count: 'exact', head: true })
-        .eq('campeonato_id', link.campeonato_id)
-        .eq('grupo_id', link.grupo_id)
-      if (totalError) throw totalError
-      if (!total || total < 1) return null
-
-      const { count: livres, error: freeError } = await supabaseAdmin
-        .from('campeonato_slots')
-        .select('id', { count: 'exact', head: true })
-        .eq('campeonato_id', link.campeonato_id)
-        .eq('grupo_id', link.grupo_id)
-        .is('line_id', null)
-        .is('equipe_id', null)
-      if (freeError) throw freeError
-      if (Number(livres || 0) > 0) return null
-    }
-  } catch {
-    return null
+  const livres = await countSlotsLivres(link.campeonato_id, link.grupo_id)
+  if (livres === 0) {
+    await deactivateGroupLink(link.id, 'grupo_cheio', { limite_vagas: limite, usos: meta.usos })
+    return 'grupo_cheio'
   }
-
-  await deactivateGroupLink(link.id, 'grupo_cheio', { limite_vagas: limite, usos: meta.usos })
-  return 'grupo_cheio'
+  return null
 }
 
 /** Consome 1 uso do link; fecha se atingir o limite. Retorna usos após o consumo. */
@@ -772,9 +835,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       // inscrição ok; histórico é best-effort
     }
 
-    // Se o grupo ficou sem slots livres, encerra (mesmo com usos sobrando)
+    // Fecha só após o aceite: limite do link ou grupo sem slots livres
     try {
-      await maybeCloseGroupLink({
+      await maybeCloseGroupLinkAfterUse({
         ...link,
         metadata: buildLinkMetaPayload({
           ...meta,
@@ -782,6 +845,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
           usos: consumo.usos,
           entradas: consumo.entradas || meta.entradas,
         }),
+        descricao: link.descricao,
       })
     } catch {
       // inscrição já concluída; fechamento do link é best-effort

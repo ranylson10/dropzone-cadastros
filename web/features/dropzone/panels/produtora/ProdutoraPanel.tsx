@@ -1368,7 +1368,6 @@ export function ProdutoraPanel(props: {
                         const info = linkStatusInfo(link)
                         const isOpen = openLinkIds[link.id] === true
                         const isPaused = link.data?.ativo === false
-                        const canReactivate = isPaused && info.status === 'pausado'
 
                         return (
                           <article key={link.id} className={`link-invite-row status-${info.status} ${isOpen ? 'is-open' : ''}`}>
@@ -1468,12 +1467,31 @@ export function ProdutoraPanel(props: {
                                   <button
                                     type="button"
                                     className="button secondary"
-                                    title={canReactivate ? 'Ativar link' : isPaused ? 'Link encerrado' : 'Pausar link'}
-                                    disabled={info.status === 'esgotado' || info.status === 'expirado' || info.status === 'grupo_cheio'}
-                                    onClick={() => props.updateStructure('registration_link', link.id, { ativo: isPaused })}
+                                    title={
+                                      info.status === 'esgotado'
+                                        ? 'Reabre o link e zera os usos (histórico de quem entrou é mantido)'
+                                        : isPaused
+                                          ? 'Reativar link'
+                                          : 'Pausar link'
+                                    }
+                                    disabled={info.status === 'expirado'}
+                                    onClick={() => {
+                                      if (info.status === 'esgotado' || info.status === 'grupo_cheio' || isPaused) {
+                                        const reset = info.status === 'esgotado'
+                                        if (reset && !window.confirm('Reabrir este link esgotado? Os usos voltam a 0 (o histórico de quem já entrou permanece).')) {
+                                          return
+                                        }
+                                        props.updateStructure('registration_link', link.id, {
+                                          ativo: true,
+                                          ...(reset ? { reset_usos: true } : {}),
+                                        })
+                                        return
+                                      }
+                                      props.updateStructure('registration_link', link.id, { ativo: false })
+                                    }}
                                   >
-                                    {isPaused ? <Play size={14} /> : <Pause size={14} />}
-                                    {isPaused ? 'Reativar' : 'Pausar'}
+                                    {info.status === 'ativo' ? <Pause size={14} /> : <Play size={14} />}
+                                    {info.status === 'ativo' ? 'Pausar' : info.status === 'esgotado' ? 'Reabrir vagas' : 'Reativar'}
                                   </button>
                                   <button
                                     type="button"

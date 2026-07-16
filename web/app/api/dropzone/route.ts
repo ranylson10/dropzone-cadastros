@@ -1384,21 +1384,40 @@ export async function PATCH(req: NextRequest) {
         || data.descricao !== undefined
         || data.ativo !== undefined
         || data.regenerate_token
+        || data.reset_usos !== undefined
       ) {
         const limiteNext =
           data.limite_vagas !== undefined
             ? Math.max(1, Number(data.limite_vagas) || 1)
             : currentMeta.limite_vagas
+
+        // Reativar: limpa closed_reason. Se esgotado e pediu reset, zera usos (mantém histórico).
+        let usosNext = currentMeta.usos
+        let closedReason = currentMeta.closed_reason
+        let closedAt = currentMeta.closed_at
+        if (data.ativo === true) {
+          closedReason = undefined
+          closedAt = undefined
+          if (data.reset_usos === true || data.reset_usos === 'true') {
+            usosNext = 0
+          }
+        }
+        if (data.reset_usos === true || data.reset_usos === 'true') {
+          usosNext = 0
+          closedReason = undefined
+          closedAt = undefined
+        }
+
         const metaNext = {
           limite_vagas: limiteNext,
-          usos: currentMeta.usos,
+          usos: usosNext,
           expected_teams:
             data.expected_teams !== undefined
               ? normalizeExpectedTeams(data.expected_teams)
               : currentMeta.expected_teams,
           entradas: currentMeta.entradas,
-          closed_reason: currentMeta.closed_reason,
-          closed_at: currentMeta.closed_at,
+          ...(closedReason ? { closed_reason: closedReason } : {}),
+          ...(closedAt ? { closed_at: closedAt } : {}),
         }
         const human =
           data.descricao !== undefined
