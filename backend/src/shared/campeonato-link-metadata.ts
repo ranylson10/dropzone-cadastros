@@ -413,6 +413,7 @@ export function isMissingMetadataColumn(error: { message?: string; code?: string
     || message.includes('metadata does not exist')
     || message.includes('metadata column')
     || message.includes('column campeonato_links.metadata')
+    || /column\s+\w*\.?metadata/i.test(message)
     || message.includes('schema cache')
 }
 

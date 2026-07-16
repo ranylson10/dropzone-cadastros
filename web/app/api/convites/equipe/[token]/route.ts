@@ -354,23 +354,45 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       })
       participacaoId = participacao.id
     } else if (modoGrupo) {
-      // Auto-slot: usa slot informado ou o primeiro livre
+      // Auto-slot: usa slot informado ou o primeiro livre (espelho + participações)
       const slotIdInformado = String(body.slot_id || '').trim()
-      const { data: slots, error: slotsError } = await supabaseAdmin
-        .from('campeonato_slots')
-        .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
-        .eq('campeonato_id', convite.campeonato_id)
-        .eq('grupo_id', convite.grupo_id)
-        .order('slot_numero', { ascending: true })
+      const [{ data: slots, error: slotsError }, { data: partsAtivas, error: partsErr }] =
+        await Promise.all([
+          supabaseAdmin
+            .from('campeonato_slots')
+            .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
+            .eq('campeonato_id', convite.campeonato_id)
+            .eq('grupo_id', convite.grupo_id)
+            .order('slot_numero', { ascending: true }),
+          supabaseAdmin
+            .from('campeonato_equipes')
+            .select('slot_id,slot_numero')
+            .eq('campeonato_id', convite.campeonato_id)
+            .eq('grupo_id', convite.grupo_id)
+            .eq('status', 'ativo'),
+        ])
       if (slotsError) throw slotsError
+      if (partsErr) throw partsErr
+
+      const occupiedIds = new Set((partsAtivas || []).map((p) => p.slot_id).filter(Boolean).map(String))
+      const occupiedNums = new Set(
+        (partsAtivas || [])
+          .map((p) => (p.slot_numero != null ? Number(p.slot_numero) : null))
+          .filter((n) => n != null && Number.isFinite(n)),
+      )
+      const isFree = (s: any) =>
+        !s.equipe_id
+        && !s.line_id
+        && !occupiedIds.has(String(s.id))
+        && !occupiedNums.has(Number(s.slot_numero))
 
       let slotEscolhido =
         (slotIdInformado && (slots || []).find((s) => s.id === slotIdInformado)) ||
-        (slots || []).find((s) => !s.equipe_id && !s.line_id) ||
+        (slots || []).find((s) => isFree(s)) ||
         null
 
       if (!slotEscolhido) throw new Error('Nenhum slot livre neste grupo no momento.')
-      if (slotEscolhido.equipe_id || slotEscolhido.line_id) {
+      if (!isFree(slotEscolhido)) {
         throw new Error('Esse slot já foi preenchido. Tente novamente.')
       }
 

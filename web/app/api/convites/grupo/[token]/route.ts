@@ -885,28 +885,53 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const expected = meta.expected_teams
 
     // Resolve slot: informado, índice, ou primeiro livre (auto-slot)
+    // Considera tanto colunas do slot quanto participações ativas (evita desync do espelho).
     let slot: any = null
-    const { data: slotsGrupo, error: slotsError } = await supabaseAdmin
-      .from('campeonato_slots')
-      .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
-      .eq('campeonato_id', link.campeonato_id)
-      .eq('grupo_id', link.grupo_id)
-      .order('slot_numero', { ascending: true })
+    const [{ data: slotsGrupo, error: slotsError }, { data: partsAtivas, error: partsErr }] =
+      await Promise.all([
+        supabaseAdmin
+          .from('campeonato_slots')
+          .select('id,slot_numero,slot_letra,equipe_id,line_id,grupo_id,campeonato_id')
+          .eq('campeonato_id', link.campeonato_id)
+          .eq('grupo_id', link.grupo_id)
+          .order('slot_numero', { ascending: true }),
+        supabaseAdmin
+          .from('campeonato_equipes')
+          .select('id,slot_id,slot_numero,line_id')
+          .eq('campeonato_id', link.campeonato_id)
+          .eq('grupo_id', link.grupo_id)
+          .eq('status', 'ativo'),
+      ])
     if (slotsError) throw slotsError
+    if (partsErr) throw partsErr
     if (!slotsGrupo?.length) {
       throw new Error('Este grupo ainda nao possui slots. Crie o grupo novamente ou regenere os slots.')
     }
+
+    const occupiedSlotIds = new Set(
+      (partsAtivas || []).map((p) => p.slot_id).filter(Boolean).map(String),
+    )
+    const occupiedSlotNums = new Set(
+      (partsAtivas || [])
+        .map((p) => (p.slot_numero != null ? Number(p.slot_numero) : null))
+        .filter((n) => n != null && Number.isFinite(n)),
+    )
+    const isSlotFree = (s: any) =>
+      !s.equipe_id
+      && !s.line_id
+      && !occupiedSlotIds.has(String(s.id))
+      && !occupiedSlotNums.has(Number(s.slot_numero))
 
     if (slotIdInformado) {
       slot = slotsGrupo.find((s) => s.id === slotIdInformado) || null
     } else if (Number.isInteger(vagaIndex) && vagaIndex >= 0) {
       slot = slotsGrupo[vagaIndex] || null
     } else {
-      slot = slotsGrupo.find((s) => !s.equipe_id && !s.line_id) || null
+      slot = slotsGrupo.find((s) => isSlotFree(s)) || null
     }
 
     if (!slot) throw new Error('Nenhum slot livre neste grupo no momento.')
-    if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Tente novamente.')
+    if (!isSlotFree(slot)) throw new Error('Esse slot ja foi preenchido. Tente novamente.')
 
     // Consome vaga do link ANTES de gravar (evita overflow se o limite for 1)
     const consumo = await consumirVagaDoLink(link)
