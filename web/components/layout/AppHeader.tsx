@@ -62,7 +62,9 @@ export function AppHeader({
     <header className="app-header">
       <div className="app-header-inner">
         <a className="app-brand" href="/" aria-label="DropZone — início">
-          <span className="app-brand-logo"><img src="/dropzone-icon.png" alt="" /></span>
+          <span className="app-brand-logo">
+            <img src="/dropzone-icon.png" alt="" width={42} height={42} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </span>
           <span className="app-brand-copy"><strong>DROPZONE</strong><small>COMPETITIVE SYSTEM</small></span>
         </a>
 
