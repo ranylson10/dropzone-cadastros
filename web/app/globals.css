@@ -586,8 +586,7 @@ h3 {
 .champ-thumb,
 .tiny-logo,
 .detail-logo-ref,
-.champ-hero-logo,
-.auth-site-mark img {
+.champ-hero-logo {
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -608,8 +607,7 @@ h3 {
 .champ-thumb img,
 .tiny-logo img,
 .detail-logo-ref img,
-.champ-hero-logo img,
-.auth-site-mark img {
+.champ-hero-logo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1044,14 +1042,52 @@ body:has(.cropper-overlay) {
   gap: 10px;
 }
 
-.auth-site-mark img {
+.auth-site-mark img,
+.central-login-brand img,
+.dropzone-auth-validation-logo img,
+.site-logo-img {
   width: 46px !important;
   height: 46px !important;
   max-width: 46px !important;
   max-height: 46px !important;
-  object-fit: cover;
-  display: block;
-  flex: 0 0 46px;
+  object-fit: contain !important;
+  display: block !important;
+  flex: 0 0 46px !important;
+}
+
+/* Trava a marca do sistema: nunca herda 100% do card/container */
+img[src='/dropzone-icon.png'],
+img[src='/dropzone-loading.svg'] {
+  max-width: 64px;
+  max-height: 64px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.app-brand-logo img[src='/dropzone-icon.png'] {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: cover !important;
+}
+
+.dropzone-auth-validation-logo {
+  width: 72px !important;
+  height: 72px !important;
+  overflow: hidden;
+}
+
+.dropzone-auth-validation-logo img {
+  width: 42px !important;
+  height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+}
+
+.central-login-brand {
+  margin-bottom: 22px;
 }
 
 .auth-site-mark span {
@@ -4534,10 +4570,6 @@ button.invite-slot-button.selected strong {
   color: #6b7280 !important;
 }
 
-.central-login-brand {
-  margin-bottom: 22px;
-}
-
 .dropzone-auth-validation {
   min-height: 260px;
   display: grid;
@@ -4557,12 +4589,6 @@ button.invite-slot-button.selected strong {
   border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
   background: var(--surface);
   animation: dropzoneAuthPulse 1s ease-in-out infinite alternate;
-}
-
-.dropzone-auth-validation-logo img {
-  width: 42px;
-  height: 42px;
-  object-fit: contain;
 }
 
 .dropzone-auth-validation strong {
@@ -6443,7 +6469,7 @@ input::placeholder, textarea::placeholder {
   /* mantÃ©m escuro sÃ³ no overlay, conteÃºdo usa surface */
 }
 
-/* Aba Exportar campeonato (SPEC / produção) */
+/* Aba Exportar campeonato (SPEC / produï¿½ï¿½o) */
 .export-tab-panel{display:grid;gap:16px}
 .export-tab-state{display:flex;align-items:center;gap:10px;min-height:160px;justify-content:center;color:var(--muted)}
 .export-tab-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
