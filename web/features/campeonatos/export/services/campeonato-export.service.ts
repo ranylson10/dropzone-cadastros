@@ -13,7 +13,8 @@ async function authHeaders() {
 function toQuery(filtro?: Partial<ExportFiltro>) {
   const params = new URLSearchParams()
   if (filtro?.fase_id) params.set('fase_id', filtro.fase_id)
-  if (filtro?.grupo_id) params.set('grupo_id', filtro.grupo_id)
+  if (filtro?.grupo_ids?.length) params.set('grupo_ids', filtro.grupo_ids.join(','))
+  else if (filtro?.grupo_id) params.set('grupo_id', filtro.grupo_id)
   if (filtro?.line_id) params.set('line_id', filtro.line_id)
   if (filtro?.equipe_id) params.set('equipe_id', filtro.equipe_id)
   const qs = params.toString()

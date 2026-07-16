@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Download,
+  FileJson,
   FolderArchive,
   Image as ImageIcon,
   Loader2,
@@ -23,12 +24,16 @@ import {
   slugify,
   toCsv,
 } from '../utils/build-export-zip'
+import {
+  buildPlayerNameOverwrite,
+  DEFAULT_FF_TEXT_COLORS,
+  type FfTextColors,
+} from '../utils/player-name-overwrite'
 
-type EscopoUi = 'campeonato' | 'fase' | 'grupo' | 'line'
+type EscopoUi = 'campeonato' | 'fase' | 'grupo'
 
 function downloadText(filename: string, content: string, mime: string) {
-  const blob = new Blob([content], { type: mime })
-  downloadBlob(blob, filename)
+  downloadBlob(new Blob([content], { type: mime }), filename)
 }
 
 export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) {
@@ -38,11 +43,16 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const [progress, setProgress] = useState('')
+  const [specMsg, setSpecMsg] = useState('')
 
   const [escopo, setEscopo] = useState<EscopoUi>('campeonato')
   const [faseId, setFaseId] = useState('')
-  const [grupoId, setGrupoId] = useState('')
-  const [lineId, setLineId] = useState('')
+  const [grupoIds, setGrupoIds] = useState<string[]>([])
+
+  // SPEC Free Fire — cores
+  const [roleColor, setRoleColor] = useState('#000000')
+  const [teamColor, setTeamColor] = useState('#000000')
+  const [textColors, setTextColors] = useState<FfTextColors>({ ...DEFAULT_FF_TEXT_COLORS })
 
   const loadBase = useCallback(async () => {
     if (!campeonatoId) return
@@ -67,10 +77,9 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
 
   const filtro = useMemo(() => {
     if (escopo === 'fase' && faseId) return { fase_id: faseId }
-    if (escopo === 'grupo' && grupoId) return { grupo_id: grupoId }
-    if (escopo === 'line' && lineId) return { line_id: lineId }
+    if (escopo === 'grupo' && grupoIds.length) return { grupo_ids: grupoIds }
     return {}
-  }, [escopo, faseId, grupoId, lineId])
+  }, [escopo, faseId, grupoIds])
 
   const reloadFiltered = useCallback(async () => {
     if (!campeonatoId) return
@@ -92,36 +101,17 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
       setData(base)
       return
     }
-    // só recarrega se o id necessário estiver escolhido
     if (escopo === 'fase' && !faseId) return
-    if (escopo === 'grupo' && !grupoId) return
-    if (escopo === 'line' && !lineId) return
+    if (escopo === 'grupo' && !grupoIds.length) return
     void reloadFiltered()
-  }, [escopo, faseId, grupoId, lineId, base, reloadFiltered])
+  }, [escopo, faseId, grupoIds, base, reloadFiltered])
 
   const fases = base?.estrutura?.fases || []
   const grupos = useMemo(() => {
     const list = base?.estrutura?.grupos || []
-    if (escopo === 'fase' && faseId) return list.filter((g) => g.fase_id === faseId)
+    if (faseId) return list.filter((g) => g.fase_id === faseId)
     return list
-  }, [base?.estrutura?.grupos, escopo, faseId])
-
-  const linesOpts = useMemo(() => {
-    const source = escopo === 'campeonato' || !data ? base : data
-    const rows: Array<{ id: string; label: string }> = []
-    for (const eq of source?.equipes || []) {
-      for (const line of eq.lines || []) {
-        if (!line.id) continue
-        if (escopo === 'grupo' && grupoId && line.grupo?.id !== grupoId) continue
-        if (escopo === 'fase' && faseId && line.grupo?.fase_id !== faseId) continue
-        rows.push({
-          id: line.id,
-          label: `${eq.nome} · ${line.nome}${line.grupo?.nome ? ` (${line.grupo.nome})` : ''}`,
-        })
-      }
-    }
-    return rows.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
-  }, [base, data, escopo, grupoId, faseId])
+  }, [base?.estrutura?.grupos, faseId])
 
   const baseName = useMemo(
     () => slugify(data?.campeonato?.nome || campeonatoId),
@@ -129,68 +119,73 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
   )
 
   const flatLines = useMemo(() => {
-    const list: Array<ExportLine & { equipe_nome: string; equipe_id: string }> = []
+    const list: Array<ExportLine & { equipe_nome: string }> = []
     for (const eq of data?.equipes || []) {
       for (const line of eq.lines || []) {
-        list.push({ ...line, equipe_nome: eq.nome, equipe_id: eq.id })
+        list.push({ ...line, equipe_nome: eq.nome })
       }
     }
     return list
   }, [data])
 
-  async function baixarPacote(modo: ExportPacoteModo) {
-    if (!data) return
-    if (escopo === 'fase' && !faseId) {
-      setError('Selecione a fase.')
-      return
-    }
-    if (escopo === 'grupo' && !grupoId) {
-      setError('Selecione o grupo.')
-      return
-    }
-    if (escopo === 'line' && !lineId) {
-      setError('Selecione a line.')
-      return
-    }
+  const canDownload =
+    escopo === 'campeonato'
+    || (escopo === 'fase' && Boolean(faseId))
+    || (escopo === 'grupo' && grupoIds.length > 0)
 
+  function toggleGrupo(id: string) {
+    setGrupoIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  async function baixarPacote(modo: ExportPacoteModo) {
+    if (!data || !canDownload) return
     setBusy(modo)
     setError('')
     setProgress('')
     try {
       const { blob, filename } = await buildExportZip(data, modo, (p) => {
-        if (p.total > 0) setProgress(`${p.label}`)
+        if (p.total > 0) setProgress(p.label)
       })
       downloadBlob(blob, filename)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao gerar o pacote ZIP.')
+      setError(err instanceof Error ? err.message : 'Falha ao gerar o ZIP.')
     } finally {
       setBusy('')
       setProgress('')
     }
   }
 
-  function baixarTabelaEquipes() {
-    if (!data) return
-    downloadText(
-      `tabela-equipes-${baseName}.csv`,
-      toCsv(buildEquipesRows(data)),
-      'text/csv;charset=utf-8',
-    )
+  function gerarPlayerNameOverwrite() {
+    if (!data || !canDownload) return
+    setBusy('spec')
+    setSpecMsg('')
+    setError('')
+    try {
+      const { content, stats } = buildPlayerNameOverwrite(data, {
+        roleColor,
+        teamColor,
+        textColor: textColors,
+      })
+      downloadText('PlayerNameOverwrite.json', content, 'application/json;charset=utf-8')
+      setSpecMsg(
+        `Gerado: ${stats.players} jogadores · ${stats.teams} equipes`
+        + (stats.skipped ? ` · ${stats.skipped} sem id_jogo (ignorados)` : ''),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao gerar PlayerNameOverwrite.json')
+    } finally {
+      setBusy('')
+    }
   }
 
-  function baixarTabelaJogadores() {
-    if (!data) return
-    downloadText(
-      `tabela-jogadores-${baseName}.csv`,
-      toCsv(buildJogadoresRows(data)),
-      'text/csv;charset=utf-8',
-    )
+  const setTc = (key: keyof FfTextColors, value: string) => {
+    setTextColors((prev) => ({ ...prev, [key]: value }))
   }
 
   if (loading) {
     return (
       <div className="export-tab-state">
-        <Loader2 className="spin" size={18} /> Carregando dados do campeonato...
+        <Loader2 className="spin" size={18} /> Carregando...
       </div>
     )
   }
@@ -206,77 +201,56 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     )
   }
 
-  if (!data) {
-    return <p className="empty">Nenhum dado para exportar.</p>
-  }
-
-  const canDownload =
-    escopo === 'campeonato'
-    || (escopo === 'fase' && Boolean(faseId))
-    || (escopo === 'grupo' && Boolean(grupoId))
-    || (escopo === 'line' && Boolean(lineId))
+  if (!data) return <p className="empty">Nenhum dado para exportar.</p>
 
   return (
-    <div className="export-tab-panel">
-      <header className="export-tab-head">
+    <div className="export-tab-panel export-tab-compact">
+      <header className="export-tab-head export-tab-head-compact">
         <div>
-          <p className="eyebrow">Produção / SPEC</p>
-          <h3>Exportar dados do campeonato</h3>
-          <p className="empty" style={{ margin: '6px 0 0' }}>
-            Baixa um pacote com <strong>tabelas</strong> e <strong>pastas de logos/fotos</strong>.
-            Não é logo por logo — o ZIP reúne tudo do escopo escolhido.
-          </p>
+          <p className="eyebrow">Produção</p>
+          <h3>Download / SPEC</h3>
         </div>
-        <button className="button secondary" type="button" onClick={() => void loadBase()} disabled={Boolean(busy)}>
-          <RefreshCw size={15} /> Atualizar
+        <button className="button secondary small" type="button" onClick={() => void loadBase()} disabled={Boolean(busy)}>
+          <RefreshCw size={14} /> Atualizar
         </button>
       </header>
 
       {error ? <div className="message error">{error}</div> : null}
 
-      <section className="export-section">
-        <div className="section-head">
-          <h4>1. Escopo do download</h4>
-        </div>
-        <div className="export-filter-grid">
-          <label className="field">
-            <span>Nível</span>
+      {/* FILTRO COMPACTO */}
+      <section className="export-section export-section-compact">
+        <div className="export-toolbar">
+          <label className="export-inline-field">
+            <span>Escopo</span>
             <select
               value={escopo}
               onChange={(e) => {
-                const value = e.target.value as EscopoUi
-                setEscopo(value)
-                if (value === 'campeonato') {
+                const v = e.target.value as EscopoUi
+                setEscopo(v)
+                if (v === 'campeonato') {
                   setFaseId('')
-                  setGrupoId('')
-                  setLineId('')
+                  setGrupoIds([])
                 }
-                if (value === 'fase') {
-                  setGrupoId('')
-                  setLineId('')
-                }
-                if (value === 'grupo') setLineId('')
+                if (v === 'fase') setGrupoIds([])
               }}
             >
-              <option value="campeonato">Campeonato inteiro</option>
+              <option value="campeonato">Campeonato</option>
               <option value="fase">Fase</option>
-              <option value="grupo">Grupo</option>
-              <option value="line">Line individual</option>
+              <option value="grupo">Grupo(s)</option>
             </select>
           </label>
 
           {(escopo === 'fase' || escopo === 'grupo') ? (
-            <label className="field">
+            <label className="export-inline-field">
               <span>Fase</span>
               <select
                 value={faseId}
                 onChange={(e) => {
                   setFaseId(e.target.value)
-                  setGrupoId('')
-                  setLineId('')
+                  setGrupoIds([])
                 }}
               >
-                <option value="">Selecione a fase</option>
+                <option value="">{escopo === 'fase' ? 'Selecione' : 'Todas (filtro)'}</option>
                 {fases.map((f) => (
                   <option key={f.id} value={f.id}>{f.nome}</option>
                 ))}
@@ -284,125 +258,162 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
             </label>
           ) : null}
 
-          {escopo === 'grupo' ? (
-            <label className="field">
-              <span>Grupo</span>
-              <select
-                value={grupoId}
-                onChange={(e) => {
-                  setGrupoId(e.target.value)
-                  setLineId('')
-                }}
-                disabled={!faseId && grupos.length === 0}
-              >
-                <option value="">Selecione o grupo</option>
-                {grupos.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.nome}{g.fase_nome ? ` · ${g.fase_nome}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          {escopo === 'line' ? (
-            <label className="field" style={{ gridColumn: '1 / -1' }}>
-              <span>Line</span>
-              <select value={lineId} onChange={(e) => setLineId(e.target.value)}>
-                <option value="">Selecione a line</option>
-                {linesOpts.map((l) => (
-                  <option key={l.id} value={l.id}>{l.label}</option>
-                ))}
-              </select>
-            </label>
-          ) : null}
+          <div className="export-mini-stats">
+            <span><b>{data.resumo.total_equipes}</b> eq</span>
+            <span><b>{data.resumo.total_lines}</b> lines</span>
+            <span><b>{data.resumo.total_jogadores}</b> jog</span>
+            <span><b>{data.resumo.total_midias}</b> mídia</span>
+          </div>
         </div>
+
+        {escopo === 'grupo' ? (
+          <div className="export-grupo-multi">
+            <span className="export-grupo-label">Grupos (pode marcar vários)</span>
+            <div className="export-grupo-chips">
+              {grupos.map((g) => {
+                const on = grupoIds.includes(g.id)
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className={`export-chip ${on ? 'active' : ''}`}
+                    onClick={() => toggleGrupo(g.id)}
+                  >
+                    {g.nome}
+                    {g.fase_nome ? <small>{g.fase_nome}</small> : null}
+                  </button>
+                )
+              })}
+              {!grupos.length ? <span className="empty">Nenhum grupo nesta fase.</span> : null}
+            </div>
+          </div>
+        ) : null}
       </section>
 
-      <div className="detail-stats-ref export-stats">
-        <div className="detail-stat">
-          <strong>{data.resumo.total_equipes}</strong>
-          <span>Equipes</span>
-        </div>
-        <div className="detail-stat">
-          <strong>{data.resumo.total_lines}</strong>
-          <span>Lines</span>
-        </div>
-        <div className="detail-stat">
-          <strong>{data.resumo.total_jogadores}</strong>
-          <span>Jogadores</span>
-        </div>
-        <div className="detail-stat">
-          <strong>{data.resumo.total_midias}</strong>
-          <span>Mídias no pacote</span>
-        </div>
-      </div>
-
-      <section className="export-section">
+      {/* SPEC FREE FIRE */}
+      <section className="export-section export-section-compact">
         <div className="section-head">
-          <h4>2. Baixar pacote</h4>
-          <small>ZIP com pastas</small>
+          <h4>PlayerNameOverwrite.json</h4>
+          <small>SPEC Free Fire · telamento</small>
         </div>
-        <div className="export-actions-grid">
+        <p className="export-help">
+          Gera o arquivo com o <strong>mesmo nome</strong> do SPEC.
+          Dados do sistema: <code>PlayerID</code> (id do jogo), tag + nick (separador invisível),
+          função e cores. Equipes em <code>TeamRegionList</code>.
+        </p>
+
+        <div className="export-color-row">
+          <label className="export-color-field">
+            <span>Cor função</span>
+            <input type="color" value={roleColor} onChange={(e) => setRoleColor(e.target.value)} />
+            <input value={roleColor} onChange={(e) => setRoleColor(e.target.value)} />
+          </label>
+          <label className="export-color-field">
+            <span>Cor equipe</span>
+            <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} />
+            <input value={teamColor} onChange={(e) => setTeamColor(e.target.value)} />
+          </label>
+          <label className="export-color-field">
+            <span>Nome jogador</span>
+            <input type="color" value={textColors.TeamPlayer1} onChange={(e) => {
+              const v = e.target.value
+              setTextColors((p) => ({
+                ...p,
+                TeamPlayer1: v,
+                TeamPlayer2: v,
+                TeamPlayer3: v,
+                TeamPlayer4: v,
+              }))
+            }} />
+          </label>
+          <label className="export-color-field">
+            <span>Número</span>
+            <input type="color" value={textColors.TeamPlayer1Num} onChange={(e) => {
+              const v = e.target.value
+              setTextColors((p) => ({
+                ...p,
+                TeamPlayer1Num: v,
+                TeamPlayer2Num: v,
+                TeamPlayer3Num: v,
+                TeamPlayer4Num: v,
+              }))
+            }} />
+          </label>
+          <label className="export-color-field">
+            <span>Vivo</span>
+            <input type="color" value={textColors.Alive} onChange={(e) => setTc('Alive', e.target.value)} />
+          </label>
+          <label className="export-color-field">
+            <span>Knock</span>
+            <input type="color" value={textColors.Knockdown} onChange={(e) => setTc('Knockdown', e.target.value)} />
+          </label>
+          <label className="export-color-field">
+            <span>Eliminado</span>
+            <input type="color" value={textColors.Eliminated} onChange={(e) => setTc('Eliminated', e.target.value)} />
+          </label>
+        </div>
+
+        <div className="export-actions-row">
           <button
             className="button"
             type="button"
             disabled={!canDownload || Boolean(busy)}
-            onClick={() => void baixarPacote('completo')}
+            onClick={gerarPlayerNameOverwrite}
           >
-            {busy === 'completo' ? <Loader2 size={16} className="spin" /> : <FolderArchive size={16} />}
-            Pacote completo
-            <span className="export-btn-hint">tabelas + logos + fotos</span>
+            {busy === 'spec' ? <Loader2 size={15} className="spin" /> : <FileJson size={15} />}
+            Baixar PlayerNameOverwrite.json
+          </button>
+          {specMsg ? <span className="export-spec-msg">{specMsg}</span> : null}
+        </div>
+      </section>
+
+      {/* PACOTE ZIP / TABELAS — compacto */}
+      <section className="export-section export-section-compact">
+        <div className="section-head">
+          <h4>Pacote e tabelas</h4>
+        </div>
+        <div className="export-actions-row export-actions-wrap">
+          <button className="button secondary small" type="button" disabled={!canDownload || Boolean(busy)} onClick={() => void baixarPacote('completo')}>
+            {busy === 'completo' ? <Loader2 size={14} className="spin" /> : <FolderArchive size={14} />}
+            ZIP completo
+          </button>
+          <button className="button secondary small" type="button" disabled={!canDownload || Boolean(busy)} onClick={() => void baixarPacote('tabelas')}>
+            {busy === 'tabelas' ? <Loader2 size={14} className="spin" /> : <Table2 size={14} />}
+            ZIP tabelas
+          </button>
+          <button className="button secondary small" type="button" disabled={!canDownload || Boolean(busy) || !data.resumo.total_midias} onClick={() => void baixarPacote('midias')}>
+            {busy === 'midias' ? <Loader2 size={14} className="spin" /> : <ImageIcon size={14} />}
+            ZIP mídias
           </button>
           <button
-            className="button secondary"
+            className="button secondary small"
             type="button"
             disabled={!canDownload || Boolean(busy)}
-            onClick={() => void baixarPacote('tabelas')}
+            onClick={() => downloadText(`tabela-equipes-${baseName}.csv`, toCsv(buildEquipesRows(data)), 'text/csv;charset=utf-8')}
           >
-            {busy === 'tabelas' ? <Loader2 size={16} className="spin" /> : <Table2 size={16} />}
-            Só tabelas / lista
-            <span className="export-btn-hint">CSV + lista TXT</span>
+            <Download size={14} /> CSV equipes
           </button>
           <button
-            className="button secondary"
+            className="button secondary small"
             type="button"
-            disabled={!canDownload || Boolean(busy) || !data.resumo.total_midias}
-            onClick={() => void baixarPacote('midias')}
+            disabled={!canDownload || Boolean(busy)}
+            onClick={() => downloadText(`tabela-jogadores-${baseName}.csv`, toCsv(buildJogadoresRows(data)), 'text/csv;charset=utf-8')}
           >
-            {busy === 'midias' ? <Loader2 size={16} className="spin" /> : <ImageIcon size={16} />}
-            Só logos e fotos
-            <span className="export-btn-hint">pastas no ZIP</span>
+            <Download size={14} /> CSV jogadores
           </button>
         </div>
         {progress ? (
           <p className="export-progress">
-            <Loader2 size={14} className="spin" /> {progress}
+            <Loader2 size={13} className="spin" /> {progress}
           </p>
         ) : null}
-        <p className="empty" style={{ margin: '8px 0 0' }}>
-          Estrutura do ZIP: <code>tabelas/</code> (CSV/lista) · <code>logos/equipes|lines/</code> · <code>fotos/jogadores/</code>
-        </p>
       </section>
 
-      <section className="export-section">
+      {/* PRÉVIA COMPACTA */}
+      <section className="export-section export-section-compact">
         <div className="section-head">
-          <h4>Atalhos de tabela</h4>
-        </div>
-        <div className="export-actions-grid">
-          <button className="button secondary" type="button" disabled={!canDownload || Boolean(busy)} onClick={baixarTabelaEquipes}>
-            <Table2 size={15} /> CSV equipes/lines
-          </button>
-          <button className="button secondary" type="button" disabled={!canDownload || Boolean(busy)} onClick={baixarTabelaJogadores}>
-            <Table2 size={15} /> CSV jogadores
-          </button>
-        </div>
-      </section>
-
-      <section className="export-section">
-        <div className="section-head">
-          <h4>Prévia em lista</h4>
-          <small>{flatLines.length} lines no escopo</small>
+          <h4>Prévia</h4>
+          <small>{flatLines.length} lines</small>
         </div>
         <div className="export-table-wrap">
           <table className="export-table">
@@ -413,36 +424,25 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
                 <th>Slot</th>
                 <th>Equipe</th>
                 <th>Line</th>
-                <th>Jogadores</th>
+                <th>Jog.</th>
               </tr>
             </thead>
             <tbody>
-              {flatLines.slice(0, 40).map((line) => (
+              {flatLines.slice(0, 30).map((line) => (
                 <tr key={line.participacao_id}>
                   <td>{line.grupo?.fase_nome || '—'}</td>
                   <td>{line.grupo?.nome || '—'}</td>
                   <td>{line.slot?.numero ?? '—'}</td>
-                  <td>
-                    <span className="export-cell-with-logo">
-                      {/* preview visual only */}
-                      {line.logo_url ? <img src={line.logo_url} alt="" /> : null}
-                      {line.equipe_nome}
-                    </span>
-                  </td>
+                  <td>{line.equipe_nome}</td>
                   <td>{line.nome}</td>
                   <td>{line.quantidade_jogadores}</td>
                 </tr>
               ))}
               {!flatLines.length ? (
-                <tr>
-                  <td colSpan={6}>Nenhuma line no escopo selecionado.</td>
-                </tr>
+                <tr><td colSpan={6}>Nada no escopo — selecione fase/grupo ou use campeonato.</td></tr>
               ) : null}
             </tbody>
           </table>
-          {flatLines.length > 40 ? (
-            <p className="empty">Mostrando 40 de {flatLines.length}. O ZIP traz tudo.</p>
-          ) : null}
         </div>
       </section>
     </div>

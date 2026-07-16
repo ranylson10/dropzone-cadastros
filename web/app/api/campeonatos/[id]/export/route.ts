@@ -64,6 +64,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const url = new URL(req.url)
     const faseId = String(url.searchParams.get('fase_id') || '').trim() || null
     const grupoId = String(url.searchParams.get('grupo_id') || '').trim() || null
+    // multi-grupo: grupo_ids=id1,id2  (prioridade sobre grupo_id)
+    const grupoIdsParam = String(url.searchParams.get('grupo_ids') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
     const lineId = String(url.searchParams.get('line_id') || '').trim() || null
     const equipeId = String(url.searchParams.get('equipe_id') || '').trim() || null
 
@@ -156,7 +161,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
     // Resolve grupo filter → fase, or fase filter → set of grupos
     let grupoIdsFiltro: Set<string> | null = null
-    if (grupoId) {
+    if (grupoIdsParam.length) {
+      grupoIdsFiltro = new Set(grupoIdsParam)
+    } else if (grupoId) {
       grupoIdsFiltro = new Set([grupoId])
     } else if (faseId) {
       grupoIdsFiltro = new Set(
@@ -179,7 +186,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       ? 'line'
       : equipeId
         ? 'equipe'
-        : grupoId
+        : (grupoIdsParam.length || grupoId)
           ? 'grupo'
           : faseId
             ? 'fase'
@@ -387,6 +394,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         escopo,
         fase_id: faseId,
         grupo_id: grupoId,
+        grupo_ids: grupoIdsParam.length ? grupoIdsParam : (grupoId ? [grupoId] : []),
         line_id: lineId,
         equipe_id: equipeId,
       },

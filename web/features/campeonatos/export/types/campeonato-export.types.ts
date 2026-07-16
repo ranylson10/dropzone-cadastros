@@ -59,6 +59,8 @@ export type ExportFiltro = {
   escopo: 'campeonato' | 'fase' | 'grupo' | 'line' | 'equipe'
   fase_id?: string | null
   grupo_id?: string | null
+  /** Multi-seleção de grupos */
+  grupo_ids?: string[]
   line_id?: string | null
   equipe_id?: string | null
 }
