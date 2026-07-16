@@ -11,6 +11,7 @@ import { SystemModal } from '@/components/layout/SystemModal'
 import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
 import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
+import { CampeonatoExportTab } from '@/features/campeonatos/export'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
 
@@ -1445,6 +1446,8 @@ ${params.url}`
                   maps={mapCatalog}
                 />
               ) : null}
+
+              {tab === 'exportar' ? <CampeonatoExportTab campeonatoId={selectedChamp.id} /> : null}
 
               {tab === 'vendedores' ? (() => {
                 const pendingInvites = mgrInvites.filter((c) => c.status === 'pendente')
