@@ -3059,6 +3059,23 @@ button.invite-slot-button.free.clickable b {
   background: #ff4655;
 }
 
+/* Slot escolhido na inscrição (link de grupo) */
+button.invite-slot-button.free.selected,
+button.invite-slot-button.selected {
+  border-color: #17191d !important;
+  background: #f4f5f7 !important;
+  box-shadow: inset 0 0 0 2px #17191d;
+}
+button.invite-slot-button.free.selected b,
+button.invite-slot-button.selected b {
+  background: #17191d !important;
+  color: #fff !important;
+}
+button.invite-slot-button.free.selected strong,
+button.invite-slot-button.selected strong {
+  color: #17191d;
+}
+
 .invite-modal-backdrop {
   position: fixed;
   inset: 0;

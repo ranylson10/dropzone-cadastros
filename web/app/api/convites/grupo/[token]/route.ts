@@ -962,7 +962,9 @@ async function payloadFor(req: NextRequest, token: string) {
     modelo: {
       leitura: grade.source,
       unidade_competitiva: 'line',
+      // UI pede slot; se omitido, servidor ainda preenche o primeiro livre
       auto_slot: true,
+      escolher_slot: true,
     },
     ...session,
   }

@@ -150,6 +150,7 @@ export default function ConviteGrupoPage() {
   const [detailVaga, setDetailVaga] = useState<Vaga | null>(null)
   const [lineId, setLineId] = useState('')
   const [nomeNovaLine, setNomeNovaLine] = useState('')
+  const [selectedSlotId, setSelectedSlotId] = useState('')
   const [sucessoInfo, setSucessoInfo] = useState<{ line: string; slot?: string } | null>(null)
 
   const linesDisponiveis = useMemo(() => {
@@ -159,6 +160,11 @@ export default function ConviteGrupoPage() {
     return free.filter((line) => !line.ja_inscrita)
   }, [data?.lines, data?.lines_disponiveis])
 
+  const slotsLivresLista = useMemo(
+    () => (data?.vagas || []).filter((vaga) => !vaga.ocupada && vaga.slot_id),
+    [data?.vagas],
+  )
+
   const minhasParticipacoes = data?.minhas_participacoes || []
   const selectedParticipacao =
     minhasParticipacoes.find((item) => item.id === selectedParticipacaoId) || minhasParticipacoes[0] || null
@@ -166,6 +172,8 @@ export default function ConviteGrupoPage() {
   const slotsLivres = Number(data?.resumo_grupo?.livres || 0)
   const restantesLink = data?.resumo_link?.restantes ?? 1
   const podeInscrever = Boolean(inscricaoAberta && slotsLivres > 0 && restantesLink > 0)
+  const selectedSlot =
+    slotsLivresLista.find((vaga) => vaga.slot_id === selectedSlotId) || slotsLivresLista[0] || null
 
   const themeStyle = useMemo(
     () =>
@@ -287,6 +295,13 @@ export default function ConviteGrupoPage() {
     setLineId(freeLines[0]?.id || '')
     setNomeNovaLine('')
 
+    // Mantém slot escolhido se ainda estiver livre; senão primeiro livre
+    const freeSlots = (payload.vagas || []).filter((vaga: Vaga) => !vaga.ocupada && vaga.slot_id)
+    const stillFree = freeSlots.some((vaga: Vaga) => vaga.slot_id === selectedSlotId)
+    if (!stillFree) {
+      setSelectedSlotId(String(freeSlots[0]?.slot_id || ''))
+    }
+
     setStep(
       opts?.forceStep ||
         resolveStep(payload, {
@@ -363,6 +378,9 @@ export default function ConviteGrupoPage() {
     if (!lineId && !nomeNovaLine.trim()) {
       return setMessage('Selecione uma line livre ou crie uma nova line.')
     }
+    if (slotsLivresLista.length > 0 && !selectedSlotId) {
+      return setMessage('Selecione o slot que sua equipe vai ocupar.')
+    }
 
     let resolvedLineId = lineId || null
     let resolvedNomeLine = lineId ? null : nomeNovaLine.trim()
@@ -385,10 +403,11 @@ export default function ConviteGrupoPage() {
         Authorization: `Bearer ${session.session.access_token}`,
       },
       body: JSON.stringify({
-        // auto-slot no servidor se slot_id omitido
         equipe_id: selectedEquipeId || data?.equipe?.id || undefined,
         line_id: resolvedLineId,
         nome_line: resolvedNomeLine,
+        // slot escolhido pelo usuário (API ainda faz auto-slot se omitido)
+        slot_id: selectedSlotId || undefined,
       }),
     })
     const payload = await response.json()
@@ -398,7 +417,7 @@ export default function ConviteGrupoPage() {
     clearJustLoginFlag()
     setSucessoInfo({
       line: payload.line?.nome || resolvedNomeLine || 'Line',
-      slot: payload.slot_letra || undefined,
+      slot: payload.slot_letra || selectedSlot?.slot_letra || undefined,
     })
     setStep('sucesso')
     await carregar({ forceStep: 'sucesso' })
@@ -743,14 +762,50 @@ export default function ConviteGrupoPage() {
             </div>
           ) : null}
 
-          {/* ——— ESCOLHER LINE (sem slot, sem referência) ——— */}
+          {/* ——— ESCOLHER SLOT + LINE ——— */}
           {step === 'escolher_line' ? (
             <div className="invite-section" style={{ marginTop: 12 }}>
               <div className="invite-current-team" style={{ marginBottom: 12 }}>
                 <small>Inscrevendo com</small>
                 <strong>{data.equipe?.nome}</strong>
-                <span>O slot livre será atribuído automaticamente.</span>
+                <span>
+                  {selectedSlot
+                    ? `Slot ${selectedSlot.slot_letra || selectedSlot.slot_numero || ''} selecionado.`
+                    : 'Escolha o slot vazio e a line.'}
+                </span>
               </div>
+
+              {slotsLivresLista.length ? (
+                <div className="invite-slot-pick" style={{ marginBottom: 14 }}>
+                  <p className="invite-section-copy" style={{ marginBottom: 8 }}>
+                    Escolha o <strong>slot</strong> que sua equipe vai ocupar:
+                  </p>
+                  <div className="lineup-slots public-lineup-slots invite-slot-grid">
+                    {slotsLivresLista.map((vaga) => {
+                      const active = selectedSlotId === vaga.slot_id
+                      return (
+                        <button
+                          type="button"
+                          key={vaga.slot_id || vaga.index}
+                          className={`lineup-slot invite-slot-button free clickable ${active ? 'selected' : ''}`}
+                          onClick={() => setSelectedSlotId(String(vaga.slot_id))}
+                          title={`Selecionar slot ${vaga.slot_letra || vaga.slot_numero || ''}`}
+                        >
+                          <b>{vaga.slot_letra || vaga.slot_numero || '?'}</b>
+                          <div>
+                            <strong>Slot {vaga.slot_letra || vaga.slot_numero}</strong>
+                            <span>{active ? 'Selecionado' : 'Disponível'}</span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p className="invite-section-copy" style={{ marginBottom: 12 }}>
+                  Nenhum slot livre neste grupo no momento.
+                </p>
+              )}
 
               {linesDisponiveis.length ? (
                 <label className="field">
@@ -795,11 +850,15 @@ export default function ConviteGrupoPage() {
               <button
                 className="button invite-confirm"
                 type="button"
-                disabled={busy}
+                disabled={busy || (slotsLivresLista.length > 0 && !selectedSlotId)}
                 onClick={() => void confirmarInscricao()}
                 style={{ width: '100%', marginTop: 12 }}
               >
-                {busy ? 'Confirmando...' : 'Confirmar inscrição'}
+                {busy
+                  ? 'Confirmando...'
+                  : selectedSlot
+                    ? `Confirmar no slot ${selectedSlot.slot_letra || selectedSlot.slot_numero || ''}`
+                    : 'Confirmar inscrição'}
               </button>
               <button
                 className="button secondary"
