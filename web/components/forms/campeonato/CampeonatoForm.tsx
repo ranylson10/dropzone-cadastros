@@ -30,9 +30,13 @@ export type CampeonatoFormValue = {
   data_limite_inscricao: string
   aceita_novas_inscricoes_equipes: boolean
   contatos_whatsapp: CampeonatoWhatsappContact[]
-  /** Tema visual do campeonato (#hex) */
+  /** Tema visual do campeonato */
   cor_principal: string
   cor_secundaria: string
+  /** Intensidade da cor no fundo (0–100) */
+  bg_opacidade: string
+  /** Imagem de fundo do layout (opcional) */
+  bg_image_url: string
   cor_texto_clara: string
   cor_texto_escura: string
 }
@@ -80,6 +84,8 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   contatos_whatsapp: [],
   cor_principal: '#ff4655',
   cor_secundaria: '#17191d',
+  bg_opacidade: '18',
+  bg_image_url: '',
   cor_texto_clara: '#ffffff',
   cor_texto_escura: '#17191d',
 }
@@ -285,35 +291,68 @@ export function CampeonatoForm({
       <section className="form-section-card">
         <p className="eyebrow">Identidade visual</p>
         <p className="empty" style={{ margin: '0 0 12px' }}>
-          Escolha só 2 cores. O sistema monta o layout inteiro: fundo claro, cards, botões e texto com contraste
-          automático (texto escuro em área clara, texto claro em área escura).
+          Escolha 2 cores, a intensidade do fundo e (opcional) uma imagem de background. O sistema usa a cor{' '}
+          <strong>mais escura</strong> nos botões, aplica a opacidade no BG e calcula o contraste do texto.
         </p>
         <div className="mini-grid two">
-          <Field label="Cor principal (botões e destaques)">
+          <Field label="Cor A">
             <div className="color-field-row">
               <input type="color" value={value.cor_principal || '#ff4655'} onChange={(e) => update('cor_principal', e.target.value)} />
               <input value={value.cor_principal || ''} onChange={(e) => update('cor_principal', e.target.value)} placeholder="#ff4655" />
             </div>
           </Field>
-          <Field label="Cor secundária (banner e suporte)">
+          <Field label="Cor B">
             <div className="color-field-row">
               <input type="color" value={value.cor_secundaria || '#17191d'} onChange={(e) => update('cor_secundaria', e.target.value)} />
               <input value={value.cor_secundaria || ''} onChange={(e) => update('cor_secundaria', e.target.value)} placeholder="#17191d" />
             </div>
           </Field>
         </div>
+        <div className="mini-grid two" style={{ marginTop: 12 }}>
+          <Field label={`Opacidade do fundo (${value.bg_opacidade || 18}%)`}>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={Number(value.bg_opacidade || 18)}
+              onChange={(e) => update('bg_opacidade', e.target.value)}
+            />
+            <div className="color-field-row" style={{ marginTop: 8 }}>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={value.bg_opacidade || '18'}
+                onChange={(e) => update('bg_opacidade', e.target.value)}
+                style={{ gridColumn: '1 / -1' }}
+              />
+            </div>
+          </Field>
+          <UploadField
+            label="Imagem de fundo (opcional)"
+            value={value.bg_image_url}
+            bucket="campeonato"
+            onChange={(url) => update('bg_image_url', url)}
+            onUpload={uploadPublicFile}
+          />
+        </div>
         <div
           className="champ-theme-preview champ-theme"
           style={championshipThemeStyle({
             cor_principal: value.cor_principal,
             cor_secundaria: value.cor_secundaria,
+            bg_opacidade: value.bg_opacidade,
+            bg_image_url: value.bg_image_url,
           })}
         >
           <div className="champ-theme-preview-banner">Prévia do banner</div>
           <div className="champ-theme-preview-body">
             <div>
               <strong>Área clara do layout</strong>
-              <small style={{ display: 'block', marginTop: 4, opacity: 0.75 }}>Texto com contraste automático</small>
+              <small style={{ display: 'block', marginTop: 4, opacity: 0.75 }}>
+                Botão = cor mais escura · BG com {value.bg_opacidade || 18}%
+              </small>
             </div>
             <button type="button" className="champ-theme-preview-btn">Botão principal</button>
           </div>

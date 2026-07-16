@@ -49,6 +49,8 @@ const emptyChampionship = {
   contatos_whatsapp: [],
   cor_principal: '#ff4655',
   cor_secundaria: '#17191d',
+  bg_opacidade: '18',
+  bg_image_url: '',
   cor_texto_clara: '#ffffff',
   cor_texto_escura: '#17191d',
 }

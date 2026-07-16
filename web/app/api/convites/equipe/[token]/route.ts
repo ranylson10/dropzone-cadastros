@@ -117,7 +117,7 @@ async function carregar(token: string) {
       : Promise.resolve({ data: null as any, error: null }),
     supabaseAdmin
       .from('campeonato_configuracoes')
-      .select('cor_principal,cor_secundaria,cor_texto_clara,cor_texto_escura')
+      .select('cor_principal,cor_secundaria,cor_texto_clara,cor_texto_escura,bg_opacidade,bg_image_url')
       .eq('campeonato_id', convite.campeonato_id)
       .maybeSingle(),
   ])
@@ -143,6 +143,8 @@ async function carregar(token: string) {
     tema: {
       cor_principal: temaRow?.cor_principal || '#ff4655',
       cor_secundaria: temaRow?.cor_secundaria || '#17191d',
+      bg_opacidade: temaRow?.bg_opacidade != null ? Number(temaRow.bg_opacidade) : 18,
+      bg_image_url: temaRow?.bg_image_url || null,
       cor_texto_clara: temaRow?.cor_texto_clara || '#ffffff',
       cor_texto_escura: temaRow?.cor_texto_escura || '#17191d',
     },

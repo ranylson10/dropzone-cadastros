@@ -5992,7 +5992,12 @@ button.invite-slot-button.free.clickable b {
   margin-top: 14px;
   border: 1px solid var(--dz-border, #e4e7ec);
   overflow: hidden;
-  background: var(--dz-bg, #f4f5f7);
+  background-color: var(--dz-bg, #f4f5f7);
+  background-image:
+    linear-gradient(var(--dz-bg-overlay, transparent), var(--dz-bg-overlay, transparent)),
+    var(--dz-bg-image, none);
+  background-size: cover;
+  background-position: center;
 }
 .champ-theme-preview-banner {
   background: linear-gradient(135deg, var(--dz-banner-from, var(--dz-primary, #ff4655)), var(--dz-banner-to, var(--dz-secondary, #17191d)));
@@ -6023,13 +6028,19 @@ button.invite-slot-button.free.clickable b {
   cursor: default;
 }
 
-/* ===== Tema completo do campeonato (2 cores + contraste auto) ===== */
+/* ===== Tema completo do campeonato (cores + opacidade BG + imagem) ===== */
 .champ-theme {
   --dz-primary: #ff4655;
   --dz-secondary: #17191d;
-  --dz-btn: #ff4655;
+  --dz-lighter: #ff4655;
+  --dz-darker: #17191d;
+  --dz-btn: #17191d;
   --dz-btn-text: #ffffff;
   --dz-bg: #f4f5f7;
+  --dz-bg-opacity: 18;
+  --dz-bg-overlay: rgba(255, 70, 85, 0.18);
+  --dz-bg-image: none;
+  --dz-has-bg-image: 0;
   --dz-surface: #ffffff;
   --dz-surface-soft: #f7f8fa;
   --dz-border: #e4e7ec;
@@ -6045,15 +6056,30 @@ button.invite-slot-button.free.clickable b {
   --dz-banner-to: #17191d;
   --dz-on-banner: #ffffff;
   --dz-accent-soft: #ffe8ea;
-  background: var(--dz-bg) !important;
+  /* Cor sólida + imagem opcional com overlay de opacidade */
+  background-color: var(--dz-bg) !important;
+  background-image:
+    linear-gradient(var(--dz-bg-overlay), var(--dz-bg-overlay)),
+    var(--dz-bg-image) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: scroll;
   color: var(--dz-text);
 }
 
 /* Página / corpo */
 .champ-theme.directory-page-body,
 .champ-theme.champ-public {
-  background: var(--dz-bg) !important;
+  background-color: var(--dz-bg) !important;
+  background-image:
+    linear-gradient(var(--dz-bg-overlay), var(--dz-bg-overlay)),
+    var(--dz-bg-image) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
   color: var(--dz-text);
+  min-height: 100%;
 }
 
 /* Banner escuro (gradiente das 2 cores) + texto com contraste auto */
@@ -6214,9 +6240,13 @@ button.invite-slot-button.free.clickable b {
 
 /* ===== Página de convite (layout inteiro tingido) ===== */
 .invite-page.champ-theme {
-  background:
-    radial-gradient(circle at top, color-mix(in srgb, var(--dz-primary) 28%, var(--dz-bg)) 0, transparent 50%),
-    radial-gradient(circle at bottom right, color-mix(in srgb, var(--dz-secondary) 22%, var(--dz-bg)) 0, var(--dz-bg) 72%) !important;
+  background-color: var(--dz-bg) !important;
+  background-image:
+    linear-gradient(var(--dz-bg-overlay), var(--dz-bg-overlay)),
+    var(--dz-bg-image) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
   color: var(--dz-text);
 }
 .invite-page.champ-theme .invite-card {

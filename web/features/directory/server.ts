@@ -146,6 +146,8 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     theme = {
       cor_principal: cfg.cor_principal || null,
       cor_secundaria: cfg.cor_secundaria || null,
+      bg_opacidade: cfg.bg_opacidade != null ? Number(cfg.bg_opacidade) : null,
+      bg_image_url: cfg.bg_image_url || null,
       cor_texto_clara: cfg.cor_texto_clara || null,
       cor_texto_escura: cfg.cor_texto_escura || null,
     }

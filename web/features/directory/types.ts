@@ -30,6 +30,8 @@ export type DirectorySectionItem = {
 export type ChampionshipTheme = {
   cor_principal?: string | null
   cor_secundaria?: string | null
+  bg_opacidade?: number | null
+  bg_image_url?: string | null
   cor_texto_clara?: string | null
   cor_texto_escura?: string | null
 }

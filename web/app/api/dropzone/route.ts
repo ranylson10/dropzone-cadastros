@@ -278,7 +278,14 @@ function normalizeWhatsappContacts(value: unknown) {
   })
 }
 
-const THEME_COLOR_KEYS = ['cor_principal', 'cor_secundaria', 'cor_texto_clara', 'cor_texto_escura'] as const
+const THEME_COLOR_KEYS = [
+  'cor_principal',
+  'cor_secundaria',
+  'cor_texto_clara',
+  'cor_texto_escura',
+  'bg_opacidade',
+  'bg_image_url',
+] as const
 
 function championshipConfigurationPayload(data: Record<string, any>, campeonatoId: string) {
   const permiteTroca = Boolean(data.permite_troca_jogadores)
@@ -317,18 +324,23 @@ function normalizeHexColor(value: unknown, fallback: string) {
   return fallback
 }
 
-/** Adm escolhe só principal/secundária; contraste de texto é calculado no servidor. */
+/** Tema: cores + opacidade do BG + imagem. Contraste de texto é calculado na UI. */
 function buildThemeColumns(data: Record<string, any>) {
   const primary = normalizeHexColor(data.cor_principal, '#ff4655')
   const secondary = normalizeHexColor(data.cor_secundaria, '#17191d')
-  const onPrimary = contrastTextForBg(primary)
   const onLight = contrastTextForBg('#f7f8fa')
+  const opacityRaw = Number(data.bg_opacidade)
+  const bgOpacidade = Number.isFinite(opacityRaw)
+    ? Math.min(100, Math.max(0, Math.round(opacityRaw)))
+    : 18
+  const bgImage = String(data.bg_image_url || '').trim() || null
   return {
     cor_principal: primary,
     cor_secundaria: secondary,
-    // Persistidos só como cache legado; a UI recalcula sempre no client
-    cor_texto_clara: onPrimary === '#ffffff' ? '#ffffff' : '#ffffff',
+    cor_texto_clara: '#ffffff',
     cor_texto_escura: onLight,
+    bg_opacidade: bgOpacidade,
+    bg_image_url: bgImage,
   }
 }
 

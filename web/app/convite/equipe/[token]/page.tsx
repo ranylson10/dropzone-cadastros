@@ -39,6 +39,8 @@ type InvitePayload = {
   tema?: {
     cor_principal?: string | null
     cor_secundaria?: string | null
+    bg_opacidade?: number | null
+    bg_image_url?: string | null
     cor_texto_clara?: string | null
     cor_texto_escura?: string | null
   } | null
@@ -90,8 +92,15 @@ export default function ConviteEquipePage() {
       championshipThemeStyle({
         cor_principal: data?.tema?.cor_principal,
         cor_secundaria: data?.tema?.cor_secundaria,
+        bg_opacidade: data?.tema?.bg_opacidade,
+        bg_image_url: data?.tema?.bg_image_url,
       }),
-    [data?.tema?.cor_principal, data?.tema?.cor_secundaria],
+    [
+      data?.tema?.cor_principal,
+      data?.tema?.cor_secundaria,
+      data?.tema?.bg_opacidade,
+      data?.tema?.bg_image_url,
+    ],
   )
 
   const inscricaoAberta = data?.inscricao_aberta !== false && data?.valido !== false && data?.modo !== 'acompanhamento'

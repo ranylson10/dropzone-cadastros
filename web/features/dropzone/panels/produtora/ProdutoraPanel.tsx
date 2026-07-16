@@ -450,6 +450,12 @@ export function ProdutoraPanel(props: {
       contatos_whatsapp: Array.isArray(champ.data?.contatos_whatsapp) ? champ.data.contatos_whatsapp : [],
       cor_principal: String(dataText(champ, 'cor_principal') || '#ff4655'),
       cor_secundaria: String(dataText(champ, 'cor_secundaria') || '#17191d'),
+      bg_opacidade: String(
+        champ.data?.bg_opacidade != null && champ.data?.bg_opacidade !== ''
+          ? champ.data.bg_opacidade
+          : 18,
+      ),
+      bg_image_url: String(dataText(champ, 'bg_image_url') || ''),
       // texto claro/escuro é calculado automaticamente pelo sistema
       cor_texto_clara: '#ffffff',
       cor_texto_escura: '#17191d',

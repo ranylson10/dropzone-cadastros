@@ -826,7 +826,7 @@ async function payloadFor(req: NextRequest, token: string) {
       sessionTeam(req, link.campeonato_id, link.grupo_id),
       supabaseAdmin
         .from('campeonato_configuracoes')
-        .select('cor_principal,cor_secundaria,cor_texto_clara,cor_texto_escura')
+        .select('cor_principal,cor_secundaria,cor_texto_clara,cor_texto_escura,bg_opacidade,bg_image_url')
         .eq('campeonato_id', link.campeonato_id)
         .maybeSingle(),
     ])
@@ -900,6 +900,8 @@ async function payloadFor(req: NextRequest, token: string) {
     tema: {
       cor_principal: tema?.cor_principal || '#ff4655',
       cor_secundaria: tema?.cor_secundaria || '#17191d',
+      bg_opacidade: tema?.bg_opacidade != null ? Number(tema.bg_opacidade) : 18,
+      bg_image_url: tema?.bg_image_url || null,
       cor_texto_clara: tema?.cor_texto_clara || '#ffffff',
       cor_texto_escura: tema?.cor_texto_escura || '#17191d',
     },

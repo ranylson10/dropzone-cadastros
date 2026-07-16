@@ -132,8 +132,15 @@ export function ChampionshipPublicView({
       championshipThemeStyle({
         cor_principal: profile.theme?.cor_principal,
         cor_secundaria: profile.theme?.cor_secundaria,
+        bg_opacidade: profile.theme?.bg_opacidade,
+        bg_image_url: profile.theme?.bg_image_url,
       }),
-    [profile.theme?.cor_principal, profile.theme?.cor_secundaria],
+    [
+      profile.theme?.cor_principal,
+      profile.theme?.cor_secundaria,
+      profile.theme?.bg_opacidade,
+      profile.theme?.bg_image_url,
+    ],
   )
 
   return (
