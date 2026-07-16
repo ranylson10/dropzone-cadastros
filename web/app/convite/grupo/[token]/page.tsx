@@ -126,29 +126,29 @@ export default function ConviteGrupoPage() {
   const podeNovaInscricao = canInscrever && slotsLivres > 0 && (data?.resumo_link?.restantes ?? 1) > 0
 
   /**
-   * Ordem fixa:
-   * login → sem equipe / criar → confirmar equipe (2 botões) → inscrição → hub
-   * Link fechado + equipe já inscrita → hub (escalar elenco / jogadores)
+   * Regra principal:
+   * - Link AINDA com vaga (aberto) → SEMPRE fluxo de inscrição (login → confirmar → slot).
+   *   Nunca pular pro hub só porque a equipe já tem line no grupo.
+   * - Link ESGOTADO/pausado → hub se já inscrito (escalar); senão acompanhar/login.
    */
   function resolveStep(payload: GroupInvitePayload, confirmed: boolean): Step {
     const hasSession = Boolean(payload.autenticado)
     const parts = payload.minhas_participacoes || []
     const open = payload.inscricao_aberta !== false && payload.modo !== 'acompanhamento'
 
-    // Já tem line no grupo → hub (escalar / jogadores / acompanhar), mesmo com link fechado
-    if (hasSession && parts.length > 0) return 'hub'
-
-    // Link esgotado/pausado sem participação desta conta
-    if (!open) {
+    // Token ainda utilizável → adicionar equipe (não hub)
+    if (open) {
       if (!hasSession) return 'login'
       if (!payload.equipe) return 'sem_equipe'
-      return 'acompanhar'
+      if (!confirmed) return 'confirmar_equipe'
+      return 'inscricao'
     }
 
+    // Link esgotado: só hub se esta conta já tem line no grupo
+    if (hasSession && parts.length > 0) return 'hub'
     if (!hasSession) return 'login'
     if (!payload.equipe) return 'sem_equipe'
-    if (!confirmed) return 'confirmar_equipe'
-    return 'inscricao'
+    return 'acompanhar'
   }
 
   async function carregar(opts?: { forceStep?: Step; keepConfirm?: boolean }) {
@@ -172,12 +172,15 @@ export default function ConviteGrupoPage() {
     const parts: Participacao[] = payload.minhas_participacoes || []
     if (parts[0]?.id) setSelectedParticipacaoId(parts[0].id)
 
-    // Após inscrição / hub: mantém equipe confirmada; senão pede confirmação de novo
-    const confirmed = Boolean(opts?.keepConfirm || opts?.forceStep === 'hub' || opts?.forceStep === 'escalar')
-    if (confirmed) setEquipeConfirmada(true)
-    else if (!opts?.keepConfirm) setEquipeConfirmada(false)
+    // keepConfirm só após inscrição bem-sucedida — NÃO auto-confirmar só por ter parts no grupo
+    const confirmed = Boolean(opts?.keepConfirm)
+    if (opts?.forceStep === 'hub' || opts?.forceStep === 'escalar' || opts?.keepConfirm) {
+      setEquipeConfirmada(true)
+    } else if (!opts?.keepConfirm) {
+      setEquipeConfirmada(false)
+    }
 
-    setStep(opts?.forceStep || resolveStep(payload, confirmed || Boolean(parts.length)))
+    setStep(opts?.forceStep || resolveStep(payload, confirmed))
 
     const freeLines = (payload.lines_disponiveis || []).filter((line: any) => !line.ja_inscrita)
     setLineId(freeLines[0]?.id || '')
