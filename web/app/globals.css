@@ -1490,6 +1490,9 @@ body:has(.cropper-overlay) {
 
 .app-profile {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .app-profile-trigger {
@@ -5544,3 +5547,125 @@ button.invite-slot-button.free.clickable b {
   border-radius:8px;
   overflow:hidden;
 }
+
+/* ---- Correio / Staff (feature aditiva) ---- */
+.notif-bell { position: relative; }
+.notif-bell-trigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.notif-bell-trigger:hover { background: var(--surface-muted); }
+.notif-bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: #ff4655;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 16px;
+  text-align: center;
+}
+.notif-inbox-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 80;
+  width: min(380px, 92vw);
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(16,24,40,.16);
+}
+.notif-inbox-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef0f3;
+}
+.notif-inbox-head strong { display: block; font-size: 14px; }
+.notif-inbox-head small { color: #667085; font-size: 12px; }
+.notif-inbox-list { display: grid; gap: 0; }
+.notif-inbox-item {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f2f4f7;
+}
+.notif-inbox-item.is-unread { background: #f8fafc; }
+.notif-inbox-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.notif-inbox-item-top strong { font-size: 13px; }
+.notif-inbox-item-top time { color: #98a2b3; font-size: 11px; white-space: nowrap; }
+.notif-inbox-item p { margin: 0 0 6px; color: #475467; font-size: 12px; line-height: 1.4; }
+.notif-perms { display: block; color: #667085; font-size: 11px; margin-bottom: 8px; }
+.notif-inbox-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.message.compact { margin: 8px 12px; font-size: 12px; }
+.empty.compact-empty { padding: 16px; font-size: 13px; }
+
+.staff-tab .staff-invite-box { margin-bottom: 14px; }
+.staff-search-row { display: flex; gap: 8px; }
+.staff-search-row input { flex: 1; }
+.staff-search-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.staff-search-card {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.staff-search-card.selected { border-color: #12b76a; background: #e8f7ee; }
+.staff-search-card strong { font-size: 13px; }
+.staff-search-card span, .staff-search-card small { color: #667085; font-size: 11px; }
+.staff-perm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+.staff-perm-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.staff-list { display: grid; gap: 8px; }
+.staff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #eef0f3;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+.staff-row strong { display: block; font-size: 13px; }
+.staff-row span, .staff-row small { display: block; color: #667085; font-size: 12px; }

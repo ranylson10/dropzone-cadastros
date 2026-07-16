@@ -3,6 +3,7 @@
 import { ChevronDown, Loader2, LogOut, Menu, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { DropZoneRow } from '@/lib/types'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { APP_NAV, type AppNavItem } from './nav'
 
 export type AppHeaderNavItem = AppNavItem
@@ -90,6 +91,7 @@ export function AppHeader({
 
         {isAuthenticated ? (
           <div className="app-profile" ref={profileRef}>
+            <NotificationBell />
             <button
               type="button"
               className="app-profile-trigger"

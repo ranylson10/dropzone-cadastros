@@ -56,7 +56,7 @@ export function EquipePanel(props: {
   loading: boolean
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
-  const [tab, setTab] = useState<'campeonatos' | 'lines' | 'jogadores' | 'convites' | 'config'>('campeonatos')
+  const [tab, setTab] = useState<'campeonatos' | 'lines' | 'jogadores' | 'convites' | 'staff' | 'config'>('campeonatos')
   const [lineups, setLineups] = useState<Lineup[]>([])
   const [expanded, setExpanded] = useState<string>('')
   const [lineupLoading, setLineupLoading] = useState(false)
@@ -67,15 +67,159 @@ export function EquipePanel(props: {
   const [inviteExpiresAt, setInviteExpiresAt] = useState('')
   const [copiedLineupId, setCopiedLineupId] = useState('')
   const [rosterInvite, setRosterInvite] = useState<{ teamId: string; teamName: string; texto: string } | null>(null)
+
+  // Staff / managers
+  const [staffTeamId, setStaffTeamId] = useState('')
+  const [staffList, setStaffList] = useState<any[]>([])
+  const [staffConvites, setStaffConvites] = useState<any[]>([])
+  const [staffLoading, setStaffLoading] = useState(false)
+  const [staffError, setStaffError] = useState('')
+  const [staffMsg, setStaffMsg] = useState('')
+  const [staffQuery, setStaffQuery] = useState('')
+  const [staffSearch, setStaffSearch] = useState<any[]>([])
+  const [staffSelected, setStaffSelected] = useState<any | null>(null)
+  const [staffMessage, setStaffMessage] = useState('')
+  const [staffValidade, setStaffValidade] = useState('7')
+  const [staffPerms, setStaffPerms] = useState({
+    pode_ver: true,
+    pode_editar: false,
+    pode_escalar: true,
+    pode_gerar_token: false,
+  })
   const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)), [props.teamLines, props.managedTeams])
   const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id)), [props.playerTeams, props.managedTeams])
 
   useEffect(() => { void loadLineups() }, [])
 
+  useEffect(() => {
+    if (props.managedTeams[0]?.id && !staffTeamId) setStaffTeamId(props.managedTeams[0].id)
+  }, [props.managedTeams, staffTeamId])
+
+  useEffect(() => {
+    if (tab === 'staff' && staffTeamId) void loadStaff()
+  }, [tab, staffTeamId])
+
   async function authToken() {
     const { data } = await supabase.auth.getSession()
     if (!data.session?.access_token) throw new Error('Sessão expirada. Entre novamente.')
     return data.session.access_token
+  }
+
+  async function loadStaff() {
+    if (!staffTeamId) return
+    setStaffLoading(true)
+    setStaffError('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`/api/equipes/${staffTeamId}/staff`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao carregar staff.')
+      setStaffList(json.staff || [])
+      setStaffConvites(json.convites || [])
+    } catch (err: any) {
+      setStaffError(err?.message || 'Erro ao carregar staff.')
+      setStaffList([])
+      setStaffConvites([])
+    } finally {
+      setStaffLoading(false)
+    }
+  }
+
+  async function searchStaffManagers() {
+    setStaffError('')
+    setStaffMsg('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`/api/managers/busca?q=${encodeURIComponent(staffQuery)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro na busca.')
+      setStaffSearch(json.items || [])
+      if (!(json.items || []).length) setStaffMsg('Nenhum manager encontrado.')
+    } catch (err: any) {
+      setStaffError(err?.message || 'Erro na busca.')
+    }
+  }
+
+  async function sendStaffInvite() {
+    if (!staffTeamId) return setStaffError('Selecione a equipe.')
+    if (!staffSelected?.id && !staffQuery.trim()) return setStaffError('Busque e selecione um manager.')
+    setStaffLoading(true)
+    setStaffError('')
+    setStaffMsg('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`/api/equipes/${staffTeamId}/staff/convites`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          manager_id: staffSelected?.id || undefined,
+          manager_username: staffSelected?.username || staffQuery,
+          mensagem: staffMessage,
+          validade_dias: staffValidade,
+          ...staffPerms,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao enviar convite.')
+      setStaffMsg(json.mensagem || 'Convite enviado.')
+      setStaffSelected(null)
+      setStaffQuery('')
+      setStaffSearch([])
+      setStaffMessage('')
+      await loadStaff()
+    } catch (err: any) {
+      setStaffError(err?.message || 'Erro ao enviar convite.')
+    } finally {
+      setStaffLoading(false)
+    }
+  }
+
+  async function cancelStaffInvite(conviteId: string) {
+    if (!staffTeamId) return
+    setStaffLoading(true)
+    setStaffError('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`/api/equipes/${staffTeamId}/staff/convites`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ convite_id: conviteId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao cancelar.')
+      await loadStaff()
+    } catch (err: any) {
+      setStaffError(err?.message || 'Erro ao cancelar.')
+    } finally {
+      setStaffLoading(false)
+    }
+  }
+
+  async function removeStaff(managerId: string) {
+    if (!staffTeamId) return
+    if (!window.confirm('Remover este manager do staff?')) return
+    setStaffLoading(true)
+    setStaffError('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`/api/equipes/${staffTeamId}/staff`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manager_id: managerId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao remover.')
+      await loadStaff()
+    } catch (err: any) {
+      setStaffError(err?.message || 'Erro ao remover.')
+    } finally {
+      setStaffLoading(false)
+    }
   }
 
   async function loadLineups() {
@@ -256,6 +400,7 @@ Acesse: ${url}`
           <button className={`tab ${tab === 'lines' ? 'active' : ''}`} onClick={() => setTab('lines')}>Lines</button>
           <button className={`tab ${tab === 'jogadores' ? 'active' : ''}`} onClick={() => setTab('jogadores')}>Jogadores</button>
           <button className={`tab ${tab === 'convites' ? 'active' : ''}`} onClick={() => setTab('convites')}>Convites</button>
+          <button className={`tab ${tab === 'staff' ? 'active' : ''}`} onClick={() => setTab('staff')}>Staff</button>
           <button className={`tab ${tab === 'config' ? 'active' : ''}`} onClick={() => setTab('config')}>Configurações</button>
         </div>
 
@@ -303,6 +448,137 @@ Acesse: ${url}`
         {tab === 'jogadores' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Elenco</p><h3>Jogadores da equipe</h3></div><span className="count-pill"><Users size={14}/>{teamPlayers.length}</span></div>{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador vinculado ao elenco.</p> : null}<div className="team-player-grid">{teamPlayers.map((row) => <article className="team-player-card" key={row.id}><img src={dataText(row, 'foto_url') || '/favicon.ico'} alt=""/><div><strong>{dataText(row, 'nick') || rowTitle(row)}</strong><span>ID {dataText(row, 'id_jogo') || '-'}</span><small>{dataText(row, 'funcao') || 'Função não informada'}</small></div></article>)}</div></div> : null}
 
         {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Este convite adiciona o jogador ao elenco. Ele não inscreve o jogador em campeonato.</p><div className="token-list">{props.managedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <button key={lineup.campeonato_equipe_id} className={`token-card ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><span>{lineup.campeonato_nome} · {lineup.line_nome}</span><strong>{copiedLineupId === lineup.campeonato_equipe_id ? 'Link copiado' : 'Copiar convite'}</strong><Copy size={15}/></button>)}</div></div></div> : null}
+
+        {tab === 'staff' ? (
+          <div className="panel-tab-body staff-tab">
+            <div className="team-section-title">
+              <div>
+                <p className="eyebrow">Managers</p>
+                <h3>Staff da equipe</h3>
+              </div>
+              {props.managedTeams.length > 1 ? (
+                <select value={staffTeamId} onChange={(e) => setStaffTeamId(e.target.value)}>
+                  {props.managedTeams.map((team) => (
+                    <option key={team.id} value={team.id}>{rowTitle(team)}</option>
+                  ))}
+                </select>
+              ) : null}
+            </div>
+            {staffError ? <div className="message error">{staffError}</div> : null}
+            {staffMsg ? <div className="message">{staffMsg}</div> : null}
+
+            <div className="panel-soft staff-invite-box">
+              <h3>Convidar manager</h3>
+              <p className="muted-copy">O manager recebe no correio do app (sininho). Limite: 5 staff ativos · 10 convites pendentes.</p>
+              <div className="mini-grid two">
+                <Field label="Buscar @username ou ID">
+                  <div className="staff-search-row">
+                    <input
+                      value={staffQuery}
+                      onChange={(e) => setStaffQuery(e.target.value)}
+                      placeholder="@username ou 123"
+                      onKeyDown={(e) => { if (e.key === 'Enter') void searchStaffManagers() }}
+                    />
+                    <button type="button" className="button secondary" disabled={staffLoading} onClick={() => void searchStaffManagers()}>
+                      Buscar
+                    </button>
+                  </div>
+                </Field>
+                <Field label="Validade (dias)">
+                  <input type="number" min={1} max={30} value={staffValidade} onChange={(e) => setStaffValidade(e.target.value)} />
+                </Field>
+              </div>
+              {staffSearch.length > 0 ? (
+                <div className="staff-search-results">
+                  {staffSearch.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      className={`staff-search-card ${staffSelected?.id === m.id ? 'selected' : ''}`}
+                      onClick={() => { setStaffSelected(m); setStaffQuery(m.username) }}
+                    >
+                      <strong>@{m.username}</strong>
+                      <span>{m.nome}</span>
+                      <small>{m.public_id_prefix || 'MN'}{m.public_id}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <Field label="Mensagem (opcional)">
+                <textarea rows={2} value={staffMessage} onChange={(e) => setStaffMessage(e.target.value)} placeholder="Ex.: Preciso de alguém para escalar e organizar lines." />
+              </Field>
+              <div className="staff-perm-grid">
+                {([
+                  ['pode_ver', 'Ver painel'],
+                  ['pode_editar', 'Editar elenco/lines'],
+                  ['pode_escalar', 'Escalar / links'],
+                  ['pode_gerar_token', 'Gerar tokens'],
+                ] as const).map(([key, label]) => (
+                  <label key={key} className="staff-perm-item">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(staffPerms[key])}
+                      onChange={(e) => setStaffPerms((c) => ({ ...c, [key]: e.target.checked }))}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+              <button type="button" className="button" disabled={staffLoading} onClick={() => void sendStaffInvite()}>
+                Enviar convite no correio
+              </button>
+            </div>
+
+            <div className="panel-soft">
+              <h3>Staff ativo</h3>
+              {staffLoading && staffList.length === 0 ? <p className="empty">Carregando...</p> : null}
+              {!staffLoading && staffList.length === 0 ? <p className="empty">Nenhum manager no staff.</p> : null}
+              <div className="staff-list">
+                {staffList.map((row) => (
+                  <div className="staff-row" key={row.id}>
+                    <div>
+                      <strong>@{row.manager?.username || '—'}</strong>
+                      <span>{row.manager?.nome || 'Manager'}</span>
+                      <small>
+                        {[
+                          row.pode_ver ? 'ver' : null,
+                          row.pode_editar ? 'editar' : null,
+                          row.pode_escalar ? 'escalar' : null,
+                          row.pode_gerar_token ? 'tokens' : null,
+                        ].filter(Boolean).join(' · ')}
+                      </small>
+                    </div>
+                    <button type="button" className="button secondary danger small" onClick={() => void removeStaff(row.manager_id)}>
+                      Remover
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="panel-soft">
+              <h3>Convites pendentes</h3>
+              {staffConvites.filter((c) => c.status === 'pendente').length === 0 ? (
+                <p className="empty">Nenhum convite pendente.</p>
+              ) : (
+                <div className="staff-list">
+                  {staffConvites.filter((c) => c.status === 'pendente').map((c) => (
+                    <div className="staff-row" key={c.id}>
+                      <div>
+                        <strong>@{c.manager?.username || c.manager_username || '—'}</strong>
+                        <span>Expira {new Date(c.expira_em).toLocaleString('pt-BR')}</span>
+                        <small>{c.mensagem || 'Sem mensagem'}</small>
+                      </div>
+                      <button type="button" className="button secondary small" onClick={() => void cancelStaffInvite(c.id)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         {tab === 'config' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Dados da equipe</h3>{props.managedTeams.map((team) => <div className="compact-row" key={team.id}><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'sem tag'}</span></div>)}</div></div> : null}
       </section>
