@@ -1,6 +1,10 @@
 import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser } from '@backend/auth/server-auth'
+import { getAccountsByUserId, getBearerUser } from '@backend/auth/server-auth'
+import {
+  listControllableEquipes,
+  requireEquipeAccess,
+} from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function novoToken() {
@@ -19,15 +23,21 @@ function defaultExpiration() {
   return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 }
 
+/**
+ * Equipes que o usuário enxerga na escalação:
+ * - dono da equipe (perfil equipe)
+ * - manager/staff com vínculo ativo e pode_ver
+ * (mesmo critério de listControllableEquipes — não quebra o fluxo do dono)
+ */
 async function managedTeamIds(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('equipes')
-    .select('id')
-    .or(`auth_user_id.eq.${userId},dono_auth_user_id.eq.${userId}`)
-  if (error) throw error
-  return (data || []).map((row: any) => row.id)
+  const accounts = await getAccountsByUserId(userId)
+  const controllable = await listControllableEquipes(userId, accounts)
+  return controllable.map((team) => team.id)
 }
 
+/**
+ * Gera/edita escalação: dono OU manager com pode_escalar (ou pode_editar).
+ */
 async function requireManagedParticipation(id: string, userId: string) {
   const { data, error } = await supabaseAdmin
     .from('campeonato_equipes')
@@ -36,8 +46,10 @@ async function requireManagedParticipation(id: string, userId: string) {
     .maybeSingle()
   if (error) throw error
   if (!data) throw new Error('Participação não encontrada.')
-  const ids = await managedTeamIds(userId)
-  if (!ids.includes(data.equipe_id)) throw new Error('Você não pode gerenciar esta escalação.')
+
+  const accounts = await getAccountsByUserId(userId)
+  // reutiliza helper já usado em lines/staff — dono e staff com permissão
+  await requireEquipeAccess(userId, accounts, data.equipe_id, 'escalar')
   return data
 }
 
