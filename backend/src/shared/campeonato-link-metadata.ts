@@ -157,16 +157,36 @@ function normalizeEntradas(value: unknown): LinkEntrada[] {
 
 /** Lista de controle: cada nome da reserva + se já se inscreveu. */
 export function buildVagasControle(meta: LinkMetadata) {
-  const claimed = new Map<string, LinkEntrada>()
-  for (const entrada of meta.entradas) {
-    const key = String(entrada.referencia_lista || entrada.equipe_nome || entrada.line_nome || '')
-      .trim()
-      .toLowerCase()
-    if (key && !claimed.has(key)) claimed.set(key, entrada)
+  const used = new Set<string>()
+  const entradaKey = (e: LinkEntrada, index: number) => e.participacao_id || `idx-${index}`
+
+  const fieldsOf = (e: LinkEntrada) =>
+    [e.referencia_lista, e.equipe_nome, e.line_nome]
+      .map((v) => String(v || '').trim())
+      .filter(Boolean)
+
+  const matches = (referencia: string, e: LinkEntrada) => {
+    const ref = referencia.trim().toLowerCase()
+    const refKey = normalizeNameKey(referencia)
+    for (const field of fieldsOf(e)) {
+      if (field.toLowerCase() === ref) return true
+      const fieldKey = normalizeNameKey(field)
+      if (fieldKey && refKey && fieldKey === refKey) return true
+      if (fieldKey.length >= 3 && refKey.length >= 3 && (fieldKey.includes(refKey) || refKey.includes(fieldKey))) {
+        return true
+      }
+    }
+    return false
   }
 
   const fromList = meta.expected_teams.map((nome, index) => {
-    const match = claimed.get(nome.trim().toLowerCase()) || null
+    const matchIndex = meta.entradas.findIndex((e, i) => {
+      const key = entradaKey(e, i)
+      if (used.has(key)) return false
+      return matches(nome, e)
+    })
+    const match = matchIndex >= 0 ? meta.entradas[matchIndex] : null
+    if (match) used.add(entradaKey(match, matchIndex))
     return {
       ordem: index + 1,
       referencia: nome,
@@ -175,14 +195,26 @@ export function buildVagasControle(meta: LinkMetadata) {
     }
   })
 
+  // Entradas sem match de nome preenchem pendentes restantes (1 uso = 1 pendente resolvido)
+  const unused = meta.entradas
+    .map((e, i) => ({ e, i }))
+    .filter(({ e, i }) => !used.has(entradaKey(e, i)))
+    .sort((a, b) => String(a.e.entrou_em || '').localeCompare(String(b.e.entrou_em || '')))
+  let ui = 0
+  for (const item of fromList) {
+    if (item.status !== 'pendente') continue
+    if (ui >= unused.length) break
+    item.status = 'inscrita'
+    item.entrada = unused[ui].e
+    used.add(entradaKey(unused[ui].e, unused[ui].i))
+    ui += 1
+  }
+
   // Entradas sem match na lista (links antigos / sem referência)
-  const listed = new Set(meta.expected_teams.map((n) => n.trim().toLowerCase()))
   const extras = meta.entradas
-    .filter((e) => {
-      const key = String(e.referencia_lista || e.equipe_nome || e.line_nome || '').trim().toLowerCase()
-      return !key || !listed.has(key)
-    })
-    .map((entrada, index) => ({
+    .map((e, i) => ({ e, i }))
+    .filter(({ e, i }) => !used.has(entradaKey(e, i)))
+    .map(({ e: entrada }, index) => ({
       ordem: meta.expected_teams.length + index + 1,
       referencia: entrada.referencia_lista || entrada.equipe_nome || entrada.line_nome || 'Sem referência',
       status: 'inscrita' as const,

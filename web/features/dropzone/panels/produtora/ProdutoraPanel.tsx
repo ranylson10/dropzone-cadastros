@@ -541,6 +541,117 @@ ${params.url}`
 
   type LinkUiStatus = 'ativo' | 'esgotado' | 'expirado' | 'pausado' | 'grupo_cheio' | 'excluido'
 
+  type LinkControleItem = {
+    ordem: number
+    referencia: string
+    status: 'inscrita' | 'pendente'
+    entrada: any | null
+  }
+
+  function normalizeRefKey(value: unknown) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ')
+  }
+
+  function entradaMatchesReferencia(referencia: string, entrada: any) {
+    const ref = String(referencia || '').trim().toLowerCase()
+    const refKey = normalizeRefKey(referencia)
+    if (!ref && !refKey) return false
+    const fields = [entrada?.referencia_lista, entrada?.equipe_nome, entrada?.line_nome]
+      .map((v) => String(v || '').trim())
+      .filter(Boolean)
+    for (const field of fields) {
+      if (field.toLowerCase() === ref) return true
+      const fieldKey = normalizeRefKey(field)
+      if (fieldKey && refKey && fieldKey === refKey) return true
+      if (fieldKey.length >= 3 && refKey.length >= 3 && (fieldKey.includes(refKey) || refKey.includes(fieldKey))) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * Status ao vivo da lista esperada do link.
+   * Não confia em vagas_controle gravado (pode ficar "pendente" mesmo com line já inscrita).
+   */
+  function buildLiveLinkControle(linkData: any): LinkControleItem[] {
+    const data = linkData || {}
+    const expected = (Array.isArray(data.expected_teams) ? data.expected_teams : [])
+      .map((n: unknown) => String(n || '').trim())
+      .filter(Boolean)
+    const entradas = Array.isArray(data.entradas)
+      ? data.entradas
+      : Array.isArray(data.metadata?.entradas)
+        ? data.metadata.entradas
+        : []
+
+    // Sem lista prévia: só entradas reais (todas inscrita)
+    if (!expected.length) {
+      return entradas.map((entrada: any, index: number) => ({
+        ordem: index + 1,
+        referencia: String(entrada?.referencia_lista || entrada?.equipe_nome || entrada?.line_nome || 'Entrada'),
+        status: 'inscrita' as const,
+        entrada,
+      }))
+    }
+
+    const used = new Set<string>()
+    const entradaKey = (e: any, index: number) => String(e?.participacao_id || `idx-${index}`)
+
+    const items: LinkControleItem[] = expected.map((nome: string, index: number) => {
+      const matchIndex = entradas.findIndex((e: any, i: number) => {
+        const key = entradaKey(e, i)
+        if (used.has(key)) return false
+        return entradaMatchesReferencia(nome, e)
+      })
+      const match = matchIndex >= 0 ? entradas[matchIndex] : null
+      if (match) used.add(entradaKey(match, matchIndex))
+      return {
+        ordem: index + 1,
+        referencia: nome,
+        status: match ? ('inscrita' as const) : ('pendente' as const),
+        entrada: match,
+      }
+    })
+
+    // Entradas sem match de nome: preenchem pendentes restantes na ordem (1 vaga usada = 1 pendente some)
+    const unused: Array<{ e: any; i: number }> = entradas
+      .map((e: any, i: number) => ({ e, i }))
+      .filter((row: { e: any; i: number }) => !used.has(entradaKey(row.e, row.i)))
+      .sort((a: { e: any }, b: { e: any }) =>
+        String(a.e?.entrou_em || '').localeCompare(String(b.e?.entrou_em || '')),
+      )
+
+    let ui = 0
+    for (const item of items) {
+      if (item.status !== 'pendente') continue
+      if (ui >= unused.length) break
+      item.status = 'inscrita'
+      item.entrada = unused[ui].e
+      used.add(entradaKey(unused[ui].e, unused[ui].i))
+      ui += 1
+    }
+
+    // Entradas extras ainda sem vaga na lista
+    const extras: LinkControleItem[] = entradas
+      .map((e: any, i: number) => ({ e, i }))
+      .filter((row: { e: any; i: number }) => !used.has(entradaKey(row.e, row.i)))
+      .map((row: { e: any }, index: number) => ({
+        ordem: expected.length + index + 1,
+        referencia: String(row.e?.referencia_lista || row.e?.equipe_nome || row.e?.line_nome || 'Sem referência'),
+        status: 'inscrita' as const,
+        entrada: row.e,
+      }))
+
+    return [...items, ...extras]
+  }
+
   function linkStatusInfo(link: DropZoneRow) {
     const data = link.data || {}
     const limite = Number(data.limite_vagas || data.metadata?.limite_vagas || 0) || null
@@ -576,13 +687,9 @@ ${params.url}`
         : []
 
     const expected = Array.isArray(data.expected_teams) ? data.expected_teams : []
-    const controle = Array.isArray(data.vagas_controle) ? data.vagas_controle : []
-    const pendentes = controle.length
-      ? controle.filter((item: any) => item.status === 'pendente').length
-      : Math.max(0, expected.length - entradas.filter((e: any) => e.referencia_lista).length)
-    const inscritosLista = controle.length
-      ? controle.filter((item: any) => item.status === 'inscrita').length
-      : entradas.length
+    const controle = buildLiveLinkControle(data)
+    const pendentes = controle.filter((item) => item.status === 'pendente').length
+    const inscritosLista = controle.filter((item) => item.status === 'inscrita').length
 
     return {
       limite,
@@ -592,9 +699,10 @@ ${params.url}`
       statusLabel,
       expiraEm,
       entradas,
+      controle,
       pendentes,
       inscritosLista,
-      temListaEsperada: expected.length > 0 || controle.length > 0,
+      temListaEsperada: expected.length > 0 || entradas.length > 0,
     }
   }
 
@@ -2037,65 +2145,51 @@ ${params.url}`
                                     <strong>Equipes esperadas / entradas</strong>
                                     <small>
                                       {info.temListaEsperada
-                                        ? `${info.inscritosLista} inscrita(s) · ${info.pendentes} pendente(s)`
+                                        ? `${info.inscritosLista} inscrita(s)${info.pendentes > 0 ? ` · ${info.pendentes} pendente(s)` : ''}`
                                         : info.entradas.length
                                           ? `${info.entradas.length} entrada(s) (sem lista prévia)`
                                           : 'Sem entradas ainda'}
                                     </small>
                                   </div>
                                   {(() => {
-                                    const controle = Array.isArray(link.data?.vagas_controle)
-                                      ? link.data.vagas_controle
-                                      : (Array.isArray(link.data?.expected_teams) ? link.data.expected_teams : []).map((nome: string, i: number) => {
-                                          const key = String(nome || '').trim().toLowerCase()
-                                          const match = info.entradas.find((e: any) =>
-                                            String(e.referencia_lista || e.equipe_nome || '').trim().toLowerCase() === key,
-                                          )
-                                          return {
-                                            ordem: i + 1,
-                                            referencia: nome,
-                                            status: match ? 'inscrita' : 'pendente',
-                                            entrada: match || null,
-                                          }
-                                        })
-                                    if (!controle.length && !info.entradas.length) {
-                                      return <p className="empty compact-empty">Sem lista de equipes esperadas. As entradas aparecerão aqui quando alguém se inscrever.</p>
-                                    }
+                                    const controle = info.controle || buildLiveLinkControle(link.data || {})
                                     if (!controle.length) {
-                                      return (
-                                        <div className="link-entry-table">
-                                          {info.entradas.map((entrada: any, index: number) => (
-                                            <div key={entrada.participacao_id || index} className="link-entry-row">
-                                              <span className="link-entry-slot">
-                                                {entrada.slot_letra || (entrada.slot_numero != null ? String(entrada.slot_numero) : '—')}
-                                              </span>
-                                              <span className="link-entry-identity">
-                                                <strong>{entrada.line_nome || entrada.equipe_nome || 'Line'}</strong>
-                                                <small>{entrada.referencia_lista || entrada.equipe_nome || 'via link'}</small>
-                                              </span>
-                                              <span className="link-entry-when">{formatDateTime(entrada.entrou_em)}</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )
+                                      return <p className="empty compact-empty">Sem lista de equipes esperadas. As entradas aparecerão aqui quando alguém se inscrever.</p>
                                     }
                                     return (
                                       <div className="link-entry-table">
-                                        {controle.map((item: any) => (
+                                        {controle.map((item: LinkControleItem) => (
                                           <div
-                                            key={`${item.ordem}-${item.referencia}`}
+                                            key={`${item.ordem}-${item.referencia}-${item.entrada?.participacao_id || 'pend'}`}
                                             className={`link-entry-row status-ref-${item.status}`}
                                           >
                                             <span className={`link-entry-slot status-${item.status}`}>
                                               {item.status === 'inscrita'
-                                                ? (item.entrada?.slot_letra || item.ordem)
+                                                ? (item.entrada?.slot_letra
+                                                  || (item.entrada?.slot_numero != null ? String(item.entrada.slot_numero) : null)
+                                                  || item.ordem)
                                                 : item.ordem}
                                             </span>
                                             <span className="link-entry-identity">
-                                              <strong>{item.referencia}</strong>
+                                              <strong>
+                                                {item.status === 'inscrita'
+                                                  ? (item.entrada?.line_nome || item.entrada?.equipe_nome || item.referencia)
+                                                  : item.referencia}
+                                              </strong>
                                               <small>
                                                 {item.status === 'inscrita'
-                                                  ? `${item.entrada?.line_nome || item.entrada?.equipe_nome || 'Inscrita'}${item.entrada?.equipe_nome && item.entrada?.line_nome ? ` · ${item.entrada.equipe_nome}` : ''}`
+                                                  ? [
+                                                      item.entrada?.line_nome && item.entrada?.equipe_nome
+                                                        ? item.entrada.equipe_nome
+                                                        : null,
+                                                      item.referencia
+                                                        && item.referencia !== (item.entrada?.line_nome || item.entrada?.equipe_nome)
+                                                        ? `ref: ${item.referencia}`
+                                                        : null,
+                                                      item.entrada?.entrou_em
+                                                        ? formatDateTime(item.entrada.entrou_em)
+                                                        : null,
+                                                    ].filter(Boolean).join(' · ') || 'Inscrita via link'
                                                   : 'Aguardando inscrição'}
                                               </small>
                                             </span>
