@@ -620,9 +620,11 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
         tag: equipe.data?.tag || null,
         logo_url: equipe.data?.logo_url || null,
       },
-      lines: allLines,
+      // Não devolvemos lines já inscritas na lista de escolha (evita induzir erro no cliente)
+      lines: linesDisponiveis,
       lines_disponiveis: linesDisponiveis,
-      lines_inscritas: linesInscritas,
+      lines_inscritas: [],
+      lines_ja_no_campeonato: linesInscritas.length,
       minhas_participacoes: minhasParticipacoes,
       inscrita: minhasParticipacoes.length > 0,
       total_lines_inscritas_campeonato: used.size,

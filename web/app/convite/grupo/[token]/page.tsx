@@ -109,11 +109,13 @@ export default function ConviteGrupoPage() {
   const [lineId, setLineId] = useState('')
   const [nomeNovaLine, setNomeNovaLine] = useState('')
 
+  /** Só lines livres no campeonato — nunca listar as já inscritas (evita erro do usuário). */
   const linesDisponiveis = useMemo(() => {
-    if (data?.lines_disponiveis?.length) return data.lines_disponiveis
-    return (data?.lines || []).filter((line) => !line.ja_inscrita)
+    const free = data?.lines_disponiveis?.length
+      ? data.lines_disponiveis
+      : (data?.lines || []).filter((line) => !line.ja_inscrita)
+    return free.filter((line) => !line.ja_inscrita)
   }, [data?.lines, data?.lines_disponiveis])
-  const linesInscritas = data?.lines_inscritas || []
   const minhasParticipacoes = data?.minhas_participacoes || []
   const selectedParticipacao =
     minhasParticipacoes.find((item) => item.id === selectedParticipacaoId) || minhasParticipacoes[0] || null
@@ -123,20 +125,32 @@ export default function ConviteGrupoPage() {
   const slotsLivres = Number(data?.resumo_grupo?.livres || 0)
   const podeNovaInscricao = canInscrever && slotsLivres > 0 && (data?.resumo_link?.restantes ?? 1) > 0
 
-  function resolveStep(payload: GroupInvitePayload, confirmed: boolean): Step {
+  /**
+   * Ordem fixa (link aberto):
+   * login → sem equipe / criar → confirmar equipe → inscrição (slot+line) → hub (só após inscrever ou se pedir)
+   * Nunca pular pro hub só porque já existe participação antiga.
+   */
+  function resolveStep(
+    payload: GroupInvitePayload,
+    confirmed: boolean,
+    opts?: { preferHub?: boolean },
+  ): Step {
     const hasSession = Boolean(payload.autenticado)
     const parts = payload.minhas_participacoes || []
     const open = payload.inscricao_aberta !== false && payload.modo !== 'acompanhamento'
 
-    // Já inscrito → acompanhamento/hub
-    if (hasSession && parts.length > 0) return 'hub'
-
-    // Link esgotado: só acompanhamento (com ou sem login)
-    if (!open) return 'acompanhar'
+    // Link esgotado/pausado: acompanhamento (ou hub se já inscreveu e pediu)
+    if (!open) {
+      if (opts?.preferHub && hasSession && parts.length > 0) return 'hub'
+      return 'acompanhar'
+    }
 
     if (!hasSession) return 'login'
     if (!payload.equipe) return 'sem_equipe'
     if (!confirmed) return 'confirmar_equipe'
+
+    // Só vai ao hub se a inscrição acabou de concluir (preferHub)
+    if (opts?.preferHub && parts.length > 0) return 'hub'
     return 'inscricao'
   }
 
@@ -144,7 +158,6 @@ export default function ConviteGrupoPage() {
     setLoading(true)
     setMessage('')
     const { data: sessionData } = await supabase.auth.getSession()
-    const hasSession = Boolean(sessionData.session)
 
     const response = await fetch(`/api/convites/grupo/${encodeURIComponent(token)}`, {
       headers: sessionData.session ? { Authorization: `Bearer ${sessionData.session.access_token}` } : undefined,
@@ -162,27 +175,24 @@ export default function ConviteGrupoPage() {
     const parts: Participacao[] = payload.minhas_participacoes || []
     if (parts[0]?.id) setSelectedParticipacaoId(parts[0].id)
 
-    const confirmed = opts?.keepConfirm ? equipeConfirmada : false
-    if (!opts?.keepConfirm) setEquipeConfirmada(false)
+    const confirmed = Boolean(opts?.keepConfirm && equipeConfirmada)
+    if (!opts?.keepConfirm && !opts?.preferHub) setEquipeConfirmada(false)
 
-    let next = resolveStep(payload, confirmed || (parts.length > 0))
-    if (opts?.preferHub && parts.length > 0) next = 'hub'
-    // Se já confirmou equipe nesta sessão e link aberto
-    if (confirmed && payload.autenticado && payload.equipe && payload.inscricao_aberta) {
-      next = parts.length > 0 && opts?.preferHub ? 'hub' : 'inscricao'
-    }
-    setStep(next)
-
-    const freeLines =
-      payload.lines_disponiveis ||
-      (payload.lines || []).filter((line: any) => !line.ja_inscrita)
-    setLineId(freeLines[0]?.id || '')
-    setLoading(false)
-
-    // Mantém flag se usuário já confirmou e recarregou com preferHub
-    if (opts?.preferHub && hasSession && payload.equipe) {
+    // Após inscrição bem-sucedida: mantém equipe confirmada e abre hub
+    if (opts?.preferHub && payload.autenticado && payload.equipe) {
       setEquipeConfirmada(true)
     }
+
+    const next = resolveStep(
+      payload,
+      confirmed || Boolean(opts?.preferHub && payload.equipe),
+      { preferHub: opts?.preferHub },
+    )
+    setStep(next)
+
+    const freeLines = (payload.lines_disponiveis || []).filter((line: any) => !line.ja_inscrita)
+    setLineId(freeLines[0]?.id || '')
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -211,6 +221,7 @@ export default function ConviteGrupoPage() {
     }
     setSlotModal(vaga)
     setReferenciaEquipe(equipesDisponiveis[0] || '')
+    // Só lines livres — se não houver, força criar nova
     if (linesDisponiveis[0]) {
       setLineId(linesDisponiveis[0].id)
       setNomeNovaLine('')
@@ -224,8 +235,8 @@ export default function ConviteGrupoPage() {
   function confirmarEstaEquipe() {
     setEquipeConfirmada(true)
     setMessage('')
-    if (minhasParticipacoes.length > 0) setStep('hub')
-    else setStep('inscricao')
+    // Depois de confirmar a equipe, sempre vai para inscrição (slot + line livre)
+    setStep('inscricao')
   }
 
   async function confirmarInscricao() {
@@ -535,16 +546,26 @@ export default function ConviteGrupoPage() {
             </div>
           ) : null}
 
-          {/* ——— 4) INSCRIÇÃO: escolher slot ——— */}
+          {/* ——— 4) INSCRIÇÃO: escolher slot + line (só livres) ——— */}
           {step === 'inscricao' ? (
             <>
+              <div className="invite-current-team" style={{ marginTop: 12, marginBottom: 10 }}>
+                <small>Inscrevendo a equipe</small>
+                <strong>{data.equipe?.nome}</strong>
+                <span>
+                  Toque em um slot livre, escolha a line e confirme.
+                  {minhasParticipacoes.length
+                    ? ` Você já tem ${minhasParticipacoes.length} line(s) neste grupo — use outra line livre se for nova vaga.`
+                    : ''}
+                </span>
+              </div>
               <p className="invite-section-copy" style={{ textAlign: 'center', marginBottom: 8 }}>
-                Equipe <strong>{data.equipe?.nome}</strong>. Toque no slot (letra) livre para escolher a line e se inscrever.
+                Só entram lines que <strong>ainda não estão</strong> no campeonato.
               </p>
               {renderSlots({ clickableWhenFree: true })}
               {minhasParticipacoes.length ? (
                 <button className="button secondary" type="button" onClick={() => setStep('hub')} style={{ width: '100%', marginTop: 12 }}>
-                  Ir para acompanhamento da minha inscrição
+                  Já me inscrevi — ir ao acompanhamento
                 </button>
               ) : null}
               <button
@@ -786,21 +807,15 @@ export default function ConviteGrupoPage() {
                   )}
                 </select>
                 <small style={{ display: 'block', marginTop: 6, color: '#667085' }}>
-                  Não precisa ser o nome da sua conta — é só a etiqueta da vaga que o admin passou para você.
+                  Não precisa ser o nome da sua conta — é a etiqueta da vaga que o admin combinou com você.
                 </small>
               </label>
             ) : null}
 
-            {linesInscritas.length ? (
-              <div className="invite-lines-note">
-                <small>Já inscritas neste campeonato (não podem ser reutilizadas)</small>
-                <p>{linesInscritas.map((line) => line.nome).join(' · ')}</p>
-              </div>
-            ) : null}
-
+            {/* Nunca listamos lines já no campeonato — só livres ou criar nova */}
             {linesDisponiveis.length ? (
               <label className="field">
-                <span>Line livre da sua equipe</span>
+                <span>Line livre (ainda não está no campeonato)</span>
                 <select
                   value={lineId}
                   onChange={(e) => {
@@ -818,8 +833,11 @@ export default function ConviteGrupoPage() {
               </label>
             ) : (
               <div className="invite-lines-note">
-                <small>Nenhuma line livre</small>
-                <p>Crie uma nova line abaixo — ela será inscrita neste slot.</p>
+                <small>Criar line</small>
+                <p>
+                  Todas as lines desta equipe já estão no campeonato (ou você ainda não tem line).
+                  Crie uma <strong>nova line</strong> para esta vaga — lines já inscritas não aparecem de propósito.
+                </p>
               </div>
             )}
 
