@@ -5,6 +5,8 @@ export type ExportMidia = {
   ref_id: string
   nome: string
   url: string
+  /** Caminho sugerido dentro do ZIP, ex: logos/equipes/nome.png */
+  zip_path?: string
 }
 
 export type ExportJogador = {
@@ -27,7 +29,7 @@ export type ExportLine = {
   logo_url: string | null
   nome_exibicao: string
   slot: { id: string | null; numero: number | null; letra: string | null }
-  grupo: { id: string; nome: string | null; fase_id: string | null } | null
+  grupo: { id: string; nome: string | null; fase_id: string | null; fase_nome?: string | null } | null
   jogadores: ExportJogador[]
   quantidade_jogadores: number
 }
@@ -40,10 +42,32 @@ export type ExportEquipe = {
   lines: ExportLine[]
 }
 
+export type ExportFase = {
+  id: string
+  nome: string
+  ordem: number
+}
+
+export type ExportGrupo = {
+  id: string
+  nome: string
+  fase_id: string | null
+  fase_nome: string | null
+}
+
+export type ExportFiltro = {
+  escopo: 'campeonato' | 'fase' | 'grupo' | 'line' | 'equipe'
+  fase_id?: string | null
+  grupo_id?: string | null
+  line_id?: string | null
+  equipe_id?: string | null
+}
+
 export type CampeonatoExportPayload = {
   export_version: number
   exported_at: string
   purpose: string
+  filtro: ExportFiltro
   campeonato: {
     id: string
     nome: string
@@ -58,6 +82,10 @@ export type CampeonatoExportPayload = {
       bg_image_url: string | null
     }
   }
+  estrutura: {
+    fases: ExportFase[]
+    grupos: ExportGrupo[]
+  }
   resumo: {
     total_equipes: number
     total_lines: number
@@ -67,3 +95,5 @@ export type CampeonatoExportPayload = {
   equipes: ExportEquipe[]
   midias: ExportMidia[]
 }
+
+export type ExportPacoteModo = 'completo' | 'tabelas' | 'midias'

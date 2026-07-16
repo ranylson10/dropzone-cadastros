@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase-browser'
-import type { CampeonatoExportPayload } from '../types/campeonato-export.types'
+import type { CampeonatoExportPayload, ExportFiltro } from '../types/campeonato-export.types'
 
 async function authHeaders() {
   const { data } = await supabase.auth.getSession()
@@ -10,9 +10,22 @@ async function authHeaders() {
   }
 }
 
+function toQuery(filtro?: Partial<ExportFiltro>) {
+  const params = new URLSearchParams()
+  if (filtro?.fase_id) params.set('fase_id', filtro.fase_id)
+  if (filtro?.grupo_id) params.set('grupo_id', filtro.grupo_id)
+  if (filtro?.line_id) params.set('line_id', filtro.line_id)
+  if (filtro?.equipe_id) params.set('equipe_id', filtro.equipe_id)
+  const qs = params.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export const campeonatoExportService = {
-  async carregar(campeonatoId: string): Promise<CampeonatoExportPayload> {
-    const response = await fetch(`/api/campeonatos/${campeonatoId}/export`, {
+  async carregar(
+    campeonatoId: string,
+    filtro?: Partial<ExportFiltro>,
+  ): Promise<CampeonatoExportPayload> {
+    const response = await fetch(`/api/campeonatos/${campeonatoId}/export${toQuery(filtro)}`, {
       headers: await authHeaders(),
       cache: 'no-store',
     })

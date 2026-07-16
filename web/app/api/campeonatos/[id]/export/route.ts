@@ -8,6 +8,7 @@ type MidiaItem = {
   ref_id: string
   nome: string
   url: string
+  zip_path: string
 }
 
 function canExport(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
@@ -20,10 +21,32 @@ function canExport(permission: Awaited<ReturnType<typeof getCampeonatoPermission
   )
 }
 
+function slugPart(value: unknown, fallback = 'item') {
+  const raw = String(value || fallback)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60)
+  return raw || fallback
+}
+
+function extFromUrl(url: string) {
+  try {
+    const path = new URL(url).pathname
+    const match = path.match(/\.(png|jpe?g|webp|gif|svg)$/i)
+    if (match) return `.${match[1].toLowerCase().replace('jpeg', 'jpg')}`
+  } catch {
+    // ignore
+  }
+  return '.png'
+}
+
 /**
- * Pacote de dados do campeonato para SPEC / overlays / produção.
- * v1: JSON estruturado + lista de mídias (logos e fotos).
- * Próximos passos: ZIP de imagens, filtros por fase/grupo, etc.
+ * Pacote de dados do campeonato para SPEC / produção.
+ * Query:
+ *  - fase_id, grupo_id, line_id, equipe_id (filtros)
+ *  - format=json|download
  */
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -37,6 +60,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         { status: 403 },
       )
     }
+
+    const url = new URL(req.url)
+    const faseId = String(url.searchParams.get('fase_id') || '').trim() || null
+    const grupoId = String(url.searchParams.get('grupo_id') || '').trim() || null
+    const lineId = String(url.searchParams.get('line_id') || '').trim() || null
+    const equipeId = String(url.searchParams.get('equipe_id') || '').trim() || null
 
     let campeonato: any = null
     let campError: any = null
@@ -81,12 +110,28 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       }
     }
 
-    const { data: participacoes, error: partError } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id, equipe_id, line_id, slot_id, grupo_id, slot_numero, nome_exibicao, status')
-      .eq('campeonato_id', id)
-      .eq('status', 'ativo')
-      .order('slot_numero', { ascending: true })
+    const [
+      { data: fasesRaw },
+      { data: gruposAll },
+      { data: participacoes, error: partError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from('campeonato_fases')
+        .select('id, nome, ordem')
+        .eq('campeonato_id', id)
+        .order('ordem', { ascending: true }),
+      supabaseAdmin
+        .from('campeonato_grupos')
+        .select('id, nome, fase_id')
+        .eq('campeonato_id', id)
+        .order('nome', { ascending: true }),
+      supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id, equipe_id, line_id, slot_id, grupo_id, slot_numero, nome_exibicao, status')
+        .eq('campeonato_id', id)
+        .eq('status', 'ativo')
+        .order('slot_numero', { ascending: true }),
+    ])
 
     if (campError) throw campError
     if (partError) throw partError
@@ -94,18 +139,61 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       return NextResponse.json({ error: 'Campeonato não encontrado.' }, { status: 404 })
     }
 
-    const itens = participacoes || []
+    const fases = (fasesRaw || []).map((f) => ({
+      id: f.id,
+      nome: f.nome || 'Fase',
+      ordem: Number(f.ordem || 0),
+    }))
+    const fasesMap = new Map(fases.map((f) => [f.id, f]))
+
+    const gruposEstrutura = (gruposAll || []).map((g) => ({
+      id: g.id,
+      nome: g.nome || 'Grupo',
+      fase_id: g.fase_id || null,
+      fase_nome: g.fase_id ? (fasesMap.get(g.fase_id)?.nome || null) : null,
+    }))
+    const gruposMapAll = new Map(gruposEstrutura.map((g) => [g.id, g]))
+
+    // Resolve grupo filter → fase, or fase filter → set of grupos
+    let grupoIdsFiltro: Set<string> | null = null
+    if (grupoId) {
+      grupoIdsFiltro = new Set([grupoId])
+    } else if (faseId) {
+      grupoIdsFiltro = new Set(
+        gruposEstrutura.filter((g) => g.fase_id === faseId).map((g) => g.id),
+      )
+    }
+
+    let itens = participacoes || []
+    if (grupoIdsFiltro) {
+      itens = itens.filter((p) => p.grupo_id && grupoIdsFiltro!.has(p.grupo_id))
+    }
+    if (lineId) {
+      itens = itens.filter((p) => p.line_id === lineId)
+    }
+    if (equipeId) {
+      itens = itens.filter((p) => p.equipe_id === equipeId)
+    }
+
+    const escopo: 'campeonato' | 'fase' | 'grupo' | 'line' | 'equipe' = lineId
+      ? 'line'
+      : equipeId
+        ? 'equipe'
+        : grupoId
+          ? 'grupo'
+          : faseId
+            ? 'fase'
+            : 'campeonato'
+
     const equipeIds = [...new Set(itens.map((item) => item.equipe_id).filter(Boolean))]
     const lineIds = [...new Set(itens.map((item) => item.line_id).filter(Boolean))]
     const slotIds = [...new Set(itens.map((item) => item.slot_id).filter(Boolean))]
-    const grupoIds = [...new Set(itens.map((item) => item.grupo_id).filter(Boolean))]
     const participacaoIds = itens.map((item) => item.id)
 
     const [
       { data: equipes },
       { data: lines },
       { data: slots },
-      { data: grupos },
       { data: jogadoresCamp },
       { data: inscricoes },
     ] = await Promise.all([
@@ -117,9 +205,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         : Promise.resolve({ data: [] as any[] }),
       slotIds.length
         ? supabaseAdmin.from('campeonato_slots').select('id, slot_numero, slot_letra, grupo_id').in('id', slotIds)
-        : Promise.resolve({ data: [] as any[] }),
-      grupoIds.length
-        ? supabaseAdmin.from('campeonato_grupos').select('id, nome, fase_id').in('id', grupoIds)
         : Promise.resolve({ data: [] as any[] }),
       participacaoIds.length
         ? supabaseAdmin
@@ -138,22 +223,24 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const equipesMap = new Map((equipes || []).map((item) => [item.id, item]))
     const linesMap = new Map((lines || []).map((item) => [item.id, item]))
     const slotsMap = new Map((slots || []).map((item) => [item.id, item]))
-    const gruposMap = new Map((grupos || []).map((item) => [item.id, item]))
 
     const midias: MidiaItem[] = []
     const pushMidia = (item: MidiaItem) => {
-      const url = String(item.url || '').trim()
-      if (!url) return
-      if (midias.some((m) => m.url === url && m.tipo === item.tipo)) return
-      midias.push({ ...item, url })
+      const mediaUrl = String(item.url || '').trim()
+      if (!mediaUrl) return
+      if (midias.some((m) => m.url === mediaUrl && m.tipo === item.tipo)) return
+      midias.push({ ...item, url: mediaUrl })
     }
 
-    if (campeonato.logo_url) {
+    // Logo do campeonato só no escopo total (ou sempre útil no pacote)
+    if (campeonato.logo_url && escopo === 'campeonato') {
+      const name = slugPart(campeonato.nome, 'campeonato')
       pushMidia({
         tipo: 'campeonato_logo',
         ref_id: campeonato.id,
         nome: campeonato.nome,
         url: campeonato.logo_url,
+        zip_path: `logos/campeonato/${name}${extFromUrl(campeonato.logo_url)}`,
       })
     }
 
@@ -173,17 +260,19 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           lines: [] as any[],
         })
         if (equipe.logo_url) {
+          const name = slugPart(`${equipe.tag || ''}-${equipe.nome}`, equipe.id)
           pushMidia({
             tipo: 'equipe_logo',
             ref_id: equipe.id,
             nome: equipe.nome,
             url: equipe.logo_url,
+            zip_path: `logos/equipes/${name}${extFromUrl(equipe.logo_url)}`,
           })
         }
       }
 
       const slot = part.slot_id ? slotsMap.get(part.slot_id) : null
-      const grupo = part.grupo_id ? gruposMap.get(part.grupo_id) : null
+      const grupoInfo = part.grupo_id ? gruposMapAll.get(part.grupo_id) : null
 
       const unidos = [
         ...(jogadoresCamp || [])
@@ -223,13 +312,18 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         ).values(),
       )
 
+      const lineNome = line?.nome || part.nome_exibicao || 'Line'
+      const equipeSlug = slugPart(equipe.nome, equipe.id)
+
       for (const jogador of jogadoresUnicos) {
         if (jogador.foto_url) {
+          const nickSlug = slugPart(jogador.nick || jogador.id_jogo || jogador.id, 'jogador')
           pushMidia({
             tipo: 'jogador_foto',
             ref_id: String(jogador.jogador_id || jogador.id),
             nome: String(jogador.nick || 'Jogador'),
             url: jogador.foto_url,
+            zip_path: `fotos/jogadores/${equipeSlug}/${nickSlug}${extFromUrl(jogador.foto_url)}`,
           })
         }
       }
@@ -237,30 +331,37 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       const linePayload = {
         participacao_id: part.id,
         id: line?.id || null,
-        nome: line?.nome || part.nome_exibicao || 'Line',
+        nome: lineNome,
         tag: line?.tag || null,
         logo_url: line?.logo_url || equipe.logo_url || null,
-        nome_exibicao: part.nome_exibicao || line?.nome || equipe.nome,
+        nome_exibicao: part.nome_exibicao || lineNome || equipe.nome,
         slot: {
           id: part.slot_id || null,
           numero: Number(slot?.slot_numero || part.slot_numero || 0) || null,
           letra: slot?.slot_letra || null,
         },
-        grupo: grupo
-          ? { id: grupo.id, nome: grupo.nome, fase_id: grupo.fase_id || null }
+        grupo: grupoInfo
+          ? {
+              id: grupoInfo.id,
+              nome: grupoInfo.nome,
+              fase_id: grupoInfo.fase_id,
+              fase_nome: grupoInfo.fase_nome,
+            }
           : part.grupo_id
-            ? { id: part.grupo_id, nome: null, fase_id: null }
+            ? { id: part.grupo_id, nome: null, fase_id: null, fase_nome: null }
             : null,
         jogadores: jogadoresUnicos,
         quantidade_jogadores: jogadoresUnicos.length,
       }
 
       if (line?.logo_url) {
+        const name = slugPart(`${equipe.nome}-${lineNome}`, line.id)
         pushMidia({
           tipo: 'line_logo',
           ref_id: line.id,
-          nome: line.nome,
+          nome: lineNome,
           url: line.logo_url,
+          zip_path: `logos/lines/${name}${extFromUrl(line.logo_url)}`,
         })
       }
 
@@ -279,9 +380,16 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     }
 
     const payload = {
-      export_version: 1,
+      export_version: 2,
       exported_at: new Date().toISOString(),
       purpose: 'spec_jogo_e_producao',
+      filtro: {
+        escopo,
+        fase_id: faseId,
+        grupo_id: grupoId,
+        line_id: lineId,
+        equipe_id: equipeId,
+      },
       campeonato: {
         id: campeonato.id,
         nome: campeonato.nome,
@@ -296,6 +404,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           bg_image_url: config?.bg_image_url ?? null,
         },
       },
+      estrutura: {
+        fases,
+        grupos: gruposEstrutura,
+      },
       resumo: {
         total_equipes: equipesLista.length,
         total_lines: totalLines,
@@ -306,16 +418,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       midias,
     }
 
-    const format = new URL(req.url).searchParams.get('format') || 'json'
+    const format = url.searchParams.get('format') || 'json'
     if (format === 'download') {
-      const slug = String(campeonato.nome || 'campeonato')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        .toLowerCase()
-        .slice(0, 48)
-      const filename = `dropzone-export-${slug || campeonato.id}-${Date.now()}.json`
+      const slug = slugPart(campeonato.nome, campeonato.id)
+      const filename = `dropzone-export-${slug}-${Date.now()}.json`
       return new NextResponse(JSON.stringify(payload, null, 2), {
         status: 200,
         headers: {

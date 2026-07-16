@@ -3,75 +3,58 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Download,
-  FileJson,
+  FolderArchive,
   Image as ImageIcon,
   Loader2,
   RefreshCw,
   Table2,
-  Users,
 } from 'lucide-react'
 import { campeonatoExportService } from '../services/campeonato-export.service'
-import type { CampeonatoExportPayload, ExportMidia } from '../types/campeonato-export.types'
+import type {
+  CampeonatoExportPayload,
+  ExportLine,
+  ExportPacoteModo,
+} from '../types/campeonato-export.types'
+import {
+  buildExportZip,
+  buildEquipesRows,
+  buildJogadoresRows,
+  downloadBlob,
+  slugify,
+  toCsv,
+} from '../utils/build-export-zip'
 
-function slugify(value: string) {
-  return String(value || 'campeonato')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase()
-    .slice(0, 48) || 'campeonato'
-}
+type EscopoUi = 'campeonato' | 'fase' | 'grupo' | 'line'
 
 function downloadText(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
-}
-
-function csvEscape(value: unknown) {
-  const text = value == null ? '' : String(value)
-  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`
-  return text
-}
-
-function toCsv(rows: Array<Record<string, unknown>>) {
-  if (!rows.length) return ''
-  const headers = Object.keys(rows[0])
-  const lines = [
-    headers.join(','),
-    ...rows.map((row) => headers.map((key) => csvEscape(row[key])).join(',')),
-  ]
-  return `\uFEFF${lines.join('\n')}`
-}
-
-const MIDIA_LABEL: Record<ExportMidia['tipo'], string> = {
-  campeonato_logo: 'Logo campeonato',
-  equipe_logo: 'Logo equipe',
-  line_logo: 'Logo line',
-  jogador_foto: 'Foto jogador',
+  downloadBlob(blob, filename)
 }
 
 export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) {
+  const [base, setBase] = useState<CampeonatoExportPayload | null>(null)
   const [data, setData] = useState<CampeonatoExportPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
+  const [progress, setProgress] = useState('')
 
-  const reload = useCallback(async () => {
+  const [escopo, setEscopo] = useState<EscopoUi>('campeonato')
+  const [faseId, setFaseId] = useState('')
+  const [grupoId, setGrupoId] = useState('')
+  const [lineId, setLineId] = useState('')
+
+  const loadBase = useCallback(async () => {
     if (!campeonatoId) return
     setLoading(true)
     setError('')
     try {
-      setData(await campeonatoExportService.carregar(campeonatoId))
+      const payload = await campeonatoExportService.carregar(campeonatoId)
+      setBase(payload)
+      setData(payload)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar exportação.')
+      setBase(null)
       setData(null)
     } finally {
       setLoading(false)
@@ -79,122 +62,129 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
   }, [campeonatoId])
 
   useEffect(() => {
-    void reload()
-  }, [reload])
+    void loadBase()
+  }, [loadBase])
+
+  const filtro = useMemo(() => {
+    if (escopo === 'fase' && faseId) return { fase_id: faseId }
+    if (escopo === 'grupo' && grupoId) return { grupo_id: grupoId }
+    if (escopo === 'line' && lineId) return { line_id: lineId }
+    return {}
+  }, [escopo, faseId, grupoId, lineId])
+
+  const reloadFiltered = useCallback(async () => {
+    if (!campeonatoId) return
+    setBusy('filtro')
+    setError('')
+    try {
+      const payload = await campeonatoExportService.carregar(campeonatoId, filtro)
+      setData(payload)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao filtrar exportação.')
+    } finally {
+      setBusy('')
+    }
+  }, [campeonatoId, filtro])
+
+  useEffect(() => {
+    if (!base) return
+    if (escopo === 'campeonato') {
+      setData(base)
+      return
+    }
+    // só recarrega se o id necessário estiver escolhido
+    if (escopo === 'fase' && !faseId) return
+    if (escopo === 'grupo' && !grupoId) return
+    if (escopo === 'line' && !lineId) return
+    void reloadFiltered()
+  }, [escopo, faseId, grupoId, lineId, base, reloadFiltered])
+
+  const fases = base?.estrutura?.fases || []
+  const grupos = useMemo(() => {
+    const list = base?.estrutura?.grupos || []
+    if (escopo === 'fase' && faseId) return list.filter((g) => g.fase_id === faseId)
+    return list
+  }, [base?.estrutura?.grupos, escopo, faseId])
+
+  const linesOpts = useMemo(() => {
+    const source = escopo === 'campeonato' || !data ? base : data
+    const rows: Array<{ id: string; label: string }> = []
+    for (const eq of source?.equipes || []) {
+      for (const line of eq.lines || []) {
+        if (!line.id) continue
+        if (escopo === 'grupo' && grupoId && line.grupo?.id !== grupoId) continue
+        if (escopo === 'fase' && faseId && line.grupo?.fase_id !== faseId) continue
+        rows.push({
+          id: line.id,
+          label: `${eq.nome} · ${line.nome}${line.grupo?.nome ? ` (${line.grupo.nome})` : ''}`,
+        })
+      }
+    }
+    return rows.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
+  }, [base, data, escopo, grupoId, faseId])
 
   const baseName = useMemo(
     () => slugify(data?.campeonato?.nome || campeonatoId),
     [data?.campeonato?.nome, campeonatoId],
   )
 
-  const equipesCsvRows = useMemo(() => {
-    if (!data) return []
-    const rows: Array<Record<string, unknown>> = []
-    for (const eq of data.equipes || []) {
+  const flatLines = useMemo(() => {
+    const list: Array<ExportLine & { equipe_nome: string; equipe_id: string }> = []
+    for (const eq of data?.equipes || []) {
       for (const line of eq.lines || []) {
-        rows.push({
-          equipe_id: eq.id,
-          equipe_nome: eq.nome,
-          equipe_tag: eq.tag || '',
-          equipe_logo_url: eq.logo_url || '',
-          line_id: line.id || '',
-          line_nome: line.nome,
-          line_tag: line.tag || '',
-          line_logo_url: line.logo_url || '',
-          nome_exibicao: line.nome_exibicao || '',
-          slot_numero: line.slot?.numero ?? '',
-          slot_letra: line.slot?.letra || '',
-          grupo_nome: line.grupo?.nome || '',
-          qtd_jogadores: line.quantidade_jogadores,
-        })
+        list.push({ ...line, equipe_nome: eq.nome, equipe_id: eq.id })
       }
     }
-    return rows
+    return list
   }, [data])
 
-  const jogadoresCsvRows = useMemo(() => {
-    if (!data) return []
-    const rows: Array<Record<string, unknown>> = []
-    for (const eq of data.equipes || []) {
-      for (const line of eq.lines || []) {
-        for (const jog of line.jogadores || []) {
-          rows.push({
-            equipe_nome: eq.nome,
-            line_nome: line.nome,
-            nick: jog.nick || '',
-            id_jogo: jog.id_jogo || '',
-            funcao: jog.funcao || '',
-            localidade: jog.localidade || '',
-            status: jog.status || '',
-            foto_url: jog.foto_url || '',
-            slot_numero: line.slot?.numero ?? '',
-          })
-        }
-      }
-    }
-    return rows
-  }, [data])
-
-  async function baixarJson() {
+  async function baixarPacote(modo: ExportPacoteModo) {
     if (!data) return
-    setBusy('json')
+    if (escopo === 'fase' && !faseId) {
+      setError('Selecione a fase.')
+      return
+    }
+    if (escopo === 'grupo' && !grupoId) {
+      setError('Selecione o grupo.')
+      return
+    }
+    if (escopo === 'line' && !lineId) {
+      setError('Selecione a line.')
+      return
+    }
+
+    setBusy(modo)
+    setError('')
+    setProgress('')
     try {
-      downloadText(
-        `dropzone-export-${baseName}.json`,
-        JSON.stringify(data, null, 2),
-        'application/json;charset=utf-8',
-      )
+      const { blob, filename } = await buildExportZip(data, modo, (p) => {
+        if (p.total > 0) setProgress(`${p.label}`)
+      })
+      downloadBlob(blob, filename)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao gerar o pacote ZIP.')
     } finally {
       setBusy('')
+      setProgress('')
     }
   }
 
-  function baixarCsvEquipes() {
-    if (!equipesCsvRows.length) return
-    setBusy('csv-equipes')
-    try {
-      downloadText(
-        `dropzone-equipes-${baseName}.csv`,
-        toCsv(equipesCsvRows),
-        'text/csv;charset=utf-8',
-      )
-    } finally {
-      setBusy('')
-    }
+  function baixarTabelaEquipes() {
+    if (!data) return
+    downloadText(
+      `tabela-equipes-${baseName}.csv`,
+      toCsv(buildEquipesRows(data)),
+      'text/csv;charset=utf-8',
+    )
   }
 
-  function baixarCsvJogadores() {
-    if (!jogadoresCsvRows.length) return
-    setBusy('csv-jogadores')
-    try {
-      downloadText(
-        `dropzone-jogadores-${baseName}.csv`,
-        toCsv(jogadoresCsvRows),
-        'text/csv;charset=utf-8',
-      )
-    } finally {
-      setBusy('')
-    }
-  }
-
-  function baixarListaMidias() {
-    if (!data?.midias?.length) return
-    setBusy('midias')
-    try {
-      const rows = data.midias.map((item) => ({
-        tipo: item.tipo,
-        ref_id: item.ref_id,
-        nome: item.nome,
-        url: item.url,
-      }))
-      downloadText(
-        `dropzone-midias-${baseName}.csv`,
-        toCsv(rows),
-        'text/csv;charset=utf-8',
-      )
-    } finally {
-      setBusy('')
-    }
+  function baixarTabelaJogadores() {
+    if (!data) return
+    downloadText(
+      `tabela-jogadores-${baseName}.csv`,
+      toCsv(buildJogadoresRows(data)),
+      'text/csv;charset=utf-8',
+    )
   }
 
   if (loading) {
@@ -205,11 +195,11 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     )
   }
 
-  if (error) {
+  if (error && !data && !base) {
     return (
       <div className="export-tab-panel">
         <div className="message error">{error}</div>
-        <button className="button secondary" type="button" onClick={() => void reload()}>
+        <button className="button secondary" type="button" onClick={() => void loadBase()}>
           <RefreshCw size={15} /> Tentar de novo
         </button>
       </div>
@@ -220,6 +210,12 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     return <p className="empty">Nenhum dado para exportar.</p>
   }
 
+  const canDownload =
+    escopo === 'campeonato'
+    || (escopo === 'fase' && Boolean(faseId))
+    || (escopo === 'grupo' && Boolean(grupoId))
+    || (escopo === 'line' && Boolean(lineId))
+
   return (
     <div className="export-tab-panel">
       <header className="export-tab-head">
@@ -227,14 +223,101 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
           <p className="eyebrow">Produção / SPEC</p>
           <h3>Exportar dados do campeonato</h3>
           <p className="empty" style={{ margin: '6px 0 0' }}>
-            Pacote v{data.export_version} para overlays, SPEC do jogo e pós-produção.
-            Depois evoluímos para ZIP com logos e fotos embutidas.
+            Baixa um pacote com <strong>tabelas</strong> e <strong>pastas de logos/fotos</strong>.
+            Não é logo por logo — o ZIP reúne tudo do escopo escolhido.
           </p>
         </div>
-        <button className="button secondary" type="button" onClick={() => void reload()}>
+        <button className="button secondary" type="button" onClick={() => void loadBase()} disabled={Boolean(busy)}>
           <RefreshCw size={15} /> Atualizar
         </button>
       </header>
+
+      {error ? <div className="message error">{error}</div> : null}
+
+      <section className="export-section">
+        <div className="section-head">
+          <h4>1. Escopo do download</h4>
+        </div>
+        <div className="export-filter-grid">
+          <label className="field">
+            <span>Nível</span>
+            <select
+              value={escopo}
+              onChange={(e) => {
+                const value = e.target.value as EscopoUi
+                setEscopo(value)
+                if (value === 'campeonato') {
+                  setFaseId('')
+                  setGrupoId('')
+                  setLineId('')
+                }
+                if (value === 'fase') {
+                  setGrupoId('')
+                  setLineId('')
+                }
+                if (value === 'grupo') setLineId('')
+              }}
+            >
+              <option value="campeonato">Campeonato inteiro</option>
+              <option value="fase">Fase</option>
+              <option value="grupo">Grupo</option>
+              <option value="line">Line individual</option>
+            </select>
+          </label>
+
+          {(escopo === 'fase' || escopo === 'grupo') ? (
+            <label className="field">
+              <span>Fase</span>
+              <select
+                value={faseId}
+                onChange={(e) => {
+                  setFaseId(e.target.value)
+                  setGrupoId('')
+                  setLineId('')
+                }}
+              >
+                <option value="">Selecione a fase</option>
+                {fases.map((f) => (
+                  <option key={f.id} value={f.id}>{f.nome}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {escopo === 'grupo' ? (
+            <label className="field">
+              <span>Grupo</span>
+              <select
+                value={grupoId}
+                onChange={(e) => {
+                  setGrupoId(e.target.value)
+                  setLineId('')
+                }}
+                disabled={!faseId && grupos.length === 0}
+              >
+                <option value="">Selecione o grupo</option>
+                {grupos.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nome}{g.fase_nome ? ` · ${g.fase_nome}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {escopo === 'line' ? (
+            <label className="field" style={{ gridColumn: '1 / -1' }}>
+              <span>Line</span>
+              <select value={lineId} onChange={(e) => setLineId(e.target.value)}>
+                <option value="">Selecione a line</option>
+                {linesOpts.map((l) => (
+                  <option key={l.id} value={l.id}>{l.label}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
+      </section>
 
       <div className="detail-stats-ref export-stats">
         <div className="detail-stat">
@@ -251,123 +334,114 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
         </div>
         <div className="detail-stat">
           <strong>{data.resumo.total_midias}</strong>
-          <span>Mídias</span>
+          <span>Mídias no pacote</span>
         </div>
       </div>
 
-      <section className="export-actions-grid">
-        <button className="button" type="button" disabled={Boolean(busy)} onClick={() => void baixarJson()}>
-          {busy === 'json' ? <Loader2 size={16} className="spin" /> : <FileJson size={16} />}
-          Baixar JSON completo
-        </button>
-        <button
-          className="button secondary"
-          type="button"
-          disabled={Boolean(busy) || !equipesCsvRows.length}
-          onClick={baixarCsvEquipes}
-        >
-          {busy === 'csv-equipes' ? <Loader2 size={16} className="spin" /> : <Table2 size={16} />}
-          CSV equipes / lines
-        </button>
-        <button
-          className="button secondary"
-          type="button"
-          disabled={Boolean(busy) || !jogadoresCsvRows.length}
-          onClick={baixarCsvJogadores}
-        >
-          {busy === 'csv-jogadores' ? <Loader2 size={16} className="spin" /> : <Users size={16} />}
-          CSV jogadores
-        </button>
-        <button
-          className="button secondary"
-          type="button"
-          disabled={Boolean(busy) || !data.midias.length}
-          onClick={baixarListaMidias}
-        >
-          {busy === 'midias' ? <Loader2 size={16} className="spin" /> : <ImageIcon size={16} />}
-          CSV lista de mídias
-        </button>
+      <section className="export-section">
+        <div className="section-head">
+          <h4>2. Baixar pacote</h4>
+          <small>ZIP com pastas</small>
+        </div>
+        <div className="export-actions-grid">
+          <button
+            className="button"
+            type="button"
+            disabled={!canDownload || Boolean(busy)}
+            onClick={() => void baixarPacote('completo')}
+          >
+            {busy === 'completo' ? <Loader2 size={16} className="spin" /> : <FolderArchive size={16} />}
+            Pacote completo
+            <span className="export-btn-hint">tabelas + logos + fotos</span>
+          </button>
+          <button
+            className="button secondary"
+            type="button"
+            disabled={!canDownload || Boolean(busy)}
+            onClick={() => void baixarPacote('tabelas')}
+          >
+            {busy === 'tabelas' ? <Loader2 size={16} className="spin" /> : <Table2 size={16} />}
+            Só tabelas / lista
+            <span className="export-btn-hint">CSV + lista TXT</span>
+          </button>
+          <button
+            className="button secondary"
+            type="button"
+            disabled={!canDownload || Boolean(busy) || !data.resumo.total_midias}
+            onClick={() => void baixarPacote('midias')}
+          >
+            {busy === 'midias' ? <Loader2 size={16} className="spin" /> : <ImageIcon size={16} />}
+            Só logos e fotos
+            <span className="export-btn-hint">pastas no ZIP</span>
+          </button>
+        </div>
+        {progress ? (
+          <p className="export-progress">
+            <Loader2 size={14} className="spin" /> {progress}
+          </p>
+        ) : null}
+        <p className="empty" style={{ margin: '8px 0 0' }}>
+          Estrutura do ZIP: <code>tabelas/</code> (CSV/lista) · <code>logos/equipes|lines/</code> · <code>fotos/jogadores/</code>
+        </p>
       </section>
 
       <section className="export-section">
         <div className="section-head">
-          <h4>Conteúdo do pacote</h4>
+          <h4>Atalhos de tabela</h4>
         </div>
-        <ul className="export-checklist">
-          <li>Campeonato: nome, logo, status, cores de tema</li>
-          <li>Equipes: nome, tag, logo</li>
-          <li>Lines: nome, logo, slot, grupo</li>
-          <li>Jogadores: nick, id do jogo, função, foto, localidade</li>
-          <li>Lista de URLs de mídias (logos e fotos)</li>
-        </ul>
-      </section>
-
-      <section className="export-section">
-        <div className="section-head">
-          <h4>Prévia — equipes e lines</h4>
-          <small>{data.equipes.length} equipes</small>
-        </div>
-        <div className="export-preview-list">
-          {data.equipes.slice(0, 12).map((eq) => (
-            <article key={eq.id} className="export-preview-card">
-              <div className="export-preview-identity">
-                {eq.logo_url ? (
-                  <img src={eq.logo_url} alt="" />
-                ) : (
-                  <span className="export-preview-fallback">{eq.nome.slice(0, 1)}</span>
-                )}
-                <div>
-                  <strong>{eq.nome}</strong>
-                  <small>
-                    {eq.tag ? `${eq.tag} · ` : ''}
-                    {eq.lines.length} line{eq.lines.length === 1 ? '' : 's'}
-                  </small>
-                </div>
-              </div>
-              <div className="export-preview-lines">
-                {eq.lines.slice(0, 4).map((line) => (
-                  <span key={line.participacao_id}>
-                    {line.nome}
-                    {line.slot?.numero ? ` · slot ${line.slot.numero}` : ''}
-                    {` · ${line.quantidade_jogadores} jog.`}
-                  </span>
-                ))}
-                {eq.lines.length > 4 ? <span>+{eq.lines.length - 4} lines</span> : null}
-              </div>
-            </article>
-          ))}
-          {!data.equipes.length ? <p className="empty">Nenhuma equipe ativa no campeonato.</p> : null}
-          {data.equipes.length > 12 ? (
-            <p className="empty">Mostrando 12 de {data.equipes.length}. O download traz tudo.</p>
-          ) : null}
+        <div className="export-actions-grid">
+          <button className="button secondary" type="button" disabled={!canDownload || Boolean(busy)} onClick={baixarTabelaEquipes}>
+            <Table2 size={15} /> CSV equipes/lines
+          </button>
+          <button className="button secondary" type="button" disabled={!canDownload || Boolean(busy)} onClick={baixarTabelaJogadores}>
+            <Table2 size={15} /> CSV jogadores
+          </button>
         </div>
       </section>
 
       <section className="export-section">
         <div className="section-head">
-          <h4>Mídias encontradas</h4>
-          <small>{data.midias.length} URLs</small>
+          <h4>Prévia em lista</h4>
+          <small>{flatLines.length} lines no escopo</small>
         </div>
-        <div className="export-midia-list">
-          {data.midias.slice(0, 24).map((item) => (
-            <a
-              key={`${item.tipo}-${item.ref_id}-${item.url}`}
-              className="export-midia-item"
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <img src={item.url} alt="" />
-              <span>
-                <strong>{item.nome}</strong>
-                <small>{MIDIA_LABEL[item.tipo]}</small>
-              </span>
-              <Download size={14} />
-            </a>
-          ))}
-          {!data.midias.length ? <p className="empty">Nenhuma logo ou foto cadastrada ainda.</p> : null}
-          {data.midias.length > 24 ? (
-            <p className="empty">Prévia de 24 itens. Use o CSV de mídias para a lista completa.</p>
+        <div className="export-table-wrap">
+          <table className="export-table">
+            <thead>
+              <tr>
+                <th>Fase</th>
+                <th>Grupo</th>
+                <th>Slot</th>
+                <th>Equipe</th>
+                <th>Line</th>
+                <th>Jogadores</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flatLines.slice(0, 40).map((line) => (
+                <tr key={line.participacao_id}>
+                  <td>{line.grupo?.fase_nome || '—'}</td>
+                  <td>{line.grupo?.nome || '—'}</td>
+                  <td>{line.slot?.numero ?? '—'}</td>
+                  <td>
+                    <span className="export-cell-with-logo">
+                      {/* preview visual only */}
+                      {line.logo_url ? <img src={line.logo_url} alt="" /> : null}
+                      {line.equipe_nome}
+                    </span>
+                  </td>
+                  <td>{line.nome}</td>
+                  <td>{line.quantidade_jogadores}</td>
+                </tr>
+              ))}
+              {!flatLines.length ? (
+                <tr>
+                  <td colSpan={6}>Nenhuma line no escopo selecionado.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+          {flatLines.length > 40 ? (
+            <p className="empty">Mostrando 40 de {flatLines.length}. O ZIP traz tudo.</p>
           ) : null}
         </div>
       </section>
