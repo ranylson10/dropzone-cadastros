@@ -94,21 +94,22 @@ function linkClosedMessage(
   reason: 'limite' | 'grupo_cheio' | 'pausado' | 'expirado' | 'invalido',
   limite?: number,
 ) {
+  // Mensagens voltadas ao convidado (não ao admin) — nunca pedir para "gerar link".
   if (reason === 'limite') {
     return limite === 1
-      ? 'Este link ja foi usado (limite de 1 equipe). Gere um novo link na aba Links.'
-      : `Este link esgotou as vagas (limite de ${limite} equipes). Gere um novo link na aba Links.`
+      ? 'Este link já foi utilizado e não aceita novas inscrições.'
+      : `Este link esgotou as vagas (limite de ${limite} equipes) e não aceita novas inscrições.`
   }
   if (reason === 'grupo_cheio') {
-    return 'Este link nao pode ser usado: o grupo nao tem slots livres no momento.'
+    return 'O grupo não tem slots livres no momento. Novas inscrições por este link estão encerradas.'
   }
   if (reason === 'expirado') {
-    return 'Este link expirou pela data de encerramento definida pelo organizador.'
+    return 'Este link expirou e não aceita mais inscrições.'
   }
   if (reason === 'pausado') {
-    return 'Este link foi pausado pelo organizador.'
+    return 'Este link foi pausado pelo organizador e não aceita mais inscrições.'
   }
-  return 'Link de equipes invalido ou inativo.'
+  return 'Link de equipes inválido ou inativo.'
 }
 
 async function countSlotsLivres(campeonatoId: string, grupoId: string): Promise<number | null> {
@@ -376,8 +377,16 @@ async function registrarEntradaNoLink(
   })
 }
 
-/** Grade do grupo via VIEW (1 query). Fallback se a view nao existir. */
-async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
+/**
+ * Grade do grupo via VIEW (1 query). Fallback se a view nao existir.
+ * `refByParticipacaoId`: mapa participacao_id → referência da lista do admin (ex.: ALOE).
+ * A referência NÃO é o nome da line — só etiqueta de controle do organizador.
+ */
+async function loadGrupoVagas(
+  campeonatoId: string,
+  grupoId: string,
+  refByParticipacaoId: Map<string, string> = new Map(),
+) {
   const { data: rows, error } = await supabaseAdmin
     .from('vw_campeonato_slots_lines')
     .select(
@@ -388,9 +397,26 @@ async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
     .order('slot_numero', { ascending: true })
 
   if (!error && rows) {
+    // View prioriza nome_exibicao (que no legado era a referência do admin).
+    // Buscamos o nome real em equipe_lines para não mostrar "ALOE" no lugar de "ALOE PARÁ".
+    const lineIds = [...new Set(rows.map((r: any) => r.line_id).filter(Boolean))]
+    const lineNameMap = new Map<string, string>()
+    if (lineIds.length) {
+      const { data: realLines } = await supabaseAdmin
+        .from('equipe_lines')
+        .select('id,nome')
+        .in('id', lineIds)
+      for (const line of realLines || []) {
+        if (line?.id && line?.nome) lineNameMap.set(String(line.id), String(line.nome))
+      }
+    }
+
     const vagas = rows.map((row: any, index: number) => {
       const ocupada = String(row.status_ui || '') === 'ocupada' || Boolean(row.participacao_id || row.line_id)
       const letra = String(row.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
+      const partId = row.participacao_id ? String(row.participacao_id) : ''
+      const realLineNome = row.line_id ? lineNameMap.get(String(row.line_id)) || null : null
+      const ref = (partId && refByParticipacaoId.get(partId)) || null
       return {
         index,
         nome: `Slot ${letra}`,
@@ -399,9 +425,9 @@ async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
         slot_letra: letra,
         ocupada,
         equipe_nome: row.equipe_nome || null,
-        line_nome: row.line_nome || row.nome_exibicao || null,
+        line_nome: realLineNome || row.line_nome || row.nome_exibicao || null,
         logo_url: row.line_logo_url || null,
-        referencia_equipe: ocupada ? row.nome_exibicao || row.line_nome || null : null,
+        referencia_equipe: ocupada ? ref : null,
         campeonato_equipe_id: row.participacao_id || null,
       }
     })
@@ -461,6 +487,8 @@ async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
       null
     const ocupada = Boolean(slot.equipe_id || slot.line_id || part)
     const letra = String(slot.slot_letra || '').trim().toUpperCase() || String.fromCharCode(65 + index)
+    const partId = part?.id ? String(part.id) : ''
+    const ref = (partId && refByParticipacaoId.get(partId)) || null
     return {
       index,
       nome: `Slot ${letra}`,
@@ -469,9 +497,10 @@ async function loadGrupoVagas(campeonatoId: string, grupoId: string) {
       slot_letra: letra,
       ocupada,
       equipe_nome: team?.nome || null,
+      // Nome real da line (não a etiqueta de referência do admin)
       line_nome: line?.nome || part?.nome_exibicao || null,
       logo_url: line?.logo_url || team?.logo_url || null,
-      referencia_equipe: ocupada ? part?.nome_exibicao || line?.nome || null : null,
+      referencia_equipe: ocupada ? ref : null,
       campeonato_equipe_id: part?.id || null,
     }
   })
@@ -521,11 +550,19 @@ async function loadMinhasParticipacoes(equipeId: string, campeonatoId: string, g
     if (!linkByPart.has(link.campeonato_equipe_id)) linkByPart.set(link.campeonato_equipe_id, link)
   }
 
-  return parts.map((part) => {
+  // Heal legado: se nome_exibicao era a referência do admin (≠ line.nome), corrige no banco
+  const heals: Array<{ id: string; nome: string }> = []
+  const result = parts.map((part) => {
     const line = part.line_id ? lineMap.get(part.line_id) || null : null
     const players = (jogadores || []).filter((j) => j.campeonato_equipe_id === part.id)
     const link = linkByPart.get(part.id) || null
     const limite = Number(link?.limite_jogadores || 6)
+    // Sempre o nome da line real — nunca a etiqueta de referência do admin (legado em nome_exibicao)
+    const nomeLine = String(line?.nome || '').trim() || String(part.nome_exibicao || '').trim() || 'Line'
+    const stored = String(part.nome_exibicao || '').trim()
+    if (line?.nome && stored && stored.toLowerCase() !== String(line.nome).trim().toLowerCase()) {
+      heals.push({ id: part.id, nome: String(line.nome).trim() })
+    }
     return {
       id: part.id,
       campeonato_equipe_id: part.id,
@@ -534,7 +571,7 @@ async function loadMinhasParticipacoes(equipeId: string, campeonatoId: string, g
       grupo_id: part.grupo_id,
       slot_id: part.slot_id || null,
       slot_numero: part.slot_numero,
-      nome_exibicao: part.nome_exibicao || line?.nome || 'Line',
+      nome_exibicao: nomeLine,
       line: line ? { id: line.id, nome: line.nome, tag: line.tag, logo_url: line.logo_url } : null,
       jogadores: players,
       quantidade_jogadores: players.length,
@@ -551,6 +588,21 @@ async function loadMinhasParticipacoes(equipeId: string, campeonatoId: string, g
         : null,
     }
   })
+
+  if (heals.length) {
+    void Promise.all(
+      heals.map((h) =>
+        supabaseAdmin
+          .from('campeonato_equipes')
+          .update({ nome_exibicao: h.nome, updated_at: new Date().toISOString() })
+          .eq('id', h.id),
+      ),
+    ).catch(() => {
+      // best-effort
+    })
+  }
+
+  return result
 }
 
 const emptySession = {
@@ -608,7 +660,8 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
           participacao_id: part?.id || null,
           grupo_id: part?.grupo_id || null,
           slot_numero: part?.slot_numero || null,
-          nome_exibicao: part?.nome_exibicao || line.nome,
+          // Nome da line (não sobrescrever com referência legada em nome_exibicao)
+          nome_exibicao: line.nome || part?.nome_exibicao || null,
         }
       })
 
@@ -639,12 +692,22 @@ async function payloadFor(req: NextRequest, token: string) {
   const meta = parseLinkMetadata(link)
   const inscricaoAberta = status === 'ok'
 
+  // Mapa participacao → referência da lista do admin (só controle; não é o nome da line)
+  const refByParticipacaoId = new Map<string, string>()
+  for (const entrada of meta.entradas || []) {
+    const partId = String(entrada.participacao_id || '').trim()
+    const ref = String(entrada.referencia_lista || '').trim()
+    if (partId && ref && !refByParticipacaoId.has(partId)) {
+      refByParticipacaoId.set(partId, ref)
+    }
+  }
+
   // 1 link + 3 queries em paralelo (camp/grupo/view + session)
   const [{ data: campeonato, error: campError }, { data: grupo, error: grupoError }, grade, session] =
     await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).single(),
       supabaseAdmin.from('campeonato_grupos').select('id,nome,slots').eq('id', link.grupo_id).single(),
-      loadGrupoVagas(link.campeonato_id, link.grupo_id),
+      loadGrupoVagas(link.campeonato_id, link.grupo_id, refByParticipacaoId),
       sessionTeam(req, link.campeonato_id, link.grupo_id),
     ])
   if (campError) throw campError
@@ -653,10 +716,10 @@ async function payloadFor(req: NextRequest, token: string) {
   const vagas = grade.vagas
   const usos = meta.usos
   const restantes = inscricaoAberta ? linkRestantes(meta, grupo?.slots) : 0
+  // Referências já usadas = entradas do link com referencia_lista (fonte da verdade do admin)
   const usedNames = new Set(
-    vagas
-      .filter((v) => v.ocupada)
-      .map((v) => String(v.referencia_equipe || v.line_nome || '').trim().toLowerCase())
+    (meta.entradas || [])
+      .map((e) => String(e.referencia_lista || '').trim().toLowerCase())
       .filter(Boolean),
   )
   // Legado: lista de nomes (links antigos). Links novos só usam limite_vagas.
@@ -761,7 +824,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (!slot) throw new Error('Slot do grupo nao encontrado para a letra selecionada.')
     if (slot.equipe_id || slot.line_id) throw new Error('Esse slot ja foi preenchido. Escolha outra letra.')
 
-    // Lista de referência do admin (obrigatória nos links novos): 1 nome = 1 vaga do link
+    // Lista de referência do admin: etiqueta de controle (ex.: ALOE) — NÃO vira nome da line/vaga.
+    // Serve só para o organizador saber quem da lista já preencheu (e quais faltam).
     if (expected.length) {
       if (!referenciaEquipe) throw new Error('Selecione qual vaga de referência da lista é a sua.')
       const existsInList = expected.some((nome) => nome.trim().toLowerCase() === referenciaEquipe.toLowerCase())
@@ -769,23 +833,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
 
       const refKey = referenciaEquipe.trim().toLowerCase()
       const alreadyOnLink = meta.entradas.some((entrada) => {
-        const key = String(entrada.referencia_lista || entrada.equipe_nome || '').trim().toLowerCase()
+        const key = String(entrada.referencia_lista || '').trim().toLowerCase()
         return key === refKey
       })
       if (alreadyOnLink) throw new Error('Essa vaga de referência já foi usada neste link.')
-
-      const { data: claimed } = await supabaseAdmin
-        .from('campeonato_equipes')
-        .select('id,nome_exibicao')
-        .eq('campeonato_id', link.campeonato_id)
-        .eq('grupo_id', link.grupo_id)
-        .eq('status', 'ativo')
-      const already = (claimed || []).some(
-        (row) => String(row.nome_exibicao || '').trim().toLowerCase() === refKey,
-      )
-      if (already) throw new Error('Essa vaga de referência já foi reivindicada neste grupo.')
-    } else {
-      // Links antigos sem lista: ainda funcionam, mas admin deve recriar com lista
     }
 
     // Consome vaga do link ANTES de gravar (evita overflow se o limite for 1)
@@ -800,7 +851,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       logoUrl: account.data?.logo_url || null,
     })
 
-    const nomeExibicao = referenciaEquipe || resolvedLine.nome
+    // nome_exibicao = nome real da line (ALOE PARÁ), nunca a etiqueta de referência (ALOE)
+    const nomeExibicao = resolvedLine.nome
 
     let participacao: any
     try {
