@@ -184,7 +184,9 @@ async function evaluateLinkAvailability(link: {
   return 'ok'
 }
 
-async function loadLink(token: string) {
+type LinkAvailability = 'ok' | 'limite' | 'grupo_cheio' | 'pausado' | 'expirado'
+
+async function fetchLinkByToken(token: string) {
   const clean = decodeURIComponent(String(token || '').trim())
   if (!clean) throw new Error(linkClosedMessage('invalido'))
 
@@ -201,7 +203,6 @@ async function loadLink(token: string) {
   link = exact.data
 
   if (!link) {
-    // Match case-insensitive sem ilike solto (evita pegar token errado)
     const byUpper = await fetchCampeonatoLink((columns) =>
       supabaseAdmin
         .from('campeonato_links')
@@ -218,19 +219,26 @@ async function loadLink(token: string) {
   if (!link.campeonato_id || !link.grupo_id) {
     throw new Error('Este link de grupo esta incompleto no banco.')
   }
+  return link
+}
 
+/** GET: carrega mesmo esgotado (vira acompanhamento). POST inscrição exige status ok. */
+async function resolveLink(token: string): Promise<{ link: any; status: LinkAvailability; limite: number }> {
+  const link = await fetchLinkByToken(token)
   const status = await evaluateLinkAvailability(link)
-  if (status !== 'ok') {
-    const meta = parseLinkMetadata(link)
-    const { data: grupo } = await supabaseAdmin
-      .from('campeonato_grupos')
-      .select('slots')
-      .eq('id', link.grupo_id)
-      .maybeSingle()
-    const limite = resolveLinkLimiteVagas(meta, grupo?.slots)
-    throw new Error(linkClosedMessage(status, limite))
-  }
+  const meta = parseLinkMetadata(link)
+  const { data: grupo } = await supabaseAdmin
+    .from('campeonato_grupos')
+    .select('slots')
+    .eq('id', link.grupo_id)
+    .maybeSingle()
+  const limite = resolveLinkLimiteVagas(meta, grupo?.slots)
+  return { link, status, limite }
+}
 
+async function loadLinkForInscricao(token: string) {
+  const { link, status, limite } = await resolveLink(token)
+  if (status !== 'ok') throw new Error(linkClosedMessage(status, limite))
   return link
 }
 
@@ -625,8 +633,9 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
 }
 
 async function payloadFor(req: NextRequest, token: string) {
-  const link = await loadLink(token)
+  const { link, status, limite } = await resolveLink(token)
   const meta = parseLinkMetadata(link)
+  const inscricaoAberta = status === 'ok'
 
   // 1 link + 3 queries em paralelo (camp/grupo/view + session)
   const [{ data: campeonato, error: campError }, { data: grupo, error: grupoError }, grade, session] =
@@ -640,9 +649,8 @@ async function payloadFor(req: NextRequest, token: string) {
   if (grupoError) throw grupoError
 
   const vagas = grade.vagas
-  const limite = resolveLinkLimiteVagas(meta, grupo?.slots)
   const usos = meta.usos
-  const restantes = linkRestantes(meta, grupo?.slots)
+  const restantes = inscricaoAberta ? linkRestantes(meta, grupo?.slots) : 0
   const usedNames = new Set(
     vagas
       .filter((v) => v.ocupada)
@@ -665,6 +673,11 @@ async function payloadFor(req: NextRequest, token: string) {
       restantes,
       expira_em: link.expira_em || null,
     },
+    /** inscricao = ainda aceita equipes; acompanhamento = esgotado/pausado/expirado (só ver). */
+    modo: inscricaoAberta ? 'inscricao' : 'acompanhamento',
+    inscricao_aberta: inscricaoAberta,
+    status_link: status,
+    status_mensagem: inscricaoAberta ? null : linkClosedMessage(status, limite),
     campeonato,
     grupo,
     vagas,
@@ -715,7 +728,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const nomeNovaLine = String(body.nome_line || '').trim()
     const referenciaEquipe = String(body.referencia_equipe || body.nome_lista || '').trim()
 
-    const link = await loadLink(token)
+    const link = await loadLinkForInscricao(token)
     const meta = parseLinkMetadata(link)
     const expected = meta.expected_teams
 
