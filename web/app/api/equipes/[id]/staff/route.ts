@@ -66,6 +66,40 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   }
 }
 
+/** Atualiza permissões de um manager no staff. */
+export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await getBearerUser(req)
+    const { id: equipeId } = await context.params
+    await requireEquipeOwner(equipeId, user.id)
+
+    const body = await req.json().catch(() => ({}))
+    const managerId = String(body.manager_id || '').trim()
+    if (!managerId) throw new Error('manager_id obrigatório.')
+
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (body.pode_ver !== undefined) patch.pode_ver = Boolean(body.pode_ver)
+    if (body.pode_editar !== undefined) patch.pode_editar = Boolean(body.pode_editar)
+    if (body.pode_escalar !== undefined) patch.pode_escalar = Boolean(body.pode_escalar)
+    if (body.pode_gerar_token !== undefined) patch.pode_gerar_token = Boolean(body.pode_gerar_token)
+
+    const { data, error } = await supabaseAdmin
+      .from('manager_equipe')
+      .update(patch)
+      .eq('equipe_id', equipeId)
+      .eq('manager_id', managerId)
+      .eq('status', 'ativo')
+      .select('id,manager_id,pode_ver,pode_editar,pode_escalar,pode_gerar_token,status')
+      .maybeSingle()
+    if (error) throw error
+    if (!data) throw new Error('Vínculo de staff não encontrado.')
+
+    return NextResponse.json({ ok: true, staff: data })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao atualizar staff.' }, { status: 400 })
+  }
+}
+
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await getBearerUser(req)

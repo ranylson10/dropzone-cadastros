@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, Copy, ExternalLink, Link2, Shield, Trash2, Users } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronRight, Copy, ExternalLink, Link2, Plus, Shield, Trash2, UserPlus, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
@@ -86,6 +86,15 @@ export function EquipePanel(props: {
     pode_escalar: true,
     pode_gerar_token: false,
   })
+  const [showStaffInvite, setShowStaffInvite] = useState(false)
+  const [staffDetail, setStaffDetail] = useState<any | null>(null)
+  const [staffDetailPerms, setStaffDetailPerms] = useState({
+    pode_ver: true,
+    pode_editar: false,
+    pode_escalar: true,
+    pode_gerar_token: false,
+  })
+  const [staffBusy, setStaffBusy] = useState(false)
   const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)), [props.teamLines, props.managedTeams])
   const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id)), [props.playerTeams, props.managedTeams])
 
@@ -171,6 +180,7 @@ export function EquipePanel(props: {
       setStaffQuery('')
       setStaffSearch([])
       setStaffMessage('')
+      setShowStaffInvite(false)
       await loadStaff()
     } catch (err: any) {
       setStaffError(err?.message || 'Erro ao enviar convite.')
@@ -203,7 +213,7 @@ export function EquipePanel(props: {
   async function removeStaff(managerId: string) {
     if (!staffTeamId) return
     if (!window.confirm('Remover este manager do staff?')) return
-    setStaffLoading(true)
+    setStaffBusy(true)
     setStaffError('')
     try {
       const token = await authToken()
@@ -214,11 +224,74 @@ export function EquipePanel(props: {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao remover.')
+      setStaffDetail(null)
       await loadStaff()
     } catch (err: any) {
       setStaffError(err?.message || 'Erro ao remover.')
     } finally {
-      setStaffLoading(false)
+      setStaffBusy(false)
+    }
+  }
+
+  function openStaffDetail(row: any) {
+    setStaffDetail(row)
+    setStaffDetailPerms({
+      pode_ver: row.pode_ver !== false,
+      pode_editar: Boolean(row.pode_editar),
+      pode_escalar: Boolean(row.pode_escalar),
+      pode_gerar_token: Boolean(row.pode_gerar_token),
+    })
+  }
+
+  function openStaffInvite() {
+    setShowStaffInvite(true)
+    setStaffError('')
+    setStaffMsg('')
+    setStaffQuery('')
+    setStaffSearch([])
+    setStaffSelected(null)
+    setStaffMessage('')
+    setStaffValidade('7')
+    setStaffPerms({
+      pode_ver: true,
+      pode_editar: false,
+      pode_escalar: true,
+      pode_gerar_token: false,
+    })
+  }
+
+  async function saveStaffPerms() {
+    if (!staffTeamId || !staffDetail?.manager_id) return
+    setStaffBusy(true)
+    setStaffError('')
+    setStaffMsg('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`/api/equipes/${staffTeamId}/staff`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          manager_id: staffDetail.manager_id,
+          ...staffDetailPerms,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao salvar permissões.')
+      setStaffMsg('Permissões atualizadas.')
+      await loadStaff()
+      // reabre com dados frescos
+      setStaffDetail((current: any) =>
+        current
+          ? {
+              ...current,
+              ...staffDetailPerms,
+            }
+          : current,
+      )
+    } catch (err: any) {
+      setStaffError(err?.message || 'Erro ao salvar permissões.')
+    } finally {
+      setStaffBusy(false)
     }
   }
 
@@ -451,132 +524,254 @@ Acesse: ${url}`
 
         {tab === 'staff' ? (
           <div className="panel-tab-body staff-tab">
-            <div className="team-section-title">
+            <div className="subtab-actionbar">
               <div>
                 <p className="eyebrow">Managers</p>
                 <h3>Staff da equipe</h3>
               </div>
-              {props.managedTeams.length > 1 ? (
-                <select value={staffTeamId} onChange={(e) => setStaffTeamId(e.target.value)}>
-                  {props.managedTeams.map((team) => (
-                    <option key={team.id} value={team.id}>{rowTitle(team)}</option>
-                  ))}
-                </select>
-              ) : null}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {props.managedTeams.length > 1 ? (
+                  <select value={staffTeamId} onChange={(e) => { setStaffTeamId(e.target.value); setStaffDetail(null) }}>
+                    {props.managedTeams.map((team) => (
+                      <option key={team.id} value={team.id}>{rowTitle(team)}</option>
+                    ))}
+                  </select>
+                ) : null}
+                <button type="button" className="button" onClick={openStaffInvite}>
+                  <Plus size={16} /> Convidar
+                </button>
+              </div>
             </div>
+
             {staffError ? <div className="message error">{staffError}</div> : null}
-            {staffMsg ? <div className="message">{staffMsg}</div> : null}
+            {staffMsg ? <div className="message success">{staffMsg}</div> : null}
 
-            <div className="panel-soft staff-invite-box">
-              <h3>Convidar manager</h3>
-              <p className="muted-copy">O manager recebe no correio do app (sininho). Limite: 5 staff ativos · 10 convites pendentes.</p>
-              <div className="mini-grid two">
-                <Field label="Buscar @username ou ID">
-                  <div className="staff-search-row">
-                    <input
-                      value={staffQuery}
-                      onChange={(e) => setStaffQuery(e.target.value)}
-                      placeholder="@username ou 123"
-                      onKeyDown={(e) => { if (e.key === 'Enter') void searchStaffManagers() }}
-                    />
-                    <button type="button" className="button secondary" disabled={staffLoading} onClick={() => void searchStaffManagers()}>
-                      Buscar
-                    </button>
-                  </div>
-                </Field>
-                <Field label="Validade (dias)">
-                  <input type="number" min={1} max={30} value={staffValidade} onChange={(e) => setStaffValidade(e.target.value)} />
-                </Field>
+            {staffLoading && staffList.length === 0 ? (
+              <p className="empty">Carregando...</p>
+            ) : null}
+
+            {!staffLoading && staffList.length === 0 && staffConvites.filter((c) => c.status === 'pendente').length === 0 ? (
+              <div className="vagas-empty-filter">
+                Nenhum manager no staff. Use <strong>Convidar</strong> para enviar pelo correio.
               </div>
-              {staffSearch.length > 0 ? (
-                <div className="staff-search-results">
-                  {staffSearch.map((m) => (
+            ) : null}
+
+            <div className="championship-vagas-list seller-managers-list">
+              {staffList.map((row, index) => {
+                const aberta = staffDetail?.id === row.id
+                const permsLine = [
+                  row.pode_ver ? 'ver' : null,
+                  row.pode_editar ? 'editar' : null,
+                  row.pode_escalar ? 'escalar' : null,
+                  row.pode_gerar_token ? 'tokens' : null,
+                ].filter(Boolean).join(' · ')
+                return (
+                  <article
+                    key={row.id}
+                    className={`championship-vaga-row status-ocupada ${aberta ? 'is-open' : ''}`}
+                  >
                     <button
-                      key={m.id}
                       type="button"
-                      className={`staff-search-card ${staffSelected?.id === m.id ? 'selected' : ''}`}
-                      onClick={() => { setStaffSelected(m); setStaffQuery(m.username) }}
+                      className="vaga-row-summary"
+                      onClick={() => (aberta ? setStaffDetail(null) : openStaffDetail(row))}
+                      aria-expanded={aberta}
                     >
-                      <strong>@{m.username}</strong>
-                      <span>{m.nome}</span>
-                      <small>{m.public_id_prefix || 'MN'}{m.public_id}</small>
+                      <span className="vaga-row-number">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="vaga-row-avatar status-ocupada" aria-hidden>
+                        {row.manager?.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={row.manager.avatar_url} alt="" />
+                        ) : (
+                          <Users size={18} />
+                        )}
+                      </span>
+                      <span className="vaga-row-identity">
+                        <strong>@{row.manager?.username || '—'}</strong>
+                        <small>
+                          {row.manager?.nome || 'Manager'}
+                          {permsLine ? ` · ${permsLine}` : ''}
+                        </small>
+                      </span>
+                      <span className="vaga-row-meta">
+                        <span className="vaga-status-pill status-ocupada">Ativo</span>
+                      </span>
+                      <span className="vaga-row-chevron">
+                        {aberta ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+                      </span>
                     </button>
-                  ))}
-                </div>
-              ) : null}
-              <Field label="Mensagem (opcional)">
-                <textarea rows={2} value={staffMessage} onChange={(e) => setStaffMessage(e.target.value)} placeholder="Ex.: Preciso de alguém para escalar e organizar lines." />
-              </Field>
-              <div className="staff-perm-grid">
-                {([
-                  ['pode_ver', 'Ver painel'],
-                  ['pode_editar', 'Editar elenco/lines'],
-                  ['pode_escalar', 'Escalar / links'],
-                  ['pode_gerar_token', 'Gerar tokens'],
-                ] as const).map(([key, label]) => (
-                  <label key={key} className="staff-perm-item">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(staffPerms[key])}
-                      onChange={(e) => setStaffPerms((c) => ({ ...c, [key]: e.target.checked }))}
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-              <button type="button" className="button" disabled={staffLoading} onClick={() => void sendStaffInvite()}>
-                Enviar convite no correio
-              </button>
-            </div>
 
-            <div className="panel-soft">
-              <h3>Staff ativo</h3>
-              {staffLoading && staffList.length === 0 ? <p className="empty">Carregando...</p> : null}
-              {!staffLoading && staffList.length === 0 ? <p className="empty">Nenhum manager no staff.</p> : null}
-              <div className="staff-list">
-                {staffList.map((row) => (
-                  <div className="staff-row" key={row.id}>
-                    <div>
-                      <strong>@{row.manager?.username || '—'}</strong>
-                      <span>{row.manager?.nome || 'Manager'}</span>
-                      <small>
-                        {[
-                          row.pode_ver ? 'ver' : null,
-                          row.pode_editar ? 'editar' : null,
-                          row.pode_escalar ? 'escalar' : null,
-                          row.pode_gerar_token ? 'tokens' : null,
-                        ].filter(Boolean).join(' · ')}
-                      </small>
-                    </div>
-                    <button type="button" className="button secondary danger small" onClick={() => void removeStaff(row.manager_id)}>
-                      Remover
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="panel-soft">
-              <h3>Convites pendentes</h3>
-              {staffConvites.filter((c) => c.status === 'pendente').length === 0 ? (
-                <p className="empty">Nenhum convite pendente.</p>
-              ) : (
-                <div className="staff-list">
-                  {staffConvites.filter((c) => c.status === 'pendente').map((c) => (
-                    <div className="staff-row" key={c.id}>
-                      <div>
-                        <strong>@{c.manager?.username || c.manager_username || '—'}</strong>
-                        <span>Expira {new Date(c.expira_em).toLocaleString('pt-BR')}</span>
-                        <small>{c.mensagem || 'Sem mensagem'}</small>
+                    {aberta ? (
+                      <div className="vaga-row-details seller-row-details">
+                        <div className="seller-row-edit">
+                          <div className="seller-perm-grid compact">
+                            {([
+                              ['pode_ver', 'Ver painel'],
+                              ['pode_editar', 'Editar elenco/lines'],
+                              ['pode_escalar', 'Escalar / links'],
+                              ['pode_gerar_token', 'Gerar tokens'],
+                            ] as const).map(([key, label]) => (
+                              <label key={key} className="seller-perm-item">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(staffDetailPerms[key])}
+                                  onChange={(e) =>
+                                    setStaffDetailPerms((c) => ({ ...c, [key]: e.target.checked }))
+                                  }
+                                />
+                                <span>{label}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <div className="vaga-row-actions">
+                            <button type="button" disabled={staffBusy} onClick={() => void saveStaffPerms()}>
+                              {staffBusy ? 'Salvando...' : 'Salvar funções'}
+                            </button>
+                            <button
+                              type="button"
+                              className="danger"
+                              disabled={staffBusy}
+                              onClick={() => void removeStaff(row.manager_id)}
+                            >
+                              <Trash2 size={14} /> Remover
+                            </button>
+                            <button type="button" onClick={() => setStaffDetail(null)}>
+                              Fechar
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <button type="button" className="button secondary small" onClick={() => void cancelStaffInvite(c.id)}>
+                    ) : null}
+                  </article>
+                )
+              })}
+
+              {staffConvites.filter((c) => c.status === 'pendente').map((c) => (
+                <article key={c.id} className="championship-vaga-row status-reservada">
+                  <div className="vaga-row-summary" style={{ cursor: 'default' }}>
+                    <span className="vaga-row-number">…</span>
+                    <span className="vaga-row-avatar status-reservada" aria-hidden>
+                      <UserPlus size={16} />
+                    </span>
+                    <span className="vaga-row-identity">
+                      <strong>@{c.manager?.username || c.manager_username || '—'}</strong>
+                      <small>
+                        Convite pendente · expira {new Date(c.expira_em).toLocaleDateString('pt-BR')}
+                        {c.mensagem ? ` · ${c.mensagem}` : ''}
+                      </small>
+                    </span>
+                    <span className="vaga-row-meta">
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        disabled={staffLoading}
+                        onClick={() => void cancelStaffInvite(c.id)}
+                      >
                         Cancelar
                       </button>
+                    </span>
+                    <span className="vaga-row-chevron" aria-hidden />
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <SystemModal
+              open={showStaffInvite}
+              title="Convidar manager"
+              description="O manager recebe no correio do app (sininho)."
+              onClose={() => setShowStaffInvite(false)}
+              size="medium"
+            >
+              <div className="seller-invite-modal">
+                <div className="mini-grid two">
+                  <Field label="Buscar @username ou ID">
+                    <div className="staff-search-row">
+                      <input
+                        value={staffQuery}
+                        onChange={(e) => setStaffQuery(e.target.value)}
+                        placeholder="@username ou 123"
+                        onKeyDown={(e) => { if (e.key === 'Enter') void searchStaffManagers() }}
+                      />
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled={staffLoading}
+                        onClick={() => void searchStaffManagers()}
+                      >
+                        Buscar
+                      </button>
                     </div>
+                  </Field>
+                  <Field label="Validade (dias)">
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={staffValidade}
+                      onChange={(e) => setStaffValidade(e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                {staffSearch.length > 0 ? (
+                  <div className="staff-search-results">
+                    {staffSearch.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        className={`staff-search-card ${staffSelected?.id === m.id ? 'selected' : ''}`}
+                        onClick={() => { setStaffSelected(m); setStaffQuery(m.username) }}
+                      >
+                        <strong>@{m.username}</strong>
+                        <span>{m.nome}</span>
+                        <small>{m.public_id_prefix || 'MN'}{m.public_id}</small>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                <Field label="Mensagem (opcional)">
+                  <input
+                    value={staffMessage}
+                    onChange={(e) => setStaffMessage(e.target.value)}
+                    placeholder="Ex.: Preciso de alguém para escalar e organizar lines."
+                  />
+                </Field>
+
+                <div className="seller-perm-grid compact">
+                  {([
+                    ['pode_ver', 'Ver painel'],
+                    ['pode_editar', 'Editar elenco/lines'],
+                    ['pode_escalar', 'Escalar / links'],
+                    ['pode_gerar_token', 'Gerar tokens'],
+                  ] as const).map(([key, label]) => (
+                    <label key={key} className="seller-perm-item">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(staffPerms[key])}
+                        onChange={(e) => setStaffPerms((c) => ({ ...c, [key]: e.target.checked }))}
+                      />
+                      <span>{label}</span>
+                    </label>
                   ))}
                 </div>
-              )}
-            </div>
+
+                <div className="modal-form-actions">
+                  <button type="button" className="button secondary" onClick={() => setShowStaffInvite(false)}>
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={staffLoading}
+                    onClick={() => void sendStaffInvite()}
+                  >
+                    <UserPlus size={16} />
+                    {staffLoading ? 'Enviando...' : 'Enviar no correio'}
+                  </button>
+                </div>
+              </div>
+            </SystemModal>
           </div>
         ) : null}
 
