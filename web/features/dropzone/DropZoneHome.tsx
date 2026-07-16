@@ -17,6 +17,7 @@ import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } fro
 import { safeInternalPath } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { SystemLogo } from '@/components/brand/SystemLogo'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
@@ -1516,7 +1517,7 @@ export function DropZoneHome() {
               <section className="auth-inline-panel auth-light-panel">
                 <div className="auth-inline-head auth-light-head">
                   <div className="auth-site-mark">
-                    <img src="/dropzone-icon.png" alt="DropZone" />
+                    <SystemLogo size={46} alt="DropZone" />
                     <div>
                       <span>DropZone</span>
                       <strong>{typeLabels[profileType]}</strong>
