@@ -6,9 +6,11 @@ import {
   ExternalLink,
   FolderOpen,
   Loader2,
+  Plus,
   Shield,
   Trophy,
   Users,
+  X,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { DropZoneRow } from '@/lib/types'
@@ -123,6 +125,7 @@ function toDropZoneRows(
 }
 
 export function ManagerCampeonatosView(props: {
+  managerId: string
   sellerItems: SellerItem[]
   sellerLoading: boolean
   sellerError: string
@@ -144,6 +147,76 @@ export function ManagerCampeonatosView(props: {
   const [estruturaLoading, setEstruturaLoading] = useState(false)
   const [estruturaError, setEstruturaError] = useState('')
   const [maps, setMaps] = useState<Array<{ codigo: string; nome: string }>>([])
+
+  const [showAdd, setShowAdd] = useState(false)
+  const [addQuery, setAddQuery] = useState('')
+  const [addResults, setAddResults] = useState<any[]>([])
+  const [addSelected, setAddSelected] = useState<any | null>(null)
+  const [addMessage, setAddMessage] = useState('')
+  const [addBusy, setAddBusy] = useState(false)
+  const [addError, setAddError] = useState('')
+  const [addOk, setAddOk] = useState('')
+
+  async function authHeaders() {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) throw new Error('Sessão expirada.')
+    return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+  }
+
+  async function searchChampionships() {
+    setAddError('')
+    setAddOk('')
+    setAddBusy(true)
+    try {
+      const headers = await authHeaders()
+      const res = await fetch(`/api/campeonatos/busca?q=${encodeURIComponent(addQuery)}`, {
+        headers,
+        cache: 'no-store',
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro na busca.')
+      setAddResults(Array.isArray(json.items) ? json.items : [])
+      if (!(json.items || []).length) setAddError('Nenhum campeonato encontrado.')
+    } catch (err: any) {
+      setAddError(err?.message || 'Erro na busca.')
+      setAddResults([])
+    } finally {
+      setAddBusy(false)
+    }
+  }
+
+  async function sendPedido() {
+    if (!addSelected?.id) {
+      setAddError('Selecione um campeonato.')
+      return
+    }
+    setAddBusy(true)
+    setAddError('')
+    setAddOk('')
+    try {
+      const headers = await authHeaders()
+      const res = await fetch(`/api/managers/${encodeURIComponent(props.managerId)}/campeonatos/pedidos`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          campeonato_id: addSelected.id,
+          mensagem: addMessage,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao enviar pedido.')
+      setAddOk(json.mensagem || 'Pedido enviado ao admin.')
+      setAddQuery('')
+      setAddResults([])
+      setAddSelected(null)
+      setAddMessage('')
+    } catch (err: any) {
+      setAddError(err?.message || 'Erro ao enviar pedido.')
+    } finally {
+      setAddBusy(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -307,10 +380,83 @@ export function ManagerCampeonatosView(props: {
           })}
         </div>
 
-        <button type="button" className="button secondary full" onClick={() => props.onRefreshUsage?.()}>
-          Atualizar lista
-        </button>
+        <div className="manager-list-actions">
+          <button type="button" className="button full" onClick={() => { setShowAdd(true); setAddError(''); setAddOk('') }}>
+            <Plus size={15} /> Adicionar campeonato
+          </button>
+          <button type="button" className="button secondary full" onClick={() => props.onRefreshUsage?.()}>
+            Atualizar lista
+          </button>
+        </div>
       </aside>
+
+      {showAdd ? (
+        <div className="manager-add-champ-overlay" role="dialog" aria-modal="true">
+          <div className="manager-add-champ-modal panel">
+            <div className="section-head compact-head">
+              <div>
+                <p className="eyebrow">Pedido de acesso</p>
+                <h2>Adicionar campeonato</h2>
+              </div>
+              <button type="button" className="button secondary small" onClick={() => setShowAdd(false)} aria-label="Fechar">
+                <X size={14} />
+              </button>
+            </div>
+            {addError ? <div className="message error">{addError}</div> : null}
+            {addOk ? <div className="message success">{addOk}</div> : null}
+            <label className="field">
+              <span>Buscar campeonato</span>
+              <div className="staff-search-row">
+                <input
+                  value={addQuery}
+                  onChange={(e) => setAddQuery(e.target.value)}
+                  placeholder="Nome do campeonato"
+                  onKeyDown={(e) => { if (e.key === 'Enter') void searchChampionships() }}
+                />
+                <button type="button" className="button secondary" disabled={addBusy} onClick={() => void searchChampionships()}>
+                  Buscar
+                </button>
+              </div>
+            </label>
+            {addResults.length > 0 ? (
+              <div className="championship-list ref-list" style={{ maxHeight: 240, overflow: 'auto' }}>
+                {addResults.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`champ-list-item ref-champ-item ${addSelected?.id === c.id ? 'active' : ''}`}
+                    onClick={() => setAddSelected(c)}
+                  >
+                    <span className="champ-thumb">
+                      {c.logo_url ? <img src={c.logo_url} alt="" /> : <Trophy size={18} />}
+                    </span>
+                    <span>
+                      <strong>{c.nome}</strong>
+                      <small>{c.produtora?.nome || 'Campeonato'}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <label className="field" style={{ marginTop: 10 }}>
+              <span>Mensagem (opcional)</span>
+              <input
+                value={addMessage}
+                onChange={(e) => setAddMessage(e.target.value)}
+                placeholder="Ex.: Posso ajudar a preencher vagas deste evento."
+              />
+            </label>
+            <div className="manager-detail-actions" style={{ marginTop: 12 }}>
+              <button type="button" className="button" disabled={addBusy || !addSelected} onClick={() => void sendPedido()}>
+                {addBusy ? 'Enviando...' : 'Enviar pedido'}
+              </button>
+              <button type="button" className="button secondary" onClick={() => setShowAdd(false)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <section className="championship-detail-card panel manager-detail-panel manager-champ-panel">
         {!selected ? (

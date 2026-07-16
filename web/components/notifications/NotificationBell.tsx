@@ -138,8 +138,30 @@ export function NotificationBell() {
 
           <div className="notif-inbox-list">
             {items.map((item) => {
-              const isInvite = item.tipo === 'convite_manager_equipe'
+              const actionable =
+                item.tipo === 'convite_manager_equipe'
+                || item.tipo === 'convite_manager_campeonato'
+                || item.tipo === 'pedido_manager_campeonato'
               const unreadItem = item.status === 'nao_lida'
+              const perms = item.payload?.permissoes || {}
+              const permLine = item.tipo === 'convite_manager_equipe'
+                ? [
+                    perms.pode_ver ? 'ver' : null,
+                    perms.pode_editar ? 'editar' : null,
+                    perms.pode_escalar ? 'escalar' : null,
+                    perms.pode_gerar_token ? 'tokens' : null,
+                  ].filter(Boolean).join(', ')
+                : (item.tipo === 'convite_manager_campeonato' || item.tipo === 'pedido_manager_campeonato')
+                  ? [
+                      perms.gerar_convites_equipe !== false ? 'convites' : null,
+                      perms.adicionar_equipes ? 'add equipes' : null,
+                      perms.ver_estrutura !== false ? 'estrutura' : null,
+                      perms.organizar_grupos ? 'grupos' : null,
+                      perms.pontuar_tabela ? 'pontuar' : null,
+                    ].filter(Boolean).join(', ')
+                  : ''
+              const acceptLabel =
+                item.tipo === 'pedido_manager_campeonato' ? 'Liberar' : 'Aceitar'
               return (
                 <article key={item.id} className={`notif-inbox-item ${unreadItem ? 'is-unread' : ''}`}>
                   <div className="notif-inbox-item-top">
@@ -147,21 +169,14 @@ export function NotificationBell() {
                     <time>{new Date(item.created_at).toLocaleString('pt-BR')}</time>
                   </div>
                   {item.corpo ? <p>{item.corpo}</p> : null}
-                  {isInvite && item.payload?.permissoes ? (
-                    <small className="notif-perms">
-                      Permissões:{' '}
-                      {[
-                        item.payload.permissoes.pode_ver ? 'ver' : null,
-                        item.payload.permissoes.pode_editar ? 'editar' : null,
-                        item.payload.permissoes.pode_escalar ? 'escalar' : null,
-                        item.payload.permissoes.pode_gerar_token ? 'tokens' : null,
-                      ]
-                        .filter(Boolean)
-                        .join(', ') || '—'}
-                    </small>
+                  {actionable && permLine ? (
+                    <small className="notif-perms">Permissões: {permLine || '—'}</small>
+                  ) : null}
+                  {item.payload?.limite_vagas != null && Number(item.payload.limite_vagas) > 0 ? (
+                    <small className="notif-perms">Limite: {item.payload.limite_vagas} vaga(s)</small>
                   ) : null}
                   <div className="notif-inbox-actions">
-                    {isInvite && unreadItem ? (
+                    {actionable && unreadItem ? (
                       <>
                         <button
                           type="button"
@@ -169,7 +184,7 @@ export function NotificationBell() {
                           disabled={busyId === item.id}
                           onClick={() => void respond(item.id, 'aceitar')}
                         >
-                          <Check size={14} /> Aceitar
+                          <Check size={14} /> {acceptLabel}
                         </button>
                         <button
                           type="button"

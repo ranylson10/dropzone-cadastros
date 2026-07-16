@@ -287,6 +287,7 @@ export function ManagerPanel(props: {
 
           {produtoraSub === 'campeonatos' ? (
             <ManagerCampeonatosView
+              managerId={props.account.id}
               sellerItems={sellerItems}
               sellerLoading={sellerLoading}
               sellerError={sellerError}

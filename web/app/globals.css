@@ -5915,6 +5915,28 @@ button.invite-slot-button.free.clickable b {
 .manager-champ-layout .manager-champ-body {
   margin-top: 4px;
 }
+.manager-list-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.manager-add-champ-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(17, 24, 39, 0.45);
+}
+.manager-add-champ-modal {
+  width: min(520px, 100%);
+  max-height: min(86vh, 720px);
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+}
 @media (max-width: 900px) {
   .manager-detail-meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));

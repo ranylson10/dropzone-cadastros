@@ -115,6 +115,23 @@ export function ProdutoraPanel(props: {
     organizar_grupos: false,
     pontuar_tabela: false,
   })
+  // Convite por pesquisa (correio) — por campeonato
+  const [mgrQuery, setMgrQuery] = useState('')
+  const [mgrSearch, setMgrSearch] = useState<any[]>([])
+  const [mgrSelected, setMgrSelected] = useState<any | null>(null)
+  const [mgrMessage, setMgrMessage] = useState('')
+  const [mgrValidade, setMgrValidade] = useState('7')
+  const [mgrLimite, setMgrLimite] = useState('')
+  const [mgrPerms, setMgrPerms] = useState({
+    adicionar_equipes: false,
+    gerar_convites_equipe: true,
+    remover_proprias_equipes: false,
+    ver_estrutura: true,
+    organizar_grupos: false,
+    pontuar_tabela: false,
+  })
+  const [mgrInvites, setMgrInvites] = useState<any[]>([])
+  const [mgrInviteMsg, setMgrInviteMsg] = useState('')
 
   useEffect(() => {
     let active = true
@@ -274,6 +291,84 @@ export function ProdutoraPanel(props: {
     }
   }
 
+  async function loadChampManagerInvites(championshipId?: string) {
+    if (!championshipId) {
+      setMgrInvites([])
+      return
+    }
+    try {
+      const json = await sellerRequest(`/api/campeonatos/${championshipId}/managers/convites`)
+      setMgrInvites(Array.isArray(json.convites) ? json.convites : [])
+    } catch {
+      setMgrInvites([])
+    }
+  }
+
+  async function searchManagersForChamp() {
+    setSellerError('')
+    setMgrInviteMsg('')
+    try {
+      const json = await sellerRequest(`/api/managers/busca?q=${encodeURIComponent(mgrQuery)}`)
+      setMgrSearch(json.items || json.managers || [])
+      if (!(json.items || json.managers || []).length) setSellerError('Nenhum manager encontrado.')
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro na busca.')
+      setMgrSearch([])
+    }
+  }
+
+  async function sendChampManagerInvite() {
+    if (!selectedChamp?.id) return
+    if (!mgrSelected?.id && !mgrQuery.trim()) {
+      setSellerError('Busque e selecione um manager.')
+      return
+    }
+    setSellerBusy(true)
+    setSellerError('')
+    setMgrInviteMsg('')
+    try {
+      const json = await sellerRequest(`/api/campeonatos/${selectedChamp.id}/managers/convites`, {
+        method: 'POST',
+        body: JSON.stringify({
+          manager_id: mgrSelected?.id || undefined,
+          manager_username: mgrSelected?.username || mgrQuery,
+          mensagem: mgrMessage,
+          validade_dias: mgrValidade,
+          limite_vagas: mgrLimite,
+          permissoes: mgrPerms,
+        }),
+      })
+      setMgrInviteMsg(json.mensagem || 'Convite enviado no correio.')
+      setMgrQuery('')
+      setMgrSearch([])
+      setMgrSelected(null)
+      setMgrMessage('')
+      await loadChampManagerInvites(selectedChamp.id)
+      await loadSellers(selectedChamp.id)
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro ao enviar convite.')
+    } finally {
+      setSellerBusy(false)
+    }
+  }
+
+  async function cancelChampManagerInvite(conviteId: string) {
+    if (!selectedChamp?.id) return
+    setSellerBusy(true)
+    setSellerError('')
+    try {
+      await sellerRequest(`/api/campeonatos/${selectedChamp.id}/managers/convites`, {
+        method: 'DELETE',
+        body: JSON.stringify({ convite_id: conviteId }),
+      })
+      await loadChampManagerInvites(selectedChamp.id)
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro ao cancelar.')
+    } finally {
+      setSellerBusy(false)
+    }
+  }
+
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
   const filteredChampionships = typeFilter === 'todos'
@@ -330,7 +425,10 @@ export function ProdutoraPanel(props: {
   const teamInvites = props.tokens.filter((row) => TEAM_INVITE_TYPES.has(String(row.data?.token_kind || '')) && row.parent_id === selectedChamp?.id)
 
   useEffect(() => {
-    if (tab === 'vendedores') void loadSellers(selectedChamp?.id)
+    if (tab === 'vendedores') {
+      void loadSellers(selectedChamp?.id)
+      void loadChampManagerInvites(selectedChamp?.id)
+    }
   }, [tab, selectedChamp?.id])
 
   useEffect(() => {
@@ -1191,35 +1289,117 @@ ${params.url}`
                 <div className="ref-section-stack">
                   <div className="subtab-actionbar">
                     <div>
-                      <p className="eyebrow">Afiliados da produtora</p>
-                      <h3>Vendedores</h3>
+                      <p className="eyebrow">Por campeonato</p>
+                      <h3>Managers · {rowTitle(selectedChamp)}</h3>
                     </div>
-                    <button className="button" type="button" disabled={sellerLoading} onClick={() => void createSellerInvite()}>
-                      <UserPlus size={16} /> Gerar link de convite
+                  </div>
+
+                  {sellerError ? <div className="message error">{sellerError}</div> : null}
+                  {mgrInviteMsg ? <div className="message success">{mgrInviteMsg}</div> : null}
+
+                  <div className="inline-action-panel staff-invite-box">
+                    <h4 style={{ margin: '0 0 8px' }}>Convidar manager (correio)</h4>
+                    <div className="mini-grid two">
+                      <Field label="Buscar @username ou ID">
+                        <div className="staff-search-row">
+                          <input
+                            value={mgrQuery}
+                            onChange={(e) => setMgrQuery(e.target.value)}
+                            placeholder="@username ou 123"
+                            onKeyDown={(e) => { if (e.key === 'Enter') void searchManagersForChamp() }}
+                          />
+                          <button type="button" className="button secondary" disabled={sellerBusy} onClick={() => void searchManagersForChamp()}>
+                            Buscar
+                          </button>
+                        </div>
+                      </Field>
+                      <Field label="Validade (dias)">
+                        <input type="number" min={1} max={30} value={mgrValidade} onChange={(e) => setMgrValidade(e.target.value)} />
+                      </Field>
+                    </div>
+                    {mgrSearch.length > 0 ? (
+                      <div className="staff-search-results">
+                        {mgrSearch.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            className={`staff-search-card ${mgrSelected?.id === m.id ? 'selected' : ''}`}
+                            onClick={() => { setMgrSelected(m); setMgrQuery(m.username) }}
+                          >
+                            <strong>@{m.username}</strong>
+                            <span>{m.nome}</span>
+                            <small>{m.public_id_prefix || 'MN'}{m.public_id}</small>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="mini-grid two" style={{ marginTop: 10 }}>
+                      <Field label="Limite de vagas (0 = sem limite)">
+                        <input type="number" min={0} value={mgrLimite} onChange={(e) => setMgrLimite(e.target.value)} placeholder="0" />
+                      </Field>
+                      <Field label="Mensagem (opcional)">
+                        <input value={mgrMessage} onChange={(e) => setMgrMessage(e.target.value)} placeholder="Ex.: Liberado para vender e preencher vagas." />
+                      </Field>
+                    </div>
+                    <div className="seller-perm-grid" style={{ marginTop: 12 }}>
+                      {([
+                        ['gerar_convites_equipe', 'Gerar link de convite de equipe'],
+                        ['adicionar_equipes', 'Adicionar equipes direto'],
+                        ['remover_proprias_equipes', 'Remover equipes que adicionou'],
+                        ['ver_estrutura', 'Ver fases/grupos/jogos'],
+                        ['organizar_grupos', 'Organizar grupos'],
+                        ['pontuar_tabela', 'Pontuar tabela'],
+                      ] as const).map(([key, label]) => (
+                        <label key={key} className="seller-perm-item">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(mgrPerms[key])}
+                            onChange={(e) => setMgrPerms((c) => ({ ...c, [key]: e.target.checked }))}
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <button type="button" className="button" style={{ marginTop: 12 }} disabled={sellerBusy} onClick={() => void sendChampManagerInvite()}>
+                      <UserPlus size={16} /> Enviar convite no correio
                     </button>
                   </div>
 
                   <div className="inline-action-panel">
-                    <p className="empty">
-                      Um convite serve para a <strong>produtora inteira</strong>. Depois de aceitar, o vendedor entra na lista.
-                      Neste campeonato ({rowTitle(selectedChamp)}), clique no vendedor para liberar e definir o limite de vagas.
-                      Ele pode adicionar equipes e gerar convites como o admin (dentro do limite).
-                    </p>
-                    {sellerError ? <div className="message error">{sellerError}</div> : null}
-                    {sellerLink ? (
-                      <div className="ref-section-stack">
-                        <button className="token-card full-token-card" type="button" onClick={() => props.copyToken(sellerLink)}>
-                          <span>Link de convite (produtora)</span>
-                          <strong>{sellerLink}</strong>
-                          <Copy size={15} />
-                        </button>
-                        {sellerWhatsappLink ? (
-                          <a className="button secondary" href={sellerWhatsappLink} target="_blank" rel="noreferrer">
-                            <MessageCircle size={15} /> Enviar pelo WhatsApp
-                          </a>
-                        ) : null}
+                    <h4 style={{ margin: '0 0 8px' }}>Pendentes neste campeonato</h4>
+                    {mgrInvites.filter((c) => c.status === 'pendente').length === 0 ? (
+                      <p className="empty">Nenhum convite/pedido pendente.</p>
+                    ) : (
+                      <div className="staff-list">
+                        {mgrInvites.filter((c) => c.status === 'pendente').map((c) => (
+                          <div className="staff-row" key={c.id}>
+                            <div>
+                              <strong>@{c.manager?.username || c.manager_username || '—'}</strong>
+                              <span>
+                                {c.tipo === 'pedido' ? 'Pedido do manager' : 'Convite enviado'}
+                                {' · expira '}
+                                {new Date(c.expira_em).toLocaleString('pt-BR')}
+                              </span>
+                              <small>{c.mensagem || 'Sem mensagem'}</small>
+                            </div>
+                            {c.tipo === 'convite' ? (
+                              <button type="button" className="button secondary small" disabled={sellerBusy} onClick={() => void cancelChampManagerInvite(c.id)}>
+                                Cancelar
+                              </button>
+                            ) : (
+                              <small className="muted">Responda no correio</small>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ) : null}
+                    )}
+                  </div>
+
+                  <div className="subtab-actionbar" style={{ marginTop: 8 }}>
+                    <div>
+                      <p className="eyebrow">Já liberados</p>
+                      <h3>Managers ativos</h3>
+                    </div>
                   </div>
 
                   <div className="seller-roster-grid">
