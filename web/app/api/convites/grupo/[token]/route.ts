@@ -3,6 +3,8 @@ import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { listControllableEquipes } from '@backend/equipes/manager-team-access'
 import {
   inserirParticipacaoNoSlot,
+  loadParticipacoesLineNoCampeonato,
+  markLinesJaInscritas,
   resolveLineForInscricao,
   softRemoveParticipacao,
 } from '@backend/campeonatos/participacao-sync'
@@ -678,32 +680,21 @@ async function loadSessionForEquipe(equipeId: string, campeonatoId: string, grup
   logo_url?: string | null
   papel?: string
 }) {
-  const [{ data: lines }, { data: participacoesCampeonato }, minhasParticipacoes] = await Promise.all([
-    supabaseAdmin
-      .from('equipe_lines')
-      .select('id,nome,tag,logo_url,status')
-      .eq('equipe_id', equipeId)
-      .neq('status', 'inativo')
-      .order('created_at', { ascending: true }),
-    supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id,line_id,grupo_id,slot_numero,nome_exibicao')
-      .eq('campeonato_id', campeonatoId)
-      .eq('equipe_id', equipeId)
-      .eq('status', 'ativo'),
+  const [{ lines, parts: participacoesCampeonato }, minhasParticipacoes] = await Promise.all([
+    loadParticipacoesLineNoCampeonato(equipeId, campeonatoId),
     loadMinhasParticipacoes(equipeId, campeonatoId, grupoId),
   ])
 
-  const used = new Set((participacoesCampeonato || []).map((item) => item.line_id).filter(Boolean))
-  const allLines = (lines || []).map((line) => ({
-    ...line,
-    ja_inscrita: used.has(line.id),
-  }))
+  const allLines = markLinesJaInscritas(lines, participacoesCampeonato)
   const linesDisponiveis = allLines.filter((line) => !line.ja_inscrita)
   const linesInscritas = allLines
     .filter((line) => line.ja_inscrita)
     .map((line) => {
-      const part = (participacoesCampeonato || []).find((p) => p.line_id === line.id)
+      const part = (participacoesCampeonato || []).find(
+        (p) =>
+          p.line_id === line.id
+          || String(p.nome_exibicao || '').trim().toLowerCase() === String(line.nome || '').trim().toLowerCase(),
+      )
       return {
         ...line,
         participacao_id: part?.id || null,
@@ -724,11 +715,11 @@ async function loadSessionForEquipe(equipeId: string, campeonatoId: string, grup
     },
     lines: linesDisponiveis,
     lines_disponiveis: linesDisponiveis,
-    lines_inscritas: [],
+    lines_inscritas: linesInscritas,
     lines_ja_no_campeonato: linesInscritas.length,
     minhas_participacoes: minhasParticipacoes,
     inscrita: minhasParticipacoes.length > 0,
-    total_lines_inscritas_campeonato: used.size,
+    total_lines_inscritas_campeonato: linesInscritas.length,
   }
 }
 

@@ -154,11 +154,19 @@ export default function ConviteGrupoPage() {
   const [sucessoInfo, setSucessoInfo] = useState<{ line: string; slot?: string } | null>(null)
 
   const linesDisponiveis = useMemo(() => {
-    const free = data?.lines_disponiveis?.length
-      ? data.lines_disponiveis
-      : (data?.lines || []).filter((line) => !line.ja_inscrita)
-    return free.filter((line) => !line.ja_inscrita)
+    // Preferir lines_disponiveis mesmo se vazio (lista vazia = todas já inscritas)
+    const source = Array.isArray(data?.lines_disponiveis)
+      ? data!.lines_disponiveis!
+      : Array.isArray(data?.lines)
+        ? data!.lines!
+        : []
+    return source.filter((line) => !line.ja_inscrita && String(line.nome || '').trim().toLowerCase() !== 'nova line')
   }, [data?.lines, data?.lines_disponiveis])
+
+  const linesJaNoCampeonato = useMemo(() => {
+    const list = Array.isArray((data as any)?.lines_inscritas) ? (data as any).lines_inscritas : []
+    return list as Array<{ id: string; nome: string }>
+  }, [data])
 
   const slotsLivresLista = useMemo(
     () => (data?.vagas || []).filter((vaga) => !vaga.ocupada && vaga.slot_id),
@@ -291,8 +299,11 @@ export default function ConviteGrupoPage() {
     const parts: Participacao[] = payload.minhas_participacoes || []
     if (parts[0]?.id) setSelectedParticipacaoId(parts[0].id)
 
-    const freeLines = (payload.lines_disponiveis || []).filter((line: any) => !line.ja_inscrita)
-    setLineId(freeLines[0]?.id || '')
+    const freeLines = (Array.isArray(payload.lines_disponiveis) ? payload.lines_disponiveis : payload.lines || [])
+      .filter((line: any) => !line.ja_inscrita)
+      .filter((line: any) => String(line.nome || '').trim().toLowerCase() !== 'nova line')
+    // Se há line livre, seleciona a primeira; senão entra no modo "criar" (sem id)
+    setLineId(freeLines[0]?.id || '__create__')
     setNomeNovaLine('')
 
     // Mantém slot escolhido se ainda estiver livre; senão primeiro livre
@@ -375,15 +386,22 @@ export default function ConviteGrupoPage() {
       setStep('sem_equipe')
       return
     }
-    if (!lineId && !nomeNovaLine.trim()) {
-      return setMessage('Selecione uma line livre ou crie uma nova line.')
+    const creatingNew = !lineId || lineId === '__create__'
+    if (creatingNew && !nomeNovaLine.trim()) {
+      return setMessage('Selecione uma line livre ou digite o nome de uma nova line.')
+    }
+    if (creatingNew) {
+      const nome = nomeNovaLine.trim().toLowerCase()
+      if (['nova line', 'nova_line', 'new line', '+ criar nova line', 'criar nova line'].includes(nome)) {
+        return setMessage('Use um nome real para a line (ex.: ALOE ELITE 2), não "Nova Line".')
+      }
     }
     if (slotsLivresLista.length > 0 && !selectedSlotId) {
       return setMessage('Selecione o slot que sua equipe vai ocupar.')
     }
 
-    let resolvedLineId = lineId || null
-    let resolvedNomeLine = lineId ? null : nomeNovaLine.trim()
+    let resolvedLineId = creatingNew ? null : lineId
+    let resolvedNomeLine = creatingNew ? nomeNovaLine.trim() : null
     if (!resolvedLineId && resolvedNomeLine) {
       const freeMatch = linesDisponiveis.find(
         (line) => String(line.nome || '').trim().toLowerCase() === resolvedNomeLine!.toLowerCase(),
@@ -404,8 +422,8 @@ export default function ConviteGrupoPage() {
       },
       body: JSON.stringify({
         equipe_id: selectedEquipeId || data?.equipe?.id || undefined,
-        line_id: resolvedLineId,
-        nome_line: resolvedNomeLine,
+        line_id: resolvedLineId || undefined,
+        nome_line: resolvedNomeLine || undefined,
         // slot escolhido pelo usuário (API ainda faz auto-slot se omitido)
         slot_id: selectedSlotId || undefined,
       }),
@@ -807,14 +825,21 @@ export default function ConviteGrupoPage() {
                 </p>
               )}
 
+              {linesJaNoCampeonato.length ? (
+                <p className="invite-section-copy" style={{ marginBottom: 10 }}>
+                  Já no campeonato (ocultas):{' '}
+                  <strong>{linesJaNoCampeonato.map((l) => l.nome).filter(Boolean).join(', ')}</strong>
+                </p>
+              ) : null}
+
               {linesDisponiveis.length ? (
                 <label className="field">
                   <span>Line livre (ainda não está no campeonato)</span>
                   <select
-                    value={lineId}
+                    value={lineId || '__create__'}
                     onChange={(e) => {
                       setLineId(e.target.value)
-                      setNomeNovaLine('')
+                      if (e.target.value !== '__create__') setNomeNovaLine('')
                     }}
                   >
                     {linesDisponiveis.map((line) => (
@@ -822,7 +847,7 @@ export default function ConviteGrupoPage() {
                         {line.nome}
                       </option>
                     ))}
-                    <option value="">+ Criar nova line</option>
+                    <option value="__create__">+ Criar nova line…</option>
                   </select>
                 </label>
               ) : (
@@ -830,19 +855,19 @@ export default function ConviteGrupoPage() {
                   <small>Criar line</small>
                   <p>
                     Todas as lines desta equipe já estão no campeonato (ou você ainda não tem line). Crie uma{' '}
-                    <strong>nova line</strong> — ela será usada nesta inscrição.
+                    <strong>line com nome próprio</strong> (ex.: ALOE ELITE 2) para esta inscrição.
                   </p>
                 </div>
               )}
 
-              {!lineId ? (
+              {!lineId || lineId === '__create__' ? (
                 <label className="field">
                   <span>Nome da nova line</span>
                   <input
                     value={nomeNovaLine}
                     onChange={(e) => setNomeNovaLine(e.target.value)}
-                    placeholder="Ex.: ALOE ELITE"
-                    autoFocus={!linesDisponiveis.length}
+                    placeholder="Ex.: ALOE ELITE 2"
+                    autoFocus={!linesDisponiveis.length || lineId === '__create__'}
                   />
                 </label>
               ) : null}

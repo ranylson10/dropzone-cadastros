@@ -37,27 +37,55 @@ export function friendlyParticipacaoUniqueError(
   return error?.message || 'Conflito ao salvar a participacao.'
 }
 
-export async function listLinesDisponiveisNoCampeonato(equipeId: string, campeonatoId: string) {
-  const [{ data: lines, error: linesError }, { data: parts, error: partsError }] = await Promise.all([
-    supabaseAdmin
-      .from('equipe_lines')
-      .select('id,nome,tag,logo_url,status')
-      .eq('equipe_id', equipeId)
-      .neq('status', 'inativo')
-      .order('created_at', { ascending: true }),
-    supabaseAdmin
-      .from('campeonato_equipes')
-      .select('line_id')
-      .eq('campeonato_id', campeonatoId)
-      .eq('equipe_id', equipeId)
-      .eq('status', 'ativo'),
-  ])
+/** Marca lines já usadas no campeonato (por line_id e por nome de exibição). */
+export function markLinesJaInscritas<T extends { id: string; nome?: string | null }>(
+  lines: T[],
+  parts: Array<{ line_id?: string | null; nome_exibicao?: string | null }>,
+): Array<T & { ja_inscrita: boolean }> {
+  const usedIds = new Set(
+    (parts || []).map((p) => String(p.line_id || '').trim()).filter(Boolean),
+  )
+  const usedNames = new Set(
+    (parts || [])
+      .map((p) => String(p.nome_exibicao || '').trim().toLowerCase())
+      .filter(Boolean),
+  )
+  return (lines || []).map((line) => {
+    const nameKey = String(line.nome || '').trim().toLowerCase()
+    const ja_inscrita = usedIds.has(String(line.id)) || Boolean(nameKey && usedNames.has(nameKey))
+    return { ...line, ja_inscrita }
+  })
+}
+
+/** Participações ativas da equipe (e das lines dela) neste campeonato. */
+export async function loadParticipacoesLineNoCampeonato(equipeId: string, campeonatoId: string) {
+  const { data: lines, error: linesError } = await supabaseAdmin
+    .from('equipe_lines')
+    .select('id,nome,tag,logo_url,status')
+    .eq('equipe_id', equipeId)
+    .neq('status', 'inativo')
+    .order('created_at', { ascending: true })
   if (linesError) throw linesError
+
+  const lineIds = (lines || []).map((l) => l.id).filter(Boolean)
+  const { data: parts, error: partsError } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('id,line_id,grupo_id,slot_numero,nome_exibicao,equipe_id,status')
+    .eq('campeonato_id', campeonatoId)
+    .eq('status', 'ativo')
+    .or(
+      lineIds.length
+        ? `equipe_id.eq.${equipeId},line_id.in.(${lineIds.join(',')})`
+        : `equipe_id.eq.${equipeId}`,
+    )
   if (partsError) throw partsError
-  const used = new Set((parts || []).map((p) => p.line_id).filter(Boolean))
-  return (lines || [])
-    .map((line) => ({ ...line, ja_inscrita: used.has(line.id) }))
-    .filter((line) => !line.ja_inscrita)
+
+  return { lines: lines || [], parts: parts || [] }
+}
+
+export async function listLinesDisponiveisNoCampeonato(equipeId: string, campeonatoId: string) {
+  const { lines, parts } = await loadParticipacoesLineNoCampeonato(equipeId, campeonatoId)
+  return markLinesJaInscritas(lines, parts).filter((line) => !line.ja_inscrita)
 }
 
 export async function assertLineLivreNoCampeonato(campeonatoId: string, lineId: string) {
@@ -185,7 +213,12 @@ export async function resolveLineForInscricao(params: {
 
   if (!nomeNova) throw new Error('Selecione uma line livre ou informe o nome de uma nova line para esta vaga.')
 
+  // Bloqueia nomes genéricos/placeholder sem escolha real
   const target = nomeNova.toLowerCase()
+  if (['nova line', 'nova_line', 'newline', 'new line', '+ criar nova line', 'criar nova line'].includes(target)) {
+    throw new Error('Informe um nome real para a line (ex.: ALOE ELITE 2), não "Nova Line".')
+  }
+
   const { data: existingLines, error: listError } = await supabaseAdmin
     .from('equipe_lines')
     .select('id,nome,status')
@@ -194,7 +227,13 @@ export async function resolveLineForInscricao(params: {
 
   const existing = (existingLines || []).find((row) => String(row.nome || '').trim().toLowerCase() === target)
   if (existing) {
-    await assertLineLivreNoCampeonato(params.campeonatoId, existing.id)
+    try {
+      await assertLineLivreNoCampeonato(params.campeonatoId, existing.id)
+    } catch {
+      throw new Error(
+        `A line "${existing.nome}" já está inscrita neste campeonato. Escolha outra line livre ou use um nome diferente.`,
+      )
+    }
     if (String(existing.status || '').toLowerCase() === 'inativo') {
       const { data: reactivated, error } = await supabaseAdmin
         .from('equipe_lines')
@@ -206,6 +245,22 @@ export async function resolveLineForInscricao(params: {
       return { id: reactivated.id, nome: reactivated.nome, criada_agora: false }
     }
     return { id: existing.id, nome: existing.nome, criada_agora: false }
+  }
+
+  // Também bloqueia se já existe participação com esse nome_exibicao (legado sem line_id)
+  const { data: partByName, error: partByNameError } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('id,line_id,nome_exibicao')
+    .eq('campeonato_id', params.campeonatoId)
+    .eq('equipe_id', params.equipeId)
+    .eq('status', 'ativo')
+    .ilike('nome_exibicao', nomeNova)
+    .maybeSingle()
+  if (partByNameError && !['42703', 'PGRST204'].includes(partByNameError.code || '')) throw partByNameError
+  if (partByName) {
+    throw new Error(
+      `A line "${nomeNova}" já está inscrita neste campeonato. Escolha outra line livre ou use um nome diferente.`,
+    )
   }
 
   let tag = params.tag || null

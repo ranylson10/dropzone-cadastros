@@ -3,6 +3,8 @@ import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { listControllableEquipes } from '@backend/equipes/manager-team-access'
 import {
   inserirParticipacaoNoSlot,
+  loadParticipacoesLineNoCampeonato,
+  markLinesJaInscritas,
   resolveLineForInscricao,
   softRemoveParticipacao,
 } from '@backend/campeonatos/participacao-sync'
@@ -185,28 +187,14 @@ async function carregarEquipeDoLogin(req: NextRequest, campeonatoId: string) {
       }
     }
 
-    const [{ data: lines }, { data: participacoes }] = await Promise.all([
-      supabaseAdmin
-        .from('equipe_lines')
-        .select('id,nome,tag,logo_url,status')
-        .eq('equipe_id', selected.id)
-        .neq('status', 'inativo')
-        .order('created_at', { ascending: true }),
-      supabaseAdmin
-        .from('campeonato_equipes')
-        .select('line_id')
-        .eq('campeonato_id', campeonatoId)
-        .eq('equipe_id', selected.id)
-        .eq('status', 'ativo'),
-    ])
-
-    const usadas = new Set((participacoes || []).map((item) => item.line_id).filter(Boolean))
-    const mapped = (lines || []).map((line) => ({
+    const { lines, parts } = await loadParticipacoesLineNoCampeonato(selected.id, campeonatoId)
+    const mapped = markLinesJaInscritas(lines, parts).map((line) => ({
       ...line,
       logo_url: line.logo_url || selected.logo_url || null,
-      ja_inscrita: usadas.has(line.id),
     }))
-    const livres = mapped.filter((l) => !l.ja_inscrita)
+    const livres = mapped
+      .filter((l) => !l.ja_inscrita)
+      .filter((l) => String(l.nome || '').trim().toLowerCase() !== 'nova line')
 
     return {
       autenticado: true,
@@ -229,6 +217,7 @@ async function carregarEquipeDoLogin(req: NextRequest, campeonatoId: string) {
       // Só lines livres — evita opções inválidas
       lines: livres,
       lines_disponiveis: livres,
+      lines_inscritas: mapped.filter((l) => l.ja_inscrita),
     }
   } catch {
     return { autenticado: false, equipe: null, equipes_disponiveis: [], lines: [], lines_disponiveis: [] }
