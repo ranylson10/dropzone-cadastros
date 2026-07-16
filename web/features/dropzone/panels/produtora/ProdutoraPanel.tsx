@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Trash2, Trophy, UserPlus, Users, X } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
@@ -132,6 +132,7 @@ export function ProdutoraPanel(props: {
   })
   const [mgrInvites, setMgrInvites] = useState<any[]>([])
   const [mgrInviteMsg, setMgrInviteMsg] = useState('')
+  const [showInviteForm, setShowInviteForm] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -154,7 +155,7 @@ export function ProdutoraPanel(props: {
   async function sellerRequest(path: string, options?: RequestInit) {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
-    if (!token) throw new Error('SessÃ£o expirada. Entre novamente.')
+    if (!token) throw new Error('Sessão expirada. Entre novamente.')
     const response = await fetch(path, {
       ...options,
       headers: {
@@ -164,7 +165,7 @@ export function ProdutoraPanel(props: {
       },
     })
     const json = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(json.error || 'NÃ£o foi possÃ­vel concluir a operaÃ§Ã£o.')
+    if (!response.ok) throw new Error(json.error || 'Não foi possível concluir a operação.')
     return json
   }
 
@@ -174,27 +175,30 @@ export function ProdutoraPanel(props: {
     try {
       const qs = championshipId ? `?campeonato_id=${encodeURIComponent(championshipId)}` : ''
       const json = await sellerRequest(`/api/produtora/vendedores${qs}`)
-      setSellerRows(json.vendedores || [])
+      const rows = json.vendedores || []
+      setSellerRows(rows)
+      return rows as any[]
     } catch (error) {
       // fallback legado por campeonato
       try {
         if (championshipId) {
           const json = await sellerRequest(`/api/campeonatos/${championshipId}/vendedores`)
-          setSellerRows(
-            (json.vendedores || []).map((row: any) => ({
-              ...row,
-              no_campeonato: row.status === 'ativo' && Boolean(row.manager_id),
-              vinculo_atual: row.manager_id ? { limite_vagas: row.limite_vagas, status: row.status } : null,
-              campeonatos: [],
-              public_url: row.manager_id ? `/vendedores/${row.manager_id}` : null,
-            })),
-          )
-        } else {
-          setSellerRows([])
+          const rows = (json.vendedores || []).map((row: any) => ({
+            ...row,
+            no_campeonato: row.status === 'ativo' && Boolean(row.manager_id),
+            vinculo_atual: row.manager_id ? { limite_vagas: row.limite_vagas, status: row.status, permissoes: row.permissoes } : null,
+            campeonatos: [],
+            public_url: row.manager_id ? `/vendedores/${row.manager_id}` : null,
+          }))
+          setSellerRows(rows)
+          return rows as any[]
         }
+        setSellerRows([])
+        return [] as any[]
       } catch (err2) {
         setSellerError(err2 instanceof Error ? err2.message : 'Erro ao carregar vendedores.')
         setSellerRows([])
+        return [] as any[]
       }
     } finally {
       setSellerLoading(false)
@@ -245,6 +249,7 @@ export function ProdutoraPanel(props: {
   /** Adiciona vendedor já da produtora neste campeonato e define limite/funções. */
   async function attachSellerToChampionship() {
     if (!sellerSelected?.manager_id || !selectedChamp?.id) return
+    const managerId = sellerSelected.manager_id
     setSellerBusy(true)
     setSellerError('')
     try {
@@ -252,15 +257,16 @@ export function ProdutoraPanel(props: {
         method: 'POST',
         body: JSON.stringify({
           action: 'attach',
-          manager_id: sellerSelected.manager_id,
+          manager_id: managerId,
           campeonato_id: selectedChamp.id,
           limite_vagas: sellerLimite,
           permissoes: sellerPerms,
         }),
       })
-      setSellerSelected(null)
-      setSellerLimite('')
-      await loadSellers(selectedChamp.id)
+      const rows = await loadSellers(selectedChamp.id)
+      await loadChampManagerInvites(selectedChamp.id)
+      const fresh = (rows || []).find((r) => r.manager_id === managerId)
+      if (fresh) openSellerEditor(fresh)
     } catch (error) {
       setSellerError(error instanceof Error ? error.message : 'Erro ao adicionar no campeonato.')
     } finally {
@@ -270,7 +276,7 @@ export function ProdutoraPanel(props: {
 
   async function detachSellerFromChampionship(managerId: string) {
     if (!selectedChamp?.id) return
-    if (!window.confirm('Remover este vendedor apenas deste campeonato? Ele continua na lista da produtora.')) return
+    if (!window.confirm('Encerrar vendas deste manager neste campeonato? Ele deixa de vender vagas neste evento.')) return
     setSellerBusy(true)
     setSellerError('')
     try {
@@ -284,11 +290,38 @@ export function ProdutoraPanel(props: {
       })
       setSellerSelected(null)
       await loadSellers(selectedChamp.id)
+      await loadChampManagerInvites(selectedChamp.id)
     } catch (error) {
       setSellerError(error instanceof Error ? error.message : 'Erro ao remover do campeonato.')
     } finally {
       setSellerBusy(false)
     }
+  }
+
+  function openInviteForm() {
+    setShowInviteForm(true)
+    setSellerError('')
+    setMgrInviteMsg('')
+    setMgrQuery('')
+    setMgrSearch([])
+    setMgrSelected(null)
+    setMgrMessage('')
+    setMgrValidade('7')
+    setMgrLimite('')
+    setMgrPerms({
+      adicionar_equipes: false,
+      gerar_convites_equipe: true,
+      remover_proprias_equipes: false,
+      ver_estrutura: true,
+      organizar_grupos: false,
+      pontuar_tabela: false,
+    })
+  }
+
+  function closeInviteForm() {
+    setShowInviteForm(false)
+    setMgrSearch([])
+    setMgrSelected(null)
   }
 
   async function loadChampManagerInvites(championshipId?: string) {
@@ -343,6 +376,7 @@ export function ProdutoraPanel(props: {
       setMgrSearch([])
       setMgrSelected(null)
       setMgrMessage('')
+      closeInviteForm()
       await loadChampManagerInvites(selectedChamp.id)
       await loadSellers(selectedChamp.id)
     } catch (error) {
@@ -426,6 +460,8 @@ export function ProdutoraPanel(props: {
 
   useEffect(() => {
     if (tab === 'vendedores') {
+      setSellerSelected(null)
+      setShowInviteForm(false)
       void loadSellers(selectedChamp?.id)
       void loadChampManagerInvites(selectedChamp?.id)
     }
@@ -1285,255 +1321,425 @@ ${params.url}`
                 />
               ) : null}
 
-              {tab === 'vendedores' ? (
-                <div className="ref-section-stack">
-                  <div className="subtab-actionbar">
-                    <div>
-                      <p className="eyebrow">Por campeonato</p>
-                      <h3>Managers · {rowTitle(selectedChamp)}</h3>
+              {tab === 'vendedores' ? (() => {
+                const pendingInvites = mgrInvites.filter((c) => c.status === 'pendente')
+                const activeSellers = sellerRows
+                  .filter((s) => Boolean(s.no_campeonato || s.vinculo_atual))
+                  .slice()
+                  .sort((a, b) => Number(b.vagas_usadas || 0) - Number(a.vagas_usadas || 0))
+                const rosterOnly = sellerRows.filter((s) => !s.no_campeonato && !s.vinculo_atual)
+                const selectedManager = sellerSelected?.managers || {}
+                const selectedOnChamp = Boolean(sellerSelected?.no_campeonato || sellerSelected?.vinculo_atual)
+                const selectedLimite = Number(
+                  sellerSelected?.limite_vagas_atual
+                  ?? sellerSelected?.vinculo_atual?.limite_vagas
+                  ?? 0,
+                )
+                const selectedUsadas = Number(sellerSelected?.vagas_usadas || 0)
+                const selectedRestam = sellerSelected?.vagas_restantes
+                const publicPanel = sellerSelected?.manager_id
+                  ? `${typeof window !== 'undefined' ? window.location.origin : ''}/vendedores/${sellerSelected.manager_id}`
+                  : ''
+
+                return (
+                  <div className="ref-section-stack seller-tab">
+                    <div className="subtab-actionbar">
+                      <div>
+                        <p className="eyebrow">Por campeonato</p>
+                        <h3>Vendedores · {rowTitle(selectedChamp)}</h3>
+                      </div>
+                      <button type="button" className="button" onClick={openInviteForm}>
+                        <Plus size={16} /> Convidar
+                      </button>
                     </div>
-                  </div>
 
-                  {sellerError ? <div className="message error">{sellerError}</div> : null}
-                  {mgrInviteMsg ? <div className="message success">{mgrInviteMsg}</div> : null}
+                    {sellerError ? <div className="message error">{sellerError}</div> : null}
+                    {mgrInviteMsg ? <div className="message success">{mgrInviteMsg}</div> : null}
 
-                  <div className="inline-action-panel staff-invite-box">
-                    <h4 style={{ margin: '0 0 8px' }}>Convidar manager (correio)</h4>
-                    <div className="mini-grid two">
-                      <Field label="Buscar @username ou ID">
-                        <div className="staff-search-row">
-                          <input
-                            value={mgrQuery}
-                            onChange={(e) => setMgrQuery(e.target.value)}
-                            placeholder="@username ou 123"
-                            onKeyDown={(e) => { if (e.key === 'Enter') void searchManagersForChamp() }}
-                          />
-                          <button type="button" className="button secondary" disabled={sellerBusy} onClick={() => void searchManagersForChamp()}>
-                            Buscar
-                          </button>
+                    <div className="seller-tab-layout">
+                      <aside className="seller-tab-list panel">
+                        <div className="seller-tab-list-head">
+                          <strong>Ativos neste evento</strong>
+                          <small>{activeSellers.length}</small>
                         </div>
-                      </Field>
-                      <Field label="Validade (dias)">
-                        <input type="number" min={1} max={30} value={mgrValidade} onChange={(e) => setMgrValidade(e.target.value)} />
-                      </Field>
-                    </div>
-                    {mgrSearch.length > 0 ? (
-                      <div className="staff-search-results">
-                        {mgrSearch.map((m) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            className={`staff-search-card ${mgrSelected?.id === m.id ? 'selected' : ''}`}
-                            onClick={() => { setMgrSelected(m); setMgrQuery(m.username) }}
-                          >
-                            <strong>@{m.username}</strong>
-                            <span>{m.nome}</span>
-                            <small>{m.public_id_prefix || 'MN'}{m.public_id}</small>
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="mini-grid two" style={{ marginTop: 10 }}>
-                      <Field label="Limite de vagas (0 = sem limite)">
-                        <input type="number" min={0} value={mgrLimite} onChange={(e) => setMgrLimite(e.target.value)} placeholder="0" />
-                      </Field>
-                      <Field label="Mensagem (opcional)">
-                        <input value={mgrMessage} onChange={(e) => setMgrMessage(e.target.value)} placeholder="Ex.: Liberado para vender e preencher vagas." />
-                      </Field>
-                    </div>
-                    <div className="seller-perm-grid" style={{ marginTop: 12 }}>
-                      {([
-                        ['gerar_convites_equipe', 'Gerar link de convite de equipe'],
-                        ['adicionar_equipes', 'Adicionar equipes direto'],
-                        ['remover_proprias_equipes', 'Remover equipes que adicionou'],
-                        ['ver_estrutura', 'Ver fases/grupos/jogos'],
-                        ['organizar_grupos', 'Organizar grupos'],
-                        ['pontuar_tabela', 'Pontuar tabela'],
-                      ] as const).map(([key, label]) => (
-                        <label key={key} className="seller-perm-item">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(mgrPerms[key])}
-                            onChange={(e) => setMgrPerms((c) => ({ ...c, [key]: e.target.checked }))}
-                          />
-                          <span>{label}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <button type="button" className="button" style={{ marginTop: 12 }} disabled={sellerBusy} onClick={() => void sendChampManagerInvite()}>
-                      <UserPlus size={16} /> Enviar convite no correio
-                    </button>
-                  </div>
 
-                  <div className="inline-action-panel">
-                    <h4 style={{ margin: '0 0 8px' }}>Pendentes neste campeonato</h4>
-                    {mgrInvites.filter((c) => c.status === 'pendente').length === 0 ? (
-                      <p className="empty">Nenhum convite/pedido pendente.</p>
-                    ) : (
-                      <div className="staff-list">
-                        {mgrInvites.filter((c) => c.status === 'pendente').map((c) => (
-                          <div className="staff-row" key={c.id}>
-                            <div>
-                              <strong>@{c.manager?.username || c.manager_username || '—'}</strong>
-                              <span>
-                                {c.tipo === 'pedido' ? 'Pedido do manager' : 'Convite enviado'}
-                                {' · expira '}
-                                {new Date(c.expira_em).toLocaleString('pt-BR')}
-                              </span>
-                              <small>{c.mensagem || 'Sem mensagem'}</small>
-                            </div>
-                            {c.tipo === 'convite' ? (
-                              <button type="button" className="button secondary small" disabled={sellerBusy} onClick={() => void cancelChampManagerInvite(c.id)}>
-                                Cancelar
+                        {sellerLoading ? <p className="empty">Carregando...</p> : null}
+
+                        {!sellerLoading && activeSellers.length === 0 ? (
+                          <p className="empty">
+                            Nenhum manager vendendo vagas ainda. Use <strong>+</strong> para convidar.
+                          </p>
+                        ) : null}
+
+                        <div className="seller-list">
+                          {activeSellers.map((seller) => {
+                            const manager = seller.managers || {}
+                            const limite = Number(seller.vinculo_atual?.limite_vagas ?? seller.limite_vagas_atual ?? 0)
+                            const usadas = Number(seller.vagas_usadas || 0)
+                            const isActive = sellerSelected?.manager_id === seller.manager_id
+                            return (
+                              <button
+                                key={seller.manager_id || seller.id}
+                                type="button"
+                                className={`seller-list-item ${isActive ? 'active' : ''}`}
+                                onClick={() => openSellerEditor(seller)}
+                              >
+                                <span className="seller-list-avatar">
+                                  {manager.avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={manager.avatar_url} alt="" />
+                                  ) : (
+                                    <Users size={16} />
+                                  )}
+                                </span>
+                                <span className="seller-list-copy">
+                                  <strong>
+                                    {seller.nome_publico || manager.nome || manager.username || 'Vendedor'}
+                                  </strong>
+                                  <small>
+                                    @{manager.username || '—'}
+                                    {' · '}
+                                    {limite > 0 ? `${usadas}/${limite} vagas` : `${usadas} vendida(s)`}
+                                  </small>
+                                </span>
+                                <span className={`seller-usage-pill ${limite > 0 && usadas >= limite ? 'full' : 'open'}`}>
+                                  {usadas}
+                                  {limite > 0 ? `/${limite}` : ''}
+                                </span>
                               </button>
-                            ) : (
-                              <small className="muted">Responda no correio</small>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                            )
+                          })}
+                        </div>
 
-                  <div className="subtab-actionbar" style={{ marginTop: 8 }}>
-                    <div>
-                      <p className="eyebrow">Já liberados</p>
-                      <h3>Managers ativos</h3>
-                    </div>
-                  </div>
+                        {rosterOnly.length > 0 ? (
+                          <>
+                            <div className="seller-tab-list-head" style={{ marginTop: 14 }}>
+                              <strong>Só na produtora</strong>
+                              <small>{rosterOnly.length}</small>
+                            </div>
+                            <div className="seller-list">
+                              {rosterOnly.map((seller) => {
+                                const manager = seller.managers || {}
+                                const isActive = sellerSelected?.manager_id === seller.manager_id
+                                return (
+                                  <button
+                                    key={seller.manager_id || seller.id}
+                                    type="button"
+                                    className={`seller-list-item is-roster ${isActive ? 'active' : ''}`}
+                                    onClick={() => openSellerEditor(seller)}
+                                  >
+                                    <span className="seller-list-avatar">
+                                      {manager.avatar_url ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={manager.avatar_url} alt="" />
+                                      ) : (
+                                        <Users size={16} />
+                                      )}
+                                    </span>
+                                    <span className="seller-list-copy">
+                                      <strong>
+                                        {seller.nome_publico || manager.nome || manager.username || 'Vendedor'}
+                                      </strong>
+                                      <small>@{manager.username || '—'} · sem liberação neste evento</small>
+                                    </span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </>
+                        ) : null}
 
-                  <div className="seller-roster-grid">
-                    {sellerRows.map((seller) => {
-                      const manager = seller.managers || {}
-                      const publicPanel = seller.manager_id
-                        ? `${window.location.origin}/vendedores/${seller.manager_id}`
-                        : ''
-                      const onChamp = Boolean(seller.no_campeonato || seller.vinculo_atual)
-                      const limite = Number(seller.vinculo_atual?.limite_vagas ?? seller.limite_vagas_atual ?? 0)
-                      const usadas = Number(seller.vagas_usadas || 0)
-                      const restam = seller.vagas_restantes
-                      return (
-                        <article
-                          className={`seller-roster-card ${onChamp ? 'is-on-champ' : 'is-roster-only'} ${sellerSelected?.manager_id === seller.manager_id ? 'selected' : ''}`}
-                          key={seller.manager_id || seller.id}
-                        >
-                          <div className="seller-roster-top">
-                            <span className={`seller-status-pill ${onChamp ? 'on' : 'off'}`}>
-                              {onChamp ? 'Neste evento' : 'Só produtora'}
-                            </span>
-                            {onChamp && limite > 0 ? (
-                              <span className={`seller-usage-pill ${restam === 0 ? 'full' : ''}`}>
-                                {usadas}/{limite} vagas
-                              </span>
-                            ) : onChamp ? (
-                              <span className="seller-usage-pill open">Sem limite</span>
-                            ) : null}
+                        {pendingInvites.length > 0 ? (
+                          <>
+                            <div className="seller-tab-list-head" style={{ marginTop: 14 }}>
+                              <strong>Pendentes</strong>
+                              <small>{pendingInvites.length}</small>
+                            </div>
+                            <div className="staff-list seller-pending-list">
+                              {pendingInvites.map((c) => (
+                                <div className="staff-row" key={c.id}>
+                                  <div>
+                                    <strong>@{c.manager?.username || c.manager_username || '—'}</strong>
+                                    <span>
+                                      {c.tipo === 'pedido' ? 'Pedido do manager' : 'Convite enviado'}
+                                      {' · '}
+                                      {new Date(c.expira_em).toLocaleDateString('pt-BR')}
+                                    </span>
+                                  </div>
+                                  {c.tipo === 'convite' ? (
+                                    <button
+                                      type="button"
+                                      className="button secondary small"
+                                      disabled={sellerBusy}
+                                      onClick={() => void cancelChampManagerInvite(c.id)}
+                                    >
+                                      Cancelar
+                                    </button>
+                                  ) : (
+                                    <small className="muted">Correio</small>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : null}
+                      </aside>
+
+                      <section className="seller-tab-detail panel">
+                        {!sellerSelected ? (
+                          <div className="manager-detail-empty">
+                            <Users size={28} />
+                            <div>
+                              <strong>Selecione um vendedor</strong>
+                              <p>
+                                Veja vagas vendidas, edite permissões ou encerre as vendas neste campeonato.
+                              </p>
+                            </div>
                           </div>
-                          <strong>
-                            {seller.nome_publico || manager.nome || manager.username || 'Vendedor'}
-                          </strong>
-                          <small className="seller-whatsapp-line">
-                            {seller.whatsapp_url || 'WhatsApp ainda não definido'}
-                          </small>
-                          <small>
-                            {(seller.campeonatos || []).filter((c: any) => c.status === 'ativo').length} evento(s)
-                            liberado(s) na produtora
-                          </small>
-                          <div className="seller-roster-actions">
-                            <button
-                              type="button"
-                              className="button small"
-                              onClick={() => openSellerEditor(seller)}
-                            >
-                              {onChamp ? 'Editar liberação' : 'Liberar neste evento'}
-                            </button>
-                            {onChamp ? (
+                        ) : (
+                          <div className="seller-detail-body">
+                            <div className="seller-detail-head">
+                              <div className="seller-detail-identity">
+                                <span className="seller-list-avatar lg">
+                                  {selectedManager.avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={selectedManager.avatar_url} alt="" />
+                                  ) : (
+                                    <Users size={20} />
+                                  )}
+                                </span>
+                                <div>
+                                  <strong>
+                                    {sellerSelected.nome_publico
+                                      || selectedManager.nome
+                                      || selectedManager.username
+                                      || 'Vendedor'}
+                                  </strong>
+                                  <small>@{selectedManager.username || '—'}</small>
+                                </div>
+                              </div>
                               <button
                                 type="button"
-                                className="button small secondary"
-                                disabled={sellerBusy}
-                                onClick={() => void detachSellerFromChampionship(seller.manager_id)}
+                                className="button secondary small"
+                                onClick={() => setSellerSelected(null)}
+                                aria-label="Fechar"
                               >
-                                Remover do evento
+                                <X size={14} />
                               </button>
-                            ) : null}
-                            {publicPanel ? (
-                              <button type="button" className="button small secondary" onClick={() => props.copyToken(publicPanel)}>
-                                <Copy size={14} /> Link vendas
-                              </button>
-                            ) : null}
-                          </div>
-                        </article>
-                      )
-                    })}
-                    {sellerLoading ? <p className="empty">Carregando vendedores...</p> : null}
-                    {!sellerLoading && sellerRows.length === 0 ? (
-                      <p className="empty">Nenhum vendedor ainda. Gere o link de convite da produtora.</p>
-                    ) : null}
-                  </div>
+                            </div>
 
-                  {sellerSelected ? (
-                    <div className="inline-action-panel seller-edit-panel" style={{ marginTop: 12 }}>
-                      <h4 style={{ margin: '0 0 8px' }}>
-                        {sellerSelected.nome_publico || 'Vendedor'} · {rowTitle(selectedChamp)}
-                      </h4>
-                      {sellerSelected.no_campeonato ? (
-                        <p className="empty" style={{ marginBottom: 10 }}>
-                          Uso atual:{' '}
-                          <strong>
-                            {Number(sellerSelected.vagas_usadas || 0)}
-                            {Number(sellerSelected.limite_vagas_atual || 0) > 0
-                              ? ` / ${sellerSelected.limite_vagas_atual}`
-                              : ' (sem limite)'}
-                          </strong>{' '}
-                          vaga(s) preenchida(s) por este vendedor.
-                        </p>
-                      ) : null}
-                      <div className="mini-grid two">
-                        <Field label="Limite de vagas neste campeonato">
-                          <input
-                            type="number"
-                            min="0"
-                            value={sellerLimite}
-                            onChange={(e) => setSellerLimite(e.target.value)}
-                            placeholder="0 = sem limite"
-                          />
-                        </Field>
-                      </div>
-                      <div className="seller-perm-grid" style={{ marginTop: 12 }}>
-                        <p className="empty" style={{ marginBottom: 8 }}>
-                          Funções liberadas para este manager no evento (ele opera no painel de manager → Campeonatos).
-                        </p>
-                        {([
-                          ['gerar_convites_equipe', 'Gerar link único de convite (expira após uso)'],
-                          ['adicionar_equipes', 'Adicionar equipes/lines direto (sem link) — só se necessário'],
-                          ['remover_proprias_equipes', 'Remover equipes que ele adicionou'],
-                          ['ver_estrutura', 'Ver fases, grupos e jogos (somente leitura)'],
-                          ['organizar_grupos', 'Editar grupos/estrutura (avançado)'],
-                          ['pontuar_tabela', 'Pontuar tabela / súmula'],
-                        ] as const).map(([key, label]) => (
-                          <label key={key} className="seller-perm-item">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(sellerPerms[key])}
-                              onChange={(e) => setSellerPerms((current) => ({ ...current, [key]: e.target.checked }))}
-                            />
-                            <span>{label}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                        <button className="button" type="button" disabled={sellerBusy} onClick={() => void attachSellerToChampionship()}>
-                          {sellerBusy ? 'Salvando...' : sellerSelected.no_campeonato ? 'Atualizar liberação' : 'Liberar neste campeonato'}
-                        </button>
-                        <button className="button secondary" type="button" onClick={() => setSellerSelected(null)}>
-                          Fechar
-                        </button>
-                      </div>
+                            <div className="seller-detail-stats">
+                              <div>
+                                <small>Vagas vendidas</small>
+                                <strong>{selectedUsadas}</strong>
+                              </div>
+                              <div>
+                                <small>Limite</small>
+                                <strong>{selectedLimite > 0 ? selectedLimite : '∞'}</strong>
+                              </div>
+                              <div>
+                                <small>Restam</small>
+                                <strong>
+                                  {selectedOnChamp
+                                    ? (selectedLimite > 0
+                                      ? (selectedRestam ?? Math.max(0, selectedLimite - selectedUsadas))
+                                      : '—')
+                                    : '—'}
+                                </strong>
+                              </div>
+                              <div>
+                                <small>Status</small>
+                                <strong>{selectedOnChamp ? 'Vendendo' : 'Fora do evento'}</strong>
+                              </div>
+                            </div>
+
+                            {sellerSelected.whatsapp_url ? (
+                              <p className="seller-whatsapp-line">{sellerSelected.whatsapp_url}</p>
+                            ) : null}
+
+                            <div className="mini-grid two">
+                              <Field label="Limite de vagas (0 = sem limite)">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={sellerLimite}
+                                  onChange={(e) => setSellerLimite(e.target.value)}
+                                  placeholder="0"
+                                />
+                              </Field>
+                            </div>
+
+                            <div className="seller-perm-grid" style={{ marginTop: 12 }}>
+                              {([
+                                ['gerar_convites_equipe', 'Gerar link de convite de equipe'],
+                                ['adicionar_equipes', 'Adicionar equipes direto'],
+                                ['remover_proprias_equipes', 'Remover equipes que adicionou'],
+                                ['ver_estrutura', 'Ver fases/grupos/jogos'],
+                                ['organizar_grupos', 'Organizar grupos'],
+                                ['pontuar_tabela', 'Pontuar tabela'],
+                              ] as const).map(([key, label]) => (
+                                <label key={key} className="seller-perm-item">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(sellerPerms[key])}
+                                    onChange={(e) => setSellerPerms((current) => ({ ...current, [key]: e.target.checked }))}
+                                  />
+                                  <span>{label}</span>
+                                </label>
+                              ))}
+                            </div>
+
+                            <div className="seller-detail-actions">
+                              <button
+                                type="button"
+                                className="button"
+                                disabled={sellerBusy}
+                                onClick={() => void attachSellerToChampionship()}
+                              >
+                                {sellerBusy
+                                  ? 'Salvando...'
+                                  : selectedOnChamp
+                                    ? 'Salvar permissões'
+                                    : 'Liberar neste evento'}
+                              </button>
+                              {selectedOnChamp ? (
+                                <button
+                                  type="button"
+                                  className="button secondary"
+                                  disabled={sellerBusy}
+                                  onClick={() => void detachSellerFromChampionship(sellerSelected.manager_id)}
+                                >
+                                  <Trash2 size={14} /> Encerrar vendas
+                                </button>
+                              ) : null}
+                              {publicPanel ? (
+                                <button
+                                  type="button"
+                                  className="button secondary"
+                                  onClick={() => props.copyToken(publicPanel)}
+                                >
+                                  <Copy size={14} /> Link vendas
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        )}
+                      </section>
                     </div>
-                  ) : null}
-                </div>
-              ) : null}
+
+                    <SystemModal
+                      open={showInviteForm}
+                      title="Convidar manager"
+                      description={`Envie convite no correio para operar ${rowTitle(selectedChamp)}.`}
+                      onClose={closeInviteForm}
+                      size="medium"
+                    >
+                      <div className="seller-invite-modal">
+                        <div className="mini-grid two">
+                          <Field label="Buscar @username ou ID">
+                            <div className="staff-search-row">
+                              <input
+                                value={mgrQuery}
+                                onChange={(e) => setMgrQuery(e.target.value)}
+                                placeholder="@username ou 123"
+                                onKeyDown={(e) => { if (e.key === 'Enter') void searchManagersForChamp() }}
+                              />
+                              <button
+                                type="button"
+                                className="button secondary"
+                                disabled={sellerBusy}
+                                onClick={() => void searchManagersForChamp()}
+                              >
+                                Buscar
+                              </button>
+                            </div>
+                          </Field>
+                          <Field label="Validade (dias)">
+                            <input
+                              type="number"
+                              min={1}
+                              max={30}
+                              value={mgrValidade}
+                              onChange={(e) => setMgrValidade(e.target.value)}
+                            />
+                          </Field>
+                        </div>
+
+                        {mgrSearch.length > 0 ? (
+                          <div className="staff-search-results">
+                            {mgrSearch.map((m) => (
+                              <button
+                                key={m.id}
+                                type="button"
+                                className={`staff-search-card ${mgrSelected?.id === m.id ? 'selected' : ''}`}
+                                onClick={() => { setMgrSelected(m); setMgrQuery(m.username) }}
+                              >
+                                <strong>@{m.username}</strong>
+                                <span>{m.nome}</span>
+                                <small>{m.public_id_prefix || 'MN'}{m.public_id}</small>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        <div className="mini-grid two">
+                          <Field label="Limite de vagas (0 = sem limite)">
+                            <input
+                              type="number"
+                              min={0}
+                              value={mgrLimite}
+                              onChange={(e) => setMgrLimite(e.target.value)}
+                              placeholder="0"
+                            />
+                          </Field>
+                          <Field label="Mensagem (opcional)">
+                            <input
+                              value={mgrMessage}
+                              onChange={(e) => setMgrMessage(e.target.value)}
+                              placeholder="Ex.: Liberado para vender vagas."
+                            />
+                          </Field>
+                        </div>
+
+                        <div className="seller-perm-grid">
+                          {([
+                            ['gerar_convites_equipe', 'Gerar link de convite de equipe'],
+                            ['adicionar_equipes', 'Adicionar equipes direto'],
+                            ['remover_proprias_equipes', 'Remover equipes que adicionou'],
+                            ['ver_estrutura', 'Ver fases/grupos/jogos'],
+                            ['organizar_grupos', 'Organizar grupos'],
+                            ['pontuar_tabela', 'Pontuar tabela'],
+                          ] as const).map(([key, label]) => (
+                            <label key={key} className="seller-perm-item">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(mgrPerms[key])}
+                                onChange={(e) => setMgrPerms((c) => ({ ...c, [key]: e.target.checked }))}
+                              />
+                              <span>{label}</span>
+                            </label>
+                          ))}
+                        </div>
+
+                        <div className="modal-form-actions">
+                          <button type="button" className="button secondary" onClick={closeInviteForm}>
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            className="button"
+                            disabled={sellerBusy}
+                            onClick={() => void sendChampManagerInvite()}
+                          >
+                            <UserPlus size={16} />
+                            {sellerBusy ? 'Enviando...' : 'Enviar no correio'}
+                          </button>
+                        </div>
+                      </div>
+                    </SystemModal>
+                  </div>
+                )
+              })() : null}
 
               {tab === 'links' ? (
                 <div className="ref-section-stack">
