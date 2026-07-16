@@ -125,6 +125,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     if (body.tag !== undefined) patch.tag = String(body.tag || '').trim() || null
     if (body.logo_url !== undefined) patch.logo_url = String(body.logo_url || '').trim() || null
     if (body.status !== undefined) patch.status = String(body.status || 'ativo')
+    // logo_url já tratado acima
 
     const { data, error } = await supabaseAdmin
       .from('equipe_lines')

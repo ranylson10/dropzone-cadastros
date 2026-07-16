@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronRight, Copy, ExternalLink, Link2, Plus, Shield, Trash2, UserPlus, Users } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CalendarDays, ChevronDown, ChevronRight, Copy, ExternalLink, Link2, Pencil, Plus, Shield, Trash2, UserPlus, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
-import { Field } from '../../components/form-fields'
+import { Field, UploadField } from '../../components/form-fields'
+import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
+import { uploadPublicFile } from '@/lib/upload-public'
 import { dataText, rowTitle } from '../../utils'
 
 type Lineup = {
@@ -516,7 +518,12 @@ Acesse: ${url}`
           </div>
         </div> : null}
 
-        {tab === 'lines' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Estrutura</p><h3>Lines da equipe</h3></div></div>{teamLines.length === 0 ? <p className="empty">Nenhuma line cadastrada.</p> : null}<div className="team-line-grid">{teamLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/favicon.ico'} alt=""/><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span><small>{lineups.filter((item) => item.line_id === line.id).length} campeonato(s)</small></div></article>)}</div></div> : null}
+        {tab === 'lines' ? (
+          <EquipeLinesEditor
+            teams={props.managedTeams}
+            uploadPublicFile={props.uploadPublicFile}
+          />
+        ) : null}
 
         {tab === 'jogadores' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Elenco</p><h3>Jogadores da equipe</h3></div><span className="count-pill"><Users size={14}/>{teamPlayers.length}</span></div>{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador vinculado ao elenco.</p> : null}<div className="team-player-grid">{teamPlayers.map((row) => <article className="team-player-card" key={row.id}><img src={dataText(row, 'foto_url') || '/favicon.ico'} alt=""/><div><strong>{dataText(row, 'nick') || rowTitle(row)}</strong><span>ID {dataText(row, 'id_jogo') || '-'}</span><small>{dataText(row, 'funcao') || 'Função não informada'}</small></div></article>)}</div></div> : null}
 
@@ -775,7 +782,30 @@ Acesse: ${url}`
           </div>
         ) : null}
 
-        {tab === 'config' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Dados da equipe</h3>{props.managedTeams.map((team) => <div className="compact-row" key={team.id}><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'sem tag'}</span></div>)}</div></div> : null}
+        {tab === 'config' ? (
+          <div className="panel-tab-body">
+            <div className="team-section-title">
+              <div>
+                <p className="eyebrow">Perfil</p>
+                <h3>Editar equipe</h3>
+              </div>
+            </div>
+            {props.managedTeams.map((team) => (
+              <div key={team.id} style={{ marginBottom: 16 }}>
+                <ProfileEditForm
+                  profileType="equipe"
+                  profileId={team.id}
+                  initial={{
+                    nome: rowTitle(team),
+                    logo_url: dataText(team, 'logo_url'),
+                    tag: dataText(team, 'tag'),
+                    bio: dataText(team, 'bio'),
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <SystemModal
@@ -828,6 +858,184 @@ Acesse: ${url}`
           <button className="button secondary" type="button" onClick={() => setEditingInvite(null)}>Cancelar</button>
         </div>
       </SystemModal>
+    </div>
+  )
+}
+
+function EquipeLinesEditor(props: {
+  teams: DropZoneRow[]
+  uploadPublicFile: (file: File, bucket: string) => Promise<string>
+}) {
+  const teamId = props.teams[0]?.id || ''
+  const teamLogo = dataText(props.teams[0], 'logo_url')
+  const [lines, setLines] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState('')
+  const [nome, setNome] = useState('')
+  const [tag, setTag] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
+
+  const load = useCallback(async () => {
+    if (!teamId) return
+    setLoading(true)
+    setError('')
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) throw new Error('Sessão expirada.')
+      const res = await fetch(`/api/equipes/${teamId}/lines`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao carregar lines.')
+      setLines(json.lines || [])
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao carregar lines.')
+      setLines([])
+    } finally {
+      setLoading(false)
+    }
+  }, [teamId])
+
+  useEffect(() => { void load() }, [load])
+
+  function startCreate() {
+    setEditingId('')
+    setNome('')
+    setTag(dataText(props.teams[0], 'tag') || '')
+    setLogoUrl(teamLogo || '')
+    setShowForm(true)
+  }
+
+  function startEdit(line: any) {
+    setEditingId(line.id)
+    setNome(line.nome || '')
+    setTag(line.tag || '')
+    setLogoUrl(line.logo_url || teamLogo || '')
+    setShowForm(true)
+  }
+
+  async function save() {
+    if (!nome.trim()) return setError('Informe o nome da line.')
+    setBusy(true)
+    setError('')
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) throw new Error('Sessão expirada.')
+      const res = await fetch(`/api/equipes/${teamId}/lines`, {
+        method: editingId ? 'PATCH' : 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          editingId
+            ? { line_id: editingId, nome: nome.trim(), tag: tag.trim() || null, logo_url: logoUrl.trim() || null }
+            : { nome: nome.trim(), tag: tag.trim() || null, logo_url: logoUrl.trim() || teamLogo || null },
+        ),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao salvar.')
+      setShowForm(false)
+      await load()
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao salvar.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(lineId: string) {
+    if (!window.confirm('Apagar esta line?')) return
+    setBusy(true)
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) throw new Error('Sessão expirada.')
+      const res = await fetch(`/api/equipes/${teamId}/lines?line_id=${encodeURIComponent(lineId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao apagar.')
+      await load()
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao apagar.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!teamId) return <div className="panel-tab-body"><p className="empty">Nenhuma equipe.</p></div>
+
+  return (
+    <div className="panel-tab-body">
+      <div className="subtab-actionbar">
+        <div>
+          <p className="eyebrow">Lines</p>
+          <h3>{lines.length} line(s)</h3>
+        </div>
+        <button type="button" className="button" onClick={startCreate}>
+          <Plus size={16} /> Nova line
+        </button>
+      </div>
+      <p className="empty" style={{ marginBottom: 10 }}>
+        Toda line nasce com a logo da equipe e pode trocar a logo depois.
+      </p>
+      {error ? <div className="message error">{error}</div> : null}
+      {showForm ? (
+        <div className="inline-action-panel">
+          <div className="mini-grid two">
+            <Field label="Nome">
+              <input value={nome} onChange={(e) => setNome(e.target.value)} />
+            </Field>
+            <Field label="Tag">
+              <input value={tag} onChange={(e) => setTag(e.target.value)} />
+            </Field>
+          </div>
+          <UploadField
+            label="Logo da line"
+            value={logoUrl}
+            bucket="equipe"
+            onChange={setLogoUrl}
+            onUpload={props.uploadPublicFile}
+          />
+          <div className="button-row">
+            <button type="button" className="button" disabled={busy} onClick={() => void save()}>
+              {busy ? 'Salvando...' : editingId ? 'Salvar' : 'Criar'}
+            </button>
+            <button type="button" className="button secondary" onClick={() => setShowForm(false)}>Cancelar</button>
+          </div>
+        </div>
+      ) : null}
+      {loading ? <p className="empty">Carregando...</p> : null}
+      <div className="championship-vagas-list">
+        {lines.map((line, index) => (
+          <article key={line.id} className="championship-vaga-row status-ocupada">
+            <div className="vaga-row-summary" style={{ cursor: 'default' }}>
+              <span className="vaga-row-number">{String(index + 1).padStart(2, '0')}</span>
+              <span className="vaga-row-avatar status-ocupada">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={line.logo_url || teamLogo || '/favicon.ico'} alt="" />
+              </span>
+              <span className="vaga-row-identity">
+                <strong>{line.nome}</strong>
+                <small>
+                  {line.tag || 'Sem tag'} · {(line.campeonatos || []).length} campeonato(s)
+                </small>
+              </span>
+              <span className="vaga-row-meta">
+                <button type="button" className="button small secondary" onClick={() => startEdit(line)}>
+                  <Pencil size={14} />
+                </button>
+                <button type="button" className="button small secondary" disabled={busy} onClick={() => void remove(line.id)}>
+                  <Trash2 size={14} />
+                </button>
+              </span>
+              <span className="vaga-row-chevron" aria-hidden />
+            </div>
+          </article>
+        ))}
+      </div>
     </div>
   )
 }

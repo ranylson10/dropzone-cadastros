@@ -14,7 +14,9 @@ import {
 } from 'lucide-react'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
-import { Field } from '../../components/form-fields'
+import { Field, UploadField } from '../../components/form-fields'
+import { uploadPublicFile } from '@/lib/upload-public'
+import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 
 export type StaffVinculo = {
   vinculo_id: string
@@ -377,7 +379,7 @@ function EquipeManagerDetail(props: {
   perms: string[]
   canEdit: boolean
 }) {
-  const [tab, setTab] = useState<'lines' | 'campeonatos'>('lines')
+  const [tab, setTab] = useState<'lines' | 'campeonatos' | 'perfil'>('lines')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -387,6 +389,7 @@ function EquipeManagerDetail(props: {
   const [editingId, setEditingId] = useState('')
   const [nome, setNome] = useState('')
   const [tag, setTag] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
 
   const load = useCallback(async () => {
     if (!props.equipeId) return
@@ -422,6 +425,7 @@ function EquipeManagerDetail(props: {
     setEditingId('')
     setNome('')
     setTag('')
+    setLogoUrl(props.media || '')
     setShowForm(true)
   }
 
@@ -429,6 +433,7 @@ function EquipeManagerDetail(props: {
     setEditingId(line.id)
     setNome(line.nome)
     setTag(line.tag || '')
+    setLogoUrl(line.logo_url || props.media || '')
     setShowForm(true)
   }
 
@@ -446,8 +451,8 @@ function EquipeManagerDetail(props: {
         headers,
         body: JSON.stringify(
           editingId
-            ? { line_id: editingId, nome: nome.trim(), tag: tag.trim() || null }
-            : { nome: nome.trim(), tag: tag.trim() || null },
+            ? { line_id: editingId, nome: nome.trim(), tag: tag.trim() || null, logo_url: logoUrl.trim() || null }
+            : { nome: nome.trim(), tag: tag.trim() || null, logo_url: logoUrl.trim() || props.media || null },
         ),
       })
       const json = await res.json()
@@ -534,6 +539,11 @@ function EquipeManagerDetail(props: {
         >
           Campeonatos
         </button>
+        {props.role === 'Dono' ? (
+          <button type="button" className={tab === 'perfil' ? 'active' : ''} onClick={() => setTab('perfil')}>
+            Perfil
+          </button>
+        ) : null}
       </div>
 
       {error ? <div className="message error" style={{ marginTop: 10 }}>{error}</div> : null}
@@ -559,13 +569,22 @@ function EquipeManagerDetail(props: {
           </div>
 
           {showForm && props.canEdit ? (
-            <div className="inline-action-panel mini-grid two">
-              <Field label="Nome da line">
-                <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: ALOE BASE" />
-              </Field>
-              <Field label="Tag (opcional)">
-                <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Ex.: ALOE" />
-              </Field>
+            <div className="inline-action-panel">
+              <div className="mini-grid two">
+                <Field label="Nome da line">
+                  <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: ALOE BASE" />
+                </Field>
+                <Field label="Tag (opcional)">
+                  <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Ex.: ALOE" />
+                </Field>
+              </div>
+              <UploadField
+                label="Logo da line (nasce com a logo da equipe)"
+                value={logoUrl}
+                bucket="equipe"
+                onChange={setLogoUrl}
+                onUpload={async (file, b) => uploadPublicFile(file, b, 'manager')}
+              />
               <div className="button-row">
                 <button type="button" className="button" disabled={busy} onClick={() => void saveLine()}>
                   {busy ? 'Salvando...' : editingId ? 'Salvar' : 'Criar line'}
@@ -625,6 +644,21 @@ function EquipeManagerDetail(props: {
               ))
             )}
           </div>
+        </div>
+      ) : null}
+
+      {tab === 'perfil' && props.role === 'Dono' ? (
+        <div style={{ marginTop: 12 }}>
+          <ProfileEditForm
+            profileType="equipe"
+            profileId={props.equipeId}
+            initial={{
+              nome: props.label,
+              logo_url: props.media,
+              bio: '',
+              tag: '',
+            }}
+          />
         </div>
       ) : null}
 

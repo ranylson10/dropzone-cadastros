@@ -98,6 +98,8 @@ async function uploadToStorage(bucket: string, path: string, buffer: Buffer) {
 }
 
 function assertCanUpload(bucket: string, profileType?: string | null) {
+  // Manager pode subir logo de equipe (lines que gerencia)
+  if (profileType === 'manager' && (bucket === 'manager' || bucket === 'equipe')) return
   if (PROFILE_BUCKETS.has(bucket) && bucket !== profileType) {
     throw new Error('Este perfil nao pode enviar arquivos para esse bucket.')
   }

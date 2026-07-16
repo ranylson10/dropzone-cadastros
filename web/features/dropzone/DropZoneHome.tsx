@@ -17,6 +17,7 @@ import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } fro
 import { safeInternalPath } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
@@ -96,6 +97,7 @@ export function DropZoneHome() {
     senha_convite: '',
   })
   const [activeAuthType, setActiveAuthType] = useState<ProfileType | null>(null)
+  const [showAccountProfile, setShowAccountProfile] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<any[]>([])
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
@@ -1628,7 +1630,37 @@ export function DropZoneHome() {
               <div className="metric"><b>{championships.length}</b><span>Campeonatos</span></div>
               <div className="metric"><b>{teams.length}</b><span>Equipes</span></div>
               <div className="metric"><b>{registrations.length}</b><span>Inscricoes</span></div>
+              <button
+                type="button"
+                className="button secondary small"
+                onClick={() => setShowAccountProfile((v) => !v)}
+              >
+                {showAccountProfile ? 'Fechar perfil' : 'Editar perfil'}
+              </button>
             </section>
+            {showAccountProfile && account.profile_type ? (
+              <section className="panel span-3" style={{ marginBottom: 12 }}>
+                <ProfileEditForm
+                  profileType={account.profile_type as 'equipe' | 'manager' | 'jogador' | 'produtora'}
+                  profileId={account.id}
+                  initial={{
+                    nome: account.name || '',
+                    logo_url: dataText(account, 'logo_url') || dataText(account, 'avatar_url'),
+                    avatar_url: dataText(account, 'avatar_url'),
+                    bio: dataText(account, 'bio'),
+                    tag: dataText(account, 'tag'),
+                    whatsapp_url: dataText(account, 'whatsapp_url'),
+                    nome_publico_vendas: dataText(account, 'nome_publico_vendas'),
+                    id_jogo: dataText(account, 'id_jogo'),
+                    funcao: dataText(account, 'funcao'),
+                  }}
+                  onSaved={() => {
+                    setMessage('Perfil atualizado.')
+                    void loadMeAndRows()
+                  }}
+                />
+              </section>
+            ) : null}
 
             {accessLoadingType ? (
               <div className="panel-refresh-status" role="status" aria-live="polite">

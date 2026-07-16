@@ -14,6 +14,8 @@ import {
 import { ManagerCampeonatosView } from './ManagerCampeonatosView'
 import { ManagerContextsView, type StaffVinculo } from './ManagerContextsView'
 import { ManagerVendasView } from './ManagerVendasView'
+import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
+import { dataText } from '../../utils'
 
 const contextIcons: Record<Exclude<ManagerPanelMode, 'hub'>, typeof Trophy> = {
   produtora: Trophy,
@@ -44,6 +46,7 @@ export function ManagerPanel(props: {
   const [savingProfile, setSavingProfile] = useState(false)
   const [selectedChampId, setSelectedChampId] = useState('')
   const [champTab, setChampTab] = useState<ManagerChampTab>('equipes')
+  const [showManagerPerfil, setShowManagerPerfil] = useState(false)
 
   const [vinculosLoading, setVinculosLoading] = useState(false)
   const [vinculosError, setVinculosError] = useState('')
@@ -258,9 +261,42 @@ export function ManagerPanel(props: {
             >
               <MessageCircle size={13} /> Vendas
             </button>
+            <button
+              type="button"
+              className={`manager-mode-chip manager-mode-chip-sm ${showManagerPerfil ? 'active' : ''}`}
+              onClick={() => setShowManagerPerfil((v) => !v)}
+            >
+              Perfil
+            </button>
           </div>
         ) : null}
       </section>
+
+      {mode === 'produtora' && showManagerPerfil ? (
+        <section className="panel span-3">
+          <div className="section-head compact-head">
+            <div>
+              <p className="eyebrow">Manager</p>
+              <h2>Editar perfil</h2>
+            </div>
+          </div>
+          <ProfileEditForm
+            profileType="manager"
+            profileId={props.account.id}
+            initial={{
+              nome: props.account.name || '',
+              avatar_url: dataText(props.account, 'avatar_url'),
+              bio: dataText(props.account, 'bio'),
+              whatsapp_url: whatsapp,
+              nome_publico_vendas: nomePublico,
+            }}
+            onSaved={(profile) => {
+              if (profile?.whatsapp_url != null) setWhatsapp(profile.whatsapp_url || '')
+              if (profile?.nome_publico_vendas != null) setNomePublico(profile.nome_publico_vendas || '')
+            }}
+          />
+        </section>
+      ) : null}
 
       {/* ——— CAMPEONATOS (antes: produtora) ——— */}
       {mode === 'produtora' ? (
