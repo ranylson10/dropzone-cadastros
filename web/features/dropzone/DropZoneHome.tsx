@@ -555,10 +555,12 @@ export function DropZoneHome() {
         reader.readAsDataURL(file)
       })
       const token = await getToken()
+      // No cadastro (ainda sem conta DropZone), envia o tipo pretendido (equipe/produtora/...)
+      const uploadProfileType = account?.profile_type || profileType || null
 
       const res = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type) },
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, uploadProfileType) },
         body: JSON.stringify({
           bucket,
           file_name: file.name || `${bucket}.png`,
@@ -572,7 +574,8 @@ export function DropZoneHome() {
       return String(json.url || '')
     } catch (err: any) {
       setError(err?.message || 'Erro ao enviar arquivo.')
-      return ''
+      // Propaga para o cropper mostrar o erro (antes só fechava em silêncio)
+      throw err
     } finally {
       setLoading(false)
     }

@@ -108,15 +108,38 @@ function assertCanUpload(bucket: string, profileType?: string | null) {
   }
 }
 
+/**
+ * Resolve o tipo de perfil para permissão de upload.
+ * - Conta DropZone existente: usa o perfil ativo
+ * - Onboarding (login social sem perfil ainda): aceita x-profile-type se for bucket de perfil
+ */
+async function resolveUploadProfileType(
+  req: NextRequest,
+  user: { id: string; email?: string | null; email_confirmed_at?: string | null },
+) {
+  const headerType = String(req.headers.get('x-profile-type') || '').trim()
+  try {
+    const account = await getActiveAccount(req, user)
+    return account.profile_type as string
+  } catch (error: any) {
+    const msg = String(error?.message || '')
+    // Criando o 1º perfil: autenticado no Supabase, sem row em produtoras/equipes/etc.
+    if (msg.includes('Conta nao encontrada') || msg.includes('Conta não encontrada')) {
+      if (PROFILE_BUCKETS.has(headerType)) return headerType
+    }
+    throw error
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const account = await getActiveAccount(req, user)
+    const profileType = await resolveUploadProfileType(req, user)
     const payload = (await req.json()) as UploadPayload
     const bucket = String(payload.bucket || '').replace(/^\uFEFF/, '').trim()
 
     if (!ALLOWED_BUCKETS.has(bucket)) throw new Error('Bucket invalido.')
-    assertCanUpload(bucket, account.profile_type)
+    assertCanUpload(bucket, profileType)
 
     const base64 = normalizeBase64(payload)
     const buffer = Buffer.from(base64, 'base64')

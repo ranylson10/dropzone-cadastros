@@ -111,6 +111,7 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
   const [offsetX, setOffsetX] = useState(0)
   const [offsetY, setOffsetY] = useState(0)
   const [uploading, setUploading] = useState(false)
+  const [cropError, setCropError] = useState('')
   const pointersRef = useRef(new Map<number, { x: number; y: number }>())
   const gestureRef = useRef<{ distance: number; zoom: number } | null>(null)
   const dragRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null)
@@ -152,6 +153,7 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
 
   function closeCropper() {
     setCropOpen(false)
+    setCropError('')
     if (sourceUrl) URL.revokeObjectURL(sourceUrl)
     setSourceUrl('')
     resetCrop()
@@ -159,6 +161,7 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
 
   async function handleSelect(file: File) {
     if (sourceUrl) URL.revokeObjectURL(sourceUrl)
+    setCropError('')
     resetCrop(URL.createObjectURL(file))
     setCropOpen(true)
   }
@@ -217,10 +220,14 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
   async function handleSaveCrop() {
     if (!sourceUrl) return
     setUploading(true)
+    setCropError('')
     try {
       const image = new Image()
       image.src = sourceUrl
       await image.decode()
+      if (!image.naturalWidth || !image.naturalHeight) {
+        throw new Error('Não foi possível ler as dimensões da imagem. Escolha outro arquivo.')
+      }
       const canvas = document.createElement('canvas')
       canvas.width = target.width
       canvas.height = target.height
@@ -228,14 +235,22 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
       if (!ctx) throw new Error('Nao foi possivel preparar a imagem.')
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       const scale = target.width / previewWidth
-      ctx.drawImage(image, displayLeft * scale, displayTop * scale, drawWidth * scale, drawHeight * scale)
+      // Garante desenho mesmo se naturalSize do state ainda não atualizou
+      const safeDrawW = drawWidth > 0 ? drawWidth : previewWidth
+      const safeDrawH = drawHeight > 0 ? drawHeight : previewHeight
+      const safeLeft = Number.isFinite(displayLeft) ? displayLeft : 0
+      const safeTop = Number.isFinite(displayTop) ? displayTop : 0
+      ctx.drawImage(image, safeLeft * scale, safeTop * scale, safeDrawW * scale, safeDrawH * scale)
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
       if (!blob) throw new Error('Nao foi possivel gerar o PNG final.')
       const croppedFile = new File([blob], `${bucket}-${Date.now()}.png`, { type: 'image/png' })
       const url = await onUpload(croppedFile, bucket)
-      if (url) { onChange(url); closeCropper() }
-    } catch (error) {
+      if (!url) throw new Error('Upload não retornou URL da imagem.')
+      onChange(url)
+      closeCropper()
+    } catch (error: any) {
       console.error(error)
+      setCropError(error?.message || 'Erro ao salvar a imagem. Tente novamente.')
     } finally {
       setUploading(false)
     }
@@ -290,9 +305,10 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
                 </div>
               </div>
               <p className="cropper-touch-note">No computador, arraste com o mouse e use +/− ou a roda. No celular, arraste e use dois dedos para ampliar.</p>
+              {cropError ? <p className="message error" style={{ margin: '0 0 10px' }}>{cropError}</p> : null}
               <div className="button-row cropper-actions">
-                <button type="button" className="button secondary" onClick={closeCropper}>Cancelar</button>
-                <button type="button" className="button" onClick={handleSaveCrop} disabled={uploading}><Check size={16} /> {uploading ? 'Salvando...' : 'Usar imagem'}</button>
+                <button type="button" className="button secondary" onClick={closeCropper} disabled={uploading}>Cancelar</button>
+                <button type="button" className="button" onClick={() => void handleSaveCrop()} disabled={uploading}><Check size={16} /> {uploading ? 'Salvando...' : 'Usar imagem'}</button>
               </div>
             </div>
           </div>, document.body
