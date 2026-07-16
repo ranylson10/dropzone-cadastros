@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
+import { listControllableEquipes } from '@backend/equipes/manager-team-access'
 import {
   inserirParticipacaoNoSlot,
   resolveLineForInscricao,
@@ -661,6 +662,8 @@ async function loadMinhasParticipacoes(equipeId: string, campeonatoId: string, g
 const emptySession = {
   autenticado: false,
   equipe: null as null,
+  equipes_disponiveis: [] as any[],
+  papel_sessao: null as null | 'equipe' | 'manager',
   lines: [] as any[],
   lines_disponiveis: [] as any[],
   lines_inscritas: [] as any[],
@@ -669,71 +672,130 @@ const emptySession = {
   total_lines_inscritas_campeonato: 0,
 }
 
+async function loadSessionForEquipe(equipeId: string, campeonatoId: string, grupoId: string, meta: {
+  nome: string
+  tag?: string | null
+  logo_url?: string | null
+  papel?: string
+}) {
+  const [{ data: lines }, { data: participacoesCampeonato }, minhasParticipacoes] = await Promise.all([
+    supabaseAdmin
+      .from('equipe_lines')
+      .select('id,nome,tag,logo_url,status')
+      .eq('equipe_id', equipeId)
+      .neq('status', 'inativo')
+      .order('created_at', { ascending: true }),
+    supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id,line_id,grupo_id,slot_numero,nome_exibicao')
+      .eq('campeonato_id', campeonatoId)
+      .eq('equipe_id', equipeId)
+      .eq('status', 'ativo'),
+    loadMinhasParticipacoes(equipeId, campeonatoId, grupoId),
+  ])
+
+  const used = new Set((participacoesCampeonato || []).map((item) => item.line_id).filter(Boolean))
+  const allLines = (lines || []).map((line) => ({
+    ...line,
+    ja_inscrita: used.has(line.id),
+  }))
+  const linesDisponiveis = allLines.filter((line) => !line.ja_inscrita)
+  const linesInscritas = allLines
+    .filter((line) => line.ja_inscrita)
+    .map((line) => {
+      const part = (participacoesCampeonato || []).find((p) => p.line_id === line.id)
+      return {
+        ...line,
+        participacao_id: part?.id || null,
+        grupo_id: part?.grupo_id || null,
+        slot_numero: part?.slot_numero || null,
+        nome_exibicao: line.nome || part?.nome_exibicao || null,
+      }
+    })
+
+  return {
+    autenticado: true,
+    equipe: {
+      id: equipeId,
+      nome: meta.nome,
+      tag: meta.tag || null,
+      logo_url: meta.logo_url || null,
+      papel: meta.papel || null,
+    },
+    lines: linesDisponiveis,
+    lines_disponiveis: linesDisponiveis,
+    lines_inscritas: [],
+    lines_ja_no_campeonato: linesInscritas.length,
+    minhas_participacoes: minhasParticipacoes,
+    inscrita: minhasParticipacoes.length > 0,
+    total_lines_inscritas_campeonato: used.size,
+  }
+}
+
 async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: string) {
   try {
     const user = await getBearerUser(req)
     const accounts = await getAccountsForUser(user)
-    const equipe = accounts.find((account) => account.profile_type === 'equipe') || null
-    if (!equipe) {
+    const controllable = await listControllableEquipes(user.id, accounts)
+    const hasManager = accounts.some((a) => a.profile_type === 'manager')
+    const preferredEquipeId = String(req.nextUrl.searchParams.get('equipe_id') || '').trim()
+
+    if (!controllable.length) {
       return {
         ...emptySession,
         autenticado: true,
+        papel_sessao: hasManager ? 'manager' : null,
+        equipes_disponiveis: [],
       }
     }
 
-    // Lines da pasta + parts ativas no campeonato + hub do grupo (em paralelo)
-    const [{ data: lines }, { data: participacoesCampeonato }, minhasParticipacoes] = await Promise.all([
-      supabaseAdmin
-        .from('equipe_lines')
-        .select('id,nome,tag,logo_url,status')
-        .eq('equipe_id', equipe.id)
-        .neq('status', 'inativo')
-        .order('created_at', { ascending: true }),
-      supabaseAdmin
-        .from('campeonato_equipes')
-        .select('id,line_id,grupo_id,slot_numero,nome_exibicao')
-        .eq('campeonato_id', campeonatoId)
-        .eq('equipe_id', equipe.id)
-        .eq('status', 'ativo'),
-      loadMinhasParticipacoes(equipe.id, campeonatoId, grupoId),
-    ])
+    // Manager (ou multi-equipe): lista todas; se só 1, já seleciona
+    const papelSessao: 'manager' | 'equipe' = hasManager ? 'manager' : 'equipe'
+    let selected = preferredEquipeId
+      ? controllable.find((e) => e.id === preferredEquipeId) || null
+      : controllable.length === 1
+        ? controllable[0]
+        : null
 
-    const used = new Set((participacoesCampeonato || []).map((item) => item.line_id).filter(Boolean))
-    const allLines = (lines || []).map((line) => ({
-      ...line,
-      ja_inscrita: used.has(line.id),
-    }))
-    const linesDisponiveis = allLines.filter((line) => !line.ja_inscrita)
-    const linesInscritas = allLines
-      .filter((line) => line.ja_inscrita)
-      .map((line) => {
-        const part = (participacoesCampeonato || []).find((p) => p.line_id === line.id)
-        return {
-          ...line,
-          participacao_id: part?.id || null,
-          grupo_id: part?.grupo_id || null,
-          slot_numero: part?.slot_numero || null,
-          // Nome da line (não sobrescrever com referência legada em nome_exibicao)
-          nome_exibicao: line.nome || part?.nome_exibicao || null,
-        }
-      })
+    // Usuário só com perfil equipe e uma pasta: mantém fluxo antigo
+    if (!selected && !hasManager && controllable.length === 1) {
+      selected = controllable[0]
+    }
+
+    if (!selected) {
+      return {
+        ...emptySession,
+        autenticado: true,
+        papel_sessao: papelSessao,
+        equipes_disponiveis: controllable.map((e) => ({
+          id: e.id,
+          nome: e.nome,
+          username: e.username,
+          logo_url: e.logo_url,
+          tag: e.tag,
+          papel: e.papel,
+        })),
+      }
+    }
+
+    const session = await loadSessionForEquipe(selected.id, campeonatoId, grupoId, {
+      nome: selected.nome,
+      tag: selected.tag,
+      logo_url: selected.logo_url,
+      papel: selected.papel,
+    })
 
     return {
-      autenticado: true,
-      equipe: {
-        id: equipe.id,
-        nome: equipe.name,
-        tag: equipe.data?.tag || null,
-        logo_url: equipe.data?.logo_url || null,
-      },
-      // Não devolvemos lines já inscritas na lista de escolha (evita induzir erro no cliente)
-      lines: linesDisponiveis,
-      lines_disponiveis: linesDisponiveis,
-      lines_inscritas: [],
-      lines_ja_no_campeonato: linesInscritas.length,
-      minhas_participacoes: minhasParticipacoes,
-      inscrita: minhasParticipacoes.length > 0,
-      total_lines_inscritas_campeonato: used.size,
+      ...session,
+      papel_sessao: papelSessao,
+      equipes_disponiveis: controllable.map((e) => ({
+        id: e.id,
+        nome: e.nome,
+        username: e.username,
+        logo_url: e.logo_url,
+        tag: e.tag,
+        papel: e.papel,
+      })),
     }
   } catch {
     return { ...emptySession }
@@ -869,16 +931,32 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const { token } = await context.params
     const user = await getBearerUser(req)
     const accounts = await getAccountsForUser(user)
-    const account = accounts.find((item) => item.profile_type === 'equipe')
-    if (!account) throw new Error('Este login ainda nao possui um perfil de equipe vinculado.')
-
     const body = await req.json().catch(() => ({}))
     const vagaIndex = Number(body.vaga_index)
     const slotIdInformado = String(body.slot_id || '').trim()
     const lineIdInformada = String(body.line_id || '').trim()
     const nomeNovaLine = String(body.nome_line || '').trim()
+    const equipeIdInformada = String(body.equipe_id || '').trim()
     // referência da lista é opcional/legado; preferimos match automático
     const referenciaInformada = String(body.referencia_equipe || body.nome_lista || '').trim()
+
+    const controllable = await listControllableEquipes(user.id, accounts)
+    if (!controllable.length) {
+      throw new Error('Este login não controla nenhuma equipe. Crie ou aceite um convite de staff primeiro.')
+    }
+    const selectedTeam = equipeIdInformada
+      ? controllable.find((e) => e.id === equipeIdInformada)
+      : controllable.length === 1
+        ? controllable[0]
+        : null
+    if (!selectedTeam) {
+      throw new Error('Selecione com qual equipe deseja entrar neste campeonato.')
+    }
+    const account = {
+      id: selectedTeam.id,
+      name: selectedTeam.nome,
+      data: { tag: selectedTeam.tag, logo_url: selectedTeam.logo_url },
+    }
 
     const link = await loadLinkForInscricao(token)
     const meta = parseLinkMetadata(link)

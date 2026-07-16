@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
+import { listControllableEquipes } from '@backend/equipes/manager-team-access'
 import {
   inserirParticipacaoNoSlot,
   resolveLineForInscricao,
@@ -145,11 +146,26 @@ async function carregarEquipeDoLogin(req: NextRequest, campeonatoId: string) {
   try {
     const user = await getBearerUser(req)
     const accounts = await getAccountsForUser(user)
-    const equipe = accounts.find((account) => account.profile_type === 'equipe') || null
-    if (!equipe) {
+    const controllable = await listControllableEquipes(user.id, accounts)
+    const preferredEquipeId = String(req.nextUrl.searchParams.get('equipe_id') || '').trim()
+    const hasManager = accounts.some((a) => a.profile_type === 'manager')
+    const selected =
+      (preferredEquipeId && controllable.find((e) => e.id === preferredEquipeId))
+      || (controllable.length === 1 ? controllable[0] : null)
+
+    if (!selected) {
       return {
         autenticado: true,
         equipe: null,
+        papel_sessao: hasManager ? 'manager' : null,
+        equipes_disponiveis: controllable.map((e) => ({
+          id: e.id,
+          nome: e.nome,
+          username: e.username,
+          logo_url: e.logo_url,
+          tag: e.tag,
+          papel: e.papel,
+        })),
         lines: [] as any[],
         lines_disponiveis: [] as any[],
       }
@@ -159,39 +175,49 @@ async function carregarEquipeDoLogin(req: NextRequest, campeonatoId: string) {
       supabaseAdmin
         .from('equipe_lines')
         .select('id,nome,tag,logo_url,status')
-        .eq('equipe_id', equipe.id)
+        .eq('equipe_id', selected.id)
         .neq('status', 'inativo')
         .order('created_at', { ascending: true }),
       supabaseAdmin
         .from('campeonato_equipes')
         .select('line_id')
         .eq('campeonato_id', campeonatoId)
-        .eq('equipe_id', equipe.id)
+        .eq('equipe_id', selected.id)
         .eq('status', 'ativo'),
     ])
 
     const usadas = new Set((participacoes || []).map((item) => item.line_id).filter(Boolean))
     const mapped = (lines || []).map((line) => ({
       ...line,
-      logo_url: line.logo_url || equipe.data?.logo_url || null,
+      logo_url: line.logo_url || selected.logo_url || null,
       ja_inscrita: usadas.has(line.id),
     }))
     const livres = mapped.filter((l) => !l.ja_inscrita)
 
     return {
       autenticado: true,
+      papel_sessao: hasManager ? 'manager' : 'equipe',
+      equipes_disponiveis: controllable.map((e) => ({
+        id: e.id,
+        nome: e.nome,
+        username: e.username,
+        logo_url: e.logo_url,
+        tag: e.tag,
+        papel: e.papel,
+      })),
       equipe: {
-        id: equipe.id,
-        nome: equipe.name,
-        tag: equipe.data?.tag || null,
-        logo_url: equipe.data?.logo_url || null,
+        id: selected.id,
+        nome: selected.nome,
+        tag: selected.tag || null,
+        logo_url: selected.logo_url || null,
+        papel: selected.papel,
       },
       // Só lines livres — evita opções inválidas
       lines: livres,
       lines_disponiveis: livres,
     }
   } catch {
-    return { autenticado: false, equipe: null, lines: [], lines_disponiveis: [] }
+    return { autenticado: false, equipe: null, equipes_disponiveis: [], lines: [], lines_disponiveis: [] }
   }
 }
 
@@ -317,10 +343,24 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const { token } = await context.params
     const user = await getBearerUser(req)
     const accounts = await getAccountsForUser(user)
-    const account = accounts.find((item) => item.profile_type === 'equipe')
-    if (!account) throw new Error('Este login ainda não possui um perfil de equipe vinculado.')
-
     const body = await req.json().catch(() => ({}))
+    const controllable = await listControllableEquipes(user.id, accounts)
+    if (!controllable.length) {
+      throw new Error('Este login não controla nenhuma equipe. Crie ou aceite um convite de staff primeiro.')
+    }
+    const equipeIdInformada = String(body.equipe_id || '').trim()
+    const selectedTeam = equipeIdInformada
+      ? controllable.find((e) => e.id === equipeIdInformada)
+      : controllable.length === 1
+        ? controllable[0]
+        : null
+    if (!selectedTeam) throw new Error('Selecione com qual equipe deseja entrar neste campeonato.')
+    const account = {
+      id: selectedTeam.id,
+      name: selectedTeam.nome,
+      data: { tag: selectedTeam.tag, logo_url: selectedTeam.logo_url },
+    }
+
     const { convite, slot: slotFixo, modoGrupo, grupo } = await carregar(token)
 
     if (!conviteAindaValido(convite)) {

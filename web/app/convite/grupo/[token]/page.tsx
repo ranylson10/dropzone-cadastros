@@ -87,7 +87,16 @@ type GroupInvitePayload = {
     restantes?: number
     expira_em?: string | null
   }
-  equipe?: { id: string; nome: string; tag: string | null; logo_url: string | null } | null
+  equipe?: { id: string; nome: string; tag: string | null; logo_url: string | null; papel?: string | null } | null
+  equipes_disponiveis?: Array<{
+    id: string
+    nome: string
+    username?: string | null
+    logo_url?: string | null
+    tag?: string | null
+    papel?: string
+  }>
+  papel_sessao?: 'equipe' | 'manager' | null
   lines?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita: boolean }>
   lines_disponiveis?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita?: boolean }>
   total_lines_inscritas_campeonato?: number
@@ -102,6 +111,7 @@ type Step =
   | 'acompanhar'
   | 'login'
   | 'sem_equipe'
+  | 'escolher_equipe'
   | 'confirmar_equipe'
   | 'escolher_line'
   | 'sucesso'
@@ -118,6 +128,7 @@ export default function ConviteGrupoPage() {
   const returnTo = `/convite/grupo/${encodeURIComponent(token)}`
 
   const [data, setData] = useState<GroupInvitePayload | null>(null)
+  const [selectedEquipeId, setSelectedEquipeId] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -198,27 +209,34 @@ export default function ConviteGrupoPage() {
     }
 
     if (!payload.autenticado) return 'login'
+    const multi = (payload.equipes_disponiveis || []).length > 1
+    // Manager / multi-equipe: escolher com qual pasta entrar
+    if (!payload.equipe && (payload.equipes_disponiveis || []).length > 0) return 'escolher_equipe'
     if (!payload.equipe) return 'sem_equipe'
-    // Acabou de logar neste fluxo: não pergunta equipe de novo
+    if (multi && opts.wasLogged && !opts.justLoggedIn) return 'escolher_equipe'
+    // Acabou de logar neste fluxo: não pergunta equipe de novo (já selecionou ou é única)
     if (opts.justLoggedIn) return 'escolher_line'
     // Já estava logado ao abrir o link → confirma (ou troca) a equipe
-    if (opts.wasLogged) return 'confirmar_equipe'
+    if (opts.wasLogged) return multi ? 'escolher_equipe' : 'confirmar_equipe'
     return 'escolher_line'
   }
 
-  async function carregar(opts?: { forceStep?: Step; forceAcompanhar?: boolean }) {
+  async function carregar(opts?: { forceStep?: Step; forceAcompanhar?: boolean; equipeId?: string }) {
     setLoading(true)
     setMessage('')
     const { data: sessionData } = await supabase.auth.getSession()
     const hasSession = Boolean(sessionData.session)
     const sessionCtx = markSessionContext(hasSession)
+    const eqId = opts?.equipeId || selectedEquipeId
+    const qs = eqId ? `?equipe_id=${encodeURIComponent(eqId)}` : ''
 
-    const response = await fetch(`/api/convites/grupo/${encodeURIComponent(token)}`, {
+    const response = await fetch(`/api/convites/grupo/${encodeURIComponent(token)}${qs}`, {
       headers: sessionData.session ? { Authorization: `Bearer ${sessionData.session.access_token}` } : undefined,
       cache: 'no-store',
     })
     const payload: GroupInvitePayload = await response.json()
     setData(payload)
+    if (payload.equipe?.id) setSelectedEquipeId(payload.equipe.id)
 
     // Token inexistente de verdade (sem campeonato)
     if (!response.ok && payload.error && !payload.campeonato) {
@@ -260,8 +278,16 @@ export default function ConviteGrupoPage() {
       setStep('login')
       return
     }
-    if (!data.equipe) {
+    if ((data.equipes_disponiveis || []).length > 1 && !data.equipe) {
+      setStep('escolher_equipe')
+      return
+    }
+    if (!data.equipe && !(data.equipes_disponiveis || []).length) {
       setStep('sem_equipe')
+      return
+    }
+    if ((data.equipes_disponiveis || []).length > 1) {
+      setStep('escolher_equipe')
       return
     }
     // CTA "Escalar" / inscrição a partir do acompanhamento: se já tinha sessão, confirma; senão line
@@ -272,6 +298,12 @@ export default function ConviteGrupoPage() {
     } catch {
       setStep('escolher_line')
     }
+  }
+
+  async function escolherEquipe(equipeId: string) {
+    setSelectedEquipeId(equipeId)
+    setMessage('')
+    await carregar({ forceStep: 'escolher_line', equipeId })
   }
 
   function confirmarEstaEquipe() {
@@ -316,6 +348,7 @@ export default function ConviteGrupoPage() {
       },
       body: JSON.stringify({
         // auto-slot no servidor se slot_id omitido
+        equipe_id: selectedEquipeId || data?.equipe?.id || undefined,
         line_id: resolvedLineId,
         nome_line: resolvedNomeLine,
       }),
@@ -448,10 +481,12 @@ export default function ConviteGrupoPage() {
         ? 'Entrada de equipes'
         : step === 'sem_equipe'
           ? 'Perfil de equipe'
-          : step === 'confirmar_equipe'
-            ? 'Confirmar equipe'
-            : step === 'escolher_line'
-              ? 'Escolher line'
+          : step === 'escolher_equipe'
+            ? 'Escolher equipe'
+            : step === 'confirmar_equipe'
+              ? 'Confirmar equipe'
+              : step === 'escolher_line'
+                ? 'Escolher line'
               : step === 'sucesso'
                 ? 'Inscrição confirmada'
                 : step === 'escalar'
@@ -548,15 +583,86 @@ export default function ConviteGrupoPage() {
             <div className="invite-auth-box" style={{ marginTop: 16 }}>
               <Shield size={22} />
               <p>
-                Seu login está ativo, mas ainda <strong>não tem conta de equipe</strong>. Crie o perfil para
-                continuar a inscrição automaticamente.
+                {data.papel_sessao === 'manager'
+                  ? 'Seu perfil de manager não controla nenhuma equipe ainda. Aceite um convite de staff ou crie uma equipe neste login.'
+                  : (
+                    <>
+                      Seu login está ativo, mas ainda <strong>não tem conta de equipe</strong>. Crie o perfil para
+                      continuar a inscrição automaticamente.
+                    </>
+                  )}
               </p>
               <a className="button invite-confirm" href={buildProfileCreationHref('equipe', returnTo)}>
                 Criar perfil de equipe
               </a>
-              <a className="button secondary" href={buildLoginHref('equipe', returnTo, true)}>
+              <a className="button secondary" href={buildLoginHref(data.papel_sessao === 'manager' ? 'manager' : 'equipe', returnTo, true)}>
                 Usar outra conta
               </a>
+              <button className="button secondary" type="button" onClick={() => setStep('acompanhar')} style={{ width: '100%', marginTop: 8 }}>
+                Só acompanhar
+              </button>
+            </div>
+          ) : null}
+
+          {/* ——— MANAGER / MULTI-EQUIPE: escolher pasta ——— */}
+          {step === 'escolher_equipe' ? (
+            <div className="invite-section" style={{ marginTop: 16 }}>
+              <div className="invite-auth-box" style={{ marginBottom: 12 }}>
+                <Users size={22} />
+                <p>
+                  {data.papel_sessao === 'manager' ? (
+                  <>
+                    Você entrou como <strong>manager</strong>. Escolha com qual equipe deseja se inscrever neste campeonato.
+                  </>
+                ) : (
+                  'Você controla mais de uma equipe. Escolha com qual deseja entrar.'
+                )}
+                </p>
+              </div>
+              <div className="championship-vagas-list">
+                {(data.equipes_disponiveis || []).map((eq) => (
+                  <article key={eq.id} className="championship-vaga-row status-ocupada">
+                    <button
+                      type="button"
+                      className="vaga-row-summary"
+                      onClick={() => void escolherEquipe(eq.id)}
+                      disabled={busy}
+                    >
+                      <span className="vaga-row-number">{eq.papel === 'dono' ? 'DN' : 'ST'}</span>
+                      <span className="vaga-row-avatar status-ocupada" aria-hidden>
+                        {eq.logo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={eq.logo_url} alt="" />
+                        ) : (
+                          <Users size={18} />
+                        )}
+                      </span>
+                      <span className="vaga-row-identity">
+                        <strong>{eq.nome}</strong>
+                        <small>
+                          {eq.username ? `@${eq.username}` : 'Equipe'}
+                          {' · '}
+                          {eq.papel === 'dono' ? 'Dono' : 'Staff'}
+                        </small>
+                      </span>
+                      <span className="vaga-row-meta">
+                        <span className="vaga-status-pill status-ocupada">Usar</span>
+                      </span>
+                      <span className="vaga-row-chevron" aria-hidden />
+                    </button>
+                  </article>
+                ))}
+              </div>
+              {data.equipe ? (
+                <button
+                  type="button"
+                  className="button secondary"
+                  style={{ marginTop: 12 }}
+                  onClick={() => setStep('escolher_line')}
+                >
+                  Continuar com {data.equipe.nome}
+                </button>
+              ) : null}
               <button className="button secondary" type="button" onClick={() => setStep('acompanhar')} style={{ width: '100%', marginTop: 8 }}>
                 Só acompanhar
               </button>
