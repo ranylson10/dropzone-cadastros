@@ -44,7 +44,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           .order('ordem', { ascending: true }),
         supabaseAdmin
           .from('campeonato_grupos')
-          .select('id,nome,fase_id,slots,whatsapp_url,status,created_at')
+          // schema real: sem coluna status (só id/nome/slots/fase_id/whatsapp_url/timestamps)
+          .select('id,nome,fase_id,slots,whatsapp_url,created_at')
           .eq('campeonato_id', id)
           .order('created_at', { ascending: true }),
         supabaseAdmin
@@ -115,9 +116,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         role: permission.role,
       },
     })
-  } catch (error) {
+  } catch (error: any) {
+    const message =
+      (error instanceof Error && error.message)
+      || error?.message
+      || error?.error_description
+      || 'Erro ao carregar estrutura.'
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erro ao carregar estrutura.' },
+      { error: message },
       { status: 400 },
     )
   }
