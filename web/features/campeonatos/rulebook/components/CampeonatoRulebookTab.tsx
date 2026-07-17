@@ -256,7 +256,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
     async (
       payload: Parameters<typeof rulebookService.save>[2],
       opts?: { silent?: boolean },
-    ) => {
+    ): Promise<RulebookApiResponse | null> => {
       // Espera save em andamento para não perder respostas ao clicar Continuar
       if (saveInflight.current) {
         try {
@@ -270,24 +270,27 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
       else setSaving(true)
       setError('')
 
-      const run = (async (): Promise<RulebookApiResponse | null> => {
-        try {
-          const token = await getAccessToken()
-          const json = await rulebookService.save(campeonatoId, token, payload)
-          applyResponse(json)
-          return json
-        } catch (e: any) {
-          setError(e?.message || 'Erro ao salvar.')
-          return null
-        } finally {
-          if (saveInflight.current === run) saveInflight.current = null
-          setSaving(false)
-          setAutoSaving(false)
-        }
-      })()
-
+      let settle!: (value: RulebookApiResponse | null) => void
+      const run = new Promise<RulebookApiResponse | null>((resolve) => {
+        settle = resolve
+      })
       saveInflight.current = run
-      return run
+
+      try {
+        const token = await getAccessToken()
+        const json = await rulebookService.save(campeonatoId, token, payload)
+        applyResponse(json)
+        settle(json)
+        return json
+      } catch (e: any) {
+        setError(e?.message || 'Erro ao salvar.')
+        settle(null)
+        return null
+      } finally {
+        if (saveInflight.current === run) saveInflight.current = null
+        setSaving(false)
+        setAutoSaving(false)
+      }
     },
     [campeonatoId, applyResponse],
   )
