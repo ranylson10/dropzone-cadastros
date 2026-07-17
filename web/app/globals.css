@@ -6800,3 +6800,28 @@ input::placeholder, textarea::placeholder {
   .rulebook-create-layout.with-preview{grid-template-columns:1fr}
   .rulebook-live-preview{position:static;max-height:420px}
 }
+
+/* --- Premiação divisão + rulebook linked ----------------------- */
+.premiacao-divisao-editor{display:grid;gap:12px;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-soft)}
+.premiacao-divisao-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.premiacao-budget{display:flex;gap:14px;flex-wrap:wrap}
+.premiacao-budget>div{display:grid;gap:2px;min-width:88px}
+.premiacao-budget span{font-size:10px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}
+.premiacao-budget strong{font-size:14px}
+.premiacao-budget .ok strong{color:#15803d}
+.premiacao-budget .over strong{color:#b91c1c}
+.premiacao-divisao-list{display:grid;gap:10px}
+.premiacao-divisao-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.premiacao-divisao-field{display:grid;gap:4px}
+.premiacao-divisao-field span{font-size:11px;font-weight:800;color:var(--muted)}
+.premiacao-divisao-field input{min-height:38px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);padding:0 10px}
+.premiacao-divisao-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.premiacao-rest-tag{font-style:normal;font-weight:800;font-size:11px;margin-left:6px;opacity:.85}
+.premiacao-over-warn{font-size:12px;font-weight:800;color:#b91c1c}
+.premiacao-full-ok{font-size:12px;font-weight:800;color:#15803d}
+.premiacao-divisao-hint{margin:0}
+.rulebook-question-card.linked{border-color:color-mix(in srgb,var(--brand) 35%,var(--line))}
+.rulebook-linked-tag{display:inline-flex;margin-left:8px;padding:2px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--brand) 40%,var(--line));background:var(--gold-soft);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.03em;color:var(--text);vertical-align:middle}
+@media(max-width:700px){
+  .premiacao-divisao-row{grid-template-columns:1fr}
+}

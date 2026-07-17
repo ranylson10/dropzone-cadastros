@@ -15,6 +15,12 @@ import {
   Wand2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { PremiacaoDivisaoEditor } from '@/components/forms/campeonato/PremiacaoDivisaoEditor'
+import {
+  moneyInputToValue,
+  moneyValueToDisplay,
+  parseMoneyNumber,
+} from '@/lib/premiacao-divisao'
 import { rulebookService } from '../services/rulebook.service'
 import { RulebookViewer } from './RulebookViewer'
 import type {
@@ -36,6 +42,22 @@ const ETAPA_LABELS = [
   'Infrações',
   'Revisão',
 ]
+
+const DEFAULT_LINKED = new Set([
+  'possui_premiacao',
+  'descricao_premiacao',
+  'premiacao_total',
+  'divisao_premiacao_json',
+  'possui_taxa',
+  'valor_taxa',
+  'possui_transmissao',
+  'plataforma',
+  'emulador_proibido',
+  'qtd_titulares',
+  'permite_reservas',
+  'qtd_reservas',
+  'modalidade',
+])
 
 function isEmptyAnswer(v: AnswerValue | undefined): boolean {
   if (v === undefined || v === null || v === '') return true
@@ -245,6 +267,66 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
   const alerts = data?.engine.alerts || data?.rulebook.alertas || []
   const canPublish = data?.engine.canPublish
   const globalProgress = data?.engine.progress?.percent ?? 0
+  const linkedFields = useMemo(
+    () => new Set(data?.meta?.linkedFields?.length ? data.meta.linkedFields : [...DEFAULT_LINKED]),
+    [data?.meta?.linkedFields],
+  )
+
+  function renderQuestionControl(q: RulebookQuestion, invalid: boolean) {
+    // Premiação total (moeda)
+    if (q.id === 'premiacao_total') {
+      return (
+        <div className={`rulebook-number ${invalid ? 'invalid' : ''}`}>
+          <input
+            inputMode="numeric"
+            value={moneyValueToDisplay(String(draftAnswers.premiacao_total ?? ''))}
+            placeholder="R$ 0,00"
+            onChange={(e) => setAnswer('premiacao_total', moneyInputToValue(e.target.value))}
+          />
+        </div>
+      )
+    }
+
+    // Divisão estruturada com orçamento restante
+    if (q.id === 'divisao_premiacao_json') {
+      return (
+        <PremiacaoDivisaoEditor
+          totalPremiacao={String(draftAnswers.premiacao_total ?? '')}
+          value={String(draftAnswers.divisao_premiacao_json ?? '')}
+          onChange={(serialized) => setAnswer('divisao_premiacao_json', serialized)}
+          disabled={saving || autoSaving}
+        />
+      )
+    }
+
+    // Valor da taxa
+    if (q.id === 'valor_taxa') {
+      const raw = String(draftAnswers.valor_taxa ?? '')
+      const asNum = parseMoneyNumber(raw)
+      return (
+        <div className={`rulebook-number ${invalid ? 'invalid' : ''}`}>
+          <input
+            inputMode="numeric"
+            value={asNum > 0 || raw ? moneyValueToDisplay(asNum || moneyInputToValue(raw) || raw) : ''}
+            placeholder="R$ 0,00"
+            onChange={(e) => {
+              const v = moneyInputToValue(e.target.value)
+              setAnswer('valor_taxa', v ? `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '')
+            }}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <QuestionField
+        question={q}
+        value={draftAnswers[q.id] ?? null}
+        onChange={(v) => setAnswer(q.id, v)}
+        invalid={invalid}
+      />
+    )
+  }
 
   const missingRequiredIds = useMemo(() => {
     return etapaQuestions
@@ -607,23 +689,20 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                   <div className="rulebook-question-list">
                     {etapaQuestions.map((q) => {
                       const invalid = highlightMissing.has(q.id)
+                      const linked = linkedFields.has(q.id)
                       return (
                         <div
                           key={q.id}
                           id={`rb-q-${q.id}`}
-                          className={`rulebook-question-card ${invalid ? 'missing' : ''}`}
+                          className={`rulebook-question-card ${invalid ? 'missing' : ''} ${linked ? 'linked' : ''}`}
                         >
                           <label>
                             {q.label}
                             {q.required ? <em>*</em> : null}
+                            {linked ? <span className="rulebook-linked-tag">Vinculado ao campeonato</span> : null}
                           </label>
                           {q.help ? <small className="muted">{q.help}</small> : null}
-                          <QuestionField
-                            question={q}
-                            value={draftAnswers[q.id] ?? null}
-                            onChange={(v) => setAnswer(q.id, v)}
-                            invalid={invalid}
-                          />
+                          {renderQuestionControl(q, invalid)}
                           {invalid ? (
                             <small className="rulebook-field-error">Campo obrigatório</small>
                           ) : null}

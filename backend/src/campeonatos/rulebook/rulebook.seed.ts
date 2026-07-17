@@ -63,28 +63,37 @@ export function seedAnswersFromCampeonato(
     setIfEmpty('possui_transmissao', camp.tem_live, 'Transmissão (tem_live)')
   }
 
-  // Premiação
+  // Premiação (estruturada + legada)
   const tipoPremio = String(camp.tipo_premiacao || '').toLowerCase()
   if (tipoPremio === 'sem_premiacao') {
     setIfEmpty('possui_premiacao', false, 'Sem premiação')
   } else if (tipoPremio && tipoPremio !== 'sem_premiacao') {
     setIfEmpty('possui_premiacao', true, 'Possui premiação')
-    const partes: string[] = []
-    if (camp.premiacao) partes.push(`Premiação: ${moneyText(camp.premiacao)}`)
-    if (camp.divisao_premiacao) partes.push(String(camp.divisao_premiacao))
-    if (camp.descricao_premiacao) partes.push(String(camp.descricao_premiacao))
-    if (camp.tem_trofeu) partes.push('Inclui troféu.')
-    if (partes.length) {
-      setIfEmpty('descricao_premiacao', partes.join('\n'), 'Descrição da premiação')
+    if (camp.premiacao != null && String(camp.premiacao).trim() !== '') {
+      setIfEmpty('premiacao_total', String(camp.premiacao), 'Total da premiação')
+    }
+    if (camp.divisao_premiacao) {
+      const raw = String(camp.divisao_premiacao).trim()
+      if (raw.startsWith('[')) {
+        setIfEmpty('divisao_premiacao_json', raw, 'Divisão da premiação')
+      } else {
+        setIfEmpty('descricao_premiacao', raw, 'Descrição da premiação')
+      }
+    }
+    if (camp.descricao_premiacao) {
+      setIfEmpty('descricao_premiacao', String(camp.descricao_premiacao), 'Obs. premiação')
     }
   } else if (camp.premiacao || camp.divisao_premiacao || camp.descricao_premiacao) {
     setIfEmpty('possui_premiacao', true, 'Possui premiação')
-    const partes = [
-      camp.premiacao ? moneyText(camp.premiacao) : '',
-      camp.divisao_premiacao ? String(camp.divisao_premiacao) : '',
-      camp.descricao_premiacao ? String(camp.descricao_premiacao) : '',
-    ].filter(Boolean)
-    setIfEmpty('descricao_premiacao', partes.join('\n'), 'Descrição da premiação')
+    if (camp.premiacao) setIfEmpty('premiacao_total', String(camp.premiacao), 'Total da premiação')
+    if (camp.divisao_premiacao) {
+      const raw = String(camp.divisao_premiacao).trim()
+      setIfEmpty(
+        raw.startsWith('[') ? 'divisao_premiacao_json' : 'descricao_premiacao',
+        raw,
+        'Divisão da premiação',
+      )
+    }
   }
 
   // Taxa de inscrição

@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, Dumbbell, Medal, Plus, Swords, Trash2, Trophy 
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import { Field, UploadField } from '@/features/dropzone/components/form-fields'
+import { PremiacaoDivisaoEditor } from './PremiacaoDivisaoEditor'
 
 export type CampeonatoFormValue = {
   nome: string
@@ -442,7 +443,12 @@ export function CampeonatoForm({
         ) : null}
 
         {showMoneyPrize ? (
-          <Field label="Divisão da premiação"><textarea value={value.divisao_premiacao} onChange={(e) => update('divisao_premiacao', e.target.value)} placeholder="Ex.: 1º R$ 3.000, 2º R$ 2.000, 3º R$ 1.000" /></Field>
+          <PremiacaoDivisaoEditor
+            totalPremiacao={value.premiacao}
+            value={value.divisao_premiacao}
+            onChange={(serialized) => update('divisao_premiacao', serialized)}
+            disabled={loading}
+          />
         ) : null}
 
         <div className="checkbox-row">

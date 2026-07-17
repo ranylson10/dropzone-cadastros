@@ -122,6 +122,8 @@ export interface RulebookApiResponse {
   meta?: {
     seedAplicado?: boolean
     seedCampos?: string[]
+    linkedFromCampeonato?: boolean
+    linkedFields?: string[]
   }
   error?: string
 }

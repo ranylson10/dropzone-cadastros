@@ -7,6 +7,7 @@ import {
   softRemoveParticipacao,
 } from '@backend/campeonatos/participacao-sync'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { syncRulebookFromCampeonato } from '@backend/campeonatos/rulebook'
 import { CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS, type ChampionshipType } from '@/lib/dropzone-constants'
 import {
   buildGroupInviteShareMessage,
@@ -1404,6 +1405,12 @@ export async function PATCH(req: NextRequest) {
       const { data: configuration, warning } = await saveChampionshipConfiguration(
         championshipConfigurationPayload(data, id),
       )
+      // Mantém rulebook alinhado (premiação, taxa, transmissão, etc.)
+      try {
+        await syncRulebookFromCampeonato(id)
+      } catch {
+        // best-effort
+      }
       return NextResponse.json({
         row: championshipRow({ ...updated, campeonato_configuracoes: configuration }),
         ...(warning ? { warning } : {}),

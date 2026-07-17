@@ -545,12 +545,36 @@ export function generateDocument(input: {
 
   // 18. Premiação
   if (modules.includes('premiacao') && a.possui_premiacao === true) {
+    let premiacaoBody = String(a.descricao_premiacao || '')
+    if (!premiacaoBody || a.divisao_premiacao_json) {
+      const parts: string[] = []
+      if (a.premiacao_total) {
+        parts.push(`A premiação total deste campeonato é de R$ ${String(a.premiacao_total)}.`)
+      }
+      try {
+        const items = JSON.parse(String(a.divisao_premiacao_json || '[]'))
+        if (Array.isArray(items) && items.length) {
+          parts.push('A distribuição por colocação será:')
+          for (const it of items) {
+            const nome = String(it?.nome || 'Colocação')
+            const valor = Number(it?.valor || 0)
+            parts.push(
+              `• ${nome}: R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            )
+          }
+        }
+      } catch {
+        // ignore
+      }
+      if (a.descricao_premiacao) parts.push(String(a.descricao_premiacao))
+      if (parts.length) premiacaoBody = parts.join('\n')
+    }
     push(
       article(
         'premiacao',
         'prm_valores',
         'Premiação',
-        String(a.descricao_premiacao || 'A premiação será divulgada pela organização.'),
+        premiacaoBody || 'A premiação será divulgada pela organização.',
       ),
     )
     push(

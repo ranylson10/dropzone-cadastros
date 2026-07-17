@@ -5,6 +5,7 @@ export * from './rulebook.infracoes'
 export * from './rulebook.engine'
 export * from './rulebook.generator'
 export * from './rulebook.seed'
+export * from './rulebook.sync'
 export {
   getRulebookCatalogPublic,
   getOrCreateRulebook,

@@ -8,6 +8,11 @@ import {
   questionsMetaForClient,
 } from './rulebook.engine'
 import { seedAnswersFromCampeonato } from './rulebook.seed'
+import {
+  loadCampeonatoConfig,
+  mergeLinkedAnswers,
+  syncCampeonatoFromRulebookAnswers,
+} from './rulebook.sync'
 import type {
   AnswersMap,
   InfracaoConfig,
@@ -31,25 +36,7 @@ async function getCampeonatoNome(campeonatoId: string): Promise<string> {
 }
 
 async function loadCampeonatoSeedSource(campeonatoId: string) {
-  const { data: camp } = await supabaseAdmin
-    .from('campeonatos')
-    .select('*')
-    .eq('id', campeonatoId)
-    .maybeSingle()
-
-  let config: Record<string, unknown> = {}
-  try {
-    const { data: cfg } = await supabaseAdmin
-      .from('campeonato_configuracoes')
-      .select('*')
-      .eq('campeonato_id', campeonatoId)
-      .maybeSingle()
-    if (cfg && typeof cfg === 'object') config = cfg as Record<string, unknown>
-  } catch {
-    // tabela opcional
-  }
-
-  return { ...(camp || {}), ...config }
+  return loadCampeonatoConfig(campeonatoId)
 }
 
 function normalizeRow(raw: any): RulebookRow {
@@ -173,8 +160,13 @@ export async function getRulebook(campeonatoId: string) {
   }
   if (error) throw new Error(error.message)
   if (!data) return null
-  const nome = await getCampeonatoNome(campeonatoId)
-  return buildRulebookResponse(normalizeRow(data), nome)
+  const camp = await loadCampeonatoConfig(campeonatoId)
+  const row = normalizeRow(data)
+  // Campeonato é fonte da verdade nos campos ligados
+  row.respostas = mergeLinkedAnswers(row.respostas, camp)
+  return buildRulebookResponse(row, String(camp.nome || 'Campeonato'), {
+    linkedFromCampeonato: true,
+  })
 }
 
 export async function getPublishedRulebook(campeonatoId: string) {
@@ -205,7 +197,7 @@ export async function getPublishedRulebook(campeonatoId: string) {
 function buildRulebookResponse(
   row: RulebookRow,
   campeonatoNome = 'Campeonato',
-  meta?: { seedCampos?: string[]; seedAplicado?: boolean },
+  meta?: { seedCampos?: string[]; seedAplicado?: boolean; linkedFromCampeonato?: boolean },
 ) {
   const engine = buildEngineState({
     perfil: row.perfil,
@@ -265,6 +257,22 @@ function buildRulebookResponse(
     meta: {
       seedAplicado: Boolean(meta?.seedAplicado),
       seedCampos: meta?.seedCampos || [],
+      linkedFromCampeonato: Boolean(meta?.linkedFromCampeonato),
+      linkedFields: [
+        'possui_premiacao',
+        'descricao_premiacao',
+        'premiacao_total',
+        'divisao_premiacao_json',
+        'possui_taxa',
+        'valor_taxa',
+        'possui_transmissao',
+        'plataforma',
+        'emulador_proibido',
+        'qtd_titulares',
+        'permite_reservas',
+        'qtd_reservas',
+        'modalidade',
+      ],
     },
   }
 }
@@ -322,10 +330,39 @@ export async function saveRulebook(input: {
       ? input.payload.confirmacoes_alertas
       : row.confirmacoes_alertas
 
-  const nome = await getCampeonatoNome(input.campeonatoId)
+  // Sincroniza campos ligados de volta ao campeonato (premiação, taxa, etc.)
+  if (input.payload.respostas) {
+    await syncCampeonatoFromRulebookAnswers(input.campeonatoId, respostas)
+  }
+
+  // Re-lê campeonato após sync para manter engine alinhado
+  const campAfter = await loadCampeonatoConfig(input.campeonatoId)
+  const respostasFinais = mergeLinkedAnswers(respostas, campAfter)
+  // Garante descrição da premiação coerente com a divisão estruturada
+  if (respostasFinais.possui_premiacao === true && respostasFinais.divisao_premiacao_json) {
+    const total = respostasFinais.premiacao_total
+    const parts = [`Premiação total: ${String(total || '')}.`, 'Divisão:']
+    try {
+      const items = JSON.parse(String(respostasFinais.divisao_premiacao_json))
+      if (Array.isArray(items)) {
+        for (const it of items) {
+          parts.push(`${it.nome}: R$ ${Number(it.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        }
+      }
+    } catch {
+      // ignore
+    }
+    if (!respostasFinais.descricao_premiacao) {
+      respostasFinais.descricao_premiacao = parts.join('\n')
+    } else if (respostasFinais.divisao_premiacao_json) {
+      respostasFinais.descricao_premiacao = parts.join('\n')
+    }
+  }
+
+  const nome = String(campAfter.nome || (await getCampeonatoNome(input.campeonatoId)))
   const engine = buildEngineState({
     perfil,
-    respostas,
+    respostas: respostasFinais,
     infracoes,
     confirmacoes_alertas: confirmacoes,
     campeonatoNome: nome,
@@ -370,7 +407,7 @@ export async function saveRulebook(input: {
     .single()
 
   if (error) throw new Error(error.message)
-  return buildRulebookResponse(normalizeRow(data), nome)
+  return buildRulebookResponse(normalizeRow(data), nome, { linkedFromCampeonato: true })
 }
 
 export async function publishRulebook(input: {
