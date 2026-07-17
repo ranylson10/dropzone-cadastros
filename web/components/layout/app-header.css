@@ -1,0 +1,215 @@
+/**
+ * AppHeader — estilos isolados (não dependem só do globals.css).
+ * Importado em AppHeader.tsx.
+ */
+.app-header {
+  position: fixed !important;
+  inset: 0 0 auto !important;
+  z-index: 100 !important;
+  height: 74px !important;
+  border-top: 3px solid #c9a227 !important;
+  border-bottom: 1px solid #d5dae3 !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 10px 30px rgba(20, 24, 32, 0.06) !important;
+  backdrop-filter: blur(16px);
+  box-sizing: border-box !important;
+  font-family: "Rajdhani", "Segoe UI", Arial, sans-serif !important;
+}
+
+.app-header-inner {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  width: min(1200px, calc(100% - 36px)) !important;
+  height: 100% !important;
+  margin: 0 auto !important;
+  gap: 28px !important;
+  box-sizing: border-box !important;
+}
+
+.app-brand {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  color: #141820 !important;
+  text-decoration: none !important;
+}
+
+.app-brand-logo {
+  display: grid !important;
+  width: 42px !important;
+  height: 42px !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  background: #c9a227 !important;
+  box-shadow: 0 8px 20px rgba(201, 162, 39, 0.22) !important;
+  flex: 0 0 42px !important;
+}
+
+.app-brand-logo img,
+.app-brand-logo .system-logo {
+  width: 42px !important;
+  height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+.app-brand-copy {
+  display: grid !important;
+  line-height: 1 !important;
+}
+
+.app-brand-copy strong {
+  font-size: 18px !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.12em !important;
+  color: #141820 !important;
+  text-transform: uppercase !important;
+}
+
+.app-brand-copy small {
+  margin-top: 4px !important;
+  color: #6b7280 !important;
+  font-size: 8px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+}
+
+.app-main-nav {
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+.app-main-nav a {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  min-width: 102px !important;
+  padding: 0 16px !important;
+  color: #52525b !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  text-decoration: none !important;
+  text-transform: uppercase !important;
+  transition: color 0.2s ease, background 0.2s ease !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.app-main-nav a::after {
+  position: absolute !important;
+  right: 18px !important;
+  bottom: 0 !important;
+  left: 18px !important;
+  height: 3px !important;
+  background: #c9a227 !important;
+  content: "" !important;
+  opacity: 0 !important;
+  transform: scaleX(0.35) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+.app-main-nav a:hover,
+.app-main-nav a.active {
+  color: #141820 !important;
+  background: linear-gradient(180deg, transparent, rgba(201, 162, 39, 0.055)) !important;
+}
+
+.app-main-nav a:hover::after,
+.app-main-nav a.active::after {
+  opacity: 1 !important;
+  transform: scaleX(1) !important;
+}
+
+.app-header-login {
+  border: 1px solid #c9a227 !important;
+  color: #141820 !important;
+  padding: 11px 16px !important;
+  text-decoration: none !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  white-space: nowrap !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.app-header-login:hover {
+  background: rgba(201, 162, 39, 0.12) !important;
+  color: #141820 !important;
+}
+
+.app-mobile-toggle {
+  display: none !important;
+  border: 1px solid #d5dae3 !important;
+  background: #fff !important;
+  border-radius: 6px !important;
+  width: 40px !important;
+  height: 40px !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  color: #141820 !important;
+}
+
+/* main com header fixo */
+main.central-login-page.page,
+.central-login-page.page,
+.page-authenticated {
+  padding-top: 96px !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 900px) {
+  .app-mobile-toggle {
+    display: grid !important;
+    order: 2;
+  }
+
+  .app-header-inner {
+    grid-template-columns: 1fr auto auto !important;
+    gap: 12px !important;
+  }
+
+  .app-main-nav {
+    display: none !important;
+    position: absolute !important;
+    top: 74px !important;
+    left: 0 !important;
+    right: 0 !important;
+    flex-direction: column !important;
+    height: auto !important;
+    background: #fff !important;
+    border-bottom: 1px solid #d5dae3 !important;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
+    z-index: 99 !important;
+  }
+
+  .app-main-nav.is-open {
+    display: flex !important;
+  }
+
+  .app-main-nav a {
+    min-height: 48px !important;
+    justify-content: flex-start !important;
+    place-items: center start !important;
+    padding: 0 20px !important;
+    border-bottom: 1px solid #eef0f4 !important;
+  }
+
+  .app-header-login {
+    order: 3;
+  }
+}

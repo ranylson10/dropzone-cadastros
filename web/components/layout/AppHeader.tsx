@@ -6,6 +6,7 @@ import type { DropZoneRow } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { APP_NAV, type AppNavItem } from './nav'
+import './app-header.css'
 
 export type AppHeaderNavItem = AppNavItem
 
