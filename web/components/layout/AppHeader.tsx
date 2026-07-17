@@ -31,7 +31,10 @@ function profileMedia(account: DropZoneRow) {
   return account.data?.logo_url || account.data?.avatar_url || ''
 }
 
-/** Imagens de perfil SEMPRE com tamanho fixo — não dependem de CSS global. */
+/**
+ * Avatar com tamanho travado em style inline + attrs HTML.
+ * Não depende de CSS global — evita logo estourar a tela.
+ */
 function LockedAvatar({
   src,
   size,
@@ -69,7 +72,7 @@ function LockedAvatar({
     borderRadius: '50%',
   }
   return (
-    <span style={box} className="app-profile-avatar">
+    <span style={box} className="app-profile-avatar" data-locked-avatar={size}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" width={size} height={size} style={img} />

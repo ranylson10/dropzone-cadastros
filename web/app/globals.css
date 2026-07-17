@@ -6678,3 +6678,131 @@ input::placeholder, textarea::placeholder {
 .spec-check{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
 .spec-list-block{display:grid;gap:8px;margin-top:4px}
 .spec-list-block h5{margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+
+/* ============================================================
+   HEADER CHROME HARD LOCK — nao remover
+   Impede avatar/logo de estourar a tela mesmo com CSS parcial.
+   ============================================================ */
+.app-header .app-profile-avatar,
+.app-header .app-profile-avatar.app-profile-avatar {
+  box-sizing: border-box !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  overflow: hidden !important;
+  flex: 0 0 40px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+}
+.app-header .app-profile-avatar img {
+  box-sizing: border-box !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  object-fit: cover !important;
+  display: block !important;
+  border-radius: 50% !important;
+}
+.app-header .linked-account-option .app-profile-avatar,
+.app-header .app-profile-menu .app-profile-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
+  flex: 0 0 32px !important;
+}
+.app-header .linked-account-option .app-profile-avatar img,
+.app-header .app-profile-menu .app-profile-avatar img {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
+}
+.app-header .app-brand-logo {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+  overflow: hidden !important;
+  flex: 0 0 42px !important;
+}
+.app-header .app-brand-logo img,
+.app-header .app-brand-logo .system-logo {
+  width: 42px !important;
+  height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+  object-fit: cover !important;
+}
+.social-login-button img {
+  width: 20px !important;
+  height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
+  flex: 0 0 20px !important;
+  object-fit: contain !important;
+}
+
+/* Menu de perfis — ações e linhas */
+.app-profile-menu .linked-account-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  padding: 12px 14px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+.app-profile-menu .linked-account-option.active {
+  background: var(--surface-muted);
+  cursor: default;
+}
+.app-profile-menu .linked-account-option > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.app-profile-menu .linked-account-option b,
+.app-profile-menu .linked-account-option small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-profile-menu .linked-account-option small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.app-profile-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 12px 14px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+}
+.app-profile-menu-action.is-danger {
+  color: var(--danger);
+}
