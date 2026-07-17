@@ -9,7 +9,7 @@ import type { Provider } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase-browser'
 import type { ProfileType } from '@/lib/types'
 import { safeInternalPath, type SocialProvider } from './auth-return'
-import '@/app/login/login.css'
+/* login.css só na página /login — não importar aqui (quebra o resto do site) */
 
 type Props = {
   profileType?: ProfileType | null

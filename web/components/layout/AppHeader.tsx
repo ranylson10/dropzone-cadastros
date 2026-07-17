@@ -103,7 +103,18 @@ export function AppHeader({
               aria-expanded={profileOpen}
             >
               <span className="app-profile-avatar">
-                {profileImage ? <img src={profileImage} alt="" /> : <b>{String(profileName).slice(0, 2).toUpperCase()}</b>}
+                {profileImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profileImage}
+                    alt=""
+                    width={40}
+                    height={40}
+                    style={{ width: 40, height: 40, maxWidth: 40, maxHeight: 40, objectFit: 'cover', borderRadius: '50%' }}
+                  />
+                ) : (
+                  <b>{String(profileName).slice(0, 2).toUpperCase()}</b>
+                )}
               </span>
               <span className="app-profile-copy">
                 <strong>{profileName}</strong>
@@ -134,7 +145,18 @@ export function AppHeader({
                       }}
                     >
                       <span className="linked-account-avatar">
-                        {media ? <img src={media} alt="" /> : String(item.name || item.username || 'DZ').slice(0, 2).toUpperCase()}
+                        {media ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={media}
+                            alt=""
+                            width={32}
+                            height={32}
+                            style={{ width: 32, height: 32, maxWidth: 32, maxHeight: 32, objectFit: 'cover', borderRadius: '50%' }}
+                          />
+                        ) : (
+                          String(item.name || item.username || 'DZ').slice(0, 2).toUpperCase()
+                        )}
                       </span>
                       <span>
                         <b>{item.name}</b>
