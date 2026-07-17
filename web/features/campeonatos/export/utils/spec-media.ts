@@ -4,7 +4,7 @@
  * Logos: 300×300 PNG — nome = código do slot (902000034=A, 902000035=B, …)
  * Fotos: 500×600 PNG — nome = id do jogo do jogador
  *
- * Composição: fundo (mesmo p/ todas) + imagem com margem.
+ * Composição: fundo + imagem com margens (cima/baixo/lados) + recolor opcional da logo.
  */
 
 import JSZip from 'jszip'
@@ -18,11 +18,21 @@ export const PHOTO_H = 600
 /** Código base do SPEC: A = 902000034 */
 export const SPEC_LOGO_CODE_BASE = 902000034
 
+export type BoxMargin = {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+export const DEFAULT_LOGO_MARGIN: BoxMargin = { top: 24, right: 24, bottom: 24, left: 24 }
+export const DEFAULT_PHOTO_MARGIN: BoxMargin = { top: 30, right: 30, bottom: 30, left: 30 }
+
 export function letterFromSlot(slotLetra: string | null | undefined, slotNumero: number | null | undefined): string {
   const raw = String(slotLetra || '').trim().toUpperCase()
   if (raw && /^[A-Z]$/.test(raw[0])) return raw[0]
   const n = Number(slotNumero || 0)
-  if (n >= 1 && n <= 26) return String.fromCharCode(64 + n) // 1→A
+  if (n >= 1 && n <= 26) return String.fromCharCode(64 + n)
   return ''
 }
 
@@ -40,7 +50,6 @@ export type SpecLogoItem = {
   slotLetra: string
   codigo: number
   logoUrl: string | null
-  /** URL ou dataURL override após admin trocar/recorte simples */
   sourceUrl: string | null
 }
 
@@ -60,7 +69,6 @@ export function buildSpecLogoItems(data: CampeonatoExportPayload): SpecLogoItem[
   for (const eq of data.equipes || []) {
     for (const line of eq.lines || []) {
       let letter = letterFromSlot(line.slot?.letra, line.slot?.numero)
-      // se colidir, tenta próxima livre
       if (letter && usedLetters.has(letter)) {
         for (let i = 0; i < 26; i++) {
           const cand = String.fromCharCode(65 + i)
@@ -135,27 +143,117 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
+function clampMargin(m: BoxMargin, width: number, height: number): BoxMargin {
+  const maxH = Math.max(0, Math.floor(height / 2) - 1)
+  const maxW = Math.max(0, Math.floor(width / 2) - 1)
+  return {
+    top: Math.max(0, Math.min(Math.floor(m.top || 0), maxH)),
+    bottom: Math.max(0, Math.min(Math.floor(m.bottom || 0), maxH)),
+    left: Math.max(0, Math.min(Math.floor(m.left || 0), maxW)),
+    right: Math.max(0, Math.min(Math.floor(m.right || 0), maxW)),
+  }
+}
+
+function parseHexColor(hex: string): { r: number; g: number; b: number } | null {
+  const raw = String(hex || '').trim()
+  const m = raw.match(/^#?([0-9a-f]{6})$/i)
+  if (!m) return null
+  const n = parseInt(m[1], 16)
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
+}
+
 /**
- * Desenha fundo + imagem centralizada com margem (px) em canvas.
- * object-fit: contain dentro da área útil.
+ * Recolore a logo: usa luminância como máscara e pinta com a cor escolhida.
+ * Resolve logo preta em fundo preto.
+ */
+function recolorImageToCanvas(img: HTMLImageElement, tintHex: string): HTMLCanvasElement {
+  const w = img.naturalWidth || img.width
+  const h = img.naturalHeight || img.height
+  const c = document.createElement('canvas')
+  c.width = w
+  c.height = h
+  const ctx = c.getContext('2d')
+  if (!ctx) return c
+  ctx.drawImage(img, 0, 0, w, h)
+  const color = parseHexColor(tintHex)
+  if (!color) return c
+
+  const imageData = ctx.getImageData(0, 0, w, h)
+  const d = imageData.data
+  for (let i = 0; i < d.length; i += 4) {
+    const a = d[i + 3]
+    if (a < 8) continue
+    const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255
+    // pixels escuros ou coloridos viram a cor escolhida; alpha preserva forma
+    // invert: conteúdo "visível" (não branco puro) vira tinta
+    const strength = 1 - Math.min(1, lum * 1.05)
+    const alpha = Math.round(a * Math.max(strength, a / 255))
+    d[i] = color.r
+    d[i + 1] = color.g
+    d[i + 2] = color.b
+    d[i + 3] = Math.max(a > 200 && lum > 0.92 ? 0 : alpha, lum < 0.85 ? a : Math.round(a * strength))
+  }
+  // segunda passagem mais simples e previsível: alpha = 255 - luminância (para logos pretas)
+  ctx.putImageData(imageData, 0, 0)
+  const img2 = ctx.getImageData(0, 0, w, h)
+  // re-draw original and apply mask approach cleanly
+  ctx.clearRect(0, 0, w, h)
+  ctx.drawImage(img, 0, 0, w, h)
+  const src = ctx.getImageData(0, 0, w, h)
+  const out = ctx.createImageData(w, h)
+  for (let i = 0; i < src.data.length; i += 4) {
+    const r = src.data[i]
+    const g = src.data[i + 1]
+    const b = src.data[i + 2]
+    const a = src.data[i + 3]
+    if (a < 4) {
+      out.data[i + 3] = 0
+      continue
+    }
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    // quanto mais escuro, mais opaco na nova cor
+    let alpha = Math.round((1 - lum) * a)
+    // se já tem alpha e não é branco, mantém presença
+    if (a < 250 && lum > 0.2) alpha = Math.max(alpha, Math.round(a * 0.85))
+    out.data[i] = color.r
+    out.data[i + 1] = color.g
+    out.data[i + 2] = color.b
+    out.data[i + 3] = alpha
+  }
+  ctx.putImageData(out, 0, 0)
+  return c
+}
+
+/**
+ * Desenha fundo + imagem com margens independentes.
+ * object-fit: contain na área útil.
  */
 export async function composeOnCanvas(opts: {
   width: number
   height: number
   sourceUrl: string | null
   backgroundUrl: string | null
-  margin: number
+  margin: BoxMargin
   /** cor de fallback se não houver fundo */
   fallbackColor?: string
+  /** recolor da logo (hex). null = original */
+  tintColor?: string | null
 }): Promise<Blob> {
-  const { width, height, sourceUrl, backgroundUrl, margin, fallbackColor = '#000000' } = opts
+  const {
+    width,
+    height,
+    sourceUrl,
+    backgroundUrl,
+    margin,
+    fallbackColor = '#000000',
+    tintColor = null,
+  } = opts
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas não disponível')
 
-  // fundo
   if (backgroundUrl) {
     try {
       const bg = await loadImage(backgroundUrl)
@@ -169,21 +267,30 @@ export async function composeOnCanvas(opts: {
     ctx.fillRect(0, 0, width, height)
   }
 
-  const m = Math.max(0, Math.min(Math.floor(margin), Math.floor(Math.min(width, height) / 2) - 1))
-  const boxW = width - m * 2
-  const boxH = height - m * 2
+  const m = clampMargin(margin, width, height)
+  const boxW = width - m.left - m.right
+  const boxH = height - m.top - m.bottom
 
   if (sourceUrl && boxW > 0 && boxH > 0) {
     try {
       const img = await loadImage(sourceUrl)
-      const scale = Math.min(boxW / img.naturalWidth, boxH / img.naturalHeight)
-      const dw = img.naturalWidth * scale
-      const dh = img.naturalHeight * scale
-      const dx = m + (boxW - dw) / 2
-      const dy = m + (boxH - dh) / 2
-      ctx.drawImage(img, dx, dy, dw, dh)
+      const source: CanvasImageSource = tintColor
+        ? recolorImageToCanvas(img, tintColor)
+        : img
+      const iw = 'naturalWidth' in source && (source as HTMLImageElement).naturalWidth
+        ? (source as HTMLImageElement).naturalWidth
+        : (source as HTMLCanvasElement).width
+      const ih = 'naturalHeight' in source && (source as HTMLImageElement).naturalHeight
+        ? (source as HTMLImageElement).naturalHeight
+        : (source as HTMLCanvasElement).height
+      const scale = Math.min(boxW / iw, boxH / ih)
+      const dw = iw * scale
+      const dh = ih * scale
+      const dx = m.left + (boxW - dw) / 2
+      const dy = m.top + (boxH - dh) / 2
+      ctx.drawImage(source, dx, dy, dw, dh)
     } catch {
-      // sem imagem de conteúdo — só o fundo
+      // só fundo
     }
   }
 
@@ -198,7 +305,8 @@ export async function composeOnCanvas(opts: {
 export async function buildSpecLogosZip(
   items: SpecLogoItem[],
   backgroundUrl: string | null,
-  margin: number,
+  margin: BoxMargin,
+  tintColor: string | null,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
   const zip = new JSZip()
@@ -213,6 +321,7 @@ export async function buildSpecLogosZip(
       sourceUrl: item.sourceUrl,
       backgroundUrl,
       margin,
+      tintColor,
       fallbackColor: '#111111',
     })
     folder.file(`${item.codigo}.png`, blob)
@@ -220,7 +329,6 @@ export async function buildSpecLogosZip(
     onProgress?.(done, total)
   }
 
-  // mapa letra → código
   const mapLines = items.map((i) => `${i.slotLetra}=${i.codigo} · ${i.equipeNome} · ${i.lineNome}`).join('\n')
   folder.file('_mapa_slots.txt', mapLines)
 
@@ -230,7 +338,7 @@ export async function buildSpecLogosZip(
 export async function buildSpecPhotosZip(
   items: SpecPhotoItem[],
   backgroundUrl: string | null,
-  margin: number,
+  margin: BoxMargin,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
   const zip = new JSZip()
