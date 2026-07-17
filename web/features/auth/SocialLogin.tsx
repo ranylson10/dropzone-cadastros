@@ -62,7 +62,24 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
           disabled={Boolean(loadingProvider)}
           onClick={() => startOAuth(provider)}
         >
-          <img src={`/social-${provider}.svg`} alt="" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/social-${provider}.svg`}
+            alt=""
+            width={20}
+            height={20}
+            style={{
+              width: 20,
+              height: 20,
+              maxWidth: 20,
+              maxHeight: 20,
+              minWidth: 20,
+              minHeight: 20,
+              flex: '0 0 20px',
+              display: 'block',
+              objectFit: 'contain',
+            }}
+          />
           {loadingProvider === provider ? `Abrindo ${labels[provider].replace('Continuar com ', '')}...` : labels[provider]}
         </button>
       ))}

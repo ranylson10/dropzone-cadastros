@@ -31,7 +31,10 @@ function profileMedia(account: DropZoneRow) {
   return account.data?.logo_url || account.data?.avatar_url || ''
 }
 
-/** Imagens de perfil SEMPRE com tamanho fixo — não dependem de CSS global. */
+/**
+ * Avatar com tamanho travado em style inline + attrs HTML.
+ * Não depende de CSS global — evita logo estourar a tela.
+ */
 function LockedAvatar({
   src,
   size,
@@ -69,7 +72,7 @@ function LockedAvatar({
     borderRadius: '50%',
   }
   return (
-    <span style={box} className="app-profile-avatar">
+    <span style={box} className="app-profile-avatar" data-locked-avatar={size}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" width={size} height={size} style={img} />
@@ -115,7 +118,10 @@ export function AppHeader({
           <span className="app-brand-logo">
             <SystemLogo size={42} alt="" fit="cover" />
           </span>
-          <span className="app-brand-copy"><strong>DROPZONE</strong><small>COMPETITIVE SYSTEM</small></span>
+          <span className="app-brand-copy">
+            <strong>DROPZONE</strong>
+            <small>COMPETITIVE SYSTEM</small>
+          </span>
         </a>
 
         <button
@@ -142,65 +148,31 @@ export function AppHeader({
         </nav>
 
         {isAuthenticated ? (
-          <div className="app-profile" ref={profileRef} style={{ position: 'relative', maxWidth: 280 }}>
+          <div className="app-profile" ref={profileRef}>
             <NotificationBell />
             <button
               type="button"
               className="app-profile-trigger"
               onClick={() => setProfileOpen((value) => !value)}
               aria-expanded={profileOpen}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                maxWidth: 240,
-                minWidth: 0,
-                border: 0,
-                padding: '6px 8px',
-                borderRadius: 8,
-                background: 'transparent',
-                cursor: 'pointer',
-              }}
             >
               <LockedAvatar
                 src={profileImage || undefined}
                 size={40}
                 fallback={String(profileName).slice(0, 2).toUpperCase()}
               />
-              <span className="app-profile-copy" style={{ minWidth: 0, overflow: 'hidden' }}>
-                <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {profileName}
-                </strong>
-                <small style={{ display: 'block', color: '#6b7280', fontSize: 10 }}>
-                  {profileSubtitle || 'Conta DropZone'}
-                </small>
+              <span className="app-profile-copy">
+                <strong>{profileName}</strong>
+                <small>{profileSubtitle || 'Conta DropZone'}</small>
               </span>
               <ChevronDown size={16} className={profileOpen ? 'rotated' : ''} />
             </button>
 
             {profileOpen ? (
-              <div
-                className="app-profile-menu linked-account-menu"
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 10px)',
-                  right: 0,
-                  width: 280,
-                  maxWidth: '90vw',
-                  maxHeight: '70vh',
-                  overflow: 'auto',
-                  border: '1px solid #d5dae3',
-                  borderRadius: 8,
-                  background: '#fff',
-                  boxShadow: '0 18px 50px rgba(15,23,42,.16)',
-                  zIndex: 200,
-                }}
-              >
-                <div className="app-profile-menu-head" style={{ padding: 14, borderBottom: '1px solid #d5dae3', background: '#f4f5f8' }}>
+              <div className="app-profile-menu linked-account-menu">
+                <div className="app-profile-menu-head">
                   <strong>Perfis vinculados</strong>
-                  <span style={{ display: 'block', marginTop: 3, color: '#6b7280', fontSize: 11 }}>
-                    Perfis ligados à mesma conta
-                  </span>
+                  <span>Perfis ligados à mesma conta</span>
                 </div>
                 {accounts.map((item) => {
                   const media = profileMedia(item)
@@ -216,28 +188,15 @@ export function AppHeader({
                         onSwitchAccount?.(item)
                         setProfileOpen(false)
                       }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        width: '100%',
-                        border: 0,
-                        padding: '12px 14px',
-                        background: isActive ? '#f4f5f8' : '#fff',
-                        cursor: isActive ? 'default' : 'pointer',
-                        textAlign: 'left',
-                      }}
                     >
                       <LockedAvatar
                         src={media || undefined}
                         size={32}
                         fallback={String(item.name || item.username || 'DZ').slice(0, 2).toUpperCase()}
                       />
-                      <span style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                        <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.name}
-                        </b>
-                        <small style={{ color: '#6b7280', fontSize: 11 }}>
+                      <span>
+                        <b>{item.name}</b>
+                        <small>
                           {isSwitching ? 'Abrindo painel...' : `${item.profile_type} · @${item.username}`}
                         </small>
                       </span>
@@ -248,43 +207,16 @@ export function AppHeader({
                 {onCreateLinkedProfile ? (
                   <button
                     type="button"
+                    className="app-profile-menu-action"
                     onClick={() => {
                       onCreateLinkedProfile()
                       setProfileOpen(false)
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 9,
-                      width: '100%',
-                      border: 0,
-                      borderTop: '1px solid #d5dae3',
-                      padding: '12px 14px',
-                      background: '#fff',
-                      cursor: 'pointer',
-                      fontWeight: 700,
                     }}
                   >
                     <Plus size={16} /> Criar perfil vinculado
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={onSignOut}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 9,
-                    width: '100%',
-                    border: 0,
-                    borderTop: '1px solid #d5dae3',
-                    padding: '12px 14px',
-                    background: '#fff',
-                    color: '#dc2626',
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                  }}
-                >
+                <button type="button" className="app-profile-menu-action is-danger" onClick={onSignOut}>
                   <LogOut size={16} /> Sair de todos
                 </button>
               </div>
