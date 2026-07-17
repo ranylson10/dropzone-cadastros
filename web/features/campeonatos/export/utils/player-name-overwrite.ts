@@ -30,12 +30,20 @@ export type FfTextColors = {
   Eliminated: string
 }
 
+export type FfNationSource = 'funcao' | 'localidade'
+
 export type FfGenerateOptions = {
-  /** Cor do texto da função (PlayerNation) */
+  /** Cor do texto da função/localidade (PlayerNation) */
   roleColor: string
   /** Cor do nome da equipe em TeamRegionList */
   teamColor: string
   textColor: FfTextColors
+  /**
+   * O que preencher em PlayerNation:
+   * - funcao → SNIPER/RUSHER/BOMBER/SUPPORT
+   * - localidade → só a cidade (sem estado/país)
+   */
+  nationSource?: FfNationSource
 }
 
 export const DEFAULT_FF_TEXT_COLORS: FfTextColors = {
@@ -81,6 +89,26 @@ export function mapFuncaoToPlayerNation(funcao: string | null | undefined): stri
   const upper = key.toUpperCase()
   if (['SNIPER', 'RUSHER', 'BOMBER', 'SUPPORT'].includes(upper)) return upper
   return 'RUSHER'
+}
+
+/** Extrai só a cidade da localidade (antes de vírgula, barra ou " - "). */
+export function cityOnly(localidade: string | null | undefined): string {
+  const s = String(localidade || '').trim()
+  if (!s) return ''
+  const city = s.split(/\s*[,\/|]\s*|\s+-\s+/)[0]?.trim() || s
+  return city.slice(0, 24)
+}
+
+export function resolvePlayerNation(
+  source: FfNationSource | undefined,
+  funcao: string | null | undefined,
+  localidade: string | null | undefined,
+): string {
+  if (source === 'localidade') {
+    const city = cityOnly(localidade)
+    return city || '—'
+  }
+  return mapFuncaoToPlayerNation(funcao)
 }
 
 function parsePlayerId(idJogo: string | null | undefined): number | null {
@@ -162,6 +190,7 @@ export function buildPlayerNameOverwrite(
 ): { content: string; stats: { players: number; teams: number; skipped: number } } {
   const roleColor = options.roleColor || '#000000'
   const teamColor = options.teamColor || '#000000'
+  const nationSource = options.nationSource || 'funcao'
 
   const players: Array<{
     PlayerID: number
@@ -192,7 +221,7 @@ export function buildPlayerNameOverwrite(
         players.push({
           PlayerID: playerId,
           PlayerNameOverwrite: `${tag}${FF_TAG_NICK_SEP}${nick}`,
-          PlayerNation: mapFuncaoToPlayerNation(jog.funcao),
+          PlayerNation: resolvePlayerNation(nationSource, jog.funcao, jog.localidade),
           Color: roleColor,
         })
       }

@@ -6598,3 +6598,11 @@ input::placeholder, textarea::placeholder {
 .export-actions-wrap .button.small,.button.small{min-height:34px;padding:0 10px;font-size:11px;gap:6px}
 .export-spec-msg{font-size:12px;color:var(--muted);font-weight:700}
 .export-actions-grid .button{min-height:auto}
+
+/* Prévia editável do export */
+.export-table-edit .export-cell-input{width:100%;min-width:80px;min-height:32px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--text);padding:4px 8px;font:inherit;font-size:12px;font-weight:700}
+.export-table-edit .export-cell-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 2px rgba(201,162,39,.12)}
+.export-table-edit .export-cell-input-sm{min-width:64px;max-width:110px}
+.export-table-edit .export-cell-input-md{min-width:100px;max-width:150px}
+.export-table-edit td{padding:4px 6px;vertical-align:middle}
+.export-table-edit th{white-space:nowrap}
