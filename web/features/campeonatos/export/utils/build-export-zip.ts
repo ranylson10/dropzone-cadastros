@@ -28,45 +28,35 @@ function slugify(value: string) {
 }
 
 function buildEquipesRows(data: CampeonatoExportPayload) {
+  // CSV enxuto: só nome e tag da equipe (uma linha por equipe)
   const rows: Array<Record<string, unknown>> = []
+  const seen = new Set<string>()
   for (const eq of data.equipes || []) {
-    for (const line of eq.lines || []) {
-      rows.push({
-        fase: line.grupo?.fase_nome || '',
-        grupo: line.grupo?.nome || '',
-        slot: line.slot?.numero ?? '',
-        slot_letra: line.slot?.letra || '',
-        equipe: eq.nome,
-        equipe_tag: eq.tag || '',
-        line: line.nome,
-        line_tag: line.tag || '',
-        nome_exibicao: line.nome_exibicao || '',
-        qtd_jogadores: line.quantidade_jogadores,
-        logo_equipe: eq.logo_url || '',
-        logo_line: line.logo_url || '',
-      })
-    }
+    if (seen.has(eq.id)) continue
+    seen.add(eq.id)
+    rows.push({
+      nome_equipe: eq.nome || '',
+      tag: eq.tag || '',
+    })
   }
   return rows
 }
 
 function buildJogadoresRows(data: CampeonatoExportPayload) {
+  // CSV enxuto: tag da equipe, nick, id de jogo, função, localidade
   const rows: Array<Record<string, unknown>> = []
   for (const eq of data.equipes || []) {
+    const tag = eq.tag || ''
     for (const line of eq.lines || []) {
+      // se a line tiver tag própria, prioriza a da line (padrão de escalação)
+      const tagLine = line.tag || tag
       for (const jog of line.jogadores || []) {
         rows.push({
-          fase: line.grupo?.fase_nome || '',
-          grupo: line.grupo?.nome || '',
-          slot: line.slot?.numero ?? '',
-          equipe: eq.nome,
-          line: line.nome,
+          tag_equipe: tagLine,
           nick: jog.nick || '',
           id_jogo: jog.id_jogo || '',
           funcao: jog.funcao || '',
           localidade: jog.localidade || '',
-          status: jog.status || '',
-          foto_url: jog.foto_url || '',
         })
       }
     }
