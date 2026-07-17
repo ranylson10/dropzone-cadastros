@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Image as ImageIcon, Loader2, Save, Upload } from 'lucide-react'
+import { Image as ImageIcon, Loader2, Save, Trash2, Upload, X } from 'lucide-react'
 import type { CampeonatoExportPayload } from '../types/campeonato-export.types'
+import { exportOverridesService } from '../services/export-overrides.service'
 import {
   buildSpecLogoItems,
   buildSpecPhotoItems,
@@ -22,8 +23,19 @@ import {
 } from '../utils/spec-media'
 
 type Props = {
+  campeonatoId: string
   data: CampeonatoExportPayload
   disabled?: boolean
+  /** fundos/margens/logos/fotos já salvos no campeonato */
+  initialBackup?: {
+    logo_bg_url?: string | null
+    photo_bg_url?: string | null
+    logo_margin?: BoxMargin
+    photo_margin?: BoxMargin
+    logos?: Record<string, any>
+    fotos?: Record<string, any>
+  } | null
+  onBackupSaved?: () => void
 }
 
 type MediaTab = 'logos' | 'fotos'
@@ -75,15 +87,39 @@ function MarginFields({
   )
 }
 
-export function SpecMediaPanel({ data, disabled }: Props) {
+function applyLogoBackup(items: SpecLogoItem[], logosBackup?: Record<string, any> | null): SpecLogoItem[] {
+  if (!logosBackup || !Object.keys(logosBackup).length) return items
+  return items.map((item) => {
+    const b = logosBackup[item.key] || logosBackup[String(item.codigo)]
+    if (!b) return item
+    return {
+      ...item,
+      sourceUrl: b.source_url !== undefined ? b.source_url : item.sourceUrl,
+      tintColor: b.tint_color !== undefined ? b.tint_color : item.tintColor,
+    }
+  })
+}
+
+function applyPhotoBackup(items: SpecPhotoItem[], fotosBackup?: Record<string, any> | null): SpecPhotoItem[] {
+  if (!fotosBackup || !Object.keys(fotosBackup).length) return items
+  return items.map((item) => {
+    const b = fotosBackup[item.idJogo] || fotosBackup[item.key]
+    if (!b) return item
+    return {
+      ...item,
+      sourceUrl: b.source_url !== undefined ? b.source_url : item.sourceUrl,
+      nick: b.nick || item.nick,
+    }
+  })
+}
+
+export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, onBackupSaved }: Props) {
   const [tab, setTab] = useState<MediaTab>('logos')
 
-  const [logoBg, setLogoBg] = useState<string | null>(null)
-  const [photoBg, setPhotoBg] = useState<string | null>(null)
-  const [logoMargin, setLogoMargin] = useState<BoxMargin>({ ...DEFAULT_LOGO_MARGIN })
-  const [photoMargin, setPhotoMargin] = useState<BoxMargin>({ ...DEFAULT_PHOTO_MARGIN })
-  const [logoTintEnabled, setLogoTintEnabled] = useState(false)
-  const [logoTint, setLogoTint] = useState('#FFFFFF')
+  const [logoBg, setLogoBg] = useState<string | null>(initialBackup?.logo_bg_url || null)
+  const [photoBg, setPhotoBg] = useState<string | null>(initialBackup?.photo_bg_url || null)
+  const [logoMargin, setLogoMargin] = useState<BoxMargin>(initialBackup?.logo_margin || { ...DEFAULT_LOGO_MARGIN })
+  const [photoMargin, setPhotoMargin] = useState<BoxMargin>(initialBackup?.photo_margin || { ...DEFAULT_PHOTO_MARGIN })
 
   const [logos, setLogos] = useState<SpecLogoItem[]>([])
   const [photos, setPhotos] = useState<SpecPhotoItem[]>([])
@@ -96,16 +132,21 @@ export function SpecMediaPanel({ data, disabled }: Props) {
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
+  // rebuild lista a partir do escopo + backup
   useEffect(() => {
-    const nextLogos = buildSpecLogoItems(data)
-    const nextPhotos = buildSpecPhotoItems(data)
-    setLogos(nextLogos)
-    setPhotos(nextPhotos)
-    setLogoKey((k) => (k && nextLogos.some((l) => l.key === k) ? k : nextLogos[0]?.key || null))
-    setPhotoKey((k) => (k && nextPhotos.some((p) => p.key === k) ? k : nextPhotos[0]?.key || null))
+    const baseLogos = applyLogoBackup(buildSpecLogoItems(data), initialBackup?.logos)
+    const basePhotos = applyPhotoBackup(buildSpecPhotoItems(data), initialBackup?.fotos)
+    setLogos(baseLogos)
+    setPhotos(basePhotos)
+    setLogoKey((k) => (k && baseLogos.some((l) => l.key === k) ? k : baseLogos[0]?.key || null))
+    setPhotoKey((k) => (k && basePhotos.some((p) => p.key === k) ? k : basePhotos[0]?.key || null))
+    if (initialBackup?.logo_bg_url !== undefined) setLogoBg(initialBackup.logo_bg_url || null)
+    if (initialBackup?.photo_bg_url !== undefined) setPhotoBg(initialBackup.photo_bg_url || null)
+    if (initialBackup?.logo_margin) setLogoMargin(initialBackup.logo_margin)
+    if (initialBackup?.photo_margin) setPhotoMargin(initialBackup.photo_margin)
     setMsg('')
     setErr('')
-  }, [data])
+  }, [data, initialBackup])
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -120,7 +161,6 @@ export function SpecMediaPanel({ data, disabled }: Props) {
     [photos, photoKey],
   )
 
-  // prévia grande no canvas de trabalho
   useEffect(() => {
     let cancelled = false
     async function run() {
@@ -132,7 +172,7 @@ export function SpecMediaPanel({ data, disabled }: Props) {
             sourceUrl: activeLogo?.sourceUrl || null,
             backgroundUrl: logoBg,
             margin: logoMargin,
-            tintColor: logoTintEnabled ? logoTint : null,
+            tintColor: activeLogo?.tintColor || null,
             fallbackColor: '#1a1a1a',
           })
           if (cancelled) return
@@ -174,14 +214,13 @@ export function SpecMediaPanel({ data, disabled }: Props) {
     tab,
     activeLogo?.key,
     activeLogo?.sourceUrl,
+    activeLogo?.tintColor,
     activePhoto?.key,
     activePhoto?.sourceUrl,
     logoBg,
     photoBg,
     logoMargin,
     photoMargin,
-    logoTintEnabled,
-    logoTint,
   ])
 
   async function onBg(kind: 'logo' | 'photo', file: File | null) {
@@ -205,12 +244,35 @@ export function SpecMediaPanel({ data, disabled }: Props) {
     }
   }
 
-  async function salvarLogos() {
+  function removeLogoFromList(key: string) {
+    setLogos((prev) => {
+      const next = prev.filter((l) => l.key !== key)
+      if (logoKey === key) setLogoKey(next[0]?.key || null)
+      return next
+    })
+  }
+
+  function removePhotoFromList(key: string) {
+    setPhotos((prev) => {
+      const next = prev.filter((p) => p.key !== key)
+      if (photoKey === key) setPhotoKey(next[0]?.key || null)
+      return next
+    })
+  }
+
+  function setActiveLogoTint(tint: string | null) {
+    if (!activeLogo) return
+    setLogos((prev) =>
+      prev.map((l) => (l.key === activeLogo.key ? { ...l, tintColor: tint } : l)),
+    )
+  }
+
+  async function salvarLogosZip() {
     if (!logos.length) {
-      setErr('Nenhuma logo no escopo.')
+      setErr('Lista de logos vazia — remova só as que não precisa e deixe as que vai salvar.')
       return
     }
-    setBusy('logos')
+    setBusy('logos-zip')
     setErr('')
     setMsg('')
     try {
@@ -218,26 +280,25 @@ export function SpecMediaPanel({ data, disabled }: Props) {
         logos,
         logoBg,
         logoMargin,
-        logoTintEnabled ? logoTint : null,
         (done, total) => setProgress(`Logos ${done}/${total}`),
       )
       downloadBlob(blob, 'spec-logos-slots.zip')
-      setMsg(`${logos.length} logos PNG 300×300 geradas.`)
+      setMsg(`${logos.length} logos PNG geradas (só as da lista).`)
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Falha ao salvar logos.')
+      setErr(e instanceof Error ? e.message : 'Falha ao gerar ZIP de logos.')
     } finally {
       setBusy('')
       setProgress('')
     }
   }
 
-  async function salvarFotos() {
+  async function salvarFotosZip() {
     const list = photos.filter((p) => p.idJogo)
     if (!list.length) {
-      setErr('Nenhuma foto com id de jogo.')
+      setErr('Lista de fotos vazia.')
       return
     }
-    setBusy('fotos')
+    setBusy('fotos-zip')
     setErr('')
     setMsg('')
     try {
@@ -248,12 +309,82 @@ export function SpecMediaPanel({ data, disabled }: Props) {
         (done, total) => setProgress(`Fotos ${done}/${total}`),
       )
       downloadBlob(blob, 'spec-fotos-jogadores.zip')
-      setMsg(`${list.length} fotos PNG 500×600 geradas.`)
+      setMsg(`${list.length} fotos PNG geradas (só as da lista).`)
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Falha ao salvar fotos.')
+      setErr(e instanceof Error ? e.message : 'Falha ao gerar ZIP de fotos.')
     } finally {
       setBusy('')
       setProgress('')
+    }
+  }
+
+  /** Grava no banco SOMENTE os itens que estão na lista agora */
+  async function salvarBackupLogos() {
+    if (!logos.length) {
+      setErr('Nada para backup — lista vazia.')
+      return
+    }
+    setBusy('logos-db')
+    setErr('')
+    setMsg('')
+    try {
+      const logosMap: Record<string, unknown> = {}
+      for (const l of logos) {
+        logosMap[l.key] = {
+          source_url: l.sourceUrl,
+          tint_color: l.tintColor,
+          codigo: l.codigo,
+          slot_letra: l.slotLetra,
+          equipe_nome: l.equipeNome,
+          line_nome: l.lineNome,
+          equipe_id: l.equipeId,
+        }
+      }
+      await exportOverridesService.save(campeonatoId, {
+        logos_replace: true,
+        logos: logosMap,
+        logo_bg_url: logoBg,
+        logo_margin: logoMargin,
+      })
+      setMsg(`Backup: ${logos.length} logo(s) salvas neste campeonato (as removidas da lista não foram gravadas).`)
+      onBackupSaved?.()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Falha ao salvar backup de logos.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  async function salvarBackupFotos() {
+    if (!photos.length) {
+      setErr('Nada para backup — lista vazia.')
+      return
+    }
+    setBusy('fotos-db')
+    setErr('')
+    setMsg('')
+    try {
+      const fotosMap: Record<string, unknown> = {}
+      for (const p of photos) {
+        fotosMap[p.idJogo] = {
+          source_url: p.sourceUrl,
+          nick: p.nick,
+          equipe_nome: p.equipeNome,
+          key: p.key,
+        }
+      }
+      await exportOverridesService.save(campeonatoId, {
+        fotos_replace: true,
+        fotos: fotosMap,
+        photo_bg_url: photoBg,
+        photo_margin: photoMargin,
+      })
+      setMsg(`Backup: ${photos.length} foto(s) salvas neste campeonato.`)
+      onBackupSaved?.()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Falha ao salvar backup de fotos.')
+    } finally {
+      setBusy('')
     }
   }
 
@@ -263,24 +394,14 @@ export function SpecMediaPanel({ data, disabled }: Props) {
     <section className="export-section export-section-compact spec-workspace-section">
       <div className="section-head">
         <h4>Estúdio SPEC · logos e fotos</h4>
-        <small>área de trabalho · proporção real</small>
+        <small>remova o que não precisa · salve só o restante</small>
       </div>
 
       <div className="spec-tabs">
-        <button
-          type="button"
-          className={tab === 'logos' ? 'active' : ''}
-          onClick={() => setTab('logos')}
-          disabled={disabled || Boolean(busy)}
-        >
+        <button type="button" className={tab === 'logos' ? 'active' : ''} onClick={() => setTab('logos')} disabled={disabled || Boolean(busy)}>
           1. Logos 300×300
         </button>
-        <button
-          type="button"
-          className={tab === 'fotos' ? 'active' : ''}
-          onClick={() => setTab('fotos')}
-          disabled={disabled || Boolean(busy)}
-        >
+        <button type="button" className={tab === 'fotos' ? 'active' : ''} onClick={() => setTab('fotos')} disabled={disabled || Boolean(busy)}>
           2. Fotos 500×600
         </button>
       </div>
@@ -294,7 +415,6 @@ export function SpecMediaPanel({ data, disabled }: Props) {
       ) : null}
 
       <div className="spec-workspace">
-        {/* CANVAS / ÁREA DE TRABALHO */}
         <div className="spec-canvas-col">
           <div
             className={`spec-canvas-frame ${isLogo ? 'is-logo' : 'is-photo'}`}
@@ -309,37 +429,36 @@ export function SpecMediaPanel({ data, disabled }: Props) {
             ) : (
               <div className="spec-canvas-empty">
                 <Upload size={28} />
-                <p>Adicione o fundo e selecione um item na lista</p>
-                <small>{isLogo ? 'Proporção 1:1 · 300×300' : 'Proporção 5:6 · 500×600'}</small>
+                <p>Adicione o fundo e selecione um item</p>
+                <small>{isLogo ? '1:1 · 300×300' : '5:6 · 500×600'}</small>
               </div>
             )}
           </div>
           <div className="spec-canvas-meta">
             {isLogo && activeLogo ? (
               <span>
-                Slot <strong>{activeLogo.slotLetra}</strong> · código <code>{activeLogo.codigo}</code>
+                Slot <strong>{activeLogo.slotLetra}</strong> · <code>{activeLogo.codigo}</code>
                 {' · '}{activeLogo.equipeNome}
+                {activeLogo.tintColor ? ` · cor ${activeLogo.tintColor}` : ''}
               </span>
             ) : null}
             {!isLogo && activePhoto ? (
               <span>
-                <strong>{activePhoto.nick}</strong> · id <code>{activePhoto.idJogo}</code>
-                {' · '}{activePhoto.equipeNome}
+                <strong>{activePhoto.nick}</strong> · <code>{activePhoto.idJogo}</code>
               </span>
             ) : null}
           </div>
         </div>
 
-        {/* CONTROLES GERAIS */}
         <div className="spec-tools-col">
           <div className="spec-tool-block">
             <h5>{isLogo ? 'Fundo das logos' : 'Fundo das fotos'}</h5>
-            <p className="export-help">Mesmo fundo para todas. Clique para enviar.</p>
+            <p className="export-help">Mesmo fundo para todas as da lista.</p>
             <label className="spec-upload-btn">
               <Upload size={14} />
               {isLogo
-                ? (logoBg ? 'Trocar fundo das logos' : 'Adicionar fundo das logos')
-                : (photoBg ? 'Trocar fundo das fotos' : 'Adicionar fundo das fotos')}
+                ? (logoBg ? 'Trocar fundo' : 'Adicionar fundo')
+                : (photoBg ? 'Trocar fundo' : 'Adicionar fundo')}
               <input
                 type="file"
                 accept="image/*"
@@ -348,21 +467,10 @@ export function SpecMediaPanel({ data, disabled }: Props) {
                 onChange={(e) => void onBg(isLogo ? 'logo' : 'photo', e.target.files?.[0] || null)}
               />
             </label>
-            {(isLogo ? logoBg : photoBg) ? (
-              <button
-                type="button"
-                className="link-button"
-                style={{ minHeight: 28, fontSize: 11 }}
-                onClick={() => (isLogo ? setLogoBg(null) : setPhotoBg(null))}
-              >
-                Remover fundo
-              </button>
-            ) : null}
           </div>
 
           <div className="spec-tool-block">
-            <h5>Margens (geral)</h5>
-            <p className="export-help">Cima, baixo e laterais — vale para todas.</p>
+            <h5>Margens (geral da aba)</h5>
             {isLogo ? (
               <MarginFields value={logoMargin} onChange={setLogoMargin} disabled={disabled || Boolean(busy)} max={120} />
             ) : (
@@ -370,72 +478,80 @@ export function SpecMediaPanel({ data, disabled }: Props) {
             )}
           </div>
 
-          {isLogo ? (
+          {isLogo && activeLogo ? (
             <div className="spec-tool-block">
-              <h5>Cor da logo</h5>
+              <h5>Cor desta logo</h5>
               <p className="export-help">
-                Se a logo for preta e o fundo também, ative e escolha uma cor clara.
+                Só altera a logo selecionada (ex.: ALoE), não as outras.
               </p>
               <label className="spec-check">
                 <input
                   type="checkbox"
-                  checked={logoTintEnabled}
+                  checked={Boolean(activeLogo.tintColor)}
                   disabled={disabled || Boolean(busy)}
-                  onChange={(e) => setLogoTintEnabled(e.target.checked)}
+                  onChange={(e) => setActiveLogoTint(e.target.checked ? (activeLogo.tintColor || '#FFFFFF') : null)}
                 />
-                Recolorir logos
+                Recolorir esta logo
               </label>
-              {logoTintEnabled ? (
+              {activeLogo.tintColor ? (
                 <div className="export-color-row" style={{ marginTop: 8 }}>
                   <label className="export-color-field">
-                    <span>Cor</span>
+                    <span>Cor viva</span>
                     <input
                       type="color"
-                      value={logoTint}
+                      value={activeLogo.tintColor}
                       disabled={disabled || Boolean(busy)}
-                      onChange={(e) => setLogoTint(e.target.value)}
+                      onChange={(e) => setActiveLogoTint(e.target.value)}
                     />
                   </label>
                   <input
                     className="export-cell-input export-cell-input-sm"
-                    value={logoTint}
+                    value={activeLogo.tintColor}
                     disabled={disabled || Boolean(busy)}
-                    onChange={(e) => setLogoTint(e.target.value)}
+                    onChange={(e) => setActiveLogoTint(e.target.value)}
                   />
                 </div>
               ) : null}
             </div>
           ) : null}
 
-          <div className="export-actions-row">
+          <div className="export-actions-row export-actions-wrap">
             {isLogo ? (
-              <button
-                className="button"
-                type="button"
-                disabled={disabled || Boolean(busy) || !logos.length}
-                onClick={() => void salvarLogos()}
-              >
-                {busy === 'logos' ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-                Salvar logos ZIP (300×300)
-              </button>
+              <>
+                <button className="button small" type="button" disabled={disabled || Boolean(busy) || !logos.length} onClick={() => void salvarLogosZip()}>
+                  {busy === 'logos-zip' ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                  Baixar ZIP ({logos.length})
+                </button>
+                <button className="button secondary small" type="button" disabled={disabled || Boolean(busy) || !logos.length} onClick={() => void salvarBackupLogos()}>
+                  {busy === 'logos-db' ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                  Backup no campeonato
+                </button>
+              </>
             ) : (
-              <button
-                className="button"
-                type="button"
-                disabled={disabled || Boolean(busy) || !photos.length}
-                onClick={() => void salvarFotos()}
-              >
-                {busy === 'fotos' ? <Loader2 size={15} className="spin" /> : <ImageIcon size={15} />}
-                Salvar fotos ZIP (500×600)
-              </button>
+              <>
+                <button className="button small" type="button" disabled={disabled || Boolean(busy) || !photos.length} onClick={() => void salvarFotosZip()}>
+                  {busy === 'fotos-zip' ? <Loader2 size={14} className="spin" /> : <ImageIcon size={14} />}
+                  Baixar ZIP ({photos.length})
+                </button>
+                <button className="button secondary small" type="button" disabled={disabled || Boolean(busy) || !photos.length} onClick={() => void salvarBackupFotos()}>
+                  {busy === 'fotos-db' ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                  Backup no campeonato
+                </button>
+              </>
             )}
           </div>
+          <p className="export-help">
+            Remova da lista o que não precisa. O backup grava <strong>somente</strong> o que ficou na lista.
+          </p>
         </div>
       </div>
 
-      {/* LISTA DE TESTE */}
       <div className="spec-list-block">
-        <h5>{isLogo ? 'Testar logos (clique para ver no canvas)' : 'Testar fotos (clique para ver no canvas)'}</h5>
+        <h5>
+          {isLogo
+            ? `Lista de logos (${logos.length}) — remova as que não precisa ajustar`
+            : `Lista de fotos (${photos.length}) — remova as que não precisa ajustar`}
+        </h5>
         <div className="export-table-wrap">
           {isLogo ? (
             <table className="export-table export-table-edit">
@@ -443,9 +559,11 @@ export function SpecMediaPanel({ data, disabled }: Props) {
                 <tr>
                   <th>Slot</th>
                   <th>Código</th>
-                  <th>Equipe / Line</th>
+                  <th>Equipe</th>
+                  <th>Cor</th>
                   <th>Origem</th>
                   <th>Trocar</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -462,12 +580,38 @@ export function SpecMediaPanel({ data, disabled }: Props) {
                       {item.equipeNome}
                       <small style={{ display: 'block', color: 'var(--muted)' }}>{item.lineNome}</small>
                     </td>
-                    <td>
-                      {item.sourceUrl ? (
-                        <img className="spec-thumb" src={item.sourceUrl} alt="" />
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="color"
+                        title="Cor só desta logo"
+                        value={item.tintColor || '#ffffff'}
+                        disabled={disabled || Boolean(busy)}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          setLogos((prev) =>
+                            prev.map((l) => (l.key === item.key ? { ...l, tintColor: v } : l)),
+                          )
+                        }}
+                      />
+                      {item.tintColor ? (
+                        <button
+                          type="button"
+                          className="link-button"
+                          style={{ minHeight: 24, fontSize: 10, padding: '0 4px' }}
+                          onClick={() =>
+                            setLogos((prev) =>
+                              prev.map((l) => (l.key === item.key ? { ...l, tintColor: null } : l)),
+                            )
+                          }
+                        >
+                          limpar
+                        </button>
                       ) : (
-                        <span className="empty">sem</span>
+                        <small className="empty">orig.</small>
                       )}
+                    </td>
+                    <td>
+                      {item.sourceUrl ? <img className="spec-thumb" src={item.sourceUrl} alt="" /> : <span className="empty">—</span>}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <input
@@ -477,9 +621,20 @@ export function SpecMediaPanel({ data, disabled }: Props) {
                         onChange={(e) => void replaceSource('logo', item.key, e.target.files?.[0] || null)}
                       />
                     </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        title="Remover da lista (não processa / não grava)"
+                        disabled={disabled || Boolean(busy)}
+                        onClick={() => removeLogoFromList(item.key)}
+                      >
+                        <X size={14} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
-                {!logos.length ? <tr><td colSpan={5}>Nenhuma logo no escopo.</td></tr> : null}
+                {!logos.length ? <tr><td colSpan={7}>Lista vazia.</td></tr> : null}
               </tbody>
             </table>
           ) : (
@@ -491,6 +646,7 @@ export function SpecMediaPanel({ data, disabled }: Props) {
                   <th>Equipe</th>
                   <th>Origem</th>
                   <th>Trocar</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -505,11 +661,7 @@ export function SpecMediaPanel({ data, disabled }: Props) {
                     <td>{item.nick}</td>
                     <td>{item.equipeNome}</td>
                     <td>
-                      {item.sourceUrl ? (
-                        <img className="spec-thumb spec-thumb-photo" src={item.sourceUrl} alt="" />
-                      ) : (
-                        <span className="empty">sem</span>
-                      )}
+                      {item.sourceUrl ? <img className="spec-thumb spec-thumb-photo" src={item.sourceUrl} alt="" /> : <span className="empty">—</span>}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <input
@@ -519,9 +671,19 @@ export function SpecMediaPanel({ data, disabled }: Props) {
                         onChange={(e) => void replaceSource('photo', item.key, e.target.files?.[0] || null)}
                       />
                     </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        disabled={disabled || Boolean(busy)}
+                        onClick={() => removePhotoFromList(item.key)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
-                {!photos.length ? <tr><td colSpan={5}>Nenhuma foto no escopo.</td></tr> : null}
+                {!photos.length ? <tr><td colSpan={6}>Lista vazia.</td></tr> : null}
               </tbody>
             </table>
           )}

@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   Loader2,
   RefreshCw,
+  Save,
   Table2,
 } from 'lucide-react'
 import { campeonatoExportService } from '../services/campeonato-export.service'
@@ -29,6 +30,7 @@ import {
   type FfTextColors,
 } from '../utils/player-name-overwrite'
 import { SpecMediaPanel } from './SpecMediaPanel'
+import { exportOverridesService, type ExportOverrides } from '../services/export-overrides.service'
 
 type EscopoUi = 'campeonato' | 'fase' | 'grupo'
 
@@ -177,22 +179,67 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
   const [teamColor, setTeamColor] = useState('#000000')
   const [textColors, setTextColors] = useState<FfTextColors>({ ...DEFAULT_FF_TEXT_COLORS })
   const [nationSource, setNationSource] = useState<FfNationSource>('funcao')
+  const [overrides, setOverrides] = useState<ExportOverrides | null>(null)
+  const [backupHint, setBackupHint] = useState('')
 
-  const syncEditsFromPayload = useCallback((payload: CampeonatoExportPayload) => {
+  const applyOverridesToEdits = useCallback((
+    payload: CampeonatoExportPayload,
+    ov: ExportOverrides | null,
+  ) => {
     const { equipes, jogadores } = buildEditState(payload)
+    if (ov?.equipes) {
+      for (const e of equipes) {
+        const b = ov.equipes[e.id]
+        if (b?.nome != null) e.nome = String(b.nome)
+        if (b?.tag != null) e.tag = String(b.tag)
+      }
+    }
+    if (ov?.jogadores) {
+      for (const j of jogadores) {
+        const b = ov.jogadores[j.key]
+        if (!b) continue
+        if (b.nick != null) j.nick = String(b.nick)
+        if (b.id_jogo != null) j.id_jogo = String(b.id_jogo)
+        if (b.funcao != null) j.funcao = String(b.funcao)
+        if (b.localidade != null) j.localidade = String(b.localidade)
+        if (b.tag_equipe != null) j.tag_equipe = String(b.tag_equipe)
+      }
+    }
     setEquipesEdit(equipes)
     setJogadoresEdit(jogadores)
+    if (ov?.nation_source === 'funcao' || ov?.nation_source === 'localidade') {
+      setNationSource(ov.nation_source)
+    }
+    if (ov?.role_color) setRoleColor(ov.role_color)
+    if (ov?.team_color) setTeamColor(ov.team_color)
+    if (ov?.text_colors && typeof ov.text_colors === 'object') {
+      setTextColors({ ...DEFAULT_FF_TEXT_COLORS, ...(ov.text_colors as FfTextColors) })
+    }
   }, [])
 
   const loadBase = useCallback(async () => {
     if (!campeonatoId) return
     setLoading(true)
     setError('')
+    setBackupHint('')
     try {
       const payload = await campeonatoExportService.carregar(campeonatoId)
+      let ov: ExportOverrides | null = null
+      try {
+        const ovRes = await exportOverridesService.load(campeonatoId)
+        ov = ovRes.overrides || null
+        if (ovRes.missing_table) {
+          setBackupHint('Rode a migration 20260717_campeonato_export_overrides.sql no Supabase para ativar o backup.')
+        } else if (ov?.updated_at) {
+          setBackupHint(`Backup do campeonato carregado (${new Date(ov.updated_at).toLocaleString('pt-BR')}).`)
+        }
+      } catch {
+        ov = null
+      }
+      setOverrides(ov)
       setBase(payload)
       setData(payload)
-      syncEditsFromPayload(payload)
+      applyOverridesToEdits(payload, ov)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar exportação.')
       setBase(null)
@@ -200,7 +247,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     } finally {
       setLoading(false)
     }
-  }, [campeonatoId, syncEditsFromPayload])
+  }, [campeonatoId, applyOverridesToEdits])
 
   useEffect(() => {
     void loadBase()
@@ -219,25 +266,25 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     try {
       const payload = await campeonatoExportService.carregar(campeonatoId, filtro)
       setData(payload)
-      syncEditsFromPayload(payload)
+      applyOverridesToEdits(payload, overrides)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao filtrar exportação.')
     } finally {
       setBusy('')
     }
-  }, [campeonatoId, filtro, syncEditsFromPayload])
+  }, [campeonatoId, filtro, overrides, applyOverridesToEdits])
 
   useEffect(() => {
     if (!base) return
     if (escopo === 'campeonato') {
       setData(base)
-      syncEditsFromPayload(base)
+      applyOverridesToEdits(base, overrides)
       return
     }
     if (escopo === 'fase' && !faseId) return
     if (escopo === 'grupo' && !grupoIds.length) return
     void reloadFiltered()
-  }, [escopo, faseId, grupoIds, base, reloadFiltered, syncEditsFromPayload])
+  }, [escopo, faseId, grupoIds, base, reloadFiltered, overrides, applyOverridesToEdits])
 
   const fases = base?.estrutura?.fases || []
   const grupos = useMemo(() => {
@@ -348,6 +395,49 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     }
   }
 
+  async function salvarEdicoesTextoNoCampeonato() {
+    if (!canDownload) return
+    setBusy('backup-texto')
+    setError('')
+    setSpecMsg('')
+    try {
+      const equipesMap: Record<string, { nome: string; tag: string }> = {}
+      for (const e of equipesEdit) {
+        equipesMap[e.id] = { nome: e.nome, tag: e.tag }
+      }
+      const jogadoresMap: Record<string, EditJogador> = {}
+      for (const j of jogadoresEdit) {
+        jogadoresMap[j.key] = j
+      }
+      await exportOverridesService.save(campeonatoId, {
+        equipes: equipesMap,
+        jogadores: Object.fromEntries(
+          Object.entries(jogadoresMap).map(([k, j]) => [
+            k,
+            {
+              nick: j.nick,
+              id_jogo: j.id_jogo,
+              funcao: j.funcao,
+              localidade: j.localidade,
+              tag_equipe: j.tag_equipe,
+              equipe_id: j.equipeId,
+            },
+          ]),
+        ),
+        nation_source: nationSource,
+        role_color: roleColor,
+        team_color: teamColor,
+        text_colors: textColors,
+      })
+      setSpecMsg('Edições de equipes/jogadores salvas neste campeonato.')
+      setBackupHint('Backup de texto atualizado.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao salvar backup de texto.')
+    } finally {
+      setBusy('')
+    }
+  }
+
   const setTc = (key: keyof FfTextColors, value: string) => {
     setTextColors((prev) => ({ ...prev, [key]: value }))
   }
@@ -386,6 +476,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
       </header>
 
       {error ? <div className="message error">{error}</div> : null}
+      {backupHint ? <p className="export-spec-msg">{backupHint}</p> : null}
 
       <section className="export-section export-section-compact">
         <div className="export-toolbar">
@@ -461,7 +552,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
       <section className="export-section export-section-compact">
         <div className="section-head">
           <h4>Prévia equipes</h4>
-          <small>edite nome e tag · só no export</small>
+          <small>edite e salve no campeonato</small>
         </div>
         <div className="export-table-wrap">
           <table className="export-table export-table-edit">
@@ -502,7 +593,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
       <section className="export-section export-section-compact">
         <div className="section-head">
           <h4>Prévia jogadores</h4>
-          <small>edite nick, id, função e cidade · só no export</small>
+          <small>edite e salve no campeonato (não muda o perfil global)</small>
         </div>
         <div className="export-table-wrap">
           <table className="export-table export-table-edit">
@@ -562,11 +653,28 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
             </tbody>
           </table>
         </div>
+        <div className="export-actions-row" style={{ marginTop: 8 }}>
+          <button
+            className="button secondary small"
+            type="button"
+            disabled={!canDownload || Boolean(busy)}
+            onClick={() => void salvarEdicoesTextoNoCampeonato()}
+          >
+            {busy === 'backup-texto' ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+            Salvar edições de equipes/jogadores no campeonato
+          </button>
+        </div>
       </section>
 
       {/* LOGOS + FOTOS SPEC */}
       {editedPayload ? (
-        <SpecMediaPanel data={editedPayload} disabled={!canDownload || Boolean(busy)} />
+        <SpecMediaPanel
+          campeonatoId={campeonatoId}
+          data={editedPayload}
+          disabled={!canDownload || Boolean(busy)}
+          initialBackup={overrides}
+          onBackupSaved={() => void loadBase()}
+        />
       ) : null}
 
       {/* SPEC FREE FIRE */}

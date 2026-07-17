@@ -51,6 +51,8 @@ export type SpecLogoItem = {
   codigo: number
   logoUrl: string | null
   sourceUrl: string | null
+  /** recolor só desta logo (hex). null = original */
+  tintColor: string | null
 }
 
 export type SpecPhotoItem = {
@@ -102,6 +104,7 @@ export function buildSpecLogoItems(data: CampeonatoExportPayload): SpecLogoItem[
         codigo,
         logoUrl,
         sourceUrl: logoUrl,
+        tintColor: null,
       })
     }
   }
@@ -163,8 +166,9 @@ function parseHexColor(hex: string): { r: number; g: number; b: number } | null 
 }
 
 /**
- * Recolore a logo: usa luminância como máscara e pinta com a cor escolhida.
- * Resolve logo preta em fundo preto.
+ * Recolore a logo com cor VIVA (opaca).
+ * Pixels escuros/com conteúdo viram a cor escolhida em alpha cheio;
+ * fundo branco/quase branco fica transparente.
  */
 function recolorImageToCanvas(img: HTMLImageElement, tintHex: string): HTMLCanvasElement {
   const w = img.naturalWidth || img.width
@@ -178,27 +182,6 @@ function recolorImageToCanvas(img: HTMLImageElement, tintHex: string): HTMLCanva
   const color = parseHexColor(tintHex)
   if (!color) return c
 
-  const imageData = ctx.getImageData(0, 0, w, h)
-  const d = imageData.data
-  for (let i = 0; i < d.length; i += 4) {
-    const a = d[i + 3]
-    if (a < 8) continue
-    const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255
-    // pixels escuros ou coloridos viram a cor escolhida; alpha preserva forma
-    // invert: conteúdo "visível" (não branco puro) vira tinta
-    const strength = 1 - Math.min(1, lum * 1.05)
-    const alpha = Math.round(a * Math.max(strength, a / 255))
-    d[i] = color.r
-    d[i + 1] = color.g
-    d[i + 2] = color.b
-    d[i + 3] = Math.max(a > 200 && lum > 0.92 ? 0 : alpha, lum < 0.85 ? a : Math.round(a * strength))
-  }
-  // segunda passagem mais simples e previsível: alpha = 255 - luminância (para logos pretas)
-  ctx.putImageData(imageData, 0, 0)
-  const img2 = ctx.getImageData(0, 0, w, h)
-  // re-draw original and apply mask approach cleanly
-  ctx.clearRect(0, 0, w, h)
-  ctx.drawImage(img, 0, 0, w, h)
   const src = ctx.getImageData(0, 0, w, h)
   const out = ctx.createImageData(w, h)
   for (let i = 0; i < src.data.length; i += 4) {
@@ -206,19 +189,23 @@ function recolorImageToCanvas(img: HTMLImageElement, tintHex: string): HTMLCanva
     const g = src.data[i + 1]
     const b = src.data[i + 2]
     const a = src.data[i + 3]
-    if (a < 4) {
+    if (a < 10) {
       out.data[i + 3] = 0
       continue
     }
     const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-    // quanto mais escuro, mais opaco na nova cor
-    let alpha = Math.round((1 - lum) * a)
-    // se já tem alpha e não é branco, mantém presença
-    if (a < 250 && lum > 0.2) alpha = Math.max(alpha, Math.round(a * 0.85))
+    // branco / quase branco → transparente
+    if (lum > 0.88 && a > 200) {
+      out.data[i + 3] = 0
+      continue
+    }
+    // cor sólida viva (sem misturar luminância)
     out.data[i] = color.r
     out.data[i + 1] = color.g
     out.data[i + 2] = color.b
-    out.data[i + 3] = alpha
+    // alpha forte: conteúdo escuro/médio fica bem opaco
+    const coverage = Math.min(1, Math.max(0, (0.92 - lum) / 0.92))
+    out.data[i + 3] = Math.round(Math.max(a * 0.92, 220 * coverage + a * 0.15))
   }
   ctx.putImageData(out, 0, 0)
   return c
@@ -306,7 +293,6 @@ export async function buildSpecLogosZip(
   items: SpecLogoItem[],
   backgroundUrl: string | null,
   margin: BoxMargin,
-  tintColor: string | null,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
   const zip = new JSZip()
@@ -321,7 +307,8 @@ export async function buildSpecLogosZip(
       sourceUrl: item.sourceUrl,
       backgroundUrl,
       margin,
-      tintColor,
+      // cor por logo (não global)
+      tintColor: item.tintColor || null,
       fallbackColor: '#111111',
     })
     folder.file(`${item.codigo}.png`, blob)
