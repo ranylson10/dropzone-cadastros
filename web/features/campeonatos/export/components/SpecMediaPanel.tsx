@@ -173,7 +173,8 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
             backgroundUrl: logoBg,
             margin: logoMargin,
             tintColor: activeLogo?.tintColor || null,
-            fallbackColor: '#1a1a1a',
+            // sem fundo: prévia transparente (sem preto forçado)
+            fallbackColor: '#000000',
           })
           if (cancelled) return
           const url = URL.createObjectURL(blob)
@@ -188,7 +189,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
             sourceUrl: activePhoto?.sourceUrl || null,
             backgroundUrl: photoBg,
             margin: photoMargin,
-            fallbackColor: '#1a1a1a',
+            fallbackColor: '#000000',
           })
           if (cancelled) return
           const url = URL.createObjectURL(blob)

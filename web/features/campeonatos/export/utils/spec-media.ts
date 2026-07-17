@@ -166,9 +166,10 @@ function parseHexColor(hex: string): { r: number; g: number; b: number } | null 
 }
 
 /**
- * Recolore a logo com cor VIVA (opaca).
- * Pixels escuros/com conteúdo viram a cor escolhida em alpha cheio;
- * fundo branco/quase branco fica transparente.
+ * Recolore a logo com cor VIVA, preservando transparência do PNG.
+ * - pixels já transparentes ficam transparentes
+ * - branco/quase branco vira transparente
+ * - o resto recebe a cor escolhida com alpha forte
  */
 function recolorImageToCanvas(img: HTMLImageElement, tintHex: string): HTMLCanvasElement {
   const w = img.naturalWidth || img.width
@@ -176,8 +177,9 @@ function recolorImageToCanvas(img: HTMLImageElement, tintHex: string): HTMLCanva
   const c = document.createElement('canvas')
   c.width = w
   c.height = h
-  const ctx = c.getContext('2d')
+  const ctx = c.getContext('2d', { willReadFrequently: true })
   if (!ctx) return c
+  ctx.clearRect(0, 0, w, h)
   ctx.drawImage(img, 0, 0, w, h)
   const color = parseHexColor(tintHex)
   if (!color) return c
@@ -189,24 +191,24 @@ function recolorImageToCanvas(img: HTMLImageElement, tintHex: string): HTMLCanva
     const g = src.data[i + 1]
     const b = src.data[i + 2]
     const a = src.data[i + 3]
-    if (a < 10) {
+    // mantém alpha original do PNG (não inventa fundo)
+    if (a < 12) {
       out.data[i + 3] = 0
       continue
     }
     const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-    // branco / quase branco → transparente
-    if (lum > 0.88 && a > 200) {
+    // branco sólido → transparente (logo em fundo branco)
+    if (lum >= 0.93) {
       out.data[i + 3] = 0
       continue
     }
-    // cor sólida viva (sem misturar luminância)
     out.data[i] = color.r
     out.data[i + 1] = color.g
     out.data[i + 2] = color.b
-    // alpha forte: conteúdo escuro/médio fica bem opaco
-    const coverage = Math.min(1, Math.max(0, (0.92 - lum) / 0.92))
-    out.data[i + 3] = Math.round(Math.max(a * 0.92, 220 * coverage + a * 0.15))
+    // alpha cheio na área da logo (cor viva)
+    out.data[i + 3] = a
   }
+  ctx.clearRect(0, 0, w, h)
   ctx.putImageData(out, 0, 0)
   return c
 }
@@ -241,6 +243,9 @@ export async function composeOnCanvas(opts: {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas não disponível')
 
+  // Sem fundo: canvas transparente (PNG sem fundo).
+  // Com fundo: desenha a imagem de fundo (ou cor só se o upload falhar).
+  ctx.clearRect(0, 0, width, height)
   if (backgroundUrl) {
     try {
       const bg = await loadImage(backgroundUrl)
@@ -249,9 +254,6 @@ export async function composeOnCanvas(opts: {
       ctx.fillStyle = fallbackColor
       ctx.fillRect(0, 0, width, height)
     }
-  } else {
-    ctx.fillStyle = fallbackColor
-    ctx.fillRect(0, 0, width, height)
   }
 
   const m = clampMargin(margin, width, height)
@@ -309,6 +311,7 @@ export async function buildSpecLogosZip(
       margin,
       // cor por logo (não global)
       tintColor: item.tintColor || null,
+      // só pinta se houver fundo; senão PNG transparente
       fallbackColor: '#111111',
     })
     folder.file(`${item.codigo}.png`, blob)
