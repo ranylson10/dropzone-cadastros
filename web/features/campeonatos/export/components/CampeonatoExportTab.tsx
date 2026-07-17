@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  ChevronLeft,
+  ChevronRight,
   Download,
   FileJson,
   FolderArchive,
@@ -10,6 +12,8 @@ import {
   RefreshCw,
   Save,
   Table2,
+  Users,
+  UserRound,
 } from 'lucide-react'
 import { campeonatoExportService } from '../services/campeonato-export.service'
 import type {
@@ -33,6 +37,21 @@ import { SpecMediaPanel } from './SpecMediaPanel'
 import { exportOverridesService, type ExportOverrides } from '../services/export-overrides.service'
 
 type EscopoUi = 'campeonato' | 'fase' | 'grupo'
+
+/** Notas / subabas do fluxo Download-SPEC */
+type ExportNote = 'equipes' | 'jogadores' | 'logos' | 'fotos'
+
+const EXPORT_NOTES: {
+  id: ExportNote
+  label: string
+  short: string
+  step: number
+}[] = [
+  { id: 'equipes', label: 'Arquivos equipes', short: 'Equipes', step: 1 },
+  { id: 'jogadores', label: 'Arquivos jogadores', short: 'Jogadores', step: 2 },
+  { id: 'logos', label: 'Logos equipes', short: 'Logos', step: 3 },
+  { id: 'fotos', label: 'Fotos jogadores', short: 'Fotos', step: 4 },
+]
 
 type EditEquipe = {
   id: string
@@ -181,6 +200,8 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
   const [nationSource, setNationSource] = useState<FfNationSource>('funcao')
   const [overrides, setOverrides] = useState<ExportOverrides | null>(null)
   const [backupHint, setBackupHint] = useState('')
+  const [missingTable, setMissingTable] = useState(false)
+  const [note, setNote] = useState<ExportNote>('equipes')
 
   const applyOverridesToEdits = useCallback((
     payload: CampeonatoExportPayload,
@@ -222,6 +243,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     setLoading(true)
     setError('')
     setBackupHint('')
+    setMissingTable(false)
     try {
       const payload = await campeonatoExportService.carregar(campeonatoId)
       let ov: ExportOverrides | null = null
@@ -229,7 +251,10 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
         const ovRes = await exportOverridesService.load(campeonatoId)
         ov = ovRes.overrides || null
         if (ovRes.missing_table) {
-          setBackupHint('Rode a migration 20260717_campeonato_export_overrides.sql no Supabase para ativar o backup.')
+          setMissingTable(true)
+          setBackupHint(
+            'Backup desativado: falta criar a tabela no Supabase. Baixe o SQL abaixo, cole no SQL Editor e rode uma vez.',
+          )
         } else if (ov?.updated_at) {
           setBackupHint(`Backup do campeonato carregado (${new Date(ov.updated_at).toLocaleString('pt-BR')}).`)
         }
@@ -463,6 +488,10 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
 
   if (!data) return <p className="empty">Nenhum dado para exportar.</p>
 
+  const noteIndex = EXPORT_NOTES.findIndex((n) => n.id === note)
+  const prevNote = noteIndex > 0 ? EXPORT_NOTES[noteIndex - 1] : null
+  const nextNote = noteIndex >= 0 && noteIndex < EXPORT_NOTES.length - 1 ? EXPORT_NOTES[noteIndex + 1] : null
+
   return (
     <div className="export-tab-panel export-tab-compact">
       <header className="export-tab-head export-tab-head-compact">
@@ -477,7 +506,22 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
 
       {error ? <div className="message error">{error}</div> : null}
       {backupHint ? <p className="export-spec-msg">{backupHint}</p> : null}
+      {missingTable ? (
+        <div className="export-actions-row" style={{ marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
+          <a
+            className="button secondary small"
+            href="/sql/DOWNLOAD_export_overrides.sql"
+            download="DOWNLOAD_export_overrides.sql"
+          >
+            <Download size={14} /> Baixar SQL (backup Download/SPEC)
+          </a>
+          <span className="export-spec-msg" style={{ margin: 0 }}>
+            Supabase → SQL Editor · colar · Run
+          </span>
+        </div>
+      ) : null}
 
+      {/* Escopo comum a todas as notas */}
       <section className="export-section export-section-compact">
         <div className="export-toolbar">
           <label className="export-inline-field">
@@ -548,256 +592,384 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
         ) : null}
       </section>
 
-      {/* PRÉVIA EDITÁVEL — EQUIPES */}
-      <section className="export-section export-section-compact">
-        <div className="section-head">
-          <h4>Prévia equipes</h4>
-          <small>edite e salve no campeonato</small>
-        </div>
-        <div className="export-table-wrap">
-          <table className="export-table export-table-edit">
-            <thead>
-              <tr>
-                <th>Nome da equipe</th>
-                <th>Tag</th>
-              </tr>
-            </thead>
-            <tbody>
-              {equipesEdit.map((eq) => (
-                <tr key={eq.id}>
-                  <td>
-                    <input
-                      className="export-cell-input"
-                      value={eq.nome}
-                      onChange={(e) => patchEquipe(eq.id, 'nome', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="export-cell-input export-cell-input-sm"
-                      value={eq.tag}
-                      onChange={(e) => patchEquipe(eq.id, 'tag', e.target.value)}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {!equipesEdit.length ? (
-                <tr><td colSpan={2}>Nenhuma equipe no escopo.</td></tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* PRÉVIA EDITÁVEL — JOGADORES */}
-      <section className="export-section export-section-compact">
-        <div className="section-head">
-          <h4>Prévia jogadores</h4>
-          <small>edite e salve no campeonato (não muda o perfil global)</small>
-        </div>
-        <div className="export-table-wrap">
-          <table className="export-table export-table-edit">
-            <thead>
-              <tr>
-                <th>Tag</th>
-                <th>Nick</th>
-                <th>Id de jogo</th>
-                <th>Função</th>
-                <th>Localidade (cidade)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jogadoresEdit.map((j) => (
-                <tr key={j.key}>
-                  <td>
-                    <input
-                      className="export-cell-input export-cell-input-sm"
-                      value={j.tag_equipe}
-                      onChange={(e) => patchJogador(j.key, 'tag_equipe', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="export-cell-input"
-                      value={j.nick}
-                      onChange={(e) => patchJogador(j.key, 'nick', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="export-cell-input export-cell-input-md"
-                      value={j.id_jogo}
-                      onChange={(e) => patchJogador(j.key, 'id_jogo', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="export-cell-input export-cell-input-sm"
-                      value={j.funcao}
-                      onChange={(e) => patchJogador(j.key, 'funcao', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="export-cell-input"
-                      value={j.localidade}
-                      onChange={(e) => patchJogador(j.key, 'localidade', e.target.value)}
-                      placeholder="Cidade"
-                    />
-                  </td>
-                </tr>
-              ))}
-              {!jogadoresEdit.length ? (
-                <tr><td colSpan={5}>Nenhum jogador no escopo.</td></tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-        <div className="export-actions-row" style={{ marginTop: 8 }}>
+      {/* Notas / subabas */}
+      <nav className="export-notes" aria-label="Etapas Download SPEC">
+        {EXPORT_NOTES.map((n) => (
           <button
-            className="button secondary small"
+            key={n.id}
             type="button"
-            disabled={!canDownload || Boolean(busy)}
-            onClick={() => void salvarEdicoesTextoNoCampeonato()}
+            className={`export-note ${note === n.id ? 'active' : ''}`}
+            onClick={() => setNote(n.id)}
+            disabled={Boolean(busy)}
           >
-            {busy === 'backup-texto' ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
-            Salvar edições de equipes/jogadores no campeonato
+            <span className="export-note-step">{n.step}</span>
+            <span className="export-note-body">
+              <strong>{n.short}</strong>
+              <small>{n.label}</small>
+            </span>
           </button>
-        </div>
-      </section>
+        ))}
+      </nav>
 
-      {/* LOGOS + FOTOS SPEC */}
-      {editedPayload ? (
+      {/* ——— 1. ARQUIVOS EQUIPES ——— */}
+      {note === 'equipes' ? (
+        <section className="export-section export-section-compact">
+          <div className="section-head">
+            <h4>
+              <Users size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
+              Arquivos equipes
+            </h4>
+            <small>edite nome/tag · baixe CSV · salve no campeonato</small>
+          </div>
+          <div className="export-table-wrap">
+            <table className="export-table export-table-edit">
+              <thead>
+                <tr>
+                  <th>Nome da equipe</th>
+                  <th>Tag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {equipesEdit.map((eq) => (
+                  <tr key={eq.id}>
+                    <td>
+                      <input
+                        className="export-cell-input"
+                        value={eq.nome}
+                        onChange={(e) => patchEquipe(eq.id, 'nome', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="export-cell-input export-cell-input-sm"
+                        value={eq.tag}
+                        onChange={(e) => patchEquipe(eq.id, 'tag', e.target.value)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+                {!equipesEdit.length ? (
+                  <tr><td colSpan={2}>Nenhuma equipe no escopo.</td></tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+          <div className="export-actions-row export-actions-wrap" style={{ marginTop: 8 }}>
+            <button
+              className="button secondary small"
+              type="button"
+              disabled={!canDownload || Boolean(busy) || !equipesEdit.length}
+              onClick={baixarCsvEquipes}
+            >
+              <Download size={14} /> CSV equipes
+            </button>
+            <button
+              className="button secondary small"
+              type="button"
+              disabled={!canDownload || Boolean(busy)}
+              onClick={() => void baixarPacote('tabelas')}
+            >
+              {busy === 'tabelas' ? <Loader2 size={14} className="spin" /> : <Table2 size={14} />}
+              ZIP tabelas
+            </button>
+            <button
+              className="button secondary small"
+              type="button"
+              disabled={!canDownload || Boolean(busy)}
+              onClick={() => void salvarEdicoesTextoNoCampeonato()}
+            >
+              {busy === 'backup-texto' ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+              Salvar edições no campeonato
+            </button>
+          </div>
+          {progress ? (
+            <p className="export-progress">
+              <Loader2 size={13} className="spin" /> {progress}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* ——— 2. ARQUIVOS JOGADORES ——— */}
+      {note === 'jogadores' ? (
+        <>
+          <section className="export-section export-section-compact">
+            <div className="section-head">
+              <h4>
+                <UserRound size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
+                Arquivos jogadores
+              </h4>
+              <small>edite e baixe CSV · não altera perfil global</small>
+            </div>
+            <div className="export-table-wrap">
+              <table className="export-table export-table-edit">
+                <thead>
+                  <tr>
+                    <th>Tag</th>
+                    <th>Nick</th>
+                    <th>Id de jogo</th>
+                    <th>Função</th>
+                    <th>Localidade (cidade)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jogadoresEdit.map((j) => (
+                    <tr key={j.key}>
+                      <td>
+                        <input
+                          className="export-cell-input export-cell-input-sm"
+                          value={j.tag_equipe}
+                          onChange={(e) => patchJogador(j.key, 'tag_equipe', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="export-cell-input"
+                          value={j.nick}
+                          onChange={(e) => patchJogador(j.key, 'nick', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="export-cell-input export-cell-input-md"
+                          value={j.id_jogo}
+                          onChange={(e) => patchJogador(j.key, 'id_jogo', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="export-cell-input export-cell-input-sm"
+                          value={j.funcao}
+                          onChange={(e) => patchJogador(j.key, 'funcao', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="export-cell-input"
+                          value={j.localidade}
+                          onChange={(e) => patchJogador(j.key, 'localidade', e.target.value)}
+                          placeholder="Cidade"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                  {!jogadoresEdit.length ? (
+                    <tr><td colSpan={5}>Nenhum jogador no escopo.</td></tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+            <div className="export-actions-row export-actions-wrap" style={{ marginTop: 8 }}>
+              <button
+                className="button secondary small"
+                type="button"
+                disabled={!canDownload || Boolean(busy) || !jogadoresEdit.length}
+                onClick={baixarCsvJogadores}
+              >
+                <Download size={14} /> CSV jogadores
+              </button>
+              <button
+                className="button secondary small"
+                type="button"
+                disabled={!canDownload || Boolean(busy)}
+                onClick={() => void salvarEdicoesTextoNoCampeonato()}
+              >
+                {busy === 'backup-texto' ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                Salvar edições no campeonato
+              </button>
+            </div>
+          </section>
+
+          <section className="export-section export-section-compact">
+            <div className="section-head">
+              <h4>PlayerNameOverwrite.json</h4>
+              <small>SPEC Free Fire · telamento</small>
+            </div>
+
+            <div className="export-toolbar" style={{ marginBottom: 8 }}>
+              <label className="export-inline-field">
+                <span>No arquivo, campo da função usa</span>
+                <select
+                  value={nationSource}
+                  onChange={(e) => setNationSource(e.target.value as FfNationSource)}
+                >
+                  <option value="funcao">Função (SNIPER / RUSHER / …)</option>
+                  <option value="localidade">Localidade (só cidade)</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="export-color-row">
+              <label className="export-color-field">
+                <span>{nationSource === 'localidade' ? 'Cor cidade' : 'Cor função'}</span>
+                <input type="color" value={roleColor} onChange={(e) => setRoleColor(e.target.value)} />
+              </label>
+              <label className="export-color-field">
+                <span>Cor equipe</span>
+                <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} />
+              </label>
+              <label className="export-color-field">
+                <span>Nome jogador</span>
+                <input
+                  type="color"
+                  value={textColors.TeamPlayer1}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setTextColors((p) => ({
+                      ...p,
+                      TeamPlayer1: v,
+                      TeamPlayer2: v,
+                      TeamPlayer3: v,
+                      TeamPlayer4: v,
+                    }))
+                  }}
+                />
+              </label>
+              <label className="export-color-field">
+                <span>Número</span>
+                <input
+                  type="color"
+                  value={textColors.TeamPlayer1Num}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setTextColors((p) => ({
+                      ...p,
+                      TeamPlayer1Num: v,
+                      TeamPlayer2Num: v,
+                      TeamPlayer3Num: v,
+                      TeamPlayer4Num: v,
+                    }))
+                  }}
+                />
+              </label>
+              <label className="export-color-field">
+                <span>Vivo</span>
+                <input type="color" value={textColors.Alive} onChange={(e) => setTc('Alive', e.target.value)} />
+              </label>
+              <label className="export-color-field">
+                <span>Knock</span>
+                <input type="color" value={textColors.Knockdown} onChange={(e) => setTc('Knockdown', e.target.value)} />
+              </label>
+              <label className="export-color-field">
+                <span>Eliminado</span>
+                <input type="color" value={textColors.Eliminated} onChange={(e) => setTc('Eliminated', e.target.value)} />
+              </label>
+            </div>
+
+            <div className="export-actions-row export-actions-wrap">
+              <button
+                className="button"
+                type="button"
+                disabled={!canDownload || Boolean(busy)}
+                onClick={gerarPlayerNameOverwrite}
+              >
+                {busy === 'spec' ? <Loader2 size={15} className="spin" /> : <FileJson size={15} />}
+                Baixar PlayerNameOverwrite.json
+              </button>
+              <button
+                className="button secondary small"
+                type="button"
+                disabled={!canDownload || Boolean(busy)}
+                onClick={() => void baixarPacote('completo')}
+              >
+                {busy === 'completo' ? <Loader2 size={14} className="spin" /> : <FolderArchive size={14} />}
+                ZIP completo
+              </button>
+              {specMsg ? <span className="export-spec-msg">{specMsg}</span> : null}
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {/* ——— 3. LOGOS EQUIPES ——— */}
+      {note === 'logos' && editedPayload ? (
         <SpecMediaPanel
           campeonatoId={campeonatoId}
           data={editedPayload}
+          focus="logos"
           disabled={!canDownload || Boolean(busy)}
           initialBackup={overrides}
           onBackupSaved={() => void loadBase()}
         />
       ) : null}
 
-      {/* SPEC FREE FIRE */}
-      <section className="export-section export-section-compact">
-        <div className="section-head">
-          <h4>PlayerNameOverwrite.json</h4>
-          <small>SPEC Free Fire · telamento</small>
-        </div>
-
-        <div className="export-toolbar" style={{ marginBottom: 8 }}>
-          <label className="export-inline-field">
-            <span>No arquivo, campo da função usa</span>
-            <select
-              value={nationSource}
-              onChange={(e) => setNationSource(e.target.value as FfNationSource)}
-            >
-              <option value="funcao">Função (SNIPER / RUSHER / …)</option>
-              <option value="localidade">Localidade (só cidade)</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="export-color-row">
-          <label className="export-color-field">
-            <span>{nationSource === 'localidade' ? 'Cor cidade' : 'Cor função'}</span>
-            <input type="color" value={roleColor} onChange={(e) => setRoleColor(e.target.value)} />
-          </label>
-          <label className="export-color-field">
-            <span>Cor equipe</span>
-            <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} />
-          </label>
-          <label className="export-color-field">
-            <span>Nome jogador</span>
-            <input
-              type="color"
-              value={textColors.TeamPlayer1}
-              onChange={(e) => {
-                const v = e.target.value
-                setTextColors((p) => ({
-                  ...p,
-                  TeamPlayer1: v,
-                  TeamPlayer2: v,
-                  TeamPlayer3: v,
-                  TeamPlayer4: v,
-                }))
-              }}
-            />
-          </label>
-          <label className="export-color-field">
-            <span>Número</span>
-            <input
-              type="color"
-              value={textColors.TeamPlayer1Num}
-              onChange={(e) => {
-                const v = e.target.value
-                setTextColors((p) => ({
-                  ...p,
-                  TeamPlayer1Num: v,
-                  TeamPlayer2Num: v,
-                  TeamPlayer3Num: v,
-                  TeamPlayer4Num: v,
-                }))
-              }}
-            />
-          </label>
-          <label className="export-color-field">
-            <span>Vivo</span>
-            <input type="color" value={textColors.Alive} onChange={(e) => setTc('Alive', e.target.value)} />
-          </label>
-          <label className="export-color-field">
-            <span>Knock</span>
-            <input type="color" value={textColors.Knockdown} onChange={(e) => setTc('Knockdown', e.target.value)} />
-          </label>
-          <label className="export-color-field">
-            <span>Eliminado</span>
-            <input type="color" value={textColors.Eliminated} onChange={(e) => setTc('Eliminated', e.target.value)} />
-          </label>
-        </div>
-
-        <div className="export-actions-row">
-          <button
-            className="button"
-            type="button"
+      {/* ——— 4. FOTOS JOGADORES ——— */}
+      {note === 'fotos' && editedPayload ? (
+        <>
+          <SpecMediaPanel
+            campeonatoId={campeonatoId}
+            data={editedPayload}
+            focus="fotos"
             disabled={!canDownload || Boolean(busy)}
-            onClick={gerarPlayerNameOverwrite}
-          >
-            {busy === 'spec' ? <Loader2 size={15} className="spin" /> : <FileJson size={15} />}
-            Baixar PlayerNameOverwrite.json
-          </button>
-          {specMsg ? <span className="export-spec-msg">{specMsg}</span> : null}
-        </div>
-      </section>
+            initialBackup={overrides}
+            onBackupSaved={() => void loadBase()}
+          />
+          <section className="export-section export-section-compact">
+            <div className="section-head">
+              <h4>Pacotes extras</h4>
+              <small>opcional · mídias brutas do cadastro</small>
+            </div>
+            <div className="export-actions-row export-actions-wrap">
+              <button
+                className="button secondary small"
+                type="button"
+                disabled={!canDownload || Boolean(busy) || !data.resumo.total_midias}
+                onClick={() => void baixarPacote('midias')}
+              >
+                {busy === 'midias' ? <Loader2 size={14} className="spin" /> : <ImageIcon size={14} />}
+                ZIP mídias originais
+              </button>
+              <button
+                className="button secondary small"
+                type="button"
+                disabled={!canDownload || Boolean(busy)}
+                onClick={() => void baixarPacote('completo')}
+              >
+                {busy === 'completo' ? <Loader2 size={14} className="spin" /> : <FolderArchive size={14} />}
+                ZIP completo
+              </button>
+            </div>
+            {progress ? (
+              <p className="export-progress">
+                <Loader2 size={13} className="spin" /> {progress}
+              </p>
+            ) : null}
+          </section>
+        </>
+      ) : null}
 
-      <section className="export-section export-section-compact">
-        <div className="section-head">
-          <h4>Pacote e tabelas</h4>
-        </div>
-        <div className="export-actions-row export-actions-wrap">
-          <button className="button secondary small" type="button" disabled={!canDownload || Boolean(busy)} onClick={() => void baixarPacote('completo')}>
-            {busy === 'completo' ? <Loader2 size={14} className="spin" /> : <FolderArchive size={14} />}
-            ZIP completo
+      {/* Navegação entre notas */}
+      <div className="export-note-nav">
+        {prevNote ? (
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={Boolean(busy)}
+            onClick={() => setNote(prevNote.id)}
+          >
+            <ChevronLeft size={14} />
+            {prevNote.step}. {prevNote.short}
           </button>
-          <button className="button secondary small" type="button" disabled={!canDownload || Boolean(busy)} onClick={() => void baixarPacote('tabelas')}>
-            {busy === 'tabelas' ? <Loader2 size={14} className="spin" /> : <Table2 size={14} />}
-            ZIP tabelas
+        ) : (
+          <span />
+        )}
+        <span className="export-note-nav-pos">
+          {noteIndex + 1} / {EXPORT_NOTES.length}
+        </span>
+        {nextNote ? (
+          <button
+            type="button"
+            className="button small"
+            disabled={Boolean(busy)}
+            onClick={() => setNote(nextNote.id)}
+          >
+            {nextNote.step}. {nextNote.short}
+            <ChevronRight size={14} />
           </button>
-          <button className="button secondary small" type="button" disabled={!canDownload || Boolean(busy) || !data.resumo.total_midias} onClick={() => void baixarPacote('midias')}>
-            {busy === 'midias' ? <Loader2 size={14} className="spin" /> : <ImageIcon size={14} />}
-            ZIP mídias
-          </button>
-          <button className="button secondary small" type="button" disabled={!canDownload || Boolean(busy)} onClick={baixarCsvEquipes}>
-            <Download size={14} /> CSV equipes
-          </button>
-          <button className="button secondary small" type="button" disabled={!canDownload || Boolean(busy)} onClick={baixarCsvJogadores}>
-            <Download size={14} /> CSV jogadores
-          </button>
-        </div>
-        {progress ? (
-          <p className="export-progress">
-            <Loader2 size={13} className="spin" /> {progress}
-          </p>
-        ) : null}
-      </section>
+        ) : (
+          <span className="export-spec-msg" style={{ margin: 0 }}>Fluxo completo</span>
+        )}
+      </div>
     </div>
   )
 }

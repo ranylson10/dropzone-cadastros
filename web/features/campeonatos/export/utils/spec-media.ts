@@ -2,9 +2,11 @@
  * Processamento de logos e fotos para o SPEC Free Fire.
  *
  * Logos: 300×300 PNG — nome = código do slot (902000034=A, 902000035=B, …)
- * Fotos: 500×600 PNG — nome = id do jogo do jogador
+ * Fotos (composição/prévia): 500×600
+ * Fotos (export SPEC): 143×600 — achatadas só na horizontal (não corta).
+ *   O SPEC trava a altura e estica a largura; salvamos pré-achatadas p/ equalizar.
  *
- * Composição: fundo + imagem com margens (cima/baixo/lados) + recolor opcional da logo.
+ * Composição: fundo + imagem com margens/zoom/offset + recolor opcional da logo.
  */
 
 import JSZip from 'jszip'
@@ -12,8 +14,14 @@ import type { CampeonatoExportPayload } from '../types/campeonato-export.types'
 import { downloadBlob } from './build-export-zip'
 
 export const LOGO_SIZE = 300
+/** Largura de composição / prévia (proporção “certa” pro olho). */
 export const PHOTO_W = 500
 export const PHOTO_H = 600
+/**
+ * Largura final do PNG no ZIP do SPEC.
+ * Achatamento horizontal 500→143 (altura 600 fixa). Não é crop.
+ */
+export const PHOTO_SPEC_W = 143
 
 /** Código base do SPEC: A = 902000034 */
 export const SPEC_LOGO_CODE_BASE = 902000034
@@ -25,8 +33,30 @@ export type BoxMargin = {
   left: number
 }
 
+/** Zoom e deslocamento da imagem dentro da área útil (após margens). */
+export type ImageTransform = {
+  /** 1 = 100% (encaixe contain). 1.2 = 20% maior, etc. */
+  zoom: number
+  /** px: negativo = esquerda, positivo = direita */
+  offsetX: number
+  /** px: negativo = cima, positivo = baixo */
+  offsetY: number
+}
+
 export const DEFAULT_LOGO_MARGIN: BoxMargin = { top: 24, right: 24, bottom: 24, left: 24 }
 export const DEFAULT_PHOTO_MARGIN: BoxMargin = { top: 30, right: 30, bottom: 30, left: 30 }
+export const DEFAULT_TRANSFORM: ImageTransform = { zoom: 1, offsetX: 0, offsetY: 0 }
+
+export function clampTransform(t: Partial<ImageTransform> | null | undefined): ImageTransform {
+  const zoom = Number(t?.zoom)
+  const offsetX = Number(t?.offsetX)
+  const offsetY = Number(t?.offsetY)
+  return {
+    zoom: Number.isFinite(zoom) ? Math.max(0.1, Math.min(4, zoom)) : 1,
+    offsetX: Number.isFinite(offsetX) ? Math.round(Math.max(-400, Math.min(400, offsetX))) : 0,
+    offsetY: Number.isFinite(offsetY) ? Math.round(Math.max(-400, Math.min(400, offsetY))) : 0,
+  }
+}
 
 export function letterFromSlot(slotLetra: string | null | undefined, slotNumero: number | null | undefined): string {
   const raw = String(slotLetra || '').trim().toUpperCase()
@@ -53,6 +83,9 @@ export type SpecLogoItem = {
   sourceUrl: string | null
   /** recolor só desta logo (hex). null = original */
   tintColor: string | null
+  zoom: number
+  offsetX: number
+  offsetY: number
 }
 
 export type SpecPhotoItem = {
@@ -62,6 +95,9 @@ export type SpecPhotoItem = {
   fotoUrl: string | null
   sourceUrl: string | null
   equipeNome: string
+  zoom: number
+  offsetX: number
+  offsetY: number
 }
 
 export function buildSpecLogoItems(data: CampeonatoExportPayload): SpecLogoItem[] {
@@ -105,6 +141,7 @@ export function buildSpecLogoItems(data: CampeonatoExportPayload): SpecLogoItem[
         logoUrl,
         sourceUrl: logoUrl,
         tintColor: null,
+        ...DEFAULT_TRANSFORM,
       })
     }
   }
@@ -129,6 +166,7 @@ export function buildSpecPhotoItems(data: CampeonatoExportPayload): SpecPhotoIte
           fotoUrl: jog.foto_url || null,
           sourceUrl: jog.foto_url || null,
           equipeNome: eq.nome,
+          ...DEFAULT_TRANSFORM,
         })
       }
     }
@@ -214,8 +252,8 @@ function recolorImageToCanvas(img: HTMLImageElement, tintHex: string): HTMLCanva
 }
 
 /**
- * Desenha fundo + imagem com margens independentes.
- * object-fit: contain na área útil.
+ * Desenha fundo + imagem com margens, zoom e deslocamento.
+ * object-fit: contain na área útil, depois zoom e offset.
  */
 export async function composeOnCanvas(opts: {
   width: number
@@ -227,6 +265,9 @@ export async function composeOnCanvas(opts: {
   fallbackColor?: string
   /** recolor da logo (hex). null = original */
   tintColor?: string | null
+  zoom?: number
+  offsetX?: number
+  offsetY?: number
 }): Promise<Blob> {
   const {
     width,
@@ -237,6 +278,11 @@ export async function composeOnCanvas(opts: {
     fallbackColor = '#000000',
     tintColor = null,
   } = opts
+  const { zoom, offsetX, offsetY } = clampTransform({
+    zoom: opts.zoom,
+    offsetX: opts.offsetX,
+    offsetY: opts.offsetY,
+  })
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -272,11 +318,12 @@ export async function composeOnCanvas(opts: {
       const ih = 'naturalHeight' in source && (source as HTMLImageElement).naturalHeight
         ? (source as HTMLImageElement).naturalHeight
         : (source as HTMLCanvasElement).height
-      const scale = Math.min(boxW / iw, boxH / ih)
+      const baseScale = Math.min(boxW / iw, boxH / ih)
+      const scale = baseScale * zoom
       const dw = iw * scale
       const dh = ih * scale
-      const dx = m.left + (boxW - dw) / 2
-      const dy = m.top + (boxH - dh) / 2
+      const dx = m.left + (boxW - dw) / 2 + offsetX
+      const dy = m.top + (boxH - dh) / 2 + offsetY
       ctx.drawImage(source, dx, dy, dw, dh)
     } catch {
       // só fundo
@@ -311,6 +358,9 @@ export async function buildSpecLogosZip(
       margin,
       // cor por logo (não global)
       tintColor: item.tintColor || null,
+      zoom: item.zoom,
+      offsetX: item.offsetX,
+      offsetY: item.offsetY,
       // só pinta se houver fundo; senão PNG transparente
       fallbackColor: '#111111',
     })
@@ -325,6 +375,34 @@ export async function buildSpecLogosZip(
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
 }
 
+/**
+ * Achata a foto só na horizontal: 500×600 → 143×600.
+ * Não corta — escala largura; altura permanece.
+ * Compensa o SPEC Free Fire, que trava altura e deforma a largura.
+ */
+export async function squashPhotoForSpec(sourceBlob: Blob): Promise<Blob> {
+  const url = URL.createObjectURL(sourceBlob)
+  try {
+    const img = await loadImage(url)
+    const canvas = document.createElement('canvas')
+    canvas.width = PHOTO_SPEC_W
+    canvas.height = PHOTO_H
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas não disponível')
+    ctx.clearRect(0, 0, PHOTO_SPEC_W, PHOTO_H)
+    // estica/achata horizontalmente: desenha a imagem 500-wide na faixa 143-wide
+    ctx.drawImage(img, 0, 0, PHOTO_SPEC_W, PHOTO_H)
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Falha ao exportar foto SPEC'))),
+        'image/png',
+      )
+    })
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 export async function buildSpecPhotosZip(
   items: SpecPhotoItem[],
   backgroundUrl: string | null,
@@ -337,18 +415,32 @@ export async function buildSpecPhotosZip(
   const total = items.length
 
   for (const item of items) {
-    const blob = await composeOnCanvas({
+    // 1) compõe na proporção correta 500×600
+    const composed = await composeOnCanvas({
       width: PHOTO_W,
       height: PHOTO_H,
       sourceUrl: item.sourceUrl,
       backgroundUrl,
       margin,
+      zoom: item.zoom,
+      offsetX: item.offsetX,
+      offsetY: item.offsetY,
       fallbackColor: '#111111',
     })
+    // 2) achata horizontalmente 500→143 (altura 600) pro SPEC
+    const blob = await squashPhotoForSpec(composed)
     folder.file(`${item.idJogo}.png`, blob)
     done += 1
     onProgress?.(done, total)
   }
+
+  const note = [
+    'Fotos SPEC Free Fire',
+    `Composição: ${PHOTO_W}x${PHOTO_H}`,
+    `Export (achatada horizontal): ${PHOTO_SPEC_W}x${PHOTO_H}`,
+    'O SPEC trava a altura e estica a largura; o achatamento pré-compensa.',
+  ].join('\n')
+  folder.file('_leia-me-spec.txt', note)
 
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
 }

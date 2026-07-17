@@ -31,12 +31,18 @@ export type ExportOverrides = {
     equipe_nome?: string
     line_nome?: string
     equipe_id?: string
+    zoom?: number
+    offset_x?: number
+    offset_y?: number
   }>
   fotos: Record<string, {
     source_url?: string | null
     nick?: string
     equipe_nome?: string
     key?: string
+    zoom?: number
+    offset_x?: number
+    offset_y?: number
   }>
   nation_source?: string
   role_color?: string

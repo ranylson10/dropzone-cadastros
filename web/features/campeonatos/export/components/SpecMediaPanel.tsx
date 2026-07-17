@@ -9,23 +9,34 @@ import {
   buildSpecPhotoItems,
   buildSpecLogosZip,
   buildSpecPhotosZip,
+  clampTransform,
   composeOnCanvas,
   DEFAULT_LOGO_MARGIN,
   DEFAULT_PHOTO_MARGIN,
+  DEFAULT_TRANSFORM,
   downloadBlob,
   fileToDataUrl,
   LOGO_SIZE,
   PHOTO_H,
+  PHOTO_SPEC_W,
   PHOTO_W,
   type BoxMargin,
+  type ImageTransform,
   type SpecLogoItem,
   type SpecPhotoItem,
 } from '../utils/spec-media'
+
+type MediaTab = 'logos' | 'fotos'
 
 type Props = {
   campeonatoId: string
   data: CampeonatoExportPayload
   disabled?: boolean
+  /**
+   * Se definido, mostra só essa mídia (sem abas internas).
+   * Usado pelas notas do Download/SPEC.
+   */
+  focus?: MediaTab
   /** fundos/margens/logos/fotos já salvos no campeonato */
   initialBackup?: {
     logo_bg_url?: string | null
@@ -37,8 +48,6 @@ type Props = {
   } | null
   onBackupSaved?: () => void
 }
-
-type MediaTab = 'logos' | 'fotos'
 
 function MarginFields({
   value,
@@ -87,15 +96,137 @@ function MarginFields({
   )
 }
 
+function TransformFields({
+  value,
+  onChange,
+  disabled,
+  onApplyAll,
+}: {
+  value: ImageTransform
+  onChange: (next: ImageTransform) => void
+  disabled?: boolean
+  onApplyAll?: () => void
+}) {
+  const zoomPct = Math.round(value.zoom * 100)
+
+  function patch(partial: Partial<ImageTransform>) {
+    onChange(clampTransform({ ...value, ...partial }))
+  }
+
+  function nudge(axis: 'offsetX' | 'offsetY', delta: number) {
+    patch({ [axis]: value[axis] + delta })
+  }
+
+  return (
+    <div className="spec-transform">
+      <label className="spec-transform-zoom">
+        <span>Zoom {zoomPct}%</span>
+        <input
+          type="range"
+          min={20}
+          max={300}
+          step={1}
+          value={zoomPct}
+          disabled={disabled}
+          onChange={(e) => patch({ zoom: Number(e.target.value) / 100 })}
+        />
+        <input
+          type="number"
+          min={20}
+          max={300}
+          value={zoomPct}
+          disabled={disabled}
+          onChange={(e) => patch({ zoom: Number(e.target.value) / 100 })}
+        />
+      </label>
+
+      <div className="spec-nudge-grid">
+        <span className="spec-nudge-label">Posição</span>
+        <button type="button" className="button secondary small" disabled={disabled} onClick={() => nudge('offsetY', -5)} title="Cima">
+          ↑
+        </button>
+        <div className="spec-nudge-mid">
+          <button type="button" className="button secondary small" disabled={disabled} onClick={() => nudge('offsetX', -5)} title="Esquerda">
+            ←
+          </button>
+          <button type="button" className="button secondary small" disabled={disabled} onClick={() => patch({ offsetX: 0, offsetY: 0 })} title="Centro">
+            ·
+          </button>
+          <button type="button" className="button secondary small" disabled={disabled} onClick={() => nudge('offsetX', 5)} title="Direita">
+            →
+          </button>
+        </div>
+        <button type="button" className="button secondary small" disabled={disabled} onClick={() => nudge('offsetY', 5)} title="Baixo">
+          ↓
+        </button>
+      </div>
+
+      <div className="spec-margin-grid">
+        <label>
+          <span>Lados (X)</span>
+          <input
+            type="number"
+            min={-400}
+            max={400}
+            value={value.offsetX}
+            disabled={disabled}
+            onChange={(e) => patch({ offsetX: Number(e.target.value) })}
+          />
+        </label>
+        <label>
+          <span>Cima/Baixo (Y)</span>
+          <input
+            type="number"
+            min={-400}
+            max={400}
+            value={value.offsetY}
+            disabled={disabled}
+            onChange={(e) => patch({ offsetY: Number(e.target.value) })}
+          />
+        </label>
+      </div>
+
+      <div className="export-actions-row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="button secondary small"
+          disabled={disabled}
+          onClick={() => onChange({ ...DEFAULT_TRANSFORM })}
+        >
+          Reset zoom/posição
+        </button>
+        {onApplyAll ? (
+          <button type="button" className="button secondary small" disabled={disabled} onClick={onApplyAll}>
+            Aplicar a todos da lista
+          </button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function transformFromBackup(b: Record<string, any> | null | undefined): ImageTransform {
+  if (!b) return { ...DEFAULT_TRANSFORM }
+  return clampTransform({
+    zoom: b.zoom ?? DEFAULT_TRANSFORM.zoom,
+    offsetX: b.offset_x ?? b.offsetX ?? DEFAULT_TRANSFORM.offsetX,
+    offsetY: b.offset_y ?? b.offsetY ?? DEFAULT_TRANSFORM.offsetY,
+  })
+}
+
 function applyLogoBackup(items: SpecLogoItem[], logosBackup?: Record<string, any> | null): SpecLogoItem[] {
   if (!logosBackup || !Object.keys(logosBackup).length) return items
   return items.map((item) => {
     const b = logosBackup[item.key] || logosBackup[String(item.codigo)]
     if (!b) return item
+    const t = transformFromBackup(b)
     return {
       ...item,
       sourceUrl: b.source_url !== undefined ? b.source_url : item.sourceUrl,
       tintColor: b.tint_color !== undefined ? b.tint_color : item.tintColor,
+      zoom: t.zoom,
+      offsetX: t.offsetX,
+      offsetY: t.offsetY,
     }
   })
 }
@@ -105,16 +236,24 @@ function applyPhotoBackup(items: SpecPhotoItem[], fotosBackup?: Record<string, a
   return items.map((item) => {
     const b = fotosBackup[item.idJogo] || fotosBackup[item.key]
     if (!b) return item
+    const t = transformFromBackup(b)
     return {
       ...item,
       sourceUrl: b.source_url !== undefined ? b.source_url : item.sourceUrl,
       nick: b.nick || item.nick,
+      zoom: t.zoom,
+      offsetX: t.offsetX,
+      offsetY: t.offsetY,
     }
   })
 }
 
-export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, onBackupSaved }: Props) {
-  const [tab, setTab] = useState<MediaTab>('logos')
+export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBackup, onBackupSaved }: Props) {
+  const [tab, setTab] = useState<MediaTab>(focus || 'logos')
+
+  useEffect(() => {
+    if (focus) setTab(focus)
+  }, [focus])
 
   const [logoBg, setLogoBg] = useState<string | null>(initialBackup?.logo_bg_url || null)
   const [photoBg, setPhotoBg] = useState<string | null>(initialBackup?.photo_bg_url || null)
@@ -173,6 +312,9 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
             backgroundUrl: logoBg,
             margin: logoMargin,
             tintColor: activeLogo?.tintColor || null,
+            zoom: activeLogo?.zoom,
+            offsetX: activeLogo?.offsetX,
+            offsetY: activeLogo?.offsetY,
             // sem fundo: prévia transparente (sem preto forçado)
             fallbackColor: '#000000',
           })
@@ -189,6 +331,9 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
             sourceUrl: activePhoto?.sourceUrl || null,
             backgroundUrl: photoBg,
             margin: photoMargin,
+            zoom: activePhoto?.zoom,
+            offsetX: activePhoto?.offsetX,
+            offsetY: activePhoto?.offsetY,
             fallbackColor: '#000000',
           })
           if (cancelled) return
@@ -216,8 +361,14 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
     activeLogo?.key,
     activeLogo?.sourceUrl,
     activeLogo?.tintColor,
+    activeLogo?.zoom,
+    activeLogo?.offsetX,
+    activeLogo?.offsetY,
     activePhoto?.key,
     activePhoto?.sourceUrl,
+    activePhoto?.zoom,
+    activePhoto?.offsetX,
+    activePhoto?.offsetY,
     logoBg,
     photoBg,
     logoMargin,
@@ -268,6 +419,34 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
     )
   }
 
+  function setActiveTransform(next: ImageTransform) {
+    const t = clampTransform(next)
+    if (tab === 'logos' && activeLogo) {
+      setLogos((prev) =>
+        prev.map((l) =>
+          l.key === activeLogo.key ? { ...l, zoom: t.zoom, offsetX: t.offsetX, offsetY: t.offsetY } : l,
+        ),
+      )
+      return
+    }
+    if (tab === 'fotos' && activePhoto) {
+      setPhotos((prev) =>
+        prev.map((p) =>
+          p.key === activePhoto.key ? { ...p, zoom: t.zoom, offsetX: t.offsetX, offsetY: t.offsetY } : p,
+        ),
+      )
+    }
+  }
+
+  function applyTransformToAll(next: ImageTransform) {
+    const t = clampTransform(next)
+    if (tab === 'logos') {
+      setLogos((prev) => prev.map((l) => ({ ...l, zoom: t.zoom, offsetX: t.offsetX, offsetY: t.offsetY })))
+    } else {
+      setPhotos((prev) => prev.map((p) => ({ ...p, zoom: t.zoom, offsetX: t.offsetX, offsetY: t.offsetY })))
+    }
+  }
+
   async function salvarLogosZip() {
     if (!logos.length) {
       setErr('Lista de logos vazia — remova só as que não precisa e deixe as que vai salvar.')
@@ -310,7 +489,9 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
         (done, total) => setProgress(`Fotos ${done}/${total}`),
       )
       downloadBlob(blob, 'spec-fotos-jogadores.zip')
-      setMsg(`${list.length} fotos PNG geradas (só as da lista).`)
+      setMsg(
+        `${list.length} fotos PNG · compostas em ${PHOTO_W}×${PHOTO_H}, export SPEC achatado em ${PHOTO_SPEC_W}×${PHOTO_H} (sem cortar).`,
+      )
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Falha ao gerar ZIP de fotos.')
     } finally {
@@ -339,6 +520,9 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
           equipe_nome: l.equipeNome,
           line_nome: l.lineNome,
           equipe_id: l.equipeId,
+          zoom: l.zoom,
+          offset_x: l.offsetX,
+          offset_y: l.offsetY,
         }
       }
       await exportOverridesService.save(campeonatoId, {
@@ -372,6 +556,9 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
           nick: p.nick,
           equipe_nome: p.equipeNome,
           key: p.key,
+          zoom: p.zoom,
+          offset_x: p.offsetX,
+          offset_y: p.offsetY,
         }
       }
       await exportOverridesService.save(campeonatoId, {
@@ -392,20 +579,32 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
   const isLogo = tab === 'logos'
 
   return (
-    <section className="export-section export-section-compact spec-workspace-section">
-      <div className="section-head">
-        <h4>Estúdio SPEC · logos e fotos</h4>
-        <small>remova o que não precisa · salve só o restante</small>
-      </div>
-
-      <div className="spec-tabs">
-        <button type="button" className={tab === 'logos' ? 'active' : ''} onClick={() => setTab('logos')} disabled={disabled || Boolean(busy)}>
-          1. Logos 300×300
-        </button>
-        <button type="button" className={tab === 'fotos' ? 'active' : ''} onClick={() => setTab('fotos')} disabled={disabled || Boolean(busy)}>
-          2. Fotos 500×600
-        </button>
-      </div>
+    <section className={`export-section export-section-compact spec-workspace-section ${focus ? 'is-focused' : ''}`}>
+      {!focus ? (
+        <>
+          <div className="section-head">
+            <h4>Estúdio SPEC · logos e fotos</h4>
+            <small>remova o que não precisa · salve só o restante</small>
+          </div>
+          <div className="spec-tabs">
+            <button type="button" className={tab === 'logos' ? 'active' : ''} onClick={() => setTab('logos')} disabled={disabled || Boolean(busy)}>
+              1. Logos 300×300
+            </button>
+            <button type="button" className={tab === 'fotos' ? 'active' : ''} onClick={() => setTab('fotos')} disabled={disabled || Boolean(busy)}>
+              2. Fotos {PHOTO_W}×{PHOTO_H} → SPEC {PHOTO_SPEC_W}×{PHOTO_H}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="section-head">
+          <h4>{focus === 'logos' ? 'Logos das equipes · 300×300' : `Fotos dos jogadores · ${PHOTO_W}×${PHOTO_H}`}</h4>
+          <small>
+            {focus === 'logos'
+              ? 'fundo, margens, zoom/posição, cor · ZIP e backup'
+              : `prévia ${PHOTO_W}×${PHOTO_H} · ZIP SPEC ${PHOTO_SPEC_W}×${PHOTO_H} (achata X)`}
+          </small>
+        </div>
+      )}
 
       {err ? <div className="message error">{err}</div> : null}
       {msg ? <p className="export-spec-msg">{msg}</p> : null}
@@ -431,7 +630,11 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
               <div className="spec-canvas-empty">
                 <Upload size={28} />
                 <p>Adicione o fundo e selecione um item</p>
-                <small>{isLogo ? '1:1 · 300×300' : '5:6 · 500×600'}</small>
+                <small>
+                  {isLogo
+                    ? '1:1 · 300×300'
+                    : `Prévia ${PHOTO_W}×${PHOTO_H} · ZIP SPEC ${PHOTO_SPEC_W}×${PHOTO_H} (achata X)`}
+                </small>
               </div>
             )}
           </div>
@@ -441,11 +644,19 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
                 Slot <strong>{activeLogo.slotLetra}</strong> · <code>{activeLogo.codigo}</code>
                 {' · '}{activeLogo.equipeNome}
                 {activeLogo.tintColor ? ` · cor ${activeLogo.tintColor}` : ''}
+                {' · '}zoom {Math.round(activeLogo.zoom * 100)}%
+                {(activeLogo.offsetX || activeLogo.offsetY)
+                  ? ` · pos ${activeLogo.offsetX},${activeLogo.offsetY}`
+                  : ''}
               </span>
             ) : null}
             {!isLogo && activePhoto ? (
               <span>
                 <strong>{activePhoto.nick}</strong> · <code>{activePhoto.idJogo}</code>
+                {' · '}zoom {Math.round(activePhoto.zoom * 100)}%
+                {(activePhoto.offsetX || activePhoto.offsetY)
+                  ? ` · pos ${activePhoto.offsetX},${activePhoto.offsetY}`
+                  : ''}
               </span>
             ) : null}
           </div>
@@ -478,6 +689,32 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, initialBackup, on
               <MarginFields value={photoMargin} onChange={setPhotoMargin} disabled={disabled || Boolean(busy)} max={180} />
             )}
           </div>
+
+          {(isLogo ? activeLogo : activePhoto) ? (
+            <div className="spec-tool-block">
+              <h5>Zoom e posição {isLogo ? 'desta logo' : 'desta foto'}</h5>
+              <p className="export-help">
+                Ajuste o enquadramento. Use as setas ou os valores X/Y. O backup grava junto com o item.
+              </p>
+              <TransformFields
+                value={
+                  isLogo && activeLogo
+                    ? { zoom: activeLogo.zoom, offsetX: activeLogo.offsetX, offsetY: activeLogo.offsetY }
+                    : activePhoto
+                      ? { zoom: activePhoto.zoom, offsetX: activePhoto.offsetX, offsetY: activePhoto.offsetY }
+                      : { ...DEFAULT_TRANSFORM }
+                }
+                onChange={setActiveTransform}
+                disabled={disabled || Boolean(busy)}
+                onApplyAll={() => {
+                  const src = isLogo ? activeLogo : activePhoto
+                  if (!src) return
+                  applyTransformToAll({ zoom: src.zoom, offsetX: src.offsetX, offsetY: src.offsetY })
+                  setMsg('Zoom e posição aplicados a todos da lista.')
+                }}
+              />
+            </div>
+          ) : null}
 
           {isLogo && activeLogo ? (
             <div className="spec-tool-block">
