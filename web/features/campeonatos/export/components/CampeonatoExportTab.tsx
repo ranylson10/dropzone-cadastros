@@ -28,6 +28,7 @@ import {
   type FfNationSource,
   type FfTextColors,
 } from '../utils/player-name-overwrite'
+import { SpecMediaPanel } from './SpecMediaPanel'
 
 type EscopoUi = 'campeonato' | 'fase' | 'grupo'
 
@@ -562,6 +563,11 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
           </table>
         </div>
       </section>
+
+      {/* LOGOS + FOTOS SPEC */}
+      {editedPayload ? (
+        <SpecMediaPanel data={editedPayload} disabled={!canDownload || Boolean(busy)} />
+      ) : null}
 
       {/* SPEC FREE FIRE */}
       <section className="export-section export-section-compact">
