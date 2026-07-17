@@ -12,6 +12,7 @@ import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
 import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { CampeonatoExportTab } from '@/features/campeonatos/export'
+import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
 
@@ -1436,6 +1437,8 @@ ${params.url}`
                   </div>
                 </div>
               ) : null}
+
+              {tab === 'regulamento' ? <CampeonatoRulebookTab campeonatoId={selectedChamp.id} /> : null}
 
               {tab === 'estatisticas' ? (
                 <CampeonatoEstatisticasTab

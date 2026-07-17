@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 16 de julho de 2026  
-**Estado:** fluxo de convites de equipes reorganizado (link de grupo multi-uso + link único); soft-delete e consumo atômico de vagas; doc em `docs/FLUXO_CONVITES_EQUIPES.md`.
+**Última atualização:** 17 de julho de 2026  
+**Estado:** Rulebook Builder com fluxo de criação otimizado — seed a partir do campeonato, auto-save, prévia ao vivo, validação por etapa e barra de progresso. Migration `20260717_campeonato_rulebook.sql`. Doc: `docs/RULEBOOK_BUILDER.md`.
 
 ## 1. Objetivo do sistema
 
