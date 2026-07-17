@@ -1,6 +1,7 @@
 'use client'
 
 import { Plus, Trash2 } from 'lucide-react'
+import '@/features/campeonatos/rulebook/rulebook.css'
 import {
   formatMoneyBRL,
   moneyInputToValue,

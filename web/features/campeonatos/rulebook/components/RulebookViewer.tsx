@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Search, BookOpen, Printer } from 'lucide-react'
 import type { GeneratedDocument } from '../types/rulebook.types'
+import '../rulebook.css'
 
 type Props = {
   documento: GeneratedDocument | Record<string, unknown> | null | undefined

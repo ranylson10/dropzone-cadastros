@@ -23,6 +23,7 @@ import {
 } from '@/lib/premiacao-divisao'
 import { rulebookService } from '../services/rulebook.service'
 import { RulebookViewer } from './RulebookViewer'
+import '../rulebook.css'
 import type {
   AnswerValue,
   InfracaoConfig,

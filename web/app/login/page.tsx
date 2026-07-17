@@ -1,5 +1,10 @@
 'use client'
 
+/**
+ * LOGIN — ZONA PROTEGIDA
+ * Não alterar em tarefas de campeonato/rulebook/export.
+ * Só mexer com tarefa explícita de autenticação.
+ */
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AppShell } from '@/components/layout'
@@ -7,6 +12,7 @@ import { SystemLogo } from '@/components/brand/SystemLogo'
 import { supabase } from '@/lib/supabase-browser'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
+import './login.css'
 
 const profileLabels = {
   produtora: 'produtora',

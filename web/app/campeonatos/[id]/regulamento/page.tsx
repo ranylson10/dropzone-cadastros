@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { BookOpen, Loader2 } from 'lucide-react'
 import { RulebookViewer } from '@/features/campeonatos/rulebook'
 import type { GeneratedDocument } from '@/features/campeonatos/rulebook'
+import '@/features/campeonatos/rulebook/rulebook.css'
 
 export default function RegulamentoPublicoPage() {
   const params = useParams()
