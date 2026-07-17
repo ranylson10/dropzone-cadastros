@@ -1,15 +1,10 @@
 'use client'
 
-/**
- * LOGIN SOCIAL — ZONA PROTEGIDA
- * Não alterar em tarefas sem relação com auth.
- */
 import { useState } from 'react'
 import type { Provider } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase-browser'
 import type { ProfileType } from '@/lib/types'
 import { safeInternalPath, type SocialProvider } from './auth-return'
-/* login.css só na página /login — não importar aqui (quebra o resto do site) */
 
 type Props = {
   profileType?: ProfileType | null
@@ -66,35 +61,8 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
           className={`button social-login-button social-login-${provider}`}
           disabled={Boolean(loadingProvider)}
           onClick={() => startOAuth(provider)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            width: '100%',
-            minHeight: 48,
-            padding: '0 16px',
-            borderRadius: 6,
-            border: '1px solid #d5dae3',
-            fontWeight: 800,
-            fontSize: 15,
-            cursor: loadingProvider ? 'not-allowed' : 'pointer',
-            opacity: loadingProvider && loadingProvider !== provider ? 0.55 : 1,
-            ...(provider === 'google'
-              ? { background: '#fff', color: '#141820' }
-              : provider === 'facebook'
-                ? { background: '#1877f2', color: '#fff', borderColor: '#1877f2' }
-                : { background: '#5865f2', color: '#fff', borderColor: '#5865f2' }),
-          }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/social-${provider}.svg`}
-            alt=""
-            width={20}
-            height={20}
-            style={{ width: 20, height: 20, maxWidth: 20, maxHeight: 20, flex: '0 0 20px', objectFit: 'contain' }}
-          />
+          <img src={`/social-${provider}.svg`} alt="" />
           {loadingProvider === provider ? `Abrindo ${labels[provider].replace('Continuar com ', '')}...` : labels[provider]}
         </button>
       ))}

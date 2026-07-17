@@ -4,17 +4,7 @@
 > Atualize-o ao fim de cada rodada relevante.
 
 **Última atualização:** 17 de julho de 2026  
-**Estado:** login isolado em `web/app/login/login.css` (zona protegida); rulebook CSS em `web/features/campeonatos/rulebook/rulebook.css`.
-
-## 0. Zonas protegidas (NÃO mexer sem tarefa explícita)
-
-| Zona | Arquivos | Regra |
-|------|----------|--------|
-| **Login / Auth UI** | `web/app/login/**`, `web/features/auth/SocialLogin.tsx`, `web/components/brand/SystemLogo.tsx` | Não alterar em feature de campeonato, rulebook, export, convites, etc. |
-| **Login CSS** | `web/app/login/login.css` | Estilos autossuficientes do login. Não misturar com CSS de feature. |
-| **Rulebook CSS** | `web/features/campeonatos/rulebook/rulebook.css` | Só importado pelo rulebook/premiação — não colocar de volta no `globals.css`. |
-
-Evitar `Add-Content` / appends cegos em `web/app/globals.css` para features novas: preferir CSS do feature.
+**Estado:** layout restaurado ao CSS estável (`globals.css` + header originais). Rulebook/premiação usam apenas `web/features/campeonatos/rulebook/rulebook.css`. **Não appendar CSS de feature no globals.css.**
 
 ## 1. Objetivo do sistema
 
