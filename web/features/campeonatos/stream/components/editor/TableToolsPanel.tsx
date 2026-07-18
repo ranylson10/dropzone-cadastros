@@ -1,40 +1,32 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import {
-  STREAM_SHEETS,
-  type StreamSheetId,
-  type StreamSheetRow,
-  type StreamTableBlock,
-  type TableBlockData,
-  type TableColumnDef,
-  type TableRowItem,
+import { getSheetDef } from '../../types/stream.types'
+import type {
+  StreamSheetId,
+  StreamSheetRow,
+  StreamTableBlock,
+  TableBlockData,
+  TableColumnDef,
+  TableRowItem,
 } from '../../types/stream.types'
 import {
   addTableColumn,
   fieldLabel,
   removeTableColumn,
-  setTableSheetSource,
   tableSourceId,
   updateTableColumn,
   updateTableRow,
 } from '../../utils/table-structure'
 import { FieldStyleEditor } from './StylePanels'
+import { ColumnPicker } from './CellPicker'
 
-type TabId = 'dados' | 'colunas' | 'visual'
+type TabId = 'colunas' | 'visual'
 
 const TABS: Array<{ id: TabId; label: string; hint: string }> = [
-  { id: 'dados', label: '1 · Dados', hint: 'Qual planilha alimenta a tabela' },
-  { id: 'colunas', label: '2 · Colunas', hint: 'Partes da linha e vínculo' },
-  { id: 'visual', label: '3 · Visual', hint: 'Altura, cores e estilos' },
-]
-
-const SHEET_GROUPS: Array<{ id: string; label: string }> = [
-  { id: 'equipes', label: 'Equipes' },
-  { id: 'mvp', label: 'MVP' },
-  { id: 'mapas', label: 'Mapas' },
-  { id: 'partida', label: 'Partida' },
+  { id: 'colunas', label: 'Colunas', hint: 'Partes da linha — vincular na planilha' },
+  { id: 'visual', label: 'Visual', hint: 'Altura, cores e estilos' },
 ]
 
 export function TableToolsPanel(props: {
@@ -43,24 +35,70 @@ export function TableToolsPanel(props: {
   sheets: Partial<Record<StreamSheetId, StreamSheetRow[]>>
   onPatchData: (patch: (data: TableBlockData) => TableBlockData, history?: 'soft' | 'force') => void
 }) {
-  const [tab, setTab] = useState<TabId>('dados')
+  const [tab, setTab] = useState<TabId>('colunas')
   const [openColId, setOpenColId] = useState<string | null>(null)
 
   const data = props.table.data
   const sourceId = tableSourceId(data.source)
-  const sheetDef = useMemo(
-    () => STREAM_SHEETS.find((s) => s.id === sourceId) || STREAM_SHEETS[0],
-    [sourceId],
-  )
-  const sheetRows = props.sheets[sourceId] || []
+  const sheetDef = getSheetDef(sourceId)
   const cols = data.columnDefs || []
 
   function patch(fn: (d: TableBlockData) => TableBlockData, history: 'soft' | 'force' = 'soft') {
     props.onPatchData(fn, history)
   }
 
+  function bindColumn(colId: string, pick: {
+    sheetId: StreamSheetId
+    colKey: string
+    label: string
+    image?: boolean
+    display: string
+  }) {
+    patch((d) => {
+      const next = updateTableColumn(d, colId, {
+        field: pick.colKey,
+        label: pick.label,
+        asImage: Boolean(pick.image),
+      })
+      // planilha da tabela = a da coluna vinculada (como no bloco)
+      return {
+        ...next,
+        source: pick.sheetId,
+        variant: pick.sheetId === 'mvp' ? 'mvp_list' : 'standings',
+      }
+    }, 'force')
+  }
+
+  function addBlankColumn() {
+    let createdId: string | null = null
+    patch((d) => {
+      const next = addTableColumn(d, 'nome')
+      createdId = next.columnDefs?.[next.columnDefs.length - 1]?.id || null
+      // coluna nova sem vínculo real ainda — marca label genérico
+      if (createdId) {
+        return updateTableColumn(next, createdId, {
+          field: '',
+          label: `Coluna ${(next.columnDefs?.length || 1)}`,
+          asImage: false,
+        })
+      }
+      return next
+    }, 'force')
+    if (createdId) setOpenColId(createdId)
+  }
+
   return (
     <div className="stream-table-tools">
+      <p className="stream-hint">
+        <strong>Tabela</strong> — cada coluna é uma parte da linha.
+        Abra a planilha e clique no campo, igual ao bloco.
+      </p>
+      {sourceId ? (
+        <p className="stream-hint">
+          Planilha em uso: <code>{sheetDef.title}</code> (definida pelo vínculo das colunas)
+        </p>
+      ) : null}
+
       <div className="stream-table-tabs" role="tablist" aria-label="Configuração da tabela">
         {TABS.map((t) => (
           <button
@@ -77,113 +115,11 @@ export function TableToolsPanel(props: {
         ))}
       </div>
 
-      {tab === 'dados' ? (
-        <div className="stream-table-tab-body" role="tabpanel">
-          <p className="stream-hint">
-            <strong>Planilha de dados</strong> — escolha a aba que alimenta as linhas.
-            Depois, em <em>Colunas</em>, vincule cada parte da linha a um campo.
-          </p>
-
-          {SHEET_GROUPS.map((g) => {
-            const items = STREAM_SHEETS.filter((s) => s.group === g.id)
-            if (!items.length) return null
-            return (
-              <div key={g.id} className="stream-table-sheet-group">
-                <span className="stream-table-sheet-group-label">{g.label}</span>
-                <div className="stream-table-sheet-list">
-                  {items.map((s) => {
-                    const count = props.sheets[s.id]?.length
-                    const active = sourceId === s.id
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className={`stream-table-sheet-card ${active ? 'is-active' : ''}`}
-                        onClick={() => {
-                          if (active) return
-                          patch((d) => setTableSheetSource(d, s.id), 'force')
-                          setOpenColId(null)
-                        }}
-                      >
-                        <strong>{s.title}</strong>
-                        <em>
-                          {s.live ? 'ao vivo' : 'estático'}
-                          {count != null ? ` · ${count} linhas` : ''}
-                        </em>
-                        <small>{s.columns.map((c) => c.label).slice(0, 5).join(' · ')}{s.columns.length > 5 ? '…' : ''}</small>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-
-          <div className="stream-style-grid" style={{ marginTop: 8 }}>
-            <label className="stream-style-field">
-              <span>Rank inicial</span>
-              <input
-                type="number"
-                min={1}
-                value={data.startRank || 1}
-                onChange={(e) =>
-                  patch((d) => ({ ...d, startRank: Math.max(1, Number(e.target.value) || 1) }))
-                }
-              />
-            </label>
-          </div>
-
-          <div className="stream-table-data-preview">
-            <p className="stream-hint">
-              <strong>Aba ativa:</strong> {sheetDef.title}
-              {sheetRows.length ? ` · ${sheetRows.length} registro(s)` : ' · sem dados ainda'}
-            </p>
-            {sheetRows[0] ? (
-              <div className="stream-table-sample-row">
-                {sheetDef.columns.slice(0, 6).map((c) => (
-                  <span key={c.key} title={c.key}>
-                    <small>{c.label}</small>
-                    {c.image && sheetRows[0].cells[c.key] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={sheetRows[0].cells[c.key]} alt="" />
-                    ) : (
-                      String(sheetRows[0].cells[c.key] || '—').slice(0, 18)
-                    )}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="stream-hint">Abra a planilha do stream ou pontue o campeonato para ver dados.</p>
-            )}
-          </div>
-        </div>
-      ) : null}
-
       {tab === 'colunas' ? (
         <div className="stream-table-tab-body" role="tabpanel">
-          <p className="stream-hint">
-            <strong>Colunas = partes da linha</strong> — cada uma vincula a um campo da planilha{' '}
-            <em>{sheetDef.title}</em>.
-          </p>
-
-          <div className="stream-add-layer-row stream-table-add-cols">
-            {sheetDef.columns.map((c) => {
-              const already = cols.some((col) => col.field === c.key)
-              return (
-                <button
-                  key={c.key}
-                  type="button"
-                  disabled={already}
-                  title={already ? 'Já na linha' : `Adicionar ${c.label}`}
-                  onClick={() => {
-                    patch((d) => addTableColumn(d, c.key), 'force')
-                  }}
-                >
-                  <Plus size={12} /> {c.label}
-                </button>
-              )
-            })}
-          </div>
+          <button type="button" className="stream-primary-btn stream-table-add-col-btn" onClick={addBlankColumn}>
+            <Plus size={14} /> Coluna
+          </button>
 
           <ul className="stream-table-col-list">
             {cols.map((col, index) => (
@@ -192,9 +128,11 @@ export function TableToolsPanel(props: {
                 col={col}
                 index={index}
                 open={openColId === col.id}
-                sheetColumns={sheetDef.columns}
+                sourceId={sourceId}
+                sheets={props.sheets}
                 onToggle={() => setOpenColId(openColId === col.id ? null : col.id)}
                 onChange={(patchCol) => patch((d) => updateTableColumn(d, col.id, patchCol))}
+                onBind={(pick) => bindColumn(col.id, pick)}
                 onRemove={() => {
                   patch((d) => removeTableColumn(d, col.id), 'force')
                   if (openColId === col.id) setOpenColId(null)
@@ -204,18 +142,14 @@ export function TableToolsPanel(props: {
           </ul>
 
           {!cols.length ? (
-            <p className="stream-hint">Nenhuma coluna. Use os botões + acima (campos da planilha).</p>
+            <p className="stream-hint">Nenhuma coluna. Clique + Coluna e vincule na planilha.</p>
           ) : null}
-
-          <p className="stream-hint">
-            Larguras em % somam ~100. Ajuste uma por uma; o sistema reescala se precisar.
-          </p>
         </div>
       ) : null}
 
       {tab === 'visual' ? (
         <div className="stream-table-tab-body" role="tabpanel">
-          <p className="stream-hint"><strong>Aparência da tabela</strong> (header e linhas)</p>
+          <p className="stream-hint"><strong>Aparência</strong></p>
           <div className="stream-style-grid">
             <label className="stream-style-field">
               <span>Altura linha</span>
@@ -279,7 +213,7 @@ export function TableToolsPanel(props: {
           {props.selectedRow ? (
             <>
               <p className="stream-hint">
-                <strong>Linha selecionada</strong> — {props.selectedRow.name} (também na lista de camadas)
+                <strong>Linha selecionada</strong> — {props.selectedRow.name}
               </p>
               <div className="stream-style-grid">
                 <label className="stream-style-field">
@@ -332,7 +266,7 @@ export function TableToolsPanel(props: {
               </div>
             </>
           ) : (
-            <p className="stream-hint">Selecione a linha no canvas ou em Camadas para cor/altura individual.</p>
+            <p className="stream-hint">Selecione a linha no canvas ou em Camadas para cor individual.</p>
           )}
         </div>
       ) : null}
@@ -344,53 +278,61 @@ function ColumnEditor(props: {
   col: TableColumnDef
   index: number
   open: boolean
-  sheetColumns: Array<{ key: string; label: string; image?: boolean }>
+  sourceId: StreamSheetId
+  sheets: Partial<Record<StreamSheetId, StreamSheetRow[]>>
   onToggle: () => void
   onChange: (patch: Partial<TableColumnDef>) => void
+  onBind: (pick: {
+    sheetId: StreamSheetId
+    colKey: string
+    label: string
+    image?: boolean
+    display: string
+  }) => void
   onRemove: () => void
 }) {
   const { col } = props
-  const bound = props.sheetColumns.find((c) => c.key === col.field)
+  const bound = Boolean(col.field)
+  const sheetTitle = bound ? getSheetDef(props.sourceId).title : null
+  const display = bound
+    ? `${sheetTitle || props.sourceId}.${col.field}`
+    : undefined
+
   return (
     <li className={props.open ? 'is-open' : ''}>
       <button type="button" className="stream-table-col-row" onClick={props.onToggle}>
         <span className="stream-table-col-index">{props.index + 1}</span>
         <span>
-          <strong>{col.label || fieldLabel(col.field)}</strong>
+          <strong>{col.label || fieldLabel(col.field) || `Coluna ${props.index + 1}`}</strong>
           <small>
-            → {bound?.label || col.field} · {col.widthPct}%
-            {col.asImage || bound?.image ? ' · img' : ''}
+            {bound
+              ? `→ ${col.field} · ${col.widthPct}%${col.asImage ? ' · img' : ''}`
+              : 'sem vínculo — abra a planilha'}
           </small>
         </span>
         <em>{props.open ? '▲' : '▼'}</em>
       </button>
       {props.open ? (
         <div className="stream-table-col-drawer">
-          <label className="stream-field">
-            <span>Vincular à coluna da planilha</span>
-            <select
-              value={col.field}
-              onChange={(e) => {
-                const key = e.target.value
-                const sc = props.sheetColumns.find((c) => c.key === key)
-                props.onChange({
-                  field: key,
-                  label: sc?.label || fieldLabel(key),
-                  asImage: Boolean(sc?.image),
-                })
-              }}
-            >
-              {/* se field legado não está na planilha, mantém opção */}
-              {!props.sheetColumns.some((c) => c.key === col.field) ? (
-                <option value={col.field}>{fieldLabel(col.field)} (legado)</option>
-              ) : null}
-              {props.sheetColumns.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label} ({c.key}){c.image ? ' · imagem' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ColumnPicker
+            sheets={props.sheets}
+            value={
+              bound
+                ? { sheetId: props.sourceId, colKey: col.field, display }
+                : undefined
+            }
+            triggerLabel="Abrir planilha e escolher coluna"
+            onPick={(pick) => {
+              props.onBind({
+                sheetId: pick.sheetId,
+                colKey: pick.colKey,
+                label: pick.label,
+                image: pick.image,
+                display: pick.display,
+              })
+            }}
+          />
+
           <div className="stream-style-grid">
             <label className="stream-style-field">
               <span>Rótulo header</span>

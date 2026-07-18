@@ -487,9 +487,11 @@ export function StreamOverlayEditor(props: {
       setSelectedLayerId(null)
       return
     }
-    // Etapa 1: só 1 linha (item modelo). Fonte = planilha Equipes · Geral.
+    // Etapa 1: 1 linha + colunas vazias — usuário vincula cada coluna na planilha (igual bloco).
     const seedRow = createSeedRowItem('Linha 1')
-    const cols = columnDefsFromSheet('equipes_geral')
+    const cols = [
+      { id: newBlockId(), field: '', label: 'Coluna 1', widthPct: 100, align: 'left' as const },
+    ]
     const rawTable: StreamTableBlock = {
       id: newBlockId(),
       type: 'table',
@@ -510,7 +512,7 @@ export function StreamOverlayEditor(props: {
         source: 'equipes_geral',
         rows: 1,
         startRank: 1,
-        columns: cols.map((c) => c.field) as TableColumnKey[],
+        columns: [],
         columnDefs: cols,
         rowItems: [seedRow],
         rowHeight: 36,

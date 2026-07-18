@@ -1941,8 +1941,34 @@ body.stream-editor-scroll-lock {
 
 .stream-table-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 4px;
+}
+
+.stream-table-add-col-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.stream-cell-picker-table th.is-col-pickable button,
+.stream-cell-picker-table th.is-col-picked button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 2px;
+  font: inherit;
+  font-weight: 800;
+}
+
+.stream-cell-picker-table th.is-col-picked,
+.stream-cell-picker-table td.is-col-highlight {
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
+.stream-cell-picker-table th.is-col-pickable:hover {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
 }
 
 .stream-table-tabs button {

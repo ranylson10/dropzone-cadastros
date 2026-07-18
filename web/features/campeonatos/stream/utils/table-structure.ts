@@ -257,22 +257,22 @@ export function reorderTableRows(
   return { ...data, rowItems, rows: rowItems.length }
 }
 
-export function addTableColumn(data: TableBlockData, field: string = 'nome'): TableBlockData {
+export function addTableColumn(data: TableBlockData, field: string = ''): TableBlockData {
   const cols = [...(data.columnDefs || defaultColumnDefs((data.columns as string[]) || undefined))]
   const def = getSheetDef(tableSourceId(data.source))
-  const sheetCol = def.columns.find((c) => c.key === field)
+  const sheetCol = field ? def.columns.find((c) => c.key === field) : undefined
   cols.push({
     id: newLayerId(),
-    field,
-    label: sheetCol?.label || fieldLabel(field),
+    field: field || '',
+    label: sheetCol?.label || (field ? fieldLabel(field) : `Coluna ${cols.length + 1}`),
     widthPct: 12,
     align: field === 'nome' || field === 'nick' ? 'left' : 'center',
-    asImage: Boolean(sheetCol?.image || IMAGE_FIELDS.has(field)),
+    asImage: Boolean(sheetCol?.image || (field && IMAGE_FIELDS.has(field))),
   })
   return {
     ...data,
     columnDefs: normalizeWidths(cols),
-    columns: cols.map((c) => c.field) as TableColumnKey[],
+    columns: cols.map((c) => c.field).filter(Boolean) as TableColumnKey[],
   }
 }
 
