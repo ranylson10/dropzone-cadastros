@@ -1,16 +1,18 @@
 'use client'
 
+import { useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { StreamOverlaysHub } from './StreamOverlaysHub'
+import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
 import '../stream.css'
 
 /**
  * Hub Stream no painel do campeonato.
- * Lista de overlays + atalho para planilha em tela cheia.
- * Editor e planilha pesada abrem em outra aba/rota.
+ * Planilha abre em menu suspenso (modal) por cima da página — sem lateral espremida.
  */
 export function CampeonatoStreamTab(props: { campeonatoId: string }) {
   const workspaceUrl = `/campeonatos/${props.campeonatoId}/stream`
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   return (
     <div className="stream-tab">
@@ -19,13 +21,21 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
           <p className="eyebrow">Produção · transmissão</p>
           <h3>Stream</h3>
           <p>
-            Gerencie overlays aqui. A planilha com dados reais e o editor abrem em tela cheia (outra aba),
-            no estilo vMix / Google Sheets.
+            Overlays e planilha de dados ao vivo. A planilha abre em painel flutuante no topo
+            (equipes, MVP, mapas, partida atual/próxima).
           </p>
         </div>
         <div className="stream-panel-actions">
-          <a className="stream-primary-btn" href={workspaceUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink size={15} /> Abrir planilha
+          <StreamSpreadsheetPanel
+            campeonatoId={props.campeonatoId}
+            asModal
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
+            showTrigger
+            triggerLabel="Planilha de dados"
+          />
+          <a className="stream-secondary-btn" href={workspaceUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={15} /> Workspace
           </a>
         </div>
       </header>

@@ -65,6 +65,7 @@ import {
 import { BoxStyleEditor, FieldStyleEditor, TransitionEditor } from './editor/StylePanels'
 import { CellPicker } from './editor/CellPicker'
 import { CardLayerCanvas } from './CardLayerCanvas'
+import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
 import { boxToCssSafe, fieldToCss } from '../utils/stream-style'
 import type { PreviewMap, PreviewStanding } from './editor/OverlayPreview'
 import '../stream.css'
@@ -144,6 +145,7 @@ export function StreamOverlayEditor(props: {
   const softUndoOpen = useRef(false)
   const softUndoAt = useRef(0)
   const [undoCount, setUndoCount] = useState(0)
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveWarning, setSaveWarning] = useState('')
   const [standings, setStandings] = useState<PreviewStanding[]>([])
@@ -299,33 +301,46 @@ export function StreamOverlayEditor(props: {
   const loadData = useCallback(async () => {
     setLoadingData(true)
     try {
-      const ids: StreamSheetId[] = ['equipes', 'jogadores', 'classificacao', 'mvp', 'jogos', 'quedas']
+      const ids: StreamSheetId[] = [
+        'equipes_geral',
+        'mvp',
+        'mapas',
+        'partida_atual',
+        'proxima_queda',
+        'equipes_partida',
+      ]
       const loaded = await Promise.all(ids.map((id) => loadStreamSheet(props.campeonatoId, id).catch(() => [] as StreamSheetRow[])))
       const next: Partial<Record<StreamSheetId, StreamSheetRow[]>> = {}
       ids.forEach((id, i) => {
         next[id] = loaded[i]
       })
+      // aliases para overlays legadas
+      next.classificacao = next.equipes_geral
+      next.equipes = next.equipes_geral
+      next.quedas = next.mapas
       setSheets(next)
 
-      const classif = next.classificacao || []
+      const classif = next.equipes_geral || []
       const mvp = next.mvp || []
       const standingRows: PreviewStanding[] = classif.map((row, i) => ({
-        pos: Number(row.cells.colocacao) || i + 1,
-        nome: row.cells.line || '—',
+        pos: Number(row.cells.pos || row.cells.colocacao) || i + 1,
+        nome: row.cells.nome || row.cells.line || '—',
+        logo: row.cells.logo || undefined,
         booyah: row.cells.booyahs || '0',
         abates: row.cells.abates || '0',
         pts: row.cells.pontos || '0',
-        delta: '0',
-        quedas: '0',
+        delta: row.cells.delta || '0',
+        quedas: row.cells.quedas || '0',
         kd: '0',
       }))
       const mvpPreview: PreviewStanding[] = mvp.map((row, i) => ({
-        pos: Number(row.cells.colocacao) || i + 1,
+        pos: Number(row.cells.pos || row.cells.colocacao) || i + 1,
         nome: row.cells.nick || '—',
+        logo: row.cells.logo || row.cells.foto || undefined,
         booyah: '0',
         abates: row.cells.abates || '0',
         pts: '0',
-        delta: '0',
+        delta: row.cells.delta || '0',
         quedas: row.cells.quedas || '0',
         kd: row.cells.kd || '0',
       }))
@@ -742,6 +757,14 @@ export function StreamOverlayEditor(props: {
           >
             <Download size={15} /> HTML
           </button>
+          <StreamSpreadsheetPanel
+            campeonatoId={props.campeonatoId}
+            asModal
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
+            showTrigger
+            triggerLabel="Planilha"
+          />
           <button
             type="button"
             className="stream-secondary-btn"

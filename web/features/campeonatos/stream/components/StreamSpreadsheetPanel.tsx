@@ -1,29 +1,51 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2, RefreshCcw } from 'lucide-react'
-import { loadStreamSheet } from '../services/stream-data.service'
-import { STREAM_SHEETS, type StreamSheetId, type StreamSheetRow } from '../types/stream.types'
+import { Loader2, RefreshCcw, Table2, X } from 'lucide-react'
+import { loadStreamFilterOptions, loadStreamSheet } from '../services/stream-data.service'
+import {
+  STREAM_SHEETS,
+  type StreamSheetFilters,
+  type StreamSheetId,
+  type StreamSheetRow,
+} from '../types/stream.types'
+
+type FilterOptions = Awaited<ReturnType<typeof loadStreamFilterOptions>>
 
 export function StreamSpreadsheetPanel(props: {
   campeonatoId: string
-  /** compacto no hub; full no workspace */
-  compact?: boolean
+  /** modal flutuante (padrão) — não fica espremido na lateral */
+  asModal?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** botão gatilho embutido */
+  showTrigger?: boolean
+  triggerLabel?: string
 }) {
-  const [sheetId, setSheetId] = useState<StreamSheetId>('equipes')
+  const asModal = props.asModal !== false
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = props.open ?? internalOpen
+  const setOpen = (v: boolean) => {
+    props.onOpenChange?.(v)
+    if (props.open === undefined) setInternalOpen(v)
+  }
+
+  const [sheetId, setSheetId] = useState<StreamSheetId>('equipes_geral')
   const [rows, setRows] = useState<StreamSheetRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [loadedAt, setLoadedAt] = useState<string | null>(null)
+  const [filters, setFilters] = useState<StreamSheetFilters>({})
+  const [filterOpts, setFilterOpts] = useState<FilterOptions | null>(null)
 
   const sheet = useMemo(() => STREAM_SHEETS.find((item) => item.id === sheetId) || STREAM_SHEETS[0], [sheetId])
 
   const reload = useCallback(async () => {
-    if (!props.campeonatoId) return
+    if (!props.campeonatoId || (asModal && !open)) return
     setLoading(true)
     setError('')
     try {
-      const data = await loadStreamSheet(props.campeonatoId, sheetId)
+      const data = await loadStreamSheet(props.campeonatoId, sheetId, filters)
       setRows(data)
       setLoadedAt(new Date().toLocaleTimeString('pt-BR'))
     } catch (err) {
@@ -32,20 +54,104 @@ export function StreamSpreadsheetPanel(props: {
     } finally {
       setLoading(false)
     }
-  }, [props.campeonatoId, sheetId])
+  }, [props.campeonatoId, sheetId, filters, asModal, open])
 
   useEffect(() => {
+    if (asModal && !open) return
     void reload()
-  }, [reload])
+  }, [reload, asModal, open])
 
-  return (
-    <section className={`stream-panel stream-sheet-panel ${props.compact ? 'is-compact' : 'is-full'}`} aria-label="Planilha de dados do stream">
-      <div className="stream-panel-title">
+  useEffect(() => {
+    if (asModal && !open) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const opts = await loadStreamFilterOptions(props.campeonatoId)
+        if (!cancelled) setFilterOpts(opts)
+      } catch {
+        if (!cancelled) setFilterOpts(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [props.campeonatoId, asModal, open])
+
+  // fecha com Escape
+  useEffect(() => {
+    if (!asModal || !open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [asModal, open])
+
+  function renderFilter() {
+    const kind = sheet.filter || 'none'
+    if (kind === 'none' || !filterOpts) return null
+    const options =
+      kind === 'mapa'
+        ? filterOpts.mapas
+        : kind === 'jogo'
+          ? filterOpts.jogos
+          : kind === 'fase'
+            ? filterOpts.fases
+            : kind === 'grupo'
+              ? filterOpts.grupos
+              : filterOpts.partidas
+    const value =
+      kind === 'mapa'
+        ? filters.mapa_codigo || ''
+        : kind === 'jogo'
+          ? filters.jogo_id || ''
+          : kind === 'fase'
+            ? filters.fase_id || ''
+            : kind === 'grupo'
+              ? filters.grupo_id || ''
+              : filters.partida_id || ''
+
+    return (
+      <label className="stream-field stream-sheet-filter">
+        <span>Filtrar por {kind}</span>
+        <select
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value
+            if (kind === 'mapa') setFilters({ mapa_codigo: v || undefined })
+            else if (kind === 'jogo') setFilters({ jogo_id: v || undefined })
+            else if (kind === 'fase') setFilters({ fase_id: v || undefined })
+            else if (kind === 'grupo') setFilters({ grupo_id: v || undefined })
+            else setFilters({ partida_id: v || undefined })
+          }}
+        >
+          <option value="">Selecione…</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+
+  const groups = useMemo(() => {
+    const order = ['equipes', 'mvp', 'mapas', 'partida'] as const
+    return order.map((g) => ({
+      id: g,
+      label: g === 'equipes' ? 'Equipes' : g === 'mvp' ? 'MVP' : g === 'mapas' ? 'Mapas' : 'Partida',
+      items: STREAM_SHEETS.filter((s) => s.group === g),
+    }))
+  }, [])
+
+  const body = (
+    <div className="stream-sheet-modal-panel" role="dialog" aria-modal={asModal} aria-label="Planilha de dados do stream">
+      <div className="stream-sheet-modal-head">
         <div>
-          <h4>Planilha de dados</h4>
+          <p className="eyebrow">Stream · dados ao vivo</p>
+          <h3>Planilha de dados</h3>
           <p className="stream-hint">
-            Fontes ao vivo do campeonato (read-only). Bindings futuros usam endereço{' '}
-            <code>{sheet.refName}!B2</code> (aba + coluna + linha; linha 1 = cabeçalho).
+            Fontes para overlays. Endereço de célula: <code>{sheet.refName}!B2</code> (linha 1 = cabeçalho).
+            Coluna <strong>Δ</strong> = subiu/desceu em relação à partida anterior (+2 ▲ / -3 ▼).
           </p>
         </div>
         <div className="stream-panel-actions">
@@ -54,26 +160,45 @@ export function StreamSpreadsheetPanel(props: {
             {loading ? <Loader2 size={15} className="spin" /> : <RefreshCcw size={15} />}
             Atualizar
           </button>
+          {asModal ? (
+            <button type="button" className="stream-icon-btn" onClick={() => setOpen(false)} title="Fechar">
+              <X size={16} /> Fechar
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <nav className="stream-sheet-tabs" aria-label="Abas da planilha">
-        {STREAM_SHEETS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={sheetId === item.id ? 'active' : ''}
-            onClick={() => setSheetId(item.id)}
-          >
-            {item.title}
-          </button>
+      <div className="stream-sheet-groups">
+        {groups.map((g) => (
+          <div key={g.id} className="stream-sheet-group">
+            <span className="stream-sheet-group-label">{g.label}</span>
+            <div className="stream-sheet-tabs">
+              {g.items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={sheetId === item.id ? 'active' : ''}
+                  onClick={() => {
+                    setSheetId(item.id)
+                    setFilters({})
+                  }}
+                >
+                  {item.title.replace(/^Equipes · /, '').replace(/^Partida /, 'Partida ')}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
-      </nav>
+      </div>
+
+      {renderFilter()}
 
       {error ? <div className="stream-error">{error}</div> : null}
-      {loadedAt && !error ? <p className="stream-hint">Atualizado às {loadedAt} · {rows.length} linha(s)</p> : null}
+      {loadedAt && !error ? (
+        <p className="stream-hint">Atualizado às {loadedAt} · {rows.length} linha(s) · aba {sheet.title}</p>
+      ) : null}
 
-      <div className="stream-sheet-wrap">
+      <div className="stream-sheet-wrap stream-sheet-wrap-modal">
         <table className="stream-sheet">
           <thead>
             <tr>
@@ -89,15 +214,15 @@ export function StreamSpreadsheetPanel(props: {
           <tbody>
             {loading && !rows.length ? (
               <tr>
-                <td colSpan={sheet.columns.length + 1} className="stream-sheet-empty">
-                  Carregando dados…
-                </td>
+                <td colSpan={sheet.columns.length + 1} className="stream-sheet-empty">Carregando dados…</td>
               </tr>
             ) : null}
             {!loading && !rows.length ? (
               <tr>
                 <td colSpan={sheet.columns.length + 1} className="stream-sheet-empty">
-                  Nenhum dado nesta aba ainda.
+                  {sheet.filter && sheet.filter !== 'none' && !Object.values(filters).some(Boolean)
+                    ? 'Selecione um filtro acima para carregar os dados.'
+                    : 'Nenhum dado nesta aba ainda.'}
                 </td>
               </tr>
             ) : null}
@@ -105,25 +230,54 @@ export function StreamSpreadsheetPanel(props: {
               const excelRow = rowIndex + 2
               return (
                 <tr key={row.id}>
-                  <td className="stream-sheet-row-head" title={`Linha de dados ${excelRow}`}>
-                    {excelRow}
-                  </td>
-                  {sheet.columns.map((col) => (
-                    <td key={col.key} title={`${sheet.refName}!${col.letter}${excelRow}`}>
-                      <input
-                        readOnly
-                        value={row.cells[col.key] || ''}
-                        aria-label={`${col.label} linha ${excelRow}`}
-                        spellCheck={false}
-                      />
-                    </td>
-                  ))}
+                  <td className="stream-sheet-row-head" title={`Linha ${excelRow}`}>{excelRow}</td>
+                  {sheet.columns.map((col) => {
+                    const val = row.cells[col.key] || ''
+                    const isDelta = col.key === 'delta'
+                    const deltaClass =
+                      isDelta && val.includes('▲')
+                        ? 'is-up'
+                        : isDelta && val.includes('▼')
+                          ? 'is-down'
+                          : ''
+                    return (
+                      <td key={col.key} title={`${sheet.refName}!${col.letter}${excelRow}`} className={deltaClass}>
+                        {col.image && val ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={val} alt="" className="stream-sheet-thumb" />
+                        ) : (
+                          <input readOnly value={val} aria-label={`${col.label} linha ${excelRow}`} spellCheck={false} />
+                        )}
+                      </td>
+                    )
+                  })}
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
+  )
+
+  if (!asModal) {
+    return <section className="stream-panel stream-sheet-panel is-full">{body}</section>
+  }
+
+  return (
+    <>
+      {props.showTrigger !== false ? (
+        <button type="button" className="stream-primary-btn" onClick={() => setOpen(true)}>
+          <Table2 size={15} /> {props.triggerLabel || 'Planilha de dados'}
+        </button>
+      ) : null}
+      {open ? (
+        <div className="stream-sheet-modal-root" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
+          <div className="stream-sheet-modal-drop">
+            {body}
+          </div>
+        </div>
+      ) : null}
+    </>
   )
 }

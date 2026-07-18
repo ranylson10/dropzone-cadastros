@@ -1,16 +1,16 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { STREAM_SHEETS, type StreamSheetId, type StreamSheetRow } from '../../types/stream.types'
+import { getSheetDef, STREAM_SHEETS, type StreamSheetId, type StreamSheetRow } from '../../types/stream.types'
 
 export function CellPicker(props: {
   sheets: Partial<Record<StreamSheetId, StreamSheetRow[]>>
   value?: { sheetId: StreamSheetId; colKey: string; rowIndex: number; display?: string }
   onPick: (pick: { sheetId: StreamSheetId; colKey: string; rowIndex: number; display: string }) => void
 }) {
-  const [sheetId, setSheetId] = useState<StreamSheetId>(props.value?.sheetId || 'classificacao')
-  const def = useMemo(() => STREAM_SHEETS.find((s) => s.id === sheetId) || STREAM_SHEETS[0], [sheetId])
-  const rows = props.sheets[sheetId] || []
+  const [sheetId, setSheetId] = useState<StreamSheetId>(props.value?.sheetId || 'equipes_geral')
+  const def = useMemo(() => getSheetDef(sheetId), [sheetId])
+  const rows = props.sheets[sheetId] || props.sheets[def.id] || []
 
   return (
     <div className="stream-cell-picker">

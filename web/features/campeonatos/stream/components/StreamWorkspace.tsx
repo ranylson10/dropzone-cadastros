@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, Layers, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
+import { StreamOverlaysHub } from './StreamOverlaysHub'
 import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
 import '../stream.css'
 
@@ -11,6 +12,7 @@ export function StreamWorkspace(props: { campeonatoId: string }) {
   const router = useRouter()
   const [nome, setNome] = useState('')
   const [loadingMeta, setLoadingMeta] = useState(true)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -45,7 +47,7 @@ export function StreamWorkspace(props: { campeonatoId: string }) {
             <ArrowLeft size={16} /> Voltar
           </button>
           <div>
-            <p className="eyebrow">Stream · planilha</p>
+            <p className="eyebrow">Stream · produção</p>
             <h1>
               {loadingMeta ? <Loader2 size={18} className="spin" /> : null}
               {nome || 'Campeonato'}
@@ -53,6 +55,14 @@ export function StreamWorkspace(props: { campeonatoId: string }) {
           </div>
         </div>
         <div className="stream-panel-actions">
+          <StreamSpreadsheetPanel
+            campeonatoId={props.campeonatoId}
+            asModal
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
+            showTrigger
+            triggerLabel="Planilha de dados"
+          />
           <button
             type="button"
             className="stream-secondary-btn"
@@ -64,7 +74,7 @@ export function StreamWorkspace(props: { campeonatoId: string }) {
       </header>
 
       <main className="stream-workspace-main">
-        <StreamSpreadsheetPanel campeonatoId={props.campeonatoId} />
+        <StreamOverlaysHub campeonatoId={props.campeonatoId} />
       </main>
     </div>
   )
