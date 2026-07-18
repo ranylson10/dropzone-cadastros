@@ -85,14 +85,46 @@ export type TableColumnKey = 'pos' | 'logo' | 'nome' | 'booyah' | 'abates' | 'pt
 
 export type CardFieldKey = 'title' | 'subtitle' | 'metric_primary' | 'metric_secondary' | 'metric_tertiary'
 
+/** @deprecated legado — migrado para layers */
 export type CardBlockData = {
   variant: 'map_result' | 'mvp_hero' | 'team'
-  /** 1-based map/queda slot for map cards */
   mapSlot?: number
   rank?: number
   titleFixed?: string
   metrics: MetricKey[]
   fieldStyles: Partial<Record<CardFieldKey, FieldStyle>>
+}
+
+/** Tipo visual do item dentro da pasta Card (GT Title light). */
+export type LayerContentType = 'image' | 'logo' | 'text' | 'number'
+
+/**
+ * De onde vem o valor do item.
+ * Usuário escolhe em português no painel; sem digitar célula no fluxo normal.
+ */
+export type LayerDataSource =
+  | { source: 'fixed'; value: string }
+  | { source: 'map_image'; mapSlot: number }
+  | { source: 'map_name'; mapSlot: number }
+  | { source: 'map_logo'; mapSlot: number }
+  | { source: 'map_pts'; mapSlot: number }
+  | { source: 'map_abates'; mapSlot: number }
+  | { source: 'standing'; rank: number; field: 'nome' | 'logo' | 'pts' | 'abates' | 'booyah' | 'delta' }
+  | { source: 'mvp'; rank: number; field: 'nome' | 'logo' | 'abates' | 'kd' | 'quedas' }
+
+/** Item/camada dentro da pasta Card — posição em % do card (0–100). */
+export type StreamLayer = {
+  id: string
+  name: string
+  type: LayerContentType
+  x: number
+  y: number
+  w: number
+  h: number
+  z: number
+  data: LayerDataSource
+  style?: FieldStyle
+  objectFit?: 'cover' | 'contain'
 }
 
 export type TableBlockData = {
@@ -114,17 +146,31 @@ export type StreamBlockBase = {
   transition: TransitionStyle
 }
 
+/**
+ * Pasta Card: container pré-montado com itens (layers) editáveis.
+ * canvasW/H = tamanho de design do card no editor.
+ */
 export type StreamCardBlock = StreamBlockBase & {
   type: 'card'
-  data: CardBlockData
+  canvasW: number
+  canvasH: number
+  layers: StreamLayer[]
+  /** legado opcional */
+  data?: CardBlockData
 }
 
+/** Pasta Tabela: grupo com colunas + fonte de dados. */
 export type StreamTableBlock = StreamBlockBase & {
   type: 'table'
   data: TableBlockData
 }
 
 export type StreamBlock = StreamCardBlock | StreamTableBlock
+
+export function newLayerId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  return `ly-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
 
 export type StreamOverlay = {
   id: string

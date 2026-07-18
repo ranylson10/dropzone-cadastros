@@ -1,26 +1,33 @@
 import { createOverlayFromTemplate } from '../templates/stream-templates'
-import type { StreamOverlay } from '../types/stream.types'
+import type { StreamBlock, StreamOverlay } from '../types/stream.types'
 import { newBlockId } from '../types/stream.types'
+import { ensureCardLayers } from './card-layers'
 
-/** Normaliza overlays antigos (fields/kind) para o modelo de blocos. */
+function normalizeBlocks(blocks: any[]): StreamBlock[] {
+  return (blocks || []).map((b) => {
+    if (b?.type === 'card') return ensureCardLayers(b)
+    return b
+  })
+}
+
+/** Normaliza overlays antigos para pastas card (layers) + tabela. */
 export function migrateOverlay(raw: any): StreamOverlay | null {
   if (!raw || typeof raw !== 'object') return null
   const id = String(raw.id || '')
   if (!id) return null
 
-  if (Array.isArray(raw.blocks) && raw.blocks.length >= 0 && raw.template) {
+  if (Array.isArray(raw.blocks) && raw.template) {
     return {
       id,
       name: String(raw.name || 'Overlay'),
       template: raw.template,
-      blocks: raw.blocks,
+      blocks: normalizeBlocks(raw.blocks),
       updatedAt: String(raw.updatedAt || raw.updated_at || new Date().toISOString()),
       share_token: raw.share_token ? String(raw.share_token) : undefined,
       campeonato_id: raw.campeonato_id ? String(raw.campeonato_id) : undefined,
     }
   }
 
-  // legado: kind + fields → custom vazio ou standings se nome indicar
   const kind = String(raw.kind || '')
   let template: StreamOverlay['template'] = 'custom'
   if (kind === 'standings') template = 'standings'
@@ -32,30 +39,32 @@ export function migrateOverlay(raw: any): StreamOverlay | null {
     id,
     name: base.name,
     template: base.template,
-    blocks: base.blocks.length
-      ? base.blocks
-      : [
-          {
-            id: newBlockId(),
-            type: 'table',
-            name: 'Tabela',
-            box: {
-              fill: { mode: 'solid', color: '#1a1d24' },
-              borderColor: '#c9a227',
-              borderWidth: 2,
-              borderRadius: 6,
-              padding: 0,
+    blocks: normalizeBlocks(
+      base.blocks.length
+        ? base.blocks
+        : [
+            {
+              id: newBlockId(),
+              type: 'table',
+              name: 'Tabela',
+              box: {
+                fill: { mode: 'solid', color: '#1a1d24' },
+                borderColor: '#c9a227',
+                borderWidth: 2,
+                borderRadius: 6,
+                padding: 0,
+              },
+              transition: { enter: 'fade', onDataChange: 'pulse', durationMs: 400, delayMs: 0 },
+              data: {
+                variant: 'standings',
+                source: 'classificacao',
+                rows: 10,
+                startRank: 1,
+                columns: ['pos', 'nome', 'pts', 'abates'],
+              },
             },
-            transition: { enter: 'fade', onDataChange: 'pulse', durationMs: 400, delayMs: 0 },
-            data: {
-              variant: 'standings',
-              source: 'classificacao',
-              rows: 10,
-              startRank: 1,
-              columns: ['pos', 'nome', 'pts', 'abates'],
-            },
-          },
-        ],
+          ],
+    ),
     updatedAt: String(raw.updatedAt || new Date().toISOString()),
   }
 }

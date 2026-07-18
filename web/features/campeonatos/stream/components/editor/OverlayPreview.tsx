@@ -1,7 +1,9 @@
 'use client'
 
-import type { StreamBlock, StreamCardBlock, StreamTableBlock, TableColumnKey } from '../../types/stream.types'
+import type { StreamBlock, StreamTableBlock, TableColumnKey } from '../../types/stream.types'
 import { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from '../../utils/stream-style'
+import { CardLayerCanvas } from '../CardLayerCanvas'
+import type { LayerResolveContext } from '../../utils/resolve-layer'
 
 export type PreviewStanding = {
   pos: number
@@ -37,75 +39,6 @@ function colLabel(key: TableColumnKey) {
     kd: 'K.D',
   }
   return map[key]
-}
-
-function CardPreview(props: {
-  block: StreamCardBlock
-  index: number
-  selected: boolean
-  map?: PreviewMap
-  mvp?: PreviewStanding
-  onSelect: () => void
-}) {
-  const { block, map, mvp } = props
-  const box = boxToCssSafe(
-    block.data.variant === 'map_result' && map?.imageUrl
-      ? {
-          ...block.box,
-          fill: {
-            ...(block.box.fill || { mode: 'image' as const }),
-            mode: 'image',
-            imageUrl: map.imageUrl,
-            fit: 'cover',
-            overlayColor: block.box.fill?.overlayColor || '#000',
-            overlayOpacity: block.box.fill?.overlayOpacity ?? 0.4,
-            color: block.box.fill?.color || '#111',
-          },
-        }
-      : block.box,
-  )
-  const titleFs = fieldToCss(block.data.fieldStyles?.title)
-  const m1 = fieldToCss(block.data.fieldStyles?.metric_primary)
-  const m2 = fieldToCss(block.data.fieldStyles?.metric_secondary)
-  const m3 = fieldToCss(block.data.fieldStyles?.metric_tertiary)
-
-  const title =
-    block.data.variant === 'mvp_hero'
-      ? mvp?.nome || 'MVP'
-      : map?.title || block.data.titleFixed || block.name
-
-  const logo = block.data.variant === 'mvp_hero' ? mvp?.logo : map?.logo
-
-  return (
-    <button
-      type="button"
-      className={`stream-prev-card ${props.selected ? 'is-selected' : ''} ${transitionClass(block.transition)}`}
-      style={{ ...box, ...transitionStyle(block.transition, props.index) }}
-      onClick={props.onSelect}
-    >
-      <div className="stream-prev-card-art">
-        {logo ? <img src={logo} alt="" /> : <span className="stream-prev-logo-fallback">DZ</span>}
-      </div>
-      <div className="stream-prev-card-title" style={{ ...titleFs.wrap, ...titleFs.text }}>
-        {title}
-      </div>
-      <div className="stream-prev-card-metrics">
-        {block.data.metrics.includes('pts') || block.data.metrics.includes('abates') ? (
-          <>
-            <span style={{ ...m1.wrap, ...m1.text }}>
-              {block.data.variant === 'mvp_hero' ? `${mvp?.abates || '0'} ABT` : `${map?.pts || '0'} PTS`}
-            </span>
-            <span style={{ ...m2.wrap, ...m2.text }}>
-              {block.data.variant === 'mvp_hero' ? `${mvp?.kd || '0'} K.D` : `${map?.abates || '0'} ABT.`}
-            </span>
-            {block.data.variant === 'mvp_hero' && block.data.metrics.includes('quedas') ? (
-              <span style={{ ...m3.wrap, ...m3.text }}>{mvp?.quedas || '0'} QD</span>
-            ) : null}
-          </>
-        ) : null}
-      </div>
-    </button>
-  )
 }
 
 function TablePreview(props: {
@@ -178,29 +111,46 @@ function TablePreview(props: {
 export function OverlayPreview(props: {
   blocks: StreamBlock[]
   selectedBlockId: string | null
+  selectedLayerId?: string | null
   onSelectBlock: (id: string) => void
+  onSelectLayer?: (layerId: string) => void
   standings: PreviewStanding[]
   mvp?: PreviewStanding[]
   maps: PreviewMap[]
   layout: 'map_cards' | 'standings' | 'mvp_combo' | 'custom'
+  /** se true, só mostra o bloco selecionado em grande (modo pasta aberta) */
+  focusSelected?: boolean
 }) {
   const mvpList = props.mvp?.length ? props.mvp : props.standings
+  const ctx: LayerResolveContext = {
+    mapas: props.maps,
+    classificacao: props.standings,
+    mvp: mvpList,
+  }
+
+  const blocks = props.focusSelected && props.selectedBlockId
+    ? props.blocks.filter((b) => b.id === props.selectedBlockId)
+    : props.blocks
+
   return (
-    <div className={`stream-preview-stage layout-${props.layout}`}>
-      {props.blocks.map((block, index) => {
+    <div className={`stream-preview-stage layout-${props.focusSelected ? 'focus' : props.layout}`}>
+      {blocks.map((block, index) => {
         if (block.type === 'card') {
-          const map = props.maps[(block.data.mapSlot || 1) - 1]
-          const mvp = mvpList[0]
           return (
-            <CardPreview
+            <div
               key={block.id}
-              block={block}
-              index={index}
-              selected={props.selectedBlockId === block.id}
-              map={map}
-              mvp={mvp}
-              onSelect={() => props.onSelectBlock(block.id)}
-            />
+              className={`stream-prev-card-wrap ${props.selectedBlockId === block.id ? 'is-selected' : ''} ${transitionClass(block.transition)}`}
+              style={transitionStyle(block.transition, index)}
+              onClick={() => props.onSelectBlock(block.id)}
+            >
+              <CardLayerCanvas
+                card={block}
+                ctx={ctx}
+                editable={props.selectedBlockId === block.id}
+                selectedLayerId={props.selectedBlockId === block.id ? props.selectedLayerId : null}
+                onSelectLayer={props.onSelectLayer}
+              />
+            </div>
           )
         }
         const tableRows =
@@ -216,8 +166,8 @@ export function OverlayPreview(props: {
           />
         )
       })}
-      {!props.blocks.length ? (
-        <div className="stream-prev-empty">Adicione um card ou uma tabela para começar.</div>
+      {!blocks.length ? (
+        <div className="stream-prev-empty">Adicione uma pasta Card ou Tabela para começar.</div>
       ) : null}
     </div>
   )

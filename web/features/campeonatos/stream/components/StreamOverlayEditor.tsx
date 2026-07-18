@@ -1,7 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Download, LayoutTemplate, Save, Table2, CreditCard, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Copy,
+  CreditCard,
+  Download,
+  FolderOpen,
+  LayoutTemplate,
+  Plus,
+  Save,
+  Table2,
+  Trash2,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import {
@@ -9,17 +20,25 @@ import {
   loadStreamSheet,
   saveOverlayRemote,
 } from '../services/stream-data.service'
-import { TEMPLATE_CATALOG, TEMPLATE_LABEL, createOverlayFromTemplate } from '../templates/stream-templates'
+import { TEMPLATE_CATALOG, TEMPLATE_LABEL, createEmptyCard, createOverlayFromTemplate } from '../templates/stream-templates'
 import type {
-  CardFieldKey,
+  LayerContentType,
+  LayerDataSource,
   StreamBlock,
   StreamCardBlock,
+  StreamLayer,
   StreamOverlay,
   StreamTableBlock,
   StreamTemplateId,
 } from '../types/stream.types'
 import { DEFAULT_BOX, DEFAULT_TRANSITION, newBlockId } from '../types/stream.types'
 import { migrateOverlay } from '../utils/migrate-overlay'
+import {
+  createDefaultLayer,
+  createMapCardFolder,
+  duplicateCardFolder,
+  ensureCardLayers,
+} from '../utils/card-layers'
 import {
   buildOverlayBrowserHtml,
   buildOverlayExportPayload,
@@ -38,11 +57,11 @@ function newId() {
 
 type InspectorTab = 'dados' | 'aparencia' | 'animacao'
 
-const CARD_FIELDS: Array<{ key: CardFieldKey; label: string }> = [
-  { key: 'title', label: 'Título' },
-  { key: 'metric_primary', label: 'Métrica 1' },
-  { key: 'metric_secondary', label: 'Métrica 2' },
-  { key: 'metric_tertiary', label: 'Métrica 3' },
+const LAYER_TYPES: Array<{ id: LayerContentType; label: string }> = [
+  { id: 'image', label: 'Imagem' },
+  { id: 'logo', label: 'Logo' },
+  { id: 'text', label: 'Texto' },
+  { id: 'number', label: 'Número' },
 ]
 
 export function StreamOverlayEditor(props: {
@@ -54,14 +73,16 @@ export function StreamOverlayEditor(props: {
   const [pickingTemplate, setPickingTemplate] = useState(Boolean(props.isNew))
   const [overlay, setOverlay] = useState<StreamOverlay | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
+  const [folderMode, setFolderMode] = useState(false)
   const [inspector, setInspector] = useState<InspectorTab>('dados')
-  const [fieldKey, setFieldKey] = useState<CardFieldKey>('title')
   const [saved, setSaved] = useState(false)
   const [saveWarning, setSaveWarning] = useState('')
   const [standings, setStandings] = useState<PreviewStanding[]>([])
   const [mvpRows, setMvpRows] = useState<PreviewStanding[]>([])
   const [maps, setMaps] = useState<PreviewMap[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (props.isNew) {
@@ -76,8 +97,10 @@ export function StreamOverlayEditor(props: {
       const migrated = migrateOverlay(raw)
       if (cancelled) return
       setOverlay(migrated)
-      setSelectedBlockId(migrated?.blocks[0]?.id || null)
+      const first = migrated?.blocks[0]?.id || null
+      setSelectedBlockId(first)
       setPickingTemplate(false)
+      if (first) setExpanded({ [first]: true })
     })()
     return () => {
       cancelled = true
@@ -131,11 +154,9 @@ export function StreamOverlayEditor(props: {
           const logo = String(v.line_logo_url || v.campeonato_equipe?.line_logo_url || '')
           if (name && logo) byName.set(name.toLowerCase(), logo)
         }
-        for (const s of standingRows) {
-          s.logo = byName.get(s.nome.toLowerCase())
-        }
+        for (const s of standingRows) s.logo = byName.get(s.nome.toLowerCase())
       } catch {
-        // ignore logo enrichment
+        // ignore
       }
 
       setStandings(standingRows)
@@ -147,16 +168,12 @@ export function StreamOverlayEditor(props: {
         purgatorio: '/images/maps/purgatorio.png',
         purgatório: '/images/maps/purgatorio.png',
         'nova terra': '/images/maps/nova-terra.png',
-        'nova-terra': '/images/maps/nova-terra.png',
         kalahari: '/images/maps/kalahari.png',
-        alpine: '/images/maps/alpine.png',
-        solara: '/images/maps/solara.png',
       }
       const fromQuedas = quedas.slice(0, 6).map((q, i) => {
         const mapa = String(q.cells.mapa || fallbackMaps[i] || `MAPA ${i + 1}`)
         const key = mapa.toLowerCase()
-        const imageUrl =
-          Object.entries(mapImages).find(([k]) => key.includes(k))?.[1] || '/images/maps/bermuda.png'
+        const imageUrl = Object.entries(mapImages).find(([k]) => key.includes(k))?.[1] || '/images/maps/bermuda.png'
         return {
           title: `${mapa}${q.cells.numero ? ` ${q.cells.numero}` : ''}`.toUpperCase(),
           imageUrl,
@@ -166,8 +183,8 @@ export function StreamOverlayEditor(props: {
           nome: standingRows[i]?.nome || equipes[i]?.cells?.line || '',
         }
       })
-      const mapRows: PreviewMap[] =
-        fromQuedas.length > 0
+      setMaps(
+        fromQuedas.length
           ? fromQuedas
           : fallbackMaps.map((title, i) => ({
               title,
@@ -175,9 +192,9 @@ export function StreamOverlayEditor(props: {
               logo: standingRows[i]?.logo,
               pts: standingRows[i]?.pts || '0',
               abates: standingRows[i]?.abates || '0',
-              nome: standingRows[i]?.nome || equipes[i]?.cells?.line || '',
-            }))
-      setMaps(mapRows)
+              nome: standingRows[i]?.nome || '',
+            })),
+      )
     } finally {
       setLoadingData(false)
     }
@@ -192,6 +209,9 @@ export function StreamOverlayEditor(props: {
     [overlay, selectedBlockId],
   )
 
+  const selectedCard = selectedBlock?.type === 'card' ? ensureCardLayers(selectedBlock) : null
+  const selectedLayer = selectedCard?.layers.find((l) => l.id === selectedLayerId) || null
+
   function pickTemplate(template: StreamTemplateId) {
     const draft = createOverlayFromTemplate(template)
     const full: StreamOverlay = {
@@ -200,7 +220,11 @@ export function StreamOverlayEditor(props: {
       updatedAt: new Date().toISOString(),
     }
     setOverlay(full)
-    setSelectedBlockId(full.blocks[0]?.id || null)
+    const first = full.blocks[0]?.id || null
+    setSelectedBlockId(first)
+    setSelectedLayerId(null)
+    setFolderMode(Boolean(first))
+    if (first) setExpanded({ [first]: true })
     setPickingTemplate(false)
   }
 
@@ -211,38 +235,37 @@ export function StreamOverlayEditor(props: {
   function updateBlock(blockId: string, updater: (b: StreamBlock) => StreamBlock) {
     setOverlay((prev) => {
       if (!prev) return prev
-      return {
-        ...prev,
-        blocks: prev.blocks.map((b) => (b.id === blockId ? updater(b) : b)),
-      }
+      return { ...prev, blocks: prev.blocks.map((b) => (b.id === blockId ? updater(b) : b)) }
     })
   }
 
-  function addCard() {
-    const block: StreamCardBlock = {
-      id: newBlockId(),
-      type: 'card',
-      name: `Card ${(overlay?.blocks.filter((b) => b.type === 'card').length || 0) + 1}`,
-      box: { ...DEFAULT_BOX },
-      transition: { ...DEFAULT_TRANSITION, enter: 'scale' },
-      data: {
-        variant: 'map_result',
-        mapSlot: 1,
-        titleFixed: 'NOVO CARD',
-        metrics: ['pts', 'abates'],
-        fieldStyles: {},
-      },
-    }
-    setOverlay((prev) => (prev ? { ...prev, blocks: [...prev.blocks, block] } : prev))
-    setSelectedBlockId(block.id)
+  function openFolder(blockId: string) {
+    setSelectedBlockId(blockId)
+    setSelectedLayerId(null)
+    setFolderMode(true)
+    setExpanded((e) => ({ ...e, [blockId]: true }))
+    setInspector('dados')
   }
 
-  function addTable() {
+  function addCardFolder() {
+    const cards = overlay?.blocks.filter((b) => b.type === 'card').length || 0
+    const card = createMapCardFolder(cards + 1, `MAPA ${cards + 1}`)
+    setOverlay((prev) => (prev ? { ...prev, blocks: [...prev.blocks, card] } : prev))
+    openFolder(card.id)
+  }
+
+  function addEmptyCard() {
+    const card = createEmptyCard(`Card ${(overlay?.blocks.filter((b) => b.type === 'card').length || 0) + 1}`)
+    setOverlay((prev) => (prev ? { ...prev, blocks: [...prev.blocks, card] } : prev))
+    openFolder(card.id)
+  }
+
+  function addTableFolder() {
     const block: StreamTableBlock = {
       id: newBlockId(),
       type: 'table',
       name: `Tabela ${(overlay?.blocks.filter((b) => b.type === 'table').length || 0) + 1}`,
-      box: { ...DEFAULT_BOX },
+      box: { ...DEFAULT_BOX, padding: 0, fill: { mode: 'solid', color: '#1a1208' } },
       transition: { ...DEFAULT_TRANSITION, enter: 'slide-up' },
       data: {
         variant: 'standings',
@@ -253,24 +276,84 @@ export function StreamOverlayEditor(props: {
       },
     }
     setOverlay((prev) => (prev ? { ...prev, blocks: [...prev.blocks, block] } : prev))
-    setSelectedBlockId(block.id)
+    openFolder(block.id)
   }
 
   function removeBlock(blockId: string) {
     setOverlay((prev) => {
       if (!prev) return prev
-      const blocks = prev.blocks.filter((b) => b.id !== blockId)
-      return { ...prev, blocks }
+      return { ...prev, blocks: prev.blocks.filter((b) => b.id !== blockId) }
     })
-    if (selectedBlockId === blockId) setSelectedBlockId(null)
+    if (selectedBlockId === blockId) {
+      setSelectedBlockId(null)
+      setSelectedLayerId(null)
+      setFolderMode(false)
+    }
+  }
+
+  function dupCard(blockId: string) {
+    const card = overlay?.blocks.find((b) => b.id === blockId && b.type === 'card') as StreamCardBlock | undefined
+    if (!card) return
+    const ensured = ensureCardLayers(card)
+    const nextSlot =
+      Math.max(
+        0,
+        ...ensured.layers
+          .map((l) => ('mapSlot' in l.data ? Number(l.data.mapSlot) : 0))
+          .filter(Boolean),
+      ) + 1 || (overlay?.blocks.filter((b) => b.type === 'card').length || 0) + 1
+    const copy = duplicateCardFolder(ensured, nextSlot)
+    setOverlay((prev) => (prev ? { ...prev, blocks: [...prev.blocks, copy] } : prev))
+    openFolder(copy.id)
+  }
+
+  function addLayer(type: LayerContentType) {
+    if (!selectedCard) return
+    const mapSlot =
+      selectedCard.layers.find((l) => 'mapSlot' in l.data)?.data &&
+      'mapSlot' in (selectedCard.layers.find((l) => 'mapSlot' in l.data)!.data)
+        ? Number((selectedCard.layers.find((l) => 'mapSlot' in l.data)!.data as any).mapSlot)
+        : 1
+    const layer = createDefaultLayer(type, mapSlot || 1)
+    updateBlock(selectedCard.id, (b) => {
+      if (b.type !== 'card') return b
+      const c = ensureCardLayers(b)
+      return { ...c, layers: [...c.layers, layer] }
+    })
+    setSelectedLayerId(layer.id)
+    setInspector('dados')
+  }
+
+  function updateLayer(layerId: string, patch: Partial<StreamLayer>) {
+    if (!selectedCard) return
+    updateBlock(selectedCard.id, (b) => {
+      if (b.type !== 'card') return b
+      const c = ensureCardLayers(b)
+      return {
+        ...c,
+        layers: c.layers.map((l) => (l.id === layerId ? { ...l, ...patch } : l)),
+      }
+    })
+  }
+
+  function updateLayerData(layerId: string, data: LayerDataSource) {
+    updateLayer(layerId, { data })
+  }
+
+  function removeLayer(layerId: string) {
+    if (!selectedCard) return
+    updateBlock(selectedCard.id, (b) => {
+      if (b.type !== 'card') return b
+      const c = ensureCardLayers(b)
+      return { ...c, layers: c.layers.filter((l) => l.id !== layerId) }
+    })
+    if (selectedLayerId === layerId) setSelectedLayerId(null)
   }
 
   function applyPreset(preset: VisualPresetId, scope: 'block' | 'all') {
     setOverlay((prev) => {
       if (!prev) return prev
-      if (scope === 'all') {
-        return { ...prev, blocks: applyVisualPresetToOverlayBlocks(prev.blocks, preset) }
-      }
+      if (scope === 'all') return { ...prev, blocks: applyVisualPresetToOverlayBlocks(prev.blocks, preset) }
       if (!selectedBlockId) return prev
       return {
         ...prev,
@@ -295,21 +378,23 @@ export function StreamOverlayEditor(props: {
 
   function handleExportJson() {
     if (!overlay) return
-    const payload = buildOverlayExportPayload(overlay, props.campeonatoId)
-    const slug = overlay.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'overlay'
-    downloadJson(`dropzone-stream-${slug}.json`, payload)
+    downloadJson(
+      `dropzone-stream-${overlay.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'overlay'}.json`,
+      buildOverlayExportPayload(overlay, props.campeonatoId),
+    )
   }
 
   function handleExportHtml() {
     if (!overlay) return
-    const html = buildOverlayBrowserHtml(overlay, {
-      origin: typeof window !== 'undefined' ? window.location.origin : '',
-      previewNote: overlay.share_token
-        ? 'Redireciona para /stream/live (dados ao vivo).'
-        : 'Salve no servidor para gerar link live com dados reais.',
-    })
-    const slug = overlay.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'overlay'
-    downloadHtml(`dropzone-stream-${slug}.html`, html)
+    downloadHtml(
+      `dropzone-stream-${overlay.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'overlay'}.html`,
+      buildOverlayBrowserHtml(overlay, {
+        origin: typeof window !== 'undefined' ? window.location.origin : '',
+        previewNote: overlay.share_token
+          ? 'Redireciona para /stream/live (dados ao vivo).'
+          : 'Salve no servidor para gerar link live.',
+      }),
+    )
   }
 
   if (pickingTemplate) {
@@ -321,7 +406,7 @@ export function StreamOverlayEditor(props: {
               <ArrowLeft size={16} /> Planilha
             </button>
             <div>
-              <p className="eyebrow">Stream · nova overlay</p>
+              <p className="eyebrow">Stream · pastas pré-montadas</p>
               <h1>Escolha um modelo</h1>
             </div>
           </div>
@@ -356,7 +441,7 @@ export function StreamOverlayEditor(props: {
             <ArrowLeft size={16} /> Planilha
           </button>
           <div>
-            <p className="eyebrow">Character generator · {TEMPLATE_LABEL[overlay.template]}</p>
+            <p className="eyebrow">Pastas · {TEMPLATE_LABEL[overlay.template]}</p>
             <input
               className="stream-name-input"
               value={overlay.name}
@@ -366,25 +451,15 @@ export function StreamOverlayEditor(props: {
           </div>
         </div>
         <div className="stream-panel-actions">
-          {loadingData ? <span className="stream-badge">carregando dados…</span> : <span className="stream-badge">preview ao vivo</span>}
+          {loadingData ? <span className="stream-badge">carregando…</span> : <span className="stream-badge">preview dados</span>}
           {saved ? <span className="stream-badge">salvo</span> : null}
           {overlay.share_token ? (
-            <a
-              className="stream-secondary-btn"
-              href={`/stream/live/${overlay.share_token}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Abrir Browser Source"
-            >
+            <a className="stream-secondary-btn" href={`/stream/live/${overlay.share_token}`} target="_blank" rel="noopener noreferrer">
               Live
             </a>
           ) : null}
-          <button type="button" className="stream-secondary-btn" onClick={handleExportJson} title="Exportar JSON">
-            <Download size={15} /> JSON
-          </button>
-          <button type="button" className="stream-secondary-btn" onClick={handleExportHtml} title="Exportar HTML (Browser Source)">
-            <Download size={15} /> HTML
-          </button>
+          <button type="button" className="stream-secondary-btn" onClick={handleExportJson}><Download size={15} /> JSON</button>
+          <button type="button" className="stream-secondary-btn" onClick={handleExportHtml}><Download size={15} /> HTML</button>
           <button type="button" className="stream-secondary-btn" onClick={() => setPickingTemplate(true)}>
             <LayoutTemplate size={15} /> Modelo
           </button>
@@ -396,52 +471,138 @@ export function StreamOverlayEditor(props: {
       {saveWarning ? <p className="stream-hint" style={{ margin: '0 0 10px' }}>{saveWarning}</p> : null}
 
       <div className="stream-cg-layout">
+        {/* Árvore de pastas */}
         <aside className="stream-cg-left stream-panel">
-          <div className="stream-panel-title">
-            <h4>Blocos</h4>
-          </div>
+          <div className="stream-panel-title"><h4>Pastas</h4></div>
           <div className="stream-block-actions">
-            <button type="button" className="stream-secondary-btn" onClick={addCard}><CreditCard size={14} /> Card</button>
-            <button type="button" className="stream-secondary-btn" onClick={addTable}><Table2 size={14} /> Tabela</button>
+            <button type="button" className="stream-secondary-btn" onClick={addCardFolder} title="Card pré-montado (mapa)">
+              <CreditCard size={14} /> Card
+            </button>
+            <button type="button" className="stream-secondary-btn" onClick={addEmptyCard} title="Card vazio">
+              <Plus size={14} /> Vazio
+            </button>
+            <button type="button" className="stream-secondary-btn" onClick={addTableFolder}>
+              <Table2 size={14} /> Tabela
+            </button>
           </div>
-          <ul className="stream-block-list">
-            {overlay.blocks.map((block) => (
-              <li key={block.id}>
-                <button
-                  type="button"
-                  className={selectedBlockId === block.id ? 'active' : ''}
-                  onClick={() => setSelectedBlockId(block.id)}
-                >
-                  <b>{block.type === 'card' ? 'Card' : 'Tabela'}</b>
-                  <span>{block.name}</span>
-                </button>
-                <button type="button" className="danger" title="Remover" onClick={() => removeBlock(block.id)}>
-                  <Trash2 size={13} />
-                </button>
-              </li>
-            ))}
+          <ul className="stream-folder-tree">
+            {overlay.blocks.map((block) => {
+              const isOpen = expanded[block.id]
+              const isSel = selectedBlockId === block.id
+              const card = block.type === 'card' ? ensureCardLayers(block) : null
+              return (
+                <li key={block.id} className={isSel ? 'is-active' : ''}>
+                  <div className="stream-folder-row">
+                    <button
+                      type="button"
+                      className="stream-folder-toggle"
+                      onClick={() => setExpanded((e) => ({ ...e, [block.id]: !e[block.id] }))}
+                      aria-label="Expandir"
+                    >
+                      {isOpen ? '▾' : '▸'}
+                    </button>
+                    <button type="button" className="stream-folder-main" onClick={() => openFolder(block.id)}>
+                      <FolderOpen size={14} />
+                      <span>
+                        <b>{block.type === 'card' ? 'CARD' : 'TABELA'}</b>
+                        {block.name}
+                      </span>
+                    </button>
+                    {block.type === 'card' ? (
+                      <button type="button" title="Duplicar pasta" onClick={() => dupCard(block.id)}>
+                        <Copy size={13} />
+                      </button>
+                    ) : null}
+                    <button type="button" className="danger" title="Excluir" onClick={() => removeBlock(block.id)}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  {isOpen && card ? (
+                    <ul className="stream-folder-items">
+                      {card.layers
+                        .slice()
+                        .sort((a, b) => a.z - b.z)
+                        .map((layer) => (
+                          <li key={layer.id}>
+                            <button
+                              type="button"
+                              className={selectedLayerId === layer.id ? 'active' : ''}
+                              onClick={() => {
+                                openFolder(card.id)
+                                setSelectedLayerId(layer.id)
+                              }}
+                            >
+                              <small>{layer.type}</small>
+                              {layer.name}
+                            </button>
+                          </li>
+                        ))}
+                      <li>
+                        <div className="stream-add-layer-row">
+                          {LAYER_TYPES.map((t) => (
+                            <button key={t.id} type="button" onClick={() => { openFolder(card.id); addLayer(t.id) }}>
+                              + {t.label}
+                            </button>
+                          ))}
+                        </div>
+                      </li>
+                    </ul>
+                  ) : null}
+                  {isOpen && block.type === 'table' ? (
+                    <ul className="stream-folder-items">
+                      <li><span className="stream-hint">Fonte: {block.data.source} · {block.data.rows} linhas</span></li>
+                    </ul>
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
         </aside>
 
+        {/* Canvas da pasta aberta */}
         <main className="stream-cg-center">
+          <div className="stream-canvas-toolbar">
+            <button
+              type="button"
+              className={!folderMode ? 'active' : ''}
+              onClick={() => setFolderMode(false)}
+            >
+              Cena completa
+            </button>
+            <button
+              type="button"
+              className={folderMode ? 'active' : ''}
+              disabled={!selectedBlockId}
+              onClick={() => selectedBlockId && setFolderMode(true)}
+            >
+              Pasta aberta
+            </button>
+            {selectedCard ? (
+              <span className="stream-hint">Editando: <strong>{selectedCard.name}</strong> — clique em um item para ajustar</span>
+            ) : null}
+          </div>
           <OverlayPreview
-            blocks={overlay.blocks}
+            blocks={overlay.blocks.map((b) => (b.type === 'card' ? ensureCardLayers(b) : b))}
             selectedBlockId={selectedBlockId}
-            onSelectBlock={setSelectedBlockId}
+            selectedLayerId={selectedLayerId}
+            onSelectBlock={(id) => openFolder(id)}
+            onSelectLayer={setSelectedLayerId}
             standings={standings}
             mvp={mvpRows}
             maps={maps}
             layout={overlay.template}
+            focusSelected={folderMode}
           />
         </main>
 
+        {/* Propriedades */}
         <aside className="stream-cg-right stream-panel">
           {!selectedBlock ? (
-            <p className="stream-hint">Selecione um card ou tabela no preview (ou na lista) para editar.</p>
+            <p className="stream-hint">Selecione uma pasta (card ou tabela) à esquerda.</p>
           ) : (
             <>
               <div className="stream-panel-title">
-                <h4>{selectedBlock.type === 'card' ? 'Card' : 'Tabela'}</h4>
+                <h4>{selectedBlock.type === 'card' ? 'Pasta card' : 'Pasta tabela'}</h4>
               </div>
               <nav className="stream-inner-tabs">
                 {(['dados', 'aparencia', 'animacao'] as InspectorTab[]).map((tab) => (
@@ -451,72 +612,78 @@ export function StreamOverlayEditor(props: {
                 ))}
               </nav>
 
-              {inspector === 'dados' && selectedBlock.type === 'card' ? (
+              {inspector === 'dados' && selectedCard ? (
                 <div className="stream-inspector-body">
                   <label className="stream-field">
-                    <span>Nome do bloco</span>
+                    <span>Nome da pasta</span>
                     <input
-                      value={selectedBlock.name}
-                      onChange={(e) => updateBlock(selectedBlock.id, (b) => ({ ...b, name: e.target.value }))}
+                      value={selectedCard.name}
+                      onChange={(e) => updateBlock(selectedCard.id, (b) => ({ ...b, name: e.target.value }))}
                     />
                   </label>
-                  <label className="stream-field">
-                    <span>Variante</span>
-                    <select
-                      value={selectedBlock.data.variant}
-                      onChange={(e) =>
-                        updateBlock(selectedBlock.id, (b) =>
-                          b.type === 'card'
-                            ? { ...b, data: { ...b.data, variant: e.target.value as StreamCardBlock['data']['variant'] } }
-                            : b,
-                        )
-                      }
-                    >
-                      <option value="map_result">Resultado de mapa</option>
-                      <option value="mvp_hero">MVP destaque</option>
-                      <option value="team">Time</option>
-                    </select>
-                  </label>
-                  <label className="stream-field">
-                    <span>Título fixo</span>
-                    <input
-                      value={selectedBlock.data.titleFixed || ''}
-                      onChange={(e) =>
-                        updateBlock(selectedBlock.id, (b) =>
-                          b.type === 'card' ? { ...b, data: { ...b.data, titleFixed: e.target.value } } : b,
-                        )
-                      }
-                    />
-                  </label>
-                  <label className="stream-field">
-                    <span>Slot do mapa (1–3)</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={6}
-                      value={selectedBlock.data.mapSlot || 1}
-                      onChange={(e) =>
-                        updateBlock(selectedBlock.id, (b) =>
-                          b.type === 'card' ? { ...b, data: { ...b.data, mapSlot: Number(e.target.value) || 1 } } : b,
-                        )
-                      }
-                    />
-                  </label>
-                  <label className="stream-field">
-                    <span>Campo de texto p/ estilo</span>
-                    <select value={fieldKey} onChange={(e) => setFieldKey(e.target.value as CardFieldKey)}>
-                      {CARD_FIELDS.map((f) => (
-                        <option key={f.key} value={f.key}>{f.label}</option>
-                      ))}
-                    </select>
-                  </label>
+
+                  {selectedLayer ? (
+                    <>
+                      <p className="stream-hint">Item selecionado</p>
+                      <label className="stream-field">
+                        <span>Nome do item</span>
+                        <input value={selectedLayer.name} onChange={(e) => updateLayer(selectedLayer.id, { name: e.target.value })} />
+                      </label>
+                      <label className="stream-field">
+                        <span>Tipo</span>
+                        <select
+                          value={selectedLayer.type}
+                          onChange={(e) => updateLayer(selectedLayer.id, { type: e.target.value as LayerContentType })}
+                        >
+                          {LAYER_TYPES.map((t) => (
+                            <option key={t.id} value={t.id}>{t.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <LayerDataEditor
+                        layer={selectedLayer}
+                        onChange={(data) => updateLayerData(selectedLayer.id, data)}
+                      />
+                      <div className="stream-style-grid">
+                        {(['x', 'y', 'w', 'h', 'z'] as const).map((key) => (
+                          <label key={key} className="stream-style-field">
+                            <span>{key.toUpperCase()} %</span>
+                            <input
+                              type="number"
+                              min={key === 'z' ? 0 : 0}
+                              max={key === 'z' ? 99 : 100}
+                              value={selectedLayer[key]}
+                              onChange={(e) => updateLayer(selectedLayer.id, { [key]: Number(e.target.value) || 0 })}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      {(selectedLayer.type === 'image' || selectedLayer.type === 'logo') ? (
+                        <label className="stream-field">
+                          <span>Encaixe da imagem</span>
+                          <select
+                            value={selectedLayer.objectFit || 'cover'}
+                            onChange={(e) => updateLayer(selectedLayer.id, { objectFit: e.target.value as 'cover' | 'contain' })}
+                          >
+                            <option value="cover">Cobrir</option>
+                            <option value="contain">Conter</option>
+                          </select>
+                        </label>
+                      ) : null}
+                      <button type="button" className="stream-secondary-btn" onClick={() => removeLayer(selectedLayer.id)}>
+                        <Trash2 size={14} /> Remover item
+                      </button>
+                    </>
+                  ) : (
+                    <p className="stream-hint">Clique em um item na pasta ou no canvas para editar posição, tamanho e dado.</p>
+                  )}
                 </div>
               ) : null}
 
               {inspector === 'dados' && selectedBlock.type === 'table' ? (
                 <div className="stream-inspector-body">
                   <label className="stream-field">
-                    <span>Nome do bloco</span>
+                    <span>Nome da pasta</span>
                     <input
                       value={selectedBlock.name}
                       onChange={(e) => updateBlock(selectedBlock.id, (b) => ({ ...b, name: e.target.value }))}
@@ -570,48 +737,9 @@ export function StreamOverlayEditor(props: {
                 </div>
               ) : null}
 
-              {inspector === 'aparencia' && selectedBlock.type === 'card' ? (
+              {inspector === 'aparencia' ? (
                 <div className="stream-inspector-body">
-                  <p className="stream-hint">Preset visual</p>
-                  <div className="stream-preset-row">
-                    {VISUAL_PRESETS.map((p) => (
-                      <button key={p.id} type="button" title={p.hint} onClick={() => applyPreset(p.id, 'block')}>
-                        {p.label}
-                      </button>
-                    ))}
-                    <button type="button" title="Aplicar a todos os blocos" onClick={() => applyPreset('gold_red_live', 'all')}>
-                      Tudo ouro/vermelho
-                    </button>
-                  </div>
-                  <p className="stream-hint">Container do card</p>
-                  <BoxStyleEditor
-                    allowImage
-                    value={selectedBlock.box}
-                    onChange={(box) => updateBlock(selectedBlock.id, (b) => ({ ...b, box }))}
-                  />
-                  <p className="stream-hint">Campo: {CARD_FIELDS.find((f) => f.key === fieldKey)?.label}</p>
-                  <FieldStyleEditor
-                    value={selectedBlock.data.fieldStyles?.[fieldKey]}
-                    onChange={(style) =>
-                      updateBlock(selectedBlock.id, (b) =>
-                        b.type === 'card'
-                          ? {
-                              ...b,
-                              data: {
-                                ...b.data,
-                                fieldStyles: { ...b.data.fieldStyles, [fieldKey]: style },
-                              },
-                            }
-                          : b,
-                      )
-                    }
-                  />
-                </div>
-              ) : null}
-
-              {inspector === 'aparencia' && selectedBlock.type === 'table' ? (
-                <div className="stream-inspector-body">
-                  <p className="stream-hint">Preset visual</p>
+                  <p className="stream-hint">Preset da pasta</p>
                   <div className="stream-preset-row">
                     {VISUAL_PRESETS.map((p) => (
                       <button key={p.id} type="button" title={p.hint} onClick={() => applyPreset(p.id, 'block')}>
@@ -619,49 +747,49 @@ export function StreamOverlayEditor(props: {
                       </button>
                     ))}
                   </div>
-                  <p className="stream-hint">Container da tabela</p>
+                  <p className="stream-hint">Fundo / borda da pasta</p>
                   <BoxStyleEditor
-                    allowImage={false}
+                    allowImage={selectedBlock.type === 'card'}
                     value={selectedBlock.box}
                     onChange={(box) => updateBlock(selectedBlock.id, (b) => ({ ...b, box }))}
                   />
-                  <p className="stream-hint">Cabeçalho</p>
-                  <FieldStyleEditor
-                    value={selectedBlock.data.headerStyle}
-                    onChange={(headerStyle) =>
-                      updateBlock(selectedBlock.id, (b) =>
-                        b.type === 'table' ? { ...b, data: { ...b.data, headerStyle } } : b,
-                      )
-                    }
-                  />
-                  <p className="stream-hint">Linhas</p>
-                  <FieldStyleEditor
-                    value={selectedBlock.data.rowStyle}
-                    onChange={(rowStyle) =>
-                      updateBlock(selectedBlock.id, (b) =>
-                        b.type === 'table' ? { ...b, data: { ...b.data, rowStyle } } : b,
-                      )
-                    }
-                  />
-                  <label className="stream-field">
-                    <span>Cor linha alternada</span>
-                    <input
-                      type="color"
-                      value={(selectedBlock.data.altRowFill || '#b71c1c').slice(0, 7)}
-                      onChange={(e) =>
-                        updateBlock(selectedBlock.id, (b) =>
-                          b.type === 'table' ? { ...b, data: { ...b.data, altRowFill: e.target.value } } : b,
-                        )
-                      }
-                    />
-                  </label>
+                  {selectedLayer && (selectedLayer.type === 'text' || selectedLayer.type === 'number') ? (
+                    <>
+                      <p className="stream-hint">Estilo do item</p>
+                      <FieldStyleEditor
+                        value={selectedLayer.style}
+                        onChange={(style) => updateLayer(selectedLayer.id, { style })}
+                      />
+                    </>
+                  ) : null}
+                  {selectedBlock.type === 'table' ? (
+                    <>
+                      <p className="stream-hint">Cabeçalho / linhas</p>
+                      <FieldStyleEditor
+                        value={selectedBlock.data.headerStyle}
+                        onChange={(headerStyle) =>
+                          updateBlock(selectedBlock.id, (b) =>
+                            b.type === 'table' ? { ...b, data: { ...b.data, headerStyle } } : b,
+                          )
+                        }
+                      />
+                      <FieldStyleEditor
+                        value={selectedBlock.data.rowStyle}
+                        onChange={(rowStyle) =>
+                          updateBlock(selectedBlock.id, (b) =>
+                            b.type === 'table' ? { ...b, data: { ...b.data, rowStyle } } : b,
+                          )
+                        }
+                      />
+                    </>
+                  ) : null}
                 </div>
               ) : null}
 
               {inspector === 'animacao' ? (
                 <div className="stream-inspector-body">
                   <TransitionEditor
-                    mode={selectedBlock.type}
+                    mode={selectedBlock.type === 'card' ? 'card' : 'table'}
                     value={selectedBlock.transition}
                     onChange={(transition) => updateBlock(selectedBlock.id, (b) => ({ ...b, transition }))}
                   />
@@ -672,5 +800,116 @@ export function StreamOverlayEditor(props: {
         </aside>
       </div>
     </div>
+  )
+}
+
+function LayerDataEditor(props: {
+  layer: StreamLayer
+  onChange: (data: LayerDataSource) => void
+}) {
+  const d = props.layer.data
+  const source = d.source
+
+  return (
+    <>
+      <label className="stream-field">
+        <span>Conteúdo / dado</span>
+        <select
+          value={source}
+          onChange={(e) => {
+            const s = e.target.value
+            if (s === 'fixed') props.onChange({ source: 'fixed', value: '' })
+            else if (s === 'map_image') props.onChange({ source: 'map_image', mapSlot: 1 })
+            else if (s === 'map_name') props.onChange({ source: 'map_name', mapSlot: 1 })
+            else if (s === 'map_logo') props.onChange({ source: 'map_logo', mapSlot: 1 })
+            else if (s === 'map_pts') props.onChange({ source: 'map_pts', mapSlot: 1 })
+            else if (s === 'map_abates') props.onChange({ source: 'map_abates', mapSlot: 1 })
+            else if (s === 'standing') props.onChange({ source: 'standing', rank: 1, field: 'nome' })
+            else if (s === 'mvp') props.onChange({ source: 'mvp', rank: 1, field: 'nome' })
+          }}
+        >
+          <option value="fixed">Texto fixo</option>
+          <option value="map_image">Imagem do mapa (queda N)</option>
+          <option value="map_name">Nome do mapa (queda N)</option>
+          <option value="map_logo">Logo top da queda N</option>
+          <option value="map_pts">Pontos da queda N</option>
+          <option value="map_abates">Abates da queda N</option>
+          <option value="standing">Classificação (posição)</option>
+          <option value="mvp">MVP (posição)</option>
+        </select>
+      </label>
+
+      {source === 'fixed' ? (
+        <label className="stream-field">
+          <span>Valor</span>
+          <input
+            value={d.source === 'fixed' ? d.value : ''}
+            onChange={(e) => props.onChange({ source: 'fixed', value: e.target.value })}
+          />
+        </label>
+      ) : null}
+
+      {'mapSlot' in d ? (
+        <label className="stream-field">
+          <span>Queda / mapa nº</span>
+          <input
+            type="number"
+            min={1}
+            max={12}
+            value={d.mapSlot}
+            onChange={(e) => props.onChange({ ...d, mapSlot: Number(e.target.value) || 1 })}
+          />
+        </label>
+      ) : null}
+
+      {d.source === 'standing' ? (
+        <>
+          <label className="stream-field">
+            <span>Posição</span>
+            <input
+              type="number"
+              min={1}
+              value={d.rank}
+              onChange={(e) => props.onChange({ ...d, rank: Number(e.target.value) || 1 })}
+            />
+          </label>
+          <label className="stream-field">
+            <span>Campo</span>
+            <select value={d.field} onChange={(e) => props.onChange({ ...d, field: e.target.value as any })}>
+              <option value="nome">Nome</option>
+              <option value="logo">Logo</option>
+              <option value="pts">Pontos</option>
+              <option value="abates">Abates</option>
+              <option value="booyah">Booyah</option>
+              <option value="delta">Delta</option>
+            </select>
+          </label>
+        </>
+      ) : null}
+
+      {d.source === 'mvp' ? (
+        <>
+          <label className="stream-field">
+            <span>Posição MVP</span>
+            <input
+              type="number"
+              min={1}
+              value={d.rank}
+              onChange={(e) => props.onChange({ ...d, rank: Number(e.target.value) || 1 })}
+            />
+          </label>
+          <label className="stream-field">
+            <span>Campo</span>
+            <select value={d.field} onChange={(e) => props.onChange({ ...d, field: e.target.value as any })}>
+              <option value="nome">Nick</option>
+              <option value="logo">Foto/logo</option>
+              <option value="abates">Abates</option>
+              <option value="kd">K.D</option>
+              <option value="quedas">Quedas</option>
+            </select>
+          </label>
+        </>
+      ) : null}
+    </>
   )
 }

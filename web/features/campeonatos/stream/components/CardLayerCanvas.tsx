@@ -1,0 +1,102 @@
+'use client'
+
+import type { StreamCardBlock, StreamLayer } from '../types/stream.types'
+import { boxToCssSafe, fieldToCss } from '../utils/stream-style'
+import { layerBoxStyle, resolveLayerData, type LayerResolveContext } from '../utils/resolve-layer'
+
+export function CardLayerCanvas(props: {
+  card: StreamCardBlock
+  ctx: LayerResolveContext
+  selectedLayerId?: string | null
+  onSelectLayer?: (id: string) => void
+  /** modo editor: mostra handles/outline */
+  editable?: boolean
+  className?: string
+}) {
+  const { card, ctx } = props
+  const layers = [...(card.layers || [])].sort((a, b) => (a.z || 0) - (b.z || 0))
+  const container = boxToCssSafe(card.box)
+
+  return (
+    <div
+      className={`stream-card-canvas ${props.className || ''}`}
+      style={{
+        ...container,
+        position: 'relative',
+        width: '100%',
+        aspectRatio: `${card.canvasW || 280} / ${card.canvasH || 220}`,
+        overflow: 'hidden',
+      }}
+    >
+      {layers.map((layer) => (
+        <LayerView
+          key={layer.id}
+          layer={layer}
+          ctx={ctx}
+          selected={props.selectedLayerId === layer.id}
+          editable={props.editable}
+          onSelect={() => props.onSelectLayer?.(layer.id)}
+        />
+      ))}
+      {!layers.length ? (
+        <div className="stream-prev-empty" style={{ position: 'absolute', inset: 0 }}>
+          Pasta vazia — adicione itens (imagem, logo, texto, número).
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function LayerView(props: {
+  layer: StreamLayer
+  ctx: LayerResolveContext
+  selected?: boolean
+  editable?: boolean
+  onSelect?: () => void
+}) {
+  const { layer } = props
+  const resolved = resolveLayerData(layer.data, props.ctx)
+  const fs = fieldToCss(layer.style)
+  const box = {
+    ...layerBoxStyle(layer),
+    ...fs.wrap,
+    ...fs.text,
+    cursor: props.editable ? 'pointer' : 'default',
+    outline: props.selected ? '2px solid #dfbf4a' : props.editable ? '1px dashed rgba(255,255,255,.15)' : undefined,
+    outlineOffset: props.selected ? 1 : 0,
+  }
+
+  const inner =
+    resolved.kind === 'image' ? (
+      resolved.src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={resolved.src}
+          alt=""
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: layer.objectFit || (layer.type === 'logo' ? 'contain' : 'cover'),
+            display: 'block',
+          }}
+        />
+      ) : (
+        <span className="stream-prev-logo-fallback" style={{ width: '70%', height: '70%', fontSize: 12 }}>
+          {layer.type === 'logo' ? 'LOGO' : 'IMG'}
+        </span>
+      )
+    ) : (
+      <span style={{ width: '100%', padding: '0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {resolved.text || (props.editable ? layer.name : '')}
+      </span>
+    )
+
+  if (props.editable) {
+    return (
+      <button type="button" className="stream-layer-hit" style={box} onClick={props.onSelect}>
+        {inner}
+      </button>
+    )
+  }
+  return <div style={box}>{inner}</div>
+}

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { StreamBlock } from '../types/stream.types'
 import { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from '../utils/stream-style'
+import { ensureCardLayers } from '../utils/card-layers'
+import { CardLayerCanvas } from './CardLayerCanvas'
 
 export type LiveStanding = {
   pos: number
@@ -50,8 +52,7 @@ function withRankDelta(current: LiveStanding[], previous: LiveStanding[] | null)
   return current.map((r) => {
     const before = prevPos.get(r.nome.toLowerCase())
     if (before == null) return { ...r, delta: 0 }
-    const d = before - r.pos // subiu = positivo
-    return { ...r, delta: d }
+    return { ...r, delta: before - r.pos }
   })
 }
 
@@ -66,7 +67,6 @@ export function StreamLiveStage(props: {
   template: string
   blocks: StreamBlock[]
   data: StreamLiveData
-  /** dispara animação de dados quando muda */
   animateDataChange?: boolean
 }) {
   const prevRef = useRef<LiveStanding[] | null>(null)
@@ -89,9 +89,10 @@ export function StreamLiveStage(props: {
   const mvp = props.data.mvp || []
   const mapas = props.data.mapas || []
   const template = props.template || 'custom'
+  const ctx = { mapas, classificacao: classif, mvp }
 
   return (
-    <div className={`stream-preview-stage layout-${template} stream-live-stage ${pulse ? 'is-data-pulse' : ''}`} data-fp={fp}>
+    <div className={`stream-preview-stage layout-${template} stream-live-stage ${pulse ? 'is-data-pulse' : ''}`}>
       {(props.blocks || []).map((block, index) => {
         const dataFx = block.transition?.onDataChange || 'none'
         const dataClass =
@@ -106,58 +107,14 @@ export function StreamLiveStage(props: {
             : ''
 
         if (block.type === 'card') {
-          const isMvp = block.data.variant === 'mvp_hero'
-          const mapSlot = (block.data.mapSlot || 1) - 1
-          const map = mapas[mapSlot]
-          const row = isMvp ? mvp[0] : null
-          const box = boxToCssSafe(
-            !isMvp && (map?.imageUrl || block.box.fill?.imageUrl)
-              ? {
-                  ...block.box,
-                  fill: {
-                    ...(block.box.fill || { mode: 'image' as const }),
-                    mode: 'image',
-                    imageUrl: block.box.fill?.imageUrl || map?.imageUrl || undefined,
-                    fit: 'cover',
-                    overlayColor: block.box.fill?.overlayColor || '#000',
-                    overlayOpacity: block.box.fill?.overlayOpacity ?? 0.4,
-                    color: block.box.fill?.color || '#111',
-                  },
-                }
-              : block.box,
-          )
-          const titleFs = fieldToCss(block.data.fieldStyles?.title)
-          const m1 = fieldToCss(block.data.fieldStyles?.metric_primary)
-          const m2 = fieldToCss(block.data.fieldStyles?.metric_secondary)
-          const m3 = fieldToCss(block.data.fieldStyles?.metric_tertiary)
-          const title = isMvp
-            ? row?.nome || block.data.titleFixed || 'MVP'
-            : block.data.titleFixed || map?.title || map?.nome || block.name
-          const logo = isMvp ? row?.logo : map?.logo
-          const pts = isMvp ? row?.abates : map?.pts
-          const abt = isMvp ? row?.kd : map?.abates
-
+          const card = ensureCardLayers(block)
           return (
             <div
               key={block.id}
-              className={`stream-prev-card ${transitionClass(block.transition)} ${dataClass}`}
-              style={{ ...box, ...transitionStyle(block.transition, index) }}
+              className={`stream-prev-card-wrap ${transitionClass(block.transition)} ${dataClass}`}
+              style={transitionStyle(block.transition, index)}
             >
-              <div className="stream-prev-card-art">
-                {logo ? <img src={String(logo)} alt="" /> : <span className="stream-prev-logo-fallback">DZ</span>}
-              </div>
-              <div className="stream-prev-card-title" style={{ ...titleFs.wrap, ...titleFs.text }}>{title}</div>
-              <div className="stream-prev-card-metrics">
-                <span style={{ ...m1.wrap, ...m1.text }}>
-                  {isMvp ? `${pts ?? 0} ABT` : `${pts ?? 0} PTS`}
-                </span>
-                <span style={{ ...m2.wrap, ...m2.text }}>
-                  {isMvp ? `${abt ?? '0'} K.D` : `${abt ?? 0} ABT.`}
-                </span>
-                {isMvp && block.data.metrics.includes('quedas') ? (
-                  <span style={{ ...m3.wrap, ...m3.text }}>{row?.quedas ?? 0} QD</span>
-                ) : null}
-              </div>
+              <CardLayerCanvas card={card} ctx={ctx} />
             </div>
           )
         }
