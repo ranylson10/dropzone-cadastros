@@ -232,7 +232,9 @@ export function StreamSpreadsheetPanel(props: {
                 <td colSpan={sheet.columns.length + 1} className="stream-sheet-empty">
                   {sheet.filter && sheet.filter !== 'none' && !Object.values(filters).some(Boolean)
                     ? 'Selecione um filtro acima para carregar os dados.'
-                    : 'Nenhum dado nesta aba ainda.'}
+                    : sheet.id === 'mapas'
+                      ? 'Nenhuma queda/partida encontrada. Confira se o jogo tem quedas com mapa no pontuador e clique em Atualizar.'
+                      : 'Nenhum dado nesta aba ainda.'}
                 </td>
               </tr>
             ) : null}

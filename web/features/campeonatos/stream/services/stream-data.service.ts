@@ -168,22 +168,75 @@ type FlatPartida = {
   horario: string
 }
 
-async function loadPartidasFlat(campeonatoId: string): Promise<FlatPartida[]> {
-  const payload = await authFetch(`/api/campeonatos/${campeonatoId}/jogos`)
-  const jogos = Array.isArray(payload.jogos) ? payload.jogos : []
-  const out: FlatPartida[] = []
+type FlatPartidaEx = FlatPartida & { mapaImagem?: string }
+
+/** Partidas/quedas via API stream (service_role) — fonte confiável do pontuador. */
+async function loadPartidasFlat(campeonatoId: string): Promise<FlatPartidaEx[]> {
+  // 1) endpoint dedicado stream (lê campeonato_partidas_com_mapa direto)
+  try {
+    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/stream/data?sheet=partidas`)
+    const list = Array.isArray(payload.partidas) ? payload.partidas : []
+    if (list.length) {
+      return list.map((p: any) => ({
+        id: text(p.id),
+        jogoId: text(p.jogoId || p.jogo_id),
+        jogoNome: text(p.jogoNome || p.jogo_nome || ''),
+        faseId: text(p.faseId || p.fase_id || ''),
+        numero: Number(p.numero || p.numero_partida || 0),
+        mapa: text(p.mapa || p.mapa_nome || p.mapaCodigo || '—'),
+        mapaCodigo: text(p.mapaCodigo || p.mapa_codigo || ''),
+        mapaImagem: text(p.mapaImagem || p.mapa_imagem || ''),
+        status: text(p.status || ''),
+        horario: text(p.horario || ''),
+      })).filter((p: FlatPartidaEx) => p.id)
+    }
+  } catch {
+    // fallback abaixo
+  }
+
+  // 2) fallback: /jogos + quedas aninhadas ou por jogo
+  let jogos: any[] = []
+  try {
+    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/jogos`)
+    jogos = Array.isArray(payload.jogos) ? payload.jogos : []
+  } catch {
+    try {
+      const payload = await authFetch(`/api/campeonatos/${campeonatoId}/pontuador/jogos`)
+      jogos = Array.isArray(payload.jogos) ? payload.jogos : []
+    } catch {
+      jogos = []
+    }
+  }
+
+  const out: FlatPartidaEx[] = []
   for (const jogo of jogos) {
-    const quedas = Array.isArray(jogo.quedas) ? jogo.quedas : []
+    let quedas = Array.isArray(jogo.quedas) ? jogo.quedas : []
+    if (!quedas.length && jogo.id) {
+      try {
+        const q = await authFetch(`/api/campeonatos/${campeonatoId}/jogos/${jogo.id}/quedas`)
+        quedas = Array.isArray(q.quedas) ? q.quedas : []
+      } catch {
+        try {
+          const d = await authFetch(`/api/campeonatos/${campeonatoId}/jogos/${jogo.id}`)
+          quedas = Array.isArray(d.quedas) ? d.quedas : []
+        } catch {
+          quedas = []
+        }
+      }
+    }
     for (const q of quedas) {
+      const id = text(q.id || q.partida_id)
+      if (!id) continue
       const mapa = text(q.mapa_nome || q.mapa_codigo || q.nome_mapa || '—')
       out.push({
-        id: text(q.id),
-        jogoId: text(jogo.id),
+        id,
+        jogoId: text(jogo.id || q.jogo_id),
         jogoNome: text(jogo.nome || ''),
         faseId: text(jogo.fase_id || q.fase_id || ''),
         numero: Number(q.numero_partida ?? q.numero ?? 0),
         mapa,
         mapaCodigo: text(q.mapa_codigo || mapa),
+        mapaImagem: text(q.mapa_imagem_url || q.imagem_url || ''),
         status: text(q.status || ''),
         horario: text(q.horario || jogo.horario || ''),
       })
@@ -357,41 +410,60 @@ async function loadMvpRows(campeonatoId: string, filters?: StreamSheetFilters): 
 }
 
 async function loadMapasRows(campeonatoId: string): Promise<StreamSheetRow[]> {
+  // Preferência: API stream monta mapas + booyah já no servidor
+  try {
+    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/stream/data?sheet=mapas`)
+    if (Array.isArray(payload.rows) && payload.rows.length) {
+      return payload.rows.map((r: any) => ({
+        id: text(r.id),
+        cells: {
+          imagem: text(r.cells?.imagem || ''),
+          nome: text(r.cells?.nome || ''),
+          booyah_logo: text(r.cells?.booyah_logo || ''),
+          booyah_nome: text(r.cells?.booyah_nome || '—'),
+          pontos: text(r.cells?.pontos ?? 0),
+          abates: text(r.cells?.abates ?? 0),
+          jogo: text(r.cells?.jogo || ''),
+          queda: text(r.cells?.queda || ''),
+        },
+      }))
+    }
+    // API ok mas 0 partidas cadastradas
+    if (Array.isArray(payload.rows)) return []
+  } catch {
+    // fallback client-side
+  }
+
   const partidas = await loadPartidasFlat(campeonatoId)
   const rows: StreamSheetRow[] = []
   for (const p of partidas) {
     if (!p.id) continue
+    let winner: any = null
+    let hasStats = false
     try {
       const stats = await loadEquipeStats(campeonatoId, { partida_id: p.id })
-      const winner = stats.find((e: any) => Number(e.colocacao) === 1 || Number(e.booyahs) > 0) || stats[0]
-      rows.push({
-        id: p.id,
-        cells: {
-          imagem: mapImageFor(p.mapa),
-          nome: p.mapa.toUpperCase(),
-          booyah_logo: text(winner?.logo_url || ''),
-          booyah_nome: text(winner?.nome || winner?.line_nome || '—'),
-          pontos: text(winner?.pontos_total ?? 0),
-          abates: text(winner?.abates ?? 0),
-          jogo: p.jogoNome,
-          queda: text(p.numero),
-        },
-      })
+      hasStats = stats.length > 0
+      winner =
+        stats.find((e: any) => Number(e.booyahs) > 0)
+        || stats.find((e: any) => Number(e.melhor_posicao) === 1)
+        || stats[0]
+        || null
     } catch {
-      rows.push({
-        id: p.id,
-        cells: {
-          imagem: mapImageFor(p.mapa),
-          nome: p.mapa.toUpperCase(),
-          booyah_logo: '',
-          booyah_nome: '—',
-          pontos: '0',
-          abates: '0',
-          jogo: p.jogoNome,
-          queda: text(p.numero),
-        },
-      })
+      winner = null
     }
+    rows.push({
+      id: p.id,
+      cells: {
+        imagem: text((p as FlatPartidaEx).mapaImagem || mapImageFor(p.mapa)),
+        nome: p.mapa.toUpperCase(),
+        booyah_logo: text(winner?.logo_url || ''),
+        booyah_nome: text(winner?.nome || winner?.line_nome || (hasStats ? '—' : 'sem pontuação')),
+        pontos: text(winner?.pontos_total ?? 0),
+        abates: text(winner?.abates ?? 0),
+        jogo: p.jogoNome,
+        queda: text(p.numero),
+      },
+    })
   }
   return rows
 }
