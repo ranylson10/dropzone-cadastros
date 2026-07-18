@@ -73,7 +73,6 @@ import { StreamTableCanvas } from './StreamTableCanvas'
 import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
 import {
   addTableRow,
-  columnDefsFromSheet,
   createSeedRowItem,
   ensureTableStructure,
   removeTableRow,
