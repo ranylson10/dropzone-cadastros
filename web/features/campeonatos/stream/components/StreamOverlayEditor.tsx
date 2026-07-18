@@ -74,6 +74,8 @@ import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
 import {
   addTableColumn,
   addTableRow,
+  createSeedRowItem,
+  defaultColumnDefs,
   ensureTableStructure,
   fieldLabel,
   removeTableColumn,
@@ -488,6 +490,9 @@ export function StreamOverlayEditor(props: {
       setSelectedLayerId(null)
       return
     }
+    // Etapa 1: só 1 linha (item modelo). Total de linhas / bulk fica para depois.
+    const seedRow = createSeedRowItem('Linha 1')
+    const cols = defaultColumnDefs(['pos', 'logo', 'nome', 'booyah', 'abates', 'pts', 'delta'])
     const rawTable: StreamTableBlock = {
       id: newBlockId(),
       type: 'table',
@@ -506,11 +511,13 @@ export function StreamOverlayEditor(props: {
       data: {
         variant: 'standings',
         source: 'classificacao',
-        rows: 8,
+        rows: 1,
         startRank: 1,
-        columns: ['pos', 'logo', 'nome', 'booyah', 'abates', 'pts', 'delta'],
+        columns: cols.map((c) => (c.field === 'custom' ? 'nome' : c.field)) as TableColumnKey[],
+        columnDefs: cols,
+        rowItems: [seedRow],
         rowHeight: 36,
-        rowGap: 2,
+        rowGap: 0,
         headerHeight: 32,
         showHeader: true,
         altRowFill: 'rgba(255,255,255,0.04)',
@@ -519,7 +526,8 @@ export function StreamOverlayEditor(props: {
     const table = ensureTableStructure(rawTable)
     patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, table] }), 'force')
     setSelectedBlockId(table.id)
-    setSelectedLayerId(null)
+    setSelectedLayerId(seedRow.id)
+    setOpenLayerMenu(seedRow.id)
   }
 
   function clampPos(x: number, y: number, w: number, h: number) {
@@ -1167,7 +1175,10 @@ export function StreamOverlayEditor(props: {
 
                 {selectedBlock.type === 'table' && selectedTable ? (
                   <>
-                    <p className="stream-hint"><strong>Tabela</strong> — linhas = itens; colunas = partes da linha</p>
+                    <p className="stream-hint">
+                      <strong>Tabela · etapa 1</strong> — defina <em>uma linha</em> (colunas, largura, cores).
+                      Depois multiplica com + Linha / total de linhas.
+                    </p>
                     <label className="stream-field">
                       <span>Fonte de dados</span>
                       <select
@@ -1938,7 +1949,7 @@ export function StreamOverlayEditor(props: {
                             <button type="button" onClick={() => addTableRowItem(block.id)}>+ Linha</button>
                           </div>
                           <p className="stream-hint">
-                            Cada item = 1 linha · {cols.length} colunas · arraste ≡ para reordenar
+                            Item = modelo de linha · {cols.length} colunas · + Linha só quando precisar
                           </p>
                           <ul className="stream-gt-layer-list">
                             {rows.map((row, rowIndex) => {

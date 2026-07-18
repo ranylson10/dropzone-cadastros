@@ -44,14 +44,25 @@ export function defaultColumnDefs(fields?: TableColumnKey[]): TableColumnDef[] {
   })
 }
 
-export function defaultRowItems(count: number, startRank = 1): TableRowItem[] {
-  const n = Math.max(1, Math.min(40, count || 10))
+export function defaultRowItems(count: number, _startRank = 1): TableRowItem[] {
+  // Etapa 1: tabela nasce com 1 linha (item); depois o usuário multiplica/configura.
+  const n = Math.max(1, Math.min(40, count || 1))
   return Array.from({ length: n }, (_, i) => ({
     id: newLayerId(),
     name: `Linha ${i + 1}`,
     dataIndex: i,
     height: 36,
   }))
+}
+
+/** Cria a linha-modelo inicial (um item, como camada do bloco). */
+export function createSeedRowItem(name = 'Linha 1'): TableRowItem {
+  return {
+    id: newLayerId(),
+    name,
+    dataIndex: 0,
+    height: 36,
+  }
 }
 
 /** Normaliza tabela legada → columnDefs + rowItems. */
@@ -66,7 +77,7 @@ export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock 
   const rowItems =
     Array.isArray(data.rowItems) && data.rowItems.length
       ? data.rowItems
-      : defaultRowItems(data.rows || 10, data.startRank || 1)
+      : defaultRowItems(data.rows ?? 1, data.startRank || 1)
 
   return {
     ...block,
@@ -114,7 +125,7 @@ export function addTableRow(data: TableBlockData): TableBlockData {
   const items = [
     ...((Array.isArray(data.rowItems) && data.rowItems.length
       ? data.rowItems
-      : defaultRowItems(data.rows || 10)) as TableRowItem[]),
+      : defaultRowItems(data.rows ?? 1)) as TableRowItem[]),
   ]
   items.push({
     id: newLayerId(),

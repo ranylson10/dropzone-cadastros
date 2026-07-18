@@ -70,7 +70,7 @@ export function migrateOverlay(raw: any): StreamOverlay | null {
               data: {
                 variant: 'standings',
                 source: 'classificacao',
-                rows: 10,
+                rows: 1,
                 startRank: 1,
                 columns: ['pos', 'nome', 'pts', 'abates'],
               },

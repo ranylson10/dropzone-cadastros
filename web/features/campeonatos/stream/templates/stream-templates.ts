@@ -47,7 +47,8 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
 
 const goldText = { ...DEFAULT_TEXT, color: '#f5e6a8', fontSize: 16 }
 
-function standingsTable(rows = 12, startRank = 1, name = 'Classificação'): StreamTableBlock {
+function standingsTable(rows = 1, startRank = 1, name = 'Classificação'): StreamTableBlock {
+  // Etapa 1: template nasce com 1 linha modelo (igual + Tabela no editor).
   return ensureTableStructure({
     id: newBlockId(),
     type: 'table',
@@ -67,14 +68,14 @@ function standingsTable(rows = 12, startRank = 1, name = 'Classificação'): Str
     data: {
       variant: startRank > 1 ? 'mvp_list' : 'standings',
       source: startRank > 1 ? 'mvp' : 'classificacao',
-      rows,
+      rows: 1,
       startRank,
       columns:
         startRank > 1
           ? ['pos', 'logo', 'nome', 'quedas', 'kd', 'abates', 'delta']
           : ['pos', 'logo', 'nome', 'booyah', 'abates', 'pts', 'delta'],
       rowHeight: 36,
-      rowGap: 2,
+      rowGap: 0,
       headerHeight: 32,
       showHeader: true,
       headerStyle: {
@@ -100,10 +101,10 @@ export function buildTemplateBlocks(template: StreamTemplateId): StreamBlock[] {
     ]
   }
   if (template === 'standings') {
-    return [standingsTable(12, 1, 'Classificação')]
+    return [standingsTable(1, 1, 'Classificação')]
   }
   if (template === 'mvp_combo') {
-    return [createMvpCardFolder(), standingsTable(9, 2, 'MVP lista')]
+    return [createMvpCardFolder(), standingsTable(1, 2, 'MVP lista')]
   }
   return []
 }
