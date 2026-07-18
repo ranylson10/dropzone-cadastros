@@ -148,13 +148,20 @@ export type TableBlockData = {
 export type StreamBlockBase = {
   id: string
   name: string
+  /**
+   * Posição no frame 16:9 (px na base 1280×720).
+   * Arrastar no canvas ou digitar X/Y no painel.
+   */
+  x?: number
+  y?: number
   box: BoxStyle
   transition: TransitionStyle
 }
 
 /**
- * Pasta Card: container pré-montado com itens (layers) editáveis.
- * canvasW/H = tamanho de design do card no editor.
+ * Bloco retangular (pasta): quadrado vazio que o usuário nomeia,
+ * posiciona, dimensiona, define fundo e preenche com itens/camadas.
+ * canvasW/H = largura/altura em px no frame.
  */
 export type StreamCardBlock = StreamBlockBase & {
   type: 'card'
@@ -168,8 +175,14 @@ export type StreamCardBlock = StreamBlockBase & {
 /** Pasta Tabela: grupo com colunas + fonte de dados. */
 export type StreamTableBlock = StreamBlockBase & {
   type: 'table'
+  /** Largura no frame (px). Altura é dinâmica pelo conteúdo se omitida. */
+  tableW?: number
   data: TableBlockData
 }
+
+/** Base de design do frame (proporção do produto final). */
+export const FRAME_W = 1280
+export const FRAME_H = 720
 
 export type StreamBlock = StreamCardBlock | StreamTableBlock
 

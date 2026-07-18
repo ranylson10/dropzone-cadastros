@@ -1,10 +1,32 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { StreamBlock } from '../types/stream.types'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { FRAME_H, FRAME_W, type StreamBlock } from '../types/stream.types'
 import { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from '../utils/stream-style'
 import { ensureCardLayers } from '../utils/card-layers'
 import { CardLayerCanvas } from './CardLayerCanvas'
+
+function blockPlaceStyle(block: StreamBlock): CSSProperties {
+  const x = block.x ?? 0
+  const y = block.y ?? 0
+  if (block.type === 'card') {
+    const card = ensureCardLayers(block)
+    return {
+      position: 'absolute',
+      left: `${(x / FRAME_W) * 100}%`,
+      top: `${(y / FRAME_H) * 100}%`,
+      width: `${(card.canvasW / FRAME_W) * 100}%`,
+      height: `${(card.canvasH / FRAME_H) * 100}%`,
+    }
+  }
+  const w = block.tableW || 420
+  return {
+    position: 'absolute',
+    left: `${(x / FRAME_W) * 100}%`,
+    top: `${(y / FRAME_H) * 100}%`,
+    width: `${(w / FRAME_W) * 100}%`,
+  }
+}
 
 export type LiveStanding = {
   pos: number
@@ -91,8 +113,12 @@ export function StreamLiveStage(props: {
   const template = props.template || 'custom'
   const ctx = { mapas, classificacao: classif, mvp }
 
+  const freeLayout = template === 'custom' || (props.blocks || []).some((b) => b.x != null || b.y != null)
+
   return (
-    <div className={`stream-preview-stage layout-${template} stream-live-stage ${pulse ? 'is-data-pulse' : ''}`}>
+    <div
+      className={`stream-preview-stage layout-${freeLayout ? 'custom' : template} stream-live-stage ${pulse ? 'is-data-pulse' : ''}`}
+    >
       {(props.blocks || []).map((block, index) => {
         const dataFx = block.transition?.onDataChange || 'none'
         const dataClass =
@@ -105,16 +131,22 @@ export function StreamLiveStage(props: {
                   ? 'stream-data-pulse'
                   : 'stream-data-fade'
             : ''
+        const place = freeLayout ? blockPlaceStyle(block) : undefined
 
         if (block.type === 'card') {
           const card = ensureCardLayers(block)
           return (
             <div
               key={block.id}
-              className={`stream-prev-card-wrap ${transitionClass(block.transition)} ${dataClass}`}
-              style={transitionStyle(block.transition, index)}
+              className={`stream-prev-card-wrap stream-live-placed ${transitionClass(block.transition)} ${dataClass}`}
+              style={{
+                ...(freeLayout
+                  ? { ...place, maxWidth: 'none' }
+                  : {}),
+                ...transitionStyle(block.transition, index),
+              }}
             >
-              <CardLayerCanvas card={card} ctx={ctx} />
+              <CardLayerCanvas card={card} ctx={ctx} fillParent={freeLayout} />
             </div>
           )
         }
@@ -129,8 +161,8 @@ export function StreamLiveStage(props: {
         return (
           <div
             key={block.id}
-            className={`stream-prev-table ${transitionClass(block.transition)} ${dataClass}`}
-            style={{ ...box, ...transitionStyle(block.transition, index) }}
+            className={`stream-prev-table stream-live-placed ${transitionClass(block.transition)} ${dataClass}`}
+            style={{ ...box, ...place, ...transitionStyle(block.transition, index) }}
           >
             <div className="stream-prev-table-head" style={{ ...header.wrap, ...header.text }}>
               {block.data.columns.map((col) => (

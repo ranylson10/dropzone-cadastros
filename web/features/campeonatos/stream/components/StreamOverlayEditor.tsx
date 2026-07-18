@@ -30,11 +30,11 @@ import type {
   StreamSheetRow,
   StreamTableBlock,
 } from '../types/stream.types'
-import { DEFAULT_BOX, DEFAULT_TRANSITION, newBlockId } from '../types/stream.types'
+import { DEFAULT_BOX, DEFAULT_TRANSITION, FRAME_H, FRAME_W, newBlockId } from '../types/stream.types'
 import { migrateOverlay } from '../utils/migrate-overlay'
 import {
   createDefaultLayer,
-  createMapCardFolder,
+  createEmptyCard,
   duplicateCardFolder,
   ensureCardLayers,
 } from '../utils/card-layers'
@@ -79,6 +79,14 @@ export function StreamOverlayEditor(props: {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [panning, setPanning] = useState(false)
   const panStart = useRef({ x: 0, y: 0, px: 0, py: 0 })
+  const dragBlock = useRef<{
+    id: string
+    startClientX: number
+    startClientY: number
+    origX: number
+    origY: number
+  } | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   const [saved, setSaved] = useState(false)
   const [saveWarning, setSaveWarning] = useState('')
@@ -238,11 +246,15 @@ export function StreamOverlayEditor(props: {
 
   function addBlock(type: 'card' | 'table') {
     if (!overlay) return
+    const n = overlay.blocks.length
+    const offset = (n % 8) * 28
     if (type === 'card') {
-      const n = overlay.blocks.filter((b) => b.type === 'card').length + 1
-      // pasta card pré-montada (5 itens) — usuário edita/apaga
-      const card = createMapCardFolder(n, `MAPA ${n}`)
-      card.name = `Card ${n}`
+      const card = createEmptyCard(`Bloco ${overlay.blocks.filter((b) => b.type === 'card').length + 1}`, {
+        x: 48 + offset,
+        y: 48 + offset,
+        w: 240,
+        h: 160,
+      })
       setOverlay({ ...overlay, blocks: [...overlay.blocks, card] })
       setSelectedBlockId(card.id)
       setSelectedLayerId(null)
@@ -252,6 +264,9 @@ export function StreamOverlayEditor(props: {
       id: newBlockId(),
       type: 'table',
       name: `Tabela ${overlay.blocks.filter((b) => b.type === 'table').length + 1}`,
+      x: 48 + offset,
+      y: 48 + offset,
+      tableW: 420,
       box: { ...DEFAULT_BOX, padding: 0, fill: { mode: 'solid', color: '#1a1208' } },
       transition: { ...DEFAULT_TRANSITION, enter: 'slide-up' },
       data: {
@@ -270,6 +285,21 @@ export function StreamOverlayEditor(props: {
     setSelectedLayerId(null)
   }
 
+  function clampPos(x: number, y: number, w: number, h: number) {
+    return {
+      x: Math.max(0, Math.min(FRAME_W - Math.min(w, FRAME_W), Math.round(x))),
+      y: Math.max(0, Math.min(FRAME_H - Math.min(h, FRAME_H), Math.round(y))),
+    }
+  }
+
+  function blockSize(b: StreamBlock) {
+    if (b.type === 'card') {
+      const c = ensureCardLayers(b)
+      return { w: c.canvasW, h: c.canvasH }
+    }
+    return { w: b.tableW || 420, h: 200 }
+  }
+
   function removeBlock(id: string) {
     if (!overlay) return
     setOverlay({ ...overlay, blocks: overlay.blocks.filter((b) => b.id !== id) })
@@ -285,9 +315,7 @@ export function StreamOverlayEditor(props: {
     if (!block) return
     if (block.type === 'card') {
       const card = ensureCardLayers(block)
-      const n = overlay.blocks.filter((b) => b.type === 'card').length + 1
-      const copy = duplicateCardFolder(card, n)
-      copy.name = `${card.name} cópia`
+      const copy = duplicateCardFolder(card)
       setOverlay({ ...overlay, blocks: [...overlay.blocks, copy] })
       setSelectedBlockId(copy.id)
       return
@@ -296,6 +324,8 @@ export function StreamOverlayEditor(props: {
       ...block,
       id: newBlockId(),
       name: `${block.name} cópia`,
+      x: (block.x ?? 40) + 24,
+      y: (block.y ?? 40) + 24,
       data: { ...block.data },
     }
     setOverlay({ ...overlay, blocks: [...overlay.blocks, copy] })
@@ -348,7 +378,7 @@ export function StreamOverlayEditor(props: {
     window.setTimeout(() => setSaved(false), 2000)
   }
 
-  // pan
+  // pan da área (Alt+arrastar ou botão do meio)
   function onStagePointerDown(e: React.PointerEvent) {
     if (e.button !== 1 && !(e.button === 0 && e.altKey)) return
     e.preventDefault()
@@ -357,6 +387,15 @@ export function StreamOverlayEditor(props: {
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   function onStagePointerMove(e: React.PointerEvent) {
+    if (dragBlock.current) {
+      const dx = (e.clientX - dragBlock.current.startClientX) / zoom
+      const dy = (e.clientY - dragBlock.current.startClientY) / zoom
+      const block = overlay?.blocks.find((b) => b.id === dragBlock.current!.id)
+      const size = block ? blockSize(block) : { w: 240, h: 160 }
+      const next = clampPos(dragBlock.current.origX + dx, dragBlock.current.origY + dy, size.w, size.h)
+      updateBlock(dragBlock.current.id, (b) => ({ ...b, x: next.x, y: next.y }))
+      return
+    }
     if (!panning) return
     setPan({
       x: panStart.current.px + (e.clientX - panStart.current.x),
@@ -364,12 +403,39 @@ export function StreamOverlayEditor(props: {
     })
   }
   function onStagePointerUp() {
+    dragBlock.current = null
+    setDraggingId(null)
     setPanning(false)
   }
   function onWheel(e: React.WheelEvent) {
     if (!e.ctrlKey && !e.metaKey) return
     e.preventDefault()
     setZoom((z) => Math.min(2.5, Math.max(0.35, z + (e.deltaY > 0 ? -0.08 : 0.08))))
+  }
+
+  function onBlockPointerDown(e: React.PointerEvent, block: StreamBlock) {
+    if (e.button !== 0 || e.altKey) return
+    const t = e.target as HTMLElement
+    // clique em camada interna = seleciona camada, não inicia drag do bloco
+    if (t.closest('.stream-layer-hit')) {
+      setSelectedBlockId(block.id)
+      return
+    }
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedBlockId(block.id)
+    setSelectedLayerId(null)
+    const size = blockSize(block)
+    dragBlock.current = {
+      id: block.id,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      origX: block.x ?? 40,
+      origY: block.y ?? 40,
+    }
+    setDraggingId(block.id)
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    void size
   }
 
   if (!overlay) {
@@ -433,16 +499,17 @@ export function StreamOverlayEditor(props: {
           </div>
           <div className="stream-gt-add">
             <button type="button" className="stream-primary-btn" onClick={() => addBlock('card')}>
-              <Plus size={15} /> Card
+              <Plus size={15} /> Bloco
             </button>
             <button type="button" className="stream-primary-btn" onClick={() => addBlock('table')}>
               <Plus size={15} /> Tabela
             </button>
           </div>
+          <p className="stream-hint">Quadrados vazios na área 16:9. Arraste no canvas ou digite X/Y.</p>
 
           {selectedBlock?.type === 'card' ? (
             <div className="stream-gt-tool-section">
-              <p className="stream-hint"><strong>Itens do card</strong></p>
+              <p className="stream-hint"><strong>Conteúdo do bloco</strong></p>
               <div className="stream-add-layer-row">
                 {LAYER_TYPES.map((t) => (
                   <button key={t.id} type="button" onClick={() => addLayer(t.id)}>+ {t.label}</button>
@@ -453,18 +520,81 @@ export function StreamOverlayEditor(props: {
 
           <div className="stream-inspector-body">
             {!selectedBlock ? (
-              <p className="stream-hint">Selecione um card ou tabela na área de trabalho.</p>
+              <p className="stream-hint">Selecione um bloco na área de trabalho.</p>
             ) : (
               <>
                 <label className="stream-field">
-                  <span>Nome do bloco</span>
+                  <span>Nome</span>
                   <input
                     value={selectedBlock.name}
                     onChange={(e) => updateBlock(selectedBlock.id, (b) => ({ ...b, name: e.target.value }))}
                   />
                 </label>
 
-                <p className="stream-hint"><strong>Comuns</strong></p>
+                <p className="stream-hint"><strong>Posição e tamanho</strong></p>
+                <div className="stream-style-grid">
+                  <label className="stream-style-field">
+                    <span>X</span>
+                    <input
+                      type="number"
+                      value={selectedBlock.x ?? 0}
+                      onChange={(e) => {
+                        const size = blockSize(selectedBlock)
+                        const next = clampPos(Number(e.target.value) || 0, selectedBlock.y ?? 0, size.w, size.h)
+                        updateBlock(selectedBlock.id, (b) => ({ ...b, x: next.x, y: next.y }))
+                      }}
+                    />
+                  </label>
+                  <label className="stream-style-field">
+                    <span>Y</span>
+                    <input
+                      type="number"
+                      value={selectedBlock.y ?? 0}
+                      onChange={(e) => {
+                        const size = blockSize(selectedBlock)
+                        const next = clampPos(selectedBlock.x ?? 0, Number(e.target.value) || 0, size.w, size.h)
+                        updateBlock(selectedBlock.id, (b) => ({ ...b, x: next.x, y: next.y }))
+                      }}
+                    />
+                  </label>
+                  <label className="stream-style-field">
+                    <span>Largura</span>
+                    <input
+                      type="number"
+                      min={40}
+                      max={FRAME_W}
+                      value={selectedBlock.type === 'card' ? ensureCardLayers(selectedBlock).canvasW : selectedBlock.tableW || 420}
+                      onChange={(e) => {
+                        const w = Math.max(40, Number(e.target.value) || 40)
+                        updateBlock(selectedBlock.id, (b) =>
+                          b.type === 'card'
+                            ? { ...ensureCardLayers(b), canvasW: w }
+                            : { ...b, tableW: w },
+                        )
+                      }}
+                    />
+                  </label>
+                  <label className="stream-style-field">
+                    <span>Altura</span>
+                    <input
+                      type="number"
+                      min={40}
+                      max={FRAME_H}
+                      value={selectedBlock.type === 'card' ? ensureCardLayers(selectedBlock).canvasH : 200}
+                      disabled={selectedBlock.type === 'table'}
+                      onChange={(e) => {
+                        if (selectedBlock.type !== 'card') return
+                        const h = Math.max(40, Number(e.target.value) || 40)
+                        updateBlock(selectedBlock.id, (b) =>
+                          b.type === 'card' ? { ...ensureCardLayers(b), canvasH: h } : b,
+                        )
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="stream-hint">Segure e arraste o bloco no canvas, ou digite X/Y acima.</p>
+
+                <p className="stream-hint"><strong>Fundo</strong></p>
                 <BoxStyleEditor
                   allowImage={selectedBlock.type === 'card'}
                   value={selectedBlock.box}
@@ -477,35 +607,7 @@ export function StreamOverlayEditor(props: {
                 />
 
                 {selectedBlock.type === 'card' ? (
-                  <>
-                    <p className="stream-hint"><strong>Card</strong></p>
-                    <div className="stream-style-grid">
-                      <label className="stream-style-field">
-                        <span>Largura</span>
-                        <input
-                          type="number"
-                          value={ensureCardLayers(selectedBlock).canvasW}
-                          onChange={(e) =>
-                            updateBlock(selectedBlock.id, (b) =>
-                              b.type === 'card' ? { ...ensureCardLayers(b), canvasW: Number(e.target.value) || 280 } : b,
-                            )
-                          }
-                        />
-                      </label>
-                      <label className="stream-style-field">
-                        <span>Altura</span>
-                        <input
-                          type="number"
-                          value={ensureCardLayers(selectedBlock).canvasH}
-                          onChange={(e) =>
-                            updateBlock(selectedBlock.id, (b) =>
-                              b.type === 'card' ? { ...ensureCardLayers(b), canvasH: Number(e.target.value) || 220 } : b,
-                            )
-                          }
-                        />
-                      </label>
-                    </div>
-                  </>
+                  <p className="stream-hint"><strong>Itens</strong> — adicione texto, número, logo ou imagem e vincule à planilha na lista de camadas.</p>
                 ) : null}
 
                 {selectedBlock.type === 'table' ? (
@@ -638,7 +740,7 @@ export function StreamOverlayEditor(props: {
             <span>{Math.round(zoom * 100)}%</span>
             <button type="button" onClick={() => setZoom((z) => Math.min(2.5, z + 0.1))} title="Zoom +"><ZoomIn size={16} /></button>
             <button type="button" onClick={() => { setZoom(0.7); setPan({ x: 0, y: 0 }) }}>Reset</button>
-            <span className="stream-hint">16:9 · 1280×720 · Alt+arrastar = mover</span>
+            <span className="stream-hint">16:9 · {FRAME_W}×{FRAME_H} · arrastar bloco · Alt+arrastar = pan</span>
           </div>
 
           <div
@@ -656,29 +758,36 @@ export function StreamOverlayEditor(props: {
                 transformOrigin: 'center center',
               }}
             >
-              <div className="stream-gt-frame" aria-label="Área final 16:9">
+              <div className="stream-gt-frame" aria-label={`Área final ${FRAME_W}×${FRAME_H}`}>
                 <div className="stream-gt-frame-badge">16:9 · produto final</div>
                 <div className="stream-gt-checker">
                   {!overlay.blocks.length ? (
                     <div className="stream-gt-empty">
                       <p>Área de trabalho 16:9</p>
                       <p className="stream-hint">Fundo quadriculado = transparente no live.</p>
-                      <p className="stream-hint">Use + Card ou + Tabela à esquerda.</p>
+                      <p className="stream-hint">Use + Bloco à esquerda e arraste na área.</p>
                     </div>
                   ) : (
-                    <div className="stream-gt-blocks">
+                    <div className="stream-gt-blocks stream-gt-blocks-abs">
                       {overlay.blocks.map((block) => {
                         const selected = selectedBlockId === block.id
+                        const bx = block.x ?? 40
+                        const by = block.y ?? 40
                         if (block.type === 'card') {
                           const card = ensureCardLayers(block)
                           return (
                             <div
                               key={block.id}
-                              className={`stream-gt-block ${selected ? 'is-selected' : ''}`}
-                              style={{ width: card.canvasW }}
+                              className={`stream-gt-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''}`}
+                              style={{
+                                left: bx,
+                                top: by,
+                                width: card.canvasW,
+                                height: card.canvasH,
+                              }}
+                              onPointerDown={(e) => onBlockPointerDown(e, block)}
                               onClick={() => {
                                 setSelectedBlockId(block.id)
-                                setSelectedLayerId(null)
                               }}
                             >
                               <div className="stream-gt-block-label">{block.name}</div>
@@ -704,11 +813,13 @@ export function StreamOverlayEditor(props: {
                         const rows = source.filter((r) => r.pos >= start).slice(0, block.data.rows)
                         const rh = block.data.rowHeight ?? 36
                         const gap = block.data.rowGap ?? 0
+                        const tw = block.tableW || 420
                         return (
                           <div
                             key={block.id}
-                            className={`stream-gt-block stream-gt-table-block ${selected ? 'is-selected' : ''}`}
-                            style={{ minWidth: 360, ...box }}
+                            className={`stream-gt-block stream-gt-table-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''}`}
+                            style={{ left: bx, top: by, width: tw, ...box }}
+                            onPointerDown={(e) => onBlockPointerDown(e, block)}
                             onClick={() => {
                               setSelectedBlockId(block.id)
                               setSelectedLayerId(null)
@@ -783,7 +894,7 @@ export function StreamOverlayEditor(props: {
           </div>
 
           {!overlay.blocks.length ? (
-            <p className="stream-hint">Nenhum bloco. Use + Card ou + Tabela em Ferramentas.</p>
+            <p className="stream-hint">Nenhum bloco. Use + Bloco em Ferramentas.</p>
           ) : (
             <ul className="stream-gt-layer-list stream-gt-block-tree">
               {overlay.blocks.map((block) => {
@@ -804,10 +915,14 @@ export function StreamOverlayEditor(props: {
                     >
                       {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       <span>
-                        <small>{block.type === 'card' ? 'pasta' : 'tabela'}</small>
+                        <small>{block.type === 'card' ? 'bloco' : 'tabela'}</small>
                         {block.name}
                       </span>
-                      <em>{isCard ? `${card?.layers.length ?? 0} itens` : 'table'}</em>
+                      <em>
+                        {isCard
+                          ? `${Math.round(block.x ?? 0)},${Math.round(block.y ?? 0)} · ${card?.layers.length ?? 0} itens`
+                          : `${Math.round(block.x ?? 0)},${Math.round(block.y ?? 0)}`}
+                      </em>
                     </button>
 
                     {expanded && isCard && card ? (

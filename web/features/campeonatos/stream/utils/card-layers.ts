@@ -153,18 +153,21 @@ export function defaultMvpCardLayers(rank = 1): StreamLayer[] {
   return layers
 }
 
-export function createEmptyCard(name = 'Card'): StreamCardBlock {
+/** Quadrado vazio — sem mapa/template. Usuário define nome, pos, tamanho, fundo e conteúdo. */
+export function createEmptyCard(name = 'Bloco', opts?: { x?: number; y?: number; w?: number; h?: number }): StreamCardBlock {
   return {
     id: newBlockId(),
     type: 'card',
     name,
-    canvasW: 280,
-    canvasH: 220,
+    x: opts?.x ?? 40,
+    y: opts?.y ?? 40,
+    canvasW: opts?.w ?? 240,
+    canvasH: opts?.h ?? 160,
     box: {
-      fill: { mode: 'solid', color: '#12151c' },
+      fill: { mode: 'solid', color: 'rgba(18, 20, 28, 0.85)' },
       borderColor: '#c9a227',
       borderWidth: 2,
-      borderRadius: 6,
+      borderRadius: 4,
       padding: 0,
     },
     transition: { ...DEFAULT_TRANSITION, enter: 'fade' },
@@ -172,11 +175,14 @@ export function createEmptyCard(name = 'Card'): StreamCardBlock {
   }
 }
 
+/** @deprecated prefira createEmptyCard — mantido para templates legados. */
 export function createMapCardFolder(mapSlot: number, title: string): StreamCardBlock {
   return {
     id: newBlockId(),
     type: 'card',
     name: `Mapa ${mapSlot}`,
+    x: 40 + (mapSlot - 1) * 24,
+    y: 40 + (mapSlot - 1) * 24,
     canvasW: 280,
     canvasH: 220,
     box: {
@@ -196,6 +202,8 @@ export function createMvpCardFolder(): StreamCardBlock {
     id: newBlockId(),
     type: 'card',
     name: 'MVP destaque',
+    x: 40,
+    y: 40,
     canvasW: 240,
     canvasH: 320,
     box: {
@@ -210,18 +218,23 @@ export function createMvpCardFolder(): StreamCardBlock {
   }
 }
 
-/** Converte card legado (data.fieldStyles) em pasta com layers. */
+/** Normaliza card: preserva layers vazias (não injeta mapa). */
 export function ensureCardLayers(card: any): StreamCardBlock {
   if (card?.type !== 'card') return card
-  if (Array.isArray(card.layers) && card.canvasW && (card.layers.length > 0 || !card.data)) {
+
+  // Já no modelo novo (com layers array, inclusive vazio)
+  if (Array.isArray(card.layers)) {
     return {
       ...card,
-      canvasW: Number(card.canvasW) || 280,
-      canvasH: Number(card.canvasH) || 220,
+      x: Number(card.x) || 0,
+      y: Number(card.y) || 0,
+      canvasW: Number(card.canvasW) || 240,
+      canvasH: Number(card.canvasH) || 160,
       layers: card.layers as StreamLayer[],
     }
   }
 
+  // Legado sem layers: só monta mapa/MVP se tinha data.variant
   const data = card.data || {}
   const slot = Number(data.mapSlot || 1)
   const title = String(data.titleFixed || `Mapa ${slot}`)
@@ -230,6 +243,8 @@ export function ensureCardLayers(card: any): StreamCardBlock {
       id: card.id,
       type: 'card',
       name: card.name || 'MVP',
+      x: Number(card.x) || 40,
+      y: Number(card.y) || 40,
       canvasW: 240,
       canvasH: 320,
       box: card.box,
@@ -238,57 +253,68 @@ export function ensureCardLayers(card: any): StreamCardBlock {
       data,
     }
   }
+  if (data.variant === 'map_result' || data.mapSlot != null) {
+    return {
+      id: card.id,
+      type: 'card',
+      name: card.name || `Mapa ${slot}`,
+      x: Number(card.x) || 40,
+      y: Number(card.y) || 40,
+      canvasW: 280,
+      canvasH: 220,
+      box: card.box,
+      transition: card.transition || { ...DEFAULT_TRANSITION },
+      layers: defaultMapCardLayers(slot, title),
+      data,
+    }
+  }
+
+  // Card sem layers e sem data de mapa → quadrado vazio
   return {
     id: card.id,
     type: 'card',
-    name: card.name || `Mapa ${slot}`,
-    canvasW: 280,
-    canvasH: 220,
+    name: card.name || 'Bloco',
+    x: Number(card.x) || 40,
+    y: Number(card.y) || 40,
+    canvasW: Number(card.canvasW) || 240,
+    canvasH: Number(card.canvasH) || 160,
     box: card.box,
     transition: card.transition || { ...DEFAULT_TRANSITION },
-    layers: defaultMapCardLayers(slot, title),
-    data,
+    layers: [],
   }
 }
 
-export function duplicateCardFolder(card: StreamCardBlock, nextSlot?: number): StreamCardBlock {
-  const slot = nextSlot ?? 1
-  const remap = (layer: StreamLayer): StreamLayer => {
-    const d = layer.data
-    if (!d || d.source === 'fixed' || d.source === 'standing' || d.source === 'mvp') {
-      return { ...layer, id: newLayerId() }
-    }
-    if ('mapSlot' in d) {
-      return { ...layer, id: newLayerId(), data: { ...d, mapSlot: slot } }
-    }
-    return { ...layer, id: newLayerId() }
-  }
+export function duplicateCardFolder(card: StreamCardBlock, _nextSlot?: number): StreamCardBlock {
+  const remap = (layer: StreamLayer): StreamLayer => ({
+    ...layer,
+    id: newLayerId(),
+  })
   return {
     ...card,
     id: newBlockId(),
-    name: nextSlot ? `Mapa ${nextSlot}` : `${card.name} cópia`,
+    name: `${card.name} cópia`,
+    x: (card.x ?? 40) + 24,
+    y: (card.y ?? 40) + 24,
     layers: (card.layers || []).map(remap),
-    transition: {
-      ...card.transition,
-      delayMs: (slot - 1) * 100,
-    },
   }
 }
 
-export function createDefaultLayer(type: LayerContentType, mapSlot = 1): StreamLayer {
-  const base = { id: newLayerId(), x: 10, y: 10, w: 40, h: 20, z: 5 }
+/** Novo item vazio — sem vínculo de mapa automático. */
+export function createDefaultLayer(type: LayerContentType, _mapSlot = 1): StreamLayer {
+  const base = { id: newLayerId(), x: 8, y: 8, w: 40, h: 24, z: 5 }
   if (type === 'image') {
     return {
       ...base,
       name: 'Imagem',
       type: 'image',
       w: 100,
-      h: 50,
+      h: 55,
       x: 0,
       y: 0,
       z: 1,
       objectFit: 'cover',
-      data: { source: 'map_image', mapSlot },
+      data: { source: 'fixed', value: '' },
+      style: { box: { fill: { mode: 'solid', color: '#2a2f3a' } } },
     }
   }
   if (type === 'logo') {
@@ -296,13 +322,13 @@ export function createDefaultLayer(type: LayerContentType, mapSlot = 1): StreamL
       ...base,
       name: 'Logo',
       type: 'logo',
-      w: 30,
-      h: 30,
-      x: 35,
-      y: 15,
+      w: 28,
+      h: 28,
+      x: 36,
+      y: 12,
       z: 3,
       objectFit: 'contain',
-      data: { source: 'map_logo', mapSlot },
+      data: { source: 'fixed', value: '' },
     }
   }
   if (type === 'number') {
@@ -310,9 +336,9 @@ export function createDefaultLayer(type: LayerContentType, mapSlot = 1): StreamL
       ...base,
       name: 'Número',
       type: 'number',
-      data: { source: 'map_pts', mapSlot },
+      data: { source: 'fixed', value: '0' },
       style: {
-        text: { ...DEFAULT_TEXT, fontSize: 14, color: '#fff', align: 'center' },
+        text: { ...DEFAULT_TEXT, fontSize: 16, color: '#fff', align: 'center' },
         box: { fill: { mode: 'solid', color: '#c62828' }, padding: 4 },
       },
     }
@@ -321,10 +347,12 @@ export function createDefaultLayer(type: LayerContentType, mapSlot = 1): StreamL
     ...base,
     name: 'Texto',
     type: 'text',
+    w: 84,
+    h: 22,
     data: { source: 'fixed', value: 'Texto' },
     style: {
       text: { ...DEFAULT_TEXT, fontSize: 14, color: '#fff', align: 'center' },
-      box: { fill: { mode: 'solid', color: '#e8c547' }, padding: 4 },
+      box: { fill: { mode: 'solid', color: 'transparent' }, padding: 4 },
     },
   }
 }

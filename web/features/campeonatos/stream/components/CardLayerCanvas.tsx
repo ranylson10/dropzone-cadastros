@@ -11,6 +11,8 @@ export function CardLayerCanvas(props: {
   onSelectLayer?: (id: string) => void
   /** modo editor: mostra handles/outline */
   editable?: boolean
+  /** preenche o pai (live com % de largura) em vez de px fixos */
+  fillParent?: boolean
   className?: string
 }) {
   const { card, ctx } = props
@@ -23,9 +25,10 @@ export function CardLayerCanvas(props: {
       style={{
         ...container,
         position: 'relative',
-        width: '100%',
-        aspectRatio: `${card.canvasW || 280} / ${card.canvasH || 220}`,
+        width: props.fillParent ? '100%' : card.canvasW || 240,
+        height: props.fillParent ? '100%' : card.canvasH || 160,
         overflow: 'hidden',
+        boxSizing: 'border-box',
       }}
     >
       {layers.map((layer) => (
@@ -39,8 +42,8 @@ export function CardLayerCanvas(props: {
         />
       ))}
       {!layers.length ? (
-        <div className="stream-prev-empty" style={{ position: 'absolute', inset: 0 }}>
-          Pasta vazia — adicione itens (imagem, logo, texto, número).
+        <div className="stream-prev-empty stream-block-empty" style={{ position: 'absolute', inset: 0 }}>
+          {props.editable ? 'Vazio — arraste ou defina fundo / itens' : ''}
         </div>
       ) : null}
     </div>

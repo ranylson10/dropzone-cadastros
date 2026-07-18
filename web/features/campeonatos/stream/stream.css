@@ -479,7 +479,27 @@
 }
 .stream-live-stage {
   min-height: 100vh;
-  padding: 24px;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Live custom: stage 16:9 com blocos posicionados (base 1280×720) */
+.stream-preview-stage.layout-custom,
+.stream-live-stage.layout-custom {
+  position: relative;
+  width: 100vw;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  display: block;
+  overflow: hidden;
+  background: transparent;
+}
+
+.stream-live-placed {
+  position: absolute;
   box-sizing: border-box;
 }
 
@@ -655,17 +675,53 @@
   box-sizing: border-box;
 }
 
+/* Blocos livres no frame 16:9 (posição absoluta) */
+.stream-gt-blocks.stream-gt-blocks-abs {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
 .stream-gt-block {
   position: relative;
-  cursor: pointer;
+  cursor: grab;
   outline: 2px solid transparent;
-  outline-offset: 3px;
-  max-width: 100%;
+  outline-offset: 2px;
+  max-width: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.stream-gt-blocks-abs .stream-gt-block {
+  position: absolute;
 }
 
 .stream-gt-block.is-selected {
   outline-color: #dfbf4a;
   z-index: 2;
+}
+
+.stream-gt-block.is-dragging {
+  cursor: grabbing;
+  z-index: 20;
+  outline-color: #f0d060;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.stream-block-empty {
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+  border: 1px dashed rgba(201, 162, 39, 0.45);
+  box-sizing: border-box;
 }
 
 .stream-gt-block-label {
