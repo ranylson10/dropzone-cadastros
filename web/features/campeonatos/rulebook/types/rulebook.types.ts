@@ -66,6 +66,11 @@ export interface GeneratedChapter {
   included: boolean
 }
 
+export interface RulebookHighlight {
+  label: string
+  value: string
+}
+
 export interface GeneratedDocument {
   title: string
   subtitle: string
@@ -75,6 +80,8 @@ export interface GeneratedDocument {
   perfil: RulebookPerfil
   generatedAt: string
   catalogVersion: string
+  /** Dados principais destacados na capa / PDF */
+  dadosPrincipais?: RulebookHighlight[]
   chapters: GeneratedChapter[]
   summary: Array<{ chapterId: string; title: string; order: number }>
   articleCount: number

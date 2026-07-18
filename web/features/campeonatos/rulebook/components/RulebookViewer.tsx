@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, BookOpen, Printer } from 'lucide-react'
-import type { GeneratedDocument } from '../types/rulebook.types'
+import { Search, BookOpen, Download } from 'lucide-react'
+import type { GeneratedDocument, RulebookHighlight } from '../types/rulebook.types'
 import '../rulebook.css'
 
 type Props = {
@@ -25,9 +25,13 @@ function formatDatePt(iso?: string) {
   }
 }
 
+function cleanTitle(title: string) {
+  return String(title || '').replace(/^\d+\.\s*/, '')
+}
+
 /** CSS embutido só do regulamento — evita imprimir painel da produtora/app. */
 const PRINT_DOCUMENT_CSS = `
-  @page { margin: 14mm 12mm 16mm; }
+  @page { margin: 12mm 11mm 14mm; }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
@@ -42,35 +46,37 @@ const PRINT_DOCUMENT_CSS = `
   }
   .rulebook-doc-cover {
     display: block;
-    margin: 0 0 8mm;
+    margin: 0 0 6mm;
     padding: 0 0 5mm;
     border-bottom: 2px solid #c9a227;
   }
   .rulebook-doc-cover-brand {
     display: flex;
-    gap: 14px;
+    gap: 12px;
     align-items: center;
+    margin-bottom: 4mm;
   }
   .rulebook-doc-logo {
-    width: 22mm;
-    height: 22mm;
+    width: 24mm;
+    height: 24mm;
     border-radius: 3mm;
     object-fit: cover;
-    border: 1px solid #ddd;
+    border: 1.5px solid #c9a227;
     background: #fff;
     flex-shrink: 0;
   }
   .rulebook-doc-logo-fallback {
-    width: 22mm;
-    height: 22mm;
+    width: 24mm;
+    height: 24mm;
     border-radius: 3mm;
-    border: 1px dashed #ccc;
+    border: 1.5px solid #c9a227;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #b8860b;
-    font-size: 9pt;
-    font-weight: 700;
+    font-family: system-ui, sans-serif;
+    font-size: 10pt;
+    font-weight: 800;
     flex-shrink: 0;
   }
   .rulebook-doc-kicker {
@@ -79,15 +85,15 @@ const PRINT_DOCUMENT_CSS = `
     font-size: 8pt;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: .08em;
+    letter-spacing: .1em;
     color: #b8860b;
   }
   .rulebook-doc-title {
     margin: 2px 0 0;
     font-family: system-ui, sans-serif;
-    font-size: 18pt;
+    font-size: 20pt;
     font-weight: 800;
-    line-height: 1.15;
+    line-height: 1.1;
     color: #111;
   }
   .rulebook-doc-subtitle {
@@ -98,14 +104,56 @@ const PRINT_DOCUMENT_CSS = `
     color: #333;
   }
   .rulebook-doc-meta {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     font-family: system-ui, sans-serif;
-    font-size: 8.5pt;
-    color: #555;
+    font-size: 8pt;
+    color: #666;
+  }
+  .rulebook-doc-highlights {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2mm 4mm;
+    margin: 4mm 0 0;
+    padding: 3.5mm 4mm;
+    border: 1px solid #e2d3a0;
+    border-radius: 2mm;
+    background: #fbf7eb;
+  }
+  .rulebook-doc-highlight {
+    display: grid;
+    gap: 0.5mm;
+    min-width: 0;
+  }
+  .rulebook-doc-highlight span {
+    font-family: system-ui, sans-serif;
+    font-size: 7pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #8f7420;
+  }
+  .rulebook-doc-highlight strong {
+    font-family: system-ui, sans-serif;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #111;
+    word-break: break-word;
+  }
+  .rulebook-doc-toc-block {
+    margin: 4mm 0 0;
+  }
+  .rulebook-doc-toc-title {
+    margin: 0 0 2mm;
+    font-family: system-ui, sans-serif;
+    font-size: 9pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #b8860b;
   }
   .rulebook-doc-toc-print {
     display: block;
-    margin: 5mm 0 0;
+    margin: 0;
     padding: 0 0 0 4mm;
     columns: 2;
     column-gap: 8mm;
@@ -114,7 +162,7 @@ const PRINT_DOCUMENT_CSS = `
     line-height: 1.4;
     color: #222;
   }
-  .rulebook-doc-toc-print li { margin: 0 0 2px; break-inside: avoid; }
+  .rulebook-doc-toc-print li { margin: 0 0 1.5px; break-inside: avoid; }
   .rulebook-doc-toc-print span { font-weight: 800; color: #b8860b; margin-right: 3px; }
   .rulebook-chapter {
     margin: 0;
@@ -124,7 +172,7 @@ const PRINT_DOCUMENT_CSS = `
     page-break-before: auto;
     page-break-after: auto;
   }
-  .rulebook-chapter:first-of-type { border-top: 0; padding-top: 0; }
+  .rulebook-chapter:first-of-type { border-top: 0; padding-top: 2mm; }
   .rulebook-chapter-title {
     margin: 0 0 2mm;
     font-family: system-ui, sans-serif;
@@ -197,7 +245,6 @@ function escapeHtml(value: string) {
 function printIsolatedRulebook(root: HTMLElement, title: string) {
   const printWin = window.open('', '_blank', 'noopener,noreferrer,width=920,height=720')
   if (!printWin) {
-    // Popup bloqueado: fallback com classe no body
     document.body.classList.add('rulebook-printing')
     const cleanup = () => {
       document.body.classList.remove('rulebook-printing')
@@ -235,13 +282,17 @@ function printIsolatedRulebook(root: HTMLElement, title: string) {
 
   const imgs = Array.from(printWin.document.images || [])
   if (!imgs.length) {
-    setTimeout(runPrint, 120)
+    setTimeout(runPrint, 150)
     return
   }
   let pending = imgs.length
+  let printed = false
   const done = () => {
     pending -= 1
-    if (pending <= 0) setTimeout(runPrint, 80)
+    if (pending <= 0 && !printed) {
+      printed = true
+      setTimeout(runPrint, 100)
+    }
   }
   imgs.forEach((img) => {
     if (img.complete) done()
@@ -250,8 +301,26 @@ function printIsolatedRulebook(root: HTMLElement, title: string) {
       img.addEventListener('error', done)
     }
   })
-  // timeout de segurança
-  setTimeout(runPrint, 2500)
+  setTimeout(() => {
+    if (!printed) {
+      printed = true
+      runPrint()
+    }
+  }, 2500)
+}
+
+function HighlightsGrid({ items }: { items: RulebookHighlight[] }) {
+  if (!items.length) return null
+  return (
+    <div className="rulebook-doc-highlights">
+      {items.map((item) => (
+        <div key={`${item.label}-${item.value}`} className="rulebook-doc-highlight">
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export function RulebookViewer({ documento, compact }: Props) {
@@ -260,6 +329,7 @@ export function RulebookViewer({ documento, compact }: Props) {
   const [activeChapter, setActiveChapter] = useState<string | null>(null)
 
   const chapters = doc?.chapters || []
+  const highlights = (doc?.dadosPrincipais || []) as RulebookHighlight[]
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -286,8 +356,9 @@ export function RulebookViewer({ documento, compact }: Props) {
 
   const logoUrl = doc.logoUrl || null
   const champName = doc.campeonatoNome || 'Campeonato'
+  const summary = doc.summary || []
 
-  const handlePrint = () => {
+  const handleDownloadPdf = () => {
     const root = document.getElementById('rulebook-print-root')
     if (!root) {
       window.print()
@@ -322,11 +393,11 @@ export function RulebookViewer({ documento, compact }: Props) {
           </label>
           <button
             type="button"
-            className="button secondary"
-            onClick={handlePrint}
-            title="Baixar PDF só com o regulamento deste campeonato"
+            className="button"
+            onClick={handleDownloadPdf}
+            title="Baixar PDF com logo, dados principais e sumário"
           >
-            <Printer size={16} /> PDF / Imprimir
+            <Download size={16} /> Baixar PDF
           </button>
         </div>
       </header>
@@ -335,21 +406,20 @@ export function RulebookViewer({ documento, compact }: Props) {
         <aside className="rulebook-toc no-print">
           <p className="eyebrow">Sumário</p>
           <nav>
-            {(doc.summary || []).map((item) => (
+            {summary.map((item) => (
               <a
                 key={item.chapterId}
                 href={`#rb-ch-${item.chapterId}`}
                 className={activeChapter === item.chapterId ? 'active' : ''}
                 onClick={() => setActiveChapter(item.chapterId)}
               >
-                {item.order}. {item.title.replace(/^\d+\.\s*/, '')}
+                {item.order}. {cleanTitle(item.title)}
               </a>
             ))}
           </nav>
         </aside>
 
         <div className="rulebook-content" id="rulebook-print-root">
-          {/* Capa: somente logo + nome do campeonato (+ sumário enxuto no PDF) */}
           <header className="rulebook-doc-cover">
             <div className="rulebook-doc-cover-brand">
               {logoUrl ? (
@@ -369,13 +439,19 @@ export function RulebookViewer({ documento, compact }: Props) {
                 </p>
               </div>
             </div>
-            <ol className="rulebook-doc-toc-print">
-              {(doc.summary || []).map((item) => (
-                <li key={item.chapterId}>
-                  <span>{item.order}.</span> {item.title.replace(/^\d+\.\s*/, '')}
-                </li>
-              ))}
-            </ol>
+
+            <HighlightsGrid items={highlights} />
+
+            <div className="rulebook-doc-toc-block">
+              <p className="rulebook-doc-toc-title">Sumário</p>
+              <ol className="rulebook-doc-toc-print">
+                {summary.map((item) => (
+                  <li key={item.chapterId}>
+                    <span>{item.order}.</span> {cleanTitle(item.title)}
+                  </li>
+                ))}
+              </ol>
+            </div>
           </header>
 
           {filtered.map((ch) => (

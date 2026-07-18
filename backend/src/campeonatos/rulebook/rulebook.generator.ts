@@ -171,15 +171,13 @@ export function generateDocument(input: {
       'Formato do evento',
       [
         tipoLabel ? `Tipo do campeonato: ${tipoLabel}.` : null,
-        formatoCompeticao
-          ? `Formato competitivo: ${formatoCompeticao}.`
-          : null,
+        formatoCompeticao ? `Formato competitivo: ${formatoCompeticao}.` : null,
         `Realização: ${formato}, na modalidade ${modalidade}.`,
         'A estrutura de fases, grupos e partidas segue a configuração cadastrada pela organização neste campeonato (incluindo, quando aplicável, pontos corridos, mata-mata, grupos classificatórios ou confronto direto).',
         `O perfil de regras adotado para este regulamento é o ${PERFIL_LABELS[perfil] || perfil}.`,
       ]
         .filter(Boolean)
-        .join(' '),
+        .join('\n'),
     ),
   )
   push(
@@ -826,6 +824,61 @@ export function generateDocument(input: {
 
   const includedChapters = chapters.filter((c) => c.included)
 
+  const dadosPrincipais: Array<{ label: string; value: string }> = []
+  dadosPrincipais.push({ label: 'Campeonato', value: campeonatoNome })
+  if (tipoLabel) dadosPrincipais.push({ label: 'Tipo', value: tipoLabel })
+  if (formatoCompeticao) {
+    dadosPrincipais.push({ label: 'Formato competitivo', value: formatoCompeticao })
+  }
+  dadosPrincipais.push({ label: 'Realização', value: formato })
+  dadosPrincipais.push({ label: 'Modalidade', value: modalidade })
+  const plats = asList(a.plataforma)
+  if (plats.length) {
+    const platLabels: Record<string, string> = {
+      mobile: 'Mobile',
+      emulador: 'Emulador',
+      ambos: 'Mobile e Emulador',
+    }
+    dadosPrincipais.push({
+      label: 'Plataforma',
+      value: plats.map((p) => platLabels[p] || p).join(', '),
+    })
+  }
+  if (a.emulador_proibido === true) {
+    dadosPrincipais.push({ label: 'Emulador', value: 'Proibido' })
+  } else if (a.emulador_proibido === false) {
+    dadosPrincipais.push({ label: 'Emulador', value: 'Permitido' })
+  }
+  if (titulares > 0) {
+    const reservasExtra =
+      a.permite_reservas === true && Number(a.qtd_reservas || 0) > 0
+        ? ` + até ${Number(a.qtd_reservas)} reserva(s)`
+        : ''
+    dadosPrincipais.push({
+      label: 'Elenco',
+      value: `${titulares} titular(es)${reservasExtra}`,
+    })
+  }
+  if (mapas.length) {
+    dadosPrincipais.push({ label: 'Mapas', value: labelMapas(mapas) })
+  }
+  if (a.possui_premiacao === true) {
+    const total = String(a.premiacao_total || '').trim()
+    dadosPrincipais.push({
+      label: 'Premiação',
+      value: total ? `Sim · total R$ ${total}` : 'Sim',
+    })
+  } else if (a.possui_premiacao === false) {
+    dadosPrincipais.push({ label: 'Premiação', value: 'Não' })
+  }
+  if (a.possui_transmissao === true) {
+    dadosPrincipais.push({ label: 'Transmissão', value: 'Oficial' })
+  }
+  dadosPrincipais.push({
+    label: 'Perfil de regras',
+    value: PERFIL_LABELS[perfil] || perfil,
+  })
+
   return {
     title: `Regulamento — ${campeonatoNome}`,
     subtitle: `Rulebook gerado automaticamente · Perfil ${PERFIL_LABELS[perfil] || perfil}`,
@@ -834,6 +887,7 @@ export function generateDocument(input: {
     perfil,
     generatedAt: new Date().toISOString(),
     catalogVersion,
+    dadosPrincipais,
     chapters: includedChapters,
     summary: includedChapters.map((c) => ({
       chapterId: c.id,

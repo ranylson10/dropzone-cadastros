@@ -4,5 +4,6 @@ export { rulebookService } from './services/rulebook.service'
 export type {
   RulebookApiResponse,
   GeneratedDocument,
+  RulebookHighlight,
   RulebookPerfil,
 } from './types/rulebook.types'

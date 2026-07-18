@@ -78,6 +78,6 @@ Alertas de **warning** podem ser confirmados explicitamente pelo organizador.
 - **Módulo de bugs (estilo LBFF/BR):** exemplos configuráveis, penalidade 1ª/2ª ocorrência, obrigação de reportar.
 - **Pontuação com tabela explícita** (padrão BR 12/9/8… + kills e critérios de desempate).
 - **Código de conduta** nas disposições gerais.
-- **PDF / impressão:** janela isolada com **somente** logo + nome do campeonato e o texto do regulamento (não imprime painel da produtora). Capítulos em sequência (sem página em branco entre seções).
-- `documento.logoUrl` vem de `campeonatos.logo_url` a cada regeneração.
-- **Tipo/formato do cadastro** (`tipo`, `formato` — ex.: Liga / pontos corridos, Copa / eliminatória) entram no Art. de formato do evento.
+- **Baixar PDF:** botão dedicado; janela isolada com capa (logo + nome), **dados principais destacados**, sumário de tópicos e artigos em fluxo contínuo (sem painel da produtora).
+- `documento.logoUrl` e `documento.dadosPrincipais` vêm do campeonato/respostas a cada regeneração.
+- **Tipo/formato do cadastro** (`tipo`, `formato` — ex.: Liga / pontos corridos, Copa / eliminatória) entram na capa e no Art. de formato.

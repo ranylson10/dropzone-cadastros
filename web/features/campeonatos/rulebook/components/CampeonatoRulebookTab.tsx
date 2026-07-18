@@ -961,7 +961,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                       <p className="eyebrow">Prévia do regulamento</p>
                       <small>
                         {(data.rulebook.documento as { articleCount?: number } | null)?.articleCount || 0}{' '}
-                        artigos · use PDF / Imprimir no documento
+                        artigos · use Baixar PDF no documento
                       </small>
                     </div>
                     <RulebookViewer documento={data.rulebook.documento} />
