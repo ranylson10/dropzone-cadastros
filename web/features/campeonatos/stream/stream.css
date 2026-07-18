@@ -469,6 +469,20 @@
   animation: stream-spin 0.8s linear infinite;
 }
 
+/* Browser Source live page */
+.stream-live-root {
+  margin: 0;
+  min-height: 100vh;
+  background: transparent;
+  color: #fff;
+  font-family: Rajdhani, "Segoe UI", Arial, sans-serif;
+}
+.stream-live-stage {
+  min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
 /* —— Character generator editor —— */
 .stream-cg-layout {
   display: grid;

@@ -12,3 +12,5 @@ export type {
   StreamSheetRow,
   StreamTemplateId,
 } from './types/stream.types'
+// utils usados pela página live (Browser Source)
+export { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from './utils/stream-style'

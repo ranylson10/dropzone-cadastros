@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Copy, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
-  listLocalOverlays,
-  removeLocalOverlay,
+  deleteOverlayRemote,
+  listOverlays,
 } from '../services/stream-data.service'
 import { TEMPLATE_LABEL } from '../templates/stream-templates'
 import type { StreamOverlay } from '../types/stream.types'
@@ -15,22 +15,46 @@ function openInNewTab(path: string) {
 
 export function StreamOverlaysHub(props: { campeonatoId: string }) {
   const [overlays, setOverlays] = useState<StreamOverlay[]>([])
+  const [source, setSource] = useState<'api' | 'local'>('local')
+  const [missingTable, setMissingTable] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [feedback, setFeedback] = useState('')
 
-  function reload() {
-    setOverlays(listLocalOverlays(props.campeonatoId))
+  async function reload() {
+    setLoading(true)
+    try {
+      const result = await listOverlays(props.campeonatoId)
+      setOverlays(result.overlays)
+      setSource(result.source)
+      setMissingTable(Boolean(result.missing_table))
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
-    reload()
-    const onFocus = () => reload()
+    void reload()
+    const onFocus = () => void reload()
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [props.campeonatoId])
 
-  function handleDelete(id: string, name: string) {
+  async function handleDelete(id: string, name: string) {
     if (!window.confirm(`Excluir overlay "${name}"?`)) return
-    removeLocalOverlay(props.campeonatoId, id)
-    reload()
+    await deleteOverlayRemote(props.campeonatoId, id)
+    await reload()
+  }
+
+  function copyLiveUrl(token?: string) {
+    if (!token) {
+      setFeedback('Salve a overlay no servidor para gerar link live (rode o SQL de stream).')
+      return
+    }
+    const url = `${window.location.origin}/stream/live/${token}`
+    void navigator.clipboard.writeText(url).then(
+      () => setFeedback('Link Browser Source copiado.'),
+      () => setFeedback(url),
+    )
   }
 
   const base = `/campeonatos/${props.campeonatoId}/stream`
@@ -41,7 +65,8 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
         <div>
           <h4>Overlays</h4>
           <p className="stream-hint">
-            Modelos com cards e tabelas. Criar/editar abre o gerador de caracteres em tela cheia.
+            Modelos com cards e tabelas. Criar/editar abre o gerador em tela cheia.
+            {source === 'api' ? ' · salvo no servidor' : ' · modo local'}
           </p>
         </div>
         <div className="stream-panel-actions">
@@ -51,12 +76,25 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
         </div>
       </div>
 
-      {overlays.length === 0 ? (
+      {missingTable ? (
+        <div className="stream-error">
+          Rode no Supabase: <code>database/migrations/20260718_campeonato_stream_overlays.sql</code> para persistir no banco e gerar link live.
+        </div>
+      ) : null}
+      {feedback ? <p className="stream-hint">{feedback}</p> : null}
+
+      {loading && !overlays.length ? (
+        <p className="stream-hint">Carregando overlays…</p>
+      ) : null}
+
+      {!loading && overlays.length === 0 ? (
         <div className="stream-empty-list">
           <strong>Nenhuma overlay ainda</strong>
           <p>Use um modelo: cards de mapas, tabela de classificação ou MVP + lista.</p>
         </div>
-      ) : (
+      ) : null}
+
+      {overlays.length > 0 ? (
         <div className="stream-overlay-table-wrap">
           <table className="stream-overlay-table">
             <thead>
@@ -76,10 +114,13 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
                   <td>{item.blocks?.length || 0}</td>
                   <td>{item.updatedAt ? new Date(item.updatedAt).toLocaleString('pt-BR') : '—'}</td>
                   <td className="stream-overlay-actions">
+                    <button type="button" title="Link live (vMix)" onClick={() => copyLiveUrl(item.share_token)}>
+                      <Copy size={14} />
+                    </button>
                     <button type="button" title="Editar" onClick={() => openInNewTab(`${base}/overlays/${item.id}`)}>
                       <Pencil size={14} />
                     </button>
-                    <button type="button" className="danger" title="Excluir" onClick={() => handleDelete(item.id, item.name)}>
+                    <button type="button" className="danger" title="Excluir" onClick={() => void handleDelete(item.id, item.name)}>
                       <Trash2 size={14} />
                     </button>
                   </td>
@@ -88,7 +129,7 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
 
       <div className="stream-hub-links">
         <button type="button" className="stream-secondary-btn" onClick={() => openInNewTab(base)}>

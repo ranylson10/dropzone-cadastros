@@ -5,9 +5,9 @@ import { ArrowLeft, Download, LayoutTemplate, Save, Table2, CreditCard, Trash2 }
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import {
-  getLocalOverlay,
-  upsertLocalOverlay,
+  fetchOverlay,
   loadStreamSheet,
+  saveOverlayRemote,
 } from '../services/stream-data.service'
 import { TEMPLATE_CATALOG, TEMPLATE_LABEL, createOverlayFromTemplate } from '../templates/stream-templates'
 import type {
@@ -56,6 +56,7 @@ export function StreamOverlayEditor(props: {
   const [inspector, setInspector] = useState<InspectorTab>('dados')
   const [fieldKey, setFieldKey] = useState<CardFieldKey>('title')
   const [saved, setSaved] = useState(false)
+  const [saveWarning, setSaveWarning] = useState('')
   const [standings, setStandings] = useState<PreviewStanding[]>([])
   const [mvpRows, setMvpRows] = useState<PreviewStanding[]>([])
   const [maps, setMaps] = useState<PreviewMap[]>([])
@@ -68,11 +69,18 @@ export function StreamOverlayEditor(props: {
       return
     }
     if (!props.overlayId) return
-    const raw = getLocalOverlay(props.campeonatoId, props.overlayId)
-    const migrated = migrateOverlay(raw)
-    setOverlay(migrated)
-    setSelectedBlockId(migrated?.blocks[0]?.id || null)
-    setPickingTemplate(false)
+    let cancelled = false
+    ;(async () => {
+      const raw = await fetchOverlay(props.campeonatoId, props.overlayId!)
+      const migrated = migrateOverlay(raw)
+      if (cancelled) return
+      setOverlay(migrated)
+      setSelectedBlockId(migrated?.blocks[0]?.id || null)
+      setPickingTemplate(false)
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [props.campeonatoId, props.overlayId, props.isNew])
 
   const loadPreviewData = useCallback(async () => {
@@ -256,16 +264,18 @@ export function StreamOverlayEditor(props: {
     if (selectedBlockId === blockId) setSelectedBlockId(null)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!overlay) return
     const next = { ...overlay, updatedAt: new Date().toISOString() }
-    upsertLocalOverlay(props.campeonatoId, next)
-    setOverlay(next)
+    const isNew = Boolean(props.isNew) || next.id.startsWith('ov-') || !props.overlayId
+    const result = await saveOverlayRemote(props.campeonatoId, next, { isNew })
+    setOverlay(result.overlay)
+    setSaveWarning(result.warning || '')
     setSaved(true)
-    if (props.isNew || props.overlayId !== next.id) {
-      router.replace(`/campeonatos/${props.campeonatoId}/stream/overlays/${next.id}`)
+    if (isNew || props.overlayId !== result.overlay.id) {
+      router.replace(`/campeonatos/${props.campeonatoId}/stream/overlays/${result.overlay.id}`)
     }
-    window.setTimeout(() => setSaved(false), 2000)
+    window.setTimeout(() => setSaved(false), 2500)
   }
 
   function handleExportJson() {
@@ -341,6 +351,17 @@ export function StreamOverlayEditor(props: {
         <div className="stream-panel-actions">
           {loadingData ? <span className="stream-badge">carregando dados…</span> : <span className="stream-badge">preview ao vivo</span>}
           {saved ? <span className="stream-badge">salvo</span> : null}
+          {overlay.share_token ? (
+            <a
+              className="stream-secondary-btn"
+              href={`/stream/live/${overlay.share_token}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Abrir Browser Source"
+            >
+              Live
+            </a>
+          ) : null}
           <button type="button" className="stream-secondary-btn" onClick={handleExportJson} title="Exportar JSON">
             <Download size={15} /> JSON
           </button>
@@ -350,11 +371,12 @@ export function StreamOverlayEditor(props: {
           <button type="button" className="stream-secondary-btn" onClick={() => setPickingTemplate(true)}>
             <LayoutTemplate size={15} /> Modelo
           </button>
-          <button type="button" className="stream-primary-btn" onClick={handleSave}>
+          <button type="button" className="stream-primary-btn" onClick={() => void handleSave()}>
             <Save size={15} /> Salvar
           </button>
         </div>
       </header>
+      {saveWarning ? <p className="stream-hint" style={{ margin: '0 0 10px' }}>{saveWarning}</p> : null}
 
       <div className="stream-cg-layout">
         <aside className="stream-cg-left stream-panel">

@@ -132,6 +132,9 @@ export type StreamOverlay = {
   template: StreamTemplateId
   blocks: StreamBlock[]
   updatedAt: string
+  /** Token público Browser Source (/stream/live/[token]) */
+  share_token?: string
+  campeonato_id?: string
   /** legado — migrado para blocks */
   kind?: string
   fields?: Array<{ key: string; label: string; cellRef: string }>

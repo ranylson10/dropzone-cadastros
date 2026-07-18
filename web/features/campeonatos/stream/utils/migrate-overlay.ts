@@ -14,7 +14,9 @@ export function migrateOverlay(raw: any): StreamOverlay | null {
       name: String(raw.name || 'Overlay'),
       template: raw.template,
       blocks: raw.blocks,
-      updatedAt: String(raw.updatedAt || new Date().toISOString()),
+      updatedAt: String(raw.updatedAt || raw.updated_at || new Date().toISOString()),
+      share_token: raw.share_token ? String(raw.share_token) : undefined,
+      campeonato_id: raw.campeonato_id ? String(raw.campeonato_id) : undefined,
     }
   }
 
