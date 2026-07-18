@@ -180,9 +180,18 @@ export type StreamTableBlock = StreamBlockBase & {
   data: TableBlockData
 }
 
-/** Base de design do frame (proporção do produto final). */
-export const FRAME_W = 1280
-export const FRAME_H = 720
+/** Defaults de design do frame (produto final). Usuário pode mudar por overlay. */
+export const FRAME_W = 1920
+export const FRAME_H = 1080
+
+export const FRAME_PRESETS = [
+  { id: '1080p', label: '1920×1080 · 16:9', w: 1920, h: 1080 },
+  { id: '720p', label: '1280×720 · 16:9', w: 1280, h: 720 },
+  { id: 'vertical', label: '1080×1920 · 9:16', w: 1080, h: 1920 },
+  { id: 'square', label: '1080×1080 · 1:1', w: 1080, h: 1080 },
+  { id: 'ultrawide', label: '2560×1080 · UW', w: 2560, h: 1080 },
+  { id: '4k', label: '3840×2160 · 4K', w: 3840, h: 2160 },
+] as const
 
 export type StreamBlock = StreamCardBlock | StreamTableBlock
 
@@ -197,12 +206,23 @@ export type StreamOverlay = {
   template: StreamTemplateId
   blocks: StreamBlock[]
   updatedAt: string
+  /** Largura do produto final em px (área de trabalho). */
+  frameW?: number
+  /** Altura do produto final em px. */
+  frameH?: number
   /** Token público Browser Source (/stream/live/[token]) */
   share_token?: string
   campeonato_id?: string
   /** legado — migrado para blocks */
   kind?: string
   fields?: Array<{ key: string; label: string; cellRef: string }>
+}
+
+export function getOverlayFrame(overlay: Pick<StreamOverlay, 'frameW' | 'frameH'> | null | undefined) {
+  return {
+    w: Math.max(64, Number(overlay?.frameW) || FRAME_W),
+    h: Math.max(64, Number(overlay?.frameH) || FRAME_H),
+  }
 }
 
 export const STREAM_FONTS = [

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
+import { unpackOverlayBlocks } from '@/features/campeonatos/stream/utils/overlay-frame'
 
 const MAP_IMAGES: Record<string, string> = {
   bermuda: '/images/maps/bermuda.png',
@@ -150,12 +151,15 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
       })
     }
 
+    const packed = unpackOverlayBlocks(overlay.blocks)
     return NextResponse.json({
       overlay: {
         id: overlay.id,
         name: overlay.nome,
         template: overlay.template,
-        blocks: overlay.blocks || [],
+        blocks: packed.blocks,
+        frameW: packed.frameW,
+        frameH: packed.frameH,
         updatedAt: overlay.updated_at,
       },
       campeonato: champ.data || { id: campeonatoId },

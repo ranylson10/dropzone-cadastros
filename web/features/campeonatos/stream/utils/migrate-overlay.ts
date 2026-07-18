@@ -1,7 +1,8 @@
 import { createOverlayFromTemplate } from '../templates/stream-templates'
 import type { StreamBlock, StreamOverlay } from '../types/stream.types'
-import { newBlockId } from '../types/stream.types'
+import { FRAME_H, FRAME_W, newBlockId } from '../types/stream.types'
 import { ensureCardLayers } from './card-layers'
+import { unpackOverlayBlocks } from './overlay-frame'
 
 function normalizeBlocks(blocks: any[]): StreamBlock[] {
   return (blocks || []).map((b) => {
@@ -16,12 +17,17 @@ export function migrateOverlay(raw: any): StreamOverlay | null {
   const id = String(raw.id || '')
   if (!id) return null
 
-  if (Array.isArray(raw.blocks) && raw.template) {
+  if (raw.blocks != null && raw.template) {
+    const packed = unpackOverlayBlocks(raw.blocks)
+    const frameW = Number(raw.frameW) || packed.frameW || FRAME_W
+    const frameH = Number(raw.frameH) || packed.frameH || FRAME_H
     return {
       id,
       name: String(raw.name || 'Overlay'),
       template: raw.template,
-      blocks: normalizeBlocks(raw.blocks),
+      blocks: normalizeBlocks(packed.blocks),
+      frameW,
+      frameH,
       updatedAt: String(raw.updatedAt || raw.updated_at || new Date().toISOString()),
       share_token: raw.share_token ? String(raw.share_token) : undefined,
       campeonato_id: raw.campeonato_id ? String(raw.campeonato_id) : undefined,
@@ -39,6 +45,8 @@ export function migrateOverlay(raw: any): StreamOverlay | null {
     id,
     name: base.name,
     template: base.template,
+    frameW: FRAME_W,
+    frameH: FRAME_H,
     blocks: normalizeBlocks(
       base.blocks.length
         ? base.blocks

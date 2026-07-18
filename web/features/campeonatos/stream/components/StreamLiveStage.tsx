@@ -6,25 +6,27 @@ import { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from '../u
 import { ensureCardLayers } from '../utils/card-layers'
 import { CardLayerCanvas } from './CardLayerCanvas'
 
-function blockPlaceStyle(block: StreamBlock): CSSProperties {
+function blockPlaceStyle(block: StreamBlock, frameW: number, frameH: number): CSSProperties {
+  const fw = Math.max(1, frameW)
+  const fh = Math.max(1, frameH)
   const x = block.x ?? 0
   const y = block.y ?? 0
   if (block.type === 'card') {
     const card = ensureCardLayers(block)
     return {
       position: 'absolute',
-      left: `${(x / FRAME_W) * 100}%`,
-      top: `${(y / FRAME_H) * 100}%`,
-      width: `${(card.canvasW / FRAME_W) * 100}%`,
-      height: `${(card.canvasH / FRAME_H) * 100}%`,
+      left: `${(x / fw) * 100}%`,
+      top: `${(y / fh) * 100}%`,
+      width: `${(card.canvasW / fw) * 100}%`,
+      height: `${(card.canvasH / fh) * 100}%`,
     }
   }
   const w = block.tableW || 420
   return {
     position: 'absolute',
-    left: `${(x / FRAME_W) * 100}%`,
-    top: `${(y / FRAME_H) * 100}%`,
-    width: `${(w / FRAME_W) * 100}%`,
+    left: `${(x / fw) * 100}%`,
+    top: `${(y / fh) * 100}%`,
+    width: `${(w / fw) * 100}%`,
   }
 }
 
@@ -90,6 +92,9 @@ export function StreamLiveStage(props: {
   blocks: StreamBlock[]
   data: StreamLiveData
   animateDataChange?: boolean
+  /** Tamanho do produto final (px design). */
+  frameW?: number
+  frameH?: number
 }) {
   const prevRef = useRef<LiveStanding[] | null>(null)
   const [pulse, setPulse] = useState(false)
@@ -114,10 +119,21 @@ export function StreamLiveStage(props: {
   const ctx = { mapas, classificacao: classif, mvp }
 
   const freeLayout = template === 'custom' || (props.blocks || []).some((b) => b.x != null || b.y != null)
+  const frameW = Math.max(64, props.frameW || FRAME_W)
+  const frameH = Math.max(64, props.frameH || FRAME_H)
 
   return (
     <div
       className={`stream-preview-stage layout-${freeLayout ? 'custom' : template} stream-live-stage ${pulse ? 'is-data-pulse' : ''}`}
+      style={
+        freeLayout
+          ? ({
+              aspectRatio: `${frameW} / ${frameH}`,
+              ['--stream-frame-w' as string]: `${frameW}`,
+              ['--stream-frame-h' as string]: `${frameH}`,
+            } as CSSProperties)
+          : undefined
+      }
     >
       {(props.blocks || []).map((block, index) => {
         const dataFx = block.transition?.onDataChange || 'none'
@@ -131,7 +147,7 @@ export function StreamLiveStage(props: {
                   ? 'stream-data-pulse'
                   : 'stream-data-fade'
             : ''
-        const place = freeLayout ? blockPlaceStyle(block) : undefined
+        const place = freeLayout ? blockPlaceStyle(block, frameW, frameH) : undefined
 
         if (block.type === 'card') {
           const card = ensureCardLayers(block)

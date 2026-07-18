@@ -377,6 +377,10 @@
 .stream-field input,
 .stream-field select {
   min-height: 36px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   border: 1px solid var(--line);
   background: var(--surface-soft);
   padding: 0 10px;
@@ -489,7 +493,7 @@
   position: relative;
   width: 100vw;
   max-width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 9; /* sobrescrito inline com frameW/frameH */
   min-height: 0;
   height: auto;
   padding: 0;
@@ -503,7 +507,7 @@
   box-sizing: border-box;
 }
 
-/* —— GT-style editor: ferramentas | canvas 16:9 | camadas —— */
+/* —— GT-style editor: ferramentas | canvas | camadas (redimensionável) —— */
 .stream-gt-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
@@ -513,17 +517,102 @@
   background: var(--surface);
 }
 
-/* 3 colunas: esquerda ferramentas · centro área final · direita camadas */
+/*
+ * 3 áreas + 2 handles. Larguras via --gt-left / --gt-right (prefs do usuário).
+ * dock-lcr: ferramentas | canvas | camadas
+ * dock-clr: canvas | ferramentas | camadas  (canvas à esquerda)
+ * dock-lrc: ferramentas | camadas | canvas  (canvas à direita)
+ */
 .stream-gt-layout.stream-gt-layout-3 {
-  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(260px, 320px);
+  --gt-left: 340px;
+  --gt-right: 320px;
+  grid-template-columns: var(--gt-left) 6px minmax(0, 1fr) 6px var(--gt-right);
+  grid-template-areas: "tools h1 stage h2 layers";
+}
+
+.stream-gt-layout.stream-gt-layout-3.dock-lcr {
+  grid-template-columns: var(--gt-left) 6px minmax(0, 1fr) 6px var(--gt-right);
+  grid-template-areas: "tools h1 stage h2 layers";
+}
+
+.stream-gt-layout.stream-gt-layout-3.dock-clr {
+  grid-template-columns: minmax(0, 1fr) 6px var(--gt-left) 6px var(--gt-right);
+  grid-template-areas: "stage h1 tools h2 layers";
+}
+
+.stream-gt-layout.stream-gt-layout-3.dock-lrc {
+  grid-template-columns: var(--gt-left) 6px var(--gt-right) 6px minmax(0, 1fr);
+  grid-template-areas: "tools h1 layers h2 stage";
+}
+
+.stream-gt-resizer {
+  grid-row: 1 / -1;
+  cursor: col-resize;
+  background: var(--line);
+  position: relative;
+  z-index: 3;
+  touch-action: none;
+  user-select: none;
+}
+
+.stream-gt-resizer::after {
+  content: '';
+  position: absolute;
+  inset: 0 -3px;
+}
+
+.stream-gt-resizer:hover,
+.stream-gt-resizer:active {
+  background: var(--brand);
 }
 
 .stream-gt-left {
-  border-right: 1px solid var(--line);
+  border-right: 0;
   border-radius: 0;
   max-height: calc(100vh - 88px);
   overflow: auto;
+  overflow-x: hidden;
   align-content: start;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.stream-gt-workspace-box {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.stream-dock-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+
+.stream-dock-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.stream-dock-row button.is-active {
+  border-color: var(--brand);
+  color: var(--text);
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface));
 }
 
 .stream-gt-tool-section {
@@ -602,8 +691,9 @@
  */
 .stream-gt-frame {
   position: relative;
-  width: 1280px;
-  height: 720px; /* 16:9 */
+  /* width/height inline = resolução do produto (preset ou custom) */
+  width: 1920px;
+  height: 1080px;
   flex-shrink: 0;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.18),
@@ -767,11 +857,15 @@
 }
 
 .stream-gt-right {
-  border-left: 1px solid var(--line);
+  border-left: 0;
   border-radius: 0;
   max-height: calc(100vh - 88px);
   overflow: auto;
+  overflow-x: hidden;
   align-content: start;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .stream-gt-add {
@@ -935,8 +1029,18 @@
 
 @media (max-width: 1100px) {
   .stream-gt-layout,
-  .stream-gt-layout.stream-gt-layout-3 {
+  .stream-gt-layout.stream-gt-layout-3,
+  .stream-gt-layout.stream-gt-layout-3.dock-lcr,
+  .stream-gt-layout.stream-gt-layout-3.dock-clr,
+  .stream-gt-layout.stream-gt-layout-3.dock-lrc {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "stage"
+      "tools"
+      "layers";
+  }
+  .stream-gt-resizer {
+    display: none;
   }
   .stream-gt-left,
   .stream-gt-right {
@@ -1372,9 +1476,10 @@
 .stream-inspector-body {
   display: grid;
   gap: 10px;
-  max-height: calc(100vh - 200px);
-  overflow: auto;
-  padding-right: 4px;
+  max-height: none;
+  overflow: visible;
+  padding-right: 2px;
+  min-width: 0;
 }
 
 .stream-style-section {
@@ -1382,6 +1487,7 @@
   gap: 8px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
+  min-width: 0;
 }
 
 .stream-style-section > strong {
@@ -1393,8 +1499,9 @@
 
 .stream-style-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 8px;
+  min-width: 0;
 }
 
 .stream-style-field {
@@ -1405,11 +1512,15 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
+  min-width: 0;
 }
 
 .stream-style-field input,
 .stream-style-field select {
   min-height: 32px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--line);
   background: var(--surface-soft);
   color: var(--text);
@@ -1419,6 +1530,14 @@
   font-weight: 600;
   letter-spacing: normal;
   padding: 0 8px;
+  min-width: 0;
+}
+
+/* range / sliders não devem forçar scroll horizontal */
+.stream-style-field input[type='range'] {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
 }
 
 .stream-style-field input[type='color'] {

@@ -7,7 +7,14 @@ import type { StreamBlock } from '@/features/campeonatos/stream'
 import '@/features/campeonatos/stream/stream.css'
 
 type LivePayload = {
-  overlay: { id: string; name: string; template: string; blocks: StreamBlock[] }
+  overlay: {
+    id: string
+    name: string
+    template: string
+    blocks: StreamBlock[]
+    frameW?: number
+    frameH?: number
+  }
   data: StreamLiveData
   campeonato?: { nome?: string }
 }
@@ -59,6 +66,8 @@ export default function StreamLivePage() {
         template={payload.overlay.template || 'custom'}
         blocks={payload.overlay.blocks || []}
         data={payload.data}
+        frameW={payload.overlay.frameW}
+        frameH={payload.overlay.frameH}
       />
     </main>
   )

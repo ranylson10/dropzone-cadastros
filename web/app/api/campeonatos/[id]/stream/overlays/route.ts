@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { packOverlayBlocks, unpackOverlayBlocks } from '@/features/campeonatos/stream/utils/overlay-frame'
 
 function canStream(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
   return (
@@ -19,12 +20,15 @@ function missingTable(error: any) {
 }
 
 function mapRow(row: any) {
+  const packed = unpackOverlayBlocks(row.blocks)
   return {
     id: row.id,
     campeonato_id: row.campeonato_id,
     name: row.nome,
     template: row.template || 'custom',
-    blocks: Array.isArray(row.blocks) ? row.blocks : [],
+    blocks: packed.blocks,
+    frameW: packed.frameW,
+    frameH: packed.frameH,
     share_token: row.share_token,
     updatedAt: row.updated_at,
     createdAt: row.created_at,
@@ -72,7 +76,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const body = await req.json().catch(() => ({}))
     const nome = String(body.name || body.nome || 'Overlay').trim() || 'Overlay'
     const template = String(body.template || 'custom')
-    const blocks = Array.isArray(body.blocks) ? body.blocks : []
+    const items = Array.isArray(body.blocks) ? body.blocks : unpackOverlayBlocks(body.blocks).blocks
+    const blocks = packOverlayBlocks(items, body.frameW, body.frameH)
 
     const { data, error } = await supabaseAdmin
       .from('campeonato_stream_overlays')

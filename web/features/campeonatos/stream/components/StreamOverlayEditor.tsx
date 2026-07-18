@@ -5,8 +5,11 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
+  Columns2,
   Copy,
   Download,
+  PanelLeft,
+  PanelRight,
   Plus,
   Save,
   Trash2,
@@ -30,7 +33,15 @@ import type {
   StreamSheetRow,
   StreamTableBlock,
 } from '../types/stream.types'
-import { DEFAULT_BOX, DEFAULT_TRANSITION, FRAME_H, FRAME_W, newBlockId } from '../types/stream.types'
+import {
+  DEFAULT_BOX,
+  DEFAULT_TRANSITION,
+  FRAME_H,
+  FRAME_PRESETS,
+  FRAME_W,
+  getOverlayFrame,
+  newBlockId,
+} from '../types/stream.types'
 import { migrateOverlay } from '../utils/migrate-overlay'
 import {
   createDefaultLayer,
@@ -38,6 +49,12 @@ import {
   duplicateCardFolder,
   ensureCardLayers,
 } from '../utils/card-layers'
+import {
+  loadWorkspacePrefs,
+  saveWorkspacePrefs,
+  type StreamDockMode,
+  type StreamWorkspacePrefs,
+} from '../utils/workspace-prefs'
 import {
   buildOverlayBrowserHtml,
   buildOverlayExportPayload,
@@ -75,8 +92,24 @@ export function StreamOverlayEditor(props: {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
   const [openLayerMenu, setOpenLayerMenu] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(0.7)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
+
+  const [ws, setWs] = useState<StreamWorkspacePrefs>(() => loadWorkspacePrefs())
+  const zoom = ws.zoom
+  const pan = useMemo(() => ({ x: ws.panX, y: ws.panY }), [ws.panX, ws.panY])
+  const setZoom = useCallback((updater: number | ((z: number) => number)) => {
+    setWs((prev) => {
+      const nextZ = typeof updater === 'function' ? updater(prev.zoom) : updater
+      return { ...prev, zoom: Math.min(3, Math.max(0.15, nextZ)) }
+    })
+  }, [])
+  const setPan = useCallback((next: { x: number; y: number } | ((p: { x: number; y: number }) => { x: number; y: number })) => {
+    setWs((prev) => {
+      const cur = { x: prev.panX, y: prev.panY }
+      const p = typeof next === 'function' ? next(cur) : next
+      return { ...prev, panX: p.x, panY: p.y }
+    })
+  }, [])
+
   const [panning, setPanning] = useState(false)
   const panStart = useRef({ x: 0, y: 0, px: 0, py: 0 })
   const dragBlock = useRef<{
@@ -87,7 +120,6 @@ export function StreamOverlayEditor(props: {
     origY: number
   } | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
-
   const [saved, setSaved] = useState(false)
   const [saveWarning, setSaveWarning] = useState('')
   const [standings, setStandings] = useState<PreviewStanding[]>([])
@@ -95,6 +127,13 @@ export function StreamOverlayEditor(props: {
   const [maps, setMaps] = useState<PreviewMap[]>([])
   const [sheets, setSheets] = useState<Partial<Record<StreamSheetId, StreamSheetRow[]>>>({})
   const [loadingData, setLoadingData] = useState(true)
+
+  // Persiste layout do editor (laterais, zoom, pan, dock)
+  useEffect(() => {
+    saveWorkspacePrefs(ws)
+  }, [ws])
+
+  const frame = getOverlayFrame(overlay)
 
   // Nova overlay: só nome, sem wizard
   useEffect(() => {
@@ -104,6 +143,8 @@ export function StreamOverlayEditor(props: {
         name: 'Nova overlay',
         template: 'custom',
         blocks: [],
+        frameW: FRAME_W,
+        frameH: FRAME_H,
         updatedAt: new Date().toISOString(),
       })
       return
@@ -286,10 +327,55 @@ export function StreamOverlayEditor(props: {
   }
 
   function clampPos(x: number, y: number, w: number, h: number) {
+    const fw = frame.w
+    const fh = frame.h
     return {
-      x: Math.max(0, Math.min(FRAME_W - Math.min(w, FRAME_W), Math.round(x))),
-      y: Math.max(0, Math.min(FRAME_H - Math.min(h, FRAME_H), Math.round(y))),
+      x: Math.max(0, Math.min(fw - Math.min(w, fw), Math.round(x))),
+      y: Math.max(0, Math.min(fh - Math.min(h, fh), Math.round(y))),
     }
+  }
+
+  function setDock(dock: StreamDockMode) {
+    setWs((p) => ({ ...p, dock }))
+  }
+
+  function setFrameSize(w: number, h: number) {
+    if (!overlay) return
+    setOverlay({
+      ...overlay,
+      frameW: Math.max(64, Math.round(w)),
+      frameH: Math.max(64, Math.round(h)),
+    })
+  }
+
+  function onPanelResizeStart(side: 'tools' | 'layers', e: React.PointerEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const startLeft = ws.leftW
+    const startRight = ws.rightW
+    const dock = ws.dock
+    // tools: leftW · layers: rightW
+    // sentido depende se o painel está à esquerda ou à direita do handle
+    const toolsAfterHandle = dock === 'clr' // canvas | tools | layers
+    const layersBeforeHandle = dock === 'lrc' // tools | layers | canvas
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX
+      if (side === 'tools') {
+        const next = Math.min(720, Math.max(220, startLeft + (toolsAfterHandle ? -dx : dx)))
+        setWs((p) => ({ ...p, leftW: next }))
+      } else {
+        const next = Math.min(720, Math.max(220, startRight + (layersBeforeHandle ? dx : -dx)))
+        setWs((p) => ({ ...p, rightW: next }))
+      }
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
   }
 
   function blockSize(b: StreamBlock) {
@@ -491,12 +577,90 @@ export function StreamOverlayEditor(props: {
       </header>
       {saveWarning ? <p className="stream-hint" style={{ margin: '0 0 8px' }}>{saveWarning}</p> : null}
 
-      <div className="stream-gt-layout stream-gt-layout-3">
-        {/* ESQUERDA — ferramentas */}
-        <aside className="stream-gt-left stream-panel">
+      <div
+        className={`stream-gt-layout stream-gt-layout-3 dock-${ws.dock}`}
+        style={{
+          ['--gt-left' as string]: `${ws.leftW}px`,
+          ['--gt-right' as string]: `${ws.rightW}px`,
+        }}
+      >
+        {/* FERRAMENTAS */}
+        <aside className="stream-gt-left stream-panel" style={{ gridArea: 'tools' }}>
           <div className="stream-gt-layer-head">
             <strong>Ferramentas</strong>
           </div>
+
+          <div className="stream-gt-workspace-box">
+            <p className="stream-hint"><strong>Área de trabalho</strong></p>
+            <label className="stream-field">
+              <span>Formato / resolução</span>
+              <select
+                value={
+                  FRAME_PRESETS.find((p) => p.w === frame.w && p.h === frame.h)?.id || 'custom'
+                }
+                onChange={(e) => {
+                  const preset = FRAME_PRESETS.find((p) => p.id === e.target.value)
+                  if (preset) setFrameSize(preset.w, preset.h)
+                }}
+              >
+                {FRAME_PRESETS.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+                <option value="custom">Personalizado…</option>
+              </select>
+            </label>
+            <div className="stream-style-grid">
+              <label className="stream-style-field">
+                <span>Largura px</span>
+                <input
+                  type="number"
+                  min={64}
+                  max={7680}
+                  value={frame.w}
+                  onChange={(e) => setFrameSize(Number(e.target.value) || FRAME_W, frame.h)}
+                />
+              </label>
+              <label className="stream-style-field">
+                <span>Altura px</span>
+                <input
+                  type="number"
+                  min={64}
+                  max={7680}
+                  value={frame.h}
+                  onChange={(e) => setFrameSize(frame.w, Number(e.target.value) || FRAME_H)}
+                />
+              </label>
+            </div>
+            <p className="stream-hint"><strong>Layout dos painéis</strong></p>
+            <div className="stream-dock-row">
+              <button
+                type="button"
+                className={ws.dock === 'lcr' ? 'is-active' : ''}
+                title="Ferramentas | Canvas | Camadas"
+                onClick={() => setDock('lcr')}
+              >
+                <Columns2 size={14} /> Centro
+              </button>
+              <button
+                type="button"
+                className={ws.dock === 'clr' ? 'is-active' : ''}
+                title="Canvas à esquerda, painéis à direita"
+                onClick={() => setDock('clr')}
+              >
+                <PanelRight size={14} /> Canvas esq.
+              </button>
+              <button
+                type="button"
+                className={ws.dock === 'lrc' ? 'is-active' : ''}
+                title="Painéis à esquerda, canvas à direita"
+                onClick={() => setDock('lrc')}
+              >
+                <PanelLeft size={14} /> Canvas dir.
+              </button>
+            </div>
+            <p className="stream-hint">Arraste as bordas dos painéis para largura. Zoom/pan e laterais são lembrados neste navegador.</p>
+          </div>
+
           <div className="stream-gt-add">
             <button type="button" className="stream-primary-btn" onClick={() => addBlock('card')}>
               <Plus size={15} /> Bloco
@@ -505,7 +669,7 @@ export function StreamOverlayEditor(props: {
               <Plus size={15} /> Tabela
             </button>
           </div>
-          <p className="stream-hint">Quadrados vazios na área 16:9. Arraste no canvas ou digite X/Y.</p>
+          <p className="stream-hint">Blocos vazios. Arraste no canvas ou digite X/Y.</p>
 
           {selectedBlock?.type === 'card' ? (
             <div className="stream-gt-tool-section">
@@ -562,7 +726,7 @@ export function StreamOverlayEditor(props: {
                     <input
                       type="number"
                       min={40}
-                      max={FRAME_W}
+                      max={frame.w}
                       value={selectedBlock.type === 'card' ? ensureCardLayers(selectedBlock).canvasW : selectedBlock.tableW || 420}
                       onChange={(e) => {
                         const w = Math.max(40, Number(e.target.value) || 40)
@@ -579,7 +743,7 @@ export function StreamOverlayEditor(props: {
                     <input
                       type="number"
                       min={40}
-                      max={FRAME_H}
+                      max={frame.h}
                       value={selectedBlock.type === 'card' ? ensureCardLayers(selectedBlock).canvasH : 200}
                       disabled={selectedBlock.type === 'table'}
                       onChange={(e) => {
@@ -733,14 +897,21 @@ export function StreamOverlayEditor(props: {
           </div>
         </aside>
 
-        {/* CENTRO — frame 16:9 + checkerboard */}
-        <main className="stream-gt-stage" ref={stageRef}>
+        <div
+          className="stream-gt-resizer"
+          style={{ gridArea: 'h1' }}
+          onPointerDown={(e) => onPanelResizeStart(ws.dock === 'lrc' ? 'tools' : ws.dock === 'clr' ? 'tools' : 'tools', e)}
+          title="Arraste para redimensionar painel"
+        />
+
+        {/* CANVAS — frame do produto final */}
+        <main className="stream-gt-stage" ref={stageRef} style={{ gridArea: 'stage' }}>
           <div className="stream-gt-zoombar">
-            <button type="button" onClick={() => setZoom((z) => Math.max(0.35, z - 0.1))} title="Zoom -"><ZoomOut size={16} /></button>
+            <button type="button" onClick={() => setZoom((z) => Math.max(0.15, z - 0.1))} title="Zoom -"><ZoomOut size={16} /></button>
             <span>{Math.round(zoom * 100)}%</span>
-            <button type="button" onClick={() => setZoom((z) => Math.min(2.5, z + 0.1))} title="Zoom +"><ZoomIn size={16} /></button>
-            <button type="button" onClick={() => { setZoom(0.7); setPan({ x: 0, y: 0 }) }}>Reset</button>
-            <span className="stream-hint">16:9 · {FRAME_W}×{FRAME_H} · arrastar bloco · Alt+arrastar = pan</span>
+            <button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))} title="Zoom +"><ZoomIn size={16} /></button>
+            <button type="button" onClick={() => { setZoom(0.55); setPan({ x: 0, y: 0 }) }}>Reset</button>
+            <span className="stream-hint">{frame.w}×{frame.h} · arrastar bloco · Alt+pan</span>
           </div>
 
           <div
@@ -758,14 +929,18 @@ export function StreamOverlayEditor(props: {
                 transformOrigin: 'center center',
               }}
             >
-              <div className="stream-gt-frame" aria-label={`Área final ${FRAME_W}×${FRAME_H}`}>
-                <div className="stream-gt-frame-badge">16:9 · produto final</div>
+              <div
+                className="stream-gt-frame"
+                aria-label={`Área final ${frame.w}×${frame.h}`}
+                style={{ width: frame.w, height: frame.h }}
+              >
+                <div className="stream-gt-frame-badge">{frame.w}×{frame.h}</div>
                 <div className="stream-gt-checker">
                   {!overlay.blocks.length ? (
                     <div className="stream-gt-empty">
-                      <p>Área de trabalho 16:9</p>
+                      <p>Área de trabalho {frame.w}×{frame.h}</p>
                       <p className="stream-hint">Fundo quadriculado = transparente no live.</p>
-                      <p className="stream-hint">Use + Bloco à esquerda e arraste na área.</p>
+                      <p className="stream-hint">Use + Bloco e arraste na área. Formato em Ferramentas.</p>
                     </div>
                   ) : (
                     <div className="stream-gt-blocks stream-gt-blocks-abs">
@@ -881,8 +1056,15 @@ export function StreamOverlayEditor(props: {
           </div>
         </main>
 
-        {/* DIREITA — lista de camadas / pastas (estilo GT) */}
-        <aside className="stream-gt-right stream-panel">
+        <div
+          className="stream-gt-resizer"
+          style={{ gridArea: 'h2' }}
+          onPointerDown={(e) => onPanelResizeStart(ws.dock === 'lrc' ? 'layers' : 'layers', e)}
+          title="Arraste para redimensionar painel"
+        />
+
+        {/* CAMADAS */}
+        <aside className="stream-gt-right stream-panel" style={{ gridArea: 'layers' }}>
           <div className="stream-gt-layer-head">
             <strong>Camadas</strong>
             {selectedBlock ? (

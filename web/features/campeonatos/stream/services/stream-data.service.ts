@@ -297,6 +297,8 @@ export async function saveOverlayRemote(
     name: overlay.name,
     template: overlay.template,
     blocks: overlay.blocks,
+    frameW: overlay.frameW,
+    frameH: overlay.frameH,
   }
 
   try {
