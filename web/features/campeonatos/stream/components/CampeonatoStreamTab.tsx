@@ -1,17 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import type { StreamInnerPanel } from '../types/stream.types'
-import { StreamOverlaysPanel } from './StreamOverlaysPanel'
-import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
+import { ExternalLink } from 'lucide-react'
+import { StreamOverlaysHub } from './StreamOverlaysHub'
 import '../stream.css'
 
 /**
- * Aba Stream do campeonato (estrutura).
- * Não altera APIs nem outras abas — só UI preparatória.
+ * Hub Stream no painel do campeonato.
+ * Lista de overlays + atalho para planilha em tela cheia.
+ * Editor e planilha pesada abrem em outra aba/rota.
  */
 export function CampeonatoStreamTab(props: { campeonatoId: string }) {
-  const [panel, setPanel] = useState<StreamInnerPanel>('overlays')
+  const workspaceUrl = `/campeonatos/${props.campeonatoId}/stream`
 
   return (
     <div className="stream-tab">
@@ -20,30 +19,18 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
           <p className="eyebrow">Produção · transmissão</p>
           <h3>Stream</h3>
           <p>
-            Editor de overlays e planilha de dados para vincular informações em tempo real. Estrutura inicial — sem
-            impacto no restante do campeonato.
+            Gerencie overlays aqui. A planilha com dados reais e o editor abrem em tela cheia (outra aba),
+            no estilo vMix / Google Sheets.
           </p>
         </div>
-        <nav className="stream-inner-tabs" aria-label="Seções da aba Stream">
-          <button
-            type="button"
-            className={panel === 'overlays' ? 'active' : ''}
-            onClick={() => setPanel('overlays')}
-          >
-            Overlays
-          </button>
-          <button
-            type="button"
-            className={panel === 'planilha' ? 'active' : ''}
-            onClick={() => setPanel('planilha')}
-          >
-            Planilha
-          </button>
-        </nav>
+        <div className="stream-panel-actions">
+          <a className="stream-primary-btn" href={workspaceUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={15} /> Abrir planilha
+          </a>
+        </div>
       </header>
 
-      {panel === 'overlays' ? <StreamOverlaysPanel campeonatoId={props.campeonatoId} /> : null}
-      {panel === 'planilha' ? <StreamSpreadsheetPanel campeonatoId={props.campeonatoId} /> : null}
+      <StreamOverlaysHub campeonatoId={props.campeonatoId} />
     </div>
   )
 }
