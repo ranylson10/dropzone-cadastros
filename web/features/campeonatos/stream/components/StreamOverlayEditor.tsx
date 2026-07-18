@@ -1373,7 +1373,6 @@ export function StreamOverlayEditor(props: {
                                           onChange={(e) => updateLayer(layer.id, { data: { source: 'fixed', value: e.target.value } })}
                                         />
                                       </label>
-                                      <p className="stream-hint">Vincular célula da planilha:</p>
                                       <CellPicker
                                         sheets={sheets}
                                         value={layer.data.source === 'cell' ? layer.data : undefined}
