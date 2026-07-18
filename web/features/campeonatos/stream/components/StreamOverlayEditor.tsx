@@ -165,17 +165,18 @@ export function StreamOverlayEditor(props: {
     saveWorkspacePrefs(ws)
   }, [ws])
 
-  // Trava scroll da página — só laterais e canvas rolam/pan internamente
+  // Trava scroll só nesta tela (classe — não deixa overflow preso no sistema)
   useEffect(() => {
     const html = document.documentElement
     const body = document.body
-    const prevHtml = html.style.overflow
-    const prevBody = body.style.overflow
-    html.style.overflow = 'hidden'
-    body.style.overflow = 'hidden'
+    html.classList.add('stream-editor-scroll-lock')
+    body.classList.add('stream-editor-scroll-lock')
     return () => {
-      html.style.overflow = prevHtml
-      body.style.overflow = prevBody
+      html.classList.remove('stream-editor-scroll-lock')
+      body.classList.remove('stream-editor-scroll-lock')
+      // limpa residual de style inline de versões antigas
+      if (html.style.overflow === 'hidden') html.style.overflow = ''
+      if (body.style.overflow === 'hidden') body.style.overflow = ''
     }
   }, [])
 

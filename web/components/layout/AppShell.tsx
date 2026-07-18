@@ -81,6 +81,19 @@ export function AppShell({
   const account = controlled ? accountProp : sessionAccount
   const accounts = controlled ? (accountsProp || []) : sessionAccounts
 
+  // Se o editor Stream/modais deixaram overflow travado, libera no shell do sistema
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    const onStreamEditor = Boolean(document.querySelector('.stream-editor.stream-gt'))
+    if (!onStreamEditor) {
+      html.classList.remove('stream-editor-scroll-lock')
+      body.classList.remove('stream-editor-scroll-lock')
+      if (html.style.overflow === 'hidden') html.style.overflow = ''
+      if (body.style.overflow === 'hidden') body.style.overflow = ''
+    }
+  }, [pathname])
+
   useEffect(() => {
     if (!loadSession || controlled) return
     let activeRequest = true

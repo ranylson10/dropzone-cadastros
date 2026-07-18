@@ -1,5 +1,12 @@
 /* Aba Stream + workspace fullscreen — CSS local (não appendar em globals.css) */
 
+/* trava scroll só no editor fullscreen — nunca deixar no body do sistema */
+html.stream-editor-scroll-lock,
+body.stream-editor-scroll-lock {
+  overflow: hidden !important;
+  height: 100%;
+}
+
 /* —— Catálogo de modelos —— */
 .stream-catalog-page {
   max-width: 1200px;

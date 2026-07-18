@@ -5,6 +5,7 @@ import { ArrowLeft, FileUp, Loader2, RefreshCcw, Save, Trophy, Users, X } from '
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import '../pontuador.css'
 
 type Row = Record<string, any>
 type Scope = 'geral' | 'jogo' | 'mapa'

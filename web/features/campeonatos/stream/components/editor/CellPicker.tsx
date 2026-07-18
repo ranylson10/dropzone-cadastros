@@ -38,13 +38,18 @@ export function CellPicker(props: {
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  // trava scroll de fundo enquanto o picker está aberto
+  // trava scroll de fundo enquanto o picker está aberto (classe, sem sujar o sistema)
   useEffect(() => {
     if (!open) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    document.documentElement.classList.add('stream-editor-scroll-lock')
+    document.body.classList.add('stream-editor-scroll-lock')
     return () => {
-      document.body.style.overflow = prev
+      // só remove se o editor fullscreen não estiver montado
+      if (!document.querySelector('.stream-editor.stream-gt')) {
+        document.documentElement.classList.remove('stream-editor-scroll-lock')
+        document.body.classList.remove('stream-editor-scroll-lock')
+      }
+      if (document.body.style.overflow === 'hidden') document.body.style.overflow = ''
     }
   }, [open])
 
