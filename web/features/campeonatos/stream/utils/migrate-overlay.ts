@@ -3,10 +3,12 @@ import type { StreamBlock, StreamOverlay } from '../types/stream.types'
 import { FRAME_H, FRAME_W, newBlockId } from '../types/stream.types'
 import { ensureCardLayers } from './card-layers'
 import { unpackOverlayBlocks } from './overlay-frame'
+import { ensureTableStructure } from './table-structure'
 
 function normalizeBlocks(blocks: any[]): StreamBlock[] {
   return (blocks || []).map((b) => {
     if (b?.type === 'card') return ensureCardLayers(b)
+    if (b?.type === 'table') return ensureTableStructure(b)
     return b
   })
 }

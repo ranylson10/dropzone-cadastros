@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { FRAME_H, FRAME_W, type StreamBlock } from '../types/stream.types'
-import { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from '../utils/stream-style'
+import { transitionClass, transitionStyle } from '../utils/stream-style'
 import { ensureCardLayers } from '../utils/card-layers'
+import { ensureTableStructure } from '../utils/table-structure'
 import { CardLayerCanvas } from './CardLayerCanvas'
+import { StreamTableCanvas } from './StreamTableCanvas'
+import type { PreviewStanding } from './editor/OverlayPreview'
 
 function blockPlaceStyle(block: StreamBlock, frameW: number, frameH: number): CSSProperties {
   const fw = Math.max(1, frameW)
@@ -21,7 +24,8 @@ function blockPlaceStyle(block: StreamBlock, frameW: number, frameH: number): CS
       height: `${(card.canvasH / fh) * 100}%`,
     }
   }
-  const w = block.tableW || 420
+  const table = ensureTableStructure(block)
+  const w = table.tableW || 420
   return {
     position: 'absolute',
     left: `${(x / fw) * 100}%`,
@@ -80,11 +84,18 @@ function withRankDelta(current: LiveStanding[], previous: LiveStanding[] | null)
   })
 }
 
-function deltaLabel(delta: unknown) {
-  const n = Number(delta || 0)
-  if (!n) return '0 ='
-  if (n > 0) return `+${n} ▲`
-  return `${n} ▼`
+function toPreviewStanding(row: LiveStanding): PreviewStanding {
+  return {
+    pos: row.pos,
+    nome: row.nome,
+    logo: row.logo || undefined,
+    booyah: String(row.booyah ?? 0),
+    abates: String(row.abates ?? 0),
+    pts: String(row.pts ?? 0),
+    delta: String(row.delta ?? 0),
+    quedas: String(row.quedas ?? 0),
+    kd: row.kd ?? '0',
+  }
 }
 
 export function StreamLiveStage(props: {
@@ -117,6 +128,9 @@ export function StreamLiveStage(props: {
   const mapas = props.data.mapas || []
   const template = props.template || 'custom'
   const ctx = { mapas, classificacao: classif, mvp }
+
+  const standingsPreview = useMemo(() => classif.map(toPreviewStanding), [classif])
+  const mvpPreview = useMemo(() => mvp.map(toPreviewStanding), [mvp])
 
   const freeLayout = template === 'custom' || (props.blocks || []).some((b) => b.x != null || b.y != null)
   const frameW = Math.max(64, props.frameW || FRAME_W)
@@ -167,70 +181,21 @@ export function StreamLiveStage(props: {
           )
         }
 
-        const source = block.data.source === 'mvp' || block.data.variant === 'mvp_list' ? mvp : classif
-        const start = block.data.startRank || 1
-        const rows = source.filter((r) => r.pos >= start).slice(0, block.data.rows)
-        const box = boxToCssSafe(block.box)
-        const header = fieldToCss(block.data.headerStyle)
-        const rowStyle = fieldToCss(block.data.rowStyle)
-
+        const table = ensureTableStructure(block)
         return (
           <div
             key={block.id}
             className={`stream-prev-table stream-live-placed ${transitionClass(block.transition)} ${dataClass}`}
-            style={{ ...box, ...place, ...transitionStyle(block.transition, index) }}
+            style={{
+              ...(freeLayout ? { ...place, maxWidth: 'none' } : {}),
+              ...transitionStyle(block.transition, index),
+            }}
           >
-            <div className="stream-prev-table-head" style={{ ...header.wrap, ...header.text }}>
-              {block.data.columns.map((col) => (
-                <span key={col}>
-                  {col === 'pos' ? '#' : col === 'nome' ? 'Nome' : col === 'logo' ? '' : col === 'delta' ? '±' : col.toUpperCase()}
-                </span>
-              ))}
-            </div>
-            {rows.map((row, i) => {
-              const d = Number(row.delta || 0)
-              const rankClass = d > 0 ? 'is-up' : d < 0 ? 'is-down' : ''
-              return (
-                <div
-                  key={`${row.pos}-${row.nome}`}
-                  className={`stream-prev-table-row ${rankClass}`}
-                  style={{
-                    ...rowStyle.wrap,
-                    ...rowStyle.text,
-                    backgroundColor:
-                      i % 2 === 1 && block.data.altRowFill
-                        ? block.data.altRowFill
-                        : (rowStyle.wrap.backgroundColor as string | undefined),
-                  }}
-                >
-                  {block.data.columns.map((col) => {
-                    if (col === 'pos') return <span key={col}>{String(row.pos).padStart(2, '0')}</span>
-                    if (col === 'logo') {
-                      return (
-                        <span key={col} className="col-logo">
-                          {row.logo ? <img src={String(row.logo)} alt="" /> : <i />}
-                        </span>
-                      )
-                    }
-                    if (col === 'nome') return <span key={col} className="col-nome">{row.nome}</span>
-                    if (col === 'booyah') return <span key={col}>{row.booyah ?? 0}</span>
-                    if (col === 'abates') return <span key={col}>{row.abates ?? 0}</span>
-                    if (col === 'pts') return <span key={col} className="col-pts">{row.pts ?? 0}</span>
-                    if (col === 'quedas') return <span key={col}>{row.quedas ?? 0}</span>
-                    if (col === 'kd') return <span key={col}>{row.kd ?? '0'}</span>
-                    if (col === 'delta') {
-                      return (
-                        <span key={col} className={`col-delta ${rankClass}`}>
-                          {deltaLabel(row.delta)}
-                        </span>
-                      )
-                    }
-                    return <span key={col} />
-                  })}
-                </div>
-              )
-            })}
-            {!rows.length ? <div className="stream-prev-empty">Aguardando dados…</div> : null}
+            <StreamTableCanvas
+              table={table}
+              standings={standingsPreview}
+              mvpRows={mvpPreview}
+            />
           </div>
         )
       })}

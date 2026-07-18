@@ -1,8 +1,10 @@
 'use client'
 
-import type { StreamBlock, StreamTableBlock, TableColumnKey } from '../../types/stream.types'
-import { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from '../../utils/stream-style'
+import type { StreamBlock } from '../../types/stream.types'
+import { transitionClass, transitionStyle } from '../../utils/stream-style'
+import { ensureTableStructure } from '../../utils/table-structure'
 import { CardLayerCanvas } from '../CardLayerCanvas'
+import { StreamTableCanvas } from '../StreamTableCanvas'
 import type { LayerResolveContext } from '../../utils/resolve-layer'
 
 export type PreviewStanding = {
@@ -24,88 +26,6 @@ export type PreviewMap = {
   pts: string
   abates: string
   nome?: string
-}
-
-function colLabel(key: TableColumnKey) {
-  const map: Record<TableColumnKey, string> = {
-    pos: '#',
-    logo: '',
-    nome: 'Nome',
-    booyah: 'B!',
-    abates: 'ABT',
-    pts: 'PTS',
-    delta: '±',
-    quedas: 'QD',
-    kd: 'K.D',
-  }
-  return map[key]
-}
-
-function TablePreview(props: {
-  block: StreamTableBlock
-  index: number
-  selected: boolean
-  rows: PreviewStanding[]
-  onSelect: () => void
-}) {
-  const { block, rows } = props
-  const box = boxToCssSafe(block.box)
-  const header = fieldToCss(block.data.headerStyle)
-  const rowStyle = fieldToCss(block.data.rowStyle)
-  const start = block.data.startRank || 1
-  const slice = rows.filter((r) => r.pos >= start).slice(0, block.data.rows)
-
-  return (
-    <button
-      type="button"
-      className={`stream-prev-table ${props.selected ? 'is-selected' : ''} ${transitionClass(block.transition)}`}
-      style={{ ...box, ...transitionStyle(block.transition, props.index) }}
-      onClick={props.onSelect}
-    >
-      <div className="stream-prev-table-head" style={{ ...header.wrap, ...header.text }}>
-        {block.data.columns.map((col) => (
-          <span key={col} className={`col-${col}`}>{colLabel(col)}</span>
-        ))}
-      </div>
-      {slice.map((row, i) => {
-        const bg =
-          i % 2 === 1 && block.data.altRowFill
-            ? block.data.altRowFill
-            : rowStyle.wrap.backgroundColor || rowStyle.wrap.backgroundImage
-        return (
-          <div
-            key={`${row.pos}-${row.nome}`}
-            className="stream-prev-table-row"
-            style={{
-              ...rowStyle.wrap,
-              ...rowStyle.text,
-              backgroundColor: typeof bg === 'string' ? bg : undefined,
-            }}
-          >
-            {block.data.columns.map((col) => {
-              if (col === 'pos') return <span key={col} className="col-pos">{String(row.pos).padStart(2, '0')}</span>
-              if (col === 'logo') {
-                return (
-                  <span key={col} className="col-logo">
-                    {row.logo ? <img src={row.logo} alt="" /> : <i />}
-                  </span>
-                )
-              }
-              if (col === 'nome') return <span key={col} className="col-nome">{row.nome}</span>
-              if (col === 'booyah') return <span key={col}>{row.booyah}</span>
-              if (col === 'abates') return <span key={col}>{row.abates}</span>
-              if (col === 'pts') return <span key={col} className="col-pts">{row.pts}</span>
-              if (col === 'delta') return <span key={col} className="col-delta">{row.delta || '0'}</span>
-              if (col === 'quedas') return <span key={col}>{row.quedas || '0'}</span>
-              if (col === 'kd') return <span key={col}>{row.kd || '0'}</span>
-              return <span key={col} />
-            })}
-          </div>
-        )
-      })}
-      {!slice.length ? <div className="stream-prev-empty">Sem dados — pontue o campeonato ou aguarde classificação.</div> : null}
-    </button>
-  )
 }
 
 export function OverlayPreview(props: {
@@ -153,17 +73,29 @@ export function OverlayPreview(props: {
             </div>
           )
         }
-        const tableRows =
-          block.data.source === 'mvp' || block.data.variant === 'mvp_list' ? mvpList : props.standings
+        const table = ensureTableStructure(block)
+        const selected = props.selectedBlockId === block.id
         return (
-          <TablePreview
+          <div
             key={block.id}
-            block={block}
-            index={index}
-            selected={props.selectedBlockId === block.id}
-            rows={tableRows}
-            onSelect={() => props.onSelectBlock(block.id)}
-          />
+            role="button"
+            tabIndex={0}
+            className={`stream-prev-table ${selected ? 'is-selected' : ''} ${transitionClass(block.transition)}`}
+            style={transitionStyle(block.transition, index)}
+            onClick={() => props.onSelectBlock(block.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') props.onSelectBlock(block.id)
+            }}
+          >
+            <StreamTableCanvas
+              table={table}
+              standings={props.standings}
+              mvpRows={mvpList}
+              editable={selected}
+              selectedRowId={selected ? props.selectedLayerId : null}
+              onSelectRow={props.onSelectLayer}
+            />
+          </div>
         )
       })}
       {!blocks.length ? (

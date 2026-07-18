@@ -1915,6 +1915,21 @@ body.stream-editor-scroll-lock {
   color: #f5e6a8;
 }
 
+.stream-table-canvas {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.stream-prev-table-row.is-row-selected {
+  outline: 2px solid #dfbf4a;
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.stream-gt-table-block .stream-table-canvas {
+  pointer-events: auto;
+}
+
 .stream-prev-empty {
   padding: 28px;
   color: #9aa3b2;

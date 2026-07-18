@@ -9,6 +9,7 @@ import {
   type StreamTemplateId,
 } from '../types/stream.types'
 import { createEmptyCard, createMapCardFolder, createMvpCardFolder } from '../utils/card-layers'
+import { ensureTableStructure } from '../utils/table-structure'
 
 export type TemplateMeta = {
   id: StreamTemplateId
@@ -47,10 +48,13 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
 const goldText = { ...DEFAULT_TEXT, color: '#f5e6a8', fontSize: 16 }
 
 function standingsTable(rows = 12, startRank = 1, name = 'Classificação'): StreamTableBlock {
-  return {
+  return ensureTableStructure({
     id: newBlockId(),
     type: 'table',
     name,
+    tableW: 560,
+    x: 40,
+    y: 40,
     box: {
       ...DEFAULT_BOX,
       fill: { mode: 'solid', color: '#1a1208', opacity: 1 },
@@ -69,6 +73,10 @@ function standingsTable(rows = 12, startRank = 1, name = 'Classificação'): Str
         startRank > 1
           ? ['pos', 'logo', 'nome', 'quedas', 'kd', 'abates', 'delta']
           : ['pos', 'logo', 'nome', 'booyah', 'abates', 'pts', 'delta'],
+      rowHeight: 36,
+      rowGap: 2,
+      headerHeight: 32,
+      showHeader: true,
       headerStyle: {
         text: { ...goldText, fontSize: 12, color: '#1a1208' },
         box: { fill: { mode: 'solid', color: '#e8c547' }, padding: 6 },
@@ -80,7 +88,7 @@ function standingsTable(rows = 12, startRank = 1, name = 'Classificação'): Str
       altRowFill: '#b71c1c',
       highlightFirst: true,
     },
-  }
+  })
 }
 
 export function buildTemplateBlocks(template: StreamTemplateId): StreamBlock[] {

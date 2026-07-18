@@ -165,12 +165,43 @@ export type StreamLayer = {
   objectFit?: 'cover' | 'contain'
 }
 
+/** Coluna da tabela (parte da linha) — largura em % da tabela. */
+export type TableColumnDef = {
+  id: string
+  field: TableColumnKey | 'custom'
+  label: string
+  /** 0–100, relativo à largura da tabela */
+  widthPct: number
+  align?: 'left' | 'center' | 'right'
+}
+
+/**
+ * Item = linha da tabela (como camada do card).
+ * dataIndex 0 = startRank na fonte de dados.
+ */
+export type TableRowItem = {
+  id: string
+  name: string
+  dataIndex: number
+  height?: number
+  /** cor de fundo desta linha (sobrescreve rowStyle/alt) */
+  fill?: string
+  textColor?: string
+}
+
 export type TableBlockData = {
   variant: 'standings' | 'mvp_list'
   source: 'classificacao' | 'mvp' | 'equipes' | 'equipes_geral'
+  /** legado: qtd de linhas se rowItems vazio */
   rows: number
   startRank: number
+  /** legado: lista simples de campos; preferir columnDefs */
   columns: TableColumnKey[]
+  /** colunas com largura / rótulo */
+  columnDefs?: TableColumnDef[]
+  /** linhas como itens editáveis */
+  rowItems?: TableRowItem[]
+  showHeader?: boolean
   headerStyle?: FieldStyle
   rowStyle?: FieldStyle
   altRowFill?: string
