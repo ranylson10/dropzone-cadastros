@@ -379,21 +379,12 @@ export default function PontuadorJogoPage() {
       <div className="scorer-match-strip">
         <span>
           <strong>{matchName}</strong>
-          <small>
-            {preview.equipes.length} nomes no MR · verde=sem vínculo · amarelo=vinculado · vermelho=sumiu/troca/falta.
-            Vínculos da Q anterior valem nesta Q se o nome ainda existir.
-          </small>
+          <small>{preview.equipes.length} equipes no arquivo — clique na célula de vínculo e escolha o nome</small>
         </span>
         <button className="button secondary" onClick={() => { setPreview(null); setMatchContent('') }}>Cancelar</button>
         <button className="button" onClick={() => void confirmMatch()} disabled={saving}>Aplicar equipes vinculadas</button>
       </div>
     ) : null}
-
-    <div className="scorer-vinculo-legend">
-      <span className="vinculo-dot green" /> Sem vínculo
-      <span className="vinculo-dot yellow" /> Vinculado
-      <span className="vinculo-dot red" /> Sumiu / troca de nome / falta
-    </div>
 
     {view === 'equipes' ? (
       <div className="scorer-edit-table-wrap scorer-sheet-table-wrap">
@@ -401,7 +392,7 @@ export default function PontuadorJogoPage() {
           <thead>
             <tr>
               <th>#</th><th>Equipe</th><th>Grupo</th><th>Q</th><th>B</th><th>K</th><th>Pts</th>
-              <th>Vínculo Match Result</th>
+              <th>Vínculo</th>
               <th>Pos.</th><th>Abates</th><th>Pts Q</th><th>Punição</th>
             </tr>
           </thead>
@@ -411,6 +402,17 @@ export default function PontuadorJogoPage() {
               const stats = ranking.find((row) => row.campeonato_equipe_id === id)
               const edit = edits[id]
               const vState = id ? vinculoState(id) : { tone: 'green' as const, label: '—', savedLinks: [], missing: false }
+              const linkedMr = id ? linkForTeam(id) : ''
+              const linkedLabel =
+                (preview?.equipes || []).find((t: Row) => t.nome_normalizado === linkedMr)?.nome
+                || vState.savedLinks[0]?.nome_raw
+                || ''
+              // nomes do MR já usados em outras equipes (pra não confundir na lista)
+              const usedMr = new Set(
+                Object.entries(previewLinks)
+                  .filter(([, teamId]) => teamId && teamId !== id)
+                  .map(([raw]) => raw),
+              )
               return (
                 <tr key={`${slot.grupo_id}:${slot.slot_numero}`} className={slot.slot_vazio ? 'is-empty' : ''}>
                   <td className="rank-cell">{slot.slot_vazio ? slot.slot_numero : stats?.colocacao || '—'}</td>
@@ -431,50 +433,42 @@ export default function PontuadorJogoPage() {
                   <td className={`vinculo-cell tone-${vState.tone}`}>
                     {slot.slot_vazio ? (
                       '—'
-                    ) : (
-                      <div className="vinculo-cell-inner">
-                        <span className={`vinculo-status tone-${vState.tone}`}>{vState.label}</span>
-                        {vState.savedLinks.length ? (
-                          <div className="vinculo-aliases">
-                            {vState.savedLinks.map((link) => (
-                              <span className="link-chip" key={link.id || link.nome_raw}>
-                                {link.nome_raw}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                        {preview ? (
-                          <select
-                            className="inline-link-select"
-                            value={linkForTeam(id)}
-                            onChange={(event) => {
-                              setTeamLink(id, event.target.value)
-                              if (event.target.value) setFaltas((f) => ({ ...f, [id]: false }))
-                            }}
-                          >
-                            <option value="">
-                              {vState.missing ? 'Novo nome no MR…' : 'Selecionar nome do MR…'}
+                    ) : preview ? (
+                      <select
+                        className={`inline-link-select vinculo-select tone-${vState.tone}`}
+                        value={faltas[id] ? '__FALTA__' : linkedMr}
+                        onChange={(event) => {
+                          const val = event.target.value
+                          if (val === '__FALTA__') {
+                            void marcarFalta(id)
+                            return
+                          }
+                          setFaltas((f) => ({ ...f, [id]: false }))
+                          setTeamLink(id, val)
+                        }}
+                        title={vState.tone === 'red' ? 'Equipe sumiu ou trocou de nome — escolha o novo ou Falta' : 'Escolha a equipe do Match Result'}
+                      >
+                        <option value="">—</option>
+                        {(preview.equipes || []).map((team: Row) => {
+                          const taken = usedMr.has(team.nome_normalizado)
+                          return (
+                            <option
+                              key={team.nome_normalizado}
+                              value={team.nome_normalizado}
+                              disabled={taken}
+                            >
+                              {team.nome}{taken ? ' (já usado)' : ''}
                             </option>
-                            {preview.equipes.map((team: Row) => (
-                              <option key={team.nome_normalizado} value={team.nome_normalizado}>
-                                {team.nome}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <em className="vinculo-hint">Carregue o Match Result desta queda</em>
-                        )}
-                        {vState.missing || (preview && vState.tone === 'red') ? (
-                          <button
-                            type="button"
-                            className="vinculo-falta-btn"
-                            disabled={saving}
-                            onClick={() => void marcarFalta(id)}
-                          >
-                            Marcar falta
-                          </button>
-                        ) : null}
-                      </div>
+                          )
+                        })}
+                        <option value="__FALTA__">· Falta ·</option>
+                      </select>
+                    ) : linkedLabel ? (
+                      <span className="vinculo-chip" title={vState.savedLinks.map((l) => l.nome_raw).join(', ')}>
+                        {linkedLabel}
+                      </span>
+                    ) : (
+                      <span className="vinculo-empty">—</span>
                     )}
                   </td>
                   <td>

@@ -1,4 +1,4 @@
-/* CSS só do pontuador — não misturar em globals.css */
+/* CSS só do pontuador */
 
 .scorer-drop-tabs button.is-current-drop {
   box-shadow: inset 0 -3px 0 #dfbf4a;
@@ -46,88 +46,65 @@
   overflow-x: auto;
 }
 
-.scorer-vinculo-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: center;
-  margin: 8px 0 4px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #5a6270;
-}
-
-.vinculo-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 4px;
-}
-
-.vinculo-dot.green { background: #22c55e; }
-.vinculo-dot.yellow { background: #eab308; }
-.vinculo-dot.red { background: #ef4444; }
-
+/* Célula de vínculo: só cor + select compacto */
 .scorer-sheet-workspace .vinculo-cell {
-  min-width: 180px;
-  max-width: 260px;
+  min-width: 140px;
+  max-width: 200px;
+  padding: 2px 4px !important;
   vertical-align: middle;
 }
 
 .scorer-sheet-workspace .vinculo-cell.tone-green {
-  background: rgba(34, 197, 94, 0.14);
+  background: rgba(34, 197, 94, 0.22) !important;
 }
 
 .scorer-sheet-workspace .vinculo-cell.tone-yellow {
-  background: rgba(234, 179, 8, 0.18);
+  background: rgba(234, 179, 8, 0.28) !important;
 }
 
 .scorer-sheet-workspace .vinculo-cell.tone-red {
-  background: rgba(239, 68, 68, 0.16);
+  background: rgba(239, 68, 68, 0.22) !important;
 }
 
-.vinculo-cell-inner {
-  display: grid;
-  gap: 4px;
-  justify-items: stretch;
+.scorer-sheet-workspace .vinculo-select {
+  width: 100%;
+  min-width: 120px;
+  max-width: 190px;
+  height: 28px !important;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 11px !important;
+  font-weight: 700;
+  padding: 0 4px;
 }
 
-.vinculo-status {
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.scorer-sheet-workspace .vinculo-select.tone-green {
+  border-color: #86efac;
 }
 
-.vinculo-status.tone-green { color: #15803d; }
-.vinculo-status.tone-yellow { color: #a16207; }
-.vinculo-status.tone-red { color: #b91c1c; }
-
-.vinculo-aliases {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
+.scorer-sheet-workspace .vinculo-select.tone-yellow {
+  border-color: #fde047;
 }
 
-.vinculo-hint {
-  font-size: 9px;
-  color: #8b919c;
-  font-style: normal;
+.scorer-sheet-workspace .vinculo-select.tone-red {
+  border-color: #fca5a5;
 }
 
-.vinculo-falta-btn {
-  min-height: 24px;
-  border: 1px solid #fca5a5;
-  background: #fef2f2;
-  color: #b91c1c;
-  font-size: 9px;
+.scorer-sheet-workspace .vinculo-chip {
+  display: inline-block;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
   font-weight: 800;
-  text-transform: uppercase;
-  cursor: pointer;
-  padding: 0 8px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 3px;
 }
 
-.vinculo-falta-btn:hover {
-  background: #fee2e2;
+.scorer-sheet-workspace .vinculo-empty {
+  color: #9aa3b2;
+  font-size: 12px;
+  font-weight: 700;
 }
