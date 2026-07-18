@@ -220,6 +220,51 @@ body.stream-editor-scroll-lock {
   border-color: var(--brand);
 }
 
+/* Editor GT: botões enxutos (header, ações e laterais) */
+.stream-editor.stream-gt .stream-panel-actions {
+  gap: 4px;
+}
+
+.stream-editor.stream-gt .stream-primary-btn,
+.stream-editor.stream-gt .stream-secondary-btn,
+.stream-editor.stream-gt .stream-icon-btn {
+  min-height: 28px;
+  padding: 0 8px;
+  gap: 4px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.stream-editor.stream-gt .stream-workspace-header {
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.stream-editor.stream-gt .stream-workspace-brand {
+  gap: 8px;
+}
+
+.stream-editor.stream-gt .stream-gt-add {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.stream-editor.stream-gt .stream-gt-add .stream-primary-btn {
+  min-height: 30px;
+  padding: 0 8px;
+  width: 100%;
+}
+
+.stream-editor.stream-gt .stream-block-actions {
+  gap: 4px;
+}
+
+.stream-editor.stream-gt .stream-block-actions .stream-secondary-btn {
+  min-height: 28px;
+  padding: 0 8px;
+  flex: 1;
+}
+
 .stream-empty-list {
   padding: 22px;
   border: 1px dashed var(--line);
@@ -923,13 +968,13 @@ body.stream-editor-scroll-lock {
 
 .stream-gt-zoombar {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 8px;
+  left: 8px;
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 4px;
+  padding: 4px 6px;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(18, 20, 28, .92);
   color: #fff;
@@ -940,12 +985,23 @@ body.stream-editor-scroll-lock {
 .stream-gt-zoombar button {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: 1px solid rgba(255,255,255,.15);
   background: transparent;
   color: #fff;
   cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.stream-gt-zoombar button.stream-zoom-reset {
+  width: auto;
+  min-width: 0;
+  padding: 0 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .stream-gt-zoombar button:hover {
@@ -956,6 +1012,10 @@ body.stream-editor-scroll-lock {
   color: rgba(255,255,255,.55);
   margin: 0;
   white-space: nowrap;
+  font-size: 10px;
+  max-width: min(42vw, 360px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Área que recebe pan/zoom e centraliza o frame — sempre no viewport do stage */
@@ -1201,7 +1261,7 @@ body.stream-editor-scroll-lock {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
+  gap: 3px;
 }
 
 .stream-gt-layer-list > li {
@@ -1211,20 +1271,207 @@ body.stream-editor-scroll-lock {
 
 .stream-gt-layer-list > li.is-active {
   border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface-soft));
 }
 
 .stream-gt-layer-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 16px 18px 1fr auto;
-  gap: 6px;
+  grid-template-columns: 14px 18px 1fr auto;
+  gap: 4px;
   align-items: center;
-  padding: 8px;
+  padding: 6px 7px;
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
   color: var(--text);
+  min-height: 0;
+}
+
+.stream-gt-layer-row:hover {
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+/* Lista tipo Photoshop: camadas compactas, sem drawers inline */
+.stream-gt-ps-layers .stream-gt-layer-list > li {
+  border-radius: 2px;
+}
+
+.stream-gt-ps-layers .stream-gt-folder-children {
+  margin: 0;
+  padding: 4px 4px 4px 10px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.stream-gt-ps-layers .stream-gt-folder-children .stream-gt-layer-list {
+  gap: 2px;
+}
+
+.stream-gt-ps-layers .stream-gt-folder-children .stream-gt-layer-list > li {
+  background: var(--surface);
+}
+
+.stream-gt-layer-type-icon {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--line) 55%, transparent);
+  flex: 0 0 auto;
+}
+
+.stream-gt-layer-type-icon.is-text { color: #8ec8ff; }
+.stream-gt-layer-type-icon.is-number { color: #9ee6a8; }
+.stream-gt-layer-type-icon.is-image,
+.stream-gt-layer-type-icon.is-logo { color: #e6c46a; }
+.stream-gt-layer-type-icon.is-block { color: var(--brand); }
+.stream-gt-layer-type-icon.is-table { color: #c9a0ff; }
+
+.stream-inspector-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.stream-inspector-tabs button {
+  min-height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.stream-inspector-tabs button.is-active {
+  border-color: var(--brand);
+  color: var(--text);
+  background: color-mix(in srgb, var(--brand) 14%, var(--surface));
+}
+
+.stream-inspector-section {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.stream-inspector-section:last-child {
+  border-bottom: 0;
+}
+
+.stream-inspector-section > summary,
+.stream-inspector-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.stream-inspector-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.stream-inspector-section > summary::after {
+  content: '▾';
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.stream-inspector-section:not([open]) > summary::after {
+  content: '▸';
+}
+
+.stream-inspector-crumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 6px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.stream-inspector-crumb strong {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.stream-inspector-crumb button {
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stream-workspace-details {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.stream-workspace-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  padding: 2px 0;
+}
+
+.stream-workspace-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.stream-workspace-details > summary::after {
+  content: '▾';
+  opacity: 0.7;
+}
+
+.stream-workspace-details:not([open]) > summary::after {
+  content: '▸';
+}
+
+.stream-workspace-details .stream-gt-workspace-box {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .stream-drag-handle {
@@ -1520,6 +1767,11 @@ body.stream-editor-scroll-lock {
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.stream-editor.stream-gt .stream-name-input {
+  min-width: min(280px, 36vw);
+  font-size: 1.05rem;
 }
 
 .stream-template-grid {

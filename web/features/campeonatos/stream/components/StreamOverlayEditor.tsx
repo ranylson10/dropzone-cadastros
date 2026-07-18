@@ -92,6 +92,13 @@ const LAYER_TYPES: Array<{ id: LayerContentType; label: string }> = [
   { id: 'number', label: 'Número' },
 ]
 
+const LAYER_TYPE_BADGE: Record<LayerContentType, string> = {
+  image: 'IMG',
+  logo: 'LOGO',
+  text: 'TXT',
+  number: 'Nº',
+}
+
 /** Máx. de undos (Ctrl+Z) — limita memória. */
 const UNDO_MAX = 5
 
@@ -120,7 +127,6 @@ export function StreamOverlayEditor(props: {
   const [overlay, setOverlay] = useState<StreamOverlay | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
-  const [openLayerMenu, setOpenLayerMenu] = useState<string | null>(null)
 
   const [ws, setWs] = useState<StreamWorkspacePrefs>(() => loadWorkspacePrefs())
   const zoom = ws.zoom
@@ -520,7 +526,6 @@ export function StreamOverlayEditor(props: {
     patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, table] }), 'force')
     setSelectedBlockId(table.id)
     setSelectedLayerId(null)
-    setOpenLayerMenu(null)
   }
 
   function clampPos(x: number, y: number, w: number, h: number) {
@@ -640,7 +645,6 @@ export function StreamOverlayEditor(props: {
       { history: 'force' },
     )
     setSelectedLayerId(layer.id)
-    setOpenLayerMenu(layer.id)
   }
 
   function updateLayer(layerId: string, patch: Partial<StreamLayer>) {
@@ -668,7 +672,6 @@ export function StreamOverlayEditor(props: {
       { history: 'force' },
     )
     if (selectedLayerId === layerId) setSelectedLayerId(null)
-    if (openLayerMenu === layerId) setOpenLayerMenu(null)
   }
 
   function reorderBlocks(fromIndex: number, toIndex: number) {
@@ -897,232 +900,390 @@ export function StreamOverlayEditor(props: {
           ['--gt-right' as string]: `${ws.rightW}px`,
         }}
       >
-        {/* FERRAMENTAS */}
+        {/* PROPRIEDADES (inspector contextual — como no Photoshop) */}
         <aside className="stream-gt-left stream-panel" style={{ gridArea: 'tools' }}>
           <div className="stream-gt-layer-head">
-            <strong>Ferramentas</strong>
+            <strong>Propriedades</strong>
           </div>
 
-          <div className="stream-gt-workspace-box">
-            <p className="stream-hint"><strong>Área de trabalho</strong></p>
-            <label className="stream-field">
-              <span>Formato / resolução</span>
-              <select
-                value={
-                  FRAME_PRESETS.find((p) => p.w === frame.w && p.h === frame.h)?.id || 'custom'
-                }
-                onChange={(e) => {
-                  const preset = FRAME_PRESETS.find((p) => p.id === e.target.value)
-                  if (preset) setFrameSize(preset.w, preset.h)
-                }}
-              >
-                {FRAME_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
-                ))}
-                <option value="custom">Personalizado…</option>
-              </select>
-            </label>
-            <div className="stream-style-grid">
-              <label className="stream-style-field">
-                <span>Largura px</span>
-                <input
-                  type="number"
-                  min={64}
-                  max={7680}
-                  value={frame.w}
-                  onChange={(e) => setFrameSize(Number(e.target.value) || FRAME_W, frame.h)}
-                />
+          <details className="stream-workspace-details" open={!selectedBlock}>
+            <summary>Área de trabalho</summary>
+            <div className="stream-gt-workspace-box">
+              <label className="stream-field">
+                <span>Formato / resolução</span>
+                <select
+                  value={
+                    FRAME_PRESETS.find((p) => p.w === frame.w && p.h === frame.h)?.id || 'custom'
+                  }
+                  onChange={(e) => {
+                    const preset = FRAME_PRESETS.find((p) => p.id === e.target.value)
+                    if (preset) setFrameSize(preset.w, preset.h)
+                  }}
+                >
+                  {FRAME_PRESETS.map((p) => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                  <option value="custom">Personalizado…</option>
+                </select>
               </label>
-              <label className="stream-style-field">
-                <span>Altura px</span>
-                <input
-                  type="number"
-                  min={64}
-                  max={7680}
-                  value={frame.h}
-                  onChange={(e) => setFrameSize(frame.w, Number(e.target.value) || FRAME_H)}
-                />
-              </label>
+              <div className="stream-style-grid">
+                <label className="stream-style-field">
+                  <span>Largura px</span>
+                  <input
+                    type="number"
+                    min={64}
+                    max={7680}
+                    value={frame.w}
+                    onChange={(e) => setFrameSize(Number(e.target.value) || FRAME_W, frame.h)}
+                  />
+                </label>
+                <label className="stream-style-field">
+                  <span>Altura px</span>
+                  <input
+                    type="number"
+                    min={64}
+                    max={7680}
+                    value={frame.h}
+                    onChange={(e) => setFrameSize(frame.w, Number(e.target.value) || FRAME_H)}
+                  />
+                </label>
+              </div>
+              <p className="stream-hint"><strong>Layout dos painéis</strong></p>
+              <div className="stream-dock-row">
+                <button
+                  type="button"
+                  className={ws.dock === 'lcr' ? 'is-active' : ''}
+                  title="Propriedades | Canvas | Camadas"
+                  onClick={() => setDock('lcr')}
+                >
+                  <Columns2 size={14} /> Centro
+                </button>
+                <button
+                  type="button"
+                  className={ws.dock === 'clr' ? 'is-active' : ''}
+                  title="Canvas à esquerda, painéis à direita"
+                  onClick={() => setDock('clr')}
+                >
+                  <PanelRight size={14} /> Canvas esq.
+                </button>
+                <button
+                  type="button"
+                  className={ws.dock === 'lrc' ? 'is-active' : ''}
+                  title="Painéis à esquerda, canvas à direita"
+                  onClick={() => setDock('lrc')}
+                >
+                  <PanelLeft size={14} /> Canvas dir.
+                </button>
+              </div>
+              <p className="stream-hint">Arraste as bordas dos painéis. Zoom/pan e laterais ficam salvos neste navegador.</p>
             </div>
-            <p className="stream-hint"><strong>Layout dos painéis</strong></p>
-            <div className="stream-dock-row">
-              <button
-                type="button"
-                className={ws.dock === 'lcr' ? 'is-active' : ''}
-                title="Ferramentas | Canvas | Camadas"
-                onClick={() => setDock('lcr')}
-              >
-                <Columns2 size={14} /> Centro
-              </button>
-              <button
-                type="button"
-                className={ws.dock === 'clr' ? 'is-active' : ''}
-                title="Canvas à esquerda, painéis à direita"
-                onClick={() => setDock('clr')}
-              >
-                <PanelRight size={14} /> Canvas esq.
-              </button>
-              <button
-                type="button"
-                className={ws.dock === 'lrc' ? 'is-active' : ''}
-                title="Painéis à esquerda, canvas à direita"
-                onClick={() => setDock('lrc')}
-              >
-                <PanelLeft size={14} /> Canvas dir.
-              </button>
-            </div>
-            <p className="stream-hint">Arraste as bordas dos painéis para largura. Zoom/pan e laterais são lembrados neste navegador.</p>
-          </div>
+          </details>
 
           <div className="stream-gt-add">
             <button type="button" className="stream-primary-btn" onClick={() => addBlock('card')}>
-              <Plus size={15} /> Bloco
+              <Plus size={14} /> Bloco
             </button>
             <button type="button" className="stream-primary-btn" onClick={() => addBlock('table')}>
-              <Plus size={15} /> Tabela
+              <Plus size={14} /> Tabela
             </button>
           </div>
-          <p className="stream-hint">Blocos vazios. Arraste no canvas ou digite X/Y.</p>
 
-          {selectedBlock?.type === 'card' ? (
-            <div className="stream-gt-tool-section">
-              <p className="stream-hint"><strong>Conteúdo do bloco</strong></p>
-              <div className="stream-add-layer-row">
-                {LAYER_TYPES.map((t) => (
-                  <button key={t.id} type="button" onClick={() => addLayer(t.id)}>+ {t.label}</button>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          {selectedBlock ? (
+            <p className="stream-inspector-crumb">
+              <button
+                type="button"
+                onClick={() => setSelectedLayerId(null)}
+                title="Editar o bloco"
+              >
+                {selectedBlock.name}
+              </button>
+              {selectedLayer ? (
+                <>
+                  <span aria-hidden>›</span>
+                  <strong>{selectedLayer.name}</strong>
+                </>
+              ) : (
+                <>
+                  <span aria-hidden>›</span>
+                  <strong>{selectedBlock.type === 'table' ? 'Tabela' : 'Bloco'}</strong>
+                </>
+              )}
+            </p>
+          ) : (
+            <p className="stream-hint">Selecione um item na lista de camadas (direita) ou no canvas.</p>
+          )}
 
           <div className="stream-inspector-body">
-            {!selectedBlock ? (
-              <p className="stream-hint">Selecione um bloco na área de trabalho.</p>
-            ) : (
+            {/* —— Camada (item) selecionada —— */}
+            {selectedLayer && selectedCard ? (
               <>
-                <label className="stream-field">
-                  <span>Nome</span>
-                  <input
-                    value={selectedBlock.name}
-                    onChange={(e) => updateBlock(selectedBlock.id, (b) => ({ ...b, name: e.target.value }))}
-                  />
-                </label>
-
-                <p className="stream-hint"><strong>Posição e tamanho (px)</strong></p>
-                <div className="stream-style-grid">
-                  {(() => {
-                    const size = blockSize(selectedBlock)
-                    const curW = selectedBlock.type === 'card' ? ensureCardLayers(selectedBlock).canvasW : selectedBlock.tableW || 420
-                    const curH = selectedBlock.type === 'card' ? ensureCardLayers(selectedBlock).canvasH : 200
-                    const applyNum = (key: 'x' | 'y' | 'w' | 'h', raw: string) => {
-                      setSizeDraft((d) => ({ ...d, [key]: raw }))
-                      if (raw === '' || raw === '-') return
-                      const n = Number(raw)
-                      if (!Number.isFinite(n)) return
-                      if (key === 'x' || key === 'y') {
-                        const next = clampPos(
-                          key === 'x' ? n : selectedBlock.x ?? 0,
-                          key === 'y' ? n : selectedBlock.y ?? 0,
-                          size.w,
-                          size.h,
-                        )
-                        updateBlock(selectedBlock.id, (b) => ({ ...b, x: next.x, y: next.y }), { history: 'soft' })
-                        return
-                      }
-                      if (key === 'w') {
-                        const w = Math.max(1, Math.min(frame.w, Math.round(n)))
-                        updateBlock(
-                          selectedBlock.id,
-                          (b) => (b.type === 'card' ? { ...ensureCardLayers(b), canvasW: w } : { ...b, tableW: w }),
-                          { history: 'soft' },
-                        )
-                        return
-                      }
-                      if (selectedBlock.type === 'card') {
-                        const h = Math.max(1, Math.min(frame.h, Math.round(n)))
-                        updateBlock(
-                          selectedBlock.id,
-                          (b) => (b.type === 'card' ? { ...ensureCardLayers(b), canvasH: h } : b),
-                          { history: 'soft' },
-                        )
-                      }
-                    }
-                    const blurNum = (key: 'x' | 'y' | 'w' | 'h') => {
-                      setSizeDraft((d) => {
-                        const next = { ...d }
-                        delete next[key]
-                        return next
+                <details className="stream-inspector-section" open>
+                  <summary>Conteúdo do item</summary>
+                  <label className="stream-field">
+                    <span>Nome</span>
+                    <input
+                      value={selectedLayer.name}
+                      onChange={(e) => updateLayer(selectedLayer.id, { name: e.target.value })}
+                    />
+                  </label>
+                  {(selectedLayer.type === 'image' || selectedLayer.type === 'logo') ? (
+                    <LayerImageUpload
+                      label={selectedLayer.type === 'logo' ? 'Logo / arte (upload PC)' : 'Imagem livre (upload PC)'}
+                      value={selectedLayer.data.source === 'fixed' ? selectedLayer.data.value : ''}
+                      onChange={(url) => updateLayer(selectedLayer.id, { data: { source: 'fixed', value: url } })}
+                    />
+                  ) : (
+                    <label className="stream-field">
+                      <span>Texto livre</span>
+                      <input
+                        value={selectedLayer.data.source === 'fixed' ? selectedLayer.data.value : ''}
+                        placeholder="Ex.: TABELA GERAL, nome do campeonato…"
+                        onChange={(e) => updateLayer(selectedLayer.id, { data: { source: 'fixed', value: e.target.value } })}
+                      />
+                    </label>
+                  )}
+                  <CellPicker
+                    sheets={sheets}
+                    value={selectedLayer.data.source === 'cell' ? selectedLayer.data : undefined}
+                    onPick={(pick) => {
+                      updateLayer(selectedLayer.id, {
+                        data: {
+                          source: 'cell',
+                          sheetId: pick.sheetId,
+                          colKey: pick.colKey,
+                          rowIndex: pick.rowIndex,
+                          display: pick.display,
+                        },
                       })
-                    }
-                    return (
-                      <>
-                        <label className="stream-style-field">
-                          <span>X (px)</span>
-                          <input
-                            type="number"
-                            value={sizeDraft.x ?? String(selectedBlock.x ?? 0)}
-                            onChange={(e) => applyNum('x', e.target.value)}
-                            onBlur={() => blurNum('x')}
-                          />
-                        </label>
-                        <label className="stream-style-field">
-                          <span>Y (px)</span>
-                          <input
-                            type="number"
-                            value={sizeDraft.y ?? String(selectedBlock.y ?? 0)}
-                            onChange={(e) => applyNum('y', e.target.value)}
-                            onBlur={() => blurNum('y')}
-                          />
-                        </label>
-                        <label className="stream-style-field">
-                          <span>Largura (px)</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={frame.w}
-                            value={sizeDraft.w ?? String(curW)}
-                            onChange={(e) => applyNum('w', e.target.value)}
-                            onBlur={() => blurNum('w')}
-                          />
-                        </label>
-                        <label className="stream-style-field">
-                          <span>Altura (px)</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={frame.h}
-                            value={sizeDraft.h ?? String(curH)}
-                            disabled={selectedBlock.type === 'table'}
-                            onChange={(e) => applyNum('h', e.target.value)}
-                            onBlur={() => blurNum('h')}
-                          />
-                        </label>
-                      </>
-                    )
-                  })()}
-                </div>
-                <p className="stream-hint">Todas as medidas em pixels. Mín. 1 px. Arraste o bloco no canvas para mover.</p>
+                    }}
+                  />
+                  {(selectedLayer.type === 'image' || selectedLayer.type === 'logo') ? (
+                    <label className="stream-field">
+                      <span>Ajuste da imagem</span>
+                      <select
+                        value={selectedLayer.objectFit || (selectedLayer.type === 'logo' ? 'contain' : 'cover')}
+                        onChange={(e) =>
+                          updateLayer(selectedLayer.id, {
+                            objectFit: e.target.value as 'cover' | 'contain',
+                          })
+                        }
+                      >
+                        <option value="contain">Conter (logo)</option>
+                        <option value="cover">Cobrir</option>
+                      </select>
+                    </label>
+                  ) : null}
+                </details>
 
-                <p className="stream-hint"><strong>Fundo</strong> — transparente, cor ou imagem (com remover)</p>
-                <BoxStyleEditor
-                  allowImage
-                  value={selectedBlock.box}
-                  onChange={(box) => updateBlock(selectedBlock.id, (b) => ({ ...b, box }))}
-                />
-                <TransitionEditor
-                  mode={selectedBlock.type === 'card' ? 'card' : 'table'}
-                  value={selectedBlock.transition}
-                  onChange={(transition) => updateBlock(selectedBlock.id, (b) => ({ ...b, transition }))}
-                />
+                <details className="stream-inspector-section" open>
+                  <summary>Posição e tamanho</summary>
+                  <div className="stream-style-grid">
+                    {([
+                      { k: 'x' as const, label: 'X (px)' },
+                      { k: 'y' as const, label: 'Y (px)' },
+                      { k: 'w' as const, label: 'Larg. (px)' },
+                      { k: 'h' as const, label: 'Alt. (px)' },
+                      { k: 'z' as const, label: 'Z' },
+                    ]).map(({ k, label }) => (
+                      <label key={k} className="stream-style-field">
+                        <span>{label}</span>
+                        <input
+                          type="number"
+                          min={k === 'z' ? 0 : k === 'w' || k === 'h' ? 1 : 0}
+                          value={selectedLayer[k]}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            if (raw.trim() === '') {
+                              updateLayer(selectedLayer.id, { [k]: k === 'w' || k === 'h' ? 1 : 0 })
+                              return
+                            }
+                            const n = Number(raw)
+                            if (!Number.isFinite(n)) return
+                            updateLayer(selectedLayer.id, {
+                              [k]: k === 'w' || k === 'h' ? Math.max(1, Math.round(n)) : Math.round(n),
+                            })
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="stream-hint">Medidas do item em pixels dentro do bloco. Z maior fica por cima.</p>
+                </details>
+
+                <details className="stream-inspector-section" open>
+                  <summary>
+                    {selectedLayer.type === 'image' || selectedLayer.type === 'logo'
+                      ? 'Fundo e borda'
+                      : 'Texto, fundo e borda'}
+                  </summary>
+                  <FieldStyleEditor
+                    value={selectedLayer.style}
+                    allowImage
+                    hideText={selectedLayer.type === 'image' || selectedLayer.type === 'logo'}
+                    onChange={(style) => updateLayer(selectedLayer.id, { style })}
+                  />
+                </details>
+
+                <div className="stream-block-actions" style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="stream-secondary-btn"
+                    onClick={() => setSelectedLayerId(null)}
+                  >
+                    Voltar ao bloco
+                  </button>
+                  <button
+                    type="button"
+                    className="stream-secondary-btn"
+                    onClick={() => removeLayer(selectedLayer.id)}
+                  >
+                    <Trash2 size={14} /> Remover
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {/* —— Bloco / tabela selecionado (sem camada) —— */}
+            {selectedBlock && !selectedLayer ? (
+              <>
+                <details className="stream-inspector-section" open>
+                  <summary>Identidade e tamanho</summary>
+                  <label className="stream-field">
+                    <span>Nome</span>
+                    <input
+                      value={selectedBlock.name}
+                      onChange={(e) => updateBlock(selectedBlock.id, (b) => ({ ...b, name: e.target.value }))}
+                    />
+                  </label>
+                  <div className="stream-style-grid">
+                    {(() => {
+                      const size = blockSize(selectedBlock)
+                      const curW = selectedBlock.type === 'card' ? ensureCardLayers(selectedBlock).canvasW : selectedBlock.tableW || 420
+                      const curH = selectedBlock.type === 'card' ? ensureCardLayers(selectedBlock).canvasH : 200
+                      const applyNum = (key: 'x' | 'y' | 'w' | 'h', raw: string) => {
+                        setSizeDraft((d) => ({ ...d, [key]: raw }))
+                        if (raw === '' || raw === '-') return
+                        const n = Number(raw)
+                        if (!Number.isFinite(n)) return
+                        if (key === 'x' || key === 'y') {
+                          const next = clampPos(
+                            key === 'x' ? n : selectedBlock.x ?? 0,
+                            key === 'y' ? n : selectedBlock.y ?? 0,
+                            size.w,
+                            size.h,
+                          )
+                          updateBlock(selectedBlock.id, (b) => ({ ...b, x: next.x, y: next.y }), { history: 'soft' })
+                          return
+                        }
+                        if (key === 'w') {
+                          const w = Math.max(1, Math.min(frame.w, Math.round(n)))
+                          updateBlock(
+                            selectedBlock.id,
+                            (b) => (b.type === 'card' ? { ...ensureCardLayers(b), canvasW: w } : { ...b, tableW: w }),
+                            { history: 'soft' },
+                          )
+                          return
+                        }
+                        if (selectedBlock.type === 'card') {
+                          const h = Math.max(1, Math.min(frame.h, Math.round(n)))
+                          updateBlock(
+                            selectedBlock.id,
+                            (b) => (b.type === 'card' ? { ...ensureCardLayers(b), canvasH: h } : b),
+                            { history: 'soft' },
+                          )
+                        }
+                      }
+                      const blurNum = (key: 'x' | 'y' | 'w' | 'h') => {
+                        setSizeDraft((d) => {
+                          const next = { ...d }
+                          delete next[key]
+                          return next
+                        })
+                      }
+                      return (
+                        <>
+                          <label className="stream-style-field">
+                            <span>X (px)</span>
+                            <input
+                              type="number"
+                              value={sizeDraft.x ?? String(selectedBlock.x ?? 0)}
+                              onChange={(e) => applyNum('x', e.target.value)}
+                              onBlur={() => blurNum('x')}
+                            />
+                          </label>
+                          <label className="stream-style-field">
+                            <span>Y (px)</span>
+                            <input
+                              type="number"
+                              value={sizeDraft.y ?? String(selectedBlock.y ?? 0)}
+                              onChange={(e) => applyNum('y', e.target.value)}
+                              onBlur={() => blurNum('y')}
+                            />
+                          </label>
+                          <label className="stream-style-field">
+                            <span>Largura (px)</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={frame.w}
+                              value={sizeDraft.w ?? String(curW)}
+                              onChange={(e) => applyNum('w', e.target.value)}
+                              onBlur={() => blurNum('w')}
+                            />
+                          </label>
+                          <label className="stream-style-field">
+                            <span>Altura (px)</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={frame.h}
+                              value={sizeDraft.h ?? String(curH)}
+                              disabled={selectedBlock.type === 'table'}
+                              onChange={(e) => applyNum('h', e.target.value)}
+                              onBlur={() => blurNum('h')}
+                            />
+                          </label>
+                        </>
+                      )
+                    })()}
+                  </div>
+                  <p className="stream-hint">Todas as medidas em pixels. Arraste o bloco no canvas para mover.</p>
+                </details>
+
+                <details className="stream-inspector-section" open>
+                  <summary>Fundo do bloco</summary>
+                  <BoxStyleEditor
+                    allowImage
+                    value={selectedBlock.box}
+                    onChange={(box) => updateBlock(selectedBlock.id, (b) => ({ ...b, box }))}
+                  />
+                </details>
+
+                <details className="stream-inspector-section">
+                  <summary>Animação / transição</summary>
+                  <TransitionEditor
+                    mode={selectedBlock.type === 'card' ? 'card' : 'table'}
+                    value={selectedBlock.transition}
+                    onChange={(transition) => updateBlock(selectedBlock.id, (b) => ({ ...b, transition }))}
+                  />
+                </details>
 
                 {selectedBlock.type === 'card' ? (
-                  <p className="stream-hint"><strong>Itens</strong> — adicione texto, número, logo ou imagem e vincule à planilha na lista de camadas.</p>
+                  <details className="stream-inspector-section" open>
+                    <summary>Itens do bloco</summary>
+                    <p className="stream-hint">Adicione e selecione na lista de camadas à direita para editar cada item.</p>
+                    <div className="stream-add-layer-row">
+                      {LAYER_TYPES.map((t) => (
+                        <button key={t.id} type="button" onClick={() => addLayer(t.id)}>+ {t.label}</button>
+                      ))}
+                    </div>
+                  </details>
                 ) : null}
 
                 {selectedBlock.type === 'table' && selectedTable ? (
-                  <div className="stream-table-general">
+                  <details className="stream-inspector-section" open>
+                    <summary>Escala da tabela</summary>
                     <p className="stream-hint">
-                      <strong>Gerais da tabela</strong> — posição, tamanho e escala.
                       Colunas e nº de linhas ficam no painel <em>Tabela</em> à direita.
                     </p>
                     <label className="stream-field">
@@ -1145,8 +1306,8 @@ export function StreamOverlayEditor(props: {
                         ))}
                       </div>
                     </label>
-                    <p className="stream-hint">Escala ajusta largura, colunas, alturas e fontes da tabela juntas.</p>
-                  </div>
+                    <p className="stream-hint">Ajusta largura, colunas, alturas e fontes juntas.</p>
+                  </details>
                 ) : null}
 
                 <div className="stream-block-actions" style={{ marginTop: 8 }}>
@@ -1158,7 +1319,7 @@ export function StreamOverlayEditor(props: {
                   </button>
                 </div>
               </>
-            )}
+            ) : null}
           </div>
         </aside>
 
@@ -1172,11 +1333,20 @@ export function StreamOverlayEditor(props: {
         {/* CANVAS — frame do produto final */}
         <main className="stream-gt-stage" ref={stageRef} style={{ gridArea: 'stage' }}>
           <div className="stream-gt-zoombar">
-            <button type="button" onClick={() => setZoom((z) => Math.max(0.15, z - 0.1))} title="Zoom -"><ZoomOut size={16} /></button>
+            <button type="button" onClick={() => setZoom((z) => Math.max(0.15, z - 0.1))} title="Zoom -"><ZoomOut size={14} /></button>
             <span>{Math.round(zoom * 100)}%</span>
-            <button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))} title="Zoom +"><ZoomIn size={16} /></button>
-            <button type="button" onClick={() => { setZoom(0.55); setPan({ x: 0, y: 0 }) }}>Reset</button>
-            <span className="stream-hint">{frame.w}×{frame.h} · scroll=zoom · botão direito=mover · Ctrl+Z=desfazer</span>
+            <button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))} title="Zoom +"><ZoomIn size={14} /></button>
+            <button
+              type="button"
+              className="stream-zoom-reset"
+              title="Resetar zoom e posição"
+              onClick={() => { setZoom(0.55); setPan({ x: 0, y: 0 }) }}
+            >
+              Reset
+            </button>
+            <span className="stream-hint" title="scroll=zoom · botão direito=mover · Ctrl+Z=desfazer">
+              {frame.w}×{frame.h}
+            </span>
           </div>
 
           <div
@@ -1239,7 +1409,6 @@ export function StreamOverlayEditor(props: {
                                 onSelectLayer={(id) => {
                                   setSelectedBlockId(block.id)
                                   setSelectedLayerId(id)
-                                  setOpenLayerMenu(id)
                                 }}
                               />
                             </div>
@@ -1283,14 +1452,14 @@ export function StreamOverlayEditor(props: {
           title="Arraste para redimensionar painel"
         />
 
-        {/* CAMADAS / TABELA */}
-        <aside className="stream-gt-right stream-panel" style={{ gridArea: 'layers' }}>
+        {/* CAMADAS (lista estilo Photoshop) + painel de tabela */}
+        <aside className="stream-gt-right stream-panel stream-gt-ps-layers" style={{ gridArea: 'layers' }}>
           <div className="stream-gt-layer-head">
-            <strong>{selectedTable ? 'Tabela' : 'Camadas'}</strong>
+            <strong>{selectedTable ? 'Tabela · Camadas' : 'Camadas'}</strong>
             {selectedBlock ? (
               <div className="stream-block-actions">
-                <button type="button" title="Duplicar" onClick={() => dupBlock(selectedBlock.id)}><Copy size={14} /></button>
-                <button type="button" className="danger" title="Excluir" onClick={() => removeBlock(selectedBlock.id)}><Trash2 size={14} /></button>
+                <button type="button" title="Duplicar bloco" onClick={() => dupBlock(selectedBlock.id)}><Copy size={14} /></button>
+                <button type="button" className="danger" title="Excluir bloco" onClick={() => removeBlock(selectedBlock.id)}><Trash2 size={14} /></button>
               </div>
             ) : null}
           </div>
@@ -1314,247 +1483,157 @@ export function StreamOverlayEditor(props: {
           ) : null}
 
           {!overlay.blocks.length ? (
-            <p className="stream-hint">Nenhum bloco. Use + Bloco em Ferramentas.</p>
+            <p className="stream-hint">Nenhum bloco. Use + Bloco em Propriedades.</p>
           ) : (
-            <ul className="stream-gt-layer-list stream-gt-block-tree" style={selectedTable ? { marginTop: 12, opacity: 0.92 } : undefined}>
+            <>
               <p className="stream-hint" style={{ marginBottom: 6 }}>
-                {selectedTable ? 'Blocos no frame (clique para trocar):' : 'Arraste ≡ para reordenar blocos e camadas.'}
+                Clique para selecionar e editar à esquerda. Arraste ≡ para reordenar.
               </p>
-              {overlay.blocks.map((block, blockIndex) => {
-                const isSel = selectedBlockId === block.id
-                const isCard = block.type === 'card'
-                const card = isCard ? ensureCardLayers(block) : null
-                const expanded = isSel && isCard
-                return (
-                  <li
-                    key={block.id}
-                    className={isSel ? 'is-active' : ''}
-                    draggable
-                    onDragStart={(e) => {
-                      dragList.current = { kind: 'block', id: block.id, fromIndex: blockIndex }
-                      e.dataTransfer.effectAllowed = 'move'
-                      e.dataTransfer.setData('text/plain', `block:${block.id}`)
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault()
-                      e.dataTransfer.dropEffect = 'move'
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      const d = dragList.current
-                      if (!d || d.kind !== 'block') return
-                      reorderBlocks(d.fromIndex, blockIndex)
-                      dragList.current = null
-                    }}
-                    onDragEnd={() => {
-                      dragList.current = null
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="stream-gt-layer-row stream-gt-folder-row"
-                      onClick={() => {
-                        setSelectedBlockId(block.id)
-                        setSelectedLayerId(null)
-                        setOpenLayerMenu(null)
+              <ul className="stream-gt-layer-list stream-gt-block-tree">
+                {overlay.blocks.map((block, blockIndex) => {
+                  const isSel = selectedBlockId === block.id
+                  const isCard = block.type === 'card'
+                  const card = isCard ? ensureCardLayers(block) : null
+                  const expanded = isSel && isCard
+                  return (
+                    <li
+                      key={block.id}
+                      className={isSel && !selectedLayerId ? 'is-active' : ''}
+                      draggable
+                      onDragStart={(e) => {
+                        dragList.current = { kind: 'block', id: block.id, fromIndex: blockIndex }
+                        e.dataTransfer.effectAllowed = 'move'
+                        e.dataTransfer.setData('text/plain', `block:${block.id}`)
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = 'move'
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        const d = dragList.current
+                        if (!d || d.kind !== 'block') return
+                        reorderBlocks(d.fromIndex, blockIndex)
+                        dragList.current = null
+                      }}
+                      onDragEnd={() => {
+                        dragList.current = null
                       }}
                     >
-                      <span className="stream-drag-handle" title="Arrastar para reordenar" aria-hidden>
-                        <GripVertical size={14} />
-                      </span>
-                      {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      <span>
-                        <small>{block.type === 'card' ? 'bloco' : 'tabela'}</small>
-                        {block.name}
-                      </span>
-                      <em>
+                      <button
+                        type="button"
+                        className="stream-gt-layer-row stream-gt-folder-row"
+                        onClick={() => {
+                          setSelectedBlockId(block.id)
+                          setSelectedLayerId(null)
+                        }}
+                      >
+                        <span className="stream-drag-handle" title="Arrastar para reordenar" aria-hidden>
+                          <GripVertical size={13} />
+                        </span>
                         {isCard
-                          ? `${Math.round(block.x ?? 0)},${Math.round(block.y ?? 0)} · ${card?.layers.length ?? 0} itens`
-                          : (() => {
-                              const t = ensureTableStructure(block as StreamTableBlock)
-                              return `${t.data.rows || 1} linhas · ${(t.data.columnDefs || []).length} cols`
-                            })()}
-                      </em>
-                    </button>
+                          ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />)
+                          : <span className={`stream-gt-layer-type-icon is-table`} title="Tabela">TB</span>}
+                        <span>
+                          <small>{block.type === 'card' ? 'bloco' : 'tabela'}</small>
+                          {block.name}
+                        </span>
+                        <em>
+                          {isCard
+                            ? `${card?.layers.length ?? 0} itens`
+                            : (() => {
+                                const t = ensureTableStructure(block as StreamTableBlock)
+                                return `${t.data.rows || 1}×${(t.data.columnDefs || []).length}`
+                              })()}
+                        </em>
+                      </button>
 
-                    {expanded && isCard && card ? (
-                      <div className="stream-gt-folder-children">
-                        <div className="stream-add-layer-row">
-                          {LAYER_TYPES.map((t) => (
-                            <button key={t.id} type="button" onClick={() => addLayer(t.id)}>+ {t.label}</button>
-                          ))}
-                        </div>
-                        <ul className="stream-gt-layer-list">
-                          {card.layers
-                            .slice()
-                            .sort((a, b) => b.z - a.z)
-                            .map((layer, layerIndex) => {
-                              const open = openLayerMenu === layer.id
-                              const bound =
-                                layer.data.source === 'cell'
-                                  ? layer.data.display || `${layer.data.sheetId}.${layer.data.colKey}`
-                                  : layer.data.source === 'fixed'
-                                    ? (layer.data.value
-                                      ? (String(layer.data.value).length > 24
-                                        ? `${String(layer.data.value).slice(0, 20)}…`
-                                        : layer.data.value)
-                                      : 'fixo')
-                                    : layer.data.source
-                              return (
-                                <li
-                                  key={layer.id}
-                                  className={selectedLayerId === layer.id ? 'is-active' : ''}
-                                  draggable
-                                  onDragStart={(e) => {
-                                    e.stopPropagation()
-                                    dragList.current = { kind: 'layer', id: layer.id, fromIndex: layerIndex }
-                                    e.dataTransfer.effectAllowed = 'move'
-                                    e.dataTransfer.setData('text/plain', `layer:${layer.id}`)
-                                  }}
-                                  onDragOver={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    e.dataTransfer.dropEffect = 'move'
-                                  }}
-                                  onDrop={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    const d = dragList.current
-                                    if (!d || d.kind !== 'layer') return
-                                    reorderLayers(block.id, d.fromIndex, layerIndex)
-                                    dragList.current = null
-                                  }}
-                                  onDragEnd={() => {
-                                    dragList.current = null
-                                  }}
-                                >
-                                  <button
-                                    type="button"
-                                    className="stream-gt-layer-row"
-                                    onClick={() => {
-                                      setSelectedLayerId(layer.id)
-                                      setOpenLayerMenu(open ? null : layer.id)
+                      {expanded && isCard && card ? (
+                        <div className="stream-gt-folder-children">
+                          <div className="stream-add-layer-row">
+                            {LAYER_TYPES.map((t) => (
+                              <button key={t.id} type="button" onClick={() => addLayer(t.id)}>+ {t.label}</button>
+                            ))}
+                          </div>
+                          <ul className="stream-gt-layer-list">
+                            {card.layers
+                              .slice()
+                              .sort((a, b) => b.z - a.z)
+                              .map((layer, layerIndex) => {
+                                const layerActive = selectedLayerId === layer.id
+                                const bound =
+                                  layer.data.source === 'cell'
+                                    ? layer.data.display || `${layer.data.sheetId}.${layer.data.colKey}`
+                                    : layer.data.source === 'fixed'
+                                      ? (layer.data.value
+                                        ? (String(layer.data.value).length > 22
+                                          ? `${String(layer.data.value).slice(0, 18)}…`
+                                          : layer.data.value)
+                                        : 'fixo')
+                                      : layer.data.source
+                                return (
+                                  <li
+                                    key={layer.id}
+                                    className={layerActive ? 'is-active' : ''}
+                                    draggable
+                                    onDragStart={(e) => {
+                                      e.stopPropagation()
+                                      dragList.current = { kind: 'layer', id: layer.id, fromIndex: layerIndex }
+                                      e.dataTransfer.effectAllowed = 'move'
+                                      e.dataTransfer.setData('text/plain', `layer:${layer.id}`)
+                                    }}
+                                    onDragOver={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      e.dataTransfer.dropEffect = 'move'
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      const d = dragList.current
+                                      if (!d || d.kind !== 'layer') return
+                                      reorderLayers(block.id, d.fromIndex, layerIndex)
+                                      dragList.current = null
+                                    }}
+                                    onDragEnd={() => {
+                                      dragList.current = null
                                     }}
                                   >
-                                    <span className="stream-drag-handle" title="Arrastar camada" aria-hidden>
-                                      <GripVertical size={14} />
-                                    </span>
-                                    {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                    <span>
-                                      <small>{layer.type}</small>
-                                      {layer.name}
-                                    </span>
-                                    <em>{bound}</em>
-                                  </button>
-                                  {open ? (
-                                    <div className="stream-gt-layer-drawer">
-                                      <label className="stream-field">
-                                        <span>Nome</span>
-                                        <input value={layer.name} onChange={(e) => updateLayer(layer.id, { name: e.target.value })} />
-                                      </label>
-                                      <div className="stream-style-grid">
-                                        {([
-                                          { k: 'x' as const, label: 'X (px)' },
-                                          { k: 'y' as const, label: 'Y (px)' },
-                                          { k: 'w' as const, label: 'Larg. (px)' },
-                                          { k: 'h' as const, label: 'Alt. (px)' },
-                                          { k: 'z' as const, label: 'Z' },
-                                        ]).map(({ k, label }) => (
-                                          <label key={k} className="stream-style-field">
-                                            <span>{label}</span>
-                                            <input
-                                              type="number"
-                                              min={k === 'z' ? 0 : k === 'w' || k === 'h' ? 1 : 0}
-                                              value={layer[k]}
-                                              onChange={(e) => {
-                                                const raw = e.target.value
-                                                // permite campo vazio enquanto digita
-                                                if (raw.trim() === '') {
-                                                  updateLayer(layer.id, { [k]: k === 'w' || k === 'h' ? 1 : 0 })
-                                                  return
-                                                }
-                                                const n = Number(raw)
-                                                if (!Number.isFinite(n)) return
-                                                updateLayer(layer.id, {
-                                                  [k]: k === 'w' || k === 'h' ? Math.max(1, Math.round(n)) : Math.round(n),
-                                                })
-                                              }}
-                                            />
-                                          </label>
-                                        ))}
-                                      </div>
-                                      <p className="stream-hint">Posição e tamanho do item em pixels no bloco.</p>
-                                      {(layer.type === 'image' || layer.type === 'logo') ? (
-                                        <LayerImageUpload
-                                          label={layer.type === 'logo' ? 'Logo / arte (upload PC)' : 'Imagem livre (upload PC)'}
-                                          value={layer.data.source === 'fixed' ? layer.data.value : ''}
-                                          onChange={(url) => updateLayer(layer.id, { data: { source: 'fixed', value: url } })}
-                                        />
-                                      ) : (
-                                        <label className="stream-field">
-                                          <span>Texto livre</span>
-                                          <input
-                                            value={layer.data.source === 'fixed' ? layer.data.value : ''}
-                                            placeholder="Ex.: TABELA GERAL, nome do campeonato…"
-                                            onChange={(e) => updateLayer(layer.id, { data: { source: 'fixed', value: e.target.value } })}
-                                          />
-                                        </label>
-                                      )}
-                                      <CellPicker
-                                        sheets={sheets}
-                                        value={layer.data.source === 'cell' ? layer.data : undefined}
-                                        onPick={(pick) => {
-                                          updateLayer(layer.id, {
-                                            data: {
-                                              source: 'cell',
-                                              sheetId: pick.sheetId,
-                                              colKey: pick.colKey,
-                                              rowIndex: pick.rowIndex,
-                                              display: pick.display,
-                                            },
-                                          })
-                                        }}
-                                      />
-                                      <p className="stream-hint"><strong>Fundo do item</strong> — cor ou imagem do PC</p>
-                                      <FieldStyleEditor
-                                        value={layer.style}
-                                        allowImage
-                                        hideText={layer.type === 'image' || layer.type === 'logo'}
-                                        onChange={(style) => updateLayer(layer.id, { style })}
-                                      />
-                                      {(layer.type === 'image' || layer.type === 'logo') ? (
-                                        <label className="stream-field">
-                                          <span>Ajuste da imagem</span>
-                                          <select
-                                            value={layer.objectFit || (layer.type === 'logo' ? 'contain' : 'cover')}
-                                            onChange={(e) =>
-                                              updateLayer(layer.id, {
-                                                objectFit: e.target.value as 'cover' | 'contain',
-                                              })
-                                            }
-                                          >
-                                            <option value="contain">Conter (logo)</option>
-                                            <option value="cover">Cobrir</option>
-                                          </select>
-                                        </label>
-                                      ) : null}
-                                      <button type="button" className="stream-secondary-btn" onClick={() => removeLayer(layer.id)}>
-                                        <Trash2 size={14} /> Remover
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </li>
-                              )
-                            })}
-                        </ul>
-                      </div>
-                    ) : null}
-
-                  </li>
-                )
-              })}
-            </ul>
+                                    <button
+                                      type="button"
+                                      className="stream-gt-layer-row"
+                                      onClick={() => {
+                                        setSelectedBlockId(block.id)
+                                        setSelectedLayerId(layer.id)
+                                      }}
+                                    >
+                                      <span className="stream-drag-handle" title="Arrastar camada" aria-hidden>
+                                        <GripVertical size={13} />
+                                      </span>
+                                      <span
+                                        className={`stream-gt-layer-type-icon is-${layer.type}`}
+                                        title={layer.type}
+                                      >
+                                        {LAYER_TYPE_BADGE[layer.type]}
+                                      </span>
+                                      <span>
+                                        <small>{layer.type}</small>
+                                        {layer.name}
+                                      </span>
+                                      <em>{bound}</em>
+                                    </button>
+                                  </li>
+                                )
+                              })}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
           )}
         </aside>
       </div>
