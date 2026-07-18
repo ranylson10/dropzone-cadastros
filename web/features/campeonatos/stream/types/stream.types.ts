@@ -2,7 +2,7 @@
  * Stream / Character Generator — tipos de overlay, blocos e estilos.
  */
 
-export type StreamSheetId = 'equipes' | 'jogadores' | 'classificacao'
+export type StreamSheetId = 'equipes' | 'jogadores' | 'classificacao' | 'mvp' | 'jogos' | 'quedas'
 
 export type StreamSheetColumn = {
   key: string
@@ -217,6 +217,48 @@ export const STREAM_SHEETS: StreamSheetDefinition[] = [
       { key: 'booyahs', label: 'Booyah', letter: 'D' },
       { key: 'abates', label: 'Kills', letter: 'E' },
       { key: 'pontos', label: 'Pontos', letter: 'F' },
+    ],
+  },
+  {
+    id: 'mvp',
+    title: 'MVP',
+    refName: 'MVP',
+    live: true,
+    columns: [
+      { key: 'colocacao', label: 'Pos', letter: 'A' },
+      { key: 'nick', label: 'Nick', letter: 'B' },
+      { key: 'abates', label: 'Kills', letter: 'C' },
+      { key: 'quedas', label: 'Quedas', letter: 'D' },
+      { key: 'kd', label: 'K.D', letter: 'E' },
+      { key: 'dano', label: 'Dano', letter: 'F' },
+    ],
+  },
+  {
+    id: 'jogos',
+    title: 'Jogos',
+    refName: 'Jogos',
+    live: true,
+    columns: [
+      { key: 'nome', label: 'Jogo', letter: 'A' },
+      { key: 'data', label: 'Data', letter: 'B' },
+      { key: 'horario', label: 'Hora', letter: 'C' },
+      { key: 'status', label: 'Status', letter: 'D' },
+      { key: 'quedas', label: 'Quedas', letter: 'E' },
+      { key: 'mapas', label: 'Mapas', letter: 'F' },
+    ],
+  },
+  {
+    id: 'quedas',
+    title: 'Quedas',
+    refName: 'Quedas',
+    live: true,
+    columns: [
+      { key: 'jogo', label: 'Jogo', letter: 'A' },
+      { key: 'numero', label: 'Nº', letter: 'B' },
+      { key: 'mapa', label: 'Mapa', letter: 'C' },
+      { key: 'status', label: 'Status', letter: 'D' },
+      { key: 'horario', label: 'Hora', letter: 'E' },
+      { key: 'id', label: 'ID', letter: 'F' },
     ],
   },
 ]

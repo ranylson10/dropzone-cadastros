@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, LayoutTemplate, Save, Table2, CreditCard, Trash2 } from 'lucide-react'
+import { ArrowLeft, Download, LayoutTemplate, Save, Table2, CreditCard, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import {
@@ -20,6 +20,12 @@ import type {
 } from '../types/stream.types'
 import { DEFAULT_BOX, DEFAULT_TRANSITION, newBlockId } from '../types/stream.types'
 import { migrateOverlay } from '../utils/migrate-overlay'
+import {
+  buildOverlayBrowserHtml,
+  buildOverlayExportPayload,
+  downloadHtml,
+  downloadJson,
+} from '../utils/export-overlay'
 import { BoxStyleEditor, FieldStyleEditor, TransitionEditor } from './editor/StylePanels'
 import { OverlayPreview, type PreviewMap, type PreviewStanding } from './editor/OverlayPreview'
 import '../stream.css'
@@ -51,6 +57,7 @@ export function StreamOverlayEditor(props: {
   const [fieldKey, setFieldKey] = useState<CardFieldKey>('title')
   const [saved, setSaved] = useState(false)
   const [standings, setStandings] = useState<PreviewStanding[]>([])
+  const [mvpRows, setMvpRows] = useState<PreviewStanding[]>([])
   const [maps, setMaps] = useState<PreviewMap[]>([])
   const [loadingData, setLoadingData] = useState(true)
 
@@ -71,9 +78,11 @@ export function StreamOverlayEditor(props: {
   const loadPreviewData = useCallback(async () => {
     setLoadingData(true)
     try {
-      const [classif, equipes] = await Promise.all([
+      const [classif, equipes, mvp, quedas] = await Promise.all([
         loadStreamSheet(props.campeonatoId, 'classificacao').catch(() => []),
         loadStreamSheet(props.campeonatoId, 'equipes').catch(() => []),
+        loadStreamSheet(props.campeonatoId, 'mvp').catch(() => []),
+        loadStreamSheet(props.campeonatoId, 'quedas').catch(() => []),
       ])
 
       const standingRows: PreviewStanding[] = classif.map((row, i) => ({
@@ -87,7 +96,17 @@ export function StreamOverlayEditor(props: {
         kd: row.cells.abates ? (Number(row.cells.abates) / 6).toFixed(1).replace('.', ',') : '0',
       }))
 
-      // logos via equipes API (best effort)
+      const mvpPreview: PreviewStanding[] = mvp.map((row, i) => ({
+        pos: Number(row.cells.colocacao) || i + 1,
+        nome: row.cells.nick || '—',
+        booyah: '0',
+        abates: row.cells.abates || '0',
+        pts: '0',
+        delta: '0',
+        quedas: row.cells.quedas || '0',
+        kd: row.cells.kd || '0',
+      }))
+
       try {
         const { data } = await supabase.auth.getSession()
         const token = data.session?.access_token
@@ -111,24 +130,44 @@ export function StreamOverlayEditor(props: {
       }
 
       setStandings(standingRows)
+      setMvpRows(mvpPreview.length ? mvpPreview : standingRows)
 
-      const mapNames = ['BERMUDA 1', 'PURGATÓRIO 1', 'NOVA TERRA 1']
-      const mapImages = [
-        '/images/maps/bermuda.png',
-        '/images/maps/purgatorio.png',
-        '/images/maps/nova-terra.png',
-      ]
-      const mapRows: PreviewMap[] = mapNames.map((title, i) => {
-        const equipeRow = equipes[i]
+      const fallbackMaps = ['BERMUDA 1', 'PURGATÓRIO 1', 'NOVA TERRA 1']
+      const mapImages: Record<string, string> = {
+        bermuda: '/images/maps/bermuda.png',
+        purgatorio: '/images/maps/purgatorio.png',
+        purgatório: '/images/maps/purgatorio.png',
+        'nova terra': '/images/maps/nova-terra.png',
+        'nova-terra': '/images/maps/nova-terra.png',
+        kalahari: '/images/maps/kalahari.png',
+        alpine: '/images/maps/alpine.png',
+        solara: '/images/maps/solara.png',
+      }
+      const fromQuedas = quedas.slice(0, 6).map((q, i) => {
+        const mapa = String(q.cells.mapa || fallbackMaps[i] || `MAPA ${i + 1}`)
+        const key = mapa.toLowerCase()
+        const imageUrl =
+          Object.entries(mapImages).find(([k]) => key.includes(k))?.[1] || '/images/maps/bermuda.png'
         return {
-          title,
-          imageUrl: mapImages[i],
+          title: `${mapa}${q.cells.numero ? ` ${q.cells.numero}` : ''}`.toUpperCase(),
+          imageUrl,
           logo: standingRows[i]?.logo,
           pts: standingRows[i]?.pts || '0',
           abates: standingRows[i]?.abates || '0',
-          nome: standingRows[i]?.nome || equipeRow?.cells?.line || '',
+          nome: standingRows[i]?.nome || equipes[i]?.cells?.line || '',
         }
       })
+      const mapRows: PreviewMap[] =
+        fromQuedas.length > 0
+          ? fromQuedas
+          : fallbackMaps.map((title, i) => ({
+              title,
+              imageUrl: Object.values(mapImages)[i] || '/images/maps/bermuda.png',
+              logo: standingRows[i]?.logo,
+              pts: standingRows[i]?.pts || '0',
+              abates: standingRows[i]?.abates || '0',
+              nome: standingRows[i]?.nome || equipes[i]?.cells?.line || '',
+            }))
       setMaps(mapRows)
     } finally {
       setLoadingData(false)
@@ -229,6 +268,23 @@ export function StreamOverlayEditor(props: {
     window.setTimeout(() => setSaved(false), 2000)
   }
 
+  function handleExportJson() {
+    if (!overlay) return
+    const payload = buildOverlayExportPayload(overlay, props.campeonatoId)
+    const slug = overlay.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'overlay'
+    downloadJson(`dropzone-stream-${slug}.json`, payload)
+  }
+
+  function handleExportHtml() {
+    if (!overlay) return
+    const html = buildOverlayBrowserHtml(
+      overlay,
+      'DropZone Stream · Browser Source (estrutura). Conecte dados ao vivo na próxima etapa.',
+    )
+    const slug = overlay.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'overlay'
+    downloadHtml(`dropzone-stream-${slug}.html`, html)
+  }
+
   if (pickingTemplate) {
     return (
       <div className="stream-editor">
@@ -285,6 +341,12 @@ export function StreamOverlayEditor(props: {
         <div className="stream-panel-actions">
           {loadingData ? <span className="stream-badge">carregando dados…</span> : <span className="stream-badge">preview ao vivo</span>}
           {saved ? <span className="stream-badge">salvo</span> : null}
+          <button type="button" className="stream-secondary-btn" onClick={handleExportJson} title="Exportar JSON">
+            <Download size={15} /> JSON
+          </button>
+          <button type="button" className="stream-secondary-btn" onClick={handleExportHtml} title="Exportar HTML (Browser Source)">
+            <Download size={15} /> HTML
+          </button>
           <button type="button" className="stream-secondary-btn" onClick={() => setPickingTemplate(true)}>
             <LayoutTemplate size={15} /> Modelo
           </button>
@@ -328,6 +390,7 @@ export function StreamOverlayEditor(props: {
             selectedBlockId={selectedBlockId}
             onSelectBlock={setSelectedBlockId}
             standings={standings}
+            mvp={mvpRows}
             maps={maps}
             layout={overlay.template}
           />

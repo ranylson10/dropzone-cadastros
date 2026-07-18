@@ -85,20 +85,87 @@ export async function loadStreamSheet(campeonatoId: string, sheetId: StreamSheet
     return rows
   }
 
-  // classificacao
-  const payload = await authFetch(`/api/campeonatos/${campeonatoId}/estatisticas/equipes`)
-  const equipes = Array.isArray(payload.equipes) ? payload.equipes : []
-  return equipes.map((row: any, index: number) => ({
-    id: text(row.campeonato_equipe_id || row.id || `cl-${index}`),
-    cells: {
-      colocacao: text(row.colocacao ?? index + 1),
-      line: text(row.nome || row.line_nome || row.nome_exibicao || ''),
-      tag: text(row.tag || ''),
-      booyahs: text(row.booyahs ?? row.booyah ?? 0),
-      abates: text(row.abates ?? row.kills ?? 0),
-      pontos: text(row.pontos_total ?? row.pontos ?? 0),
-    },
-  }))
+  if (sheetId === 'classificacao') {
+    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/estatisticas/equipes`)
+    const equipes = Array.isArray(payload.equipes) ? payload.equipes : []
+    return equipes.map((row: any, index: number) => ({
+      id: text(row.campeonato_equipe_id || row.id || `cl-${index}`),
+      cells: {
+        colocacao: text(row.colocacao ?? index + 1),
+        line: text(row.nome || row.line_nome || row.nome_exibicao || ''),
+        tag: text(row.tag || ''),
+        booyahs: text(row.booyahs ?? row.booyah ?? 0),
+        abates: text(row.abates ?? row.kills ?? 0),
+        pontos: text(row.pontos_total ?? row.pontos ?? 0),
+      },
+    }))
+  }
+
+  if (sheetId === 'mvp') {
+    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/estatisticas/mvp`)
+    const jogadores = Array.isArray(payload.jogadores) ? payload.jogadores : []
+    return jogadores.map((row: any, index: number) => {
+      const abates = Number(row.abates || 0)
+      const quedas = Math.max(1, Number(row.quedas || 1))
+      const kd = (abates / quedas).toFixed(1).replace('.', ',')
+      return {
+        id: text(row.campeonato_jogador_id || row.id || `mvp-${index}`),
+        cells: {
+          colocacao: text(row.colocacao ?? index + 1),
+          nick: text(row.nick || '—'),
+          abates: text(abates),
+          quedas: text(row.quedas ?? 0),
+          kd,
+          dano: text(row.dano ?? 0),
+        },
+      }
+    })
+  }
+
+  if (sheetId === 'jogos' || sheetId === 'quedas') {
+    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/jogos`)
+    const jogos = Array.isArray(payload.jogos) ? payload.jogos : []
+    if (sheetId === 'jogos') {
+      return jogos.map((jogo: any, index: number) => {
+        const quedas = Array.isArray(jogo.quedas) ? jogo.quedas : []
+        const mapas = quedas
+          .map((q: any) => q.mapa_nome || q.mapa_codigo || q.nome_mapa || '')
+          .filter(Boolean)
+          .join(', ')
+        return {
+          id: text(jogo.id || `jogo-${index}`),
+          cells: {
+            nome: text(jogo.nome || `Jogo ${index + 1}`),
+            data: text(jogo.data_jogo || ''),
+            horario: text(jogo.horario || ''),
+            status: text(jogo.status || ''),
+            quedas: text(quedas.length),
+            mapas: text(mapas),
+          },
+        }
+      })
+    }
+    const rows: StreamSheetRow[] = []
+    for (const jogo of jogos) {
+      const quedas = Array.isArray(jogo.quedas) ? jogo.quedas : []
+      for (const q of quedas) {
+        rows.push({
+          id: text(q.id || `${jogo.id}-${q.numero_partida}`),
+          cells: {
+            jogo: text(jogo.nome || ''),
+            numero: text(q.numero_partida ?? q.numero ?? ''),
+            mapa: text(q.mapa_nome || q.mapa_codigo || q.nome_mapa || '—'),
+            status: text(q.status || ''),
+            horario: text(q.horario || jogo.horario || ''),
+            id: text(q.id || ''),
+          },
+        })
+      }
+    }
+    return rows
+  }
+
+  return []
 }
 
 const OVERLAY_KEY = (campeonatoId: string) => `dropzone_stream_overlays_${campeonatoId}`

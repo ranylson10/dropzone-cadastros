@@ -207,6 +207,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-width: 100%;
 }
 
 .stream-sheet-tabs button {

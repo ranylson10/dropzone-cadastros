@@ -180,15 +180,17 @@ export function OverlayPreview(props: {
   selectedBlockId: string | null
   onSelectBlock: (id: string) => void
   standings: PreviewStanding[]
+  mvp?: PreviewStanding[]
   maps: PreviewMap[]
   layout: 'map_cards' | 'standings' | 'mvp_combo' | 'custom'
 }) {
+  const mvpList = props.mvp?.length ? props.mvp : props.standings
   return (
     <div className={`stream-preview-stage layout-${props.layout}`}>
       {props.blocks.map((block, index) => {
         if (block.type === 'card') {
           const map = props.maps[(block.data.mapSlot || 1) - 1]
-          const mvp = props.standings[0]
+          const mvp = mvpList[0]
           return (
             <CardPreview
               key={block.id}
@@ -201,13 +203,15 @@ export function OverlayPreview(props: {
             />
           )
         }
+        const tableRows =
+          block.data.source === 'mvp' || block.data.variant === 'mvp_list' ? mvpList : props.standings
         return (
           <TablePreview
             key={block.id}
             block={block}
             index={index}
             selected={props.selectedBlockId === block.id}
-            rows={props.standings}
+            rows={tableRows}
             onSelect={() => props.onSelectBlock(block.id)}
           />
         )
