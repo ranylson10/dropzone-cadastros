@@ -112,6 +112,7 @@ export function StreamOverlayEditor(props: {
 
   const [panning, setPanning] = useState(false)
   const panStart = useRef({ x: 0, y: 0, px: 0, py: 0 })
+  const spaceHeld = useRef(false)
   const dragBlock = useRef<{
     id: string
     startClientX: number
@@ -133,7 +134,64 @@ export function StreamOverlayEditor(props: {
     saveWorkspacePrefs(ws)
   }, [ws])
 
+  // Trava scroll da página — só laterais e canvas rolam/pan internamente
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    const prevHtml = html.style.overflow
+    const prevBody = body.style.overflow
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    return () => {
+      html.style.overflow = prevHtml
+      body.style.overflow = prevBody
+    }
+  }, [])
+
+  // Espaço = modo mão (pan), como Photoshop
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code === 'Space' && !e.repeat) {
+        const t = e.target as HTMLElement | null
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+        e.preventDefault()
+        spaceHeld.current = true
+      }
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code === 'Space') spaceHeld.current = false
+    }
+    window.addEventListener('keydown', onKeyDown, { passive: false })
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
+
   const frame = getOverlayFrame(overlay)
+  const wheelHandlerRef = useRef<(e: WheelEvent) => void>(() => {})
+  wheelHandlerRef.current = (e: WheelEvent) => {
+    e.preventDefault()
+    if (e.ctrlKey || e.metaKey) {
+      setZoom((z) => Math.min(3, Math.max(0.15, z + (e.deltaY > 0 ? -0.08 : 0.08))))
+      return
+    }
+    if (e.shiftKey) {
+      setPan((p) => ({ x: p.x - e.deltaY, y: p.y }))
+      return
+    }
+    setPan((p) => ({ x: p.x - (e.deltaX || 0), y: p.y - e.deltaY }))
+  }
+
+  // wheel non-passive no stage (evita scroll da página)
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return
+    const fn = (e: WheelEvent) => wheelHandlerRef.current(e)
+    el.addEventListener('wheel', fn, { passive: false })
+    return () => el.removeEventListener('wheel', fn)
+  }, [overlay])
 
   // Nova overlay: só nome, sem wizard
   useEffect(() => {
@@ -464,13 +522,24 @@ export function StreamOverlayEditor(props: {
     window.setTimeout(() => setSaved(false), 2000)
   }
 
-  // pan da área (Alt+arrastar ou botão do meio)
-  function onStagePointerDown(e: React.PointerEvent) {
-    if (e.button !== 1 && !(e.button === 0 && e.altKey)) return
+  function startPan(e: React.PointerEvent) {
     e.preventDefault()
     setPanning(true)
     panStart.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }
-    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+
+  // pan: botão do meio · Alt+arrastar · Espaço+arrastar · arrastar fundo vazio
+  function onStagePointerDown(e: React.PointerEvent) {
+    if (dragBlock.current) return
+    const t = e.target as HTMLElement
+    const onBlock = Boolean(t.closest('.stream-gt-block'))
+    const wantPan =
+      e.button === 1
+      || (e.button === 0 && (e.altKey || spaceHeld.current || !onBlock))
+    if (!wantPan) return
+    if (onBlock && !(e.altKey || spaceHeld.current || e.button === 1)) return
+    startPan(e)
   }
   function onStagePointerMove(e: React.PointerEvent) {
     if (dragBlock.current) {
@@ -493,14 +562,8 @@ export function StreamOverlayEditor(props: {
     setDraggingId(null)
     setPanning(false)
   }
-  function onWheel(e: React.WheelEvent) {
-    if (!e.ctrlKey && !e.metaKey) return
-    e.preventDefault()
-    setZoom((z) => Math.min(2.5, Math.max(0.35, z + (e.deltaY > 0 ? -0.08 : 0.08))))
-  }
-
   function onBlockPointerDown(e: React.PointerEvent, block: StreamBlock) {
-    if (e.button !== 0 || e.altKey) return
+    if (e.button !== 0 || e.altKey || spaceHeld.current) return
     const t = e.target as HTMLElement
     // clique em camada interna = seleciona camada, não inicia drag do bloco
     if (t.closest('.stream-layer-hit')) {
@@ -511,7 +574,6 @@ export function StreamOverlayEditor(props: {
     e.stopPropagation()
     setSelectedBlockId(block.id)
     setSelectedLayerId(null)
-    const size = blockSize(block)
     dragBlock.current = {
       id: block.id,
       startClientX: e.clientX,
@@ -521,7 +583,6 @@ export function StreamOverlayEditor(props: {
     }
     setDraggingId(block.id)
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
-    void size
   }
 
   if (!overlay) {
@@ -911,16 +972,16 @@ export function StreamOverlayEditor(props: {
             <span>{Math.round(zoom * 100)}%</span>
             <button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))} title="Zoom +"><ZoomIn size={16} /></button>
             <button type="button" onClick={() => { setZoom(0.55); setPan({ x: 0, y: 0 }) }}>Reset</button>
-            <span className="stream-hint">{frame.w}×{frame.h} · arrastar bloco · Alt+pan</span>
+            <span className="stream-hint">{frame.w}×{frame.h} · scroll=pan · Ctrl+scroll=zoom · Espaço+arrastar</span>
           </div>
 
           <div
-            className="stream-gt-stage-inner"
-            onWheel={onWheel}
+            className={`stream-gt-stage-inner ${panning ? 'is-panning' : ''}`}
             onPointerDown={onStagePointerDown}
             onPointerMove={onStagePointerMove}
             onPointerUp={onStagePointerUp}
             onPointerLeave={onStagePointerUp}
+            onContextMenu={(e) => e.preventDefault()}
           >
             <div
               className="stream-gt-world"

@@ -316,6 +316,43 @@
   color: var(--text);
 }
 
+/*
+ * Editor GT: página travada no viewport.
+ * Só laterais rolam — canvas nunca “some” para baixo.
+ */
+.stream-editor.stream-gt {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.stream-editor.stream-gt .stream-workspace-header {
+  position: relative;
+  top: auto;
+  flex: 0 0 auto;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  min-height: 0;
+}
+
+.stream-editor.stream-gt > .stream-hint {
+  flex: 0 0 auto;
+  margin: 0 0 6px;
+}
+
+.stream-editor.stream-gt .stream-gt-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow: hidden;
+}
+
 .stream-workspace-header {
   position: sticky;
   top: 0;
@@ -512,7 +549,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   gap: 0;
-  min-height: calc(100vh - 88px);
+  min-height: 0;
+  height: 100%;
   border: 1px solid var(--line);
   background: var(--surface);
 }
@@ -528,6 +566,14 @@
   --gt-right: 320px;
   grid-template-columns: var(--gt-left) 6px minmax(0, 1fr) 6px var(--gt-right);
   grid-template-areas: "tools h1 stage h2 layers";
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+.stream-gt-layout.stream-gt-layout-3 > * {
+  min-height: 0;
 }
 
 .stream-gt-layout.stream-gt-layout-3.dock-lcr {
@@ -569,9 +615,12 @@
 .stream-gt-left {
   border-right: 0;
   border-radius: 0;
-  max-height: calc(100vh - 88px);
-  overflow: auto;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
   overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   align-content: start;
   min-width: 0;
   width: 100%;
@@ -627,7 +676,9 @@
   position: relative;
   overflow: hidden;
   background: #12141a;
-  min-height: calc(100vh - 88px);
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
   cursor: default;
   touch-action: none;
 }
@@ -669,20 +720,31 @@
   white-space: nowrap;
 }
 
-/* Área que recebe pan/zoom e centraliza o frame */
+/* Área que recebe pan/zoom e centraliza o frame — sempre no viewport do stage */
 .stream-gt-stage-inner {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  min-height: calc(100vh - 88px);
+  min-height: 0;
   display: grid;
   place-items: center;
   overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.stream-gt-stage-inner.is-panning {
+  cursor: grabbing;
 }
 
 .stream-gt-world {
   display: grid;
   place-items: center;
   will-change: transform;
+  /* não empurra o layout da página — só se move via transform */
+  max-width: none;
+  max-height: none;
 }
 
 /*
@@ -859,9 +921,12 @@
 .stream-gt-right {
   border-left: 0;
   border-radius: 0;
-  max-height: calc(100vh - 88px);
-  overflow: auto;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
   overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   align-content: start;
   min-width: 0;
   width: 100%;
@@ -1028,16 +1093,22 @@
 }
 
 @media (max-width: 1100px) {
+  .stream-editor.stream-gt {
+    height: 100dvh;
+    overflow: hidden;
+  }
   .stream-gt-layout,
   .stream-gt-layout.stream-gt-layout-3,
   .stream-gt-layout.stream-gt-layout-3.dock-lcr,
   .stream-gt-layout.stream-gt-layout-3.dock-clr,
   .stream-gt-layout.stream-gt-layout-3.dock-lrc {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(140px, 28vh) minmax(140px, 28vh);
     grid-template-areas:
       "stage"
       "tools"
       "layers";
+    overflow: hidden;
   }
   .stream-gt-resizer {
     display: none;
@@ -1045,15 +1116,17 @@
   .stream-gt-left,
   .stream-gt-right {
     max-height: none;
+    height: 100%;
     border-left: 0;
     border-right: 0;
     border-top: 1px solid var(--line);
   }
   .stream-gt-stage {
-    min-height: 56vh;
+    min-height: 0;
+    height: 100%;
   }
   .stream-gt-stage-inner {
-    min-height: 56vh;
+    min-height: 0;
   }
   .stream-cg-layout {
     grid-template-columns: 1fr;
