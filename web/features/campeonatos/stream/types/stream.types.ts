@@ -64,7 +64,7 @@ export type StreamInnerPanel = 'overlays' | 'planilha'
 /** Modelos de overlay (wizard). */
 export type StreamTemplateId = 'map_cards' | 'standings' | 'mvp_combo' | 'custom'
 
-export type FillMode = 'solid' | 'gradient' | 'image'
+export type FillMode = 'solid' | 'gradient' | 'image' | 'none'
 
 export type FillStyle = {
   mode: FillMode

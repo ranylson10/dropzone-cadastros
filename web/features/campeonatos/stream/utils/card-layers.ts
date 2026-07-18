@@ -164,9 +164,9 @@ export function createEmptyCard(name = 'Bloco', opts?: { x?: number; y?: number;
     canvasW: opts?.w ?? 240,
     canvasH: opts?.h ?? 160,
     box: {
-      fill: { mode: 'solid', color: 'rgba(18, 20, 28, 0.85)' },
+      fill: { mode: 'none', color: 'transparent', opacity: 1 },
       borderColor: '#c9a227',
-      borderWidth: 2,
+      borderWidth: 1,
       borderRadius: 4,
       padding: 0,
     },

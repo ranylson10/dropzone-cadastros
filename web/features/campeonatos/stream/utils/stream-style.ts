@@ -4,6 +4,13 @@ import type { BoxStyle, FillStyle, FieldStyle, TextStyle, TransitionStyle } from
 export function fillToCss(fill?: FillStyle): CSSProperties {
   if (!fill) return {}
   const opacity = fill.opacity ?? 1
+  if (fill.mode === 'none') {
+    return {
+      backgroundColor: 'transparent',
+      backgroundImage: 'none',
+      opacity,
+    }
+  }
   if (fill.mode === 'gradient') {
     const angle = fill.angle ?? 180
     const from = fill.color || '#1a1d24'
@@ -14,18 +21,29 @@ export function fillToCss(fill?: FillStyle): CSSProperties {
     }
   }
   if (fill.mode === 'image' && fill.imageUrl) {
-    const overlay = fill.overlayColor || '#000'
-    const ov = fill.overlayOpacity ?? 0.35
+    const ovAmount = fill.overlayOpacity ?? 0
+    const overlay = fill.overlayColor || '#000000'
+    const hex = overlay.replace('#', '').slice(0, 6)
+    const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex.padEnd(6, '0')
+    const a = Math.round(Math.min(1, Math.max(0, ovAmount)) * 255)
+      .toString(16)
+      .padStart(2, '0')
+    const safeUrl = String(fill.imageUrl).replace(/"/g, '%22')
     return {
-      backgroundImage: `linear-gradient(${overlay}${Math.round(ov * 255).toString(16).padStart(2, '0')}, ${overlay}${Math.round(ov * 255).toString(16).padStart(2, '0')}), url(${fill.imageUrl})`,
+      backgroundImage:
+        ovAmount > 0
+          ? `linear-gradient(#${full}${a}, #${full}${a}), url("${safeUrl}")`
+          : `url("${safeUrl}")`,
       backgroundSize: fill.fit === 'contain' ? 'contain' : 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
+      backgroundColor: 'transparent',
       opacity,
     }
   }
   return {
     backgroundColor: fill.color || 'transparent',
+    backgroundImage: 'none',
     opacity,
   }
 }
@@ -106,13 +124,19 @@ export function withAlpha(hex: string, alpha: number): string {
 
 export function fillToCssSafe(fill?: FillStyle): CSSProperties {
   if (!fill) return {}
+  if (fill.mode === 'none') {
+    return { backgroundColor: 'transparent', backgroundImage: 'none', opacity: fill.opacity ?? 1 }
+  }
   if (fill.mode === 'image' && fill.imageUrl) {
-    const ov = withAlpha(fill.overlayColor || '#000000', fill.overlayOpacity ?? 0.35)
+    const ovAmount = fill.overlayOpacity ?? 0
+    const ov = withAlpha(fill.overlayColor || '#000000', ovAmount)
+    const safeUrl = String(fill.imageUrl).replace(/\\/g, '/').replace(/"/g, '%22')
     return {
-      backgroundImage: `linear-gradient(${ov}, ${ov}), url(${JSON.stringify(fill.imageUrl).slice(1, -1)})`,
+      backgroundImage: ovAmount > 0 ? `linear-gradient(${ov}, ${ov}), url("${safeUrl}")` : `url("${safeUrl}")`,
       backgroundSize: fill.fit === 'contain' ? 'contain' : 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
+      backgroundColor: 'transparent',
       opacity: fill.opacity ?? 1,
     }
   }
@@ -121,6 +145,9 @@ export function fillToCssSafe(fill?: FillStyle): CSSProperties {
 
 export function boxToCssSafe(box?: BoxStyle): CSSProperties {
   if (!box) return {}
+  const fillCss = fillToCssSafe(box.fill)
   const base = boxToCss({ ...box, fill: undefined })
-  return { ...base, ...fillToCssSafe(box.fill), opacity: box.opacity ?? 1 }
+  // não sobrescrever opacity do fill com 1 se box.opacity for undefined
+  const opacity = box.opacity != null ? box.opacity : (fillCss.opacity as number | undefined) ?? 1
+  return { ...base, ...fillCss, opacity }
 }

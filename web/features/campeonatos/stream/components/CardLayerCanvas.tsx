@@ -29,6 +29,8 @@ export function CardLayerCanvas(props: {
         height: props.fillParent ? '100%' : card.canvasH || 160,
         overflow: 'hidden',
         boxSizing: 'border-box',
+        // garante que background-image do box apareça mesmo com camadas vazias
+        backgroundClip: 'padding-box',
       }}
     >
       {layers.map((layer) => (

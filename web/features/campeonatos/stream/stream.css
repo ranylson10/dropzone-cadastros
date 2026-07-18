@@ -1209,7 +1209,7 @@
 .stream-gt-layer-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 18px 1fr auto;
+  grid-template-columns: 16px 18px 1fr auto;
   gap: 6px;
   align-items: center;
   padding: 8px;
@@ -1218,6 +1218,32 @@
   text-align: left;
   cursor: pointer;
   color: var(--text);
+}
+
+.stream-drag-handle {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  cursor: grab;
+  opacity: 0.75;
+}
+
+.stream-drag-handle:active {
+  cursor: grabbing;
+}
+
+.stream-gt-block-tree > li {
+  cursor: grab;
+}
+
+.stream-gt-block-tree > li:active {
+  cursor: grabbing;
+}
+
+.stream-gt-layer-list > li.is-dragging,
+.stream-gt-block-tree > li.is-dragging {
+  opacity: 0.55;
+  outline: 1px dashed var(--brand);
 }
 
 .stream-gt-layer-row small {

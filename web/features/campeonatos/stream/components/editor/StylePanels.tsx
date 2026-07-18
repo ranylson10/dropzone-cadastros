@@ -91,7 +91,7 @@ export function FillStyleEditor(props: {
   onChange: (next: FillStyle) => void
   allowImage?: boolean
 }) {
-  const v: FillStyle = props.value || { mode: 'solid', color: '#1a1d24', opacity: 1 }
+  const v: FillStyle = props.value || { mode: 'none', color: 'transparent', opacity: 1 }
   const set = (patch: Partial<FillStyle>) => props.onChange({ ...v, ...patch })
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -103,7 +103,15 @@ export function FillStyleEditor(props: {
     try {
       const png = await fileToPngFile(file)
       const url = await uploadPublicFile(png, 'campeonato', 'produtora')
-      set({ mode: 'image', imageUrl: url, fit: v.fit || 'cover', overlayOpacity: v.overlayOpacity ?? 0.35, overlayColor: v.overlayColor || '#000000' })
+      // overlay 0 = imagem aparece limpa
+      set({
+        mode: 'image',
+        imageUrl: url,
+        fit: v.fit || 'cover',
+        overlayOpacity: 0,
+        overlayColor: v.overlayColor || '#000000',
+        opacity: 1,
+      })
     } catch (err: any) {
       setUploadError(err?.message || 'Falha no upload.')
     } finally {
@@ -111,21 +119,39 @@ export function FillStyleEditor(props: {
     }
   }
 
+  function clearImage() {
+    set({ mode: 'none', imageUrl: '', opacity: 1, overlayOpacity: 0 })
+  }
+
   return (
     <Section title="Fundo">
       <Field label="Tipo">
         <select
-          value={v.mode}
-          onChange={(e) => set({ mode: e.target.value as FillStyle['mode'] })}
+          value={v.mode || 'solid'}
+          onChange={(e) => {
+            const mode = e.target.value as FillStyle['mode']
+            if (mode === 'none') {
+              props.onChange({ mode: 'none', color: 'transparent', imageUrl: '', opacity: 1 })
+              return
+            }
+            set({ mode })
+          }}
         >
+          <option value="none">Sem fundo (transparente)</option>
           <option value="solid">Cor sólida</option>
           <option value="gradient">Degradê</option>
           {props.allowImage !== false ? <option value="image">Imagem</option> : null}
         </select>
       </Field>
-      <Field label={v.mode === 'gradient' ? 'Cor 1' : 'Cor'}>
-        <input type="color" value={(v.color || '#1a1d24').slice(0, 7)} onChange={(e) => set({ color: e.target.value })} />
-      </Field>
+      {v.mode === 'solid' || v.mode === 'gradient' ? (
+        <Field label={v.mode === 'gradient' ? 'Cor 1' : 'Cor'}>
+          <input
+            type="color"
+            value={(v.color && v.color.startsWith('#') ? v.color : '#1a1d24').slice(0, 7)}
+            onChange={(e) => set({ color: e.target.value, mode: v.mode === 'gradient' ? 'gradient' : 'solid' })}
+          />
+        </Field>
+      ) : null}
       {v.mode === 'gradient' ? (
         <>
           <Field label="Cor 2">
@@ -136,7 +162,7 @@ export function FillStyleEditor(props: {
           </Field>
         </>
       ) : null}
-      {v.mode === 'image' ? (
+      {v.mode === 'image' || (props.allowImage !== false && v.imageUrl) ? (
         <>
           <Field label="Enviar imagem">
             <input
@@ -149,8 +175,12 @@ export function FillStyleEditor(props: {
           {uploading ? <p className="stream-hint">Enviando…</p> : null}
           {uploadError ? <p className="stream-error" style={{ margin: 0 }}>{uploadError}</p> : null}
           {v.imageUrl ? (
-            <div className="stream-fill-thumb">
+            <div className="stream-fill-thumb stream-layer-image-preview">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={v.imageUrl} alt="" />
+              <button type="button" className="stream-secondary-btn" onClick={clearImage}>
+                Remover imagem
+              </button>
             </div>
           ) : null}
           <Field label="URL da imagem">
@@ -158,7 +188,7 @@ export function FillStyleEditor(props: {
               type="url"
               value={v.imageUrl || ''}
               placeholder="https://… ou envie acima"
-              onChange={(e) => set({ imageUrl: e.target.value })}
+              onChange={(e) => set({ mode: 'image', imageUrl: e.target.value })}
             />
           </Field>
           <Field label="Ajuste">
@@ -167,26 +197,28 @@ export function FillStyleEditor(props: {
               <option value="contain">Conter</option>
             </select>
           </Field>
-          <Field label="Escurecer">
+          <Field label="Escurecer (0 = limpo)">
             <input
               type="range"
               min={0}
               max={80}
-              value={Math.round((v.overlayOpacity ?? 0.35) * 100)}
+              value={Math.round((v.overlayOpacity ?? 0) * 100)}
               onChange={(e) => set({ overlayOpacity: Number(e.target.value) / 100, overlayColor: v.overlayColor || '#000000' })}
             />
           </Field>
         </>
       ) : null}
-      <Field label="Opacidade">
-        <input
-          type="range"
-          min={20}
-          max={100}
-          value={Math.round((v.opacity ?? 1) * 100)}
-          onChange={(e) => set({ opacity: Number(e.target.value) / 100 })}
-        />
-      </Field>
+      {v.mode !== 'none' ? (
+        <Field label="Opacidade">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round((v.opacity ?? 1) * 100)}
+            onChange={(e) => set({ opacity: Number(e.target.value) / 100 })}
+          />
+        </Field>
+      ) : null}
     </Section>
   )
 }
