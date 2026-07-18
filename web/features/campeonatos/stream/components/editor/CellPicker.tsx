@@ -144,15 +144,26 @@ export function CellPicker(props: {
                             props.value?.sheetId === sheetId
                             && props.value?.colKey === col.key
                             && props.value?.rowIndex === excelRow
+                          const showImg =
+                            Boolean(val)
+                            && (col.image
+                              || /^https?:\/\//i.test(val)
+                              || val.startsWith('/images/')
+                              || val.startsWith('data:image'))
                           return (
-                            <td key={col.key}>
+                            <td key={col.key} className={showImg ? 'is-img-cell' : ''}>
                               <button
                                 type="button"
                                 className={selected ? 'is-picked' : ''}
                                 title={`${def.refName}!${col.letter}${excelRow + 1}`}
                                 onClick={() => pickCell(col.key, col.letter, excelRow, val)}
                               >
-                                {val || (isPlaceholder ? '·' : '—')}
+                                {showImg ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={val} alt="" className="stream-sheet-thumb" loading="lazy" />
+                                ) : (
+                                  val || (isPlaceholder ? '·' : '—')
+                                )}
                               </button>
                             </td>
                           )

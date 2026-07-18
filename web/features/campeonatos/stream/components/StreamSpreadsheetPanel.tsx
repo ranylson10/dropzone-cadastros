@@ -12,6 +12,16 @@ import {
 
 type FilterOptions = Awaited<ReturnType<typeof loadStreamFilterOptions>>
 
+function isImageCellValue(value: string) {
+  const t = String(value || '').trim()
+  if (!t) return false
+  if (t.startsWith('/images/') || t.startsWith('data:image')) return true
+  if (/^https?:\/\//i.test(t)) {
+    return /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(t) || /supabase|storage|\/images\//i.test(t)
+  }
+  return false
+}
+
 export function StreamSpreadsheetPanel(props: {
   campeonatoId: string
   /** modal flutuante (padrão) — não fica espremido na lateral */
@@ -234,6 +244,7 @@ export function StreamSpreadsheetPanel(props: {
                   {sheet.columns.map((col) => {
                     const val = row.cells[col.key] || ''
                     const isDelta = col.key === 'delta'
+                    const showImg = Boolean(val) && (col.image || isImageCellValue(val))
                     const deltaClass =
                       isDelta && val.includes('▲')
                         ? 'is-up'
@@ -241,10 +252,14 @@ export function StreamSpreadsheetPanel(props: {
                           ? 'is-down'
                           : ''
                     return (
-                      <td key={col.key} title={`${sheet.refName}!${col.letter}${excelRow}`} className={deltaClass}>
-                        {col.image && val ? (
+                      <td
+                        key={col.key}
+                        title={showImg ? `${sheet.refName}!${col.letter}${excelRow}` : `${sheet.refName}!${col.letter}${excelRow}${val ? ` · ${val}` : ''}`}
+                        className={`${deltaClass}${showImg ? ' is-img-cell' : ''}`}
+                      >
+                        {showImg ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={val} alt="" className="stream-sheet-thumb" />
+                          <img src={val} alt="" className="stream-sheet-thumb" loading="lazy" />
                         ) : (
                           <input readOnly value={val} aria-label={`${col.label} linha ${excelRow}`} spellCheck={false} />
                         )}

@@ -236,13 +236,76 @@ export function BoxStyleEditor(props: {
 export function FieldStyleEditor(props: {
   value?: FieldStyle
   onChange: (next: FieldStyle) => void
+  /** permite imagem de fundo no box do item */
+  allowImage?: boolean
+  /** esconde editor de texto (só fundo/borda) */
+  hideText?: boolean
 }) {
   const v = props.value || {}
   return (
     <>
-      <TextStyleEditor value={v.text} onChange={(text) => props.onChange({ ...v, text })} />
-      <BoxStyleEditor value={v.box} allowImage={false} onChange={(box) => props.onChange({ ...v, box })} />
+      {!props.hideText ? (
+        <TextStyleEditor value={v.text} onChange={(text) => props.onChange({ ...v, text })} />
+      ) : null}
+      <BoxStyleEditor
+        value={v.box}
+        allowImage={props.allowImage !== false}
+        onChange={(box) => props.onChange({ ...v, box })}
+      />
     </>
+  )
+}
+
+/** Upload de imagem livre para camadas (logo do campeonato, arte, etc.). */
+export function LayerImageUpload(props: {
+  value?: string
+  onChange: (url: string) => void
+  label?: string
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function onPickFile(file: File | null) {
+    if (!file) return
+    setUploading(true)
+    setError('')
+    try {
+      const png = await fileToPngFile(file)
+      const url = await uploadPublicFile(png, 'campeonato', 'produtora')
+      props.onChange(url)
+    } catch (err: any) {
+      setError(err?.message || 'Falha no upload.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="stream-layer-image-upload">
+      <p className="stream-hint"><strong>{props.label || 'Imagem livre (PC)'}</strong></p>
+      <label className="stream-field">
+        <span>Enviar do PC</span>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          disabled={uploading}
+          onChange={(e) => void onPickFile(e.target.files?.[0] || null)}
+        />
+      </label>
+      {uploading ? <p className="stream-hint">Enviando…</p> : null}
+      {error ? <p className="stream-error" style={{ margin: 0 }}>{error}</p> : null}
+      {props.value ? (
+        <div className="stream-fill-thumb stream-layer-image-preview">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={props.value} alt="" />
+          <button type="button" className="stream-secondary-btn" onClick={() => props.onChange('')}>
+            Remover imagem
+          </button>
+        </div>
+      ) : (
+        <p className="stream-hint">PNG/JPG do PC — logo do campeonato, artes, ícones…</p>
+      )}
+    </div>
   )
 }
 

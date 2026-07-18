@@ -62,7 +62,7 @@ import {
   downloadHtml,
   downloadJson,
 } from '../utils/export-overlay'
-import { BoxStyleEditor, FieldStyleEditor, TransitionEditor } from './editor/StylePanels'
+import { BoxStyleEditor, FieldStyleEditor, LayerImageUpload, TransitionEditor } from './editor/StylePanels'
 import { CellPicker } from './editor/CellPicker'
 import { CardLayerCanvas } from './CardLayerCanvas'
 import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
@@ -76,9 +76,9 @@ function newId() {
 }
 
 const LAYER_TYPES: Array<{ id: LayerContentType; label: string }> = [
-  { id: 'image', label: 'Imagem' },
-  { id: 'logo', label: 'Logo' },
-  { id: 'text', label: 'Texto' },
+  { id: 'image', label: 'Imagem livre' },
+  { id: 'logo', label: 'Logo / arte' },
+  { id: 'text', label: 'Texto livre' },
   { id: 'number', label: 'Número' },
 ]
 
@@ -1365,14 +1365,22 @@ export function StreamOverlayEditor(props: {
                                           </label>
                                         ))}
                                       </div>
-                                      <label className="stream-field">
-                                        <span>Texto fixo</span>
-                                        <input
+                                      {(layer.type === 'image' || layer.type === 'logo') ? (
+                                        <LayerImageUpload
+                                          label={layer.type === 'logo' ? 'Logo / arte (upload PC)' : 'Imagem livre (upload PC)'}
                                           value={layer.data.source === 'fixed' ? layer.data.value : ''}
-                                          placeholder="ou clique célula abaixo"
-                                          onChange={(e) => updateLayer(layer.id, { data: { source: 'fixed', value: e.target.value } })}
+                                          onChange={(url) => updateLayer(layer.id, { data: { source: 'fixed', value: url } })}
                                         />
-                                      </label>
+                                      ) : (
+                                        <label className="stream-field">
+                                          <span>Texto livre</span>
+                                          <input
+                                            value={layer.data.source === 'fixed' ? layer.data.value : ''}
+                                            placeholder="Ex.: TABELA GERAL, nome do campeonato…"
+                                            onChange={(e) => updateLayer(layer.id, { data: { source: 'fixed', value: e.target.value } })}
+                                          />
+                                        </label>
+                                      )}
                                       <CellPicker
                                         sheets={sheets}
                                         value={layer.data.source === 'cell' ? layer.data : undefined}
@@ -1388,11 +1396,28 @@ export function StreamOverlayEditor(props: {
                                           })
                                         }}
                                       />
-                                      {(layer.type === 'text' || layer.type === 'number') ? (
-                                        <FieldStyleEditor
-                                          value={layer.style}
-                                          onChange={(style) => updateLayer(layer.id, { style })}
-                                        />
+                                      <p className="stream-hint"><strong>Fundo do item</strong> — cor ou imagem do PC</p>
+                                      <FieldStyleEditor
+                                        value={layer.style}
+                                        allowImage
+                                        hideText={layer.type === 'image' || layer.type === 'logo'}
+                                        onChange={(style) => updateLayer(layer.id, { style })}
+                                      />
+                                      {(layer.type === 'image' || layer.type === 'logo') ? (
+                                        <label className="stream-field">
+                                          <span>Ajuste da imagem</span>
+                                          <select
+                                            value={layer.objectFit || (layer.type === 'logo' ? 'contain' : 'cover')}
+                                            onChange={(e) =>
+                                              updateLayer(layer.id, {
+                                                objectFit: e.target.value as 'cover' | 'contain',
+                                              })
+                                            }
+                                          >
+                                            <option value="contain">Conter (logo)</option>
+                                            <option value="cover">Cobrir</option>
+                                          </select>
+                                        </label>
                                       ) : null}
                                       <button type="button" className="stream-secondary-btn" onClick={() => removeLayer(layer.id)}>
                                         <Trash2 size={14} /> Remover

@@ -21,9 +21,25 @@ function slotIndex(mapSlot: number) {
   return Math.max(0, (mapSlot || 1) - 1)
 }
 
-export function resolveLayerData(data: LayerDataSource, ctx: LayerResolveContext): ResolvedLayerContent {
+function looksLikeImageUrl(value: string) {
+  const t = String(value || '').trim()
+  if (!t) return false
+  if (/^https?:\/\//i.test(t)) return /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(t) || /supabase|storage|images\//i.test(t)
+  if (t.startsWith('/images/') || t.startsWith('data:image')) return true
+  return false
+}
+
+export function resolveLayerData(
+  data: LayerDataSource,
+  ctx: LayerResolveContext,
+  opts?: { preferImage?: boolean },
+): ResolvedLayerContent {
   if (data.source === 'fixed') {
-    return { kind: 'text', text: data.value || '' }
+    const v = data.value || ''
+    if (opts?.preferImage || looksLikeImageUrl(v)) {
+      return { kind: 'image', src: v || undefined, empty: !v }
+    }
+    return { kind: 'text', text: v }
   }
   if (data.source === 'map_image') {
     const map = ctx.mapas[slotIndex(data.mapSlot)]
@@ -70,8 +86,9 @@ export function resolveLayerData(data: LayerDataSource, ctx: LayerResolveContext
     const row = rows[Math.max(0, data.rowIndex - 1)]
     const value = row?.cells?.[data.colKey]
     const text = value == null || value === '' ? '—' : String(value)
-    const looksUrl = /^https?:\/\//i.test(text) || text.startsWith('/images/')
-    if (looksUrl) return { kind: 'image', src: text, empty: false }
+    if (looksLikeImageUrl(text) || (opts?.preferImage && value)) {
+      return { kind: 'image', src: value ? String(value) : undefined, empty: !value }
+    }
     return { kind: 'text', text, empty: !value }
   }
   return { kind: 'text', text: '' }

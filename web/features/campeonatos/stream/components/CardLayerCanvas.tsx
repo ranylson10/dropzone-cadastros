@@ -58,12 +58,13 @@ function LayerView(props: {
   onSelect?: () => void
 }) {
   const { layer } = props
-  const resolved = resolveLayerData(layer.data, props.ctx)
+  const preferImage = layer.type === 'image' || layer.type === 'logo'
+  const resolved = resolveLayerData(layer.data, props.ctx, { preferImage })
   const fs = fieldToCss(layer.style)
   const box = {
     ...layerBoxStyle(layer),
     ...fs.wrap,
-    ...fs.text,
+    ...(resolved.kind === 'image' ? {} : fs.text),
     cursor: props.editable ? 'pointer' : 'default',
     outline: props.selected ? '2px solid #dfbf4a' : props.editable ? '1px dashed rgba(255,255,255,.15)' : undefined,
     outlineOffset: props.selected ? 1 : 0,
@@ -85,7 +86,7 @@ function LayerView(props: {
         />
       ) : (
         <span className="stream-prev-logo-fallback" style={{ width: '70%', height: '70%', fontSize: 12 }}>
-          {layer.type === 'logo' ? 'LOGO' : 'IMG'}
+          {props.editable ? (layer.type === 'logo' ? 'UPLOAD LOGO' : 'UPLOAD IMG') : ''}
         </span>
       )
     ) : (

@@ -305,22 +305,22 @@ export function createDefaultLayer(type: LayerContentType, _mapSlot = 1): Stream
   if (type === 'image') {
     return {
       ...base,
-      name: 'Imagem',
+      name: 'Imagem livre',
       type: 'image',
-      w: 100,
-      h: 55,
-      x: 0,
-      y: 0,
-      z: 1,
-      objectFit: 'cover',
+      w: 40,
+      h: 40,
+      x: 30,
+      y: 20,
+      z: 2,
+      objectFit: 'contain',
       data: { source: 'fixed', value: '' },
-      style: { box: { fill: { mode: 'solid', color: '#2a2f3a' } } },
+      style: { box: { fill: { mode: 'solid', color: 'transparent' }, padding: 0 } },
     }
   }
   if (type === 'logo') {
     return {
       ...base,
-      name: 'Logo',
+      name: 'Logo / arte',
       type: 'logo',
       w: 28,
       h: 28,
@@ -329,6 +329,7 @@ export function createDefaultLayer(type: LayerContentType, _mapSlot = 1): Stream
       z: 3,
       objectFit: 'contain',
       data: { source: 'fixed', value: '' },
+      style: { box: { fill: { mode: 'solid', color: 'transparent' }, padding: 0 } },
     }
   }
   if (type === 'number') {
@@ -345,13 +346,15 @@ export function createDefaultLayer(type: LayerContentType, _mapSlot = 1): Stream
   }
   return {
     ...base,
-    name: 'Texto',
+    name: 'Texto livre',
     type: 'text',
-    w: 84,
-    h: 22,
-    data: { source: 'fixed', value: 'Texto' },
+    w: 70,
+    h: 18,
+    x: 15,
+    y: 40,
+    data: { source: 'fixed', value: 'TABELA GERAL' },
     style: {
-      text: { ...DEFAULT_TEXT, fontSize: 14, color: '#fff', align: 'center' },
+      text: { ...DEFAULT_TEXT, fontSize: 18, color: '#ffffff', align: 'center' },
       box: { fill: { mode: 'solid', color: 'transparent' }, padding: 4 },
     },
   }
