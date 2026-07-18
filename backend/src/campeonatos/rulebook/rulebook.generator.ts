@@ -144,6 +144,17 @@ export function generateDocument(input: {
   const modalidade =
     a.modalidade === 'duo' ? 'Duo' : a.modalidade === 'solo' ? 'Solo' : 'Squad'
 
+  const tipoLabels: Record<string, string> = {
+    diario: 'Diário',
+    copa: 'Copa',
+    liga: 'Liga',
+    xtreino: 'X-Treino',
+    confronto: 'Confronto',
+  }
+  const tipoKey = String(a.tipo_campeonato || '').toLowerCase()
+  const tipoLabel = tipoLabels[tipoKey] || (tipoKey ? String(a.tipo_campeonato) : '')
+  const formatoCompeticao = String(a.formato_competicao || '').trim()
+
   // 1. Disposições Gerais
   push(
     article(
@@ -158,7 +169,17 @@ export function generateDocument(input: {
       'disposicoes_gerais',
       'dg_formato',
       'Formato do evento',
-      `O campeonato será realizado de forma ${formato}, na modalidade ${modalidade}, conforme configuração definida pela organização. O perfil de regras adotado para este regulamento é o ${PERFIL_LABELS[perfil] || perfil}.`,
+      [
+        tipoLabel ? `Tipo do campeonato: ${tipoLabel}.` : null,
+        formatoCompeticao
+          ? `Formato competitivo: ${formatoCompeticao}.`
+          : null,
+        `Realização: ${formato}, na modalidade ${modalidade}.`,
+        'A estrutura de fases, grupos e partidas segue a configuração cadastrada pela organização neste campeonato (incluindo, quando aplicável, pontos corridos, mata-mata, grupos classificatórios ou confronto direto).',
+        `O perfil de regras adotado para este regulamento é o ${PERFIL_LABELS[perfil] || perfil}.`,
+      ]
+        .filter(Boolean)
+        .join(' '),
     ),
   )
   push(
@@ -816,7 +837,7 @@ export function generateDocument(input: {
     chapters: includedChapters,
     summary: includedChapters.map((c) => ({
       chapterId: c.id,
-      title: `${c.order}. ${c.title}`,
+      title: c.title,
       order: c.order,
     })),
     articleCount: articleCounter,

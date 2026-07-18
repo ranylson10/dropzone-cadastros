@@ -30,7 +30,7 @@ export const RULEBOOK_CHAPTERS: Array<{
   { id: 'disposicoes_finais', order: 20, title: 'Disposições Finais' },
 ]
 
-export const CATALOG_VERSION = '1.1.0'
+export const CATALOG_VERSION = '1.1.1'
 
 /** Rótulos amigáveis para agrupar perguntas na etapa “Regras” (por tema). */
 export const CHAPTER_GROUP_LABELS: Partial<Record<RulebookChapterId, string>> = {

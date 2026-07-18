@@ -124,13 +124,29 @@ export function seedAnswersFromCampeonato(
   }
 
   // Formato do evento (online / presencial / híbrido)
-  const formato = String(camp.formato || '').toLowerCase()
-  if (formato.includes('hibr') || formato.includes('híbr')) {
+  // camp.formato no cadastro = formato competitivo (pontos corridos, mata-mata…)
+  // camp.formato_evento / online-presencial é outro campo; se existir texto de local, mapeia
+  const formatoRaw = String(camp.formato || '').trim()
+  if (formatoRaw) {
+    setIfEmpty('formato_competicao', formatoRaw, 'Formato competitivo')
+  }
+  const formatoLower = formatoRaw.toLowerCase()
+  // Não confunde "Pontos corridos" com "online/presencial" — só mapeia se for explícito
+  if (formatoLower.includes('hibr') || formatoLower.includes('híbr')) {
     setIfEmpty('formato_evento', 'hibrido', 'Formato do evento')
-  } else if (formato.includes('presenc') || formato.includes('lan') || formato.includes('offline')) {
+  } else if (
+    formatoLower.includes('presenc')
+    || formatoLower.includes('lan house')
+    || formatoLower === 'offline'
+  ) {
     setIfEmpty('formato_evento', 'presencial', 'Formato do evento')
-  } else if (formato.includes('online') || formato.includes('remoto')) {
+  } else if (formatoLower === 'online' || formatoLower.includes('remoto')) {
     setIfEmpty('formato_evento', 'online', 'Formato do evento')
+  }
+
+  const tipoCamp = String(camp.tipo || '').toLowerCase().trim()
+  if (tipoCamp) {
+    setIfEmpty('tipo_campeonato', tipoCamp, 'Tipo do campeonato')
   }
 
   // Titulares / reservas a partir de jogadores_por_vaga e vagas_por_equipe

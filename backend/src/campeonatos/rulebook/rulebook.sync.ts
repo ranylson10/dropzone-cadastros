@@ -132,6 +132,12 @@ export function linkedAnswersFromCampeonato(camp: Record<string, any> | null | u
     }
   }
 
+  // Tipo e formato competitivo do campeonato (pontos corridos, mata-mata, etc.)
+  const tipoCamp = String(camp.tipo || '').toLowerCase().trim()
+  if (tipoCamp) a.tipo_campeonato = tipoCamp
+  const formatoComp = String(camp.formato || '').trim()
+  if (formatoComp) a.formato_competicao = formatoComp
+
   return a
 }
 
