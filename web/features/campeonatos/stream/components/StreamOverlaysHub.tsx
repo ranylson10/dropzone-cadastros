@@ -65,8 +65,8 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
         <div>
           <h4>Overlays</h4>
           <p className="stream-hint">
-            Modelos com cards e tabelas. Criar/editar abre o gerador em tela cheia.
-            {source === 'api' ? ' · salvo no servidor' : ' · modo local'}
+            Nome da overlay → editor com canvas, cards/tabelas e vínculo por célula.
+            {source === 'api' ? ' · servidor' : ' · local'}
           </p>
         </div>
         <div className="stream-panel-actions">

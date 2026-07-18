@@ -111,6 +111,8 @@ export type LayerDataSource =
   | { source: 'map_abates'; mapSlot: number }
   | { source: 'standing'; rank: number; field: 'nome' | 'logo' | 'pts' | 'abates' | 'booyah' | 'delta' }
   | { source: 'mvp'; rank: number; field: 'nome' | 'logo' | 'abates' | 'kd' | 'quedas' }
+  /** Vínculo direto a uma célula da planilha Stream (linha 0 = header, dados começam em 1). */
+  | { source: 'cell'; sheetId: StreamSheetId; colKey: string; rowIndex: number; display?: string }
 
 /** Item/camada dentro da pasta Card — posição em % do card (0–100). */
 export type StreamLayer = {
@@ -137,6 +139,10 @@ export type TableBlockData = {
   rowStyle?: FieldStyle
   altRowFill?: string
   highlightFirst?: boolean
+  /** Ferramentas específicas de tabela */
+  rowHeight?: number
+  rowGap?: number
+  headerHeight?: number
 }
 
 export type StreamBlockBase = {

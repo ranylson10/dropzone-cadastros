@@ -1,11 +1,13 @@
 import type { CSSProperties } from 'react'
-import type { LayerDataSource, StreamLayer } from '../types/stream.types'
+import type { LayerDataSource, StreamLayer, StreamSheetId, StreamSheetRow } from '../types/stream.types'
 import type { LiveMapCard, LiveStanding } from '../components/StreamLiveStage'
 
 export type LayerResolveContext = {
   mapas: LiveMapCard[]
   classificacao: LiveStanding[]
   mvp: LiveStanding[]
+  /** planilha real: sheetId → linhas de dados (sem header) */
+  sheets?: Partial<Record<StreamSheetId, StreamSheetRow[]>>
 }
 
 export type ResolvedLayerContent = {
@@ -61,6 +63,16 @@ export function resolveLayerData(data: LayerDataSource, ctx: LayerResolveContext
     if (data.field === 'abates') return { kind: 'text', text: String(row.abates ?? 0) }
     if (data.field === 'kd') return { kind: 'text', text: String(row.kd ?? '0') }
     if (data.field === 'quedas') return { kind: 'text', text: String(row.quedas ?? 0) }
+  }
+  if (data.source === 'cell') {
+    const rows = ctx.sheets?.[data.sheetId] || []
+    // rowIndex 1 = primeira linha de dados
+    const row = rows[Math.max(0, data.rowIndex - 1)]
+    const value = row?.cells?.[data.colKey]
+    const text = value == null || value === '' ? '—' : String(value)
+    const looksUrl = /^https?:\/\//i.test(text) || text.startsWith('/images/')
+    if (looksUrl) return { kind: 'image', src: text, empty: false }
+    return { kind: 'text', text, empty: !value }
   }
   return { kind: 'text', text: '' }
 }

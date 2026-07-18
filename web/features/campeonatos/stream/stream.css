@@ -483,7 +483,252 @@
   box-sizing: border-box;
 }
 
-/* —— Character generator editor —— */
+/* —— GT-style editor: canvas centro + painel direito —— */
+.stream-gt-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 0;
+  min-height: calc(100vh - 88px);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.stream-gt-stage {
+  position: relative;
+  overflow: hidden;
+  background: #0a0c10;
+  min-height: calc(100vh - 88px);
+  cursor: default;
+  touch-action: none;
+}
+
+.stream-gt-zoombar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(18, 20, 28, .88);
+  color: #fff;
+  font-size: 11px;
+}
+
+.stream-gt-zoombar button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.stream-gt-world {
+  min-height: 100%;
+  min-width: 100%;
+  display: grid;
+  place-items: center;
+  padding: 48px 24px 24px;
+}
+
+.stream-gt-blocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.stream-gt-block {
+  position: relative;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+}
+
+.stream-gt-block.is-selected {
+  outline-color: #dfbf4a;
+}
+
+.stream-gt-block-label {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #9aa3b2;
+}
+
+.stream-gt-table-block {
+  padding: 0;
+  overflow: hidden;
+}
+
+.stream-gt-empty {
+  text-align: center;
+  color: #9aa3b2;
+  padding: 48px;
+}
+
+.stream-gt-right {
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  max-height: calc(100vh - 88px);
+  overflow: auto;
+}
+
+.stream-gt-add {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.stream-gt-layers {
+  display: grid;
+  gap: 8px;
+}
+
+.stream-gt-layer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stream-gt-layer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.stream-gt-layer-list > li {
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.stream-gt-layer-list > li.is-active {
+  border-color: var(--brand);
+}
+
+.stream-gt-layer-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.stream-gt-layer-row small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stream-gt-layer-row em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--muted);
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stream-gt-layer-drawer {
+  padding: 8px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  background: var(--surface);
+}
+
+.stream-cell-picker {
+  display: grid;
+  gap: 6px;
+}
+
+.stream-cell-picker-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.stream-cell-picker-tabs button {
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.stream-cell-picker-tabs button.active {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 14%, var(--surface));
+}
+
+.stream-cell-picker-scroll {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+
+.stream-cell-picker-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.stream-cell-picker-table th,
+.stream-cell-picker-table td {
+  border: 1px solid var(--line);
+  padding: 0;
+}
+
+.stream-cell-picker-table th {
+  background: var(--surface-muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  padding: 4px;
+}
+
+.stream-cell-picker-table td button {
+  width: 100%;
+  min-height: 26px;
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 11px;
+}
+
+.stream-cell-picker-table td button:hover,
+.stream-cell-picker-table td button.is-picked {
+  background: color-mix(in srgb, var(--brand) 22%, var(--surface));
+}
+
+/* legado cg (mantém se usado) */
 .stream-cg-layout {
   display: grid;
   grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(280px, 340px);
@@ -493,6 +738,9 @@
 }
 
 @media (max-width: 1100px) {
+  .stream-gt-layout {
+    grid-template-columns: 1fr;
+  }
   .stream-cg-layout {
     grid-template-columns: 1fr;
   }
