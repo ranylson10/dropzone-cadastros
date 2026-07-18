@@ -45,8 +45,8 @@ export function TextStyleEditor(props: {
           ))}
         </select>
       </Field>
-      <Field label="Tamanho">
-        <input type="number" min={8} max={96} value={v.fontSize} onChange={(e) => set({ fontSize: Number(e.target.value) || 16 })} />
+      <Field label="Tamanho (px)">
+        <input type="number" min={8} max={200} value={v.fontSize} onChange={(e) => set({ fontSize: Number(e.target.value) || 16 })} />
       </Field>
       <Field label="Peso">
         <select value={v.fontWeight} onChange={(e) => set({ fontWeight: Number(e.target.value) })}>
@@ -242,11 +242,11 @@ export function BoxStyleEditor(props: {
         <Field label="Cor da borda">
           <input type="color" value={(v.borderColor || '#c9a227').slice(0, 7)} onChange={(e) => set({ borderColor: e.target.value })} />
         </Field>
-        <Field label="Espessura">
-          <input type="number" min={0} max={12} value={v.borderWidth ?? 0} onChange={(e) => set({ borderWidth: Number(e.target.value) || 0 })} />
+        <Field label="Espessura (px)">
+          <input type="number" min={0} max={48} value={v.borderWidth ?? 0} onChange={(e) => set({ borderWidth: Number(e.target.value) || 0 })} />
         </Field>
-        <Field label="Cantos">
-          <input type="number" min={0} max={48} value={v.borderRadius ?? 0} onChange={(e) => set({ borderRadius: Number(e.target.value) || 0 })} />
+        <Field label="Cantos (px)">
+          <input type="number" min={0} max={200} value={v.borderRadius ?? 0} onChange={(e) => set({ borderRadius: Number(e.target.value) || 0 })} />
         </Field>
         <Field label="Inclinação X">
           <input type="range" min={-15} max={15} value={v.skewX ?? 0} onChange={(e) => set({ skewX: Number(e.target.value) })} />
@@ -257,8 +257,8 @@ export function BoxStyleEditor(props: {
         <Field label="Rotação">
           <input type="range" min={-15} max={15} value={v.rotate ?? 0} onChange={(e) => set({ rotate: Number(e.target.value) })} />
         </Field>
-        <Field label="Padding">
-          <input type="number" min={0} max={40} value={v.padding ?? 0} onChange={(e) => set({ padding: Number(e.target.value) || 0 })} />
+        <Field label="Padding (px)">
+          <input type="number" min={0} max={80} value={v.padding ?? 0} onChange={(e) => set({ padding: Number(e.target.value) || 0 })} />
         </Field>
       </Section>
     </>

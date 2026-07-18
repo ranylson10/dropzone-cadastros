@@ -94,13 +94,14 @@ export function resolveLayerData(
   return { kind: 'text', text: '' }
 }
 
+/** Posição/tamanho da camada — sempre em pixels do bloco. */
 export function layerBoxStyle(layer: StreamLayer): CSSProperties {
   return {
     position: 'absolute',
-    left: `${layer.x}%`,
-    top: `${layer.y}%`,
-    width: `${layer.w}%`,
-    height: `${layer.h}%`,
+    left: Math.round(Number(layer.x) || 0),
+    top: Math.round(Number(layer.y) || 0),
+    width: Math.max(1, Math.round(Number(layer.w) || 1)),
+    height: Math.max(1, Math.round(Number(layer.h) || 1)),
     zIndex: layer.z || 1,
     display: 'flex',
     alignItems: 'center',

@@ -489,7 +489,7 @@ export function StreamOverlayEditor(props: {
     // Etapa 1: 1 linha + colunas vazias — usuário vincula cada coluna na planilha (igual bloco).
     const seedRow = createSeedRowItem('Linha 1')
     const cols = [
-      { id: newBlockId(), field: '', label: 'Coluna 1', widthPct: 100, align: 'left' as const },
+      { id: newBlockId(), field: '', label: 'Coluna 1', widthPx: 200, align: 'left' as const },
     ]
     const rawTable: StreamTableBlock = {
       id: newBlockId(),
@@ -1060,7 +1060,7 @@ export function StreamOverlayEditor(props: {
                   />
                 </label>
 
-                <p className="stream-hint"><strong>Posição e tamanho</strong></p>
+                <p className="stream-hint"><strong>Posição e tamanho (px)</strong></p>
                 <div className="stream-style-grid">
                   {(() => {
                     const size = blockSize(selectedBlock)
@@ -1109,7 +1109,7 @@ export function StreamOverlayEditor(props: {
                     return (
                       <>
                         <label className="stream-style-field">
-                          <span>X</span>
+                          <span>X (px)</span>
                           <input
                             type="number"
                             value={sizeDraft.x ?? String(selectedBlock.x ?? 0)}
@@ -1118,7 +1118,7 @@ export function StreamOverlayEditor(props: {
                           />
                         </label>
                         <label className="stream-style-field">
-                          <span>Y</span>
+                          <span>Y (px)</span>
                           <input
                             type="number"
                             value={sizeDraft.y ?? String(selectedBlock.y ?? 0)}
@@ -1127,7 +1127,7 @@ export function StreamOverlayEditor(props: {
                           />
                         </label>
                         <label className="stream-style-field">
-                          <span>Largura</span>
+                          <span>Largura (px)</span>
                           <input
                             type="number"
                             min={1}
@@ -1138,7 +1138,7 @@ export function StreamOverlayEditor(props: {
                           />
                         </label>
                         <label className="stream-style-field">
-                          <span>Altura</span>
+                          <span>Altura (px)</span>
                           <input
                             type="number"
                             min={1}
@@ -1153,7 +1153,7 @@ export function StreamOverlayEditor(props: {
                     )
                   })()}
                 </div>
-                <p className="stream-hint">Pode apagar e digitar o valor. Mín. 1 px. Arraste o bloco no canvas para mover.</p>
+                <p className="stream-hint">Todas as medidas em pixels. Mín. 1 px. Arraste o bloco no canvas para mover.</p>
 
                 <p className="stream-hint"><strong>Fundo</strong> — transparente, cor ou imagem (com remover)</p>
                 <BoxStyleEditor
@@ -1481,27 +1481,37 @@ export function StreamOverlayEditor(props: {
                                         <input value={layer.name} onChange={(e) => updateLayer(layer.id, { name: e.target.value })} />
                                       </label>
                                       <div className="stream-style-grid">
-                                        {(['x', 'y', 'w', 'h', 'z'] as const).map((k) => (
+                                        {([
+                                          { k: 'x' as const, label: 'X (px)' },
+                                          { k: 'y' as const, label: 'Y (px)' },
+                                          { k: 'w' as const, label: 'Larg. (px)' },
+                                          { k: 'h' as const, label: 'Alt. (px)' },
+                                          { k: 'z' as const, label: 'Z' },
+                                        ]).map(({ k, label }) => (
                                           <label key={k} className="stream-style-field">
-                                            <span>{k.toUpperCase()}</span>
+                                            <span>{label}</span>
                                             <input
                                               type="number"
+                                              min={k === 'z' ? 0 : k === 'w' || k === 'h' ? 1 : 0}
                                               value={layer[k]}
                                               onChange={(e) => {
                                                 const raw = e.target.value
-                                                // permite campo vazio enquanto digita (não força 40)
+                                                // permite campo vazio enquanto digita
                                                 if (raw.trim() === '') {
-                                                  updateLayer(layer.id, { [k]: 0 })
+                                                  updateLayer(layer.id, { [k]: k === 'w' || k === 'h' ? 1 : 0 })
                                                   return
                                                 }
                                                 const n = Number(raw)
                                                 if (!Number.isFinite(n)) return
-                                                updateLayer(layer.id, { [k]: n })
+                                                updateLayer(layer.id, {
+                                                  [k]: k === 'w' || k === 'h' ? Math.max(1, Math.round(n)) : Math.round(n),
+                                                })
                                               }}
                                             />
                                           </label>
                                         ))}
                                       </div>
+                                      <p className="stream-hint">Posição e tamanho do item em pixels no bloco.</p>
                                       {(layer.type === 'image' || layer.type === 'logo') ? (
                                         <LayerImageUpload
                                           label={layer.type === 'logo' ? 'Logo / arte (upload PC)' : 'Imagem livre (upload PC)'}
@@ -1651,11 +1661,11 @@ export function StreamOverlayEditor(props: {
                                       </label>
                                       <div className="stream-style-grid">
                                         <label className="stream-style-field">
-                                          <span>Altura</span>
+                                          <span>Altura (px)</span>
                                           <input
                                             type="number"
                                             min={18}
-                                            max={120}
+                                            max={200}
                                             value={row.height ?? table.data.rowHeight ?? 36}
                                             onChange={(e) =>
                                               updateBlock(block.id, (b) =>

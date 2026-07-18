@@ -72,13 +72,15 @@ export function StreamTableCanvas(props: {
   const rh = data.rowHeight ?? 36
   const gap = data.rowGap ?? 0
   const hh = data.headerHeight ?? 32
+  const colsW = cols.reduce((s, c) => s + (Number(c.widthPx) || 48), 0)
+  const tableW = Math.max(table.tableW || 480, colsW || 0)
 
   return (
     <div
       className="stream-table-canvas"
       style={{
         ...box,
-        width: table.tableW || 480,
+        width: tableW,
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}

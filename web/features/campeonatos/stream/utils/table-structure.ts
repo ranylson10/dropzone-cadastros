@@ -69,27 +69,46 @@ export function tableSourceId(source: string | undefined): StreamSheetId {
   return resolveSheetId(raw)
 }
 
-export function defaultColumnDefs(fields?: string[]): TableColumnDef[] {
+const DEFAULT_TABLE_W = 520
+
+/** Larguras padrão em px por campo (resto divide). */
+function defaultWidthPx(field: string, count: number, tableW = DEFAULT_TABLE_W): number {
+  const presets: Record<string, number> = {
+    pos: 48,
+    logo: 44,
+    foto: 44,
+    delta: 56,
+    booyah: 48,
+    booyahs: 48,
+    abates: 64,
+    pts: 64,
+    pontos: 64,
+    quedas: 56,
+    kd: 48,
+  }
+  if (presets[field]) return presets[field]
+  if (field === 'nome' || field === 'nick') return Math.max(120, Math.round(tableW * 0.28))
+  return Math.max(48, Math.floor(tableW / Math.max(1, count)))
+}
+
+export function defaultColumnDefs(fields?: string[], tableW = DEFAULT_TABLE_W): TableColumnDef[] {
   const list = fields?.length ? fields : DEFAULT_FIELDS
-  const even = Math.floor(100 / list.length)
-  let used = 0
-  return list.map((field, i) => {
-    const isLast = i === list.length - 1
-    const widthPct = isLast ? Math.max(1, 100 - used) : even
-    used += isLast ? 0 : even
-    return {
-      id: newLayerId(),
-      field,
-      label: fieldLabel(field),
-      widthPct,
-      align: field === 'nome' || field === 'nick' ? 'left' : 'center',
-      asImage: IMAGE_FIELDS.has(field),
-    }
-  })
+  return list.map((field) => ({
+    id: newLayerId(),
+    field,
+    label: fieldLabel(field),
+    widthPx: defaultWidthPx(field, list.length, tableW),
+    align: field === 'nome' || field === 'nick' ? 'left' : 'center',
+    asImage: IMAGE_FIELDS.has(field),
+  }))
 }
 
 /** Colunas sugeridas a partir da aba da planilha. */
-export function columnDefsFromSheet(sheetId: StreamSheetId, maxCols = 7): TableColumnDef[] {
+export function columnDefsFromSheet(
+  sheetId: StreamSheetId,
+  maxCols = 7,
+  tableW = DEFAULT_TABLE_W,
+): TableColumnDef[] {
   const def = getSheetDef(sheetId)
   const preferred =
     sheetId === 'mvp'
@@ -99,7 +118,7 @@ export function columnDefsFromSheet(sheetId: StreamSheetId, maxCols = 7): TableC
         : def.columns.slice(0, maxCols).map((c) => c.key)
   const keys = preferred.filter((k) => def.columns.some((c) => c.key === k))
   const list = keys.length ? keys : def.columns.slice(0, maxCols).map((c) => c.key)
-  return defaultColumnDefs(list).map((col) => {
+  return defaultColumnDefs(list, tableW).map((col) => {
     const sheetCol = def.columns.find((c) => c.key === col.field)
     return {
       ...col,
@@ -128,15 +147,16 @@ export function createSeedRowItem(name = 'Linha 1'): TableRowItem {
   }
 }
 
-/** Normaliza tabela legada → columnDefs + rowItems. */
+/** Normaliza tabela legada → columnDefs + rowItems (larguras em px). */
 export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock {
   if (block.type !== 'table') return block
   const data = block.data || ({} as TableBlockData)
   const source = tableSourceId(data.source)
+  const tableW = Math.max(64, Number(block.tableW) || DEFAULT_TABLE_W)
   const columnDefs =
     Array.isArray(data.columnDefs) && data.columnDefs.length
-      ? normalizeWidths(data.columnDefs)
-      : defaultColumnDefs((data.columns as string[]) || undefined)
+      ? normalizeColumnWidths(data.columnDefs, tableW)
+      : defaultColumnDefs((data.columns as string[]) || undefined, tableW)
 
   const rowItems =
     Array.isArray(data.rowItems) && data.rowItems.length
@@ -145,7 +165,7 @@ export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock 
 
   return {
     ...block,
-    tableW: block.tableW || 480,
+    tableW,
     data: {
       ...data,
       source,
@@ -162,29 +182,41 @@ export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock 
   }
 }
 
-export function normalizeWidths(cols: TableColumnDef[]): TableColumnDef[] {
-  if (!cols.length) return defaultColumnDefs()
-  const sum = cols.reduce((s, c) => s + (Number(c.widthPct) || 0), 0)
-  if (sum <= 0) {
-    const even = Math.floor(100 / cols.length)
-    return cols.map((c, i) => ({
-      ...c,
-      widthPct: i === cols.length - 1 ? 100 - even * (cols.length - 1) : even,
-    }))
-  }
-  if (Math.abs(sum - 100) < 0.5) return cols.map((c) => ({ ...c, widthPct: Number(c.widthPct) || 1 }))
-  let used = 0
+/** Garante widthPx em cada coluna; migra widthPct legado. */
+export function normalizeColumnWidths(cols: TableColumnDef[], tableW = DEFAULT_TABLE_W): TableColumnDef[] {
+  if (!cols.length) return defaultColumnDefs(undefined, tableW)
+  const tw = Math.max(64, tableW)
   return cols.map((c, i) => {
-    const isLast = i === cols.length - 1
-    const w = isLast ? Math.max(1, 100 - used) : Math.max(1, Math.round(((Number(c.widthPct) || 1) / sum) * 100))
-    if (!isLast) used += w
-    return { ...c, widthPct: w }
+    let widthPx = Number(c.widthPx)
+    if (!Number.isFinite(widthPx) || widthPx <= 0) {
+      const pct = Number(c.widthPct)
+      if (Number.isFinite(pct) && pct > 0) {
+        widthPx = Math.max(1, Math.round((pct / 100) * tw))
+      } else {
+        widthPx = defaultWidthPx(c.field || 'nome', cols.length, tw)
+      }
+    }
+    return {
+      ...c,
+      widthPx: Math.max(1, Math.round(widthPx)),
+      // limpa % legado depois de migrar
+      widthPct: undefined,
+    }
   })
 }
 
-export function setTableSheetSource(data: TableBlockData, sheetId: StreamSheetId): TableBlockData {
+/** @deprecated use normalizeColumnWidths */
+export function normalizeWidths(cols: TableColumnDef[], tableW = DEFAULT_TABLE_W): TableColumnDef[] {
+  return normalizeColumnWidths(cols, tableW)
+}
+
+export function setTableSheetSource(
+  data: TableBlockData,
+  sheetId: StreamSheetId,
+  tableW = DEFAULT_TABLE_W,
+): TableBlockData {
   const source = resolveSheetId(sheetId)
-  const nextCols = columnDefsFromSheet(source)
+  const nextCols = columnDefsFromSheet(source, 7, tableW)
   return {
     ...data,
     source,
@@ -194,11 +226,11 @@ export function setTableSheetSource(data: TableBlockData, sheetId: StreamSheetId
   }
 }
 
-export function addTableRow(data: TableBlockData): TableBlockData {
+export function addTableRow(data: TableBlockData, tableW = DEFAULT_TABLE_W): TableBlockData {
   const columnDefs =
     Array.isArray(data.columnDefs) && data.columnDefs.length
       ? data.columnDefs
-      : defaultColumnDefs((data.columns as string[]) || undefined)
+      : defaultColumnDefs((data.columns as string[]) || undefined, tableW)
   const items = [
     ...((Array.isArray(data.rowItems) && data.rowItems.length
       ? data.rowItems
@@ -212,7 +244,7 @@ export function addTableRow(data: TableBlockData): TableBlockData {
   })
   return {
     ...data,
-    columnDefs: normalizeWidths(columnDefs),
+    columnDefs: normalizeColumnWidths(columnDefs, tableW),
     rowItems: items,
     rows: items.length,
   }
@@ -257,31 +289,37 @@ export function reorderTableRows(
   return { ...data, rowItems, rows: rowItems.length }
 }
 
-export function addTableColumn(data: TableBlockData, field: string = ''): TableBlockData {
-  const cols = [...(data.columnDefs || defaultColumnDefs((data.columns as string[]) || undefined))]
+export function addTableColumn(
+  data: TableBlockData,
+  field: string = '',
+  tableW = DEFAULT_TABLE_W,
+): TableBlockData {
+  const cols = [
+    ...(data.columnDefs || defaultColumnDefs((data.columns as string[]) || undefined, tableW)),
+  ]
   const def = getSheetDef(tableSourceId(data.source))
   const sheetCol = field ? def.columns.find((c) => c.key === field) : undefined
   cols.push({
     id: newLayerId(),
     field: field || '',
     label: sheetCol?.label || (field ? fieldLabel(field) : `Coluna ${cols.length + 1}`),
-    widthPct: 12,
+    widthPx: field ? defaultWidthPx(field, cols.length + 1, tableW) : 120,
     align: field === 'nome' || field === 'nick' ? 'left' : 'center',
     asImage: Boolean(sheetCol?.image || (field && IMAGE_FIELDS.has(field))),
   })
   return {
     ...data,
-    columnDefs: normalizeWidths(cols),
+    columnDefs: normalizeColumnWidths(cols, tableW),
     columns: cols.map((c) => c.field).filter(Boolean) as TableColumnKey[],
   }
 }
 
-export function removeTableColumn(data: TableBlockData, colId: string): TableBlockData {
+export function removeTableColumn(data: TableBlockData, colId: string, tableW = DEFAULT_TABLE_W): TableBlockData {
   const cols = (data.columnDefs || []).filter((c) => c.id !== colId)
   if (!cols.length) return data
   return {
     ...data,
-    columnDefs: normalizeWidths(cols),
+    columnDefs: normalizeColumnWidths(cols, tableW),
     columns: cols.map((c) => c.field) as TableColumnKey[],
   }
 }
@@ -290,6 +328,7 @@ export function updateTableColumn(
   data: TableBlockData,
   colId: string,
   patch: Partial<TableColumnDef>,
+  tableW = DEFAULT_TABLE_W,
 ): TableBlockData {
   const cols = (data.columnDefs || []).map((c) => {
     if (c.id !== colId) return c
@@ -300,18 +339,19 @@ export function updateTableColumn(
       if (sheetCol && patch.label == null) next.label = sheetCol.label
       if (sheetCol && patch.asImage == null) next.asImage = Boolean(sheetCol.image)
     }
+    if (patch.widthPx != null) next.widthPx = Math.max(1, Math.round(Number(patch.widthPx) || 1))
     return next
   })
-  const normalized = patch.widthPct != null ? normalizeWidths(cols) : cols
   return {
     ...data,
-    columnDefs: normalized,
-    columns: normalized.map((c) => c.field) as TableColumnKey[],
+    columnDefs: normalizeColumnWidths(cols, tableW),
+    columns: cols.map((c) => c.field) as TableColumnKey[],
   }
 }
 
+/** Grid CSS com larguras fixas em px. */
 export function gridTemplateFromColumns(cols: TableColumnDef[]): string {
-  return cols.map((c) => `minmax(0, ${Math.max(1, c.widthPct)}fr)`).join(' ')
+  return cols.map((c) => `${Math.max(1, Number(c.widthPx) || 48)}px`).join(' ')
 }
 
 export type TableDataRow = Record<string, string | number | null | undefined>

@@ -152,31 +152,31 @@ export function TableToolsPanel(props: {
           <p className="stream-hint"><strong>Aparência</strong></p>
           <div className="stream-style-grid">
             <label className="stream-style-field">
-              <span>Altura linha</span>
+              <span>Altura linha (px)</span>
               <input
                 type="number"
                 min={18}
-                max={80}
+                max={200}
                 value={data.rowHeight ?? 36}
                 onChange={(e) => patch((d) => ({ ...d, rowHeight: Number(e.target.value) || 36 }))}
               />
             </label>
             <label className="stream-style-field">
-              <span>Espaço</span>
+              <span>Espaço (px)</span>
               <input
                 type="number"
                 min={0}
-                max={24}
+                max={48}
                 value={data.rowGap ?? 0}
                 onChange={(e) => patch((d) => ({ ...d, rowGap: Number(e.target.value) || 0 }))}
               />
             </label>
             <label className="stream-style-field">
-              <span>Altura header</span>
+              <span>Header (px)</span>
               <input
                 type="number"
                 min={0}
-                max={64}
+                max={120}
                 value={data.headerHeight ?? 32}
                 onChange={(e) => patch((d) => ({ ...d, headerHeight: Number(e.target.value) || 0 }))}
               />
@@ -226,11 +226,11 @@ export function TableToolsPanel(props: {
                   />
                 </label>
                 <label className="stream-style-field">
-                  <span>Altura</span>
+                  <span>Altura (px)</span>
                   <input
                     type="number"
                     min={18}
-                    max={120}
+                    max={200}
                     value={props.selectedRow.height ?? data.rowHeight ?? 36}
                     onChange={(e) =>
                       patch((d) =>
@@ -306,7 +306,7 @@ function ColumnEditor(props: {
           <strong>{col.label || fieldLabel(col.field) || `Coluna ${props.index + 1}`}</strong>
           <small>
             {bound
-              ? `→ ${col.field} · ${col.widthPct}%${col.asImage ? ' · img' : ''}`
+              ? `→ ${col.field} · ${col.widthPx || 0}px${col.asImage ? ' · img' : ''}`
               : 'sem vínculo — abra a planilha'}
           </small>
         </span>
@@ -339,13 +339,13 @@ function ColumnEditor(props: {
               <input value={col.label} onChange={(e) => props.onChange({ label: e.target.value })} />
             </label>
             <label className="stream-style-field">
-              <span>Largura %</span>
+              <span>Largura (px)</span>
               <input
                 type="number"
-                min={1}
-                max={100}
-                value={col.widthPct}
-                onChange={(e) => props.onChange({ widthPct: Number(e.target.value) || 1 })}
+                min={8}
+                max={2000}
+                value={col.widthPx || 80}
+                onChange={(e) => props.onChange({ widthPx: Math.max(1, Number(e.target.value) || 1) })}
               />
             </label>
             <label className="stream-style-field">

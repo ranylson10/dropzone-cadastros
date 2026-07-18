@@ -150,14 +150,21 @@ export type LayerDataSource =
   /** Vínculo direto a uma célula da planilha Stream (linha 0 = header, dados começam em 1). */
   | { source: 'cell'; sheetId: StreamSheetId; colKey: string; rowIndex: number; display?: string }
 
-/** Item/camada dentro da pasta Card — posição em % do card (0–100). */
+/**
+ * Item/camada dentro do bloco.
+ * x, y, w, h sempre em **pixels** do bloco (canvasW × canvasH).
+ */
 export type StreamLayer = {
   id: string
   name: string
   type: LayerContentType
+  /** px — esquerda no bloco */
   x: number
+  /** px — topo no bloco */
   y: number
+  /** px — largura */
   w: number
+  /** px — altura */
   h: number
   z: number
   data: LayerDataSource
@@ -165,7 +172,7 @@ export type StreamLayer = {
   objectFit?: 'cover' | 'contain'
 }
 
-/** Coluna da tabela (parte da linha) — largura em % da tabela. */
+/** Coluna da tabela (parte da linha) — largura em pixels. */
 export type TableColumnDef = {
   id: string
   /**
@@ -174,8 +181,10 @@ export type TableColumnDef = {
    */
   field: string
   label: string
-  /** 0–100, relativo à largura da tabela */
-  widthPct: number
+  /** largura em pixels */
+  widthPx: number
+  /** @deprecated migrado para widthPx */
+  widthPct?: number
   align?: 'left' | 'center' | 'right'
   /** força render como imagem (logo/foto/…) */
   asImage?: boolean
@@ -242,9 +251,16 @@ export type StreamBlockBase = {
  */
 export type StreamCardBlock = StreamBlockBase & {
   type: 'card'
+  /** largura do bloco em px no frame */
   canvasW: number
+  /** altura do bloco em px no frame */
   canvasH: number
   layers: StreamLayer[]
+  /**
+   * 'px' = camadas em pixels (padrão).
+   * Ausente em overlays antigos → migrar de % em ensureCardLayers.
+   */
+  layerLayout?: 'px'
   /** legado opcional */
   data?: CardBlockData
 }

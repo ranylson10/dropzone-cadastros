@@ -1876,10 +1876,11 @@ body.stream-editor-scroll-lock {
 .stream-prev-table-head,
 .stream-prev-table-row {
   display: grid;
-  grid-template-columns: 36px 32px 1fr 36px 44px 44px 40px;
-  gap: 4px;
+  /* colunas: larguras em px vêm do inline style (gridTemplateColumns) */
+  gap: 0;
   align-items: center;
-  padding: 6px 8px;
+  padding: 0 6px;
+  box-sizing: border-box;
 }
 
 .stream-prev-table-head .col-logo,
