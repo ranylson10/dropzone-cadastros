@@ -13,6 +13,7 @@ import {
   Plus,
   Save,
   Trash2,
+  Undo2,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -80,6 +81,23 @@ const LAYER_TYPES: Array<{ id: LayerContentType; label: string }> = [
   { id: 'number', label: 'Número' },
 ]
 
+/** Máx. de undos (Ctrl+Z) — limita memória. */
+const UNDO_MAX = 5
+
+type OverlaySnap = Pick<StreamOverlay, 'name' | 'blocks' | 'frameW' | 'frameH' | 'template'>
+
+function cloneSnap(o: StreamOverlay): OverlaySnap {
+  return JSON.parse(
+    JSON.stringify({
+      name: o.name,
+      blocks: o.blocks,
+      frameW: o.frameW,
+      frameH: o.frameH,
+      template: o.template,
+    }),
+  ) as OverlaySnap
+}
+
 export function StreamOverlayEditor(props: {
   campeonatoId: string
   overlayId?: string
@@ -121,6 +139,11 @@ export function StreamOverlayEditor(props: {
     origY: number
   } | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  /** Pilha de undos (máx. UNDO_MAX). */
+  const undoStack = useRef<OverlaySnap[]>([])
+  const softUndoOpen = useRef(false)
+  const softUndoAt = useRef(0)
+  const [undoCount, setUndoCount] = useState(0)
   const [saved, setSaved] = useState(false)
   const [saveWarning, setSaveWarning] = useState('')
   const [standings, setStandings] = useState<PreviewStanding[]>([])
@@ -148,12 +171,64 @@ export function StreamOverlayEditor(props: {
     }
   }, [])
 
-  // Espaço = modo mão (pan), como Photoshop
+  function recordUndo(prev: StreamOverlay, mode: 'force' | 'soft' = 'force') {
+    if (mode === 'soft') {
+      const now = Date.now()
+      // agrupa edições contínuas (digitação/slider) numa única entrada
+      if (softUndoOpen.current && now - softUndoAt.current < 700) {
+        softUndoAt.current = now
+        return
+      }
+      softUndoOpen.current = true
+      softUndoAt.current = now
+    } else {
+      softUndoOpen.current = false
+    }
+    const snap = cloneSnap(prev)
+    const stack = undoStack.current
+    // evita duplicar o mesmo estado
+    const last = stack[stack.length - 1]
+    if (last && JSON.stringify(last) === JSON.stringify(snap)) return
+    undoStack.current = [...stack.slice(-(UNDO_MAX - 1)), snap]
+    setUndoCount(undoStack.current.length)
+  }
+
+  function undo() {
+    const snap = undoStack.current.pop()
+    if (!snap) return
+    setUndoCount(undoStack.current.length)
+    softUndoOpen.current = false
+    setOverlay((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        name: snap.name,
+        blocks: snap.blocks,
+        frameW: snap.frameW,
+        frameH: snap.frameH,
+        template: snap.template,
+      }
+    })
+  }
+
+  // Espaço = pan · Ctrl+Z = desfazer (máx. 5)
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null
+      const inField =
+        t &&
+        (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+        // em campo de texto o browser desfaz digitos; se stack vazio deixa nativo
+        if (inField && undoStack.current.length === 0) return
+        e.preventDefault()
+        undo()
+        return
+      }
+
       if (e.code === 'Space' && !e.repeat) {
-        const t = e.target as HTMLElement | null
-        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+        if (inField) return
         e.preventDefault()
         spaceHeld.current = true
       }
@@ -170,21 +245,17 @@ export function StreamOverlayEditor(props: {
   }, [])
 
   const frame = getOverlayFrame(overlay)
+  // Scroll do mouse = zoom da área de trabalho
   const wheelHandlerRef = useRef<(e: WheelEvent) => void>(() => {})
   wheelHandlerRef.current = (e: WheelEvent) => {
     e.preventDefault()
-    if (e.ctrlKey || e.metaKey) {
-      setZoom((z) => Math.min(3, Math.max(0.15, z + (e.deltaY > 0 ? -0.08 : 0.08))))
-      return
-    }
-    if (e.shiftKey) {
-      setPan((p) => ({ x: p.x - e.deltaY, y: p.y }))
-      return
-    }
-    setPan((p) => ({ x: p.x - (e.deltaX || 0), y: p.y - e.deltaY }))
+    const delta = e.deltaY > 0 ? -0.08 : 0.08
+    // zoom um pouco mais fino se shift
+    const step = e.shiftKey ? delta * 0.5 : delta
+    setZoom((z) => Math.min(3, Math.max(0.15, z + step)))
   }
 
-  // wheel non-passive no stage (evita scroll da página)
+  // wheel non-passive no stage (evita scroll da página; só zoom)
   useEffect(() => {
     const el = stageRef.current
     if (!el) return
@@ -205,6 +276,8 @@ export function StreamOverlayEditor(props: {
         frameH: FRAME_H,
         updatedAt: new Date().toISOString(),
       })
+      undoStack.current = []
+      setUndoCount(0)
       return
     }
     if (!props.overlayId) return
@@ -215,6 +288,8 @@ export function StreamOverlayEditor(props: {
       if (cancelled || !migrated) return
       setOverlay(migrated)
       setSelectedBlockId(migrated.blocks[0]?.id || null)
+      undoStack.current = []
+      setUndoCount(0)
     })()
     return () => {
       cancelled = true
@@ -336,10 +411,27 @@ export function StreamOverlayEditor(props: {
     [maps, standings, mvpRows, sheets],
   )
 
-  function updateBlock(blockId: string, updater: (b: StreamBlock) => StreamBlock) {
+  function updateBlock(
+    blockId: string,
+    updater: (b: StreamBlock) => StreamBlock,
+    opts?: { history?: 'force' | 'soft' | false },
+  ) {
+    const hist = opts?.history === undefined ? 'soft' : opts.history
     setOverlay((prev) => {
       if (!prev) return prev
+      if (hist) recordUndo(prev, hist)
       return { ...prev, blocks: prev.blocks.map((b) => (b.id === blockId ? updater(b) : b)) }
+    })
+  }
+
+  function patchOverlay(
+    updater: (prev: StreamOverlay) => StreamOverlay,
+    hist: 'force' | 'soft' | false = 'force',
+  ) {
+    setOverlay((prev) => {
+      if (!prev) return prev
+      if (hist) recordUndo(prev, hist)
+      return updater(prev)
     })
   }
 
@@ -354,7 +446,7 @@ export function StreamOverlayEditor(props: {
         w: 240,
         h: 160,
       })
-      setOverlay({ ...overlay, blocks: [...overlay.blocks, card] })
+      patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, card] }), 'force')
       setSelectedBlockId(card.id)
       setSelectedLayerId(null)
       return
@@ -379,7 +471,7 @@ export function StreamOverlayEditor(props: {
         headerHeight: 32,
       },
     }
-    setOverlay({ ...overlay, blocks: [...overlay.blocks, table] })
+    patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, table] }), 'force')
     setSelectedBlockId(table.id)
     setSelectedLayerId(null)
   }
@@ -399,11 +491,14 @@ export function StreamOverlayEditor(props: {
 
   function setFrameSize(w: number, h: number) {
     if (!overlay) return
-    setOverlay({
-      ...overlay,
-      frameW: Math.max(64, Math.round(w)),
-      frameH: Math.max(64, Math.round(h)),
-    })
+    patchOverlay(
+      (prev) => ({
+        ...prev,
+        frameW: Math.max(64, Math.round(w)),
+        frameH: Math.max(64, Math.round(h)),
+      }),
+      'soft',
+    )
   }
 
   function onPanelResizeStart(side: 'tools' | 'layers', e: React.PointerEvent) {
@@ -446,7 +541,7 @@ export function StreamOverlayEditor(props: {
 
   function removeBlock(id: string) {
     if (!overlay) return
-    setOverlay({ ...overlay, blocks: overlay.blocks.filter((b) => b.id !== id) })
+    patchOverlay((prev) => ({ ...prev, blocks: prev.blocks.filter((b) => b.id !== id) }), 'force')
     if (selectedBlockId === id) {
       setSelectedBlockId(null)
       setSelectedLayerId(null)
@@ -460,7 +555,7 @@ export function StreamOverlayEditor(props: {
     if (block.type === 'card') {
       const card = ensureCardLayers(block)
       const copy = duplicateCardFolder(card)
-      setOverlay({ ...overlay, blocks: [...overlay.blocks, copy] })
+      patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, copy] }), 'force')
       setSelectedBlockId(copy.id)
       return
     }
@@ -472,38 +567,50 @@ export function StreamOverlayEditor(props: {
       y: (block.y ?? 40) + 24,
       data: { ...block.data },
     }
-    setOverlay({ ...overlay, blocks: [...overlay.blocks, copy] })
+    patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, copy] }), 'force')
     setSelectedBlockId(copy.id)
   }
 
   function addLayer(type: LayerContentType) {
     if (!selectedCard) return
     const layer = createDefaultLayer(type, 1)
-    updateBlock(selectedCard.id, (b) => {
-      if (b.type !== 'card') return b
-      const c = ensureCardLayers(b)
-      return { ...c, layers: [...c.layers, layer] }
-    })
+    updateBlock(
+      selectedCard.id,
+      (b) => {
+        if (b.type !== 'card') return b
+        const c = ensureCardLayers(b)
+        return { ...c, layers: [...c.layers, layer] }
+      },
+      { history: 'force' },
+    )
     setSelectedLayerId(layer.id)
     setOpenLayerMenu(layer.id)
   }
 
   function updateLayer(layerId: string, patch: Partial<StreamLayer>) {
     if (!selectedCard) return
-    updateBlock(selectedCard.id, (b) => {
-      if (b.type !== 'card') return b
-      const c = ensureCardLayers(b)
-      return { ...c, layers: c.layers.map((l) => (l.id === layerId ? { ...l, ...patch } : l)) }
-    })
+    updateBlock(
+      selectedCard.id,
+      (b) => {
+        if (b.type !== 'card') return b
+        const c = ensureCardLayers(b)
+        return { ...c, layers: c.layers.map((l) => (l.id === layerId ? { ...l, ...patch } : l)) }
+      },
+      { history: 'soft' },
+    )
   }
 
   function removeLayer(layerId: string) {
     if (!selectedCard) return
-    updateBlock(selectedCard.id, (b) => {
-      if (b.type !== 'card') return b
-      const c = ensureCardLayers(b)
-      return { ...c, layers: c.layers.filter((l) => l.id !== layerId) }
-    })
+    updateBlock(
+      selectedCard.id,
+      (b) => {
+        if (b.type !== 'card') return b
+        const c = ensureCardLayers(b)
+        return { ...c, layers: c.layers.filter((l) => l.id !== layerId) }
+      },
+      { history: 'force' },
+    )
     if (selectedLayerId === layerId) setSelectedLayerId(null)
     if (openLayerMenu === layerId) setOpenLayerMenu(null)
   }
@@ -524,21 +631,20 @@ export function StreamOverlayEditor(props: {
 
   function startPan(e: React.PointerEvent) {
     e.preventDefault()
+    e.stopPropagation()
     setPanning(true)
     panStart.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
   }
 
-  // pan: botão do meio · Alt+arrastar · Espaço+arrastar · arrastar fundo vazio
+  // pan: botão direito (principal) · meio · Alt/Espaço+esquerdo
   function onStagePointerDown(e: React.PointerEvent) {
     if (dragBlock.current) return
-    const t = e.target as HTMLElement
-    const onBlock = Boolean(t.closest('.stream-gt-block'))
     const wantPan =
-      e.button === 1
-      || (e.button === 0 && (e.altKey || spaceHeld.current || !onBlock))
+      e.button === 2 // direito = mover área de trabalho
+      || e.button === 1
+      || (e.button === 0 && (e.altKey || spaceHeld.current))
     if (!wantPan) return
-    if (onBlock && !(e.altKey || spaceHeld.current || e.button === 1)) return
     startPan(e)
   }
   function onStagePointerMove(e: React.PointerEvent) {
@@ -548,7 +654,8 @@ export function StreamOverlayEditor(props: {
       const block = overlay?.blocks.find((b) => b.id === dragBlock.current!.id)
       const size = block ? blockSize(block) : { w: 240, h: 160 }
       const next = clampPos(dragBlock.current.origX + dx, dragBlock.current.origY + dy, size.w, size.h)
-      updateBlock(dragBlock.current.id, (b) => ({ ...b, x: next.x, y: next.y }))
+      // arraste contínuo sem encher a pilha de undo
+      updateBlock(dragBlock.current.id, (b) => ({ ...b, x: next.x, y: next.y }), { history: false })
       return
     }
     if (!panning) return
@@ -563,6 +670,8 @@ export function StreamOverlayEditor(props: {
     setPanning(false)
   }
   function onBlockPointerDown(e: React.PointerEvent, block: StreamBlock) {
+    // direito/meio = pan da área (não move o bloco)
+    if (e.button === 2 || e.button === 1) return
     if (e.button !== 0 || e.altKey || spaceHeld.current) return
     const t = e.target as HTMLElement
     // clique em camada interna = seleciona camada, não inicia drag do bloco
@@ -574,6 +683,8 @@ export function StreamOverlayEditor(props: {
     e.stopPropagation()
     setSelectedBlockId(block.id)
     setSelectedLayerId(null)
+    // 1 undo por gesto de arraste (estado antes de mover)
+    if (overlay) recordUndo(overlay, 'force')
     dragBlock.current = {
       id: block.id,
       startClientX: e.clientX,
@@ -630,6 +741,15 @@ export function StreamOverlayEditor(props: {
             }
           >
             <Download size={15} /> HTML
+          </button>
+          <button
+            type="button"
+            className="stream-secondary-btn"
+            disabled={undoCount === 0}
+            title="Desfazer (Ctrl+Z) — até 5 ações"
+            onClick={() => undo()}
+          >
+            <Undo2 size={15} /> Desfazer{undoCount > 0 ? ` (${undoCount})` : ''}
           </button>
           <button type="button" className="stream-primary-btn" onClick={() => void handleSave()}>
             <Save size={15} /> Salvar
@@ -972,7 +1092,7 @@ export function StreamOverlayEditor(props: {
             <span>{Math.round(zoom * 100)}%</span>
             <button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))} title="Zoom +"><ZoomIn size={16} /></button>
             <button type="button" onClick={() => { setZoom(0.55); setPan({ x: 0, y: 0 }) }}>Reset</button>
-            <span className="stream-hint">{frame.w}×{frame.h} · scroll=pan · Ctrl+scroll=zoom · Espaço+arrastar</span>
+            <span className="stream-hint">{frame.w}×{frame.h} · scroll=zoom · botão direito=mover · Ctrl+Z=desfazer</span>
           </div>
 
           <div

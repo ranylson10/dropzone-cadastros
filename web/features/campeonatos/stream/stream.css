@@ -730,7 +730,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
 }
 
