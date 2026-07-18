@@ -251,3 +251,65 @@ export async function marcarFaltaPontuador(
 
   return { presenca_id: data }
 }
+
+/**
+ * Define a queda atual do jogo (para overlays / stream).
+ * Seta status = em_andamento nesta partida; as demais não finalizadas voltam para pendente.
+ */
+export async function definirQuedaAtual(
+  campeonatoId: string,
+  jogoId: string,
+  quedaId: string,
+) {
+  const { data: partida, error: partidaError } = await supabaseAdmin
+    .from('campeonato_partidas')
+    .select('id,status,jogo_id')
+    .eq('id', quedaId)
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+    .maybeSingle()
+  if (partidaError) throw partidaError
+  if (!partida) throw new Error('Queda não encontrada neste jogo.')
+
+  // limpa "em_andamento" das outras do mesmo jogo (não mexe em finalizadas)
+  const { data: irmas, error: e1 } = await supabaseAdmin
+    .from('campeonato_partidas')
+    .select('id,status')
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+  if (e1) throw e1
+
+  for (const row of irmas || []) {
+    if (row.id === quedaId) continue
+    if (row.status === 'finalizada' || row.status === 'cancelada') continue
+    if (row.status === 'em_andamento') {
+      await supabaseAdmin
+        .from('campeonato_partidas')
+        .update({ status: 'pendente', updated_at: new Date().toISOString() })
+        .eq('id', row.id)
+    }
+  }
+
+  const nextStatus = partida.status === 'finalizada' ? 'finalizada' : 'em_andamento'
+  const { data: updated, error: e2 } = await supabaseAdmin
+    .from('campeonato_partidas')
+    .update({
+      status: nextStatus === 'finalizada' ? 'finalizada' : 'em_andamento',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', quedaId)
+    .select('*')
+    .single()
+  if (e2) throw e2
+
+  // se estava finalizada, ainda marcamos um flag virtual: reabre só se não finalizada
+  if (partida.status === 'finalizada') {
+    // mantém finalizada mas retorna aviso — overlays usam última em_andamento ou esta selecionada
+    return {
+      partida: updated,
+      warning: 'Queda já finalizada: mantida como finalizada. Para overlays, use a última em andamento ou reabra a queda.',
+    }
+  }
+
+  return { partida: updated }
+}

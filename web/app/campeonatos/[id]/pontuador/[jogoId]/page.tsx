@@ -57,14 +57,28 @@ export default function PontuadorJogoPage() {
   const [matchContent, setMatchContent] = useState('')
   const [preview, setPreview] = useState<Row | null>(null)
   const [previewLinks, setPreviewLinks] = useState<Record<string, string>>({})
+  /** equipes marcadas como falta nesta sessão/queda (além do status no banco) */
+  const [faltas, setFaltas] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
       const result = await request<PontuadorData>(`/api/campeonatos/${params.id}/pontuador/${params.jogoId}`)
       setData(result)
-      setSelectedDropId(current => current || result.partidas[0]?.id || '')
-      setSelectedMap(current => current || result.partidas[0]?.mapa_codigo || '')
+      const atual = result.partidas.find((p) => p.status === 'em_andamento')
+      setSelectedDropId((current) => current || atual?.id || result.partidas[0]?.id || '')
+      setSelectedMap((current) => current || atual?.mapa_codigo || result.partidas[0]?.mapa_codigo || '')
+      // faltas a partir da matriz da queda selecionada
+      const dropId = atual?.id || result.partidas[0]?.id
+      if (dropId) {
+        const nextFaltas: Record<string, boolean> = {}
+        for (const row of result.matriz || []) {
+          if (row.partida_id === dropId && /falta/i.test(String(row.status_presenca || ''))) {
+            nextFaltas[row.campeonato_equipe_id] = true
+          }
+        }
+        setFaltas(nextFaltas)
+      }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao carregar pontuador.') }
     finally { setLoading(false) }
   }, [params.id, params.jogoId])
@@ -90,6 +104,7 @@ export default function PontuadorJogoPage() {
   useEffect(() => {
     if (!data || !selectedDropId) return
     const next: Record<string, TeamEdit> = {}
+    const nextFaltas: Record<string, boolean> = {}
     for (const slot of data.slots.filter(item => !item.slot_vazio && item.campeonato_equipe_id)) {
       const current = data.matriz.find(row => row.partida_id === selectedDropId && row.campeonato_equipe_id === slot.campeonato_equipe_id)
       const jogadores: Record<string, string> = {}
@@ -103,8 +118,12 @@ export default function PontuadorJogoPage() {
         punicao: current?.resultado_id && number(current.punicao_pontos) ? String(current.punicao_pontos) : '',
         motivo: current?.punicao_motivo || '', jogadores,
       }
+      if (/falta/i.test(String(current?.status_presenca || ''))) {
+        nextFaltas[slot.campeonato_equipe_id] = true
+      }
     }
     setEdits(next)
+    setFaltas(nextFaltas)
   }, [data, selectedDropId, playersByTeam])
 
   const ranking = useMemo(() => {
@@ -208,6 +227,16 @@ export default function PontuadorJogoPage() {
     if (!linkedTeams.length) return setError('Vincule pelo menos uma equipe para aplicar o Match Result.')
     setSaving(true); setError('')
     try {
+      // registra vínculos novos (não apaga nomes antigos do histórico do jogo)
+      const vinculosPayload = linkedTeams.map((team: Row) => ({
+        nome_raw: team.nome,
+        campeonato_equipe_id: previewLinks[team.nome_normalizado],
+      }))
+      await request(`/api/campeonatos/${params.id}/pontuador/${params.jogoId}/vinculos`, {
+        method: 'POST',
+        body: JSON.stringify({ vinculos: vinculosPayload }),
+      }).catch(() => null)
+
       await request(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, equipes: linkedTeams.map((team: Row) => {
         const teamId = previewLinks[team.nome_normalizado]
         const edit = edits[teamId]
@@ -216,6 +245,84 @@ export default function PontuadorJogoPage() {
       setPreview(null); setMatchContent(''); setMatchName(''); setNotice('Match Result confirmado e queda pontuada.'); await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao confirmar Match Result.') }
     finally { setSaving(false) }
+  }
+
+  async function setQuedaAtual(quedaId: string) {
+    setSaving(true); setError(''); setNotice('')
+    try {
+      const res = await request<{ warning?: string }>(
+        `/api/campeonatos/${params.id}/pontuador/${params.jogoId}/quedas/${quedaId}/atual`,
+        { method: 'POST' },
+      )
+      setSelectedDropId(quedaId)
+      setNotice(res.warning || 'Queda marcada como atual (overlays Stream usarão esta queda).')
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro ao definir queda atual.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function marcarFalta(equipeId: string) {
+    if (!selectedDropId) return
+    setSaving(true); setError('')
+    try {
+      await request(
+        `/api/campeonatos/${params.id}/pontuador/${params.jogoId}/quedas/${selectedDropId}/falta`,
+        { method: 'POST', body: JSON.stringify({ campeonato_equipe_id: equipeId }) },
+      )
+      setFaltas((f) => ({ ...f, [equipeId]: true }))
+      setNotice('Falta registrada para a equipe nesta queda.')
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro ao marcar falta.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /**
+   * Estado do vínculo (cores):
+   * - green: sem vínculo histórico e sem seleção no MR
+   * - yellow: vinculado (histórico e/ou no MR atual)
+   * - red: tinha vínculo no jogo, mas o nome não apareceu no MR desta queda (ou falta)
+   */
+  function vinculoState(equipeId: string): {
+    tone: 'green' | 'yellow' | 'red'
+    label: string
+    savedLinks: Row[]
+    missing: boolean
+  } {
+    const savedLinks = (data?.vinculos_matchresult || []).filter((link) => link.campeonato_equipe_id === equipeId)
+    const isFalta = Boolean(faltas[equipeId])
+    const linkedNow = Boolean(linkForTeam(equipeId))
+    if (isFalta) {
+      return { tone: 'red', label: 'FALTA', savedLinks, missing: true }
+    }
+    if (preview) {
+      const mrNames = new Set((preview.equipes || []).map((t: Row) => t.nome_normalizado))
+      const historicInMr = savedLinks.some((l) => mrNames.has(String(l.nome_normalizado || '').toLowerCase()) || mrNames.has(String(l.nome_raw || '').toLowerCase()))
+      // também confere se algum nome_raw normalizado está no preview
+      const historicMatched = savedLinks.some((l) =>
+        (preview.equipes || []).some(
+          (t: Row) =>
+            t.nome_normalizado === l.nome_normalizado
+            || String(t.nome || '').toLowerCase() === String(l.nome_raw || '').toLowerCase(),
+        ),
+      )
+      if (linkedNow || historicMatched || historicInMr) {
+        return { tone: 'yellow', label: linkedNow ? 'Vinculado (MR)' : 'Histórico ok', savedLinks, missing: false }
+      }
+      if (savedLinks.length) {
+        return { tone: 'red', label: 'Sumiu / trocou nome', savedLinks, missing: true }
+      }
+      return { tone: 'green', label: 'Sem vínculo', savedLinks, missing: false }
+    }
+    if (savedLinks.length) {
+      return { tone: 'yellow', label: 'Vinculado', savedLinks, missing: false }
+    }
+    return { tone: 'green', label: 'Sem vínculo', savedLinks, missing: false }
   }
 
   if (loading && !data) return <DropzoneLoader label="Carregando pontuador" />
@@ -233,17 +340,182 @@ export default function PontuadorJogoPage() {
     <section className="scorer-sheet-toolbar">
       <div className="scorer-view-switch"><button className={view === 'equipes' ? 'active' : ''} onClick={() => setView('equipes')}><Trophy size={14}/> Equipes</button><button className={view === 'mvp' ? 'active' : ''} onClick={() => setView('mvp')}><Users size={14}/> MVP</button></div>
       <div className="scorer-scope-switch"><button className={scope === 'geral' ? 'active' : ''} onClick={() => setScope('geral')}>Geral</button><button className={scope === 'jogo' ? 'active' : ''} onClick={() => setScope('jogo')}>Jogo</button><button className={scope === 'mapa' ? 'active' : ''} onClick={() => setScope('mapa')}>Mapa</button>{scope === 'mapa' ? <select value={selectedMap} onChange={event => setSelectedMap(event.target.value)}>{maps.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select> : null}</div>
-      <div className="scorer-drop-tabs">{data.partidas.map(drop => <button key={drop.id} className={selectedDropId === drop.id ? 'active' : ''} onClick={() => setSelectedDropId(drop.id)}>Q{drop.numero_partida}<small>{drop.mapa_nome || drop.mapa}</small></button>)}</div>
+      <div className="scorer-drop-tabs">
+        {data.partidas.map((drop) => {
+          const isAtual = drop.status === 'em_andamento'
+          const isSelected = selectedDropId === drop.id
+          return (
+            <button
+              key={drop.id}
+              type="button"
+              className={`${isSelected ? 'active' : ''}${isAtual ? ' is-current-drop' : ''}`}
+              onClick={() => setSelectedDropId(drop.id)}
+              title={isAtual ? 'Queda atual (overlays)' : 'Clique para editar esta queda'}
+            >
+              Q{drop.numero_partida}
+              {isAtual ? <b className="drop-atual-badge">ATUAL</b> : null}
+              <small>{drop.mapa_nome || drop.mapa}</small>
+            </button>
+          )
+        })}
+      </div>
+      {selectedDropId ? (
+        <button
+          type="button"
+          className="button secondary scorer-set-current"
+          disabled={saving || selectedDrop?.status === 'em_andamento'}
+          onClick={() => void setQuedaAtual(selectedDropId)}
+          title="Marca esta queda como atual para as overlays Stream"
+        >
+          {selectedDrop?.status === 'em_andamento' ? 'Queda atual' : 'Definir como queda atual'}
+        </button>
+      ) : null}
     </section>
 
     {error ? <div className="scorer-feedback error">{error}<button onClick={() => setError('')}><X size={14}/></button></div> : null}
     {notice ? <div className="scorer-feedback success">{notice}<button onClick={() => setNotice('')}><X size={14}/></button></div> : null}
-    {preview ? <div className="scorer-match-strip"><span><strong>{matchName}</strong><small>{preview.equipes.length} equipes · vincule apenas as equipes que deseja preencher</small></span><button className="button secondary" onClick={() => { setPreview(null); setMatchContent('') }}>Cancelar</button><button className="button" onClick={() => void confirmMatch()} disabled={saving}>Aplicar equipes vinculadas</button></div> : null}
+    {preview ? (
+      <div className="scorer-match-strip">
+        <span>
+          <strong>{matchName}</strong>
+          <small>
+            {preview.equipes.length} nomes no MR · verde=sem vínculo · amarelo=vinculado · vermelho=sumiu/troca/falta.
+            Vínculos da Q anterior valem nesta Q se o nome ainda existir.
+          </small>
+        </span>
+        <button className="button secondary" onClick={() => { setPreview(null); setMatchContent('') }}>Cancelar</button>
+        <button className="button" onClick={() => void confirmMatch()} disabled={saving}>Aplicar equipes vinculadas</button>
+      </div>
+    ) : null}
 
-    {view === 'equipes' ? <div className="scorer-edit-table-wrap scorer-sheet-table-wrap"><table className="scorer-edit-table scorer-sheet-table"><thead><tr><th>#</th><th>Equipe</th><th>Grupo</th><th>Q</th><th>B</th><th>K</th><th>Pts</th><th>Vínculo</th><th>Pos.</th><th>Abates</th><th>Pts Q</th><th>Punição</th></tr></thead><tbody>{data.slots.map(slot => {
-      const id = slot.campeonato_equipe_id; const stats = ranking.find(row => row.campeonato_equipe_id === id); const edit = edits[id]; const savedLinks = data.vinculos_matchresult.filter(link => link.campeonato_equipe_id === id)
-      return <tr key={`${slot.grupo_id}:${slot.slot_numero}`} className={slot.slot_vazio ? 'is-empty' : ''}><td className="rank-cell">{slot.slot_vazio ? slot.slot_numero : stats?.colocacao || '—'}</td><td><div className="scorer-team">{slot.equipe_logo_url ? <img src={slot.equipe_logo_url} alt=""/> : <span/>}<div><strong>{slot.equipe_nome || 'Vaga livre'}</strong><small>{slot.equipe_tag || `Slot ${slot.slot_numero}`}</small></div></div></td><td>{slot.grupo_nome}</td><td>{stats?.quedas || stats?.quedas_jogadas || 0}</td><td>{stats?.booyahs || 0}</td><td>{stats?.abates || 0}</td><td className="score-total">{stats?.pontos_total || 0}</td><td>{slot.slot_vazio ? '—' : preview ? <select className="inline-link-select" value={linkForTeam(id)} onChange={event => setTeamLink(id, event.target.value)}><option value="">Selecionar...</option>{preview.equipes.map((team: Row) => <option key={team.nome_normalizado} value={team.nome_normalizado}>{team.nome}</option>)}</select> : savedLinks.length ? savedLinks.map(link => <span className="link-chip" key={link.id}>{link.nome_raw}</span>) : <em>Match Result</em>}</td><td>{slot.slot_vazio ? '—' : <input type="number" min="1" value={edit?.posicao || ''} onChange={event => patchTeam(id, { posicao: event.target.value })}/>}</td><td>{slot.slot_vazio ? '—' : <input type="number" min="0" value={edit?.abates || ''} onChange={event => patchTeam(id, { abates: event.target.value })}/>}</td><td className="drop-points-cell">{dropPoints(edit)}</td><td>{slot.slot_vazio ? '—' : <div className="penalty-cell"><input className="penalty-input" type="number" max="0" value={edit?.punicao || ''} onChange={event => patchTeam(id, { punicao: String(Math.min(number(event.target.value), 0)) })} placeholder="-0"/>{number(edit?.punicao) < 0 ? <input className="penalty-reason-inline" value={edit?.motivo || ''} onChange={event => patchTeam(id, { motivo: event.target.value })} placeholder="Informar motivo"/> : null}</div>}</td></tr>
-    })}</tbody></table></div> : null}
+    <div className="scorer-vinculo-legend">
+      <span className="vinculo-dot green" /> Sem vínculo
+      <span className="vinculo-dot yellow" /> Vinculado
+      <span className="vinculo-dot red" /> Sumiu / troca de nome / falta
+    </div>
+
+    {view === 'equipes' ? (
+      <div className="scorer-edit-table-wrap scorer-sheet-table-wrap">
+        <table className="scorer-edit-table scorer-sheet-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Equipe</th><th>Grupo</th><th>Q</th><th>B</th><th>K</th><th>Pts</th>
+              <th>Vínculo Match Result</th>
+              <th>Pos.</th><th>Abates</th><th>Pts Q</th><th>Punição</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.slots.map((slot) => {
+              const id = slot.campeonato_equipe_id
+              const stats = ranking.find((row) => row.campeonato_equipe_id === id)
+              const edit = edits[id]
+              const vState = id ? vinculoState(id) : { tone: 'green' as const, label: '—', savedLinks: [], missing: false }
+              return (
+                <tr key={`${slot.grupo_id}:${slot.slot_numero}`} className={slot.slot_vazio ? 'is-empty' : ''}>
+                  <td className="rank-cell">{slot.slot_vazio ? slot.slot_numero : stats?.colocacao || '—'}</td>
+                  <td>
+                    <div className="scorer-team">
+                      {slot.equipe_logo_url ? <img src={slot.equipe_logo_url} alt="" /> : <span />}
+                      <div>
+                        <strong>{slot.equipe_nome || 'Vaga livre'}</strong>
+                        <small>{slot.equipe_tag || `Slot ${slot.slot_numero}`}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{slot.grupo_nome}</td>
+                  <td>{stats?.quedas || stats?.quedas_jogadas || 0}</td>
+                  <td>{stats?.booyahs || 0}</td>
+                  <td>{stats?.abates || 0}</td>
+                  <td className="score-total">{stats?.pontos_total || 0}</td>
+                  <td className={`vinculo-cell tone-${vState.tone}`}>
+                    {slot.slot_vazio ? (
+                      '—'
+                    ) : (
+                      <div className="vinculo-cell-inner">
+                        <span className={`vinculo-status tone-${vState.tone}`}>{vState.label}</span>
+                        {vState.savedLinks.length ? (
+                          <div className="vinculo-aliases">
+                            {vState.savedLinks.map((link) => (
+                              <span className="link-chip" key={link.id || link.nome_raw}>
+                                {link.nome_raw}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                        {preview ? (
+                          <select
+                            className="inline-link-select"
+                            value={linkForTeam(id)}
+                            onChange={(event) => {
+                              setTeamLink(id, event.target.value)
+                              if (event.target.value) setFaltas((f) => ({ ...f, [id]: false }))
+                            }}
+                          >
+                            <option value="">
+                              {vState.missing ? 'Novo nome no MR…' : 'Selecionar nome do MR…'}
+                            </option>
+                            {preview.equipes.map((team: Row) => (
+                              <option key={team.nome_normalizado} value={team.nome_normalizado}>
+                                {team.nome}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <em className="vinculo-hint">Carregue o Match Result desta queda</em>
+                        )}
+                        {vState.missing || (preview && vState.tone === 'red') ? (
+                          <button
+                            type="button"
+                            className="vinculo-falta-btn"
+                            disabled={saving}
+                            onClick={() => void marcarFalta(id)}
+                          >
+                            Marcar falta
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {slot.slot_vazio ? '—' : (
+                      <input type="number" min="1" value={edit?.posicao || ''} onChange={(event) => patchTeam(id, { posicao: event.target.value })} />
+                    )}
+                  </td>
+                  <td>
+                    {slot.slot_vazio ? '—' : (
+                      <input type="number" min="0" value={edit?.abates || ''} onChange={(event) => patchTeam(id, { abates: event.target.value })} />
+                    )}
+                  </td>
+                  <td className="drop-points-cell">{dropPoints(edit)}</td>
+                  <td>
+                    {slot.slot_vazio ? '—' : (
+                      <div className="penalty-cell">
+                        <input
+                          className="penalty-input"
+                          type="number"
+                          max="0"
+                          value={edit?.punicao || ''}
+                          onChange={(event) => patchTeam(id, { punicao: String(Math.min(number(event.target.value), 0)) })}
+                          placeholder="-0"
+                        />
+                        {number(edit?.punicao) < 0 ? (
+                          <input
+                            className="penalty-reason-inline"
+                            value={edit?.motivo || ''}
+                            onChange={(event) => patchTeam(id, { motivo: event.target.value })}
+                            placeholder="Informar motivo"
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    ) : null}
 
     {view === 'mvp' ? <>{preview ? <section className="match-player-review">{preview.equipes.map((team: Row) => <article key={team.nome_normalizado}><header><strong>{team.nome}</strong><span>{team.posicao}º · {team.abates} abates</span></header>{team.jogadores.map((player: Row) => { const editable = player.status_vinculo !== 'oficial'; return <div key={player.ordem}><span className={`player-link-state ${player.status_vinculo}`}>{player.status_vinculo === 'oficial' ? 'Oficial' : player.status_vinculo === 'temporario' ? 'Temporário' : 'Novo temporário'}</span><input value={player.nick} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { nick: event.target.value })}/><input value={player.id_jogo} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { id_jogo: event.target.value })}/><input className="player-kills-input" type="number" min="0" value={player.abates} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { abates: number(event.target.value) })}/></div>})}</article>)}</section> : null}<div className="scorer-edit-table-wrap"><table className="scorer-edit-table"><thead><tr><th>Equipe</th><th>Jogador</th><th>ID</th><th>Abates Q{selectedDrop?.numero_partida}</th><th>Abates jogo</th><th>Abates geral</th></tr></thead><tbody>{data.slots.filter(slot => !slot.slot_vazio).flatMap(slot => (playersByTeam.get(slot.campeonato_equipe_id) || []).map(player => { const id = playerId(player); const game = data.mvp_jogo.find(row => row.campeonato_jogador_id === id); const general = data.mvp_geral.find(row => row.campeonato_jogador_id === id); return <tr key={`${slot.campeonato_equipe_id}:${id}`}><td><strong>{slot.equipe_nome}</strong></td><td><strong>{player.nick || 'Jogador'}</strong></td><td>{player.id_jogo || '—'}</td><td><input type="number" min="0" value={edits[slot.campeonato_equipe_id]?.jogadores[id] || ''} onChange={event => patchPlayer(slot.campeonato_equipe_id, id, event.target.value)}/></td><td>{game?.abates || 0}</td><td className="score-total">{general?.abates || 0}</td></tr> }))}{!data.jogadores.length ? <tr><td colSpan={6} className="empty">Nenhum jogador escalado. O Match Result pode criar jogadores temporários.</td></tr> : null}</tbody></table></div></> : null}
   </main>

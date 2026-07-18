@@ -470,13 +470,14 @@ async function loadMapasRows(campeonatoId: string): Promise<StreamSheetRow[]> {
 
 function pickCurrentAndNext(partidas: FlatPartida[]) {
   if (!partidas.length) return { current: null as FlatPartida | null, next: null as FlatPartida | null }
-  const liveIdx = partidas.findIndex((p) => /andamento|live|ao.?vivo|em_jogo|inici/i.test(p.status))
+  // Prioridade: queda marcada como atual no pontuador (status em_andamento)
+  const liveIdx = partidas.findIndex((p) => /em_andamento|andamento|live|ao.?vivo|em_jogo/i.test(p.status || ''))
   if (liveIdx >= 0) {
     return { current: partidas[liveIdx], next: partidas[liveIdx + 1] || null }
   }
   let lastDoneIdx = -1
   for (let i = 0; i < partidas.length; i++) {
-    if (/finaliz|conclu|encerr|done|finished/i.test(partidas[i].status)) lastDoneIdx = i
+    if (/finaliz|conclu|encerr|done|finished/i.test(partidas[i].status || '')) lastDoneIdx = i
   }
   if (lastDoneIdx >= 0) {
     return { current: partidas[lastDoneIdx], next: partidas[lastDoneIdx + 1] || null }
