@@ -128,13 +128,13 @@ export function columnDefsFromSheet(
   })
 }
 
+/** Gera slots de dados (sem estilo por linha — o modelo é único). */
 export function defaultRowItems(count: number, _startRank = 1): TableRowItem[] {
   const n = Math.max(1, Math.min(40, count || 1))
   return Array.from({ length: n }, (_, i) => ({
     id: newLayerId(),
     name: `Linha ${i + 1}`,
     dataIndex: i,
-    height: 36,
   }))
 }
 
@@ -143,8 +143,25 @@ export function createSeedRowItem(name = 'Linha 1'): TableRowItem {
     id: newLayerId(),
     name,
     dataIndex: 0,
-    height: 36,
   }
+}
+
+/**
+ * Define quantas linhas a tabela tem.
+ * Todas usam o mesmo modelo visual (rowHeight, rowStyle, columnDefs).
+ */
+export function setTableRowCount(data: TableBlockData, count: number): TableBlockData {
+  const n = Math.max(1, Math.min(40, Math.round(count) || 1))
+  const prev = Array.isArray(data.rowItems) ? data.rowItems : []
+  const rowItems: TableRowItem[] = Array.from({ length: n }, (_, i) => {
+    const old = prev[i]
+    return {
+      id: old?.id || newLayerId(),
+      name: old?.name || `Linha ${i + 1}`,
+      dataIndex: i,
+    }
+  })
+  return { ...data, rows: n, rowItems }
 }
 
 /** Normaliza tabela legada → columnDefs + rowItems (larguras em px). */
@@ -158,10 +175,21 @@ export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock 
       ? normalizeColumnWidths(data.columnDefs, tableW)
       : defaultColumnDefs((data.columns as string[]) || undefined, tableW)
 
-  const rowItems =
-    Array.isArray(data.rowItems) && data.rowItems.length
-      ? data.rowItems
-      : defaultRowItems(data.rows ?? 1, data.startRank || 1)
+  const desiredRows = Math.max(
+    1,
+    Math.min(40, Number(data.rows) || (Array.isArray(data.rowItems) ? data.rowItems.length : 1) || 1),
+  )
+  // sincroniza slots com o número de linhas (modelo único)
+  let rowItems = Array.isArray(data.rowItems) ? data.rowItems : []
+  if (rowItems.length !== desiredRows) {
+    rowItems = setTableRowCount({ ...data, rowItems }, desiredRows).rowItems || []
+  } else {
+    rowItems = rowItems.map((r, i) => ({
+      id: r.id || newLayerId(),
+      name: r.name || `Linha ${i + 1}`,
+      dataIndex: i,
+    }))
+  }
 
   return {
     ...block,
@@ -171,13 +199,51 @@ export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock 
       source,
       variant: source === 'mvp' ? 'mvp_list' : data.variant || 'standings',
       columns: columnDefs.map((c) => c.field) as TableColumnKey[],
-      rows: rowItems.length,
+      rows: desiredRows,
       columnDefs,
       rowItems,
       showHeader: data.showHeader !== false,
       rowHeight: data.rowHeight ?? 36,
       rowGap: data.rowGap ?? 0,
       headerHeight: data.headerHeight ?? 32,
+    },
+  }
+}
+
+/** Escala tabela inteira (largura, colunas, alturas) por fator. */
+export function scaleTableBlock(block: StreamTableBlock, factor: number): StreamTableBlock {
+  const t = ensureTableStructure(block)
+  const f = Math.max(0.25, Math.min(4, factor))
+  if (Math.abs(f - 1) < 0.001) return t
+  const tableW = Math.max(64, Math.round((t.tableW || DEFAULT_TABLE_W) * f))
+  const cols = (t.data.columnDefs || []).map((c) => ({
+    ...c,
+    widthPx: Math.max(8, Math.round((c.widthPx || 48) * f)),
+  }))
+  const rowHeight = Math.max(14, Math.round((t.data.rowHeight ?? 36) * f))
+  const headerHeight = Math.max(0, Math.round((t.data.headerHeight ?? 32) * f))
+  const rowGap = Math.max(0, Math.round((t.data.rowGap ?? 0) * f))
+  const scaleText = (fs?: TableBlockData['rowStyle']) => {
+    if (!fs?.text) return fs
+    return {
+      ...fs,
+      text: {
+        ...fs.text,
+        fontSize: Math.max(8, Math.round((fs.text.fontSize || 14) * f)),
+      },
+    }
+  }
+  return {
+    ...t,
+    tableW,
+    data: {
+      ...t.data,
+      columnDefs: cols,
+      rowHeight,
+      headerHeight,
+      rowGap,
+      rowStyle: scaleText(t.data.rowStyle),
+      headerStyle: scaleText(t.data.headerStyle),
     },
   }
 }
@@ -226,28 +292,8 @@ export function setTableSheetSource(
   }
 }
 
-export function addTableRow(data: TableBlockData, tableW = DEFAULT_TABLE_W): TableBlockData {
-  const columnDefs =
-    Array.isArray(data.columnDefs) && data.columnDefs.length
-      ? data.columnDefs
-      : defaultColumnDefs((data.columns as string[]) || undefined, tableW)
-  const items = [
-    ...((Array.isArray(data.rowItems) && data.rowItems.length
-      ? data.rowItems
-      : defaultRowItems(data.rows ?? 1)) as TableRowItem[]),
-  ]
-  items.push({
-    id: newLayerId(),
-    name: `Linha ${items.length + 1}`,
-    dataIndex: items.length,
-    height: data.rowHeight ?? 36,
-  })
-  return {
-    ...data,
-    columnDefs: normalizeColumnWidths(columnDefs, tableW),
-    rowItems: items,
-    rows: items.length,
-  }
+export function addTableRow(data: TableBlockData, _tableW = DEFAULT_TABLE_W): TableBlockData {
+  return setTableRowCount(data, (data.rows || data.rowItems?.length || 1) + 1)
 }
 
 export function removeTableRow(data: TableBlockData, rowId: string): TableBlockData {

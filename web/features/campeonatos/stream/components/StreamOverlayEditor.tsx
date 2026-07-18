@@ -72,14 +72,11 @@ import { CardLayerCanvas } from './CardLayerCanvas'
 import { StreamTableCanvas } from './StreamTableCanvas'
 import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
 import {
-  addTableRow,
   createSeedRowItem,
   ensureTableStructure,
-  removeTableRow,
-  reorderTableRows,
-  updateTableRow,
+  scaleTableBlock,
 } from '../utils/table-structure'
-import { TableToolsPanel } from './editor/TableToolsPanel'
+import { TableSidebarPanel } from './editor/TableSidebarPanel'
 import type { PreviewMap, PreviewStanding } from './editor/OverlayPreview'
 import '../stream.css'
 
@@ -433,8 +430,6 @@ export function StreamOverlayEditor(props: {
   const selectedCard = selectedBlock?.type === 'card' ? ensureCardLayers(selectedBlock) : null
   const selectedTable = selectedBlock?.type === 'table' ? ensureTableStructure(selectedBlock) : null
   const selectedLayer = selectedCard?.layers.find((l) => l.id === selectedLayerId) || null
-  const selectedTableRow =
-    selectedTable?.data.rowItems?.find((r) => r.id === selectedLayerId) || null
 
   const ctx = useMemo(
     () => ({
@@ -524,8 +519,8 @@ export function StreamOverlayEditor(props: {
     const table = ensureTableStructure(rawTable)
     patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, table] }), 'force')
     setSelectedBlockId(table.id)
-    setSelectedLayerId(seedRow.id)
-    setOpenLayerMenu(seedRow.id)
+    setSelectedLayerId(null)
+    setOpenLayerMenu(null)
   }
 
   function clampPos(x: number, y: number, w: number, h: number) {
@@ -646,53 +641,6 @@ export function StreamOverlayEditor(props: {
     )
     setSelectedLayerId(layer.id)
     setOpenLayerMenu(layer.id)
-  }
-
-  function addTableRowItem(tableId: string) {
-    let createdRowId: string | null = null
-    updateBlock(
-      tableId,
-      (b) => {
-        if (b.type !== 'table') return b
-        const t = ensureTableStructure(b)
-        const data = addTableRow(t.data)
-        createdRowId = data.rowItems?.[data.rowItems.length - 1]?.id || null
-        return { ...t, data }
-      },
-      { history: 'force' },
-    )
-    if (createdRowId) {
-      setSelectedBlockId(tableId)
-      setSelectedLayerId(createdRowId)
-      setOpenLayerMenu(createdRowId)
-    }
-  }
-
-  function removeTableRowItem(tableId: string, rowId: string) {
-    updateBlock(
-      tableId,
-      (b) => {
-        if (b.type !== 'table') return b
-        const t = ensureTableStructure(b)
-        return { ...t, data: removeTableRow(t.data, rowId) }
-      },
-      { history: 'force' },
-    )
-    if (selectedLayerId === rowId) setSelectedLayerId(null)
-    if (openLayerMenu === rowId) setOpenLayerMenu(null)
-  }
-
-  function reorderTableRowItems(tableId: string, fromIndex: number, toIndex: number) {
-    if (fromIndex === toIndex) return
-    updateBlock(
-      tableId,
-      (b) => {
-        if (b.type !== 'table') return b
-        const t = ensureTableStructure(b)
-        return { ...t, data: reorderTableRows(t.data, fromIndex, toIndex) }
-      },
-      { history: 'force' },
-    )
   }
 
   function updateLayer(layerId: string, patch: Partial<StreamLayer>) {
@@ -1172,22 +1120,33 @@ export function StreamOverlayEditor(props: {
                 ) : null}
 
                 {selectedBlock.type === 'table' && selectedTable ? (
-                  <TableToolsPanel
-                    table={selectedTable}
-                    selectedRow={selectedTableRow}
-                    sheets={sheets}
-                    onPatchData={(fn, history = 'soft') =>
-                      updateBlock(
-                        selectedBlock.id,
-                        (b) => {
-                          if (b.type !== 'table') return b
-                          const t = ensureTableStructure(b)
-                          return { ...t, data: fn(t.data) }
-                        },
-                        { history },
-                      )
-                    }
-                  />
+                  <div className="stream-table-general">
+                    <p className="stream-hint">
+                      <strong>Gerais da tabela</strong> — posição, tamanho e escala.
+                      Colunas e nº de linhas ficam no painel <em>Tabela</em> à direita.
+                    </p>
+                    <label className="stream-field">
+                      <span>Escala proporcional</span>
+                      <div className="stream-dock-row" style={{ marginTop: 4 }}>
+                        {[0.75, 0.9, 1.1, 1.25].map((f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() =>
+                              updateBlock(
+                                selectedBlock.id,
+                                (b) => (b.type === 'table' ? scaleTableBlock(b, f) : b),
+                                { history: 'force' },
+                              )
+                            }
+                          >
+                            {f < 1 ? `${Math.round(f * 100)}%` : `+${Math.round((f - 1) * 100)}%`}
+                          </button>
+                        ))}
+                      </div>
+                    </label>
+                    <p className="stream-hint">Escala ajusta largura, colunas, alturas e fontes da tabela juntas.</p>
+                  </div>
                 ) : null}
 
                 <div className="stream-block-actions" style={{ marginTop: 8 }}>
@@ -1305,12 +1264,6 @@ export function StreamOverlayEditor(props: {
                               mvpRows={mvpRows}
                               sheets={sheets}
                               editable={selected}
-                              selectedRowId={selected ? selectedLayerId : null}
-                              onSelectRow={(id) => {
-                                setSelectedBlockId(block.id)
-                                setSelectedLayerId(id)
-                                setOpenLayerMenu(id)
-                              }}
                             />
                           </div>
                         )
@@ -1330,10 +1283,10 @@ export function StreamOverlayEditor(props: {
           title="Arraste para redimensionar painel"
         />
 
-        {/* CAMADAS */}
+        {/* CAMADAS / TABELA */}
         <aside className="stream-gt-right stream-panel" style={{ gridArea: 'layers' }}>
           <div className="stream-gt-layer-head">
-            <strong>Camadas</strong>
+            <strong>{selectedTable ? 'Tabela' : 'Camadas'}</strong>
             {selectedBlock ? (
               <div className="stream-block-actions">
                 <button type="button" title="Duplicar" onClick={() => dupBlock(selectedBlock.id)}><Copy size={14} /></button>
@@ -1342,16 +1295,36 @@ export function StreamOverlayEditor(props: {
             ) : null}
           </div>
 
+          {selectedTable ? (
+            <TableSidebarPanel
+              table={selectedTable}
+              sheets={sheets}
+              onPatchData={(fn, history = 'soft') =>
+                updateBlock(
+                  selectedTable.id,
+                  (b) => {
+                    if (b.type !== 'table') return b
+                    const t = ensureTableStructure(b)
+                    return { ...t, data: fn(t.data) }
+                  },
+                  { history },
+                )
+              }
+            />
+          ) : null}
+
           {!overlay.blocks.length ? (
             <p className="stream-hint">Nenhum bloco. Use + Bloco em Ferramentas.</p>
           ) : (
-            <ul className="stream-gt-layer-list stream-gt-block-tree">
-              <p className="stream-hint" style={{ marginBottom: 6 }}>Arraste ≡ para reordenar blocos e camadas.</p>
+            <ul className="stream-gt-layer-list stream-gt-block-tree" style={selectedTable ? { marginTop: 12, opacity: 0.92 } : undefined}>
+              <p className="stream-hint" style={{ marginBottom: 6 }}>
+                {selectedTable ? 'Blocos no frame (clique para trocar):' : 'Arraste ≡ para reordenar blocos e camadas.'}
+              </p>
               {overlay.blocks.map((block, blockIndex) => {
                 const isSel = selectedBlockId === block.id
                 const isCard = block.type === 'card'
                 const card = isCard ? ensureCardLayers(block) : null
-                const expanded = isSel
+                const expanded = isSel && isCard
                 return (
                   <li
                     key={block.id}
@@ -1400,7 +1373,7 @@ export function StreamOverlayEditor(props: {
                           ? `${Math.round(block.x ?? 0)},${Math.round(block.y ?? 0)} · ${card?.layers.length ?? 0} itens`
                           : (() => {
                               const t = ensureTableStructure(block as StreamTableBlock)
-                              return `${Math.round(block.x ?? 0)},${Math.round(block.y ?? 0)} · ${t.data.rowItems?.length ?? 0} linhas`
+                              return `${t.data.rows || 1} linhas · ${(t.data.columnDefs || []).length} cols`
                             })()}
                       </em>
                     </button>
@@ -1578,207 +1551,6 @@ export function StreamOverlayEditor(props: {
                       </div>
                     ) : null}
 
-                    {expanded && block.type === 'table' ? (() => {
-                      const table = ensureTableStructure(block)
-                      const rows = table.data.rowItems || []
-                      const cols = table.data.columnDefs || []
-                      return (
-                        <div className="stream-gt-folder-children">
-                          <div className="stream-add-layer-row">
-                            <button type="button" onClick={() => addTableRowItem(block.id)}>+ Linha</button>
-                          </div>
-                          <p className="stream-hint">
-                            Item = modelo de linha · {cols.length} colunas · + Linha só quando precisar
-                          </p>
-                          <ul className="stream-gt-layer-list">
-                            {rows.map((row, rowIndex) => {
-                              const open = openLayerMenu === row.id
-                              return (
-                                <li
-                                  key={row.id}
-                                  className={selectedLayerId === row.id ? 'is-active' : ''}
-                                  draggable
-                                  onDragStart={(e) => {
-                                    e.stopPropagation()
-                                    dragList.current = { kind: 'table-row', id: row.id, fromIndex: rowIndex }
-                                    e.dataTransfer.effectAllowed = 'move'
-                                    e.dataTransfer.setData('text/plain', `table-row:${row.id}`)
-                                  }}
-                                  onDragOver={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    e.dataTransfer.dropEffect = 'move'
-                                  }}
-                                  onDrop={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    const d = dragList.current
-                                    if (!d || d.kind !== 'table-row') return
-                                    reorderTableRowItems(block.id, d.fromIndex, rowIndex)
-                                    dragList.current = null
-                                  }}
-                                  onDragEnd={() => {
-                                    dragList.current = null
-                                  }}
-                                >
-                                  <button
-                                    type="button"
-                                    className="stream-gt-layer-row"
-                                    onClick={() => {
-                                      setSelectedLayerId(row.id)
-                                      setOpenLayerMenu(open ? null : row.id)
-                                    }}
-                                  >
-                                    <span className="stream-drag-handle" title="Arrastar linha" aria-hidden>
-                                      <GripVertical size={14} />
-                                    </span>
-                                    {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                    <span>
-                                      <small>linha</small>
-                                      {row.name}
-                                    </span>
-                                    <em>#{(table.data.startRank || 1) + row.dataIndex}</em>
-                                  </button>
-                                  {open ? (
-                                    <div className="stream-gt-layer-drawer">
-                                      <label className="stream-field">
-                                        <span>Nome</span>
-                                        <input
-                                          value={row.name}
-                                          onChange={(e) =>
-                                            updateBlock(block.id, (b) =>
-                                              b.type === 'table'
-                                                ? {
-                                                    ...ensureTableStructure(b),
-                                                    data: updateTableRow(ensureTableStructure(b).data, row.id, {
-                                                      name: e.target.value,
-                                                    }),
-                                                  }
-                                                : b,
-                                            )
-                                          }
-                                        />
-                                      </label>
-                                      <div className="stream-style-grid">
-                                        <label className="stream-style-field">
-                                          <span>Altura (px)</span>
-                                          <input
-                                            type="number"
-                                            min={18}
-                                            max={200}
-                                            value={row.height ?? table.data.rowHeight ?? 36}
-                                            onChange={(e) =>
-                                              updateBlock(block.id, (b) =>
-                                                b.type === 'table'
-                                                  ? {
-                                                      ...ensureTableStructure(b),
-                                                      data: updateTableRow(ensureTableStructure(b).data, row.id, {
-                                                        height: Number(e.target.value) || 36,
-                                                      }),
-                                                    }
-                                                  : b,
-                                              )
-                                            }
-                                          />
-                                        </label>
-                                        <label className="stream-style-field">
-                                          <span>Índice dados</span>
-                                          <input
-                                            type="number"
-                                            min={0}
-                                            value={row.dataIndex}
-                                            onChange={(e) =>
-                                              updateBlock(block.id, (b) =>
-                                                b.type === 'table'
-                                                  ? {
-                                                      ...ensureTableStructure(b),
-                                                      data: updateTableRow(ensureTableStructure(b).data, row.id, {
-                                                        dataIndex: Math.max(0, Number(e.target.value) || 0),
-                                                      }),
-                                                    }
-                                                  : b,
-                                              )
-                                            }
-                                          />
-                                        </label>
-                                        <label className="stream-style-field">
-                                          <span>Cor fundo</span>
-                                          <input
-                                            type="color"
-                                            value={(row.fill || '#1a1d24').slice(0, 7)}
-                                            onChange={(e) =>
-                                              updateBlock(block.id, (b) =>
-                                                b.type === 'table'
-                                                  ? {
-                                                      ...ensureTableStructure(b),
-                                                      data: updateTableRow(ensureTableStructure(b).data, row.id, {
-                                                        fill: e.target.value,
-                                                      }),
-                                                    }
-                                                  : b,
-                                              )
-                                            }
-                                          />
-                                        </label>
-                                        <label className="stream-style-field">
-                                          <span>Cor texto</span>
-                                          <input
-                                            type="color"
-                                            value={(row.textColor || '#ffffff').slice(0, 7)}
-                                            onChange={(e) =>
-                                              updateBlock(block.id, (b) =>
-                                                b.type === 'table'
-                                                  ? {
-                                                      ...ensureTableStructure(b),
-                                                      data: updateTableRow(ensureTableStructure(b).data, row.id, {
-                                                        textColor: e.target.value,
-                                                      }),
-                                                    }
-                                                  : b,
-                                              )
-                                            }
-                                          />
-                                        </label>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        className="stream-secondary-btn"
-                                        onClick={() => {
-                                          // limpar cor custom
-                                          updateBlock(block.id, (b) =>
-                                            b.type === 'table'
-                                              ? {
-                                                  ...ensureTableStructure(b),
-                                                  data: updateTableRow(ensureTableStructure(b).data, row.id, {
-                                                    fill: undefined,
-                                                    textColor: undefined,
-                                                  }),
-                                                }
-                                              : b,
-                                          )
-                                        }}
-                                      >
-                                        Limpar cores
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="stream-secondary-btn"
-                                        onClick={() => removeTableRowItem(block.id, row.id)}
-                                      >
-                                        <Trash2 size={14} /> Remover linha
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </li>
-                              )
-                            })}
-                          </ul>
-                          {!rows.length ? (
-                            <p className="stream-hint">Nenhuma linha. Clique + Linha.</p>
-                          ) : null}
-                        </div>
-                      )
-                    })() : null}
                   </li>
                 )
               })}

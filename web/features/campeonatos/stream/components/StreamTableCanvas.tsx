@@ -127,37 +127,25 @@ export function StreamTableCanvas(props: {
 
         const d = Number(dataRow.delta || 0)
         const rankClass = d > 0 ? 'is-up' : d < 0 ? 'is-down' : ''
-        const selected = props.selectedRowId === item.id
+        // modelo único: altura e fundo da linha vêm de rowHeight / rowStyle / altRowFill
         const bg =
-          item.fill
-          || (i % 2 === 1 && data.altRowFill
+          i % 2 === 1 && data.altRowFill
             ? data.altRowFill
-            : (rowBase.wrap.backgroundColor as string | undefined))
+            : (rowBase.wrap.backgroundColor as string | undefined)
 
         return (
           <div
             key={item.id}
-            role={props.editable ? 'button' : undefined}
-            className={`stream-prev-table-row ${rankClass}${selected ? ' is-row-selected' : ''}`}
+            className={`stream-prev-table-row ${rankClass}`}
             style={{
               ...grid,
               ...rowBase.wrap,
               ...rowBase.text,
-              minHeight: item.height ?? rh,
+              minHeight: rh,
               marginBottom: gap,
               backgroundColor: bg,
-              color: item.textColor || (rowBase.text.color as string | undefined),
+              color: rowBase.text.color as string | undefined,
               padding: '0 6px',
-              outline: selected ? '2px solid #dfbf4a' : undefined,
-              outlineOffset: -2,
-              cursor: props.editable ? 'pointer' : 'default',
-            }}
-            onClick={(e) => {
-              e.stopPropagation()
-              props.onSelectRow?.(item.id)
-            }}
-            onPointerDown={(e) => {
-              if (props.editable) e.stopPropagation()
             }}
           >
             {cols.map((c) => {
@@ -178,6 +166,12 @@ export function StreamTableCanvas(props: {
                     justifyContent:
                       c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center',
                     minWidth: 0,
+                    height: '100%',
+                    minHeight: rh,
+                    boxSizing: 'border-box',
+                    padding: '0 4px',
+                    backgroundColor: c.fill || undefined,
+                    color: c.textColor || undefined,
                   }}
                 >
                   {val.kind === 'image' ? (

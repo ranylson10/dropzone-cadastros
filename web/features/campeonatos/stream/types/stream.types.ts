@@ -172,7 +172,7 @@ export type StreamLayer = {
   objectFit?: 'cover' | 'contain'
 }
 
-/** Coluna da tabela (parte da linha) — largura em pixels. */
+/** Coluna da tabela (parte da linha modelo) — medidas e estilo em px. */
 export type TableColumnDef = {
   id: string
   /**
@@ -188,19 +188,25 @@ export type TableColumnDef = {
   align?: 'left' | 'center' | 'right'
   /** força render como imagem (logo/foto/…) */
   asImage?: boolean
+  /** cor de fundo desta coluna (aplica em todas as linhas) */
+  fill?: string
+  /** cor do texto desta coluna (aplica em todas as linhas) */
+  textColor?: string
 }
 
 /**
- * Item = linha da tabela (como camada do card).
- * dataIndex 0 = startRank na fonte de dados.
+ * Slot de dados da tabela (gerado a partir de `rows`).
+ * Estilo visual vem da linha modelo (rowHeight, rowStyle, columnDefs) — não por item.
  */
 export type TableRowItem = {
   id: string
   name: string
   dataIndex: number
+  /** @deprecated use data.rowHeight (modelo único) */
   height?: number
-  /** cor de fundo desta linha (sobrescreve rowStyle/alt) */
+  /** @deprecated use columnDefs.fill / rowStyle */
   fill?: string
+  /** @deprecated use columnDefs.textColor / rowStyle */
   textColor?: string
 }
 
@@ -211,21 +217,22 @@ export type TableBlockData = {
    * Legado: classificacao | equipes → equipes_geral.
    */
   source: StreamSheetId
-  /** legado: qtd de linhas se rowItems vazio */
+  /** número de linhas (slots de dados) — estilo vem do modelo único */
   rows: number
   startRank: number
   /** legado: lista simples de campos; preferir columnDefs */
   columns: TableColumnKey[] | string[]
-  /** colunas com largura / rótulo / vínculo */
+  /** colunas da linha modelo (largura, vínculo, cores) */
   columnDefs?: TableColumnDef[]
-  /** linhas como itens editáveis */
+  /** slots de dados gerados a partir de rows (não editar estilo por linha) */
   rowItems?: TableRowItem[]
   showHeader?: boolean
   headerStyle?: FieldStyle
+  /** estilo da linha modelo (todas as linhas) */
   rowStyle?: FieldStyle
   altRowFill?: string
   highlightFirst?: boolean
-  /** Ferramentas específicas de tabela */
+  /** altura da linha modelo (px) — aplica em todas */
   rowHeight?: number
   rowGap?: number
   headerHeight?: number

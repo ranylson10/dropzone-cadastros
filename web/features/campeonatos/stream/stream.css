@@ -1931,7 +1931,24 @@ body.stream-editor-scroll-lock {
   pointer-events: auto;
 }
 
-/* —— Painel de tabela (abas Dados / Colunas / Visual) —— */
+/* —— Painel direito Tabela (linha modelo) —— */
+.stream-table-sidebar {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+
+.stream-table-general {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+/* legado / abas */
 .stream-table-tools {
   display: grid;
   gap: 10px;
