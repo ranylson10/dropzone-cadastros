@@ -1517,7 +1517,7 @@ export function DropZoneHome() {
               <section className="auth-inline-panel auth-light-panel">
                 <div className="auth-inline-head auth-light-head">
                   <div className="auth-site-mark">
-                    <SystemLogo size={46} alt="DropZone" />
+                    <SystemLogo size={72} alt="DropZone" />
                     <div>
                       <span>DropZone</span>
                       <strong>{typeLabels[profileType]}</strong>

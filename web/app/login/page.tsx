@@ -151,7 +151,7 @@ export default function LoginPage() {
           {checking ? (
             <div className="dropzone-auth-validation" role="status" aria-live="polite">
               <div className="dropzone-auth-validation-logo">
-                <SystemLogo size={42} alt="" />
+                <SystemLogo size={88} alt="" />
               </div>
               <strong>Validando seu acesso</strong>
               <span>Aguarde um instante...</span>
@@ -159,7 +159,7 @@ export default function LoginPage() {
           ) : (
             <>
               <div className="auth-site-mark central-login-brand">
-                <SystemLogo size={46} alt="DropZone" />
+                <SystemLogo size={80} alt="DropZone" />
                 <div><span>DropZone</span><strong>ACESSO</strong></div>
               </div>
               <h1>Entrar no DropZone</h1>

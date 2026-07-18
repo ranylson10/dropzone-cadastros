@@ -1042,58 +1042,67 @@ body:has(.cropper-overlay) {
   gap: 10px;
 }
 
-/* Logo do sistema — NUNCA width:auto / 100% sem box pai com tamanho fixo */
+/* Logo do sistema — tamanho via --system-logo-size; fundo transparente */
 .system-logo,
 .auth-site-mark img,
 .central-login-brand img,
 .dropzone-auth-validation-logo img,
 .site-logo-img {
   box-sizing: border-box !important;
-  width: 46px !important;
-  height: 46px !important;
-  max-width: 46px !important;
-  max-height: 46px !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
+  width: var(--system-logo-size, 44px) !important;
+  height: var(--system-logo-size, 44px) !important;
+  max-width: var(--system-logo-size, 44px) !important;
+  max-height: var(--system-logo-size, 44px) !important;
+  min-width: var(--system-logo-size, 44px) !important;
+  min-height: var(--system-logo-size, 44px) !important;
   object-fit: contain !important;
   display: block !important;
-  flex: 0 0 46px !important;
+  flex: 0 0 var(--system-logo-size, 44px) !important;
+  background: transparent !important;
 }
 
 .app-brand-logo {
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
-  min-height: 42px !important;
-  max-width: 42px !important;
-  max-height: 42px !important;
-  overflow: hidden !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  overflow: visible !important;
+  display: grid !important;
+  place-items: center !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
 }
 
 .app-brand-logo .system-logo,
 .app-brand-logo img {
-  width: 42px !important;
-  height: 42px !important;
-  max-width: 42px !important;
-  max-height: 42px !important;
-  object-fit: cover !important;
-  flex: 0 0 42px !important;
+  width: 44px !important;
+  height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  object-fit: contain !important;
+  flex: 0 0 44px !important;
+  background: transparent !important;
 }
 
 .dropzone-auth-validation-logo {
-  width: 56px !important;
-  height: 56px !important;
-  overflow: hidden !important;
+  width: 88px !important;
+  height: 88px !important;
+  overflow: visible !important;
   display: grid !important;
   place-items: center !important;
+  background: transparent !important;
 }
 
 .dropzone-auth-validation-logo .system-logo,
 .dropzone-auth-validation-logo img {
-  width: 42px !important;
-  height: 42px !important;
-  max-width: 42px !important;
-  max-height: 42px !important;
+  width: 80px !important;
+  height: 80px !important;
+  max-width: 80px !important;
+  max-height: 80px !important;
+  --system-logo-size: 80px !important;
 }
 
 .central-login-brand {
@@ -1514,19 +1523,20 @@ body:has(.cropper-overlay) {
 
 .app-brand-logo {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   place-items: center;
-  overflow: hidden;
-  border-radius: 8px;
-  background: var(--brand);
-  box-shadow: 0 8px 20px rgba(201, 162, 39, .22);
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .app-brand-logo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: transparent;
 }
 
 .app-brand-copy {
@@ -3234,9 +3244,10 @@ button.invite-slot-button.selected strong {
 }
 
 .vacancies-access-gate > section > img {
-  width: 62px;
-  height: 62px;
+  width: 80px;
+  height: 80px;
   object-fit: contain;
+  background: transparent;
 }
 
 .vacancies-access-gate h2 {
@@ -4992,7 +5003,7 @@ button.invite-slot-button.selected strong {
 
 .button.copied,.token-card.copied{border-color:#25a866!important;background:#edf9f2!important;color:#167445!important}.player-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}.player-summary-grid>div{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-items:center;gap:1px 9px;padding:13px;border:1px solid #e1e4e8;background: var(--surface-soft)}.player-summary-grid>div>svg{grid-row:1/3;color:var(--brand)}.player-summary-grid strong{font-size:20px;line-height:1}.player-summary-grid span{color:#777d86;font-size:10px;font-weight:800;text-transform:uppercase}@media(max-width:700px){.player-summary-grid{grid-template-columns:1fr 1fr}}
 
-.system-admin-page{min-height:100vh;padding:18px;background:transparent;color:var(--text)}.system-admin-header{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1500px;margin:0 auto;padding:14px 16px;border: 1px solid var(--line);background: var(--surface)}.system-admin-header>div{display:flex;align-items:center;gap:11px}.system-admin-header img{width:44px;height:44px}.system-admin-header p,.admin-section header p{margin:0;color:var(--brand);font-size:9px;font-weight:900;text-transform:uppercase}.system-admin-header h1{margin:2px 0 0;font-size:21px}.system-admin-header button,.admin-row-actions button{min-height:34px;border:1px solid #d8dce2;background: var(--surface);padding:0 11px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}.system-admin-tabs{display:flex;max-width:1500px;margin:8px auto 0;border: 1px solid var(--line);background: var(--surface);padding:4px}.system-admin-tabs button{min-height:38px;border:0;background: var(--surface);padding:0 16px;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}.system-admin-tabs button.active{background:#171a22;color:#fff}.system-admin-tabs b{margin-left:5px;color:var(--brand)}.admin-feedback{max-width:1500px;margin:8px auto;padding:11px 13px;border:1px solid}.admin-feedback.error{border-color:#f1b4bb;background:#fff3f4;color:#a91d2b}.admin-metric-grid,.admin-infra-grid,.admin-section{max-width:1500px;margin:8px auto}.admin-metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.admin-metric-grid article,.admin-infra-grid article{display:flex;align-items:center;gap:12px;padding:16px;border: 1px solid var(--line);background: var(--surface)}.admin-metric-grid svg,.admin-infra-grid svg{color:var(--brand)}.admin-metric-grid span,.admin-infra-grid div{display:flex;flex-direction:column;color:#747a84;font-size:10px;font-weight:800;text-transform:uppercase}.admin-metric-grid strong,.admin-infra-grid strong{color:#171a22;font-size:23px}.admin-infra-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.admin-section{padding:16px;border: 1px solid var(--line);background: var(--surface)}.admin-section>header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px}.admin-section h2{margin:2px 0 0}.admin-section>header input{width:min(360px,100%);height:40px;border:1px solid #d7dbe1;padding:0 11px}.admin-table-wrap{overflow:auto}.admin-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}.admin-table-wrap th,.admin-table-wrap td{padding:10px;border-bottom:1px solid #e4e7eb;text-align:left}.admin-table-wrap td:first-child{display:flex;flex-direction:column}.admin-table-wrap small{color:#818791}.admin-status{display:inline-flex;padding:4px 7px;background:#edf0f3;font-size:9px;font-weight:900;text-transform:uppercase}.admin-status.ativo,.admin-status.resolvida{background:#e9f8ef;color:#167044}.admin-status.suspenso,.admin-status.em_analise{background:#fff3d6;color:#926000}.admin-status.banido,.admin-status.pendente{background:#ffe8eb;color:#b32232}.admin-row-actions{display:flex;gap:5px;flex-wrap:wrap}.admin-row-actions button.danger{border-color:#efb4bb;color:#b51e2d}.admin-publication-grid,.admin-report-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}.admin-publication-grid article,.admin-report-list article{display:grid;gap:9px;padding:12px;border:1px solid #e0e3e8}.admin-publication-grid article>div:first-child,.admin-report-list article>header{display:flex;align-items:center;justify-content:space-between;gap:8px}.admin-report-list p{margin:0;color:#525862}.admin-report-list blockquote{margin:0;padding:9px;border-left:3px solid var(--brand);background:#f6f7f8}.admin-audit-list{display:grid}.admin-audit-list>div{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;padding:10px;border-bottom:1px solid #e5e7eb;font-size:11px}.admin-audit-list time{color:#777d86}@media(max-width:850px){.admin-metric-grid{grid-template-columns:1fr 1fr}.admin-infra-grid{grid-template-columns:1fr}.system-admin-page{padding:8px}.system-admin-tabs{overflow:auto}.admin-section>header{align-items:flex-start;flex-direction:column}.admin-audit-list>div{grid-template-columns:1fr}.admin-table-wrap{margin-inline:-16px}}
+.system-admin-page{min-height:100vh;padding:18px;background:transparent;color:var(--text)}.system-admin-header{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1500px;margin:0 auto;padding:14px 16px;border: 1px solid var(--line);background: var(--surface)}.system-admin-header>div{display:flex;align-items:center;gap:11px}.system-admin-header img{width:48px;height:48px;object-fit:contain;background:transparent}.system-admin-header p,.admin-section header p{margin:0;color:var(--brand);font-size:9px;font-weight:900;text-transform:uppercase}.system-admin-header h1{margin:2px 0 0;font-size:21px}.system-admin-header button,.admin-row-actions button{min-height:34px;border:1px solid #d8dce2;background: var(--surface);padding:0 11px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}.system-admin-tabs{display:flex;max-width:1500px;margin:8px auto 0;border: 1px solid var(--line);background: var(--surface);padding:4px}.system-admin-tabs button{min-height:38px;border:0;background: var(--surface);padding:0 16px;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}.system-admin-tabs button.active{background:#171a22;color:#fff}.system-admin-tabs b{margin-left:5px;color:var(--brand)}.admin-feedback{max-width:1500px;margin:8px auto;padding:11px 13px;border:1px solid}.admin-feedback.error{border-color:#f1b4bb;background:#fff3f4;color:#a91d2b}.admin-metric-grid,.admin-infra-grid,.admin-section{max-width:1500px;margin:8px auto}.admin-metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.admin-metric-grid article,.admin-infra-grid article{display:flex;align-items:center;gap:12px;padding:16px;border: 1px solid var(--line);background: var(--surface)}.admin-metric-grid svg,.admin-infra-grid svg{color:var(--brand)}.admin-metric-grid span,.admin-infra-grid div{display:flex;flex-direction:column;color:#747a84;font-size:10px;font-weight:800;text-transform:uppercase}.admin-metric-grid strong,.admin-infra-grid strong{color:#171a22;font-size:23px}.admin-infra-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.admin-section{padding:16px;border: 1px solid var(--line);background: var(--surface)}.admin-section>header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px}.admin-section h2{margin:2px 0 0}.admin-section>header input{width:min(360px,100%);height:40px;border:1px solid #d7dbe1;padding:0 11px}.admin-table-wrap{overflow:auto}.admin-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}.admin-table-wrap th,.admin-table-wrap td{padding:10px;border-bottom:1px solid #e4e7eb;text-align:left}.admin-table-wrap td:first-child{display:flex;flex-direction:column}.admin-table-wrap small{color:#818791}.admin-status{display:inline-flex;padding:4px 7px;background:#edf0f3;font-size:9px;font-weight:900;text-transform:uppercase}.admin-status.ativo,.admin-status.resolvida{background:#e9f8ef;color:#167044}.admin-status.suspenso,.admin-status.em_analise{background:#fff3d6;color:#926000}.admin-status.banido,.admin-status.pendente{background:#ffe8eb;color:#b32232}.admin-row-actions{display:flex;gap:5px;flex-wrap:wrap}.admin-row-actions button.danger{border-color:#efb4bb;color:#b51e2d}.admin-publication-grid,.admin-report-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}.admin-publication-grid article,.admin-report-list article{display:grid;gap:9px;padding:12px;border:1px solid #e0e3e8}.admin-publication-grid article>div:first-child,.admin-report-list article>header{display:flex;align-items:center;justify-content:space-between;gap:8px}.admin-report-list p{margin:0;color:#525862}.admin-report-list blockquote{margin:0;padding:9px;border-left:3px solid var(--brand);background:#f6f7f8}.admin-audit-list{display:grid}.admin-audit-list>div{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;padding:10px;border-bottom:1px solid #e5e7eb;font-size:11px}.admin-audit-list time{color:#777d86}@media(max-width:850px){.admin-metric-grid{grid-template-columns:1fr 1fr}.admin-infra-grid{grid-template-columns:1fr}.system-admin-page{padding:8px}.system-admin-tabs{overflow:auto}.admin-section>header{align-items:flex-start;flex-direction:column}.admin-audit-list>div{grid-template-columns:1fr}.admin-table-wrap{margin-inline:-16px}}
 
 .directory-report-button{width:max-content;margin-top:9px;border:1px solid #e0b8bd;background: var(--surface);padding:7px 10px;display:inline-flex;align-items:center;gap:6px;color:#a92532;font-size:9px;font-weight:900;text-transform:uppercase;cursor:pointer}.report-modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:#11182799}.report-modal{width:min(520px,100%);display:grid;gap:14px;padding:20px;background: var(--surface);box-shadow:0 30px 80px #0004}.report-modal>header{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}.report-modal h2{margin:3px 0 0}.report-modal>header>button{width:36px;height:36px;border: 1px solid var(--line);background: var(--surface);display:grid;place-items:center}.report-modal label{display:grid;gap:6px}.report-modal label>span{font-size:9px;font-weight:900;text-transform:uppercase}.report-modal select,.report-modal textarea{width:100%;border:1px solid #d6dae0;background: var(--surface);padding:10px;font:inherit}.report-modal textarea{min-height:120px;resize:vertical}
 
@@ -6526,46 +6537,87 @@ input::placeholder, textarea::placeholder {
 .export-cell-with-logo img{width:22px;height:22px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
 
 
-/* SYSTEM LOGO HARD LOCK — nao remover */
+/* SYSTEM LOGO — tamanho ideal por contexto; sem fundo forçado */
 .system-logo {
   box-sizing: border-box !important;
   display: block !important;
   object-fit: contain !important;
+  background: transparent !important;
 }
-/* Login: nenhuma imagem da marca pode crescer com o card */
-.central-login-page .system-logo,
-.central-login-page .auth-site-mark img,
+/* Login / abertura: marca maior e legível */
+.central-login-page .central-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.central-login-page .central-login-brand .system-logo,
+.central-login-page .auth-site-mark .system-logo,
 .central-login-page .central-login-brand img,
-.central-login-page .dropzone-auth-validation-logo img,
-.central-login-page .app-brand-logo img {
-  max-width: 46px !important;
-  max-height: 46px !important;
+.central-login-page .auth-site-mark img {
+  width: 80px !important;
+  height: 80px !important;
+  max-width: 80px !important;
+  max-height: 80px !important;
+  min-width: 80px !important;
+  min-height: 80px !important;
+  --system-logo-size: 80px !important;
+  flex: 0 0 80px !important;
+  background: transparent !important;
+}
+.central-login-page .dropzone-auth-validation-logo {
+  width: 96px !important;
+  height: 96px !important;
+}
+.central-login-page .dropzone-auth-validation-logo .system-logo,
+.central-login-page .dropzone-auth-validation-logo img {
+  width: 88px !important;
+  height: 88px !important;
+  max-width: 88px !important;
+  max-height: 88px !important;
+  --system-logo-size: 88px !important;
 }
 .central-login-page .app-brand-logo {
-  width: 42px !important;
-  height: 42px !important;
-  overflow: hidden !important;
+  width: 44px !important;
+  height: 44px !important;
+  overflow: visible !important;
+  background: transparent !important;
 }
 .central-login-page .app-brand-logo .system-logo,
 .central-login-page .app-brand-logo img {
-  width: 42px !important;
-  height: 42px !important;
-  max-width: 42px !important;
-  max-height: 42px !important;
+  width: 44px !important;
+  height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
 }
 /* Loader de rota: nunca 100% da viewport */
 .dropzone-loader img {
+  width: 72px !important;
+  height: 72px !important;
+  max-width: 72px !important;
+  max-height: 72px !important;
+  object-fit: contain !important;
+  background: transparent !important;
+}
+.dropzone-loader.compact img {
   width: 56px !important;
   height: 56px !important;
   max-width: 56px !important;
   max-height: 56px !important;
-  object-fit: contain !important;
 }
-.dropzone-loader.compact img {
-  width: 48px !important;
-  height: 48px !important;
-  max-width: 48px !important;
-  max-height: 48px !important;
+
+/* Painel de auth na home: logo maior sem fundo */
+.auth-inline-panel .auth-site-mark .system-logo,
+.auth-light-panel .auth-site-mark .system-logo {
+  width: 72px !important;
+  height: 72px !important;
+  max-width: 72px !important;
+  max-height: 72px !important;
+  min-width: 72px !important;
+  min-height: 72px !important;
+  --system-logo-size: 72px !important;
+  flex: 0 0 72px !important;
+  background: transparent !important;
 }
 
 /* Export compacto + SPEC Free Fire */
@@ -6730,22 +6782,25 @@ input::placeholder, textarea::placeholder {
   max-height: 32px !important;
 }
 .app-header .app-brand-logo {
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
-  min-height: 42px !important;
-  max-width: 42px !important;
-  max-height: 42px !important;
-  overflow: hidden !important;
-  flex: 0 0 42px !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  overflow: visible !important;
+  flex: 0 0 44px !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 .app-header .app-brand-logo img,
 .app-header .app-brand-logo .system-logo {
-  width: 42px !important;
-  height: 42px !important;
-  max-width: 42px !important;
-  max-height: 42px !important;
-  object-fit: cover !important;
+  width: 44px !important;
+  height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  object-fit: contain !important;
+  background: transparent !important;
 }
 .social-login-button img {
   width: 20px !important;

@@ -4,10 +4,10 @@ type DropzoneLoaderProps = {
 }
 
 export function DropzoneLoader({ label = 'Carregando', compact = false }: DropzoneLoaderProps) {
-  const size = compact ? 48 : 56
+  const size = compact ? 56 : 72
   return (
     <div className={`dropzone-loader ${compact ? 'compact' : ''}`} role="status" aria-live="polite">
-      {/* tamanho inline: nunca herda 100% do container */}
+      {/* tamanho inline: nunca herda 100% do container; SVG sem fundo preto */}
       <img
         src="/dropzone-loading.svg"
         alt=""
@@ -20,6 +20,7 @@ export function DropzoneLoader({ label = 'Carregando', compact = false }: Dropzo
           maxHeight: size,
           display: 'block',
           objectFit: 'contain',
+          background: 'transparent',
         }}
       />
       <strong>{label}</strong>

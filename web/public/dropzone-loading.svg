@@ -2,7 +2,6 @@
   <title id="title">DropZone carregando</title>
   <desc id="desc">As três partes do símbolo DropZone entram e formam a marca.</desc>
   <style>
-    .frame { fill: #0c0e12; }
     .piece { transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 0 rgba(201,162,39,0)); }
     .left { fill: #dfbf4a; animation: enter-left 1.8s cubic-bezier(.22,.8,.3,1) infinite; }
     .right { fill: #c9a227; animation: enter-right 1.8s cubic-bezier(.22,.8,.3,1) infinite; }
@@ -29,11 +28,10 @@
       88%, 100% { opacity: 0; transform: scale(1.08); transform-origin: 90px 90px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .piece { animation: none; }
+      .piece { animation: none; opacity: 1; transform: none; }
       .pulse { display: none; }
     }
   </style>
-  <rect class="frame" x="4" y="4" width="172" height="172" rx="34"/>
   <circle class="pulse" cx="90" cy="91" r="66"/>
   <path class="piece left" d="M45 64 82 42c4-2 7 0 7 4v48c0 3-2 5-4 7l-36 21c-4 2-7 0-7-4V70c0-3 1-5 3-6Z"/>
   <path class="piece right" d="m135 64-37-22c-4-2-7 0-7 4v48c0 3 2 5 4 7l36 21c4 2 7 0 7-4V70c0-3-1-5-3-6Z"/>
