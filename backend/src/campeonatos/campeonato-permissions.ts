@@ -39,17 +39,21 @@ export type SellerPermissions = {
   pontuar_tabela: boolean
 }
 
-/** Defaults do manager no campeonato: operação completa no evento. */
+/**
+ * Defaults do vendedor (opt-in para writes).
+ * Alinhado a docs/PERMISSOES_CAMPEONATO.md e migration de segurança:
+ * convites + ver estrutura; entrada de equipes preferencialmente por link.
+ */
 export const DEFAULT_SELLER_PERMISSIONS: SellerPermissions = {
   vendedor_vagas: true,
-  adicionar_equipes: true,
-  remover_equipes: true,
-  remover_proprias_equipes: true,
+  adicionar_equipes: false,
+  remover_equipes: false,
+  remover_proprias_equipes: false,
   gerar_convites_equipe: true,
   ver_estrutura: true,
-  organizar_grupos: true,
-  gerenciar_jogos: true,
-  pontuar_tabela: true,
+  organizar_grupos: false,
+  gerenciar_jogos: false,
+  pontuar_tabela: false,
 }
 
 export type CampeonatoPermission = {
@@ -78,7 +82,7 @@ export function normalizeSellerPermissions(raw: unknown): SellerPermissions {
     if (!(key in value)) return fallback
     return Boolean(value[key])
   }
-  // remoção: flag nova ou legada; default true (manager opera o evento)
+  // remoção: flag nova ou legada; default restritivo (opt-in)
   const remover = 'remover_equipes' in value
     ? Boolean(value.remover_equipes)
     : 'remover_proprias_equipes' in value

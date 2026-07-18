@@ -28,11 +28,21 @@ function conviteAindaValido(row: { expira_em?: string | null; status?: string; u
   return true
 }
 
-function mapConviteResumo(convite: any, slotIdFallback?: string | null) {
+/**
+ * Resumo de convite para a grade de vagas.
+ * O valor bruto `token` só sai para quem pode gerar/gerir convites —
+ * evita que anônimos ou leitores copiem o link secreto da listagem.
+ */
+function mapConviteResumo(
+  convite: any,
+  slotIdFallback?: string | null,
+  options?: { includeToken?: boolean },
+) {
   if (!convite) return null
+  const includeToken = Boolean(options?.includeToken)
   return {
     id: convite.id,
-    token: convite.token,
+    ...(includeToken && convite.token ? { token: convite.token } : {}),
     expira_em: convite.expira_em || null,
     status: convite.status || 'ativo',
     usado: Boolean(convite.usado),
@@ -40,7 +50,8 @@ function mapConviteResumo(convite: any, slotIdFallback?: string | null) {
     nome_line_reservada: convite.nome_line_reservada || null,
     slot_id: convite.slot_id || slotIdFallback || null,
     grupo_id: convite.grupo_id || null,
-    modo: convite.slot_id ? 'slot' : 'grupo',
+    modo: convite.slot_id || slotIdFallback ? 'slot' : 'grupo',
+    has_token: Boolean(convite.token),
   }
 }
 
@@ -100,6 +111,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       permission = await getCampeonatoPermission(user.id, id)
     } catch {
     }
+
+    const includeInviteToken = Boolean(permission.canGenerateToken)
 
     // liberarExpirados em paralelo com a leitura (não serializa a tela)
     const [, { data: campeonato, error: campError }, viewResult, convitesRes, capacidade] = await Promise.all([
@@ -216,7 +229,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           line_tag: campeonatoEquipe?.line_tag || row.line_tag || null,
           equipe_nome: campeonatoEquipe?.equipe_nome || row.equipe_nome || null,
           campeonato_equipe: campeonatoEquipe,
-          convite: mapConviteResumo(convite, row.slot_id),
+          convite: mapConviteResumo(convite, row.slot_id, { includeToken: includeInviteToken }),
         }
       })
 
@@ -225,7 +238,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         permission: permissionPublicPayload(permission),
         capacidade,
         vagas,
-        convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item)),
+        convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item, null, { includeToken: includeInviteToken })),
         modelo: {
           unidade_competitiva: 'line',
           pasta: 'equipe',
@@ -344,7 +357,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         line_tag: display?.line_tag || null,
         equipe_nome: display?.equipe_nome || null,
         campeonato_equipe: campeonatoEquipe,
-        convite: mapConviteResumo(convite, slot.id),
+        convite: mapConviteResumo(convite, slot.id, { includeToken: includeInviteToken }),
       }
     })
 
@@ -382,7 +395,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       permission: permissionPublicPayload(permission),
       capacidade,
       vagas: [...slotsWithParticipations, ...orphanParticipations],
-      convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item)),
+      convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item, null, { includeToken: includeInviteToken })),
       modelo: {
         unidade_competitiva: 'line',
         pasta: 'equipe',

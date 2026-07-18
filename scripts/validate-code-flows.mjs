@@ -101,7 +101,7 @@ mustInclude(
 // 9) Manager panel fluxos
 mustInclude(
   'web/features/dropzone/panels/manager/ManagerPanel.tsx',
-  ['openChampionship', 'ManagerFlowStrip', 'ManagerCampeonatosView'],
+  ['openChampionship', 'ManagerCampeonatosView'],
   'manager-panel',
 )
 

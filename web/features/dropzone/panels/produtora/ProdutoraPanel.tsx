@@ -110,13 +110,13 @@ export function ProdutoraPanel(props: {
   const [sellerLimite, setSellerLimite] = useState('')
   const [sellerBusy, setSellerBusy] = useState(false)
   const [sellerPerms, setSellerPerms] = useState({
-    adicionar_equipes: true,
+    adicionar_equipes: false,
     gerar_convites_equipe: true,
-    remover_equipes: true,
+    remover_equipes: false,
     ver_estrutura: true,
-    organizar_grupos: true,
-    gerenciar_jogos: true,
-    pontuar_tabela: true,
+    organizar_grupos: false,
+    gerenciar_jogos: false,
+    pontuar_tabela: false,
   })
   // Convite por pesquisa (correio) — por campeonato
   const [mgrQuery, setMgrQuery] = useState('')
@@ -126,13 +126,13 @@ export function ProdutoraPanel(props: {
   const [mgrValidade, setMgrValidade] = useState('7')
   const [mgrLimite, setMgrLimite] = useState('')
   const [mgrPerms, setMgrPerms] = useState({
-    adicionar_equipes: true,
+    adicionar_equipes: false,
     gerar_convites_equipe: true,
-    remover_equipes: true,
+    remover_equipes: false,
     ver_estrutura: true,
-    organizar_grupos: true,
-    gerenciar_jogos: true,
-    pontuar_tabela: true,
+    organizar_grupos: false,
+    gerenciar_jogos: false,
+    pontuar_tabela: false,
   })
   const [mgrInvites, setMgrInvites] = useState<any[]>([])
   const [mgrInviteMsg, setMgrInviteMsg] = useState('')
@@ -316,13 +316,13 @@ export function ProdutoraPanel(props: {
     setMgrValidade('7')
     setMgrLimite('')
     setMgrPerms({
-      adicionar_equipes: true,
+      adicionar_equipes: false,
       gerar_convites_equipe: true,
-      remover_equipes: true,
+      remover_equipes: false,
       ver_estrutura: true,
-      organizar_grupos: true,
-      gerenciar_jogos: true,
-      pontuar_tabela: true,
+      organizar_grupos: false,
+      gerenciar_jogos: false,
+      pontuar_tabela: false,
     })
   }
 

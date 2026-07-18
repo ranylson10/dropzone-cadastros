@@ -192,7 +192,10 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
 
   async function copiarConvite(vaga: CampeonatoVaga) {
     const convite = vaga.convite
-    if (!convite) return
+    if (!convite?.token) {
+      setFeedback('Token do convite indisponível para esta sessão. Renove o convite se você for o organizador.')
+      return
+    }
     const link = `${window.location.origin}/convite/equipe/${convite.token}`
     const slotLabel = vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')
     const texto = `Você recebeu um convite para o campeonato ${data?.campeonato.nome}.
@@ -210,6 +213,10 @@ Acesse: ${link}`
   }
 
   async function copiarConviteGrupo(convite: NonNullable<CampeonatoVaga['convite']>) {
+    if (!convite.token) {
+      setFeedback('Token do convite indisponível para esta sessão. Renove o convite se você for o organizador.')
+      return
+    }
     const link = `${window.location.origin}/convite/equipe/${convite.token}`
     const grupoNome =
       data?.vagas.find((v) => v.grupo_id === convite.grupo_id)?.grupo?.nome

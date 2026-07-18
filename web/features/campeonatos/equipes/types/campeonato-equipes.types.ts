@@ -17,7 +17,10 @@ export type CampeonatoEquipeResumo = {
 
 export type ConviteResumo = {
   id: string
-  token: string
+  /** Presente só para quem pode gerar/gerir convites (canGenerateToken). */
+  token?: string
+  /** Indica se existe token no backend mesmo quando o valor bruto não é exposto. */
+  has_token?: boolean
   expira_em: string | null
   status: string
   usado: boolean
