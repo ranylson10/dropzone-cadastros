@@ -1,7 +1,7 @@
 'use client'
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, FileUp, Loader2, RefreshCcw, Save, Trophy, Users, X } from 'lucide-react'
+import { ArrowLeft, FileUp, Loader2, Pencil, RefreshCcw, Save, Trophy, Users, X } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
@@ -149,23 +149,86 @@ export default function PontuadorJogoPage() {
     return number(config.colocacoes[number(edit.posicao) - 1]) + number(edit.abates) * config.porAbate + Math.min(number(edit.punicao), 0)
   }
 
+  async function persistVinculosFromPreview() {
+    if (!preview) return
+    const vinculos = Object.entries(previewLinks)
+      .filter(([, teamId]) => Boolean(teamId))
+      .map(([nomeNorm, teamId]) => {
+        const team = (preview.equipes || []).find((t: Row) => t.nome_normalizado === nomeNorm)
+        return {
+          nome_raw: String(team?.nome || nomeNorm),
+          campeonato_equipe_id: String(teamId),
+        }
+      })
+    if (!vinculos.length) return
+    await request(`/api/campeonatos/${params.id}/pontuador/${params.jogoId}/vinculos`, {
+      method: 'POST',
+      body: JSON.stringify({ vinculos }),
+    })
+  }
+
   async function saveDrop() {
     if (!data || !selectedDropId) return
+    if (selectedDrop?.status === 'finalizada') {
+      return setError('Queda finalizada. Clique em Editar para liberar alterações.')
+    }
     const equipes = data.slots.filter(slot => !slot.slot_vazio && edits[slot.campeonato_equipe_id]?.posicao).map(slot => {
       const edit = edits[slot.campeonato_equipe_id]
+      const mrName = linkForTeam(slot.campeonato_equipe_id)
+      const mrTeam = (preview?.equipes || []).find((t: Row) => t.nome_normalizado === mrName)
+      const savedLink = data.vinculos_matchresult.find((l) => l.campeonato_equipe_id === slot.campeonato_equipe_id)
       return {
-        campeonato_equipe_id: slot.campeonato_equipe_id, posicao: number(edit.posicao), abates: number(edit.abates),
-        punicao_pontos: Math.min(number(edit.punicao), 0), punicao_motivo: edit.motivo,
-        jogadores: (playersByTeam.get(slot.campeonato_equipe_id) || []).map(player => ({ campeonato_jogador_id: playerId(player), abates: number(edit.jogadores[playerId(player)]) })),
+        campeonato_equipe_id: slot.campeonato_equipe_id,
+        posicao: number(edit.posicao),
+        abates: number(edit.abates),
+        punicao_pontos: Math.min(number(edit.punicao), 0),
+        punicao_motivo: edit.motivo,
+        raw_team_name: mrTeam?.nome || savedLink?.nome_raw || null,
+        jogadores: (playersByTeam.get(slot.campeonato_equipe_id) || []).map(player => ({
+          campeonato_jogador_id: playerId(player),
+          abates: number(edit.jogadores[playerId(player)]),
+        })),
       }
     })
     if (!equipes.length) return setError('Preencha a posição de pelo menos uma equipe.')
     setSaving(true); setError(''); setNotice('')
     try {
-      await request(`/api/campeonatos/${params.id}/sumula/manual`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, equipes }) })
-      setNotice(`Q${selectedDrop?.numero_partida} salva. Ranking e totais atualizados.`); await load()
+      // 1) grava vínculos do Match Result (se houver) — não apaga aliases antigos
+      await persistVinculosFromPreview()
+      // 2) grava pontuação
+      await request(`/api/campeonatos/${params.id}/sumula/manual`, {
+        method: 'POST',
+        body: JSON.stringify({
+          partida_id: selectedDropId,
+          origem: preview ? 'matchresult' : 'manual',
+          equipes,
+        }),
+      })
+      // 3) finaliza queda → fica só leitura
+      await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' })
+      setPreview(null)
+      setMatchContent('')
+      setMatchName('')
+      setPreviewLinks({})
+      setNotice(`Q${selectedDrop?.numero_partida} salva e travada. Vínculos gravados. Use Editar para alterar.`)
+      await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao salvar a queda.') }
     finally { setSaving(false) }
+  }
+
+  async function unlockEdit() {
+    if (!selectedDropId) return
+    if (!window.confirm(`Liberar edição da Q${selectedDrop?.numero_partida}?`)) return
+    setSaving(true); setError(''); setNotice('')
+    try {
+      await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/reabrir`, { method: 'POST' })
+      setNotice(`Q${selectedDrop?.numero_partida} liberada para edição.`)
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro ao liberar edição.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function previewFile(file: File) {
@@ -243,7 +306,11 @@ export default function PontuadorJogoPage() {
         const edit = edits[teamId]
         return { nome: team.nome, campeonato_equipe_id: teamId, posicao: number(edit?.posicao || team.posicao), abates: number(edit?.abates || team.abates), punicao_pontos: Math.min(number(edit?.punicao), 0), punicao_motivo: edit?.motivo || '', jogadores: team.jogadores.map((player: Row) => ({ ordem: player.ordem, nick: player.nick, id_jogo: player.id_jogo, abates: player.abates })) }
       }) }) })
-      setPreview(null); setMatchContent(''); setMatchName(''); setNotice('Match Result confirmado e queda pontuada.'); await load()
+      // trava a queda após aplicar MR
+      await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' }).catch(() => null)
+      setPreview(null); setMatchContent(''); setMatchName(''); setPreviewLinks({})
+      setNotice('Match Result confirmado, vínculos gravados e queda travada. Use Editar para alterar.')
+      await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao confirmar Match Result.') }
     finally { setSaving(false) }
   }
@@ -331,11 +398,33 @@ export default function PontuadorJogoPage() {
   if (!data) return null
 
   const maps = Array.from(new Map(data.partidas.map(drop => [drop.mapa_codigo, drop.mapa_nome || drop.mapa])).entries()).filter(([code]) => code)
+  const isLocked = selectedDrop?.status === 'finalizada'
 
-  return <main className="scorer-workspace scorer-sheet-workspace">
+  return <main className={`scorer-workspace scorer-sheet-workspace${isLocked ? ' is-drop-locked' : ''}`}>
     <header className="scorer-workspace-header">
-      <div className="scorer-brand"><button className="icon-button" onClick={() => router.back()} aria-label="Voltar"><ArrowLeft size={18}/></button>{data.campeonato.logo_url ? <img src={data.campeonato.logo_url} alt=""/> : null}<div><p>{data.fase?.nome || 'Fase'}</p><h1>{data.jogo.nome}</h1><small>{data.campeonato.nome} · {data.slots.length} slots</small></div></div>
-      <div className="scorer-header-actions"><label className="button secondary scorer-file-button"><FileUp size={15}/> Match Result<input type="file" accept=".txt,.log,text/plain" onChange={readMatchFile}/></label><button className="button secondary" onClick={() => void load()} disabled={loading}><RefreshCcw size={15}/> Atualizar</button><button className="button" onClick={() => void saveDrop()} disabled={saving || selectedDrop?.status === 'finalizada'}>{saving ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} Salvar Q{selectedDrop?.numero_partida}</button></div>
+      <div className="scorer-brand"><button className="icon-button" onClick={() => router.back()} aria-label="Voltar"><ArrowLeft size={18}/></button>{data.campeonato.logo_url ? <img src={data.campeonato.logo_url} alt=""/> : null}<div><p>{data.fase?.nome || 'Fase'}</p><h1>{data.jogo.nome}</h1><small>{data.campeonato.nome} · {data.slots.length} slots{isLocked ? ' · Q' + selectedDrop?.numero_partida + ' travada' : ''}</small></div></div>
+      <div className="scorer-header-actions">
+        {!isLocked ? (
+          <label className="button secondary scorer-file-button">
+            <FileUp size={15}/> Match Result
+            <input type="file" accept=".txt,.log,text/plain" onChange={readMatchFile}/>
+          </label>
+        ) : null}
+        <button className="button secondary" onClick={() => void load()} disabled={loading}>
+          <RefreshCcw size={15}/> Atualizar
+        </button>
+        {isLocked ? (
+          <button className="button" onClick={() => void unlockEdit()} disabled={saving}>
+            {saving ? <Loader2 className="spin" size={15}/> : <Pencil size={15}/>}
+            Editar Q{selectedDrop?.numero_partida}
+          </button>
+        ) : (
+          <button className="button" onClick={() => void saveDrop()} disabled={saving}>
+            {saving ? <Loader2 className="spin" size={15}/> : <Save size={15}/>}
+            Salvar Q{selectedDrop?.numero_partida}
+          </button>
+        )}
+      </div>
     </header>
 
     <section className="scorer-sheet-toolbar">
@@ -433,6 +522,16 @@ export default function PontuadorJogoPage() {
                   <td className={`vinculo-cell tone-${vState.tone}`}>
                     {slot.slot_vazio ? (
                       '—'
+                    ) : isLocked ? (
+                      linkedLabel ? (
+                        <span className="vinculo-chip" title={vState.savedLinks.map((l) => l.nome_raw).join(', ')}>
+                          {linkedLabel}
+                        </span>
+                      ) : faltas[id] ? (
+                        <span className="vinculo-chip">Falta</span>
+                      ) : (
+                        <span className="vinculo-empty">—</span>
+                      )
                     ) : preview ? (
                       <select
                         className={`inline-link-select vinculo-select tone-${vState.tone}`}
@@ -446,7 +545,7 @@ export default function PontuadorJogoPage() {
                           setFaltas((f) => ({ ...f, [id]: false }))
                           setTeamLink(id, val)
                         }}
-                        title={vState.tone === 'red' ? 'Equipe sumiu ou trocou de nome — escolha o novo ou Falta' : 'Escolha a equipe do Match Result'}
+                        title="Lista de equipes do Match Result"
                       >
                         <option value="">—</option>
                         {(preview.equipes || []).map((team: Row) => {
@@ -473,12 +572,24 @@ export default function PontuadorJogoPage() {
                   </td>
                   <td>
                     {slot.slot_vazio ? '—' : (
-                      <input type="number" min="1" value={edit?.posicao || ''} onChange={(event) => patchTeam(id, { posicao: event.target.value })} />
+                      <input
+                        type="number"
+                        min="1"
+                        value={edit?.posicao || ''}
+                        disabled={isLocked}
+                        onChange={(event) => patchTeam(id, { posicao: event.target.value })}
+                      />
                     )}
                   </td>
                   <td>
                     {slot.slot_vazio ? '—' : (
-                      <input type="number" min="0" value={edit?.abates || ''} onChange={(event) => patchTeam(id, { abates: event.target.value })} />
+                      <input
+                        type="number"
+                        min="0"
+                        value={edit?.abates || ''}
+                        disabled={isLocked}
+                        onChange={(event) => patchTeam(id, { abates: event.target.value })}
+                      />
                     )}
                   </td>
                   <td className="drop-points-cell">{dropPoints(edit)}</td>
@@ -490,6 +601,7 @@ export default function PontuadorJogoPage() {
                           type="number"
                           max="0"
                           value={edit?.punicao || ''}
+                          disabled={isLocked}
                           onChange={(event) => patchTeam(id, { punicao: String(Math.min(number(event.target.value), 0)) })}
                           placeholder="-0"
                         />
@@ -497,6 +609,7 @@ export default function PontuadorJogoPage() {
                           <input
                             className="penalty-reason-inline"
                             value={edit?.motivo || ''}
+                            disabled={isLocked}
                             onChange={(event) => patchTeam(id, { motivo: event.target.value })}
                             placeholder="Informar motivo"
                           />

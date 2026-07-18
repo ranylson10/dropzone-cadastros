@@ -108,3 +108,16 @@
   font-size: 12px;
   font-weight: 700;
 }
+
+/* Queda travada (após salvar): visual só leitura */
+.scorer-sheet-workspace.is-drop-locked .scorer-edit-table input:disabled {
+  opacity: 0.85;
+  background: #f3f4f6;
+  color: #374151;
+  cursor: default;
+  border-color: #e5e7eb;
+}
+
+.scorer-sheet-workspace.is-drop-locked .vinculo-chip {
+  background: rgba(234, 179, 8, 0.2);
+}
