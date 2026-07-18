@@ -192,6 +192,20 @@ export type TableColumnDef = {
   fill?: string
   /** cor do texto desta coluna (aplica em todas as linhas) */
   textColor?: string
+  /**
+   * Espaço interno da célula (px) — distância do conteúdo até as bordas.
+   * Útil para logos: maior padding = logo menor; menor padding = logo maior.
+   */
+  paddingPx?: number
+  /** padding horizontal (px); se omitido usa paddingPx */
+  paddingX?: number
+  /** padding vertical (px); se omitido usa paddingPx */
+  paddingY?: number
+  /**
+   * Tamanho da imagem/logo na célula (px).
+   * Se omitido, preenche o espaço disponível após o padding.
+   */
+  imageSizePx?: number
 }
 
 /**

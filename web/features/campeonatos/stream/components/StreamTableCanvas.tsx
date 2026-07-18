@@ -153,6 +153,33 @@ export function StreamTableCanvas(props: {
                 c.field === 'delta'
                   ? { kind: 'text' as const, text: deltaLabel(dataRow.delta) }
                   : cellValue(c.field, dataRow, { asImage: c.asImage })
+              const padBase = Number(c.paddingPx)
+              const padX = Math.max(
+                0,
+                Number.isFinite(Number(c.paddingX))
+                  ? Number(c.paddingX)
+                  : Number.isFinite(padBase)
+                    ? padBase
+                    : 4,
+              )
+              const padY = Math.max(
+                0,
+                Number.isFinite(Number(c.paddingY))
+                  ? Number(c.paddingY)
+                  : Number.isFinite(padBase)
+                    ? padBase
+                    : 4,
+              )
+              const colW = Math.max(1, Number(c.widthPx) || 48)
+              const availW = Math.max(8, colW - padX * 2)
+              const availH = Math.max(8, rh - padY * 2)
+              const autoImg = Math.max(8, Math.min(availW, availH))
+              const imgSize = Math.max(
+                8,
+                Number.isFinite(Number(c.imageSizePx)) && Number(c.imageSizePx) > 0
+                  ? Math.min(Number(c.imageSizePx), autoImg)
+                  : autoImg,
+              )
               return (
                 <span
                   key={c.id}
@@ -169,7 +196,7 @@ export function StreamTableCanvas(props: {
                     height: '100%',
                     minHeight: rh,
                     boxSizing: 'border-box',
-                    padding: '0 4px',
+                    padding: `${padY}px ${padX}px`,
                     backgroundColor: c.fill || undefined,
                     color: c.textColor || undefined,
                   }}
@@ -180,14 +207,24 @@ export function StreamTableCanvas(props: {
                       <img
                         src={val.src}
                         alt=""
-                        style={{ width: 22, height: 22, objectFit: 'contain', borderRadius: 3 }}
+                        style={{
+                          width: imgSize,
+                          height: imgSize,
+                          maxWidth: '100%',
+                          maxHeight: '100%',
+                          objectFit: 'contain',
+                          borderRadius: 3,
+                          flexShrink: 0,
+                          display: 'block',
+                        }}
                       />
                     ) : (
                       <i
                         style={{
-                          width: 22,
-                          height: 22,
+                          width: imgSize,
+                          height: imgSize,
                           display: 'block',
+                          flexShrink: 0,
                           background: 'rgba(255,255,255,.12)',
                           borderRadius: 3,
                         }}

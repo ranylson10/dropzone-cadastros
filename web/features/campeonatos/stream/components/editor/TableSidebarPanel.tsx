@@ -317,6 +317,42 @@ function ColumnEditor(props: {
               />
             </label>
             <label className="stream-style-field">
+              <span>Margem (px)</span>
+              <input
+                type="number"
+                min={0}
+                max={80}
+                title="Espaço interno da célula (todas as bordas)"
+                value={col.paddingPx ?? 4}
+                onChange={(e) => {
+                  const n = Math.max(0, Number(e.target.value) || 0)
+                  props.onChange({ paddingPx: n, paddingX: n, paddingY: n })
+                }}
+              />
+            </label>
+            <label className="stream-style-field">
+              <span>Margem H (px)</span>
+              <input
+                type="number"
+                min={0}
+                max={80}
+                title="Espaço esq./dir. da célula"
+                value={col.paddingX ?? col.paddingPx ?? 4}
+                onChange={(e) => props.onChange({ paddingX: Math.max(0, Number(e.target.value) || 0) })}
+              />
+            </label>
+            <label className="stream-style-field">
+              <span>Margem V (px)</span>
+              <input
+                type="number"
+                min={0}
+                max={80}
+                title="Espaço cima/baixo da célula"
+                value={col.paddingY ?? col.paddingPx ?? 4}
+                onChange={(e) => props.onChange({ paddingY: Math.max(0, Number(e.target.value) || 0) })}
+              />
+            </label>
+            <label className="stream-style-field">
               <span>Fundo col.</span>
               <input
                 type="color"
@@ -353,7 +389,32 @@ function ColumnEditor(props: {
                 onChange={(e) => props.onChange({ asImage: e.target.checked })}
               />
             </label>
+            {(col.asImage || col.field === 'logo' || col.field === 'foto') ? (
+              <label className="stream-style-field">
+                <span>Tam. logo (px)</span>
+                <input
+                  type="number"
+                  min={8}
+                  max={400}
+                  title="0 = preencher o espaço da célula após a margem"
+                  value={col.imageSizePx ?? 0}
+                  placeholder="auto"
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    if (raw.trim() === '' || Number(raw) <= 0) {
+                      props.onChange({ imageSizePx: undefined })
+                      return
+                    }
+                    props.onChange({ imageSizePx: Math.max(8, Number(raw) || 8) })
+                  }}
+                />
+              </label>
+            ) : null}
           </div>
+          <p className="stream-hint">
+            <strong>Margem</strong> = distância do conteúdo às bordas.
+            Logo: margem menor = imagem maior; ou fixe <em>Tam. logo</em> (0 = automático).
+          </p>
           <button
             type="button"
             className="stream-secondary-btn"
