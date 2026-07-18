@@ -1,6 +1,7 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { uploadPublicFile } from '@/lib/upload-public'
 import { STREAM_FONTS, type BoxStyle, type FieldStyle, type FillStyle, type TextStyle, type TransitionStyle } from '../../types/stream.types'
 
 function Section(props: { title: string; children: ReactNode }) {
@@ -71,6 +72,20 @@ export function TextStyleEditor(props: {
   )
 }
 
+async function fileToPngFile(file: File): Promise<File> {
+  if (/image\/png/i.test(file.type)) return file
+  const bitmap = await createImageBitmap(file)
+  const canvas = document.createElement('canvas')
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas indisponível.')
+  ctx.drawImage(bitmap, 0, 0)
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+  if (!blob) throw new Error('Falha ao converter PNG.')
+  return new File([blob], (file.name || 'fundo').replace(/\.\w+$/, '') + '.png', { type: 'image/png' })
+}
+
 export function FillStyleEditor(props: {
   value?: FillStyle
   onChange: (next: FillStyle) => void
@@ -78,6 +93,23 @@ export function FillStyleEditor(props: {
 }) {
   const v: FillStyle = props.value || { mode: 'solid', color: '#1a1d24', opacity: 1 }
   const set = (patch: Partial<FillStyle>) => props.onChange({ ...v, ...patch })
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+
+  async function onPickFile(file: File | null) {
+    if (!file) return
+    setUploading(true)
+    setUploadError('')
+    try {
+      const png = await fileToPngFile(file)
+      const url = await uploadPublicFile(png, 'campeonato', 'produtora')
+      set({ mode: 'image', imageUrl: url, fit: v.fit || 'cover', overlayOpacity: v.overlayOpacity ?? 0.35, overlayColor: v.overlayColor || '#000000' })
+    } catch (err: any) {
+      setUploadError(err?.message || 'Falha no upload.')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <Section title="Fundo">
@@ -106,11 +138,26 @@ export function FillStyleEditor(props: {
       ) : null}
       {v.mode === 'image' ? (
         <>
+          <Field label="Enviar imagem">
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              disabled={uploading}
+              onChange={(e) => void onPickFile(e.target.files?.[0] || null)}
+            />
+          </Field>
+          {uploading ? <p className="stream-hint">Enviando…</p> : null}
+          {uploadError ? <p className="stream-error" style={{ margin: 0 }}>{uploadError}</p> : null}
+          {v.imageUrl ? (
+            <div className="stream-fill-thumb">
+              <img src={v.imageUrl} alt="" />
+            </div>
+          ) : null}
           <Field label="URL da imagem">
             <input
               type="url"
               value={v.imageUrl || ''}
-              placeholder="https://… ou deixe vazio p/ cor"
+              placeholder="https://… ou envie acima"
               onChange={(e) => set({ imageUrl: e.target.value })}
             />
           </Field>

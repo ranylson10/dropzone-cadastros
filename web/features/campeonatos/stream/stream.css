@@ -824,6 +824,28 @@
   padding: 0;
 }
 
+.stream-style-field input[type='file'] {
+  font-size: 0.72rem;
+  padding: 4px 0;
+  min-height: auto;
+}
+
+.stream-fill-thumb {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-height: 90px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #111;
+}
+
+.stream-fill-thumb img {
+  display: block;
+  width: 100%;
+  height: 90px;
+  object-fit: cover;
+}
+
 /* Enter transitions */
 .stream-enter-fade { animation-name: stream-fade-in; }
 .stream-enter-slide-up { animation-name: stream-slide-up; }

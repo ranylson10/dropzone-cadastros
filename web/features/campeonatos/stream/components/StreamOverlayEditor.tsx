@@ -287,10 +287,12 @@ export function StreamOverlayEditor(props: {
 
   function handleExportHtml() {
     if (!overlay) return
-    const html = buildOverlayBrowserHtml(
-      overlay,
-      'DropZone Stream · Browser Source (estrutura). Conecte dados ao vivo na próxima etapa.',
-    )
+    const html = buildOverlayBrowserHtml(overlay, {
+      origin: typeof window !== 'undefined' ? window.location.origin : '',
+      previewNote: overlay.share_token
+        ? 'Redireciona para /stream/live (dados ao vivo).'
+        : 'Salve no servidor para gerar link live com dados reais.',
+    })
     const slug = overlay.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'overlay'
     downloadHtml(`dropzone-stream-${slug}.html`, html)
   }
