@@ -3,6 +3,7 @@ export { StreamWorkspace } from './components/StreamWorkspace'
 export { StreamOverlayEditor } from './components/StreamOverlayEditor'
 export { StreamSpreadsheetPanel } from './components/StreamSpreadsheetPanel'
 export { StreamOverlaysHub } from './components/StreamOverlaysHub'
+export { StreamOverlayCatalog } from './components/StreamOverlayCatalog'
 export { StreamLiveStage } from './components/StreamLiveStage'
 export type {
   StreamBlock,

@@ -31,6 +31,8 @@ export function migrateOverlay(raw: any): StreamOverlay | null {
       updatedAt: String(raw.updatedAt || raw.updated_at || new Date().toISOString()),
       share_token: raw.share_token ? String(raw.share_token) : undefined,
       campeonato_id: raw.campeonato_id ? String(raw.campeonato_id) : undefined,
+      catalog_source_id: raw.catalog_source_id ? String(raw.catalog_source_id) : undefined,
+      license_kind: raw.license_kind || 'own',
     }
   }
 

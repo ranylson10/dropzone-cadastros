@@ -8,6 +8,7 @@ import {
   Columns2,
   Copy,
   Download,
+  Library,
   PanelLeft,
   PanelRight,
   Plus,
@@ -24,6 +25,7 @@ import {
   loadStreamSheet,
   saveOverlayRemote,
 } from '../services/stream-data.service'
+import { saveOverlayAsCatalogModel } from '../services/stream-catalog.service'
 import type {
   LayerContentType,
   StreamBlock,
@@ -644,6 +646,30 @@ export function StreamOverlayEditor(props: {
     window.setTimeout(() => setSaved(false), 2000)
   }
 
+  async function handleSaveAsModel() {
+    if (!overlay) return
+    try {
+      await saveOverlayAsCatalogModel({
+        name: overlay.name || 'Modelo',
+        blocks: overlay.blocks,
+        frameW: overlay.frameW,
+        frameH: overlay.frameH,
+        visibility: overlay.license_kind === 'purchased' ? 'private' : 'private',
+        is_purchased_copy: overlay.license_kind === 'purchased',
+        source_catalog_id: overlay.catalog_source_id,
+        license_kind: overlay.license_kind || 'own',
+      })
+      setSaveWarning(
+        overlay.license_kind === 'purchased'
+          ? 'Salvo no catálogo como modelo comprado (privado — sem publicar/vender).'
+          : 'Salvo em Meus modelos do catálogo.',
+      )
+      window.setTimeout(() => setSaveWarning(''), 3500)
+    } catch (e: any) {
+      setSaveWarning(e?.message || 'Falha ao salvar no catálogo (rode o SQL do catálogo?).')
+    }
+  }
+
   function startPan(e: React.PointerEvent) {
     e.preventDefault()
     e.stopPropagation()
@@ -773,6 +799,14 @@ export function StreamOverlayEditor(props: {
             onClick={() => undo()}
           >
             <Undo2 size={15} /> Desfazer{undoCount > 0 ? ` (${undoCount})` : ''}
+          </button>
+          <button
+            type="button"
+            className="stream-secondary-btn"
+            title="Salvar no catálogo de modelos"
+            onClick={() => void handleSaveAsModel()}
+          >
+            <Library size={15} /> Salvar modelo
           </button>
           <button type="button" className="stream-primary-btn" onClick={() => void handleSave()}>
             <Save size={15} /> Salvar

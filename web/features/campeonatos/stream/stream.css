@@ -1,5 +1,95 @@
 /* Aba Stream + workspace fullscreen — CSS local (não appendar em globals.css) */
 
+/* —— Catálogo de modelos —— */
+.stream-catalog-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.stream-catalog-page h1 {
+  margin: 2px 0 4px;
+  font-size: 1.25rem;
+}
+
+.stream-catalog-tabs {
+  margin: 12px 0 16px;
+}
+
+.stream-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding-bottom: 32px;
+}
+
+.stream-catalog-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.stream-catalog-card-top {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.stream-catalog-card-top strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.stream-catalog-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stream-catalog-codes {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  display: grid;
+  gap: 6px;
+}
+
+.stream-catalog-codes li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.stream-catalog-codes code {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.stream-catalog-redeem {
+  max-width: 480px;
+}
+
+.stream-empty-list {
+  grid-column: 1 / -1;
+  padding: 28px;
+  border: 1px dashed var(--line);
+  text-align: center;
+  color: var(--muted);
+}
+
+.stream-empty-list strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+
 .stream-tab {
   display: grid;
   gap: 14px;

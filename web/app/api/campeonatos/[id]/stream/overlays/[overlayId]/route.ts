@@ -30,6 +30,8 @@ function mapRow(row: any) {
     frameW: packed.frameW,
     frameH: packed.frameH,
     share_token: row.share_token,
+    catalog_source_id: row.catalog_source_id || undefined,
+    license_kind: row.license_kind || 'own',
     updatedAt: row.updated_at,
     createdAt: row.created_at,
   }

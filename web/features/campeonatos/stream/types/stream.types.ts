@@ -236,6 +236,11 @@ export function newLayerId() {
   return `ly-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
+/** Licença da overlay no campeonato / modelo no catálogo. */
+export type StreamLicenseKind = 'own' | 'public_clone' | 'purchased'
+
+export type StreamCatalogVisibility = 'private' | 'public' | 'for_sale'
+
 export type StreamOverlay = {
   id: string
   name: string
@@ -249,9 +254,46 @@ export type StreamOverlay = {
   /** Token público Browser Source (/stream/live/[token]) */
   share_token?: string
   campeonato_id?: string
+  /** Modelo de origem no catálogo (se veio de modelo). */
+  catalog_source_id?: string
+  /** own | public_clone | purchased — purchased não republica/revende */
+  license_kind?: StreamLicenseKind
   /** legado — migrado para blocks */
   kind?: string
   fields?: Array<{ key: string; label: string; cellRef: string }>
+}
+
+/** Modelo no catálogo (biblioteca do usuário / público / venda). */
+export type StreamCatalogModel = {
+  id: string
+  owner_user_id: string
+  name: string
+  description: string
+  blocks: StreamBlock[]
+  frameW: number
+  frameH: number
+  visibility: StreamCatalogVisibility
+  is_purchased_copy: boolean
+  source_catalog_id?: string | null
+  price_label?: string | null
+  preview_note?: string | null
+  updatedAt: string
+  createdAt?: string
+  /** se o usuário logado tem direito de usar (compra/próprio) */
+  entitled?: boolean
+  entitlement_source?: StreamLicenseKind | 'public_clone' | null
+  block_count?: number
+  is_mine?: boolean
+}
+
+export type StreamPurchaseCode = {
+  id: string
+  catalog_id: string
+  code: string
+  max_redemptions: number
+  redemption_count: number
+  ativo: boolean
+  createdAt: string
 }
 
 export function getOverlayFrame(overlay: Pick<StreamOverlay, 'frameW' | 'frameH'> | null | undefined) {

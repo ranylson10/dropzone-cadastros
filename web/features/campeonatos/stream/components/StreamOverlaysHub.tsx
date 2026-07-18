@@ -71,7 +71,7 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
         </div>
         <div className="stream-panel-actions">
           <button type="button" className="stream-primary-btn" onClick={() => openInNewTab(`${base}/overlays/novo`)}>
-            <Plus size={15} /> Nova overlay
+            <Plus size={15} /> Nova overlay (catálogo)
           </button>
         </div>
       </div>

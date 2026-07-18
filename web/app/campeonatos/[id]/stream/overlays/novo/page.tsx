@@ -1,12 +1,13 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { StreamOverlayEditor } from '@/features/campeonatos/stream'
+import { StreamOverlayCatalog } from '@/features/campeonatos/stream/components/StreamOverlayCatalog'
 import '@/features/campeonatos/stream/stream.css'
 
+/** Nova overlay → catálogo de modelos (não abre editor em branco direto). */
 export default function NovaOverlayPage() {
   const params = useParams<{ id: string }>()
   const id = String(params?.id || '')
   if (!id) return null
-  return <StreamOverlayEditor campeonatoId={id} isNew />
+  return <StreamOverlayCatalog campeonatoId={id} />
 }
