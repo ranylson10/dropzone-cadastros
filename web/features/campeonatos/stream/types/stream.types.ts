@@ -2,7 +2,7 @@
  * Stream / Character Generator — tipos de overlay, blocos e estilos.
  */
 
-export type StreamSheetId = 'equipes' | 'jogadores' | 'classificacao' | 'mvp' | 'jogos' | 'quedas'
+export type StreamSheetId = 'equipes' | 'jogadores' | 'classificacao' | 'mvp' | 'jogos' | 'quedas' | 'sumula'
 
 export type StreamSheetColumn = {
   key: string
@@ -262,6 +262,20 @@ export const STREAM_SHEETS: StreamSheetDefinition[] = [
       { key: 'status', label: 'Status', letter: 'D' },
       { key: 'horario', label: 'Hora', letter: 'E' },
       { key: 'id', label: 'ID', letter: 'F' },
+    ],
+  },
+  {
+    id: 'sumula',
+    title: 'Súmula',
+    refName: 'Sumula',
+    live: true,
+    columns: [
+      { key: 'mapa', label: 'Mapa', letter: 'A' },
+      { key: 'pos', label: 'Pos', letter: 'B' },
+      { key: 'line', label: 'Line', letter: 'C' },
+      { key: 'abates', label: 'Kills', letter: 'D' },
+      { key: 'pontos', label: 'Pontos', letter: 'E' },
+      { key: 'booyah', label: 'B!', letter: 'F' },
     ],
   },
 ]

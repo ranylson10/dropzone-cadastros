@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { StreamBlock } from '../types/stream.types'
 import { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from '../utils/stream-style'
 
@@ -12,7 +13,7 @@ export type LiveStanding = {
   pts?: number | string
   quedas?: number | string
   kd?: string
-  delta?: string
+  delta?: string | number
 }
 
 export type LiveMapCard = {
@@ -22,6 +23,7 @@ export type LiveMapCard = {
   pts?: string | number
   abates?: string | number
   nome?: string
+  sumula?: LiveStanding[]
 }
 
 export type StreamLiveData = {
@@ -30,32 +32,92 @@ export type StreamLiveData = {
   mapas?: LiveMapCard[]
 }
 
+function fingerprint(data: StreamLiveData) {
+  try {
+    return JSON.stringify({
+      c: (data.classificacao || []).map((r) => [r.pos, r.nome, r.pts, r.abates]),
+      m: (data.mvp || []).map((r) => [r.pos, r.nome, r.abates]),
+      maps: (data.mapas || []).map((r) => [r.title, r.pts, r.abates, r.nome]),
+    })
+  } catch {
+    return String(Date.now())
+  }
+}
+
+function withRankDelta(current: LiveStanding[], previous: LiveStanding[] | null): LiveStanding[] {
+  if (!previous?.length) return current.map((r) => ({ ...r, delta: r.delta ?? 0 }))
+  const prevPos = new Map(previous.map((r) => [r.nome.toLowerCase(), r.pos]))
+  return current.map((r) => {
+    const before = prevPos.get(r.nome.toLowerCase())
+    if (before == null) return { ...r, delta: 0 }
+    const d = before - r.pos // subiu = positivo
+    return { ...r, delta: d }
+  })
+}
+
+function deltaLabel(delta: unknown) {
+  const n = Number(delta || 0)
+  if (!n) return '0 ='
+  if (n > 0) return `+${n} ▲`
+  return `${n} ▼`
+}
+
 export function StreamLiveStage(props: {
   template: string
   blocks: StreamBlock[]
   data: StreamLiveData
+  /** dispara animação de dados quando muda */
+  animateDataChange?: boolean
 }) {
-  const classif = props.data.classificacao || []
+  const prevRef = useRef<LiveStanding[] | null>(null)
+  const [pulse, setPulse] = useState(false)
+  const [classif, setClassif] = useState<LiveStanding[]>(props.data.classificacao || [])
+  const fp = useMemo(() => fingerprint(props.data), [props.data])
+
+  useEffect(() => {
+    const next = withRankDelta(props.data.classificacao || [], prevRef.current)
+    setClassif(next)
+    if (prevRef.current && props.animateDataChange !== false) {
+      setPulse(true)
+      const t = window.setTimeout(() => setPulse(false), 700)
+      prevRef.current = props.data.classificacao || []
+      return () => window.clearTimeout(t)
+    }
+    prevRef.current = props.data.classificacao || []
+  }, [fp, props.animateDataChange])
+
   const mvp = props.data.mvp || []
   const mapas = props.data.mapas || []
   const template = props.template || 'custom'
 
   return (
-    <div className={`stream-preview-stage layout-${template} stream-live-stage`}>
+    <div className={`stream-preview-stage layout-${template} stream-live-stage ${pulse ? 'is-data-pulse' : ''}`} data-fp={fp}>
       {(props.blocks || []).map((block, index) => {
+        const dataFx = block.transition?.onDataChange || 'none'
+        const dataClass =
+          pulse && dataFx !== 'none'
+            ? dataFx === 'rank-move'
+              ? 'stream-data-rank'
+              : dataFx === 'tick'
+                ? 'stream-data-tick'
+                : dataFx === 'pulse'
+                  ? 'stream-data-pulse'
+                  : 'stream-data-fade'
+            : ''
+
         if (block.type === 'card') {
           const isMvp = block.data.variant === 'mvp_hero'
           const mapSlot = (block.data.mapSlot || 1) - 1
           const map = mapas[mapSlot]
-          const row = isMvp ? mvp[0] : classif[mapSlot] || classif[0]
+          const row = isMvp ? mvp[0] : null
           const box = boxToCssSafe(
-            !isMvp && map?.imageUrl
+            !isMvp && (map?.imageUrl || block.box.fill?.imageUrl)
               ? {
                   ...block.box,
                   fill: {
                     ...(block.box.fill || { mode: 'image' as const }),
                     mode: 'image',
-                    imageUrl: map.imageUrl || block.box.fill?.imageUrl,
+                    imageUrl: block.box.fill?.imageUrl || map?.imageUrl || undefined,
                     fit: 'cover',
                     overlayColor: block.box.fill?.overlayColor || '#000',
                     overlayOpacity: block.box.fill?.overlayOpacity ?? 0.4,
@@ -70,13 +132,15 @@ export function StreamLiveStage(props: {
           const m3 = fieldToCss(block.data.fieldStyles?.metric_tertiary)
           const title = isMvp
             ? row?.nome || block.data.titleFixed || 'MVP'
-            : block.data.titleFixed || map?.title || row?.nome || block.name
-          const logo = isMvp ? row?.logo : map?.logo || row?.logo
+            : block.data.titleFixed || map?.title || map?.nome || block.name
+          const logo = isMvp ? row?.logo : map?.logo
+          const pts = isMvp ? row?.abates : map?.pts
+          const abt = isMvp ? row?.kd : map?.abates
 
           return (
             <div
               key={block.id}
-              className={`stream-prev-card ${transitionClass(block.transition)}`}
+              className={`stream-prev-card ${transitionClass(block.transition)} ${dataClass}`}
               style={{ ...box, ...transitionStyle(block.transition, index) }}
             >
               <div className="stream-prev-card-art">
@@ -85,10 +149,10 @@ export function StreamLiveStage(props: {
               <div className="stream-prev-card-title" style={{ ...titleFs.wrap, ...titleFs.text }}>{title}</div>
               <div className="stream-prev-card-metrics">
                 <span style={{ ...m1.wrap, ...m1.text }}>
-                  {isMvp ? `${row?.abates ?? 0} ABT` : `${map?.pts ?? row?.pts ?? 0} PTS`}
+                  {isMvp ? `${pts ?? 0} ABT` : `${pts ?? 0} PTS`}
                 </span>
                 <span style={{ ...m2.wrap, ...m2.text }}>
-                  {isMvp ? `${row?.kd ?? '0'} K.D` : `${map?.abates ?? row?.abates ?? 0} ABT.`}
+                  {isMvp ? `${abt ?? '0'} K.D` : `${abt ?? 0} ABT.`}
                 </span>
                 {isMvp && block.data.metrics.includes('quedas') ? (
                   <span style={{ ...m3.wrap, ...m3.text }}>{row?.quedas ?? 0} QD</span>
@@ -108,49 +172,59 @@ export function StreamLiveStage(props: {
         return (
           <div
             key={block.id}
-            className={`stream-prev-table ${transitionClass(block.transition)}`}
+            className={`stream-prev-table ${transitionClass(block.transition)} ${dataClass}`}
             style={{ ...box, ...transitionStyle(block.transition, index) }}
           >
             <div className="stream-prev-table-head" style={{ ...header.wrap, ...header.text }}>
               {block.data.columns.map((col) => (
                 <span key={col}>
-                  {col === 'pos' ? '#' : col === 'nome' ? 'Nome' : col === 'logo' ? '' : col.toUpperCase()}
+                  {col === 'pos' ? '#' : col === 'nome' ? 'Nome' : col === 'logo' ? '' : col === 'delta' ? '±' : col.toUpperCase()}
                 </span>
               ))}
             </div>
-            {rows.map((row, i) => (
-              <div
-                key={`${row.pos}-${row.nome}`}
-                className="stream-prev-table-row"
-                style={{
-                  ...rowStyle.wrap,
-                  ...rowStyle.text,
-                  backgroundColor:
-                    i % 2 === 1 && block.data.altRowFill
-                      ? block.data.altRowFill
-                      : (rowStyle.wrap.backgroundColor as string | undefined),
-                }}
-              >
-                {block.data.columns.map((col) => {
-                  if (col === 'pos') return <span key={col}>{String(row.pos).padStart(2, '0')}</span>
-                  if (col === 'logo') {
-                    return (
-                      <span key={col} className="col-logo">
-                        {row.logo ? <img src={String(row.logo)} alt="" /> : <i />}
-                      </span>
-                    )
-                  }
-                  if (col === 'nome') return <span key={col} className="col-nome">{row.nome}</span>
-                  if (col === 'booyah') return <span key={col}>{row.booyah ?? 0}</span>
-                  if (col === 'abates') return <span key={col}>{row.abates ?? 0}</span>
-                  if (col === 'pts') return <span key={col} className="col-pts">{row.pts ?? 0}</span>
-                  if (col === 'quedas') return <span key={col}>{row.quedas ?? 0}</span>
-                  if (col === 'kd') return <span key={col}>{row.kd ?? '0'}</span>
-                  if (col === 'delta') return <span key={col}>{row.delta ?? '0'}</span>
-                  return <span key={col} />
-                })}
-              </div>
-            ))}
+            {rows.map((row, i) => {
+              const d = Number(row.delta || 0)
+              const rankClass = d > 0 ? 'is-up' : d < 0 ? 'is-down' : ''
+              return (
+                <div
+                  key={`${row.pos}-${row.nome}`}
+                  className={`stream-prev-table-row ${rankClass}`}
+                  style={{
+                    ...rowStyle.wrap,
+                    ...rowStyle.text,
+                    backgroundColor:
+                      i % 2 === 1 && block.data.altRowFill
+                        ? block.data.altRowFill
+                        : (rowStyle.wrap.backgroundColor as string | undefined),
+                  }}
+                >
+                  {block.data.columns.map((col) => {
+                    if (col === 'pos') return <span key={col}>{String(row.pos).padStart(2, '0')}</span>
+                    if (col === 'logo') {
+                      return (
+                        <span key={col} className="col-logo">
+                          {row.logo ? <img src={String(row.logo)} alt="" /> : <i />}
+                        </span>
+                      )
+                    }
+                    if (col === 'nome') return <span key={col} className="col-nome">{row.nome}</span>
+                    if (col === 'booyah') return <span key={col}>{row.booyah ?? 0}</span>
+                    if (col === 'abates') return <span key={col}>{row.abates ?? 0}</span>
+                    if (col === 'pts') return <span key={col} className="col-pts">{row.pts ?? 0}</span>
+                    if (col === 'quedas') return <span key={col}>{row.quedas ?? 0}</span>
+                    if (col === 'kd') return <span key={col}>{row.kd ?? '0'}</span>
+                    if (col === 'delta') {
+                      return (
+                        <span key={col} className={`col-delta ${rankClass}`}>
+                          {deltaLabel(row.delta)}
+                        </span>
+                      )
+                    }
+                    return <span key={col} />
+                  })}
+                </div>
+              )
+            })}
             {!rows.length ? <div className="stream-prev-empty">Aguardando dados…</div> : null}
           </div>
         )

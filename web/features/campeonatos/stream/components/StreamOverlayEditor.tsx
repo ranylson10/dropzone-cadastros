@@ -26,6 +26,7 @@ import {
   downloadHtml,
   downloadJson,
 } from '../utils/export-overlay'
+import { applyVisualPresetToBlock, applyVisualPresetToOverlayBlocks, VISUAL_PRESETS, type VisualPresetId } from '../utils/visual-presets'
 import { BoxStyleEditor, FieldStyleEditor, TransitionEditor } from './editor/StylePanels'
 import { OverlayPreview, type PreviewMap, type PreviewStanding } from './editor/OverlayPreview'
 import '../stream.css'
@@ -262,6 +263,20 @@ export function StreamOverlayEditor(props: {
       return { ...prev, blocks }
     })
     if (selectedBlockId === blockId) setSelectedBlockId(null)
+  }
+
+  function applyPreset(preset: VisualPresetId, scope: 'block' | 'all') {
+    setOverlay((prev) => {
+      if (!prev) return prev
+      if (scope === 'all') {
+        return { ...prev, blocks: applyVisualPresetToOverlayBlocks(prev.blocks, preset) }
+      }
+      if (!selectedBlockId) return prev
+      return {
+        ...prev,
+        blocks: prev.blocks.map((b) => (b.id === selectedBlockId ? applyVisualPresetToBlock(b, preset) : b)),
+      }
+    })
   }
 
   async function handleSave() {
@@ -557,6 +572,17 @@ export function StreamOverlayEditor(props: {
 
               {inspector === 'aparencia' && selectedBlock.type === 'card' ? (
                 <div className="stream-inspector-body">
+                  <p className="stream-hint">Preset visual</p>
+                  <div className="stream-preset-row">
+                    {VISUAL_PRESETS.map((p) => (
+                      <button key={p.id} type="button" title={p.hint} onClick={() => applyPreset(p.id, 'block')}>
+                        {p.label}
+                      </button>
+                    ))}
+                    <button type="button" title="Aplicar a todos os blocos" onClick={() => applyPreset('gold_red_live', 'all')}>
+                      Tudo ouro/vermelho
+                    </button>
+                  </div>
                   <p className="stream-hint">Container do card</p>
                   <BoxStyleEditor
                     allowImage
@@ -585,6 +611,14 @@ export function StreamOverlayEditor(props: {
 
               {inspector === 'aparencia' && selectedBlock.type === 'table' ? (
                 <div className="stream-inspector-body">
+                  <p className="stream-hint">Preset visual</p>
+                  <div className="stream-preset-row">
+                    {VISUAL_PRESETS.map((p) => (
+                      <button key={p.id} type="button" title={p.hint} onClick={() => applyPreset(p.id, 'block')}>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                   <p className="stream-hint">Container da tabela</p>
                   <BoxStyleEditor
                     allowImage={false}

@@ -127,7 +127,7 @@ export async function loadStreamSheet(campeonatoId: string, sheetId: StreamSheet
     })
   }
 
-  if (sheetId === 'jogos' || sheetId === 'quedas') {
+  if (sheetId === 'jogos' || sheetId === 'quedas' || sheetId === 'sumula') {
     const payload = await authFetch(`/api/campeonatos/${campeonatoId}/jogos`)
     const jogos = Array.isArray(payload.jogos) ? payload.jogos : []
     if (sheetId === 'jogos') {
@@ -150,22 +150,61 @@ export async function loadStreamSheet(campeonatoId: string, sheetId: StreamSheet
         }
       })
     }
+    if (sheetId === 'quedas') {
+      const rows: StreamSheetRow[] = []
+      for (const jogo of jogos) {
+        const quedas = Array.isArray(jogo.quedas) ? jogo.quedas : []
+        for (const q of quedas) {
+          rows.push({
+            id: text(q.id || `${jogo.id}-${q.numero_partida}`),
+            cells: {
+              jogo: text(jogo.nome || ''),
+              numero: text(q.numero_partida ?? q.numero ?? ''),
+              mapa: text(q.mapa_nome || q.mapa_codigo || q.nome_mapa || '—'),
+              status: text(q.status || ''),
+              horario: text(q.horario || jogo.horario || ''),
+              id: text(q.id || ''),
+            },
+          })
+        }
+      }
+      return rows
+    }
+
+    // sumula: resultados por partida (usa endpoint de estatísticas filtrado)
     const rows: StreamSheetRow[] = []
+    let count = 0
     for (const jogo of jogos) {
       const quedas = Array.isArray(jogo.quedas) ? jogo.quedas : []
       for (const q of quedas) {
-        rows.push({
-          id: text(q.id || `${jogo.id}-${q.numero_partida}`),
-          cells: {
-            jogo: text(jogo.nome || ''),
-            numero: text(q.numero_partida ?? q.numero ?? ''),
-            mapa: text(q.mapa_nome || q.mapa_codigo || q.nome_mapa || '—'),
-            status: text(q.status || ''),
-            horario: text(q.horario || jogo.horario || ''),
-            id: text(q.id || ''),
-          },
-        })
+        if (count >= 8) break
+        const partidaId = text(q.id)
+        if (!partidaId) continue
+        try {
+          const stats = await authFetch(
+            `/api/campeonatos/${campeonatoId}/estatisticas/equipes?partida_id=${encodeURIComponent(partidaId)}`,
+          )
+          const equipes = Array.isArray(stats.equipes) ? stats.equipes : []
+          const mapa = text(q.mapa_nome || q.mapa_codigo || '—')
+          for (const eq of equipes.slice(0, 12)) {
+            rows.push({
+              id: `${partidaId}-${eq.campeonato_equipe_id || rows.length}`,
+              cells: {
+                mapa,
+                pos: text(eq.colocacao ?? ''),
+                line: text(eq.nome || eq.line_nome || ''),
+                abates: text(eq.abates ?? 0),
+                pontos: text(eq.pontos_total ?? 0),
+                booyah: text(eq.booyahs ?? (eq.colocacao === 1 ? 1 : 0)),
+              },
+            })
+          }
+        } catch {
+          // ignora queda sem pontuação
+        }
+        count += 1
       }
+      if (count >= 8) break
     }
     return rows
   }
