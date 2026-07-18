@@ -1940,6 +1940,15 @@ body.stream-editor-scroll-lock {
   margin-bottom: 4px;
 }
 
+.stream-table-header-editor {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  border-radius: 2px;
+}
+
 .stream-table-general {
   display: grid;
   gap: 8px;

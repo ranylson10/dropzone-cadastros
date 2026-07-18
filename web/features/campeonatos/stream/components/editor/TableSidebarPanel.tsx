@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { getSheetDef } from '../../types/stream.types'
+import { DEFAULT_TEXT, STREAM_FONTS, getSheetDef } from '../../types/stream.types'
 import type {
   StreamSheetId,
   StreamSheetRow,
   StreamTableBlock,
   TableBlockData,
   TableColumnDef,
+  TextStyle,
 } from '../../types/stream.types'
 import {
   addTableColumn,
@@ -130,16 +131,6 @@ export function TableSidebarPanel(props: {
           />
         </label>
         <label className="stream-style-field">
-          <span>Header (px)</span>
-          <input
-            type="number"
-            min={0}
-            max={120}
-            value={data.headerHeight ?? 32}
-            onChange={(e) => patch((d) => ({ ...d, headerHeight: Number(e.target.value) || 0 }))}
-          />
-        </label>
-        <label className="stream-style-field">
           <span>Rank inicial</span>
           <input
             type="number"
@@ -200,15 +191,17 @@ export function TableSidebarPanel(props: {
             onChange={(e) => patch((d) => ({ ...d, altRowFill: e.target.value }))}
           />
         </label>
-        <label className="stream-style-field stream-check-inline">
-          <span>Header</span>
-          <input
-            type="checkbox"
-            checked={data.showHeader !== false}
-            onChange={(e) => patch((d) => ({ ...d, showHeader: e.target.checked }))}
-          />
-        </label>
       </div>
+
+      {/* —— Legenda / Header —— */}
+      <HeaderLegendEditor
+        showHeader={data.showHeader !== false}
+        headerHeight={data.headerHeight ?? 32}
+        headerStyle={data.headerStyle}
+        onShowHeader={(show) => patch((d) => ({ ...d, showHeader: show }))}
+        onHeaderHeight={(h) => patch((d) => ({ ...d, headerHeight: h }))}
+        onHeaderStyle={(headerStyle) => patch((d) => ({ ...d, headerStyle }))}
+      />
 
       {sourceId ? (
         <p className="stream-hint">
@@ -249,6 +242,143 @@ export function TableSidebarPanel(props: {
   )
 }
 
+function HeaderLegendEditor(props: {
+  showHeader: boolean
+  headerHeight: number
+  headerStyle?: TableBlockData['headerStyle']
+  onShowHeader: (show: boolean) => void
+  onHeaderHeight: (h: number) => void
+  onHeaderStyle: (style: TableBlockData['headerStyle']) => void
+}) {
+  const text: TextStyle = {
+    ...DEFAULT_TEXT,
+    fontSize: 11,
+    fontWeight: 900,
+    color: '#1a1208',
+    align: 'center',
+    uppercase: true,
+    ...props.headerStyle?.text,
+  }
+  const bg = props.headerStyle?.box?.fill?.color || '#e8c547'
+
+  function setText(patch: Partial<TextStyle>) {
+    props.onHeaderStyle({
+      ...props.headerStyle,
+      text: { ...text, ...patch },
+      box: props.headerStyle?.box || {
+        fill: { mode: 'solid', color: bg, opacity: 1 },
+        padding: 0,
+      },
+    })
+  }
+
+  return (
+    <div className="stream-table-header-editor">
+      <p className="stream-hint" style={{ marginTop: 8 }}>
+        <strong>Legenda (header)</strong>
+      </p>
+      <label className="stream-field stream-check-inline">
+        <input
+          type="checkbox"
+          checked={props.showHeader}
+          onChange={(e) => props.onShowHeader(e.target.checked)}
+        />
+        <span>Mostrar legenda da tabela</span>
+      </label>
+
+      {props.showHeader ? (
+        <>
+          <div className="stream-style-grid">
+            <label className="stream-style-field">
+              <span>Altura (px)</span>
+              <input
+                type="number"
+                min={14}
+                max={120}
+                value={props.headerHeight}
+                onChange={(e) => props.onHeaderHeight(Math.max(0, Number(e.target.value) || 0))}
+              />
+            </label>
+            <label className="stream-style-field">
+              <span>Tam. fonte (px)</span>
+              <input
+                type="number"
+                min={8}
+                max={72}
+                value={text.fontSize}
+                onChange={(e) => setText({ fontSize: Number(e.target.value) || 11 })}
+              />
+            </label>
+            <label className="stream-style-field">
+              <span>Cor texto</span>
+              <input
+                type="color"
+                value={(text.color || '#1a1208').slice(0, 7)}
+                onChange={(e) => setText({ color: e.target.value })}
+              />
+            </label>
+            <label className="stream-style-field">
+              <span>Fundo</span>
+              <input
+                type="color"
+                value={bg.slice(0, 7)}
+                onChange={(e) =>
+                  props.onHeaderStyle({
+                    ...props.headerStyle,
+                    text,
+                    box: {
+                      ...props.headerStyle?.box,
+                      fill: { mode: 'solid', color: e.target.value, opacity: 1 },
+                      padding: props.headerStyle?.box?.padding ?? 0,
+                    },
+                  })
+                }
+              />
+            </label>
+          </div>
+          <label className="stream-field">
+            <span>Fonte</span>
+            <select
+              value={text.fontFamily || 'Rajdhani'}
+              onChange={(e) => setText({ fontFamily: e.target.value })}
+            >
+              {STREAM_FONTS.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          </label>
+          <div className="stream-style-grid">
+            <label className="stream-style-field">
+              <span>Peso</span>
+              <select
+                value={text.fontWeight || 900}
+                onChange={(e) => setText({ fontWeight: Number(e.target.value) || 900 })}
+              >
+                {[500, 600, 700, 800, 900].map((w) => (
+                  <option key={w} value={w}>{w}</option>
+                ))}
+              </select>
+            </label>
+            <label className="stream-style-field stream-check-inline">
+              <span>MAIÚSCULAS</span>
+              <input
+                type="checkbox"
+                checked={text.uppercase !== false}
+                onChange={(e) => setText({ uppercase: e.target.checked })}
+              />
+            </label>
+          </div>
+          <p className="stream-hint">
+            Por coluna: use <em>Ocultar legenda</em> para esconder só aquele título (ex.: coluna de logo).
+          </p>
+        </>
+      ) : (
+        <p className="stream-hint">Legenda oculta. Ative para editar texto, cor e fonte.</p>
+      )}
+    </div>
+  )
+}
+
 function ColumnEditor(props: {
   col: TableColumnDef
   index: number
@@ -279,7 +409,7 @@ function ColumnEditor(props: {
           <strong>{col.label || fieldLabel(col.field) || `Coluna ${props.index + 1}`}</strong>
           <small>
             {bound
-              ? `→ ${col.field} · ${col.widthPx || 0}px`
+              ? `→ ${col.field} · ${col.widthPx || 0}px${col.hideHeader ? ' · sem legenda' : ''}`
               : 'sem vínculo — abra a planilha'}
           </small>
         </span>
@@ -303,8 +433,21 @@ function ColumnEditor(props: {
           />
           <div className="stream-style-grid">
             <label className="stream-style-field">
-              <span>Rótulo</span>
-              <input value={col.label} onChange={(e) => props.onChange({ label: e.target.value })} />
+              <span>Rótulo (legenda)</span>
+              <input
+                value={col.label}
+                disabled={Boolean(col.hideHeader)}
+                onChange={(e) => props.onChange({ label: e.target.value })}
+              />
+            </label>
+            <label className="stream-style-field stream-check-inline">
+              <span>Ocultar legenda</span>
+              <input
+                type="checkbox"
+                checked={Boolean(col.hideHeader)}
+                title="Esconde só o texto da legenda nesta coluna"
+                onChange={(e) => props.onChange({ hideHeader: e.target.checked })}
+              />
             </label>
             <label className="stream-style-field">
               <span>Largura (px)</span>

@@ -206,6 +206,8 @@ export type TableColumnDef = {
    * Se omitido, preenche o espaço disponível após o padding.
    */
   imageSizePx?: number
+  /** oculta o texto da legenda (header) só nesta coluna */
+  hideHeader?: boolean
 }
 
 /**

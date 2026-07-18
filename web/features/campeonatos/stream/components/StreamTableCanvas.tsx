@@ -94,24 +94,42 @@ export function StreamTableCanvas(props: {
             ...header.text,
             minHeight: hh,
             padding: '0 6px',
+            boxSizing: 'border-box',
           }}
         >
-          {cols.map((c) => (
-            <span
-              key={c.id}
-              style={{
-                textAlign: c.align || 'center',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                fontSize: 11,
-                fontWeight: 900,
-                textTransform: 'uppercase',
-              }}
-            >
-              {c.label || fieldLabel(c.field)}
-            </span>
-          ))}
+          {cols.map((c) => {
+            const hidden = Boolean(c.hideHeader)
+            return (
+              <span
+                key={c.id}
+                style={{
+                  textAlign: c.align || 'center',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontSize: (header.text.fontSize as number) || 11,
+                  fontWeight: (header.text.fontWeight as number) || 900,
+                  fontFamily: (header.text.fontFamily as string) || undefined,
+                  color: (header.text.color as string) || undefined,
+                  textTransform:
+                    data.headerStyle?.text?.uppercase === false ? 'none' : 'uppercase',
+                  letterSpacing: (header.text.letterSpacing as number | string) || undefined,
+                  opacity: hidden ? 0 : 1,
+                  visibility: hidden ? 'hidden' : 'visible',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent:
+                    c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center',
+                  minWidth: 0,
+                  padding: '0 4px',
+                  boxSizing: 'border-box',
+                }}
+                aria-hidden={hidden}
+              >
+                {hidden ? '\u00a0' : c.label || fieldLabel(c.field)}
+              </span>
+            )
+          })}
         </div>
       ) : null}
 
