@@ -2192,6 +2192,17 @@ body.stream-editor-scroll-lock {
   margin-bottom: 4px;
 }
 
+.stream-table-part-inspector {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.stream-gt-layer-type-icon.is-text {
+  color: #8ec8ff;
+  font-size: 7px;
+}
+
 .stream-table-header-editor {
   display: grid;
   gap: 8px;

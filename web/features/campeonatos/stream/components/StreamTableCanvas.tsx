@@ -191,25 +191,52 @@ export function StreamTableCanvas(props: {
               // logo/imagem preenche o miolo da célula após a margem
               const colW = Math.max(1, Number(c.widthPx) || 48)
               const imgBox = Math.max(8, Math.min(colW - padX * 2, rh - padY * 2))
+              // style completo (fundo degradê/imagem/borda) ou legado fill/textColor
+              const colField = fieldToCss(
+                c.style || {
+                  box: c.fill
+                    ? { fill: { mode: 'solid', color: c.fill, opacity: 1 } }
+                    : undefined,
+                  text: c.textColor
+                    ? {
+                        fontFamily: (rowBase.text.fontFamily as string) || 'Rajdhani',
+                        fontWeight: (rowBase.text.fontWeight as number) || 700,
+                        fontSize: (rowBase.text.fontSize as number) || 14,
+                        color: c.textColor,
+                        align: c.align || 'center',
+                      }
+                    : undefined,
+                },
+              )
+              const textAlign = c.align || colField.text.textAlign || 'center'
               return (
                 <span
                   key={c.id}
                   style={{
-                    textAlign: c.align || 'center',
+                    ...colField.wrap,
+                    ...colField.text,
+                    textAlign: textAlign as CSSProperties['textAlign'],
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent:
-                      c.align === 'left' ? 'flex-start' : c.align === 'right' ? 'flex-end' : 'center',
+                      textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center',
                     minWidth: 0,
                     height: '100%',
                     minHeight: rh,
                     boxSizing: 'border-box',
                     padding: `${padY}px ${padX}px`,
-                    backgroundColor: c.fill || undefined,
-                    color: c.textColor || undefined,
+                    // legado se style.box não definir fundo
+                    backgroundColor:
+                      (colField.wrap.backgroundColor as string | undefined) ||
+                      c.fill ||
+                      undefined,
+                    color:
+                      (colField.text.color as string | undefined) ||
+                      c.textColor ||
+                      undefined,
                   }}
                 >
                   {val.kind === 'image' ? (

@@ -191,10 +191,15 @@ export type TableColumnDef = {
    * Mantido só para overlays antigos.
    */
   asImage?: boolean
-  /** cor de fundo desta coluna (aplica em todas as linhas) */
+  /** cor de fundo desta coluna (aplica em todas as linhas) — legado; preferir style.box */
   fill?: string
-  /** cor do texto desta coluna (aplica em todas as linhas) */
+  /** cor do texto desta coluna (aplica em todas as linhas) — legado; preferir style.text */
   textColor?: string
+  /**
+   * Estilo completo da coluna (texto + fundo/borda/cantos/degradê/imagem).
+   * Quando presente, tem prioridade sobre fill/textColor legados.
+   */
+  style?: FieldStyle
   /**
    * Espaço interno da célula (px) — distância do conteúdo até as bordas.
    * Vale para texto, logo e número. Menor margem = conteúdo maior.
@@ -207,6 +212,12 @@ export type TableColumnDef = {
   /** oculta o texto da legenda (header) só nesta coluna */
   hideHeader?: boolean
 }
+
+/** Parte selecionável da tabela (camadas internas, estilo Photoshop). */
+export type TablePartSelection =
+  | { kind: 'header' }
+  | { kind: 'row' }
+  | { kind: 'column'; id: string }
 
 /**
  * Slot de dados da tabela (gerado a partir de `rows`).

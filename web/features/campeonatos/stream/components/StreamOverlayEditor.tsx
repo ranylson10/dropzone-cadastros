@@ -36,7 +36,9 @@ import type {
   StreamSheetId,
   StreamSheetRow,
   StreamTableBlock,
+  TableBlockData,
   TableColumnKey,
+  TablePartSelection,
 } from '../types/stream.types'
 import {
   DEFAULT_BOX,
@@ -72,11 +74,14 @@ import { CardLayerCanvas } from './CardLayerCanvas'
 import { StreamTableCanvas } from './StreamTableCanvas'
 import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
 import {
+  addTableColumn,
   createSeedRowItem,
   ensureTableStructure,
+  fieldLabel,
   scaleTableBlock,
+  updateTableColumn,
 } from '../utils/table-structure'
-import { TableSidebarPanel } from './editor/TableSidebarPanel'
+import { TablePartInspector } from './editor/TableSidebarPanel'
 import type { PreviewMap, PreviewStanding } from './editor/OverlayPreview'
 import '../stream.css'
 
@@ -127,6 +132,8 @@ export function StreamOverlayEditor(props: {
   const [overlay, setOverlay] = useState<StreamOverlay | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
+  /** Parte interna da tabela: legenda, linha modelo ou coluna */
+  const [selectedTablePart, setSelectedTablePart] = useState<TablePartSelection | null>(null)
 
   const [ws, setWs] = useState<StreamWorkspacePrefs>(() => loadWorkspacePrefs())
   const zoom = ws.zoom
@@ -436,6 +443,39 @@ export function StreamOverlayEditor(props: {
   const selectedCard = selectedBlock?.type === 'card' ? ensureCardLayers(selectedBlock) : null
   const selectedTable = selectedBlock?.type === 'table' ? ensureTableStructure(selectedBlock) : null
   const selectedLayer = selectedCard?.layers.find((l) => l.id === selectedLayerId) || null
+  const selectedTableColumn =
+    selectedTable && selectedTablePart?.kind === 'column'
+      ? (selectedTable.data.columnDefs || []).find((c) => c.id === selectedTablePart.id) || null
+      : null
+
+  function selectBlockOnly(blockId: string) {
+    setSelectedBlockId(blockId)
+    setSelectedLayerId(null)
+    setSelectedTablePart(null)
+  }
+
+  function patchSelectedTableData(
+    fn: (data: TableBlockData) => TableBlockData,
+    history: 'soft' | 'force' = 'soft',
+  ) {
+    if (!selectedTable) return
+    updateBlock(
+      selectedTable.id,
+      (b) => {
+        if (b.type !== 'table') return b
+        const t = ensureTableStructure(b)
+        return { ...t, data: fn(t.data) }
+      },
+      { history },
+    )
+  }
+
+  function tablePartLabel(part: TablePartSelection | null): string {
+    if (!part) return 'Tabela'
+    if (part.kind === 'header') return 'Legenda'
+    if (part.kind === 'row') return 'Linha modelo'
+    return selectedTableColumn?.label || fieldLabel(selectedTableColumn?.field || '') || 'Coluna'
+  }
 
   const ctx = useMemo(
     () => ({
@@ -483,8 +523,7 @@ export function StreamOverlayEditor(props: {
         h: 160,
       })
       patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, card] }), 'force')
-      setSelectedBlockId(card.id)
-      setSelectedLayerId(null)
+      selectBlockOnly(card.id)
       return
     }
     // Etapa 1: 1 linha + colunas vazias — usuário vincula cada coluna na planilha (igual bloco).
@@ -524,8 +563,7 @@ export function StreamOverlayEditor(props: {
     }
     const table = ensureTableStructure(rawTable)
     patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, table] }), 'force')
-    setSelectedBlockId(table.id)
-    setSelectedLayerId(null)
+    selectBlockOnly(table.id)
   }
 
   function clampPos(x: number, y: number, w: number, h: number) {
@@ -597,6 +635,7 @@ export function StreamOverlayEditor(props: {
     if (selectedBlockId === id) {
       setSelectedBlockId(null)
       setSelectedLayerId(null)
+      setSelectedTablePart(null)
     }
   }
 
@@ -645,6 +684,7 @@ export function StreamOverlayEditor(props: {
       { history: 'force' },
     )
     setSelectedLayerId(layer.id)
+    setSelectedTablePart(null)
   }
 
   function updateLayer(layerId: string, patch: Partial<StreamLayer>) {
@@ -796,12 +836,12 @@ export function StreamOverlayEditor(props: {
     // clique em camada interna = seleciona camada, não inicia drag do bloco
     if (t.closest('.stream-layer-hit')) {
       setSelectedBlockId(block.id)
+      setSelectedTablePart(null)
       return
     }
     e.preventDefault()
     e.stopPropagation()
-    setSelectedBlockId(block.id)
-    setSelectedLayerId(null)
+    selectBlockOnly(block.id)
     // 1 undo por gesto de arraste (estado antes de mover)
     if (overlay) recordUndo(overlay, 'force')
     dragBlock.current = {
@@ -992,8 +1032,11 @@ export function StreamOverlayEditor(props: {
             <p className="stream-inspector-crumb">
               <button
                 type="button"
-                onClick={() => setSelectedLayerId(null)}
-                title="Editar o bloco"
+                onClick={() => {
+                  setSelectedLayerId(null)
+                  setSelectedTablePart(null)
+                }}
+                title="Editar o bloco / tabela"
               >
                 {selectedBlock.name}
               </button>
@@ -1001,6 +1044,11 @@ export function StreamOverlayEditor(props: {
                 <>
                   <span aria-hidden>›</span>
                   <strong>{selectedLayer.name}</strong>
+                </>
+              ) : selectedTablePart ? (
+                <>
+                  <span aria-hidden>›</span>
+                  <strong>{tablePartLabel(selectedTablePart)}</strong>
                 </>
               ) : (
                 <>
@@ -1014,6 +1062,17 @@ export function StreamOverlayEditor(props: {
           )}
 
           <div className="stream-inspector-body">
+            {/* —— Parte da tabela (legenda / linha / coluna) —— */}
+            {selectedTable && selectedTablePart ? (
+              <TablePartInspector
+                table={selectedTable}
+                part={selectedTablePart}
+                sheets={sheets}
+                onPatchData={patchSelectedTableData}
+                onClearPart={() => setSelectedTablePart(null)}
+              />
+            ) : null}
+
             {/* —— Camada (item) selecionada —— */}
             {selectedLayer && selectedCard ? (
               <>
@@ -1143,8 +1202,8 @@ export function StreamOverlayEditor(props: {
               </>
             ) : null}
 
-            {/* —— Bloco / tabela selecionado (sem camada) —— */}
-            {selectedBlock && !selectedLayer ? (
+            {/* —— Bloco / tabela selecionado (sem camada nem parte) —— */}
+            {selectedBlock && !selectedLayer && !selectedTablePart ? (
               <>
                 <details className="stream-inspector-section" open>
                   <summary>Identidade e tamanho</summary>
@@ -1282,9 +1341,10 @@ export function StreamOverlayEditor(props: {
 
                 {selectedBlock.type === 'table' && selectedTable ? (
                   <details className="stream-inspector-section" open>
-                    <summary>Escala da tabela</summary>
+                    <summary>Escala e camadas</summary>
                     <p className="stream-hint">
-                      Colunas e nº de linhas ficam no painel <em>Tabela</em> à direita.
+                      Selecione <strong>Legenda</strong>, <strong>Linha modelo</strong> ou uma{' '}
+                      <strong>Coluna</strong> na lista à direita para editar fundo, fonte e borda.
                     </p>
                     <label className="stream-field">
                       <span>Escala proporcional</span>
@@ -1397,7 +1457,7 @@ export function StreamOverlayEditor(props: {
                               }}
                               onPointerDown={(e) => onBlockPointerDown(e, block)}
                               onClick={() => {
-                                setSelectedBlockId(block.id)
+                                selectBlockOnly(block.id)
                               }}
                             >
                               <div className="stream-gt-block-label">{block.name}</div>
@@ -1409,6 +1469,7 @@ export function StreamOverlayEditor(props: {
                                 onSelectLayer={(id) => {
                                   setSelectedBlockId(block.id)
                                   setSelectedLayerId(id)
+                                  setSelectedTablePart(null)
                                 }}
                               />
                             </div>
@@ -1423,7 +1484,7 @@ export function StreamOverlayEditor(props: {
                             style={{ left: bx, top: by, width: tw }}
                             onPointerDown={(e) => onBlockPointerDown(e, block)}
                             onClick={() => {
-                              setSelectedBlockId(block.id)
+                              selectBlockOnly(block.id)
                             }}
                           >
                             <div className="stream-gt-block-label">{block.name}</div>
@@ -1452,10 +1513,10 @@ export function StreamOverlayEditor(props: {
           title="Arraste para redimensionar painel"
         />
 
-        {/* CAMADAS (lista estilo Photoshop) + painel de tabela */}
+        {/* CAMADAS (lista estilo Photoshop) — blocos + partes da tabela */}
         <aside className="stream-gt-right stream-panel stream-gt-ps-layers" style={{ gridArea: 'layers' }}>
           <div className="stream-gt-layer-head">
-            <strong>{selectedTable ? 'Tabela · Camadas' : 'Camadas'}</strong>
+            <strong>Camadas</strong>
             {selectedBlock ? (
               <div className="stream-block-actions">
                 <button type="button" title="Duplicar bloco" onClick={() => dupBlock(selectedBlock.id)}><Copy size={14} /></button>
@@ -1463,24 +1524,6 @@ export function StreamOverlayEditor(props: {
               </div>
             ) : null}
           </div>
-
-          {selectedTable ? (
-            <TableSidebarPanel
-              table={selectedTable}
-              sheets={sheets}
-              onPatchData={(fn, history = 'soft') =>
-                updateBlock(
-                  selectedTable.id,
-                  (b) => {
-                    if (b.type !== 'table') return b
-                    const t = ensureTableStructure(b)
-                    return { ...t, data: fn(t.data) }
-                  },
-                  { history },
-                )
-              }
-            />
-          ) : null}
 
           {!overlay.blocks.length ? (
             <p className="stream-hint">Nenhum bloco. Use + Bloco em Propriedades.</p>
@@ -1493,12 +1536,15 @@ export function StreamOverlayEditor(props: {
                 {overlay.blocks.map((block, blockIndex) => {
                   const isSel = selectedBlockId === block.id
                   const isCard = block.type === 'card'
+                  const isTable = block.type === 'table'
                   const card = isCard ? ensureCardLayers(block) : null
-                  const expanded = isSel && isCard
+                  const tableBlk = isTable ? ensureTableStructure(block as StreamTableBlock) : null
+                  const expanded = isSel && (isCard || isTable)
+                  const rootActive = isSel && !selectedLayerId && !selectedTablePart
                   return (
                     <li
                       key={block.id}
-                      className={isSel && !selectedLayerId ? 'is-active' : ''}
+                      className={rootActive ? 'is-active' : ''}
                       draggable
                       onDragStart={(e) => {
                         dragList.current = { kind: 'block', id: block.id, fromIndex: blockIndex }
@@ -1524,28 +1570,22 @@ export function StreamOverlayEditor(props: {
                       <button
                         type="button"
                         className="stream-gt-layer-row stream-gt-folder-row"
-                        onClick={() => {
-                          setSelectedBlockId(block.id)
-                          setSelectedLayerId(null)
-                        }}
+                        onClick={() => selectBlockOnly(block.id)}
                       >
                         <span className="stream-drag-handle" title="Arrastar para reordenar" aria-hidden>
                           <GripVertical size={13} />
                         </span>
-                        {isCard
-                          ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />)
-                          : <span className={`stream-gt-layer-type-icon is-table`} title="Tabela">TB</span>}
+                        {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                         <span>
-                          <small>{block.type === 'card' ? 'bloco' : 'tabela'}</small>
+                          <small>{isCard ? 'bloco' : 'tabela'}</small>
                           {block.name}
                         </span>
                         <em>
                           {isCard
                             ? `${card?.layers.length ?? 0} itens`
-                            : (() => {
-                                const t = ensureTableStructure(block as StreamTableBlock)
-                                return `${t.data.rows || 1}×${(t.data.columnDefs || []).length}`
-                              })()}
+                            : tableBlk
+                              ? `${tableBlk.data.rows || 1}×${(tableBlk.data.columnDefs || []).length}`
+                              : ''}
                         </em>
                       </button>
 
@@ -1606,6 +1646,7 @@ export function StreamOverlayEditor(props: {
                                       onClick={() => {
                                         setSelectedBlockId(block.id)
                                         setSelectedLayerId(layer.id)
+                                        setSelectedTablePart(null)
                                       }}
                                     >
                                       <span className="stream-drag-handle" title="Arrastar camada" aria-hidden>
@@ -1627,6 +1668,126 @@ export function StreamOverlayEditor(props: {
                                 )
                               })}
                           </ul>
+                        </div>
+                      ) : null}
+
+                      {expanded && isTable && tableBlk ? (
+                        <div className="stream-gt-folder-children">
+                          <ul className="stream-gt-layer-list">
+                            <li className={selectedTablePart?.kind === 'header' ? 'is-active' : ''}>
+                              <button
+                                type="button"
+                                className="stream-gt-layer-row"
+                                onClick={() => {
+                                  setSelectedBlockId(block.id)
+                                  setSelectedLayerId(null)
+                                  setSelectedTablePart({ kind: 'header' })
+                                }}
+                              >
+                                <span className="stream-drag-handle" aria-hidden style={{ opacity: 0.35 }}>
+                                  <GripVertical size={13} />
+                                </span>
+                                <span className="stream-gt-layer-type-icon is-text" title="Legenda">HD</span>
+                                <span>
+                                  <small>legenda</small>
+                                  Cabeçalho
+                                </span>
+                                <em>{tableBlk.data.showHeader === false ? 'oculto' : `${tableBlk.data.headerHeight ?? 32}px`}</em>
+                              </button>
+                            </li>
+                            <li className={selectedTablePart?.kind === 'row' ? 'is-active' : ''}>
+                              <button
+                                type="button"
+                                className="stream-gt-layer-row"
+                                onClick={() => {
+                                  setSelectedBlockId(block.id)
+                                  setSelectedLayerId(null)
+                                  setSelectedTablePart({ kind: 'row' })
+                                }}
+                              >
+                                <span className="stream-drag-handle" aria-hidden style={{ opacity: 0.35 }}>
+                                  <GripVertical size={13} />
+                                </span>
+                                <span className="stream-gt-layer-type-icon is-block" title="Linha">LN</span>
+                                <span>
+                                  <small>linha</small>
+                                  Linha modelo
+                                </span>
+                                <em>{tableBlk.data.rows || 1}× · {tableBlk.data.rowHeight ?? 36}px</em>
+                              </button>
+                            </li>
+                            {(tableBlk.data.columnDefs || []).map((col) => {
+                              const colActive =
+                                selectedTablePart?.kind === 'column' && selectedTablePart.id === col.id
+                              return (
+                                <li key={col.id} className={colActive ? 'is-active' : ''}>
+                                  <button
+                                    type="button"
+                                    className="stream-gt-layer-row"
+                                    onClick={() => {
+                                      setSelectedBlockId(block.id)
+                                      setSelectedLayerId(null)
+                                      setSelectedTablePart({ kind: 'column', id: col.id })
+                                    }}
+                                  >
+                                    <span className="stream-drag-handle" aria-hidden style={{ opacity: 0.35 }}>
+                                      <GripVertical size={13} />
+                                    </span>
+                                    <span className="stream-gt-layer-type-icon is-number" title="Coluna">COL</span>
+                                    <span>
+                                      <small>coluna</small>
+                                      {col.label || fieldLabel(col.field) || 'Coluna'}
+                                    </span>
+                                    <em>
+                                      {col.field
+                                        ? `${col.field} · ${col.widthPx || 0}px`
+                                        : `sem vínculo · ${col.widthPx || 0}px`}
+                                    </em>
+                                  </button>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                          <div className="stream-add-layer-row" style={{ marginTop: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                let createdId: string | null = null
+                                updateBlock(
+                                  block.id,
+                                  (b) => {
+                                    if (b.type !== 'table') return b
+                                    const t = ensureTableStructure(b)
+                                    const tw = t.tableW || 520
+                                    const next = addTableColumn(t.data, '', tw)
+                                    createdId = next.columnDefs?.[next.columnDefs.length - 1]?.id || null
+                                    if (createdId) {
+                                      return {
+                                        ...t,
+                                        data: updateTableColumn(
+                                          next,
+                                          createdId,
+                                          {
+                                            field: '',
+                                            label: `Coluna ${next.columnDefs?.length || 1}`,
+                                            asImage: false,
+                                          },
+                                          tw,
+                                        ),
+                                      }
+                                    }
+                                    return { ...t, data: next }
+                                  },
+                                  { history: 'force' },
+                                )
+                                setSelectedBlockId(block.id)
+                                setSelectedLayerId(null)
+                                if (createdId) setSelectedTablePart({ kind: 'column', id: createdId })
+                              }}
+                            >
+                              + Coluna
+                            </button>
+                          </div>
                         </div>
                       ) : null}
                     </li>
