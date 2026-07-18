@@ -1,5 +1,10 @@
 import { supabaseAdmin } from '../../shared/supabase-admin'
-import { CATALOG_VERSION, PERFIL_DESCRIPTIONS, PERFIL_LABELS } from './rulebook.chapters'
+import {
+  CATALOG_VERSION,
+  CHAPTER_GROUP_LABELS,
+  PERFIL_DESCRIPTIONS,
+  PERFIL_LABELS,
+} from './rulebook.chapters'
 import { RULEBOOK_QUESTIONS } from './rulebook.catalog'
 import { INFRACAO_TEMPLATES } from './rulebook.infracoes'
 import {
@@ -26,13 +31,24 @@ function missingRelation(error: any) {
   return ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code || '')
 }
 
-async function getCampeonatoNome(campeonatoId: string): Promise<string> {
+async function getCampeonatoMeta(campeonatoId: string): Promise<{
+  nome: string
+  logoUrl: string | null
+}> {
   const { data } = await supabaseAdmin
     .from('campeonatos')
-    .select('nome')
+    .select('nome, logo_url')
     .eq('id', campeonatoId)
     .maybeSingle()
-  return String(data?.nome || 'Campeonato')
+  return {
+    nome: String(data?.nome || 'Campeonato'),
+    logoUrl: data?.logo_url ? String(data.logo_url) : null,
+  }
+}
+
+async function getCampeonatoNome(campeonatoId: string): Promise<string> {
+  const meta = await getCampeonatoMeta(campeonatoId)
+  return meta.nome
 }
 
 async function loadCampeonatoSeedSource(campeonatoId: string) {
@@ -73,6 +89,7 @@ export function getRulebookCatalogPublic() {
       label: PERFIL_LABELS[id],
       description: PERFIL_DESCRIPTIONS[id],
     })),
+    chapterGroups: CHAPTER_GROUP_LABELS,
     questions: RULEBOOK_QUESTIONS,
     infracaoTemplates: INFRACAO_TEMPLATES,
   }
@@ -99,19 +116,23 @@ export async function getOrCreateRulebook(input: {
   if (existing.error) throw new Error(existing.error.message)
 
   if (existing.data) {
-    const nome = await getCampeonatoNome(campeonatoId)
-    return buildRulebookResponse(normalizeRow(existing.data), nome)
+    const meta = await getCampeonatoMeta(campeonatoId)
+    return buildRulebookResponse(normalizeRow(existing.data), meta.nome, {
+      logoUrl: meta.logoUrl,
+    })
   }
 
   const perfil: RulebookPerfil = input.perfil || 'comunitario'
   const campSource = await loadCampeonatoSeedSource(campeonatoId)
   const seeded = seedAnswersFromCampeonato(campSource, {})
   const respostas = applyProfileDefaults(perfil, seeded.respostas)
+  const logoUrl = campSource.logo_url ? String(campSource.logo_url) : null
   const nome = String(campSource.nome || (await getCampeonatoNome(campeonatoId)) || 'Campeonato')
   const engine = buildEngineState({
     perfil,
     respostas,
     campeonatoNome: nome,
+    logoUrl,
   })
 
   const insertPayload = {
@@ -143,6 +164,7 @@ export async function getOrCreateRulebook(input: {
   return buildRulebookResponse(normalizeRow(data), nome, {
     seedCampos: seeded.campos,
     seedAplicado: seeded.campos.length > 0,
+    logoUrl,
   })
 }
 
@@ -164,8 +186,10 @@ export async function getRulebook(campeonatoId: string) {
   const row = normalizeRow(data)
   // Campeonato é fonte da verdade nos campos ligados
   row.respostas = mergeLinkedAnswers(row.respostas, camp)
+  const logoUrl = camp.logo_url ? String(camp.logo_url) : null
   return buildRulebookResponse(row, String(camp.nome || 'Campeonato'), {
     linkedFromCampeonato: true,
+    logoUrl,
   })
 }
 
@@ -185,8 +209,18 @@ export async function getPublishedRulebook(campeonatoId: string) {
   if (error) throw new Error(error.message)
   if (!data) return null
   const row = normalizeRow(data)
+  const campMeta = await getCampeonatoMeta(campeonatoId)
+  const documento =
+    row.documento && typeof row.documento === 'object'
+      ? {
+          ...row.documento,
+          campeonatoNome:
+            (row.documento as any).campeonatoNome || campMeta.nome,
+          logoUrl: (row.documento as any).logoUrl || campMeta.logoUrl,
+        }
+      : row.documento
   return {
-    documento: row.documento,
+    documento,
     perfil: row.perfil,
     publicado_em: row.publicado_em,
     versao: row.versao,
@@ -197,7 +231,12 @@ export async function getPublishedRulebook(campeonatoId: string) {
 function buildRulebookResponse(
   row: RulebookRow,
   campeonatoNome = 'Campeonato',
-  meta?: { seedCampos?: string[]; seedAplicado?: boolean; linkedFromCampeonato?: boolean },
+  meta?: {
+    seedCampos?: string[]
+    seedAplicado?: boolean
+    linkedFromCampeonato?: boolean
+    logoUrl?: string | null
+  },
 ) {
   const engine = buildEngineState({
     perfil: row.perfil,
@@ -208,6 +247,7 @@ function buildRulebookResponse(
       campeonatoNome
       || (row.documento as any)?.campeonatoNome
       || 'Campeonato',
+    logoUrl: meta?.logoUrl ?? (row.documento as any)?.logoUrl ?? null,
   })
 
   // Prefer regenerated live state for UI accuracy; document from engine
@@ -253,6 +293,7 @@ function buildRulebookResponse(
         label: PERFIL_LABELS[id],
         description: PERFIL_DESCRIPTIONS[id],
       })),
+      chapterGroups: CHAPTER_GROUP_LABELS as Record<string, string>,
     },
     meta: {
       seedAplicado: Boolean(meta?.seedAplicado),
@@ -360,12 +401,14 @@ export async function saveRulebook(input: {
   }
 
   const nome = String(campAfter.nome || (await getCampeonatoNome(input.campeonatoId)))
+  const logoUrl = campAfter.logo_url ? String(campAfter.logo_url) : null
   const engine = buildEngineState({
     perfil,
     respostas: respostasFinais,
     infracoes,
     confirmacoes_alertas: confirmacoes,
     campeonatoNome: nome,
+    logoUrl,
   })
 
   const etapa =
@@ -407,7 +450,10 @@ export async function saveRulebook(input: {
     .single()
 
   if (error) throw new Error(error.message)
-  return buildRulebookResponse(normalizeRow(data), nome, { linkedFromCampeonato: true })
+  return buildRulebookResponse(normalizeRow(data), nome, {
+    linkedFromCampeonato: true,
+    logoUrl,
+  })
 }
 
 export async function publishRulebook(input: {
@@ -415,7 +461,8 @@ export async function publishRulebook(input: {
   userId: string
   forceConfirmAlerts?: Record<string, boolean>
 }) {
-  const nome = await getCampeonatoNome(input.campeonatoId)
+  const campMeta = await getCampeonatoMeta(input.campeonatoId)
+  const nome = campMeta.nome
   const current = await getRulebook(input.campeonatoId)
   if (!current) {
     throw new Error('Rulebook ainda não foi criado para este campeonato.')
@@ -432,6 +479,7 @@ export async function publishRulebook(input: {
     infracoes: current.rulebook.infracoes as InfracaoConfig[],
     confirmacoes_alertas: confirmacoes,
     campeonatoNome: nome,
+    logoUrl: campMeta.logoUrl,
   })
 
   if (!engine.canPublish) {
@@ -475,5 +523,5 @@ export async function publishRulebook(input: {
     // ignore
   }
 
-  return buildRulebookResponse(normalizeRow(data), nome)
+  return buildRulebookResponse(normalizeRow(data), nome, { logoUrl: campMeta.logoUrl })
 }

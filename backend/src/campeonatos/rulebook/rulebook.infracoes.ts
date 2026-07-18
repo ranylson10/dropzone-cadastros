@@ -100,19 +100,20 @@ export const INFRACAO_TEMPLATES: InfracaoTemplate[] = [
     requiresModules: ['bug_abuse'],
     defaults: {
       definicao:
-        'Utilizar intencionalmente falhas do jogo para obter vantagem competitiva indevida.',
+        'Utilizar intencionalmente falhas, glitches ou exploits do jogo para obter vantagem competitiva indevida — inclusive clip de colisão, posições inacessíveis, atravessar terreno, invulnerabilidade indevida, loot duplicado ou qualquer movimento/efeito impossível no cliente normal.',
       condicoes:
-        'Configura infração o uso deliberado após ciência da proibição, ou o uso repetido de falha após comunicação da organização.',
-      provas_aceitas: 'Clipes, denúncias e análise da arbitragem.',
-      competencia: 'Organização / admin de partida.',
+        'Configura infração o uso deliberado da falha, a manutenção da posição/benefício após perceber o bug, ou a reincidência após comunicação da organização. A mera ocorrência acidental, se o jogador sair imediatamente da posição e reportar, pode ser mitigada a critério da arbitragem.',
+      provas_aceitas:
+        'Clipes de tela, VOD da transmissão, denúncia fundamentada, gravação de espectador autorizado e análise da arbitragem.',
+      competencia: 'Organização / admin de partida / comissão disciplinar.',
       penalidade_inicial:
-        'Perda de pontos da queda e/ou advertência; em casos graves, desclassificação.',
-      penalidade_reincidencia: 'Desclassificação da equipe.',
+        'Perda dos pontos da queda e impedimento de disputar a queda seguinte; se for a última queda do dia, anulação e subtração de pontos, conforme o regulamento.',
+      penalidade_reincidencia: 'Desclassificação da equipe do campeonato e perda de premiação, se houver.',
       direito_defesa: true,
       direito_recurso: true,
       prazo: '24 horas.',
       observacoes:
-        'Bugs que impeçam o jogo normal devem ser reportados imediatamente à organização; o uso malicioso é punível.',
+        'A lista de exemplos do regulamento é ilustrativa, não exaustiva. Bugs que impeçam o jogo normal devem ser reportados imediatamente; abusar da falha é punível. Casos são analisados com provas antes da aplicação de sanções.',
     },
   },
   {

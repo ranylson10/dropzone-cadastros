@@ -30,7 +30,31 @@ export const RULEBOOK_CHAPTERS: Array<{
   { id: 'disposicoes_finais', order: 20, title: 'Disposições Finais' },
 ]
 
-export const CATALOG_VERSION = '1.0.0'
+export const CATALOG_VERSION = '1.1.0'
+
+/** Rótulos amigáveis para agrupar perguntas na etapa “Regras” (por tema). */
+export const CHAPTER_GROUP_LABELS: Partial<Record<RulebookChapterId, string>> = {
+  disposicoes_gerais: 'Regras gerais',
+  organizacao: 'Organização e comunicação',
+  participacao: 'Participação',
+  elegibilidade: 'Elegibilidade',
+  equipes: 'Equipes e elenco',
+  jogadores: 'Jogadores',
+  manager: 'Manager',
+  coach: 'Coach',
+  cadastro: 'Cadastro e inscrição',
+  check_in: 'Check-in',
+  partidas: 'Partidas, lobby e plataforma',
+  pontuacao: 'Pontuação',
+  desconexoes: 'Desconexões',
+  remakes: 'Remakes',
+  infracoes: 'Bugs, hacks, ghosting e integridade',
+  penalidades: 'Processo disciplinar',
+  recursos: 'Recursos',
+  premiacao: 'Premiação',
+  direitos_imagem: 'Direitos de imagem',
+  disposicoes_finais: 'Disposições finais',
+}
 
 export const PERFIL_LABELS: Record<string, string> = {
   comunitario: 'Comunitário',

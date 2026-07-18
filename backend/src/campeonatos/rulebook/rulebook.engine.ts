@@ -296,10 +296,25 @@ export function buildEngineState(input: {
   infracoes?: InfracaoConfig[]
   confirmacoes_alertas?: Record<string, boolean>
   campeonatoNome: string
+  logoUrl?: string | null
 }): RulebookEngineState {
   const respostas = applyProfileDefaults(input.perfil, input.respostas || {})
   const modules = resolveModules(respostas)
-  const infracoes = mergeInfracoes(modules, input.infracoes)
+  let infracoes = mergeInfracoes(modules, input.infracoes)
+
+  // Espelha respostas de bugs nas tipificações (etapa Infrações / documento)
+  if (modules.includes('bug_abuse') && respostas.proibe_bug_abuse === true) {
+    infracoes = infracoes.map((inf) => {
+      if (inf.codigo !== 'bug_abuse') return inf
+      const pen1 = String(respostas.bug_penalidade_primeira || '').trim()
+      const pen2 = String(respostas.bug_penalidade_reincidencia || '').trim()
+      return {
+        ...inf,
+        penalidade_inicial: pen1 || inf.penalidade_inicial,
+        penalidade_reincidencia: pen2 || inf.penalidade_reincidencia,
+      }
+    })
+  }
   const alerts = computeAlertsForState(
     input.perfil,
     respostas,
@@ -331,6 +346,7 @@ export function buildEngineState(input: {
     perfil: input.perfil,
     campeonatoNome: input.campeonatoNome,
     catalogVersion: CATALOG_VERSION,
+    logoUrl: input.logoUrl ?? null,
   })
 
   return {

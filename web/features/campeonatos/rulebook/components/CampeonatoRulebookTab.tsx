@@ -672,12 +672,12 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                       <h4>
                         {etapa === 1
                           ? 'Configuração do campeonato'
-                          : 'Regras dos módulos ativos'}
+                          : 'Regras por seção (módulos ativos)'}
                       </h4>
                       <p className="muted">
                         {etapa === 1
                           ? 'Cada resposta define o que entra no regulamento (e o que some).'
-                          : 'Só aparecem perguntas dos módulos que você habilitou.'}
+                          : 'Perguntas agrupadas por tema: equipes, partidas, bugs, pontuação etc. Só entram módulos que você habilitou.'}
                       </p>
                     </div>
                     <div className="rulebook-step-progress">
@@ -688,28 +688,104 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                     </div>
                   </div>
                   <div className="rulebook-question-list">
-                    {etapaQuestions.map((q) => {
-                      const invalid = highlightMissing.has(q.id)
-                      const linked = linkedFields.has(q.id)
-                      return (
-                        <div
-                          key={q.id}
-                          id={`rb-q-${q.id}`}
-                          className={`rulebook-question-card ${invalid ? 'missing' : ''} ${linked ? 'linked' : ''}`}
-                        >
-                          <label>
-                            {q.label}
-                            {q.required ? <em>*</em> : null}
-                            {linked ? <span className="rulebook-linked-tag">Vinculado ao campeonato</span> : null}
-                          </label>
-                          {q.help ? <small className="muted">{q.help}</small> : null}
-                          {renderQuestionControl(q, invalid)}
-                          {invalid ? (
-                            <small className="rulebook-field-error">Campo obrigatório</small>
-                          ) : null}
-                        </div>
-                      )
-                    })}
+                    {(() => {
+                      const groups = data.catalog.chapterGroups || {}
+                      const chapterOrder = [
+                        'disposicoes_gerais',
+                        'organizacao',
+                        'participacao',
+                        'elegibilidade',
+                        'equipes',
+                        'jogadores',
+                        'manager',
+                        'coach',
+                        'cadastro',
+                        'check_in',
+                        'partidas',
+                        'pontuacao',
+                        'desconexoes',
+                        'remakes',
+                        'infracoes',
+                        'penalidades',
+                        'recursos',
+                        'premiacao',
+                        'direitos_imagem',
+                        'disposicoes_finais',
+                      ]
+                      const byChapter = new Map<string, RulebookQuestion[]>()
+                      for (const q of etapaQuestions) {
+                        const list = byChapter.get(q.chapter) || []
+                        list.push(q)
+                        byChapter.set(q.chapter, list)
+                      }
+                      const orderedChapters = [
+                        ...chapterOrder.filter((id) => byChapter.has(id)),
+                        ...Array.from(byChapter.keys()).filter((id) => !chapterOrder.includes(id)),
+                      ]
+                      // Na etapa 1 (config), lista plana; na etapa 2 (regras), agrupa por seção
+                      if (etapa === 1) {
+                        return etapaQuestions.map((q) => {
+                          const invalid = highlightMissing.has(q.id)
+                          const linked = linkedFields.has(q.id)
+                          return (
+                            <div
+                              key={q.id}
+                              id={`rb-q-${q.id}`}
+                              className={`rulebook-question-card ${invalid ? 'missing' : ''} ${linked ? 'linked' : ''}`}
+                            >
+                              <label>
+                                {q.label}
+                                {q.required ? <em>*</em> : null}
+                                {linked ? (
+                                  <span className="rulebook-linked-tag">Vinculado ao campeonato</span>
+                                ) : null}
+                              </label>
+                              {q.help ? <small className="muted">{q.help}</small> : null}
+                              {renderQuestionControl(q, invalid)}
+                              {invalid ? (
+                                <small className="rulebook-field-error">Campo obrigatório</small>
+                              ) : null}
+                            </div>
+                          )
+                        })
+                      }
+                      return orderedChapters.map((chapterId) => {
+                        const qs = byChapter.get(chapterId) || []
+                        const title = groups[chapterId] || chapterId
+                        return (
+                          <div key={chapterId} className="rulebook-section-group">
+                            <div className="rulebook-section-group-head">
+                              <h5>{title}</h5>
+                              <span>{qs.length} pergunta{qs.length === 1 ? '' : 's'}</span>
+                            </div>
+                            {qs.map((q) => {
+                              const invalid = highlightMissing.has(q.id)
+                              const linked = linkedFields.has(q.id)
+                              return (
+                                <div
+                                  key={q.id}
+                                  id={`rb-q-${q.id}`}
+                                  className={`rulebook-question-card ${invalid ? 'missing' : ''} ${linked ? 'linked' : ''}`}
+                                >
+                                  <label>
+                                    {q.label}
+                                    {q.required ? <em>*</em> : null}
+                                    {linked ? (
+                                      <span className="rulebook-linked-tag">Vinculado ao campeonato</span>
+                                    ) : null}
+                                  </label>
+                                  {q.help ? <small className="muted">{q.help}</small> : null}
+                                  {renderQuestionControl(q, invalid)}
+                                  {invalid ? (
+                                    <small className="rulebook-field-error">Campo obrigatório</small>
+                                  ) : null}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })
+                    })()}
                     {!etapaQuestions.length ? (
                       <p className="empty">Nenhuma pergunta nesta etapa com o perfil/módulos atuais.</p>
                     ) : null}
@@ -958,8 +1034,8 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
             </div>
 
             {showSidePreview ? (
-              <aside className="rulebook-live-preview no-print">
-                <div className="rulebook-live-preview-head">
+              <aside className="rulebook-live-preview">
+                <div className="rulebook-live-preview-head no-print">
                   <p className="eyebrow">Prévia ao vivo</p>
                   <small>
                     {autoSaving ? 'Atualizando…' : `${(data.rulebook.documento as any)?.articleCount || 0} artigos`}

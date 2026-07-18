@@ -39,6 +39,65 @@ function labelFerramentas(codes: string[]): string {
   return codes.map((c) => map[c] || c).join(', ')
 }
 
+function labelBugs(codes: string[]): string[] {
+  const map: Record<string, string> = {
+    clip_parede: 'Clip em parede / atravessar colisão de objetos ou construções',
+    glitch_altura: 'Subir, fixar-se ou manter-se em local inacessível (glitch de altura)',
+    underground: 'Atravessar terreno, solo ou geometria do mapa (bug underground)',
+    fora_mapa: 'Sair dos limites jogáveis do mapa para obter cobertura ou vantagem',
+    invulnerabilidade: 'Obter invulnerabilidade ou anulação de dano por animação/bug',
+    stuck_adversario: 'Prender, travar ou impedir o movimento de adversário mediante bug ou propulsão indevida',
+    loot_duplicado: 'Duplicar item, arma, utilitário ou qualquer loot do jogo',
+    revive_bug: 'Abusar de bug de reanimação / revive indevido',
+    safe_zone: 'Abusar de falha relacionada à zona segura, gás ou contagem de dano de zona',
+    visao_parede: 'Ver ou atirar através de obstáculos sem linha de visão legítima',
+    movimento_impossivel: 'Movimento, teleporte ou posição fisicamente impossível no cliente normal',
+    outros_org: 'Demais exploits, glitches ou falhas comunicados pela organização durante o evento',
+  }
+  return codes.map((c) => map[c] || c)
+}
+
+function tabelaColocacaoTexto(modelo: string, killPts: number): string {
+  if (modelo === 'padrao_br') {
+    return [
+      'Modelo de pontuação por colocação (padrão BR, comum em ligas nacionais):',
+      '• 1º lugar (Booyah): 12 pontos',
+      '• 2º lugar: 9 pontos',
+      '• 3º lugar: 8 pontos',
+      '• 4º lugar: 7 pontos',
+      '• 5º lugar: 6 pontos',
+      '• 6º lugar: 5 pontos',
+      '• 7º lugar: 4 pontos',
+      '• 8º lugar: 3 pontos',
+      '• 9º lugar: 2 pontos',
+      '• 10º lugar: 1 ponto',
+      '• 11º lugar em diante: 0 pontos de colocação',
+      `Cada abate (kill) vale ${killPts} ponto(s), somado(s) à pontuação de colocação.`,
+      'A organização poderá publicar tabela alternativa para fases específicas, comunicando com antecedência.',
+    ].join('\n')
+  }
+  if (modelo === 'custom') {
+    return [
+      'O modelo de pontuação por colocação é personalizado e será detalhado pela organização nos canais oficiais ou na ficha da fase.',
+      `Cada abate (kill) vale ${killPts} ponto(s), salvo disposição específica de fase.`,
+    ].join('\n')
+  }
+  return [
+    'Modelo de pontuação por colocação (simples):',
+    '• 1º lugar: 10 pontos',
+    '• 2º lugar: 8 pontos',
+    '• 3º lugar: 7 pontos',
+    '• 4º lugar: 6 pontos',
+    '• 5º lugar: 5 pontos',
+    '• 6º lugar: 4 pontos',
+    '• 7º lugar: 3 pontos',
+    '• 8º lugar: 2 pontos',
+    '• 9º lugar: 1 ponto',
+    '• 10º lugar em diante: 0 pontos de colocação',
+    `Cada abate (kill) vale ${killPts} ponto(s), somado(s) à pontuação de colocação.`,
+  ].join('\n')
+}
+
 function article(
   chapterId: RulebookChapterId,
   id: string,
@@ -63,8 +122,10 @@ export function generateDocument(input: {
   perfil: RulebookPerfil
   campeonatoNome: string
   catalogVersion: string
+  logoUrl?: string | null
 }): GeneratedDocument {
   const { answers: a, modules, infracoes, perfil, campeonatoNome, catalogVersion } = input
+  const logoUrl = input.logoUrl || null
   const byChapter = new Map<RulebookChapterId, GeneratedArticle[]>()
 
   const push = (art: GeneratedArticle) => {
@@ -106,6 +167,23 @@ export function generateDocument(input: {
       'dg_fair_play',
       'Integridade competitiva',
       'É esperado que todos os participantes disputem com empenho, honestidade e respeito. Qualquer conduta que comprometa a integridade da competição poderá ser investigada e sancionada pela organização, inclusive nos casos não tipificados de forma exaustiva neste documento, sempre com base nos princípios de fair play e razoabilidade.',
+    ),
+  )
+  push(
+    article(
+      'disposicoes_gerais',
+      'dg_conduta',
+      'Código de conduta',
+      [
+        'Todos os participantes (jogadores, reservas, managers, coaches e demais vinculados) devem observar as regras de conduta deste regulamento e as orientações dos admins.',
+        'É proibido o uso de linguagem ofensiva, discriminatória, machista, racista, homofóbica, difamatória ou de assédio em partidas, canais oficiais, transmissões e redes sociais vinculadas ao evento.',
+        'Abusar de moderadores, adversários, staff ou público não será tolerado. Conversas privadas com a arbitragem não devem ser vazadas publicamente de forma a constranger a organização ou terceiros.',
+        'Participantes que conspirarem com outros jogadores ou pessoas de fora da competição para fraudar resultados, dividir premiação de forma ilícita, manipular colocações ou obter vantagem indevida estarão sujeitos a desclassificação e demais sanções.',
+      ].join('\n\n'),
+      {
+        penalty:
+          'Advertência, perda de pontos, suspensão de partidas, desclassificação ou banimento, conforme a gravidade e a tipificação aplicável.',
+      },
     ),
   )
 
@@ -372,13 +450,25 @@ export function generateDocument(input: {
       'pontuacao',
       'pts_modelo',
       'Sistema de pontuação',
-      `A pontuação das partidas considerará colocação e abates (kills). Cada abate vale ${killPts} ponto(s), salvo disposição específica de fase. Modelo de colocação adotado: ${
-        tabela === 'padrao_br'
-          ? 'tabela padrão BR definida/publicada pela organização para o evento'
-          : tabela === 'custom'
-            ? 'modelo personalizado informado pela organização'
-            : 'modelo simples (ex.: 1º=10, 2º=8, 3º=7… + pontos por kill)'
-      }. Critérios de desempate padrão: maior número de Booyahs (vitórias), maior número de abates, melhor colocação no confronto direto mais recente e, se necessário, partida extra a critério da organização.`,
+      [
+        'A pontuação das partidas considerará colocação final e abates (kills), salvo regra específica de fase comunicada pela organização.',
+        tabelaColocacaoTexto(tabela, killPts),
+      ].join('\n\n'),
+    ),
+  )
+  push(
+    article(
+      'pontuacao',
+      'pts_desempate',
+      'Critérios de desempate',
+      [
+        'Em caso de empate na classificação geral ou de fase, serão aplicados, nesta ordem, os seguintes critérios:',
+        '1. Maior número de Booyahs (vitórias de queda);',
+        '2. Maior número total de abates (kills);',
+        '3. Melhor colocação no confronto direto mais recente entre as equipes empatadas;',
+        '4. Maior número de colocações de 1º a 3º no somatório da fase;',
+        '5. Partida extra (tie-break) ou outro critério definido pela organização, se ainda persistir o empate.',
+      ].join('\n'),
     ),
   )
 
@@ -447,7 +537,8 @@ export function generateDocument(input: {
     ),
   )
 
-  for (const inf of infracoes.filter((i) => i.enabled)) {
+  // bug_abuse ganha artigo detalhado próprio (exemplos + escala); evita duplicar aqui
+  for (const inf of infracoes.filter((i) => i.enabled && i.codigo !== 'bug_abuse')) {
     push(
       article(
         'infracoes',
@@ -460,6 +551,27 @@ export function generateDocument(input: {
           notes: `Direito de defesa: ${inf.direito_defesa ? 'sim' : 'não'}. Direito de recurso: ${
             inf.direito_recurso ? 'sim' : 'não'
           }. Prazo: ${inf.prazo}. Gravidade: ${inf.gravidade}.`,
+        },
+      ),
+    )
+  }
+
+  // Se bug_abuse está habilitado nas infrações mas o módulo de perguntas não gerou o bloco detalhado,
+  // mantém o artigo genérico da tipificação.
+  const bugInf = infracoes.find((i) => i.enabled && i.codigo === 'bug_abuse')
+  if (bugInf && !(modules.includes('bug_abuse') && a.proibe_bug_abuse === true)) {
+    push(
+      article(
+        'infracoes',
+        `inf_${bugInf.codigo}`,
+        bugInf.titulo,
+        `${bugInf.definicao}\n\nCondições: ${bugInf.condicoes}\n\nProvas aceitas: ${bugInf.provas_aceitas}\n\nCompetência: ${bugInf.competencia}`,
+        {
+          penalty: `Penalidade inicial: ${bugInf.penalidade_inicial}\nReincidência: ${bugInf.penalidade_reincidencia}`,
+          observations: bugInf.observacoes,
+          notes: `Direito de defesa: ${bugInf.direito_defesa ? 'sim' : 'não'}. Direito de recurso: ${
+            bugInf.direito_recurso ? 'sim' : 'não'
+          }. Prazo: ${bugInf.prazo}. Gravidade: ${bugInf.gravidade}.`,
         },
       ),
     )
@@ -496,6 +608,55 @@ export function generateDocument(input: {
         }.`,
         {
           penalty: 'Conforme tipificação de ghosting definida neste regulamento.',
+        },
+      ),
+    )
+  }
+
+  // Bugs e exploits — bloco detalhado estilo LBFF / regulamentos BR
+  if (modules.includes('bug_abuse') && a.proibe_bug_abuse === true) {
+    const exemplos = labelBugs(asList(a.bug_exemplos))
+    const extras = String(a.bug_exemplos_extra || '')
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const allExamples = [...exemplos, ...extras]
+    const pen1 =
+      String(a.bug_penalidade_primeira || '').trim()
+      || 'Perda dos pontos da queda e impedimento de disputar a queda seguinte; se for a última queda do dia, anulação e subtração de pontos.'
+    const pen2 =
+      String(a.bug_penalidade_reincidencia || '').trim()
+      || 'Desclassificação da equipe do campeonato.'
+    const reportar = a.bug_obrigacao_reportar !== false
+
+    const exampleLines =
+      allExamples.length > 0
+        ? allExamples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')
+        : '1. Qualquer exploit, glitch ou falha utilizada para vantagem competitiva indevida.'
+
+    push(
+      article(
+        'infracoes',
+        'inf_bug_abuse_texto',
+        'Uso e abuso de bugs (exploits)',
+        [
+          'É proibido utilizar intencionalmente falhas do jogo (bugs, glitches ou exploits) para obter vantagem competitiva indevida. A proibição abrange tanto o uso deliberado quanto a manutenção de posição ou benefício após o jogador perceber a irregularidade.',
+          'Exemplos ilustrativos de condutas proibidas (lista não exaustiva):',
+          exampleLines,
+          'A organização poderá incluir, a qualquer momento, novos exemplos ou casos análogos por comunicado oficial, sem necessidade de republicar integralmente este regulamento.',
+          reportar
+            ? 'Bugs que impeçam o andamento normal da partida ou concedam vantagem involuntária devem ser reportados imediatamente aos admins. O participante que reportar de boa-fé e sair da posição irregular poderá ter a conduta mitigada ou isenta de punição, a critério da arbitragem.'
+            : 'A organização analisará denúncias de abuso de bug com base nas provas apresentadas.',
+          'Todo caso de bug será analisado pela arbitragem/organização. Havendo provas suficientes, as sanções serão aplicadas conforme a escala abaixo.',
+        ].join('\n\n'),
+        {
+          penalty: [
+            `1ª ocorrência: ${pen1}`,
+            `2ª ocorrência (reincidência): ${pen2}`,
+            'Casos de gravidade extrema (ex.: vantagem decisiva em fase final) poderão ter sanção máxima já na primeira ocorrência.',
+          ].join('\n'),
+          observations:
+            'Clipes, VODs e denúncias fundamentadas são meios preferenciais de prova. A decisão final sobre enquadramento cabe à organização.',
         },
       ),
     )
@@ -648,6 +809,7 @@ export function generateDocument(input: {
     title: `Regulamento — ${campeonatoNome}`,
     subtitle: `Rulebook gerado automaticamente · Perfil ${PERFIL_LABELS[perfil] || perfil}`,
     campeonatoNome,
+    logoUrl,
     perfil,
     generatedAt: new Date().toISOString(),
     catalogVersion,

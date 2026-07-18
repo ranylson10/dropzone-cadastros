@@ -10,6 +10,21 @@ type Props = {
   compact?: boolean
 }
 
+function formatDatePt(iso?: string) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
+}
+
 export function RulebookViewer({ documento, compact }: Props) {
   const doc = documento as GeneratedDocument | null | undefined
   const [query, setQuery] = useState('')
@@ -40,13 +55,23 @@ export function RulebookViewer({ documento, compact }: Props) {
     )
   }
 
+  const logoUrl = doc.logoUrl || null
+  const champName = doc.campeonatoNome || 'Campeonato'
+
   return (
     <div className={`rulebook-viewer ${compact ? 'compact' : ''}`}>
-      <header className="rulebook-viewer-header">
-        <div>
-          <p className="eyebrow">Regulamento</p>
-          <h3>{doc.title}</h3>
-          <small>{doc.subtitle} · {doc.articleCount} artigos</small>
+      <header className="rulebook-viewer-header no-print">
+        <div className="rulebook-viewer-title-row">
+          {logoUrl ? (
+            <img className="rulebook-logo-thumb" src={logoUrl} alt={`Logo ${champName}`} />
+          ) : null}
+          <div>
+            <p className="eyebrow">Regulamento</p>
+            <h3>{doc.title}</h3>
+            <small>
+              {doc.subtitle} · {doc.articleCount} artigos
+            </small>
+          </div>
         </div>
         <div className="rulebook-viewer-actions">
           <label className="rulebook-search">
@@ -86,45 +111,85 @@ export function RulebookViewer({ documento, compact }: Props) {
         </aside>
 
         <div className="rulebook-content" id="rulebook-print-root">
+          {/* Capa / cabeçalho oficial — visível na tela e no PDF */}
+          <header className="rulebook-doc-cover">
+            <div className="rulebook-doc-cover-brand">
+              {logoUrl ? (
+                <img className="rulebook-doc-logo" src={logoUrl} alt={`Logo ${champName}`} />
+              ) : (
+                <div className="rulebook-doc-logo-fallback" aria-hidden>
+                  <BookOpen size={36} />
+                </div>
+              )}
+              <div className="rulebook-doc-cover-text">
+                <p className="rulebook-doc-kicker">Regulamento oficial</p>
+                <h2 className="rulebook-doc-title">{champName}</h2>
+                <p className="rulebook-doc-subtitle">{doc.title}</p>
+                <p className="rulebook-doc-meta">
+                  {doc.subtitle}
+                  {doc.generatedAt ? ` · Atualizado em ${formatDatePt(doc.generatedAt)}` : ''}
+                  {doc.articleCount ? ` · ${doc.articleCount} artigos` : ''}
+                </p>
+              </div>
+            </div>
+            <ol className="rulebook-doc-toc-print">
+              {(doc.summary || []).map((item) => (
+                <li key={item.chapterId}>
+                  <span>{item.order}.</span> {item.title.replace(/^\d+\.\s*/, '')}
+                </li>
+              ))}
+            </ol>
+          </header>
+
           {filtered.map((ch) => (
             <section key={ch.id} id={`rb-ch-${ch.id}`} className="rulebook-chapter">
-              <h4>
-                <span>{ch.order}.</span> {ch.title}
+              <h4 className="rulebook-chapter-title">
+                <span className="rulebook-chapter-num">{ch.order}.</span>
+                <span className="rulebook-chapter-name">{ch.title}</span>
               </h4>
-              {ch.articles.map((art) => (
-                <article key={art.id} className="rulebook-article" id={`rb-art-${art.id}`}>
-                  <h5>
-                    <span className="art-num">{art.number}</span> {art.title}
-                  </h5>
-                  {art.body.split('\n').filter(Boolean).map((p, i) => (
-                    <p key={i}>{p}</p>
-                  ))}
-                  {art.penalty ? (
-                    <div className="rulebook-penalty">
-                      <strong>Penalidade</strong>
-                      {art.penalty.split('\n').map((p, i) => (
-                        <p key={i}>{p}</p>
-                      ))}
-                    </div>
-                  ) : null}
-                  {art.observations ? (
-                    <div className="rulebook-obs">
-                      <strong>Observações</strong>
-                      <p>{art.observations}</p>
-                    </div>
-                  ) : null}
-                  {art.notes ? (
-                    <div className="rulebook-notes">
-                      <small>{art.notes}</small>
-                    </div>
-                  ) : null}
-                </article>
-              ))}
+              <div className="rulebook-chapter-body">
+                {ch.articles.map((art) => (
+                  <article key={art.id} className="rulebook-article" id={`rb-art-${art.id}`}>
+                    <h5>
+                      <span className="art-num">{art.number}</span> {art.title}
+                    </h5>
+                    {art.body.split('\n').filter(Boolean).map((p, i) => (
+                      <p key={i}>{p}</p>
+                    ))}
+                    {art.penalty ? (
+                      <div className="rulebook-penalty">
+                        <strong>Penalidade</strong>
+                        {art.penalty.split('\n').map((p, i) => (
+                          <p key={i}>{p}</p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {art.observations ? (
+                      <div className="rulebook-obs">
+                        <strong>Observações</strong>
+                        <p>{art.observations}</p>
+                      </div>
+                    ) : null}
+                    {art.notes ? (
+                      <div className="rulebook-notes">
+                        <small>{art.notes}</small>
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
             </section>
           ))}
           {!filtered.length ? (
             <p className="empty">Nenhum resultado para “{query}”.</p>
           ) : null}
+
+          <footer className="rulebook-doc-footer">
+            <p>
+              Documento gerado pela plataforma DropZone para o campeonato <strong>{champName}</strong>.
+              A inscrição e a participação implicam aceitação integral deste regulamento.
+            </p>
+          </footer>
         </div>
       </div>
     </div>

@@ -70,6 +70,8 @@ export interface GeneratedDocument {
   title: string
   subtitle: string
   campeonatoNome: string
+  /** Logo do campeonato (URL pública) — prévia e PDF */
+  logoUrl?: string | null
   perfil: RulebookPerfil
   generatedAt: string
   catalogVersion: string
@@ -118,6 +120,7 @@ export interface RulebookApiResponse {
   catalog: {
     version: string
     perfis: Array<{ id: RulebookPerfil; label: string; description: string }>
+    chapterGroups?: Record<string, string>
   }
   meta?: {
     seedAplicado?: boolean

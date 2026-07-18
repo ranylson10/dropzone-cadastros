@@ -71,3 +71,12 @@ Alertas de **warning** podem ser confirmados explicitamente pelo organizador.
 ## Capítulos fixos (ordem)
 
 1 Disposições Gerais → 20 Disposições Finais (manager, coach, check-in, desconexões, remakes, recursos, premiação e imagem só entram se o módulo estiver ativo).
+
+## Catálogo 1.1.0+
+
+- **Etapa Regras agrupada por seção** (equipes, partidas, bugs/integridade, pontuação…).
+- **Módulo de bugs (estilo LBFF/BR):** exemplos configuráveis, penalidade 1ª/2ª ocorrência, obrigação de reportar.
+- **Pontuação com tabela explícita** (padrão BR 12/9/8… + kills e critérios de desempate).
+- **Código de conduta** nas disposições gerais.
+- **PDF / impressão:** capa com logo + nome do campeonato, sumário, quebra de página por capítulo, rodapé institucional.
+- `documento.logoUrl` vem de `campeonatos.logo_url` a cada regeneração.

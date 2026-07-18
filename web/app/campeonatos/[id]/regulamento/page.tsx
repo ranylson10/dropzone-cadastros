@@ -39,14 +39,21 @@ export default function RegulamentoPublicoPage() {
     }
   }, [id])
 
+  const logoUrl = documento?.logoUrl || null
+  const champName = documento?.campeonatoNome || 'Regulamento do campeonato'
+
   return (
     <main className="rulebook-public-page">
       <div className="rulebook-public-shell">
-        <header className="rulebook-public-hero">
-          <BookOpen size={28} />
+        <header className="rulebook-public-hero no-print">
+          {logoUrl ? (
+            <img className="rulebook-public-hero-logo" src={logoUrl} alt={`Logo ${champName}`} />
+          ) : (
+            <BookOpen size={28} />
+          )}
           <div>
             <p className="eyebrow">DropZone · Regulamento oficial</p>
-            <h1>Regulamento do campeonato</h1>
+            <h1>{champName}</h1>
             {meta.publicado_em ? (
               <small>
                 Publicado em {new Date(meta.publicado_em).toLocaleString('pt-BR')}

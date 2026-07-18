@@ -151,6 +151,8 @@ export interface GeneratedDocument {
   title: string
   subtitle: string
   campeonatoNome: string
+  /** Logo do campeonato (URL pública) — usada na prévia e no PDF */
+  logoUrl?: string | null
   perfil: RulebookPerfil
   generatedAt: string
   catalogVersion: string
