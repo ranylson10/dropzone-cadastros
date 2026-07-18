@@ -186,7 +186,10 @@ export type TableColumnDef = {
   /** @deprecated migrado para widthPx */
   widthPct?: number
   align?: 'left' | 'center' | 'right'
-  /** força render como imagem (logo/foto/…) */
+  /**
+   * @deprecated detecção de imagem é automática (campo logo/foto ou URL).
+   * Mantido só para overlays antigos.
+   */
   asImage?: boolean
   /** cor de fundo desta coluna (aplica em todas as linhas) */
   fill?: string
@@ -194,18 +197,13 @@ export type TableColumnDef = {
   textColor?: string
   /**
    * Espaço interno da célula (px) — distância do conteúdo até as bordas.
-   * Útil para logos: maior padding = logo menor; menor padding = logo maior.
+   * Vale para texto, logo e número. Menor margem = conteúdo maior.
    */
   paddingPx?: number
   /** padding horizontal (px); se omitido usa paddingPx */
   paddingX?: number
   /** padding vertical (px); se omitido usa paddingPx */
   paddingY?: number
-  /**
-   * Tamanho da imagem/logo na célula (px).
-   * Se omitido, preenche o espaço disponível após o padding.
-   */
-  imageSizePx?: number
   /** oculta o texto da legenda (header) só nesta coluna */
   hideHeader?: boolean
 }

@@ -413,13 +413,24 @@ function pickField(field: string, row: TableDataRow): string {
   return ''
 }
 
+function looksLikeImageUrl(raw: string) {
+  if (!raw) return false
+  if (/^https?:\/\//i.test(raw)) return /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(raw) || raw.includes('/images/') || raw.includes('storage')
+  if (raw.startsWith('/images/') || raw.startsWith('data:image')) return true
+  return false
+}
+
+/** Detecta imagem pelo campo da planilha ou pelo valor (URL). Sem seletor manual. */
 export function cellValue(
   field: string,
   row: TableDataRow,
   opts?: { asImage?: boolean },
 ): { kind: 'text' | 'image'; text?: string; src?: string } {
-  const asImage = opts?.asImage || IMAGE_FIELDS.has(field)
   const raw = pickField(field, row)
+  const asImage =
+    opts?.asImage === true
+    || IMAGE_FIELDS.has(field)
+    || looksLikeImageUrl(raw)
 
   if (asImage) {
     return { kind: 'image', src: raw || undefined }

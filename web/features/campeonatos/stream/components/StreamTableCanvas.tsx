@@ -170,7 +170,7 @@ export function StreamTableCanvas(props: {
               const val =
                 c.field === 'delta'
                   ? { kind: 'text' as const, text: deltaLabel(dataRow.delta) }
-                  : cellValue(c.field, dataRow, { asImage: c.asImage })
+                  : cellValue(c.field, dataRow)
               const padBase = Number(c.paddingPx)
               const padX = Math.max(
                 0,
@@ -188,16 +188,9 @@ export function StreamTableCanvas(props: {
                     ? padBase
                     : 4,
               )
+              // logo/imagem preenche o miolo da célula após a margem
               const colW = Math.max(1, Number(c.widthPx) || 48)
-              const availW = Math.max(8, colW - padX * 2)
-              const availH = Math.max(8, rh - padY * 2)
-              const autoImg = Math.max(8, Math.min(availW, availH))
-              const imgSize = Math.max(
-                8,
-                Number.isFinite(Number(c.imageSizePx)) && Number(c.imageSizePx) > 0
-                  ? Math.min(Number(c.imageSizePx), autoImg)
-                  : autoImg,
-              )
+              const imgBox = Math.max(8, Math.min(colW - padX * 2, rh - padY * 2))
               return (
                 <span
                   key={c.id}
@@ -226,8 +219,8 @@ export function StreamTableCanvas(props: {
                         src={val.src}
                         alt=""
                         style={{
-                          width: imgSize,
-                          height: imgSize,
+                          width: imgBox,
+                          height: imgBox,
                           maxWidth: '100%',
                           maxHeight: '100%',
                           objectFit: 'contain',
@@ -239,8 +232,8 @@ export function StreamTableCanvas(props: {
                     ) : (
                       <i
                         style={{
-                          width: imgSize,
-                          height: imgSize,
+                          width: imgBox,
+                          height: imgBox,
                           display: 'block',
                           flexShrink: 0,
                           background: 'rgba(255,255,255,.12)',
