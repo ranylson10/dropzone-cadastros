@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Eye,
   Loader2,
   Save,
   ShieldAlert,
@@ -188,7 +187,6 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
   const [draftInfracoes, setDraftInfracoes] = useState<InfracaoConfig[]>([])
   const [confirmacoes, setConfirmacoes] = useState<Record<string, boolean>>({})
   const [viewMode, setViewMode] = useState<'wizard' | 'document'>('wizard')
-  const [showPreview, setShowPreview] = useState(true)
   const [seedBanner, setSeedBanner] = useState<string[] | null>(null)
   const [highlightMissing, setHighlightMissing] = useState<Set<string>>(new Set())
   const [dirty, setDirty] = useState(false)
@@ -512,7 +510,6 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
 
   if (!data) return null
 
-  const showSidePreview = showPreview && viewMode === 'wizard' && etapa > 0
 
   return (
     <div className="rulebook-tab">
@@ -572,19 +569,10 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
           type="button"
           className={viewMode === 'document' ? 'active' : ''}
           onClick={() => setViewMode('document')}
+          title="Ver o regulamento completo (prévia final)"
         >
-          <BookOpen size={15} /> Documento
+          <BookOpen size={15} /> Prévia do documento
         </button>
-        {viewMode === 'wizard' && etapa > 0 ? (
-          <button
-            type="button"
-            className={showPreview ? 'active' : ''}
-            onClick={() => setShowPreview((v) => !v)}
-            title="Mostrar prévia ao vivo"
-          >
-            <Eye size={15} /> Prévia
-          </button>
-        ) : null}
       </div>
 
       {seedBanner?.length ? (
@@ -636,7 +624,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
             ))}
           </ol>
 
-          <div className={`rulebook-create-layout ${showSidePreview ? 'with-preview' : ''}`}>
+          <div className="rulebook-create-layout">
             <div className="rulebook-create-main">
               {etapa === 0 ? (
                 <section className="rulebook-profiles">
@@ -897,8 +885,8 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                 <section className="rulebook-review">
                   <h4>Revisão e publicação</h4>
                   <p className="muted">
-                    Confira alertas e o documento. Alertas bloqueantes precisam ser resolvidos antes de
-                    publicar.
+                    Confira os alertas e a prévia completa do regulamento. Alertas bloqueantes precisam
+                    ser resolvidos antes de publicar.
                   </p>
 
                   <div className="rulebook-alerts">
@@ -968,9 +956,16 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                     </div>
                   </div>
 
-                  {!showSidePreview ? (
-                    <RulebookViewer documento={data.rulebook.documento} compact />
-                  ) : null}
+                  <div className="rulebook-review-preview">
+                    <div className="rulebook-review-preview-head">
+                      <p className="eyebrow">Prévia do regulamento</p>
+                      <small>
+                        {(data.rulebook.documento as { articleCount?: number } | null)?.articleCount || 0}{' '}
+                        artigos · use PDF / Imprimir no documento
+                      </small>
+                    </div>
+                    <RulebookViewer documento={data.rulebook.documento} />
+                  </div>
                 </section>
               ) : null}
 
@@ -1032,20 +1027,6 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                 )}
               </footer>
             </div>
-
-            {showSidePreview ? (
-              <aside className="rulebook-live-preview">
-                <div className="rulebook-live-preview-head no-print">
-                  <p className="eyebrow">Prévia ao vivo</p>
-                  <small>
-                    {autoSaving ? 'Atualizando…' : `${(data.rulebook.documento as any)?.articleCount || 0} artigos`}
-                  </small>
-                </div>
-                <div className="rulebook-live-preview-body">
-                  <RulebookViewer documento={data.rulebook.documento} compact />
-                </div>
-              </aside>
-            ) : null}
           </div>
         </>
       )}

@@ -25,7 +25,7 @@ Análise de regulamentos reais de Free Fire / esports (estrutura e tipificaçõe
 
 - **Seed do campeonato:** na 1ª criação, respostas vêm pré-preenchidas de `tem_live`, premiação, taxa, plataforma, formato, titulares/reservas e tipo do campeonato (`rulebook.seed.ts`).
 - **Auto-save (~850ms):** ao responder, o backend regenera módulos + documento sem botão obrigatório.
-- **Prévia ao vivo:** painel lateral com o regulamento atualizado enquanto o organizador responde.
+- **Prévia no final:** o assistente foca só nas perguntas; a prévia completa aparece na etapa **Revisão** e no modo **Prévia do documento** (evita espremer formulário + regulamento).
 - **Validação por etapa:** “Continuar” bloqueia se houver obrigatórias vazias e destaca os cards.
 - **Barra de progresso:** obrigatórias respondidas / total + % da etapa atual.
 - **Alertas com “Corrigir”:** volta à etapa da pergunta pendente.
