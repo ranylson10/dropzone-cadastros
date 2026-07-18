@@ -6,14 +6,8 @@ import {
   listLocalOverlays,
   removeLocalOverlay,
 } from '../services/stream-data.service'
-import type { StreamOverlay, StreamOverlayKind } from '../types/stream.types'
-
-const KIND_LABEL: Record<StreamOverlayKind, string> = {
-  lower_third: 'Lower third',
-  scoreboard: 'Placar',
-  standings: 'Tabela',
-  custom: 'Custom',
-}
+import { TEMPLATE_LABEL } from '../templates/stream-templates'
+import type { StreamOverlay } from '../types/stream.types'
 
 function openInNewTab(path: string) {
   window.open(path, '_blank', 'noopener,noreferrer')
@@ -47,7 +41,7 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
         <div>
           <h4>Overlays</h4>
           <p className="stream-hint">
-            Lista no campeonato. Criar ou editar abre em outra aba (área de trabalho cheia).
+            Modelos com cards e tabelas. Criar/editar abre o gerador de caracteres em tela cheia.
           </p>
         </div>
         <div className="stream-panel-actions">
@@ -60,7 +54,7 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
       {overlays.length === 0 ? (
         <div className="stream-empty-list">
           <strong>Nenhuma overlay ainda</strong>
-          <p>Crie a primeira para definir campos e apontar células da planilha (ex.: Classificacao!B2).</p>
+          <p>Use um modelo: cards de mapas, tabela de classificação ou MVP + lista.</p>
         </div>
       ) : (
         <div className="stream-overlay-table-wrap">
@@ -68,8 +62,8 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
             <thead>
               <tr>
                 <th>Nome</th>
-                <th>Tipo</th>
-                <th>Campos</th>
+                <th>Modelo</th>
+                <th>Blocos</th>
                 <th>Atualizado</th>
                 <th />
               </tr>
@@ -78,8 +72,8 @@ export function StreamOverlaysHub(props: { campeonatoId: string }) {
               {overlays.map((item) => (
                 <tr key={item.id}>
                   <td><strong>{item.name}</strong></td>
-                  <td>{KIND_LABEL[item.kind] || item.kind}</td>
-                  <td>{item.fields?.length || 0}</td>
+                  <td>{TEMPLATE_LABEL[item.template] || item.template}</td>
+                  <td>{item.blocks?.length || 0}</td>
                   <td>{item.updatedAt ? new Date(item.updatedAt).toLocaleString('pt-BR') : '—'}</td>
                   <td className="stream-overlay-actions">
                     <button type="button" title="Editar" onClick={() => openInNewTab(`${base}/overlays/${item.id}`)}>

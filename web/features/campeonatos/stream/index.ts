@@ -4,10 +4,11 @@ export { StreamOverlayEditor } from './components/StreamOverlayEditor'
 export { StreamSpreadsheetPanel } from './components/StreamSpreadsheetPanel'
 export { StreamOverlaysHub } from './components/StreamOverlaysHub'
 export type {
+  StreamBlock,
   StreamInnerPanel,
   StreamOverlay,
-  StreamOverlayKind,
   StreamSheetColumn,
   StreamSheetId,
   StreamSheetRow,
+  StreamTemplateId,
 } from './types/stream.types'

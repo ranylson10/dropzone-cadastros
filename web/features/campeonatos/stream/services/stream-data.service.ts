@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase-browser'
-import type { StreamSheetId, StreamSheetRow } from '../types/stream.types'
+import type { StreamOverlay, StreamSheetId, StreamSheetRow } from '../types/stream.types'
+import { migrateOverlay } from '../utils/migrate-overlay'
 
 async function authFetch(url: string) {
   const { data } = await supabase.auth.getSession()
@@ -102,19 +103,20 @@ export async function loadStreamSheet(campeonatoId: string, sheetId: StreamSheet
 
 const OVERLAY_KEY = (campeonatoId: string) => `dropzone_stream_overlays_${campeonatoId}`
 
-export function listLocalOverlays(campeonatoId: string) {
-  if (typeof window === 'undefined') return [] as import('../types/stream.types').StreamOverlay[]
+export function listLocalOverlays(campeonatoId: string): StreamOverlay[] {
+  if (typeof window === 'undefined') return []
   try {
     const raw = localStorage.getItem(OVERLAY_KEY(campeonatoId))
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(migrateOverlay).filter(Boolean) as StreamOverlay[]
   } catch {
     return []
   }
 }
 
-export function saveLocalOverlays(campeonatoId: string, overlays: import('../types/stream.types').StreamOverlay[]) {
+export function saveLocalOverlays(campeonatoId: string, overlays: StreamOverlay[]) {
   if (typeof window === 'undefined') return
   localStorage.setItem(OVERLAY_KEY(campeonatoId), JSON.stringify(overlays))
 }
@@ -123,10 +125,7 @@ export function getLocalOverlay(campeonatoId: string, overlayId: string) {
   return listLocalOverlays(campeonatoId).find((item) => item.id === overlayId) || null
 }
 
-export function upsertLocalOverlay(
-  campeonatoId: string,
-  overlay: import('../types/stream.types').StreamOverlay,
-) {
+export function upsertLocalOverlay(campeonatoId: string, overlay: StreamOverlay) {
   const list = listLocalOverlays(campeonatoId)
   const index = list.findIndex((item) => item.id === overlay.id)
   if (index >= 0) list[index] = overlay

@@ -1,17 +1,8 @@
 /**
- * Tipos da aba Stream / workspace de produção.
+ * Stream / Character Generator — tipos de overlay, blocos e estilos.
  */
 
-export type StreamOverlayKind = 'lower_third' | 'scoreboard' | 'standings' | 'custom'
-
-export type StreamOverlay = {
-  id: string
-  name: string
-  kind: StreamOverlayKind
-  /** Campos da overlay e endereço da planilha (ex.: Classificacao!B2). */
-  fields: Array<{ key: string; label: string; cellRef: string }>
-  updatedAt: string
-}
+export type StreamSheetId = 'equipes' | 'jogadores' | 'classificacao'
 
 export type StreamSheetColumn = {
   key: string
@@ -24,18 +15,166 @@ export type StreamSheetRow = {
   cells: Record<string, string>
 }
 
-export type StreamSheetId = 'equipes' | 'jogadores' | 'classificacao'
-
 export type StreamSheetDefinition = {
   id: StreamSheetId
   title: string
-  /** Nome usado em bindings (ex.: Equipes!B2) */
   refName: string
   columns: StreamSheetColumn[]
   live: boolean
 }
 
 export type StreamInnerPanel = 'overlays' | 'planilha'
+
+/** Modelos de overlay (wizard). */
+export type StreamTemplateId = 'map_cards' | 'standings' | 'mvp_combo' | 'custom'
+
+export type FillMode = 'solid' | 'gradient' | 'image'
+
+export type FillStyle = {
+  mode: FillMode
+  color?: string
+  colorTo?: string
+  angle?: number
+  imageUrl?: string
+  fit?: 'cover' | 'contain'
+  overlayColor?: string
+  overlayOpacity?: number
+  opacity?: number
+}
+
+export type TextStyle = {
+  fontFamily: string
+  fontWeight: number
+  fontSize: number
+  color: string
+  align?: 'left' | 'center' | 'right'
+  uppercase?: boolean
+  letterSpacing?: number
+  textShadow?: string
+}
+
+export type BoxStyle = {
+  fill?: FillStyle
+  borderColor?: string
+  borderWidth?: number
+  borderRadius?: number
+  skewX?: number
+  skewY?: number
+  rotate?: number
+  opacity?: number
+  padding?: number
+}
+
+export type FieldStyle = {
+  text?: TextStyle
+  box?: BoxStyle
+}
+
+export type EnterTransition = 'none' | 'fade' | 'slide-up' | 'slide-left' | 'scale' | 'stagger'
+export type DataTransition = 'none' | 'fade' | 'tick' | 'pulse' | 'rank-move'
+
+export type TransitionStyle = {
+  enter: EnterTransition
+  onDataChange: DataTransition
+  durationMs: number
+  delayMs: number
+}
+
+export type MetricKey = 'pts' | 'abates' | 'booyah' | 'kd' | 'quedas'
+export type TableColumnKey = 'pos' | 'logo' | 'nome' | 'booyah' | 'abates' | 'pts' | 'delta' | 'quedas' | 'kd'
+
+export type CardFieldKey = 'title' | 'subtitle' | 'metric_primary' | 'metric_secondary' | 'metric_tertiary'
+
+export type CardBlockData = {
+  variant: 'map_result' | 'mvp_hero' | 'team'
+  /** 1-based map/queda slot for map cards */
+  mapSlot?: number
+  rank?: number
+  titleFixed?: string
+  metrics: MetricKey[]
+  fieldStyles: Partial<Record<CardFieldKey, FieldStyle>>
+}
+
+export type TableBlockData = {
+  variant: 'standings' | 'mvp_list'
+  source: 'classificacao' | 'mvp' | 'equipes'
+  rows: number
+  startRank: number
+  columns: TableColumnKey[]
+  headerStyle?: FieldStyle
+  rowStyle?: FieldStyle
+  altRowFill?: string
+  highlightFirst?: boolean
+}
+
+export type StreamBlockBase = {
+  id: string
+  name: string
+  box: BoxStyle
+  transition: TransitionStyle
+}
+
+export type StreamCardBlock = StreamBlockBase & {
+  type: 'card'
+  data: CardBlockData
+}
+
+export type StreamTableBlock = StreamBlockBase & {
+  type: 'table'
+  data: TableBlockData
+}
+
+export type StreamBlock = StreamCardBlock | StreamTableBlock
+
+export type StreamOverlay = {
+  id: string
+  name: string
+  template: StreamTemplateId
+  blocks: StreamBlock[]
+  updatedAt: string
+  /** legado — migrado para blocks */
+  kind?: string
+  fields?: Array<{ key: string; label: string; cellRef: string }>
+}
+
+export const STREAM_FONTS = [
+  'Rajdhani',
+  'Segoe UI',
+  'Arial Black',
+  'Impact',
+  'Inter',
+  'Roboto',
+  'Oswald',
+] as const
+
+export const DEFAULT_TEXT: TextStyle = {
+  fontFamily: 'Rajdhani',
+  fontWeight: 800,
+  fontSize: 18,
+  color: '#ffffff',
+  align: 'center',
+  uppercase: true,
+  letterSpacing: 0.04,
+}
+
+export const DEFAULT_BOX: BoxStyle = {
+  fill: { mode: 'solid', color: '#1a1d24', opacity: 1 },
+  borderColor: '#c9a227',
+  borderWidth: 2,
+  borderRadius: 8,
+  skewX: 0,
+  skewY: 0,
+  rotate: 0,
+  opacity: 1,
+  padding: 10,
+}
+
+export const DEFAULT_TRANSITION: TransitionStyle = {
+  enter: 'fade',
+  onDataChange: 'pulse',
+  durationMs: 400,
+  delayMs: 0,
+}
 
 export const STREAM_SHEETS: StreamSheetDefinition[] = [
   {
@@ -84,4 +223,9 @@ export const STREAM_SHEETS: StreamSheetDefinition[] = [
 
 export function colLetterToIndex(letter: string) {
   return letter.toUpperCase().charCodeAt(0) - 65
+}
+
+export function newBlockId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  return `blk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
