@@ -483,20 +483,41 @@
   box-sizing: border-box;
 }
 
-/* —— GT-style editor: canvas centro + painel direito —— */
+/* —— GT-style editor: ferramentas | canvas 16:9 | camadas —— */
 .stream-gt-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   gap: 0;
   min-height: calc(100vh - 88px);
   border: 1px solid var(--line);
   background: var(--surface);
 }
 
+/* 3 colunas: esquerda ferramentas · centro área final · direita camadas */
+.stream-gt-layout.stream-gt-layout-3 {
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(260px, 320px);
+}
+
+.stream-gt-left {
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  max-height: calc(100vh - 88px);
+  overflow: auto;
+  align-content: start;
+}
+
+.stream-gt-tool-section {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+
 .stream-gt-stage {
   position: relative;
   overflow: hidden;
-  background: #0a0c10;
+  background: #12141a;
   min-height: calc(100vh - 88px);
   cursor: default;
   touch-action: none;
@@ -512,9 +533,10 @@
   gap: 6px;
   padding: 6px 8px;
   border: 1px solid rgba(255,255,255,.12);
-  background: rgba(18, 20, 28, .88);
+  background: rgba(18, 20, 28, .92);
   color: #fff;
   font-size: 11px;
+  border-radius: 2px;
 }
 
 .stream-gt-zoombar button {
@@ -528,42 +550,136 @@
   cursor: pointer;
 }
 
-.stream-gt-world {
-  min-height: 100%;
-  min-width: 100%;
+.stream-gt-zoombar button:hover {
+  background: rgba(255,255,255,.08);
+}
+
+.stream-gt-zoombar .stream-hint {
+  color: rgba(255,255,255,.55);
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Área que recebe pan/zoom e centraliza o frame */
+.stream-gt-stage-inner {
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 88px);
   display: grid;
   place-items: center;
-  padding: 48px 24px 24px;
+  overflow: hidden;
+}
+
+.stream-gt-world {
+  display: grid;
+  place-items: center;
+  will-change: transform;
+}
+
+/*
+ * Frame do produto final — proporção 16:9 fixa.
+ * Zoom/pan no world; o conteúdo “vivo” nunca sai dessa caixa no output.
+ */
+.stream-gt-frame {
+  position: relative;
+  width: 1280px;
+  height: 720px; /* 16:9 */
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 24px 64px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.stream-gt-frame-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(20, 22, 28, 0.7);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+.stream-gt-folder-children {
+  padding: 6px 6px 8px 10px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 6px;
+  background: var(--surface);
+}
+
+.stream-gt-block-tree > li > .stream-gt-folder-row {
+  font-weight: 700;
+}
+
+.stream-gt-folder-children .stream-gt-layer-list {
+  margin-left: 4px;
+  border-left: 2px solid var(--line);
+  padding-left: 6px;
+}
+
+/* Fundo quadriculado = transparência (estilo Photoshop / After Effects) */
+.stream-gt-checker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #c8c8c8;
+  background-image:
+    linear-gradient(45deg, #a8a8a8 25%, transparent 25%),
+    linear-gradient(-45deg, #a8a8a8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #a8a8a8 75%),
+    linear-gradient(-45deg, transparent 75%, #a8a8a8 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  overflow: hidden;
 }
 
 .stream-gt-blocks {
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 16px;
+  align-content: flex-start;
   align-items: flex-start;
-  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
 }
 
 .stream-gt-block {
   position: relative;
   cursor: pointer;
   outline: 2px solid transparent;
-  outline-offset: 4px;
+  outline-offset: 3px;
+  max-width: 100%;
 }
 
 .stream-gt-block.is-selected {
   outline-color: #dfbf4a;
+  z-index: 2;
 }
 
 .stream-gt-block-label {
   position: absolute;
-  top: -22px;
+  top: -18px;
   left: 0;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: #9aa3b2;
+  color: rgba(20, 22, 28, 0.75);
+  text-shadow: 0 0 4px rgba(255,255,255,.8);
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .stream-gt-table-block {
@@ -572,9 +688,26 @@
 }
 
 .stream-gt-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
   text-align: center;
-  color: #9aa3b2;
+  color: #3a3a3a;
   padding: 48px;
+  pointer-events: none;
+}
+
+.stream-gt-empty p {
+  margin: 0 0 6px;
+  font-weight: 800;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.stream-gt-empty .stream-hint {
+  color: #555;
 }
 
 .stream-gt-right {
@@ -582,6 +715,7 @@
   border-radius: 0;
   max-height: calc(100vh - 88px);
   overflow: auto;
+  align-content: start;
 }
 
 .stream-gt-add {
@@ -601,6 +735,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.stream-gt-layer-head strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .stream-gt-layer-list {
@@ -738,8 +878,22 @@
 }
 
 @media (max-width: 1100px) {
-  .stream-gt-layout {
+  .stream-gt-layout,
+  .stream-gt-layout.stream-gt-layout-3 {
     grid-template-columns: 1fr;
+  }
+  .stream-gt-left,
+  .stream-gt-right {
+    max-height: none;
+    border-left: 0;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+  .stream-gt-stage {
+    min-height: 56vh;
+  }
+  .stream-gt-stage-inner {
+    min-height: 56vh;
   }
   .stream-cg-layout {
     grid-template-columns: 1fr;
