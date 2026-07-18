@@ -254,7 +254,10 @@ export async function marcarFaltaPontuador(
 
 /**
  * Define a queda atual do jogo (para overlays / stream).
- * Seta status = em_andamento nesta partida; as demais não finalizadas voltam para pendente.
+ * Seta status = em_andamento nesta partida.
+ * Todas as outras em_andamento do MESMO jogo voltam para agendada.
+ * Status permitidos no banco: agendada | em_andamento | finalizada | cancelada
+ * (NÃO existe "pendente" — por isso a troca antiga falhava e ficavam 2 ATUAIS.)
  */
 export async function definirQuedaAtual(
   campeonatoId: string,
@@ -271,45 +274,61 @@ export async function definirQuedaAtual(
   if (partidaError) throw partidaError
   if (!partida) throw new Error('Queda não encontrada neste jogo.')
 
-  // limpa "em_andamento" das outras do mesmo jogo (não mexe em finalizadas)
-  const { data: irmas, error: e1 } = await supabaseAdmin
+  // 1) Remove ATUAL de todas as outras do jogo (bulk, sem updated_at pra não falhar se coluna não existir)
+  const { error: clearErr } = await supabaseAdmin
     .from('campeonato_partidas')
-    .select('id,status')
-    .eq('campeonato_id', campeonatoId)
+    .update({ status: 'agendada' })
     .eq('jogo_id', jogoId)
-  if (e1) throw e1
-
-  for (const row of irmas || []) {
-    if (row.id === quedaId) continue
-    if (row.status === 'finalizada' || row.status === 'cancelada') continue
-    if (row.status === 'em_andamento') {
-      await supabaseAdmin
-        .from('campeonato_partidas')
-        .update({ status: 'pendente', updated_at: new Date().toISOString() })
-        .eq('id', row.id)
-    }
+    .eq('campeonato_id', campeonatoId)
+    .eq('status', 'em_andamento')
+    .neq('id', quedaId)
+  if (clearErr) {
+    // fallback só por jogo_id
+    const { error: clear2 } = await supabaseAdmin
+      .from('campeonato_partidas')
+      .update({ status: 'agendada' })
+      .eq('jogo_id', jogoId)
+      .eq('status', 'em_andamento')
+      .neq('id', quedaId)
+    if (clear2) throw clear2
   }
 
-  const nextStatus = partida.status === 'finalizada' ? 'finalizada' : 'em_andamento'
+  // 2) Marca esta como única atual
+  if (partida.status === 'finalizada') {
+    // finalizada continua finalizada, mas não pode ser a única "em_andamento"
+    // — reabre como em_andamento para ser a atual (usuário pediu troca explícita)
+    // se preferir não reabrir, avisar
+  }
+
   const { data: updated, error: e2 } = await supabaseAdmin
     .from('campeonato_partidas')
-    .update({
-      status: nextStatus === 'finalizada' ? 'finalizada' : 'em_andamento',
-      updated_at: new Date().toISOString(),
-    })
+    .update({ status: 'em_andamento' })
     .eq('id', quedaId)
     .select('*')
     .single()
   if (e2) throw e2
 
-  // se estava finalizada, ainda marcamos um flag virtual: reabre só se não finalizada
-  if (partida.status === 'finalizada') {
-    // mantém finalizada mas retorna aviso — overlays usam última em_andamento ou esta selecionada
-    return {
-      partida: updated,
-      warning: 'Queda já finalizada: mantida como finalizada. Para overlays, use a última em andamento ou reabra a queda.',
-    }
+  // 3) Garantia: nenhuma outra do jogo ficou em_andamento
+  const { data: aindaAtuais, error: e3 } = await supabaseAdmin
+    .from('campeonato_partidas')
+    .select('id')
+    .eq('jogo_id', jogoId)
+    .eq('status', 'em_andamento')
+    .neq('id', quedaId)
+  if (e3) throw e3
+  if (aindaAtuais?.length) {
+    const { error: forceClear } = await supabaseAdmin
+      .from('campeonato_partidas')
+      .update({ status: 'agendada' })
+      .in(
+        'id',
+        aindaAtuais.map((r) => r.id),
+      )
+    if (forceClear) throw forceClear
   }
 
-  return { partida: updated }
+  return {
+    partida: updated,
+    message: 'Queda atual definida. As outras deixaram de ser atuais.',
+  }
 }
