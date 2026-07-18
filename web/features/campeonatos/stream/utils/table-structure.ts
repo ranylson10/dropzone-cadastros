@@ -1,5 +1,10 @@
 import {
+  getSheetDef,
   newLayerId,
+  resolveSheetId,
+  STREAM_SHEETS,
+  type StreamSheetId,
+  type StreamSheetRow,
   type StreamTableBlock,
   type TableBlockData,
   type TableColumnDef,
@@ -7,26 +12,64 @@ import {
   type TableRowItem,
 } from '../types/stream.types'
 
-const DEFAULT_FIELDS: TableColumnKey[] = ['pos', 'logo', 'nome', 'booyah', 'abates', 'pts', 'delta']
+const DEFAULT_FIELDS: string[] = ['pos', 'logo', 'nome', 'booyahs', 'abates', 'pontos', 'delta']
 
 const FIELD_LABELS: Record<string, string> = {
   pos: '#',
   logo: 'Logo',
   nome: 'Nome',
   booyah: 'B!',
+  booyahs: 'B!',
   abates: 'Abates',
   pts: 'Pts',
+  pontos: 'Pts',
   delta: 'Δ',
   quedas: 'Quedas',
   kd: 'K.D',
+  nick: 'Nick',
+  foto: 'Foto',
   custom: 'Custom',
 }
 
-export function fieldLabel(field: string) {
-  return FIELD_LABELS[field] || field.toUpperCase()
+/** Aliases de campo legado → chaves da planilha / preview. */
+const FIELD_ALIASES: Record<string, string[]> = {
+  pts: ['pts', 'pontos'],
+  pontos: ['pontos', 'pts'],
+  booyah: ['booyah', 'booyahs'],
+  booyahs: ['booyahs', 'booyah'],
+  nome: ['nome', 'nick', 'line', 'eq_nome'],
+  logo: ['logo', 'foto', 'eq_logo'],
+  foto: ['foto', 'logo'],
+  nick: ['nick', 'nome'],
+  pos: ['pos', 'colocacao'],
+  delta: ['delta'],
+  abates: ['abates', 'eq_abates', 'pl_abates'],
+  quedas: ['quedas'],
+  kd: ['kd', 'pl_kd'],
 }
 
-export function defaultColumnDefs(fields?: TableColumnKey[]): TableColumnDef[] {
+const IMAGE_FIELDS = new Set([
+  'logo',
+  'foto',
+  'imagem',
+  'mapa_img',
+  'booyah_logo',
+  'eq_logo',
+])
+
+export function fieldLabel(field: string) {
+  if (FIELD_LABELS[field]) return FIELD_LABELS[field]
+  const sheetCol = STREAM_SHEETS.flatMap((s) => s.columns).find((c) => c.key === field)
+  if (sheetCol) return sheetCol.label
+  return field.toUpperCase()
+}
+
+export function tableSourceId(source: string | undefined): StreamSheetId {
+  const raw = (source || 'equipes_geral') as StreamSheetId
+  return resolveSheetId(raw)
+}
+
+export function defaultColumnDefs(fields?: string[]): TableColumnDef[] {
   const list = fields?.length ? fields : DEFAULT_FIELDS
   const even = Math.floor(100 / list.length)
   let used = 0
@@ -39,13 +82,34 @@ export function defaultColumnDefs(fields?: TableColumnKey[]): TableColumnDef[] {
       field,
       label: fieldLabel(field),
       widthPct,
-      align: field === 'nome' ? 'left' : 'center',
+      align: field === 'nome' || field === 'nick' ? 'left' : 'center',
+      asImage: IMAGE_FIELDS.has(field),
+    }
+  })
+}
+
+/** Colunas sugeridas a partir da aba da planilha. */
+export function columnDefsFromSheet(sheetId: StreamSheetId, maxCols = 7): TableColumnDef[] {
+  const def = getSheetDef(sheetId)
+  const preferred =
+    sheetId === 'mvp'
+      ? ['pos', 'logo', 'nick', 'quedas', 'kd', 'abates', 'delta']
+      : sheetId.startsWith('equipes') || sheetId === 'classificacao'
+        ? ['pos', 'logo', 'nome', 'booyahs', 'abates', 'pontos', 'delta']
+        : def.columns.slice(0, maxCols).map((c) => c.key)
+  const keys = preferred.filter((k) => def.columns.some((c) => c.key === k))
+  const list = keys.length ? keys : def.columns.slice(0, maxCols).map((c) => c.key)
+  return defaultColumnDefs(list).map((col) => {
+    const sheetCol = def.columns.find((c) => c.key === col.field)
+    return {
+      ...col,
+      label: sheetCol?.label || col.label,
+      asImage: Boolean(sheetCol?.image || IMAGE_FIELDS.has(col.field)),
     }
   })
 }
 
 export function defaultRowItems(count: number, _startRank = 1): TableRowItem[] {
-  // Etapa 1: tabela nasce com 1 linha (item); depois o usuário multiplica/configura.
   const n = Math.max(1, Math.min(40, count || 1))
   return Array.from({ length: n }, (_, i) => ({
     id: newLayerId(),
@@ -55,7 +119,6 @@ export function defaultRowItems(count: number, _startRank = 1): TableRowItem[] {
   }))
 }
 
-/** Cria a linha-modelo inicial (um item, como camada do bloco). */
 export function createSeedRowItem(name = 'Linha 1'): TableRowItem {
   return {
     id: newLayerId(),
@@ -69,10 +132,11 @@ export function createSeedRowItem(name = 'Linha 1'): TableRowItem {
 export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock {
   if (block.type !== 'table') return block
   const data = block.data || ({} as TableBlockData)
+  const source = tableSourceId(data.source)
   const columnDefs =
     Array.isArray(data.columnDefs) && data.columnDefs.length
       ? normalizeWidths(data.columnDefs)
-      : defaultColumnDefs(data.columns)
+      : defaultColumnDefs((data.columns as string[]) || undefined)
 
   const rowItems =
     Array.isArray(data.rowItems) && data.rowItems.length
@@ -84,7 +148,9 @@ export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock 
     tableW: block.tableW || 480,
     data: {
       ...data,
-      columns: columnDefs.map((c) => (c.field === 'custom' ? 'nome' : c.field)) as TableColumnKey[],
+      source,
+      variant: source === 'mvp' ? 'mvp_list' : data.variant || 'standings',
+      columns: columnDefs.map((c) => c.field) as TableColumnKey[],
       rows: rowItems.length,
       columnDefs,
       rowItems,
@@ -107,7 +173,6 @@ export function normalizeWidths(cols: TableColumnDef[]): TableColumnDef[] {
     }))
   }
   if (Math.abs(sum - 100) < 0.5) return cols.map((c) => ({ ...c, widthPct: Number(c.widthPct) || 1 }))
-  // reescala para 100
   let used = 0
   return cols.map((c, i) => {
     const isLast = i === cols.length - 1
@@ -117,11 +182,23 @@ export function normalizeWidths(cols: TableColumnDef[]): TableColumnDef[] {
   })
 }
 
+export function setTableSheetSource(data: TableBlockData, sheetId: StreamSheetId): TableBlockData {
+  const source = resolveSheetId(sheetId)
+  const nextCols = columnDefsFromSheet(source)
+  return {
+    ...data,
+    source,
+    variant: source === 'mvp' ? 'mvp_list' : 'standings',
+    columnDefs: nextCols,
+    columns: nextCols.map((c) => c.field) as TableColumnKey[],
+  }
+}
+
 export function addTableRow(data: TableBlockData): TableBlockData {
   const columnDefs =
     Array.isArray(data.columnDefs) && data.columnDefs.length
       ? data.columnDefs
-      : defaultColumnDefs(data.columns)
+      : defaultColumnDefs((data.columns as string[]) || undefined)
   const items = [
     ...((Array.isArray(data.rowItems) && data.rowItems.length
       ? data.rowItems
@@ -161,7 +238,6 @@ export function updateTableRow(
   }
 }
 
-/** Reordena linhas (itens) e renumera dataIndex. */
 export function reorderTableRows(
   data: TableBlockData,
   fromIndex: number,
@@ -181,19 +257,22 @@ export function reorderTableRows(
   return { ...data, rowItems, rows: rowItems.length }
 }
 
-export function addTableColumn(data: TableBlockData, field: TableColumnKey = 'nome'): TableBlockData {
-  const cols = [...(data.columnDefs || defaultColumnDefs(data.columns))]
+export function addTableColumn(data: TableBlockData, field: string = 'nome'): TableBlockData {
+  const cols = [...(data.columnDefs || defaultColumnDefs((data.columns as string[]) || undefined))]
+  const def = getSheetDef(tableSourceId(data.source))
+  const sheetCol = def.columns.find((c) => c.key === field)
   cols.push({
     id: newLayerId(),
     field,
-    label: fieldLabel(field),
+    label: sheetCol?.label || fieldLabel(field),
     widthPct: 12,
-    align: field === 'nome' ? 'left' : 'center',
+    align: field === 'nome' || field === 'nick' ? 'left' : 'center',
+    asImage: Boolean(sheetCol?.image || IMAGE_FIELDS.has(field)),
   })
   return {
     ...data,
     columnDefs: normalizeWidths(cols),
-    columns: cols.map((c) => (c.field === 'custom' ? 'nome' : c.field)) as TableColumnKey[],
+    columns: cols.map((c) => c.field) as TableColumnKey[],
   }
 }
 
@@ -203,7 +282,7 @@ export function removeTableColumn(data: TableBlockData, colId: string): TableBlo
   return {
     ...data,
     columnDefs: normalizeWidths(cols),
-    columns: cols.map((c) => (c.field === 'custom' ? 'nome' : c.field)) as TableColumnKey[],
+    columns: cols.map((c) => c.field) as TableColumnKey[],
   }
 }
 
@@ -212,12 +291,22 @@ export function updateTableColumn(
   colId: string,
   patch: Partial<TableColumnDef>,
 ): TableBlockData {
-  const cols = (data.columnDefs || []).map((c) => (c.id === colId ? { ...c, ...patch } : c))
+  const cols = (data.columnDefs || []).map((c) => {
+    if (c.id !== colId) return c
+    const next = { ...c, ...patch }
+    if (patch.field != null) {
+      const def = getSheetDef(tableSourceId(data.source))
+      const sheetCol = def.columns.find((sc) => sc.key === patch.field)
+      if (sheetCol && patch.label == null) next.label = sheetCol.label
+      if (sheetCol && patch.asImage == null) next.asImage = Boolean(sheetCol.image)
+    }
+    return next
+  })
   const normalized = patch.widthPct != null ? normalizeWidths(cols) : cols
   return {
     ...data,
     columnDefs: normalized,
-    columns: normalized.map((c) => (c.field === 'custom' ? 'nome' : c.field)) as TableColumnKey[],
+    columns: normalized.map((c) => c.field) as TableColumnKey[],
   }
 }
 
@@ -225,28 +314,68 @@ export function gridTemplateFromColumns(cols: TableColumnDef[]): string {
   return cols.map((c) => `minmax(0, ${Math.max(1, c.widthPct)}fr)`).join(' ')
 }
 
+export type TableDataRow = Record<string, string | number | null | undefined>
+
+function pickField(field: string, row: TableDataRow): string {
+  const keys = FIELD_ALIASES[field] || [field]
+  for (const k of keys) {
+    const v = row[k]
+    if (v != null && String(v) !== '') return String(v)
+  }
+  const direct = row[field]
+  if (direct != null) return String(direct)
+  return ''
+}
+
 export function cellValue(
   field: string,
-  row: {
-    pos?: number | string
-    nome?: string
-    logo?: string | null
-    booyah?: number | string
-    abates?: number | string
-    pts?: number | string
-    delta?: number | string
-    quedas?: number | string
-    kd?: string
-  },
+  row: TableDataRow,
+  opts?: { asImage?: boolean },
 ): { kind: 'text' | 'image'; text?: string; src?: string } {
-  if (field === 'pos') return { kind: 'text', text: String(row.pos ?? '').padStart(2, '0') }
-  if (field === 'logo') return { kind: 'image', src: row.logo || undefined }
-  if (field === 'nome') return { kind: 'text', text: String(row.nome ?? '—') }
-  if (field === 'booyah') return { kind: 'text', text: String(row.booyah ?? 0) }
-  if (field === 'abates') return { kind: 'text', text: String(row.abates ?? 0) }
-  if (field === 'pts') return { kind: 'text', text: String(row.pts ?? 0) }
-  if (field === 'delta') return { kind: 'text', text: String(row.delta ?? '0') }
-  if (field === 'quedas') return { kind: 'text', text: String(row.quedas ?? 0) }
-  if (field === 'kd') return { kind: 'text', text: String(row.kd ?? '0') }
-  return { kind: 'text', text: '' }
+  const asImage = opts?.asImage || IMAGE_FIELDS.has(field)
+  const raw = pickField(field, row)
+
+  if (asImage) {
+    return { kind: 'image', src: raw || undefined }
+  }
+  if (field === 'pos') {
+    const n = raw || String(row.pos ?? '')
+    return { kind: 'text', text: String(n).padStart(2, '0') }
+  }
+  if (field === 'delta') {
+    return { kind: 'text', text: raw || '0' }
+  }
+  return { kind: 'text', text: raw || (field === 'nome' || field === 'nick' ? '—' : '0') }
+}
+
+/** Linhas da planilha selecionada → objetos de célula para o canvas. */
+export function sheetRowsToDataRows(rows: StreamSheetRow[] | undefined): TableDataRow[] {
+  if (!rows?.length) return []
+  return rows.map((r) => ({ ...r.cells }))
+}
+
+export function standingToDataRow(s: {
+  pos?: number | string
+  nome?: string
+  logo?: string | null
+  booyah?: number | string
+  abates?: number | string
+  pts?: number | string
+  delta?: number | string
+  quedas?: number | string
+  kd?: string
+}): TableDataRow {
+  return {
+    pos: s.pos,
+    nome: s.nome,
+    logo: s.logo,
+    booyah: s.booyah,
+    booyahs: s.booyah,
+    abates: s.abates,
+    pts: s.pts,
+    pontos: s.pts,
+    delta: s.delta,
+    quedas: s.quedas,
+    kd: s.kd,
+  }
 }

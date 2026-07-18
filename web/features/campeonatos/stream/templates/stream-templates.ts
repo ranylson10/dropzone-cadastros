@@ -67,13 +67,13 @@ function standingsTable(rows = 1, startRank = 1, name = 'Classificação'): Stre
     transition: { ...DEFAULT_TRANSITION, enter: 'slide-up', onDataChange: 'rank-move' },
     data: {
       variant: startRank > 1 ? 'mvp_list' : 'standings',
-      source: startRank > 1 ? 'mvp' : 'classificacao',
+      source: startRank > 1 ? 'mvp' : 'equipes_geral',
       rows: 1,
       startRank,
       columns:
         startRank > 1
-          ? ['pos', 'logo', 'nome', 'quedas', 'kd', 'abates', 'delta']
-          : ['pos', 'logo', 'nome', 'booyah', 'abates', 'pts', 'delta'],
+          ? ['pos', 'logo', 'nick', 'quedas', 'kd', 'abates', 'delta']
+          : ['pos', 'logo', 'nome', 'booyahs', 'abates', 'pontos', 'delta'],
       rowHeight: 36,
       rowGap: 0,
       headerHeight: 32,

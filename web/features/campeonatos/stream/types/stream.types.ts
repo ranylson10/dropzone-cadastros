@@ -168,11 +168,17 @@ export type StreamLayer = {
 /** Coluna da tabela (parte da linha) — largura em % da tabela. */
 export type TableColumnDef = {
   id: string
-  field: TableColumnKey | 'custom'
+  /**
+   * Vínculo com a planilha: chave da coluna (ex: pos, nome, pontos, abates).
+   * Aceita também chaves legadas (pts, booyah) — resolvidas no render.
+   */
+  field: string
   label: string
   /** 0–100, relativo à largura da tabela */
   widthPct: number
   align?: 'left' | 'center' | 'right'
+  /** força render como imagem (logo/foto/…) */
+  asImage?: boolean
 }
 
 /**
@@ -191,13 +197,17 @@ export type TableRowItem = {
 
 export type TableBlockData = {
   variant: 'standings' | 'mvp_list'
-  source: 'classificacao' | 'mvp' | 'equipes' | 'equipes_geral'
+  /**
+   * Planilha / aba de dados (STREAM_SHEETS).
+   * Legado: classificacao | equipes → equipes_geral.
+   */
+  source: StreamSheetId
   /** legado: qtd de linhas se rowItems vazio */
   rows: number
   startRank: number
   /** legado: lista simples de campos; preferir columnDefs */
-  columns: TableColumnKey[]
-  /** colunas com largura / rótulo */
+  columns: TableColumnKey[] | string[]
+  /** colunas com largura / rótulo / vínculo */
   columnDefs?: TableColumnDef[]
   /** linhas como itens editáveis */
   rowItems?: TableRowItem[]

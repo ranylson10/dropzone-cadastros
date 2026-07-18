@@ -69,10 +69,10 @@ export function migrateOverlay(raw: any): StreamOverlay | null {
               transition: { enter: 'fade', onDataChange: 'pulse', durationMs: 400, delayMs: 0 },
               data: {
                 variant: 'standings',
-                source: 'classificacao',
+                source: 'equipes_geral',
                 rows: 1,
                 startRank: 1,
-                columns: ['pos', 'nome', 'pts', 'abates'],
+                columns: ['pos', 'nome', 'pontos', 'abates'],
               },
             },
           ],
