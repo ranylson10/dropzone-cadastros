@@ -107,10 +107,14 @@ export type FieldStyle = {
 }
 
 export type EnterTransition = 'none' | 'fade' | 'slide-up' | 'slide-left' | 'scale' | 'stagger'
+/** Saída (espelha entrada; slide inverte direção). */
+export type ExitTransition = 'none' | 'fade' | 'slide-up' | 'slide-left' | 'scale'
 export type DataTransition = 'none' | 'fade' | 'tick' | 'pulse' | 'rank-move'
 
 export type TransitionStyle = {
   enter: EnterTransition
+  /** Animação ao remover / esconder o bloco (preview e live). */
+  exit?: ExitTransition
   onDataChange: DataTransition
   durationMs: number
   delayMs: number
@@ -261,6 +265,20 @@ export type TableBlockData = {
   rowHeight?: number
   rowGap?: number
   headerHeight?: number
+  /**
+   * Divide a tabela em painéis lado a lado (ex.: 2 = top 1–6 | top 7–12).
+   * 1 ou omitido = tabela única.
+   */
+  splitPanels?: number
+  /** Espaçamento horizontal entre painéis (px). */
+  splitGapPx?: number
+  /**
+   * Quantas linhas por painel. Se omitido, divide `rows` igualmente
+   * (ceil(rows / splitPanels)).
+   */
+  rowsPerPanel?: number
+  /** Repetir legenda em cada painel (default true). */
+  splitRepeatHeader?: boolean
 }
 
 export type StreamBlockBase = {
@@ -426,6 +444,7 @@ export const DEFAULT_BOX: BoxStyle = {
 
 export const DEFAULT_TRANSITION: TransitionStyle = {
   enter: 'fade',
+  exit: 'fade',
   onDataChange: 'pulse',
   durationMs: 400,
   delayMs: 0,

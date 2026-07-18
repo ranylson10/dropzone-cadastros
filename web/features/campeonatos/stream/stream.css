@@ -2564,21 +2564,65 @@ body.stream-editor-scroll-lock {
 .stream-enter-scale { animation-name: stream-scale-in; }
 .stream-enter-stagger { animation-name: stream-fade-in; }
 
+/* Exit transitions (preview / hide) */
+.stream-exit-fade { animation-name: stream-fade-out; }
+.stream-exit-slide-up { animation-name: stream-slide-down-out; }
+.stream-exit-slide-left { animation-name: stream-slide-right-out; }
+.stream-exit-scale { animation-name: stream-scale-out; }
+
 @keyframes stream-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+@keyframes stream-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 @keyframes stream-slide-up {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes stream-slide-down-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(16px); }
+}
 @keyframes stream-slide-left {
   from { opacity: 0; transform: translateX(18px); }
   to { opacity: 1; transform: translateX(0); }
 }
+@keyframes stream-slide-right-out {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(18px); }
+}
 @keyframes stream-scale-in {
   from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
+}
+@keyframes stream-scale-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.92); }
+}
+
+.stream-transition-preview-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+  grid-column: 1 / -1;
+}
+
+.stream-transition-preview-row .stream-secondary-btn {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 9px;
+}
+
+.stream-table-canvas.is-split {
+  background: transparent;
+}
+
+.stream-table-panel {
+  min-width: 0;
 }
 
 /* Data change FX (live poll) */

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { FRAME_H, FRAME_W, type StreamBlock } from '../types/stream.types'
 import { transitionClass, transitionStyle } from '../utils/stream-style'
 import { ensureCardLayers } from '../utils/card-layers'
-import { ensureTableStructure } from '../utils/table-structure'
+import { ensureTableStructure, tableOuterWidth } from '../utils/table-structure'
 import { CardLayerCanvas } from './CardLayerCanvas'
 import { StreamTableCanvas } from './StreamTableCanvas'
 import type { PreviewStanding } from './editor/OverlayPreview'
@@ -25,7 +25,7 @@ function blockPlaceStyle(block: StreamBlock, frameW: number, frameH: number): CS
     }
   }
   const table = ensureTableStructure(block)
-  const w = table.tableW || 420
+  const w = tableOuterWidth(table)
   return {
     position: 'absolute',
     left: `${(x / fw) * 100}%`,

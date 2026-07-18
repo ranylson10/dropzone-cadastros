@@ -15,4 +15,10 @@ export type {
   StreamTemplateId,
 } from './types/stream.types'
 // utils usados pela página live (Browser Source)
-export { boxToCssSafe, fieldToCss, transitionClass, transitionStyle } from './utils/stream-style'
+export {
+  boxToCssSafe,
+  fieldToCss,
+  transitionClass,
+  exitTransitionClass,
+  transitionStyle,
+} from './utils/stream-style'

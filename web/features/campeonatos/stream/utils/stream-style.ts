@@ -97,13 +97,28 @@ export function transitionClass(t?: TransitionStyle): string {
   return `stream-enter-${t.enter}`
 }
 
-export function transitionStyle(t?: TransitionStyle, index = 0): CSSProperties {
+/** Classe CSS de saída (preview / hide). */
+export function exitTransitionClass(t?: TransitionStyle): string {
+  const exit = t?.exit || (t?.enter && t.enter !== 'stagger' ? t.enter : 'fade')
+  if (!exit || exit === 'none') return ''
+  return `stream-exit-${exit}`
+}
+
+export function transitionStyle(
+  t?: TransitionStyle,
+  index = 0,
+  kind: 'enter' | 'exit' = 'enter',
+): CSSProperties {
   if (!t) return {}
-  const delay = (t.delayMs || 0) + (t.enter === 'stagger' ? index * 90 : 0)
+  const delay =
+    kind === 'enter'
+      ? (t.delayMs || 0) + (t.enter === 'stagger' ? index * 90 : 0)
+      : t.delayMs || 0
   return {
     animationDuration: `${t.durationMs || 400}ms`,
     animationDelay: `${delay}ms`,
     animationFillMode: 'both',
+    animationTimingFunction: kind === 'exit' ? 'ease-in' : 'ease-out',
   }
 }
 

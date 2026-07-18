@@ -79,8 +79,10 @@ import {
   ensureTableStructure,
   fieldLabel,
   scaleTableBlock,
+  tableOuterWidth,
   updateTableColumn,
 } from '../utils/table-structure'
+import { exitTransitionClass, transitionClass, transitionStyle } from '../utils/stream-style'
 import { TablePartInspector } from './editor/TableSidebarPanel'
 import type { PreviewMap, PreviewStanding } from './editor/OverlayPreview'
 import '../stream.css'
@@ -134,6 +136,12 @@ export function StreamOverlayEditor(props: {
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
   /** Parte interna da tabela: legenda, linha modelo ou coluna */
   const [selectedTablePart, setSelectedTablePart] = useState<TablePartSelection | null>(null)
+  /** Preview de transição no canvas (entrada / saída). */
+  const [animPreview, setAnimPreview] = useState<{
+    blockId: string
+    kind: 'enter' | 'exit'
+    token: number
+  } | null>(null)
 
   const [ws, setWs] = useState<StreamWorkspacePrefs>(() => loadWorkspacePrefs())
   const zoom = ws.zoom
@@ -477,6 +485,16 @@ export function StreamOverlayEditor(props: {
     return selectedTableColumn?.label || fieldLabel(selectedTableColumn?.field || '') || 'Coluna'
   }
 
+  function previewBlockTransition(kind: 'enter' | 'exit') {
+    if (!selectedBlock) return
+    const token = Date.now()
+    setAnimPreview({ blockId: selectedBlock.id, kind, token })
+    const ms = Math.max(200, selectedBlock.transition?.durationMs || 400) + (selectedBlock.transition?.delayMs || 0) + 80
+    window.setTimeout(() => {
+      setAnimPreview((cur) => (cur?.token === token ? null : cur))
+    }, ms)
+  }
+
   const ctx = useMemo(
     () => ({
       mapas: maps,
@@ -626,7 +644,7 @@ export function StreamOverlayEditor(props: {
       const c = ensureCardLayers(b)
       return { w: c.canvasW, h: c.canvasH }
     }
-    return { w: b.tableW || 420, h: 200 }
+    return { w: tableOuterWidth(ensureTableStructure(b)), h: 200 }
   }
 
   function removeBlock(id: string) {
@@ -1318,14 +1336,111 @@ export function StreamOverlayEditor(props: {
                   />
                 </details>
 
-                <details className="stream-inspector-section">
+                <details className="stream-inspector-section" open>
                   <summary>Animação / transição</summary>
                   <TransitionEditor
                     mode={selectedBlock.type === 'card' ? 'card' : 'table'}
                     value={selectedBlock.transition}
                     onChange={(transition) => updateBlock(selectedBlock.id, (b) => ({ ...b, transition }))}
+                    onPreview={previewBlockTransition}
                   />
                 </details>
+
+                {selectedBlock.type === 'table' && selectedTable ? (
+                  <details className="stream-inspector-section" open>
+                    <summary>Dividir em painéis</summary>
+                    <p className="stream-hint">
+                      Ex.: 2 painéis com 6 linhas = top 1–6 | top 7–12. Largura (px) é de cada painel.
+                    </p>
+                    <div className="stream-style-grid">
+                      <label className="stream-style-field">
+                        <span>Painéis</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={6}
+                          value={selectedTable.data.splitPanels || 1}
+                          onChange={(e) =>
+                            patchSelectedTableData((d) => ({
+                              ...d,
+                              splitPanels: Math.max(1, Math.min(6, Number(e.target.value) || 1)),
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="stream-style-field">
+                        <span>Linhas / painel</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={40}
+                          value={
+                            selectedTable.data.rowsPerPanel ||
+                            Math.ceil((selectedTable.data.rows || 1) / Math.max(1, selectedTable.data.splitPanels || 1))
+                          }
+                          onChange={(e) =>
+                            patchSelectedTableData((d) => ({
+                              ...d,
+                              rowsPerPanel: Math.max(1, Math.min(40, Number(e.target.value) || 1)),
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="stream-style-field">
+                        <span>Espaço entre (px)</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={200}
+                          value={selectedTable.data.splitGapPx ?? 0}
+                          onChange={(e) =>
+                            patchSelectedTableData((d) => ({
+                              ...d,
+                              splitGapPx: Math.max(0, Math.min(200, Number(e.target.value) || 0)),
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className="stream-dock-row" style={{ marginTop: 6 }}>
+                      <button
+                        type="button"
+                        className={(selectedTable.data.splitPanels || 1) === 1 ? 'is-active' : ''}
+                        onClick={() => patchSelectedTableData((d) => ({ ...d, splitPanels: 1 }))}
+                      >
+                        1×
+                      </button>
+                      <button
+                        type="button"
+                        className={(selectedTable.data.splitPanels || 1) === 2 ? 'is-active' : ''}
+                        onClick={() =>
+                          patchSelectedTableData((d) => ({
+                            ...d,
+                            splitPanels: 2,
+                            rowsPerPanel: d.rowsPerPanel || Math.ceil((d.rows || 12) / 2) || 6,
+                            splitGapPx: d.splitGapPx || 24,
+                          }))
+                        }
+                      >
+                        2× (1–6 | 7–12)
+                      </button>
+                      <button
+                        type="button"
+                        className={(selectedTable.data.splitPanels || 1) === 3 ? 'is-active' : ''}
+                        onClick={() =>
+                          patchSelectedTableData((d) => ({
+                            ...d,
+                            splitPanels: 3,
+                            rowsPerPanel: d.rowsPerPanel || Math.ceil((d.rows || 12) / 3) || 4,
+                            splitGapPx: d.splitGapPx || 16,
+                          }))
+                        }
+                      >
+                        3×
+                      </button>
+                    </div>
+                  </details>
+                ) : null}
 
                 {selectedBlock.type === 'card' ? (
                   <details className="stream-inspector-section" open>
@@ -1443,17 +1558,28 @@ export function StreamOverlayEditor(props: {
                         const selected = selectedBlockId === block.id
                         const bx = block.x ?? 40
                         const by = block.y ?? 40
+                        const preview =
+                          animPreview?.blockId === block.id ? animPreview : null
+                        const animCls = preview
+                          ? preview.kind === 'enter'
+                            ? transitionClass(block.transition)
+                            : exitTransitionClass(block.transition)
+                          : ''
+                        const animStyle = preview
+                          ? transitionStyle(block.transition, 0, preview.kind)
+                          : undefined
                         if (block.type === 'card') {
                           const card = ensureCardLayers(block)
                           return (
                             <div
-                              key={block.id}
-                              className={`stream-gt-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''}`}
+                              key={preview ? `${block.id}-anim-${preview.token}` : block.id}
+                              className={`stream-gt-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''} ${animCls}`}
                               style={{
                                 left: bx,
                                 top: by,
                                 width: card.canvasW,
                                 height: card.canvasH,
+                                ...animStyle,
                               }}
                               onPointerDown={(e) => onBlockPointerDown(e, block)}
                               onClick={() => {
@@ -1476,12 +1602,12 @@ export function StreamOverlayEditor(props: {
                           )
                         }
                         const table = ensureTableStructure(block)
-                        const tw = table.tableW || 420
+                        const tw = tableOuterWidth(table)
                         return (
                           <div
-                            key={block.id}
-                            className={`stream-gt-block stream-gt-table-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''}`}
-                            style={{ left: bx, top: by, width: tw }}
+                            key={preview ? `${block.id}-anim-${preview.token}` : block.id}
+                            className={`stream-gt-block stream-gt-table-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''} ${animCls}`}
+                            style={{ left: bx, top: by, width: tw, ...animStyle }}
                             onPointerDown={(e) => onBlockPointerDown(e, block)}
                             onClick={() => {
                               selectBlockOnly(block.id)

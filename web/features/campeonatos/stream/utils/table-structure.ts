@@ -206,8 +206,55 @@ export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock 
       rowHeight: data.rowHeight ?? 36,
       rowGap: data.rowGap ?? 0,
       headerHeight: data.headerHeight ?? 32,
+      splitPanels: Math.max(1, Math.min(6, Number(data.splitPanels) || 1)),
+      splitGapPx: Math.max(0, Math.min(200, Number(data.splitGapPx) || 0)),
+      rowsPerPanel:
+        data.rowsPerPanel != null && Number(data.rowsPerPanel) > 0
+          ? Math.max(1, Math.min(40, Math.round(Number(data.rowsPerPanel))))
+          : undefined,
+      splitRepeatHeader: data.splitRepeatHeader !== false,
     },
   }
+}
+
+/** Painéis laterais (1 = sem divisão). */
+export function tableSplitPanels(data: TableBlockData): number {
+  return Math.max(1, Math.min(6, Number(data.splitPanels) || 1))
+}
+
+/** Linhas por painel (explícito ou divisão igual de `rows`). */
+export function tableRowsPerPanel(data: TableBlockData): number {
+  const panels = tableSplitPanels(data)
+  const total = Math.max(1, Number(data.rows) || 1)
+  if (data.rowsPerPanel != null && Number(data.rowsPerPanel) > 0) {
+    return Math.max(1, Math.min(40, Math.round(Number(data.rowsPerPanel))))
+  }
+  return Math.max(1, Math.ceil(total / panels))
+}
+
+/** Largura total no frame (painéis + gaps). `tableW` = largura de um painel. */
+export function tableOuterWidth(block: StreamTableBlock): number {
+  const t = ensureTableStructure(block)
+  const panels = tableSplitPanels(t.data)
+  const gap = Math.max(0, t.data.splitGapPx || 0)
+  const panelW = Math.max(64, t.tableW || DEFAULT_TABLE_W)
+  return panels * panelW + Math.max(0, panels - 1) * gap
+}
+
+/** Fatia rowItems em N painéis (sequencial: 0..r-1 | r..2r-1 | …). */
+export function splitTableRowItems<T extends { dataIndex: number }>(
+  items: T[],
+  data: TableBlockData,
+): T[][] {
+  const panels = tableSplitPanels(data)
+  const per = tableRowsPerPanel(data)
+  if (panels <= 1) return [items]
+  const chunks: T[][] = []
+  for (let p = 0; p < panels; p++) {
+    const start = p * per
+    chunks.push(items.slice(start, start + per))
+  }
+  return chunks
 }
 
 /** Escala tabela inteira (largura, colunas, alturas) por fator. */
@@ -223,6 +270,7 @@ export function scaleTableBlock(block: StreamTableBlock, factor: number): Stream
   const rowHeight = Math.max(14, Math.round((t.data.rowHeight ?? 36) * f))
   const headerHeight = Math.max(0, Math.round((t.data.headerHeight ?? 32) * f))
   const rowGap = Math.max(0, Math.round((t.data.rowGap ?? 0) * f))
+  const splitGapPx = Math.max(0, Math.round((t.data.splitGapPx ?? 0) * f))
   const scaleText = (fs?: TableBlockData['rowStyle']) => {
     if (!fs?.text) return fs
     return {
@@ -242,6 +290,7 @@ export function scaleTableBlock(block: StreamTableBlock, factor: number): Stream
       rowHeight,
       headerHeight,
       rowGap,
+      splitGapPx,
       rowStyle: scaleText(t.data.rowStyle),
       headerStyle: scaleText(t.data.headerStyle),
     },

@@ -345,14 +345,18 @@ export function TransitionEditor(props: {
   value?: TransitionStyle
   onChange: (next: TransitionStyle) => void
   mode: 'card' | 'table'
+  /** Preview no canvas do editor (entrada / saída). */
+  onPreview?: (kind: 'enter' | 'exit') => void
 }) {
   const v: TransitionStyle = props.value || {
     enter: 'fade',
+    exit: 'fade',
     onDataChange: 'pulse',
     durationMs: 400,
     delayMs: 0,
   }
   const set = (patch: Partial<TransitionStyle>) => props.onChange({ ...v, ...patch })
+  const exitVal = v.exit || (v.enter === 'stagger' ? 'fade' : v.enter) || 'fade'
 
   return (
     <Section title={props.mode === 'card' ? 'Transições do card' : 'Transições da tabela'}>
@@ -364,6 +368,19 @@ export function TransitionEditor(props: {
           <option value="slide-left">Slide esquerda</option>
           <option value="scale">Scale pop</option>
           {props.mode === 'card' ? <option value="stagger">Stagger (em sequência)</option> : null}
+          {props.mode === 'table' ? <option value="stagger">Stagger (linhas)</option> : null}
+        </select>
+      </Field>
+      <Field label="Saída">
+        <select
+          value={exitVal}
+          onChange={(e) => set({ exit: e.target.value as TransitionStyle['exit'] })}
+        >
+          <option value="none">Nenhuma</option>
+          <option value="fade">Fade</option>
+          <option value="slide-up">Slide baixo (sai)</option>
+          <option value="slide-left">Slide direita (sai)</option>
+          <option value="scale">Scale out</option>
         </select>
       </Field>
       <Field label="Ao atualizar dado">
@@ -381,6 +398,26 @@ export function TransitionEditor(props: {
       <Field label="Delay (ms)">
         <input type="number" min={0} max={2000} step={50} value={v.delayMs} onChange={(e) => set({ delayMs: Number(e.target.value) || 0 })} />
       </Field>
+      {props.onPreview ? (
+        <div className="stream-transition-preview-row">
+          <button
+            type="button"
+            className="stream-secondary-btn"
+            title="Reproduz a animação de entrada no canvas"
+            onClick={() => props.onPreview?.('enter')}
+          >
+            Testar entrada
+          </button>
+          <button
+            type="button"
+            className="stream-secondary-btn"
+            title="Reproduz a animação de saída no canvas"
+            onClick={() => props.onPreview?.('exit')}
+          >
+            Testar saída
+          </button>
+        </div>
+      ) : null}
     </Section>
   )
 }
