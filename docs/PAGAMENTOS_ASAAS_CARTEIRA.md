@@ -66,7 +66,28 @@ O split usa:
 Restante → carteira da **produtora**.  
 Ajustável em Admin → Preços (chave `comissao_*_bps`, valor em basis points).
 
-### 3) Saque
+### 3) Compra de vaga online (antes de entrar no campeonato)
+
+Fluxo em **Vagas abertas** / portfólio do vendedor — **não substitui** WhatsApp nem link de grupo.
+
+1. Usuário em `/vagas` → **Quero me inscrever**  
+2. Escolhe **Pagar online** ou **WhatsApp** (contatos do campeonato / vendedor)  
+3. Online: `POST /api/pagamentos/vaga` cria `sistema_compras_vaga` + cobrança ASAAS (`finalidade=compra_vaga`)  
+4. Página `/vagas/compra/[token]` mostra fatura + QR PIX e faz poll  
+5. Webhook ASAAS → `liberarCompraVagaComSplit` (status `liberado` + split carteira)  
+6. Usuário escolhe equipe / line / slot livre do **próximo grupo com vaga**  
+7. `POST /api/pagamentos/vaga/claim` consome a compra e grava participação (`origem_entrada=compra_online`)
+
+SQL:
+
+```text
+database/migrations/20260719_compra_vaga_online.sql
+database/DOWNLOAD_compra_vaga_online.sql
+```
+
+Rode **depois** de `20260719_carteira_asaas.sql`.
+
+### 4) Saque
 
 1. `GET /api/me/carteira` — saldo + extrato  
 2. `POST /api/me/carteira/saque` — debita e cria solicitação  

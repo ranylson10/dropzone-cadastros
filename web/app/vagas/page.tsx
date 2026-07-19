@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, CheckCircle2, Filter, MapPin, Search, Ticket, Users, X, ZoomIn } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { SocialLogin } from '@/features/auth/SocialLogin'
+import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
-import { WhatsappContactSelector } from '@/components/forms/campeonato'
 import './vagas.css'
 
 function dateLabel(value?: string | null) {
@@ -26,7 +26,7 @@ export default function VacanciesPage() {
   const [filter, setFilter] = useState<'all' | 'mine'>('all')
   const [sellerFilter, setSellerFilter] = useState('')
   const [query, setQuery] = useState('')
-  const [contacts, setContacts] = useState<any | null>(null)
+  const [buyTarget, setBuyTarget] = useState<any | null>(null)
   const [preview, setPreview] = useState<any | null>(null)
   const [gate, setGate] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
@@ -69,10 +69,21 @@ export default function VacanciesPage() {
     && (!sellerFilter || (item.vendedores || []).some((seller: any) => seller.id === sellerFilter))
     && `${item.nome} ${item.tipo} ${item.proximo_grupo} ${item.servidor}`.toLowerCase().includes(query.toLowerCase())), [items, filter, query, sellerFilter])
 
-  function contactsFor(item: any) {
-    if (!sellerFilter) return item
+  function openBuyModal(item: any) {
+    if (!sellerFilter) {
+      setBuyTarget(item)
+      return
+    }
     const seller = (item.vendedores || []).find((entry: any) => entry.id === sellerFilter)
-    return seller?.contato?.url ? { ...item, contatos_whatsapp: [seller.contato] } : item
+    if (seller?.contato?.url) {
+      setBuyTarget({
+        ...item,
+        contatos_whatsapp: [seller.contato],
+        _vendedor_manager_id: seller.id,
+      })
+      return
+    }
+    setBuyTarget({ ...item, _vendedor_manager_id: seller?.id || sellerFilter })
   }
 
   function continueAsGuest() {
@@ -83,7 +94,11 @@ export default function VacanciesPage() {
   return (
     <AppShell activeLabel="Vagas abertas" loadSession mainClassName="vacancies-page page">
       <section className="vacancies-hero">
-        <div><p className="eyebrow">Agenda competitiva</p><h1>Campeonatos com vagas abertas</h1><p>Encontre a próxima data disponível e fale diretamente com a organização.</p></div>
+        <div>
+          <p className="eyebrow">Agenda competitiva</p>
+          <h1>Campeonatos com vagas abertas</h1>
+          <p>Pague online ou fale com a organização no WhatsApp para garantir sua vaga.</p>
+        </div>
         <div className="vacancies-hero-count"><Ticket /><strong>{items.reduce((sum, item) => sum + item.vagas_livres, 0)}</strong><span>vagas disponíveis</span></div>
       </section>
 
@@ -110,8 +125,13 @@ export default function VacanciesPage() {
               <div className="vacancy-next-date"><CalendarDays /><div><small>Próxima vaga</small><strong>{dateLabel(item.proxima_data)} {item.proximo_horario ? `· ${String(item.proximo_horario).slice(0, 5)}h` : ''}</strong><span>{item.proximo_grupo}</span></div></div>
               <div className="vacancy-meta"><span><Users size={14} /><b>{item.vagas_livres}</b> vagas</span><span><Ticket size={14} /><b>{money(item.valor_inscricao)}</b></span>{item.servidor ? <span><MapPin size={14} />{item.servidor}</span> : null}</div>
               <div className="vacancy-groups">{item.grupos.slice(0, 3).map((group: any) => <span key={group.id}>{group.nome}<b>{group.vagas_livres} livres</b></span>)}</div>
-              <div className="vacancy-persuasion"><strong>Garanta sua vaga</strong><span>Fale agora com a organização para reservar seu slot.</span></div>
-              <button className="button vacancy-register" onClick={() => setContacts(contactsFor(item))}>Quero me inscrever</button>
+              <div className="vacancy-persuasion">
+                <strong>Garanta sua vaga</strong>
+                <span>Pague online (PIX/link) ou fale no WhatsApp da organização.</span>
+              </div>
+              <button className="button vacancy-register" type="button" onClick={() => openBuyModal(item)}>
+                Quero me inscrever
+              </button>
             </div>
           </article>)}
           {visible.length === 0 ? <div className="vacancies-empty"><Ticket size={32} /><strong>Nenhuma vaga encontrada</strong><span>Tente outro filtro ou volte mais tarde.</span></div> : null}
@@ -119,8 +139,25 @@ export default function VacanciesPage() {
       )}
 
       {preview ? <div className="vacancy-preview-overlay" onClick={() => setPreview(null)}><button onClick={() => setPreview(null)} aria-label="Fechar banner"><X size={21} /></button><figure onClick={(event) => event.stopPropagation()}><img src={preview.banner_url} alt={`Banner completo de ${preview.nome}`} /><figcaption>{preview.nome}</figcaption></figure></div> : null}
-      {contacts ? <div className="report-modal-backdrop" onClick={() => setContacts(null)}><section className="report-modal vacancy-contact-modal" onClick={(event) => event.stopPropagation()}><header><div><p className="eyebrow">Inscrição</p><h2>Escolha um contato</h2><span>{contacts.nome}</span></div><button onClick={() => setContacts(null)}><X size={18} /></button></header>{contacts.contatos_whatsapp?.length ? <WhatsappContactSelector contacts={contacts.contatos_whatsapp} championshipName={contacts.nome} /> : <p className="empty">A organização ainda não cadastrou contato para venda.</p>}</section></div> : null}
-      {gate ? <div className="vacancies-access-gate"><section><button className="gate-close" onClick={continueAsGuest}><X size={18} /></button><img src="/dropzone-icon.png" alt="" /><p className="eyebrow">Vagas abertas</p><h2>Como deseja continuar?</h2><p>Entre para identificar campeonatos em que sua equipe já possui vaga.</p><SocialLogin returnTo="/vagas" /><button className="continue-guest" onClick={continueAsGuest}>Continuar sem login</button></section></div> : null}
+
+      {buyTarget ? (
+        <BuyVacancyModal
+          championship={{
+            id: buyTarget.id,
+            nome: buyTarget.nome,
+            valor_inscricao: buyTarget.valor_inscricao,
+            contatos_whatsapp: buyTarget.contatos_whatsapp || [],
+            proximo_grupo: buyTarget.proximo_grupo,
+          }}
+          vendedorManagerId={buyTarget._vendedor_manager_id || sellerFilter || null}
+          returnTo="/vagas"
+          authenticated={authenticated}
+          onClose={() => setBuyTarget(null)}
+          onRequireLogin={() => setGate(true)}
+        />
+      ) : null}
+
+      {gate ? <div className="vacancies-access-gate"><section><button className="gate-close" onClick={continueAsGuest}><X size={18} /></button><img src="/dropzone-icon.png" alt="" /><p className="eyebrow">Vagas abertas</p><h2>Como deseja continuar?</h2><p>Entre para pagar online e identificar campeonatos em que sua equipe já possui vaga.</p><SocialLogin returnTo="/vagas" /><button className="continue-guest" onClick={continueAsGuest}>Continuar sem login</button></section></div> : null}
     </AppShell>
   )
 }

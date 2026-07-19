@@ -5,7 +5,8 @@ import { CalendarDays, Filter, MapPin, MessageCircle, Search, ShieldCheck, Ticke
 import { useParams } from 'next/navigation'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { AppShell } from '@/components/layout'
-import { WhatsappContactSelector } from '@/components/forms/campeonato'
+import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
+import { supabase } from '@/lib/supabase-browser'
 import '../../vagas/vagas.css'
 
 function dateLabel(value?: string | null) {
@@ -32,14 +33,18 @@ export default function VendedorCampeonatosPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
-  const [contacts, setContacts] = useState<any | null>(null)
+  const [buyTarget, setBuyTarget] = useState<any | null>(null)
   const [preview, setPreview] = useState<any | null>(null)
+  const [authenticated, setAuthenticated] = useState(false)
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       setError('')
       try {
+        const { data: session } = await supabase.auth.getSession()
+        setAuthenticated(Boolean(session.session?.access_token))
+
         const response = await fetch(`/api/vendedores/${encodeURIComponent(managerId)}/vagas`, {
           cache: 'no-store',
         })
@@ -68,6 +73,7 @@ export default function VendedorCampeonatosPage() {
 
   const totalVagas = items.reduce((sum, item) => sum + Number(item.vagas_livres || 0), 0)
   const sellerContact = items.find((i) => i.contatos_whatsapp?.length)?.contatos_whatsapp?.[0] || null
+  const returnTo = `/vendedores/${encodeURIComponent(managerId)}`
 
   if (loading) return <DropzoneLoader label="Carregando vagas" />
   if (error && !manager) {
@@ -89,8 +95,8 @@ export default function VendedorCampeonatosPage() {
             <p className="eyebrow">Portfólio do afiliado</p>
             <h1>{manager?.nome || manager?.username || 'Campeonatos com vagas abertas'}</h1>
             <p>
-              Mesma ideia das vagas abertas — aqui o contato de compra é deste vendedor.
-              {manager?.whatsapp_url ? ' Fale direto no WhatsApp para reservar.' : ''}
+              Pague online com comissão deste vendedor, ou fale com ele no WhatsApp.
+              {manager?.whatsapp_url ? ' Contato direto disponível abaixo.' : ''}
             </p>
             {manager?.whatsapp_url || sellerContact?.url ? (
               <a
@@ -188,17 +194,15 @@ export default function VendedorCampeonatosPage() {
                 </div>
                 <div className="vacancy-persuasion">
                   <strong>Garanta sua vaga</strong>
-                  <span>Fale com este vendedor — não é a lista geral de admins do campeonato.</span>
+                  <span>Pagamento online com comissão deste vendedor, ou WhatsApp dele.</span>
                 </div>
-                {item.contatos_whatsapp?.length ? (
-                  <button className="button vacancy-register" type="button" onClick={() => setContacts(item)}>
-                    <MessageCircle size={16} /> Comprar vaga
-                  </button>
-                ) : (
-                  <button className="button vacancy-register" type="button" disabled>
-                    WhatsApp pendente
-                  </button>
-                )}
+                <button
+                  className="button vacancy-register"
+                  type="button"
+                  onClick={() => setBuyTarget(item)}
+                >
+                  <MessageCircle size={16} /> Comprar vaga
+                </button>
               </div>
             </article>
           ))}
@@ -222,26 +226,25 @@ export default function VendedorCampeonatosPage() {
           </figure>
         </div>
       ) : null}
-      {contacts ? (
-        <div className="report-modal-backdrop" onClick={() => setContacts(null)}>
-          <section className="report-modal vacancy-contact-modal" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <div>
-                <p className="eyebrow">Compra com o afiliado</p>
-                <h2>Comprar vaga</h2>
-                <span>{contacts.nome}</span>
-              </div>
-              <button onClick={() => setContacts(null)}>
-                <X size={18} />
-              </button>
-            </header>
-            {contacts.contatos_whatsapp?.length ? (
-              <WhatsappContactSelector contacts={contacts.contatos_whatsapp} championshipName={contacts.nome} />
-            ) : (
-              <p className="empty">Este vendedor ainda não cadastrou contato para venda.</p>
-            )}
-          </section>
-        </div>
+
+      {buyTarget ? (
+        <BuyVacancyModal
+          championship={{
+            id: buyTarget.id,
+            nome: buyTarget.nome,
+            valor_inscricao: buyTarget.valor_inscricao,
+            contatos_whatsapp: buyTarget.contatos_whatsapp?.length
+              ? buyTarget.contatos_whatsapp
+              : manager?.whatsapp_url
+                ? [{ nome: manager.nome || 'Vendedor', url: manager.whatsapp_url }]
+                : [],
+            proximo_grupo: buyTarget.proximo_grupo,
+          }}
+          vendedorManagerId={managerId}
+          returnTo={returnTo}
+          authenticated={authenticated}
+          onClose={() => setBuyTarget(null)}
+        />
       ) : null}
     </AppShell>
   )

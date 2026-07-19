@@ -337,6 +337,13 @@ async function onPaymentConfirmed(pagamento: any) {
 
   if (pagamento.finalidade === 'inscricao_equipe') {
     await creditInscriptionSplit(pagamento)
+    return
+  }
+
+  if (pagamento.finalidade === 'compra_vaga') {
+    // Import dinâmico evita ciclo em load com vacancy-purchase.ts
+    const { liberarCompraVagaComSplit } = await import('./vacancy-purchase')
+    await liberarCompraVagaComSplit(pagamento)
   }
 }
 
