@@ -17,6 +17,9 @@ const labels: Record<SocialProvider, string> = {
   discord: 'Continuar com Discord',
 }
 
+/** Provedores exibidos na UI. Facebook/Discord ocultos até configurar no Supabase. */
+const VISIBLE_PROVIDERS: SocialProvider[] = ['google']
+
 /** Chaves de retorno OAuth (evita query string longa no redirectTo — quebra Google). */
 export const OAUTH_RETURN_KEY = 'dropzone_oauth_return_to'
 export const OAUTH_PROFILE_KEY = 'dropzone_oauth_profile_type'
@@ -104,7 +107,7 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
 
   return (
     <div className="social-login-stack">
-      {(Object.keys(labels) as SocialProvider[]).map((provider) => (
+      {VISIBLE_PROVIDERS.map((provider) => (
         <button
           key={provider}
           type="button"
