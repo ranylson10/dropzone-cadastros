@@ -11,8 +11,8 @@ type UploadPayload = {
   base64?: string
 }
 
-const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'campeonato'])
-const PROFILE_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager'])
+const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
+const PROFILE_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast'])
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 

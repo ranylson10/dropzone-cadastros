@@ -5,7 +5,7 @@ import { Field, UploadField } from '@/features/dropzone/components/form-fields'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
 
-type ProfileType = 'equipe' | 'manager' | 'jogador' | 'produtora'
+type ProfileType = 'equipe' | 'manager' | 'jogador' | 'produtora' | 'broadcast'
 
 export function ProfileEditForm(props: {
   profileType: ProfileType
@@ -23,8 +23,18 @@ export function ProfileEditForm(props: {
   }
   onSaved?: (profile: any) => void
 }) {
-  const logoField = props.profileType === 'manager' || props.profileType === 'jogador' ? 'avatar_url' : 'logo_url'
-  const bucket = props.profileType === 'jogador' || props.profileType === 'manager' ? props.profileType : props.profileType === 'equipe' ? 'equipe' : 'produtora'
+  const logoField =
+    props.profileType === 'manager' || props.profileType === 'jogador' || props.profileType === 'broadcast'
+      ? 'avatar_url'
+      : 'logo_url'
+  const bucket =
+    props.profileType === 'jogador' ||
+    props.profileType === 'manager' ||
+    props.profileType === 'broadcast'
+      ? props.profileType
+      : props.profileType === 'equipe'
+        ? 'equipe'
+        : 'produtora'
 
   const [nome, setNome] = useState(props.initial.nome || '')
   const [bio, setBio] = useState(props.initial.bio || '')
