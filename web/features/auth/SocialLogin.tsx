@@ -17,6 +17,10 @@ const labels: Record<SocialProvider, string> = {
   discord: 'Continuar com Discord',
 }
 
+/** Chaves de retorno OAuth (evita query string longa no redirectTo — quebra Google). */
+export const OAUTH_RETURN_KEY = 'dropzone_oauth_return_to'
+export const OAUTH_PROFILE_KEY = 'dropzone_oauth_profile_type'
+
 export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
   const [loadingProvider, setLoadingProvider] = useState<SocialProvider | null>(null)
   const [error, setError] = useState('')
@@ -26,28 +30,59 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
     setError('')
 
     try {
-      if (profileType) localStorage.setItem('dropzone_active_profile_type', profileType)
       const normalizedReturnTo = safeInternalPath(returnTo)
-      const callback = new URL('/login', window.location.origin)
-      callback.searchParams.set('returnTo', normalizedReturnTo)
-      if (profileType) callback.searchParams.set('profileType', profileType)
-      callback.searchParams.set('complete', '1')
 
-      const options: Record<string, unknown> = {
-        redirectTo: callback.toString(),
+      // Estado local: não embute profileType/returnTo na URL do redirect
+      // (redirectTo com muitos params quebra o authorize do Google com 400 malformed).
+      try {
+        if (profileType) {
+          localStorage.setItem('dropzone_active_profile_type', profileType)
+          sessionStorage.setItem(OAUTH_PROFILE_KEY, profileType)
+        } else {
+          sessionStorage.removeItem(OAUTH_PROFILE_KEY)
+        }
+        sessionStorage.setItem(OAUTH_RETURN_KEY, normalizedReturnTo)
+      } catch {
+        // private mode etc.
       }
 
-      if (provider === 'google') {
-        options.queryParams = { access_type: 'offline', prompt: 'select_account' }
-      }
+      // URL limpa e allowlist-friendly (Site URL + /login)
+      const redirectTo = `${window.location.origin}/login?complete=1`
 
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: provider as Provider,
-        options,
+        options: {
+          redirectTo,
+          skipBrowserRedirect: false,
+          ...(provider === 'google'
+            ? {
+                // só o necessário — access_type=offline + params extras costuma gerar 400 no Google
+                queryParams: {
+                  prompt: 'select_account',
+                },
+              }
+            : {}),
+        },
       })
+
       if (oauthError) throw oauthError
+
+      // Se o cliente não redirecionar sozinho, força navegação
+      if (data?.url) {
+        window.location.assign(data.url)
+        return
+      }
     } catch (cause: any) {
-      setError(cause?.message || `Não foi possível entrar com ${labels[provider].replace('Continuar com ', '')}.`)
+      const msg = String(cause?.message || '')
+      const hint =
+        /redirect|url|origin/i.test(msg)
+          ? ' Confira no Supabase (Auth → URL Configuration) se o Site URL e Redirect URLs incluem este domínio.'
+          : /provider|disabled|not enabled/i.test(msg)
+            ? ' Confira se o provedor está ativo em Supabase → Auth → Providers.'
+            : ' Se o Google mostrar erro 400, confira no Google Cloud o redirect: https://SEU_PROJETO.supabase.co/auth/v1/callback'
+      setError(
+        (msg || `Não foi possível entrar com ${labels[provider].replace('Continuar com ', '')}.`) + hint,
+      )
       setLoadingProvider(null)
     }
   }
@@ -60,7 +95,7 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
           type="button"
           className={`button social-login-button social-login-${provider}`}
           disabled={Boolean(loadingProvider)}
-          onClick={() => startOAuth(provider)}
+          onClick={() => void startOAuth(provider)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -80,7 +115,9 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
               objectFit: 'contain',
             }}
           />
-          {loadingProvider === provider ? `Abrindo ${labels[provider].replace('Continuar com ', '')}...` : labels[provider]}
+          {loadingProvider === provider
+            ? `Abrindo ${labels[provider].replace('Continuar com ', '')}...`
+            : labels[provider]}
         </button>
       ))}
       {error ? <div className="message error">{error}</div> : null}

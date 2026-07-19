@@ -5,7 +5,7 @@ import type { Session } from '@supabase/supabase-js'
 import { AppShell } from '@/components/layout'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { supabase } from '@/lib/supabase-browser'
-import { SocialLogin } from '@/features/auth/SocialLogin'
+import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/auth/SocialLogin'
 import { parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
 
 const profileLabels = {
@@ -34,11 +34,30 @@ export default function LoginPage() {
 
     async function initialize() {
       const search = new URLSearchParams(window.location.search)
-      const returnTo = safeInternalPath(search.get('returnTo'))
-      const profileType = parseProfileType(search.get('profileType'))
+      // Prefer query; fallback sessionStorage (OAuth grava lá pra URL do redirect ficar limpa)
+      let storedReturn = ''
+      let storedProfile: string | null = null
+      try {
+        storedReturn = sessionStorage.getItem(OAUTH_RETURN_KEY) || ''
+        storedProfile = sessionStorage.getItem(OAUTH_PROFILE_KEY)
+      } catch {
+        // ignore
+      }
+      const returnTo = safeInternalPath(search.get('returnTo') || storedReturn || '/')
+      const profileType =
+        parseProfileType(search.get('profileType'))
+        || parseProfileType(storedProfile)
       const switchAccount = search.get('switch') === '1'
       const complete = search.get('complete') === '1'
       if (active) setParams({ returnTo, profileType, switchAccount })
+      if (complete) {
+        try {
+          sessionStorage.removeItem(OAUTH_RETURN_KEY)
+          sessionStorage.removeItem(OAUTH_PROFILE_KEY)
+        } catch {
+          // ignore
+        }
+      }
 
       try {
         if (switchAccount && !complete) {
