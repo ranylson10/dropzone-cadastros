@@ -59,6 +59,51 @@ Em Authentication > URL Configuration:
 
 - Site URL: https://dropzone-cadastros.vercel.app
 - Redirect URL permitida: https://dropzone-cadastros.vercel.app/**
+- Também: https://dropzone-cadastros.vercel.app/login
+
+## Provedores sociais (Google, Facebook, Discord)
+
+A UI já chama os três (`SocialLogin`). Cada um precisa estar **Enabled** em  
+**Supabase → Authentication → Providers**.
+
+Redirect URI comum (cole em TODOS os painéis externos):
+
+```text
+https://uukivzxabiydnrvjvabt.supabase.co/auth/v1/callback
+```
+
+### Google
+
+1. Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client
+2. Authorized redirect URIs: o callback Supabase acima
+3. Cole Client ID e Client Secret no provider Google do Supabase
+
+### Discord
+
+1. [Discord Developer Portal](https://discord.com/developers/applications) → New Application
+2. OAuth2 → Redirects → add: `https://uukivzxabiydnrvjvabt.supabase.co/auth/v1/callback`
+3. Copie **Client ID** e **Client Secret**
+4. Supabase → Providers → Discord → Enable → cole as chaves
+5. Scopes usados pelo app: `identify email`
+
+### Facebook / Meta
+
+1. [Meta for Developers](https://developers.facebook.com/) → Create App → tipo **Consumer** (ou com Facebook Login)
+2. Add product **Facebook Login** → Settings
+3. Valid OAuth Redirect URIs: `https://uukivzxabiydnrvjvabt.supabase.co/auth/v1/callback`
+4. App Settings → Basic → App ID e App Secret
+5. Supabase → Providers → Facebook → Enable → cole App ID / Secret
+6. Em modo Development, só testers do app conseguem logar; para produção: App Review + Live mode
+7. Scopes: `email,public_profile`
+
+### Checklist rápido se o botão falhar
+
+| Sintoma | Onde olhar |
+|--------|------------|
+| Provider not enabled / unsupported | Supabase → Providers (liga e salva) |
+| redirect_uri_mismatch | Callback exato do Supabase no painel Google/Discord/Meta |
+| Facebook “App not set up” | App em Live + domínios corretos |
+| Discord volta sem e-mail | Scope `email` e e-mail verificado na conta Discord |
 
 ## Variáveis da aplicação
 

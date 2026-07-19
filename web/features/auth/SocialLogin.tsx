@@ -49,19 +49,26 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
       // URL limpa e allowlist-friendly (Site URL + /login)
       const redirectTo = `${window.location.origin}/login?complete=1`
 
+      const providerOptions: Record<SocialProvider, { scopes?: string; queryParams?: Record<string, string> }> = {
+        google: {
+          queryParams: { prompt: 'select_account' },
+        },
+        facebook: {
+          // e-mail + perfil público (padrão Facebook Login)
+          scopes: 'email,public_profile',
+        },
+        discord: {
+          // identify + e-mail (necessário para vincular conta DropZone)
+          scopes: 'identify email',
+        },
+      }
+
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: provider as Provider,
         options: {
           redirectTo,
           skipBrowserRedirect: false,
-          ...(provider === 'google'
-            ? {
-                // só o necessário — access_type=offline + params extras costuma gerar 400 no Google
-                queryParams: {
-                  prompt: 'select_account',
-                },
-              }
-            : {}),
+          ...providerOptions[provider],
         },
       })
 
@@ -74,15 +81,23 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
       }
     } catch (cause: any) {
       const msg = String(cause?.message || '')
-      const hint =
-        /redirect|url|origin/i.test(msg)
-          ? ' Confira no Supabase (Auth → URL Configuration) se o Site URL e Redirect URLs incluem este domínio.'
-          : /provider|disabled|not enabled/i.test(msg)
-            ? ' Confira se o provedor está ativo em Supabase → Auth → Providers.'
-            : ' Se o Google mostrar erro 400, confira no Google Cloud o redirect: https://SEU_PROJETO.supabase.co/auth/v1/callback'
-      setError(
-        (msg || `Não foi possível entrar com ${labels[provider].replace('Continuar com ', '')}.`) + hint,
-      )
+      const providerName = labels[provider].replace('Continuar com ', '')
+      let hint = ''
+      if (/unsupported|not enabled|disabled|provider/i.test(msg)) {
+        hint = ` Ative o provedor ${providerName} em Supabase → Authentication → Providers e cole Client ID/Secret.`
+      } else if (/redirect|url|origin/i.test(msg)) {
+        hint = ' Confira Site URL e Redirect URLs no Supabase (Auth → URL Configuration).'
+      } else if (provider === 'facebook') {
+        hint =
+          ' No Meta Developers, adicione o redirect: https://uukivzxabiydnrvjvabt.supabase.co/auth/v1/callback e ative Facebook Login.'
+      } else if (provider === 'discord') {
+        hint =
+          ' No Discord Developer Portal → OAuth2, adicione Redirect: https://uukivzxabiydnrvjvabt.supabase.co/auth/v1/callback'
+      } else {
+        hint =
+          ' Se o Google mostrar erro 400, confira o redirect: https://uukivzxabiydnrvjvabt.supabase.co/auth/v1/callback'
+      }
+      setError((msg || `Não foi possível entrar com ${providerName}.`) + hint)
       setLoadingProvider(null)
     }
   }

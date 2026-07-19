@@ -521,9 +521,17 @@ h3 {
 }
 
 .account-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 12px 16px;
   margin-bottom: 18px;
+}
+
+.account-strip-head {
+  min-width: 0;
+  flex: 1 1 180px;
 }
 
 .account-strip strong {
@@ -538,15 +546,36 @@ h3 {
   text-transform: none;
 }
 
+/* Métricas sempre em linha (PC e mobile) */
+.account-strip-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 420px;
+  align-items: stretch;
+}
+
+.account-strip-action {
+  flex: 0 0 auto;
+}
+
 .metric {
   display: grid;
-  min-width: 120px;
+  min-width: 0;
   border-left: 1px solid var(--line);
   padding-left: 14px;
+  gap: 2px;
+}
+
+.account-strip-metrics .metric:first-child {
+  border-left: 0;
+  padding-left: 0;
 }
 
 .metric b {
   font-size: 24px;
+  line-height: 1;
 }
 
 .metric span,
@@ -1618,10 +1647,61 @@ body:has(.cropper-overlay) {
   }
 
   .topbar,
-  .account-strip,
   .subtab-actionbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  /* Conta: título em cima, métricas lado a lado, botão embaixo */
+  .account-strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .account-strip-head {
+    flex: none;
+    width: 100%;
+  }
+
+  .account-strip-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    max-width: none;
+    flex: none;
+    gap: 0;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .account-strip-metrics .metric {
+    width: auto;
+    min-width: 0;
+    border-left: 1px solid var(--line);
+    border-top: 0;
+    padding: 4px 8px;
+    text-align: center;
+    justify-items: center;
+  }
+
+  .account-strip-metrics .metric:first-child {
+    border-left: 0;
+    padding-left: 4px;
+  }
+
+  .account-strip-metrics .metric b {
+    font-size: 22px;
+  }
+
+  .account-strip-metrics .metric span {
+    font-size: 9px;
+    letter-spacing: .08em;
+  }
+
+  .account-strip-action {
+    width: 100%;
   }
 
   .form-grid,
@@ -1674,13 +1754,6 @@ body:has(.cropper-overlay) {
     padding: 28px 18px 22px;
     box-shadow: none;
     background: color-mix(in srgb, var(--surface) 96%, transparent);
-  }
-
-  .metric {
-    width: 100%;
-    border-left: 0;
-    border-top: 1px solid var(--line);
-    padding: 10px 0 0;
   }
 
   .upload-field,

@@ -1656,16 +1656,33 @@ export function DropZoneHome() {
         ) : (
           <>
             <section className="account-strip">
-              <div>
+              <div className="account-strip-head">
                 <p className="eyebrow">Conta ativa</p>
-                <strong>{account.name} <span>@{account.username}{account.public_id ? ` · ID ${account.public_id}` : ''}</span></strong>
+                <strong>
+                  {account.name}{' '}
+                  <span>
+                    @{account.username}
+                    {account.public_id ? ` · ID ${account.public_id}` : ''}
+                  </span>
+                </strong>
               </div>
-              <div className="metric"><b>{championships.length}</b><span>Campeonatos</span></div>
-              <div className="metric"><b>{teams.length}</b><span>Equipes</span></div>
-              <div className="metric"><b>{registrations.length}</b><span>Inscricoes</span></div>
+              <div className="account-strip-metrics" role="group" aria-label="Resumo da conta">
+                <div className="metric">
+                  <b>{championships.length}</b>
+                  <span>Campeonatos</span>
+                </div>
+                <div className="metric">
+                  <b>{teams.length}</b>
+                  <span>Equipes</span>
+                </div>
+                <div className="metric">
+                  <b>{registrations.length}</b>
+                  <span>Inscricoes</span>
+                </div>
+              </div>
               <button
                 type="button"
-                className="button secondary small"
+                className="button secondary small account-strip-action"
                 onClick={() => setShowAccountProfile((v) => !v)}
               >
                 {showAccountProfile ? 'Fechar perfil' : 'Editar perfil'}
