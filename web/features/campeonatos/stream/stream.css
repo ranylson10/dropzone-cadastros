@@ -2603,6 +2603,51 @@ body.stream-editor-scroll-lock {
   to { opacity: 0; transform: scale(0.92); }
 }
 
+/* Stepper compacto: − | valor | + */
+.stream-num-stepper {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+
+.stream-num-stepper button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stream-num-stepper button:hover {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+}
+
+.stream-num-stepper input {
+  min-width: 0;
+  width: 100%;
+  min-height: 30px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--text);
+  text-align: center;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
 .stream-transition-preview-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

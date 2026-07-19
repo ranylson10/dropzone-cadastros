@@ -142,6 +142,8 @@ export function StreamOverlayEditor(props: {
     kind: 'enter' | 'exit'
     token: number
   } | null>(null)
+  /** Passo de escala da tabela (% aplicado em − / +). */
+  const [scaleStepPct, setScaleStepPct] = useState('10')
 
   const [ws, setWs] = useState<StreamWorkspacePrefs>(() => loadWorkspacePrefs())
   const zoom = ws.zoom
@@ -1348,97 +1350,198 @@ export function StreamOverlayEditor(props: {
 
                 {selectedBlock.type === 'table' && selectedTable ? (
                   <details className="stream-inspector-section" open>
-                    <summary>Dividir em painéis</summary>
-                    <p className="stream-hint">
-                      Ex.: 2 painéis com 6 linhas = top 1–6 | top 7–12. Largura (px) é de cada painel.
-                    </p>
+                    <summary>Painéis e escala</summary>
                     <div className="stream-style-grid">
                       <label className="stream-style-field">
                         <span>Painéis</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={6}
-                          value={selectedTable.data.splitPanels || 1}
-                          onChange={(e) =>
-                            patchSelectedTableData((d) => ({
-                              ...d,
-                              splitPanels: Math.max(1, Math.min(6, Number(e.target.value) || 1)),
-                            }))
-                          }
-                        />
+                        <div className="stream-num-stepper">
+                          <button
+                            type="button"
+                            aria-label="Menos painéis"
+                            onClick={() =>
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                splitPanels: Math.max(1, (d.splitPanels || 1) - 1),
+                              }))
+                            }
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min={1}
+                            max={6}
+                            value={selectedTable.data.splitPanels || 1}
+                            onChange={(e) =>
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                splitPanels: Math.max(1, Math.min(6, Number(e.target.value) || 1)),
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            aria-label="Mais painéis"
+                            onClick={() =>
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                splitPanels: Math.min(6, (d.splitPanels || 1) + 1),
+                              }))
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
                       </label>
                       <label className="stream-style-field">
                         <span>Linhas / painel</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={40}
-                          value={
-                            selectedTable.data.rowsPerPanel ||
-                            Math.ceil((selectedTable.data.rows || 1) / Math.max(1, selectedTable.data.splitPanels || 1))
-                          }
-                          onChange={(e) =>
-                            patchSelectedTableData((d) => ({
-                              ...d,
-                              rowsPerPanel: Math.max(1, Math.min(40, Number(e.target.value) || 1)),
-                            }))
-                          }
-                        />
+                        <div className="stream-num-stepper">
+                          <button
+                            type="button"
+                            aria-label="Menos linhas"
+                            onClick={() => {
+                              const cur =
+                                selectedTable.data.rowsPerPanel ||
+                                Math.ceil(
+                                  (selectedTable.data.rows || 1) /
+                                    Math.max(1, selectedTable.data.splitPanels || 1),
+                                )
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                rowsPerPanel: Math.max(1, cur - 1),
+                              }))
+                            }}
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min={1}
+                            max={40}
+                            value={
+                              selectedTable.data.rowsPerPanel ||
+                              Math.ceil(
+                                (selectedTable.data.rows || 1) /
+                                  Math.max(1, selectedTable.data.splitPanels || 1),
+                              )
+                            }
+                            onChange={(e) =>
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                rowsPerPanel: Math.max(1, Math.min(40, Number(e.target.value) || 1)),
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            aria-label="Mais linhas"
+                            onClick={() => {
+                              const cur =
+                                selectedTable.data.rowsPerPanel ||
+                                Math.ceil(
+                                  (selectedTable.data.rows || 1) /
+                                    Math.max(1, selectedTable.data.splitPanels || 1),
+                                )
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                rowsPerPanel: Math.min(40, cur + 1),
+                              }))
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
                       </label>
                       <label className="stream-style-field">
-                        <span>Espaço entre (px)</span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={200}
-                          value={selectedTable.data.splitGapPx ?? 0}
-                          onChange={(e) =>
-                            patchSelectedTableData((d) => ({
-                              ...d,
-                              splitGapPx: Math.max(0, Math.min(200, Number(e.target.value) || 0)),
-                            }))
-                          }
-                        />
+                        <span>Espaço (px)</span>
+                        <div className="stream-num-stepper">
+                          <button
+                            type="button"
+                            aria-label="Menos espaço"
+                            onClick={() =>
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                splitGapPx: Math.max(0, (d.splitGapPx || 0) - 4),
+                              }))
+                            }
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min={0}
+                            max={200}
+                            value={selectedTable.data.splitGapPx ?? 0}
+                            onChange={(e) =>
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                splitGapPx: Math.max(0, Math.min(200, Number(e.target.value) || 0)),
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            aria-label="Mais espaço"
+                            onClick={() =>
+                              patchSelectedTableData((d) => ({
+                                ...d,
+                                splitGapPx: Math.min(200, (d.splitGapPx || 0) + 4),
+                              }))
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
+                      </label>
+                      <label className="stream-style-field">
+                        <span>Escala (%)</span>
+                        <div className="stream-num-stepper">
+                          <button
+                            type="button"
+                            aria-label="Reduzir escala"
+                            onClick={() => {
+                              const pct = Math.max(1, Math.min(50, Number(scaleStepPct) || 10))
+                              updateBlock(
+                                selectedBlock.id,
+                                (b) => (b.type === 'table' ? scaleTableBlock(b, 1 - pct / 100) : b),
+                                { history: 'force' },
+                              )
+                            }}
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={scaleStepPct}
+                            title="Percentual a aplicar em − / +"
+                            onChange={(e) => setScaleStepPct(e.target.value)}
+                            onBlur={() => {
+                              const n = Math.max(1, Math.min(50, Number(scaleStepPct) || 10))
+                              setScaleStepPct(String(n))
+                            }}
+                          />
+                          <button
+                            type="button"
+                            aria-label="Aumentar escala"
+                            onClick={() => {
+                              const pct = Math.max(1, Math.min(50, Number(scaleStepPct) || 10))
+                              updateBlock(
+                                selectedBlock.id,
+                                (b) => (b.type === 'table' ? scaleTableBlock(b, 1 + pct / 100) : b),
+                                { history: 'force' },
+                              )
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
                       </label>
                     </div>
-                    <div className="stream-dock-row" style={{ marginTop: 6 }}>
-                      <button
-                        type="button"
-                        className={(selectedTable.data.splitPanels || 1) === 1 ? 'is-active' : ''}
-                        onClick={() => patchSelectedTableData((d) => ({ ...d, splitPanels: 1 }))}
-                      >
-                        1×
-                      </button>
-                      <button
-                        type="button"
-                        className={(selectedTable.data.splitPanels || 1) === 2 ? 'is-active' : ''}
-                        onClick={() =>
-                          patchSelectedTableData((d) => ({
-                            ...d,
-                            splitPanels: 2,
-                            rowsPerPanel: d.rowsPerPanel || Math.ceil((d.rows || 12) / 2) || 6,
-                            splitGapPx: d.splitGapPx || 24,
-                          }))
-                        }
-                      >
-                        2× (1–6 | 7–12)
-                      </button>
-                      <button
-                        type="button"
-                        className={(selectedTable.data.splitPanels || 1) === 3 ? 'is-active' : ''}
-                        onClick={() =>
-                          patchSelectedTableData((d) => ({
-                            ...d,
-                            splitPanels: 3,
-                            rowsPerPanel: d.rowsPerPanel || Math.ceil((d.rows || 12) / 3) || 4,
-                            splitGapPx: d.splitGapPx || 16,
-                          }))
-                        }
-                      >
-                        3×
-                      </button>
-                    </div>
+                    <p className="stream-hint">
+                      Escala: digite o % e use − / +. Painéis: top 1–6 | 7–12 com 2 painéis e 6 linhas.
+                    </p>
                   </details>
                 ) : null}
 
@@ -1451,37 +1554,6 @@ export function StreamOverlayEditor(props: {
                         <button key={t.id} type="button" onClick={() => addLayer(t.id)}>+ {t.label}</button>
                       ))}
                     </div>
-                  </details>
-                ) : null}
-
-                {selectedBlock.type === 'table' && selectedTable ? (
-                  <details className="stream-inspector-section" open>
-                    <summary>Escala e camadas</summary>
-                    <p className="stream-hint">
-                      Selecione <strong>Legenda</strong>, <strong>Linha modelo</strong> ou uma{' '}
-                      <strong>Coluna</strong> na lista à direita para editar fundo, fonte e borda.
-                    </p>
-                    <label className="stream-field">
-                      <span>Escala proporcional</span>
-                      <div className="stream-dock-row" style={{ marginTop: 4 }}>
-                        {[0.75, 0.9, 1.1, 1.25].map((f) => (
-                          <button
-                            key={f}
-                            type="button"
-                            onClick={() =>
-                              updateBlock(
-                                selectedBlock.id,
-                                (b) => (b.type === 'table' ? scaleTableBlock(b, f) : b),
-                                { history: 'force' },
-                              )
-                            }
-                          >
-                            {f < 1 ? `${Math.round(f * 100)}%` : `+${Math.round((f - 1) * 100)}%`}
-                          </button>
-                        ))}
-                      </div>
-                    </label>
-                    <p className="stream-hint">Ajusta largura, colunas, alturas e fontes juntas.</p>
                   </details>
                 ) : null}
 

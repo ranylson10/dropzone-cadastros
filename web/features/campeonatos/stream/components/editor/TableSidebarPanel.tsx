@@ -175,53 +175,105 @@ export function TablePartInspector(props: {
 
         <details className="stream-inspector-section" open>
           <summary>Dividir em painéis</summary>
-          <p className="stream-hint">
-            Divide a tabela em blocos lado a lado (ex.: top 1–6 | top 7–12).
-          </p>
           <div className="stream-style-grid">
             <label className="stream-style-field">
               <span>Painéis</span>
-              <input
-                type="number"
-                min={1}
-                max={6}
-                value={panels}
-                onChange={(e) =>
-                  patch((d) => ({
-                    ...d,
-                    splitPanels: Math.max(1, Math.min(6, Number(e.target.value) || 1)),
-                  }))
-                }
-              />
+              <div className="stream-num-stepper">
+                <button
+                  type="button"
+                  aria-label="Menos painéis"
+                  onClick={() =>
+                    patch((d) => ({ ...d, splitPanels: Math.max(1, (d.splitPanels || 1) - 1) }))
+                  }
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  max={6}
+                  value={panels}
+                  onChange={(e) =>
+                    patch((d) => ({
+                      ...d,
+                      splitPanels: Math.max(1, Math.min(6, Number(e.target.value) || 1)),
+                    }))
+                  }
+                />
+                <button
+                  type="button"
+                  aria-label="Mais painéis"
+                  onClick={() =>
+                    patch((d) => ({ ...d, splitPanels: Math.min(6, (d.splitPanels || 1) + 1) }))
+                  }
+                >
+                  +
+                </button>
+              </div>
             </label>
             <label className="stream-style-field">
               <span>Linhas / painel</span>
-              <input
-                type="number"
-                min={1}
-                max={40}
-                value={perPanel}
-                title="Quantas linhas em cada bloco lateral"
-                onChange={(e) => {
-                  const n = Math.max(1, Math.min(40, Number(e.target.value) || 1))
-                  patch((d) => ({ ...d, rowsPerPanel: n }))
-                }}
-              />
+              <div className="stream-num-stepper">
+                <button
+                  type="button"
+                  aria-label="Menos linhas"
+                  onClick={() => patch((d) => ({ ...d, rowsPerPanel: Math.max(1, perPanel - 1) }))}
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  max={40}
+                  value={perPanel}
+                  onChange={(e) => {
+                    const n = Math.max(1, Math.min(40, Number(e.target.value) || 1))
+                    patch((d) => ({ ...d, rowsPerPanel: n }))
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label="Mais linhas"
+                  onClick={() => patch((d) => ({ ...d, rowsPerPanel: Math.min(40, perPanel + 1) }))}
+                >
+                  +
+                </button>
+              </div>
             </label>
             <label className="stream-style-field">
-              <span>Espaço entre (px)</span>
-              <input
-                type="number"
-                min={0}
-                max={200}
-                value={data.splitGapPx ?? 0}
-                onChange={(e) =>
-                  patch((d) => ({
-                    ...d,
-                    splitGapPx: Math.max(0, Math.min(200, Number(e.target.value) || 0)),
-                  }))
-                }
-              />
+              <span>Espaço (px)</span>
+              <div className="stream-num-stepper">
+                <button
+                  type="button"
+                  aria-label="Menos espaço"
+                  onClick={() =>
+                    patch((d) => ({ ...d, splitGapPx: Math.max(0, (d.splitGapPx || 0) - 4) }))
+                  }
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={0}
+                  max={200}
+                  value={data.splitGapPx ?? 0}
+                  onChange={(e) =>
+                    patch((d) => ({
+                      ...d,
+                      splitGapPx: Math.max(0, Math.min(200, Number(e.target.value) || 0)),
+                    }))
+                  }
+                />
+                <button
+                  type="button"
+                  aria-label="Mais espaço"
+                  onClick={() =>
+                    patch((d) => ({ ...d, splitGapPx: Math.min(200, (d.splitGapPx || 0) + 4) }))
+                  }
+                >
+                  +
+                </button>
+              </div>
             </label>
           </div>
           <label className="stream-field stream-check-inline">
@@ -233,47 +285,7 @@ export function TablePartInspector(props: {
             />
             <span>Repetir legenda em cada painel</span>
           </label>
-          <p className="stream-hint">{splitHint}</p>
-          <div className="stream-dock-row" style={{ marginTop: 4 }}>
-            <button
-              type="button"
-              title="1 coluna"
-              className={panels === 1 ? 'is-active' : ''}
-              onClick={() => patch((d) => ({ ...d, splitPanels: 1 }))}
-            >
-              1×
-            </button>
-            <button
-              type="button"
-              title="2 painéis (ex.: 1–6 | 7–12)"
-              className={panels === 2 ? 'is-active' : ''}
-              onClick={() =>
-                patch((d) => ({
-                  ...d,
-                  splitPanels: 2,
-                  rowsPerPanel: d.rowsPerPanel || Math.ceil((d.rows || 12) / 2) || 6,
-                  splitGapPx: d.splitGapPx || 24,
-                }))
-              }
-            >
-              2×
-            </button>
-            <button
-              type="button"
-              title="3 painéis"
-              className={panels === 3 ? 'is-active' : ''}
-              onClick={() =>
-                patch((d) => ({
-                  ...d,
-                  splitPanels: 3,
-                  rowsPerPanel: d.rowsPerPanel || Math.ceil((d.rows || 12) / 3) || 4,
-                  splitGapPx: d.splitGapPx || 16,
-                }))
-              }
-            >
-              3×
-            </button>
-          </div>
+          {panels > 1 ? <p className="stream-hint">{splitHint}</p> : null}
         </details>
 
         <details className="stream-inspector-section" open>
