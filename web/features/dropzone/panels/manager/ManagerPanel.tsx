@@ -15,7 +15,6 @@ import { ManagerCampeonatosView } from './ManagerCampeonatosView'
 import { ManagerContextsView, type StaffVinculo } from './ManagerContextsView'
 import { ManagerVendasView } from './ManagerVendasView'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
-import { WalletPanel } from '@/features/billing/WalletPanel'
 import { dataText } from '../../utils'
 
 const contextIcons: Record<Exclude<ManagerPanelMode, 'hub'>, typeof Trophy> = {
@@ -262,13 +261,13 @@ export function ManagerPanel(props: {
             >
               <MessageCircle size={13} /> Vendas
             </button>
-            <button
-              type="button"
-              className={`manager-mode-chip manager-mode-chip-sm ${produtoraSub === 'carteira' ? 'active' : ''}`}
-              onClick={() => setProdutoraSub('carteira')}
+            <a
+              href="/carteira"
+              className="manager-mode-chip manager-mode-chip-sm"
+              style={{ textDecoration: 'none' }}
             >
               <Wallet size={13} /> Carteira
-            </button>
+            </a>
             <button
               type="button"
               className={`manager-mode-chip manager-mode-chip-sm ${showManagerPerfil ? 'active' : ''}`}
@@ -309,10 +308,6 @@ export function ManagerPanel(props: {
       {/* ——— CAMPEONATOS (antes: produtora) ——— */}
       {mode === 'produtora' ? (
         <>
-          {produtoraSub === 'carteira' ? (
-            <WalletPanel title="Carteira do vendedor" />
-          ) : null}
-
           {produtoraSub === 'vendas' ? (
             <ManagerVendasView
               accountId={props.account.id}

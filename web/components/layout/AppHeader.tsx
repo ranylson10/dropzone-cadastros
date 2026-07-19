@@ -1,11 +1,12 @@
 'use client'
 
-import { ChevronDown, Loader2, LogOut, Menu, Plus, X } from 'lucide-react'
+import { ChevronDown, Loader2, LogOut, Menu, Plus, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { DropZoneRow } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { APP_NAV, type AppNavItem } from './nav'
+import { supabase } from '@/lib/supabase-browser'
 
 export type AppHeaderNavItem = AppNavItem
 
@@ -25,6 +26,8 @@ type AppHeaderProps = {
   /** Guest CTA when not logged in */
   loginHref?: string
   loginLabel?: string
+  /** Mostra chip de saldo (produtora / manager) */
+  showWallet?: boolean
 }
 
 function profileMedia(account: DropZoneRow) {
@@ -97,9 +100,11 @@ export function AppHeader({
   onSignOut,
   loginHref = '/login?returnTo=%2F',
   loginLabel = 'Entrar no sistema',
+  showWallet = false,
 }: AppHeaderProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [walletSaldo, setWalletSaldo] = useState<number | null>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const isAuthenticated = Boolean(profileName && onSignOut)
 
@@ -110,6 +115,34 @@ export function AppHeader({
     document.addEventListener('mousedown', closeOutside)
     return () => document.removeEventListener('mousedown', closeOutside)
   }, [])
+
+  useEffect(() => {
+    if (!showWallet || !isAuthenticated) {
+      setWalletSaldo(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        const token = data.session?.access_token
+        if (!token) return
+        const res = await fetch('/api/me/carteira', {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!cancelled && res.ok) {
+          setWalletSaldo(Number(json.carteira?.saldo_disponivel_centavos || 0))
+        }
+      } catch {
+        if (!cancelled) setWalletSaldo(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [showWallet, isAuthenticated, activeAccountId])
 
   return (
     <header className="app-header">
@@ -145,7 +178,25 @@ export function AppHeader({
         </nav>
 
         {isAuthenticated ? (
-          <div className="app-profile" ref={profileRef} style={{ position: 'relative', maxWidth: 280 }}>
+          <div className="app-profile" ref={profileRef} style={{ position: 'relative', maxWidth: 360 }}>
+            {showWallet ? (
+              <a
+                href="/carteira"
+                className="app-wallet-chip"
+                title="Abrir carteira"
+                onClick={() => setMobileOpen(false)}
+              >
+                <Wallet size={15} />
+                <span>
+                  {walletSaldo == null
+                    ? 'Carteira'
+                    : new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      }).format(walletSaldo / 100)}
+                </span>
+              </a>
+            ) : null}
             <NotificationBell />
             <button
               type="button"

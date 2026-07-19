@@ -201,6 +201,10 @@ export function AppShell({
           onCreateLinkedProfile={onCreateLinkedProfile}
           onSignOut={account ? (onSignOutProp || defaultSignOut) : undefined}
           loginHref={loginHref}
+          showWallet={
+            Boolean(account)
+            && (account?.profile_type === 'produtora' || account?.profile_type === 'manager')
+          }
         />
       ) : null}
       <main className={mainClasses} id={mainId}>

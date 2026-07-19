@@ -1,7 +1,7 @@
 export type ManagerPanelMode = 'hub' | 'produtora' | 'equipes' | 'jogador'
 
 /** Sub-área dentro de Campeonatos (vendedor/afiliado). */
-export type ManagerProdutoraSub = 'vendas' | 'campeonatos' | 'carteira'
+export type ManagerProdutoraSub = 'vendas' | 'campeonatos'
 
 export type ManagerChampTab = 'equipes' | 'jogadores' | 'grupos' | 'jogos' | 'estatisticas' | 'info'
 

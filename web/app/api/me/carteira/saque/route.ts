@@ -16,14 +16,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}))
 
     const valorCentavos = Math.floor(Number(body.valor_centavos))
-    const pixChave = String(body.pix_chave || '').trim()
-    const pixTipo = String(body.pix_tipo || 'aleatoria').trim()
-    const titular = String(body.titular_nome || account?.name || '').trim()
-
-    if (!Number.isFinite(valorCentavos) || valorCentavos < MIN_SAQUE_CENTAVOS) {
-      throw new Error('Valor mínimo para saque: R$ 10,00.')
-    }
-    if (!pixChave || pixChave.length < 5) throw new Error('Informe a chave PIX.')
 
     let donoTipo: 'manager' | 'produtora' | 'auth_user' = 'auth_user'
     let donoId: string = account?.id || user.id
@@ -40,6 +32,17 @@ export async function POST(req: NextRequest) {
       donoId,
       authUserId: user.id,
     })
+
+    const pixChave = String(body.pix_chave || wallet.pix_chave || '').trim()
+    const pixTipo = String(body.pix_tipo || wallet.pix_tipo || 'aleatoria').trim()
+    const titular = String(body.titular_nome || wallet.pix_titular || account?.name || '').trim()
+
+    if (!Number.isFinite(valorCentavos) || valorCentavos < MIN_SAQUE_CENTAVOS) {
+      throw new Error('Valor mínimo para saque: R$ 10,00.')
+    }
+    if (!pixChave || pixChave.length < 5) {
+      throw new Error('Cadastre uma chave PIX na carteira antes de sacar.')
+    }
 
     // debita e cria solicitação (saldo sai na hora — fica “em trânsito”)
     const { data: saque, error } = await supabaseAdmin
