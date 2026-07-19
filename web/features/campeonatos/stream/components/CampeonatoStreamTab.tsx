@@ -233,23 +233,36 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     setBgUploading(true)
     setFeedback('')
     try {
-      const isVideo = /^video\//i.test(file.type)
+      const name = String(file.name || '').toLowerCase()
+      const isVideo =
+        /^video\//i.test(file.type)
+        || /\.(mp4|webm|mov)$/i.test(name)
+
       let uploadedUrl = ''
       let nextType: 'image' | 'video' = 'image'
 
       if (isVideo) {
-        if (!/mp4|webm/i.test(file.type) && !/\.(mp4|webm)$/i.test(file.name)) {
-          throw new Error('Use vídeo MP4 ou WebM (até 25 MB).')
+        if (!/\.(mp4|webm|mov)$/i.test(name) && !/mp4|webm|quicktime/i.test(file.type)) {
+          throw new Error('Use vídeo MP4 ou WebM (até 40 MB).')
         }
+        if (file.size > 40 * 1024 * 1024) {
+          throw new Error('Vídeo muito pesado. Limite: 40 MB.')
+        }
+        // upload assinado direto no Storage (vídeo não passa pelo body da API)
         const res = await uploadPublicMedia(file, 'campeonato', 'produtora')
         uploadedUrl = res.url
         nextType = 'video'
       } else {
+        if (file.size > 8 * 1024 * 1024) {
+          throw new Error('Imagem muito pesada. Use até ~5–8 MB.')
+        }
         const png = await fileToPngFile(file)
         const res = await uploadPublicMedia(png, 'campeonato', 'produtora')
         uploadedUrl = res.url
         nextType = 'image'
       }
+
+      if (!uploadedUrl) throw new Error('Upload concluído sem URL pública.')
 
       setBgType(nextType)
       setBgUrl(uploadedUrl)
@@ -259,7 +272,11 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
         bg_type: nextType,
         bg_url: uploadedUrl,
       })
-      setFeedback(nextType === 'video' ? 'Vídeo de fundo enviado.' : 'Imagem de fundo enviada.')
+      setFeedback(
+        nextType === 'video'
+          ? 'Vídeo de fundo enviado e salvo na live (aparece no preview e no OBS).'
+          : 'Imagem de fundo enviada e salva na live (aparece no preview e no OBS).',
+      )
     } catch (e: any) {
       setFeedback(e?.message || 'Falha no upload do fundo.')
     } finally {
@@ -443,14 +460,23 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
             <div className="stream-pack-preview" aria-label="Pré-visualização do fundo">
               {bgType === 'image' && bgUrl.trim() ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={bgUrl.trim()} alt="Fundo" />
+                <img key={bgUrl} src={bgUrl.trim()} alt="Fundo" />
               ) : null}
               {bgType === 'video' && bgUrl.trim() ? (
-                <video src={bgUrl.trim()} autoPlay muted loop playsInline />
+                <video
+                  key={bgUrl}
+                  src={bgUrl.trim()}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  controls={false}
+                  onError={() => setFeedback('Não foi possível reproduzir o vídeo no preview. Confira se o arquivo é MP4/WebM e se o upload concluiu.')}
+                />
               ) : null}
               {(bgType === 'none' || !bgUrl.trim()) ? (
                 <div className="stream-pack-preview-empty">
-                  Fundo transparente (como no OBS). Envie PNG/JPG ou vídeo MP4/WebM do seu PC.
+                  Sem fundo. Envie PNG/JPG ou vídeo MP4/WebM — ele aparece no preview e no OBS da live.
                 </div>
               ) : null}
               <span className="stream-pack-preview-badge">
@@ -459,8 +485,8 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
               </span>
             </div>
             <p className="stream-hint" style={{ margin: 0 }}>
-              O OBS do Stream continua com fundo transparente; o BG aqui é só para o admin enxergar o encaixe.
-              Imagem até 5 MB · vídeo até 25 MB.
+              Este fundo vai para o <strong>OBS do Stream</strong> (atrás das overlays), não só no preview.
+              Imagem até ~5 MB · vídeo até 40 MB (upload direto).
             </p>
           </div>
         </div>

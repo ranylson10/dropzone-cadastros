@@ -455,10 +455,39 @@
 }
 
 .broadcast-obs-root {
+  position: relative;
   margin: 0;
   min-height: 100vh;
+  width: 100vw;
   background: transparent;
   overflow: hidden;
+}
+
+/* Com BG de pack, o Browser Source preenche a tela (não fica “fundo do site”) */
+.broadcast-obs-root.has-pack-bg {
+  background: #000;
+}
+
+.broadcast-obs-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.broadcast-obs-bg-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.broadcast-obs-stage {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  width: 100%;
 }
 
 .broadcast-obs-waiting {
@@ -468,6 +497,8 @@
   color: rgba(255, 255, 255, 0.35);
   font-family: system-ui, sans-serif;
   font-size: 13px;
+  position: relative;
+  z-index: 2;
 }
 
 /* Mesa única no painel Stream */

@@ -9,24 +9,36 @@ async function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
+async function authHeaders(profileType?: string | null) {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) throw new Error('Sessão expirada.')
+  return {
+    Authorization: `Bearer ${token}`,
+    ...(profileType ? { 'x-profile-type': profileType } : {}),
+  }
+}
+
 /** Upload PNG público via /api/upload (precisa sessão). */
 export async function uploadPublicFile(
   file: File,
   bucket: string,
   profileType?: string | null,
 ): Promise<string> {
-  const dataUrl = await fileToDataUrl(file)
+  // arquivos maiores → upload assinado direto no Storage
+  if (file.size > 900_000) {
+    const media = await uploadPublicMedia(file, bucket, profileType)
+    return media.url
+  }
 
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
-  if (!token) throw new Error('Sessão expirada.')
+  const dataUrl = await fileToDataUrl(file)
+  const headers = await authHeaders(profileType)
 
   const res = await fetch('/api/upload', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(profileType ? { 'x-profile-type': profileType } : {}),
+      ...headers,
     },
     body: JSON.stringify({
       bucket,
@@ -40,35 +52,59 @@ export async function uploadPublicFile(
   return String(json.url || '')
 }
 
-/** Upload de mídia (PNG ou vídeo) — retorna url + content_type. */
+/**
+ * Upload de mídia (PNG ou vídeo) via URL assinada (direto no Supabase Storage).
+ * Evita limite de body do Next/Vercel — necessário para vídeos.
+ */
 export async function uploadPublicMedia(
   file: File,
   bucket: string,
   profileType?: string | null,
-): Promise<{ url: string; content_type: string }> {
-  const dataUrl = await fileToDataUrl(file)
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
-  if (!token) throw new Error('Sessão expirada.')
+): Promise<{ url: string; content_type: string; kind: 'image' | 'video' }> {
+  const headers = await authHeaders(profileType)
+  const contentType = file.type || guessContentType(file.name)
 
-  const res = await fetch('/api/upload', {
+  const prep = await fetch('/api/upload/signed', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(profileType ? { 'x-profile-type': profileType } : {}),
+      ...headers,
     },
     body: JSON.stringify({
       bucket,
       file_name: file.name || `${bucket}-media`,
-      content_type: file.type || 'application/octet-stream',
-      data_url: dataUrl,
+      content_type: contentType,
+      size: file.size,
     }),
   })
-  const json = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(json.error || 'Erro ao enviar arquivo.')
-  return {
-    url: String(json.url || ''),
-    content_type: String(json.content_type || file.type || ''),
+  const signed = await prep.json().catch(() => ({}))
+  if (!prep.ok) throw new Error(signed.error || 'Falha ao preparar upload.')
+
+  const put = await fetch(String(signed.signed_url), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': String(signed.content_type || contentType),
+    },
+    body: file,
+  })
+  if (!put.ok) {
+    const detail = await put.text().catch(() => '')
+    throw new Error(`Falha no upload do arquivo (${put.status}). ${detail.slice(0, 120)}`)
   }
+
+  return {
+    url: String(signed.public_url || ''),
+    content_type: String(signed.content_type || contentType),
+    kind: signed.kind === 'video' ? 'video' : 'image',
+  }
+}
+
+function guessContentType(name: string) {
+  const n = String(name || '').toLowerCase()
+  if (n.endsWith('.webm')) return 'video/webm'
+  if (n.endsWith('.mp4') || n.endsWith('.mov')) return 'video/mp4'
+  if (n.endsWith('.png')) return 'image/png'
+  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg'
+  if (n.endsWith('.webp')) return 'image/webp'
+  return 'application/octet-stream'
 }

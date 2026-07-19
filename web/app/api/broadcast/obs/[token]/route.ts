@@ -50,11 +50,13 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
       updated_at: string | null
     }> = []
 
+    let packBg: { bg_type: string; bg_url: string | null } = { bg_type: 'none', bg_url: null }
+
     if (session.campeonato_id) {
       const [{ data: pack }, { data: allOverlays }] = await Promise.all([
         supabaseAdmin
           .from('campeonato_stream_pack')
-          .select('selected_overlay_ids')
+          .select('selected_overlay_ids,bg_type,bg_url')
           .eq('campeonato_id', session.campeonato_id)
           .maybeSingle(),
         supabaseAdmin
@@ -63,6 +65,11 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
           .eq('campeonato_id', session.campeonato_id)
           .eq('ativo', true),
       ])
+
+      packBg = {
+        bg_type: pack?.bg_type || 'none',
+        bg_url: pack?.bg_url || null,
+      }
 
       const byId = new Map((allOverlays || []).map((o) => [o.id, o]))
       const selected = asIdList(pack?.selected_overlay_ids)
@@ -87,6 +94,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
         session: sessionOut,
         share_token: null,
         catalog,
+        pack: packBg,
       })
     }
 
@@ -104,6 +112,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
         },
         share_token: fromCatalog.share_token,
         catalog,
+        pack: packBg,
       })
     }
 
@@ -120,6 +129,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
         session: sessionOut,
         share_token: null,
         catalog,
+        pack: packBg,
         error: 'Overlay ativa sem token live.',
       })
     }
@@ -136,6 +146,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
       },
       share_token: overlay.share_token,
       catalog,
+      pack: packBg,
     })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
