@@ -10,6 +10,7 @@ import {
   UserCircle2,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { AgendaCalendar } from '@/features/agenda'
 import { ReportButton } from '@/features/reports/ReportButton'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
@@ -27,7 +28,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof Info }> = [
   { id: 'info', label: 'Informações', icon: Info },
   { id: 'equipes', label: 'Equipes', icon: Users },
   { id: 'jogadores', label: 'Jogadores', icon: UserCircle2 },
-  { id: 'jogos', label: 'Jogos', icon: Gamepad2 },
+  { id: 'jogos', label: 'Agenda', icon: Gamepad2 },
   { id: 'estatisticas', label: 'Estatísticas', icon: BarChart3 },
 ]
 
@@ -315,13 +316,22 @@ export function ChampionshipPublicView({
         ) : null}
 
         {tab === 'jogos' ? (
-          <SectionPanel
-            title="Jogos"
-            subtitle="Calendário e partidas"
-            icon={<Gamepad2 size={16} />}
-            empty="Nenhum jogo cadastrado."
-            section={sectionMap.jogos}
-          />
+          <section className="champ-public-section">
+            <header className="champ-public-panel-head">
+              <Gamepad2 size={16} />
+              <div>
+                <strong>Agenda de jogos</strong>
+                <small>Calendário mensal com horários e partidas do campeonato</small>
+              </div>
+            </header>
+            <AgendaCalendar
+              title={`CALENDÁRIO ${profile.name}`.toUpperCase()}
+              scope="campeonato"
+              scopeId={profile.id}
+              canCreate
+              compact
+            />
+          </section>
         ) : null}
 
         {tab === 'estatisticas' ? (

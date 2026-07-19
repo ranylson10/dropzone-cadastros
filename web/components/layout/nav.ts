@@ -24,6 +24,7 @@ export const APP_NAV: AppNavItem[] = [
       { label: 'Produtoras', href: '/produtoras' },
     ],
   },
+  { label: 'Agenda', href: '/agenda' },
   { label: 'Equipes', href: '/equipes' },
   { label: 'Jogadores', href: '/jogadores' },
   { label: 'Managers', href: '/managers' },
@@ -45,6 +46,10 @@ export function resolveActiveNavLabel(pathname?: string | null): string | undefi
     || clean.startsWith('/campeonatos/')
   ) {
     return 'Campeonatos'
+  }
+
+  if (clean === '/agenda' || clean.startsWith('/agenda/')) {
+    return 'Agenda'
   }
 
   for (const item of APP_NAV) {

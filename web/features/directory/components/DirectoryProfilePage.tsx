@@ -71,7 +71,19 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
             </div>
           </div>
         </section>
-        <DirectoryProfileTabs sections={profile.sections} />
+        <DirectoryProfileTabs
+          sections={profile.sections}
+          agenda={
+            kind === 'equipes'
+              ? {
+                  title: `AGENDA ${profile.name}`.toUpperCase(),
+                  scope: 'equipe',
+                  scopeId: id,
+                  tabLabel: 'Agenda',
+                }
+              : null
+          }
+        />
       </div>
     </AppShell>
   )

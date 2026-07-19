@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronRight, ExternalLink, Users } from 'lucide-react'
 import { useState } from 'react'
+import { AgendaCalendar } from '@/features/agenda'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 
 /** Slot no padrão da aba Equipes (SLOT + avatar + nome + detalhe). */
@@ -159,9 +160,28 @@ export function renderSectionItems(items: DirectorySectionItem[]) {
   )
 }
 
-export function DirectoryProfileTabs({ sections }: { sections: DirectoryProfile['sections'] }) {
-  const [active, setActive] = useState(sections[0]?.title || '')
-  if (!sections.length) return null
+export function DirectoryProfileTabs({
+  sections,
+  agenda,
+}: {
+  sections: DirectoryProfile['sections']
+  /** Agenda embutida (ex.: dias de jogo da equipe) */
+  agenda?: {
+    title: string
+    scope: 'equipe' | 'campeonato' | 'me'
+    scopeId: string
+    tabLabel?: string
+  } | null
+}) {
+  const tabTitles = [
+    ...sections.map((item) => item.title),
+    ...(agenda ? [agenda.tabLabel || 'Agenda'] : []),
+  ]
+  const [active, setActive] = useState(tabTitles[0] || '')
+  if (!tabTitles.length) return null
+
+  const agendaLabel = agenda?.tabLabel || 'Agenda'
+  const isAgenda = Boolean(agenda && active === agendaLabel)
   const section = sections.find((item) => item.title === active) || sections[0]
 
   return (
@@ -171,18 +191,35 @@ export function DirectoryProfileTabs({ sections }: { sections: DirectoryProfile[
           <button
             key={item.title}
             type="button"
-            className={item.title === section.title ? 'active' : ''}
+            className={!isAgenda && item.title === section?.title ? 'active' : ''}
             onClick={() => setActive(item.title)}
           >
             {item.title}
             <span>{item.items.length}</span>
           </button>
         ))}
+        {agenda ? (
+          <button
+            type="button"
+            className={isAgenda ? 'active' : ''}
+            onClick={() => setActive(agendaLabel)}
+          >
+            {agendaLabel}
+          </button>
+        ) : null}
       </div>
       <div className="directory-profile-tab-panel">
-        {section.layout === 'structure' ? (
+        {isAgenda && agenda ? (
+          <AgendaCalendar
+            title={agenda.title}
+            scope={agenda.scope}
+            scopeId={agenda.scopeId}
+            canCreate
+            compact
+          />
+        ) : section?.layout === 'structure' ? (
           <StructureTree items={section.items} />
-        ) : section.items.length ? (
+        ) : section?.items.length ? (
           renderSectionItems(section.items)
         ) : (
           <div className="directory-empty compact">Nenhuma informação cadastrada nesta seção.</div>

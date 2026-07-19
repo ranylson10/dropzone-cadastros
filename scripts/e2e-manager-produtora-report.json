@@ -1,0 +1,138 @@
+{
+  "ok": false,
+  "base": "https://dropzone-cadastros.vercel.app",
+  "camp_id": "84ffca8c-0e9d-46bd-91b8-71dd55933cc6",
+  "started_at": "2026-07-18T12:14:45.204Z",
+  "steps": [
+    {
+      "name": "schema.grupos_sem_status",
+      "ok": true,
+      "at": "2026-07-18T12:14:45.438Z"
+    },
+    {
+      "name": "schema.grupos_status_ausente",
+      "ok": true,
+      "got": "column campeonato_grupos.status does not exist",
+      "at": "2026-07-18T12:14:45.533Z"
+    },
+    {
+      "name": "auth.manager",
+      "ok": true,
+      "summary": "ranylson.santos@gmail.com",
+      "at": "2026-07-18T12:14:45.779Z"
+    },
+    {
+      "name": "auth.admin",
+      "ok": true,
+      "summary": "blackxl.santos@gmail.com",
+      "at": "2026-07-18T12:14:45.932Z"
+    },
+    {
+      "name": "manager.estrutura",
+      "ok": true,
+      "fases": 1,
+      "grupos": 2,
+      "slots": 24,
+      "role": "seller",
+      "at": "2026-07-18T12:14:48.182Z"
+    },
+    {
+      "name": "manager.equipes.list",
+      "ok": true,
+      "keys": [
+        "campeonato",
+        "permission",
+        "capacidade",
+        "vagas",
+        "convites_grupo",
+        "modelo"
+      ],
+      "at": "2026-07-18T12:14:50.535Z"
+    },
+    {
+      "name": "manager.seller_row",
+      "ok": true,
+      "at": "2026-07-18T12:14:50.716Z"
+    },
+    {
+      "name": "manager.perms",
+      "ok": true,
+      "summary": "{\"ver_estrutura\":true,\"pontuar_tabela\":true,\"vendedor_vagas\":true,\"gerenciar_jogos\":true,\"remover_equipes\":true,\"organizar_grupos\":true,\"adicionar_equipes\":true,\"gerar_convites_equipe\":true,\"remover_proprias_equipes\":true}",
+      "limite": 0,
+      "at": "2026-07-18T12:14:50.716Z"
+    },
+    {
+      "name": "manager.token.create",
+      "ok": true,
+      "summary": "token criado ecf06861-c073-4701-bc9b-81a6b7b775f2",
+      "status": 201,
+      "at": "2026-07-18T12:14:52.951Z"
+    },
+    {
+      "name": "manager.add_team.allowed",
+      "ok": false,
+      "error": "Selecione o slot e a equipe (pasta).",
+      "at": "2026-07-18T12:14:54.350Z"
+    },
+    {
+      "name": "admin.managers.convites.list",
+      "ok": true,
+      "convites": 1,
+      "vendedores": 2,
+      "at": "2026-07-18T12:14:55.747Z"
+    },
+    {
+      "name": "admin.invite.already_active_blocked",
+      "ok": true,
+      "error": "Este manager já está liberado neste campeonato.",
+      "status": 400,
+      "at": "2026-07-18T12:14:57.036Z"
+    },
+    {
+      "name": "manager.pedido.already_active_blocked",
+      "ok": true,
+      "error": "Você já está liberado neste campeonato.",
+      "status": 400,
+      "at": "2026-07-18T12:15:00.711Z"
+    },
+    {
+      "name": "manager.notificacoes",
+      "ok": true,
+      "items": 2,
+      "at": "2026-07-18T12:15:01.576Z"
+    },
+    {
+      "name": "cleanup.token",
+      "ok": true,
+      "summary": "ecf06861-c073-4701-bc9b-81a6b7b775f2",
+      "at": "2026-07-18T12:15:02.004Z"
+    },
+    {
+      "name": "cleanup.slot_livre",
+      "ok": true,
+      "summary": "b9e3df9d-a737-4cb3-8ff9-1d64da2f942a",
+      "at": "2026-07-18T12:15:02.205Z"
+    }
+  ],
+  "failures": [
+    {
+      "name": "manager.add_team.allowed",
+      "error": "Selecione o slot e a equipe (pasta).",
+      "detail": {
+        "ok": false,
+        "error": "Selecione o slot e a equipe (pasta)."
+      }
+    }
+  ],
+  "cleanup": [
+    {
+      "type": "token",
+      "id": "ecf06861-c073-4701-bc9b-81a6b7b775f2"
+    },
+    {
+      "type": "slot_livre",
+      "id": "b9e3df9d-a737-4cb3-8ff9-1d64da2f942a"
+    }
+  ],
+  "finished_at": "2026-07-18T12:15:02.205Z"
+}

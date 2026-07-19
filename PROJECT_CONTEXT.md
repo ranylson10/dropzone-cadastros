@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 17 de julho de 2026  
-**Estado:** layout restaurado ao CSS estável (`globals.css` + header originais). Rulebook/premiação usam apenas `web/features/campeonatos/rulebook/rulebook.css`. **Não appendar CSS de feature no globals.css.** Rulebook catálogo **1.1.0**: seções por tema na etapa Regras, bugs com exemplos/penalidades (estilo LBFF), tabela de pontuação, PDF com logo + nome do campeonato e quebra por capítulo.
+**Última atualização:** 19 de julho de 2026  
+**Estado:** Agenda/calendário no estilo planilha (dias × horários × meses). Página `/agenda`, aba Agenda em campeonatos e equipes. Jogos vêm de `campeonato_jogos`; compromissos livres em `agenda_eventos` (migration `20260719_agenda_eventos.sql`). Feature isolada em `web/features/agenda/` + `backend/src/agenda/`.
 
 ## 1. Objetivo do sistema
 

@@ -1793,10 +1793,10 @@ body:has(.cropper-overlay) {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  width: min(var(--page-max), calc(100% - 36px));
+  width: min(var(--page-max), calc(100% - 28px));
   height: 100%;
   margin: 0 auto;
-  gap: 28px;
+  gap: 16px;
 }
 
 .app-brand {
@@ -2538,7 +2538,10 @@ body:has(.cropper-overlay) {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  height: 100%;
+  flex-shrink: 0;
 }
 
 .app-profile-trigger {
