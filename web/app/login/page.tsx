@@ -146,7 +146,7 @@ export default function LoginPage() {
   }, [])
 
   return (
-    <AppShell loadSession mainClassName="central-login-page page" activeLabel="Início">
+    <AppShell loadSession header="never" withAuthOffset={false} mainClassName="central-login-page page" activeLabel="Início">
       <section className="central-login-shell">
         <div className="central-login-card central-login-card-light">
           {checking ? (
