@@ -1849,14 +1849,16 @@ body:has(.cropper-overlay) {
   align-items: stretch;
   justify-content: center;
   height: 100%;
+  gap: 0;
 }
 
-.app-main-nav a {
+.app-main-nav > a,
+.app-main-nav .app-nav-parent {
   position: relative;
   display: grid;
   place-items: center;
-  min-width: 102px;
-  padding: 0 16px;
+  min-width: 0;
+  padding: 0 14px;
   color: #52525b;
   font-size: 13px;
   font-weight: 800;
@@ -1864,6 +1866,83 @@ body:has(.cropper-overlay) {
   text-decoration: none;
   text-transform: uppercase;
   transition: color .2s ease, background .2s ease;
+  height: 100%;
+}
+
+.app-nav-dropdown {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.app-nav-parent {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  grid: none !important;
+  place-items: unset !important;
+}
+
+.app-nav-caret {
+  opacity: .55;
+  transition: transform .15s ease;
+  flex: 0 0 auto;
+}
+
+.app-nav-dropdown:hover .app-nav-caret,
+.app-nav-dropdown:focus-within .app-nav-caret {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+.app-nav-submenu {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, .14);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease, visibility .15s;
+  z-index: 120;
+}
+
+.app-nav-dropdown:hover .app-nav-submenu,
+.app-nav-dropdown:focus-within .app-nav-submenu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.app-nav-submenu a {
+  display: block !important;
+  min-width: 0 !important;
+  min-height: 40px;
+  padding: 10px 12px !important;
+  border-radius: 8px;
+  color: var(--text) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  text-decoration: none;
+  letter-spacing: .03em;
+}
+
+.app-nav-submenu a:hover {
+  background: var(--surface-soft) !important;
+  color: var(--text) !important;
+}
+
+.app-nav-submenu a::after {
+  display: none !important;
 }
 
 /* Chip de saldo na barra superior */
@@ -2417,11 +2496,12 @@ body:has(.cropper-overlay) {
   background: var(--gold-soft);
 }
 
-.app-main-nav a::after {
+.app-main-nav > a::after,
+.app-main-nav .app-nav-parent::after {
   position: absolute;
-  right: 18px;
+  right: 14px;
   bottom: 0;
-  left: 18px;
+  left: 14px;
   height: 3px;
   background: var(--brand);
   content: '';
@@ -2430,14 +2510,20 @@ body:has(.cropper-overlay) {
   transition: opacity .2s ease, transform .2s ease;
 }
 
-.app-main-nav a:hover,
-.app-main-nav a.active {
+.app-main-nav > a:hover,
+.app-main-nav > a.active,
+.app-main-nav .app-nav-parent:hover,
+.app-main-nav .app-nav-parent.active,
+.app-nav-dropdown.active .app-nav-parent {
   color: var(--text);
   background: linear-gradient(180deg, transparent, rgba(201, 162, 39, .055));
 }
 
-.app-main-nav a:hover::after,
-.app-main-nav a.active::after {
+.app-main-nav > a:hover::after,
+.app-main-nav > a.active::after,
+.app-main-nav .app-nav-parent:hover::after,
+.app-main-nav .app-nav-parent.active::after,
+.app-nav-dropdown.active .app-nav-parent::after {
   opacity: 1;
   transform: scaleX(1);
 }
@@ -2736,8 +2822,39 @@ body:has(.cropper-overlay) {
     display: grid;
   }
 
-  .app-main-nav a {
+  .app-main-nav > a,
+  .app-main-nav .app-nav-parent {
     min-height: 48px;
+    justify-content: flex-start;
+    padding: 0 14px;
+  }
+
+  .app-nav-dropdown {
+    display: grid;
+    height: auto;
+  }
+
+  .app-nav-submenu {
+    position: static;
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0 0 6px 12px;
+    background: transparent;
+    min-width: 0;
+  }
+
+  .app-nav-dropdown:hover .app-nav-submenu,
+  .app-nav-dropdown:focus-within .app-nav-submenu {
+    transform: none;
+  }
+
+  .app-nav-caret {
+    display: none;
   }
 
   .app-profile {

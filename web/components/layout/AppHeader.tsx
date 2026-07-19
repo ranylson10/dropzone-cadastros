@@ -186,16 +186,48 @@ export function AppHeader({
         </button>
 
         <nav className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegação principal">
-          {navItems.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className={activeLabel === item.label ? 'active' : ''}
-              onClick={() => setMobileOpen(false)}
-            >
-              {item.label}
-            </a>
-          ))}
+          {navItems.map((item) => {
+            const hasChildren = Boolean(item.children?.length)
+            if (!hasChildren) {
+              return (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className={activeLabel === item.label ? 'active' : ''}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {item.label}
+                </a>
+              )
+            }
+            return (
+              <div
+                key={item.label}
+                className={`app-nav-dropdown ${activeLabel === item.label ? 'active' : ''}`}
+              >
+                <a
+                  href={item.href}
+                  className={`app-nav-parent ${activeLabel === item.label ? 'active' : ''}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {item.label}
+                  <ChevronDown size={14} className="app-nav-caret" aria-hidden />
+                </a>
+                <div className="app-nav-submenu" role="menu">
+                  {item.children!.map((child) => (
+                    <a
+                      key={child.href}
+                      href={child.href}
+                      role="menuitem"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {child.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </nav>
 
         {isAuthenticated ? (
