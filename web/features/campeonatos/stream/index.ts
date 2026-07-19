@@ -21,4 +21,7 @@ export {
   transitionClass,
   exitTransitionClass,
   transitionStyle,
+  unitMotionClass,
+  unitMotionStyle,
+  transitionTotalMs,
 } from './utils/stream-style'

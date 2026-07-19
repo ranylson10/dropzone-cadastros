@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { FRAME_H, FRAME_W, type StreamBlock } from '../types/stream.types'
 import { transitionClass, transitionStyle } from '../utils/stream-style'
+import { normalizeTransition } from '../types/stream.types'
 import { ensureCardLayers } from '../utils/card-layers'
 import { ensureTableStructure, tableOuterWidth } from '../utils/table-structure'
 import { CardLayerCanvas } from './CardLayerCanvas'
@@ -163,20 +164,30 @@ export function StreamLiveStage(props: {
             : ''
         const place = freeLayout ? blockPlaceStyle(block, frameW, frameH) : undefined
 
+        const tr = normalizeTransition(block.transition)
+        const whole = tr.applyTo === 'whole'
+        const childAuto = tr.applyTo === 'children' && tr.enter !== 'none'
+
         if (block.type === 'card') {
           const card = ensureCardLayers(block)
           return (
             <div
               key={block.id}
-              className={`stream-prev-card-wrap stream-live-placed ${transitionClass(block.transition)} ${dataClass}`}
+              className={`stream-prev-card-wrap stream-live-placed ${whole ? transitionClass(block.transition) : ''} ${dataClass}`}
               style={{
                 ...(freeLayout
                   ? { ...place, maxWidth: 'none' }
                   : {}),
-                ...transitionStyle(block.transition, index),
+                ...(whole ? transitionStyle(block.transition, index) : {}),
+                overflow: childAuto ? 'visible' : undefined,
               }}
             >
-              <CardLayerCanvas card={card} ctx={ctx} fillParent={freeLayout} />
+              <CardLayerCanvas
+                card={card}
+                ctx={ctx}
+                fillParent={freeLayout}
+                autoPlayEnter={childAuto}
+              />
             </div>
           )
         }
@@ -185,16 +196,18 @@ export function StreamLiveStage(props: {
         return (
           <div
             key={block.id}
-            className={`stream-prev-table stream-live-placed ${transitionClass(block.transition)} ${dataClass}`}
+            className={`stream-prev-table stream-live-placed ${whole ? transitionClass(block.transition) : ''} ${dataClass}`}
             style={{
               ...(freeLayout ? { ...place, maxWidth: 'none' } : {}),
-              ...transitionStyle(block.transition, index),
+              ...(whole ? transitionStyle(block.transition, index) : {}),
+              overflow: childAuto ? 'visible' : undefined,
             }}
           >
             <StreamTableCanvas
               table={table}
               standings={standingsPreview}
               mvpRows={mvpPreview}
+              autoPlayEnter={childAuto}
             />
           </div>
         )

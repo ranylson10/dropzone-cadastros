@@ -2,7 +2,17 @@
 
 import { useState, type ReactNode } from 'react'
 import { uploadPublicFile } from '@/lib/upload-public'
-import { STREAM_FONTS, type BoxStyle, type FieldStyle, type FillStyle, type TextStyle, type TransitionStyle } from '../../types/stream.types'
+import {
+  STREAM_FONTS,
+  STREAM_MOTION_OPTIONS,
+  normalizeTransition,
+  type BoxStyle,
+  type FieldStyle,
+  type FillStyle,
+  type TextStyle,
+  type StreamMotionKind,
+  type TransitionStyle,
+} from '../../types/stream.types'
 
 function Section(props: { title: string; children: ReactNode }) {
   return (
@@ -348,43 +358,94 @@ export function TransitionEditor(props: {
   /** Preview no canvas do editor (entrada / saída). */
   onPreview?: (kind: 'enter' | 'exit') => void
 }) {
-  const v: TransitionStyle = props.value || {
-    enter: 'fade',
-    exit: 'fade',
-    onDataChange: 'pulse',
-    durationMs: 400,
-    delayMs: 0,
-  }
-  const set = (patch: Partial<TransitionStyle>) => props.onChange({ ...v, ...patch })
-  const exitVal = v.exit || (v.enter === 'stagger' ? 'fade' : v.enter) || 'fade'
+  const v = normalizeTransition(props.value)
+  const set = (patch: Partial<TransitionStyle>) => props.onChange(normalizeTransition({ ...v, ...patch }))
+  const unitLabel = props.mode === 'table' ? 'linhas' : 'itens do bloco'
+  const motions = STREAM_MOTION_OPTIONS.filter((o) => o.id !== 'stagger')
 
   return (
-    <Section title={props.mode === 'card' ? 'Transições do card' : 'Transições da tabela'}>
+    <Section title={props.mode === 'card' ? 'Transições do bloco' : 'Transições da tabela'}>
+      <Field label="Aplicar em">
+        <select
+          value={v.applyTo || 'children'}
+          onChange={(e) => set({ applyTo: e.target.value as TransitionStyle['applyTo'] })}
+        >
+          <option value="children">
+            {props.mode === 'table' ? 'Cada linha (com delay)' : 'Cada item (com delay)'}
+          </option>
+          <option value="whole">{props.mode === 'table' ? 'Tabela inteira' : 'Bloco inteiro'}</option>
+        </select>
+      </Field>
       <Field label="Entrada">
-        <select value={v.enter} onChange={(e) => set({ enter: e.target.value as TransitionStyle['enter'] })}>
-          <option value="none">Nenhuma</option>
-          <option value="fade">Fade</option>
-          <option value="slide-up">Slide cima</option>
-          <option value="slide-left">Slide esquerda</option>
-          <option value="scale">Scale pop</option>
-          {props.mode === 'card' ? <option value="stagger">Stagger (em sequência)</option> : null}
-          {props.mode === 'table' ? <option value="stagger">Stagger (linhas)</option> : null}
+        <select
+          value={v.enter === 'stagger' ? 'fade' : v.enter}
+          onChange={(e) => set({ enter: e.target.value as StreamMotionKind })}
+        >
+          {motions.map((m) => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
         </select>
       </Field>
       <Field label="Saída">
         <select
-          value={exitVal}
-          onChange={(e) => set({ exit: e.target.value as TransitionStyle['exit'] })}
+          value={v.exit || v.enter}
+          onChange={(e) => set({ exit: e.target.value as StreamMotionKind })}
         >
-          <option value="none">Nenhuma</option>
-          <option value="fade">Fade</option>
-          <option value="slide-up">Slide baixo (sai)</option>
-          <option value="slide-left">Slide direita (sai)</option>
-          <option value="scale">Scale out</option>
+          {motions.map((m) => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
         </select>
       </Field>
+      <Field label="Duração (ms)">
+        <input
+          type="number"
+          min={80}
+          max={4000}
+          step={50}
+          value={v.durationMs}
+          title="Tempo de cada unidade"
+          onChange={(e) => set({ durationMs: Number(e.target.value) || 450 })}
+        />
+      </Field>
+      <Field label="Delay inicial (ms)">
+        <input
+          type="number"
+          min={0}
+          max={8000}
+          step={50}
+          value={v.delayMs}
+          title="Espera antes da 1ª unidade"
+          onChange={(e) => set({ delayMs: Number(e.target.value) || 0 })}
+        />
+      </Field>
+      <Field label={`Delay entre ${unitLabel} (ms)`}>
+        <input
+          type="number"
+          min={0}
+          max={2000}
+          step={10}
+          value={v.staggerMs ?? 80}
+          disabled={v.applyTo === 'whole'}
+          title="Intervalo entre linhas/itens"
+          onChange={(e) => set({ staggerMs: Number(e.target.value) || 0 })}
+        />
+      </Field>
+      <Field label="Distância (px)">
+        <input
+          type="number"
+          min={24}
+          max={800}
+          step={10}
+          value={v.distancePx ?? 160}
+          title="Quão longe entra/sai da área de trabalho"
+          onChange={(e) => set({ distancePx: Number(e.target.value) || 160 })}
+        />
+      </Field>
       <Field label="Ao atualizar dado">
-        <select value={v.onDataChange} onChange={(e) => set({ onDataChange: e.target.value as TransitionStyle['onDataChange'] })}>
+        <select
+          value={v.onDataChange}
+          onChange={(e) => set({ onDataChange: e.target.value as TransitionStyle['onDataChange'] })}
+        >
           <option value="none">Nenhuma</option>
           <option value="fade">Fade</option>
           <option value="tick">Tick numérico</option>
@@ -392,18 +453,17 @@ export function TransitionEditor(props: {
           {props.mode === 'table' ? <option value="rank-move">Rank move</option> : null}
         </select>
       </Field>
-      <Field label="Duração (ms)">
-        <input type="number" min={100} max={2000} step={50} value={v.durationMs} onChange={(e) => set({ durationMs: Number(e.target.value) || 400 })} />
-      </Field>
-      <Field label="Delay (ms)">
-        <input type="number" min={0} max={2000} step={50} value={v.delayMs} onChange={(e) => set({ delayMs: Number(e.target.value) || 0 })} />
-      </Field>
+      <p className="stream-hint" style={{ gridColumn: '1 / -1', margin: 0 }}>
+        {v.applyTo === 'children'
+          ? `Entrada: ${unitLabel} vêm de fora, uma a uma. Saída: saem da área com o mesmo intervalo.`
+          : 'Anima o conjunto inteiro de uma vez.'}
+      </p>
       {props.onPreview ? (
         <div className="stream-transition-preview-row">
           <button
             type="button"
             className="stream-secondary-btn"
-            title="Reproduz a animação de entrada no canvas"
+            title="Reproduz entrada no canvas"
             onClick={() => props.onPreview?.('enter')}
           >
             Testar entrada
@@ -411,7 +471,7 @@ export function TransitionEditor(props: {
           <button
             type="button"
             className="stream-secondary-btn"
-            title="Reproduz a animação de saída no canvas"
+            title="Reproduz saída no canvas"
             onClick={() => props.onPreview?.('exit')}
           >
             Testar saída

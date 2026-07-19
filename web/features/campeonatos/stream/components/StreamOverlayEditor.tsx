@@ -76,7 +76,13 @@ import {
   tableOuterWidth,
   updateTableColumn,
 } from '../utils/table-structure'
-import { exitTransitionClass, transitionClass, transitionStyle } from '../utils/stream-style'
+import {
+  exitTransitionClass,
+  transitionClass,
+  transitionStyle,
+  transitionTotalMs,
+} from '../utils/stream-style'
+import { normalizeTransition } from '../types/stream.types'
 import { TablePartInspector } from './editor/TableSidebarPanel'
 import type { PreviewMap, PreviewStanding } from './editor/OverlayPreview'
 import '../stream.css'
@@ -485,7 +491,16 @@ export function StreamOverlayEditor(props: {
     if (!selectedBlock) return
     const token = Date.now()
     setAnimPreview({ blockId: selectedBlock.id, kind, token })
-    const ms = Math.max(200, selectedBlock.transition?.durationMs || 400) + (selectedBlock.transition?.delayMs || 0) + 80
+    let units = 1
+    if (selectedBlock.type === 'table') {
+      const t = ensureTableStructure(selectedBlock)
+      const rows = t.data.rowItems?.length || t.data.rows || 1
+      const headers = t.data.showHeader === false ? 0 : Math.max(1, t.data.splitPanels || 1)
+      units = rows + headers
+    } else if (selectedBlock.type === 'card') {
+      units = Math.max(1, ensureCardLayers(selectedBlock).layers?.length || 1)
+    }
+    const ms = transitionTotalMs(selectedBlock.transition, units)
     window.setTimeout(() => {
       setAnimPreview((cur) => (cur?.token === token ? null : cur))
     }, ms)
@@ -1611,25 +1626,32 @@ export function StreamOverlayEditor(props: {
                         const by = block.y ?? 40
                         const preview =
                           animPreview?.blockId === block.id ? animPreview : null
-                        const animCls = preview
-                          ? preview.kind === 'enter'
+                        const trNorm = normalizeTransition(block.transition)
+                        const wholeAnim = preview && trNorm.applyTo === 'whole'
+                        const childMotion =
+                          preview && trNorm.applyTo === 'children'
+                            ? { kind: preview.kind, token: preview.token }
+                            : null
+                        const animCls = wholeAnim
+                          ? preview!.kind === 'enter'
                             ? transitionClass(block.transition)
                             : exitTransitionClass(block.transition)
                           : ''
-                        const animStyle = preview
-                          ? transitionStyle(block.transition, 0, preview.kind)
+                        const animStyle = wholeAnim
+                          ? transitionStyle(block.transition, 0, preview!.kind)
                           : undefined
                         if (block.type === 'card') {
                           const card = ensureCardLayers(block)
                           return (
                             <div
                               key={preview ? `${block.id}-anim-${preview.token}` : block.id}
-                              className={`stream-gt-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''} ${animCls}`}
+                              className={`stream-gt-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''} ${animCls}${childMotion ? ' is-motion-parent' : ''}`}
                               style={{
                                 left: bx,
                                 top: by,
                                 width: card.canvasW,
                                 height: card.canvasH,
+                                overflow: childMotion ? 'visible' : undefined,
                                 ...animStyle,
                               }}
                               onPointerDown={(e) => onBlockPointerDown(e, block)}
@@ -1648,6 +1670,7 @@ export function StreamOverlayEditor(props: {
                                   setSelectedLayerId(id)
                                   setSelectedTablePart(null)
                                 }}
+                                motion={childMotion}
                               />
                             </div>
                           )
@@ -1657,8 +1680,14 @@ export function StreamOverlayEditor(props: {
                         return (
                           <div
                             key={preview ? `${block.id}-anim-${preview.token}` : block.id}
-                            className={`stream-gt-block stream-gt-table-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''} ${animCls}`}
-                            style={{ left: bx, top: by, width: tw, ...animStyle }}
+                            className={`stream-gt-block stream-gt-table-block ${selected ? 'is-selected' : ''} ${draggingId === block.id ? 'is-dragging' : ''} ${animCls}${childMotion ? ' is-motion-parent' : ''}`}
+                            style={{
+                              left: bx,
+                              top: by,
+                              width: tw,
+                              overflow: childMotion ? 'visible' : undefined,
+                              ...animStyle,
+                            }}
                             onPointerDown={(e) => onBlockPointerDown(e, block)}
                             onClick={() => {
                               selectBlockOnly(block.id)
@@ -1671,6 +1700,7 @@ export function StreamOverlayEditor(props: {
                               mvpRows={mvpRows}
                               sheets={sheets}
                               editable={selected}
+                              motion={childMotion}
                             />
                           </div>
                         )

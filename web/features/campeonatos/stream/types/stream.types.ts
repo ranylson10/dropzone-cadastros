@@ -106,19 +106,84 @@ export type FieldStyle = {
   box?: BoxStyle
 }
 
-export type EnterTransition = 'none' | 'fade' | 'slide-up' | 'slide-left' | 'scale' | 'stagger'
-/** Saída (espelha entrada; slide inverte direção). */
-export type ExitTransition = 'none' | 'fade' | 'slide-up' | 'slide-left' | 'scale'
+/**
+ * Tipos de movimento (entrada e saída).
+ * Slide/bounce/elastic usam `distancePx` (vêm de fora / saem da área).
+ */
+export type StreamMotionKind =
+  | 'none'
+  | 'fade'
+  | 'slide-up'
+  | 'slide-down'
+  | 'slide-left'
+  | 'slide-right'
+  | 'scale'
+  | 'scale-up'
+  | 'blur'
+  | 'flip-x'
+  | 'flip-y'
+  | 'bounce'
+  | 'rotate'
+  | 'elastic'
+  | 'zoom-blur'
+  /** @deprecated use enter + staggerMs + applyTo:'children' */
+  | 'stagger'
+
+/** @deprecated use StreamMotionKind */
+export type EnterTransition = StreamMotionKind
+/** @deprecated use StreamMotionKind */
+export type ExitTransition = StreamMotionKind
+
 export type DataTransition = 'none' | 'fade' | 'tick' | 'pulse' | 'rank-move'
 
+/** Quem anima: o bloco inteiro ou cada linha/item com delay. */
+export type TransitionApplyTo = 'whole' | 'children'
+
 export type TransitionStyle = {
-  enter: EnterTransition
-  /** Animação ao remover / esconder o bloco (preview e live). */
-  exit?: ExitTransition
+  enter: StreamMotionKind
+  /** Animação ao esconder / preview de saída. */
+  exit?: StreamMotionKind
   onDataChange: DataTransition
+  /** Duração de cada unidade (ms). */
   durationMs: number
+  /** Atraso inicial antes da 1ª unidade (ms). */
   delayMs: number
+  /**
+   * Atraso entre linhas (tabela) ou itens (bloco).
+   * 0 = tudo junto; tipicamente 60–150.
+   */
+  staggerMs?: number
+  /**
+   * Distância do movimento (px) — entrada vem de fora, saída sai da área.
+   * Default 160.
+   */
+  distancePx?: number
+  /**
+   * `children` = anima linhas da tabela / camadas do bloco com stagger.
+   * `whole` = anima o bloco/tabela como um só.
+   * Default: children para tabela; whole para card (vira children se staggerMs > 0).
+   */
+  applyTo?: TransitionApplyTo
 }
+
+/** Catálogo de movimentos para UI (rótulos PT). */
+export const STREAM_MOTION_OPTIONS: Array<{ id: StreamMotionKind; label: string }> = [
+  { id: 'none', label: 'Nenhuma' },
+  { id: 'fade', label: 'Fade' },
+  { id: 'slide-up', label: 'Slide de baixo → cima' },
+  { id: 'slide-down', label: 'Slide de cima → baixo' },
+  { id: 'slide-left', label: 'Slide da direita → esq.' },
+  { id: 'slide-right', label: 'Slide da esquerda → dir.' },
+  { id: 'scale', label: 'Scale (zoom in)' },
+  { id: 'scale-up', label: 'Scale de longe' },
+  { id: 'blur', label: 'Blur' },
+  { id: 'flip-x', label: 'Flip horizontal' },
+  { id: 'flip-y', label: 'Flip vertical' },
+  { id: 'bounce', label: 'Bounce' },
+  { id: 'rotate', label: 'Rotação' },
+  { id: 'elastic', label: 'Elastic' },
+  { id: 'zoom-blur', label: 'Zoom + blur' },
+]
 
 export type MetricKey = 'pts' | 'abates' | 'booyah' | 'kd' | 'quedas'
 export type TableColumnKey = 'pos' | 'logo' | 'nome' | 'booyah' | 'abates' | 'pts' | 'delta' | 'quedas' | 'kd'
@@ -452,11 +517,37 @@ export const DEFAULT_BOX: BoxStyle = {
 }
 
 export const DEFAULT_TRANSITION: TransitionStyle = {
-  enter: 'fade',
-  exit: 'fade',
+  enter: 'slide-up',
+  exit: 'slide-down',
   onDataChange: 'pulse',
-  durationMs: 400,
+  durationMs: 450,
   delayMs: 0,
+  staggerMs: 80,
+  distancePx: 160,
+  applyTo: 'children',
+}
+
+/** Normaliza transição legada (stagger, campos ausentes). */
+export function normalizeTransition(raw?: Partial<TransitionStyle> | null): TransitionStyle {
+  const base = { ...DEFAULT_TRANSITION, ...(raw || {}) }
+  let enter = base.enter || 'fade'
+  let applyTo = base.applyTo
+  let staggerMs = base.staggerMs
+  if (enter === 'stagger') {
+    enter = 'fade'
+    applyTo = applyTo || 'children'
+    if (staggerMs == null) staggerMs = 90
+  }
+  return {
+    enter,
+    exit: base.exit || enter,
+    onDataChange: base.onDataChange || 'pulse',
+    durationMs: Math.max(80, Math.min(4000, Number(base.durationMs) || 450)),
+    delayMs: Math.max(0, Math.min(8000, Number(base.delayMs) || 0)),
+    staggerMs: Math.max(0, Math.min(2000, Number(staggerMs ?? 80))),
+    distancePx: Math.max(24, Math.min(800, Number(base.distancePx ?? 160))),
+    applyTo: applyTo === 'whole' ? 'whole' : 'children',
+  }
 }
 
 const COLS_EQUIPE = [

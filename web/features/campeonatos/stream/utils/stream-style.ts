@@ -1,5 +1,13 @@
 import type { CSSProperties } from 'react'
-import type { BoxStyle, FillStyle, FieldStyle, TextStyle, TransitionStyle } from '../types/stream.types'
+import type {
+  BoxStyle,
+  FillStyle,
+  FieldStyle,
+  StreamMotionKind,
+  TextStyle,
+  TransitionStyle,
+} from '../types/stream.types'
+import { normalizeTransition } from '../types/stream.types'
 
 export function fillToCss(fill?: FillStyle): CSSProperties {
   if (!fill) return {}
@@ -92,51 +100,6 @@ export function fieldToCss(style?: FieldStyle): { wrap: CSSProperties; text: CSS
   }
 }
 
-export function transitionClass(t?: TransitionStyle): string {
-  if (!t || t.enter === 'none') return ''
-  return `stream-enter-${t.enter}`
-}
-
-/** Classe CSS de saída (preview / hide). */
-export function exitTransitionClass(t?: TransitionStyle): string {
-  const exit = t?.exit || (t?.enter && t.enter !== 'stagger' ? t.enter : 'fade')
-  if (!exit || exit === 'none') return ''
-  return `stream-exit-${exit}`
-}
-
-export function transitionStyle(
-  t?: TransitionStyle,
-  index = 0,
-  kind: 'enter' | 'exit' = 'enter',
-): CSSProperties {
-  if (!t) return {}
-  const delay =
-    kind === 'enter'
-      ? (t.delayMs || 0) + (t.enter === 'stagger' ? index * 90 : 0)
-      : t.delayMs || 0
-  return {
-    animationDuration: `${t.durationMs || 400}ms`,
-    animationDelay: `${delay}ms`,
-    animationFillMode: 'both',
-    animationTimingFunction: kind === 'exit' ? 'ease-in' : 'ease-out',
-  }
-}
-
-/** Converte hex 8 dígitos helper — fallback se overlay alpha inválido */
-export function withAlpha(hex: string, alpha: number): string {
-  const a = Math.max(0, Math.min(1, alpha))
-  if (hex.startsWith('#') && (hex.length === 7 || hex.length === 4)) {
-    const full = hex.length === 4
-      ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
-      : hex
-    const r = parseInt(full.slice(1, 3), 16)
-    const g = parseInt(full.slice(3, 5), 16)
-    const b = parseInt(full.slice(5, 7), 16)
-    return `rgba(${r},${g},${b},${a})`
-  }
-  return hex
-}
-
 export function fillToCssSafe(fill?: FillStyle): CSSProperties {
   if (!fill) return {}
   if (fill.mode === 'none') {
@@ -162,7 +125,102 @@ export function boxToCssSafe(box?: BoxStyle): CSSProperties {
   if (!box) return {}
   const fillCss = fillToCssSafe(box.fill)
   const base = boxToCss({ ...box, fill: undefined })
-  // não sobrescrever opacity do fill com 1 se box.opacity for undefined
   const opacity = box.opacity != null ? box.opacity : (fillCss.opacity as number | undefined) ?? 1
   return { ...base, ...fillCss, opacity }
+}
+
+function motionId(kind?: StreamMotionKind | null): StreamMotionKind {
+  if (!kind || kind === 'stagger') return 'fade'
+  return kind
+}
+
+/** Classe CSS de entrada no wrapper (bloco inteiro). */
+export function transitionClass(t?: TransitionStyle | null): string {
+  const n = normalizeTransition(t)
+  if (n.applyTo === 'children') return ''
+  const enter = motionId(n.enter)
+  if (enter === 'none') return ''
+  return `stream-motion stream-motion-enter stream-motion-enter-${enter}`
+}
+
+/** Classe CSS de saída no wrapper. */
+export function exitTransitionClass(t?: TransitionStyle | null): string {
+  const n = normalizeTransition(t)
+  if (n.applyTo === 'children') return ''
+  const exit = motionId(n.exit || n.enter)
+  if (exit === 'none') return ''
+  return `stream-motion stream-motion-exit stream-motion-exit-${exit}`
+}
+
+export function transitionStyle(
+  t?: TransitionStyle | null,
+  index = 0,
+  kind: 'enter' | 'exit' = 'enter',
+): CSSProperties {
+  const n = normalizeTransition(t)
+  if (n.applyTo === 'children') return {}
+  const delay = n.delayMs + (kind === 'enter' ? index * (n.staggerMs || 0) : 0)
+  return unitMotionStyle(n, kind, 0, delay)
+}
+
+/**
+ * Classe de movimento por unidade (linha / camada / header).
+ */
+export function unitMotionClass(
+  t?: TransitionStyle | null,
+  kind: 'enter' | 'exit' = 'enter',
+): string {
+  const n = normalizeTransition(t)
+  if (n.applyTo !== 'children') return ''
+  const motion = motionId(kind === 'enter' ? n.enter : n.exit || n.enter)
+  if (motion === 'none') return ''
+  return `stream-motion stream-motion-${kind} stream-motion-${kind}-${motion}`
+}
+
+/**
+ * Estilo de animação por unidade.
+ * `index` = ordem da linha/item; delay = delayMs + index * staggerMs
+ */
+export function unitMotionStyle(
+  t?: TransitionStyle | null,
+  kind: 'enter' | 'exit' = 'enter',
+  index = 0,
+  delayOverride?: number,
+): CSSProperties {
+  const n = normalizeTransition(t)
+  const motion = motionId(kind === 'enter' ? n.enter : n.exit || n.enter)
+  if (motion === 'none') return {}
+  const delay =
+    delayOverride != null
+      ? delayOverride
+      : n.delayMs + index * (n.staggerMs || 0)
+  return {
+    ['--stream-motion-dist' as string]: `${n.distancePx}px`,
+    animationDuration: `${n.durationMs}ms`,
+    animationDelay: `${delay}ms`,
+    animationFillMode: 'both',
+    animationTimingFunction: kind === 'exit' ? 'ease-in' : 'cubic-bezier(0.22, 1, 0.36, 1)',
+  }
+}
+
+/** Tempo total aproximado (ms) para limpar preview. */
+export function transitionTotalMs(t?: TransitionStyle | null, unitCount = 1): number {
+  const n = normalizeTransition(t)
+  const units = Math.max(1, unitCount)
+  const stagger = n.applyTo === 'children' ? (units - 1) * (n.staggerMs || 0) : 0
+  return n.delayMs + stagger + n.durationMs + 80
+}
+
+export function withAlpha(hex: string, alpha: number): string {
+  const a = Math.max(0, Math.min(1, alpha))
+  if (hex.startsWith('#') && (hex.length === 7 || hex.length === 4)) {
+    const full = hex.length === 4
+      ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+      : hex
+    const r = parseInt(full.slice(1, 3), 16)
+    const g = parseInt(full.slice(3, 5), 16)
+    const b = parseInt(full.slice(5, 7), 16)
+    return `rgba(${r},${g},${b},${a})`
+  }
+  return hex
 }

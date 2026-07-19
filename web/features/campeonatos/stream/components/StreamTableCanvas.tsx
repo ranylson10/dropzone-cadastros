@@ -7,8 +7,10 @@ import type {
   StreamTableBlock,
   TableColumnDef,
   TableRowItem,
+  TransitionStyle,
 } from '../types/stream.types'
-import { boxToCssSafe, fieldToCss } from '../utils/stream-style'
+import { normalizeTransition } from '../types/stream.types'
+import { boxToCssSafe, fieldToCss, unitMotionClass, unitMotionStyle } from '../utils/stream-style'
 import {
   cellValue,
   ensureTableStructure,
@@ -62,6 +64,10 @@ function TablePanel(props: {
   altRowFill?: string
   headerStyleUpper?: boolean
   editable?: boolean
+  /** índice base para stagger entre painéis */
+  motionIndexBase?: number
+  motion?: { kind: 'enter' | 'exit'; token: number } | null
+  transition?: TransitionStyle
 }) {
   const {
     cols,
@@ -77,7 +83,13 @@ function TablePanel(props: {
     rowCss,
     altRowFill,
     editable,
+    motion,
+    transition,
   } = props
+  const motionBase = props.motionIndexBase || 0
+  const playChildren =
+    Boolean(motion) && normalizeTransition(transition).applyTo === 'children'
+  const motionKind = motion?.kind || 'enter'
 
   const grid: CSSProperties = {
     display: 'grid',
@@ -95,11 +107,12 @@ function TablePanel(props: {
         flex: '0 0 auto',
         boxSizing: 'border-box',
         minWidth: 0,
+        overflow: playChildren ? 'visible' : undefined,
       }}
     >
       {showHeader ? (
         <div
-          className="stream-prev-table-head"
+          className={`stream-prev-table-head${playChildren ? ` ${unitMotionClass(transition, motionKind)}` : ''}`}
           style={{
             ...grid,
             ...headerCss.wrap,
@@ -107,6 +120,7 @@ function TablePanel(props: {
             minHeight: headerHeight,
             padding: '0 6px',
             boxSizing: 'border-box',
+            ...(playChildren ? unitMotionStyle(transition, motionKind, motionBase) : {}),
           }}
         >
           {cols.map((c) => {
@@ -160,11 +174,13 @@ function TablePanel(props: {
           i % 2 === 1 && altRowFill
             ? altRowFill
             : (rowCss.wrap.backgroundColor as string | undefined)
+        // stagger por dataIndex global (ordem real das linhas)
+        const unitIndex = motionBase + (showHeader ? 1 : 0) + i
 
         return (
           <div
-            key={item.id}
-            className={`stream-prev-table-row ${rankClass}`}
+            key={playChildren && motion ? `${item.id}-m-${motion.token}` : item.id}
+            className={`stream-prev-table-row ${rankClass}${playChildren ? ` ${unitMotionClass(transition, motionKind)}` : ''}`}
             style={{
               ...grid,
               ...rowCss.wrap,
@@ -174,6 +190,7 @@ function TablePanel(props: {
               backgroundColor: bg,
               color: rowCss.text.color as string | undefined,
               padding: '0 6px',
+              ...(playChildren ? unitMotionStyle(transition, motionKind, unitIndex) : {}),
             }}
           >
             {cols.map((c) => {
@@ -306,6 +323,10 @@ export function StreamTableCanvas(props: {
   selectedRowId?: string | null
   onSelectRow?: (id: string) => void
   editable?: boolean
+  /** Preview / live: anima linhas com delay. */
+  motion?: { kind: 'enter' | 'exit'; token: number } | null
+  /** Se true e applyTo children, anima na montagem (live). */
+  autoPlayEnter?: boolean
 }) {
   const table = ensureTableStructure(props.table)
   const data = table.data
@@ -332,14 +353,31 @@ export function StreamTableCanvas(props: {
   const chunks = splitTableRowItems(items, data)
   const showHeader = data.showHeader !== false
   const repeatHeader = data.splitRepeatHeader !== false
+  const tr = normalizeTransition(table.transition)
+  const motion =
+    props.motion ||
+    (props.autoPlayEnter && tr.applyTo === 'children' && tr.enter !== 'none'
+      ? { kind: 'enter' as const, token: 1 }
+      : null)
+  const playChildren = Boolean(motion) && tr.applyTo === 'children'
+
+  const panelBases: number[] = []
+  {
+    let acc = 0
+    for (let p = 0; p < chunks.length; p++) {
+      panelBases.push(acc)
+      const showThisHeader = showHeader && (p === 0 || repeatHeader)
+      acc += (showThisHeader ? 1 : 0) + (chunks[p]?.length || 0)
+    }
+  }
 
   return (
     <div
-      className={`stream-table-canvas${panels > 1 ? ' is-split' : ''}`}
+      className={`stream-table-canvas${panels > 1 ? ' is-split' : ''}${playChildren ? ' is-motion' : ''}`}
       style={{
         ...box,
         width: outerW,
-        overflow: 'hidden',
+        overflow: playChildren ? 'visible' : 'hidden',
         boxSizing: 'border-box',
         display: panels > 1 ? 'flex' : 'block',
         flexDirection: 'row',
@@ -347,14 +385,16 @@ export function StreamTableCanvas(props: {
         gap: panels > 1 ? splitGap : undefined,
       }}
     >
-      {chunks.map((chunk, panelIndex) => (
+      {chunks.map((chunk, panelIndex) => {
+        const showThisHeader = showHeader && (panelIndex === 0 || repeatHeader)
+        return (
         <TablePanel
-          key={`panel-${panelIndex}`}
+          key={motion ? `panel-${panelIndex}-m-${motion.token}` : `panel-${panelIndex}`}
           cols={cols}
           items={chunk}
           sourceRows={sourceRows}
           startRank={start}
-          showHeader={showHeader && (panelIndex === 0 || repeatHeader)}
+          showHeader={showThisHeader}
           headerHeight={hh}
           rowHeight={rh}
           rowGap={gap}
@@ -364,8 +404,12 @@ export function StreamTableCanvas(props: {
           altRowFill={data.altRowFill}
           headerStyleUpper={data.headerStyle?.text?.uppercase !== false}
           editable={props.editable}
+          motionIndexBase={panelBases[panelIndex] || 0}
+          motion={motion}
+          transition={table.transition}
         />
-      ))}
+        )
+      })}
 
       {!items.length ? (
         <div className="stream-prev-empty">Tabela sem linhas — adicione itens.</div>
