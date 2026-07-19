@@ -186,7 +186,11 @@ export async function POST(req: Request) {
     }
 
     if (profileType !== 'jogador' || table !== 'jogadores') payload.public_id_prefix = TYPE_PREFIX[profileType]
-    if (profileType === 'produtora') payload.logo_url = mediaUrl
+    if (profileType === 'produtora') {
+      payload.logo_url = mediaUrl
+      // Nova produtora aguarda liberação do admin do sistema (SQL: aprovacao_status)
+      payload.aprovacao_status = 'pendente'
+    }
     if (profileType === 'equipe') {
       payload.logo_url = mediaUrl
       payload.tag = cleanText(details.tag).toUpperCase()
@@ -203,13 +207,26 @@ export async function POST(req: Request) {
       payload.papel = cleanText(details.papel || 'stream').toLowerCase() || 'stream'
     }
 
-    const { data: account, error: accountError } = await supabaseAdmin.from(table).insert(payload).select('*').single()
-    if (accountError) {
-      if (!linked && pendingAuthUserId) await supabaseAdmin.auth.admin.deleteUser(pendingAuthUserId)
-      if (profileType === 'jogador' && accountError.code === '23505' && String(accountError.message || '').includes('id_jogo')) {
-        throw new Error('Esse ID de jogo ja esta cadastrado. Faca login ou recupere a conta vinculada a esse ID.')
+    let account: any
+    {
+      const firstTry = await supabaseAdmin.from(table).insert(payload).select('*').single()
+      if (firstTry.error && profileType === 'produtora' && ['42703', 'PGRST204'].includes(firstTry.error.code || '')) {
+        delete payload.aprovacao_status
+        const retry = await supabaseAdmin.from(table).insert(payload).select('*').single()
+        if (retry.error) {
+          if (!linked && pendingAuthUserId) await supabaseAdmin.auth.admin.deleteUser(pendingAuthUserId)
+          throw new Error(`Perfil/${table}: ${retry.error.message}`)
+        }
+        account = retry.data
+      } else if (firstTry.error) {
+        if (!linked && pendingAuthUserId) await supabaseAdmin.auth.admin.deleteUser(pendingAuthUserId)
+        if (profileType === 'jogador' && firstTry.error.code === '23505' && String(firstTry.error.message || '').includes('id_jogo')) {
+          throw new Error('Esse ID de jogo ja esta cadastrado. Faca login ou recupere a conta vinculada a esse ID.')
+        }
+        throw new Error(`Perfil/${table}: ${firstTry.error.message}`)
+      } else {
+        account = firstTry.data
       }
-      throw new Error(`Perfil/${table}: ${accountError.message}`)
     }
 
     // Equipe nova ja nasce com uma line principal para poder entrar em campeonatos.

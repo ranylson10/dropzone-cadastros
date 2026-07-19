@@ -70,6 +70,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       return NextResponse.json({ error: 'Sem permissão.' }, { status: 403 })
     }
 
+    // Chave Stream = "ir ao ar" — exige aprovação do admin do sistema
+    try {
+      const { assertCampeonatoNoAr } = await import('@backend/admin/aprovacao')
+      await assertCampeonatoNoAr(id)
+    } catch (e: any) {
+      const msg = String(e?.message || '')
+      if (/aprovação|rejeitad|indisponível/i.test(msg)) {
+        return NextResponse.json({ error: msg }, { status: 403 })
+      }
+      // se coluna/migração ausente, segue
+    }
+
     const body = await req.json().catch(() => ({}))
     const regenerate = Boolean(body?.regenerate)
 

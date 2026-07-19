@@ -123,6 +123,8 @@ export function DropZoneHome() {
   const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null)
   const [queryReady, setQueryReady] = useState(false)
   const [inviteReturnTo, setInviteReturnTo] = useState('')
+  /** Só true se /api/admin/session confirmar (backend). Nunca confiar só no front. */
+  const [isSystemAdmin, setIsSystemAdmin] = useState(false)
 
   const [championship, setChampionship] = useState(emptyChampionship)
   const [team, setTeam] = useState({
@@ -335,6 +337,27 @@ export function DropZoneHome() {
           }
         } catch {
           // localStorage corrompido — ignora e segue
+        }
+
+        // Card "Admin do sistema" só se o backend confirmar na sessão atual
+        try {
+          const sessionPeek = await Promise.race([
+            supabase.auth.getSession(),
+            new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 4000)),
+          ])
+          const token = (sessionPeek as any)?.data?.session?.access_token
+          if (token) {
+            const res = await fetch('/api/admin/session', {
+              headers: { Authorization: `Bearer ${token}` },
+              cache: 'no-store',
+            })
+            const json = await res.json().catch(() => ({}))
+            if (!cancelled) setIsSystemAdmin(Boolean(json.isAdmin))
+          } else if (!cancelled) {
+            setIsSystemAdmin(false)
+          }
+        } catch {
+          if (!cancelled) setIsSystemAdmin(false)
         }
 
         const resolvedReturnTo = requestedReturnTo || (convite
@@ -1495,7 +1518,7 @@ export function DropZoneHome() {
                                     <small>@{recent.username}{recent.public_id ? ` · ID ${recent.public_id}` : ''}</small>
                                   </>
                                 ) : (
-                                  <small>Acessar ou criar com Google, Facebook ou Discord</small>
+                                  <small>Acessar ou criar com Google</small>
                                 )}
                               </div>
                               {accessLoadingType === type ? <span className="profile-card-loading"><Loader2 className="spin" size={20} /> Abrindo painel</span> : null}
@@ -1503,6 +1526,26 @@ export function DropZoneHome() {
                             </button>
                           )
                         })}
+                        {isSystemAdmin ? (
+                          <button
+                            type="button"
+                            className="profile-card gamer-card has-recent admin-access-card"
+                            onClick={() => {
+                              window.location.href = '/admin'
+                            }}
+                          >
+                            <div className="card-icon-frame">
+                              <span aria-hidden>🛡️</span>
+                            </div>
+                            <div className="card-copy">
+                              <div className="card-topline">Acesso restrito</div>
+                              <strong>Sistema</strong>
+                              <b className="recent-name">Administração DropZone</b>
+                              <small>Painel exclusivo do admin do sistema</small>
+                            </div>
+                            <i className="card-corner" />
+                          </button>
+                        ) : null}
                       </div>
                       <button
                         type="button"
@@ -1512,6 +1555,7 @@ export function DropZoneHome() {
                           clearRegisterForm('produtora')
                           setMode('entrar')
                           setActiveAuthType('produtora')
+                          setIsSystemAdmin(false)
                         }}
                       >
                         Usar outra conta

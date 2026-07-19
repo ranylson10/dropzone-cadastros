@@ -21,7 +21,13 @@ async function rows(table: string) {
     if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
     throw error
   }
-  return (data || []).filter((row: any) => !['suspenso', 'banido', 'excluido'].includes(String(row.status || 'ativo')))
+  return (data || []).filter((row: any) => {
+    if (['suspenso', 'banido', 'excluido'].includes(String(row.status || 'ativo'))) return false
+    // Só no ar se aprovado pelo admin (legado sem coluna = liberado)
+    const ap = row.aprovacao_status
+    if (ap != null && ap !== '' && ap !== 'aprovado') return false
+    return true
+  })
 }
 
 export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[]> {

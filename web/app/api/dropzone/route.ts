@@ -917,7 +917,18 @@ export async function POST(req: NextRequest) {
       if (!nome) throw new Error('Informe o nome do campeonato.')
       if (!logoUrl) throw new Error('Envie a logo do campeonato.')
 
-      const championshipPayload = {
+      // Produtora precisa estar aprovada para criar campeonato (exceto se coluna ainda não existe)
+      try {
+        const { assertProdutoraAprovada } = await import('@backend/admin/aprovacao')
+        await assertProdutoraAprovada(account.id)
+      } catch (e: any) {
+        if (!/não encontrada|does not exist|42703|PGRST/i.test(String(e?.message || ''))) {
+          // se for "aguardando aprovação" / rejeitada, propaga
+          if (/aprovação|rejeitad|Produtora/i.test(String(e?.message || ''))) throw e
+        }
+      }
+
+      const championshipPayload: Record<string, unknown> = {
         nome,
         tipo: normalizeChampionshipType(data.tipo),
         logo_url: logoUrl,
@@ -925,9 +936,24 @@ export async function POST(req: NextRequest) {
         criado_por: user.id,
         produtora_id: account.id,
         status: 'ativo',
+        // novo campeonato não vai ao ar até admin aprovar (+ cobrança)
+        aprovacao_status: 'pendente',
       }
-      const { data: inserted, error } = await supabaseAdmin.from('campeonatos').insert(championshipPayload).select('*').single()
-      if (error) throw error
+      let inserted: any
+      {
+        const firstTry = await supabaseAdmin.from('campeonatos').insert(championshipPayload).select('*').single()
+        if (firstTry.error && ['42703', 'PGRST204'].includes(firstTry.error.code || '')) {
+          // migração de aprovação ainda não rodou
+          delete championshipPayload.aprovacao_status
+          const retry = await supabaseAdmin.from('campeonatos').insert(championshipPayload).select('*').single()
+          if (retry.error) throw retry.error
+          inserted = retry.data
+        } else if (firstTry.error) {
+          throw firstTry.error
+        } else {
+          inserted = firstTry.data
+        }
+      }
 
       const configurationPayload = championshipConfigurationPayload(data, inserted.id)
       let configuration: any
@@ -938,6 +964,31 @@ export async function POST(req: NextRequest) {
         await supabaseAdmin.from('campeonatos').delete().eq('id', inserted.id)
         throw configurationError
       }
+
+      // Snapshot de precificação (não bloqueia se tabela ausente)
+      try {
+        const { quoteChampionshipPrice, saveChampionshipBilling } = await import('@backend/admin/pricing')
+        const vagas = Number(data.numero_vagas || configuration?.numero_vagas || 0)
+        const quote = await quoteChampionshipPrice({
+          tipo: normalizeChampionshipType(data.tipo),
+          numero_vagas: vagas,
+          recursos: {
+            export: data.recurso_export !== false,
+            stream: data.recurso_stream !== false,
+            rulebook: data.recurso_rulebook !== false,
+            stats: data.recurso_stats !== false,
+            broadcast: data.recurso_broadcast === true,
+          },
+        })
+        await saveChampionshipBilling(inserted.id, quote, {
+          status: 'pendente',
+          userId: user.id,
+          observacao: 'Gerado na criação do campeonato',
+        })
+      } catch {
+        // silencioso — precificação opcional até migração
+      }
+
       row = championshipRow({ ...inserted, campeonato_configuracoes: configuration })
     } else if (entityType === 'team') {
       const data = body.data || {}
