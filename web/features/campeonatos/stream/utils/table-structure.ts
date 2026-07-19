@@ -431,8 +431,15 @@ export function updateTableColumn(
     if (patch.field != null) {
       const def = getSheetDef(tableSourceId(data.source))
       const sheetCol = def.columns.find((sc) => sc.key === patch.field)
-      if (sheetCol && patch.label == null) next.label = sheetCol.label
+      // só preenche rótulo automático se o usuário não personalizou a legenda
+      if (sheetCol && patch.label == null && !c.labelCustom && next.labelCustom !== true) {
+        next.label = sheetCol.label
+      }
       if (sheetCol && patch.asImage == null) next.asImage = Boolean(sheetCol.image)
+    }
+    if (patch.label != null && patch.labelCustom === undefined && patch.field == null) {
+      // edição direta do texto da legenda
+      next.labelCustom = true
     }
     if (patch.widthPx != null) next.widthPx = Math.max(1, Math.round(Number(patch.widthPx) || 1))
     return next

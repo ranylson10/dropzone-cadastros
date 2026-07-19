@@ -2603,6 +2603,46 @@ body.stream-editor-scroll-lock {
   to { opacity: 0; transform: scale(0.92); }
 }
 
+/* Edição rápida dos textos da legenda (header) */
+.stream-legend-labels {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stream-legend-label-row {
+  display: grid !important;
+  grid-template-columns: minmax(48px, 72px) minmax(0, 1fr) 18px;
+  gap: 6px;
+  align-items: center;
+}
+
+.stream-legend-label-row > span {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stream-legend-label-row input[type='text'],
+.stream-legend-label-row input:not([type]),
+.stream-legend-label-row input[type='search'] {
+  min-height: 30px;
+  width: 100%;
+  min-width: 0;
+}
+
+.stream-legend-label-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  justify-self: center;
+}
+
 /* Stepper compacto: − | valor | + */
 .stream-num-stepper {
   display: grid;

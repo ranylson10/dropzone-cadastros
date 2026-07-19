@@ -184,7 +184,16 @@ export type TableColumnDef = {
    * Aceita também chaves legadas (pts, booyah) — resolvidas no render.
    */
   field: string
+  /**
+   * Texto exibido na legenda (header) desta coluna.
+   * Livre: ex. campo booyahs → legenda "B!".
+   */
   label: string
+  /**
+   * Se true, o rótulo foi editado pelo usuário e não deve ser
+   * sobrescrito ao (re)vincular a coluna na planilha.
+   */
+  labelCustom?: boolean
   /** largura em pixels */
   widthPx: number
   /** @deprecated migrado para widthPx */
@@ -457,7 +466,7 @@ const COLS_EQUIPE = [
   { key: 'nome', label: 'Nome', letter: 'D' },
   { key: 'grupo', label: 'Grupo', letter: 'E' },
   { key: 'quedas', label: 'Quedas', letter: 'F' },
-  { key: 'booyahs', label: 'Booyahs', letter: 'G' },
+  { key: 'booyahs', label: 'B!', letter: 'G' },
   { key: 'abates', label: 'Abates', letter: 'H' },
   { key: 'pontos', label: 'Pontos', letter: 'I' },
 ] as StreamSheetColumn[]

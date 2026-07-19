@@ -41,6 +41,7 @@ export function TablePartInspector(props: {
   }
 
   if (props.part.kind === 'header') {
+    const cols = data.columnDefs || []
     return (
       <div className="stream-table-part-inspector">
         <details className="stream-inspector-section" open>
@@ -66,14 +67,60 @@ export function TablePartInspector(props: {
               }
             />
           </label>
-          <p className="stream-hint">
-            Por coluna: use <em>Ocultar legenda</em> na camada da coluna para esconder só aquele título.
-          </p>
         </details>
 
         {data.showHeader !== false ? (
           <details className="stream-inspector-section" open>
-            <summary>Texto, fundo e borda</summary>
+            <summary>Texto de cada coluna</summary>
+            <p className="stream-hint">
+              Edite o que aparece no header (ex.: booyahs → <strong>B!</strong>). O vínculo dos dados não muda.
+            </p>
+            <div className="stream-legend-labels">
+              {cols.map((c) => (
+                <label key={c.id} className="stream-field stream-legend-label-row">
+                  <span title={c.field || 'sem vínculo'}>{c.field || '—'}</span>
+                  <input
+                    value={c.label}
+                    placeholder="Texto da legenda"
+                    maxLength={32}
+                    disabled={Boolean(c.hideHeader)}
+                    onChange={(e) =>
+                      patch(
+                        (d) =>
+                          updateTableColumn(
+                            d,
+                            c.id,
+                            { label: e.target.value, labelCustom: true },
+                            tableW,
+                          ),
+                        'soft',
+                      )
+                    }
+                  />
+                  <input
+                    type="checkbox"
+                    title="Ocultar esta legenda"
+                    checked={Boolean(c.hideHeader)}
+                    onChange={(e) =>
+                      patch(
+                        (d) =>
+                          updateTableColumn(d, c.id, { hideHeader: e.target.checked }, tableW),
+                        'soft',
+                      )
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            {!cols.length ? (
+              <p className="stream-hint">Nenhuma coluna — adicione na lista de camadas.</p>
+            ) : null}
+          </details>
+        ) : null}
+
+        {data.showHeader !== false ? (
+          <details className="stream-inspector-section" open>
+            <summary>Fonte, fundo e borda</summary>
             <FieldStyleEditor
               value={data.headerStyle}
               allowImage
@@ -81,7 +128,7 @@ export function TablePartInspector(props: {
             />
           </details>
         ) : (
-          <p className="stream-hint">Legenda oculta. Ative para editar fonte, fundo e borda.</p>
+          <p className="stream-hint">Legenda oculta. Ative para editar textos e estilo.</p>
         )}
 
         <div className="stream-block-actions" style={{ marginTop: 8 }}>
@@ -330,12 +377,17 @@ export function TablePartInspector(props: {
       onPatch={(p, history = 'soft') => patch((d) => updateTableColumn(d, col.id, p, tableW), history)}
       onBind={(pick) => {
         patch((d) => {
+          // preserva legenda personalizada (ex.: "B!" em vez de "Booyahs")
+          const current = (d.columnDefs || []).find((c) => c.id === col.id)
+          const keepLabel = Boolean(current?.labelCustom && current.label)
           const next = updateTableColumn(
             d,
             col.id,
             {
               field: pick.colKey,
-              label: pick.label,
+              ...(keepLabel
+                ? { label: current!.label, labelCustom: true }
+                : { label: fieldLabel(pick.colKey) || pick.label, labelCustom: false }),
               asImage: Boolean(pick.image),
             },
             tableW,
@@ -396,6 +448,50 @@ function ColumnPartInspector(props: {
   return (
     <div className="stream-table-part-inspector">
       <details className="stream-inspector-section" open>
+        <summary>Texto da legenda</summary>
+        <label className="stream-field">
+          <span>Texto no cabeçalho</span>
+          <input
+            value={col.label}
+            placeholder="Ex.: B!, PTS, #"
+            maxLength={32}
+            onChange={(e) =>
+              props.onPatch({ label: e.target.value, labelCustom: true })
+            }
+          />
+        </label>
+        <p className="stream-hint">
+          Livre da planilha: o vínculo dos dados fica abaixo; aqui só o texto mostrado no header
+          (ex.: booyahs → <strong>B!</strong>).
+        </p>
+        <div className="stream-style-grid">
+          <label className="stream-style-field stream-check-inline">
+            <span>Ocultar legenda</span>
+            <input
+              type="checkbox"
+              checked={Boolean(col.hideHeader)}
+              title="Esconde só o texto da legenda nesta coluna"
+              onChange={(e) => props.onPatch({ hideHeader: e.target.checked })}
+            />
+          </label>
+          <button
+            type="button"
+            className="stream-secondary-btn"
+            title="Voltar ao nome padrão do campo"
+            disabled={!col.field}
+            onClick={() =>
+              props.onPatch({
+                label: fieldLabel(col.field) || col.field,
+                labelCustom: false,
+              })
+            }
+          >
+            Usar padrão
+          </button>
+        </div>
+      </details>
+
+      <details className="stream-inspector-section" open>
         <summary>Conteúdo da coluna</summary>
         <ColumnPicker
           sheets={props.sheets}
@@ -412,23 +508,6 @@ function ColumnPartInspector(props: {
           }}
         />
         <div className="stream-style-grid">
-          <label className="stream-style-field">
-            <span>Rótulo (legenda)</span>
-            <input
-              value={col.label}
-              disabled={Boolean(col.hideHeader)}
-              onChange={(e) => props.onPatch({ label: e.target.value })}
-            />
-          </label>
-          <label className="stream-style-field stream-check-inline">
-            <span>Ocultar legenda</span>
-            <input
-              type="checkbox"
-              checked={Boolean(col.hideHeader)}
-              title="Esconde só o texto da legenda nesta coluna"
-              onChange={(e) => props.onPatch({ hideHeader: e.target.checked })}
-            />
-          </label>
           <label className="stream-style-field">
             <span>Largura (px)</span>
             <input
@@ -475,7 +554,7 @@ function ColumnPartInspector(props: {
         </div>
         <p className="stream-hint">
           {bound
-            ? `Vínculo: ${col.field || fieldLabel(col.field)}`
+            ? `Dados: ${col.field || fieldLabel(col.field)} · legenda: “${col.label || '—'}”`
             : 'Sem vínculo — abra a planilha e escolha a coluna.'}
         </p>
       </details>

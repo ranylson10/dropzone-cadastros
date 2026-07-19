@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Columns2,
   Copy,
-  Download,
   GripVertical,
   Library,
   PanelLeft,
@@ -62,12 +61,7 @@ import {
   type StreamDockMode,
   type StreamWorkspacePrefs,
 } from '../utils/workspace-prefs'
-import {
-  buildOverlayBrowserHtml,
-  buildOverlayExportPayload,
-  downloadHtml,
-  downloadJson,
-} from '../utils/export-overlay'
+
 import { BoxStyleEditor, FieldStyleEditor, LayerImageUpload, TransitionEditor } from './editor/StylePanels'
 import { CellPicker } from './editor/CellPicker'
 import { CardLayerCanvas } from './CardLayerCanvas'
@@ -906,21 +900,6 @@ export function StreamOverlayEditor(props: {
           {overlay.share_token ? (
             <a className="stream-secondary-btn" href={`/stream/live/${overlay.share_token}`} target="_blank" rel="noopener noreferrer">Live</a>
           ) : null}
-          <button type="button" className="stream-secondary-btn" onClick={() => downloadJson(`overlay.json`, buildOverlayExportPayload(overlay, props.campeonatoId))}>
-            <Download size={15} /> JSON
-          </button>
-          <button
-            type="button"
-            className="stream-secondary-btn"
-            onClick={() =>
-              downloadHtml(
-                'overlay.html',
-                buildOverlayBrowserHtml(overlay, { origin: window.location.origin }),
-              )
-            }
-          >
-            <Download size={15} /> HTML
-          </button>
           <StreamSpreadsheetPanel
             campeonatoId={props.campeonatoId}
             asModal
