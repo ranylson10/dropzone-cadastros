@@ -28,6 +28,8 @@ type AppHeaderProps = {
   loginLabel?: string
   /** Mostra chip de saldo (produtora / manager) */
   showWallet?: boolean
+  /** Link para /admin se for admin do sistema */
+  showAdmin?: boolean
 }
 
 function profileMedia(account: DropZoneRow) {
@@ -101,10 +103,12 @@ export function AppHeader({
   loginHref = '/login?returnTo=%2F',
   loginLabel = 'Entrar no sistema',
   showWallet = false,
+  showAdmin = false,
 }: AppHeaderProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [walletSaldo, setWalletSaldo] = useState<number | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const isAuthenticated = Boolean(profileName && onSignOut)
 
@@ -117,8 +121,9 @@ export function AppHeader({
   }, [])
 
   useEffect(() => {
-    if (!showWallet || !isAuthenticated) {
+    if (!isAuthenticated) {
       setWalletSaldo(null)
+      setIsAdmin(false)
       return
     }
     let cancelled = false
@@ -127,16 +132,32 @@ export function AppHeader({
         const { data } = await supabase.auth.getSession()
         const token = data.session?.access_token
         if (!token) return
-        const res = await fetch('/api/me/carteira', {
+
+        if (showWallet) {
+          const res = await fetch('/api/me/carteira', {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+          })
+          const json = await res.json().catch(() => ({}))
+          if (!cancelled && res.ok) {
+            setWalletSaldo(Number(json.carteira?.saldo_disponivel_centavos || 0))
+          }
+        } else if (!cancelled) {
+          setWalletSaldo(null)
+        }
+
+        // Sempre revalida admin no backend (não confiar no prop sozinho)
+        const adminRes = await fetch('/api/admin/session', {
           headers: { Authorization: `Bearer ${token}` },
           cache: 'no-store',
         })
-        const json = await res.json().catch(() => ({}))
-        if (!cancelled && res.ok) {
-          setWalletSaldo(Number(json.carteira?.saldo_disponivel_centavos || 0))
-        }
+        const adminJson = await adminRes.json().catch(() => ({}))
+        if (!cancelled) setIsAdmin(Boolean(adminJson.isAdmin))
       } catch {
-        if (!cancelled) setWalletSaldo(null)
+        if (!cancelled) {
+          setWalletSaldo(null)
+          setIsAdmin(false)
+        }
       }
     })()
     return () => {
@@ -195,6 +216,16 @@ export function AppHeader({
                         currency: 'BRL',
                       }).format(walletSaldo / 100)}
                 </span>
+              </a>
+            ) : null}
+            {isAdmin || showAdmin ? (
+              <a
+                href="/admin"
+                className="app-admin-chip"
+                title="Administração do sistema"
+                onClick={() => setMobileOpen(false)}
+              >
+                Admin
               </a>
             ) : null}
             <NotificationBell />

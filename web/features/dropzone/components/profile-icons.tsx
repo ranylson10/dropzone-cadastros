@@ -52,6 +52,15 @@ function BroadcastIcon() {
   )
 }
 
+function AdminIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" fill="none">
+      <path d="M32 10 50 18v14c0 14-8 22-18 26-10-4-18-12-18-26V18l18-8Z" stroke="currentColor" strokeWidth="3.5" strokeLinejoin="miter" />
+      <path d="M24 32h16M32 24v16" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" />
+    </svg>
+  )
+}
+
 export const profileIcons: Record<ProfileType, ReactNode> = {
   produtora: <ProducerIcon />,
   equipe: <TeamIcon />,
@@ -59,3 +68,6 @@ export const profileIcons: Record<ProfileType, ReactNode> = {
   manager: <ManagerIcon />,
   broadcast: <BroadcastIcon />,
 }
+
+/** Ícone do “perfil” Administração do sistema (não é ProfileType do banco). */
+export const adminProfileIcon = <AdminIcon />

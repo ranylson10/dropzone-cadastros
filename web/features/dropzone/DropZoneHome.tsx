@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
 import { Field, LocationSearch, UploadField } from './components/form-fields'
-import { profileIcons } from './components/profile-icons'
+import { adminProfileIcon, profileIcons } from './components/profile-icons'
 import { EquipePanel } from './panels/equipe/EquipePanel'
 import { JogadorPanel } from './panels/jogador/JogadorPanel'
 import { ManagerPanel } from './panels/manager/ManagerPanel'
@@ -1563,6 +1563,7 @@ export function DropZoneHome() {
                             </button>
                           )
                         })}
+                        {/* Perfil virtual “Admin” — só se /api/admin/session confirmar no backend */}
                         {isSystemAdmin ? (
                           <button
                             type="button"
@@ -1572,13 +1573,13 @@ export function DropZoneHome() {
                             }}
                           >
                             <div className="card-icon-frame">
-                              <span aria-hidden>🛡️</span>
+                              <span>{adminProfileIcon}</span>
                             </div>
                             <div className="card-copy">
-                              <div className="card-topline">Acesso restrito</div>
-                              <strong>Sistema</strong>
-                              <b className="recent-name">Administração DropZone</b>
-                              <small>Painel exclusivo do admin do sistema</small>
+                              <div className="card-topline">Acesso recente</div>
+                              <strong>Administrador</strong>
+                              <b className="recent-name">Painel do sistema</b>
+                              <small>Aprovações, preços, saques e moderação</small>
                             </div>
                             <i className="card-corner" />
                           </button>
