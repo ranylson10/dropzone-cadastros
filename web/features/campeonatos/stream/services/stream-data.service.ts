@@ -409,16 +409,22 @@ async function loadMvpRows(campeonatoId: string, filters?: StreamSheetFilters): 
   })
 }
 
-async function loadMapasRows(campeonatoId: string): Promise<StreamSheetRow[]> {
-  // Preferência: API stream monta mapas + booyah já no servidor
+async function loadMapasRows(
+  campeonatoId: string,
+  filters?: StreamSheetFilters,
+): Promise<StreamSheetRow[]> {
+  // Preferência: API stream monta mapas + booyah já no servidor (jogo ativo por padrão)
   try {
-    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/stream/data?sheet=mapas`)
+    const q = new URLSearchParams({ sheet: 'mapas' })
+    if (filters?.jogo_id) q.set('jogo_id', filters.jogo_id)
+    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/stream/data?${q}`)
     if (Array.isArray(payload.rows) && payload.rows.length) {
       return payload.rows.map((r: any) => ({
         id: text(r.id),
         cells: {
           imagem: text(r.cells?.imagem || ''),
           nome: text(r.cells?.nome || ''),
+          mapa: text(r.cells?.mapa || r.cells?.nome || ''),
           booyah_logo: text(r.cells?.booyah_logo || ''),
           booyah_nome: text(r.cells?.booyah_nome || '—'),
           pontos: text(r.cells?.pontos ?? 0),
@@ -428,7 +434,7 @@ async function loadMapasRows(campeonatoId: string): Promise<StreamSheetRow[]> {
         },
       }))
     }
-    // API ok mas 0 partidas cadastradas
+    // API ok mas 0 partidas no jogo ativo
     if (Array.isArray(payload.rows)) return []
   } catch {
     // fallback client-side
@@ -620,7 +626,7 @@ export async function loadStreamSheet(
   if (id === 'equipes_partida') return loadEquipesScoped(campeonatoId, { partida_id: filters?.partida_id }, true)
 
   if (id === 'mvp') return loadMvpRows(campeonatoId, filters)
-  if (id === 'mapas') return loadMapasRows(campeonatoId)
+  if (id === 'mapas') return loadMapasRows(campeonatoId, filters)
   if (id === 'partida_atual') return loadPartidaAtual(campeonatoId)
   if (id === 'proxima_queda') return loadProximaQueda(campeonatoId)
 

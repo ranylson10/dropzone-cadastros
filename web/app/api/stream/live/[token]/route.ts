@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
+import {
+  loadPartidasForStream,
+  resolveStreamContext,
+} from '@backend/campeonatos/stream/stream-context'
 import { unpackOverlayBlocks } from '@/features/campeonatos/stream/utils/overlay-frame'
 
 const MAP_IMAGES: Record<string, string> = {
@@ -15,14 +19,21 @@ const MAP_IMAGES: Record<string, string> = {
   misterioso: '/images/maps/misterioso.png',
 }
 
-function mapImageFor(name: string) {
+function mapImageFor(name: string, fallback?: string | null) {
+  if (fallback) return String(fallback)
   const key = String(name || '').toLowerCase()
   const hit = Object.entries(MAP_IMAGES).find(([k]) => key.includes(k))
   return hit?.[1] || '/images/maps/bermuda.png'
 }
 
+function text(v: unknown) {
+  if (v == null) return ''
+  return String(v)
+}
+
 /**
  * Feed público por share_token (Browser Source / vMix).
+ * Filtra mapas/partidas pelo jogo ativo da live (pack ou auto-detect).
  */
 export async function GET(_req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
@@ -48,24 +59,30 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
     if (!overlay) return NextResponse.json({ error: 'Overlay não encontrada.' }, { status: 404 })
 
     const campeonatoId = overlay.campeonato_id as string
-    const [classificacao, mvp, champ, partidas] = await Promise.all([
-      listarEstatisticasEquipes(campeonatoId, {}).catch(() => []),
-      listarEstatisticasMvp(campeonatoId, {}).catch(() => []),
+    const streamCtx = await resolveStreamContext(campeonatoId)
+    const activeJogoId = streamCtx.activeJogoId
+
+    type MapaCat = { codigo?: string; nome?: string; imagem_url?: string | null }
+
+    const [classificacao, mvp, champ, partidasRaw, mapasCatRes] = await Promise.all([
+      listarEstatisticasEquipes(campeonatoId, {
+        jogoId: activeJogoId || undefined,
+      }).catch(() => [] as any[]),
+      listarEstatisticasMvp(campeonatoId, {
+        jogoId: activeJogoId || undefined,
+      }).catch(() => [] as any[]),
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url').eq('id', campeonatoId).maybeSingle(),
-      (async () => {
-        try {
-          const r = await supabaseAdmin
-            .from('campeonato_partidas_com_mapa')
-            .select('id,jogo_id,numero_partida,mapa_codigo,mapa_nome,status,horario')
-            .eq('campeonato_id', campeonatoId)
-            .order('numero_partida', { ascending: true })
-            .limit(12)
-          return r.error ? [] : r.data || []
-        } catch {
-          return []
-        }
-      })(),
+      loadPartidasForStream(campeonatoId, activeJogoId),
+      supabaseAdmin
+        .from('dropzone_mapas')
+        .select('codigo, nome, imagem_url')
+        .eq('ativo', true),
     ])
+
+    const mapasCat: MapaCat[] = Array.isArray(mapasCatRes?.data) ? mapasCatRes.data : []
+    const mapaByCode = new Map(
+      mapasCat.map((m) => [String(m.codigo || '').toLowerCase(), m]),
+    )
 
     const classifRows = (classificacao || []).slice(0, 20).map((row: any, i: number) => ({
       pos: row.colocacao ?? i + 1,
@@ -77,9 +94,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
       campeonato_equipe_id: row.campeonato_equipe_id || null,
     }))
 
-    // delta de colocação: compara pos atual com ordem por pts da rodada anterior não existe aqui —
-    // placeholder 0; o client anima mudança entre polls.
-    const withDelta = classifRows.map((row) => ({ ...row, delta: 0 }))
+    const withDelta = classifRows.map((row: typeof classifRows[number]) => ({ ...row, delta: 0 as number }))
 
     const mvpRows = (mvp || []).slice(0, 20).map((row: any, i: number) => {
       const abates = Number(row.abates || 0)
@@ -91,14 +106,24 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
         abates,
         quedas: row.quedas ?? 0,
         kd: (abates / quedas).toFixed(1).replace('.', ','),
-        delta: 0,
+        delta: 0 as number,
+      }
+    })
+
+    const partidaList = (partidasRaw as any[]).map((p: any) => {
+      const codigo = text(p.mapa_codigo || '').toLowerCase()
+      const cat = mapaByCode.get(codigo)
+      const mapaNome = text(p.mapa_nome || cat?.nome || p.mapa_codigo || 'Mapa')
+      return {
+        ...p,
+        mapa_nome: mapaNome,
+        mapa_imagem: mapImageFor(mapaNome, p.mapa_imagem_url || cat?.imagem_url || null),
       }
     })
 
     // Súmula por queda: top da partida (1º) alimenta o card de mapa
-    const partidaList = partidas as any[]
     const sumulas = await Promise.all(
-      partidaList.slice(0, 6).map(async (p) => {
+      partidaList.slice(0, 12).map(async (p) => {
         try {
           const rows = await listarEstatisticasEquipes(campeonatoId, { partidaId: p.id })
           const ordered = (rows || []).map((row: any, i: number) => ({
@@ -117,13 +142,13 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
     )
     const sumulaByPartida = new Map(sumulas.map((s) => [s.partida_id, s.equipes]))
 
-    const mapas = partidaList.slice(0, 6).map((p, i) => {
+    const mapas = partidaList.slice(0, 12).map((p, i) => {
       const mapaNome = p.mapa_nome || p.mapa_codigo || `Mapa ${i + 1}`
       const sumula = sumulaByPartida.get(p.id) || []
-      const top = sumula[0] || classifRows[i]
+      const top = sumula[0]
       return {
-        title: `${String(mapaNome).toUpperCase()}${p.numero_partida ? ` ${p.numero_partida}` : ''}`,
-        imageUrl: mapImageFor(mapaNome),
+        title: `${String(mapaNome).toUpperCase()}${p.numero_partida ? ` · Q${p.numero_partida}` : ''}`,
+        imageUrl: p.mapa_imagem || mapImageFor(mapaNome),
         logo: top?.logo || null,
         pts: top?.pts ?? 0,
         abates: top?.abates ?? 0,
@@ -134,21 +159,124 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
       }
     })
 
-    if (!mapas.length) {
-      ;['Bermuda', 'Purgatório', 'Nova Terra'].forEach((nome, i) => {
-        const line = classifRows[i]
-        mapas.push({
-          title: `${nome.toUpperCase()} ${i + 1}`,
-          imageUrl: mapImageFor(nome),
-          logo: line?.logo || null,
-          pts: line?.pts ?? 0,
-          abates: line?.abates ?? 0,
-          nome: line?.nome || '',
-          status: null,
-          partida_id: null,
-          sumula: [],
-        })
-      })
+    // Planilha "mapas" para tabelas e cells (mesmo formato do editor)
+    const mapasSheet = partidaList.map((p, i) => {
+      const sumula = sumulaByPartida.get(p.id) || []
+      const top = sumula[0]
+      const mapaNome = String(p.mapa_nome || p.mapa_codigo || `Mapa ${i + 1}`).toUpperCase()
+      return {
+        id: p.id,
+        cells: {
+          imagem: p.mapa_imagem || mapImageFor(mapaNome),
+          nome: mapaNome,
+          mapa: mapaNome,
+          booyah_logo: text(top?.logo || ''),
+          booyah_nome: text(top?.nome || (sumula.length ? '—' : 'sem pontuação')),
+          pontos: text(top?.pts ?? 0),
+          abates: text(top?.abates ?? 0),
+          jogo: text(streamCtx.activeJogo?.nome || ''),
+          queda: text(p.numero_partida || i + 1),
+          status: text(p.status || ''),
+          partida_id: text(p.id),
+        },
+      }
+    })
+
+    const equipesSheet = withDelta.map((row: typeof withDelta[number]) => ({
+      id: `eq-${row.pos}`,
+      cells: {
+        pos: text(row.pos),
+        colocacao: text(row.pos),
+        nome: text(row.nome),
+        logo: text(row.logo || ''),
+        booyahs: text(row.booyah ?? 0),
+        abates: text(row.abates ?? 0),
+        pontos: text(row.pts ?? 0),
+        delta: text(row.delta ?? 0),
+      },
+    }))
+
+    const mvpSheet = mvpRows.map((row: typeof mvpRows[number]) => ({
+      id: `mvp-${row.pos}`,
+      cells: {
+        pos: text(row.pos),
+        colocacao: text(row.pos),
+        nick: text(row.nome),
+        nome: text(row.nome),
+        logo: text(row.logo || ''),
+        foto: text(row.logo || ''),
+        abates: text(row.abates ?? 0),
+        quedas: text(row.quedas ?? 0),
+        kd: text(row.kd || '0'),
+        delta: text(row.delta ?? 0),
+      },
+    }))
+
+    // Partida atual / próxima dentro do jogo ativo
+    let currentIdx = partidaList.findIndex((p) => /em_andamento|andamento|live|ao.?vivo|em_jogo/i.test(p.status || ''))
+    if (currentIdx < 0) {
+      let lastDone = -1
+      for (let i = 0; i < partidaList.length; i++) {
+        if (/finaliz|conclu|encerr|done|finished/i.test(partidaList[i].status || '')) lastDone = i
+      }
+      currentIdx = lastDone >= 0 ? lastDone : (partidaList.length ? 0 : -1)
+    }
+    const current = currentIdx >= 0 ? partidaList[currentIdx] : null
+    const next = currentIdx >= 0 ? partidaList[currentIdx + 1] || null : null
+
+    const partidaAtualSheet = current
+      ? [{
+          id: current.id,
+          cells: {
+            mapa_nome: String(current.mapa_nome || '').toUpperCase(),
+            mapa_img: current.mapa_imagem || mapImageFor(current.mapa_nome || ''),
+            queda_atual: text(current.numero_partida || currentIdx + 1),
+            quedas_totais: text(partidaList.length),
+            jogo: text(streamCtx.activeJogo?.nome || ''),
+            status: text(current.status || '—'),
+          },
+        }]
+      : [{
+          id: 'empty',
+          cells: {
+            mapa_nome: '—',
+            mapa_img: '',
+            queda_atual: '0',
+            quedas_totais: text(partidaList.length),
+            jogo: text(streamCtx.activeJogo?.nome || ''),
+            status: activeJogoId ? 'sem quedas neste jogo' : 'sem jogo ativo',
+          },
+        }]
+
+    const proximaSheet = next
+      ? [{
+          id: next.id,
+          cells: {
+            mapa_nome: String(next.mapa_nome || '').toUpperCase(),
+            mapa_img: next.mapa_imagem || mapImageFor(next.mapa_nome || ''),
+            queda_numero: text(next.numero_partida || currentIdx + 2),
+            jogo: text(streamCtx.activeJogo?.nome || ''),
+          },
+        }]
+      : [{
+          id: 'empty-next',
+          cells: {
+            mapa_nome: '—',
+            mapa_img: '',
+            queda_numero: '—',
+            jogo: text(streamCtx.activeJogo?.nome || ''),
+          },
+        }]
+
+    const sheets = {
+      mapas: mapasSheet,
+      quedas: mapasSheet,
+      equipes_geral: equipesSheet,
+      classificacao: equipesSheet,
+      equipes: equipesSheet,
+      mvp: mvpSheet,
+      partida_atual: partidaAtualSheet,
+      proxima_queda: proximaSheet,
     }
 
     const packed = unpackOverlayBlocks(overlay.blocks)
@@ -163,6 +291,11 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
         updatedAt: overlay.updated_at,
       },
       campeonato: champ.data || { id: campeonatoId },
+      context: {
+        active_jogo_id: activeJogoId,
+        active_jogo: streamCtx.activeJogo,
+        source: streamCtx.source,
+      },
       data: {
         classificacao: withDelta,
         mvp: mvpRows,
@@ -175,6 +308,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
           horario: p.horario || '',
           jogo_id: p.jogo_id,
         })),
+        sheets,
       },
       fetchedAt: new Date().toISOString(),
     })

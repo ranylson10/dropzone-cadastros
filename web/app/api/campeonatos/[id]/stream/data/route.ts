@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
+import {
+  loadPartidasForStream,
+  resolveStreamContext,
+} from '@backend/campeonatos/stream/stream-context'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 /**
  * Dados de planilha Stream com service_role (partidas/mapas confiáveis).
  * GET ?sheet=mapas|partidas|equipes_geral|...
+ * ?jogo_id= — força um jogo; se omitido, usa contexto da live (pack / auto).
+ * ?scope=all — ignora filtro de jogo (todas as partidas do campeonato).
  */
 function canStream(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
   return (
@@ -56,40 +62,24 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const sheet = req.nextUrl.searchParams.get('sheet') || 'mapas'
     const grupoId = req.nextUrl.searchParams.get('grupo_id')
     const partidaId = req.nextUrl.searchParams.get('partida_id')
-    const jogoId = req.nextUrl.searchParams.get('jogo_id')
     const mapaCodigo = req.nextUrl.searchParams.get('mapa_codigo')
     const faseId = req.nextUrl.searchParams.get('fase_id')
+    const scopeAll = req.nextUrl.searchParams.get('scope') === 'all'
+    const jogoIdParam = req.nextUrl.searchParams.get('jogo_id')
 
-    // Partidas com mapa (fonte oficial do pontuador)
-    let partidas: any[] = []
-    const q1 = await supabaseAdmin
-      .from('campeonato_partidas_com_mapa')
-      .select('*')
-      .eq('campeonato_id', campeonatoId)
-      .order('numero_partida', { ascending: true })
+    const streamCtx = await resolveStreamContext(campeonatoId)
+    const resolvedJogoId = scopeAll
+      ? null
+      : (jogoIdParam || streamCtx.activeJogoId || null)
 
-    if (!q1.error && q1.data) {
-      partidas = q1.data
-    } else {
-      // se a view falhar, tenta tabela base
-      const q2 = await supabaseAdmin
-        .from('campeonato_partidas')
-        .select('id, campeonato_id, jogo_id, fase_id, grupo_id, numero_partida, mapa_codigo, status, horario')
-        .eq('campeonato_id', campeonatoId)
-        .order('numero_partida', { ascending: true })
-      partidas = q2.data || []
-    }
-
-    // ordena por jogo + número da queda
-    partidas = partidas.slice().sort((a, b) => {
-      const ja = String(a.jogo_id || '')
-      const jb = String(b.jogo_id || '')
-      if (ja !== jb) return ja.localeCompare(jb)
-      return Number(a.numero_partida || 0) - Number(b.numero_partida || 0)
-    })
+    // Partidas com mapa (fonte oficial do pontuador), filtradas pelo jogo ativo
+    let partidas = await loadPartidasForStream(campeonatoId, resolvedJogoId)
 
     // nomes dos jogos
     const jogoIds = [...new Set(partidas.map((p: any) => p.jogo_id).filter(Boolean))]
+    // se filtro zerou partidas, ainda precisamos do nome do jogo ativo
+    if (resolvedJogoId && !jogoIds.includes(resolvedJogoId)) jogoIds.push(resolvedJogoId)
+
     const jogosMap = new Map<string, any>()
     if (jogoIds.length) {
       const { data: jogos } = await supabaseAdmin
@@ -126,8 +116,35 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       }
     }).filter((p) => p.id)
 
+    const contextPayload = {
+      active_jogo_id: resolvedJogoId,
+      active_jogo: resolvedJogoId
+        ? (streamCtx.activeJogo && streamCtx.activeJogo.id === resolvedJogoId
+          ? streamCtx.activeJogo
+          : (() => {
+              const j = jogosMap.get(resolvedJogoId)
+              return j
+                ? {
+                    id: j.id,
+                    nome: j.nome,
+                    status: j.status || '',
+                    data_jogo: j.data_jogo || null,
+                    horario: j.horario || null,
+                    numero_partidas: 0,
+                  }
+                : null
+            })())
+        : streamCtx.activeJogo,
+      source: jogoIdParam ? 'query' : (scopeAll ? 'all' : streamCtx.source),
+      jogos: streamCtx.jogos,
+    }
+
+    if (sheet === 'context' || sheet === 'jogos_context') {
+      return NextResponse.json({ context: contextPayload })
+    }
+
     if (sheet === 'partidas') {
-      return NextResponse.json({ partidas: partidasNorm })
+      return NextResponse.json({ partidas: partidasNorm, context: contextPayload })
     }
 
     if (sheet === 'mapas') {
@@ -142,7 +159,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         } catch {
           stats = []
         }
-        // booyah = 1º lugar (posição de morte 1) ou booyahs > 0
         const winner =
           stats.find((e) => Number(e.booyahs) > 0)
           || stats.find((e) => Number(e.melhor_posicao) === 1)
@@ -154,6 +170,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           cells: {
             imagem: p.mapaImagem,
             nome: p.mapa.toUpperCase(),
+            mapa: p.mapa.toUpperCase(),
             booyah_logo: text(winner?.logo_url || ''),
             booyah_nome: text(winner?.nome || winner?.line_nome || (stats.length ? '—' : 'sem pontuação')),
             pontos: text(winner?.pontos_total ?? 0),
@@ -166,29 +183,36 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           },
         })
       }
-      return NextResponse.json({ rows, partidas: partidasNorm, count: rows.length })
+      return NextResponse.json({
+        rows,
+        partidas: partidasNorm,
+        count: rows.length,
+        context: contextPayload,
+      })
     }
+
+    const jogoIdForStats = jogoIdParam || resolvedJogoId || undefined
 
     if (sheet === 'equipes' || sheet === 'equipes_geral') {
       const equipes = await listarEstatisticasEquipes(campeonatoId, {
         faseId: faseId || undefined,
-        jogoId: jogoId || undefined,
+        jogoId: jogoIdForStats || undefined,
         partidaId: partidaId || undefined,
         mapaCodigo: mapaCodigo || undefined,
         grupoId: grupoId || undefined,
       })
-      return NextResponse.json({ equipes, partidas: partidasNorm })
+      return NextResponse.json({ equipes, partidas: partidasNorm, context: contextPayload })
     }
 
     if (sheet === 'mvp') {
       const jogadores = await listarEstatisticasMvp(campeonatoId, {
         faseId: faseId || undefined,
-        jogoId: jogoId || undefined,
+        jogoId: jogoIdForStats || undefined,
         partidaId: partidaId || undefined,
         mapaCodigo: mapaCodigo || undefined,
         grupoId: grupoId || undefined,
       })
-      return NextResponse.json({ jogadores, partidas: partidasNorm })
+      return NextResponse.json({ jogadores, partidas: partidasNorm, context: contextPayload })
     }
 
     return NextResponse.json({ error: 'sheet inválido' }, { status: 400 })

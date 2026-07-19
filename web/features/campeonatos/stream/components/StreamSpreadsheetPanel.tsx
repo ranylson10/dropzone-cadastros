@@ -233,7 +233,7 @@ export function StreamSpreadsheetPanel(props: {
                   {sheet.filter && sheet.filter !== 'none' && !Object.values(filters).some(Boolean)
                     ? 'Selecione um filtro acima para carregar os dados.'
                     : sheet.id === 'mapas'
-                      ? 'Nenhuma queda/partida encontrada. Confira se o jogo tem quedas com mapa no pontuador e clique em Atualizar.'
+                      ? 'Nenhuma queda neste jogo. Selecione o jogo da live na aba Stream → Composição, confira mapas no pontuador e clique em Atualizar.'
                       : 'Nenhum dado nesta aba ainda.'}
                 </td>
               </tr>

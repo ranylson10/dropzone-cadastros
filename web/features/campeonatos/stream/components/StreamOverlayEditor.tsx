@@ -405,38 +405,35 @@ export function StreamOverlayEditor(props: {
       setStandings(standingRows)
       setMvpRows(mvpPreview.length ? mvpPreview : standingRows)
 
-      const quedas = next.quedas || []
+      // Planilha "mapas" = quedas do jogo ativo (nome, imagem, booyah…)
+      const quedas = next.mapas || next.quedas || []
       const mapImages: Record<string, string> = {
         bermuda: '/images/maps/bermuda.png',
         purgatorio: '/images/maps/purgatorio.png',
         purgatório: '/images/maps/purgatorio.png',
         'nova terra': '/images/maps/nova-terra.png',
+        kalahari: '/images/maps/kalahari.png',
+        alpine: '/images/maps/alpine.png',
+        solara: '/images/maps/solara.png',
       }
-      const fallback = ['BERMUDA 1', 'PURGATÓRIO 1', 'NOVA TERRA 1']
-      const fromQ = quedas.slice(0, 6).map((q, i) => {
-        const mapa = String(q.cells.mapa || fallback[i] || `MAPA ${i + 1}`)
-        const imageUrl = Object.entries(mapImages).find(([k]) => mapa.toLowerCase().includes(k))?.[1] || '/images/maps/bermuda.png'
+      const fromQ = quedas.slice(0, 12).map((q, i) => {
+        const mapa = String(
+          q.cells.nome || q.cells.mapa || q.cells.mapa_nome || `MAPA ${i + 1}`,
+        )
+        const imageUrl =
+          String(q.cells.imagem || q.cells.mapa_img || '').trim()
+          || Object.entries(mapImages).find(([k]) => mapa.toLowerCase().includes(k))?.[1]
+          || '/images/maps/bermuda.png'
         return {
           title: mapa.toUpperCase(),
           imageUrl,
-          logo: standingRows[i]?.logo,
-          pts: standingRows[i]?.pts || '0',
-          abates: standingRows[i]?.abates || '0',
-          nome: standingRows[i]?.nome || '',
+          logo: q.cells.booyah_logo || standingRows[i]?.logo,
+          pts: q.cells.pontos || standingRows[i]?.pts || '0',
+          abates: q.cells.abates || standingRows[i]?.abates || '0',
+          nome: q.cells.booyah_nome || standingRows[i]?.nome || '',
         }
       })
-      setMaps(
-        fromQ.length
-          ? fromQ
-          : fallback.map((title, i) => ({
-              title,
-              imageUrl: Object.values(mapImages)[i] || '/images/maps/bermuda.png',
-              logo: standingRows[i]?.logo,
-              pts: standingRows[i]?.pts || '0',
-              abates: standingRows[i]?.abates || '0',
-              nome: standingRows[i]?.nome || '',
-            })),
-      )
+      setMaps(fromQ)
     } finally {
       setLoadingData(false)
     }

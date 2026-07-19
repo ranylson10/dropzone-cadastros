@@ -647,11 +647,12 @@ export const STREAM_SHEETS: StreamSheetDefinition[] = [
   },
   {
     id: 'mapas',
-    title: 'Mapas',
+    title: 'Mapas do dia',
     refName: 'Mapas',
     live: true,
     group: 'mapas',
-    filter: 'none',
+    /** Filtra por jogo; vazio = jogo ativo da live (auto / pack). */
+    filter: 'jogo',
     columns: [
       { key: 'imagem', label: 'Imagem', letter: 'A', image: true },
       { key: 'nome', label: 'Mapa', letter: 'B' },

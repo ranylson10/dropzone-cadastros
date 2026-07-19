@@ -71,6 +71,19 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bgType, setBgType] = useState<'none' | 'image' | 'video'>('none')
   const [bgUrl, setBgUrl] = useState('')
+  /** '' = auto (detecta jogo); uuid = manual */
+  const [activeJogoId, setActiveJogoId] = useState('')
+  const [jogos, setJogos] = useState<
+    Array<{
+      id: string
+      nome: string
+      status?: string
+      data_jogo?: string | null
+      horario?: string | null
+      numero_partidas?: number
+    }>
+  >([])
+  const [needsActiveJogoSql, setNeedsActiveJogoSql] = useState(false)
   const [packBusy, setPackBusy] = useState(false)
   const [packDirty, setPackDirty] = useState(false)
   const [bgUploading, setBgUploading] = useState(false)
@@ -109,6 +122,9 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
       setSelectedIds(Array.isArray(res.pack?.selected_overlay_ids) ? res.pack.selected_overlay_ids : [])
       setBgType((res.pack?.bg_type as any) || 'none')
       setBgUrl(res.pack?.bg_url || '')
+      setActiveJogoId(res.pack?.active_jogo_id ? String(res.pack.active_jogo_id) : '')
+      setJogos(Array.isArray(res.jogos) ? res.jogos : [])
+      setNeedsActiveJogoSql(Boolean(res.needs_active_jogo_sql))
       setPackDirty(false)
       setMissingPackSql(false)
     } catch (e: any) {
@@ -195,10 +211,15 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     selected_overlay_ids?: string[]
     bg_type?: 'none' | 'image' | 'video'
     bg_url?: string | null
+    active_jogo_id?: string | null
   }) {
     setPackBusy(true)
     setFeedback('')
     try {
+      const jogoVal =
+        next && Object.prototype.hasOwnProperty.call(next, 'active_jogo_id')
+          ? next.active_jogo_id
+          : (activeJogoId || null)
       const body = {
         selected_overlay_ids: next?.selected_overlay_ids ?? selectedIds,
         bg_type: next?.bg_type ?? bgType,
@@ -206,17 +227,23 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
           (next?.bg_type ?? bgType) === 'none'
             ? null
             : (next?.bg_url !== undefined ? next.bg_url : bgUrl.trim() || null),
+        active_jogo_id: jogoVal,
       }
-      await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`, {
+      const res = await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`, {
         method: 'PUT',
         body: JSON.stringify(body),
       })
       setPackDirty(false)
       setMissingPackSql(false)
+      if (res.needs_active_jogo_sql) setNeedsActiveJogoSql(true)
+      else setNeedsActiveJogoSql(false)
+      const jogoNome = jogoVal
+        ? (jogos.find((j) => j.id === jogoVal)?.nome || 'selecionado')
+        : 'automático'
       setFeedback(
         (body.selected_overlay_ids?.length || 0)
-          ? `Composição salva: ${body.selected_overlay_ids.length} cena(s) no controlador do Stream.`
-          : 'Composição salva: nenhuma cena (Stream verá lista vazia até marcar overlays).',
+          ? `Composição salva: ${body.selected_overlay_ids.length} cena(s) · jogo: ${jogoNome}.`
+          : `Composição salva · jogo: ${jogoNome}. Marque overlays para o controlador.`,
       )
     } catch (e: any) {
       setFeedback(e?.message || 'Erro ao salvar composição')
@@ -337,6 +364,13 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
           {' '}(também em Downloads do PC).
         </div>
       ) : null}
+      {needsActiveJogoSql ? (
+        <div className="stream-error">
+          Para gravar o <strong>jogo da live</strong> (mapas do dia), rode no Supabase:{' '}
+          <code>database/migrations/20260719_stream_active_jogo.sql</code>
+          {' '}ou <code>Downloads/DOWNLOAD_stream_active_jogo.sql</code>.
+        </div>
+      ) : null}
 
       {/* Composição da live */}
       <section className="stream-panel" aria-label="Composição da live">
@@ -344,8 +378,8 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
           <div>
             <h4>Composição da live</h4>
             <p className="stream-hint">
-              Marque as overlays que o Stream verá como botões no controlador (ex.: 10 criadas, só 5 na live).
-              Ordene com as setas. Fundo PNG/vídeo é para você pré-visualizar o encaixe.
+              Defina o <strong>jogo da live</strong> (mapas do dia), marque as overlays do controlador e o fundo.
+              Sem jogo manual, o sistema usa: queda em andamento → data de hoje → último jogo.
             </p>
           </div>
           <div className="stream-panel-actions">
@@ -358,6 +392,37 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
               <Save size={15} /> {packBusy ? 'Salvando…' : packDirty ? 'Salvar composição' : 'Salvo'}
             </button>
           </div>
+        </div>
+
+        <div className="broadcast-row" style={{ marginBottom: 14 }}>
+          <label className="broadcast-field" style={{ flex: '1 1 320px' }}>
+            <span>Jogo da live · mapas do dia</span>
+            <select
+              value={activeJogoId}
+              disabled={packBusy}
+              onChange={(e) => {
+                setActiveJogoId(e.target.value)
+                setPackDirty(true)
+              }}
+            >
+              <option value="">Automático (detectar jogo ativo)</option>
+              {jogos.map((j) => {
+                const data = j.data_jogo ? String(j.data_jogo).slice(0, 10) : ''
+                const n = j.numero_partidas ? ` · ${j.numero_partidas} queda(s)` : ''
+                const st = j.status ? ` · ${j.status}` : ''
+                return (
+                  <option key={j.id} value={j.id}>
+                    {(j.nome || 'Jogo') + (data ? ` · ${data}` : '') + n + st}
+                  </option>
+                )
+              })}
+            </select>
+            <small className="stream-hint" style={{ display: 'block', marginTop: 6 }}>
+              {jogos.length
+                ? 'As overlays de mapas usam só as quedas deste jogo. No pontuador, marque a queda atual (em andamento) para “partida atual”.'
+                : 'Nenhum jogo cadastrado neste campeonato. Crie jogos/quedas no pontuador para alimentar as overlays.'}
+            </small>
+          </label>
         </div>
 
         <div className="broadcast-row" style={{ alignItems: 'start' }}>

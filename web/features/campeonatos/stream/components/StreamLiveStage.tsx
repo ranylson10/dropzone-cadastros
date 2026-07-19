@@ -1,7 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { FRAME_H, FRAME_W, type StreamBlock } from '../types/stream.types'
+import {
+  FRAME_H,
+  FRAME_W,
+  type StreamBlock,
+  type StreamSheetId,
+  type StreamSheetRow,
+} from '../types/stream.types'
 import { transitionClass, transitionStyle } from '../utils/stream-style'
 import { normalizeTransition } from '../types/stream.types'
 import { ensureCardLayers } from '../utils/card-layers'
@@ -61,6 +67,8 @@ export type StreamLiveData = {
   classificacao: LiveStanding[]
   mvp: LiveStanding[]
   mapas?: LiveMapCard[]
+  /** Planilhas resolvidas no servidor (mapas do jogo ativo, equipes, etc.). */
+  sheets?: Partial<Record<StreamSheetId, StreamSheetRow[]>>
 }
 
 function fingerprint(data: StreamLiveData) {
@@ -127,8 +135,9 @@ export function StreamLiveStage(props: {
 
   const mvp = props.data.mvp || []
   const mapas = props.data.mapas || []
+  const sheets = props.data.sheets
   const template = props.template || 'custom'
-  const ctx = { mapas, classificacao: classif, mvp }
+  const ctx = { mapas, classificacao: classif, mvp, sheets }
 
   const standingsPreview = useMemo(() => classif.map(toPreviewStanding), [classif])
   const mvpPreview = useMemo(() => mvp.map(toPreviewStanding), [mvp])
@@ -207,6 +216,7 @@ export function StreamLiveStage(props: {
               table={table}
               standings={standingsPreview}
               mvpRows={mvpPreview}
+              sheets={sheets}
               autoPlayEnter={childAuto}
             />
           </div>
