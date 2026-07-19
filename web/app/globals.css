@@ -750,11 +750,11 @@ body:has(.cropper-overlay) {
   overflow: hidden;
 }
 
-/* Login / escolha de perfil — coluna estilo celular + hero bem visível */
+/* Login / escolha de perfil — faixa vertical full-height (estilo Riot) + hero nos lados */
 .page:has(.login-stage.login-stage-bg) {
   padding: 0;
   min-height: 100vh;
-  background: #0c0e12;
+  background: #1a1c22;
 }
 
 .page:has(.login-stage.login-stage-bg) > .shell {
@@ -767,10 +767,11 @@ body:has(.cropper-overlay) {
   position: relative;
   display: grid;
   min-height: 100vh;
-  place-items: center;
+  /* faixa central; arte aparece à esquerda e à direita */
+  place-items: stretch center;
   overflow: hidden;
-  padding: 20px 14px 28px;
-  background: #0c0e12;
+  padding: 0;
+  background: #1a1c22;
 }
 
 .login-stage.login-stage-bg::before,
@@ -782,23 +783,20 @@ body:has(.cropper-overlay) {
   z-index: 0;
 }
 
-/* Imagem de fundo quase intacta — só vinheta leve nas bordas */
+/* Arte de fundo bem visível (sem lavar) */
 .login-stage.login-stage-bg::before {
   background:
-    radial-gradient(ellipse 90% 70% at 50% 45%, transparent 0%, rgba(8, 10, 14, .28) 72%, rgba(8, 10, 14, .55) 100%),
-    linear-gradient(180deg, rgba(8, 10, 14, .22) 0%, transparent 28%, transparent 72%, rgba(8, 10, 14, .4) 100%),
+    linear-gradient(90deg, rgba(12, 14, 18, .12) 0%, transparent 18%, transparent 82%, rgba(12, 14, 18, .18) 100%),
     url("/login-dropzone-hero.png") center center / cover no-repeat,
-    #0c0e12;
+    #1a1c22;
 }
 
-/* Grade sutil escura por cima (não apaga a arte) */
 .login-stage.login-stage-bg::after {
-  opacity: .35;
+  opacity: .2;
   background:
-    linear-gradient(135deg, transparent 48%, rgba(255, 255, 255, .03) 49%, rgba(255, 255, 255, .03) 51%, transparent 52%),
-    linear-gradient(90deg, rgba(255, 255, 255, .025) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(255, 255, 255, .02) 1px, transparent 1px);
-  background-size: 72px 72px, 40px 40px, 40px 40px;
+    linear-gradient(90deg, rgba(20, 24, 32, .04) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(20, 24, 32, .03) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px;
 }
 
 .login-free-shell,
@@ -808,40 +806,54 @@ body:has(.cropper-overlay) {
   z-index: 1;
 }
 
-/* “Tela de celular” no centro */
+/*
+ * Faixa de login: topo → base, sem “card flutuante”.
+ * Cores do tema (surface / texto / ouro).
+ */
 .login-free-shell {
-  width: min(400px, 100%);
-  max-height: min(920px, calc(100vh - 48px));
+  width: min(420px, 100%);
+  min-height: 100vh;
+  max-height: none;
+  height: 100%;
+  align-self: stretch;
   overflow: auto;
-  padding: 18px 14px 16px;
-  border-radius: 22px;
-  border: 1px solid rgba(201, 162, 39, .28);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 28px 28px;
+  border-radius: 0;
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
+  border-right: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
   background:
-    linear-gradient(165deg, rgba(28, 32, 40, .94) 0%, rgba(14, 16, 22, .96) 100%);
+    linear-gradient(180deg, #fffef9 0%, var(--surface) 42%, #f7f4ea 100%);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, .45),
-    0 28px 80px rgba(0, 0, 0, .55),
-    inset 0 1px 0 rgba(255, 255, 255, .06);
-  color: #f2f4f8;
+    0 0 0 1px rgba(201, 162, 39, .08),
+    -18px 0 48px rgba(12, 14, 18, .18),
+    18px 0 48px rgba(12, 14, 18, .18);
+  color: var(--text);
   -webkit-overflow-scrolling: touch;
 }
 
 .login-layout-header {
-  margin-bottom: 14px;
+  margin-bottom: 18px;
   text-align: center;
-  color: #f2f4f8;
+  color: var(--text);
+  flex: 0 0 auto;
 }
 
 .login-layout-header .eyebrow {
-  color: var(--brand);
-  letter-spacing: .14em;
+  color: var(--gold-dim);
+  letter-spacing: .16em;
+  font-weight: 900;
 }
 
 .login-layout-header h2 {
-  margin: 6px 0 0;
-  font-size: clamp(26px, 7vw, 34px);
+  margin: 8px 0 0;
+  font-size: clamp(28px, 4.2vw, 36px);
   line-height: 1.05;
-  color: #f7f8fb;
+  color: var(--text);
   text-transform: uppercase;
 }
 
@@ -857,9 +869,10 @@ body:has(.cropper-overlay) {
 .login-workspace.cards-only {
   display: grid;
   gap: 12px;
+  flex: 0 0 auto;
 }
 
-/* Lista vertical (1 coluna) — perfil sob perfil */
+/* Lista vertical (1 coluna) */
 .login-stage .profile-grid {
   grid-template-columns: 1fr;
   gap: 10px;
@@ -871,68 +884,69 @@ body:has(.cropper-overlay) {
   grid-template-columns: 52px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
-  min-height: 88px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 12px;
-  background: rgba(20, 24, 32, .88);
-  color: #f2f4f8;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+  min-height: 84px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
   padding: 12px 14px;
   text-align: left;
   text-transform: uppercase;
-  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
   overflow: hidden;
 }
 
 .login-stage .profile-card.gamer-card {
-  background: linear-gradient(135deg, rgba(32, 36, 46, .95), rgba(18, 20, 28, .98));
-  border-color: rgba(201, 162, 39, .18);
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--brand) 22%, var(--line));
+  box-shadow: 0 8px 22px rgba(20, 24, 32, .06);
 }
 
 .login-stage .profile-card.gamer-card .card-topline {
-  color: rgba(201, 162, 39, .9);
+  color: var(--gold-dim);
   font-size: 9px;
   font-weight: 900;
   letter-spacing: .12em;
 }
 
 .login-stage .profile-card.gamer-card strong {
-  color: #f7f8fb;
-  font-size: clamp(18px, 5vw, 22px);
+  color: var(--text);
+  font-size: clamp(18px, 2.4vw, 22px);
 }
 
 .login-stage .profile-card.gamer-card small {
-  color: rgba(242, 244, 248, .62);
+  color: var(--muted);
   text-transform: none;
   font-size: 12px;
   line-height: 1.35;
 }
 
 .login-stage .profile-card.gamer-card .recent-name {
-  color: #e8ebf2;
+  color: var(--text);
 }
 
 .login-stage .other-account-button {
   width: 100%;
-  margin-top: 4px;
+  margin-top: 6px;
   min-height: 44px;
-  border-color: rgba(201, 162, 39, .35);
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
   background: transparent;
-  color: #f2f4f8;
+  color: var(--text);
 }
 
 .login-stage .other-account-button:hover {
   border-color: var(--brand);
-  background: rgba(201, 162, 39, .12);
-  color: #fff;
+  background: var(--gold-soft);
+  color: var(--text);
 }
 
-/* Painel social / criar perfil — mesma coluna escura */
+/* Painel social / criar perfil — mesma faixa clara do tema */
 .login-stage .auth-inline-panel.auth-light-panel,
 .login-free-shell.auth-page .auth-inline-panel.auth-light-panel {
   width: 100%;
   max-height: none;
-  color: #f2f4f8;
+  color: var(--text);
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -943,31 +957,31 @@ body:has(.cropper-overlay) {
 }
 
 .login-stage .auth-site-mark strong {
-  color: #f7f8fb;
+  color: var(--text);
 }
 
 .login-stage .google-only-copy strong,
 .login-stage .google-confirmed-note strong {
-  color: #f7f8fb;
+  color: var(--text);
 }
 
 .login-stage .google-only-copy p,
 .login-stage .google-confirmed-note span,
 .login-stage .google-confirmed-note small,
 .login-stage .linked-profile-type-picker > span {
-  color: rgba(242, 244, 248, .72);
+  color: var(--muted);
 }
 
 .login-stage .close-auth {
-  border-color: rgba(255, 255, 255, .12);
-  background: rgba(20, 24, 32, .9);
-  color: #f2f4f8;
+  border-color: var(--line);
+  background: var(--surface-soft);
+  color: var(--text);
 }
 
 .login-stage .social-login-google {
-  background: #fff;
-  color: #151922;
-  border-color: rgba(255, 255, 255, .2);
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
 }
 
 .login-stage .linked-profile-type-picker {
@@ -979,10 +993,10 @@ body:has(.cropper-overlay) {
 .login-stage .linked-profile-type-picker button {
   width: 100%;
   min-height: 42px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 8px;
-  background: rgba(20, 24, 32, .85);
-  color: #f2f4f8;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--text);
   text-transform: uppercase;
   font-weight: 800;
   letter-spacing: .04em;
@@ -1040,8 +1054,9 @@ body:has(.cropper-overlay) {
 .login-stage .profile-card.gamer-card:hover,
 .login-stage .profile-card.gamer-card.active,
 .login-stage .profile-card.gamer-card.has-recent {
-  border-color: rgba(201, 162, 39, .55);
-  background: linear-gradient(135deg, rgba(40, 44, 56, .98), rgba(22, 24, 32, .99));
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--line));
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(201, 162, 39, .12);
   transform: translateY(-1px);
 }
 
@@ -1628,33 +1643,37 @@ body:has(.cropper-overlay) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  /* Login sempre 1 coluna, inclusive no mobile */
+  /* Login: faixa full width no mobile (ainda full-height) */
   .login-stage .profile-grid {
     grid-template-columns: 1fr;
   }
 
   .profile-card.gamer-card {
     grid-template-columns: 52px minmax(0, 1fr);
-    min-height: 84px;
+    min-height: 80px;
   }
 
   .login-stage.login-stage-bg {
     min-height: 100vh;
-    padding: 12px 10px 20px;
+    padding: 0;
   }
 
   .login-stage.login-stage-bg::before {
     background:
-      radial-gradient(ellipse 100% 80% at 50% 40%, transparent 0%, rgba(8, 10, 14, .35) 78%, rgba(8, 10, 14, .6) 100%),
+      linear-gradient(180deg, rgba(12, 14, 18, .15), transparent 30%, transparent 70%, rgba(12, 14, 18, .2)),
       url("/login-dropzone-hero.png") center center / cover no-repeat,
-      #0c0e12;
+      #1a1c22;
   }
 
   .login-free-shell {
-    width: min(100%, 400px);
-    max-height: calc(100vh - 24px);
-    border-radius: 18px;
-    padding: 14px 12px 12px;
+    width: 100%;
+    min-height: 100vh;
+    max-width: none;
+    border-left: 0;
+    border-right: 0;
+    padding: 28px 18px 22px;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
   }
 
   .metric {
@@ -4682,13 +4701,14 @@ button.invite-slot-button.selected strong {
   font-size: 0.9rem;
 }
 
-/* Centralized authentication — coluna escura + hero visível */
+/* Centralized authentication — faixa vertical full-height + hero nos lados */
 .central-login-page {
   min-height: 100vh;
   position: relative;
   isolation: isolate;
-  background-color: #0c0e12;
-  color: #f2f4f8;
+  background-color: #1a1c22;
+  color: var(--text);
+  padding: 0 !important;
 }
 
 .central-login-page::before {
@@ -4698,45 +4718,50 @@ button.invite-slot-button.selected strong {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 90% 70% at 50% 45%, transparent 0%, rgba(8, 10, 14, .28) 72%, rgba(8, 10, 14, .55) 100%),
-    linear-gradient(180deg, rgba(8, 10, 14, .22) 0%, transparent 28%, transparent 72%, rgba(8, 10, 14, .4) 100%),
+    linear-gradient(90deg, rgba(12, 14, 18, .12) 0%, transparent 18%, transparent 82%, rgba(12, 14, 18, .18) 100%),
     url("/login-dropzone-hero.png") center center / cover no-repeat,
-    #0c0e12;
+    #1a1c22;
 }
 
 .central-login-shell {
   position: relative;
   z-index: 1;
-  min-height: calc(100vh - 64px);
+  min-height: 100vh;
   display: grid;
-  place-items: center;
-  padding: 28px 14px;
+  place-items: stretch center;
+  padding: 0;
 }
 
 .central-login-card {
-  width: min(100%, 400px);
-  padding: 26px 18px 22px;
-  border: 1px solid rgba(201, 162, 39, .28);
-  border-radius: 22px;
-  background: linear-gradient(165deg, rgba(28, 32, 40, .94) 0%, rgba(14, 16, 22, .96) 100%);
+  width: min(100%, 420px);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 36px 28px 28px;
+  border: 0;
+  border-radius: 0;
+  border-left: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
+  border-right: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
+  background:
+    linear-gradient(180deg, #fffef9 0%, var(--surface) 42%, #f7f4ea 100%);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, .45),
-    0 28px 80px rgba(0, 0, 0, .55),
-    inset 0 1px 0 rgba(255, 255, 255, .06);
-  color: #f2f4f8;
+    -18px 0 48px rgba(12, 14, 18, .18),
+    18px 0 48px rgba(12, 14, 18, .18);
+  color: var(--text);
 }
 
 .central-login-card h1 {
   margin: 8px 0 12px;
-  font-size: clamp(26px, 6vw, 34px);
+  font-size: clamp(28px, 4.2vw, 36px);
   line-height: 1.05;
   text-transform: uppercase;
-  color: #f7f8fb;
+  color: var(--text);
 }
 
 .central-login-card > p:not(.eyebrow) {
   margin: 0 0 20px;
-  color: rgba(242, 244, 248, .68);
+  color: var(--muted);
   line-height: 1.55;
 }
 
@@ -4783,43 +4808,52 @@ button.invite-slot-button.selected strong {
 }
 
 @media (max-width: 640px) {
-  .central-login-shell { padding: 24px 14px; }
-  .central-login-card { padding: 24px 18px; }
+  .central-login-shell { padding: 0; }
+  .central-login-card {
+    width: 100%;
+    max-width: none;
+    padding: 28px 18px 22px;
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+  }
 }
 
-/* Callback OAuth — mesma “tela de celular” escura */
+/* Callback OAuth — mesma faixa clara do tema */
 .central-login-card-light {
-  background: linear-gradient(165deg, rgba(28, 32, 40, .94) 0%, rgba(14, 16, 22, .96) 100%);
-  color: #f2f4f8;
-  border-color: rgba(201, 162, 39, .28);
+  background:
+    linear-gradient(180deg, #fffef9 0%, var(--surface) 42%, #f7f4ea 100%);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, .45),
-    0 28px 80px rgba(0, 0, 0, .55);
+    -18px 0 48px rgba(12, 14, 18, .18),
+    18px 0 48px rgba(12, 14, 18, .18);
 }
 
 .central-login-card-light h1 {
-  color: #f7f8fb;
+  color: var(--text);
 }
 
 .central-login-card-light > p {
-  color: rgba(242, 244, 248, .68);
+  color: var(--muted);
 }
 
 .central-login-page .auth-site-mark strong {
-  color: #f7f8fb;
+  color: var(--text);
 }
 
 .central-login-page .social-login-google {
-  background: #fff;
-  color: #151922;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .central-login-page .dropzone-auth-validation strong {
-  color: #f7f8fb;
+  color: var(--text);
 }
 
 .central-login-page .dropzone-auth-validation span {
-  color: rgba(242, 244, 248, .65);
+  color: var(--muted);
 }
 
 .central-login-card-light h1 {
