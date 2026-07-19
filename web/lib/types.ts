@@ -1,6 +1,10 @@
-export const PROFILE_TYPES = ['produtora', 'equipe', 'jogador', 'manager'] as const
+export const PROFILE_TYPES = ['produtora', 'equipe', 'jogador', 'manager', 'broadcast'] as const
 
 export type ProfileType = (typeof PROFILE_TYPES)[number]
+
+/** Papéis do perfil Broadcast (MVP foca em stream). */
+export const BROADCAST_PAPEIS = ['stream', 'narrador', 'comentarista', 'apresentador'] as const
+export type BroadcastPapel = (typeof BROADCAST_PAPEIS)[number]
 
 export type DropZoneRow = {
   id: string

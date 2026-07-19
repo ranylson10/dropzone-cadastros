@@ -14,7 +14,7 @@ function friendlyResetError(message: string) {
 }
 
 async function findProfileAuthUserId(email: string) {
-  const tables = ['produtoras', 'equipes', 'jogadores', 'managers'] as const
+  const tables = ['produtoras', 'equipes', 'jogadores', 'managers', 'broadcasts'] as const
   for (const table of tables) {
     const { data, error } = await supabaseAdmin
       .from(table)

@@ -12,7 +12,7 @@ function maskEmail(email: string) {
 }
 
 async function assertEmailAvailable(email: string) {
-  const tables = ['produtoras', 'equipes', 'jogadores', 'managers'] as const
+  const tables = ['produtoras', 'equipes', 'jogadores', 'managers', 'broadcasts'] as const
   for (const table of tables) {
     const { data, error } = await supabaseAdmin
       .from(table)
@@ -25,7 +25,7 @@ async function assertEmailAvailable(email: string) {
 }
 
 async function assertGlobalUsernameAvailable(username: string) {
-  const tables = ['produtoras', 'equipes', 'jogadores', 'managers'] as const
+  const tables = ['produtoras', 'equipes', 'jogadores', 'managers', 'broadcasts'] as const
   for (const table of tables) {
     const { data, error } = await supabaseAdmin
       .from(table)

@@ -13,6 +13,7 @@ const profileLabels = {
   equipe: 'equipe',
   jogador: 'jogador',
   manager: 'manager',
+  broadcast: 'broadcast',
 } as const
 
 export default function LoginPage() {

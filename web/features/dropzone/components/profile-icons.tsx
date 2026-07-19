@@ -42,9 +42,20 @@ function ManagerIcon() {
   )
 }
 
+function BroadcastIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" fill="none">
+      <circle cx="32" cy="32" r="6" stroke="currentColor" strokeWidth="3.5" />
+      <path d="M18 32h-6m40 0h-6M32 18v-6m0 40v-6" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" />
+      <path d="M20 20c6.5-6.5 17.5-6.5 24 0M20 44c6.5 6.5 17.5 6.5 24 0" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" />
+    </svg>
+  )
+}
+
 export const profileIcons: Record<ProfileType, ReactNode> = {
   produtora: <ProducerIcon />,
   equipe: <TeamIcon />,
   jogador: <PlayerIcon />,
   manager: <ManagerIcon />,
+  broadcast: <BroadcastIcon />,
 }

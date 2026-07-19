@@ -17,7 +17,13 @@ export function safeInternalPath(value: string | null | undefined, fallback = '/
 }
 
 export function parseProfileType(value: string | null | undefined): ProfileType | null {
-  return value === 'produtora' || value === 'equipe' || value === 'jogador' || value === 'manager'
+  return (
+    value === 'produtora' ||
+    value === 'equipe' ||
+    value === 'jogador' ||
+    value === 'manager' ||
+    value === 'broadcast'
+  )
     ? value
     : null
 }

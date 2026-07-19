@@ -11,6 +11,7 @@ import { EquipePanel } from './panels/equipe/EquipePanel'
 import { JogadorPanel } from './panels/jogador/JogadorPanel'
 import { ManagerPanel } from './panels/manager/ManagerPanel'
 import { ProdutoraPanel } from './panels/produtora/ProdutoraPanel'
+import { BroadcastPanel } from '@/features/broadcast'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppShell, APP_NAV } from '@/components/layout'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
@@ -61,6 +62,7 @@ const typeLabels: Record<ProfileType, string> = {
   equipe: 'Equipe',
   jogador: 'Jogador',
   manager: 'Manager',
+  broadcast: 'Broadcast',
 }
 
 const typeDescriptions: Record<ProfileType, string> = {
@@ -68,6 +70,7 @@ const typeDescriptions: Record<ProfileType, string> = {
   equipe: 'Acesso do lider para montar elenco e entrar em eventos.',
   jogador: 'Cadastro competitivo e inscricoes em partidas.',
   manager: 'Ajudante com convite unico para operar o painel.',
+  broadcast: 'Stream, narrador, comentarista ou apresentador — lives e overlays.',
 }
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
@@ -97,6 +100,7 @@ export function DropZoneHome() {
     tag: '',
     id_jogo: '',
     funcao: 'support',
+    papel: 'stream',
     pais: '',
     estado: '',
     cidade: '',
@@ -616,6 +620,7 @@ export function DropZoneHome() {
       tag: '',
       id_jogo: '',
       funcao: 'support',
+      papel: 'stream',
       pais: '',
       estado: '',
       cidade: '',
@@ -1585,7 +1590,13 @@ export function DropZoneHome() {
 
                       <div className="register-main-fields">
                         <div className="mini-grid tight-grid">
-                          <Field label={profileType === 'equipe' ? 'Nome da equipe' : profileType === 'jogador' ? 'Nick' : profileType === 'manager' ? 'Nome do manager' : 'Nome da produtora'}>
+                          <Field label={
+                            profileType === 'equipe' ? 'Nome da equipe'
+                              : profileType === 'jogador' ? 'Nick'
+                                : profileType === 'manager' ? 'Nome do manager'
+                                  : profileType === 'broadcast' ? 'Nome do broadcast'
+                                    : 'Nome da produtora'
+                          }>
                             <input value={name} onChange={(e) => updateName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
                           </Field>
 
@@ -1609,6 +1620,17 @@ export function DropZoneHome() {
                                 </select>
                               </Field>
                             </>
+                          ) : null}
+
+                          {profileType === 'broadcast' ? (
+                            <Field label="Papel">
+                              <select value={registerData.papel || 'stream'} onChange={(e) => updateRegisterData('papel', e.target.value)}>
+                                <option value="stream">Stream</option>
+                                <option value="narrador">Narrador</option>
+                                <option value="comentarista">Comentarista</option>
+                                <option value="apresentador">Apresentador</option>
+                              </select>
+                            </Field>
                           ) : null}
                         </div>
 
@@ -1774,6 +1796,10 @@ export function DropZoneHome() {
                 teams={teams}
                 teamLines={teamLines}
               />
+            ) : null}
+
+            {account.profile_type === 'broadcast' ? (
+              <BroadcastPanel account={account} accounts={accounts} />
             ) : null}
 
             {message ? <div className="message floating">{message}</div> : null}

@@ -9,9 +9,12 @@ const TYPE_PREFIX = {
   equipe: 'EQ',
   manager: 'MN',
   jogador: 'JG',
+  broadcast: 'BR',
 } as const
 
-const PROFILE_TABLES = ['produtoras', 'equipes', 'jogadores', 'managers'] as const
+const PROFILE_TABLES = ['produtoras', 'equipes', 'jogadores', 'managers', 'broadcasts'] as const
+
+const BROADCAST_PAPEIS = new Set(['stream', 'narrador', 'comentarista', 'apresentador'])
 
 function cleanText(value: unknown) {
   return String(value || '').trim()
@@ -90,6 +93,10 @@ export async function POST(req: Request) {
     if (profileType === 'jogador') {
       if (!cleanText(details.id_jogo)) throw new Error('Informe o ID de jogo.')
       if (!['support', 'rush', 'sniper', 'bomber'].includes(cleanText(details.funcao))) throw new Error('Selecione uma funcao valida.')
+    }
+    if (profileType === 'broadcast') {
+      const papel = cleanText(details.papel || 'stream').toLowerCase()
+      if (!BROADCAST_PAPEIS.has(papel)) throw new Error('Selecione um papel valido (stream, narrador, comentarista, apresentador).')
     }
 
     const table = profileTable(profileType)
@@ -191,6 +198,10 @@ export async function POST(req: Request) {
       payload.funcao = cleanText(details.funcao)
     }
     if (profileType === 'manager') payload.avatar_url = mediaUrl
+    if (profileType === 'broadcast') {
+      payload.avatar_url = mediaUrl
+      payload.papel = cleanText(details.papel || 'stream').toLowerCase() || 'stream'
+    }
 
     const { data: account, error: accountError } = await supabaseAdmin.from(table).insert(payload).select('*').single()
     if (accountError) {

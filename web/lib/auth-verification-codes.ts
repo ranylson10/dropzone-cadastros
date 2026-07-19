@@ -2,7 +2,7 @@ import { createHmac, randomInt, timingSafeEqual } from 'crypto'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 type CodePurpose = 'register' | 'reset_password'
-type ProfileType = 'produtora' | 'equipe' | 'jogador' | 'manager'
+type ProfileType = 'produtora' | 'equipe' | 'jogador' | 'manager' | 'broadcast'
 
 const CODE_TTL_MINUTES = 15
 const MAX_ATTEMPTS = 5

@@ -1,0 +1,153 @@
+/* Broadcast / Stream — CSS local */
+
+.broadcast-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px 14px 40px;
+  display: grid;
+  gap: 16px;
+}
+
+.broadcast-page h1 {
+  margin: 2px 0 4px;
+  font-size: 1.35rem;
+}
+
+.broadcast-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.broadcast-card h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.broadcast-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.broadcast-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.broadcast-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.broadcast-list strong {
+  display: block;
+}
+
+.broadcast-list small {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.broadcast-field {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex: 1;
+  min-width: 160px;
+}
+
+.broadcast-field input {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Controlador */
+.broadcast-control {
+  min-height: 100dvh;
+  padding: 16px;
+  background: #0e1014;
+  color: #f2f2f2;
+  display: grid;
+  gap: 14px;
+  grid-template-rows: auto auto 1fr;
+}
+
+.broadcast-control h1 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.broadcast-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.broadcast-control-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 12px;
+  border: 2px solid #2a2f3a;
+  background: #161a22;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  min-height: 88px;
+  font: inherit;
+}
+
+.broadcast-control-card.is-active {
+  border-color: #e8c547;
+  background: color-mix(in srgb, #e8c547 14%, #161a22);
+}
+
+.broadcast-control-card strong {
+  font-size: 0.95rem;
+}
+
+.broadcast-control-card small {
+  color: #9aa3b2;
+  font-size: 0.75rem;
+}
+
+.broadcast-obs-root {
+  margin: 0;
+  min-height: 100vh;
+  background: transparent;
+  overflow: hidden;
+}
+
+.broadcast-obs-waiting {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}

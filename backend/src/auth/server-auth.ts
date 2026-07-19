@@ -28,6 +28,7 @@ const PROFILE_TABLES: Record<ProfileType, string> = {
   equipe: 'equipes',
   jogador: 'jogadores',
   manager: 'managers',
+  broadcast: 'broadcasts',
 }
 
 export function profileTable(profileType: ProfileType) {

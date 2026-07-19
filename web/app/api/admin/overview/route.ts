@@ -3,7 +3,7 @@ import { requireSystemAdmin } from '@backend/admin/admin-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 const PROFILE_TABLES = [
-  ['produtora', 'produtoras'], ['equipe', 'equipes'], ['jogador', 'jogadores'], ['manager', 'managers'],
+  ['produtora', 'produtoras'], ['equipe', 'equipes'], ['jogador', 'jogadores'], ['manager', 'managers'], ['broadcast', 'broadcasts'],
 ] as const
 
 export async function GET(req: NextRequest) {
