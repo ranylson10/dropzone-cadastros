@@ -97,13 +97,16 @@ async function uploadToStorage(bucket: string, path: string, buffer: Buffer) {
   }
 }
 
-function assertCanUpload(bucket: string, profileType?: string | null) {
+function assertCanUpload(bucket: string, profileType?: string | null, headerType?: string | null) {
   // Manager pode subir logo de equipe (lines que gerencia)
   if (profileType === 'manager' && (bucket === 'manager' || bucket === 'equipe')) return
+  // Cadastro / multi-perfil: header declara o tipo que está sendo criado (ex.: broadcast com conta produtora ativa)
+  if (PROFILE_BUCKETS.has(bucket) && headerType && headerType === bucket) return
+  if (PROFILE_BUCKETS.has(bucket) && bucket === profileType) return
   if (PROFILE_BUCKETS.has(bucket) && bucket !== profileType) {
     throw new Error('Este perfil nao pode enviar arquivos para esse bucket.')
   }
-  if (bucket === 'campeonato' && profileType !== 'produtora') {
+  if (bucket === 'campeonato' && profileType !== 'produtora' && headerType !== 'produtora') {
     throw new Error('Somente produtoras podem enviar imagens de campeonato.')
   }
 }
@@ -111,7 +114,7 @@ function assertCanUpload(bucket: string, profileType?: string | null) {
 /**
  * Resolve o tipo de perfil para permissão de upload.
  * - Conta DropZone existente: usa o perfil ativo
- * - Onboarding (login social sem perfil ainda): aceita x-profile-type se for bucket de perfil
+ * - Onboarding / multi-perfil: aceita x-profile-type se for bucket de perfil
  */
 async function resolveUploadProfileType(
   req: NextRequest,
@@ -120,6 +123,8 @@ async function resolveUploadProfileType(
   const headerType = String(req.headers.get('x-profile-type') || '').trim()
   try {
     const account = await getActiveAccount(req, user)
+    // Preferir header quando o usuário está criando outro perfil (ex.: broadcast)
+    if (headerType && PROFILE_BUCKETS.has(headerType)) return headerType
     return account.profile_type as string
   } catch (error: any) {
     const msg = String(error?.message || '')
@@ -134,12 +139,13 @@ async function resolveUploadProfileType(
 export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
+    const headerType = String(req.headers.get('x-profile-type') || '').trim() || null
     const profileType = await resolveUploadProfileType(req, user)
     const payload = (await req.json()) as UploadPayload
     const bucket = String(payload.bucket || '').replace(/^\uFEFF/, '').trim()
 
     if (!ALLOWED_BUCKETS.has(bucket)) throw new Error('Bucket invalido.')
-    assertCanUpload(bucket, profileType)
+    assertCanUpload(bucket, profileType, headerType)
 
     const base64 = normalizeBase64(payload)
     const buffer = Buffer.from(base64, 'base64')

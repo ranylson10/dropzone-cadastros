@@ -11,6 +11,7 @@ const uploadTargets = {
   campeonato_banner: { width: 1080, height: 1920, kindLabel: 'banner' },
   jogador: { width: 500, height: 600, kindLabel: 'foto' },
   manager: { width: 500, height: 600, kindLabel: 'foto' },
+  broadcast: { width: 500, height: 600, kindLabel: 'foto' },
 } as const
 
 function uploadTargetFor(bucket: string) {

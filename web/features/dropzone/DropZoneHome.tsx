@@ -560,8 +560,9 @@ export function DropZoneHome() {
         reader.readAsDataURL(file)
       })
       const token = await getToken()
-      // No cadastro (ainda sem conta DropZone), envia o tipo pretendido (equipe/produtora/...)
-      const uploadProfileType = account?.profile_type || profileType || null
+      // Preferir o tipo do formulário (cadastro/multi-perfil), senão o perfil ativo.
+      // Ex.: criando Broadcast com conta Produtora logada → x-profile-type = broadcast
+      const uploadProfileType = profileType || account?.profile_type || null
 
       const res = await fetch('/api/upload', {
         method: 'POST',
