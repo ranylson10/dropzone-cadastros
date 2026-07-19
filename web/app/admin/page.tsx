@@ -28,12 +28,13 @@ function money(centavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((centavos || 0) / 100)
 }
 
-type Tab = 'overview' | 'aprovacoes' | 'precos' | 'accounts' | 'reports' | 'audit'
+type Tab = 'overview' | 'aprovacoes' | 'precos' | 'saques' | 'accounts' | 'reports' | 'audit'
 
 export default function AdminPage() {
   const [data, setData] = useState<any>(null)
   const [aprovacoes, setAprovacoes] = useState<any>(null)
   const [precos, setPrecos] = useState<any>(null)
+  const [saques, setSaques] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('overview')
@@ -73,6 +74,13 @@ export default function AdminPage() {
     setPrecos(json)
   }, [])
 
+  const loadSaques = useCallback(async () => {
+    const res = await fetch('/api/admin/saques?status=solicitado', { headers: await headers() })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error)
+    setSaques(json.saques || [])
+  }, [])
+
   async function load() {
     setLoading(true)
     setError('')
@@ -80,6 +88,7 @@ export default function AdminPage() {
       await loadOverview()
       if (tab === 'aprovacoes') await loadAprovacoes()
       if (tab === 'precos') await loadPrecos()
+      if (tab === 'saques') await loadSaques()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -95,7 +104,8 @@ export default function AdminPage() {
   useEffect(() => {
     if (tab === 'aprovacoes') void loadAprovacoes(aprovFilter).catch((e) => setError(e.message))
     if (tab === 'precos') void loadPrecos().catch((e) => setError(e.message))
-  }, [tab, aprovFilter, loadAprovacoes, loadPrecos])
+    if (tab === 'saques') void loadSaques().catch((e) => setError(e.message))
+  }, [tab, aprovFilter, loadAprovacoes, loadPrecos, loadSaques])
 
   const accounts = useMemo(
     () =>
@@ -236,6 +246,7 @@ export default function AdminPage() {
             ['overview', 'Visão geral'],
             ['aprovacoes', 'Aprovações'],
             ['precos', 'Preços'],
+            ['saques', 'Saques'],
             ['accounts', 'Contas'],
             ['reports', `Denúncias`],
             ['audit', 'Auditoria'],
@@ -482,6 +493,86 @@ export default function AdminPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+      ) : null}
+
+      {tab === 'saques' ? (
+        <section className="admin-section">
+          <header>
+            <div>
+              <p>Carteira</p>
+              <h2>Saques solicitados</h2>
+            </div>
+            <button type="button" onClick={() => void loadSaques()}>
+              Atualizar
+            </button>
+          </header>
+          <div className="admin-publication-grid">
+            {saques.length === 0 ? <p className="empty">Nenhum saque pendente.</p> : null}
+            {saques.map((s: any) => (
+              <article key={s.id}>
+                <div>
+                  <strong>{money(s.valor_centavos)}</strong>
+                  <span className={`admin-status ${s.status}`}>{s.status}</span>
+                </div>
+                <small>
+                  PIX: {s.pix_chave} · {s.titular_nome || '—'}
+                </small>
+                <small>{new Date(s.created_at).toLocaleString('pt-BR')}</small>
+                <div className="admin-row-actions">
+                  <button
+                    type="button"
+                    disabled={busyId === s.id}
+                    onClick={async () => {
+                      setBusyId(s.id)
+                      try {
+                        const res = await fetch('/api/admin/saques', {
+                          method: 'PATCH',
+                          headers: await headers(),
+                          body: JSON.stringify({ id: s.id, status: 'pago' }),
+                        })
+                        const json = await res.json()
+                        if (!res.ok) throw new Error(json.error)
+                        await loadSaques()
+                      } catch (e: any) {
+                        setError(e.message)
+                      } finally {
+                        setBusyId('')
+                      }
+                    }}
+                  >
+                    Marcar pago
+                  </button>
+                  <button
+                    type="button"
+                    className="danger"
+                    disabled={busyId === s.id}
+                    onClick={async () => {
+                      const motivo = window.prompt('Motivo da rejeição:')
+                      if (motivo === null) return
+                      setBusyId(s.id)
+                      try {
+                        const res = await fetch('/api/admin/saques', {
+                          method: 'PATCH',
+                          headers: await headers(),
+                          body: JSON.stringify({ id: s.id, status: 'rejeitado', motivo }),
+                        })
+                        const json = await res.json()
+                        if (!res.ok) throw new Error(json.error)
+                        await loadSaques()
+                      } catch (e: any) {
+                        setError(e.message)
+                      } finally {
+                        setBusyId('')
+                      }
+                    }}
+                  >
+                    Rejeitar
+                  </button>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
       ) : null}

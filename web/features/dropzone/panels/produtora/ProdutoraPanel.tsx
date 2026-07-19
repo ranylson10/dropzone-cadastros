@@ -89,6 +89,9 @@ export function ProdutoraPanel(props: {
   const [editingChamp, setEditingChamp] = useState<CampeonatoFormValue>(emptyCampeonatoForm)
   const [typeFilter, setTypeFilter] = useState('todos')
   const [tab, setTab] = useState<ProducerTab>('equipes')
+  const [payInfo, setPayInfo] = useState<any>(null)
+  const [payBusy, setPayBusy] = useState(false)
+  const [payMsg, setPayMsg] = useState('')
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
   const [openLinkIds, setOpenLinkIds] = useState<Record<string, boolean>>({})
   const [linkStatusFilter, setLinkStatusFilter] = useState<'todos' | 'ativo' | 'pausado' | 'esgotado' | 'expirado' | 'grupo_cheio'>('todos')
@@ -432,6 +435,68 @@ export function ProdutoraPanel(props: {
     || props.account?.data?.aprovacao_status
     || 'aprovado',
   )
+
+  useEffect(() => {
+    if (!selectedChamp?.id) {
+      setPayInfo(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        const token = data.session?.access_token
+        if (!token) return
+        const res = await fetch(`/api/pagamentos/campeonato/${selectedChamp.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!cancelled && res.ok) setPayInfo(json)
+      } catch {
+        if (!cancelled) setPayInfo(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedChamp?.id])
+
+  async function gerarPagamentoPacote() {
+    if (!selectedChamp?.id) return
+    setPayBusy(true)
+    setPayMsg('')
+    try {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error('Faça login novamente.')
+      const res = await fetch(`/api/pagamentos/campeonato/${selectedChamp.id}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Falha ao gerar link')
+      setPayMsg('Link gerado. Abra o pagamento ASAAS para concluir.')
+      if (json.payment?.invoice_url) {
+        window.open(json.payment.invoice_url, '_blank', 'noopener,noreferrer')
+      }
+      // recarrega status
+      const st = await fetch(`/api/pagamentos/campeonato/${selectedChamp.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const stJson = await st.json().catch(() => ({}))
+      if (st.ok) setPayInfo(stJson)
+    } catch (e: any) {
+      setPayMsg(e?.message || 'Erro no pagamento')
+    } finally {
+      setPayBusy(false)
+    }
+  }
 
   function championshipToForm(champ: DropZoneRow): CampeonatoFormValue {
     return {
@@ -1049,6 +1114,42 @@ ${params.url}`
                     </p>
                   )
                 })()}
+                {payInfo?.cobranca && !['pago', 'cortesia', 'isento'].includes(String(payInfo.cobranca.status)) ? (
+                  <div className="message" style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                    <strong>
+                      Pacote DropZone:{' '}
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                        Number(payInfo.cobranca.valor_total_centavos || 0) / 100,
+                      )}
+                      {' · '}
+                      {payInfo.cobranca.status}
+                    </strong>
+                    <div className="button-row compact-actions">
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={payBusy || payInfo.asaas_configured === false}
+                        onClick={() => void gerarPagamentoPacote()}
+                      >
+                        {payBusy ? 'Gerando…' : 'Pagar com ASAAS'}
+                      </button>
+                      {payInfo.pagamentos?.[0]?.asaas_invoice_url ? (
+                        <a
+                          className="button secondary"
+                          href={payInfo.pagamentos[0].asaas_invoice_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Abrir fatura
+                        </a>
+                      ) : null}
+                    </div>
+                    {payInfo.asaas_configured === false ? (
+                      <small>ASAAS ainda não configurado no servidor (ASAAS_API_KEY).</small>
+                    ) : null}
+                    {payMsg ? <small>{payMsg}</small> : null}
+                  </div>
+                ) : null}
                 {dataText(selectedChamp, 'regras_url') ? <small>Regulamento: {dataText(selectedChamp, 'regras_url')}</small> : null}
               </div>
               <div className="championship-admin-actions">
