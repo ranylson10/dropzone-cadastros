@@ -90,19 +90,337 @@
 /* Controlador */
 .broadcast-control {
   min-height: 100dvh;
-  padding: 16px;
+  padding: 14px 14px 28px;
   background: #0e1014;
   color: #f2f2f2;
   display: grid;
   gap: 14px;
   grid-template-rows: auto auto 1fr;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.broadcast-control-head {
+  display: grid;
+  gap: 12px;
+}
+
+.broadcast-control-kicker {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #e8c547;
+  font-weight: 900;
 }
 
 .broadcast-control h1 {
-  margin: 0;
-  font-size: 1.2rem;
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
 }
 
+.broadcast-control-hint {
+  margin: 4px 0 0;
+  color: #9aa3b2;
+  font-size: 0.88rem;
+}
+
+.broadcast-control-error {
+  margin: 0;
+  color: #ff8a8a;
+  font-size: 0.9rem;
+}
+
+/* Seletor de live (dropdown) */
+.broadcast-live-select {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  z-index: 20;
+}
+
+.broadcast-live-select-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9aa3b2;
+}
+
+.broadcast-live-select-trigger {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  background: #161a22;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.broadcast-live-select-trigger:hover,
+.broadcast-live-select-trigger.is-open {
+  border-color: #3d4555;
+  background: #1a1f29;
+}
+
+.broadcast-live-select-trigger.has-value {
+  border-color: color-mix(in srgb, #e8c547 45%, #2a2f3a);
+}
+
+.broadcast-live-select-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #e8c547 16%, #161a22);
+  color: #e8c547;
+}
+
+.broadcast-live-select-value {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.broadcast-live-select-value strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.broadcast-live-select-value small {
+  color: #9aa3b2;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.broadcast-live-select-chevron {
+  color: #9aa3b2;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.broadcast-live-select-trigger.is-open .broadcast-live-select-chevron {
+  transform: rotate(180deg);
+}
+
+.broadcast-live-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid #2a2f3a;
+  border-radius: 12px;
+  background: #12161e;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  max-height: min(50dvh, 320px);
+  overflow: auto;
+  display: grid;
+  gap: 4px;
+}
+
+.broadcast-live-select-option {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.broadcast-live-select-option:hover {
+  background: #1a1f29;
+}
+
+.broadcast-live-select-option.is-active {
+  border-color: color-mix(in srgb, #e8c547 50%, transparent);
+  background: color-mix(in srgb, #e8c547 12%, #161a22);
+}
+
+.broadcast-live-select-option-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.broadcast-live-select-option-text strong {
+  font-size: 0.92rem;
+}
+
+.broadcast-live-select-option-text small {
+  color: #9aa3b2;
+  font-size: 0.74rem;
+}
+
+.broadcast-live-select-badge {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0e1014;
+  background: #e8c547;
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+
+.broadcast-live-select-empty {
+  padding: 12px;
+  border: 1px dashed #2a2f3a;
+  border-radius: 10px;
+  color: #9aa3b2;
+  font-size: 0.88rem;
+}
+
+/* Lista de cenas */
+.broadcast-scenes-section {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+}
+
+.broadcast-scenes-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.broadcast-scenes-count {
+  font-size: 0.78rem;
+  color: #9aa3b2;
+  font-weight: 600;
+}
+
+.broadcast-scenes-empty {
+  padding: 18px 14px;
+  border: 1px dashed #2a2f3a;
+  border-radius: 12px;
+  color: #9aa3b2;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.broadcast-scene-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.broadcast-scene-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid #2a2f3a;
+  border-radius: 12px;
+  background: #161a22;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.08s ease;
+}
+
+.broadcast-scene-row:hover {
+  border-color: #3d4555;
+  background: #1a1f29;
+}
+
+.broadcast-scene-row:active {
+  transform: scale(0.995);
+}
+
+.broadcast-scene-row.is-active {
+  border-color: #e8c547;
+  background: color-mix(in srgb, #e8c547 14%, #161a22);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #e8c547 35%, transparent);
+}
+
+.broadcast-scene-index {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #0e1014;
+  border: 1px solid #2a2f3a;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #c8d0dc;
+  flex-shrink: 0;
+}
+
+.broadcast-scene-row.is-active .broadcast-scene-index {
+  border-color: color-mix(in srgb, #e8c547 55%, #2a2f3a);
+  background: color-mix(in srgb, #e8c547 18%, #0e1014);
+  color: #e8c547;
+}
+
+.broadcast-scene-index.is-clear {
+  color: #9aa3b2;
+}
+
+.broadcast-scene-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.broadcast-scene-meta strong {
+  font-size: 0.98rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.broadcast-scene-meta small {
+  color: #9aa3b2;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.broadcast-scene-onair {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #0e1014;
+  background: #e8c547;
+  padding: 5px 8px;
+  border-radius: 999px;
+}
+
+/* legado (outras telas / fallback) */
 .broadcast-control-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -181,46 +499,12 @@
   opacity: 0.9;
 }
 
-/* Controlador — seletor de lives */
 .broadcast-control-section-label {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 12px;
   color: #9aa3b2;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-}
-
-.broadcast-live-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.broadcast-live-tab {
-  display: grid;
-  gap: 2px;
-  min-width: 140px;
-  padding: 10px 12px;
-  border: 2px solid #2a2f3a;
-  background: #161a22;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-}
-
-.broadcast-live-tab strong {
-  font-size: 0.9rem;
-}
-
-.broadcast-live-tab small {
-  color: #9aa3b2;
-  font-size: 0.72rem;
-}
-
-.broadcast-live-tab.is-active {
-  border-color: #e8c547;
-  background: color-mix(in srgb, #e8c547 14%, #161a22);
 }
 
 /* Pack / composição na aba Stream do campeonato */
