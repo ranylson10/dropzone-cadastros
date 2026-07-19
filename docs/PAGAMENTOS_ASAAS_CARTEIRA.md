@@ -39,7 +39,13 @@ Rode **depois** do SQL de aprovação/preços.
 4. Webhook `POST /api/webhooks/asaas` → marca cobranca `pago` + credita carteira **sistema**  
 5. Admin ainda precisa **aprovar** o campeonato para ir ao ar (ou pode aprovar após pagamento)
 
-### 2) Comissão do vendedor (preparado)
+### 2) Comissão do vendedor (ativo)
+
+Após inscrição no link de grupo, se o campeonato tiver `valor_inscricao >= 1`:
+
+1. Tela de sucesso → **Pagar inscrição**  
+2. `POST /api/pagamentos/inscricao` gera link ASAAS  
+3. Webhook credita carteiras (vendedor / plataforma / produtora)
 
 Quando houver pagamento de **inscrição de equipe** (`finalidade=inscricao_equipe`) com meta:
 

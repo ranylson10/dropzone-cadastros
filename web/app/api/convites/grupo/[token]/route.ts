@@ -1172,15 +1172,33 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       // inscrição já concluída; fechamento do link é best-effort
     }
 
+    // valor de inscrição (se houver) — frontend pode abrir ASAAS
+    let valorInscricao: number | null = null
+    try {
+      const { data: cfg } = await supabaseAdmin
+        .from('campeonato_configuracoes')
+        .select('valor_inscricao')
+        .eq('campeonato_id', link.campeonato_id)
+        .maybeSingle()
+      if (cfg?.valor_inscricao != null && Number(cfg.valor_inscricao) > 0) {
+        valorInscricao = Number(cfg.valor_inscricao)
+      }
+    } catch {
+      // ignore
+    }
+
     return NextResponse.json({
       ok: true,
       participacao,
+      campeonato_equipe_id: participacao?.id || createdParticipacaoId,
       equipe: { id: account.id, nome: account.name },
       line: { id: resolvedLine.id, nome: resolvedLine.nome, criada_agora: resolvedLine.criada_agora },
       grupo_id: link.grupo_id,
       slot_id: slot.id,
       slot_letra: letra,
       referencia: referenciaEquipe || resolvedLine.nome || `Slot ${letra}`,
+      valor_inscricao: valorInscricao,
+      precisa_pagamento: Boolean(valorInscricao && valorInscricao >= 1),
       link: {
         limite_vagas: consumo.limite,
         usos: consumo.usos,

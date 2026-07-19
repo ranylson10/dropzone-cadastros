@@ -26,7 +26,7 @@ function appUrl() {
 }
 
 /**
- * Gera (ou reutiliza) link ASAAS para pagar a cobrança do campeonato (pacote DropZone).
+ * Gera (ou reutiliza) link ASAAS para pagar a cobranca do campeonato (pacote DropZone).
  */
 export async function createChampionshipPackagePayment(input: {
   campeonatoId: string
@@ -43,15 +43,14 @@ export async function createChampionshipPackagePayment(input: {
     .eq('campeonato_id', input.campeonatoId)
     .maybeSingle()
   if (cErr) throw cErr
-  if (!cobranca) throw new Error('Cobrança do campeonato não encontrada. Crie o campeonato novamente após o SQL de preços.')
+  if (!cobranca) throw new Error('Cobranca do campeonato nao encontrada. Crie o campeonato novamente apos o SQL de precos.')
   if (['pago', 'cortesia', 'isento'].includes(cobranca.status)) {
-    throw new Error('Esta cobrança já está quitada ou isenta.')
+    throw new Error('Esta cobranca ja esta quitada ou isenta.')
   }
   if (!cobranca.valor_total_centavos || cobranca.valor_total_centavos < 100) {
-    throw new Error('Valor da cobrança inválido (mínimo R$ 1,00).')
+    throw new Error('Valor da cobranca invalido (minimo R$ 1,00).')
   }
 
-  // reutiliza pagamento pendente existente
   const externalReference = `cobranca_campeonato:${input.campeonatoId}`
   const { data: existing } = await supabaseAdmin
     .from('sistema_pagamentos')
@@ -87,7 +86,7 @@ export async function createChampionshipPackagePayment(input: {
   try {
     pix = await getPixQrCode(payment.id)
   } catch {
-    // opcional se billingType não for PIX puro
+    // opcional
   }
 
   const row = {
@@ -122,7 +121,144 @@ export async function createChampionshipPackagePayment(input: {
 }
 
 /**
- * Processa webhook / confirmação de pagamento ASAAS.
+ * Cria pagamento ASAAS de inscricao de equipe (valor_inscricao do campeonato).
+ */
+export async function createInscriptionPayment(input: {
+  campeonatoId: string
+  campeonatoEquipeId: string
+  authUserId: string
+  payerName: string
+  payerEmail: string
+  cpfCnpj?: string | null
+  vendedorManagerId?: string | null
+  vendedorAuthUserId?: string | null
+  produtoraId?: string | null
+}) {
+  if (!isAsaasConfigured()) throw new AsaasNotConfiguredError()
+
+  const { data: champ, error: cErr } = await supabaseAdmin
+    .from('campeonatos')
+    .select('id,nome,produtora_id')
+    .eq('id', input.campeonatoId)
+    .maybeSingle()
+  if (cErr) throw cErr
+  if (!champ) throw new Error('Campeonato nao encontrado.')
+
+  const { data: config } = await supabaseAdmin
+    .from('campeonato_configuracoes')
+    .select('valor_inscricao')
+    .eq('campeonato_id', input.campeonatoId)
+    .maybeSingle()
+
+  const valorReais = Number(config?.valor_inscricao || 0)
+  if (!Number.isFinite(valorReais) || valorReais < 1) {
+    throw new Error('Este campeonato nao tem valor de inscricao cobravel (min. R$ 1,00).')
+  }
+  const valorCentavos = Math.round(valorReais * 100)
+
+  const externalReference = `inscricao:${input.campeonatoEquipeId}`
+  const { data: existing } = await supabaseAdmin
+    .from('sistema_pagamentos')
+    .select('*')
+    .eq('external_reference', externalReference)
+    .in('status', ['pendente', 'aguardando', 'confirmado', 'pago'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existing?.asaas_invoice_url && !isPaidStatus(existing.status)) return existing
+  if (existing && isPaidStatus(existing.status)) return existing
+
+  let vendedorManagerId = input.vendedorManagerId || null
+  let vendedorAuthUserId = input.vendedorAuthUserId || null
+  if (!vendedorManagerId) {
+    const { data: part } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .select('origem_entrada,criado_por')
+      .eq('id', input.campeonatoEquipeId)
+      .maybeSingle()
+    if (part?.origem_entrada === 'vendedor' && part.criado_por) {
+      const { data: vend } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .select('manager_id,manager_auth_user_id')
+        .eq('campeonato_id', input.campeonatoId)
+        .eq('manager_auth_user_id', part.criado_por)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      if (vend) {
+        vendedorManagerId = vend.manager_id
+        vendedorAuthUserId = vend.manager_auth_user_id
+      }
+    }
+  }
+
+  const produtoraId = input.produtoraId || champ.produtora_id || null
+
+  const customer = await findOrCreateCustomer({
+    name: input.payerName,
+    email: input.payerEmail,
+    cpfCnpj: input.cpfCnpj,
+    externalReference: `auth:${input.authUserId}`,
+  })
+
+  const payment = await createPaymentLink({
+    customerId: customer.id,
+    valueReais: valorReais,
+    dueDate: dueDatePlusDays(3),
+    description: `Inscricao · ${champ.nome || 'Campeonato'}`.slice(0, 500),
+    externalReference,
+    billingType: 'UNDEFINED',
+    callbackUrl: `${appUrl()}/?pagamento=inscricao_ok`,
+  })
+
+  let pix: { encodedImage?: string; payload?: string } = {}
+  try {
+    pix = await getPixQrCode(payment.id)
+  } catch {
+    // ignore
+  }
+
+  const dropzoneMeta = {
+    campeonato_id: input.campeonatoId,
+    campeonato_equipe_id: input.campeonatoEquipeId,
+    produtora_id: produtoraId,
+    vendedor_manager_id: vendedorManagerId,
+    vendedor_auth_user_id: vendedorAuthUserId,
+  }
+
+  const row = {
+    finalidade: 'inscricao_equipe',
+    referencia_tipo: 'campeonato_equipes',
+    referencia_id: input.campeonatoEquipeId,
+    pagador_auth_user_id: input.authUserId,
+    pagador_tipo: 'equipe',
+    valor_centavos: valorCentavos,
+    descricao: payment.description || null,
+    status: mapAsaasPaymentStatus(payment.status),
+    asaas_customer_id: customer.id,
+    asaas_payment_id: payment.id,
+    asaas_invoice_url: payment.invoiceUrl || null,
+    asaas_bank_slip_url: payment.bankSlipUrl || null,
+    asaas_pix_qrcode: pix.encodedImage || null,
+    asaas_pix_payload: pix.payload || null,
+    asaas_status: payment.status,
+    billing_type: payment.billingType || 'UNDEFINED',
+    external_reference: externalReference,
+    payload_criacao: { ...payment, dropzone: dropzoneMeta },
+    updated_at: new Date().toISOString(),
+  }
+
+  const { data: saved, error } = await supabaseAdmin
+    .from('sistema_pagamentos')
+    .upsert(row, { onConflict: 'external_reference' })
+    .select('*')
+    .single()
+  if (error) throw error
+  return saved
+}
+
+/**
+ * Processa webhook / confirmacao de pagamento ASAAS.
  */
 export async function applyAsaasPaymentUpdate(payment: AsaasPayment, rawWebhook?: unknown) {
   const asaasId = payment.id
@@ -144,7 +280,6 @@ export async function applyAsaasPaymentUpdate(payment: AsaasPayment, rawWebhook?
   }
 
   if (!row) {
-    // pagamento não originado pelo sistema
     return { ignored: true }
   }
 
@@ -158,7 +293,9 @@ export async function applyAsaasPaymentUpdate(payment: AsaasPayment, rawWebhook?
       asaas_status: payment.status,
       asaas_invoice_url: payment.invoiceUrl || row.asaas_invoice_url,
       payload_webhook: rawWebhook || payment,
-      pago_em: isPaidStatus(status) ? (payment.paymentDate || payment.clientPaymentDate || new Date().toISOString()) : row.pago_em,
+      pago_em: isPaidStatus(status)
+        ? (payment.paymentDate || payment.clientPaymentDate || new Date().toISOString())
+        : row.pago_em,
       updated_at: new Date().toISOString(),
     })
     .eq('id', row.id)
@@ -174,7 +311,6 @@ export async function applyAsaasPaymentUpdate(payment: AsaasPayment, rawWebhook?
 }
 
 async function onPaymentConfirmed(pagamento: any) {
-  // 1) Cobrança de campeonato (pacote)
   if (pagamento.finalidade === 'cobranca_campeonato') {
     const campeonatoId = pagamento.referencia_id
     await supabaseAdmin
@@ -187,7 +323,6 @@ async function onPaymentConfirmed(pagamento: any) {
       })
       .eq('campeonato_id', campeonatoId)
 
-    // credita plataforma
     await creditWallet({
       donoTipo: 'sistema',
       valorCentavos: pagamento.valor_centavos,
@@ -200,15 +335,13 @@ async function onPaymentConfirmed(pagamento: any) {
     return
   }
 
-  // 2) Inscrição de equipe (futuro / quando valor_inscricao > 0)
   if (pagamento.finalidade === 'inscricao_equipe') {
     await creditInscriptionSplit(pagamento)
   }
 }
 
 /**
- * Split de inscrição: comissão vendedor + plataforma + resto produtora.
- * Espera meta no pagamento: { campeonato_id, produtora_id, vendedor_manager_id?, vendedor_auth_user_id? }
+ * Split de inscricao: bruto -> vendedor + plataforma + resto produtora.
  */
 export async function creditInscriptionSplit(pagamento: any) {
   const meta = pagamento.meta || pagamento.payload_criacao?.dropzone || {}
@@ -216,13 +349,8 @@ export async function creditInscriptionSplit(pagamento: any) {
   if (bruto <= 0) return
 
   const { vendedorBps, plataformaBps } = await getCommissionBps()
-  // se não houver vendedor, 0% vendedor
   const hasSeller = Boolean(meta.vendedor_auth_user_id || meta.vendedor_manager_id)
-  const split = splitCommission(
-    bruto,
-    hasSeller ? vendedorBps : 0,
-    plataformaBps,
-  )
+  const split = splitCommission(bruto, hasSeller ? vendedorBps : 0, plataformaBps)
 
   await supabaseAdmin.from('sistema_comissoes').insert({
     pagamento_id: pagamento.id,
@@ -244,7 +372,7 @@ export async function creditInscriptionSplit(pagamento: any) {
       donoTipo: 'sistema',
       valorCentavos: split.plataforma,
       tipo: 'credito_comissao',
-      descricao: 'Taxa plataforma (inscrição)',
+      descricao: 'Taxa plataforma (inscricao)',
       referenciaTipo: 'pagamento',
       referenciaId: `${pagamento.id}:plataforma`,
     })
@@ -257,7 +385,7 @@ export async function creditInscriptionSplit(pagamento: any) {
       authUserId: meta.vendedor_auth_user_id || null,
       valorCentavos: split.vendedor,
       tipo: 'credito_comissao',
-      descricao: 'Comissão de venda (inscrição)',
+      descricao: 'Comissao de venda (inscricao)',
       referenciaTipo: 'pagamento',
       referenciaId: `${pagamento.id}:vendedor`,
       meta,
@@ -270,7 +398,7 @@ export async function creditInscriptionSplit(pagamento: any) {
       donoId: meta.produtora_id,
       valorCentavos: split.liquido,
       tipo: 'credito_pagamento',
-      descricao: 'Inscrição líquida',
+      descricao: 'Inscricao liquida',
       referenciaTipo: 'pagamento',
       referenciaId: `${pagamento.id}:produtora`,
       meta,

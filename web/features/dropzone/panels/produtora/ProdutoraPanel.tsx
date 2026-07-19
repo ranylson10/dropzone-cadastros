@@ -14,6 +14,7 @@ import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { CampeonatoExportTab } from '@/features/campeonatos/export'
 import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
 import { CampeonatoStreamTab } from '@/features/campeonatos/stream'
+import { WalletPanel } from '@/features/billing/WalletPanel'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
 
@@ -935,6 +936,10 @@ ${params.url}`
             : 'Sua produtora aguarda aprovação do admin do sistema. Você ainda não pode criar campeonatos até a liberação.'}
         </div>
       ) : null}
+
+      <div style={{ gridColumn: '1 / -1' }}>
+        <WalletPanel title="Carteira da produtora" compact />
+      </div>
 
       <aside className="championship-nav-card panel">
         <div className="section-head compact-head">

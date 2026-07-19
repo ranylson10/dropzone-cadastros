@@ -1,6 +1,6 @@
 'use client'
 
-import { MessageCircle, Trophy, UserRound, Users } from 'lucide-react'
+import { MessageCircle, Trophy, UserRound, Users, Wallet } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
@@ -15,6 +15,7 @@ import { ManagerCampeonatosView } from './ManagerCampeonatosView'
 import { ManagerContextsView, type StaffVinculo } from './ManagerContextsView'
 import { ManagerVendasView } from './ManagerVendasView'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
+import { WalletPanel } from '@/features/billing/WalletPanel'
 import { dataText } from '../../utils'
 
 const contextIcons: Record<Exclude<ManagerPanelMode, 'hub'>, typeof Trophy> = {
@@ -263,6 +264,13 @@ export function ManagerPanel(props: {
             </button>
             <button
               type="button"
+              className={`manager-mode-chip manager-mode-chip-sm ${produtoraSub === 'carteira' ? 'active' : ''}`}
+              onClick={() => setProdutoraSub('carteira')}
+            >
+              <Wallet size={13} /> Carteira
+            </button>
+            <button
+              type="button"
               className={`manager-mode-chip manager-mode-chip-sm ${showManagerPerfil ? 'active' : ''}`}
               onClick={() => setShowManagerPerfil((v) => !v)}
             >
@@ -301,6 +309,10 @@ export function ManagerPanel(props: {
       {/* ——— CAMPEONATOS (antes: produtora) ——— */}
       {mode === 'produtora' ? (
         <>
+          {produtoraSub === 'carteira' ? (
+            <WalletPanel title="Carteira do vendedor" />
+          ) : null}
+
           {produtoraSub === 'vendas' ? (
             <ManagerVendasView
               accountId={props.account.id}

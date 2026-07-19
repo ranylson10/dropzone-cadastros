@@ -151,7 +151,15 @@ export default function ConviteGrupoPage() {
   const [lineId, setLineId] = useState('')
   const [nomeNovaLine, setNomeNovaLine] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState('')
-  const [sucessoInfo, setSucessoInfo] = useState<{ line: string; slot?: string } | null>(null)
+  const [sucessoInfo, setSucessoInfo] = useState<{
+    line: string
+    slot?: string
+    campeonatoEquipeId?: string
+    valorInscricao?: number | null
+    precisaPagamento?: boolean
+  } | null>(null)
+  const [payBusy, setPayBusy] = useState(false)
+  const [payUrl, setPayUrl] = useState('')
 
   const linesDisponiveis = useMemo(() => {
     // Preferir lines_disponiveis mesmo se vazio (lista vazia = todas já inscritas)
@@ -436,9 +444,42 @@ export default function ConviteGrupoPage() {
     setSucessoInfo({
       line: payload.line?.nome || resolvedNomeLine || 'Line',
       slot: payload.slot_letra || selectedSlot?.slot_letra || undefined,
+      campeonatoEquipeId: payload.campeonato_equipe_id || payload.participacao?.id || undefined,
+      valorInscricao: payload.valor_inscricao ?? null,
+      precisaPagamento: Boolean(payload.precisa_pagamento),
     })
+    setPayUrl('')
     setStep('sucesso')
     await carregar({ forceStep: 'sucesso' })
+  }
+
+  async function pagarInscricao() {
+    if (!sucessoInfo?.campeonatoEquipeId) return
+    const { data: session } = await supabase.auth.getSession()
+    if (!session.session) return setMessage('Entre novamente para pagar a inscrição.')
+    setPayBusy(true)
+    setMessage('')
+    try {
+      const response = await fetch('/api/pagamentos/inscricao', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+        body: JSON.stringify({
+          campeonato_equipe_id: sucessoInfo.campeonatoEquipeId,
+        }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || 'Não foi possível gerar o pagamento.')
+      const url = String(json.payment?.invoice_url || '')
+      setPayUrl(url)
+      if (url) window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (e: any) {
+      setMessage(e?.message || 'Erro no pagamento')
+    } finally {
+      setPayBusy(false)
+    }
   }
 
   async function gerarLinkEscalacao() {
@@ -910,7 +951,41 @@ export default function ConviteGrupoPage() {
                 ) : null}
                 .
               </p>
-              <button className="button invite-confirm" type="button" onClick={() => setStep('hub')}>
+              {sucessoInfo?.precisaPagamento && sucessoInfo.valorInscricao ? (
+                <div className="message" style={{ marginTop: 12, textAlign: 'left' }}>
+                  <strong>
+                    Inscrição:{' '}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                      Number(sucessoInfo.valorInscricao),
+                    )}
+                  </strong>
+                  <p style={{ margin: '6px 0 10px' }}>
+                    Pague via ASAAS para confirmar a inscrição financeira (comissão do vendedor cai na carteira
+                    automática).
+                  </p>
+                  <button
+                    className="button invite-confirm"
+                    type="button"
+                    disabled={payBusy}
+                    onClick={() => void pagarInscricao()}
+                    style={{ width: '100%' }}
+                  >
+                    {payBusy ? 'Gerando pagamento…' : 'Pagar inscrição'}
+                  </button>
+                  {payUrl ? (
+                    <a
+                      className="button secondary"
+                      href={payUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ width: '100%', marginTop: 8, display: 'inline-flex', justifyContent: 'center' }}
+                    >
+                      Abrir fatura novamente
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+              <button className="button invite-confirm" type="button" onClick={() => setStep('hub')} style={{ marginTop: 10 }}>
                 Gerenciar minha inscrição
               </button>
               <button className="button secondary" type="button" onClick={() => setStep('acompanhar')} style={{ width: '100%' }}>
