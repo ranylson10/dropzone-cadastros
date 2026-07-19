@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
+function asIdList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((x) => String(x || '').trim()).filter(Boolean)
+}
+
 /**
- * OBS Browser Source — resolve sessão e devolve a overlay ativa.
- * O cliente usa share_token com /api/stream/live/[token] para o payload completo.
+ * OBS Browser Source — resolve sessão e devolve:
+ * · overlay ativa (share_token)
+ * · catálogo das cenas da live (para o client pré-carregar / cache local)
  */
 export async function GET(_req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
@@ -28,17 +34,76 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
     }
     if (!session) return NextResponse.json({ error: 'Sessão OBS não encontrada.' }, { status: 404 })
 
+    const sessionOut = {
+      id: session.id,
+      nome: session.nome,
+      campeonato_id: session.campeonato_id,
+      active_overlay_id: session.active_overlay_id,
+      updated_at: session.updated_at,
+    }
+
+    let catalog: Array<{
+      id: string
+      name: string
+      template: string | null
+      share_token: string
+      updated_at: string | null
+    }> = []
+
+    if (session.campeonato_id) {
+      const [{ data: pack }, { data: allOverlays }] = await Promise.all([
+        supabaseAdmin
+          .from('campeonato_stream_pack')
+          .select('selected_overlay_ids')
+          .eq('campeonato_id', session.campeonato_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from('campeonato_stream_overlays')
+          .select('id,nome,template,share_token,updated_at,ativo')
+          .eq('campeonato_id', session.campeonato_id)
+          .eq('ativo', true),
+      ])
+
+      const byId = new Map((allOverlays || []).map((o) => [o.id, o]))
+      const selected = asIdList(pack?.selected_overlay_ids)
+      const ordered = pack
+        ? selected.map((id) => byId.get(id)).filter(Boolean)
+        : (allOverlays || [])
+
+      catalog = ordered
+        .filter((o: any) => o?.share_token)
+        .map((o: any) => ({
+          id: o.id,
+          name: o.nome,
+          template: o.template,
+          share_token: o.share_token,
+          updated_at: o.updated_at,
+        }))
+    }
+
     if (!session.active_overlay_id) {
       return NextResponse.json({
         waiting: true,
-        session: {
-          id: session.id,
-          nome: session.nome,
-          campeonato_id: session.campeonato_id,
-          active_overlay_id: null,
-          updated_at: session.updated_at,
-        },
+        session: sessionOut,
         share_token: null,
+        catalog,
+      })
+    }
+
+    const fromCatalog = catalog.find((c) => c.id === session.active_overlay_id)
+    if (fromCatalog) {
+      return NextResponse.json({
+        waiting: false,
+        session: sessionOut,
+        overlay: {
+          id: fromCatalog.id,
+          name: fromCatalog.name,
+          template: fromCatalog.template,
+          share_token: fromCatalog.share_token,
+          updated_at: fromCatalog.updated_at,
+        },
+        share_token: fromCatalog.share_token,
+        catalog,
       })
     }
 
@@ -52,27 +117,16 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
     if (!overlay?.share_token) {
       return NextResponse.json({
         waiting: true,
-        session: {
-          id: session.id,
-          nome: session.nome,
-          campeonato_id: session.campeonato_id,
-          active_overlay_id: session.active_overlay_id,
-          updated_at: session.updated_at,
-        },
+        session: sessionOut,
         share_token: null,
+        catalog,
         error: 'Overlay ativa sem token live.',
       })
     }
 
     return NextResponse.json({
       waiting: false,
-      session: {
-        id: session.id,
-        nome: session.nome,
-        campeonato_id: session.campeonato_id,
-        active_overlay_id: session.active_overlay_id,
-        updated_at: session.updated_at,
-      },
+      session: sessionOut,
       overlay: {
         id: overlay.id,
         name: overlay.nome,
@@ -81,6 +135,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
         updated_at: overlay.updated_at,
       },
       share_token: overlay.share_token,
+      catalog,
     })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })

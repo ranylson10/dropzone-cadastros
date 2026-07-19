@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import '@/features/broadcast/broadcast.css'
 import '@/features/campeonatos/stream/stream.css'
@@ -9,6 +9,7 @@ type OverlayItem = {
   id: string
   name: string
   template?: string
+  share_token?: string
 }
 
 type LiveItem = {
@@ -27,10 +28,15 @@ export default function BroadcastControlPage() {
   const [activeChampId, setActiveChampId] = useState<string | null>(null)
   const [champName, setChampName] = useState('')
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
   const [packConfigured, setPackConfigured] = useState(false)
+  const [pendingOverlay, setPendingOverlay] = useState(false)
+  const [pendingLive, setPendingLive] = useState(false)
 
-  const load = useCallback(async () => {
+  // evita o poll sobrescrever clique recente (UI otimista)
+  const holdActiveUntil = useRef(0)
+  const holdChampUntil = useRef(0)
+
+  const load = useCallback(async (opts?: { soft?: boolean }) => {
     if (!token) return
     try {
       const res = await fetch(`/api/broadcast/control/${encodeURIComponent(token)}`, { cache: 'no-store' })
@@ -38,10 +44,16 @@ export default function BroadcastControlPage() {
       if (!res.ok) throw new Error(json.error || 'Falha')
       setLives(json.lives || [])
       setOverlays(json.overlays || [])
-      setActiveId(json.session?.active_overlay_id || null)
-      setActiveChampId(json.session?.campeonato_id || null)
-      setChampName(json.campeonato?.nome || '')
       setPackConfigured(Boolean(json.pack))
+      setChampName(json.campeonato?.nome || '')
+
+      const now = Date.now()
+      if (!opts?.soft || now > holdActiveUntil.current) {
+        setActiveId(json.session?.active_overlay_id || null)
+      }
+      if (!opts?.soft || now > holdChampUntil.current) {
+        setActiveChampId(json.session?.campeonato_id || null)
+      }
       setError('')
     } catch (e: any) {
       setError(e?.message || 'Erro')
@@ -50,12 +62,18 @@ export default function BroadcastControlPage() {
 
   useEffect(() => {
     void load()
-    const t = window.setInterval(() => void load(), 4000)
+    const t = window.setInterval(() => void load({ soft: true }), 5000)
     return () => window.clearInterval(t)
   }, [load])
 
   async function selectLive(campeonatoId: string | null) {
-    setBusy(true)
+    // otimista
+    holdChampUntil.current = Date.now() + 2500
+    holdActiveUntil.current = Date.now() + 2500
+    setActiveChampId(campeonatoId)
+    setActiveId(null)
+    setPendingLive(true)
+    setError('')
     try {
       const res = await fetch(`/api/broadcast/control/${encodeURIComponent(token)}`, {
         method: 'POST',
@@ -69,16 +87,20 @@ export default function BroadcastControlPage() {
       setOverlays(json.overlays || [])
       setChampName(json.campeonato?.nome || '')
       setPackConfigured(Boolean(json.pack))
-      setError('')
     } catch (e: any) {
       setError(e?.message || 'Erro ao trocar live')
+      await load()
     } finally {
-      setBusy(false)
+      setPendingLive(false)
     }
   }
 
   async function selectOverlay(id: string | null) {
-    setBusy(true)
+    // otimista — botão marca na hora
+    holdActiveUntil.current = Date.now() + 2500
+    setActiveId(id)
+    setPendingOverlay(true)
+    setError('')
     try {
       const res = await fetch(`/api/broadcast/control/${encodeURIComponent(token)}`, {
         method: 'POST',
@@ -88,11 +110,11 @@ export default function BroadcastControlPage() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Falha')
       setActiveId(json.session?.active_overlay_id || null)
-      setError('')
     } catch (e: any) {
       setError(e?.message || 'Erro ao trocar cena')
+      await load()
     } finally {
-      setBusy(false)
+      setPendingOverlay(false)
     }
   }
 
@@ -105,6 +127,7 @@ export default function BroadcastControlPage() {
         <h1>Mesa de live</h1>
         <p style={{ margin: '4px 0 0', color: '#9aa3b2', fontSize: '0.9rem' }}>
           1) Escolha a live · 2) Clique na cena para ir ao ar no OBS
+          {(pendingOverlay || pendingLive) ? ' · enviando…' : ''}
         </p>
       </header>
 
@@ -125,7 +148,6 @@ export default function BroadcastControlPage() {
                   key={live.id}
                   type="button"
                   className={`broadcast-live-tab${active ? ' is-active' : ''}`}
-                  disabled={busy}
                   onClick={() => void selectLive(live.campeonato_id)}
                 >
                   <strong>{live.display_name}</strong>
@@ -153,7 +175,6 @@ export default function BroadcastControlPage() {
             <button
               type="button"
               className={`broadcast-control-card${!activeId ? ' is-active' : ''}`}
-              disabled={busy}
               onClick={() => void selectOverlay(null)}
             >
               <strong>Tela limpa</strong>
@@ -164,7 +185,6 @@ export default function BroadcastControlPage() {
                 key={o.id}
                 type="button"
                 className={`broadcast-control-card${activeId === o.id ? ' is-active' : ''}`}
-                disabled={busy}
                 onClick={() => void selectOverlay(o.id)}
               >
                 <strong>{o.name}</strong>

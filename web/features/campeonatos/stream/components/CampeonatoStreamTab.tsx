@@ -10,8 +10,23 @@ import {
 import { TEMPLATE_LABEL } from '../templates/stream-templates'
 import type { StreamOverlay } from '../types/stream.types'
 import { supabase } from '@/lib/supabase-browser'
+import { uploadPublicMedia } from '@/lib/upload-public'
 import '../stream.css'
 import '@/features/broadcast/broadcast.css'
+
+async function fileToPngFile(file: File): Promise<File> {
+  if (/image\/png/i.test(file.type)) return file
+  const bitmap = await createImageBitmap(file)
+  const canvas = document.createElement('canvas')
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas indisponível.')
+  ctx.drawImage(bitmap, 0, 0)
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+  if (!blob) throw new Error('Falha ao converter PNG.')
+  return new File([blob], (file.name || 'fundo').replace(/\.\w+$/, '') + '.png', { type: 'image/png' })
+}
 
 async function authFetch(url: string, options?: RequestInit) {
   const { data } = await supabase.auth.getSession()
@@ -58,6 +73,7 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
   const [bgUrl, setBgUrl] = useState('')
   const [packBusy, setPackBusy] = useState(false)
   const [packDirty, setPackDirty] = useState(false)
+  const [bgUploading, setBgUploading] = useState(false)
 
   const overlayById = useMemo(() => {
     const m = new Map<string, StreamOverlay>()
@@ -175,23 +191,31 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     setPackDirty(true)
   }
 
-  async function savePack() {
+  async function savePack(next?: {
+    selected_overlay_ids?: string[]
+    bg_type?: 'none' | 'image' | 'video'
+    bg_url?: string | null
+  }) {
     setPackBusy(true)
     setFeedback('')
     try {
+      const body = {
+        selected_overlay_ids: next?.selected_overlay_ids ?? selectedIds,
+        bg_type: next?.bg_type ?? bgType,
+        bg_url:
+          (next?.bg_type ?? bgType) === 'none'
+            ? null
+            : (next?.bg_url !== undefined ? next.bg_url : bgUrl.trim() || null),
+      }
       await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`, {
         method: 'PUT',
-        body: JSON.stringify({
-          selected_overlay_ids: selectedIds,
-          bg_type: bgType,
-          bg_url: bgType === 'none' ? null : bgUrl.trim() || null,
-        }),
+        body: JSON.stringify(body),
       })
       setPackDirty(false)
       setMissingPackSql(false)
       setFeedback(
-        selectedIds.length
-          ? `Composição salva: ${selectedIds.length} cena(s) no controlador do Stream.`
+        (body.selected_overlay_ids?.length || 0)
+          ? `Composição salva: ${body.selected_overlay_ids.length} cena(s) no controlador do Stream.`
           : 'Composição salva: nenhuma cena (Stream verá lista vazia até marcar overlays).',
       )
     } catch (e: any) {
@@ -202,6 +226,52 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     } finally {
       setPackBusy(false)
     }
+  }
+
+  async function onPickBg(file: File | null) {
+    if (!file) return
+    setBgUploading(true)
+    setFeedback('')
+    try {
+      const isVideo = /^video\//i.test(file.type)
+      let uploadedUrl = ''
+      let nextType: 'image' | 'video' = 'image'
+
+      if (isVideo) {
+        if (!/mp4|webm/i.test(file.type) && !/\.(mp4|webm)$/i.test(file.name)) {
+          throw new Error('Use vídeo MP4 ou WebM (até 25 MB).')
+        }
+        const res = await uploadPublicMedia(file, 'campeonato', 'produtora')
+        uploadedUrl = res.url
+        nextType = 'video'
+      } else {
+        const png = await fileToPngFile(file)
+        const res = await uploadPublicMedia(png, 'campeonato', 'produtora')
+        uploadedUrl = res.url
+        nextType = 'image'
+      }
+
+      setBgType(nextType)
+      setBgUrl(uploadedUrl)
+      setPackDirty(true)
+      await savePack({
+        selected_overlay_ids: selectedIds,
+        bg_type: nextType,
+        bg_url: uploadedUrl,
+      })
+      setFeedback(nextType === 'video' ? 'Vídeo de fundo enviado.' : 'Imagem de fundo enviada.')
+    } catch (e: any) {
+      setFeedback(e?.message || 'Falha no upload do fundo.')
+    } finally {
+      setBgUploading(false)
+    }
+  }
+
+  function clearBg() {
+    setBgType('none')
+    setBgUrl('')
+    setPackDirty(true)
+    void savePack({ selected_overlay_ids: selectedIds, bg_type: 'none', bg_url: null })
   }
 
   const orderedSelected = selectedIds
@@ -349,33 +419,26 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
 
           <div style={{ flex: '1 1 260px', display: 'grid', gap: 10 }}>
             <label className="broadcast-field">
-              <span>Fundo de pré-visualização</span>
-              <select
-                value={bgType}
+              <span>Fundo de pré-visualização (upload)</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/jpg,video/mp4,video/webm"
+                disabled={bgUploading || packBusy}
                 onChange={(e) => {
-                  setBgType(e.target.value as any)
-                  setPackDirty(true)
+                  const f = e.target.files?.[0] || null
+                  e.target.value = ''
+                  void onPickBg(f)
                 }}
-                style={{ minHeight: 36, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--text)', padding: '0 10px' }}
-              >
-                <option value="none">Sem fundo</option>
-                <option value="image">Imagem (PNG/JPG URL)</option>
-                <option value="video">Vídeo (URL mp4/webm)</option>
-              </select>
+              />
             </label>
-            {bgType !== 'none' ? (
-              <label className="broadcast-field">
-                <span>URL do fundo</span>
-                <input
-                  value={bgUrl}
-                  onChange={(e) => {
-                    setBgUrl(e.target.value)
-                    setPackDirty(true)
-                  }}
-                  placeholder={bgType === 'video' ? 'https://…/loop.mp4' : 'https://…/bg.png'}
-                />
-              </label>
-            ) : null}
+            <div className="broadcast-row">
+              {bgUrl ? (
+                <button type="button" className="stream-secondary-btn" disabled={bgUploading} onClick={clearBg}>
+                  Remover fundo
+                </button>
+              ) : null}
+              {bgUploading ? <span className="stream-hint">Enviando fundo…</span> : null}
+            </div>
 
             <div className="stream-pack-preview" aria-label="Pré-visualização do fundo">
               {bgType === 'image' && bgUrl.trim() ? (
@@ -387,16 +450,17 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
               ) : null}
               {(bgType === 'none' || !bgUrl.trim()) ? (
                 <div className="stream-pack-preview-empty">
-                  Fundo transparente (como no OBS). Cole uma URL de PNG ou vídeo para simular a live.
+                  Fundo transparente (como no OBS). Envie PNG/JPG ou vídeo MP4/WebM do seu PC.
                 </div>
               ) : null}
               <span className="stream-pack-preview-badge">
                 {selectedIds.length} cena{selectedIds.length === 1 ? '' : 's'} · 16:9
+                {bgType !== 'none' && bgUrl ? ` · ${bgType}` : ''}
               </span>
             </div>
             <p className="stream-hint" style={{ margin: 0 }}>
               O OBS do Stream continua com fundo transparente; o BG aqui é só para o admin enxergar o encaixe.
-              Abra o editor ou o link LIVE de cada overlay para ver o desenho final.
+              Imagem até 5 MB · vídeo até 25 MB.
             </p>
           </div>
         </div>
