@@ -1846,48 +1846,53 @@ body:has(.cropper-overlay) {
 
 .app-main-nav {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 0;
+  gap: 2px;
+  min-width: 0;
 }
 
+/* Links de topo e item com submenu usam o MESMO alinhamento */
 .app-main-nav > a,
 .app-main-nav .app-nav-parent {
   position: relative;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  min-height: 74px;
   min-width: 0;
-  padding: 0 14px;
+  padding: 0 12px;
+  margin: 0;
+  border: 0;
   color: #52525b;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: .04em;
+  line-height: 1;
   text-decoration: none;
   text-transform: uppercase;
+  white-space: nowrap;
+  box-sizing: border-box;
   transition: color .2s ease, background .2s ease;
-  height: 100%;
 }
 
 .app-nav-dropdown {
   position: relative;
-  display: flex;
-  align-items: stretch;
-  height: 100%;
-}
-
-.app-nav-parent {
-  display: inline-flex !important;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  grid: none !important;
-  place-items: unset !important;
+  height: 100%;
+  flex: 0 0 auto;
 }
 
 .app-nav-caret {
   opacity: .55;
   transition: transform .15s ease;
   flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
 }
 
 .app-nav-dropdown:hover .app-nav-caret,
@@ -2499,15 +2504,16 @@ body:has(.cropper-overlay) {
 .app-main-nav > a::after,
 .app-main-nav .app-nav-parent::after {
   position: absolute;
-  right: 14px;
+  right: 12px;
   bottom: 0;
-  left: 14px;
+  left: 12px;
   height: 3px;
   background: var(--brand);
   content: '';
   opacity: 0;
   transform: scaleX(.35);
   transition: opacity .2s ease, transform .2s ease;
+  pointer-events: none;
 }
 
 .app-main-nav > a:hover,
@@ -2825,13 +2831,16 @@ body:has(.cropper-overlay) {
   .app-main-nav > a,
   .app-main-nav .app-nav-parent {
     min-height: 48px;
+    height: auto;
     justify-content: flex-start;
     padding: 0 14px;
+    width: 100%;
   }
 
   .app-nav-dropdown {
-    display: grid;
+    display: block;
     height: auto;
+    width: 100%;
   }
 
   .app-nav-submenu {
@@ -7743,12 +7752,15 @@ input::placeholder, textarea::placeholder {
   color: color-mix(in srgb, var(--muted) 90%, transparent);
 }
 
-/* Links de nav legíveis no tema claro */
-.app-main-nav a {
+/* Links de nav legíveis no tema claro (não sobrescreve display/altura) */
+.app-main-nav > a,
+.app-main-nav .app-nav-parent {
   color: var(--muted);
 }
-.app-main-nav a:hover,
-.app-main-nav a.active {
+.app-main-nav > a:hover,
+.app-main-nav > a.active,
+.app-main-nav .app-nav-parent:hover,
+.app-main-nav .app-nav-parent.active {
   color: var(--text);
 }
 
