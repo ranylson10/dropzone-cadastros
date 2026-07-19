@@ -53,7 +53,8 @@ campeonato
 | Preenchidas (20/96) | slots `ocupado` / com `line_id` |
 | Livres / reservadas | status do slot + convite em `tokens.slot_id` |
 
-Regra de banco: **não dá para criar mais slots do que `numero_vagas`** (trigger).
+Regra de banco: **não dá para criar mais slots de entrada do que `numero_vagas`** (trigger).  
+Fases posteriores (classificados) **não** consomem esse limite — só a fase de menor `ordem` (+ slots sem fase).
 
 ## O que foi removido (legado)
 

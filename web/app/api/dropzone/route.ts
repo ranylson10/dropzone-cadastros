@@ -1105,7 +1105,8 @@ export async function POST(req: NextRequest) {
           throw error
         }
         const slotCount = Number(data.slots || 12)
-        await assertPodeCriarSlots(campeonatoId, slotCount)
+        // Limite de vagas só vale na fase de entrada; fases seguintes = classificados
+        await assertPodeCriarSlots(campeonatoId, slotCount, { faseId: data.fase_id || null })
         const letters = Array.from({ length: slotCount }, (_, index) => {
           let value = index + 1
           let label = ''
@@ -1492,7 +1493,8 @@ export async function PATCH(req: NextRequest) {
       if (error) throw error
       if (requestedSlots > current.slots) {
         const novos = requestedSlots - Number(current.slots || 0)
-        await assertPodeCriarSlots(current.campeonato_id, novos)
+        // Limite de vagas só vale na fase de entrada; fases seguintes = classificados
+        await assertPodeCriarSlots(current.campeonato_id, novos, { faseId: current.fase_id || null })
         const additions = Array.from({ length: novos }, (_, offset) => {
           const number = Number(current.slots || 0) + offset + 1
           let value = number

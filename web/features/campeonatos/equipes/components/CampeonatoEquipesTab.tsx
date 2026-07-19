@@ -311,22 +311,22 @@ Acesse: ${link}`
             <strong>{metaLabel}</strong>
             <span>
               {capacidade.limite_vagas != null
-                ? 'preenchidas no limite do campeonato'
+                ? 'preenchidas na fase de entrada'
                 : 'preenchidas (sem limite de meta)'}
             </span>
           </div>
           <div>
             <strong>{capacidade.slots_criados}</strong>
-            <span>slots criados nos grupos</span>
+            <span>slots na fase de entrada</span>
           </div>
           <div>
             <strong>{capacidade.slots_livres_estrutura}</strong>
-            <span>slots livres na estrutura</span>
+            <span>slots livres na entrada</span>
           </div>
           {capacidade.slots_ainda_podem_ser_criados != null ? (
             <div>
               <strong>{capacidade.slots_ainda_podem_ser_criados}</strong>
-              <span>ainda podem ser criados</span>
+              <span>ainda podem ser criados na entrada</span>
             </div>
           ) : null}
         </div>
