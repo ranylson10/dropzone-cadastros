@@ -402,6 +402,8 @@ function championshipRow(row: any) {
       logo_url: row.logo_url,
       banner_url: row.banner_url,
       tipo: row.tipo || DEFAULT_CHAMPIONSHIP_TYPE,
+      aprovacao_status: row.aprovacao_status || 'aprovado',
+      aprovacao_motivo: row.aprovacao_motivo || null,
       ...(configuration || {}),
     },
   })

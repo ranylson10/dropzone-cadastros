@@ -20,6 +20,7 @@ import { producerTabs, type ProducerTab } from './producer-tabs'
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
 
 export function ProdutoraPanel(props: {
+  account?: DropZoneRow | null
   championships: DropZoneRow[]
   teams: DropZoneRow[]
   phases: DropZoneRow[]
@@ -426,6 +427,12 @@ export function ProdutoraPanel(props: {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16)
   }
 
+  const produtoraAprovacao = String(
+    (props.account as any)?.aprovacao_status
+    || props.account?.data?.aprovacao_status
+    || 'aprovado',
+  )
+
   function championshipToForm(champ: DropZoneRow): CampeonatoFormValue {
     return {
       nome: rowTitle(champ),
@@ -462,6 +469,11 @@ export function ProdutoraPanel(props: {
       // texto claro/escuro é calculado automaticamente pelo sistema
       cor_texto_clara: '#ffffff',
       cor_texto_escura: '#17191d',
+      recurso_export: champ.data?.recurso_export !== false,
+      recurso_stream: champ.data?.recurso_stream !== false,
+      recurso_rulebook: champ.data?.recurso_rulebook !== false,
+      recurso_stats: champ.data?.recurso_stats !== false,
+      recurso_broadcast: champ.data?.recurso_broadcast === true,
     }
   }
 
@@ -848,6 +860,17 @@ ${params.url}`
 
   return (
     <div className="producer-layout-ref">
+      {produtoraAprovacao !== 'aprovado' ? (
+        <div
+          className={`message ${produtoraAprovacao === 'rejeitado' ? 'error' : ''}`}
+          style={{ gridColumn: '1 / -1', marginBottom: 8 }}
+        >
+          {produtoraAprovacao === 'rejeitado'
+            ? 'Sua produtora foi rejeitada pela administração do DropZone. Contate o suporte.'
+            : 'Sua produtora aguarda aprovação do admin do sistema. Você ainda não pode criar campeonatos até a liberação.'}
+        </div>
+      ) : null}
+
       <aside className="championship-nav-card panel">
         <div className="section-head compact-head">
           <div>
@@ -866,6 +889,7 @@ ${params.url}`
           {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato neste tipo.</p> : null}
           {filteredChampionships.map((champ) => {
             const logo = dataText(champ, 'logo_url')
+            const ap = String(dataText(champ, 'aprovacao_status') || 'aprovado')
             return (
               <button
                 key={champ.id}
@@ -878,14 +902,25 @@ ${params.url}`
                 <span className="champ-thumb">{logo ? <img src={logo} alt="" /> : <Trophy size={18} />}</span>
                 <span>
                   <strong>{rowTitle(champ)}</strong>
-                  <small>{dataText(champ, 'premiacao') || 'PremiaÃ§Ã£o nÃ£o informada'}</small>
+                  <small>
+                    {ap === 'pendente'
+                      ? 'Aguardando aprovação'
+                      : ap === 'rejeitado'
+                        ? 'Rejeitado pelo admin'
+                        : dataText(champ, 'premiacao') || 'Premiação não informada'}
+                  </small>
                 </span>
               </button>
             )
           })}
         </div>
 
-        <button className="button full" onClick={() => setShowCreateChamp(true)}>
+        <button
+          className="button full"
+          disabled={produtoraAprovacao !== 'aprovado'}
+          title={produtoraAprovacao !== 'aprovado' ? 'Produtora ainda não aprovada' : undefined}
+          onClick={() => setShowCreateChamp(true)}
+        >
           Novo campeonato
         </button>
       </aside>
@@ -996,7 +1031,24 @@ ${params.url}`
               <div className="detail-title-ref">
                 <p className="eyebrow">Campeonato selecionado</p>
                 <h2>{rowTitle(selectedChamp)}</h2>
-                <p>{CHAMPIONSHIP_TYPE_LABELS[selectedChampType as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Copa'} Â· {dataText(selectedChamp, 'premiacao') ? `PremiaÃ§Ã£o: ${dataText(selectedChamp, 'premiacao')}` : 'PremiaÃ§Ã£o nÃ£o informada'}</p>
+                <p>
+                  {CHAMPIONSHIP_TYPE_LABELS[selectedChampType as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Copa'}
+                  {' · '}
+                  {dataText(selectedChamp, 'premiacao')
+                    ? `Premiação: ${dataText(selectedChamp, 'premiacao')}`
+                    : 'Premiação não informada'}
+                </p>
+                {(() => {
+                  const ap = String(dataText(selectedChamp, 'aprovacao_status') || 'aprovado')
+                  if (ap === 'aprovado') return null
+                  return (
+                    <p className={ap === 'rejeitado' ? 'message error' : 'message'} style={{ marginTop: 8 }}>
+                      {ap === 'rejeitado'
+                        ? 'Rejeitado pela administração. Ajuste e aguarde nova análise se aplicável.'
+                        : 'Aguardando aprovação do admin para ir ao ar (diretório público e chave Stream bloqueados).'}
+                    </p>
+                  )
+                })()}
                 {dataText(selectedChamp, 'regras_url') ? <small>Regulamento: {dataText(selectedChamp, 'regras_url')}</small> : null}
               </div>
               <div className="championship-admin-actions">

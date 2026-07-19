@@ -55,6 +55,11 @@ const emptyChampionship = {
   bg_image_url: '',
   cor_texto_clara: '#ffffff',
   cor_texto_escura: '#17191d',
+  recurso_export: true,
+  recurso_stream: true,
+  recurso_rulebook: true,
+  recurso_stats: true,
+  recurso_broadcast: false,
 }
 
 const typeLabels: Record<ProfileType, string> = {
@@ -229,6 +234,35 @@ export function DropZoneHome() {
     const timer = window.setTimeout(() => setResendCooldown((current) => Math.max(0, current - 1)), 1000)
     return () => window.clearTimeout(timer)
   }, [resendCooldown])
+
+  // Revalida admin do sistema quando a sessão muda (nunca confiar só no front)
+  useEffect(() => {
+    let cancelled = false
+    async function checkAdmin(token?: string | null) {
+      if (!token) {
+        if (!cancelled) setIsSystemAdmin(false)
+        return
+      }
+      try {
+        const res = await fetch('/api/admin/session', {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!cancelled) setIsSystemAdmin(Boolean(json.isAdmin))
+      } catch {
+        if (!cancelled) setIsSystemAdmin(false)
+      }
+    }
+    void supabase.auth.getSession().then(({ data }) => checkAdmin(data.session?.access_token))
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      void checkAdmin(session?.access_token)
+    })
+    return () => {
+      cancelled = true
+      sub.subscription.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     if (!selectedChamp) return
@@ -980,9 +1014,12 @@ export function DropZoneHome() {
       setError('Informe o nome do campeonato.')
       return false
     }
-    const created = await createRow({ entity_type: 'championship', name: championship.nome, data: championship }, 'Campeonato criado.')
+    const created = await createRow(
+      { entity_type: 'championship', name: championship.nome, data: championship },
+      'Campeonato criado. Aguardando aprovação do admin do sistema para ir ao ar.',
+    )
     if (!created) return false
-    setChampionship(emptyChampionship)
+    setChampionship({ ...emptyChampionship })
     return true
   }
 
@@ -1764,6 +1801,7 @@ export function DropZoneHome() {
 
             {account.profile_type === 'produtora' ? (
               <ProdutoraPanel
+                account={account}
                 championships={championships}
                 teams={teams}
                 phases={phases}

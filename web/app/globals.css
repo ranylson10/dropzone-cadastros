@@ -5343,6 +5343,89 @@ button.invite-slot-button.selected strong {
 .fullscreen-link-names em { color: #b1192b; font-size: 12px; }
 @media (max-width: 760px) { .scorer-launcher-fields { grid-template-columns: 1fr; } .fullscreen-scorer-page { padding: 8px; } .fullscreen-scorer-header { align-items: flex-start; flex-direction: column; } }
 
+/* Cotação de campeonato (form criação) */
+.championship-pricing-card {
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+  background: linear-gradient(180deg, #fffef8, var(--surface));
+}
+
+.championship-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.championship-resource-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  cursor: pointer;
+}
+
+.championship-resource-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
+.championship-quote-box {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.championship-quote-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.championship-quote-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.championship-quote-lines li span {
+  color: var(--muted);
+}
+
+.championship-quote-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.championship-quote-total strong {
+  color: var(--gold-dim);
+  font-size: 20px;
+}
+
+.error-text {
+  color: var(--danger);
+}
+
 /* ===== DropZone loader (SVG inline — anima no PC e mobile) ===== */
 .dropzone-loader {
   min-height: 100vh;
@@ -7132,20 +7215,10 @@ input::placeholder, textarea::placeholder {
   max-width: 44px !important;
   max-height: 44px !important;
 }
-/* Loader de rota: nunca 100% da viewport */
-.dropzone-loader img {
-  width: 72px !important;
-  height: 72px !important;
-  max-width: 72px !important;
-  max-height: 72px !important;
-  object-fit: contain !important;
-  background: transparent !important;
-}
-.dropzone-loader.compact img {
-  width: 56px !important;
-  height: 56px !important;
-  max-width: 56px !important;
-  max-height: 56px !important;
+/* Loader: marca via SVG inline (sem img 100%) */
+.dropzone-loader-svg {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Painel de auth na home: logo maior sem fundo */

@@ -40,6 +40,12 @@ export type CampeonatoFormValue = {
   bg_image_url: string
   cor_texto_clara: string
   cor_texto_escura: string
+  /** Recursos cobrados no pacote DropZone (criação) */
+  recurso_export: boolean
+  recurso_stream: boolean
+  recurso_rulebook: boolean
+  recurso_stats: boolean
+  recurso_broadcast: boolean
 }
 
 export type CampeonatoWhatsappContact = {
@@ -89,6 +95,11 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   bg_image_url: '',
   cor_texto_clara: '#ffffff',
   cor_texto_escura: '#17191d',
+  recurso_export: true,
+  recurso_stream: true,
+  recurso_rulebook: true,
+  recurso_stats: true,
+  recurso_broadcast: false,
 }
 
 const TYPE_OPTIONS: Array<{
@@ -156,6 +167,12 @@ function moneyValue(input: string) {
   return (Number(digits) / 100).toFixed(2)
 }
 
+type PriceQuote = {
+  valor_total_brl: string
+  valor_total_centavos: number
+  linhas: Array<{ chave: string; rotulo: string; valor_centavos: number; qtd?: number }>
+}
+
 export function CampeonatoForm({
   value,
   onChange,
@@ -174,6 +191,9 @@ export function CampeonatoForm({
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
+  const [quote, setQuote] = useState<PriceQuote | null>(null)
+  const [quoteError, setQuoteError] = useState('')
+  const [quoteLoading, setQuoteLoading] = useState(false)
 
   useEffect(() => {
     setStep(mode === 'edit' ? 'form' : 'type')
@@ -183,6 +203,65 @@ export function CampeonatoForm({
     () => TYPE_OPTIONS.find((option) => option.type === value.tipo),
     [value.tipo],
   )
+
+  // Cotação ao vivo (só na criação)
+  useEffect(() => {
+    if (mode !== 'create' || step !== 'form' || !value.tipo) {
+      setQuote(null)
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      setQuoteLoading(true)
+      setQuoteError('')
+      try {
+        const { data } = await import('@/lib/supabase-browser').then((m) => m.supabase.auth.getSession())
+        const token = data.session?.access_token
+        const res = await fetch('/api/campeonatos/pricing-quote', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            tipo: value.tipo,
+            numero_vagas: Number(value.numero_vagas) || 0,
+            recursos: {
+              export: value.recurso_export !== false,
+              stream: value.recurso_stream !== false,
+              rulebook: value.recurso_rulebook !== false,
+              stats: value.recurso_stats !== false,
+              broadcast: value.recurso_broadcast === true,
+            },
+          }),
+        })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || 'Falha ao cotar')
+        if (!cancelled) setQuote(json.quote || null)
+      } catch (e: any) {
+        if (!cancelled) {
+          setQuote(null)
+          setQuoteError(e?.message || 'Cotação indisponível (rode o SQL de preços se ainda não rodou).')
+        }
+      } finally {
+        if (!cancelled) setQuoteLoading(false)
+      }
+    }, 350)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [
+    mode,
+    step,
+    value.tipo,
+    value.numero_vagas,
+    value.recurso_export,
+    value.recurso_stream,
+    value.recurso_rulebook,
+    value.recurso_stats,
+    value.recurso_broadcast,
+  ])
 
   function update<K extends keyof CampeonatoFormValue>(key: K, next: CampeonatoFormValue[K]) {
     onChange({ ...value, [key]: next })
@@ -501,6 +580,65 @@ export function CampeonatoForm({
           </div>
         ) : <p className="form-empty-note">Nenhum contato de venda cadastrado.</p>}
       </section>
+
+      {mode === 'create' ? (
+        <section className="form-section-card championship-pricing-card">
+          <p className="eyebrow">Pacote DropZone · valor estimado</p>
+          <p className="empty" style={{ margin: '0 0 12px' }}>
+            O campeonato fica <strong>pendente de aprovação</strong> do admin do sistema. O valor abaixo é a
+            cotação automática (base + vagas + recursos).
+          </p>
+          <div className="championship-resource-grid">
+            {(
+              [
+                ['recurso_export', 'Export / Spec'],
+                ['recurso_stream', 'Overlays Stream'],
+                ['recurso_rulebook', 'Rulebook PDF'],
+                ['recurso_stats', 'Tabelas e stats'],
+                ['recurso_broadcast', 'Broadcast pack'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="championship-resource-toggle">
+                <input
+                  type="checkbox"
+                  checked={Boolean(value[key])}
+                  onChange={(e) => update(key, e.target.checked)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="championship-quote-box">
+            {quoteLoading ? <small>Calculando…</small> : null}
+            {quoteError ? <small className="error-text">{quoteError}</small> : null}
+            {quote ? (
+              <>
+                <ul className="championship-quote-lines">
+                  {quote.linhas.map((line) => (
+                    <li key={`${line.chave}-${line.qtd || 1}`}>
+                      <span>
+                        {line.rotulo}
+                        {line.qtd && line.qtd > 1 ? ` × ${line.qtd}` : ''}
+                      </span>
+                      <strong>
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                          line.valor_centavos / 100,
+                        )}
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+                <div className="championship-quote-total">
+                  <span>Total estimado</span>
+                  <strong>{quote.valor_total_brl}</strong>
+                </div>
+              </>
+            ) : !quoteLoading && !quoteError ? (
+              <small>Informe tipo e vagas para ver a cotação.</small>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <div className="button-row">
         <button className="button" type="button" onClick={onSubmit} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
