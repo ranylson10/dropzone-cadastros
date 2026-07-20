@@ -138,6 +138,8 @@ export async function createPaymentLink(input: {
     description: String(input.description || 'DropZone').slice(0, 500),
     externalReference: input.externalReference,
   }
+  // callback.successUrl só funciona se o domínio estiver cadastrado na conta ASAAS
+  // (Minha Conta → Informações). Se falhar por isso, recria sem callback.
   if (input.callbackUrl) {
     body.callback = {
       successUrl: input.callbackUrl,
@@ -145,10 +147,29 @@ export async function createPaymentLink(input: {
     }
   }
 
-  return asaasFetch<AsaasPayment>('/payments', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
+  try {
+    return await asaasFetch<AsaasPayment>('/payments', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  } catch (err: any) {
+    const msg = String(err?.message || '')
+    const domainMissing =
+      /domínio configurado|dominio configurado|Cadastre um site/i.test(msg)
+    if (domainMissing && body.callback) {
+      delete body.callback
+      return asaasFetch<AsaasPayment>('/payments', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+    }
+    if (domainMissing) {
+      throw new Error(
+        'Não foi possível gerar o PIX na conta ASAAS. Verifique a chave da API e se a conta está ativa.',
+      )
+    }
+    throw err
+  }
 }
 
 export async function getPayment(paymentId: string): Promise<AsaasPayment> {

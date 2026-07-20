@@ -33,12 +33,6 @@ function dueDatePlusDays(days = 3) {
   return d.toISOString().slice(0, 10)
 }
 
-function appUrl() {
-  return String(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://dropzone-cadastros.vercel.app').replace(
-    /\/$/,
-    '',
-  )
-}
 
 function randomToken() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -320,16 +314,15 @@ export async function createVacancyPurchase(input: {
     externalReference: `auth:${input.authUserId}`,
   })
 
-  const callbackUrl = `${appUrl()}/vagas/compra/${encodeURIComponent(compra.token)}?pagamento=ok`
-
+  // Cobrança PIX direta (sem callback ASAAS): o redirect exige domínio
+  // cadastrado em "Minha Conta → Informações", e o fluxo já usa QR na nossa página.
   const payment = await createPaymentLink({
     customerId: customer.id,
     valueReais: valorReais,
     dueDate: dueDatePlusDays(3),
     description: `Vaga · ${champ.nome || 'Campeonato'}`.slice(0, 500),
     externalReference,
-    billingType: 'UNDEFINED',
-    callbackUrl,
+    billingType: 'PIX',
   })
 
   let pix: { encodedImage?: string; payload?: string } = {}
