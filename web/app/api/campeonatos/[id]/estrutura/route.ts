@@ -4,6 +4,7 @@ import {
   getCampeonatoPermission,
   requireCampeonatoStructureWrite,
 } from '@backend/campeonatos/campeonato-permissions'
+import { assertPodeCriarSlots } from '@backend/campeonatos/capacidade'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function canReadStructure(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
@@ -238,6 +239,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         .maybeSingle()
       if (!fase) throw new Error('Fase não encontrada neste campeonato.')
 
+      await assertPodeCriarSlots(campeonatoId, slotsCount, { faseId })
+
       const { data: grupo, error } = await supabaseAdmin
         .from('campeonato_grupos')
         .insert({
@@ -267,6 +270,171 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       if (slotsError) throw slotsError
 
       return NextResponse.json({ ok: true, grupo })
+    }
+
+    /**
+     * Monta várias fases + grupos + slots em uma única requisição.
+     * body.fases: [{ nome, ordem?, grupos: [{ nome?, slots?, whatsapp_url? }] }]
+     * Se o grupo não tiver nome, gera "Grupo A", "Grupo B", ...
+     */
+    if (action === 'create_bulk') {
+      const rawFases = Array.isArray(body.fases) ? body.fases : []
+      if (!rawFases.length) throw new Error('Informe ao menos uma fase.')
+
+      type BulkGrupo = { nome: string; slots: number; whatsapp_url: string | null }
+      type BulkFase = { nome: string; ordem: number; grupos: BulkGrupo[] }
+
+      const fasesPlan: BulkFase[] = rawFases.map((raw: any, phaseIndex: number) => {
+        const nome = String(raw?.nome || '').trim()
+        if (!nome) throw new Error(`Informe o nome da fase ${phaseIndex + 1}.`)
+        const ordemRaw = Number(raw?.ordem)
+        const ordem = Number.isFinite(ordemRaw) ? ordemRaw : phaseIndex + 1
+        const rawGrupos = Array.isArray(raw?.grupos) ? raw.grupos : []
+        if (!rawGrupos.length) {
+          throw new Error(`A fase "${nome}" precisa de ao menos um grupo.`)
+        }
+        if (rawGrupos.length > 26) {
+          throw new Error(`A fase "${nome}" pode ter no máximo 26 grupos (A–Z).`)
+        }
+
+        const grupos: BulkGrupo[] = rawGrupos.map((g: any, groupIndex: number) => {
+          const letter = String.fromCharCode(65 + groupIndex)
+          const groupName = String(g?.nome || `Grupo ${letter}`).trim()
+          if (!groupName) throw new Error(`Informe o nome do grupo ${groupIndex + 1} da fase "${nome}".`)
+          const slots = Math.max(1, Math.min(52, Number(g?.slots || 12)))
+          const whatsapp = String(g?.whatsapp_url || '').trim() || null
+          return { nome: groupName, slots, whatsapp_url: whatsapp }
+        })
+
+        const groupNames = grupos.map((g) => g.nome.toLowerCase())
+        if (new Set(groupNames).size !== groupNames.length) {
+          throw new Error(`Há nomes de grupo repetidos na fase "${nome}".`)
+        }
+
+        return { nome, ordem, grupos }
+      })
+
+      const phaseNames = fasesPlan.map((f) => f.nome.toLowerCase())
+      if (new Set(phaseNames).size !== phaseNames.length) {
+        throw new Error('Há nomes de fase repetidos no formulário.')
+      }
+
+      // Conflito com fases já existentes
+      const { data: existingPhases, error: existingError } = await supabaseAdmin
+        .from('campeonato_fases')
+        .select('id,nome,ordem')
+        .eq('campeonato_id', campeonatoId)
+      if (existingError) throw existingError
+      const existingNames = new Set((existingPhases || []).map((p) => String(p.nome || '').toLowerCase()))
+      for (const fase of fasesPlan) {
+        if (existingNames.has(fase.nome.toLowerCase())) {
+          throw new Error(`Já existe uma fase chamada "${fase.nome}" neste campeonato.`)
+        }
+      }
+
+      // Capacidade: só slots da(s) fase(s) de entrada contam no limite.
+      // Entrada = menor ordem entre fases existentes + as que serão criadas.
+      const existingOrdens = (existingPhases || []).map((p) => Number(p.ordem)).filter(Number.isFinite)
+      const newOrdens = fasesPlan.map((f) => f.ordem)
+      const ordemEntrada = Math.min(...[...existingOrdens, ...newOrdens])
+      const slotsEntradaNovos = fasesPlan
+        .filter((f) => f.ordem === ordemEntrada)
+        .reduce((sum, f) => sum + f.grupos.reduce((s, g) => s + g.slots, 0), 0)
+
+      if (slotsEntradaNovos > 0) {
+        // assertPodeCriarSlots usa a fase de entrada atual no banco; se ainda não há fases,
+        // qualquer fase conta como entrada. Passamos faseId undefined para forçar checagem
+        // quando estamos criando a própria fase de entrada (ordem mínima).
+        // Se já existe fase de entrada e estamos criando fases posteriores, slotsEntradaNovos=0.
+        await assertPodeCriarSlots(campeonatoId, slotsEntradaNovos)
+      }
+
+      const createdPhaseIds: string[] = []
+      const createdGroupIds: string[] = []
+      const createdFases: any[] = []
+      const createdGrupos: any[] = []
+      let slotsCriados = 0
+
+      try {
+        for (const fasePlan of fasesPlan) {
+          const { data: fase, error: faseError } = await supabaseAdmin
+            .from('campeonato_fases')
+            .insert({
+              campeonato_id: campeonatoId,
+              nome: fasePlan.nome,
+              ordem: fasePlan.ordem,
+              status: 'ativo',
+            })
+            .select('*')
+            .single()
+          if (faseError?.code === '23505') {
+            throw new Error(`Já existe uma fase com o nome "${fasePlan.nome}".`)
+          }
+          if (faseError) throw faseError
+          createdPhaseIds.push(fase.id)
+          createdFases.push(fase)
+
+          for (const grupoPlan of fasePlan.grupos) {
+            const { data: grupo, error: grupoError } = await supabaseAdmin
+              .from('campeonato_grupos')
+              .insert({
+                campeonato_id: campeonatoId,
+                fase_id: fase.id,
+                nome: grupoPlan.nome,
+                slots: grupoPlan.slots,
+                whatsapp_url: grupoPlan.whatsapp_url,
+              })
+              .select('*')
+              .single()
+            if (grupoError?.code === '23505') {
+              throw new Error(
+                `Já existe um grupo "${grupoPlan.nome}" na fase "${fasePlan.nome}".`,
+              )
+            }
+            if (grupoError) throw grupoError
+            createdGroupIds.push(grupo.id)
+            createdGrupos.push(grupo)
+
+            const additions = Array.from({ length: grupoPlan.slots }, (_, offset) => {
+              const number = offset + 1
+              return {
+                campeonato_id: campeonatoId,
+                fase_id: fase.id,
+                grupo_id: grupo.id,
+                slot_numero: number,
+                slot_letra: slotLetterFromNumber(number),
+                status: 'livre',
+              }
+            })
+            const { error: slotsError } = await supabaseAdmin
+              .from('campeonato_slots')
+              .insert(additions)
+            if (slotsError) throw slotsError
+            slotsCriados += additions.length
+          }
+        }
+      } catch (createError) {
+        // Rollback best-effort: remove o que foi criado nesta operação.
+        if (createdGroupIds.length) {
+          await supabaseAdmin.from('campeonato_slots').delete().in('grupo_id', createdGroupIds)
+          await supabaseAdmin.from('campeonato_grupos').delete().in('id', createdGroupIds)
+        }
+        if (createdPhaseIds.length) {
+          await supabaseAdmin.from('campeonato_fases').delete().in('id', createdPhaseIds)
+        }
+        throw createError
+      }
+
+      return NextResponse.json({
+        ok: true,
+        resumo: {
+          fases: createdFases.length,
+          grupos: createdGrupos.length,
+          slots: slotsCriados,
+        },
+        fases: createdFases,
+        grupos: createdGrupos,
+      })
     }
 
     throw new Error('Ação inválida.')

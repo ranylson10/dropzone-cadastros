@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Folder,
   FolderOpen,
+  Layers,
   Loader2,
   Pencil,
   Plus,
@@ -54,6 +55,22 @@ type Permission = {
   role?: string
 }
 
+/** Rascunho local do formulário "montar tudo de uma vez". */
+type BulkGroupDraft = {
+  key: string
+  letter: string
+  slots: string
+}
+type BulkPhaseDraft = {
+  key: string
+  nome: string
+  ordem: string
+  groupCount: string
+  defaultSlots: string
+  customizeSlots: boolean
+  grupos: BulkGroupDraft[]
+}
+
 async function authHeaders() {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -67,6 +84,40 @@ function slotStatus(slot: Slot): 'livre' | 'reservada' | 'ocupada' {
   return 'livre'
 }
 
+function newDraftKey() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function buildGroupsFromCount(
+  count: number,
+  defaultSlots: string,
+  previous: BulkGroupDraft[] = [],
+): BulkGroupDraft[] {
+  const safe = Math.max(1, Math.min(26, Math.floor(Number(count) || 1)))
+  return Array.from({ length: safe }, (_, index) => {
+    const letter = GROUP_LETTERS[index] || String.fromCharCode(65 + index)
+    const prev = previous[index]
+    return {
+      key: prev?.key || newDraftKey(),
+      letter,
+      slots: prev?.slots || defaultSlots || '12',
+    }
+  })
+}
+
+function createEmptyBulkPhase(ordem: number): BulkPhaseDraft {
+  const defaultSlots = '12'
+  return {
+    key: newDraftKey(),
+    nome: ordem === 1 ? 'Fase de grupos' : `Fase ${ordem}`,
+    ordem: String(ordem),
+    groupCount: '4',
+    defaultSlots,
+    customizeSlots: false,
+    grupos: buildGroupsFromCount(4, defaultSlots),
+  }
+}
+
 export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string }) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -78,9 +129,10 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
   const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({})
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
-  const [openAction, setOpenAction] = useState<'phase' | 'group' | ''>('')
+  const [openAction, setOpenAction] = useState<'phase' | 'group' | 'bulk' | ''>('')
   const [phaseForm, setPhaseForm] = useState({ nome: '', ordem: '1' })
   const [groupForm, setGroupForm] = useState({ nome: 'Grupo A', fase_id: '', slots: '12', whatsapp_url: '' })
+  const [bulkPhases, setBulkPhases] = useState<BulkPhaseDraft[]>(() => [createEmptyBulkPhase(1)])
   const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string } | null>(null)
 
@@ -157,6 +209,101 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
     () => [...fases].sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0)),
     [fases],
   )
+
+  const bulkResumo = useMemo(() => {
+    const totalGrupos = bulkPhases.reduce((sum, phase) => sum + phase.grupos.length, 0)
+    const totalSlots = bulkPhases.reduce(
+      (sum, phase) =>
+        sum +
+        phase.grupos.reduce((s, g) => {
+          const n = Math.max(1, Math.min(52, Number(g.slots || phase.defaultSlots || 12)))
+          return s + n
+        }, 0),
+      0,
+    )
+    return { fases: bulkPhases.length, grupos: totalGrupos, slots: totalSlots }
+  }, [bulkPhases])
+
+  function openBulkForm() {
+    const nextOrdem = (fasesOrdenadas.at(-1)?.ordem || 0) + 1
+    setBulkPhases([createEmptyBulkPhase(nextOrdem || 1)])
+    setOpenAction('bulk')
+    setCreateMenuOpen(false)
+    setEditingPhase(null)
+    setEditingGroup(null)
+  }
+
+  function updateBulkPhase(key: string, patch: Partial<BulkPhaseDraft>) {
+    setBulkPhases((list) =>
+      list.map((phase) => {
+        if (phase.key !== key) return phase
+        const next = { ...phase, ...patch }
+        if (patch.groupCount != null || patch.defaultSlots != null) {
+          const count = Number(patch.groupCount ?? next.groupCount)
+          const slots = String(patch.defaultSlots ?? next.defaultSlots)
+          // Ao mudar o padrão sem personalizar, propaga slots para todos os grupos.
+          const prevGroups =
+            patch.defaultSlots != null && !next.customizeSlots
+              ? next.grupos.map((g) => ({ ...g, slots }))
+              : next.grupos
+          next.grupos = buildGroupsFromCount(count, slots, prevGroups)
+        }
+        if (patch.customizeSlots === false) {
+          next.grupos = next.grupos.map((g) => ({ ...g, slots: next.defaultSlots }))
+        }
+        return next
+      }),
+    )
+  }
+
+  function updateBulkGroupSlots(phaseKey: string, groupKey: string, slots: string) {
+    setBulkPhases((list) =>
+      list.map((phase) => {
+        if (phase.key !== phaseKey) return phase
+        return {
+          ...phase,
+          grupos: phase.grupos.map((g) => (g.key === groupKey ? { ...g, slots } : g)),
+        }
+      }),
+    )
+  }
+
+  function addBulkPhase() {
+    setBulkPhases((list) => {
+      const maxOrdem = list.reduce((max, p) => Math.max(max, Number(p.ordem) || 0), 0)
+      const base = Math.max(maxOrdem, Number(fasesOrdenadas.at(-1)?.ordem || 0))
+      return [...list, createEmptyBulkPhase(base + 1)]
+    })
+  }
+
+  function removeBulkPhase(key: string) {
+    setBulkPhases((list) => (list.length <= 1 ? list : list.filter((p) => p.key !== key)))
+  }
+
+  async function salvarBulk() {
+    try {
+      const payload = {
+        action: 'create_bulk',
+        fases: bulkPhases.map((phase, index) => {
+          const nome = phase.nome.trim()
+          if (!nome) throw new Error(`Informe o nome da fase ${index + 1}.`)
+          if (!phase.grupos.length) throw new Error(`A fase "${nome}" precisa de grupos.`)
+          return {
+            nome,
+            ordem: Number(phase.ordem || index + 1),
+            grupos: phase.grupos.map((g) => ({
+              nome: `Grupo ${g.letter}`,
+              slots: Math.max(1, Math.min(52, Number(g.slots || phase.defaultSlots || 12))),
+            })),
+          }
+        }),
+      }
+      const ok = await mutate('POST', payload)
+      if (ok) setOpenAction('')
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao montar estrutura.')
+    }
+  }
 
   function fecharSlot() {
     setSlotAlvo(null)
@@ -309,6 +456,13 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
           </button>
           {createMenuOpen ? (
             <div className="structure-create-menu">
+              <button type="button" onClick={openBulkForm}>
+                <Layers size={17} />
+                <span>
+                  <strong>Montar estrutura</strong>
+                  <small>Fases, grupos e slots de uma vez</small>
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -320,7 +474,7 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
                 <FolderOpen size={17} />
                 <span>
                   <strong>Criar fase</strong>
-                  <small>Nova etapa do campeonato</small>
+                  <small>Uma fase por vez</small>
                 </span>
               </button>
               <button
@@ -343,6 +497,137 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
               </button>
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {openAction === 'bulk' && canEdit ? (
+        <div className="inline-action-panel structure-bulk-form">
+          <div className="structure-bulk-header">
+            <div>
+              <strong>Montar estrutura completa</strong>
+              <p>
+                Defina as fases, quantos grupos (A, B, C…) e quantos slots cada um tem.
+                Tudo é salvo de uma vez — depois você ainda pode editar, adicionar ou remover individualmente.
+              </p>
+            </div>
+            <div className="structure-bulk-summary" aria-live="polite">
+              <span><b>{bulkResumo.fases}</b> fase{bulkResumo.fases === 1 ? '' : 's'}</span>
+              <span><b>{bulkResumo.grupos}</b> grupo{bulkResumo.grupos === 1 ? '' : 's'}</span>
+              <span><b>{bulkResumo.slots}</b> slot{bulkResumo.slots === 1 ? '' : 's'}</span>
+            </div>
+          </div>
+
+          <div className="structure-bulk-phases">
+            {bulkPhases.map((phase, phaseIndex) => (
+              <article className="structure-bulk-phase" key={phase.key}>
+                <header className="structure-bulk-phase-head">
+                  <strong>Fase {phaseIndex + 1}</strong>
+                  {bulkPhases.length > 1 ? (
+                    <button
+                      type="button"
+                      className="danger structure-bulk-remove"
+                      title="Remover esta fase do rascunho"
+                      onClick={() => removeBulkPhase(phase.key)}
+                    >
+                      <Trash2 size={14} />
+                      Remover
+                    </button>
+                  ) : null}
+                </header>
+
+                <div className="mini-grid three structure-bulk-phase-fields">
+                  <Field label="Nome da fase">
+                    <input
+                      value={phase.nome}
+                      onChange={(e) => updateBulkPhase(phase.key, { nome: e.target.value })}
+                      placeholder={phaseIndex === 0 ? 'Fase de grupos' : `Fase ${phaseIndex + 1}`}
+                    />
+                  </Field>
+                  <Field label="Ordem">
+                    <input
+                      type="number"
+                      min={1}
+                      value={phase.ordem}
+                      onChange={(e) => updateBulkPhase(phase.key, { ordem: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Nº de grupos (A…Z)">
+                    <input
+                      type="number"
+                      min={1}
+                      max={26}
+                      value={phase.groupCount}
+                      onChange={(e) => updateBulkPhase(phase.key, { groupCount: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Slots por grupo">
+                    <input
+                      type="number"
+                      min={1}
+                      max={52}
+                      value={phase.defaultSlots}
+                      onChange={(e) => updateBulkPhase(phase.key, { defaultSlots: e.target.value })}
+                    />
+                  </Field>
+                  <label className="structure-bulk-customize">
+                    <input
+                      type="checkbox"
+                      checked={phase.customizeSlots}
+                      onChange={(e) => updateBulkPhase(phase.key, { customizeSlots: e.target.checked })}
+                    />
+                    <span>Personalizar slots de cada grupo</span>
+                  </label>
+                </div>
+
+                <div className="structure-bulk-groups-preview">
+                  <small>
+                    Grupos: {phase.grupos.map((g) => g.letter).join(', ')}
+                    {!phase.customizeSlots
+                      ? ` · ${phase.defaultSlots || 12} slots cada`
+                      : null}
+                  </small>
+                  {phase.customizeSlots ? (
+                    <div className="structure-bulk-group-slots">
+                      {phase.grupos.map((group) => (
+                        <label key={group.key} className="structure-bulk-group-slot">
+                          <span>Grupo {group.letter}</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={52}
+                            value={group.slots}
+                            onChange={(e) => updateBulkGroupSlots(phase.key, group.key, e.target.value)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="button-row structure-bulk-actions">
+            <button className="button secondary" type="button" onClick={addBulkPhase} disabled={busy}>
+              <Plus size={15} />
+              Adicionar fase
+            </button>
+            <button
+              className="button"
+              type="button"
+              disabled={busy || bulkResumo.grupos === 0}
+              onClick={() => void salvarBulk()}
+            >
+              {busy ? (
+                <><Loader2 size={15} className="button-spinner" /> Salvando tudo...</>
+              ) : (
+                `Salvar tudo (${bulkResumo.fases} fase${bulkResumo.fases === 1 ? '' : 's'} · ${bulkResumo.slots} slots)`
+              )}
+            </button>
+            <button className="button secondary" type="button" disabled={busy} onClick={() => setOpenAction('')}>
+              Cancelar
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -380,6 +665,28 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
             </button>
             <button className="button secondary" type="button" onClick={() => setOpenAction('')}>
               Cancelar
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {canEdit && !fasesOrdenadas.length && openAction !== 'bulk' && openAction !== 'phase' ? (
+        <div className="structure-empty-cta">
+          <p>Nenhuma fase criada ainda. Monte a estrutura inteira de uma vez ou adicione fase a fase.</p>
+          <div className="button-row">
+            <button className="button" type="button" onClick={openBulkForm}>
+              <Layers size={15} />
+              Montar estrutura
+            </button>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() => {
+                setPhaseForm({ nome: '', ordem: '1' })
+                setOpenAction('phase')
+              }}
+            >
+              Criar só uma fase
             </button>
           </div>
         </div>
