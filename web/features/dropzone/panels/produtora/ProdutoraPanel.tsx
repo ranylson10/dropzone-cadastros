@@ -484,9 +484,6 @@ export function ProdutoraPanel(props: {
       if (!res.ok) throw new Error(json.error || 'Falha ao gerar link')
       setPayPixPayload(String(json.payment?.pix_payload || ''))
       setPayMsg('PIX gerado. Pague pelo QR Code ou pelo copia e cola para liberar automaticamente.')
-      if (json.payment?.invoice_url) {
-        window.open(json.payment.invoice_url, '_blank', 'noopener,noreferrer')
-      }
       // recarrega status
       const st = await fetch(`/api/pagamentos/campeonato/${campeonatoId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -1189,16 +1186,6 @@ ${params.url}`
                       >
                         {payBusy ? 'Gerando…' : 'Pagar online com PIX'}
                       </button>
-                      {payInfo.pagamentos?.[0]?.asaas_invoice_url ? (
-                        <a
-                          className="button secondary"
-                          href={payInfo.pagamentos[0].asaas_invoice_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Abrir pagamento
-                        </a>
-                      ) : null}
                     </div>
                     {payInfo.asaas_configured === false ? (
                       <small>Pagamento online ainda não configurado no servidor.</small>
