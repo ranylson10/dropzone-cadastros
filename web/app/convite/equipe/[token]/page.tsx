@@ -334,9 +334,17 @@ export default function ConviteEquipePage() {
     return (
       <div className="invite-chat-row bot">
         <span className="invite-bot-avatar"><Bot size={18} /></span>
-        <div className="invite-chat-bubble">
-          <strong>DropBot</strong>
-          <div>{children}</div>
+        <div>
+          <div className="invite-chat-bubble">
+            <strong>DropBot</strong>
+            <div>{children}</div>
+          </div>
+          <div className="invite-typing" aria-label="DropBot digitando">
+            <span />
+            <span />
+            <span />
+            <em>DropBot digitando...</em>
+          </div>
         </div>
       </div>
     )
@@ -345,7 +353,7 @@ export default function ConviteEquipePage() {
   return (
     <>
       <main className="invite-page champ-theme" style={themeStyle}>
-        <div className={`invite-card ${step === 'inicio' || step === 'acompanhar' || step === 'sucesso' ? 'invite-hub-card' : ''}`}>
+        <div className={`invite-card ${step === 'inicio' || step === 'acompanhar' || step === 'sucesso' ? 'invite-hub-card' : ''} ${step !== 'acompanhar' ? 'invite-chat-card' : ''}`}>
           {data.campeonato?.logo_url ? (
             <img className="invite-champ-logo" src={data.campeonato.logo_url} alt="" />
           ) : step === 'sucesso' ? (

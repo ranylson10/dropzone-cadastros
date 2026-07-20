@@ -7761,6 +7761,55 @@ button.invite-slot-button.selected strong {
   display: grid;
   gap: 12px;
 }
+.invite-page.champ-theme .invite-chat-card {
+  width: min(640px, 100%);
+  padding: 0 !important;
+  overflow: hidden;
+  text-align: left !important;
+  border: 1px solid var(--dz-border);
+  border-top: 0;
+  background:
+    linear-gradient(color-mix(in srgb, var(--dz-surface) 78%, transparent), color-mix(in srgb, var(--dz-surface) 78%, transparent)),
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--dz-primary) 7%, transparent) 0 2px, transparent 2px 18px),
+    var(--dz-surface-soft) !important;
+}
+.invite-chat-card::before {
+  content: "🤖 DropBot · atendimento de inscrição";
+  display: block;
+  padding: 14px 18px;
+  background: var(--dz-btn);
+  color: var(--dz-btn-text);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.invite-chat-card > .invite-champ-logo {
+  width: 58px;
+  height: 58px;
+  margin: 16px auto 8px;
+  display: block;
+}
+.invite-chat-card > .eyebrow,
+.invite-chat-card > h1,
+.invite-chat-card > p:not(.invite-message) {
+  text-align: center;
+}
+.invite-chat-card > h1 {
+  margin-bottom: 6px !important;
+  font-size: 24px !important;
+}
+.invite-chat-card > .invite-mini-stats,
+.invite-chat-card > .invite-details {
+  margin: 10px 18px 0 !important;
+}
+.invite-chat-card > .invite-chat-shell,
+.invite-chat-card > .invite-auth-box.invite-chat-shell {
+  margin: 14px 18px 18px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
 .invite-chat-row {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
@@ -7782,9 +7831,11 @@ button.invite-slot-button.selected strong {
 .invite-chat-bubble {
   padding: 12px 14px;
   border: 1px solid var(--dz-border);
-  background: color-mix(in srgb, var(--dz-surface-soft) 86%, white);
+  background: color-mix(in srgb, var(--dz-surface-soft) 92%, white);
   color: var(--dz-text);
   border-radius: 16px 16px 16px 4px;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--dz-secondary) 10%, transparent);
+  max-width: 92%;
 }
 .invite-chat-bubble > strong {
   display: block;
@@ -7800,6 +7851,62 @@ button.invite-slot-button.selected strong {
 }
 .invite-chat-bubble p + p {
   margin-top: 6px;
+}
+.invite-typing {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 7px 9px;
+  border: 1px solid var(--dz-border);
+  background: color-mix(in srgb, var(--dz-surface) 86%, transparent);
+  border-radius: 999px;
+  color: var(--dz-text-muted);
+}
+.invite-typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--dz-primary);
+  animation: dz-chat-dot 1s infinite ease-in-out;
+}
+.invite-typing span:nth-child(2) { animation-delay: .15s; }
+.invite-typing span:nth-child(3) { animation-delay: .3s; }
+.invite-typing em {
+  margin-left: 4px;
+  font-size: 10px;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+@keyframes dz-chat-dot {
+  0%, 80%, 100% { opacity: .35; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+.invite-chat-shell > svg,
+.invite-chat-shell > p:not(.invite-message),
+.invite-chat-shell > .invite-section-copy {
+  display: none !important;
+}
+.invite-chat-shell > .button,
+.invite-chat-shell > a.button,
+.invite-chat-shell .button,
+.invite-chat-shell a.button,
+.invite-chat-shell button.continue-guest {
+  width: min(88%, 420px) !important;
+  margin-left: auto !important;
+  justify-content: center;
+  border-radius: 18px 18px 4px 18px !important;
+}
+.invite-chat-shell .invite-confirm {
+  background: var(--dz-btn) !important;
+}
+.invite-chat-shell .lineup-slots,
+.invite-chat-shell .field,
+.invite-chat-shell .invite-lines-note,
+.invite-chat-shell .invite-current-team {
+  width: 100%;
 }
 .invite-chat-shell .invite-auth-box,
 .invite-chat-shell .invite-current-team,
