@@ -220,11 +220,10 @@ export default function ConviteEquipePage() {
     setStep(needsSlotChoice ? 'escolher_slot' : 'escolher_line')
   }
 
-  function continueAfterSlot() {
-    if (needsSlotChoice && !slotId) {
-      setMessage('Escolha um slot livre para continuar.')
-      return
-    }
+  function confirmarSlot(vaga: SlotVaga) {
+    const letra = vaga.slot_letra || String(vaga.slot_numero || '').padStart(2, '0')
+    if (!window.confirm(`Confirmar entrada no Slot ${letra}?`)) return
+    setSlotId(vaga.slot_id)
     setMessage('')
     setStep('escolher_line')
   }
@@ -464,7 +463,7 @@ export default function ConviteEquipePage() {
               <div className="invite-current-team" style={{ marginBottom: 12 }}>
                 <small>Passo 1 de 2</small>
                 <strong>Escolha um slot livre</strong>
-                <span>Depois vocÃª escolhe a line da equipe.</span>
+                <span>Clique no slot vazio que sua equipe vai ocupar.</span>
               </div>
 
               {vagasLivres.length ? (
@@ -473,11 +472,8 @@ export default function ConviteEquipePage() {
                     <button
                       type="button"
                       key={vaga.slot_id || vaga.index}
-                      className={`lineup-slot invite-slot-button free clickable ${slotId === vaga.slot_id ? 'selected' : ''}`}
-                      onClick={() => {
-                        setSlotId(vaga.slot_id)
-                        setMessage('')
-                      }}
+                      className="lineup-slot invite-slot-button free clickable"
+                      onClick={() => confirmarSlot(vaga)}
                     >
                       <b>{vaga.slot_letra}</b>
                       <div>
@@ -492,42 +488,24 @@ export default function ConviteEquipePage() {
                   Nenhum slot livre neste grupo no momento.
                 </p>
               )}
-
-              <button
-                className="button invite-confirm"
-                type="button"
-                disabled={!vagasLivres.length}
-                onClick={continueAfterSlot}
-                style={{ width: '100%', marginTop: 12 }}
-              >
-                Continuar
-              </button>
-              <button
-                className="button secondary"
-                type="button"
-                style={{ width: '100%', marginTop: 8 }}
-                onClick={() => setStep('inicio')}
-              >
-                Voltar
-              </button>
             </div>
           ) : null}
 
           {step === 'escolher_line' ? (
             <div className="invite-section" style={{ marginTop: 12 }}>
               <div className="invite-current-team" style={{ marginBottom: 12 }}>
-                <small>Inscrevendo com</small>
+                <small>Passo 2 de 2</small>
                 <strong>{data.equipe?.nome}</strong>
                 <span>
                   {slotLabel
-                    ? `Slot ${slotLabel} — escolha a line.`
-                    : 'O slot livre será atribuído automaticamente.'}
+                    ? `Slot ${slotLabel} confirmado. Agora escolha ou crie a line.`
+                    : 'Agora escolha ou crie a line da equipe.'}
                 </span>
               </div>
 
               {linesDisponiveis.length ? (
                 <label className="field">
-                  <span>Line livre</span>
+                  <span>Escolha uma line disponível</span>
                   <select
                     value={lineId}
                     onChange={(e) => {
@@ -545,8 +523,8 @@ export default function ConviteEquipePage() {
                 </label>
               ) : (
                 <div className="invite-lines-note">
-                  <small>Criar line</small>
-                  <p>Crie uma nova line — ela será usada nesta inscrição automaticamente.</p>
+                  <small>Nenhuma line disponível</small>
+                  <p>Crie uma line agora. Ela será inscrita automaticamente neste slot.</p>
                 </div>
               )}
 
@@ -556,6 +534,9 @@ export default function ConviteEquipePage() {
                   <input
                     value={nomeNovaLine}
                     onChange={(e) => setNomeNovaLine(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && nomeNovaLine.trim() && !busy) void aceitar()
+                    }}
                     placeholder="Ex.: ALOE ELITE"
                     autoFocus={!linesDisponiveis.length}
                   />
@@ -569,7 +550,7 @@ export default function ConviteEquipePage() {
                 onClick={() => void aceitar()}
                 style={{ width: '100%', marginTop: 12 }}
               >
-                {busy ? 'Confirmando...' : 'Confirmar inscrição'}
+                {busy ? 'Confirmando...' : lineId ? 'Confirmar inscrição' : 'Criar line e confirmar inscrição'}
               </button>
               <button
                 className="button secondary"
@@ -585,16 +566,14 @@ export default function ConviteEquipePage() {
           {step === 'sucesso' && sucesso ? (
             <div className="invite-auth-box" style={{ marginTop: 16 }}>
               <CheckCircle2 size={40} />
-              <p>
-                <strong>{sucesso.line}</strong> inscrita
-                {sucesso.slot ? (
-                  <>
-                    {' '}
-                    no slot <strong>{sucesso.slot}</strong>
-                  </>
-                ) : null}
-                .
-              </p>
+              <p><strong>InscriÃ§Ã£o confirmada.</strong> Guarde este comprovante.</p>
+              <div className="invite-current-team" style={{ width: '100%' }}>
+                <small>Comprovante de inscriÃ§Ã£o</small>
+                <strong>{data.campeonato?.nome || 'Campeonato'}</strong>
+                <span>Equipe: {data.equipe?.nome || '-'}</span>
+                <span>Line: {sucesso.line}</span>
+                <span>Slot: {sucesso.slot || slotLabel || '-'}</span>
+              </div>
               <button className="button invite-confirm" type="button" onClick={() => void carregar({ forceStep: 'acompanhar' })}>
                 Ver grupo
               </button>
