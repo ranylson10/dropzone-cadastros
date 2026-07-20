@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import {
+  Bot,
   CheckCircle2,
   ClipboardCopy,
   Link2,
   ListChecks,
-  LogIn,
   Shield,
   Users,
   UserPlus,
@@ -613,10 +614,37 @@ export default function ConviteGrupoPage() {
                       ? 'Acompanhamento do grupo'
                       : 'Acompanhamento do grupo'
 
+  const isChatStep = step === 'login'
+    || step === 'sem_equipe'
+    || step === 'escolher_equipe'
+    || step === 'confirmar_equipe'
+    || step === 'escolher_line'
+    || step === 'sucesso'
+
+  function BotBubble({ children }: { children: ReactNode }) {
+    return (
+      <div className="invite-chat-row bot">
+        <span className="invite-bot-avatar"><Bot size={18} /></span>
+        <div>
+          <div className="invite-chat-bubble">
+            <strong>DropBot</strong>
+            <div>{children}</div>
+          </div>
+          <div className="invite-typing" aria-label="DropBot digitando">
+            <span />
+            <span />
+            <span />
+            <em>DropBot digitando...</em>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <main className="invite-page champ-theme" style={themeStyle}>
-        <div className={`invite-card ${showTrackingChrome ? 'invite-hub-card' : ''}`}>
+        <div className={`invite-card ${showTrackingChrome ? 'invite-hub-card' : ''} ${isChatStep ? 'invite-chat-card' : ''}`}>
           {data.campeonato?.logo_url ? (
             <img className="invite-champ-logo" src={data.campeonato.logo_url} alt="" />
           ) : step === 'sucesso' || (showTrackingChrome && minhasParticipacoes.length) ? (
@@ -660,21 +688,21 @@ export default function ConviteGrupoPage() {
 
           {/* ——— LOGIN (só 2 opções) ——— */}
           {step === 'login' ? (
-            <div className="invite-auth-box" style={{ marginTop: 16 }}>
-              <LogIn size={22} />
-              <p>
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
                 {podeInscrever ? (
                   <>
-                    Para inscrever sua equipe, <strong>faça login</strong>. Ou continue só acompanhando as
-                    inscrições (sem permissão de entrar).
+                    <p>Oi! Eu sou o DropBot 🤖</p>
+                    <p>Para inscrever sua equipe no <strong>{data.campeonato?.nome}</strong>, primeiro preciso confirmar seu login.</p>
+                    <p>Como você quer continuar?</p>
                   </>
                 ) : (
                   <>
-                    Este link não aceita novas inscrições. Se a <strong>sua equipe já está no grupo</strong>,
-                    entre para escalar o elenco.
+                    <p>Esse link não aceita novas inscrições agora.</p>
+                    <p>Se sua equipe já está no grupo, entre para escalar o elenco.</p>
                   </>
                 )}
-              </p>
+              </BotBubble>
               <SocialLogin profileType="equipe" returnTo={returnTo} />
               <a
                 className="button secondary"
