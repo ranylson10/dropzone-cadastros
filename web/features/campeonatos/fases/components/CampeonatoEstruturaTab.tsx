@@ -85,7 +85,9 @@ function slotStatus(slot: Slot): 'livre' | 'reservada' | 'ocupada' {
 }
 
 function sortGroupsByName(a: Grupo, b: Grupo) {
-  return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', {
+  const groupA = String(a.nome || '').match(/\bgrupo\s+([a-z]+)/i)?.[1] || a.nome || ''
+  const groupB = String(b.nome || '').match(/\bgrupo\s+([a-z]+)/i)?.[1] || b.nome || ''
+  return String(groupA).localeCompare(String(groupB), 'pt-BR', {
     numeric: true,
     sensitivity: 'base',
   })
@@ -224,6 +226,17 @@ export function CampeonatoEstruturaTab({
     [fases],
   )
   const gruposOrdenados = useMemo(() => [...grupos].sort(sortGroupsByName), [grupos])
+
+  function nextGroupName(phaseId: string) {
+    const used = new Set(
+      grupos
+        .filter((group) => group.fase_id === phaseId)
+        .map((group) => String(group.nome || '').match(/\bgrupo\s+([a-z]+)/i)?.[1]?.toUpperCase())
+        .filter(Boolean),
+    )
+    const next = GROUP_LETTERS.find((letter) => !used.has(letter)) || 'A'
+    return `Grupo ${next}`
+  }
 
   const bulkResumo = useMemo(() => {
     const totalGrupos = bulkPhases.reduce((sum, phase) => sum + phase.grupos.length, 0)
@@ -501,7 +514,7 @@ export function CampeonatoEstruturaTab({
                 onClick={() => {
                   const phaseId = groupForm.fase_id || fasesOrdenadas[0]?.id || ''
                   if (!phaseId) return
-                  setGroupForm((g) => ({ ...g, fase_id: phaseId, nome: 'Grupo A', slots: '12', whatsapp_url: '' }))
+                  setGroupForm((g) => ({ ...g, fase_id: phaseId, nome: nextGroupName(phaseId), slots: '12', whatsapp_url: '' }))
                   setOpenPhases((value) => ({ ...value, [phaseId]: true }))
                   setOpenAction('group')
                   setCreateMenuOpen(false)
@@ -746,7 +759,7 @@ export function CampeonatoEstruturaTab({
                       onClick={() => {
                         setEditingGroup(null)
                         setGroupForm({
-                          nome: 'Grupo A',
+                          nome: nextGroupName(phase.id),
                           fase_id: phase.id,
                           slots: '12',
                           whatsapp_url: '',

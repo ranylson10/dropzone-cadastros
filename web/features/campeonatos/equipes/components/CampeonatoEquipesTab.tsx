@@ -27,6 +27,29 @@ const FILTROS: Array<{ value: FiltroVaga; label: string }> = [
   { value: 'ocupada', label: 'Preenchidas' },
 ]
 
+function groupOrder(nome?: string | null) {
+  const text = String(nome || '')
+  const match = text.match(/\bgrupo\s+([a-z]+)/i)
+  const token = match?.[1] || text
+  return token.toUpperCase()
+}
+
+function sortVagasByStructure(a: CampeonatoVaga, b: CampeonatoVaga) {
+  const faseDiff = Number(a.fase?.ordem ?? 9999) - Number(b.fase?.ordem ?? 9999)
+  if (faseDiff) return faseDiff
+  const faseNameDiff = String(a.fase?.nome || '').localeCompare(String(b.fase?.nome || ''), 'pt-BR', {
+    numeric: true,
+    sensitivity: 'base',
+  })
+  if (faseNameDiff) return faseNameDiff
+  const groupDiff = groupOrder(a.grupo?.nome).localeCompare(groupOrder(b.grupo?.nome), 'pt-BR', {
+    numeric: true,
+    sensitivity: 'base',
+  })
+  if (groupDiff) return groupDiff
+  return Number(a.slot_numero ?? a.numero_vaga ?? 0) - Number(b.slot_numero ?? b.numero_vaga ?? 0)
+}
+
 function formatDate(value: string | null) {
   if (!value) return '-'
   return new Intl.DateTimeFormat('pt-BR', {
@@ -66,7 +89,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
   }, [data])
 
   const vagasFiltradas = useMemo(() => {
-    const vagas = data?.vagas || []
+    const vagas = [...(data?.vagas || [])].sort(sortVagasByStructure)
     if (filtro === 'todas') return vagas
     return vagas.filter((vaga) => vaga.status === filtro)
   }, [data, filtro])

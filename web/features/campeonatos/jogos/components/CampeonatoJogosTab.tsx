@@ -23,6 +23,18 @@ function mapsArray(value: unknown) {
   return String(value || '').split(',').map((item) => item.trim()).filter(Boolean)
 }
 
+function groupOrder(group: CampeonatoJogosTabProps['grupos'][number]) {
+  const name = rowTitle(group)
+  return String(name.match(/\bgrupo\s+([a-z]+)/i)?.[1] || name)
+}
+
+function sortGroups(a: CampeonatoJogosTabProps['grupos'][number], b: CampeonatoJogosTabProps['grupos'][number]) {
+  return groupOrder(a).localeCompare(groupOrder(b), 'pt-BR', {
+    numeric: true,
+    sensitivity: 'base',
+  })
+}
+
 export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
   const canManageGames = props.canManageGames !== false
   const [showForm, setShowForm] = useState(false)
@@ -31,7 +43,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
   const [phaseFilter, setPhaseFilter] = useState('')
 
   const phaseGroups = useMemo(
-    () => props.grupos.filter((grupo) => grupo.data?.fase_id === props.value.fase_id),
+    () => props.grupos.filter((grupo) => grupo.data?.fase_id === props.value.fase_id).sort(sortGroups),
     [props.grupos, props.value.fase_id],
   )
   const filteredGames = phaseFilter ? props.jogos.filter((jogo) => jogo.data?.fase_id === phaseFilter) : props.jogos
@@ -156,7 +168,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
       <div className="games-list">
         {filteredGames.map((game) => {
           const open = openId === game.id
-          const groupNames = props.grupos.filter((grupo) => Array.isArray(game.data?.grupos_ids) && game.data.grupos_ids.includes(grupo.id)).map(rowTitle)
+          const groupNames = props.grupos.filter((grupo) => Array.isArray(game.data?.grupos_ids) && game.data.grupos_ids.includes(grupo.id)).sort(sortGroups).map(rowTitle)
           return <article className="game-card" key={game.id}>
             <button className="game-card-summary" onClick={() => setOpenId(open ? null : game.id)}>
               <span className="game-card-chevron">{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</span>

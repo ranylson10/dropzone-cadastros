@@ -62,7 +62,7 @@ type InvitePayload = {
   lines_disponiveis?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita?: boolean }>
 }
 
-type Step = 'acompanhar' | 'login' | 'sem_equipe' | 'confirmar_equipe' | 'escolher_line' | 'sucesso'
+type Step = 'inicio' | 'acompanhar' | 'login' | 'sem_equipe' | 'confirmar_equipe' | 'escolher_slot' | 'escolher_line' | 'sucesso'
 
 const SESSION_WAS_LOGGED_KEY = 'dz_invite_eq_was_logged'
 const SESSION_JUST_LOGIN_KEY = 'dz_invite_eq_just_login'
@@ -79,6 +79,7 @@ export default function ConviteEquipePage() {
   const [step, setStep] = useState<Step>('acompanhar')
   const [lineId, setLineId] = useState('')
   const [nomeNovaLine, setNomeNovaLine] = useState('')
+  const [slotId, setSlotId] = useState('')
   const [detailVaga, setDetailVaga] = useState<SlotVaga | null>(null)
   const [sucesso, setSucesso] = useState<{ line: string; slot?: string } | null>(null)
 
@@ -105,6 +106,12 @@ export default function ConviteEquipePage() {
 
   const inscricaoAberta = data?.inscricao_aberta !== false && data?.valido !== false && data?.modo !== 'acompanhamento'
   const hasGroupBoard = Boolean(data?.vagas?.length)
+  const vagasLivres = useMemo(() => (data?.vagas || []).filter((vaga) => !vaga.ocupada), [data?.vagas])
+  const selectedSlot = useMemo(
+    () => vagasLivres.find((vaga) => vaga.slot_id === slotId) || vagasLivres[0] || null,
+    [slotId, vagasLivres],
+  )
+  const needsSlotChoice = Boolean(!data?.slot?.id && vagasLivres.length > 0)
 
   function markSessionContext(hasSession: boolean) {
     try {
@@ -139,11 +146,12 @@ export default function ConviteEquipePage() {
   ): Step {
     const open = payload.inscricao_aberta !== false && payload.valido !== false && payload.modo !== 'acompanhamento'
     if (!open) return 'acompanhar'
+    if (!payload.autenticado && !opts.justLoggedIn) return 'inicio'
     if (!payload.autenticado) return 'login'
     if (!payload.equipe) return 'sem_equipe'
-    if (opts.justLoggedIn) return 'escolher_line'
+    if (opts.justLoggedIn) return payload.slot?.id || !(payload.vagas || []).some((vaga) => !vaga.ocupada) ? 'escolher_line' : 'escolher_slot'
     if (opts.wasLogged) return 'confirmar_equipe'
-    return 'escolher_line'
+    return 'inicio'
   }
 
   async function carregar(opts?: { forceStep?: Step }) {
@@ -168,6 +176,7 @@ export default function ConviteEquipePage() {
 
     const livres = payload.lines_disponiveis || (payload.lines || []).filter((l: any) => !l.ja_inscrita)
     setLineId(livres[0]?.id || '')
+    setSlotId((payload.vagas || []).find((vaga) => !vaga.ocupada)?.slot_id || '')
     setNomeNovaLine('')
     setStep(opts?.forceStep || resolveStep(payload, sessionCtx))
     setLoading(false)
@@ -196,10 +205,28 @@ export default function ConviteEquipePage() {
     try {
       const wasLogged = sessionStorage.getItem(`${SESSION_WAS_LOGGED_KEY}:${token}`) === '1'
       const justLoggedIn = sessionStorage.getItem(`${SESSION_JUST_LOGIN_KEY}:${token}`) === '1'
-      setStep(justLoggedIn || !wasLogged ? 'escolher_line' : 'confirmar_equipe')
+      if (justLoggedIn || !wasLogged) {
+        setStep(needsSlotChoice ? 'escolher_slot' : 'escolher_line')
+      } else {
+        setStep('confirmar_equipe')
+      }
     } catch {
-      setStep('escolher_line')
+      setStep(needsSlotChoice ? 'escolher_slot' : 'escolher_line')
     }
+  }
+
+  function continueAfterTeam() {
+    setMessage('')
+    setStep(needsSlotChoice ? 'escolher_slot' : 'escolher_line')
+  }
+
+  function continueAfterSlot() {
+    if (needsSlotChoice && !slotId) {
+      setMessage('Escolha um slot livre para continuar.')
+      return
+    }
+    setMessage('')
+    setStep('escolher_line')
   }
 
   async function aceitar() {
@@ -240,7 +267,7 @@ export default function ConviteEquipePage() {
         line_id: resolvedLineId,
         nome_line: resolvedNome,
         // auto-slot no servidor se grupo sem slot fixo
-        slot_id: data.slot?.id || null,
+        slot_id: data.slot?.id || slotId || null,
       }),
     })
     const payload = await response.json()
@@ -257,7 +284,6 @@ export default function ConviteEquipePage() {
       slot: payload.slot?.letra || payload.slot_letra || data.slot?.letra || undefined,
     })
     setStep('sucesso')
-    await carregar({ forceStep: 'sucesso' })
   }
 
   if (loading) return <DropzoneLoader label="Carregando convite" />
@@ -279,6 +305,7 @@ export default function ConviteEquipePage() {
 
   const slotLabel =
     data.slot?.letra ||
+    selectedSlot?.slot_letra ||
     data.vaga?.letra ||
     (data.vaga?.numero_vaga ? String(data.vaga.numero_vaga).padStart(2, '0') : null)
 
@@ -289,18 +316,22 @@ export default function ConviteEquipePage() {
         ? 'Perfil de equipe'
         : step === 'confirmar_equipe'
           ? 'Confirmar equipe'
-          : step === 'escolher_line'
-            ? 'Escolher line'
-            : step === 'sucesso'
-              ? 'Entrada confirmada'
-              : !inscricaoAberta
-                ? 'Acompanhamento'
-                : 'Acompanhamento'
+          : step === 'escolher_slot'
+            ? 'Escolher slot'
+            : step === 'escolher_line'
+              ? 'Escolher line'
+              : step === 'sucesso'
+                ? 'Entrada confirmada'
+                : step === 'inicio'
+                  ? 'Bem-vindo'
+                  : !inscricaoAberta
+                    ? 'Acompanhamento'
+                    : 'Acompanhamento'
 
   return (
     <>
       <main className="invite-page champ-theme" style={themeStyle}>
-        <div className={`invite-card ${step === 'acompanhar' || step === 'sucesso' ? 'invite-hub-card' : ''}`}>
+        <div className={`invite-card ${step === 'inicio' || step === 'acompanhar' || step === 'sucesso' ? 'invite-hub-card' : ''}`}>
           {data.campeonato?.logo_url ? (
             <img className="invite-champ-logo" src={data.campeonato.logo_url} alt="" />
           ) : step === 'sucesso' ? (
@@ -338,6 +369,23 @@ export default function ConviteEquipePage() {
             <p className="invite-section-copy" style={{ textAlign: 'center', marginTop: 6 }}>
               {data.status_mensagem}
             </p>
+          ) : null}
+
+          {step === 'inicio' ? (
+            <div className="invite-section" style={{ marginTop: 14 }}>
+              <p className="invite-section-copy" style={{ textAlign: 'center' }}>
+                Escolha como deseja continuar. Se for inscrever sua equipe, o sistema guia vocÃª passo a passo.
+              </p>
+              <div className="invite-auth-box" style={{ marginTop: 12 }}>
+                <button className="button invite-confirm" type="button" onClick={startInscricao} style={{ width: '100%' }}>
+                  <UserPlus size={16} />
+                  Inscrever minha equipe
+                </button>
+                <button className="button secondary" type="button" onClick={() => setStep('acompanhar')} style={{ width: '100%' }}>
+                  Apenas acompanhar inscriÃ§Ã£o
+                </button>
+              </div>
+            </div>
           ) : null}
 
           {step === 'login' ? (
@@ -402,12 +450,66 @@ export default function ConviteEquipePage() {
               <p>
                 Usar a equipe <strong>{data.equipe.nome}</strong>?
               </p>
-              <button className="button invite-confirm" type="button" onClick={() => setStep('escolher_line')}>
+              <button className="button invite-confirm" type="button" onClick={continueAfterTeam}>
                 Usar {data.equipe.nome}
               </button>
               <a className="button secondary" href={buildLoginHref('equipe', returnTo, true)}>
                 Trocar de equipe (outro login)
               </a>
+            </div>
+          ) : null}
+
+          {step === 'escolher_slot' ? (
+            <div className="invite-section" style={{ marginTop: 12 }}>
+              <div className="invite-current-team" style={{ marginBottom: 12 }}>
+                <small>Passo 1 de 2</small>
+                <strong>Escolha um slot livre</strong>
+                <span>Depois vocÃª escolhe a line da equipe.</span>
+              </div>
+
+              {vagasLivres.length ? (
+                <div className="lineup-slots public-lineup-slots invite-slot-grid">
+                  {vagasLivres.map((vaga) => (
+                    <button
+                      type="button"
+                      key={vaga.slot_id || vaga.index}
+                      className={`lineup-slot invite-slot-button free clickable ${slotId === vaga.slot_id ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSlotId(vaga.slot_id)
+                        setMessage('')
+                      }}
+                    >
+                      <b>{vaga.slot_letra}</b>
+                      <div>
+                        <strong>Slot {vaga.slot_letra}</strong>
+                        <span>DisponÃ­vel</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="invite-section-copy" style={{ textAlign: 'center' }}>
+                  Nenhum slot livre neste grupo no momento.
+                </p>
+              )}
+
+              <button
+                className="button invite-confirm"
+                type="button"
+                disabled={!vagasLivres.length}
+                onClick={continueAfterSlot}
+                style={{ width: '100%', marginTop: 12 }}
+              >
+                Continuar
+              </button>
+              <button
+                className="button secondary"
+                type="button"
+                style={{ width: '100%', marginTop: 8 }}
+                onClick={() => setStep('inicio')}
+              >
+                Voltar
+              </button>
             </div>
           ) : null}
 
@@ -493,7 +595,7 @@ export default function ConviteEquipePage() {
                 ) : null}
                 .
               </p>
-              <button className="button invite-confirm" type="button" onClick={() => setStep('acompanhar')}>
+              <button className="button invite-confirm" type="button" onClick={() => void carregar({ forceStep: 'acompanhar' })}>
                 Ver grupo
               </button>
               <a className="button secondary" href="/">
