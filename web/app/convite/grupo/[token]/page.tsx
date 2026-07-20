@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
-import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
+import { buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 
@@ -121,6 +121,7 @@ type GroupInvitePayload = {
  * Acompanhamento público é o default quando o link está fechado ou o usuário escolhe só ver.
  */
 type Step =
+  | 'inicio'
   | 'acompanhar'
   | 'login'
   | 'sem_equipe'
@@ -145,7 +146,7 @@ export default function ConviteGrupoPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
-  const [step, setStep] = useState<Step>('acompanhar')
+  const [step, setStep] = useState<Step>('inicio')
   const [selectedParticipacaoId, setSelectedParticipacaoId] = useState('')
   const [generated, setGenerated] = useState<{ link: string; texto: string } | null>(null)
   const [detailVaga, setDetailVaga] = useState<Vaga | null>(null)
@@ -270,16 +271,14 @@ export default function ConviteGrupoPage() {
       return 'acompanhar'
     }
 
-    if (!payload.autenticado) return 'login'
+    if (!payload.autenticado) return 'inicio'
     // Manager / multi-equipe: escolher com qual pasta entrar
     if (!payload.equipe && (payload.equipes_disponiveis || []).length > 0) return 'escolher_equipe'
     if (!payload.equipe) return 'sem_equipe'
-    if (multi && opts.wasLogged && !opts.justLoggedIn) return 'escolher_equipe'
-    // Acabou de logar neste fluxo: não pergunta equipe de novo (já selecionou ou é única)
-    if (opts.justLoggedIn) return 'escolher_line'
-    // Já estava logado ao abrir o link → confirma (ou troca) a equipe
-    if (opts.wasLogged) return multi ? 'escolher_equipe' : 'confirmar_equipe'
-    return 'escolher_line'
+    if (hasInscrita && parts.length > 0) return 'hub'
+    if (multi) return 'escolher_equipe'
+    if (opts.justLoggedIn) return 'confirmar_equipe'
+    return 'inicio'
   }
 
   async function carregar(opts?: { forceStep?: Step; forceAcompanhar?: boolean; equipeId?: string }) {
@@ -594,6 +593,8 @@ export default function ConviteGrupoPage() {
       ? minhasParticipacoes.length > 1
         ? `${minhasParticipacoes.length} lines inscritas`
         : 'Equipe inscrita'
+      : step === 'inicio'
+        ? 'Convite de inscrição'
       : step === 'login'
         ? 'Entrada de equipes'
         : step === 'sem_equipe'
@@ -614,7 +615,8 @@ export default function ConviteGrupoPage() {
                       ? 'Acompanhamento do grupo'
                       : 'Acompanhamento do grupo'
 
-  const isChatStep = step === 'login'
+  const isChatStep = step === 'inicio'
+    || step === 'login'
     || step === 'sem_equipe'
     || step === 'escolher_equipe'
     || step === 'confirmar_equipe'
@@ -686,31 +688,40 @@ export default function ConviteGrupoPage() {
             </p>
           ) : null}
 
+          {/* ——— INÍCIO DO CHAT ——— */}
+          {step === 'inicio' ? (
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p>Oi! Eu sou o DropBot 🤖</p>
+                <p>Você recebeu um convite para o grupo <strong>{data.grupo?.nome}</strong> do campeonato <strong>{data.campeonato?.nome}</strong>.</p>
+                <p>O que você quer fazer?</p>
+              </BotBubble>
+              <button className="button invite-confirm" type="button" onClick={startInscricao}>
+                Quero inscrever minha equipe
+              </button>
+              <button className="button secondary" type="button" onClick={() => setStep('acompanhar')}>
+                Só acompanhar as inscrições
+              </button>
+            </div>
+          ) : null}
+
           {/* ——— LOGIN (só 2 opções) ——— */}
           {step === 'login' ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <BotBubble>
                 {podeInscrever ? (
                   <>
-                    <p>Oi! Eu sou o DropBot 🤖</p>
-                    <p>Para inscrever sua equipe no <strong>{data.campeonato?.nome}</strong>, primeiro preciso confirmar seu login.</p>
-                    <p>Como você quer continuar?</p>
+                    <p>Verifiquei aqui: você ainda não está logado em nenhuma conta de equipe.</p>
+                    <p>Entre com Google para eu identificar sua equipe. Se ainda não tiver uma, eu te levo para cadastrar.</p>
                   </>
                 ) : (
                   <>
                     <p>Esse link não aceita novas inscrições agora.</p>
-                    <p>Se sua equipe já está no grupo, entre para escalar o elenco.</p>
+                    <p>Se sua equipe já está no grupo, entre com Google para escalar o elenco.</p>
                   </>
                 )}
               </BotBubble>
               <SocialLogin profileType="equipe" returnTo={returnTo} />
-              <a
-                className="button secondary"
-                href={buildLoginHref('equipe', returnTo)}
-                style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
-              >
-                Entrar com e-mail e senha
-              </a>
               <button
                 className="button secondary"
                 type="button"
@@ -724,24 +735,22 @@ export default function ConviteGrupoPage() {
 
           {/* ——— SEM EQUIPE ——— */}
           {step === 'sem_equipe' ? (
-            <div className="invite-auth-box" style={{ marginTop: 16 }}>
-              <Shield size={22} />
-              <p>
-                {data.papel_sessao === 'manager'
-                  ? 'Seu perfil de manager não controla nenhuma equipe ainda. Aceite um convite de staff ou crie uma equipe neste login.'
-                  : (
-                    <>
-                      Seu login está ativo, mas ainda <strong>não tem conta de equipe</strong>. Crie o perfil para
-                      continuar a inscrição automaticamente.
-                    </>
-                  )}
-              </p>
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                {data.papel_sessao === 'manager' ? (
+                  <p>Você entrou como manager, mas ainda não controla nenhuma equipe. Cadastre ou aceite uma equipe para continuar.</p>
+                ) : (
+                  <>
+                    <p>Seu Google entrou certinho.</p>
+                    <p>Mas ainda não encontrei uma <strong>equipe cadastrada</strong> nessa conta.</p>
+                    <p>Cadastre sua equipe e depois eu continuo a inscrição.</p>
+                  </>
+                )}
+              </BotBubble>
               <a className="button invite-confirm" href={buildProfileCreationHref('equipe', returnTo)}>
-                Criar perfil de equipe
+                Cadastrar minha equipe
               </a>
-              <a className="button secondary" href={buildLoginHref(data.papel_sessao === 'manager' ? 'manager' : 'equipe', returnTo, true)}>
-                Usar outra conta
-              </a>
+              <SocialLogin profileType={data.papel_sessao === 'manager' ? 'manager' : 'equipe'} returnTo={returnTo} />
               <button className="button secondary" type="button" onClick={() => setStep('acompanhar')} style={{ width: '100%', marginTop: 8 }}>
                 Só acompanhar
               </button>
@@ -750,24 +759,17 @@ export default function ConviteGrupoPage() {
 
           {/* ——— MANAGER / MULTI-EQUIPE: escolher pasta ——— */}
           {step === 'escolher_equipe' ? (
-            <div className="invite-section" style={{ marginTop: 16 }}>
-              <div className="invite-auth-box" style={{ marginBottom: 12 }}>
-                <Users size={22} />
-                <p>
-                  {data.papel_sessao === 'manager' ? (
+            <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                {data.papel_sessao === 'manager' ? (
                   <>
-                    Você entrou como <strong>manager</strong>.{' '}
-                    {!inscricaoAberta
-                      ? 'Escolha a equipe inscrita neste grupo para gerenciar a escalação.'
-                      : 'Escolha com qual equipe deseja se inscrever neste campeonato.'}
+                    <p>Você entrou como <strong>manager</strong>.</p>
+                    <p>{!inscricaoAberta ? 'Escolha a equipe inscrita neste grupo para gerenciar a escalação.' : 'Escolha com qual equipe deseja se inscrever neste campeonato.'}</p>
                   </>
                 ) : (
-                  !inscricaoAberta
-                    ? 'Você controla mais de uma equipe. Escolha a inscrita neste grupo para gerenciar a escalação.'
-                    : 'Você controla mais de uma equipe. Escolha com qual deseja entrar.'
+                  <p>{!inscricaoAberta ? 'Você controla mais de uma equipe. Escolha a inscrita neste grupo para gerenciar a escalação.' : 'Você controla mais de uma equipe. Com qual deseja entrar?'}</p>
                 )}
-                </p>
-              </div>
+              </BotBubble>
               <div className="championship-vagas-list">
                 {(data.equipes_disponiveis || [])
                   .slice()
@@ -785,20 +787,11 @@ export default function ConviteGrupoPage() {
                     >
                       <span className="vaga-row-number">{eq.papel === 'dono' ? 'DN' : 'ST'}</span>
                       <span className={`vaga-row-avatar ${eq.inscrita_no_grupo ? 'status-ocupada' : 'status-livre'}`} aria-hidden>
-                        {eq.logo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={eq.logo_url} alt="" />
-                        ) : (
-                          <Users size={18} />
-                        )}
+                        {eq.logo_url ? <img src={eq.logo_url} alt="" /> : <Users size={18} />}
                       </span>
                       <span className="vaga-row-identity">
                         <strong>{eq.nome}</strong>
-                        <small>
-                          {eq.username ? `@${eq.username}` : 'Equipe'}
-                          {' · '}
-                          {eq.papel === 'dono' ? 'Dono' : 'Staff'}
-                        </small>
+                        <small>{eq.username ? `@${eq.username}` : 'Equipe'} · {eq.papel === 'dono' ? 'Dono' : 'Staff'}</small>
                       </span>
                       <span className="vaga-row-meta">
                         <span className={`vaga-status-pill ${eq.inscrita_no_grupo ? 'status-ocupada' : 'status-livre'}`}>
@@ -811,12 +804,7 @@ export default function ConviteGrupoPage() {
                 ))}
               </div>
               {data.equipe && inscricaoAberta ? (
-                <button
-                  type="button"
-                  className="button secondary"
-                  style={{ marginTop: 12 }}
-                  onClick={() => setStep('escolher_line')}
-                >
+                <button type="button" className="button secondary" style={{ marginTop: 12 }} onClick={() => setStep('escolher_line')}>
                   Continuar com {data.equipe.nome}
                 </button>
               ) : null}
@@ -828,21 +816,20 @@ export default function ConviteGrupoPage() {
 
           {/* ——— CONFIRMAR EQUIPE (só sessão já existente ao abrir o link) ——— */}
           {step === 'confirmar_equipe' && data.equipe ? (
-            <div className="invite-auth-box" style={{ marginTop: 16 }}>
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p>Você está logado com a equipe <strong>{data.equipe.nome}</strong>.</p>
+                <p>Quer inscrever essa equipe no grupo <strong>{data.grupo?.nome}</strong>?</p>
+              </BotBubble>
               <div className="invite-current-team" style={{ width: '100%' }}>
                 <small>Equipe logada</small>
                 <strong>{data.equipe.nome}</strong>
                 <span>{data.equipe.tag ? `Tag ${data.equipe.tag}` : 'Sem tag'}</span>
               </div>
-              <p>
-                Usar a equipe <strong>{data.equipe.nome}</strong> nesta inscrição?
-              </p>
               <button className="button invite-confirm" type="button" onClick={confirmarEstaEquipe}>
-                Usar {data.equipe.nome}
+                Sim, inscrever {data.equipe.nome}
               </button>
-              <a className="button secondary" href={buildLoginHref('equipe', returnTo, true)}>
-                Trocar de equipe (outro login)
-              </a>
+              <SocialLogin profileType="equipe" returnTo={returnTo} />
               <button className="button secondary" type="button" onClick={() => setStep('acompanhar')} style={{ width: '100%', marginTop: 8 }}>
                 Só acompanhar
               </button>
@@ -851,7 +838,11 @@ export default function ConviteGrupoPage() {
 
           {/* ——— ESCOLHER SLOT + LINE ——— */}
           {step === 'escolher_line' ? (
-            <div className="invite-section" style={{ marginTop: 12 }}>
+            <div className="invite-section invite-chat-shell" style={{ marginTop: 12 }}>
+              <BotBubble>
+                <p>Perfeito. Agora vamos escolher onde a <strong>{data.equipe?.nome}</strong> vai entrar.</p>
+                <p>Primeiro escolha um slot livre. Depois escolha uma line ou crie uma nova.</p>
+              </BotBubble>
               <div className="invite-current-team" style={{ marginBottom: 12 }}>
                 <small>Inscrevendo com</small>
                 <strong>{data.equipe?.nome}</strong>
@@ -967,8 +958,11 @@ export default function ConviteGrupoPage() {
 
           {/* ——— SUCESSO ——— */}
           {step === 'sucesso' ? (
-            <div className="invite-auth-box" style={{ marginTop: 16 }}>
-              <CheckCircle2 size={40} />
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p>Pronto, inscrição confirmada ✅</p>
+                <p>Guarde o comprovante abaixo. Boa sorte no campeonato!</p>
+              </BotBubble>
               <p>
                 <strong>{sucessoInfo?.line || 'Line'}</strong> inscrita
                 {sucessoInfo?.slot ? (
