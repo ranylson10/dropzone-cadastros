@@ -559,6 +559,19 @@ export function ProdutoraPanel(props: {
   const champSlots = props.groupSlots.filter((row) => row.parent_id === selectedChamp?.id)
   const champRegistrationLinks = props.registrationLinks.filter((row) => row.parent_id === selectedChamp?.id)
   const teamInvites = props.tokens.filter((row) => TEAM_INVITE_TYPES.has(String(row.data?.token_kind || '')) && row.parent_id === selectedChamp?.id)
+  const orderedChampPhases = useMemo(
+    () => [...champPhases].sort((a, b) => Number(a.data?.ordem || 0) - Number(b.data?.ordem || 0)),
+    [champPhases],
+  )
+  const orderedChampGroups = useMemo(() => {
+    const phaseOrder = new Map(orderedChampPhases.map((phase, index) => [phase.id, Number(phase.data?.ordem || index + 1)]))
+    return [...champGroups].sort((a, b) => {
+      const phaseA = phaseOrder.get(String(a.data?.fase_id || '')) ?? Number.MAX_SAFE_INTEGER
+      const phaseB = phaseOrder.get(String(b.data?.fase_id || '')) ?? Number.MAX_SAFE_INTEGER
+      if (phaseA !== phaseB) return phaseA - phaseB
+      return rowTitle(a).localeCompare(rowTitle(b), 'pt-BR', { numeric: true, sensitivity: 'base' })
+    })
+  }, [champGroups, orderedChampPhases])
 
   useEffect(() => {
     if (tab === 'vendedores') {
@@ -1287,7 +1300,7 @@ ${params.url}`
                         <Field label="Fase">
                           <select value={props.game.fase_id} onChange={(e) => props.setGame({ ...props.game, fase_id: e.target.value, campeonato_id: selectedChamp.id, grupos_ids: [] })}>
                             <option value="">Selecione</option>
-                            {champPhases.map((phase) => <option key={phase.id} value={phase.id}>{rowTitle(phase)}</option>)}
+                            {orderedChampPhases.map((phase) => <option key={phase.id} value={phase.id}>{rowTitle(phase)}</option>)}
                           </select>
                         </Field>
                         <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Jogo 1 - A x B" /></Field>
@@ -1333,7 +1346,7 @@ ${params.url}`
                           <span className="selection-count">{props.game.grupos_ids.length} selecionado(s)</span>
                         </div>
                         <div className="group-check-grid">
-                          {champGroups.filter((group) => Boolean(props.game.fase_id) && group.data?.fase_id === props.game.fase_id).map((group) => {
+                          {orderedChampGroups.filter((group) => Boolean(props.game.fase_id) && group.data?.fase_id === props.game.fase_id).map((group) => {
                             const checked = props.game.grupos_ids.includes(group.id)
                             return (
                               <label className={`group-check-card ${checked ? 'selected' : ''}`} key={group.id}>
@@ -1368,7 +1381,7 @@ ${params.url}`
                   ) : null}
 
                   <div className="folder-structure game-folder-structure">
-                    {champPhases.map((phase) => {
+                    {orderedChampPhases.map((phase) => {
                       const gamesOfPhase = champGames.filter((game) => game.data?.fase_id === phase.id)
                       const phaseOpen = openGamePhases[phase.id] !== false
                       return (
@@ -1447,8 +1460,8 @@ ${params.url}`
               {tab === 'estatisticas' ? (
                 <CampeonatoEstatisticasTab
                   campeonatoId={selectedChamp.id}
-                  phases={champPhases}
-                  groups={champGroups}
+                  phases={orderedChampPhases}
+                  groups={orderedChampGroups}
                   games={champGames}
                   maps={mapCatalog}
                 />
@@ -1936,7 +1949,7 @@ ${params.url}`
                             }}
                           >
                             <option value="">Selecione</option>
-                            {champGroups.map((group) => {
+                            {orderedChampGroups.map((group) => {
                               const livres = freeSlotsInGroup(group.id)
                               const total = Number(group.data?.slots || 0)
                               return (

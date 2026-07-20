@@ -84,6 +84,13 @@ function slotStatus(slot: Slot): 'livre' | 'reservada' | 'ocupada' {
   return 'livre'
 }
 
+function sortGroupsByName(a: Grupo, b: Grupo) {
+  return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', {
+    numeric: true,
+    sensitivity: 'base',
+  })
+}
+
 function newDraftKey() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
@@ -216,6 +223,7 @@ export function CampeonatoEstruturaTab({
     () => [...fases].sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0)),
     [fases],
   )
+  const gruposOrdenados = useMemo(() => [...grupos].sort(sortGroupsByName), [grupos])
 
   const bulkResumo = useMemo(() => {
     const totalGrupos = bulkPhases.reduce((sum, phase) => sum + phase.grupos.length, 0)
@@ -709,8 +717,8 @@ export function CampeonatoEstruturaTab({
         ).map((phase) => {
           const groupsOfPhase =
             phase.id === 'sem-fase'
-              ? grupos.filter((g) => !g.fase_id)
-              : grupos.filter((g) => g.fase_id === phase.id)
+              ? gruposOrdenados.filter((g) => !g.fase_id)
+              : gruposOrdenados.filter((g) => g.fase_id === phase.id)
           if (phase.id === 'sem-fase' && groupsOfPhase.length === 0 && fasesOrdenadas.length > 0) return null
           const phaseOpen = openPhases[phase.id] !== false
 
