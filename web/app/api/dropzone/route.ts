@@ -917,7 +917,6 @@ export async function POST(req: NextRequest) {
       const logoUrl = String(data.logo_url || '').trim()
       const bannerUrl = String(data.banner_url || '').trim()
       if (!nome) throw new Error('Informe o nome do campeonato.')
-      if (!logoUrl) throw new Error('Envie a logo do campeonato.')
 
       // Produtora precisa estar aprovada para criar campeonato (exceto se coluna ainda não existe)
       try {
@@ -933,7 +932,7 @@ export async function POST(req: NextRequest) {
       const championshipPayload: Record<string, unknown> = {
         nome,
         tipo: normalizeChampionshipType(data.tipo),
-        logo_url: logoUrl,
+        logo_url: logoUrl || null,
         banner_url: bannerUrl || null,
         criado_por: user.id,
         produtora_id: account.id,

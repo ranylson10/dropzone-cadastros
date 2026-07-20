@@ -1853,6 +1853,8 @@ export function DropZoneHome() {
                 }}
                 loading={loading}
                 pendingCreate={pendingCreate}
+                message={message}
+                error={error}
                 uploadPublicFile={uploadPublicFile}
               />
             ) : null}

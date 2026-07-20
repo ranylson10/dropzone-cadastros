@@ -85,6 +85,8 @@ export function ProdutoraPanel(props: {
   reloadStructure?: () => void | Promise<void>
   loading: boolean
   pendingCreate: string | null
+  message?: string
+  error?: string
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [showCreateChamp, setShowCreateChamp] = useState(false)
@@ -1002,6 +1004,8 @@ ${params.url}`
         onClose={() => setShowCreateChamp(false)}
         size="wide"
       >
+        {props.error ? <div className="message error" style={{ marginBottom: 12 }}>{props.error}</div> : null}
+        {props.message ? <div className="message" style={{ marginBottom: 12 }}>{props.message}</div> : null}
         <CampeonatoForm
           value={props.championship}
           onChange={props.setChampionship}
