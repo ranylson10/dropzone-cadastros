@@ -362,8 +362,8 @@ export function CampeonatoForm({
       <section className="form-section-card">
         <p className="eyebrow">Dados obrigatórios</p>
         <div className="mini-grid two">
-          <Field label="Nome do campeonato"><input value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
-          <UploadField label="Logo do campeonato" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
+          <Field label="Nome do campeonato"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
+          <UploadField label="Logo do campeonato *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
           <UploadField label="Banner do campeonato" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
         </div>
       </section>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { assertCampeonatoNoAr } from '@backend/admin/aprovacao'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { listControllableEquipes } from '@backend/equipes/manager-team-access'
 import {
@@ -835,6 +836,7 @@ async function sessionTeam(req: NextRequest, campeonatoId: string, grupoId: stri
 
 async function payloadFor(req: NextRequest, token: string) {
   const { link, status, limite } = await resolveLink(token)
+  await assertCampeonatoNoAr(link.campeonato_id)
   const meta = parseLinkMetadata(link)
   const inscricaoAberta = status === 'ok'
 
@@ -1006,6 +1008,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     }
 
     const link = await loadLinkForInscricao(token)
+    await assertCampeonatoNoAr(link.campeonato_id)
     const meta = parseLinkMetadata(link)
     const expected = meta.expected_teams
 

@@ -902,11 +902,13 @@ async function consumeToken(token: string | null | undefined, tipo?: string | st
 }
 
 export async function POST(req: NextRequest) {
+  let requestEntityType = ''
   try {
     const user = await getBearerUser(req)
     const account = await getActiveAccount(req, user)
     const body = await req.json()
     const entityType = String(body.entity_type || '').trim()
+    requestEntityType = entityType
 
     if (!canCreate(account.profile_type, entityType)) throw new Error('Seu tipo de perfil nao pode criar esse cadastro.')
 
@@ -917,6 +919,7 @@ export async function POST(req: NextRequest) {
       const logoUrl = String(data.logo_url || '').trim()
       const bannerUrl = String(data.banner_url || '').trim()
       if (!nome) throw new Error('Informe o nome do campeonato.')
+      if (!logoUrl) throw new Error('Envie a logo do campeonato.')
 
       // Produtora precisa estar aprovada para criar campeonato (exceto se coluna ainda não existe)
       try {
@@ -932,7 +935,7 @@ export async function POST(req: NextRequest) {
       const championshipPayload: Record<string, unknown> = {
         nome,
         tipo: normalizeChampionshipType(data.tipo),
-        logo_url: logoUrl || null,
+        logo_url: logoUrl,
         banner_url: bannerUrl || null,
         criado_por: user.id,
         produtora_id: account.id,
@@ -1432,6 +1435,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ row })
   } catch (error: any) {
+    console.error('[dropzone POST]', {
+      entity_type: requestEntityType || null,
+      code: error?.code || null,
+      message: error?.message || String(error),
+    })
     return NextResponse.json({ error: error?.message || 'Erro ao salvar.' }, { status: error?.code === '23505' ? 409 : 400 })
   }
 }
@@ -1449,6 +1457,15 @@ export async function PATCH(req: NextRequest) {
 
     if (entityType === 'championship') {
       await requireChampionshipOwner(id, user.id, account.id)
+      const { data: currentChamp, error: currentChampError } = await supabaseAdmin
+        .from('campeonatos')
+        .select('aprovacao_status')
+        .eq('id', id)
+        .maybeSingle()
+      if (currentChampError) throw currentChampError
+      if (currentChamp?.aprovacao_status && currentChamp.aprovacao_status !== 'aprovado') {
+        throw new Error('Campeonato aguardando liberaÃ§Ã£o. Pague via PIX ou aguarde o admin liberar para editar.')
+      }
       const nome = String(data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
       const bannerUrl = String(data.banner_url || '').trim()

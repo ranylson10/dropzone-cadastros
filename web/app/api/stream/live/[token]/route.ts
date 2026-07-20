@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { assertCampeonatoNoAr } from '@backend/admin/aprovacao'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
 import {
@@ -59,6 +60,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
     if (!overlay) return NextResponse.json({ error: 'Overlay não encontrada.' }, { status: 404 })
 
     const campeonatoId = overlay.campeonato_id as string
+    await assertCampeonatoNoAr(campeonatoId)
     const streamCtx = await resolveStreamContext(campeonatoId)
     const activeJogoId = streamCtx.activeJogoId
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { assertCampeonatoNoAr } from '@backend/admin/aprovacao'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 export async function GET(_req: NextRequest, ctx: any) {
@@ -13,6 +14,7 @@ export async function GET(_req: NextRequest, ctx: any) {
       .maybeSingle()
     if (linkError) throw linkError
     if (!link || !link.acompanhamento_publico) throw new Error('Acompanhamento indisponivel.')
+    await assertCampeonatoNoAr(link.campeonato_id)
 
     const [{ data: campeonato }, { data: grupo }, { data: teamLinks, error: teamsError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').eq('id', link.campeonato_id).maybeSingle(),

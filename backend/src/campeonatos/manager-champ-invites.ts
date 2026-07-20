@@ -208,8 +208,10 @@ export async function searchCampeonatos(q: string, limit = 12) {
 
   const { data, error } = await supabaseAdmin
     .from('campeonatos')
-    .select('id,nome,logo_url,status,produtora_id,tipo,created_at')
+    .select('id,nome,logo_url,status,produtora_id,tipo,created_at,aprovacao_status')
     .is('deleted_at', null)
+    .eq('status', 'ativo')
+    .eq('aprovacao_status', 'aprovado')
     .ilike('nome', `%${clean}%`)
     .order('created_at', { ascending: false })
     .limit(limit)

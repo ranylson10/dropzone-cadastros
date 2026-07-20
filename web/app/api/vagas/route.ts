@@ -4,7 +4,12 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 export async function GET(req: NextRequest) {
   try {
     const [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, sellersResult] = await Promise.all([
-      supabaseAdmin.from('campeonatos').select('id,nome,tipo,logo_url,banner_url,status').eq('status', 'ativo').is('deleted_at', null),
+      supabaseAdmin
+        .from('campeonatos')
+        .select('id,nome,tipo,logo_url,banner_url,status,aprovacao_status')
+        .eq('status', 'ativo')
+        .eq('aprovacao_status', 'aprovado')
+        .is('deleted_at', null),
       supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').eq('aceita_novas_inscricoes_equipes', true),
       supabaseAdmin.from('campeonato_grupos').select('id,campeonato_id,nome,fase_id'),
       supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,equipe_id,status,slot_numero'),

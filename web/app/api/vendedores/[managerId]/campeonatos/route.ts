@@ -80,7 +80,12 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
     const authUserId = manager.auth_user_id || null
     const [{ data: campeonatos }, { data: produtoras }, { data: usages }] = await Promise.all([
       campeonatoIds.length
-        ? supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status,banner_url').in('id', campeonatoIds)
+        ? supabaseAdmin
+            .from('campeonatos')
+            .select('id,nome,logo_url,status,banner_url,aprovacao_status')
+            .in('id', campeonatoIds)
+            .eq('status', 'ativo')
+            .eq('aprovacao_status', 'aprovado')
         : Promise.resolve({ data: [] as any[] }),
       produtoraIds.length
         ? supabaseAdmin.from('produtoras').select('id,nome,logo_url').in('id', produtoraIds)

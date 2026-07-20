@@ -79,7 +79,13 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
     if (!campeonatoIds.length) return NextResponse.json({ manager: publicManager, announcements: [] })
 
     const [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult] = await Promise.all([
-      supabaseAdmin.from('campeonatos').select('id,nome,tipo,logo_url,banner_url,status').in('id', campeonatoIds).eq('status', 'ativo').is('deleted_at', null),
+      supabaseAdmin
+        .from('campeonatos')
+        .select('id,nome,tipo,logo_url,banner_url,status,aprovacao_status')
+        .in('id', campeonatoIds)
+        .eq('status', 'ativo')
+        .eq('aprovacao_status', 'aprovado')
+        .is('deleted_at', null),
       supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').in('campeonato_id', campeonatoIds).eq('aceita_novas_inscricoes_equipes', true),
       supabaseAdmin.from('campeonato_grupos').select('id,campeonato_id,nome,fase_id').in('campeonato_id', campeonatoIds),
       supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,equipe_id,status,slot_numero').in('campeonato_id', campeonatoIds),

@@ -1014,9 +1014,13 @@ export function DropZoneHome() {
       setError('Informe o nome do campeonato.')
       return false
     }
+    if (!championship.logo_url.trim()) {
+      setError('Envie a logo do campeonato.')
+      return false
+    }
     const created = await createRow(
       { entity_type: 'championship', name: championship.nome, data: championship },
-      'Campeonato criado. Aguardando aprovação do admin do sistema para ir ao ar.',
+      'Campeonato criado. Escolha pagar online com PIX ou aguardar liberaÃ§Ã£o do admin.',
     )
     if (!created) return false
     setChampionship({ ...emptyChampionship })

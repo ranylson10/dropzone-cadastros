@@ -171,11 +171,11 @@ export async function createVacancyPurchase(input: {
 
   const { data: champ, error: cErr } = await supabaseAdmin
     .from('campeonatos')
-    .select('id,nome,produtora_id,status,deleted_at')
+    .select('id,nome,produtora_id,status,deleted_at,aprovacao_status')
     .eq('id', input.campeonatoId)
     .maybeSingle()
   if (cErr) throw cErr
-  if (!champ || champ.deleted_at || champ.status !== 'ativo') {
+  if (!champ || champ.deleted_at || champ.status !== 'ativo' || champ.aprovacao_status !== 'aprovado') {
     throw new Error('Campeonato não encontrado ou indisponível.')
   }
 

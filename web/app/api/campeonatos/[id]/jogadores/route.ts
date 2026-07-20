@@ -11,7 +11,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   try {
     const { id } = await context.params
     const [{ data: campeonato, error: campeonatoError }, { data: configuracao }, { data: participacoes, error: participacoesError }] = await Promise.all([
-      supabaseAdmin.from('campeonatos').select('id, nome, logo_url').eq('id', id).is('deleted_at', null).single(),
+      supabaseAdmin.from('campeonatos').select('id, nome, logo_url, aprovacao_status').eq('id', id).is('deleted_at', null).single(),
       supabaseAdmin.from('campeonato_configuracoes').select('jogadores_por_vaga').eq('campeonato_id', id).maybeSingle(),
       supabaseAdmin
         .from('campeonato_equipes')
@@ -22,6 +22,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     ])
 
     if (campeonatoError) throw campeonatoError
+    if (campeonato?.aprovacao_status && campeonato.aprovacao_status !== 'aprovado') {
+      throw new Error('Campeonato aguardando liberaÃ§Ã£o para ir ao ar.')
+    }
     if (participacoesError) throw participacoesError
 
     const itens = participacoes || []

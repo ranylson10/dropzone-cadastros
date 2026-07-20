@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
+import { assertCampeonatoNoAr } from '@backend/admin/aprovacao'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function optionalPlayer(req: NextRequest) {
@@ -55,6 +56,7 @@ export async function GET(req: NextRequest, ctx: any) {
   try {
     const token = await getToken(ctx)
     const link = await loadLink(token)
+    await assertCampeonatoNoAr(link.campeonato_id)
     const auth = await optionalPlayer(req)
     const [{ data: campeonato, error: champError }, { data: grupo, error: groupError }, { data: rule, error: ruleError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome,logo_url,premiacao,status').eq('id', link.campeonato_id).maybeSingle(),
@@ -118,6 +120,7 @@ export async function POST(req: NextRequest, ctx: any) {
     const user = await getBearerUser(req)
     const token = await getToken(ctx)
     const link = await loadLink(token)
+    await assertCampeonatoNoAr(link.campeonato_id)
     const body = await req.json()
     const campeonatoEquipeId = String(body.campeonato_equipe_id || body.equipe_id || '')
     if (!campeonatoEquipeId) throw new Error('Selecione uma line.')

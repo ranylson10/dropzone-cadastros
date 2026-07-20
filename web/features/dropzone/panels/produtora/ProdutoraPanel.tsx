@@ -90,6 +90,7 @@ export function ProdutoraPanel(props: {
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [showCreateChamp, setShowCreateChamp] = useState(false)
+  const [createdChampAction, setCreatedChampAction] = useState<DropZoneRow | null>(null)
   const [editingChampId, setEditingChampId] = useState('')
   const [editingChamp, setEditingChamp] = useState<CampeonatoFormValue>(emptyCampeonatoForm)
   const [typeFilter, setTypeFilter] = useState('todos')
@@ -1014,13 +1015,7 @@ ${params.url}`
             if (created && typeof created !== 'boolean') {
               props.setSelectedChampId(created.id)
               setShowCreateChamp(false)
-              const payNow = window.confirm('Campeonato criado. Deseja gerar o PIX online agora? Clique em Cancelar para aguardar autorizaÃ§Ã£o manual do admin.')
-              if (payNow) {
-                setPayMsg('Gerando PIX do pacote...')
-                setTimeout(() => void gerarPagamentoPacote(created.id), 0)
-              } else {
-                setPayMsg('Campeonato criado. Ele aparece para vocÃª, mas fica bloqueado atÃ© liberaÃ§Ã£o manual do admin.')
-              }
+              setCreatedChampAction(created)
             } else if (created) {
               setShowCreateChamp(false)
             }
@@ -1029,6 +1024,46 @@ ${params.url}`
           loading={props.loading}
           uploadPublicFile={props.uploadPublicFile}
         />
+      </SystemModal>
+
+      <SystemModal
+        open={Boolean(createdChampAction)}
+        title="Campeonato criado"
+        description="Escolha como deseja liberar o campeonato."
+        onClose={() => setCreatedChampAction(null)}
+      >
+        <div className="form-section-card" style={{ display: 'grid', gap: 12 }}>
+          <p>
+            O campeonato <strong>{createdChampAction ? rowTitle(createdChampAction) : ''}</strong> foi criado e estÃ¡
+            pendente. Ele aparece para vocÃª, mas sÃ³ vai ao ar apÃ³s pagamento PIX confirmado ou liberaÃ§Ã£o manual do admin.
+          </p>
+          <div className="button-row compact-actions">
+            <button
+              type="button"
+              className="button"
+              disabled={payBusy}
+              onClick={() => {
+                if (!createdChampAction) return
+                const champId = createdChampAction.id
+                setCreatedChampAction(null)
+                setPayMsg('Gerando PIX do pacote...')
+                void gerarPagamentoPacote(champId)
+              }}
+            >
+              {payBusy ? 'Gerando PIX...' : 'Pagar online com PIX'}
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => {
+                setCreatedChampAction(null)
+                setPayMsg('Campeonato criado. Aguarde a liberaÃ§Ã£o manual do admin para ele ir ao ar.')
+              }}
+            >
+              Aguardar liberaÃ§Ã£o do admin
+            </button>
+          </div>
+        </div>
       </SystemModal>
 
       <SystemModal
