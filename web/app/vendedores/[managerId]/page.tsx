@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Filter, MapPin, MessageCircle, Search, ShieldCheck, Ticket, Users, X, ZoomIn } from 'lucide-react'
+import { CalendarDays, Filter, MapPin, Search, ShieldCheck, Ticket, Users, X, ZoomIn } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { AppShell } from '@/components/layout'
 import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
+import { PixIcon, WhatsAppIcon } from '@/features/billing/BrandIcons'
 import { supabase } from '@/lib/supabase-browser'
 import '../../vagas/vagas.css'
 
@@ -95,18 +96,17 @@ export default function VendedorCampeonatosPage() {
             <p className="eyebrow">Portfólio do afiliado</p>
             <h1>{manager?.nome || manager?.username || 'Campeonatos com vagas abertas'}</h1>
             <p>
-              Pague online com comissão deste vendedor, ou fale com ele no WhatsApp.
+              Pague com PIX com comissão deste vendedor, ou fale com ele no WhatsApp.
               {manager?.whatsapp_url ? ' Contato direto disponível abaixo.' : ''}
             </p>
             {manager?.whatsapp_url || sellerContact?.url ? (
               <a
-                className="button"
+                className="button vacancy-wa-cta"
                 href={manager?.whatsapp_url || sellerContact?.url}
                 target="_blank"
                 rel="noreferrer"
-                style={{ marginTop: 12, display: 'inline-flex', gap: 8, alignItems: 'center' }}
               >
-                <MessageCircle size={16} /> WhatsApp do vendedor
+                <WhatsAppIcon size={16} /> WhatsApp do vendedor
               </a>
             ) : null}
           </div>
@@ -194,14 +194,14 @@ export default function VendedorCampeonatosPage() {
                 </div>
                 <div className="vacancy-persuasion">
                   <strong>Garanta sua vaga</strong>
-                  <span>Pagamento online com comissão deste vendedor, ou WhatsApp dele.</span>
+                  <span>PIX com comissão deste vendedor, ou WhatsApp dele.</span>
                 </div>
                 <button
                   className="button vacancy-register"
                   type="button"
                   onClick={() => setBuyTarget(item)}
                 >
-                  <MessageCircle size={16} /> Comprar vaga
+                  <PixIcon size={16} /> Comprar vaga
                 </button>
               </div>
             </article>

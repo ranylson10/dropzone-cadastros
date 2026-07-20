@@ -36,6 +36,24 @@ export type ChampionshipTheme = {
   cor_texto_escura?: string | null
 }
 
+/** Dados de inscrição/venda de vaga (página pública do campeonato). */
+export type ChampionshipEnrollment = {
+  aceita_novas_inscricoes: boolean
+  valor_inscricao: number | null
+  contatos_whatsapp: Array<{
+    id?: string
+    nome?: string
+    pais?: string
+    bandeira?: string
+    ddi?: string
+    telefone?: string
+    url?: string | null
+    manager_id?: string
+  }>
+  vagas_livres?: number
+  proximo_grupo?: string | null
+}
+
 export type DirectoryProfile = DirectoryItem & {
   details: Array<{ label: string; value: string }>
   actions?: Array<{ label: string; href: string; variant?: 'primary' | 'secondary' }>
@@ -43,6 +61,8 @@ export type DirectoryProfile = DirectoryItem & {
   theme?: ChampionshipTheme | null
   /** Bio completa (quando description é resumo) */
   bio?: string | null
+  /** Inscrição / compra de vaga (somente campeonatos com vagas abertas) */
+  enrollment?: ChampionshipEnrollment | null
   sections: Array<{
     title: string
     layout?: 'list' | 'table' | 'stats' | 'structure'

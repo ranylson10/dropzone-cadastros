@@ -84,18 +84,30 @@ export async function findOrCreateCustomer(input: {
   const email = String(input.email || '').trim().toLowerCase()
   if (!email) throw new Error('E-mail do pagador é obrigatório para o ASAAS.')
 
+  const cpfDigits = input.cpfCnpj ? String(input.cpfCnpj).replace(/\D/g, '') : ''
+
   // busca por e-mail
   const found = await asaasFetch<{ data?: AsaasCustomer[] }>(
     `/customers?email=${encodeURIComponent(email)}&limit=1`,
   )
-  if (found.data?.[0]?.id) return found.data[0]
+  const existing = found.data?.[0]
+  if (existing?.id) {
+    // Cliente já existe sem documento: atualiza CPF/CNPJ (necessário para cobrança PIX).
+    if (cpfDigits && !String(existing.cpfCnpj || '').replace(/\D/g, '')) {
+      return asaasFetch<AsaasCustomer>(`/customers/${existing.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ cpfCnpj: cpfDigits }),
+      })
+    }
+    return existing
+  }
 
   const body: Record<string, unknown> = {
     name: String(input.name || email).slice(0, 100),
     email,
     notificationDisabled: true,
   }
-  if (input.cpfCnpj) body.cpfCnpj = String(input.cpfCnpj).replace(/\D/g, '')
+  if (cpfDigits) body.cpfCnpj = cpfDigits
   if (input.externalReference) body.externalReference = input.externalReference
 
   return asaasFetch<AsaasCustomer>('/customers', {

@@ -6,13 +6,17 @@ import {
   Flag,
   Gamepad2,
   Info,
+  Ticket,
   Users,
   UserCircle2,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AgendaCalendar } from '@/features/agenda'
+import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
+import { PixIcon, WhatsAppIcon } from '@/features/billing/BrandIcons'
 import { ReportButton } from '@/features/reports/ReportButton'
 import { championshipThemeStyle } from '@/lib/championship-theme'
+import { supabase } from '@/lib/supabase-browser'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 import {
   DirectoryProfileTabs,
@@ -20,6 +24,7 @@ import {
   StructureTree,
   renderSectionItems,
 } from './DirectoryProfileTabs'
+import '@/app/vagas/vagas.css'
 
 type TabId = 'info' | 'equipes' | 'jogadores' | 'jogos' | 'estatisticas'
 type EquipesFilterMode = 'geral' | 'fase' | 'grupo'
@@ -74,6 +79,13 @@ function flattenStructure(section?: DirectoryProfile['sections'][number]) {
   return { slots, phases, groups }
 }
 
+function moneyLabel(value: unknown) {
+  const number = Number(value)
+  return number > 0
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
+    : null
+}
+
 export function ChampionshipPublicView({
   profile,
   kindLabel = 'campeonatos',
@@ -85,6 +97,24 @@ export function ChampionshipPublicView({
   const [equipesMode, setEquipesMode] = useState<EquipesFilterMode>('geral')
   const [faseId, setFaseId] = useState('')
   const [grupoId, setGrupoId] = useState('')
+  const [buyOpen, setBuyOpen] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
+
+  const enrollment = profile.enrollment
+  const canEnroll = Boolean(
+    enrollment?.aceita_novas_inscricoes
+    && (
+      Number(enrollment?.valor_inscricao || 0) >= 1
+      || (enrollment?.contatos_whatsapp?.length || 0) > 0
+    ),
+  )
+  const valorLabel = moneyLabel(enrollment?.valor_inscricao)
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      setAuthenticated(Boolean(data.session?.access_token))
+    })
+  }, [])
 
   const sectionMap = useMemo(
     () => ({
@@ -166,6 +196,33 @@ export function ChampionshipPublicView({
               <small>{profile.eyebrow || 'Campeonato'}</small>
               <h1>{profile.name}</h1>
               {profile.description ? <p className="directory-profile-desc">{profile.description}</p> : null}
+              {canEnroll ? (
+                <div className="champ-public-enroll">
+                  <div className="champ-public-enroll-meta">
+                    {valorLabel ? (
+                      <span>
+                        <Ticket size={13} /> Inscrição {valorLabel}
+                      </span>
+                    ) : null}
+                    {enrollment?.vagas_livres != null && enrollment.vagas_livres > 0 ? (
+                      <span>
+                        <Users size={13} /> {enrollment.vagas_livres} vaga
+                        {enrollment.vagas_livres === 1 ? '' : 's'} livre
+                        {enrollment.vagas_livres === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="button champ-public-enroll-btn"
+                    onClick={() => setBuyOpen(true)}
+                  >
+                    <PixIcon size={16} />
+                    <WhatsAppIcon size={16} />
+                    Garantir vaga
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -209,6 +266,16 @@ export function ChampionshipPublicView({
               ))}
             </div>
             <div className="champ-public-info-actions">
+              {canEnroll ? (
+                <button
+                  type="button"
+                  className="button champ-public-enroll-btn"
+                  onClick={() => setBuyOpen(true)}
+                >
+                  <PixIcon size={16} />
+                  Garantir vaga
+                </button>
+              ) : null}
               <ReportButton targetType="campeonato" targetId={profile.id} targetName={profile.name} />
             </div>
           </div>
@@ -359,6 +426,21 @@ export function ChampionshipPublicView({
       <div className="champ-public-desktop-tabs">
         <DirectoryProfileTabs sections={profile.sections} />
       </div>
+
+      {buyOpen && enrollment ? (
+        <BuyVacancyModal
+          championship={{
+            id: profile.id,
+            nome: profile.name,
+            valor_inscricao: enrollment.valor_inscricao,
+            contatos_whatsapp: enrollment.contatos_whatsapp || [],
+            proximo_grupo: enrollment.proximo_grupo,
+          }}
+          returnTo={`/campeonatos/${profile.id}`}
+          authenticated={authenticated}
+          onClose={() => setBuyOpen(false)}
+        />
+      ) : null}
     </div>
   )
 }

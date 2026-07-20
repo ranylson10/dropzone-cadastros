@@ -134,6 +134,7 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   const actions: DirectoryProfile['actions'] = []
 
   let theme: DirectoryProfile['theme'] = null
+  let enrollment: DirectoryProfile['enrollment'] = null
 
   if (kind === 'campeonatos') {
     const [phases, groups, slots, games, participations, teams, teamLines, teamStats, mvpStats, configs] = await Promise.all([
@@ -156,6 +157,22 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
       bg_image_url: cfg.bg_image_url || null,
       cor_texto_clara: cfg.cor_texto_clara || null,
       cor_texto_escura: cfg.cor_texto_escura || null,
+    }
+    const freeSlots = slots.filter(
+      (row: any) =>
+        row.campeonato_id === id
+        && !row.equipe_id
+        && String(row.status || '') !== 'excluido',
+    ).length
+    enrollment = {
+      aceita_novas_inscricoes: Boolean(cfg.aceita_novas_inscricoes_equipes),
+      valor_inscricao:
+        cfg.valor_inscricao != null && Number(cfg.valor_inscricao) > 0
+          ? Number(cfg.valor_inscricao)
+          : null,
+      contatos_whatsapp: Array.isArray(cfg.contatos_whatsapp) ? cfg.contatos_whatsapp : [],
+      vagas_livres: freeSlots,
+      proximo_grupo: null,
     }
     const teamById = new Map(teams.map((row: any) => [row.id, row]))
     const lineById = new Map(teamLines.map((row: any) => [row.id, row]))
@@ -333,5 +350,6 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     actions,
     sections,
     theme,
+    enrollment,
   }
 }

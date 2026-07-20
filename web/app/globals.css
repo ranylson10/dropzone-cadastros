@@ -6288,7 +6288,7 @@ button.invite-slot-button.selected strong {
   .dropzone-loader-ring { opacity: .35; }
 }
 
-.form-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.form-section-heading strong{display:block;margin-top:3px;font-size:17px}.whatsapp-contact-list{display:grid;gap:8px;margin-top:14px}.whatsapp-contact-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(190px,1fr) minmax(220px,1.2fr) 38px;align-items:end;gap:10px;padding:11px;border: 1px solid var(--line);background: var(--surface-soft)}.seller-contact-row{grid-template-columns:minmax(170px,1fr) minmax(90px,.45fr) minmax(220px,1.3fr)}.phone-input-group{display:grid;grid-template-columns:auto 1fr}.phone-input-group>span{display:flex;align-items:center;padding:0 10px;border:1px solid #d7d9de;border-right:0;background:#f0f2f4;font-size:12px;font-weight:800;white-space:nowrap}.phone-input-group input{min-width:0}.whatsapp-contact-remove{height:44px;justify-content:center;color:#bf2332}.form-empty-note{margin:14px 0 0;padding:14px;border:1px dashed #d7dbe1;color:#7d828b;text-align:center}.whatsapp-seller-list{display:grid;gap:8px}.whatsapp-seller-list a{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:10px;padding:11px 13px;border:1px solid #dce2df;background: var(--surface);color:#171a22;text-decoration:none}.whatsapp-seller-list a:hover{border-color:#25d366;background:#f3fcf7}.whatsapp-seller-list a>span{font-size:24px}.whatsapp-seller-list a>div{display:flex;min-width:0;flex-direction:column}.whatsapp-seller-list small{color:#737a82}@media(max-width:850px){.whatsapp-contact-row,.seller-contact-row{grid-template-columns:1fr 1fr}.whatsapp-contact-remove{width:100%}}@media(max-width:560px){.form-section-heading{align-items:flex-start;flex-direction:column}.whatsapp-contact-row,.seller-contact-row{grid-template-columns:1fr}.whatsapp-contact-remove{width:100%}}
+.form-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.form-section-heading strong{display:block;margin-top:3px;font-size:17px}.whatsapp-contact-list{display:grid;gap:8px;margin-top:14px}.whatsapp-contact-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(190px,1fr) minmax(220px,1.2fr) 38px;align-items:end;gap:10px;padding:11px;border: 1px solid var(--line);background: var(--surface-soft)}.seller-contact-row{grid-template-columns:minmax(170px,1fr) minmax(90px,.45fr) minmax(220px,1.3fr)}.phone-input-group{display:grid;grid-template-columns:auto 1fr}.phone-input-group>span{display:flex;align-items:center;padding:0 10px;border:1px solid #d7d9de;border-right:0;background:#f0f2f4;font-size:12px;font-weight:800;white-space:nowrap}.phone-input-group input{min-width:0}.whatsapp-contact-remove{height:44px;justify-content:center;color:#bf2332}.form-empty-note{margin:14px 0 0;padding:14px;border:1px dashed #d7dbe1;color:#7d828b;text-align:center}.whatsapp-seller-list{display:grid;gap:8px}.whatsapp-seller-list a{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid rgba(37,211,102,.22);background:#fff;color:#171a22;text-decoration:none;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease}.whatsapp-seller-list a:hover{border-color:#25D366;background:#f0faf4;box-shadow:0 6px 16px rgba(37,211,102,.12)}.whatsapp-seller-list a>div{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}.whatsapp-seller-list a strong{font-size:13px}.whatsapp-seller-list a small,.whatsapp-seller-list small{color:#68707a;font-size:11px}.whatsapp-seller-flag{display:grid;place-items:center;min-width:28px;font-size:11px;font-weight:800;color:#546e7a}.whatsapp-seller-wa-icon{display:grid;place-items:center;flex-shrink:0;width:36px;height:36px;border-radius:50%;background:#25D366;color:#fff;box-shadow:0 4px 10px rgba(37,211,102,.35)}@media(max-width:850px){.whatsapp-contact-row,.seller-contact-row{grid-template-columns:1fr 1fr}.whatsapp-contact-remove{width:100%}}@media(max-width:560px){.form-section-heading{align-items:flex-start;flex-direction:column}.whatsapp-contact-row,.seller-contact-row{grid-template-columns:1fr}.whatsapp-contact-remove{width:100%}}
 
 .button.copied,.token-card.copied{border-color:#25a866!important;background:#edf9f2!important;color:#167445!important}.player-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}.player-summary-grid>div{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-items:center;gap:1px 9px;padding:13px;border:1px solid #e1e4e8;background: var(--surface-soft)}.player-summary-grid>div>svg{grid-row:1/3;color:var(--brand)}.player-summary-grid strong{font-size:20px;line-height:1}.player-summary-grid span{color:#777d86;font-size:10px;font-weight:800;text-transform:uppercase}@media(max-width:700px){.player-summary-grid{grid-template-columns:1fr 1fr}}
 
@@ -6931,7 +6931,56 @@ button.invite-slot-button.selected strong {
   font-size:15px;
   color: var(--text);
 }
-.champ-public-info-actions{margin-top:12px}
+.champ-public-info-actions{
+  margin-top:12px;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+}
+.champ-public-enroll{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  margin-top:12px;
+}
+.champ-public-enroll-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.champ-public-enroll-meta span{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 9px;
+  border-radius:999px;
+  background:rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.18);
+  color:#fff;
+  font-size:11px;
+  font-weight:700;
+}
+.champ-public-enroll-btn{
+  display:inline-flex !important;
+  align-items:center;
+  gap:8px;
+  min-height:40px;
+  padding:0 14px;
+  border:0;
+  background:linear-gradient(135deg,#32BCAD 0%,#25D366 100%) !important;
+  color:#fff !important;
+  box-shadow:0 8px 18px rgba(37,211,102,.28);
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+  font-size:11px;
+}
+.champ-public-enroll-btn:hover{
+  filter:brightness(1.05);
+}
+.champ-public-enroll-btn svg{flex-shrink:0}
 .champ-public-desktop-tabs{display:none}
 .champ-public-banner .directory-profile-details{display:none}
 

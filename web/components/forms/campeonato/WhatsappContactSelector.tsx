@@ -1,5 +1,5 @@
-import { MessageCircle } from 'lucide-react'
 import type { CampeonatoWhatsappContact } from './CampeonatoForm'
+import { WhatsAppIcon } from '@/features/billing/BrandIcons'
 
 /** Contato de campeonato (ddi/telefone) ou vendedor (url pronta). */
 export type WhatsappContactLike = Partial<CampeonatoWhatsappContact> & {
@@ -47,13 +47,18 @@ export function WhatsappContactSelector({
             target="_blank"
             rel="noreferrer"
             key={contact.id || contact.manager_id || `wa-${index}`}
+            className="whatsapp-seller-item"
           >
-            <span>{contact.bandeira || '💬'}</span>
+            <span className="whatsapp-seller-flag" aria-hidden>
+              {contact.bandeira || 'BR'}
+            </span>
             <div>
               <strong>{contact.nome || 'Contato'}</strong>
               <small>{subtitle}</small>
             </div>
-            <MessageCircle size={18} />
+            <span className="whatsapp-seller-wa-icon" aria-hidden>
+              <WhatsAppIcon size={20} />
+            </span>
           </a>
         )
       })}

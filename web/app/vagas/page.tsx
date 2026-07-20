@@ -97,7 +97,7 @@ export default function VacanciesPage() {
         <div>
           <p className="eyebrow">Agenda competitiva</p>
           <h1>Campeonatos com vagas abertas</h1>
-          <p>Pague online ou fale com a organização no WhatsApp para garantir sua vaga.</p>
+          <p>Pague com PIX ou fale com a organização no WhatsApp para garantir sua vaga.</p>
         </div>
         <div className="vacancies-hero-count"><Ticket /><strong>{items.reduce((sum, item) => sum + item.vagas_livres, 0)}</strong><span>vagas disponíveis</span></div>
       </section>
@@ -127,7 +127,7 @@ export default function VacanciesPage() {
               <div className="vacancy-groups">{item.grupos.slice(0, 3).map((group: any) => <span key={group.id}>{group.nome}<b>{group.vagas_livres} livres</b></span>)}</div>
               <div className="vacancy-persuasion">
                 <strong>Garanta sua vaga</strong>
-                <span>Pague online (PIX/link) ou fale no WhatsApp da organização.</span>
+                <span>Pague com PIX ou fale no WhatsApp da organização.</span>
               </div>
               <button className="button vacancy-register" type="button" onClick={() => openBuyModal(item)}>
                 Quero me inscrever

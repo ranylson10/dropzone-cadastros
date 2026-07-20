@@ -4,9 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   CheckCircle2,
   ClipboardCopy,
-  CreditCard,
   Loader2,
-  QrCode,
   Shield,
   Ticket,
   Users,
@@ -16,6 +14,7 @@ import { AppShell } from '@/components/layout'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { buildProfileCreationHref } from '@/features/auth/auth-return'
+import { PixIcon } from '@/features/billing/BrandIcons'
 import { supabase } from '@/lib/supabase-browser'
 import '../../vagas.css'
 
@@ -241,8 +240,8 @@ export default function CompraVagaPage() {
             <div>
               <p className="eyebrow">Pagamento</p>
               <h2>
-                <CreditCard size={18} style={{ display: 'inline', marginRight: 6 }} />
-                {liberado || data?.consumido ? 'Pago e liberado' : 'Aguardando pagamento'}
+                <PixIcon size={18} style={{ display: 'inline', marginRight: 6, color: '#32BCAD' }} />
+                {liberado || data?.consumido ? 'Pago e liberado' : 'Aguardando pagamento PIX'}
               </h2>
             </div>
           </header>
@@ -255,14 +254,15 @@ export default function CompraVagaPage() {
               rel="noopener noreferrer"
               style={{ marginBottom: 12 }}
             >
-              Abrir fatura ASAAS
+              Abrir pagamento PIX
             </a>
           ) : null}
 
           {pixSrc ? (
-            <div className="vacancy-pix-box">
-              <QrCode size={16} />
-              <strong>QR Code PIX</strong>
+            <div className="vacancy-pix-box vacancy-pix-box-brand">
+              <strong className="vacancy-pix-title">
+                <PixIcon size={18} /> Pagar com PIX
+              </strong>
               <img src={pixSrc} alt="QR Code PIX" width={200} height={200} />
               {payment?.pix_payload ? (
                 <button

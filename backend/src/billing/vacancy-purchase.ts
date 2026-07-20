@@ -308,10 +308,15 @@ export async function createVacancyPurchase(input: {
     return { compra: paidCompra || compra, payment: existingPay, reused: true }
   }
 
+  const cpfDigits = input.cpfCnpj ? String(input.cpfCnpj).replace(/\D/g, '') : ''
+  if (!cpfDigits || (cpfDigits.length !== 11 && cpfDigits.length !== 14)) {
+    throw new Error('Para criar a cobrança PIX é necessário informar o CPF (11 dígitos) ou CNPJ (14 dígitos) do pagador.')
+  }
+
   const customer = await findOrCreateCustomer({
     name: input.payerName,
     email: input.payerEmail,
-    cpfCnpj: input.cpfCnpj,
+    cpfCnpj: cpfDigits,
     externalReference: `auth:${input.authUserId}`,
   })
 
