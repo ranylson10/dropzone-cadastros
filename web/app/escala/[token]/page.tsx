@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Check, CheckCircle2, Clock, Shield, UserRound, Users, X } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Bot, CalendarDays, Check, CheckCircle2, Clock, Shield, UserRound, Users, X } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
@@ -154,6 +155,18 @@ export default function EscalaPublicaPage() {
   )
   const full = limit > 0 && players.length >= limit
 
+  function BotBubble({ children }: { children: ReactNode }) {
+    return (
+      <div className="invite-chat-row bot">
+        <span className="invite-bot-avatar"><Bot size={18} /></span>
+        <div className="invite-chat-bubble">
+          <strong>DropBot</strong>
+          <div>{children}</div>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return <DropzoneLoader label="Carregando escalação" />
   }
@@ -265,7 +278,11 @@ export default function EscalaPublicaPage() {
             {message ? <div className="message">{message}</div> : null}
 
             {data.ja_inscrito ? (
-              <div className="invite-team-confirmation scale-current-player">
+              <div className="invite-team-confirmation scale-current-player invite-chat-shell">
+                <BotBubble>
+                  <p>Boa! VocÃª jÃ¡ estÃ¡ nessa escalaÃ§Ã£o.</p>
+                  <p>Confira seu slot abaixo e acompanhe os jogadores confirmados.</p>
+                </BotBubble>
                 <div className="invite-current-team">
                   <small>Você já está nesta escalação</small>
                   <strong>{data.jogador?.nome || data.jogador?.username || data.inscricao_atual?.nick}</strong>
@@ -276,7 +293,11 @@ export default function EscalaPublicaPage() {
                 </div>
               </div>
             ) : data.autenticado && data.jogador ? (
-              <div className="invite-team-confirmation scale-current-player">
+              <div className="invite-team-confirmation scale-current-player invite-chat-shell">
+                <BotBubble>
+                  <p>Encontrei seu jogador: <strong>{data.jogador.nome || data.jogador.username}</strong>.</p>
+                  <p>Quer confirmar entrada nessa escalaÃ§Ã£o?</p>
+                </BotBubble>
                 <div className="invite-current-team">
                   <small>Inscrever com o perfil de jogador</small>
                   <strong>{data.jogador.nome || data.jogador.username}</strong>
@@ -297,7 +318,11 @@ export default function EscalaPublicaPage() {
                 </a>
               </div>
             ) : guest || !data.autenticado ? (
-              <div className="invite-auth-box">
+              <div className="invite-auth-box invite-chat-shell">
+                <BotBubble>
+                  <p>VocÃª estÃ¡ vendo como visitante.</p>
+                  <p>Para entrar na escalaÃ§Ã£o, faÃ§a login com uma conta de jogador.</p>
+                </BotBubble>
                 <p>
                   Você está no <strong>modo visitante</strong>: pode ver a escalação, mas para se inscrever precisa de
                   um <strong>perfil de jogador</strong>.
@@ -320,6 +345,12 @@ export default function EscalaPublicaPage() {
             <img src="/dropzone-icon.png" alt="" />
             <p className="eyebrow">Escalação da line</p>
             <h2>Como deseja continuar?</h2>
+            <div className="invite-chat-shell" style={{ margin: '12px 0' }}>
+              <BotBubble>
+                <p>Oi! Eu sou o DropBot. Vou te ajudar a entrar na escalaÃ§Ã£o da line.</p>
+                <p>Se ainda nÃ£o tiver perfil de jogador, eu te levo para criar um.</p>
+              </BotBubble>
+            </div>
             <p>
               Para entrar na escalação você precisa de um <strong>perfil de jogador</strong>. Entre com
               Google/Facebook/Discord — se ainda não tiver jogador, o cadastro abre em seguida. Sem login você só

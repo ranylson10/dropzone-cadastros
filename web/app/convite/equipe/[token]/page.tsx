@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { championshipThemeStyle } from '@/lib/championship-theme'
-import { CheckCircle2, LogIn, Shield, Users, UserPlus, X } from 'lucide-react'
+import { Bot, CheckCircle2, LogIn, Shield, Users, UserPlus, X } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
@@ -327,6 +328,20 @@ export default function ConviteEquipePage() {
                     ? 'Acompanhamento'
                     : 'Acompanhamento'
 
+  const teamName = data.equipe?.nome || 'sua equipe'
+
+  function BotBubble({ children }: { children: ReactNode }) {
+    return (
+      <div className="invite-chat-row bot">
+        <span className="invite-bot-avatar"><Bot size={18} /></span>
+        <div className="invite-chat-bubble">
+          <strong>DropBot</strong>
+          <div>{children}</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <main className="invite-page champ-theme" style={themeStyle}>
@@ -371,7 +386,11 @@ export default function ConviteEquipePage() {
           ) : null}
 
           {step === 'inicio' ? (
-            <div className="invite-section" style={{ marginTop: 14 }}>
+            <div className="invite-section invite-chat-shell" style={{ marginTop: 14 }}>
+              <BotBubble>
+                <p>Oi! Eu sou o DropBot. Vou te ajudar no campeonato <strong>{data.campeonato?.nome}</strong>.</p>
+                <p>O que você quer fazer agora?</p>
+              </BotBubble>
               <p className="invite-section-copy" style={{ textAlign: 'center' }}>
                 Escolha como deseja continuar. Se for inscrever sua equipe, o sistema guia vocÃª passo a passo.
               </p>
@@ -388,7 +407,11 @@ export default function ConviteEquipePage() {
           ) : null}
 
           {step === 'login' ? (
-            <div className="invite-auth-box" style={{ marginTop: 16 }}>
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p>Show. Para inscrever sua equipe, preciso confirmar quem você é.</p>
+                <p>Entre com a <strong>conta da equipe</strong>. Depois eu volto exatamente daqui.</p>
+              </BotBubble>
               <LogIn size={22} />
               <p>
                 {inscricaoAberta ? (
@@ -424,7 +447,11 @@ export default function ConviteEquipePage() {
           ) : null}
 
           {step === 'sem_equipe' ? (
-            <div className="invite-auth-box" style={{ marginTop: 16 }}>
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p>Encontrei seu login, mas ele ainda não tem um <strong>perfil de equipe</strong>.</p>
+                <p>Cria rapidinho que eu te trago de volta para terminar a inscrição.</p>
+              </BotBubble>
               <Shield size={22} />
               <p>
                 Seu login está ativo, mas ainda <strong>não tem conta de equipe</strong>. Crie o perfil para
@@ -440,7 +467,11 @@ export default function ConviteEquipePage() {
           ) : null}
 
           {step === 'confirmar_equipe' && data.equipe ? (
-            <div className="invite-auth-box" style={{ marginTop: 16 }}>
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p>Encontrei a equipe logada: <strong>{data.equipe.nome}</strong>.</p>
+                <p>Quer continuar a inscrição com ela?</p>
+              </BotBubble>
               <div className="invite-current-team" style={{ width: '100%' }}>
                 <small>Equipe logada</small>
                 <strong>{data.equipe.nome}</strong>
@@ -459,7 +490,11 @@ export default function ConviteEquipePage() {
           ) : null}
 
           {step === 'escolher_slot' ? (
-            <div className="invite-section" style={{ marginTop: 12 }}>
+            <div className="invite-section invite-chat-shell" style={{ marginTop: 12 }}>
+              <BotBubble>
+                <p>Beleza, <strong>{teamName}</strong>. Agora escolha o slot que sua equipe vai ocupar.</p>
+                <p>Clique em um slot vazio e eu peço confirmação antes de seguir.</p>
+              </BotBubble>
               <div className="invite-current-team" style={{ marginBottom: 12 }}>
                 <small>Passo 1 de 2</small>
                 <strong>Escolha um slot livre</strong>
@@ -492,7 +527,11 @@ export default function ConviteEquipePage() {
           ) : null}
 
           {step === 'escolher_line' ? (
-            <div className="invite-section" style={{ marginTop: 12 }}>
+            <div className="invite-section invite-chat-shell" style={{ marginTop: 12 }}>
+              <BotBubble>
+                <p>Slot <strong>{slotLabel || '-'}</strong> confirmado para <strong>{teamName}</strong>.</p>
+                <p>Agora escolha uma line disponível ou crie uma nova. Se criar, eu já confirmo a inscrição.</p>
+              </BotBubble>
               <div className="invite-current-team" style={{ marginBottom: 12 }}>
                 <small>Passo 2 de 2</small>
                 <strong>{data.equipe?.nome}</strong>
@@ -564,9 +603,11 @@ export default function ConviteEquipePage() {
           ) : null}
 
           {step === 'sucesso' && sucesso ? (
-            <div className="invite-auth-box" style={{ marginTop: 16 }}>
-              <CheckCircle2 size={40} />
-              <p><strong>InscriÃ§Ã£o confirmada.</strong> Guarde este comprovante.</p>
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p><strong>Pronto! Inscrição confirmada.</strong></p>
+                <p>Guarde esse comprovante. Boa sorte no campeonato! 🚀</p>
+              </BotBubble>
               <div className="invite-current-team" style={{ width: '100%' }}>
                 <small>Comprovante de inscriÃ§Ã£o</small>
                 <strong>{data.campeonato?.nome || 'Campeonato'}</strong>

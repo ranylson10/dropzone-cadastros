@@ -7757,6 +7757,59 @@ button.invite-slot-button.selected strong {
   color: var(--dz-primary);
 }
 
+.invite-chat-shell {
+  display: grid;
+  gap: 12px;
+}
+.invite-chat-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  text-align: left;
+}
+.invite-bot-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--dz-border);
+  background: var(--dz-btn);
+  color: var(--dz-btn-text);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--dz-primary) 22%, transparent);
+}
+.invite-chat-bubble {
+  padding: 12px 14px;
+  border: 1px solid var(--dz-border);
+  background: color-mix(in srgb, var(--dz-surface-soft) 86%, white);
+  color: var(--dz-text);
+  border-radius: 16px 16px 16px 4px;
+}
+.invite-chat-bubble > strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--dz-primary) !important;
+}
+.invite-chat-bubble p {
+  margin: 0;
+  line-height: 1.45;
+}
+.invite-chat-bubble p + p {
+  margin-top: 6px;
+}
+.invite-chat-shell .invite-auth-box,
+.invite-chat-shell .invite-current-team,
+.invite-chat-shell .field,
+.invite-chat-shell .lineup-slots,
+.invite-chat-shell > .button,
+.invite-chat-shell > a.button {
+  margin-top: 0 !important;
+}
+
 /* Bio da produtora no perfil pÃºblico */
 .directory-profile-desc {
   margin-top: 6px !important;
