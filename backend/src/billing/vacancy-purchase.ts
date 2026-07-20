@@ -8,6 +8,7 @@ import { supabaseAdmin } from '../shared/supabase-admin'
 import {
   createPaymentLink,
   findOrCreateCustomer,
+  getPayment,
   getPixQrCode,
   isAsaasConfigured,
   isPaidStatus,
@@ -25,6 +26,26 @@ import { listControllableEquipes } from '../equipes/manager-team-access'
 
 function moneyReais(centavos: number) {
   return Math.round(centavos) / 100
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** ASAAS às vezes demora um instante para liberar o QR após criar a cobrança. */
+async function fetchPixQrWithRetry(paymentId: string, attempts = 3) {
+  let last: { encodedImage?: string; payload?: string } = {}
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      const pix = await getPixQrCode(paymentId)
+      last = pix
+      if (pix.encodedImage || pix.payload) return pix
+    } catch {
+      // tenta de novo
+    }
+    if (i < attempts - 1) await sleep(700 * (i + 1))
+  }
+  return last
 }
 
 function dueDatePlusDays(days = 3) {
@@ -274,7 +295,7 @@ export async function createVacancyPurchase(input: {
   }
 
   const externalReference = `compra_vaga:${compra.id}`
-  const { data: existingPay } = await supabaseAdmin
+  let { data: existingPay } = await supabaseAdmin
     .from('sistema_pagamentos')
     .select('*')
     .eq('external_reference', externalReference)
@@ -283,7 +304,28 @@ export async function createVacancyPurchase(input: {
     .limit(1)
     .maybeSingle()
 
-  if (existingPay?.asaas_invoice_url && !isPaidStatus(existingPay.status)) {
+  if (existingPay?.asaas_payment_id && !isPaidStatus(existingPay.status)) {
+    // Reutiliza cobrança pendente e garante QR/payload na nossa tela (sem mandar pro ASAAS).
+    if (!existingPay.asaas_pix_qrcode || !existingPay.asaas_pix_payload) {
+      try {
+        const pix = await fetchPixQrWithRetry(existingPay.asaas_payment_id)
+        if (pix.encodedImage || pix.payload) {
+          const { data: withPix } = await supabaseAdmin
+            .from('sistema_pagamentos')
+            .update({
+              asaas_pix_qrcode: pix.encodedImage || existingPay.asaas_pix_qrcode,
+              asaas_pix_payload: pix.payload || existingPay.asaas_pix_payload,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingPay.id)
+            .select('*')
+            .single()
+          if (withPix) existingPay = withPix
+        }
+      } catch {
+        // mantém o que já tiver
+      }
+    }
     if (!compra.pagamento_id) {
       await supabaseAdmin
         .from('sistema_compras_vaga')
@@ -325,12 +367,7 @@ export async function createVacancyPurchase(input: {
     billingType: 'PIX',
   })
 
-  let pix: { encodedImage?: string; payload?: string } = {}
-  try {
-    pix = await getPixQrCode(payment.id)
-  } catch {
-    // opcional
-  }
+  const pix = await fetchPixQrWithRetry(payment.id)
 
   const dropzoneMeta = {
     compra_vaga_id: compra.id,
@@ -503,11 +540,80 @@ export async function getVacancyPurchaseByToken(token: string) {
     const { data: pay } = await supabaseAdmin
       .from('sistema_pagamentos')
       .select(
-        'id,status,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at',
+        'id,status,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
       )
       .eq('id', compra.pagamento_id)
       .maybeSingle()
     payment = pay
+  }
+
+  // Poll sem depender só de webhook: consulta ASAAS e libera se já pagou.
+  if (
+    payment?.asaas_payment_id
+    && !isPaidStatus(payment.status)
+    && compra.status === 'pendente'
+    && isAsaasConfigured()
+  ) {
+    try {
+      const remote = await getPayment(payment.asaas_payment_id)
+      const { applyAsaasPaymentUpdate } = await import('./payments')
+      const applied = await applyAsaasPaymentUpdate(remote)
+      if (applied?.payment) {
+        payment = {
+          ...payment,
+          ...applied.payment,
+          asaas_pix_qrcode: applied.payment.asaas_pix_qrcode || payment.asaas_pix_qrcode,
+          asaas_pix_payload: applied.payment.asaas_pix_payload || payment.asaas_pix_payload,
+        }
+      } else {
+        const { data: payAgain } = await supabaseAdmin
+          .from('sistema_pagamentos')
+          .select(
+            'id,status,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
+          )
+          .eq('id', payment.id)
+          .maybeSingle()
+        if (payAgain) payment = payAgain
+      }
+
+      // liberarCompraVagaComSplit pode ter atualizado a compra — re-lê
+      const { data: compraAgain } = await supabaseAdmin
+        .from('sistema_compras_vaga')
+        .select('*')
+        .eq('id', compra.id)
+        .maybeSingle()
+      if (compraAgain) Object.assign(compra, compraAgain)
+    } catch {
+      // silencioso no poll
+    }
+  }
+
+  // Garante QR na resposta mesmo se a criação original falhou no getPixQrCode
+  if (
+    payment?.asaas_payment_id
+    && (!payment.asaas_pix_qrcode || !payment.asaas_pix_payload)
+    && !isPaidStatus(payment.status)
+  ) {
+    try {
+      const pix = await fetchPixQrWithRetry(payment.asaas_payment_id, 2)
+      if (pix.encodedImage || pix.payload) {
+        const { data: withPix } = await supabaseAdmin
+          .from('sistema_pagamentos')
+          .update({
+            asaas_pix_qrcode: pix.encodedImage || payment.asaas_pix_qrcode,
+            asaas_pix_payload: pix.payload || payment.asaas_pix_payload,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', payment.id)
+          .select(
+            'id,status,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
+          )
+          .single()
+        if (withPix) payment = withPix
+      }
+    } catch {
+      // opcional
+    }
   }
 
   // Se pagamento já está pago no sistema_pagamentos mas compra ainda pendente, sincroniza

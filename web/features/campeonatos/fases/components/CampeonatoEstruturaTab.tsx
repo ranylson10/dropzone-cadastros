@@ -118,7 +118,14 @@ function createEmptyBulkPhase(ordem: number): BulkPhaseDraft {
   }
 }
 
-export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string }) {
+export function CampeonatoEstruturaTab({
+  campeonatoId,
+  onChanged,
+}: {
+  campeonatoId: string
+  /** Chamado após criar/editar/excluir estrutura — útil para recarregar jogos/links no painel pai. */
+  onChanged?: () => void
+}) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -350,6 +357,7 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
       })
       fecharSlot()
       await load()
+      onChanged?.()
     } catch (err: any) {
       setSlotFeedback(err?.message || 'Erro ao adicionar.')
     } finally {
@@ -401,6 +409,7 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
     try {
       await campeonatoEquipesService.remover(campeonatoId, participacaoId)
       await load()
+      onChanged?.()
     } catch (err: any) {
       setError(err?.message || 'Erro ao remover line.')
     } finally {
@@ -421,6 +430,7 @@ export function CampeonatoEstruturaTab({ campeonatoId }: { campeonatoId: string 
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao salvar estrutura.')
       await load()
+      onChanged?.()
       return true
     } catch (err: any) {
       setError(err?.message || 'Erro ao salvar estrutura.')

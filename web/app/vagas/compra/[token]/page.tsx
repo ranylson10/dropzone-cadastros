@@ -234,7 +234,7 @@ export default function CompraVagaPage() {
       {message ? <div className="admin-feedback">{message}</div> : null}
 
       <section className="vacancy-claim-grid">
-        {/* Pagamento */}
+        {/* Pagamento — QR só enquanto pendente; sem redirecionar para ASAAS */}
         <article className="panel vacancy-claim-card">
           <header className="section-head">
             <div>
@@ -246,52 +246,54 @@ export default function CompraVagaPage() {
             </div>
           </header>
 
-          {payment?.invoice_url ? (
-            <a
-              className="button vacancy-register"
-              href={payment.invoice_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ marginBottom: 12 }}
-            >
-              Abrir pagamento PIX
-            </a>
-          ) : null}
-
-          {pixSrc ? (
-            <div className="vacancy-pix-box vacancy-pix-box-brand">
-              <strong className="vacancy-pix-title">
-                <PixIcon size={18} /> Pagar com PIX
-              </strong>
-              <img src={pixSrc} alt="QR Code PIX" width={200} height={200} />
-              {payment?.pix_payload ? (
-                <button
-                  className="button secondary"
-                  type="button"
-                  onClick={() => void copiar(payment.pix_payload)}
-                >
-                  <ClipboardCopy size={14} /> Copiar código PIX
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-
-          {pending ? (
-            <p className="empty" style={{ marginTop: 10 }}>
-              <Loader2 className="spin" size={14} style={{ display: 'inline', marginRight: 6 }} />
-              Após pagar, esta página atualiza sozinha e libera o próximo grupo com vaga.
-            </p>
-          ) : null}
-
-          {liberado ? (
-            <div className="message" style={{ marginTop: 10 }}>
+          {liberado || data?.consumido ? (
+            <div className="message" style={{ marginTop: 4 }}>
               <CheckCircle2 size={16} style={{ display: 'inline', marginRight: 6 }} />
               Pagamento confirmado. Escolha o slot no grupo liberado ao lado.
             </div>
-          ) : null}
+          ) : (
+            <>
+              {pixSrc || payment?.pix_payload ? (
+                <div className="vacancy-pix-box vacancy-pix-box-brand">
+                  <strong className="vacancy-pix-title">
+                    <PixIcon size={18} /> Pagar com PIX
+                  </strong>
+                  {pixSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={pixSrc} alt="QR Code PIX" width={200} height={200} />
+                  ) : null}
+                  {payment?.pix_payload ? (
+                    <>
+                      <button
+                        className="button secondary"
+                        type="button"
+                        onClick={() => void copiar(payment.pix_payload)}
+                      >
+                        <ClipboardCopy size={14} /> Copiar código PIX
+                      </button>
+                      <code className="vacancy-buy-pix-payload" title="Código PIX copia e cola">
+                        {payment.pix_payload}
+                      </code>
+                    </>
+                  ) : null}
+                </div>
+              ) : pending ? (
+                <p className="empty">
+                  PIX ainda não carregou. Aguarde alguns segundos ou volte e gere novamente.
+                </p>
+              ) : null}
+
+              {pending ? (
+                <p className="empty" style={{ marginTop: 10 }}>
+                  <Loader2 className="spin" size={14} style={{ display: 'inline', marginRight: 6 }} />
+                  Após pagar, esta página atualiza sozinha e libera o próximo grupo com vaga.
+                </p>
+              ) : null}
+            </>
+          )}
         </article>
 
-        {/* Claim */}
+        {/* Claim — só liberado após pagamento confirmado */}
         <article className="panel vacancy-claim-card">
           <header className="section-head">
             <div>

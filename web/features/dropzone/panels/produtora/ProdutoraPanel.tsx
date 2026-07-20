@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
-import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS } from '@/lib/dropzone-constants'
+import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES } from '@/lib/dropzone-constants'
 import { Field } from '../../components/form-fields'
 import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@/components/forms/campeonato'
 import { SystemModal } from '@/components/layout/SystemModal'
 import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
+import { CampeonatoEstruturaTab } from '@/features/campeonatos/fases'
 import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { CampeonatoExportTab } from '@/features/campeonatos/export'
 import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
@@ -80,6 +81,8 @@ export function ProdutoraPanel(props: {
   addTeamToChamp: () => void
   generateTeamInvite: () => void
   copyToken: (value: string | null) => void
+  /** Recarrega fases/grupos/slots no painel (após montar estrutura na aba). */
+  reloadStructure?: () => void | Promise<void>
   loading: boolean
   pendingCreate: string | null
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
@@ -95,12 +98,7 @@ export function ProdutoraPanel(props: {
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
   const [openLinkIds, setOpenLinkIds] = useState<Record<string, boolean>>({})
   const [linkStatusFilter, setLinkStatusFilter] = useState<'todos' | 'ativo' | 'pausado' | 'esgotado' | 'expirado' | 'grupo_cheio'>('todos')
-  const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({})
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [slotModal, setSlotModal] = useState<{ id: string; fase_id: string; grupo_id: string; slot_numero: string; letra: string; whatsapp_url: string } | null>(null)
-  const [createMenuOpen, setCreateMenuOpen] = useState(false)
-  const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
-  const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string } | null>(null)
   const [mapCatalog, setMapCatalog] = useState<Array<{ codigo: string; nome: string; imagem_url: string | null; mapa_misterioso: boolean }>>([])
   const [mapsLoading, setMapsLoading] = useState(false)
   const [editingGameId, setEditingGameId] = useState('')
@@ -547,7 +545,7 @@ export function ProdutoraPanel(props: {
     setEditingChamp(championshipToForm(champ))
     setShowCreateChamp(false)
   }
-  const isDailyChamp = selectedChampType === 'diario'
+
   const champPhases = props.phases.filter((row) => row.parent_id === selectedChamp?.id)
   const champGroups = props.groups.filter((row) => row.parent_id === selectedChamp?.id)
   const champGames = props.games.filter((row) => row.parent_id === selectedChamp?.id)
@@ -1180,229 +1178,12 @@ ${params.url}`
               {tab === 'jogadores' ? <CampeonatoJogadoresTab campeonatoId={selectedChamp.id} /> : null}
 
               {tab === 'grupos' ? (
-                <div className="ref-section-stack">
-                  <div className="structure-quick-create">
-                    <button
-                      className="structure-plus-button"
-                      type="button"
-                      title="Adicionar fase ou grupo"
-                      aria-label="Adicionar fase ou grupo"
-                      aria-expanded={createMenuOpen}
-                      onClick={() => setCreateMenuOpen((value) => !value)}
-                    >
-                      <Plus size={20} />
-                    </button>
-                    {createMenuOpen ? (
-                      <div className="structure-create-menu">
-                        <button type="button" onClick={() => { setOpenAction('phase'); setCreateMenuOpen(false) }}>
-                          <FolderOpen size={17} />
-                          <span><strong>Criar fase</strong><small>Nova etapa do campeonato</small></span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!champPhases.length}
-                          onClick={() => {
-                            const phaseId = props.group.fase_id || champPhases[0]?.id || ''
-                            if (!phaseId) return
-                            props.setGroup({ ...props.group, fase_id: phaseId, campeonato_id: selectedChamp.id })
-                            setOpenPhases((value) => ({ ...value, [phaseId]: true }))
-                            setOpenAction('group')
-                            setCreateMenuOpen(false)
-                          }}
-                        >
-                          <Folder size={17} />
-                          <span><strong>Criar grupo</strong><small>{champPhases.length ? 'Dentro de uma fase' : 'Crie uma fase primeiro'}</small></span>
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {openAction === 'phase' ? (
-                    <div className="inline-action-panel structure-phase-form mini-grid">
-                      <Field label="Nome da fase"><input value={props.phase.nome} onChange={(e) => props.setPhase({ ...props.phase, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Fase de grupos" /></Field>
-                      <Field label="Ordem"><input type="number" value={props.phase.ordem} onChange={(e) => props.setPhase({ ...props.phase, ordem: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
-                      <div className="button-row">
-                        <button
-                          className="button"
-                          type="button"
-                          disabled={Boolean(props.pendingCreate)}
-                          onClick={async () => {
-                            const created = await props.createPhase()
-                            if (created) setOpenAction('')
-                          }}
-                        >
-                          {props.pendingCreate === 'phase' ? <><Loader2 size={15} className="button-spinner" /> Criando fase...</> : 'Criar fase'}
-                        </button>
-                        <button className="button secondary" type="button" onClick={() => setOpenAction('')}>Cancelar</button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="phase-folder-tree">
-                    {(champPhases.length ? [...champPhases].sort((a,b) => Number(a.data?.ordem || 0)-Number(b.data?.ordem || 0)) : [{ id: 'sem-fase', name: 'Sem fase', data: {} } as DropZoneRow]).map((phase) => {
-                      const groupsOfPhase = phase.id === 'sem-fase' ? champGroups.filter((group) => !group.data?.fase_id) : champGroups.filter((group) => group.data?.fase_id === phase.id)
-                      if (phase.id === 'sem-fase' && groupsOfPhase.length === 0 && champPhases.length > 0) return null
-                      const phaseOpen = openPhases[phase.id] !== false
-                      return <section className="phase-folder" key={phase.id}>
-                        <header className="folder-row phase-folder-row">
-                          <button className="folder-toggle" onClick={() => setOpenPhases((v) => ({...v, [phase.id]: !phaseOpen}))}>{phaseOpen ? <ChevronDown size={18}/> : <ChevronRight size={18}/>} {phaseOpen ? <FolderOpen size={20}/> : <Folder size={20}/>}<span><strong>{rowTitle(phase)}</strong><small>{groupsOfPhase.length} grupos</small></span></button>
-                          {phase.id !== 'sem-fase' ? <div className="folder-actions"><button title="Adicionar grupo" className="phase-add-group" onClick={() => { setEditingGroup(null); props.setGroup({...props.group, fase_id: phase.id, campeonato_id: selectedChamp.id}); setOpenPhases((value) => ({ ...value, [phase.id]: true })); setOpenAction('group') }}><Plus size={16}/></button><button title="Editar fase" onClick={() => { setEditingGroup(null); setEditingPhase({ id: phase.id, nome: rowTitle(phase), ordem: String(phase.data?.ordem || 1) }); setOpenPhases((value) => ({ ...value, [phase.id]: true })) }}><Pencil size={15}/></button><button title="Excluir fase" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(phase)} e todos os grupos dela?`)) props.deleteStructure('phase', phase.id) }}><Trash2 size={15}/></button></div> : null}
-                        </header>
-                        {phaseOpen ? <div className="phase-folder-content">{editingPhase?.id === phase.id ? (
-                          <div className="inline-action-panel structure-edit-form mini-grid">
-                            <Field label="Nome da fase"><input value={editingPhase.nome} onChange={(event) => setEditingPhase({ ...editingPhase, nome: event.target.value })} /></Field>
-                            <Field label="Ordem"><input type="number" min="1" value={editingPhase.ordem} onChange={(event) => setEditingPhase({ ...editingPhase, ordem: event.target.value })} /></Field>
-                            <div className="button-row structure-edit-actions">
-                              <button className="button" type="button" onClick={async () => { await props.updateStructure('phase', phase.id, { nome: editingPhase.nome.trim(), ordem: Number(editingPhase.ordem || 1) }); setEditingPhase(null) }}>Salvar alteraÃ§Ãµes</button>
-                              <button className="button secondary" type="button" onClick={() => setEditingPhase(null)}>Cancelar</button>
-                            </div>
-                          </div>
-                        ) : null}{openAction === 'group' && props.group.fase_id === phase.id ? (
-                          <div className="inline-action-panel phase-inline-group-form mini-grid three">
-                            <Field label={isDailyChamp ? 'HorÃ¡rio' : 'Letra do grupo'}>
-                              {isDailyChamp ? (
-                                <select value={props.group.nome} onChange={(e) => props.setGroup({ ...props.group, nome: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })}>
-                                  {DAILY_HOURS.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
-                                </select>
-                              ) : (
-                                <select value={props.group.nome.replace(/^Grupo\s+/i, '').trim() || 'A'} onChange={(e) => props.setGroup({ ...props.group, nome: `Grupo ${e.target.value}`, campeonato_id: selectedChamp.id, fase_id: phase.id })}>
-                                  {GROUP_LETTERS.map((letter) => <option key={letter} value={letter}>Grupo {letter}</option>)}
-                                </select>
-                              )}
-                            </Field>
-                            <Field label="Slots"><input type="number" min="1" max="52" value={props.group.slots} onChange={(e) => props.setGroup({ ...props.group, slots: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })} placeholder="12" /></Field>
-                            <Field label="Link do WhatsApp"><input value={props.group.whatsapp_url} onChange={(e) => props.setGroup({ ...props.group, whatsapp_url: e.target.value, campeonato_id: selectedChamp.id, fase_id: phase.id })} placeholder="https://chat.whatsapp.com/..." /></Field>
-                            <div className="button-row phase-group-form-actions">
-                              <button
-                                className="button"
-                                type="button"
-                                disabled={Boolean(props.pendingCreate)}
-                                onClick={async () => {
-                                  const created = await props.createGroup()
-                                  if (created) setOpenAction('')
-                                }}
-                              >
-                                {props.pendingCreate === 'group' ? <><Loader2 size={15} className="button-spinner" /> Criando grupo...</> : 'Criar grupo'}
-                              </button>
-                              <button className="button secondary" type="button" onClick={() => setOpenAction('')}>Cancelar</button>
-                            </div>
-                          </div>
-                        ) : null}{groupsOfPhase.map((group) => {
-                          const slotsOfGroup = champSlots.filter((slot) => slot.data?.grupo_id === group.id).sort((a,b)=>Number(a.data?.slot_numero||0)-Number(b.data?.slot_numero||0))
-                          const groupOpen = openGroups[group.id] !== false
-                          const slotCount = Number(group.data?.slots || 12)
-                          return <article className="group-folder" key={group.id}>
-                            <header className="folder-row group-folder-row">
-                              <button className="folder-toggle" onClick={() => setOpenGroups((v)=>({...v,[group.id]:!groupOpen}))}>{groupOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}<Folder size={18}/><span><strong>{rowTitle(group)}</strong><small className={group.data?.whatsapp_url ? 'whatsapp-ready' : 'whatsapp-missing'}>{group.data?.whatsapp_url ? <><CheckCircle2 size={13}/> WhatsApp configurado</> : <>WhatsApp não configurado</>} · {slotCount} slots</small></span></button>
-                              <div className="folder-actions"><button title="Editar grupo" onClick={() => { setEditingPhase(null); setEditingGroup({ id: group.id, nome: rowTitle(group), slots: String(slotCount), whatsapp_url: String(group.data?.whatsapp_url || '') }); setOpenGroups((value) => ({ ...value, [group.id]: true })) }}><Pencil size={15}/></button><button title="Excluir grupo" className="danger" onClick={() => { if(window.confirm(`Excluir ${rowTitle(group)} e seus slots?`)) props.deleteStructure('group', group.id) }}><Trash2 size={15}/></button></div>
-                            </header>
-                            {groupOpen ? <>{editingGroup?.id === group.id ? (
-                              <div className="inline-action-panel group-edit-form mini-grid three">
-                                <Field label={isDailyChamp ? 'HorÃ¡rio' : 'Nome do grupo'}><input value={editingGroup.nome} onChange={(event) => setEditingGroup({ ...editingGroup, nome: event.target.value })} /></Field>
-                                <Field label="NÃºmero de slots"><input type="number" min="1" max="52" value={editingGroup.slots} onChange={(event) => setEditingGroup({ ...editingGroup, slots: event.target.value })} /></Field>
-                                <Field label="Link do WhatsApp"><input value={editingGroup.whatsapp_url} onChange={(event) => setEditingGroup({ ...editingGroup, whatsapp_url: event.target.value })} placeholder="https://chat.whatsapp.com/..." /></Field>
-                                <div className="button-row structure-edit-actions">
-                                  <button className="button" type="button" onClick={async () => { await props.updateStructure('group', group.id, { nome: editingGroup.nome.trim(), slots: Number(editingGroup.slots || 1), whatsapp_url: editingGroup.whatsapp_url.trim() }); setEditingGroup(null) }}>Salvar alteraÃ§Ãµes</button>
-                                  <button className="button secondary" type="button" onClick={() => setEditingGroup(null)}>Cancelar</button>
-                                </div>
-                              </div>
-                            ) : null}
-                            <div className="championship-vagas-list group-slots-list">
-                              {slotsOfGroup.length === 0 ? (
-                                <div className="vagas-empty-filter">
-                                  Nenhum slot criado neste grupo. Edite o grupo e salve o número de slots, ou recarregue o painel.
-                                </div>
-                              ) : (
-                                slotsOfGroup.map((slot) => {
-                                  const entry = slotLineEntry(slot)
-                                  const status = slotStatus(slot, entry)
-                                  const slotNumber = Number(slot.data?.slot_numero || 0)
-                                  const letter = String(
-                                    slot.data?.slot_letra
-                                    || (slotNumber > 0
-                                      ? String.fromCharCode(64 + Math.min(slotNumber, 26))
-                                      : '?'),
-                                  )
-                                  const slotFaseId = String(
-                                    slot.data?.fase_id
-                                    || group.data?.fase_id
-                                    || (phase.id === 'sem-fase' ? '' : phase.id),
-                                  )
-                                  const logo = lineAvatar(entry, slot)
-                                  const nomePrincipal = slotLineName(slot, entry, status, letter)
-                                  const detalhe = slotDetail(slot, entry, status, group, phase)
-
-                                  return (
-                                    <article
-                                      key={slot.id}
-                                      className={`championship-vaga-row status-${status}`}
-                                    >
-                                      <button
-                                        type="button"
-                                        className="vaga-row-summary"
-                                        onClick={() => {
-                                          if (!slot.id) return
-                                          setSlotModal({
-                                            id: slot.id,
-                                            fase_id: slotFaseId,
-                                            grupo_id: group.id,
-                                            slot_numero: String(slotNumber || ''),
-                                            letra: letter,
-                                            whatsapp_url: String(group.data?.whatsapp_url || ''),
-                                          })
-                                          props.setSlotAssignment({
-                                            ...props.slotAssignment,
-                                            slot_id: slot.id,
-                                            fase_id: slotFaseId,
-                                            grupo_id: group.id,
-                                            slot_numero: String(slotNumber || ''),
-                                            campeonato_equipe_id: '',
-                                            equipe_id: '',
-                                            line_id: '',
-                                          })
-                                        }}
-                                      >
-                                        <span className="vaga-row-number">{letter}</span>
-
-                                        <span className={`vaga-row-avatar status-${status}`} aria-hidden>
-                                          {status === 'ocupada' && logo ? (
-                                            <img src={logo} alt="" />
-                                          ) : status === 'ocupada' ? (
-                                            <Users size={18} />
-                                          ) : status === 'reservada' ? (
-                                            <MessageCircle size={16} />
-                                          ) : (
-                                            <span className="vaga-avatar-dot" />
-                                          )}
-                                        </span>
-
-                                        <span className="vaga-row-identity">
-                                          <strong>{nomePrincipal}</strong>
-                                          <small>{detalhe}</small>
-                                        </span>
-
-                                        <span className="vaga-row-meta">
-                                          {status === 'reservada' ? (
-                                            <span className="vaga-status-pill status-reservada">Reservada</span>
-                                          ) : null}
-                                        </span>
-
-                                        <span className="vaga-row-chevron">
-                                          <ChevronRight size={17} />
-                                        </span>
-                                      </button>
-                                    </article>
-                                  )
-                                })
-                              )}
-                            </div>
-                            </> : null}
-                          </article>
-                        })}{groupsOfPhase.length===0 ? <p className="empty">Nenhum grupo nesta fase.</p> : null}</div> : null}
-                      </section>
-                    })}
-                  </div>
-                </div>
+                <CampeonatoEstruturaTab
+                  campeonatoId={selectedChamp.id}
+                  onChanged={() => {
+                    void props.reloadStructure?.()
+                  }}
+                />
               ) : null}
 
               {tab === 'jogos' ? (

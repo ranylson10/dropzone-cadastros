@@ -1848,6 +1848,9 @@ export function DropZoneHome() {
                 addTeamToChamp={() => addTeamToChamp()}
                 generateTeamInvite={generateTeamInvite}
                 copyToken={copyToken}
+                reloadStructure={() => {
+                  void loadMeAndRows().catch(() => null)
+                }}
                 loading={loading}
                 pendingCreate={pendingCreate}
                 uploadPublicFile={uploadPublicFile}
