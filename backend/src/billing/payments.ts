@@ -323,6 +323,13 @@ async function onPaymentConfirmed(pagamento: any) {
       })
       .eq('campeonato_id', campeonatoId)
 
+    await supabaseAdmin
+      .from('campeonatos')
+      .update({
+        aprovacao_status: 'aprovado',
+      })
+      .eq('id', campeonatoId)
+
     await creditWallet({
       donoTipo: 'sistema',
       valorCentavos: pagamento.valor_centavos,

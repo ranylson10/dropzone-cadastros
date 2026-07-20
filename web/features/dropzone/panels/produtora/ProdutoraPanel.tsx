@@ -66,7 +66,7 @@ export function ProdutoraPanel(props: {
   setSlotAssignment: (value: any) => void
   game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string[]; grupos_ids: string[] }
   setGame: (value: any) => void
-  createChampionship: () => Promise<boolean>
+  createChampionship: () => Promise<boolean | DropZoneRow>
   updateChampionship: (id: string, data: CampeonatoFormValue) => Promise<DropZoneRow | undefined>
   deleteChampionship: (id: string) => Promise<void>
   updateStructure: (entityType: 'phase' | 'group' | 'group_slot' | 'registration_link', id: string, data: Record<string, unknown>) => Promise<void>
@@ -95,6 +95,7 @@ export function ProdutoraPanel(props: {
   const [payInfo, setPayInfo] = useState<any>(null)
   const [payBusy, setPayBusy] = useState(false)
   const [payMsg, setPayMsg] = useState('')
+  const [payPixPayload, setPayPixPayload] = useState('')
   const [openAction, setOpenAction] = useState<'team_add' | 'team_token' | 'phase' | 'group' | 'slot' | 'game' | 'link' | ''>('')
   const [openLinkIds, setOpenLinkIds] = useState<Record<string, boolean>>({})
   const [linkStatusFilter, setLinkStatusFilter] = useState<'todos' | 'ativo' | 'pausado' | 'esgotado' | 'expirado' | 'grupo_cheio'>('todos')
@@ -460,15 +461,15 @@ export function ProdutoraPanel(props: {
     }
   }, [selectedChamp?.id])
 
-  async function gerarPagamentoPacote() {
-    if (!selectedChamp?.id) return
+  async function gerarPagamentoPacote(campeonatoId = selectedChamp?.id) {
+    if (!campeonatoId) return
     setPayBusy(true)
     setPayMsg('')
     try {
       const { data } = await supabase.auth.getSession()
       const token = data.session?.access_token
       if (!token) throw new Error('Faça login novamente.')
-      const res = await fetch(`/api/pagamentos/campeonato/${selectedChamp.id}`, {
+      const res = await fetch(`/api/pagamentos/campeonato/${campeonatoId}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -478,12 +479,13 @@ export function ProdutoraPanel(props: {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Falha ao gerar link')
-      setPayMsg('Link gerado. Abra o pagamento ASAAS para concluir.')
+      setPayPixPayload(String(json.payment?.pix_payload || ''))
+      setPayMsg('PIX gerado. Pague pelo QR Code ou pelo copia e cola para liberar automaticamente.')
       if (json.payment?.invoice_url) {
         window.open(json.payment.invoice_url, '_blank', 'noopener,noreferrer')
       }
       // recarrega status
-      const st = await fetch(`/api/pagamentos/campeonato/${selectedChamp.id}`, {
+      const st = await fetch(`/api/pagamentos/campeonato/${campeonatoId}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
       })
@@ -541,6 +543,11 @@ export function ProdutoraPanel(props: {
   }
 
   function startEditChampionship(champ: DropZoneRow) {
+    const aprovacao = String(dataText(champ, 'aprovacao_status') || 'aprovado')
+    if (aprovacao !== 'aprovado') {
+      setPayMsg('Campeonato aguardando liberaÃ§Ã£o. Pague via PIX ou aguarde o admin liberar para editar.')
+      return
+    }
     setEditingChampId(champ.id)
     setEditingChamp(championshipToForm(champ))
     setShowCreateChamp(false)
@@ -1000,7 +1007,19 @@ ${params.url}`
           onChange={props.setChampionship}
           onSubmit={async () => {
             const created = await props.createChampionship()
-            if (created) setShowCreateChamp(false)
+            if (created && typeof created !== 'boolean') {
+              props.setSelectedChampId(created.id)
+              setShowCreateChamp(false)
+              const payNow = window.confirm('Campeonato criado. Deseja gerar o PIX online agora? Clique em Cancelar para aguardar autorizaÃ§Ã£o manual do admin.')
+              if (payNow) {
+                setPayMsg('Gerando PIX do pacote...')
+                setTimeout(() => void gerarPagamentoPacote(created.id), 0)
+              } else {
+                setPayMsg('Campeonato criado. Ele aparece para vocÃª, mas fica bloqueado atÃ© liberaÃ§Ã£o manual do admin.')
+              }
+            } else if (created) {
+              setShowCreateChamp(false)
+            }
           }}
           onCancel={() => setShowCreateChamp(false)}
           loading={props.loading}
@@ -1129,7 +1148,7 @@ ${params.url}`
                         disabled={payBusy || payInfo.asaas_configured === false}
                         onClick={() => void gerarPagamentoPacote()}
                       >
-                        {payBusy ? 'Gerando…' : 'Pagar com ASAAS'}
+                        {payBusy ? 'Gerando…' : 'Pagar online com PIX'}
                       </button>
                       {payInfo.pagamentos?.[0]?.asaas_invoice_url ? (
                         <a
@@ -1138,12 +1157,36 @@ ${params.url}`
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          Abrir fatura
+                          Abrir pagamento
                         </a>
                       ) : null}
                     </div>
                     {payInfo.asaas_configured === false ? (
-                      <small>ASAAS ainda não configurado no servidor (ASAAS_API_KEY).</small>
+                      <small>Pagamento online ainda não configurado no servidor.</small>
+                    ) : null}
+                    {payInfo.pagamentos?.[0]?.asaas_pix_qrcode ? (
+                      <img
+                        src={`data:image/png;base64,${payInfo.pagamentos[0].asaas_pix_qrcode}`}
+                        alt="QR Code PIX"
+                        width={180}
+                        height={180}
+                        style={{ border: '1px solid #d9e2ec', background: '#fff', padding: 8, borderRadius: 12 }}
+                      />
+                    ) : null}
+                    {payPixPayload || payInfo.pagamentos?.[0]?.asaas_pix_payload ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <strong>PIX copia e cola</strong>
+                        <code style={{ display: 'block', maxHeight: 76, overflow: 'auto', padding: 10, border: '1px solid #d9e2ec', background: '#fff', wordBreak: 'break-all', fontSize: 11 }}>
+                          {payPixPayload || payInfo.pagamentos?.[0]?.asaas_pix_payload}
+                        </code>
+                        <button
+                          type="button"
+                          className="button secondary"
+                          onClick={() => navigator.clipboard.writeText(payPixPayload || payInfo.pagamentos?.[0]?.asaas_pix_payload)}
+                        >
+                          Copiar PIX
+                        </button>
+                      </div>
                     ) : null}
                     {payMsg ? <small>{payMsg}</small> : null}
                   </div>
@@ -1151,7 +1194,7 @@ ${params.url}`
                 {dataText(selectedChamp, 'regras_url') ? <small>Regulamento: {dataText(selectedChamp, 'regras_url')}</small> : null}
               </div>
               <div className="championship-admin-actions">
-                <button className="icon-action-button" onClick={() => startEditChampionship(selectedChamp)} title="Editar campeonato"><Pencil size={16} /> Editar</button>
+                <button className="icon-action-button" disabled={String(dataText(selectedChamp, 'aprovacao_status') || 'aprovado') !== 'aprovado'} onClick={() => startEditChampionship(selectedChamp)} title="Editar campeonato"><Pencil size={16} /> Editar</button>
                 <button className="icon-action-button danger" onClick={() => {
                   if (window.confirm(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficarÃ¡ oculto, mas os dados serÃ£o preservados.`)) props.deleteChampionship(selectedChamp.id)
                 }} title="Excluir campeonato"><Trash2 size={16} /> Excluir</button>

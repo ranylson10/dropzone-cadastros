@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       supabaseAdmin.from('campeonato_cobranca').select('*').eq('campeonato_id', id).maybeSingle(),
       supabaseAdmin
         .from('sistema_pagamentos')
-        .select('id,status,valor_centavos,asaas_invoice_url,asaas_status,pago_em,created_at,billing_type')
+        .select('id,status,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,billing_type')
         .eq('referencia_tipo', 'campeonato_cobranca')
         .eq('referencia_id', id)
         .order('created_at', { ascending: false })
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         status: payment.status,
         valor_centavos: payment.valor_centavos,
         invoice_url: payment.asaas_invoice_url,
+        pix_qrcode: payment.asaas_pix_qrcode,
         pix_payload: payment.asaas_pix_payload,
         asaas_status: payment.asaas_status,
       },

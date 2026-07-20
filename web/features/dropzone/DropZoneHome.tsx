@@ -1020,7 +1020,7 @@ export function DropZoneHome() {
     )
     if (!created) return false
     setChampionship({ ...emptyChampionship })
-    return true
+    return created
   }
 
   async function updateChampionship(id: string, data: CampeonatoFormValue) {
