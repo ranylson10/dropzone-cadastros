@@ -8561,3 +8561,194 @@ input::placeholder, textarea::placeholder {
 .app-profile-menu-action.is-danger {
   color: var(--danger);
 }
+
+/* ===== DropBot reutilizável ===== */
+.dropbot-chat {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background:
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)),
+    radial-gradient(circle at 18% 18%, rgba(255,72,98,.10) 0 2px, transparent 2px 18px),
+    #fff1f4;
+  color: #15171c;
+}
+.dropbot-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #15171c;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
+}
+.dropbot-header-avatar,
+.dropbot-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #15171c;
+  color: #fff;
+  flex: 0 0 auto;
+}
+.dropbot-header-avatar {
+  width: 30px;
+  height: 30px;
+  background: rgba(255,255,255,.12);
+}
+.dropbot-header strong,
+.dropbot-header small {
+  display: block;
+  line-height: 1.1;
+}
+.dropbot-header strong {
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.dropbot-header small {
+  margin-top: 3px;
+  opacity: .72;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.dropbot-thread {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 18px 12px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.dropbot-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+.dropbot-row.user {
+  display: flex;
+  justify-content: flex-end;
+}
+.dropbot-bubble {
+  width: fit-content;
+  max-width: min(86%, 520px);
+  padding: 12px 14px;
+  border: 1px solid rgba(20,23,28,.14);
+  background: rgba(255,255,255,.74);
+  border-radius: 18px 18px 18px 5px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.08);
+}
+.dropbot-bubble.user {
+  margin-left: auto;
+  background: #15171c;
+  color: #fff;
+  border-color: #15171c;
+  border-radius: 18px 18px 5px 18px;
+}
+.dropbot-bubble > strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #ff4862;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.dropbot-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.48;
+}
+.dropbot-content {
+  display: grid;
+  gap: 10px;
+}
+.dropbot-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.dropbot-option {
+  width: 100%;
+  min-height: 42px;
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,72,98,.34);
+  background: rgba(255,255,255,.62);
+  color: #15171c;
+  border-radius: 16px 16px 16px 5px;
+  text-align: left;
+  cursor: pointer;
+}
+.dropbot-option span {
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.dropbot-option small {
+  color: #68707d;
+  font-size: 10px;
+  line-height: 1.25;
+}
+.dropbot-option.primary {
+  background: #15171c;
+  border-color: #15171c;
+  color: #fff;
+  border-radius: 18px 18px 5px 18px;
+}
+.dropbot-option.primary small {
+  color: rgba(255,255,255,.72);
+}
+.dropbot-option:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+.dropbot-typing {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(20,23,28,.14);
+  background: rgba(255,255,255,.72);
+  border-radius: 999px;
+  color: #68707d;
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+}
+.dropbot-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #ff4862;
+  animation: dz-chat-dot 1s infinite ease-in-out;
+}
+.dropbot-typing span:nth-child(2) { animation-delay: .15s; }
+.dropbot-typing span:nth-child(3) { animation-delay: .3s; }
+.dropbot-typing em {
+  margin-left: 4px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+@media(max-width: 520px) {
+  .dropbot-thread {
+    padding: 14px 10px 24px;
+  }
+  .dropbot-bubble {
+    max-width: 88%;
+  }
+}
