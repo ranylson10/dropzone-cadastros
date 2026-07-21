@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useMemo, useState } from 'react'
 import { DropBotChat, type DropBotMessage, type DropBotOption } from './DropBotChat'
@@ -124,7 +124,7 @@ function translateResolution(resolution: DropBotResolution, context: DropBotSyst
 }
 
 export function DropBotAssistant({
-  title = 'DropBot',
+  title = 'Lili',
   context = {},
   placeholder,
   aiEnabled = false,
@@ -217,7 +217,7 @@ export function DropBotAssistant({
           void submitQuestion()
         }}
       >
-        <div className="dropbot-language-switch" aria-label="Idioma do DropBot">
+        <div className="dropbot-language-switch" aria-label="Idioma da Lili">
           {(['pt', 'es', 'en'] as DropBotLanguage[]).map((lang) => (
             <button key={lang} type="button" className={currentLanguage === lang ? 'active' : ''} onClick={() => selectLanguage(lang)}>
               {lang.toUpperCase()}

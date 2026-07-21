@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { Bot } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -56,7 +56,7 @@ export function TypingText({ text, speedMs = 18 }: TypingTextProps) {
   return <>{visible}</>
 }
 
-export function DropBotTypingIndicator({ label = 'DropBot digitando...' }: { label?: string }) {
+export function DropBotTypingIndicator({ label = 'Lili digitando...' }: { label?: string }) {
   return (
     <div className="dropbot-row bot">
       <span className="dropbot-avatar"><Bot size={18} /></span>
@@ -70,7 +70,7 @@ export function DropBotTypingIndicator({ label = 'DropBot digitando...' }: { lab
   )
 }
 
-export function DropBotChat({ title = 'DropBot', messages, isTyping = false, className = '' }: DropBotChatProps) {
+export function DropBotChat({ title = 'Lili', messages, isTyping = false, className = '' }: DropBotChatProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const renderedMessages = useMemo(() => messages.filter(Boolean), [messages])
 

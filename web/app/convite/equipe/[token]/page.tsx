@@ -336,14 +336,14 @@ export default function ConviteEquipePage() {
         <span className="invite-bot-avatar"><Bot size={18} /></span>
         <div>
           <div className="invite-chat-bubble">
-            <strong>DropBot</strong>
+            <strong>Lili</strong>
             <div>{children}</div>
           </div>
-          <div className="invite-typing" aria-label="DropBot digitando">
+          <div className="invite-typing" aria-label="Lili digitando">
             <span />
             <span />
             <span />
-            <em>DropBot digitando...</em>
+            <em>Lili digitando...</em>
           </div>
         </div>
       </div>
@@ -396,7 +396,7 @@ export default function ConviteEquipePage() {
           {step === 'inicio' ? (
             <div className="invite-section invite-chat-shell" style={{ marginTop: 14 }}>
               <BotBubble>
-                <p>Oi! Eu sou o DropBot. Vou te ajudar no campeonato <strong>{data.campeonato?.nome}</strong>.</p>
+                <p>Oi! Eu sou a Lili ðŸ± Vou te ajudar no campeonato <strong>{data.campeonato?.nome}</strong>.</p>
                 <p>O que você quer fazer agora?</p>
               </BotBubble>
               <p className="invite-section-copy" style={{ textAlign: 'center' }}>

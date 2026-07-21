@@ -160,7 +160,7 @@ export default function EscalaPublicaPage() {
       <div className="invite-chat-row bot">
         <span className="invite-bot-avatar"><Bot size={18} /></span>
         <div className="invite-chat-bubble">
-          <strong>DropBot</strong>
+          <strong>Lili</strong>
           <div>{children}</div>
         </div>
       </div>
@@ -347,7 +347,7 @@ export default function EscalaPublicaPage() {
             <h2>Como deseja continuar?</h2>
             <div className="invite-chat-shell" style={{ margin: '12px 0' }}>
               <BotBubble>
-                <p>Oi! Eu sou o DropBot. Vou te ajudar a entrar na escalaÃ§Ã£o da line.</p>
+                <p>Oi! Eu sou a Lili ðŸ± Vou te ajudar a entrar na escalaÃ§Ã£o da line.</p>
                 <p>Se ainda nÃ£o tiver perfil de jogador, eu te levo para criar um.</p>
               </BotBubble>
             </div>

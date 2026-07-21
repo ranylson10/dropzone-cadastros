@@ -732,7 +732,7 @@ export default function ConviteGrupoPage() {
         <span className="invite-bot-avatar"><Bot size={18} /></span>
         <div>
           <div className="invite-chat-bubble">
-            <strong>DropBot</strong>
+            <strong>Lili</strong>
             <div><TypeChildren>{children}</TypeChildren></div>
           </div>
         </div>
@@ -763,11 +763,11 @@ export default function ConviteGrupoPage() {
     return (
       <div className="invite-chat-row bot">
         <span className="invite-bot-avatar"><Bot size={18} /></span>
-        <div className="invite-typing" aria-label="DropBot digitando">
+        <div className="invite-typing" aria-label="Lili digitando">
           <span />
           <span />
           <span />
-          <em>DropBot digitando...</em>
+          <em>Lili digitando...</em>
         </div>
       </div>
     )
@@ -1071,7 +1071,7 @@ export default function ConviteGrupoPage() {
                 <div className="invite-chat-row bot">
                   <span className="invite-bot-avatar"><Bot size={18} /></span>
                   <div className="invite-chat-bubble invite-chat-list-bubble">
-                    <strong>DropBot</strong>
+                    <strong>Lili</strong>
                     <p>Slots do grupo {data.grupo?.nome}</p>
                     <div className="invite-chat-slot-list">
                       {(data.vagas || []).map((vaga) => {
@@ -1129,7 +1129,7 @@ export default function ConviteGrupoPage() {
                 <div className="invite-chat-row bot">
                   <span className="invite-bot-avatar"><Bot size={18} /></span>
                   <div className="invite-chat-bubble invite-chat-list-bubble">
-                    <strong>DropBot</strong>
+                    <strong>Lili</strong>
                     {linesDisponiveis.length ? (
                       <p>Você pode inscrever uma dessas lines livres ou criar uma nova:</p>
                     ) : (
@@ -1439,7 +1439,7 @@ export default function ConviteGrupoPage() {
               <div className="invite-chat-row bot">
                 <span className="invite-bot-avatar"><Bot size={18} /></span>
                 <div className="invite-chat-bubble invite-chat-list-bubble">
-                  <strong>DropBot</strong>
+                  <strong>Lili</strong>
                   <p>Mapa de slots</p>
                   {renderSlots()}
                 </div>
@@ -1567,7 +1567,7 @@ export default function ConviteGrupoPage() {
                 <div className="invite-chat-row bot">
                   <span className="invite-bot-avatar"><Bot size={18} /></span>
                   <div className="invite-chat-bubble invite-chat-list-bubble">
-                    <strong>DropBot</strong>
+                    <strong>Lili</strong>
                     <div className="invite-player-list">
                       {selectedParticipacao?.jogadores.map((player) => (
                         <div className="invite-player-row" key={player.id}>
@@ -1601,7 +1601,7 @@ export default function ConviteGrupoPage() {
           {step === 'duvidas' ? (
             <div className="invite-section" style={{ marginTop: 16, padding: 0, overflow: 'hidden' }}>
               <DropBotAssistant
-                title="DropBot"
+                title="Lili"
                 context={dropBotContext}
                 placeholder="Ex.: quais dias minha equipe joga?"
                 aiEnabled={false}
