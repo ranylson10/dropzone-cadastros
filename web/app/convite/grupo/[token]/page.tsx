@@ -154,6 +154,8 @@ export default function ConviteGrupoPage() {
   const [nomeNovaLine, setNomeNovaLine] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState('')
   const [lastSlotChoice, setLastSlotChoice] = useState<{ label: string; occupied: boolean } | null>(null)
+  const [chatReveal, setChatReveal] = useState<'slots' | 'slot_answer' | 'lines' | 'line_answer'>('slots')
+  const [chatTyping, setChatTyping] = useState(false)
   const [sucessoInfo, setSucessoInfo] = useState<{
     line: string
     slot?: string
@@ -327,6 +329,8 @@ export default function ConviteGrupoPage() {
       setSelectedSlotId('')
     }
     setLastSlotChoice(null)
+    setChatReveal('slots')
+    setChatTyping(false)
 
     setStep(
       opts?.forceStep ||
@@ -388,34 +392,60 @@ export default function ConviteGrupoPage() {
   function confirmarEstaEquipe() {
     setMessage('')
     clearJustLoginFlag()
+    setChatReveal('slots')
+    setChatTyping(false)
     setStep('escolher_line')
   }
 
   function escolherSlotPeloChat(vaga: Vaga) {
     const label = vaga.slot_letra || String(vaga.slot_numero || '').trim() || '?'
-    setLastSlotChoice({ label, occupied: Boolean(vaga.ocupada || !vaga.slot_id) })
+    const occupied = Boolean(vaga.ocupada || !vaga.slot_id)
+    setLastSlotChoice({ label, occupied })
+    setChatReveal('slots')
+    setChatTyping(true)
     if (vaga.ocupada || !vaga.slot_id) {
       setSelectedSlotId('')
       setMessage(
         `Você escolheu o slot ${label}, mas ele está ocupado. Tente um livre. Agora estão livres: ${freeSlotLetters.join(', ') || 'nenhum'}.`,
       )
+      window.setTimeout(() => {
+        setChatTyping(false)
+        setChatReveal('slot_answer')
+      }, 650)
       return
     }
     setSelectedSlotId(String(vaga.slot_id))
     setLineId('')
     setNomeNovaLine('')
     setMessage(`Slot ${label} escolhido. Agora escolha uma line ou crie uma nova.`)
+    window.setTimeout(() => {
+      setChatReveal('slot_answer')
+      window.setTimeout(() => {
+        setChatTyping(false)
+        setChatReveal('lines')
+      }, 750)
+    }, 650)
   }
 
   function escolherLinePeloChat(id: string) {
     setLineId(id)
+    setChatReveal('lines')
+    setChatTyping(true)
     if (id !== '__create__') {
       const line = linesDisponiveis.find((item) => item.id === id)
       setNomeNovaLine('')
       setMessage(`Line ${line?.nome || 'selecionada'} escolhida. Se estiver tudo certo, confirme a inscrição.`)
+      window.setTimeout(() => {
+        setChatTyping(false)
+        setChatReveal('line_answer')
+      }, 650)
       return
     }
     setMessage('Beleza. Me diga o nome da nova line para eu finalizar a inscrição.')
+    window.setTimeout(() => {
+      setChatTyping(false)
+      setChatReveal('line_answer')
+    }, 650)
   }
 
   async function confirmarInscricao() {
@@ -682,7 +712,7 @@ export default function ConviteGrupoPage() {
   }
 
   function TypingBubble() {
-    if (!busy && !payBusy) return null
+    if (!busy && !payBusy && !chatTyping) return null
     return (
       <div className="invite-chat-row bot">
         <span className="invite-bot-avatar"><Bot size={18} /></span>
@@ -927,7 +957,9 @@ export default function ConviteGrupoPage() {
                 <UserBubble><p>Escolho o slot {lastSlotChoice.label}</p></UserBubble>
               ) : null}
 
-              {lastSlotChoice ? (
+              <TypingBubble />
+
+              {lastSlotChoice && (chatReveal === 'slot_answer' || chatReveal === 'lines' || chatReveal === 'line_answer') ? (
                 <BotBubble>
                   <p>
                     {lastSlotChoice.occupied
@@ -937,7 +969,7 @@ export default function ConviteGrupoPage() {
                 </BotBubble>
               ) : null}
 
-              {selectedSlot && linesJaNoCampeonato.length ? (
+              {selectedSlot && (chatReveal === 'lines' || chatReveal === 'line_answer') && linesJaNoCampeonato.length ? (
                 <BotBubble>
                   <p>Agora precisamos escolher uma line.</p>
                   <p>Essas aqui já estão no campeonato e não podem ser inscritas de novo:</p>
@@ -945,7 +977,7 @@ export default function ConviteGrupoPage() {
                 </BotBubble>
               ) : null}
 
-              {selectedSlot ? (
+              {selectedSlot && (chatReveal === 'lines' || chatReveal === 'line_answer') ? (
                 <div className="invite-chat-row bot">
                   <span className="invite-bot-avatar"><Bot size={18} /></span>
                   <div className="invite-chat-bubble invite-chat-list-bubble">
@@ -982,7 +1014,7 @@ export default function ConviteGrupoPage() {
                 <UserBubble><p>Vai ser a line {selectedLine.nome}</p></UserBubble>
               ) : null}
 
-              {selectedSlot && (!lineId || lineId === '__create__') ? (
+              {selectedSlot && chatReveal === 'line_answer' && (!lineId || lineId === '__create__') ? (
                 <>
                   <UserBubble><p>Quero criar uma nova line</p></UserBubble>
                   <BotBubble>
@@ -1000,7 +1032,7 @@ export default function ConviteGrupoPage() {
                 </>
               ) : null}
 
-              {selectedSlot && selectedLineLabel ? (
+              {selectedSlot && chatReveal === 'line_answer' && selectedLineLabel ? (
                 <>
                   <BotBubble>
                     <p>Resumo antes de confirmar:</p>
