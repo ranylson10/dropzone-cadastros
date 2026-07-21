@@ -1,12 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-
-function cleanEnv(value: string | undefined, name: string) {
-  const clean = String(value || '')
-    .replace(/^\uFEFF/, '')
-    .trim()
-  if (!clean) throw new Error(`${name} nao configurado.`)
-  return clean
-}
+import { requiredEnv } from './env'
 
 /**
  * Cliente admin lazy: no `next build` (Vercel) o módulo pode ser importado
@@ -15,8 +8,8 @@ function cleanEnv(value: string | undefined, name: string) {
 let _client: SupabaseClient | null = null
 
 function createAdminClient(): SupabaseClient {
-  const url = cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL')
-  const serviceRoleKey = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY')
+  const url = requiredEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const serviceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY')
   return createClient(url, serviceRoleKey, {
     auth: {
       persistSession: false,
@@ -38,11 +31,11 @@ export function getSupabaseAdmin(): SupabaseClient {
 
 /** Compat: exports legados (resolvidos na primeira leitura). */
 export function getSupabaseUrl() {
-  return cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL')
+  return requiredEnv('NEXT_PUBLIC_SUPABASE_URL')
 }
 
 export function getServiceRoleKey() {
-  return cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY')
+  return requiredEnv('SUPABASE_SERVICE_ROLE_KEY')
 }
 
 /** @deprecated Prefer getSupabaseUrl() — mantido para imports existentes. */

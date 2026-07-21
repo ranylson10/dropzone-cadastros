@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../shared/supabase-admin'
+import { appUrl as configuredAppUrl } from '../shared/env'
 import {
   createPaymentLink,
   findOrCreateCustomer,
@@ -22,7 +23,7 @@ function dueDatePlusDays(days = 3) {
 }
 
 function appUrl() {
-  return String(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://dropzone-cadastros.vercel.app').replace(/\/$/, '')
+  return configuredAppUrl()
 }
 
 /**

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { blockDebugRouteInProduction } from '@/lib/debug-route'
 import { requireSystemAdmin } from '@backend/admin/admin-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
@@ -7,6 +8,8 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
  * Não deve ser usado pelo cliente final.
  */
 export async function GET(req: NextRequest) {
+  const blocked = blockDebugRouteInProduction()
+  if (blocked) return blocked
   try {
     await requireSystemAdmin(req)
     const { data, error } = await supabaseAdmin

@@ -8,6 +8,18 @@
 | 10/07/2026 | `npm run build` antes da reorganização | não concluído | executável `next` do ZIP sem permissão no ambiente Linux; não foi classificado como erro de código |
 | 10/07/2026 | `npm run typecheck` após reorganização | aprovado | imports entre `web` e `backend` validados |
 | 10/07/2026 | `npm run build` após reorganização | aprovado | Next.js compilou e gerou todas as rotas |
+| 21/07/2026 | `npm run typecheck` após segurança financeira/uploads | aprovado | Webhook, pagamentos, RPCs de carteira e autorização de upload compilam sem erros |
+
+## Segurança financeira — 2026-07-21
+
+- [x] Aplicar `20260721_carteira_saques_atomicos.sql` no Supabase.
+- [x] TypeScript aprovado após integração das RPCs.
+- [ ] Configurar `ASAAS_WEBHOOK_TOKEN` na Vercel e no webhook ASAAS.
+- [ ] Testar webhook real do ASAAS sandbox.
+- [ ] Testar dois saques simultâneos com saldo suficiente para somente um.
+- [ ] Testar transições solicitado → em análise → aprovado → pago.
+- [ ] Confirmar bloqueio de alteração de saque pago/rejeitado/cancelado.
+- [ ] Testar upload como produtora, manager autorizado e manager sem permissão.
 
 ## Checklist mínimo por rodada
 

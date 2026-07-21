@@ -1,5 +1,17 @@
 # Histórico de alterações
 
+## 2026-07-21 — Segurança financeira e uploads
+
+- Webhook ASAAS agora exige `ASAAS_WEBHOOK_TOKEN` e confirma o pagamento diretamente na API ASAAS.
+- Removido fallback que aceitava o payload do webhook quando a consulta externa falhava.
+- Pagamento de inscrição passou a validar dono/staff da equipe ou organizador autorizado.
+- Comissão não aceita mais IDs de vendedor enviados pelo navegador; origem é resolvida no backend.
+- Criadas RPCs transacionais para crédito, solicitação de saque e mudança de status do saque.
+- Saldo, lançamento e saque agora são confirmados ou revertidos na mesma transação.
+- Estados finais de saque (`pago`, `rejeitado`, `cancelado`) ficaram imutáveis.
+- Uploads de equipe e campeonato passaram a validar vínculos e permissões reais no backend.
+- `npm run typecheck`: aprovado.
+
 ## 2026-07-16 — Fluxo de convites de equipes reorganizado
 
 - Link de grupo: nome interno, limite = vagas livres, equipes esperadas opcionais (textarea).

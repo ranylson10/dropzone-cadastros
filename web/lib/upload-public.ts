@@ -19,15 +19,23 @@ async function authHeaders(profileType?: string | null) {
   }
 }
 
+function currentCampeonatoId(bucket: string) {
+  if (bucket !== 'campeonato' || typeof window === 'undefined') return null
+  return window.location.pathname.match(/\/campeonatos\/([^/]+)/)?.[1] || null
+}
+
+type UploadContext = { entityId?: string | null; campeonatoId?: string | null }
+
 /** Upload PNG público via /api/upload (precisa sessão). */
 export async function uploadPublicFile(
   file: File,
   bucket: string,
   profileType?: string | null,
+  context?: UploadContext,
 ): Promise<string> {
   // arquivos maiores → upload assinado direto no Storage
   if (file.size > 900_000) {
-    const media = await uploadPublicMedia(file, bucket, profileType)
+    const media = await uploadPublicMedia(file, bucket, profileType, context)
     return media.url
   }
 
@@ -45,6 +53,8 @@ export async function uploadPublicFile(
       file_name: file.name || `${bucket}.png`,
       content_type: file.type || 'image/png',
       data_url: dataUrl,
+      entity_id: context?.entityId || null,
+      campeonato_id: context?.campeonatoId || currentCampeonatoId(bucket),
     }),
   })
   const json = await res.json().catch(() => ({}))
@@ -60,6 +70,7 @@ export async function uploadPublicMedia(
   file: File,
   bucket: string,
   profileType?: string | null,
+  context?: UploadContext,
 ): Promise<{ url: string; content_type: string; kind: 'image' | 'video' }> {
   const headers = await authHeaders(profileType)
   const contentType = file.type || guessContentType(file.name)
@@ -75,6 +86,8 @@ export async function uploadPublicMedia(
       file_name: file.name || `${bucket}-media`,
       content_type: contentType,
       size: file.size,
+      entity_id: context?.entityId || null,
+      campeonato_id: context?.campeonatoId || currentCampeonatoId(bucket),
     }),
   })
   const signed = await prep.json().catch(() => ({}))

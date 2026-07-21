@@ -48,33 +48,6 @@ export async function getOrCreateWallet(input: {
   return created.data
 }
 
-async function appendLedger(input: {
-  carteiraId: string
-  tipo: string
-  direcao: 'credito' | 'debito'
-  valorCentavos: number
-  descricao?: string
-  referenciaTipo?: string
-  referenciaId?: string
-  meta?: Record<string, unknown>
-  criadoPor?: string | null
-  saldoApos: number
-}) {
-  const { error } = await supabaseAdmin.from('sistema_carteira_lancamentos').insert({
-    carteira_id: input.carteiraId,
-    tipo: input.tipo,
-    direcao: input.direcao,
-    valor_centavos: input.valorCentavos,
-    saldo_apos_centavos: input.saldoApos,
-    descricao: input.descricao || null,
-    referencia_tipo: input.referenciaTipo || null,
-    referencia_id: input.referenciaId || null,
-    meta: input.meta || {},
-    criado_por: input.criadoPor || null,
-  })
-  if (error) throw error
-}
-
 /** Crédito no saldo disponível (pagamento/comissão). Idempotente por referência. */
 export async function creditWallet(input: {
   donoTipo: WalletOwnerType
@@ -89,100 +62,20 @@ export async function creditWallet(input: {
   criadoPor?: string | null
 }) {
   if (input.valorCentavos <= 0) throw new Error('Valor de crédito inválido.')
-
-  // idempotência: já existe lançamento com mesma ref+tipo?
-  const { data: prev } = await supabaseAdmin
-    .from('sistema_carteira_lancamentos')
-    .select('id')
-    .eq('referencia_tipo', input.referenciaTipo)
-    .eq('referencia_id', input.referenciaId)
-    .eq('tipo', input.tipo)
-    .eq('direcao', 'credito')
-    .maybeSingle()
-  if (prev) return { skipped: true as const }
-
-  const wallet = await getOrCreateWallet({
-    donoTipo: input.donoTipo,
-    donoId: input.donoId,
-    authUserId: input.authUserId,
+  const { data, error } = await supabaseAdmin.rpc('fn_carteira_creditar', {
+    p_dono_tipo: input.donoTipo,
+    p_dono_id: input.donoId || null,
+    p_auth_user_id: input.authUserId || null,
+    p_valor_centavos: input.valorCentavos,
+    p_tipo: input.tipo,
+    p_descricao: input.descricao || null,
+    p_referencia_tipo: input.referenciaTipo,
+    p_referencia_id: input.referenciaId,
+    p_meta: input.meta || {},
+    p_criado_por: input.criadoPor || null,
   })
-
-  const novo = Number(wallet.saldo_disponivel_centavos || 0) + input.valorCentavos
-  const { data: updated, error } = await supabaseAdmin
-    .from('sistema_carteiras')
-    .update({
-      saldo_disponivel_centavos: novo,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', wallet.id)
-    .select('*')
-    .single()
   if (error) throw error
-
-  await appendLedger({
-    carteiraId: wallet.id,
-    tipo: input.tipo,
-    direcao: 'credito',
-    valorCentavos: input.valorCentavos,
-    descricao: input.descricao,
-    referenciaTipo: input.referenciaTipo,
-    referenciaId: input.referenciaId,
-    meta: input.meta,
-    criadoPor: input.criadoPor,
-    saldoApos: novo,
-  })
-
-  return { skipped: false as const, wallet: updated }
-}
-
-/** Debita saldo disponível (saque). */
-export async function debitWallet(input: {
-  carteiraId: string
-  valorCentavos: number
-  tipo: string
-  descricao?: string
-  referenciaTipo: string
-  referenciaId: string
-  meta?: Record<string, unknown>
-  criadoPor?: string | null
-}) {
-  if (input.valorCentavos <= 0) throw new Error('Valor de débito inválido.')
-
-  const { data: wallet, error } = await supabaseAdmin
-    .from('sistema_carteiras')
-    .select('*')
-    .eq('id', input.carteiraId)
-    .maybeSingle()
-  if (error) throw error
-  if (!wallet) throw new Error('Carteira não encontrada.')
-
-  const atual = Number(wallet.saldo_disponivel_centavos || 0)
-  if (atual < input.valorCentavos) throw new Error('Saldo insuficiente.')
-
-  const novo = atual - input.valorCentavos
-  const { error: upErr } = await supabaseAdmin
-    .from('sistema_carteiras')
-    .update({
-      saldo_disponivel_centavos: novo,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', wallet.id)
-  if (upErr) throw upErr
-
-  await appendLedger({
-    carteiraId: wallet.id,
-    tipo: input.tipo,
-    direcao: 'debito',
-    valorCentavos: input.valorCentavos,
-    descricao: input.descricao,
-    referenciaTipo: input.referenciaTipo,
-    referenciaId: input.referenciaId,
-    meta: input.meta,
-    criadoPor: input.criadoPor,
-    saldoApos: novo,
-  })
-
-  return { saldo: novo }
+  return data as { skipped: boolean; carteira_id?: string; saldo_disponivel_centavos?: number }
 }
 
 export async function listWalletMovements(carteiraId: string, limit = 50) {

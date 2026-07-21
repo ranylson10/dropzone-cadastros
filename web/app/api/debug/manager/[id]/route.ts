@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { blockDebugRouteInProduction } from '@/lib/debug-route'
 import { requireSystemAdmin } from '@backend/admin/admin-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
@@ -7,6 +8,8 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
  * Nunca retorna e-mail/contato para não-admin.
  */
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const blocked = blockDebugRouteInProduction()
+  if (blocked) return blocked
   try {
     await requireSystemAdmin(req)
     const { id } = await context.params

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
+import { getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin, serviceRoleKey, supabaseUrl } from '@backend/shared/supabase-admin'
+import { requireUploadAccess } from '@backend/uploads/upload-access'
 
 export const runtime = 'nodejs'
 
@@ -10,10 +11,11 @@ type UploadPayload = {
   data_url?: string
   base64?: string
   content_type?: string
+  entity_id?: string
+  campeonato_id?: string
 }
 
 const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
-const PROFILE_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast'])
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const MAX_VIDEO_SIZE = 25 * 1024 * 1024
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
@@ -140,55 +142,19 @@ async function uploadToStorage(
   }
 }
 
-function assertCanUpload(bucket: string, profileType?: string | null, headerType?: string | null) {
-  // Manager pode subir logo de equipe (lines que gerencia)
-  if (profileType === 'manager' && (bucket === 'manager' || bucket === 'equipe')) return
-  // Cadastro / multi-perfil: header declara o tipo que está sendo criado (ex.: broadcast com conta produtora ativa)
-  if (PROFILE_BUCKETS.has(bucket) && headerType && headerType === bucket) return
-  if (PROFILE_BUCKETS.has(bucket) && bucket === profileType) return
-  if (PROFILE_BUCKETS.has(bucket) && bucket !== profileType) {
-    throw new Error('Este perfil nao pode enviar arquivos para esse bucket.')
-  }
-  if (bucket === 'campeonato' && profileType !== 'produtora' && headerType !== 'produtora') {
-    throw new Error('Somente produtoras podem enviar imagens de campeonato.')
-  }
-}
-
-/**
- * Resolve o tipo de perfil para permissão de upload.
- * - Conta DropZone existente: usa o perfil ativo
- * - Onboarding / multi-perfil: aceita x-profile-type se for bucket de perfil
- */
-async function resolveUploadProfileType(
-  req: NextRequest,
-  user: { id: string; email?: string | null; email_confirmed_at?: string | null },
-) {
-  const headerType = String(req.headers.get('x-profile-type') || '').trim()
-  try {
-    const account = await getActiveAccount(req, user)
-    // Preferir header quando o usuário está criando outro perfil (ex.: broadcast)
-    if (headerType && PROFILE_BUCKETS.has(headerType)) return headerType
-    return account.profile_type as string
-  } catch (error: any) {
-    const msg = String(error?.message || '')
-    // Criando o 1º perfil: autenticado no Supabase, sem row em produtoras/equipes/etc.
-    if (msg.includes('Conta nao encontrada') || msg.includes('Conta não encontrada')) {
-      if (PROFILE_BUCKETS.has(headerType)) return headerType
-    }
-    throw error
-  }
-}
-
 export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const headerType = String(req.headers.get('x-profile-type') || '').trim() || null
-    const profileType = await resolveUploadProfileType(req, user)
     const payload = (await req.json()) as UploadPayload
     const bucket = String(payload.bucket || '').replace(/^\uFEFF/, '').trim()
 
     if (!ALLOWED_BUCKETS.has(bucket)) throw new Error('Bucket invalido.')
-    assertCanUpload(bucket, profileType, headerType)
+    await requireUploadAccess({
+      user,
+      bucket,
+      entityId: String(payload.entity_id || '').trim() || null,
+      campeonatoId: String(payload.campeonato_id || '').trim() || null,
+    })
 
     const decoded = decodeUpload(payload)
     const isVideo = decoded.contentType.startsWith('video/')

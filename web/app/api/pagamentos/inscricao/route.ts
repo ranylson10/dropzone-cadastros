@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser, getActiveAccount } from '@backend/auth/server-auth'
+import { getAccountsForUser, getBearerUser, getActiveAccount } from '@backend/auth/server-auth'
 import { AsaasNotConfiguredError } from '@backend/billing/asaas'
 import { createInscriptionPayment } from '@backend/billing/payments'
+import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
+import { requireEquipeAccess } from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+
+async function requireInscriptionPaymentAccess(
+  req: NextRequest,
+  user: Awaited<ReturnType<typeof getBearerUser>>,
+  part: { campeonato_id: string; equipe_id: string | null },
+) {
+  const championshipPermission = await getCampeonatoPermission(user.id, part.campeonato_id)
+  if (championshipPermission.role === 'owner' || championshipPermission.canManage) return
+
+  if (!part.equipe_id) throw new Error('Sem permissão para acessar esta inscrição.')
+
+  const accounts = await getAccountsForUser(user)
+  await requireEquipeAccess(user.id, accounts, part.equipe_id, 'ver')
+}
 
 /**
  * POST — gera link ASAAS para pagar inscrição da equipe no campeonato.
@@ -25,7 +41,9 @@ export async function POST(req: NextRequest) {
     if (!part) throw new Error('Participação não encontrada.')
     if (part.status !== 'ativo') throw new Error('Participação inativa.')
 
-    // só dono da equipe / manager da equipe / organizador
+    // Somente dono/staff da equipe ou organizador autorizado.
+    await requireInscriptionPaymentAccess(req, user, part)
+
     const email = String(user.email || account?.data?.email_contato || '').trim()
     const name = String(account?.name || user.user_metadata?.full_name || email).trim()
 
@@ -36,8 +54,10 @@ export async function POST(req: NextRequest) {
       payerName: name || 'Equipe',
       payerEmail: email || `equipe-${part.equipe_id}@dropzone.local`,
       cpfCnpj: body.cpf_cnpj ? String(body.cpf_cnpj) : null,
-      vendedorManagerId: body.vendedor_manager_id || null,
-      vendedorAuthUserId: body.vendedor_auth_user_id || null,
+      // A atribuição do vendedor é derivada da participação no backend.
+      // IDs enviados pelo cliente não são confiáveis para comissão.
+      vendedorManagerId: null,
+      vendedorAuthUserId: null,
     })
 
     return NextResponse.json({
@@ -61,7 +81,7 @@ export async function POST(req: NextRequest) {
 /** GET ?campeonato_equipe_id= — status do pagamento da inscrição */
 export async function GET(req: NextRequest) {
   try {
-    await getBearerUser(req)
+    const user = await getBearerUser(req)
     const ceId = String(req.nextUrl.searchParams.get('campeonato_equipe_id') || '').trim()
     if (!ceId) throw new Error('campeonato_equipe_id obrigatório.')
 
@@ -75,9 +95,12 @@ export async function GET(req: NextRequest) {
 
     const { data: part } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,campeonato_id')
+      .select('id,campeonato_id,equipe_id')
       .eq('id', ceId)
       .maybeSingle()
+
+    if (!part) throw new Error('Participação não encontrada.')
+    await requireInscriptionPaymentAccess(req, user, part)
 
     let valorInscricao: number | null = null
     if (part?.campeonato_id) {

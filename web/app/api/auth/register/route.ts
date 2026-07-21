@@ -142,17 +142,7 @@ export async function POST(req: Request) {
       const existingAuthUser = await findAuthUserByEmail(emailContato)
 
       if (existingAuthUser) {
-        const { data: updatedUser, error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
-          password,
-          email_confirm: true,
-          user_metadata: {
-            ...existingAuthUser.user_metadata,
-            profile_type: profileType,
-            username,
-          },
-        })
-        if (updateUserError || !updatedUser.user) throw new Error(friendlyAuthError(updateUserError?.message || 'Usuario de autenticacao nao encontrado.'))
-        authUser = updatedUser.user
+        throw new Error('Esse e-mail ja possui uma conta. Entre na conta e use a opcao de criar perfil vinculado, ou recupere sua senha.')
       } else {
         const { data: createdUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
           email: emailContato,

@@ -10,3 +10,7 @@ database/supabase/.temp/
 .env
 .env.local
 web/.env.local
+.env.*
+!.env.example
+web/.env.*
+!web/.env.example

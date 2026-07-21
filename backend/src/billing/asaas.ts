@@ -1,3 +1,4 @@
+import { booleanEnv, optionalEnv } from '../shared/env'
 /**
  * Cliente ASAAS (sandbox/produção).
  * Se ASAAS_API_KEY não existir, funções lançam AsaasNotConfiguredError —
@@ -36,7 +37,7 @@ export type AsaasPayment = {
 }
 
 function baseUrl() {
-  const env = String(process.env.ASAAS_ENV || process.env.ASAAS_API_URL || 'sandbox').toLowerCase()
+  const env = optionalEnv('ASAAS_ENV', optionalEnv('ASAAS_API_URL', 'sandbox')).toLowerCase()
   if (env.includes('api.asaas.com') || env === 'production' || env === 'prod') {
     return 'https://api.asaas.com/v3'
   }
@@ -45,13 +46,13 @@ function baseUrl() {
 }
 
 function apiKey() {
-  const key = String(process.env.ASAAS_API_KEY || '').trim()
+  const key = optionalEnv('ASAAS_API_KEY')
   if (!key) throw new AsaasNotConfiguredError()
   return key
 }
 
 export function isAsaasConfigured() {
-  return Boolean(String(process.env.ASAAS_API_KEY || '').trim())
+  return booleanEnv('ASAAS_API_KEY')
 }
 
 async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {

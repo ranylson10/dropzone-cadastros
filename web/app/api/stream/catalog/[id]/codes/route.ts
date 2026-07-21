@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
@@ -7,8 +8,11 @@ function missingTable(error: any) {
 }
 
 function genCode() {
-  const chunk = () => Math.random().toString(36).slice(2, 6).toUpperCase()
-  return `DZ-${chunk()}-${chunk()}`
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = randomBytes(16)
+  let value = ''
+  for (let index = 0; index < 16; index += 1) value += alphabet[bytes[index] % alphabet.length]
+  return `DZ-${value.slice(0, 8)}-${value.slice(8)}`
 }
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {

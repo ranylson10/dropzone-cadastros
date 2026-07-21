@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 19 de julho de 2026  
-**Estado:** Agenda/calendário no estilo planilha (dias × horários × meses). Página `/agenda`, aba Agenda em campeonatos e equipes. Jogos vêm de `campeonato_jogos`; compromissos livres em `agenda_eventos` (migration `20260719_agenda_eventos.sql`). Feature isolada em `web/features/agenda/` + `backend/src/agenda/`.
+**Última atualização:** 21 de julho de 2026
+**Estado:** Correções críticas de segurança em pagamentos, webhook ASAAS, carteira/saques e uploads. Migration `20260721_carteira_saques_atomicos.sql` aplicada no Supabase.
 
 ## 1. Objetivo do sistema
 
@@ -171,11 +171,23 @@ Consulte `docs/BANCO_DE_DADOS.md`.
 - Existem possíveis tabelas antigas e novas para a mesma finalidade.
 - `web/app/api/dropzone/route.ts` continua grande e mistura vários domínios.
 
-### Operação pendente em produção
+### Corrigido em 21/07/2026
+
+- webhook ASAAS exige token e confirmação direta na API ASAAS;
+- pagamento de inscrição valida equipe/organizador e não aceita vendedor informado pelo cliente;
+- crédito, solicitação de saque, débito e estorno usam RPCs transacionais;
+- saques finalizados não podem mudar de estado;
+- upload não confia no `x-profile-type` para obter permissão de campeonato/equipe.
+
+### Operações de banco
 
 Rodar no Supabase SQL Editor:
 
 `database/migrations/20260716_links_soft_delete_e_consumo_atomico.sql`
+
+Aplicada em 21/07/2026:
+
+`database/migrations/20260721_carteira_saques_atomicos.sql`
 
 ## 8. Convites de equipes (resumo)
 

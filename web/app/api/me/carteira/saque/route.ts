@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser, getActiveAccount } from '@backend/auth/server-auth'
-import { debitWallet, getOrCreateWallet } from '@backend/billing/wallet'
+import { getOrCreateWallet } from '@backend/billing/wallet'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 const MIN_SAQUE_CENTAVOS = 1000 // R$ 10,00
@@ -44,38 +44,17 @@ export async function POST(req: NextRequest) {
       throw new Error('Cadastre uma chave PIX na carteira antes de sacar.')
     }
 
-    // debita e cria solicitação (saldo sai na hora — fica “em trânsito”)
-    const { data: saque, error } = await supabaseAdmin
-      .from('sistema_saques')
-      .insert({
-        carteira_id: wallet.id,
-        auth_user_id: user.id,
-        valor_centavos: valorCentavos,
-        status: 'solicitado',
-        pix_chave: pixChave,
-        pix_tipo: ['cpf', 'cnpj', 'email', 'telefone', 'aleatoria'].includes(pixTipo)
-          ? pixTipo
-          : 'aleatoria',
-        titular_nome: titular || null,
-      })
-      .select('*')
-      .single()
+    const { data: saque, error } = await supabaseAdmin.rpc('fn_solicitar_saque', {
+      p_carteira_id: wallet.id,
+      p_auth_user_id: user.id,
+      p_valor_centavos: valorCentavos,
+      p_pix_chave: pixChave,
+      p_pix_tipo: ['cpf', 'cnpj', 'email', 'telefone', 'aleatoria'].includes(pixTipo)
+        ? pixTipo
+        : 'aleatoria',
+      p_titular_nome: titular || null,
+    })
     if (error) throw error
-
-    try {
-      await debitWallet({
-        carteiraId: wallet.id,
-        valorCentavos,
-        tipo: 'debito_saque',
-        descricao: 'Saque solicitado',
-        referenciaTipo: 'saque',
-        referenciaId: saque.id,
-        criadoPor: user.id,
-      })
-    } catch (debitErr) {
-      await supabaseAdmin.from('sistema_saques').delete().eq('id', saque.id)
-      throw debitErr
-    }
 
     return NextResponse.json({ saque })
   } catch (e: any) {

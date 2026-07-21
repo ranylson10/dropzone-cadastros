@@ -583,7 +583,7 @@ function EquipeManagerDetail(props: {
                 value={logoUrl}
                 bucket="equipe"
                 onChange={setLogoUrl}
-                onUpload={async (file, b) => uploadPublicFile(file, b, 'manager')}
+                onUpload={async (file, b) => uploadPublicFile(file, b, 'manager', { entityId: props.equipeId })}
               />
               <div className="button-row">
                 <button type="button" className="button" disabled={busy} onClick={() => void saveLine()}>

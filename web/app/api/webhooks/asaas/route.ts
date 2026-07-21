@@ -1,25 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { applyAsaasPaymentUpdate } from '@backend/billing/payments'
 import { getPayment } from '@backend/billing/asaas'
+import { booleanEnv, optionalEnv } from '@backend/shared/env'
 
 /**
  * Webhook ASAAS.
  * Configure em: Integrações → Webhooks → URL:
  *   https://SEU_DOMINIO/api/webhooks/asaas
- * Opcional: ASAAS_WEBHOOK_TOKEN — validamos header asaas-access-token ou query ?token=
+ * Obrigatório: ASAAS_WEBHOOK_TOKEN — validamos o header asaas-access-token.
  */
 export async function POST(req: NextRequest) {
   try {
-    const expected = String(process.env.ASAAS_WEBHOOK_TOKEN || '').trim()
-    if (expected) {
-      const header =
-        req.headers.get('asaas-access-token')
-        || req.headers.get('access_token')
-        || ''
-      const q = req.nextUrl.searchParams.get('token') || ''
-      if (header !== expected && q !== expected) {
-        return NextResponse.json({ error: 'Token inválido.' }, { status: 401 })
-      }
+    const expected = optionalEnv('ASAAS_WEBHOOK_TOKEN')
+    if (!expected) {
+      return NextResponse.json(
+        { error: 'Webhook ASAAS não configurado.' },
+        { status: 503 },
+      )
+    }
+
+    const header =
+      req.headers.get('asaas-access-token')
+      || req.headers.get('access_token')
+      || ''
+    if (header !== expected) {
+      return NextResponse.json({ error: 'Token inválido.' }, { status: 401 })
     }
 
     const body = await req.json().catch(() => ({}))
@@ -29,13 +34,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, ignored: true })
     }
 
-    // reconsulta ASAAS para não confiar só no body
-    let payment = paymentPayload
-    try {
-      payment = await getPayment(String(paymentPayload.id))
-    } catch {
-      // se ASAAS indisponível, usa payload do webhook
-    }
+    // O payload recebido nunca confirma pagamento sozinho. O estado oficial
+    // deve ser obtido diretamente da API ASAAS.
+    const payment = await getPayment(String(paymentPayload.id))
 
     const result = await applyAsaasPaymentUpdate(payment, body)
     return NextResponse.json({ ok: true, ...result })
@@ -49,6 +50,6 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     service: 'asaas-webhook',
-    configured: Boolean(process.env.ASAAS_API_KEY),
+    configured: booleanEnv('ASAAS_API_KEY') && booleanEnv('ASAAS_WEBHOOK_TOKEN'),
   })
 }

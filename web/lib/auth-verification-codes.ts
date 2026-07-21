@@ -1,5 +1,6 @@
 import { createHmac, randomInt, timingSafeEqual } from 'crypto'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { optionalEnv, requiredEnv } from '@backend/shared/env'
 
 type CodePurpose = 'register' | 'reset_password'
 type ProfileType = 'produtora' | 'equipe' | 'jogador' | 'manager' | 'broadcast'
@@ -8,7 +9,11 @@ const CODE_TTL_MINUTES = 15
 const MAX_ATTEMPTS = 5
 
 function secret() {
-  return process.env.AUTH_CODE_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || 'dropzone-local-auth-secret'
+  const value = requiredEnv('AUTH_CODE_SECRET')
+  if (value.length < 32) {
+    throw new Error('AUTH_CODE_SECRET ausente ou muito curto. Configure um segredo exclusivo com pelo menos 32 caracteres.')
+  }
+  return value
 }
 
 function hashCode(email: string, purpose: CodePurpose, code: string) {
@@ -24,8 +29,8 @@ function safeCompare(left: string, right: string) {
 }
 
 function resendConfig() {
-  const apiKey = String(process.env.RESEND_API_KEY || '').trim()
-  const from = String(process.env.AUTH_EMAIL_FROM || 'DropZone <onboarding@resend.dev>').trim()
+  const apiKey = optionalEnv('RESEND_API_KEY')
+  const from = optionalEnv('AUTH_EMAIL_FROM', 'DropZone <onboarding@resend.dev>')
   if (!apiKey) {
     throw new Error('RESEND_API_KEY nao configurada no servidor. Configure no Vercel para enviar codigos por e-mail.')
   }

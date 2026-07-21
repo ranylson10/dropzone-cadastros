@@ -77,39 +77,7 @@ export async function getAccountsForUser(user: { id: string }) {
   return getAccountsByUser(user)
 }
 
-async function updateIfColumnExists(table: string, payload: Record<string, any>, column: string, value: string) {
-  const { error } = await supabaseAdmin.from(table).update(payload).eq(column, value)
-  if (error && !['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error.code || '')) throw error
-}
-
-async function migrateOwnedRows(oldUserId: string, newUserId: string) {
-  if (!oldUserId || oldUserId === newUserId) return
-
-  const creatorTables = [
-    'campeonatos',
-    'campeonato_fases',
-    'campeonato_grupos',
-    'campeonato_slots',
-    'campeonato_jogos',
-    'campeonato_equipes',
-    'campeonato_jogadores',
-    'campeonato_links',
-    'campeonato_regras',
-    'campeonato_partidas',
-    'campeonato_resultados_equipes',
-    'campeonato_resultados_jogadores',
-    'tokens',
-  ]
-
-  for (const table of creatorTables) {
-    await updateIfColumnExists(table, { criado_por: newUserId }, 'criado_por', oldUserId)
-  }
-
-  await updateIfColumnExists('equipe_jogadores', { jogador_auth_user_id: newUserId }, 'jogador_auth_user_id', oldUserId)
-  await updateIfColumnExists('jogadores_equipes', { jogador_auth_user_id: newUserId }, 'jogador_auth_user_id', oldUserId)
-}
-
-async function linkAccountsByVerifiedEmail(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
+async function linkUnownedAccountsByVerifiedEmail(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
   const cleanEmail = String(user.email || '').trim().toLowerCase()
   if (!cleanEmail || !user.email_confirmed_at) return []
 
@@ -118,16 +86,19 @@ async function linkAccountsByVerifiedEmail(user: { id: string; email?: string | 
 
   for (const type of types) {
     const table = profileTable(type)
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from(table)
       .select('*')
       .eq('email_contato', cleanEmail)
+      .is('auth_user_id', null)
       .order('created_at', { ascending: true })
 
+    if (type === 'equipe') query = query.is('dono_auth_user_id', null)
+
+    const { data, error } = await query
     if (error) throw error
 
     for (const row of data || []) {
-      const oldUserId = row.auth_user_id || row.dono_auth_user_id || ''
       const payload: Record<string, any> = { auth_user_id: user.id }
       if (type === 'equipe') payload.dono_auth_user_id = user.id
 
@@ -135,12 +106,12 @@ async function linkAccountsByVerifiedEmail(user: { id: string; email?: string | 
         .from(table)
         .update(payload)
         .eq('id', row.id)
+        .is('auth_user_id', null)
         .select('*')
-        .single()
+        .maybeSingle()
 
       if (updateError) throw updateError
-      await migrateOwnedRows(oldUserId, user.id)
-      linked.push(mapProfile(updated, type))
+      if (updated) linked.push(mapProfile(updated, type))
     }
   }
 
@@ -150,11 +121,11 @@ async function linkAccountsByVerifiedEmail(user: { id: string; email?: string | 
 export async function getAccountsByUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
   const direct = await getAccountsByUserId(user.id)
   if (direct.length) {
-    const linked = await linkAccountsByVerifiedEmail(user)
+    const linked = await linkUnownedAccountsByVerifiedEmail(user)
     if (!linked.length) return direct
     return getAccountsByUserId(user.id)
   }
-  return linkAccountsByVerifiedEmail(user)
+  return linkUnownedAccountsByVerifiedEmail(user)
 }
 
 export async function getAccountByUserId(userId: string, preferredType?: ProfileType | null) {

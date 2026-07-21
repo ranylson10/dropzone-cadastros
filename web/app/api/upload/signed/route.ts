@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
+import { getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireUploadAccess } from '@backend/uploads/upload-access'
 
 export const runtime = 'nodejs'
 
 const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
-const PROFILE_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast'])
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const MAX_VIDEO_SIZE = 40 * 1024 * 1024
 
@@ -19,45 +19,6 @@ function safeName(value: string) {
     .replace(/^[-.]+|[-.]+$/g, '')
     .toLowerCase()
     .slice(0, 70) || 'arquivo'
-}
-
-function assertCanUpload(bucket: string, profileType?: string | null, headerType?: string | null) {
-  if (profileType === 'manager' && (bucket === 'manager' || bucket === 'equipe')) return
-  if (PROFILE_BUCKETS.has(bucket) && headerType && headerType === bucket) return
-  if (PROFILE_BUCKETS.has(bucket) && bucket === profileType) return
-  if (PROFILE_BUCKETS.has(bucket) && bucket !== profileType) {
-    throw new Error('Este perfil nao pode enviar arquivos para esse bucket.')
-  }
-  // campeonato: produtora ou header produtora; manager organizador também sobe mídia de stream
-  if (bucket === 'campeonato') {
-    if (
-      profileType === 'produtora'
-      || headerType === 'produtora'
-      || profileType === 'manager'
-      || headerType === 'manager'
-    ) {
-      return
-    }
-    throw new Error('Sem permissão para enviar arquivos do campeonato.')
-  }
-}
-
-async function resolveUploadProfileType(
-  req: NextRequest,
-  user: { id: string },
-) {
-  const headerType = String(req.headers.get('x-profile-type') || '').trim()
-  try {
-    const account = await getActiveAccount(req, user as any)
-    if (headerType && PROFILE_BUCKETS.has(headerType)) return headerType
-    return account.profile_type as string
-  } catch (error: any) {
-    const msg = String(error?.message || '')
-    if (msg.includes('Conta nao encontrada') || msg.includes('Conta não encontrada')) {
-      if (PROFILE_BUCKETS.has(headerType)) return headerType
-    }
-    throw error
-  }
 }
 
 function normalizeMedia(contentType: string, fileName: string) {
@@ -104,8 +65,6 @@ async function ensureBucket(bucket: string, allowVideo: boolean) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const headerType = String(req.headers.get('x-profile-type') || '').trim() || null
-    const profileType = await resolveUploadProfileType(req, user)
     const body = await req.json().catch(() => ({}))
     const bucket = String(body.bucket || '').trim()
     const fileName = String(body.file_name || 'arquivo')
@@ -113,7 +72,12 @@ export async function POST(req: NextRequest) {
     const size = Number(body.size || 0)
 
     if (!ALLOWED_BUCKETS.has(bucket)) throw new Error('Bucket invalido.')
-    assertCanUpload(bucket, profileType, headerType)
+    await requireUploadAccess({
+      user,
+      bucket,
+      entityId: String(body.entity_id || '').trim() || null,
+      campeonatoId: String(body.campeonato_id || '').trim() || null,
+    })
 
     const media = normalizeMedia(contentTypeIn, fileName)
     if (media.kind === 'video' && bucket !== 'campeonato') {
