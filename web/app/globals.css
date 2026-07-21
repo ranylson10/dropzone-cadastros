@@ -8779,3 +8779,82 @@ input::placeholder, textarea::placeholder {
   border-color: var(--dz-btn, #15171c);
   color: var(--dz-btn-text, #fff);
 }
+
+.dropbot-assistant {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  background: #fff1f4;
+}
+.dropbot-assistant .dropbot-chat {
+  min-height: 0;
+}
+.dropbot-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  padding: 9px 10px 10px;
+  border-top: 1px solid rgba(20,23,28,.12);
+  background: rgba(255,241,244,.94);
+  backdrop-filter: blur(14px);
+}
+.dropbot-quickbar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.dropbot-quickbar button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  border: 1px solid rgba(255,72,98,.32);
+  background: rgba(255,255,255,.72);
+  color: #15171c;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.dropbot-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.dropbot-input-row input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(20,23,28,.16);
+  background: #fff;
+  color: #15171c;
+  border-radius: 999px;
+  padding: 0 14px;
+  font: inherit;
+  outline: 0;
+}
+.dropbot-input-row input:focus {
+  border-color: #ff4862;
+  box-shadow: 0 0 0 3px rgba(255,72,98,.12);
+}
+.dropbot-input-row button {
+  min-height: 42px;
+  border: 0;
+  background: #15171c;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0 15px;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.dropbot-input-row button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}

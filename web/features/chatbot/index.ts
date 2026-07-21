@@ -1,2 +1,5 @@
 ﻿export type { DropBotMessage, DropBotOption, DropBotRole } from './DropBotChat'
+export type { DropBotIntent, DropBotResolution, DropBotSystemContext } from './dropbot-engine'
 export { DropBotChat, DropBotTypingIndicator } from './DropBotChat'
+export { DropBotAssistant } from './DropBotAssistant'
+export { buildHelp, buildIntentAnswer, detectDropBotIntents, resolveDropBotQuestion } from './dropbot-engine'

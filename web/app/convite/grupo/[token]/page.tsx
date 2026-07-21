@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { DropBotAssistant, type DropBotSystemContext } from '@/features/chatbot'
 
 type Vaga = {
   index: number
@@ -132,6 +133,7 @@ type Step =
   | 'hub'
   | 'escalar'
   | 'jogadores'
+  | 'duvidas'
 
 const SESSION_WAS_LOGGED_KEY = 'dz_invite_was_logged'
 const SESSION_JUST_LOGIN_KEY = 'dz_invite_just_login'
@@ -201,6 +203,24 @@ export default function ConviteGrupoPage() {
   const freeSlotLetters = slotsLivresLista
     .map((vaga) => vaga.slot_letra || String(vaga.slot_numero || '').trim())
     .filter(Boolean)
+
+  const dropBotContext: DropBotSystemContext = useMemo(() => ({
+    campeonatoNome: data?.campeonato?.nome,
+    grupoNome: data?.grupo?.nome,
+    equipeNome: data?.equipe?.nome,
+    resumoGrupo: data?.resumo_grupo,
+    resumoLink: data?.resumo_link,
+    participacoes: (data?.minhas_participacoes || []).map((part) => ({
+      nome: part.nome_exibicao,
+      lineNome: part.line?.nome,
+      slot: part.slot_numero,
+      quantidadeJogadores: part.quantidade_jogadores,
+      limiteJogadores: part.limite_jogadores,
+      linkEscalacao: part.link_escalacao?.public_path
+        ? `${typeof window !== 'undefined' ? window.location.origin : ''}${part.link_escalacao.public_path}`
+        : null,
+    })),
+  }), [data])
 
   const themeStyle = useMemo(
     () =>
@@ -676,9 +696,11 @@ export default function ConviteGrupoPage() {
                   ? 'Escalar elenco'
                   : step === 'jogadores'
                     ? 'Jogadores inscritos'
-                    : !inscricaoAberta
-                      ? 'Acompanhamento do grupo'
-                      : 'Acompanhamento do grupo'
+                    : step === 'duvidas'
+                      ? 'Tirar dúvidas'
+                      : !inscricaoAberta
+                        ? 'Acompanhamento do grupo'
+                        : 'Acompanhamento do grupo'
 
   const isChatStep = step === 'inicio'
     || step === 'login'
@@ -691,6 +713,7 @@ export default function ConviteGrupoPage() {
     || step === 'acompanhar'
     || step === 'escalar'
     || step === 'jogadores'
+    || step === 'duvidas'
   const useChatLayout = assistantMode && isChatStep
 
   function BotBubble({ children }: { children: ReactNode }) {
@@ -1563,6 +1586,20 @@ export default function ConviteGrupoPage() {
             </div>
           ) : null}
 
+          {step === 'duvidas' ? (
+            <div className="invite-section" style={{ marginTop: 16, padding: 0, overflow: 'hidden' }}>
+              <DropBotAssistant
+                title="DropBot"
+                context={dropBotContext}
+                placeholder="Ex.: quais dias minha equipe joga?"
+                aiEnabled={false}
+              />
+              <button className="button secondary" type="button" onClick={() => setStep('hub')} style={{ width: '100%', marginTop: 10 }}>
+                Voltar para minha inscrição
+              </button>
+            </div>
+          ) : null}
+
           {message ? <p className="invite-message">{message}</p> : null}
         </div>
       </main>
@@ -1610,6 +1647,9 @@ export default function ConviteGrupoPage() {
     </>
   )
 }
+
+
+
 
 
 
