@@ -7857,6 +7857,13 @@ button.invite-slot-button.selected strong {
   border-color: color-mix(in srgb, var(--dz-primary) 35%, var(--dz-border));
   border-radius: 16px 16px 4px 16px;
 }
+.invite-chat-flow {
+  padding-bottom: 22px !important;
+}
+.invite-chat-list-bubble {
+  width: min(100%, 520px);
+  max-width: 100%;
+}
 .invite-chat-bubble > strong {
   display: block;
   margin-bottom: 5px;
@@ -7976,6 +7983,72 @@ button.invite-slot-button.selected strong {
 .invite-chat-slot.selected strong {
   color: var(--dz-btn-text) !important;
 }
+.invite-chat-hint {
+  display: block;
+  margin-top: 8px;
+  color: var(--dz-text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.invite-chat-options,
+.invite-chat-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.invite-chat-option {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--dz-primary) 36%, var(--dz-border));
+  background: color-mix(in srgb, var(--dz-surface) 88%, transparent);
+  color: var(--dz-text);
+  border-radius: 16px 16px 16px 4px;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.invite-chat-option:hover,
+.invite-chat-option.selected {
+  background: color-mix(in srgb, var(--dz-primary) 18%, var(--dz-surface));
+  border-color: var(--dz-primary);
+}
+.invite-chat-option.primary {
+  background: var(--dz-btn);
+  border-color: var(--dz-btn);
+  color: var(--dz-btn-text);
+  text-align: center;
+  border-radius: 18px 18px 4px 18px;
+}
+.invite-chat-option:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+.invite-chat-input {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+.invite-chat-input span {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--dz-text-muted);
+}
+.invite-chat-input input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--dz-border);
+  background: var(--dz-surface);
+  color: var(--dz-text);
+  border-radius: 12px;
+  font: inherit;
+}
 @media(max-width:520px) {
   .invite-page.champ-theme .invite-chat-card {
     min-height: 100vh;
@@ -8000,6 +8073,9 @@ button.invite-slot-button.selected strong {
   }
   .invite-chat-slot-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .invite-chat-option {
+    font-size: 11px;
   }
 }
 .invite-chat-shell .invite-auth-box,
