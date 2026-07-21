@@ -20,6 +20,11 @@ import { buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { DropBotAssistant, TypingText, type DropBotSystemContext } from '@/features/chatbot'
+import {
+  getInviteGroupConversationState,
+  isInviteGroupChatStep,
+  type InviteGroupStep,
+} from '@/features/chatbot/lili/invite-group-conversation'
 
 type Vaga = {
   index: number
@@ -131,20 +136,6 @@ type GroupInvitePayload = {
  * login → (criar equipe) → [confirmar só se sessão prévia] → escolher line → sucesso
  * Acompanhamento público é o default quando o link está fechado ou o usuário escolhe só ver.
  */
-type Step =
-  | 'inicio'
-  | 'acompanhar'
-  | 'login'
-  | 'sem_equipe'
-  | 'escolher_equipe'
-  | 'confirmar_equipe'
-  | 'escolher_line'
-  | 'sucesso'
-  | 'hub'
-  | 'escalar'
-  | 'jogadores'
-  | 'duvidas'
-
 const SESSION_WAS_LOGGED_KEY = 'dz_invite_was_logged'
 const SESSION_JUST_LOGIN_KEY = 'dz_invite_just_login'
 
@@ -158,7 +149,7 @@ export default function ConviteGrupoPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
-  const [step, setStep] = useState<Step>('inicio')
+  const [step, setStep] = useState<InviteGroupStep>('inicio')
   const [selectedParticipacaoId, setSelectedParticipacaoId] = useState('')
   const [generated, setGenerated] = useState<{ link: string; texto: string } | null>(null)
   const [detailVaga, setDetailVaga] = useState<Vaga | null>(null)
@@ -291,7 +282,7 @@ export default function ConviteGrupoPage() {
   function resolveStep(
     payload: GroupInvitePayload,
     opts: { wasLogged: boolean; justLoggedIn: boolean; forceAcompanhar?: boolean },
-  ): Step {
+  ): InviteGroupStep {
     const open = payload.inscricao_aberta !== false && payload.modo !== 'acompanhamento'
     const parts = payload.minhas_participacoes || []
     const multi = (payload.equipes_disponiveis || []).length > 1
@@ -320,7 +311,7 @@ export default function ConviteGrupoPage() {
     return 'inicio'
   }
 
-  async function carregar(opts?: { forceStep?: Step; forceAcompanhar?: boolean; equipeId?: string }) {
+  async function carregar(opts?: { forceStep?: InviteGroupStep; forceAcompanhar?: boolean; equipeId?: string }) {
     setLoading(true)
     setMessage('')
     const { data: sessionData } = await supabase.auth.getSession()
@@ -683,49 +674,13 @@ export default function ConviteGrupoPage() {
   const showTrackingChrome =
     step === 'acompanhar' || step === 'hub' || step === 'escalar' || step === 'jogadores' || step === 'sucesso'
 
-  const eyebrow =
-    step === 'hub'
-      ? minhasParticipacoes.length > 1
-        ? `${minhasParticipacoes.length} lines inscritas`
-        : 'Equipe inscrita'
-      : step === 'inicio'
-        ? 'Convite de inscrição'
-      : step === 'login'
-        ? 'Entrada de equipes'
-        : step === 'sem_equipe'
-          ? 'Perfil de equipe'
-          : step === 'escolher_equipe'
-            ? 'Escolher equipe'
-            : step === 'confirmar_equipe'
-              ? 'Confirmar equipe'
-              : step === 'escolher_line'
-                ? 'Escolher line'
-              : step === 'sucesso'
-                ? 'Inscrição confirmada'
-                : step === 'escalar'
-                  ? 'Escalar elenco'
-                  : step === 'jogadores'
-                    ? 'Jogadores inscritos'
-                    : step === 'duvidas'
-                      ? 'Tirar dúvidas'
-                      : !inscricaoAberta
-                        ? 'Acompanhamento do grupo'
-                        : 'Acompanhamento do grupo'
-
-  const isChatStep = step === 'inicio'
-    || step === 'login'
-    || step === 'sem_equipe'
-    || step === 'escolher_equipe'
-    || step === 'confirmar_equipe'
-    || step === 'escolher_line'
-    || step === 'sucesso'
-    || step === 'hub'
-    || step === 'acompanhar'
-    || step === 'escalar'
-    || step === 'jogadores'
-    || step === 'duvidas'
-  const useChatLayout = assistantMode && isChatStep
-
+  const conversationState = getInviteGroupConversationState({
+    step,
+    inscricaoAberta,
+    participacoesCount: minhasParticipacoes.length,
+  })
+  const eyebrow = conversationState.eyebrow
+  const useChatLayout = assistantMode && isInviteGroupChatStep(step)
   function BotBubble({ children }: { children: ReactNode }) {
     return (
       <div className="invite-chat-row bot">
@@ -812,7 +767,7 @@ export default function ConviteGrupoPage() {
             ) : null}
           </div>
 
-          {isChatStep ? (
+          {isInviteGroupChatStep(step) ? (
             <div className="invite-mode-switch">
               <button
                 type="button"
