@@ -686,6 +686,10 @@ export default function ConviteGrupoPage() {
     || step === 'confirmar_equipe'
     || step === 'escolher_line'
     || step === 'sucesso'
+    || step === 'hub'
+    || step === 'acompanhar'
+    || step === 'escalar'
+    || step === 'jogadores'
 
   function BotBubble({ children }: { children: ReactNode }) {
     return (
@@ -1075,193 +1079,170 @@ export default function ConviteGrupoPage() {
                 <p>Pronto, inscrição confirmada ✅</p>
                 <p>Guarde o comprovante abaixo. Boa sorte no campeonato!</p>
               </BotBubble>
-              <p>
-                <strong>{sucessoInfo?.line || 'Line'}</strong> inscrita
-                {sucessoInfo?.slot ? (
-                  <>
-                    {' '}
-                    no slot <strong>{sucessoInfo.slot}</strong>
-                  </>
-                ) : null}
-                .
-              </p>
+              <UserBubble>
+                <p>
+                  {sucessoInfo?.line || 'Line'}
+                  {sucessoInfo?.slot ? ` · slot ${sucessoInfo.slot}` : ''}
+                </p>
+              </UserBubble>
               {sucessoInfo?.precisaPagamento && sucessoInfo.valorInscricao ? (
-                <div className="message" style={{ marginTop: 12, textAlign: 'left' }}>
-                  <strong>
-                    Inscrição:{' '}
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                      Number(sucessoInfo.valorInscricao),
-                    )}
-                  </strong>
-                  <p style={{ margin: '6px 0 10px' }}>
-                    Pague via ASAAS para confirmar a inscrição financeira (comissão do vendedor cai na carteira
-                    automática).
+                <BotBubble>
+                  <p>
+                    Falta só o pagamento da inscrição:{' '}
+                    <strong>
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                        Number(sucessoInfo.valorInscricao),
+                      )}
+                    </strong>
                   </p>
+                  <p>Quer gerar o pagamento agora?</p>
+                  <div className="invite-chat-actions">
                   <button
-                    className="button invite-confirm"
+                    className="invite-chat-option primary"
                     type="button"
                     disabled={payBusy}
                     onClick={() => void pagarInscricao()}
-                    style={{ width: '100%' }}
                   >
                     {payBusy ? 'Gerando pagamento…' : 'Pagar inscrição'}
                   </button>
                   {payUrl ? (
                     <a
-                      className="button secondary"
+                      className="invite-chat-option"
                       href={payUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ width: '100%', marginTop: 8, display: 'inline-flex', justifyContent: 'center' }}
                     >
                       Abrir fatura novamente
                     </a>
                   ) : null}
-                </div>
+                  </div>
+                </BotBubble>
               ) : null}
-              <button className="button invite-confirm" type="button" onClick={() => setStep('hub')} style={{ marginTop: 10 }}>
-                Gerenciar minha inscrição
-              </button>
-              <button className="button secondary" type="button" onClick={() => setStep('acompanhar')} style={{ width: '100%' }}>
-                Ver grupo
-              </button>
+              <BotBubble>
+                <p>O que você quer fazer agora?</p>
+                <div className="invite-chat-actions">
+                  <button className="invite-chat-option primary" type="button" onClick={() => setStep('hub')}>
+                    Gerenciar minha inscrição
+                  </button>
+                  <button className="invite-chat-option" type="button" onClick={() => setStep('acompanhar')}>
+                    Ver grupo
+                  </button>
+                </div>
+              </BotBubble>
             </div>
           ) : null}
 
           {/* ——— HUB pós-inscrição ——— */}
           {step === 'hub' ? (
-            <>
+            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p>Você está na central da sua inscrição.</p>
+                <p>Escolha o que quer fazer agora:</p>
+              </BotBubble>
               {minhasParticipacoes.length > 1 ? (
-                <label className="field">
-                  <span>Line inscrita</span>
-                  <select
-                    value={selectedParticipacao?.id || ''}
-                    onChange={(e) => setSelectedParticipacaoId(e.target.value)}
-                  >
+                <BotBubble>
+                  <p>Você tem mais de uma line inscrita. Qual delas vamos gerenciar?</p>
+                  <div className="invite-chat-options">
                     {minhasParticipacoes.map((part) => (
-                      <option key={part.id} value={part.id}>
+                      <button
+                        key={part.id}
+                        type="button"
+                        className={`invite-chat-option ${selectedParticipacao?.id === part.id ? 'selected' : ''}`}
+                        onClick={() => setSelectedParticipacaoId(part.id)}
+                      >
                         {part.line?.nome || part.nome_exibicao}
                         {part.slot_numero ? ` · slot ${part.slot_numero}` : ''}
-                      </option>
+                      </button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </BotBubble>
               ) : selectedParticipacao ? (
-                <div className="invite-current-team">
-                  <small>Line confirmada</small>
-                  <strong>{selectedParticipacao.line?.nome || selectedParticipacao.nome_exibicao}</strong>
-                  <span>
-                    {selectedParticipacao.quantidade_jogadores}/{selectedParticipacao.limite_jogadores} jogadores
+                <UserBubble>
+                  <p>
+                    {selectedParticipacao.line?.nome || selectedParticipacao.nome_exibicao}
                     {selectedParticipacao.slot_numero ? ` · slot ${selectedParticipacao.slot_numero}` : ''}
-                  </span>
-                </div>
+                  </p>
+                </UserBubble>
               ) : (
-                <p className="invite-section-copy" style={{ textAlign: 'center' }}>
-                  Acompanhe as equipes do grupo abaixo.
-                </p>
+                <BotBubble><p>Acompanhe as equipes do grupo abaixo.</p></BotBubble>
               )}
 
-              <div className="invite-hub-actions">
+              <div className="invite-chat-actions">
                 {selectedParticipacao ? (
                   <>
-                    <button className="invite-hub-option invite-hub-option-primary" type="button" onClick={() => setStep('escalar')}>
-                      <Link2 size={20} />
-                      <span>
-                        <strong>Escalar elenco</strong>
-                        <small>Gere o link de escalação para os jogadores</small>
-                      </span>
+                    <button className="invite-chat-option primary" type="button" onClick={() => setStep('escalar')}>
+                      Escalar elenco
                     </button>
-                    <button className="invite-hub-option" type="button" onClick={() => setStep('jogadores')}>
-                      <ListChecks size={20} />
-                      <span>
-                        <strong>Jogadores inscritos</strong>
-                        <small>Quem já confirmou na escalação</small>
-                      </span>
+                    <button className="invite-chat-option" type="button" onClick={() => setStep('jogadores')}>
+                      Jogadores inscritos
                     </button>
                   </>
                 ) : null}
-                <button className="invite-hub-option" type="button" onClick={() => setStep('acompanhar')}>
-                  <Users size={20} />
-                  <span>
-                    <strong>Acompanhar grupo</strong>
-                    <small>Veja as equipes e slots do grupo</small>
-                  </span>
+                <button className="invite-chat-option" type="button" onClick={() => setStep('acompanhar')}>
+                  Acompanhar inscrições
                 </button>
                 {podeInscrever && data.autenticado && data.equipe ? (
-                  <button className="invite-hub-option" type="button" onClick={() => setStep('escolher_line')}>
-                    <UserPlus size={20} />
-                    <span>
-                      <strong>Nova inscrição</strong>
-                      <small>Mesma equipe, outra line</small>
-                    </span>
+                  <button className="invite-chat-option" type="button" onClick={() => setStep('escolher_line')}>
+                    Inscrever outra line
                   </button>
                 ) : null}
               </div>
-            </>
+            </div>
           ) : null}
 
           {/* ——— ACOMPANHAR (público) ——— */}
           {step === 'acompanhar' ? (
-            <div className="invite-section">
-              <div className="invite-section-head">
-                <h2>Slots do grupo</h2>
-                {minhasParticipacoes.length ? (
-                  <button className="button secondary" type="button" onClick={() => setStep('hub')}>
-                    Minha equipe
-                  </button>
-                ) : null}
+            <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
+              <BotBubble>
+                <p>Essas são as inscrições do grupo <strong>{data.grupo?.nome}</strong>.</p>
+                <p>Toque em uma equipe ocupada para ver line e jogadores.</p>
+              </BotBubble>
+              <div className="invite-chat-row bot">
+                <span className="invite-bot-avatar"><Bot size={18} /></span>
+                <div className="invite-chat-bubble invite-chat-list-bubble">
+                  <strong>DropBot</strong>
+                  <p>Mapa de slots</p>
+                  {renderSlots()}
+                </div>
               </div>
-              <p className="invite-section-copy">
-                Toque em uma equipe inscrita para ver a line e os jogadores escalados.
-              </p>
-              {renderSlots()}
 
               {podeInscrever ? (
                 <button
-                  className="button invite-confirm"
+                  className="invite-chat-option primary"
                   type="button"
                   onClick={startInscricao}
-                  style={{ width: '100%', marginTop: 16 }}
                 >
-                  <UserPlus size={16} />
                   Escalar minha equipe
                 </button>
               ) : minhasParticipacoes.length ? (
                 <button
-                  className="button invite-confirm"
+                  className="invite-chat-option primary"
                   type="button"
                   onClick={() => setStep('hub')}
-                  style={{ width: '100%', marginTop: 16 }}
                 >
-                  <Link2 size={16} />
-                  Gerenciar escalação
+                  Gerenciar minha inscrição
                 </button>
               ) : (
                 <>
-                  <p className="invite-section-copy" style={{ textAlign: 'center', marginTop: 16 }}>
-                    {data.status_mensagem || 'Novas inscrições por este link estão encerradas.'}
-                  </p>
+                  <BotBubble><p>{data.status_mensagem || 'Novas inscrições por este link estão encerradas.'}</p></BotBubble>
                   {!data.autenticado ? (
                     <button
-                      className="button secondary"
+                      className="invite-chat-option"
                       type="button"
                       onClick={() => setStep('login')}
-                      style={{ width: '100%', marginTop: 8 }}
                     >
                       Entrar para gerenciar escalação
                     </button>
                   ) : (data.equipes_disponiveis || []).length > 0 || data.tem_equipe_inscrita_no_grupo ? (
                     <button
-                      className="button invite-confirm"
+                      className="invite-chat-option primary"
                       type="button"
                       onClick={() => {
                         if ((data.equipes_disponiveis || []).length > 1) setStep('escolher_equipe')
                         else if (data.equipe?.id) void carregar({ equipeId: data.equipe.id })
                         else setStep('escolher_equipe')
                       }}
-                      style={{ width: '100%', marginTop: 8 }}
                     >
-                      <Link2 size={16} />
                       Gerenciar escalação da minha equipe
                     </button>
                   ) : null}
@@ -1272,27 +1253,25 @@ export default function ConviteGrupoPage() {
 
           {/* ——— ESCALAR ——— */}
           {step === 'escalar' ? (
-            <div className="invite-section">
-              <div className="invite-section-head">
-                <h2>Escalar elenco</h2>
-                <button className="button secondary" type="button" onClick={() => setStep('hub')}>
-                  Voltar
-                </button>
-              </div>
-              <p className="invite-section-copy">
-                Gere um link de escalação para a line{' '}
-                <strong>{selectedParticipacao?.line?.nome || selectedParticipacao?.nome_exibicao}</strong>.
-              </p>
+            <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
+              <UserBubble><p>Quero escalar o elenco</p></UserBubble>
+              <BotBubble>
+                <p>
+                  Certo. Vou cuidar da escalação da line{' '}
+                  <strong>{selectedParticipacao?.line?.nome || selectedParticipacao?.nome_exibicao}</strong>.
+                </p>
+                <p>Você pode copiar o link atual ou gerar um novo.</p>
+              </BotBubble>
               {selectedParticipacao?.link_escalacao ? (
-                <div className="invite-link-box">
-                  <small>Link ativo</small>
-                  <strong>
+                <BotBubble>
+                  <p>Link ativo:</p>
+                  <p className="invite-chat-link">
                     {typeof window !== 'undefined' ? window.location.origin : ''}
                     {selectedParticipacao.link_escalacao.public_path}
-                  </strong>
-                  <div className="invite-inline-actions">
+                  </p>
+                  <div className="invite-chat-actions">
                     <button
-                      className="button"
+                      className="invite-chat-option primary"
                       type="button"
                       onClick={() =>
                         copiar(
@@ -1301,58 +1280,82 @@ export default function ConviteGrupoPage() {
                         )
                       }
                     >
-                      <ClipboardCopy size={15} /> Copiar link
+                      Copiar link ativo
                     </button>
                   </div>
-                </div>
+                </BotBubble>
               ) : null}
               {generated ? (
-                <div className="invite-link-box">
-                  <small>Novo link gerado</small>
-                  <strong>{generated.link}</strong>
-                  <div className="invite-inline-actions">
-                    <button className="button" type="button" onClick={() => copiar(generated.link)}>
-                      <ClipboardCopy size={15} /> Copiar link
-                    </button>
-                  </div>
-                </div>
+                <>
+                  <UserBubble><p>Gerar link de escalação</p></UserBubble>
+                  <BotBubble>
+                    <p>Pronto, gerei um link novo:</p>
+                    <p className="invite-chat-link">{generated.link}</p>
+                    <div className="invite-chat-actions">
+                      <button className="invite-chat-option primary" type="button" onClick={() => copiar(generated.link)}>
+                        Copiar link
+                      </button>
+                    </div>
+                  </BotBubble>
+                </>
               ) : null}
-              <button className="button invite-confirm" type="button" disabled={busy} onClick={() => void gerarLinkEscalacao()}>
-                <UserPlus size={16} />
-                {selectedParticipacao?.link_escalacao ? 'Gerar novo link' : 'Gerar link de escalação'}
-              </button>
+              <div className="invite-chat-actions">
+                <button className="invite-chat-option primary" type="button" disabled={busy} onClick={() => void gerarLinkEscalacao()}>
+                  {busy
+                    ? 'Gerando link...'
+                    : selectedParticipacao?.link_escalacao
+                      ? 'Gerar novo link'
+                      : 'Gerar link de escalação'}
+                </button>
+                <button className="invite-chat-option" type="button" onClick={() => setStep('hub')}>
+                  Voltar para minha inscrição
+                </button>
+              </div>
+              <TypingBubble />
             </div>
           ) : null}
 
           {/* ——— JOGADORES ——— */}
           {step === 'jogadores' ? (
-            <div className="invite-section">
-              <div className="invite-section-head">
-                <h2>Jogadores inscritos</h2>
-                <button className="button secondary" type="button" onClick={() => setStep('hub')}>
-                  Voltar
-                </button>
-              </div>
+            <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
+              <UserBubble><p>Ver jogadores inscritos</p></UserBubble>
+              <BotBubble>
+                <p>Lista de jogadores da line <strong>{selectedParticipacao?.line?.nome || selectedParticipacao?.nome_exibicao}</strong>:</p>
+              </BotBubble>
               {(selectedParticipacao?.jogadores || []).length === 0 ? (
-                <p className="invite-empty">Nenhum jogador inscrito ainda.</p>
+                <BotBubble><p>Nenhum jogador confirmou escalação ainda.</p></BotBubble>
               ) : (
-                <div className="invite-player-list">
-                  {selectedParticipacao?.jogadores.map((player) => (
-                    <div className="invite-player-row" key={player.id}>
-                      <span className="invite-player-avatar">
-                        {player.foto_url ? <img src={player.foto_url} alt="" /> : <Users size={16} />}
-                      </span>
-                      <div>
-                        <strong>{player.nick}</strong>
-                        <small>
-                          {player.funcao || 'função'}
-                          {player.id_jogo ? ` · ID ${player.id_jogo}` : ''}
-                        </small>
-                      </div>
+                <div className="invite-chat-row bot">
+                  <span className="invite-bot-avatar"><Bot size={18} /></span>
+                  <div className="invite-chat-bubble invite-chat-list-bubble">
+                    <strong>DropBot</strong>
+                    <div className="invite-player-list">
+                      {selectedParticipacao?.jogadores.map((player) => (
+                        <div className="invite-player-row" key={player.id}>
+                          <span className="invite-player-avatar">
+                            {player.foto_url ? <img src={player.foto_url} alt="" /> : <Users size={16} />}
+                          </span>
+                          <div>
+                            <strong>{player.nick}</strong>
+                            <small>
+                              {player.funcao || 'função'}
+                              {player.id_jogo ? ` · ID ${player.id_jogo}` : ''}
+                            </small>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               )}
+              <div className="invite-chat-actions">
+                <button className="invite-chat-option primary" type="button" onClick={() => setStep('escalar')}>
+                  Gerar link de escalação
+                </button>
+                <button className="invite-chat-option" type="button" onClick={() => setStep('hub')}>
+                  Voltar para minha inscrição
+                </button>
+              </div>
             </div>
           ) : null}
 

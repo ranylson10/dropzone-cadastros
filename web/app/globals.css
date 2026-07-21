@@ -7997,6 +7997,14 @@ button.invite-slot-button.selected strong {
   font-size: 10px;
   line-height: 1.35;
 }
+.invite-chat-link {
+  padding: 10px;
+  border: 1px dashed var(--dz-border);
+  background: color-mix(in srgb, var(--dz-surface) 88%, transparent);
+  border-radius: 12px;
+  word-break: break-all;
+  font-size: 11px;
+}
 .invite-chat-options,
 .invite-chat-actions {
   display: grid;
