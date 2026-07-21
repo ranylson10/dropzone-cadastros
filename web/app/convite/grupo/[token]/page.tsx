@@ -19,7 +19,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
-import { DropBotAssistant, type DropBotSystemContext } from '@/features/chatbot'
+import { DropBotAssistant, TypingText, type DropBotSystemContext } from '@/features/chatbot'
 
 type Vaga = {
   index: number
@@ -41,6 +41,16 @@ type Vaga = {
     funcao?: string | null
   }>
   quantidade_jogadores?: number
+}
+
+function TypeChildren({ children }: { children: ReactNode }) {
+  if (typeof children === 'string') return <TypingText text={children} speedMs={14} />
+  if (Array.isArray(children)) return <>{children.map((child, index) => <TypeChildren key={index}>{child}</TypeChildren>)}</>
+  if (children && typeof children === 'object' && 'type' in children && (children as any).type === 'p') {
+    const props = (children as any).props || {}
+    return <p {...props}><TypeChildren>{props.children}</TypeChildren></p>
+  }
+  return <>{children}</>
 }
 
 type Participacao = {
@@ -723,10 +733,18 @@ export default function ConviteGrupoPage() {
         <div>
           <div className="invite-chat-bubble">
             <strong>DropBot</strong>
-            <div>{children}</div>
+            <div><TypeChildren>{children}</TypeChildren></div>
           </div>
         </div>
       </div>
+    )
+  }
+
+  function BotBubbleText({ text }: { text: string }) {
+    return (
+      <BotBubble>
+        <p><TypingText text={text} speedMs={14} /></p>
+      </BotBubble>
     )
   }
 
@@ -858,19 +876,13 @@ export default function ConviteGrupoPage() {
           {step === 'login' && assistantMode ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
-              <BotBubble>
-                {podeInscrever ? (
-                  <>
-                    <p>Verifiquei aqui: você ainda não está logado em nenhuma conta de equipe.</p>
-                    <p>Entre com Google para eu identificar sua equipe. Se ainda não tiver uma, eu te levo para cadastrar.</p>
-                  </>
-                ) : (
-                  <>
-                    <p>Esse link não aceita novas inscrições agora.</p>
-                    <p>Se sua equipe já está no grupo, entre com Google para escalar o elenco.</p>
-                  </>
-                )}
-              </BotBubble>
+              <BotBubbleText
+                text={
+                  podeInscrever
+                    ? 'Verifiquei aqui: você ainda não está logado em nenhuma conta de equipe.\n\nEntre com Google para eu identificar sua equipe. Se ainda não tiver uma, eu te levo para cadastrar.'
+                    : 'Esse link não aceita novas inscrições agora.\n\nSe sua equipe já está no grupo, entre com Google para escalar o elenco.'
+                }
+              />
               <SocialLogin profileType="equipe" returnTo={returnTo} />
               <button
                 className="invite-chat-option"

@@ -38,7 +38,7 @@ type TypingTextProps = {
   speedMs?: number
 }
 
-function TypingText({ text, speedMs = 18 }: TypingTextProps) {
+export function TypingText({ text, speedMs = 18 }: TypingTextProps) {
   const [visible, setVisible] = useState('')
 
   useEffect(() => {
