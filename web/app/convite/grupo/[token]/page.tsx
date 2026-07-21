@@ -153,6 +153,7 @@ export default function ConviteGrupoPage() {
   const [lineId, setLineId] = useState('')
   const [nomeNovaLine, setNomeNovaLine] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState('')
+  const [lastSlotChoice, setLastSlotChoice] = useState<{ label: string; occupied: boolean } | null>(null)
   const [sucessoInfo, setSucessoInfo] = useState<{
     line: string
     slot?: string
@@ -315,8 +316,8 @@ export default function ConviteGrupoPage() {
     const freeLines = (Array.isArray(payload.lines_disponiveis) ? payload.lines_disponiveis : payload.lines || [])
       .filter((line: any) => !line.ja_inscrita)
       .filter((line: any) => String(line.nome || '').trim().toLowerCase() !== 'nova line')
-    // Se há line livre, seleciona a primeira; senão entra no modo "criar" (sem id)
-    setLineId(freeLines[0]?.id || '__create__')
+    // Não pré-seleciona line: no chat, o usuário precisa responder a opção.
+    setLineId('')
     setNomeNovaLine('')
 
     // Mantém slot escolhido se ainda estiver livre; senão deixa o usuário escolher na conversa.
@@ -325,6 +326,7 @@ export default function ConviteGrupoPage() {
     if (!stillFree) {
       setSelectedSlotId('')
     }
+    setLastSlotChoice(null)
 
     setStep(
       opts?.forceStep ||
@@ -391,13 +393,17 @@ export default function ConviteGrupoPage() {
 
   function escolherSlotPeloChat(vaga: Vaga) {
     const label = vaga.slot_letra || String(vaga.slot_numero || '').trim() || '?'
+    setLastSlotChoice({ label, occupied: Boolean(vaga.ocupada || !vaga.slot_id) })
     if (vaga.ocupada || !vaga.slot_id) {
+      setSelectedSlotId('')
       setMessage(
         `Você escolheu o slot ${label}, mas ele está ocupado. Tente um livre. Agora estão livres: ${freeSlotLetters.join(', ') || 'nenhum'}.`,
       )
       return
     }
     setSelectedSlotId(String(vaga.slot_id))
+    setLineId('')
+    setNomeNovaLine('')
     setMessage(`Slot ${label} escolhido. Agora escolha uma line ou crie uma nova.`)
   }
 
@@ -880,9 +886,7 @@ export default function ConviteGrupoPage() {
             <div className="invite-section invite-chat-shell invite-chat-flow" style={{ marginTop: 12 }}>
               <UserBubble><p>Sim, quero inscrever a {data.equipe?.nome}</p></UserBubble>
               <BotBubble>
-                <p>Fechado. Vou fazer isso passo a passo com você.</p>
-                <p>Primeiro: escolha a letra do slot onde a <strong>{data.equipe?.nome}</strong> vai entrar.</p>
-                <p>Se tocar em um slot ocupado, eu te aviso e mostro quais ainda estão livres.</p>
+                <p>Fechado. Escolha um slot livre para a <strong>{data.equipe?.nome}</strong>.</p>
               </BotBubble>
 
               {(data.vagas || []).length ? (
@@ -903,6 +907,7 @@ export default function ConviteGrupoPage() {
                             onClick={() => escolherSlotPeloChat(vaga)}
                             title={vaga.ocupada ? `Slot ${label} ocupado` : `Escolher slot ${label}`}
                           >
+                            {vaga.logo_url ? <img src={vaga.logo_url} alt="" /> : null}
                             <strong>{label}</strong>
                             <span>{vaga.ocupada ? 'ocupado' : active ? 'ok' : 'livre'}</span>
                           </button>
@@ -918,21 +923,24 @@ export default function ConviteGrupoPage() {
                 <BotBubble><p>Nenhum slot foi configurado neste grupo ainda.</p></BotBubble>
               )}
 
-              {selectedSlot ? (
-                <UserBubble><p>Escolho o slot {selectedSlot.slot_letra || selectedSlot.slot_numero}</p></UserBubble>
+              {lastSlotChoice ? (
+                <UserBubble><p>Escolho o slot {lastSlotChoice.label}</p></UserBubble>
               ) : null}
 
-              <BotBubble>
-                <p>
-                  {selectedSlot
-                    ? `Boa. Slot ${selectedSlot.slot_letra || selectedSlot.slot_numero} reservado para essa inscrição. Agora escolha qual line vai jogar.`
-                    : `No momento estão livres: ${freeSlotLetters.join(', ') || 'nenhum'}. Escolha uma dessas letras para continuar.`}
-                </p>
-              </BotBubble>
-
-              {linesJaNoCampeonato.length ? (
+              {lastSlotChoice ? (
                 <BotBubble>
-                  <p>Essas lines já estão no campeonato e não aparecem para nova inscrição:</p>
+                  <p>
+                    {lastSlotChoice.occupied
+                      ? `Esse slot ${lastSlotChoice.label} já está ocupado. Escolha outro livre: ${freeSlotLetters.join(', ') || 'nenhum'}.`
+                      : `Boa. Slot ${lastSlotChoice.label} selecionado.`}
+                  </p>
+                </BotBubble>
+              ) : null}
+
+              {selectedSlot && linesJaNoCampeonato.length ? (
+                <BotBubble>
+                  <p>Agora precisamos escolher uma line.</p>
+                  <p>Essas aqui já estão no campeonato e não podem ser inscritas de novo:</p>
                   <p><strong>{linesJaNoCampeonato.map((l) => l.nome).filter(Boolean).join(', ')}</strong></p>
                 </BotBubble>
               ) : null}
@@ -943,9 +951,9 @@ export default function ConviteGrupoPage() {
                   <div className="invite-chat-bubble invite-chat-list-bubble">
                     <strong>DropBot</strong>
                     {linesDisponiveis.length ? (
-                      <p>Encontrei essas lines livres na sua equipe. Toque em uma opção:</p>
+                      <p>Você pode inscrever uma dessas lines livres ou criar uma nova:</p>
                     ) : (
-                      <p>Não encontrei line livre nessa equipe. Crie uma nova line para continuar:</p>
+                      <p>Não encontrei line livre nessa equipe. Crie uma nova para continuar:</p>
                     )}
                     <div className="invite-chat-options">
                     {linesDisponiveis.map((line) => (

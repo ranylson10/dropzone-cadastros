@@ -7957,6 +7957,13 @@ button.invite-slot-button.selected strong {
   border-radius: 9px;
   cursor: pointer;
 }
+.invite-chat-slot img {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--dz-border) 80%, transparent);
+}
 .invite-chat-slot strong {
   font-size: 13px;
   line-height: 1;
