@@ -8858,3 +8858,24 @@ input::placeholder, textarea::placeholder {
   opacity: .45;
   cursor: not-allowed;
 }
+.dropbot-language-switch {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.dropbot-language-switch button {
+  min-width: 42px;
+  min-height: 28px;
+  border: 1px solid rgba(20,23,28,.16);
+  background: rgba(255,255,255,.72);
+  color: #15171c;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 950;
+  cursor: pointer;
+}
+.dropbot-language-switch button.active {
+  background: #15171c;
+  border-color: #15171c;
+  color: #fff;
+}
