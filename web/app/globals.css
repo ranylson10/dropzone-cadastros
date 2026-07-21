@@ -7762,7 +7762,8 @@ button.invite-slot-button.selected strong {
   gap: 12px;
 }
 .invite-page.champ-theme .invite-chat-card {
-  width: min(640px, 100%);
+  width: min(430px, 100%);
+  min-height: min(760px, calc(100vh - 36px));
   padding: 0 !important;
   overflow: hidden;
   text-align: left !important;
@@ -7809,6 +7810,7 @@ button.invite-slot-button.selected strong {
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
+  align-content: end;
 }
 .invite-chat-row {
   display: grid;
@@ -7816,6 +7818,10 @@ button.invite-slot-button.selected strong {
   gap: 10px;
   align-items: start;
   text-align: left;
+}
+.invite-chat-row.user {
+  display: flex;
+  justify-content: flex-end;
 }
 .invite-bot-avatar {
   width: 38px;
@@ -7836,6 +7842,13 @@ button.invite-slot-button.selected strong {
   border-radius: 16px 16px 16px 4px;
   box-shadow: 0 12px 30px color-mix(in srgb, var(--dz-secondary) 10%, transparent);
   max-width: 92%;
+}
+.invite-chat-bubble.user {
+  max-width: 82%;
+  margin-left: auto;
+  background: color-mix(in srgb, var(--dz-primary) 18%, var(--dz-surface));
+  border-color: color-mix(in srgb, var(--dz-primary) 35%, var(--dz-border));
+  border-radius: 16px 16px 4px 16px;
 }
 .invite-chat-bubble > strong {
   display: block;
@@ -7907,6 +7920,63 @@ button.invite-slot-button.selected strong {
 .invite-chat-shell .invite-lines-note,
 .invite-chat-shell .invite-current-team {
   width: 100%;
+}
+.invite-chat-slot-list {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--dz-border);
+  background: color-mix(in srgb, var(--dz-surface-soft) 82%, transparent);
+  border-radius: 14px;
+}
+.invite-chat-slot {
+  min-height: 46px;
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  padding: 6px 3px;
+  border: 1px solid var(--dz-border);
+  background: var(--dz-surface);
+  color: var(--dz-text);
+  border-radius: 9px;
+  cursor: pointer;
+}
+.invite-chat-slot strong {
+  font-size: 13px;
+  line-height: 1;
+}
+.invite-chat-slot span {
+  font-size: 8px;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--dz-text-muted);
+}
+.invite-chat-slot.occupied {
+  opacity: .48;
+  border-style: dashed;
+}
+.invite-chat-slot.free {
+  border-color: color-mix(in srgb, var(--dz-primary) 40%, var(--dz-border));
+}
+.invite-chat-slot.selected {
+  background: var(--dz-btn);
+  border-color: var(--dz-btn);
+  color: var(--dz-btn-text);
+}
+.invite-chat-slot.selected span,
+.invite-chat-slot.selected strong {
+  color: var(--dz-btn-text) !important;
+}
+@media(max-width:520px) {
+  .invite-page.champ-theme .invite-chat-card {
+    min-height: 100vh;
+    width: 100%;
+  }
+  .invite-chat-slot-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 .invite-chat-shell .invite-auth-box,
 .invite-chat-shell .invite-current-team,
