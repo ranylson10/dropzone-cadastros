@@ -7722,6 +7722,12 @@ button.invite-slot-button.selected strong {
   background-repeat: no-repeat !important;
   color: var(--dz-text);
 }
+.invite-page.champ-theme:has(.invite-chat-card) {
+  display: block !important;
+  min-height: 100dvh;
+  padding: 0 !important;
+  background-attachment: fixed;
+}
 .invite-page.champ-theme .invite-card {
   background: var(--dz-surface) !important;
   color: var(--dz-text) !important;
@@ -7762,13 +7768,13 @@ button.invite-slot-button.selected strong {
   gap: 12px;
 }
 .invite-page.champ-theme .invite-chat-card {
-  width: min(430px, 100%);
-  min-height: min(760px, calc(100vh - 36px));
+  width: 100%;
+  min-height: 100dvh;
   padding: 0 !important;
   overflow: hidden;
   text-align: left !important;
-  border: 1px solid var(--dz-border);
-  border-top: 0;
+  border: 0 !important;
+  box-shadow: none !important;
   background:
     linear-gradient(color-mix(in srgb, var(--dz-surface) 78%, transparent), color-mix(in srgb, var(--dz-surface) 78%, transparent)),
     radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--dz-primary) 7%, transparent) 0 2px, transparent 2px 18px),
@@ -7806,7 +7812,8 @@ button.invite-slot-button.selected strong {
 }
 .invite-chat-card > .invite-chat-shell,
 .invite-chat-card > .invite-auth-box.invite-chat-shell {
-  margin: 14px 18px 18px !important;
+  width: min(640px, calc(100% - 28px));
+  margin: 14px auto 18px !important;
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
@@ -7973,6 +7980,23 @@ button.invite-slot-button.selected strong {
   .invite-page.champ-theme .invite-chat-card {
     min-height: 100vh;
     width: 100%;
+  }
+  .invite-chat-card::before {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .invite-chat-card > .invite-champ-logo {
+    margin-top: 18px;
+  }
+  .invite-chat-card > .invite-mini-stats,
+  .invite-chat-card > .invite-details {
+    margin-inline: 12px !important;
+  }
+  .invite-chat-card > .invite-chat-shell,
+  .invite-chat-card > .invite-auth-box.invite-chat-shell {
+    width: calc(100% - 24px);
+    margin-inline: auto !important;
   }
   .invite-chat-slot-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
