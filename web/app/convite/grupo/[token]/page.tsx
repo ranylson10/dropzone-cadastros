@@ -152,6 +152,7 @@ function ConviteGrupoContent() {
   const [lastSlotChoice, setLastSlotChoice] = useState<{ label: string; occupied: boolean } | null>(null)
   const [chatReveal, setChatReveal] = useState<'slots' | 'slot_answer' | 'lines' | 'line_answer'>('slots')
   const [chatTyping, setChatTyping] = useState(false)
+  const [lineFlowStage, setLineFlowStage] = useState(0)
   const [assistantMode, setAssistantMode] = useState(true)
   const [modeChosen, setModeChosen] = useState(false)
   const [conversationTranscript, setConversationTranscript] = useState<Array<{ id: string; role: 'assistant' | 'user'; text: string }>>([])
@@ -299,6 +300,21 @@ function ConviteGrupoContent() {
     const generation = queueGenerationRef.current
     void runMessageQueue(generation)
   }, [assistantMode, modeChosen, conversationState.step, conversationState.messages.join('\u241f'), step])
+
+  useEffect(() => {
+    if (!modeChosen || !assistantMode || step !== 'escolher_line') {
+      setLineFlowStage(0)
+      return
+    }
+
+    setLineFlowStage(0)
+    const timers = [
+      window.setTimeout(() => setLineFlowStage(1), 1900),
+      window.setTimeout(() => setLineFlowStage(2), 2850),
+      window.setTimeout(() => setLineFlowStage(3), 4750),
+    ]
+    return () => timers.forEach((timer) => window.clearTimeout(timer))
+  }, [assistantMode, modeChosen, step])
 
   useEffect(() => {
     const shell = chatShellRef.current
@@ -535,30 +551,28 @@ function ConviteGrupoContent() {
     const occupied = Boolean(vaga.ocupada || !vaga.slot_id)
     appendUserReply(`Escolher slot ${label}`)
     setLastSlotChoice({ label, occupied })
-    setChatReveal('slots')
-    setChatTyping(true)
-    if (vaga.ocupada || !vaga.slot_id) {
+    setLineFlowStage(4)
+
+    if (occupied) {
       setSelectedSlotId('')
       setMessage(
         `Você escolheu o slot ${label}, mas ele está ocupado. Tente um livre. Agora estão livres: ${freeSlotLetters.join(', ') || 'nenhum'}.`,
       )
-      window.setTimeout(() => {
-        setChatTyping(false)
-        setChatReveal('slot_answer')
-      }, 650)
+      window.setTimeout(() => setLineFlowStage(5), 1900)
+      window.setTimeout(() => setLineFlowStage(6), 2850)
+      window.setTimeout(() => setLineFlowStage(3), 4750)
       return
     }
+
     setSelectedSlotId(String(vaga.slot_id))
     setLineId('')
     setNomeNovaLine('')
     setMessage(`Slot ${label} escolhido. Agora escolha uma line ou crie uma nova.`)
-    window.setTimeout(() => {
-      setChatReveal('slot_answer')
-      window.setTimeout(() => {
-        setChatTyping(false)
-        setChatReveal('lines')
-      }, 750)
-    }, 650)
+    window.setTimeout(() => setLineFlowStage(5), 1900)
+    window.setTimeout(() => setLineFlowStage(6), 2850)
+    window.setTimeout(() => setLineFlowStage(7), 4750)
+    window.setTimeout(() => setLineFlowStage(8), 5700)
+    window.setTimeout(() => setLineFlowStage(9), 7600)
   }
 
   function escolherLinePeloChat(id: string) {
@@ -567,23 +581,20 @@ function ConviteGrupoContent() {
       : (linesDisponiveis.find((item) => item.id === id)?.nome || 'Selecionar line')
     appendUserReply(selectedLabel)
     setLineId(id)
-    setChatReveal('lines')
-    setChatTyping(true)
+    setLineFlowStage(10)
+
     if (id !== '__create__') {
       const line = linesDisponiveis.find((item) => item.id === id)
       setNomeNovaLine('')
       setMessage(`Line ${line?.nome || 'selecionada'} escolhida. Se estiver tudo certo, confirme a inscrição.`)
-      window.setTimeout(() => {
-        setChatTyping(false)
-        setChatReveal('line_answer')
-      }, 650)
+      window.setTimeout(() => setLineFlowStage(11), 1900)
+      window.setTimeout(() => setLineFlowStage(12), 2850)
+      window.setTimeout(() => setLineFlowStage(13), 4750)
       return
     }
+
     setMessage('Beleza. Me diga o nome da nova line para eu finalizar a inscrição.')
-    window.setTimeout(() => {
-      setChatTyping(false)
-      setChatReveal('line_answer')
-    }, 650)
+    window.setTimeout(() => setLineFlowStage(11), 1900)
   }
 
   async function confirmarInscricao() {
@@ -1087,7 +1098,7 @@ function ConviteGrupoContent() {
             <div ref={chatShellRef} className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
               <ConversationMessages />
-              <SocialLogin profileType="equipe" returnTo={returnTo} />
+              {conversationReady && !conversationTyping ? <SocialLogin profileType="equipe" returnTo={returnTo} /> : null}
               <ConversationActions ids={['acompanhar']} />
               <TypingBubble />
             </div>
@@ -1110,7 +1121,9 @@ function ConviteGrupoContent() {
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
               <ConversationMessages />
               <ConversationActions ids={['cadastrar_equipe']} />
-              <SocialLogin profileType={data.papel_sessao === 'manager' ? 'manager' : 'equipe'} returnTo={returnTo} />
+              {conversationReady && !conversationTyping ? (
+                <SocialLogin profileType={data.papel_sessao === 'manager' ? 'manager' : 'equipe'} returnTo={returnTo} />
+              ) : null}
               <ConversationActions ids={['acompanhar']} />
               <TypingBubble />
             </div>
@@ -1231,52 +1244,51 @@ function ConviteGrupoContent() {
           {step === 'escolher_line' && assistantMode ? (
             <div ref={chatShellRef} className="invite-section invite-chat-shell invite-chat-flow" style={{ marginTop: 12 }}>
               <UserBubble><p>Sim, quero inscrever a {data.equipe?.nome}</p></UserBubble>
-              <BotBubble>
-                <p>Fechado. Escolha um slot livre para a <strong>{data.equipe?.nome}</strong>.</p>
-              </BotBubble>
 
-              {(data.vagas || []).length ? (
-                <div className="invite-chat-row bot">
-                  <LiliAvatar />
-                  <div className="invite-chat-bubble invite-chat-list-bubble">
-                    <strong>Lili</strong>
-                    <p>Slots do grupo {data.grupo?.nome}</p>
-                    <div className="invite-chat-slot-list">
-                      {(data.vagas || []).map((vaga) => {
-                        const active = selectedSlotId === vaga.slot_id
-                        const label = vaga.slot_letra || vaga.slot_numero || vaga.index + 1
-                        return (
-                          <button
-                            type="button"
-                            key={vaga.slot_id || vaga.index}
-                            className={`invite-chat-slot ${vaga.ocupada ? 'occupied' : 'free'} ${active ? 'selected' : ''}`}
-                            onClick={() => escolherSlotPeloChat(vaga)}
-                            title={vaga.ocupada ? `Slot ${label} ocupado` : `Escolher slot ${label}`}
-                          >
-                            {vaga.logo_url ? <img src={vaga.logo_url} alt="" /> : null}
-                            <strong>{label}</strong>
-                            <span>{vaga.ocupada ? 'ocupado' : active ? 'ok' : 'livre'}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                    <small className="invite-chat-hint">
-                      Livres agora: {freeSlotLetters.join(', ') || 'nenhum slot disponível'}
-                    </small>
-                  </div>
-                </div>
-              ) : (
-                <BotBubble><p>Nenhum slot foi configurado neste grupo ainda.</p></BotBubble>
-              )}
+              {lineFlowStage === 0 ? <TypingBubble force /> : null}
 
-              {lastSlotChoice ? (
-                <UserBubble><p>Escolho o slot {lastSlotChoice.label}</p></UserBubble>
+              {lineFlowStage >= 1 ? (
+                <BotBubble animate={lineFlowStage === 1}>
+                  <p>Fechado. Escolha um slot livre para a <strong>{data.equipe?.nome}</strong>.</p>
+                </BotBubble>
               ) : null}
 
-              <TypingBubble />
+              {lineFlowStage === 2 ? <TypingBubble force /> : null}
 
-              {lastSlotChoice && (chatReveal === 'slot_answer' || chatReveal === 'lines' || chatReveal === 'line_answer') ? (
-                <BotBubble>
+              {lineFlowStage >= 3 && slotsLivresLista.length ? (
+                <BotBubble animate={lineFlowStage === 3}>
+                  <p>Encontrei <strong>{slotsLivresLista.length} slots livres</strong> no grupo {data.grupo?.nome}.</p>
+                  <p>Qual deles você quer?</p>
+                  <div className="invite-chat-quick-replies" aria-label="Slots livres">
+                    {slotsLivresLista.map((vaga) => {
+                      const active = selectedSlotId === vaga.slot_id
+                      const label = vaga.slot_letra || vaga.slot_numero || vaga.index + 1
+                      return (
+                        <button
+                          type="button"
+                          key={vaga.slot_id || vaga.index}
+                          className={`invite-chat-quick-reply ${active ? 'selected' : ''}`}
+                          onClick={() => escolherSlotPeloChat(vaga)}
+                          disabled={lineFlowStage !== 3 && lineFlowStage < 9}
+                        >
+                          Slot {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </BotBubble>
+              ) : null}
+
+              {lastSlotChoice && lineFlowStage >= 4 ? (
+                <UserBubble animate={lineFlowStage === 4}><p>Escolho o slot {lastSlotChoice.label}</p></UserBubble>
+              ) : null}
+
+              {lineFlowStage === 4 || lineFlowStage === 6 || lineFlowStage === 8 || lineFlowStage === 10 || lineFlowStage === 12 ? (
+                <TypingBubble force />
+              ) : null}
+
+              {lastSlotChoice && lineFlowStage >= 5 ? (
+                <BotBubble animate={lineFlowStage === 5}>
                   <p>
                     {lastSlotChoice.occupied
                       ? `Esse slot ${lastSlotChoice.label} já está ocupado. Escolha outro livre: ${freeSlotLetters.join(', ') || 'nenhum'}.`
@@ -1285,30 +1297,31 @@ function ConviteGrupoContent() {
                 </BotBubble>
               ) : null}
 
-              {selectedSlot && (chatReveal === 'lines' || chatReveal === 'line_answer') && linesJaNoCampeonato.length ? (
-                <BotBubble>
+              {selectedSlot && lineFlowStage >= 7 ? (
+                <BotBubble animate={lineFlowStage === 7}>
                   <p>Agora precisamos escolher uma line.</p>
-                  <p>Essas aqui já estão no campeonato e não podem ser inscritas de novo:</p>
-                  <p><strong>{linesJaNoCampeonato.map((l) => l.nome).filter(Boolean).join(', ')}</strong></p>
+                  {linesJaNoCampeonato.length ? (
+                    <>
+                      <p>Estas já estão no campeonato e não podem ser inscritas novamente:</p>
+                      <p><strong>{linesJaNoCampeonato.map((line) => line.nome).filter(Boolean).join(', ')}</strong></p>
+                    </>
+                  ) : null}
                 </BotBubble>
               ) : null}
 
-              {selectedSlot && (chatReveal === 'lines' || chatReveal === 'line_answer') ? (
-                <div className="invite-chat-row bot">
+              {selectedSlot && lineFlowStage >= 9 ? (
+                <div className={`invite-chat-row bot ${lineFlowStage === 9 ? 'invite-chat-enter' : ''}`}>
                   <LiliAvatar />
                   <div className="invite-chat-bubble invite-chat-list-bubble">
                     <strong>Lili</strong>
                     {linesDisponiveis.length ? (
-                      <p>Você pode inscrever uma dessas lines livres ou criar uma nova:</p>
+                      <p>Escolha uma line livre ou crie uma nova:</p>
                     ) : (
                       <p>Não encontrei line livre nessa equipe. Crie uma nova para continuar:</p>
                     )}
                     <label className="invite-chat-picker">
                       <span>Escolha a line</span>
-                      <select
-                        value={lineId}
-                        onChange={(event) => escolherLinePeloChat(event.target.value)}
-                      >
+                      <select value={lineId} onChange={(event) => escolherLinePeloChat(event.target.value)} disabled={lineFlowStage > 9 && lineFlowStage < 13}>
                         <option value="" disabled>Toque para escolher</option>
                         {linesDisponiveis.map((line) => (
                           <option key={line.id} value={line.id}>{line.nome}</option>
@@ -1320,31 +1333,36 @@ function ConviteGrupoContent() {
                 </div>
               ) : null}
 
-              {selectedLine ? (
-                <UserBubble><p>Vai ser a line {selectedLine.nome}</p></UserBubble>
+              {lineId && lineFlowStage >= 10 ? (
+                <UserBubble animate={lineFlowStage === 10}>
+                  <p>{lineId === '__create__' ? 'Quero criar uma nova line' : `Vai ser a line ${selectedLine?.nome || ''}`}</p>
+                </UserBubble>
               ) : null}
 
-              {selectedSlot && chatReveal === 'line_answer' && (!lineId || lineId === '__create__') ? (
-                <>
-                  <UserBubble><p>Quero criar uma nova line</p></UserBubble>
-                  <BotBubble>
-                    <p>Perfeito. Digite o nome da nova line. Exemplo: <strong>ALOE ELITE 2</strong>.</p>
-                    <label className="invite-chat-input">
-                      <span>Nome da line</span>
-                      <input
-                        value={nomeNovaLine}
-                        onChange={(e) => setNomeNovaLine(e.target.value)}
-                        placeholder="Ex.: ALOE ELITE 2"
-                        autoFocus={!linesDisponiveis.length || lineId === '__create__'}
-                      />
-                    </label>
-                  </BotBubble>
-                </>
+              {selectedSlot && lineFlowStage >= 11 && lineId === '__create__' ? (
+                <BotBubble animate={lineFlowStage === 11}>
+                  <p>Perfeito. Digite o nome da nova line. Exemplo: <strong>ALOE ELITE 2</strong>.</p>
+                  <label className="invite-chat-input">
+                    <span>Nome da line</span>
+                    <input
+                      value={nomeNovaLine}
+                      onChange={(event) => setNomeNovaLine(event.target.value)}
+                      placeholder="Ex.: ALOE ELITE 2"
+                      autoFocus
+                    />
+                  </label>
+                </BotBubble>
               ) : null}
 
-              {selectedSlot && chatReveal === 'line_answer' && selectedLineLabel ? (
+              {selectedSlot && lineFlowStage >= 11 && lineId !== '__create__' ? (
+                <BotBubble animate={lineFlowStage === 11}>
+                  <p>Line <strong>{selectedLine?.nome}</strong> escolhida.</p>
+                </BotBubble>
+              ) : null}
+
+              {selectedSlot && lineFlowStage >= 13 && selectedLineLabel ? (
                 <>
-                  <BotBubble>
+                  <BotBubble animate={lineFlowStage === 13}>
                     <p>Resumo antes de confirmar:</p>
                     <p>
                       Equipe: <strong>{data.equipe?.nome}</strong><br />
@@ -1363,18 +1381,12 @@ function ConviteGrupoContent() {
                     >
                       {busy ? 'Confirmando...' : 'Sim, confirmar inscrição'}
                     </button>
-                    <button
-                      className="invite-chat-option"
-                      type="button"
-                      onClick={() => setStep('acompanhar')}
-                    >
+                    <button className="invite-chat-option" type="button" onClick={() => setStep('acompanhar')}>
                       Só acompanhar por enquanto
                     </button>
                   </div>
                 </>
               ) : null}
-
-              <TypingBubble />
             </div>
           ) : null}
 
@@ -1595,30 +1607,63 @@ function ConviteGrupoContent() {
           {step === 'acompanhar' && assistantMode ? (
             <div ref={chatShellRef} className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <BotBubble>
-                <p>Essas são as inscrições do grupo <strong>{data.grupo?.nome}</strong>.</p>
-                <p>Toque em uma equipe ocupada para ver line e jogadores.</p>
+                <p>Consultei o grupo <strong>{data.grupo?.nome}</strong>.</p>
+                <p>
+                  Encontrei <strong>{(data.vagas || []).filter((vaga) => vaga.ocupada).length} equipes inscritas</strong>
+                  {' '}e <strong>{slotsLivres} vagas livres</strong>.
+                </p>
               </BotBubble>
-              <div className="invite-chat-row bot">
-                <LiliAvatar />
-                <div className="invite-chat-bubble invite-chat-list-bubble">
-                  <strong>Lili</strong>
-                  <p>Mapa de slots</p>
-                  {renderSlots()}
-                  {detailVaga ? (
-                    <div className="invite-inline-detail">
-                      <div className="invite-inline-detail-head">
-                        <div><strong>{detailVaga.line_nome || detailVaga.equipe_nome || 'Equipe'}</strong><small>Slot {detailVaga.slot_letra} · {detailVaga.equipe_nome}</small></div>
-                        <button type="button" onClick={() => setDetailVaga(null)} aria-label="Fechar"><X size={16} /></button>
-                      </div>
-                      {(detailVaga.jogadores || []).length ? (
-                        <div className="invite-player-list">{detailVaga.jogadores!.map((player) => (
-                          <div className="invite-player-row" key={player.id}><span className="invite-player-avatar">{player.foto_url ? <img src={player.foto_url} alt="" /> : <Users size={16} />}</span><div><strong>{player.nick}</strong><small>{player.funcao || 'função'}{player.id_jogo ? ` · ID ${player.id_jogo}` : ''}</small></div></div>
-                        ))}</div>
-                      ) : <p className="invite-empty">Nenhum jogador escalado ainda.</p>}
-                    </div>
+
+              {(data.vagas || []).some((vaga) => vaga.ocupada) ? (
+                <BotBubble>
+                  <p>Qual equipe você quer consultar?</p>
+                  <div className="invite-chat-result-list">
+                    {(data.vagas || []).filter((vaga) => vaga.ocupada).map((vaga) => (
+                      <button
+                        type="button"
+                        key={vaga.slot_id || vaga.index}
+                        className="invite-chat-result-row"
+                        onClick={() => {
+                          appendUserReply(`Ver ${vaga.line_nome || vaga.equipe_nome || `slot ${vaga.slot_letra}`}`)
+                          setDetailVaga(vaga)
+                        }}
+                      >
+                        <span className="invite-chat-result-avatar">
+                          {vaga.logo_url ? <img src={vaga.logo_url} alt="" /> : <Users size={16} />}
+                        </span>
+                        <span className="invite-chat-result-copy">
+                          <strong>{vaga.line_nome || vaga.equipe_nome || 'Equipe'}</strong>
+                          <small>Slot {vaga.slot_letra}{vaga.equipe_nome && vaga.line_nome ? ` · ${vaga.equipe_nome}` : ''}</small>
+                        </span>
+                        <span className="invite-chat-result-action">Ver</span>
+                      </button>
+                    ))}
+                  </div>
+                  {freeSlotLetters.length ? (
+                    <small className="invite-chat-hint">Livres: {freeSlotLetters.join(', ')}</small>
                   ) : null}
-                </div>
-              </div>
+                </BotBubble>
+              ) : (
+                <BotBubble><p>Ainda não há equipes inscritas neste grupo.</p></BotBubble>
+              )}
+
+              {detailVaga ? (
+                <BotBubble animate>
+                  <p><strong>{detailVaga.line_nome || detailVaga.equipe_nome || 'Equipe'}</strong></p>
+                  <p>Slot {detailVaga.slot_letra}{detailVaga.equipe_nome && detailVaga.line_nome ? ` · ${detailVaga.equipe_nome}` : ''}</p>
+                  {(detailVaga.jogadores || []).length ? (
+                    <div className="invite-chat-player-results">
+                      {detailVaga.jogadores!.map((player) => (
+                        <div className="invite-chat-player-result" key={player.id}>
+                          <span className="invite-player-avatar">{player.foto_url ? <img src={player.foto_url} alt="" /> : <Users size={15} />}</span>
+                          <span><strong>{player.nick}</strong><small>{player.funcao || 'Jogador'}{player.id_jogo ? ` · ID ${player.id_jogo}` : ''}</small></span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p>Nenhum jogador escalado ainda.</p>}
+                  <button type="button" className="invite-chat-text-action" onClick={() => setDetailVaga(null)}>Fechar consulta</button>
+                </BotBubble>
+              ) : null}
 
               {podeInscrever ? (
                 <button
