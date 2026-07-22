@@ -153,9 +153,11 @@ function ConviteGrupoContent() {
   const [chatReveal, setChatReveal] = useState<'slots' | 'slot_answer' | 'lines' | 'line_answer'>('slots')
   const [chatTyping, setChatTyping] = useState(false)
   const [assistantMode, setAssistantMode] = useState(true)
+  const [modeChosen, setModeChosen] = useState(false)
   const [visibleConversationMessages, setVisibleConversationMessages] = useState(0)
   const [conversationTyping, setConversationTyping] = useState(false)
   const chatShellRef = useRef<HTMLDivElement | null>(null)
+  const sequenceRef = useRef(0)
   const [sucessoInfo, setSucessoInfo] = useState<{
     line: string
     slot?: string
@@ -219,37 +221,41 @@ function ConviteGrupoContent() {
   }, [conversationState, liliConversation.setActiveState])
 
   useEffect(() => {
-    let cancelled = false
-    let timer: number | undefined
+    const sequenceId = ++sequenceRef.current
+    const timers: number[] = []
     let nextIndex = 0
 
     setVisibleConversationMessages(0)
     setConversationTyping(false)
 
-    const revealNextMessage = () => {
-      if (cancelled || nextIndex >= conversationState.messages.length) return
+    const schedule = (callback: () => void, delay: number) => {
+      const timer = window.setTimeout(() => {
+        if (sequenceRef.current === sequenceId) callback()
+      }, delay)
+      timers.push(timer)
+    }
 
-      const message = conversationState.messages[nextIndex] || ''
+    const revealNextMessage = () => {
+      if (sequenceRef.current !== sequenceId || nextIndex >= conversationState.messages.length) return
+      const currentMessage = conversationState.messages[nextIndex] || ''
       setConversationTyping(true)
-      timer = window.setTimeout(() => {
-        if (cancelled) return
+      const typingDuration = Math.min(1900, Math.max(900, currentMessage.length * 24))
+      schedule(() => {
         nextIndex += 1
         setConversationTyping(false)
         setVisibleConversationMessages(nextIndex)
-
         if (nextIndex < conversationState.messages.length) {
-          timer = window.setTimeout(revealNextMessage, 260)
+          schedule(revealNextMessage, 520)
         }
-      }, Math.min(1050, Math.max(520, message.length * 12)))
+      }, typingDuration)
     }
 
-    timer = window.setTimeout(revealNextMessage, 260)
-
+    schedule(revealNextMessage, 500)
     return () => {
-      cancelled = true
-      if (timer) window.clearTimeout(timer)
+      if (sequenceRef.current === sequenceId) sequenceRef.current += 1
+      timers.forEach((timer) => window.clearTimeout(timer))
     }
-  }, [conversationState.step, conversationState.messages])
+  }, [conversationState.step, conversationState.messages.join('\u241f')])
 
   useEffect(() => {
     const shell = chatShellRef.current
@@ -715,7 +721,18 @@ function ConviteGrupoContent() {
     )
   }
 
-  if (loading) return <DropzoneLoader label="Carregando link de equipes" />
+  if (loading) {
+    return (
+      <main className="invite-page invite-loading-chat">
+        <section className="invite-loading-conversation">
+          <span className="invite-bot-avatar"><Cat size={22} /></span>
+          <div className="invite-typing" aria-label="Lili carregando o convite">
+            <span /><span /><span /><em>Lili está verificando o convite...</em>
+          </div>
+        </section>
+      </main>
+    )
+  }
 
   // Só 404 real: token inexistente e sem dados de campeonato
   if (!data || (data.error && !data.campeonato)) {
@@ -729,6 +746,34 @@ function ConviteGrupoContent() {
             Ir para o início
           </a>
         </div>
+      </main>
+    )
+  }
+
+  if (!modeChosen) {
+    return (
+      <main className="invite-page invite-entry-page champ-theme" style={themeStyle}>
+        <section className="invite-entry-choice">
+          <div className="invite-entry-kicker">Convite de grupo</div>
+          <div className="invite-entry-brand">
+            {data.campeonato?.logo_url ? <img src={data.campeonato.logo_url} alt="" /> : <Users size={30} />}
+            <div>
+              <h1>{data.campeonato?.nome}</h1>
+              <p>{data.grupo?.nome}</p>
+            </div>
+          </div>
+          <p className="invite-entry-copy">Escolha como deseja visualizar e continuar este convite.</p>
+          <div className="invite-entry-actions">
+            <button type="button" className="invite-entry-action primary" onClick={() => { setAssistantMode(true); setModeChosen(true) }}>
+              <Cat size={20} />
+              <span><strong>Continuar com a Lili</strong><small>Atendimento guiado em formato de conversa</small></span>
+            </button>
+            <button type="button" className="invite-entry-action" onClick={() => { setAssistantMode(false); setModeChosen(true) }}>
+              <ListChecks size={20} />
+              <span><strong>Continuar sem assistente</strong><small>Formulário direto, sem mensagens de chat</small></span>
+            </button>
+          </div>
+        </section>
       </main>
     )
   }
@@ -872,8 +917,9 @@ function ConviteGrupoContent() {
 
   return (
     <>
-      <main className="invite-page champ-theme" style={themeStyle}>
+      <main className={`invite-page champ-theme ${useChatLayout ? 'invite-page-chat' : 'invite-page-normal'}`} style={themeStyle}>
         <div className={`invite-card ${showTrackingChrome ? 'invite-hub-card' : ''} ${useChatLayout ? 'invite-chat-card' : ''}`}>
+          {!useChatLayout ? (<>
           {data.campeonato?.logo_url ? (
             <img className="invite-champ-logo" src={data.campeonato.logo_url} alt="" />
           ) : step === 'sucesso' || (showTrackingChrome && minhasParticipacoes.length) ? (
@@ -919,23 +965,13 @@ function ConviteGrupoContent() {
               </span>
             ) : null}
           </div>
+          </>) : null}
 
           {isInviteGroupChatStep(step) ? (
             <div className="invite-mode-switch">
-              <button
-                type="button"
-                className={!assistantMode ? 'active' : ''}
-                onClick={() => setAssistantMode(false)}
-              >
-                Modo rápido
-              </button>
-              <button
-                type="button"
-                className={assistantMode ? 'active' : ''}
-                onClick={() => setAssistantMode(true)}
-              >
-                Usar assistente
-              </button>
+              <button type="button" className={!assistantMode ? 'active' : ''} onClick={() => setAssistantMode(false)}>Sem assistente</button>
+              <button type="button" className={assistantMode ? 'active' : ''} onClick={() => setAssistantMode(true)}>Com a Lili</button>
+              <button type="button" onClick={() => setModeChosen(false)}>Trocar modo</button>
             </div>
           ) : null}
 
@@ -1421,7 +1457,7 @@ function ConviteGrupoContent() {
           ) : null}
 
           {/* ——— HUB pós-inscrição ——— */}
-          {step === 'hub' ? (
+          {step === 'hub' && assistantMode ? (
             <div ref={chatShellRef} className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <BotBubble>
                 <p>Você está na central da sua inscrição.</p>
@@ -1479,7 +1515,7 @@ function ConviteGrupoContent() {
           ) : null}
 
           {/* ——— ACOMPANHAR (público) ——— */}
-          {step === 'acompanhar' ? (
+          {step === 'acompanhar' && assistantMode ? (
             <div ref={chatShellRef} className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <BotBubble>
                 <p>Essas são as inscrições do grupo <strong>{data.grupo?.nome}</strong>.</p>
@@ -1491,6 +1527,19 @@ function ConviteGrupoContent() {
                   <strong>Lili</strong>
                   <p>Mapa de slots</p>
                   {renderSlots()}
+                  {detailVaga ? (
+                    <div className="invite-inline-detail">
+                      <div className="invite-inline-detail-head">
+                        <div><strong>{detailVaga.line_nome || detailVaga.equipe_nome || 'Equipe'}</strong><small>Slot {detailVaga.slot_letra} · {detailVaga.equipe_nome}</small></div>
+                        <button type="button" onClick={() => setDetailVaga(null)} aria-label="Fechar"><X size={16} /></button>
+                      </div>
+                      {(detailVaga.jogadores || []).length ? (
+                        <div className="invite-player-list">{detailVaga.jogadores!.map((player) => (
+                          <div className="invite-player-row" key={player.id}><span className="invite-player-avatar">{player.foto_url ? <img src={player.foto_url} alt="" /> : <Users size={16} />}</span><div><strong>{player.nick}</strong><small>{player.funcao || 'função'}{player.id_jogo ? ` · ID ${player.id_jogo}` : ''}</small></div></div>
+                        ))}</div>
+                      ) : <p className="invite-empty">Nenhum jogador escalado ainda.</p>}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -1540,7 +1589,7 @@ function ConviteGrupoContent() {
           ) : null}
 
           {/* ——— ESCALAR ——— */}
-          {step === 'escalar' ? (
+          {step === 'escalar' && assistantMode ? (
             <div ref={chatShellRef} className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero escalar o elenco</p></UserBubble>
               <BotBubble>
@@ -1604,7 +1653,7 @@ function ConviteGrupoContent() {
           ) : null}
 
           {/* ——— JOGADORES ——— */}
-          {step === 'jogadores' ? (
+          {step === 'jogadores' && assistantMode ? (
             <div ref={chatShellRef} className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Ver jogadores inscritos</p></UserBubble>
               <BotBubble>
@@ -1647,6 +1696,40 @@ function ConviteGrupoContent() {
             </div>
           ) : null}
 
+          {!assistantMode && ['hub', 'acompanhar', 'escalar', 'jogadores', 'sucesso'].includes(step) ? (
+            <section className="invite-normal-workspace">
+              <header className="invite-normal-head">
+                <div><p className="eyebrow">{data.grupo?.nome}</p><h2>{data.campeonato?.nome}</h2></div>
+                <button type="button" className="button secondary" onClick={() => setModeChosen(false)}>Trocar modo</button>
+              </header>
+              {step === 'acompanhar' ? (<>
+                <div className="invite-section-head"><h2>Inscrições do grupo</h2><span>{data.resumo_grupo?.ocupadas || 0}/{data.resumo_grupo?.total || 0}</span></div>
+                {renderSlots()}
+                <div className="invite-normal-actions">
+                  {podeInscrever ? <button className="button invite-confirm" type="button" onClick={startInscricao}>Inscrever minha equipe</button> : null}
+                  {minhasParticipacoes.length ? <button className="button secondary" type="button" onClick={() => setStep('hub')}>Gerenciar minha inscrição</button> : null}
+                </div>
+              </>) : null}
+              {step === 'hub' || step === 'sucesso' ? (<>
+                <div className="invite-section-head"><h2>Minhas inscrições</h2><span>{minhasParticipacoes.length}</span></div>
+                <div className="invite-normal-list">{minhasParticipacoes.map((part) => (
+                  <button key={part.id} type="button" className={selectedParticipacao?.id === part.id ? 'selected' : ''} onClick={() => setSelectedParticipacaoId(part.id)}><strong>{part.line?.nome || part.nome_exibicao}</strong><small>{part.slot_numero ? `Slot ${part.slot_numero}` : 'Sem slot'} · {part.quantidade_jogadores}/{part.limite_jogadores} jogadores</small></button>
+                ))}</div>
+                <div className="invite-normal-actions"><button className="button invite-confirm" type="button" onClick={() => setStep('escalar')}>Escalar elenco</button><button className="button secondary" type="button" onClick={() => setStep('jogadores')}>Ver jogadores</button><button className="button secondary" type="button" onClick={() => setStep('acompanhar')}>Acompanhar grupo</button></div>
+              </>) : null}
+              {step === 'escalar' ? (<>
+                <h2>Escalação · {selectedParticipacao?.line?.nome || selectedParticipacao?.nome_exibicao}</h2>
+                {selectedParticipacao?.link_escalacao ? <div className="invite-normal-link"><span>Link ativo</span><code>{typeof window !== 'undefined' ? window.location.origin : ''}{selectedParticipacao.link_escalacao.public_path}</code><button className="button secondary" type="button" onClick={() => copiar(`${window.location.origin}${selectedParticipacao.link_escalacao!.public_path}`)}>Copiar link</button></div> : null}
+                <div className="invite-normal-actions"><button className="button invite-confirm" type="button" disabled={busy} onClick={() => void gerarLinkEscalacao()}>{busy ? 'Gerando...' : 'Gerar novo link'}</button><button className="button secondary" type="button" onClick={() => setStep('hub')}>Voltar</button></div>
+              </>) : null}
+              {step === 'jogadores' ? (<>
+                <h2>Jogadores · {selectedParticipacao?.line?.nome || selectedParticipacao?.nome_exibicao}</h2>
+                <div className="invite-player-list">{(selectedParticipacao?.jogadores || []).map((player) => <div className="invite-player-row" key={player.id}><span className="invite-player-avatar">{player.foto_url ? <img src={player.foto_url} alt="" /> : <Users size={16} />}</span><div><strong>{player.nick}</strong><small>{player.funcao || 'função'}{player.id_jogo ? ` · ID ${player.id_jogo}` : ''}</small></div></div>)}</div>
+                <div className="invite-normal-actions"><button className="button secondary" type="button" onClick={() => setStep('hub')}>Voltar</button></div>
+              </>) : null}
+            </section>
+          ) : null}
+
           {step === 'duvidas' ? (
             <div className="invite-section" style={{ marginTop: 16, padding: 0, overflow: 'hidden' }}>
               <DropBotAssistant
@@ -1666,7 +1749,7 @@ function ConviteGrupoContent() {
       </main>
 
       {/* Detalhe público da line ao clicar no slot */}
-      {detailVaga ? (
+      {detailVaga && !assistantMode ? (
         <div className="invite-modal-backdrop" onClick={() => setDetailVaga(null)}>
           <section className="invite-modal" onClick={(event) => event.stopPropagation()}>
             <header>
