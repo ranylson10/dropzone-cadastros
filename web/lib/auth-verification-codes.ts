@@ -1,4 +1,4 @@
-import { createHmac, randomInt, timingSafeEqual } from 'crypto'
+import { createHmac, randomInt } from 'crypto'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { optionalEnv, requiredEnv } from '@backend/shared/env'
 
@@ -6,7 +6,6 @@ type CodePurpose = 'register' | 'reset_password'
 type ProfileType = 'produtora' | 'equipe' | 'jogador' | 'manager' | 'broadcast'
 
 const CODE_TTL_MINUTES = 15
-const MAX_ATTEMPTS = 5
 
 function secret() {
   const value = requiredEnv('AUTH_CODE_SECRET')
@@ -20,12 +19,6 @@ function hashCode(email: string, purpose: CodePurpose, code: string) {
   return createHmac('sha256', secret())
     .update(`${email.toLowerCase()}:${purpose}:${code}`)
     .digest('hex')
-}
-
-function safeCompare(left: string, right: string) {
-  const leftBuffer = Buffer.from(left)
-  const rightBuffer = Buffer.from(right)
-  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
 }
 
 function resendConfig() {
@@ -58,6 +51,24 @@ export async function createVerificationCode(params: {
   profileType: ProfileType
   username?: string
 }) {
+  const normalizedEmail = params.email.trim().toLowerCase()
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const { data: recent, error: recentError } = await supabaseAdmin
+    .from('auth_verification_codes')
+    .select('created_at')
+    .eq('email', normalizedEmail)
+    .eq('purpose', params.purpose)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(5)
+  if (recentError) throw recentError
+  if (recent?.length && Date.now() - new Date(recent[0].created_at).getTime() < 60_000) {
+    throw new Error('Aguarde 1 minuto antes de solicitar outro código.')
+  }
+  if ((recent?.length || 0) >= 5) {
+    throw new Error('Limite de códigos atingido. Aguarde 1 hora e tente novamente.')
+  }
+
   const code = generateVerificationCode()
   const now = new Date()
   const expiresAt = new Date(now.getTime() + CODE_TTL_MINUTES * 60 * 1000).toISOString()
@@ -70,7 +81,7 @@ export async function createVerificationCode(params: {
     .is('consumed_at', null)
 
   const { error } = await supabaseAdmin.from('auth_verification_codes').insert({
-    email: params.email,
+    email: normalizedEmail,
     purpose: params.purpose,
     profile_type: params.profileType,
     username: params.username || null,
@@ -86,35 +97,25 @@ export async function verifyCode(params: {
   email: string
   purpose: CodePurpose
   code: string
+  profileType?: ProfileType | null
+  username?: string | null
 }) {
-  const { data, error } = await supabaseAdmin
-    .from('auth_verification_codes')
-    .select('id, code_hash, attempts, expires_at')
-    .eq('email', params.email)
-    .eq('purpose', params.purpose)
-    .is('consumed_at', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
+  const normalizedEmail = params.email.trim().toLowerCase()
+  const expectedHash = hashCode(normalizedEmail, params.purpose, params.code)
+  const { data, error } = await supabaseAdmin.rpc('fn_verify_and_consume_auth_code', {
+    p_email: normalizedEmail,
+    p_purpose: params.purpose,
+    p_code_hash: expectedHash,
+    p_profile_type: params.profileType || null,
+    p_username: params.username || null,
+  })
   if (error) throw error
-  if (!data) throw new Error('Codigo invalido ou expirado.')
-  if (new Date(data.expires_at).getTime() < Date.now()) throw new Error('Codigo expirado. Envie um novo codigo.')
-  if (Number(data.attempts || 0) >= MAX_ATTEMPTS) throw new Error('Muitas tentativas. Envie um novo codigo.')
-
-  const ok = safeCompare(String(data.code_hash), hashCode(params.email, params.purpose, params.code))
-  if (!ok) {
-    await supabaseAdmin
-      .from('auth_verification_codes')
-      .update({ attempts: Number(data.attempts || 0) + 1 })
-      .eq('id', data.id)
-    throw new Error('Codigo incorreto.')
-  }
-
-  await supabaseAdmin
-    .from('auth_verification_codes')
-    .update({ consumed_at: new Date().toISOString() })
-    .eq('id', data.id)
+  const status = Array.isArray(data) ? data[0]?.status : data?.status
+  if (status === 'ok') return
+  if (status === 'incorrect') throw new Error('Codigo incorreto.')
+  if (status === 'too_many_attempts') throw new Error('Muitas tentativas. Envie um novo codigo.')
+  if (status === 'context_mismatch') throw new Error('O código não pertence a este cadastro. Envie um novo código.')
+  throw new Error('Codigo invalido ou expirado.')
 }
 
 export async function sendVerificationEmail(params: {

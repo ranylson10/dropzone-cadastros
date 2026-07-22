@@ -3,21 +3,19 @@ import { supabaseAdmin } from '../shared/supabase-admin'
 export type AprovacaoStatus = 'pendente' | 'aprovado' | 'rejeitado'
 
 export function isPublicavel(status: unknown) {
-  return String(status || 'aprovado') === 'aprovado'
+  return String(status || 'pendente') === 'aprovado'
 }
 
-/** Falha se a coluna não existir (migração não rodada) → trata como aprovado (legado). */
+/** Aprovação é fail-closed: schema ausente ou valor nulo nunca publica. */
 export async function getProdutoraAprovacao(produtoraId: string): Promise<AprovacaoStatus> {
   const { data, error } = await supabaseAdmin
     .from('produtoras')
     .select('aprovacao_status')
     .eq('id', produtoraId)
     .maybeSingle()
-  if (error) {
-    if (['42703', 'PGRST204'].includes(error.code || '')) return 'aprovado'
-    throw error
-  }
-  return (data?.aprovacao_status as AprovacaoStatus) || 'aprovado'
+  if (error) throw error
+  if (!data) throw new Error('Produtora não encontrada.')
+  return (data.aprovacao_status as AprovacaoStatus) || 'pendente'
 }
 
 export async function getCampeonatoAprovacao(campeonatoId: string): Promise<AprovacaoStatus> {
@@ -26,13 +24,10 @@ export async function getCampeonatoAprovacao(campeonatoId: string): Promise<Apro
     .select('aprovacao_status, status, deleted_at')
     .eq('id', campeonatoId)
     .maybeSingle()
-  if (error) {
-    if (['42703', 'PGRST204'].includes(error.code || '')) return 'aprovado'
-    throw error
-  }
+  if (error) throw error
   if (!data) throw new Error('Campeonato não encontrado.')
   if (data.deleted_at || data.status === 'excluido') throw new Error('Campeonato indisponível.')
-  return (data.aprovacao_status as AprovacaoStatus) || 'aprovado'
+  return (data.aprovacao_status as AprovacaoStatus) || 'pendente'
 }
 
 /** Bloqueia recursos públicos / "no ar" se não aprovado. */

@@ -921,16 +921,8 @@ export async function POST(req: NextRequest) {
       if (!nome) throw new Error('Informe o nome do campeonato.')
       if (!logoUrl) throw new Error('Envie a logo do campeonato.')
 
-      // Produtora precisa estar aprovada para criar campeonato (exceto se coluna ainda não existe)
-      try {
-        const { assertProdutoraAprovada } = await import('@backend/admin/aprovacao')
-        await assertProdutoraAprovada(account.id)
-      } catch (e: any) {
-        if (!/não encontrada|does not exist|42703|PGRST/i.test(String(e?.message || ''))) {
-          // se for "aguardando aprovação" / rejeitada, propaga
-          if (/aprovação|rejeitad|Produtora/i.test(String(e?.message || ''))) throw e
-        }
-      }
+      const { assertProdutoraAprovada } = await import('@backend/admin/aprovacao')
+      await assertProdutoraAprovada(account.id)
 
       const championshipPayload: Record<string, unknown> = {
         nome,
@@ -943,21 +935,12 @@ export async function POST(req: NextRequest) {
         // novo campeonato não vai ao ar até admin aprovar (+ cobrança)
         aprovacao_status: 'pendente',
       }
-      let inserted: any
-      {
-        const firstTry = await supabaseAdmin.from('campeonatos').insert(championshipPayload).select('*').single()
-        if (firstTry.error && ['42703', 'PGRST204'].includes(firstTry.error.code || '')) {
-          // migração de aprovação ainda não rodou
-          delete championshipPayload.aprovacao_status
-          const retry = await supabaseAdmin.from('campeonatos').insert(championshipPayload).select('*').single()
-          if (retry.error) throw retry.error
-          inserted = retry.data
-        } else if (firstTry.error) {
-          throw firstTry.error
-        } else {
-          inserted = firstTry.data
-        }
-      }
+      const { data: inserted, error: insertError } = await supabaseAdmin
+        .from('campeonatos')
+        .insert(championshipPayload)
+        .select('*')
+        .single()
+      if (insertError) throw insertError
 
       const configurationPayload = championshipConfigurationPayload(data, inserted.id)
       let configuration: any

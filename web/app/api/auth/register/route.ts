@@ -137,6 +137,8 @@ export async function POST(req: Request) {
         email: emailContato,
         purpose: 'register',
         code: verificationCode,
+        profileType,
+        username,
       })
 
       const existingAuthUser = await findAuthUserByEmail(emailContato)
@@ -200,16 +202,11 @@ export async function POST(req: Request) {
     let account: any
     {
       const firstTry = await supabaseAdmin.from(table).insert(payload).select('*').single()
-      if (firstTry.error && profileType === 'produtora' && ['42703', 'PGRST204'].includes(firstTry.error.code || '')) {
-        delete payload.aprovacao_status
-        const retry = await supabaseAdmin.from(table).insert(payload).select('*').single()
-        if (retry.error) {
-          if (!linked && pendingAuthUserId) await supabaseAdmin.auth.admin.deleteUser(pendingAuthUserId)
-          throw new Error(`Perfil/${table}: ${retry.error.message}`)
-        }
-        account = retry.data
-      } else if (firstTry.error) {
+      if (firstTry.error) {
         if (!linked && pendingAuthUserId) await supabaseAdmin.auth.admin.deleteUser(pendingAuthUserId)
+        if (firstTry.error.code === '23505' && /auth_user/i.test(String(firstTry.error.message || ''))) {
+          throw new Error(`Este login já possui um perfil de ${profileType}.`)
+        }
         if (profileType === 'jogador' && firstTry.error.code === '23505' && String(firstTry.error.message || '').includes('id_jogo')) {
           throw new Error('Esse ID de jogo ja esta cadastrado. Faca login ou recupere a conta vinculada a esse ID.')
         }
@@ -228,9 +225,12 @@ export async function POST(req: Request) {
         logo_url: mediaUrl,
         status: 'ativo',
       })
-      // Nao falha o cadastro se a line ja existir por trigger/corrida.
+      // Unique significa que trigger/rotina do banco já criou a line.
+      // Qualquer outra falha desfaz o perfil para não deixar equipe inválida.
       if (lineError && lineError.code !== '23505') {
-        console.error('Falha ao criar line principal da equipe:', lineError.message)
+        await supabaseAdmin.from('equipes').delete().eq('id', account.id)
+        if (!linked && pendingAuthUserId) await supabaseAdmin.auth.admin.deleteUser(pendingAuthUserId)
+        throw new Error(`Não foi possível criar a line principal da equipe: ${lineError.message}`)
       }
     }
 

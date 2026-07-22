@@ -13,6 +13,7 @@ type UploadPayload = {
   content_type?: string
   entity_id?: string
   campeonato_id?: string
+  upload_intent?: 'create_profile' | 'create_campeonato'
 }
 
 const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
@@ -154,6 +155,7 @@ export async function POST(req: NextRequest) {
       bucket,
       entityId: String(payload.entity_id || '').trim() || null,
       campeonatoId: String(payload.campeonato_id || '').trim() || null,
+      uploadIntent: payload.upload_intent || null,
     })
 
     const decoded = decodeUpload(payload)

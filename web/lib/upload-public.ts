@@ -24,7 +24,11 @@ function currentCampeonatoId(bucket: string) {
   return window.location.pathname.match(/\/campeonatos\/([^/]+)/)?.[1] || null
 }
 
-type UploadContext = { entityId?: string | null; campeonatoId?: string | null }
+type UploadContext = {
+  entityId?: string | null
+  campeonatoId?: string | null
+  uploadIntent?: 'create_profile' | 'create_campeonato' | null
+}
 
 /** Upload PNG público via /api/upload (precisa sessão). */
 export async function uploadPublicFile(
@@ -55,6 +59,7 @@ export async function uploadPublicFile(
       data_url: dataUrl,
       entity_id: context?.entityId || null,
       campeonato_id: context?.campeonatoId || currentCampeonatoId(bucket),
+      upload_intent: context?.uploadIntent || null,
     }),
   })
   const json = await res.json().catch(() => ({}))
@@ -88,6 +93,7 @@ export async function uploadPublicMedia(
       size: file.size,
       entity_id: context?.entityId || null,
       campeonato_id: context?.campeonatoId || currentCampeonatoId(bucket),
+      upload_intent: context?.uploadIntent || null,
     }),
   })
   const signed = await prep.json().catch(() => ({}))

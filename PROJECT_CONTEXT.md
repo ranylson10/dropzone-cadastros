@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 21 de julho de 2026
-**Estado:** Correções críticas de segurança em pagamentos, webhook ASAAS, carteira/saques e uploads. Migration `20260721_carteira_saques_atomicos.sql` aplicada no Supabase.
+**Última atualização:** 22 de julho de 2026
+**Estado:** Upload de pré-criação corrigido; unicidade de perfil por tipo/login e consumo atômico de códigos aplicados no Supabase pela migration `20260722_perfil_unico_por_tipo.sql`.
 
 ## 1. Objetivo do sistema
 

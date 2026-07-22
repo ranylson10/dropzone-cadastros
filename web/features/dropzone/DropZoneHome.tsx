@@ -629,6 +629,11 @@ export function DropZoneHome() {
           file_name: file.name || `${bucket}.png`,
           content_type: 'image/png',
           data_url: dataUrl,
+          upload_intent: bucket === 'campeonato'
+            ? 'create_campeonato'
+            : linkingProfile
+              ? 'create_profile'
+              : null,
         }),
       })
       const json = await res.json()

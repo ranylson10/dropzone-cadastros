@@ -1,5 +1,18 @@
 # Histórico de alterações
 
+## 2026-07-22 — Criação de perfis e uploads
+
+- Corrigido upload de foto/logo antes da criação de perfil vinculado.
+- Corrigido upload de logo/banner antes da criação de campeonato por produtora aprovada.
+- Aplicada unicidade por `auth_user_id` em cada tabela de perfil: um login pode ter tipos diferentes, mas nunca dois perfis do mesmo tipo.
+- Cadastro de equipe agora é revertido se a line principal não puder ser criada.
+- Códigos de verificação passaram a ser consumidos atomicamente e vinculados ao tipo/username do cadastro.
+- Adicionado limite de reenvio: um código por minuto e cinco por hora para e-mail/finalidade.
+- Broadcast incluído no check de tipos aceitos pela tabela de códigos.
+- Aprovação de produtora/campeonato passou a falhar fechada quando schema ou status estiver ausente.
+- Migration `20260722_perfil_unico_por_tipo.sql` aplicada no Supabase.
+- `npm run typecheck`, `npm run build`, auditoria de banco e 45 validações de fluxo aprovados.
+
 ## 2026-07-21 — Segurança financeira e uploads
 
 - Webhook ASAAS agora exige `ASAAS_WEBHOOK_TOKEN` e confirma o pagamento diretamente na API ASAAS.

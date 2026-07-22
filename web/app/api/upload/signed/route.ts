@@ -77,6 +77,9 @@ export async function POST(req: NextRequest) {
       bucket,
       entityId: String(body.entity_id || '').trim() || null,
       campeonatoId: String(body.campeonato_id || '').trim() || null,
+      uploadIntent: body.upload_intent === 'create_profile' || body.upload_intent === 'create_campeonato'
+        ? body.upload_intent
+        : null,
     })
 
     const media = normalizeMedia(contentTypeIn, fileName)
