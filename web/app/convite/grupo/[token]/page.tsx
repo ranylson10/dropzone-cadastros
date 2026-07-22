@@ -20,6 +20,7 @@ import { buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { DropBotAssistant, TypingText, type DropBotSystemContext } from '@/features/chatbot'
+import { LiliConversationProvider, useLiliConversation } from '@/features/chatbot/lili/conversation'
 import {
   getInviteGroupConversationState,
   isInviteGroupChatStep,
@@ -140,7 +141,7 @@ type GroupInvitePayload = {
 const SESSION_WAS_LOGGED_KEY = 'dz_invite_was_logged'
 const SESSION_JUST_LOGIN_KEY = 'dz_invite_just_login'
 
-export default function ConviteGrupoPage() {
+function ConviteGrupoContent() {
   const params = useParams<{ token: string }>()
   const token = String(params?.token || '')
   const returnTo = `/convite/grupo/${encodeURIComponent(token)}`
@@ -170,6 +171,7 @@ export default function ConviteGrupoPage() {
   } | null>(null)
   const [payBusy, setPayBusy] = useState(false)
   const [payUrl, setPayUrl] = useState('')
+  const liliConversation = useLiliConversation<ReturnType<typeof getInviteGroupConversationState>>()
 
   const linesDisponiveis = useMemo(() => {
     // Preferir lines_disponiveis mesmo se vazio (lista vazia = todas já inscritas)
@@ -198,6 +200,29 @@ export default function ConviteGrupoPage() {
   const slotsLivres = Number(data?.resumo_grupo?.livres || 0)
   const restantesLink = data?.resumo_link?.restantes ?? 1
   const podeInscrever = Boolean(inscricaoAberta && slotsLivres > 0 && restantesLink > 0)
+  const conversationState = useMemo(() => getInviteGroupConversationState({
+    step,
+    inscricaoAberta,
+    participacoesCount: minhasParticipacoes.length,
+    campeonatoNome: data?.campeonato?.nome,
+    grupoNome: data?.grupo?.nome,
+    equipeNome: data?.equipe?.nome,
+    papelSessao: data?.papel_sessao,
+    podeInscrever,
+  }), [
+    data?.campeonato?.nome,
+    data?.equipe?.nome,
+    data?.grupo?.nome,
+    data?.papel_sessao,
+    inscricaoAberta,
+    minhasParticipacoes.length,
+    podeInscrever,
+    step,
+  ])
+
+  useEffect(() => {
+    liliConversation.setActiveState(conversationState)
+  }, [conversationState, liliConversation.setActiveState])
   const selectedSlot =
     slotsLivresLista.find((vaga) => vaga.slot_id === selectedSlotId) || null
   const selectedLine = linesDisponiveis.find((line) => line.id === lineId) || null
@@ -675,16 +700,6 @@ export default function ConviteGrupoPage() {
   const showTrackingChrome =
     step === 'acompanhar' || step === 'hub' || step === 'escalar' || step === 'jogadores' || step === 'sucesso'
 
-  const conversationState = getInviteGroupConversationState({
-    step,
-    inscricaoAberta,
-    participacoesCount: minhasParticipacoes.length,
-    campeonatoNome: data.campeonato?.nome,
-    grupoNome: data.grupo?.nome,
-    equipeNome: data.equipe?.nome,
-    papelSessao: data.papel_sessao,
-    podeInscrever,
-  })
   const eyebrow = conversationState.eyebrow
   const useChatLayout = assistantMode && isInviteGroupChatStep(step)
   function BotBubble({ children }: { children: ReactNode }) {
@@ -710,6 +725,7 @@ export default function ConviteGrupoPage() {
   }
 
   function executeConversationAction(action: InviteGroupConversationAction) {
+    liliConversation.recordAction(action)
     switch (action.id) {
       case 'inscrever':
         startInscricao()
@@ -1643,3 +1659,15 @@ export default function ConviteGrupoPage() {
 
 
 
+
+
+export default function ConviteGrupoPage() {
+  const params = useParams<{ token: string }>()
+  const token = String(params?.token || '')
+
+  return (
+    <LiliConversationProvider flowId={`convite-grupo:${token}`}>
+      <ConviteGrupoContent />
+    </LiliConversationProvider>
+  )
+}

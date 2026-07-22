@@ -1,3 +1,5 @@
+import type { LiliConversationAction, LiliConversationState } from './conversation'
+
 export type InviteGroupStep =
   | 'inicio'
   | 'acompanhar'
@@ -23,8 +25,7 @@ export type InviteGroupConversationContext = {
   podeInscrever?: boolean
 }
 
-export type InviteGroupConversationAction = {
-  id:
+export type InviteGroupConversationAction = LiliConversationAction<
     | 'inscrever'
     | 'acompanhar'
     | 'cadastrar_equipe'
@@ -33,15 +34,11 @@ export type InviteGroupConversationAction = {
     | 'escolher_line'
     | 'gerenciar_inscricao'
     | 'entrar_gerenciar'
-  label: string
-  primary?: boolean
-}
+>
 
-export type InviteGroupConversationState = {
-  step: InviteGroupStep
-  eyebrow: string
-  chatEnabled: boolean
-  kind:
+export type InviteGroupConversationState = LiliConversationState<
+  InviteGroupStep,
+  InviteGroupConversationAction['id'],
     | 'entry'
     | 'authentication'
     | 'profile'
@@ -54,9 +51,7 @@ export type InviteGroupConversationState = {
     | 'roster'
     | 'players'
     | 'help'
-  messages: string[]
-  actions: InviteGroupConversationAction[]
-}
+>
 
 const CHAT_STEPS = new Set<InviteGroupStep>([
   'inicio',
