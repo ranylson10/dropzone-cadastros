@@ -19,7 +19,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
-import { DropBotAssistant, TypingText, type DropBotSystemContext } from '@/features/chatbot'
+import { DropBotAssistant, type DropBotSystemContext } from '@/features/chatbot'
 import { LiliConversationProvider, useLiliConversation } from '@/features/chatbot/lili/conversation'
 import {
   getInviteGroupConversationState,
@@ -50,15 +50,6 @@ type Vaga = {
   quantidade_jogadores?: number
 }
 
-function TypeChildren({ children }: { children: ReactNode }) {
-  if (typeof children === 'string') return <TypingText text={children} speedMs={14} />
-  if (Array.isArray(children)) return <>{children.map((child, index) => <TypeChildren key={index}>{child}</TypeChildren>)}</>
-  if (children && typeof children === 'object' && 'type' in children && (children as any).type === 'p') {
-    const props = (children as any).props || {}
-    return <p {...props}><TypeChildren>{props.children}</TypeChildren></p>
-  }
-  return <>{children}</>
-}
 
 type Participacao = {
   id: string
@@ -229,33 +220,34 @@ function ConviteGrupoContent() {
 
   useEffect(() => {
     let cancelled = false
-    const timers: number[] = []
+    let timer: number | undefined
+    let nextIndex = 0
 
     setVisibleConversationMessages(0)
-    setConversationTyping(Boolean(conversationState.messages.length))
+    setConversationTyping(false)
 
-    let elapsed = 420
-    conversationState.messages.forEach((message, index) => {
-      const revealTimer = window.setTimeout(() => {
+    const revealNextMessage = () => {
+      if (cancelled || nextIndex >= conversationState.messages.length) return
+
+      const message = conversationState.messages[nextIndex] || ''
+      setConversationTyping(true)
+      timer = window.setTimeout(() => {
         if (cancelled) return
+        nextIndex += 1
         setConversationTyping(false)
-        setVisibleConversationMessages(index + 1)
-      }, elapsed)
-      timers.push(revealTimer)
+        setVisibleConversationMessages(nextIndex)
 
-      elapsed += Math.min(1250, Math.max(650, message.length * 16))
-      if (index < conversationState.messages.length - 1) {
-        const typingTimer = window.setTimeout(() => {
-          if (!cancelled) setConversationTyping(true)
-        }, elapsed - 260)
-        timers.push(typingTimer)
-        elapsed += 360
-      }
-    })
+        if (nextIndex < conversationState.messages.length) {
+          timer = window.setTimeout(revealNextMessage, 260)
+        }
+      }, Math.min(1050, Math.max(520, message.length * 12)))
+    }
+
+    timer = window.setTimeout(revealNextMessage, 260)
 
     return () => {
       cancelled = true
-      timers.forEach((timer) => window.clearTimeout(timer))
+      if (timer) window.clearTimeout(timer)
     }
   }, [conversationState.step, conversationState.messages])
 
@@ -754,14 +746,14 @@ function ConviteGrupoContent() {
     )
   }
 
-  function BotBubble({ children, typing = false }: { children: ReactNode; typing?: boolean }) {
+  function BotBubble({ children }: { children: ReactNode }) {
     return (
       <div className="invite-chat-row bot invite-chat-enter">
         <LiliAvatar />
         <div>
           <div className="invite-chat-bubble">
             <strong>Lili</strong>
-            <div>{typing ? <TypeChildren>{children}</TypeChildren> : children}</div>
+            <div>{children}</div>
           </div>
         </div>
       </div>
@@ -772,10 +764,11 @@ function ConviteGrupoContent() {
     return (
       <>
         {conversationState.messages.slice(0, visibleConversationMessages).map((message, index) => (
-          <BotBubble key={`${conversationState.step}:${index}`} typing={index === visibleConversationMessages - 1}>
+          <BotBubble key={`${conversationState.step}:${index}`}>
             <p>{message}</p>
           </BotBubble>
         ))}
+        {conversationTyping ? <TypingBubble force /> : null}
       </>
     )
   }
@@ -862,8 +855,8 @@ function ConviteGrupoContent() {
     )
   }
 
-  function TypingBubble() {
-    if (!busy && !payBusy && !chatTyping && !conversationTyping) return null
+  function TypingBubble({ force = false }: { force?: boolean } = {}) {
+    if (!force && !busy && !payBusy && !chatTyping) return null
     return (
       <div className="invite-chat-row bot">
         <LiliAvatar />
@@ -895,6 +888,17 @@ function ConviteGrupoContent() {
             {data.grupo?.nome}
             {data.equipe && step !== 'acompanhar' ? ` · ${data.equipe.nome}` : ''}
           </p>
+
+          {useChatLayout ? (
+            <div className="invite-chat-context">
+              {data.campeonato?.logo_url ? <img src={data.campeonato.logo_url} alt="" /> : <Cat size={18} />}
+              <div>
+                <strong>{data.campeonato?.nome}</strong>
+                <span>{data.grupo?.nome}{data.equipe ? ` · ${data.equipe.nome}` : ''}</span>
+              </div>
+              <small>{data.resumo_grupo?.livres ?? 0} vagas</small>
+            </div>
+          ) : null}
 
           <div className="invite-mini-stats">
             <span>
@@ -1112,7 +1116,7 @@ function ConviteGrupoContent() {
             </div>
           ) : null}
           {step === 'escolher_line' && assistantMode ? (
-            <div className="invite-section invite-chat-shell invite-chat-flow" style={{ marginTop: 12 }}>
+            <div ref={chatShellRef} className="invite-section invite-chat-shell invite-chat-flow" style={{ marginTop: 12 }}>
               <UserBubble><p>Sim, quero inscrever a {data.equipe?.nome}</p></UserBubble>
               <BotBubble>
                 <p>Fechado. Escolha um slot livre para a <strong>{data.equipe?.nome}</strong>.</p>
@@ -1186,25 +1190,19 @@ function ConviteGrupoContent() {
                     ) : (
                       <p>Não encontrei line livre nessa equipe. Crie uma nova para continuar:</p>
                     )}
-                    <div className="invite-chat-options">
-                    {linesDisponiveis.map((line) => (
-                      <button
-                        key={line.id}
-                        type="button"
-                        className={`invite-chat-option ${lineId === line.id ? 'selected' : ''}`}
-                        onClick={() => escolherLinePeloChat(line.id)}
+                    <label className="invite-chat-picker">
+                      <span>Escolha a line</span>
+                      <select
+                        value={lineId}
+                        onChange={(event) => escolherLinePeloChat(event.target.value)}
                       >
-                        {line.nome}
-                      </button>
-                    ))}
-                      <button
-                        type="button"
-                        className={`invite-chat-option ${lineId === '__create__' ? 'selected' : ''}`}
-                        onClick={() => escolherLinePeloChat('__create__')}
-                      >
-                        + Criar nova line
-                      </button>
-                    </div>
+                        <option value="" disabled>Toque para escolher</option>
+                        {linesDisponiveis.map((line) => (
+                          <option key={line.id} value={line.id}>{line.nome}</option>
+                        ))}
+                        <option value="__create__">+ Criar nova line</option>
+                      </select>
+                    </label>
                   </div>
                 </div>
               ) : null}
