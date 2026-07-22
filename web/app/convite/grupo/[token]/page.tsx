@@ -831,6 +831,19 @@ function ConviteGrupoContent() {
   }
 
   if (loading) {
+    let loadingWithAssistant = false
+    try {
+      loadingWithAssistant =
+        (modeChosen && assistantMode)
+        || sessionStorage.getItem(`${SESSION_MODE_KEY}:${token}`) === 'assistant'
+    } catch {
+      loadingWithAssistant = modeChosen && assistantMode
+    }
+
+    if (!loadingWithAssistant) {
+      return <DropzoneLoader label="Carregando convite" />
+    }
+
     return (
       <main className="invite-page invite-loading-chat">
         <section className="invite-loading-conversation">
@@ -1106,9 +1119,20 @@ function ConviteGrupoContent() {
 
           {isInviteGroupChatStep(step) ? (
             <div className="invite-mode-switch">
-              <button type="button" className={!assistantMode ? 'active' : ''} onClick={() => setAssistantMode(false)}>Sem assistente</button>
-              <button type="button" className={assistantMode ? 'active' : ''} onClick={() => setAssistantMode(true)}>Com a Lili</button>
-              <button type="button" onClick={resetAttendanceMode}>Trocar modo</button>
+              <button
+                type="button"
+                className={!assistantMode ? 'active' : ''}
+                onClick={() => chooseAttendanceMode('normal')}
+              >
+                Sem assistente
+              </button>
+              <button
+                type="button"
+                className={assistantMode ? 'active' : ''}
+                onClick={() => chooseAttendanceMode('assistant')}
+              >
+                Com a Lili
+              </button>
             </div>
           ) : null}
 
@@ -1908,7 +1932,16 @@ function ConviteGrupoContent() {
                 <div className="invite-normal-list">{minhasParticipacoes.map((part) => (
                   <button key={part.id} type="button" className={selectedParticipacao?.id === part.id ? 'selected' : ''} onClick={() => setSelectedParticipacaoId(part.id)}><strong>{part.line?.nome || part.nome_exibicao}</strong><small>{part.slot_numero ? `Slot ${part.slot_numero}` : 'Sem slot'} · {part.quantidade_jogadores}/{part.limite_jogadores} jogadores</small></button>
                 ))}</div>
-                <div className="invite-normal-actions"><button className="button invite-confirm" type="button" onClick={() => setStep('escalar')}>Escalar elenco</button><button className="button secondary" type="button" onClick={() => setStep('jogadores')}>Ver jogadores</button><button className="button secondary" type="button" onClick={() => setStep('acompanhar')}>Acompanhar grupo</button></div>
+                <div className="invite-normal-actions">
+                  {podeInscrever ? (
+                    <button className="button invite-confirm" type="button" onClick={startInscricao}>
+                      Fazer nova inscrição
+                    </button>
+                  ) : null}
+                  <button className="button secondary" type="button" onClick={() => setStep('escalar')}>Escalar elenco</button>
+                  <button className="button secondary" type="button" onClick={() => setStep('jogadores')}>Ver jogadores</button>
+                  <button className="button secondary" type="button" onClick={() => setStep('acompanhar')}>Acompanhar grupo</button>
+                </div>
               </>) : null}
               {step === 'escalar' ? (<>
                 <h2>Escalação · {selectedParticipacao?.line?.nome || selectedParticipacao?.nome_exibicao}</h2>
