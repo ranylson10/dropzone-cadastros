@@ -154,10 +154,15 @@ function ConviteGrupoContent() {
   const [chatTyping, setChatTyping] = useState(false)
   const [assistantMode, setAssistantMode] = useState(true)
   const [modeChosen, setModeChosen] = useState(false)
-  const [visibleConversationMessages, setVisibleConversationMessages] = useState(0)
+  const [conversationTranscript, setConversationTranscript] = useState<Array<{ id: string; role: 'assistant' | 'user'; text: string }>>([])
   const [conversationTyping, setConversationTyping] = useState(false)
+  const [conversationReady, setConversationReady] = useState(false)
   const chatShellRef = useRef<HTMLDivElement | null>(null)
-  const sequenceRef = useRef(0)
+  const deliveredStateKeyRef = useRef('')
+  const messageQueueRef = useRef<Array<{ id: string; text: string }>>([])
+  const queueRunningRef = useRef(false)
+  const queueGenerationRef = useRef(0)
+  const [latestAnimatedId, setLatestAnimatedId] = useState('')
   const [sucessoInfo, setSucessoInfo] = useState<{
     line: string
     slot?: string
@@ -220,42 +225,80 @@ function ConviteGrupoContent() {
     liliConversation.setActiveState(conversationState)
   }, [conversationState, liliConversation.setActiveState])
 
-  useEffect(() => {
-    const sequenceId = ++sequenceRef.current
-    const timers: number[] = []
-    let nextIndex = 0
+  const waitForChat = (delay: number) => new Promise<void>((resolve) => {
+    window.setTimeout(resolve, delay)
+  })
 
-    setVisibleConversationMessages(0)
-    setConversationTyping(false)
+  async function runMessageQueue(generation: number) {
+    if (queueRunningRef.current) return
+    queueRunningRef.current = true
+    setConversationReady(false)
 
-    const schedule = (callback: () => void, delay: number) => {
-      const timer = window.setTimeout(() => {
-        if (sequenceRef.current === sequenceId) callback()
-      }, delay)
-      timers.push(timer)
-    }
+    try {
+      while (messageQueueRef.current.length > 0) {
+        if (queueGenerationRef.current !== generation) return
 
-    const revealNextMessage = () => {
-      if (sequenceRef.current !== sequenceId || nextIndex >= conversationState.messages.length) return
-      const currentMessage = conversationState.messages[nextIndex] || ''
-      setConversationTyping(true)
-      const typingDuration = Math.min(1900, Math.max(900, currentMessage.length * 24))
-      schedule(() => {
-        nextIndex += 1
+        const nextMessage = messageQueueRef.current[0]
+        setConversationTyping(true)
+
+        // O indicador precisa ficar visível como em mensageiros reais. A próxima
+        // mensagem só começa depois que esta foi efetivamente adicionada ao DOM.
+        const typingDelay = Math.min(4200, Math.max(1800, nextMessage.text.length * 42))
+        await waitForChat(typingDelay)
+        if (queueGenerationRef.current !== generation) return
+
         setConversationTyping(false)
-        setVisibleConversationMessages(nextIndex)
-        if (nextIndex < conversationState.messages.length) {
-          schedule(revealNextMessage, 520)
-        }
-      }, typingDuration)
+        setConversationTranscript((current) => [
+          ...current,
+          { id: nextMessage.id, role: 'assistant', text: nextMessage.text },
+        ])
+        setLatestAnimatedId(nextMessage.id)
+        messageQueueRef.current.shift()
+
+        await waitForChat(520)
+        setLatestAnimatedId((current) => current === nextMessage.id ? '' : current)
+        await waitForChat(480)
+      }
+    } finally {
+      queueRunningRef.current = false
+      if (queueGenerationRef.current === generation) {
+        setConversationTyping(false)
+        setConversationReady(messageQueueRef.current.length === 0)
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!modeChosen || !assistantMode || !isInviteGroupChatStep(step)) {
+      queueGenerationRef.current += 1
+      messageQueueRef.current = []
+      queueRunningRef.current = false
+      setConversationTyping(false)
+      setConversationReady(false)
+      return
     }
 
-    schedule(revealNextMessage, 500)
-    return () => {
-      if (sequenceRef.current === sequenceId) sequenceRef.current += 1
-      timers.forEach((timer) => window.clearTimeout(timer))
+    const stateKey = `${conversationState.step}:${conversationState.messages.join('\u241f')}`
+    if (deliveredStateKeyRef.current === stateKey) {
+      if (!queueRunningRef.current && messageQueueRef.current.length === 0) {
+        setConversationReady(true)
+      }
+      return
     }
-  }, [conversationState.step, conversationState.messages.join('\u241f')])
+
+    deliveredStateKeyRef.current = stateKey
+    setConversationReady(false)
+
+    conversationState.messages.forEach((text, index) => {
+      messageQueueRef.current.push({
+        id: `assistant:${stateKey}:${index}:${Date.now()}`,
+        text,
+      })
+    })
+
+    const generation = queueGenerationRef.current
+    void runMessageQueue(generation)
+  }, [assistantMode, modeChosen, conversationState.step, conversationState.messages.join('\u241f'), step])
 
   useEffect(() => {
     const shell = chatShellRef.current
@@ -264,7 +307,7 @@ function ConviteGrupoContent() {
       shell.scrollTo({ top: shell.scrollHeight, behavior: 'smooth' })
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [step, visibleConversationMessages, conversationTyping, chatTyping, busy, payBusy, lastSlotChoice, lineId])
+  }, [step, conversationTranscript.length, conversationTyping, chatTyping, busy, payBusy, lastSlotChoice, lineId])
   const selectedSlot =
     slotsLivresLista.find((vaga) => vaga.slot_id === selectedSlotId) || null
   const selectedLine = linesDisponiveis.find((line) => line.id === lineId) || null
@@ -490,6 +533,7 @@ function ConviteGrupoContent() {
   function escolherSlotPeloChat(vaga: Vaga) {
     const label = vaga.slot_letra || String(vaga.slot_numero || '').trim() || '?'
     const occupied = Boolean(vaga.ocupada || !vaga.slot_id)
+    appendUserReply(`Escolher slot ${label}`)
     setLastSlotChoice({ label, occupied })
     setChatReveal('slots')
     setChatTyping(true)
@@ -518,6 +562,10 @@ function ConviteGrupoContent() {
   }
 
   function escolherLinePeloChat(id: string) {
+    const selectedLabel = id === '__create__'
+      ? 'Criar uma nova line'
+      : (linesDisponiveis.find((item) => item.id === id)?.nome || 'Selecionar line')
+    appendUserReply(selectedLabel)
     setLineId(id)
     setChatReveal('lines')
     setChatTyping(true)
@@ -764,7 +812,18 @@ function ConviteGrupoContent() {
           </div>
           <p className="invite-entry-copy">Escolha como deseja visualizar e continuar este convite.</p>
           <div className="invite-entry-actions">
-            <button type="button" className="invite-entry-action primary" onClick={() => { setAssistantMode(true); setModeChosen(true) }}>
+            <button type="button" className="invite-entry-action primary" onClick={() => {
+              deliveredStateKeyRef.current = ''
+              queueGenerationRef.current += 1
+              messageQueueRef.current = []
+              queueRunningRef.current = false
+              deliveredStateKeyRef.current = ''
+              setConversationTranscript([])
+              setConversationTyping(false)
+              setConversationReady(false)
+              setAssistantMode(true)
+              setModeChosen(true)
+            }}>
               <Cat size={20} />
               <span><strong>Continuar com a Lili</strong><small>Atendimento guiado em formato de conversa</small></span>
             </button>
@@ -791,9 +850,9 @@ function ConviteGrupoContent() {
     )
   }
 
-  function BotBubble({ children }: { children: ReactNode }) {
+  function BotBubble({ children, animate = false }: { children: ReactNode; animate?: boolean }) {
     return (
-      <div className="invite-chat-row bot invite-chat-enter">
+      <div className={`invite-chat-row bot ${animate ? 'invite-chat-enter' : ''}`}>
         <LiliAvatar />
         <div>
           <div className="invite-chat-bubble">
@@ -808,17 +867,36 @@ function ConviteGrupoContent() {
   function ConversationMessages() {
     return (
       <>
-        {conversationState.messages.slice(0, visibleConversationMessages).map((message, index) => (
-          <BotBubble key={`${conversationState.step}:${index}`}>
-            <p>{message}</p>
-          </BotBubble>
-        ))}
+        {conversationTranscript.map((entry) =>
+          entry.role === 'assistant' ? (
+            <BotBubble key={entry.id} animate={entry.id === latestAnimatedId}>
+              <p>{entry.text}</p>
+            </BotBubble>
+          ) : (
+            <UserBubble key={entry.id} animate={entry.id === latestAnimatedId}>
+              <p>{entry.text}</p>
+            </UserBubble>
+          ),
+        )}
         {conversationTyping ? <TypingBubble force /> : null}
       </>
     )
   }
 
+  function appendUserReply(text: string) {
+    const id = `user:${Date.now()}:${Math.random().toString(36).slice(2)}`
+    setConversationTranscript((current) => [
+      ...current,
+      { id, role: 'user', text },
+    ])
+    setLatestAnimatedId(id)
+    window.setTimeout(() => {
+      setLatestAnimatedId((current) => current === id ? '' : current)
+    }, 520)
+  }
+
   function executeConversationAction(action: InviteGroupConversationAction) {
+    appendUserReply(action.label)
     liliConversation.recordAction(action)
     switch (action.id) {
       case 'inscrever':
@@ -854,8 +932,7 @@ function ConviteGrupoContent() {
       ? conversationState.actions.filter((action) => ids.includes(action.id))
       : conversationState.actions
 
-    const conversationReady = visibleConversationMessages >= conversationState.messages.length && !conversationTyping
-    if (!actions.length || !conversationReady) return null
+    if (!actions.length || !conversationReady || conversationTyping) return null
 
     return (
       <div className="invite-chat-actions">
@@ -890,9 +967,9 @@ function ConviteGrupoContent() {
     )
   }
 
-  function UserBubble({ children }: { children: ReactNode }) {
+  function UserBubble({ children, animate = false }: { children: ReactNode; animate?: boolean }) {
     return (
-      <div className="invite-chat-row user invite-chat-enter">
+      <div className={`invite-chat-row user ${animate ? 'invite-chat-enter' : ''}`}>
         <div className="invite-chat-bubble user">
           <div>{children}</div>
         </div>
