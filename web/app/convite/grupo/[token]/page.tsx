@@ -23,6 +23,7 @@ import { DropBotAssistant, TypingText, type DropBotSystemContext } from '@/featu
 import {
   getInviteGroupConversationState,
   isInviteGroupChatStep,
+  type InviteGroupConversationAction,
   type InviteGroupStep,
 } from '@/features/chatbot/lili/invite-group-conversation'
 
@@ -708,6 +709,76 @@ export default function ConviteGrupoPage() {
     )
   }
 
+  function executeConversationAction(action: InviteGroupConversationAction) {
+    switch (action.id) {
+      case 'inscrever':
+        startInscricao()
+        return
+      case 'acompanhar':
+        setStep('acompanhar')
+        return
+      case 'confirmar_equipe':
+        confirmarEstaEquipe()
+        return
+      case 'escolher_line':
+        setStep('escolher_line')
+        return
+      case 'gerenciar_inscricao':
+        setStep(step === 'hub' ? 'escalar' : 'hub')
+        return
+      case 'escolher_equipe':
+        setStep('escolher_equipe')
+        return
+      case 'entrar_gerenciar':
+      case 'cadastrar_equipe':
+        return
+    }
+  }
+
+  function ConversationActions({
+    ids,
+  }: {
+    ids?: InviteGroupConversationAction['id'][]
+  }) {
+    const actions = ids
+      ? conversationState.actions.filter((action) => ids.includes(action.id))
+      : conversationState.actions
+
+    if (!actions.length) return null
+
+    return (
+      <div className="invite-chat-actions">
+        {actions.map((action) => {
+          if (action.id === 'cadastrar_equipe') {
+            return (
+              <a
+                key={action.id}
+                className={`invite-chat-option ${action.primary ? 'primary' : ''}`}
+                href={buildProfileCreationHref('equipe', returnTo)}
+              >
+                {action.label}
+              </a>
+            )
+          }
+
+          if (action.id === 'entrar_gerenciar') return null
+
+          return (
+            <button
+              key={action.id}
+              className={`invite-chat-option ${action.primary ? 'primary' : ''}`}
+              type="button"
+              onClick={() => executeConversationAction(action)}
+              disabled={busy || payBusy}
+            >
+              {action.label}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
   function UserBubble({ children }: { children: ReactNode }) {
     return (
       <div className="invite-chat-row user">
@@ -817,14 +888,7 @@ export default function ConviteGrupoPage() {
           {step === 'inicio' && assistantMode ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <ConversationMessages />
-              <div className="invite-chat-actions">
-                <button className="invite-chat-option primary" type="button" onClick={startInscricao}>
-                  Quero inscrever minha equipe
-                </button>
-                <button className="invite-chat-option" type="button" onClick={() => setStep('acompanhar')}>
-                  Só acompanhar as inscrições
-                </button>
-              </div>
+              <ConversationActions />
             </div>
           ) : null}
 
@@ -834,13 +898,7 @@ export default function ConviteGrupoPage() {
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
               <ConversationMessages />
               <SocialLogin profileType="equipe" returnTo={returnTo} />
-              <button
-                className="invite-chat-option"
-                type="button"
-                onClick={() => setStep('acompanhar')}
-              >
-                Só acompanhar as inscrições
-              </button>
+              <ConversationActions ids={['acompanhar']} />
               <TypingBubble />
             </div>
           ) : null}
@@ -861,13 +919,9 @@ export default function ConviteGrupoPage() {
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
               <ConversationMessages />
-              <a className="invite-chat-option primary" href={buildProfileCreationHref('equipe', returnTo)}>
-                Cadastrar minha equipe
-              </a>
+              <ConversationActions ids={['cadastrar_equipe']} />
               <SocialLogin profileType={data.papel_sessao === 'manager' ? 'manager' : 'equipe'} returnTo={returnTo} />
-              <button className="invite-chat-option" type="button" onClick={() => setStep('acompanhar')}>
-                Só acompanhar
-              </button>
+              <ConversationActions ids={['acompanhar']} />
               <TypingBubble />
             </div>
           ) : null}
@@ -961,13 +1015,9 @@ export default function ConviteGrupoPage() {
               <UserBubble>
                 <p>{data.equipe.nome}</p>
               </UserBubble>
-              <button className="invite-chat-option primary" type="button" onClick={confirmarEstaEquipe}>
-                Sim, inscrever {data.equipe.nome}
-              </button>
+              <ConversationActions ids={['confirmar_equipe']} />
               <SocialLogin profileType="equipe" returnTo={returnTo} />
-              <button className="invite-chat-option" type="button" onClick={() => setStep('acompanhar')}>
-                Só acompanhar
-              </button>
+              <ConversationActions ids={['acompanhar']} />
               <TypingBubble />
             </div>
           ) : null}

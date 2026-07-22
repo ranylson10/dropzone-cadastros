@@ -24,7 +24,15 @@ export type InviteGroupConversationContext = {
 }
 
 export type InviteGroupConversationAction = {
-  id: 'inscrever' | 'acompanhar' | 'cadastrar_equipe' | 'confirmar_equipe' | 'escolher_equipe' | 'escolher_line'
+  id:
+    | 'inscrever'
+    | 'acompanhar'
+    | 'cadastrar_equipe'
+    | 'confirmar_equipe'
+    | 'escolher_equipe'
+    | 'escolher_line'
+    | 'gerenciar_inscricao'
+    | 'entrar_gerenciar'
   label: string
   primary?: boolean
 }
@@ -114,7 +122,10 @@ export function getInviteGroupConversationState(
             ? 'Entre com Google para eu identificar sua equipe. Caso ainda não tenha uma, vou orientar o cadastro.'
             : 'Caso sua equipe já esteja neste grupo, entre com Google para gerenciar e escalar o elenco.',
         ],
-        actions: [{ id: 'acompanhar', label: 'Só acompanhar as inscrições' }],
+        actions: [
+          { id: 'entrar_gerenciar', label: podeInscrever ? 'Entrar com Google' : 'Entrar para gerenciar', primary: true },
+          { id: 'acompanhar', label: 'Só acompanhar as inscrições' },
+        ],
       }
     case 'sem_equipe':
       return {
@@ -188,7 +199,7 @@ export function getInviteGroupConversationState(
         chatEnabled: true,
         kind: 'success',
         messages: [`A inscrição da equipe ${equipe} foi confirmada no grupo ${grupo}.`],
-        actions: [],
+        actions: [{ id: 'gerenciar_inscricao', label: 'Gerenciar minha inscrição', primary: true }],
       }
     case 'hub':
       return {
@@ -197,7 +208,10 @@ export function getInviteGroupConversationState(
         chatEnabled: true,
         kind: 'management',
         messages: ['Sua inscrição está ativa. Por aqui você pode acompanhar e gerenciar o elenco.'],
-        actions: [],
+        actions: [
+          { id: 'gerenciar_inscricao', label: 'Escalar elenco', primary: true },
+          { id: 'acompanhar', label: 'Acompanhar grupo' },
+        ],
       }
     case 'escalar':
       return {
