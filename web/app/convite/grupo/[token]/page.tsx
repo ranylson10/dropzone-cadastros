@@ -131,6 +131,7 @@ type GroupInvitePayload = {
  */
 const SESSION_WAS_LOGGED_KEY = 'dz_invite_was_logged'
 const SESSION_JUST_LOGIN_KEY = 'dz_invite_just_login'
+const SESSION_MODE_KEY = 'dz_invite_mode'
 
 function ConviteGrupoContent() {
   const params = useParams<{ token: string }>()
@@ -397,6 +398,26 @@ function ConviteGrupoContent() {
     }
   }
 
+
+  function chooseAttendanceMode(mode: 'assistant' | 'normal') {
+    try {
+      sessionStorage.setItem(`${SESSION_MODE_KEY}:${token}`, mode)
+    } catch {
+      // sessionStorage indisponível não deve bloquear o fluxo
+    }
+    setAssistantMode(mode === 'assistant')
+    setModeChosen(true)
+  }
+
+  function resetAttendanceMode() {
+    try {
+      sessionStorage.removeItem(`${SESSION_MODE_KEY}:${token}`)
+    } catch {
+      // ignore
+    }
+    setModeChosen(false)
+  }
+
   /**
    * - Link fechado + equipe já inscrita → hub (escalação / jogadores).
    * - Link fechado + multi-equipe inscrita sem pasta → escolher_equipe.
@@ -493,6 +514,15 @@ function ConviteGrupoContent() {
   }
 
   useEffect(() => {
+    try {
+      const savedMode = sessionStorage.getItem(`${SESSION_MODE_KEY}:${token}`)
+      if (savedMode === 'assistant' || savedMode === 'normal') {
+        setAssistantMode(savedMode === 'assistant')
+        setModeChosen(true)
+      }
+    } catch {
+      // ignore
+    }
     void carregar()
   }, [token])
 
@@ -595,6 +625,26 @@ function ConviteGrupoContent() {
 
     setMessage('Beleza. Me diga o nome da nova line para eu finalizar a inscrição.')
     window.setTimeout(() => setLineFlowStage(11), 1900)
+  }
+
+
+  function enviarNomeNovaLine() {
+    const nome = nomeNovaLine.trim()
+    if (!nome) {
+      setMessage('Digite o nome da nova line para continuar.')
+      return
+    }
+
+    const normalized = nome.toLowerCase()
+    if (['nova line', 'nova_line', 'new line', '+ criar nova line', 'criar nova line'].includes(normalized)) {
+      setMessage('Use um nome real para a line. Exemplo: ALOE ELITE 2.')
+      return
+    }
+
+    appendUserReply(`Nome da nova line: ${nome}`)
+    setMessage('Nome recebido. Vou preparar o resumo da inscrição.')
+    setLineFlowStage(12)
+    window.setTimeout(() => setLineFlowStage(13), 2100)
   }
 
   async function confirmarInscricao() {
@@ -832,13 +882,12 @@ function ConviteGrupoContent() {
               setConversationTranscript([])
               setConversationTyping(false)
               setConversationReady(false)
-              setAssistantMode(true)
-              setModeChosen(true)
+              chooseAttendanceMode('assistant')
             }}>
               <Cat size={20} />
               <span><strong>Continuar com a Lili</strong><small>Atendimento guiado em formato de conversa</small></span>
             </button>
-            <button type="button" className="invite-entry-action" onClick={() => { setAssistantMode(false); setModeChosen(true) }}>
+            <button type="button" className="invite-entry-action" onClick={() => chooseAttendanceMode('normal')}>
               <ListChecks size={20} />
               <span><strong>Continuar sem assistente</strong><small>Formulário direto, sem mensagens de chat</small></span>
             </button>
@@ -1059,7 +1108,7 @@ function ConviteGrupoContent() {
             <div className="invite-mode-switch">
               <button type="button" className={!assistantMode ? 'active' : ''} onClick={() => setAssistantMode(false)}>Sem assistente</button>
               <button type="button" className={assistantMode ? 'active' : ''} onClick={() => setAssistantMode(true)}>Com a Lili</button>
-              <button type="button" onClick={() => setModeChosen(false)}>Trocar modo</button>
+              <button type="button" onClick={resetAttendanceMode}>Trocar modo</button>
             </div>
           ) : null}
 
@@ -1342,15 +1391,31 @@ function ConviteGrupoContent() {
               {selectedSlot && lineFlowStage >= 11 && lineId === '__create__' ? (
                 <BotBubble animate={lineFlowStage === 11}>
                   <p>Perfeito. Digite o nome da nova line. Exemplo: <strong>ALOE ELITE 2</strong>.</p>
-                  <label className="invite-chat-input">
+                  <form
+                    className="invite-chat-input"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      enviarNomeNovaLine()
+                    }}
+                  >
                     <span>Nome da line</span>
-                    <input
-                      value={nomeNovaLine}
-                      onChange={(event) => setNomeNovaLine(event.target.value)}
-                      placeholder="Ex.: ALOE ELITE 2"
-                      autoFocus
-                    />
-                  </label>
+                    <div className="invite-chat-input-row">
+                      <input
+                        value={nomeNovaLine}
+                        onChange={(event) => setNomeNovaLine(event.target.value)}
+                        placeholder="Ex.: ALOE ELITE 2"
+                        autoFocus
+                        disabled={lineFlowStage > 11}
+                      />
+                      <button
+                        type="submit"
+                        className="invite-chat-send"
+                        disabled={!nomeNovaLine.trim() || lineFlowStage > 11}
+                      >
+                        Enviar
+                      </button>
+                    </div>
+                  </form>
                 </BotBubble>
               ) : null}
 
@@ -1358,6 +1423,12 @@ function ConviteGrupoContent() {
                 <BotBubble animate={lineFlowStage === 11}>
                   <p>Line <strong>{selectedLine?.nome}</strong> escolhida.</p>
                 </BotBubble>
+              ) : null}
+
+              {selectedSlot && lineId === '__create__' && lineFlowStage >= 12 && nomeNovaLine.trim() ? (
+                <UserBubble animate={lineFlowStage === 12}>
+                  <p>O nome da nova line será <strong>{nomeNovaLine.trim()}</strong></p>
+                </UserBubble>
               ) : null}
 
               {selectedSlot && lineFlowStage >= 13 && selectedLineLabel ? (
@@ -1822,7 +1893,7 @@ function ConviteGrupoContent() {
             <section className="invite-normal-workspace">
               <header className="invite-normal-head">
                 <div><p className="eyebrow">{data.grupo?.nome}</p><h2>{data.campeonato?.nome}</h2></div>
-                <button type="button" className="button secondary" onClick={() => setModeChosen(false)}>Trocar modo</button>
+                <button type="button" className="button secondary" onClick={resetAttendanceMode}>Trocar modo</button>
               </header>
               {step === 'acompanhar' ? (<>
                 <div className="invite-section-head"><h2>Inscrições do grupo</h2><span>{data.resumo_grupo?.ocupadas || 0}/{data.resumo_grupo?.total || 0}</span></div>

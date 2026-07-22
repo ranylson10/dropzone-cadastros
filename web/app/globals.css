@@ -9352,3 +9352,46 @@ input::placeholder, textarea::placeholder {
   .invite-chat-list-bubble { width: 100%; }
   .invite-chat-result-row { min-height: 44px; padding: 6px 8px; }
 }
+
+
+/* Lili: envio de respostas dentro do fluxo conversacional */
+.invite-chat-input-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.invite-chat-input-row input {
+  min-width: 0;
+  flex: 1;
+}
+
+.invite-chat-send {
+  flex: 0 0 auto;
+  min-width: 78px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 14px;
+  background: #17191d;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.invite-chat-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 420px) {
+  .invite-chat-input-row {
+    gap: 6px;
+  }
+
+  .invite-chat-send {
+    min-width: 68px;
+    padding-inline: 10px;
+  }
+}
