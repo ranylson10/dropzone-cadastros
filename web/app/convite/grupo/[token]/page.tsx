@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import {
-  Bot,
+  Cat,
   CheckCircle2,
   ClipboardCopy,
   Link2,
@@ -161,7 +161,10 @@ function ConviteGrupoContent() {
   const [lastSlotChoice, setLastSlotChoice] = useState<{ label: string; occupied: boolean } | null>(null)
   const [chatReveal, setChatReveal] = useState<'slots' | 'slot_answer' | 'lines' | 'line_answer'>('slots')
   const [chatTyping, setChatTyping] = useState(false)
-  const [assistantMode, setAssistantMode] = useState(false)
+  const [assistantMode, setAssistantMode] = useState(true)
+  const [visibleConversationMessages, setVisibleConversationMessages] = useState(0)
+  const [conversationTyping, setConversationTyping] = useState(false)
+  const chatShellRef = useRef<HTMLDivElement | null>(null)
   const [sucessoInfo, setSucessoInfo] = useState<{
     line: string
     slot?: string
@@ -223,6 +226,47 @@ function ConviteGrupoContent() {
   useEffect(() => {
     liliConversation.setActiveState(conversationState)
   }, [conversationState, liliConversation.setActiveState])
+
+  useEffect(() => {
+    let cancelled = false
+    const timers: number[] = []
+
+    setVisibleConversationMessages(0)
+    setConversationTyping(Boolean(conversationState.messages.length))
+
+    let elapsed = 420
+    conversationState.messages.forEach((message, index) => {
+      const revealTimer = window.setTimeout(() => {
+        if (cancelled) return
+        setConversationTyping(false)
+        setVisibleConversationMessages(index + 1)
+      }, elapsed)
+      timers.push(revealTimer)
+
+      elapsed += Math.min(1250, Math.max(650, message.length * 16))
+      if (index < conversationState.messages.length - 1) {
+        const typingTimer = window.setTimeout(() => {
+          if (!cancelled) setConversationTyping(true)
+        }, elapsed - 260)
+        timers.push(typingTimer)
+        elapsed += 360
+      }
+    })
+
+    return () => {
+      cancelled = true
+      timers.forEach((timer) => window.clearTimeout(timer))
+    }
+  }, [conversationState.step, conversationState.messages])
+
+  useEffect(() => {
+    const shell = chatShellRef.current
+    if (!shell) return
+    const frame = window.requestAnimationFrame(() => {
+      shell.scrollTo({ top: shell.scrollHeight, behavior: 'smooth' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [step, visibleConversationMessages, conversationTyping, chatTyping, busy, payBusy, lastSlotChoice, lineId])
   const selectedSlot =
     slotsLivresLista.find((vaga) => vaga.slot_id === selectedSlotId) || null
   const selectedLine = linesDisponiveis.find((line) => line.id === lineId) || null
@@ -702,14 +746,22 @@ function ConviteGrupoContent() {
 
   const eyebrow = conversationState.eyebrow
   const useChatLayout = assistantMode && isInviteGroupChatStep(step)
-  function BotBubble({ children }: { children: ReactNode }) {
+  function LiliAvatar() {
     return (
-      <div className="invite-chat-row bot">
-        <span className="invite-bot-avatar"><Bot size={18} /></span>
+      <span className="invite-bot-avatar" aria-label="Foto de perfil da Lili">
+        <Cat size={21} strokeWidth={2.2} />
+      </span>
+    )
+  }
+
+  function BotBubble({ children, typing = false }: { children: ReactNode; typing?: boolean }) {
+    return (
+      <div className="invite-chat-row bot invite-chat-enter">
+        <LiliAvatar />
         <div>
           <div className="invite-chat-bubble">
             <strong>Lili</strong>
-            <div><TypeChildren>{children}</TypeChildren></div>
+            <div>{typing ? <TypeChildren>{children}</TypeChildren> : children}</div>
           </div>
         </div>
       </div>
@@ -718,9 +770,13 @@ function ConviteGrupoContent() {
 
   function ConversationMessages() {
     return (
-      <BotBubble>
-        {conversationState.messages.map((message) => <p key={message}>{message}</p>)}
-      </BotBubble>
+      <>
+        {conversationState.messages.slice(0, visibleConversationMessages).map((message, index) => (
+          <BotBubble key={`${conversationState.step}:${index}`} typing={index === visibleConversationMessages - 1}>
+            <p>{message}</p>
+          </BotBubble>
+        ))}
+      </>
     )
   }
 
@@ -760,7 +816,8 @@ function ConviteGrupoContent() {
       ? conversationState.actions.filter((action) => ids.includes(action.id))
       : conversationState.actions
 
-    if (!actions.length) return null
+    const conversationReady = visibleConversationMessages >= conversationState.messages.length && !conversationTyping
+    if (!actions.length || !conversationReady) return null
 
     return (
       <div className="invite-chat-actions">
@@ -797,7 +854,7 @@ function ConviteGrupoContent() {
 
   function UserBubble({ children }: { children: ReactNode }) {
     return (
-      <div className="invite-chat-row user">
+      <div className="invite-chat-row user invite-chat-enter">
         <div className="invite-chat-bubble user">
           <div>{children}</div>
         </div>
@@ -806,10 +863,10 @@ function ConviteGrupoContent() {
   }
 
   function TypingBubble() {
-    if (!busy && !payBusy && !chatTyping) return null
+    if (!busy && !payBusy && !chatTyping && !conversationTyping) return null
     return (
       <div className="invite-chat-row bot">
-        <span className="invite-bot-avatar"><Bot size={18} /></span>
+        <LiliAvatar />
         <div className="invite-typing" aria-label="Lili digitando">
           <span />
           <span />
@@ -902,7 +959,7 @@ function ConviteGrupoContent() {
           ) : null}
 
           {step === 'inicio' && assistantMode ? (
-            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <ConversationMessages />
               <ConversationActions />
             </div>
@@ -910,7 +967,7 @@ function ConviteGrupoContent() {
 
           {/* ——— LOGIN (só 2 opções) ——— */}
           {step === 'login' && assistantMode ? (
-            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
               <ConversationMessages />
               <SocialLogin profileType="equipe" returnTo={returnTo} />
@@ -932,7 +989,7 @@ function ConviteGrupoContent() {
             </div>
           ) : null}
           {step === 'sem_equipe' && assistantMode ? (
-            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
               <ConversationMessages />
               <ConversationActions ids={['cadastrar_equipe']} />
@@ -957,7 +1014,7 @@ function ConviteGrupoContent() {
             </div>
           ) : null}
           {step === 'escolher_equipe' && assistantMode ? (
-            <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
               <ConversationMessages />
               <div className="invite-chat-options">
@@ -1025,7 +1082,7 @@ function ConviteGrupoContent() {
             </div>
           ) : null}
           {step === 'confirmar_equipe' && data.equipe && assistantMode ? (
-            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
               <ConversationMessages />
               <UserBubble>
@@ -1063,7 +1120,7 @@ function ConviteGrupoContent() {
 
               {(data.vagas || []).length ? (
                 <div className="invite-chat-row bot">
-                  <span className="invite-bot-avatar"><Bot size={18} /></span>
+                  <LiliAvatar />
                   <div className="invite-chat-bubble invite-chat-list-bubble">
                     <strong>Lili</strong>
                     <p>Slots do grupo {data.grupo?.nome}</p>
@@ -1121,7 +1178,7 @@ function ConviteGrupoContent() {
 
               {selectedSlot && (chatReveal === 'lines' || chatReveal === 'line_answer') ? (
                 <div className="invite-chat-row bot">
-                  <span className="invite-bot-avatar"><Bot size={18} /></span>
+                  <LiliAvatar />
                   <div className="invite-chat-bubble invite-chat-list-bubble">
                     <strong>Lili</strong>
                     {linesDisponiveis.length ? (
@@ -1307,7 +1364,7 @@ function ConviteGrupoContent() {
             </div>
           ) : null}
           {step === 'sucesso' ? (
-            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <BotBubble>
                 <p>Pronto, inscrição confirmada ✅</p>
                 <p>Guarde o comprovante abaixo. Boa sorte no campeonato!</p>
@@ -1367,7 +1424,7 @@ function ConviteGrupoContent() {
 
           {/* ——— HUB pós-inscrição ——— */}
           {step === 'hub' ? (
-            <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <BotBubble>
                 <p>Você está na central da sua inscrição.</p>
                 <p>Escolha o que quer fazer agora:</p>
@@ -1425,13 +1482,13 @@ function ConviteGrupoContent() {
 
           {/* ——— ACOMPANHAR (público) ——— */}
           {step === 'acompanhar' ? (
-            <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <BotBubble>
                 <p>Essas são as inscrições do grupo <strong>{data.grupo?.nome}</strong>.</p>
                 <p>Toque em uma equipe ocupada para ver line e jogadores.</p>
               </BotBubble>
               <div className="invite-chat-row bot">
-                <span className="invite-bot-avatar"><Bot size={18} /></span>
+                <LiliAvatar />
                 <div className="invite-chat-bubble invite-chat-list-bubble">
                   <strong>Lili</strong>
                   <p>Mapa de slots</p>
@@ -1486,7 +1543,7 @@ function ConviteGrupoContent() {
 
           {/* ——— ESCALAR ——— */}
           {step === 'escalar' ? (
-            <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero escalar o elenco</p></UserBubble>
               <BotBubble>
                 <p>
@@ -1550,7 +1607,7 @@ function ConviteGrupoContent() {
 
           {/* ——— JOGADORES ——— */}
           {step === 'jogadores' ? (
-            <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
+            <div ref={chatShellRef} className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Ver jogadores inscritos</p></UserBubble>
               <BotBubble>
                 <p>Lista de jogadores da line <strong>{selectedParticipacao?.line?.nome || selectedParticipacao?.nome_exibicao}</strong>:</p>
@@ -1559,7 +1616,7 @@ function ConviteGrupoContent() {
                 <BotBubble><p>Nenhum jogador confirmou escalação ainda.</p></BotBubble>
               ) : (
                 <div className="invite-chat-row bot">
-                  <span className="invite-bot-avatar"><Bot size={18} /></span>
+                  <LiliAvatar />
                   <div className="invite-chat-bubble invite-chat-list-bubble">
                     <strong>Lili</strong>
                     <div className="invite-player-list">

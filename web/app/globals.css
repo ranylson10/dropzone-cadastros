@@ -7764,8 +7764,17 @@ button.invite-slot-button.selected strong {
 }
 
 .invite-chat-shell {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   gap: 12px;
+  min-height: 280px;
+  max-height: calc(100dvh - 330px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  padding: 12px 4px 18px !important;
 }
 .invite-page.champ-theme .invite-chat-card {
   width: 100%;
@@ -7781,7 +7790,7 @@ button.invite-slot-button.selected strong {
     var(--dz-surface-soft) !important;
 }
 .invite-chat-card::before {
-  content: "🤖 DropBot · atendimento de inscrição";
+  content: "🐱 Lili · assistente de inscrição";
   display: block;
   padding: 14px 18px;
   background: var(--dz-btn);
@@ -7814,10 +7823,9 @@ button.invite-slot-button.selected strong {
 .invite-chat-card > .invite-auth-box.invite-chat-shell {
   width: min(640px, calc(100% - 28px));
   margin: 14px auto 18px !important;
-  padding: 0 !important;
+  padding: 12px 4px 18px !important;
   border: 0 !important;
   background: transparent !important;
-  align-content: end;
 }
 .invite-chat-row {
   display: grid;
@@ -7840,6 +7848,16 @@ button.invite-slot-button.selected strong {
   color: var(--dz-btn-text);
   border-radius: 999px;
   box-shadow: 0 10px 24px color-mix(in srgb, var(--dz-primary) 22%, transparent);
+}
+.invite-bot-avatar svg {
+  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--dz-primary) 24%, transparent));
+}
+.invite-chat-enter {
+  animation: lili-message-in .24s ease-out both;
+}
+@keyframes lili-message-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .invite-chat-bubble {
   padding: 12px 14px;
@@ -8085,6 +8103,11 @@ button.invite-slot-button.selected strong {
   .invite-chat-card > .invite-auth-box.invite-chat-shell {
     width: calc(100% - 24px);
     margin-inline: auto !important;
+  }
+  .invite-chat-shell {
+    min-height: 250px;
+    max-height: calc(100dvh - 300px);
+    padding-bottom: 24px !important;
   }
   .invite-chat-slot-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
