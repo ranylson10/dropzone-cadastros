@@ -678,6 +678,11 @@ export default function ConviteGrupoPage() {
     step,
     inscricaoAberta,
     participacoesCount: minhasParticipacoes.length,
+    campeonatoNome: data.campeonato?.nome,
+    grupoNome: data.grupo?.nome,
+    equipeNome: data.equipe?.nome,
+    papelSessao: data.papel_sessao,
+    podeInscrever,
   })
   const eyebrow = conversationState.eyebrow
   const useChatLayout = assistantMode && isInviteGroupChatStep(step)
@@ -695,10 +700,10 @@ export default function ConviteGrupoPage() {
     )
   }
 
-  function BotBubbleText({ text }: { text: string }) {
+  function ConversationMessages() {
     return (
       <BotBubble>
-        <p><TypingText text={text} speedMs={14} /></p>
+        {conversationState.messages.map((message) => <p key={message}>{message}</p>)}
       </BotBubble>
     )
   }
@@ -811,11 +816,7 @@ export default function ConviteGrupoPage() {
 
           {step === 'inicio' && assistantMode ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
-              <BotBubble>
-                <p>Oi! Eu sou o DropBot 🤖</p>
-                <p>Você recebeu um convite para o grupo <strong>{data.grupo?.nome}</strong> do campeonato <strong>{data.campeonato?.nome}</strong>.</p>
-                <p>O que você quer fazer?</p>
-              </BotBubble>
+              <ConversationMessages />
               <div className="invite-chat-actions">
                 <button className="invite-chat-option primary" type="button" onClick={startInscricao}>
                   Quero inscrever minha equipe
@@ -831,13 +832,7 @@ export default function ConviteGrupoPage() {
           {step === 'login' && assistantMode ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
-              <BotBubbleText
-                text={
-                  podeInscrever
-                    ? 'Verifiquei aqui: você ainda não está logado em nenhuma conta de equipe.\n\nEntre com Google para eu identificar sua equipe. Se ainda não tiver uma, eu te levo para cadastrar.'
-                    : 'Esse link não aceita novas inscrições agora.\n\nSe sua equipe já está no grupo, entre com Google para escalar o elenco.'
-                }
-              />
+              <ConversationMessages />
               <SocialLogin profileType="equipe" returnTo={returnTo} />
               <button
                 className="invite-chat-option"
@@ -865,17 +860,7 @@ export default function ConviteGrupoPage() {
           {step === 'sem_equipe' && assistantMode ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
-              <BotBubble>
-                {data.papel_sessao === 'manager' ? (
-                  <p>Você entrou como manager, mas ainda não controla nenhuma equipe. Cadastre ou aceite uma equipe para continuar.</p>
-                ) : (
-                  <>
-                    <p>Seu Google entrou certinho.</p>
-                    <p>Mas ainda não encontrei uma <strong>equipe cadastrada</strong> nessa conta.</p>
-                    <p>Cadastre sua equipe e depois eu continuo a inscrição.</p>
-                  </>
-                )}
-              </BotBubble>
+              <ConversationMessages />
               <a className="invite-chat-option primary" href={buildProfileCreationHref('equipe', returnTo)}>
                 Cadastrar minha equipe
               </a>
@@ -904,16 +889,7 @@ export default function ConviteGrupoPage() {
           {step === 'escolher_equipe' && assistantMode ? (
             <div className="invite-section invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
-              <BotBubble>
-                {data.papel_sessao === 'manager' ? (
-                  <>
-                    <p>Você entrou como <strong>manager</strong>.</p>
-                    <p>{!inscricaoAberta ? 'Escolha a equipe inscrita neste grupo para gerenciar a escalação.' : 'Escolha com qual equipe deseja se inscrever neste campeonato.'}</p>
-                  </>
-                ) : (
-                  <p>{!inscricaoAberta ? 'Você controla mais de uma equipe. Escolha a inscrita neste grupo para gerenciar a escalação.' : 'Você controla mais de uma equipe. Com qual deseja entrar?'}</p>
-                )}
-              </BotBubble>
+              <ConversationMessages />
               <div className="invite-chat-options">
                 {(data.equipes_disponiveis || [])
                   .slice()
@@ -981,10 +957,7 @@ export default function ConviteGrupoPage() {
           {step === 'confirmar_equipe' && data.equipe && assistantMode ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <UserBubble><p>Quero inscrever minha equipe</p></UserBubble>
-              <BotBubble>
-                <p>Você está logado com a equipe <strong>{data.equipe.nome}</strong>.</p>
-                <p>Quer inscrever essa equipe no grupo <strong>{data.grupo?.nome}</strong>?</p>
-              </BotBubble>
+              <ConversationMessages />
               <UserBubble>
                 <p>{data.equipe.nome}</p>
               </UserBubble>
