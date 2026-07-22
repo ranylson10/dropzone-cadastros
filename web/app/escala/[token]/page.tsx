@@ -1,8 +1,18 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Bot, CalendarDays, Check, CheckCircle2, Clock, Shield, UserRound, Users, X } from 'lucide-react'
+import {
+  CalendarDays,
+  Cat,
+  Check,
+  CheckCircle2,
+  Clock,
+  LogIn,
+  Shield,
+  UserRound,
+  Users,
+} from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
@@ -51,7 +61,20 @@ type ScalePayload = {
   jogadores?: Player[]
 }
 
+type ChatEntry = {
+  id: string
+  role: 'assistant' | 'user'
+  text: string
+}
+
+type ChatAction = {
+  id: 'login' | 'guest' | 'join' | 'other_login'
+  label: string
+  primary?: boolean
+}
+
 const GUEST_KEY = 'dropzone_escala_guest'
+const MODE_KEY = 'dropzone_escala_mode'
 
 export default function EscalaPublicaPage() {
   const params = useParams<{ token: string }>()
@@ -63,8 +86,19 @@ export default function EscalaPublicaPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
-  const [gate, setGate] = useState(true)
   const [guest, setGuest] = useState(false)
+  const [modeChosen, setModeChosen] = useState(false)
+  const [assistantMode, setAssistantMode] = useState(true)
+
+  const [transcript, setTranscript] = useState<ChatEntry[]>([])
+  const [typing, setTyping] = useState(false)
+  const [chatReady, setChatReady] = useState(false)
+  const [latestAnimatedId, setLatestAnimatedId] = useState('')
+  const chatRef = useRef<HTMLDivElement | null>(null)
+  const queueRef = useRef<Array<{ id: string; text: string }>>([])
+  const queueRunningRef = useRef(false)
+  const queueGenerationRef = useRef(0)
+  const deliveredStateRef = useRef('')
 
   async function load() {
     setLoading(true)
@@ -73,9 +107,13 @@ export default function EscalaPublicaPage() {
       const { data: sessionData } = await supabase.auth.getSession()
       const hasSession = Boolean(sessionData.session)
       const isGuest = sessionStorage.getItem(`${GUEST_KEY}:${token}`) === '1'
+      const storedMode = sessionStorage.getItem(`${MODE_KEY}:${token}`)
+
       setGuest(isGuest && !hasSession)
-      // Gate: sem login e sem visitante → pede tipo de login (padrão do sistema)
-      setGate(!hasSession && !isGuest)
+      if (storedMode === 'assistant' || storedMode === 'normal') {
+        setAssistantMode(storedMode === 'assistant')
+        setModeChosen(true)
+      }
 
       const response = await fetch(`/api/escalacoes/${encodeURIComponent(token)}`, {
         headers: sessionData.session
@@ -97,19 +135,20 @@ export default function EscalaPublicaPage() {
     if (token) void load()
   }, [token])
 
-  // Logado sem perfil de jogador → formulário de criação (padrão do sistema)
   useEffect(() => {
-    if (loading || !data) return
-    if (data.error) return
-    if (!data.autenticado) return
-    if (data.jogador) return
+    if (loading || !data || data.error || !data.autenticado || data.jogador) return
     window.location.replace(buildProfileCreationHref('jogador', returnTo))
-  }, [loading, data?.autenticado, data?.jogador, data?.error, returnTo, token])
+  }, [loading, data, returnTo])
+
+  function chooseMode(mode: 'assistant' | 'normal') {
+    sessionStorage.setItem(`${MODE_KEY}:${token}`, mode)
+    setAssistantMode(mode === 'assistant')
+    setModeChosen(true)
+  }
 
   function continueAsGuest() {
     sessionStorage.setItem(`${GUEST_KEY}:${token}`, '1')
     setGuest(true)
-    setGate(false)
   }
 
   async function join() {
@@ -119,10 +158,7 @@ export default function EscalaPublicaPage() {
     try {
       const { data: session } = await supabase.auth.getSession()
       const accessToken = session.session?.access_token
-      if (!accessToken) {
-        setGate(true)
-        throw new Error('Entre com uma conta de jogador para continuar.')
-      }
+      if (!accessToken) throw new Error('Entre com uma conta de jogador para continuar.')
       if (!data?.jogador) {
         window.location.assign(buildProfileCreationHref('jogador', returnTo))
         return
@@ -139,6 +175,7 @@ export default function EscalaPublicaPage() {
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || 'Erro ao entrar na escalação.')
       setMessage(json.already_registered ? 'Você já está nesta escalação.' : 'Inscrição confirmada na escalação.')
+      appendUserReply('Confirmar minha entrada')
       await load()
     } catch (err: any) {
       setError(err?.message || 'Erro ao entrar na escalação.')
@@ -155,10 +192,145 @@ export default function EscalaPublicaPage() {
   )
   const full = limit > 0 && players.length >= limit
 
-  function BotBubble({ children }: { children: ReactNode }) {
+  const assistantState = useMemo(() => {
+    if (!data) return { key: 'loading', messages: [] as string[], actions: [] as ChatAction[] }
+
+    const context = `${data.campeonato_nome || 'Campeonato'} · ${data.line_nome || 'Line'}`
+    const occupancy = `${players.length} de ${limit || '?'} jogadores confirmados.`
+
+    if (!data.autenticado) {
+      return {
+        key: `guest:${guest ? 'viewing' : 'start'}:${players.length}`,
+        messages: guest
+          ? [
+              `Você está acompanhando a escalação de ${context}.`,
+              occupancy,
+              'Para ocupar uma vaga, entre com sua conta de jogador.',
+            ]
+          : [
+              `Olá! Eu sou a Lili. Vou ajudar você na escalação de ${context}.`,
+              occupancy,
+              'Para entrar na line, preciso confirmar sua conta de jogador.',
+            ],
+        actions: [
+          { id: 'login' as const, label: 'Entrar com conta de jogador', primary: true },
+          { id: 'guest' as const, label: 'Apenas acompanhar' },
+        ],
+      }
+    }
+
+    if (data.ja_inscrito) {
+      return {
+        key: `registered:${data.inscricao_atual?.id || ''}:${players.length}`,
+        messages: [
+          `Boa! Você já está nessa escalação como ${data.inscricao_atual?.nick || data.jogador?.nome || data.jogador?.username}.`,
+          `Seu lugar é o slot ${data.inscricao_atual?.slot_numero || '-'}.`,
+          `${occupancy} Você pode acompanhar a lista abaixo.`,
+        ],
+        actions: [{ id: 'other_login' as const, label: 'Usar outro jogador' }],
+      }
+    }
+
+    return {
+      key: `ready:${data.jogador?.id || ''}:${players.length}:${full}`,
+      messages: [
+        `Encontrei seu perfil: ${data.jogador?.nome || data.jogador?.username}.`,
+        occupancy,
+        full
+          ? 'A escalação já está completa. Você pode acompanhar os jogadores confirmados.'
+          : 'Ainda há vaga. Posso confirmar sua entrada agora.',
+      ],
+      actions: full
+        ? [{ id: 'other_login' as const, label: 'Usar outro jogador' }]
+        : [
+            { id: 'join' as const, label: 'Confirmar minha entrada', primary: true },
+            { id: 'other_login' as const, label: 'Usar outro jogador' },
+          ],
+    }
+  }, [data, full, guest, limit, players.length])
+
+  const wait = (delay: number) => new Promise<void>((resolve) => window.setTimeout(resolve, delay))
+
+  async function runQueue(generation: number) {
+    if (queueRunningRef.current) return
+    queueRunningRef.current = true
+    setChatReady(false)
+    try {
+      while (queueRef.current.length) {
+        if (queueGenerationRef.current !== generation) return
+        const next = queueRef.current[0]
+        setTyping(true)
+        await wait(Math.min(3600, Math.max(1500, next.text.length * 36)))
+        if (queueGenerationRef.current !== generation) return
+        setTyping(false)
+        setTranscript((current) => [...current, { id: next.id, role: 'assistant', text: next.text }])
+        setLatestAnimatedId(next.id)
+        queueRef.current.shift()
+        await wait(520)
+        setLatestAnimatedId('')
+        await wait(420)
+      }
+    } finally {
+      queueRunningRef.current = false
+      if (queueGenerationRef.current === generation) {
+        setTyping(false)
+        setChatReady(queueRef.current.length === 0)
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!modeChosen || !assistantMode || !data) return
+    const stateKey = assistantState.key
+    if (deliveredStateRef.current === stateKey) return
+    deliveredStateRef.current = stateKey
+    setChatReady(false)
+    assistantState.messages.forEach((text, index) => {
+      queueRef.current.push({ id: `assistant:${stateKey}:${index}:${Date.now()}`, text })
+    })
+    void runQueue(queueGenerationRef.current)
+  }, [assistantMode, assistantState, data, modeChosen])
+
+  useEffect(() => {
+    const shell = chatRef.current
+    if (!shell) return
+    const frame = requestAnimationFrame(() => shell.scrollTo({ top: shell.scrollHeight, behavior: 'smooth' }))
+    return () => cancelAnimationFrame(frame)
+  }, [transcript.length, typing, joining, error, message])
+
+  function appendUserReply(text: string) {
+    const id = `user:${Date.now()}:${Math.random().toString(36).slice(2)}`
+    setTranscript((current) => [...current, { id, role: 'user', text }])
+    setLatestAnimatedId(id)
+    window.setTimeout(() => setLatestAnimatedId(''), 520)
+  }
+
+  function executeAction(action: ChatAction) {
+    if (action.id === 'guest') {
+      appendUserReply(action.label)
+      continueAsGuest()
+      return
+    }
+    if (action.id === 'join') {
+      void join()
+      return
+    }
+    appendUserReply(action.label)
+    window.location.assign(buildLoginHref('jogador', returnTo, action.id === 'other_login'))
+  }
+
+  function LiliAvatar() {
     return (
-      <div className="invite-chat-row bot">
-        <span className="invite-bot-avatar"><Bot size={18} /></span>
+      <span className="invite-bot-avatar" aria-label="Lili">
+        <Cat size={21} strokeWidth={2.2} />
+      </span>
+    )
+  }
+
+  function BotBubble({ children, animate = false }: { children: ReactNode; animate?: boolean }) {
+    return (
+      <div className={`invite-chat-row bot ${animate ? 'invite-chat-enter' : ''}`}>
+        <LiliAvatar />
         <div className="invite-chat-bubble">
           <strong>Lili</strong>
           <div>{children}</div>
@@ -167,9 +339,49 @@ export default function EscalaPublicaPage() {
     )
   }
 
-  if (loading) {
-    return <DropzoneLoader label="Carregando escalação" />
+  function UserBubble({ children, animate = false }: { children: ReactNode; animate?: boolean }) {
+    return (
+      <div className={`invite-chat-row user ${animate ? 'invite-chat-enter' : ''}`}>
+        <div className="invite-chat-bubble user"><div>{children}</div></div>
+      </div>
+    )
   }
+
+  function TypingBubble() {
+    return (
+      <div className="invite-chat-row bot">
+        <LiliAvatar />
+        <div className="invite-typing" aria-label="Lili digitando">
+          <span /><span /><span /><em>Lili digitando...</em>
+        </div>
+      </div>
+    )
+  }
+
+  function PlayerChatList() {
+    return (
+      <BotBubble>
+        <p><strong>Jogadores confirmados</strong></p>
+        <div className="invite-chat-player-results scale-chat-player-list">
+          {slots.map((player, index) => (
+            <div className="invite-chat-player-result" key={index}>
+              <span className="scale-chat-slot-number">{index + 1}</span>
+              <span>
+                <strong>{player?.nick || 'Vaga disponível'}</strong>
+                <small>
+                  {player
+                    ? `${player.funcao || 'Jogador'}${player.capitao ? ' · Capitão' : ''}`
+                    : 'Aguardando jogador'}
+                </small>
+              </span>
+            </div>
+          ))}
+        </div>
+      </BotBubble>
+    )
+  }
+
+  if (loading) return <DropzoneLoader label="Carregando escalação" />
 
   if (!data || data.error) {
     return (
@@ -183,193 +395,155 @@ export default function EscalaPublicaPage() {
     )
   }
 
-  // Redirecionando para criar perfil de jogador
   if (data.autenticado && !data.jogador) {
     return (
       <main className="invite-page">
         <div className="invite-card">
           <UserRound size={42} />
           <p className="eyebrow">Perfil de jogador</p>
-          <h1>Criando seu perfil de jogo...</h1>
-          <p>
-            Este convite de escalação exige um <strong>perfil de jogador</strong>. Abrindo o cadastro...
-          </p>
-          <a className="button invite-confirm" href={buildProfileCreationHref('jogador', returnTo)}>
-            Criar jogador agora
-          </a>
-          <a className="button secondary" href={buildLoginHref('jogador', returnTo, true)}>
-            Usar outro login
-          </a>
+          <h1>Preparando seu cadastro...</h1>
+          <p>Este convite exige um perfil de jogador. Abrindo o cadastro.</p>
         </div>
       </main>
     )
   }
 
-  return (
-    <>
-      <main className="page public-page">
-        <div className="shell public-shell">
-          <section className="panel span-3 public-card scale-invite-card">
-            <div className="section-head">
-              <div>
-                <p className="eyebrow">Convite de escalação</p>
-                <h2>{data.campeonato_nome || 'Escalação'}</h2>
-                <span>
-                  {data.line_nome || ''}
-                  {guest ? ' · modo visitante' : ''}
-                </span>
-              </div>
-              <Shield />
-            </div>
+  if (!modeChosen) {
+    return (
+      <main className="scale-mode-page">
+        <section className="scale-mode-card">
+          <div className="scale-mode-icon"><Users size={34} /></div>
+          <p className="eyebrow">Convite de escalação</p>
+          <h1>{data.campeonato_nome || 'Escalação'}</h1>
+          <p>{data.line_nome || 'Line'} · {players.length}/{limit} jogadores</p>
+          <div className="scale-mode-options">
+            <button type="button" className="scale-mode-option assistant" onClick={() => chooseMode('assistant')}>
+              <Cat size={24} />
+              <span><strong>Continuar com a Lili</strong><small>Atendimento guiado em formato de conversa</small></span>
+            </button>
+            <button type="button" className="scale-mode-option" onClick={() => chooseMode('normal')}>
+              <Users size={24} />
+              <span><strong>Continuar sem assistente</strong><small>Visualização tradicional da escalação</small></span>
+            </button>
+          </div>
+        </section>
+      </main>
+    )
+  }
 
-            <div className="lineup-public-meta">
-              <span>
-                <Users size={16} /> {players.length}/{limit} jogadores
-              </span>
-              <span>
-                <CalendarDays size={16} />{' '}
-                {data.data_jogo
-                  ? new Date(`${data.data_jogo}T00:00:00`).toLocaleDateString('pt-BR')
-                  : 'Data não definida'}
-              </span>
-              <span>
-                <Clock size={16} /> {data.horario ? String(data.horario).slice(0, 5) : 'Horário não definido'}
-              </span>
+  if (assistantMode) {
+    return (
+      <main className="invite-page invite-page-chat scale-chat-page">
+        <section className="invite-card invite-chat-card scale-chat-card">
+          <header className="scale-chat-header">
+            <div>
+              <strong>{data.campeonato_nome || 'Escalação'}</strong>
+              <span>{data.line_nome || 'Line'} · {players.length}/{limit} jogadores</span>
             </div>
+            <button type="button" onClick={() => chooseMode('normal')}>Sem assistente</button>
+          </header>
 
-            <div className="invite-details scale-context-details">
-              <span>
-                <strong>Fase</strong>
-                {data.fase_nome || 'Não definida'}
-              </span>
-              <span>
-                <strong>Grupo</strong>
-                {data.grupo_nome || 'Não definido'}
-              </span>
-              <span>
-                <strong>Slot da equipe</strong>
-                {data.slot_equipe || '-'}
-              </span>
-            </div>
+          <div className="invite-chat-shell scale-chat-shell" ref={chatRef}>
+            {transcript.map((entry) => entry.role === 'assistant' ? (
+              <BotBubble key={entry.id} animate={entry.id === latestAnimatedId}><p>{entry.text}</p></BotBubble>
+            ) : (
+              <UserBubble key={entry.id} animate={entry.id === latestAnimatedId}><p>{entry.text}</p></UserBubble>
+            ))}
+            {typing ? <TypingBubble /> : null}
+            {chatReady ? <PlayerChatList /> : null}
 
-            <div className="lineup-slots public-lineup-slots">
-              {slots.map((player, index) => (
-                <div className={`lineup-slot ${player ? 'occupied' : ''}`} key={index}>
-                  <b>{index + 1}</b>
-                  {player ? (
-                    <>
-                      <img src={player.foto_url || '/favicon.ico'} alt="" />
-                      <div>
-                        <strong>{player.nick}</strong>
-                        <span>
-                          {player.funcao}
-                          {player.capitao ? ' · Capitão' : ''}
-                        </span>
-                      </div>
-                    </>
+            {error ? <BotBubble><p>{error}</p></BotBubble> : null}
+            {message ? <BotBubble><p>{message}</p></BotBubble> : null}
+
+            {chatReady && !typing ? (
+              <div className="invite-chat-actions scale-chat-actions">
+                {assistantState.actions.map((action) => (
+                  action.id === 'login' && !data.autenticado ? (
+                    <div className="scale-chat-login" key={action.id}>
+                      <SocialLogin profileType="jogador" returnTo={returnTo} />
+                      <a className="invite-chat-option" href={buildLoginHref('jogador', returnTo)}>
+                        <LogIn size={16} /> Entrar com login e senha
+                      </a>
+                    </div>
                   ) : (
-                    <span>Disponível</span>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {error ? <div className="message error">{error}</div> : null}
-            {message ? <div className="message">{message}</div> : null}
-
-            {data.ja_inscrito ? (
-              <div className="invite-team-confirmation scale-current-player invite-chat-shell">
-                <BotBubble>
-                  <p>Boa! VocÃª jÃ¡ estÃ¡ nessa escalaÃ§Ã£o.</p>
-                  <p>Confira seu slot abaixo e acompanhe os jogadores confirmados.</p>
-                </BotBubble>
-                <div className="invite-current-team">
-                  <small>Você já está nesta escalação</small>
-                  <strong>{data.jogador?.nome || data.jogador?.username || data.inscricao_atual?.nick}</strong>
-                  <span>Slot {data.inscricao_atual?.slot_numero || '-'}</span>
-                </div>
-                <div className="invite-expired scale-confirmed-state">
-                  <CheckCircle2 size={20} /> Acompanhe acima os jogadores já confirmados.
-                </div>
-              </div>
-            ) : data.autenticado && data.jogador ? (
-              <div className="invite-team-confirmation scale-current-player invite-chat-shell">
-                <BotBubble>
-                  <p>Encontrei seu jogador: <strong>{data.jogador.nome || data.jogador.username}</strong>.</p>
-                  <p>Quer confirmar entrada nessa escalaÃ§Ã£o?</p>
-                </BotBubble>
-                <div className="invite-current-team">
-                  <small>Inscrever com o perfil de jogador</small>
-                  <strong>{data.jogador.nome || data.jogador.username}</strong>
-                  <span>
-                    {data.jogador.id_jogo ? `ID: ${data.jogador.id_jogo}` : 'ID de jogo não informado'}
-                  </span>
-                </div>
-                <button className="button invite-confirm" disabled={full || joining} onClick={() => void join()}>
-                  <Check size={16} />{' '}
-                  {joining
-                    ? 'Confirmando...'
-                    : full
-                      ? 'Escalação completa'
-                      : `Inscrever como ${data.jogador.nome || data.jogador.username}`}
-                </button>
-                <a className="button secondary" href={buildLoginHref('jogador', returnTo, true)}>
-                  Usar outro jogador
-                </a>
-              </div>
-            ) : guest || !data.autenticado ? (
-              <div className="invite-auth-box invite-chat-shell">
-                <BotBubble>
-                  <p>VocÃª estÃ¡ vendo como visitante.</p>
-                  <p>Para entrar na escalaÃ§Ã£o, faÃ§a login com uma conta de jogador.</p>
-                </BotBubble>
-                <p>
-                  Você está no <strong>modo visitante</strong>: pode ver a escalação, mas para se inscrever precisa de
-                  um <strong>perfil de jogador</strong>.
-                </p>
-                <button className="button invite-confirm" type="button" onClick={() => setGate(true)}>
-                  Entrar com conta de jogador
-                </button>
+                    <button
+                      key={action.id}
+                      className={`invite-chat-option ${action.primary ? 'primary' : ''}`}
+                      type="button"
+                      disabled={joining}
+                      onClick={() => executeAction(action)}
+                    >
+                      {joining && action.id === 'join' ? 'Confirmando...' : action.label}
+                    </button>
+                  )
+                ))}
               </div>
             ) : null}
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
+    )
+  }
 
-      {gate ? (
-        <div className="vacancies-access-gate">
-          <section>
-            <button className="gate-close" type="button" onClick={continueAsGuest} aria-label="Fechar">
-              <X size={18} />
-            </button>
-            <img src="/dropzone-icon.png" alt="" />
-            <p className="eyebrow">Escalação da line</p>
-            <h2>Como deseja continuar?</h2>
-            <div className="invite-chat-shell" style={{ margin: '12px 0' }}>
-              <BotBubble>
-                <p>Oi! Eu sou a Lili ðŸ± Vou te ajudar a entrar na escalaÃ§Ã£o da line.</p>
-                <p>Se ainda nÃ£o tiver perfil de jogador, eu te levo para criar um.</p>
-              </BotBubble>
+  return (
+    <main className="page public-page scale-normal-page">
+      <div className="shell public-shell">
+        <section className="panel span-3 public-card scale-invite-card">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">Convite de escalação</p>
+              <h2>{data.campeonato_nome || 'Escalação'}</h2>
+              <span>{data.line_nome || ''}{guest ? ' · modo visitante' : ''}</span>
             </div>
-            <p>
-              Para entrar na escalação você precisa de um <strong>perfil de jogador</strong>. Entre com
-              Google/Facebook/Discord — se ainda não tiver jogador, o cadastro abre em seguida. Sem login você só
-              visualiza os slots.
-            </p>
-            <SocialLogin profileType="jogador" returnTo={returnTo} />
-            <button className="continue-guest" type="button" onClick={continueAsGuest}>
-              Continuar sem login
-            </button>
-            <a
-              className="button secondary"
-              href={buildLoginHref('jogador', returnTo)}
-              style={{ width: '100%', marginTop: 8, placeContent: 'center' }}
-            >
-              Entrar com login e senha
-            </a>
-          </section>
-        </div>
-      ) : null}
-    </>
+            <button className="button secondary" type="button" onClick={() => chooseMode('assistant')}>Com a Lili</button>
+          </div>
+
+          <div className="lineup-public-meta">
+            <span><Users size={16} /> {players.length}/{limit} jogadores</span>
+            <span><CalendarDays size={16} /> {data.data_jogo ? new Date(`${data.data_jogo}T00:00:00`).toLocaleDateString('pt-BR') : 'Data não definida'}</span>
+            <span><Clock size={16} /> {data.horario ? String(data.horario).slice(0, 5) : 'Horário não definido'}</span>
+          </div>
+
+          <div className="invite-details scale-context-details">
+            <span><strong>Fase</strong>{data.fase_nome || 'Não definida'}</span>
+            <span><strong>Grupo</strong>{data.grupo_nome || 'Não definido'}</span>
+            <span><strong>Slot da equipe</strong>{data.slot_equipe || '-'}</span>
+          </div>
+
+          <div className="lineup-slots public-lineup-slots">
+            {slots.map((player, index) => (
+              <div className={`lineup-slot ${player ? 'occupied' : ''}`} key={index}>
+                <b>{index + 1}</b>
+                {player ? (
+                  <>
+                    <img src={player.foto_url || '/favicon.ico'} alt="" />
+                    <div><strong>{player.nick}</strong><span>{player.funcao}{player.capitao ? ' · Capitão' : ''}</span></div>
+                  </>
+                ) : <span>Disponível</span>}
+              </div>
+            ))}
+          </div>
+
+          {error ? <div className="message error">{error}</div> : null}
+          {message ? <div className="message">{message}</div> : null}
+
+          {data.ja_inscrito ? (
+            <div className="invite-expired scale-confirmed-state"><CheckCircle2 size={20} /> Você já está nesta escalação.</div>
+          ) : data.autenticado && data.jogador ? (
+            <div className="scale-normal-actions">
+              <button className="button invite-confirm" disabled={full || joining} onClick={() => void join()}>
+                <Check size={16} /> {joining ? 'Confirmando...' : full ? 'Escalação completa' : `Inscrever como ${data.jogador.nome || data.jogador.username}`}
+              </button>
+              <a className="button secondary" href={buildLoginHref('jogador', returnTo, true)}>Usar outro jogador</a>
+            </div>
+          ) : (
+            <div className="scale-normal-actions">
+              <SocialLogin profileType="jogador" returnTo={returnTo} />
+              {!guest ? <button className="button secondary" type="button" onClick={continueAsGuest}>Apenas acompanhar</button> : null}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   )
 }
