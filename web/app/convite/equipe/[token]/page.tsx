@@ -9,6 +9,11 @@ import { supabase } from '@/lib/supabase-browser'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { LiliConversationProvider, useLiliConversation } from '@/features/chatbot/lili/conversation'
+import {
+  getInviteTeamConversationState,
+  type InviteTeamStep,
+} from '@/features/chatbot/lili/invite-team-conversation'
 
 type SlotVaga = {
   index: number
@@ -63,12 +68,12 @@ type InvitePayload = {
   lines_disponiveis?: Array<{ id: string; nome: string; tag: string | null; logo_url: string | null; ja_inscrita?: boolean }>
 }
 
-type Step = 'inicio' | 'acompanhar' | 'login' | 'sem_equipe' | 'confirmar_equipe' | 'escolher_slot' | 'escolher_line' | 'sucesso'
+type Step = InviteTeamStep
 
 const SESSION_WAS_LOGGED_KEY = 'dz_invite_eq_was_logged'
 const SESSION_JUST_LOGIN_KEY = 'dz_invite_eq_just_login'
 
-export default function ConviteEquipePage() {
+function ConviteEquipeContent() {
   const params = useParams<{ token: string }>()
   const token = String(params?.token || '')
   const returnTo = `/convite/equipe/${encodeURIComponent(token)}`
@@ -83,6 +88,7 @@ export default function ConviteEquipePage() {
   const [slotId, setSlotId] = useState('')
   const [detailVaga, setDetailVaga] = useState<SlotVaga | null>(null)
   const [sucesso, setSucesso] = useState<{ line: string; slot?: string } | null>(null)
+  const liliConversation = useLiliConversation<ReturnType<typeof getInviteTeamConversationState>>()
 
   const linesDisponiveis = useMemo(() => {
     if (data?.lines_disponiveis?.length) return data.lines_disponiveis
@@ -113,6 +119,34 @@ export default function ConviteEquipePage() {
     [slotId, vagasLivres],
   )
   const needsSlotChoice = Boolean(!data?.slot?.id && vagasLivres.length > 0)
+  const conversationSlotLabel =
+    data?.slot?.letra ||
+    selectedSlot?.slot_letra ||
+    data?.vaga?.letra ||
+    (data?.vaga?.numero_vaga ? String(data.vaga.numero_vaga).padStart(2, '0') : null)
+  const conversationState = useMemo(() => getInviteTeamConversationState({
+    step,
+    inscricaoAberta,
+    campeonatoNome: data?.campeonato?.nome,
+    grupoNome: data?.grupo?.nome,
+    equipeNome: data?.equipe?.nome,
+    slotNome: conversationSlotLabel,
+    linesDisponiveis: linesDisponiveis.length,
+    vagasLivres: vagasLivres.length,
+  }), [
+    conversationSlotLabel,
+    data?.campeonato?.nome,
+    data?.equipe?.nome,
+    data?.grupo?.nome,
+    inscricaoAberta,
+    linesDisponiveis.length,
+    step,
+    vagasLivres.length,
+  ])
+
+  useEffect(() => {
+    liliConversation.setActiveState(conversationState)
+  }, [conversationState, liliConversation.setActiveState])
 
   function markSessionContext(hasSession: boolean) {
     try {
@@ -188,6 +222,7 @@ export default function ConviteEquipePage() {
   }, [token])
 
   function startInscricao() {
+    liliConversation.recordAction({ id: 'inscrever', label: 'Inscrever minha equipe', primary: true })
     setMessage('')
     if (!data) return
     if (!inscricaoAberta) {
@@ -217,6 +252,7 @@ export default function ConviteEquipePage() {
   }
 
   function continueAfterTeam() {
+    liliConversation.recordAction({ id: 'confirmar_equipe', label: `Continuar com ${data?.equipe?.nome || 'equipe'}`, primary: true })
     setMessage('')
     setStep(needsSlotChoice ? 'escolher_slot' : 'escolher_line')
   }
@@ -224,12 +260,14 @@ export default function ConviteEquipePage() {
   function confirmarSlot(vaga: SlotVaga) {
     const letra = vaga.slot_letra || String(vaga.slot_numero || '').padStart(2, '0')
     if (!window.confirm(`Confirmar entrada no Slot ${letra}?`)) return
+    liliConversation.recordAction({ id: 'escolher_slot', label: `Escolher slot ${letra}`, primary: true })
     setSlotId(vaga.slot_id)
     setMessage('')
     setStep('escolher_line')
   }
 
   async function aceitar() {
+    liliConversation.recordAction({ id: 'confirmar_inscricao', label: 'Confirmar inscrição', primary: true })
     const { data: session } = await supabase.auth.getSession()
     if (!session.session) {
       setStep('login')
@@ -309,26 +347,17 @@ export default function ConviteEquipePage() {
     data.vaga?.letra ||
     (data.vaga?.numero_vaga ? String(data.vaga.numero_vaga).padStart(2, '0') : null)
 
-  const eyebrow =
-    step === 'login'
-      ? 'Convite de inscrição'
-      : step === 'sem_equipe'
-        ? 'Perfil de equipe'
-        : step === 'confirmar_equipe'
-          ? 'Confirmar equipe'
-          : step === 'escolher_slot'
-            ? 'Escolher slot'
-            : step === 'escolher_line'
-              ? 'Escolher line'
-              : step === 'sucesso'
-                ? 'Entrada confirmada'
-                : step === 'inicio'
-                  ? 'Bem-vindo'
-                  : !inscricaoAberta
-                    ? 'Acompanhamento'
-                    : 'Acompanhamento'
+  const eyebrow = conversationState.eyebrow
 
   const teamName = data.equipe?.nome || 'sua equipe'
+
+  function ConversationMessages() {
+    return (
+      <>
+        {conversationState.messages.map((text, index) => <p key={`${conversationState.step}-${index}`}>{text}</p>)}
+      </>
+    )
+  }
 
   function BotBubble({ children }: { children: ReactNode }) {
     return (
@@ -395,10 +424,7 @@ export default function ConviteEquipePage() {
 
           {step === 'inicio' ? (
             <div className="invite-section invite-chat-shell" style={{ marginTop: 14 }}>
-              <BotBubble>
-                <p>Oi! Eu sou a Lili ðŸ± Vou te ajudar no campeonato <strong>{data.campeonato?.nome}</strong>.</p>
-                <p>O que você quer fazer agora?</p>
-              </BotBubble>
+              <BotBubble><ConversationMessages /></BotBubble>
               <p className="invite-section-copy" style={{ textAlign: 'center' }}>
                 Escolha como deseja continuar. Se for inscrever sua equipe, o sistema guia vocÃª passo a passo.
               </p>
@@ -407,7 +433,10 @@ export default function ConviteEquipePage() {
                   <UserPlus size={16} />
                   Inscrever minha equipe
                 </button>
-                <button className="button secondary" type="button" onClick={() => setStep('acompanhar')} style={{ width: '100%' }}>
+                <button className="button secondary" type="button" onClick={() => {
+                  liliConversation.recordAction({ id: 'acompanhar', label: 'Acompanhar grupo' })
+                  setStep('acompanhar')
+                }} style={{ width: '100%' }}>
                   Apenas acompanhar inscriÃ§Ã£o
                 </button>
               </div>
@@ -416,10 +445,7 @@ export default function ConviteEquipePage() {
 
           {step === 'login' ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
-              <BotBubble>
-                <p>Show. Para inscrever sua equipe, preciso confirmar quem você é.</p>
-                <p>Entre com a <strong>conta da equipe</strong>. Depois eu volto exatamente daqui.</p>
-              </BotBubble>
+              <BotBubble><ConversationMessages /></BotBubble>
               <LogIn size={22} />
               <p>
                 {inscricaoAberta ? (
@@ -446,7 +472,10 @@ export default function ConviteEquipePage() {
               <button
                 className="button secondary"
                 type="button"
-                onClick={() => setStep('acompanhar')}
+                onClick={() => {
+                  liliConversation.recordAction({ id: 'acompanhar', label: 'Acompanhar grupo' })
+                  setStep('acompanhar')
+                }}
                 style={{ width: '100%', marginTop: 8 }}
               >
                 Só acompanhar
@@ -456,10 +485,7 @@ export default function ConviteEquipePage() {
 
           {step === 'sem_equipe' ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
-              <BotBubble>
-                <p>Encontrei seu login, mas ele ainda não tem um <strong>perfil de equipe</strong>.</p>
-                <p>Cria rapidinho que eu te trago de volta para terminar a inscrição.</p>
-              </BotBubble>
+              <BotBubble><ConversationMessages /></BotBubble>
               <Shield size={22} />
               <p>
                 Seu login está ativo, mas ainda <strong>não tem conta de equipe</strong>. Crie o perfil para
@@ -476,10 +502,7 @@ export default function ConviteEquipePage() {
 
           {step === 'confirmar_equipe' && data.equipe ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
-              <BotBubble>
-                <p>Encontrei a equipe logada: <strong>{data.equipe.nome}</strong>.</p>
-                <p>Quer continuar a inscrição com ela?</p>
-              </BotBubble>
+              <BotBubble><ConversationMessages /></BotBubble>
               <div className="invite-current-team" style={{ width: '100%' }}>
                 <small>Equipe logada</small>
                 <strong>{data.equipe.nome}</strong>
@@ -499,10 +522,7 @@ export default function ConviteEquipePage() {
 
           {step === 'escolher_slot' ? (
             <div className="invite-section invite-chat-shell" style={{ marginTop: 12 }}>
-              <BotBubble>
-                <p>Beleza, <strong>{teamName}</strong>. Agora escolha o slot que sua equipe vai ocupar.</p>
-                <p>Clique em um slot vazio e eu peço confirmação antes de seguir.</p>
-              </BotBubble>
+              <BotBubble><ConversationMessages /></BotBubble>
               <div className="invite-current-team" style={{ marginBottom: 12 }}>
                 <small>Passo 1 de 2</small>
                 <strong>Escolha um slot livre</strong>
@@ -536,10 +556,7 @@ export default function ConviteEquipePage() {
 
           {step === 'escolher_line' ? (
             <div className="invite-section invite-chat-shell" style={{ marginTop: 12 }}>
-              <BotBubble>
-                <p>Slot <strong>{slotLabel || '-'}</strong> confirmado para <strong>{teamName}</strong>.</p>
-                <p>Agora escolha uma line disponível ou crie uma nova. Se criar, eu já confirmo a inscrição.</p>
-              </BotBubble>
+              <BotBubble><ConversationMessages /></BotBubble>
               <div className="invite-current-team" style={{ marginBottom: 12 }}>
                 <small>Passo 2 de 2</small>
                 <strong>{data.equipe?.nome}</strong>
@@ -603,7 +620,10 @@ export default function ConviteEquipePage() {
                 className="button secondary"
                 type="button"
                 style={{ width: '100%', marginTop: 8 }}
-                onClick={() => setStep('acompanhar')}
+                onClick={() => {
+                  liliConversation.recordAction({ id: 'acompanhar', label: 'Acompanhar grupo' })
+                  setStep('acompanhar')
+                }}
               >
                 Voltar ao acompanhamento
               </button>
@@ -612,10 +632,7 @@ export default function ConviteEquipePage() {
 
           {step === 'sucesso' && sucesso ? (
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
-              <BotBubble>
-                <p><strong>Pronto! Inscrição confirmada.</strong></p>
-                <p>Guarde esse comprovante. Boa sorte no campeonato! 🚀</p>
-              </BotBubble>
+              <BotBubble><ConversationMessages /></BotBubble>
               <div className="invite-current-team" style={{ width: '100%' }}>
                 <small>Comprovante de inscriÃ§Ã£o</small>
                 <strong>{data.campeonato?.nome || 'Campeonato'}</strong>
@@ -623,7 +640,10 @@ export default function ConviteEquipePage() {
                 <span>Line: {sucesso.line}</span>
                 <span>Slot: {sucesso.slot || slotLabel || '-'}</span>
               </div>
-              <button className="button invite-confirm" type="button" onClick={() => void carregar({ forceStep: 'acompanhar' })}>
+              <button className="button invite-confirm" type="button" onClick={() => {
+                liliConversation.recordAction({ id: 'ver_grupo', label: 'Ver grupo', primary: true })
+                void carregar({ forceStep: 'acompanhar' })
+              }}>
                 Ver grupo
               </button>
               <a className="button secondary" href="/">
@@ -732,5 +752,16 @@ export default function ConviteEquipePage() {
         </div>
       ) : null}
     </>
+  )
+}
+
+export default function ConviteEquipePage() {
+  const params = useParams<{ token: string }>()
+  const token = String(params?.token || '')
+
+  return (
+    <LiliConversationProvider flowId={`convite-equipe:${token}`}>
+      <ConviteEquipeContent />
+    </LiliConversationProvider>
   )
 }
