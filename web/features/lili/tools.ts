@@ -82,8 +82,9 @@ export function teamCards(teams: any[], championshipId?: string | null): LiliCar
       id: `team-${team.id}`,
       label: 'Usar esta equipe',
       message: `Quero usar a equipe ${team.nome}`,
+      intent: 'iniciar_inscricao',
       variant: 'primary',
-      context: { selectedChampionshipId: championshipId, selectedTeamId: team.id, currentFlow: 'registration' },
+      context: { selectedChampionshipId: championshipId, selectedTeamId: team.id, currentFlow: 'registration', currentStep: 'team' },
     }] : undefined,
   }))
 }

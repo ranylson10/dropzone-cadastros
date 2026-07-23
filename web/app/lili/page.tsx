@@ -34,6 +34,9 @@ export default function LiliPage() {
   const [typing, setTyping] = useState(false)
   const [ready, setReady] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
+  const busyRef = useRef(false)
+  const requestIdRef = useRef(0)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     try {
@@ -69,11 +72,24 @@ export default function LiliPage() {
 
   async function sendMessage(text: string, intent?: LiliIntent, actionContext?: LiliClientContext, echo = true) {
     const clean = text.trim()
-    if ((!clean && !intent) || typing) return
+    if ((!clean && !intent) || busyRef.current) return
+
+    busyRef.current = true
+    const requestId = ++requestIdRef.current
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     const nextContext = { ...context, ...(actionContext || {}) }
-    if (echo && clean) setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'user', text: clean }])
+    if (echo && clean) {
+      setMessages((current) => [
+        ...current,
+        { id: crypto.randomUUID(), role: 'user', text: clean },
+      ])
+    }
     setInput('')
     setTyping(true)
+
     try {
       const response = await fetch('/api/lili/chat', {
         method: 'POST',
@@ -82,17 +98,43 @@ export default function LiliPage() {
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({ message: clean, intent, context: nextContext }),
+        signal: controller.signal,
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json?.error || 'Não foi possível concluir a consulta.')
+      if (requestId !== requestIdRef.current) return
+
       const result = json as LiliChatResponse
       await new Promise((resolve) => setTimeout(resolve, 850))
+      if (requestId !== requestIdRef.current) return
+
       setContext(result.context ?? nextContext)
-      setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: result.reply, cards: result.cards, actions: result.actions, requiresAuth: result.requiresAuth }])
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          text: result.reply,
+          cards: result.cards,
+          actions: result.actions,
+          requiresAuth: result.requiresAuth,
+        },
+      ])
     } catch (error: any) {
-      setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: error?.message || 'Tive um problema ao consultar o DropZone. Tente novamente.' }])
+      if (error?.name === 'AbortError' || requestId !== requestIdRef.current) return
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          text: error?.message || 'Tive um problema ao consultar o DropZone. Tente novamente.',
+        },
+      ])
     } finally {
-      setTyping(false)
+      if (requestId === requestIdRef.current) {
+        busyRef.current = false
+        setTyping(false)
+      }
     }
   }
 
@@ -116,6 +158,10 @@ export default function LiliPage() {
   }
 
   function resetConversation() {
+    abortRef.current?.abort()
+    requestIdRef.current += 1
+    busyRef.current = false
+    setTyping(false)
     setMessages([initialMessage()])
     setContext({})
     try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem(PENDING_KEY) } catch { /* ignore */ }
@@ -123,6 +169,14 @@ export default function LiliPage() {
 
   function submit(event: FormEvent) { event.preventDefault(); void sendMessage(input) }
   const title = useMemo(() => session?.user?.email ? `Conectado como ${session.user.email}` : 'Atendimento inteligente DropZone', [session])
+  const latestInteractiveMessageId = useMemo(() => {
+    const latestAssistant = [...messages].reverse().find((message) => message.role === 'assistant')
+    if (!latestAssistant) return null
+    const hasCardActions = latestAssistant.cards?.some((card) => card.actions?.length)
+    return latestAssistant.requiresAuth || latestAssistant.actions?.length || hasCardActions
+      ? latestAssistant.id
+      : null
+  }, [messages])
 
   return (
     <main className="lili-hub-page">
@@ -134,7 +188,9 @@ export default function LiliPage() {
 
       <section className="lili-hub-feed" aria-live="polite">
         <div className="lili-hub-spacer" />
-        {messages.map((message) => (
+        {messages.map((message) => {
+          const actionsEnabled = message.id === latestInteractiveMessageId && !typing
+          return (
           <article className={`lili-hub-message ${message.role}`} key={message.id}>
             {message.role === 'assistant' ? <div className="lili-hub-mini-avatar">L</div> : null}
             <div className="lili-hub-message-content">
@@ -147,14 +203,15 @@ export default function LiliPage() {
                   </div>
                   {card.badges?.length ? <div className="lili-hub-badges">{card.badges.map((badge) => <span key={badge}>{badge}</span>)}</div> : null}
                   {card.details?.length ? <dl>{card.details.map((detail) => <div key={`${detail.label}-${detail.value}`}><dt>{detail.label}</dt><dd>{detail.value}</dd></div>)}</dl> : null}
-                  {card.actions?.map((action) => <button type="button" key={action.id} className="primary" disabled={typing} onClick={() => void handleAction(action)}>{action.label}</button>)}
+                  {card.actions?.map((action) => <button type="button" key={action.id} className="primary" disabled={!actionsEnabled} onClick={() => void handleAction(action)}>{action.label}</button>)}
                 </div>
               ))}</div> : null}
-              {message.requiresAuth ? <button type="button" className="lili-hub-login" onClick={login}><LogIn size={17} /> Entrar com Google</button> : null}
-              {message.actions?.length ? <div className="lili-hub-actions">{message.actions.map((action) => <button type="button" key={action.id} className={action.variant || 'secondary'} disabled={typing} onClick={() => void handleAction(action)}>{action.label}</button>)}</div> : null}
+              {message.requiresAuth ? <button type="button" className="lili-hub-login" onClick={login} disabled={!actionsEnabled}><LogIn size={17} /> Entrar com Google</button> : null}
+              {message.actions?.length ? <div className="lili-hub-actions">{message.actions.map((action) => <button type="button" key={action.id} className={action.variant || 'secondary'} disabled={!actionsEnabled} onClick={() => void handleAction(action)}>{action.label}</button>)}</div> : null}
             </div>
           </article>
-        ))}
+          )
+        })}
         {typing ? <article className="lili-hub-message assistant"><div className="lili-hub-mini-avatar">L</div><div className="lili-hub-typing"><i /><i /><i /></div></article> : null}
         <div ref={bottomRef} />
       </section>

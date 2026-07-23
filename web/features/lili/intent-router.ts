@@ -11,7 +11,20 @@ type IntentMatch = {
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
     intent: 'listar_campeonatos_abertos',
-    phrases: ['campeonatos com vagas', 'vagas abertas', 'campeonatos abertos', 'ver campeonatos', 'tem vaga', 'quero vaga'],
+    phrases: [
+      'campeonatos com vagas',
+      'vagas abertas',
+      'campeonatos abertos',
+      'ver campeonatos',
+      'tem vaga',
+      'quero vaga',
+      'tem algum campeonato',
+      'algum campeonato',
+      'campeonato para jogar',
+      'onde minha equipe possa jogar',
+      'onde minha equipe pode jogar',
+      'campeonato disponivel',
+    ],
   },
   {
     intent: 'listar_minhas_equipes',
@@ -45,9 +58,15 @@ function ruleMatch(message: string): IntentMatch | null {
     }
   }
 
-  const match = text.match(/(?:resultado|campeonato|liga|copa)\s+(?:da|do|de)?\s*(.+)$/)
-  if (match?.[1]?.trim()) {
-    return { intent: 'buscar_campeonato', confidence: 0.82, source: 'rule', searchTerm: match[1].trim() }
+  const namedSearch = text.match(
+    /(?:buscar|procurar|achar|ver|resultado(?:s)?(?: do| da)?|campeonato chamado|liga chamada|copa chamada)\s+(?:o |a |do |da |de )?(?:campeonato |liga |copa )?(.+)$/,
+  )
+  if (namedSearch?.[1]?.trim()) {
+    const searchTerm = namedSearch[1].trim()
+    const generic = ['com vagas', 'aberto', 'abertos', 'disponivel', 'disponiveis', 'para jogar']
+    if (!generic.some((value) => searchTerm === value || searchTerm.startsWith(`${value} `))) {
+      return { intent: 'buscar_campeonato', confidence: 0.9, source: 'rule', searchTerm }
+    }
   }
   return null
 }
@@ -94,7 +113,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
         signal: controller.signal,
         body: JSON.stringify({
           systemInstruction: {
-            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence e searchTerm. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, iniciar_inscricao, desconhecido. searchTerm deve conter apenas o nome buscado quando existir.' }],
+            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence e searchTerm. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, iniciar_inscricao, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
           },
           contents: [{ role: 'user', parts: [{ text: message.slice(0, 500) }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 120, responseMimeType: 'application/json' },
@@ -106,12 +125,29 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
     const text = json?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || ''
     const parsed = JSON.parse(stripJsonFence(text))
     const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'listar_minhas_equipes', 'iniciar_inscricao', 'desconhecido']
-    const intent = allowed.includes(parsed.intent) ? parsed.intent : 'desconhecido'
+    let intent = allowed.includes(parsed.intent) ? parsed.intent : 'desconhecido'
+    let searchTerm = String(parsed.searchTerm || '').trim() || undefined
+
+    if (intent === 'buscar_campeonato') {
+      const normalized = normalizeLiliText(message)
+      const looksGeneric =
+        !searchTerm
+        || normalized.includes('algum campeonato')
+        || normalized.includes('campeonato com vaga')
+        || normalized.includes('campeonatos com vaga')
+        || normalized.includes('onde minha equipe')
+        || normalized.includes('para jogar')
+      if (looksGeneric) {
+        intent = 'listar_campeonatos_abertos'
+        searchTerm = undefined
+      }
+    }
+
     return {
       intent,
       confidence: Math.max(0, Math.min(1, Number(parsed.confidence || 0.6))),
       source: 'gemini',
-      searchTerm: String(parsed.searchTerm || '').trim() || undefined,
+      searchTerm,
     }
   } catch {
     return { intent: 'desconhecido', confidence: 0, source: 'gemini' }
