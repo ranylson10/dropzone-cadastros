@@ -9,6 +9,8 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import {
   buildRegistrationSummary,
   championshipCards,
+  getChampionshipDetails,
+  resolveExistingInvite,
   lineCards,
   listOpenChampionships,
   listUserRegistrations,
@@ -46,6 +48,32 @@ function languageActions() {
 
 function registrationContext(context: LiliClientContext, patch: Partial<LiliClientContext> = {}): LiliClientContext {
   return { ...context, ...patch, currentFlow: 'registration' }
+}
+
+function flowControlActions(context: LiliClientContext) {
+  return [
+    { id: 'back-step', label: 'Voltar uma etapa', message: 'Voltar uma etapa', intent: 'voltar_etapa' as LiliIntent, variant: 'secondary' as const, context },
+    { id: 'cancel-flow', label: 'Cancelar operação', message: 'Cancelar operação', intent: 'cancelar_fluxo' as LiliIntent, variant: 'secondary' as const, context },
+  ]
+}
+
+function previousRegistrationContext(context: LiliClientContext): LiliClientContext {
+  switch (context.currentStep) {
+    case 'team':
+      return registrationContext({ locale: context.locale }, { currentStep: 'championship' })
+    case 'payment':
+    case 'payment_wait':
+      return registrationContext({ locale: context.locale, selectedChampionshipId: context.selectedChampionshipId }, { currentStep: 'team' })
+    case 'line':
+    case 'line_name':
+      return registrationContext({ ...context, selectedLineId: null, selectedLineName: null, awaitingLineName: false }, { currentStep: 'payment_wait' })
+    case 'slot':
+      return registrationContext({ ...context, selectedSlotId: null, selectedSlotLabel: null }, { currentStep: 'line' })
+    case 'confirm':
+      return registrationContext({ ...context, selectedSlotId: null, selectedSlotLabel: null }, { currentStep: 'slot' })
+    default:
+      return { locale: context.locale }
+  }
 }
 
 async function claimContext(req: NextRequest, context: LiliClientContext) {
@@ -88,6 +116,11 @@ export async function POST(req: NextRequest) {
       match = { intent: 'selecionar_line_inscricao', confidence: 1, source: 'system' as const, searchTerm: undefined }
     }
 
+    if (context.awaitingInviteToken && !forcedIntent && message) {
+      context = { ...context, inviteToken: message, awaitingInviteToken: false, currentFlow: 'registration_token', currentStep: 'token' }
+      match = { intent: 'validar_token_inscricao', confidence: 1, source: 'system' as const, searchTerm: undefined }
+    }
+
     let response: LiliChatResponse
 
     switch (match.intent) {
@@ -105,10 +138,47 @@ export async function POST(req: NextRequest) {
           intent: match.intent,
           cards: championshipCards(items, false, locale),
           actions: [
-            { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao', variant: 'primary' },
+            { id: 'buy-list', label: 'Comprar uma vaga', message: 'Quero comprar uma vaga', intent: 'comprar_vaga', variant: 'primary', context: { locale } },
+            { id: 'register-token', label: 'Já tenho convite ou token', message: 'Já tenho um token de inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
             { id: 'menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' },
           ],
+          context: { locale },
           source: match.source,
+        }
+        break
+      }
+
+      case 'abrir_campeonato': {
+        if (!context.selectedChampionshipId) throw new Error('Campeonato não informado.')
+        const item = await getChampionshipDetails(context.selectedChampionshipId)
+        const details = [
+          item.plataforma ? { label: 'Plataforma', value: String(item.plataforma) } : null,
+          item.servidor ? { label: 'Servidor', value: String(item.servidor) } : null,
+          item.valor_inscricao != null ? { label: 'Inscrição', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` } : null,
+          { label: 'Vagas livres', value: String(item.vagas_livres || 0) },
+          item.data_limite_inscricao ? { label: 'Prazo', value: new Date(item.data_limite_inscricao).toLocaleDateString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR') } : null,
+        ].filter(Boolean) as Array<{ label: string; value: string }>
+        const canBuy = Boolean(item.aceita_novas_inscricoes_equipes && Number(item.vagas_livres || 0) > 0)
+        response = {
+          reply: `Aqui estão os detalhes de ${item.nome}.`,
+          intent: match.intent,
+          cards: [{
+            id: item.id,
+            kind: 'championship',
+            title: item.nome,
+            subtitle: [item.tipo, item.plataforma, item.servidor].filter(Boolean).join(' • '),
+            imageUrl: item.logo_url || item.banner_url || null,
+            badges: [`${item.vagas_livres || 0} vaga${Number(item.vagas_livres || 0) === 1 ? '' : 's'} livre${Number(item.vagas_livres || 0) === 1 ? '' : 's'}`],
+            details,
+            actions: [{ id: `public-${item.id}`, label: 'Abrir página do campeonato', href: `/campeonatos/${item.id}`, variant: 'secondary' }],
+          }],
+          actions: [
+            ...(canBuy ? [{ id: `buy-${item.id}`, label: 'Comprar vaga', message: `Comprar vaga em ${item.nome}`, intent: 'comprar_vaga' as const, variant: 'primary' as const, context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' } }] : []),
+            { id: `token-${item.id}`, label: 'Usar convite ou token', message: 'Já tenho um token de inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+            { id: 'back-open', label: 'Voltar aos campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship' },
+          source: 'system',
         }
         break
       }
@@ -175,69 +245,98 @@ export async function POST(req: NextRequest) {
       }
 
       case 'iniciar_inscricao': {
+        const tokenContext: LiliClientContext = {
+          locale,
+          selectedChampionshipId: context.selectedChampionshipId || null,
+          currentFlow: 'registration_token',
+          currentStep: 'token',
+          awaitingInviteToken: true,
+        }
+        response = {
+          reply: context.selectedChampionshipId
+            ? 'Para entrar neste campeonato, cole o link de convite ou digite o token recebido do organizador.'
+            : 'Cole o link de convite ou digite o token recebido do organizador. Cada convite continua preso ao campeonato, grupo ou slot definido quando foi criado.',
+          intent: match.intent,
+          actions: [
+            { id: 'no-token', label: 'Não tenho token', message: 'Não tenho token', intent: 'comprar_vaga', variant: 'primary', context: { locale, selectedChampionshipId: context.selectedChampionshipId || null, currentFlow: 'vacancy_purchase' } },
+            { id: 'open-spots', label: 'Ver campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'secondary', context: { locale } },
+            { id: 'cancel-token', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: tokenContext },
+          ],
+          context: tokenContext,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'validar_token_inscricao': {
+        const invite = await resolveExistingInvite(context.inviteToken || message)
+        response = {
+          reply: 'Convite localizado. Vou abrir o fluxo que já existe no sistema, mantendo todas as regras de campeonato, grupo, slot, validade e quantidade de usos.',
+          intent: match.intent,
+          cards: [{
+            id: invite.token,
+            kind: 'summary',
+            title: invite.title,
+            details: [
+              { label: 'Token', value: invite.token },
+              { label: 'Destino', value: invite.href },
+            ],
+            actions: [{ id: 'open-existing-invite', label: 'Continuar inscrição', href: invite.href, variant: 'primary' }],
+          }],
+          actions: [
+            { id: 'another-token', label: 'Usar outro token', message: 'Quero usar outro token', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
+            { id: 'menu-token', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale, inviteToken: invite.token, inviteHref: invite.href },
+          source: 'system',
+        }
+        break
+      }
+
+      case 'comprar_vaga': {
         if (!context.selectedChampionshipId) {
           const items = await listOpenChampionships()
           response = {
-            reply: items.length ? 'Primeiro, escolha o campeonato em que deseja inscrever uma equipe.' : 'Não há campeonatos com vagas abertas agora.',
+            reply: items.length ? 'Escolha o campeonato em que deseja comprar uma vaga.' : 'Não há campeonatos com vagas disponíveis para compra agora.',
             intent: match.intent,
             cards: championshipCards(items, true, locale),
-            actions: [{ id: 'menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
-            context: registrationContext({}, { currentStep: 'championship' }),
-            source: match.source,
-          }
-          break
-        }
-        if (!user) {
-          response = {
-            reply: 'Campeonato escolhido. Agora preciso que você entre na conta para localizar as equipes que pode inscrever.',
-            intent: match.intent,
-            requiresAuth: true,
-            context: registrationContext(context, { currentStep: 'team' }),
-            source: match.source,
-          }
-          break
-        }
-        if (!context.selectedTeamId) {
-          const teams = await listUserTeams(user)
-          response = {
-            reply: teams.length ? 'Qual equipe você quer usar nesta inscrição?' : 'Não encontrei nenhuma equipe vinculada à sua conta.',
-            intent: match.intent,
-            cards: teamCards(teams, context.selectedChampionshipId),
-            context: registrationContext(context, { currentStep: 'team' }),
-            source: match.source,
-          }
-          break
-        }
-
-        const summary = await buildRegistrationSummary(context.selectedChampionshipId, context.selectedTeamId)
-        if (summary.existing) {
-          response = {
-            reply: `A equipe ${summary.team.nome} já está inscrita em ${summary.championship.nome}${summary.existing.slot_numero ? ` no slot ${summary.existing.slot_numero}` : ''}.`,
-            intent: match.intent,
-            cards: [{ id: summary.existing.id, kind: 'summary', title: 'Inscrição encontrada', details: [
-              { label: 'Campeonato', value: summary.championship.nome },
-              { label: 'Equipe', value: summary.team.nome },
-              { label: 'Status', value: 'Ativa' },
-            ] }],
-            actions: menuActions(locale),
-            context: {},
+            actions: [
+              { id: 'have-token', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
+              { id: 'menu-buy', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
+            ],
+            context: { locale, currentFlow: 'vacancy_purchase' },
             source: 'system',
           }
           break
         }
-
+        const item = await getChampionshipDetails(context.selectedChampionshipId)
+        if (!item.aceita_novas_inscricoes_equipes || Number(item.vagas_livres || 0) <= 0) {
+          response = {
+            reply: 'Este campeonato não possui vaga disponível para compra neste momento.',
+            intent: match.intent,
+            actions: [{ id: 'other-spots', label: 'Ver outros campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } }],
+            context: { locale },
+            source: 'system',
+          }
+          break
+        }
         response = {
-          reply: `Encontrei ${summary.championship.nome} e a equipe ${summary.team.nome}. Posso gerar o pagamento da vaga agora e continuar toda a inscrição aqui no chat.`,
+          reply: `A compra da vaga de ${item.nome} será feita na tela de vagas que já existe no sistema. Depois do pagamento, o próprio fluxo gera e controla a autorização para este campeonato.`,
           intent: match.intent,
-          cards: [{ id: `${summary.championship.id}-${summary.team.id}`, kind: 'summary', title: 'Resumo inicial', details: [
-            { label: 'Campeonato', value: summary.championship.nome },
-            { label: 'Equipe', value: summary.team.nome },
-          ] }],
+          cards: [{
+            id: item.id,
+            kind: 'championship',
+            title: item.nome,
+            imageUrl: item.logo_url || item.banner_url || null,
+            badges: [`${item.vagas_livres} vaga${Number(item.vagas_livres) === 1 ? '' : 's'} disponível${Number(item.vagas_livres) === 1 ? '' : 'is'}`],
+            details: item.valor_inscricao != null ? [{ label: 'Valor', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` }] : undefined,
+            actions: [{ id: 'open-buy-page', label: 'Comprar esta vaga', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'primary' }],
+          }],
           actions: [
-            { id: 'pay', label: 'Gerar pagamento PIX', message: 'Gerar pagamento da inscrição', intent: 'iniciar_pagamento_inscricao', variant: 'primary', context: registrationContext(context, { currentStep: 'payment' }) },
-            { id: 'change-team', label: 'Trocar equipe', message: 'Quero escolher outra equipe', intent: 'iniciar_inscricao', variant: 'secondary', context: registrationContext({ selectedChampionshipId: context.selectedChampionshipId }, { currentStep: 'team' }) },
+            { id: 'have-token-selected', label: 'Já tenho convite', message: 'Já tenho um token de inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+            { id: 'other-buy', label: 'Escolher outro campeonato', message: 'Quero comprar uma vaga', intent: 'comprar_vaga', variant: 'secondary', context: { locale } },
           ],
-          context: registrationContext(context, { currentStep: 'payment' }),
+          context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' },
           source: 'system',
         }
         break
@@ -311,7 +410,12 @@ export async function POST(req: NextRequest) {
           reply: data.lines?.length ? 'Pagamento confirmado. Agora escolha a line que vai representar sua equipe.' : 'Pagamento confirmado. Sua equipe ainda não possui uma line disponível para este campeonato. Digite o nome da nova line.',
           intent: match.intent,
           cards: data.lines?.length ? lineCards(data.lines, nextContext) : undefined,
-          actions: data.lines?.length ? [{ id: 'new-line', label: 'Criar nova line', message: 'Quero criar uma nova line', intent: 'criar_line_inscricao', variant: 'secondary', context: nextContext }] : undefined,
+          actions: data.lines?.length
+            ? [
+                { id: 'new-line', label: 'Criar nova line', message: 'Quero criar uma nova line', intent: 'criar_line_inscricao', variant: 'secondary', context: nextContext },
+                ...flowControlActions(nextContext),
+              ]
+            : flowControlActions(registrationContext(nextContext, { awaitingLineName: true, currentStep: 'line_name' })),
           context: data.lines?.length ? nextContext : registrationContext(nextContext, { awaitingLineName: true, currentStep: 'line_name' }),
           source: 'system',
         }
@@ -322,6 +426,7 @@ export async function POST(req: NextRequest) {
         response = {
           reply: 'Digite o nome da nova line. Depois eu vou mostrar os slots livres.',
           intent: match.intent,
+          actions: flowControlActions(registrationContext(context, { awaitingLineName: true, selectedLineId: null, selectedLineName: null, currentStep: 'line_name' })),
           context: registrationContext(context, { awaitingLineName: true, selectedLineId: null, selectedLineName: null, currentStep: 'line_name' }),
           source: 'system',
         }
@@ -334,6 +439,7 @@ export async function POST(req: NextRequest) {
           reply: `Line ${context.selectedLineName || 'selecionada'}. Agora escolha um slot livre no grupo ${data.grupo?.nome || ''}.`,
           intent: match.intent,
           cards: slotCards(data.slots_livres || [], nextContext),
+          actions: flowControlActions(nextContext),
           context: nextContext,
           source: 'system',
         }
@@ -466,6 +572,125 @@ export async function POST(req: NextRequest) {
         break
       }
 
+
+
+      case 'status_fluxo': {
+        if (!context.currentFlow) {
+          response = {
+            reply: 'Você não possui nenhuma operação em andamento. Escolha uma opção para começar.',
+            intent: match.intent,
+            actions: menuActions(locale),
+            context: { locale },
+            source: 'system',
+          }
+          break
+        }
+
+        const stepLabels: Record<string, string> = {
+          championship: 'escolha do campeonato',
+          team: 'escolha da equipe',
+          payment: 'geração do pagamento',
+          payment_wait: 'confirmação do pagamento',
+          line: 'escolha da line',
+          line_name: 'nome da nova line',
+          slot: 'escolha do slot',
+          confirm: 'confirmação final',
+        }
+        const currentStepLabel = stepLabels[String(context.currentStep || '')] || 'andamento da operação'
+        const details = [
+          context.selectedChampionshipId ? { label: 'Campeonato', value: 'Selecionado' } : null,
+          context.selectedTeamId ? { label: 'Equipe', value: 'Selecionada' } : null,
+          context.selectedLineName ? { label: 'Line', value: context.selectedLineName } : null,
+          context.selectedSlotLabel ? { label: 'Slot', value: context.selectedSlotLabel } : null,
+        ].filter(Boolean) as Array<{ label: string; value: string }>
+
+        response = {
+          reply: `Você parou na etapa de ${currentStepLabel}.`,
+          intent: match.intent,
+          cards: details.length ? [{
+            id: 'flow-status',
+            kind: 'summary',
+            title: 'Resumo da operação',
+            details,
+          }] : undefined,
+          actions: [
+            {
+              id: 'resume-flow',
+              label: 'Continuar de onde parei',
+              message: 'Continuar inscrição',
+              intent: 'iniciar_inscricao',
+              variant: 'primary',
+              context,
+            },
+            ...flowControlActions(context),
+          ],
+          context,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'reiniciar_conversa':
+        response = {
+          reply: 'Conversa reiniciada. Apaguei apenas o contexto temporário deste atendimento; nenhum dado salvo no sistema foi removido.',
+          intent: match.intent,
+          actions: menuActions(locale),
+          context: { locale },
+          source: 'system',
+        }
+        break
+
+      case 'cancelar_fluxo':
+        response = {
+          reply: context.currentFlow
+            ? 'Operação cancelada. Nenhuma etapa pendente foi concluída.'
+            : 'Não havia nenhuma operação em andamento.',
+          intent: match.intent,
+          actions: menuActions(locale),
+          context: { locale },
+          source: 'system',
+        }
+        break
+
+      case 'voltar_etapa': {
+        if (context.currentFlow !== 'registration') {
+          response = {
+            reply: 'Você já está no início. Escolha o que deseja fazer.',
+            intent: match.intent,
+            actions: menuActions(locale),
+            context: { locale },
+            source: 'system',
+          }
+          break
+        }
+        const previousContext = previousRegistrationContext(context)
+        if (!previousContext.currentFlow) {
+          response = {
+            reply: 'Voltei ao início da conversa.',
+            intent: match.intent,
+            actions: menuActions(locale),
+            context: { locale },
+            source: 'system',
+          }
+          break
+        }
+        response = {
+          reply: 'Voltei uma etapa. Vamos continuar daqui.',
+          intent: 'iniciar_inscricao',
+          actions: [{
+            id: 'continue-previous-step',
+            label: 'Continuar',
+            message: 'Continuar inscrição',
+            intent: 'iniciar_inscricao',
+            variant: 'primary',
+            context: previousContext,
+          }, ...flowControlActions(previousContext)],
+          context: previousContext,
+          source: 'system',
+        }
+        break
+      }
+
       case 'alterar_idioma':
         response = {
           reply: 'Escolha o idioma da conversa.',
@@ -477,10 +702,21 @@ export async function POST(req: NextRequest) {
         break
 
       default:
-        response = {
-          reply: 'Ainda não reconheci esse pedido. Escolha uma opção abaixo ou escreva, por exemplo, “quero ver campeonatos com vagas”.',
-          intent: 'desconhecido', actions: menuActions(locale), source: match.source,
-        }
+        response = context.currentFlow
+          ? {
+              reply: 'Não entendi esse comando dentro da operação atual. Você pode continuar da etapa em que parou, voltar uma etapa ou cancelar sem concluir nada.',
+              intent: 'desconhecido',
+              actions: [
+                { id: 'continue-flow', label: 'Continuar de onde parei', message: 'Continuar inscrição', intent: 'iniciar_inscricao', variant: 'primary', context },
+                ...flowControlActions(context),
+              ],
+              context,
+              source: match.source,
+            }
+          : {
+              reply: 'Ainda não reconheci esse pedido. Escolha uma opção abaixo ou escreva, por exemplo, “quero ver campeonatos com vagas”.',
+              intent: 'desconhecido', actions: menuActions(locale), context: { locale }, source: match.source,
+            }
     }
 
     const localized = await localizeLiliResponse({ ...response, context: { ...(response.context || {}), locale } }, locale)

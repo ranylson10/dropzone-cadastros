@@ -49,12 +49,52 @@ const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
     ],
   },
   {
+    intent: 'comprar_vaga',
+    phrases: [
+      'nao tenho token', 'nao tenho convite', 'comprar vaga', 'quero comprar uma vaga',
+      'no tengo token', 'no tengo invitacion', 'comprar cupo', 'quiero comprar un cupo',
+      'i do not have a token', 'i dont have a token', 'buy a spot', 'purchase a spot',
+    ],
+  },
+  {
     intent: 'simular_pagamento_internacional',
     phrases: [
       'converter valor', 'pagar em dolar', 'pagar em euro', 'pagamento internacional', 'simular paypal',
       'valor em dolar', 'valor em euro', 'cotacao internacional',
       'pagar en dolares', 'pagar en euros', 'pago internacional', 'simular paypal', 'precio en dolares', 'precio en euros',
       'pay in dollars', 'pay in euros', 'international payment', 'paypal quote', 'price in dollars', 'price in euros',
+    ],
+  },
+  {
+    intent: 'voltar_etapa',
+    phrases: [
+      'voltar uma etapa', 'etapa anterior', 'voltar passo', 'quero voltar',
+      'volver un paso', 'paso anterior', 'volver etapa',
+      'go back one step', 'previous step', 'back one step',
+    ],
+  },
+  {
+    intent: 'cancelar_fluxo',
+    phrases: [
+      'cancelar', 'cancelar operacao', 'cancelar inscricao', 'parar processo', 'sair deste fluxo',
+      'cancelar operacion', 'cancelar inscripcion', 'detener proceso', 'salir del flujo',
+      'cancel', 'cancel operation', 'cancel registration', 'stop process', 'exit flow',
+    ],
+  },
+  {
+    intent: 'status_fluxo',
+    phrases: [
+      'onde parei', 'em que etapa estou', 'status da operacao', 'status do processo', 'continuar de onde parei',
+      'donde quede', 'en que paso estoy', 'estado de la operacion', 'continuar donde quede',
+      'where did i stop', 'what step am i on', 'operation status', 'continue where i left off',
+    ],
+  },
+  {
+    intent: 'reiniciar_conversa',
+    phrases: [
+      'reiniciar conversa', 'recomecar conversa', 'limpar conversa', 'comecar de novo', 'novo atendimento',
+      'reiniciar conversacion', 'empezar de nuevo', 'limpiar conversacion', 'nueva conversacion',
+      'restart conversation', 'start over', 'clear conversation', 'new conversation',
     ],
   },
   {
@@ -152,7 +192,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
         signal: controller.signal,
         body: JSON.stringify({
           systemInstruction: {
-            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence, searchTerm e locale. locale deve ser pt-BR, es ou en conforme o idioma da mensagem. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, listar_minhas_inscricoes, iniciar_inscricao, simular_pagamento_internacional, alterar_idioma, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
+            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence, searchTerm e locale. locale deve ser pt-BR, es ou en conforme o idioma da mensagem. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, comprar_vaga, listar_minhas_equipes, listar_minhas_inscricoes, iniciar_inscricao, simular_pagamento_internacional, alterar_idioma, voltar_etapa, cancelar_fluxo, status_fluxo, reiniciar_conversa, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
           },
           contents: [{ role: 'user', parts: [{ text: message.slice(0, 500) }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 120, responseMimeType: 'application/json' },
@@ -163,7 +203,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
     const json = await response.json()
     const text = json?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || ''
     const parsed = JSON.parse(stripJsonFence(text))
-    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'listar_minhas_equipes', 'listar_minhas_inscricoes', 'iniciar_inscricao', 'simular_pagamento_internacional', 'alterar_idioma', 'desconhecido']
+    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'comprar_vaga', 'listar_minhas_equipes', 'listar_minhas_inscricoes', 'iniciar_inscricao', 'simular_pagamento_internacional', 'alterar_idioma', 'voltar_etapa', 'cancelar_fluxo', 'status_fluxo', 'reiniciar_conversa', 'desconhecido']
     let intent = allowed.includes(parsed.intent) ? parsed.intent : 'desconhecido'
     let searchTerm = String(parsed.searchTerm || '').trim() || undefined
 

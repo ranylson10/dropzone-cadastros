@@ -58,6 +58,14 @@ export default function VacanciesPage() {
     })()
   }, [])
 
+  useEffect(() => {
+    if (!items.length || buyTarget) return
+    const championshipId = new URLSearchParams(window.location.search).get('comprar')
+    if (!championshipId) return
+    const target = items.find((item) => String(item.id) === championshipId)
+    if (target) setBuyTarget(target)
+  }, [items, buyTarget])
+
   const sellerOptions = useMemo(() => {
     const sellers = new Map<string, string>()
     for (const item of items) for (const seller of item.vendedores || []) if (seller.id) sellers.set(seller.id, seller.nome || 'Vendedor')

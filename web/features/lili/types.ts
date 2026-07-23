@@ -5,6 +5,9 @@ export type LiliIntent =
   | 'menu'
   | 'listar_campeonatos_abertos'
   | 'buscar_campeonato'
+  | 'abrir_campeonato'
+  | 'comprar_vaga'
+  | 'validar_token_inscricao'
   | 'listar_minhas_equipes'
   | 'listar_minhas_inscricoes'
   | 'iniciar_inscricao'
@@ -15,6 +18,10 @@ export type LiliIntent =
   | 'selecionar_slot_inscricao'
   | 'confirmar_inscricao'
   | 'alterar_idioma'
+  | 'voltar_etapa'
+  | 'cancelar_fluxo'
+  | 'status_fluxo'
+  | 'reiniciar_conversa'
   | 'simular_pagamento_internacional'
   | 'desconhecido'
 
@@ -31,6 +38,9 @@ export type LiliClientContext = {
   currentFlow?: string | null
   currentStep?: string | null
   awaitingLineName?: boolean
+  awaitingInviteToken?: boolean
+  inviteToken?: string | null
+  inviteHref?: string | null
 }
 
 export type LiliAction = {
