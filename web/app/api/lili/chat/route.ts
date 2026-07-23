@@ -271,7 +271,9 @@ export async function POST(req: NextRequest) {
       case 'validar_token_inscricao': {
         const invite = await resolveExistingInvite(context.inviteToken || message)
         response = {
-          reply: 'Convite localizado. Vou abrir o fluxo que já existe no sistema, mantendo todas as regras de campeonato, grupo, slot, validade e quantidade de usos.',
+          reply: context.autoOpenInvite
+            ? 'Convite validado. Vou abrir agora a próxima etapa correta.'
+            : 'Convite localizado. Continue pelo fluxo original do sistema, com todas as regras já existentes.',
           intent: match.intent,
           cards: [{
             id: invite.token,
@@ -287,7 +289,7 @@ export async function POST(req: NextRequest) {
             { id: 'another-token', label: 'Usar outro token', message: 'Quero usar outro token', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
             { id: 'menu-token', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
           ],
-          context: { locale, inviteToken: invite.token, inviteHref: invite.href },
+          context: { locale, inviteToken: invite.token, inviteHref: invite.href, autoOpenInvite: Boolean(context.autoOpenInvite) },
           source: 'system',
         }
         break

@@ -46,6 +46,7 @@ export default function LiliPage() {
   const busyRef = useRef(false)
   const requestIdRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
+  const deepLinkHandledRef = useRef(false)
 
   useEffect(() => {
     try {
@@ -82,6 +83,56 @@ export default function LiliPage() {
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, session])
+
+
+  useEffect(() => {
+    if (!ready || deepLinkHandledRef.current || busyRef.current) return
+
+    const params = new URLSearchParams(window.location.search)
+    const rawInvite = params.get('invite') || params.get('convite') || params.get('link') || params.get('token')
+    if (!rawInvite) return
+
+    deepLinkHandledRef.current = true
+    const requestedLocale = normalizeLocale(params.get('lang') || params.get('locale') || context.locale || navigator.language)
+    const championshipId = params.get('campeonato') || params.get('championship') || params.get('championshipId')
+    const inviteValue = rawInvite.trim()
+    const processingText = requestedLocale === 'es'
+      ? 'Estoy validando tu invitación…'
+      : requestedLocale === 'en'
+        ? 'I’m validating your invitation…'
+        : 'Estou validando seu convite…'
+    setMessages([{ id: 'invite-processing', role: 'assistant', text: processingText }])
+    const deepLinkContext: LiliClientContext = {
+      ...context,
+      locale: requestedLocale,
+      inviteToken: inviteValue,
+      awaitingInviteToken: false,
+      currentFlow: 'registration_token',
+      currentStep: 'token',
+      autoOpenInvite: true,
+      ...(championshipId ? { selectedChampionshipId: championshipId } : {}),
+    }
+
+    params.delete('invite')
+    params.delete('convite')
+    params.delete('link')
+    params.delete('token')
+    params.delete('campeonato')
+    params.delete('championship')
+    params.delete('championshipId')
+    params.delete('lang')
+    params.delete('locale')
+    const cleanQuery = params.toString()
+    window.history.replaceState({}, '', `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`)
+
+    const visibleMessage = requestedLocale === 'es'
+      ? 'Abrir invitación recibida'
+      : requestedLocale === 'en'
+        ? 'Open received invitation'
+        : 'Abrir convite recebido'
+    void sendMessage(visibleMessage, 'validar_token_inscricao', deepLinkContext, false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
 
   async function sendMessage(text: string, intent?: LiliIntent, actionContext?: LiliClientContext, echo = true) {
     const clean = text.trim()
@@ -134,6 +185,9 @@ export default function LiliPage() {
           requiresAuth: result.requiresAuth,
         },
       ])
+      if (nextContext.autoOpenInvite && result.context?.inviteHref) {
+        window.setTimeout(() => window.location.replace(result.context!.inviteHref!), 450)
+      }
     } catch (error: any) {
       if (error?.name === 'AbortError' || requestId !== requestIdRef.current) return
       setMessages((current) => [

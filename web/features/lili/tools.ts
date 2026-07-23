@@ -285,10 +285,10 @@ function extractInviteToken(value: string) {
   try {
     const url = new URL(raw)
     const path = url.pathname
-    const match = path.match(/^\/(convite\/equipe|convite\/grupo|i|vagas\/compra)\/([^/?#]+)/i)
+    const match = path.match(/^\/(convite\/equipe|convite\/grupo|equipe\/entrar|escala|i|vagas\/compra)\/([^/?#]+)/i)
     if (match) return { token: decodeURIComponent(match[2]), hintedPath: `/${match[1]}` }
   } catch {
-    const match = raw.match(/\/?(convite\/equipe|convite\/grupo|i|vagas\/compra)\/([^/?#\s]+)/i)
+    const match = raw.match(/\/?(convite\/equipe|convite\/grupo|equipe\/entrar|escala|i|vagas\/compra)\/([^/?#\s]+)/i)
     if (match) return { token: decodeURIComponent(match[2]), hintedPath: `/${match[1]}` }
   }
   return { token: raw.replace(/^['\"]|['\"]$/g, '').trim(), hintedPath: '' }
@@ -305,6 +305,22 @@ export async function resolveExistingInvite(value: string) {
     return { ...hinted, kind: parsed.hintedPath, title: 'Convite localizado' }
   }
 
+  const { data: playerTeamInvite, error: playerTeamError } = await supabaseAdmin
+    .from('tokens')
+    .select('token,tipo,equipe_id,status,expira_em')
+    .ilike('token', token)
+    .eq('tipo', 'convite_jogador_equipe')
+    .maybeSingle()
+  if (playerTeamError) throw playerTeamError
+  if (playerTeamInvite) {
+    return {
+      token: playerTeamInvite.token,
+      href: `/equipe/entrar/${encodeURIComponent(playerTeamInvite.token)}`,
+      kind: 'convite_jogador_equipe',
+      title: 'Convite individual de equipe',
+    }
+  }
+
   const { data: teamInvite, error: teamError } = await supabaseAdmin
     .from('tokens')
     .select('token,tipo,campeonato_id,grupo_id,slot_id,status,expira_em')
@@ -319,6 +335,23 @@ export async function resolveExistingInvite(value: string) {
       kind: 'convite_equipe',
       title: 'Convite de equipe',
       campeonatoId: teamInvite.campeonato_id,
+    }
+  }
+
+  const { data: lineupLink, error: lineupError } = await supabaseAdmin
+    .from('campeonato_links_inscricao')
+    .select('token,tipo,campeonato_id,grupo_id,campeonato_equipe_id,line_id,ativo,expira_em')
+    .ilike('token', token)
+    .eq('tipo', 'escalacao_line')
+    .maybeSingle()
+  if (lineupError) throw lineupError
+  if (lineupLink) {
+    return {
+      token: lineupLink.token,
+      href: `/escala/${encodeURIComponent(lineupLink.token)}`,
+      kind: 'escalacao_line',
+      title: 'Convite para escalação de jogadores',
+      campeonatoId: lineupLink.campeonato_id,
     }
   }
 

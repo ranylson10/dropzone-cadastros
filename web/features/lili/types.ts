@@ -41,6 +41,7 @@ export type LiliClientContext = {
   awaitingInviteToken?: boolean
   inviteToken?: string | null
   inviteHref?: string | null
+  autoOpenInvite?: boolean
 }
 
 export type LiliAction = {
