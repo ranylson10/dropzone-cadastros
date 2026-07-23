@@ -163,3 +163,80 @@ export function paymentCard(input: {
     actions,
   }
 }
+
+
+export async function listUserRegistrations(user: AuthUser) {
+  const teams = await listUserTeams(user)
+  const teamIds = teams.map((team: any) => String(team.id)).filter(Boolean)
+  if (!teamIds.length) return []
+
+  const { data: entries, error } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('id,campeonato_id,equipe_id,line_id,grupo_id,status,slot_numero,nome_exibicao,created_at')
+    .in('equipe_id', teamIds)
+    .neq('status', 'excluido')
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  if (!entries?.length) return []
+
+  const championshipIds = [...new Set(entries.map((row: any) => row.campeonato_id).filter(Boolean))]
+  const lineIds = [...new Set(entries.map((row: any) => row.line_id).filter(Boolean))]
+  const groupIds = [...new Set(entries.map((row: any) => row.grupo_id).filter(Boolean))]
+
+  const [championshipResult, lineResult, groupResult] = await Promise.all([
+    supabaseAdmin.from('campeonatos').select('id,nome,tipo,logo_url,banner_url,status').in('id', championshipIds),
+    lineIds.length
+      ? supabaseAdmin.from('equipe_lines').select('id,nome,tag,logo_url').in('id', lineIds)
+      : Promise.resolve({ data: [], error: null }),
+    groupIds.length
+      ? supabaseAdmin.from('campeonato_grupos').select('id,nome').in('id', groupIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (championshipResult.error) throw championshipResult.error
+  if (lineResult.error) throw lineResult.error
+  if (groupResult.error) throw groupResult.error
+
+  const championshipMap = new Map((championshipResult.data || []).map((row: any) => [row.id, row]))
+  const teamMap = new Map(teams.map((row: any) => [String(row.id), row]))
+  const lineMap = new Map((lineResult.data || []).map((row: any) => [row.id, row]))
+  const groupMap = new Map((groupResult.data || []).map((row: any) => [row.id, row]))
+
+  return entries.map((entry: any) => ({
+    ...entry,
+    campeonato: championshipMap.get(entry.campeonato_id) || null,
+    equipe: teamMap.get(String(entry.equipe_id)) || null,
+    line: entry.line_id ? lineMap.get(entry.line_id) || null : null,
+    grupo: entry.grupo_id ? groupMap.get(entry.grupo_id) || null : null,
+  }))
+}
+
+export function registrationCards(items: any[]): LiliCard[] {
+  return items.map((item) => {
+    const championship = item.campeonato
+    const team = item.equipe
+    const line = item.line
+    const group = item.grupo
+    const status = String(item.status || 'ativo')
+    const statusLabel = status === 'ativo' ? 'Ativa' : status === 'pendente' ? 'Pendente' : status
+    return {
+      id: item.id,
+      kind: 'registration',
+      title: championship?.nome || 'Campeonato',
+      subtitle: [team?.nome, line?.nome].filter(Boolean).join(' • '),
+      imageUrl: championship?.logo_url || championship?.banner_url || team?.logo_url || null,
+      badges: [statusLabel],
+      details: [
+        ...(group?.nome ? [{ label: 'Grupo', value: group.nome }] : []),
+        ...(item.slot_numero ? [{ label: 'Slot', value: String(item.slot_numero) }] : []),
+        ...(line?.nome ? [{ label: 'Line', value: line.nome }] : []),
+      ],
+      actions: championship?.id ? [{
+        id: `open-registration-${item.id}`,
+        label: 'Abrir campeonato',
+        href: `/campeonatos/${championship.id}`,
+        variant: 'secondary',
+      }] : undefined,
+    }
+  })
+}

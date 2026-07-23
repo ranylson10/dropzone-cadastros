@@ -23,6 +23,7 @@ function initialMessage(): ChatMessage {
     { id: 'open', label: 'Campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary' },
     { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao', variant: 'primary' },
     { id: 'teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes', variant: 'secondary' },
+    { id: 'registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'secondary' },
   ] }
 }
 
@@ -153,7 +154,7 @@ export default function LiliPage() {
   }
 
   function login() {
-    try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ message: 'Continuar consulta após login', intent: context.currentFlow === 'registration' ? 'iniciar_inscricao' : 'listar_minhas_equipes', context })) } catch { /* ignore */ }
+    try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ message: 'Continuar consulta após login', intent: context.currentFlow === 'registration' ? 'iniciar_inscricao' : context.currentFlow === 'registrations' ? 'listar_minhas_inscricoes' : 'listar_minhas_equipes', context })) } catch { /* ignore */ }
     window.location.href = `/login?returnTo=${encodeURIComponent('/lili')}`
   }
 

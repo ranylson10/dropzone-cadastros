@@ -3,6 +3,7 @@ export type LiliIntent =
   | 'listar_campeonatos_abertos'
   | 'buscar_campeonato'
   | 'listar_minhas_equipes'
+  | 'listar_minhas_inscricoes'
   | 'iniciar_inscricao'
   | 'iniciar_pagamento_inscricao'
   | 'verificar_pagamento_inscricao'
@@ -38,7 +39,7 @@ export type LiliAction = {
 
 export type LiliCard = {
   id: string
-  kind: 'championship' | 'team' | 'summary' | 'payment' | 'line' | 'slot'
+  kind: 'championship' | 'team' | 'registration' | 'summary' | 'payment' | 'line' | 'slot'
   title: string
   subtitle?: string | null
   imageUrl?: string | null

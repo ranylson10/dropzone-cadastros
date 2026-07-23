@@ -27,6 +27,18 @@ const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
     ],
   },
   {
+    intent: 'listar_minhas_inscricoes',
+    phrases: [
+      'minhas inscricoes',
+      'ver minhas inscricoes',
+      'campeonatos que estou inscrito',
+      'campeonatos que minha equipe esta inscrita',
+      'onde minha equipe esta inscrita',
+      'acompanhar minhas inscricoes',
+      'status das minhas inscricoes',
+    ],
+  },
+  {
     intent: 'listar_minhas_equipes',
     phrases: ['minhas equipes', 'ver minhas equipes', 'qual minha equipe', 'equipes que administro', 'meus times'],
   },
@@ -113,7 +125,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
         signal: controller.signal,
         body: JSON.stringify({
           systemInstruction: {
-            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence e searchTerm. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, iniciar_inscricao, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
+            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence e searchTerm. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, listar_minhas_inscricoes, iniciar_inscricao, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
           },
           contents: [{ role: 'user', parts: [{ text: message.slice(0, 500) }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 120, responseMimeType: 'application/json' },
@@ -124,7 +136,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
     const json = await response.json()
     const text = json?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || ''
     const parsed = JSON.parse(stripJsonFence(text))
-    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'listar_minhas_equipes', 'iniciar_inscricao', 'desconhecido']
+    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'listar_minhas_equipes', 'listar_minhas_inscricoes', 'iniciar_inscricao', 'desconhecido']
     let intent = allowed.includes(parsed.intent) ? parsed.intent : 'desconhecido'
     let searchTerm = String(parsed.searchTerm || '').trim() || undefined
 

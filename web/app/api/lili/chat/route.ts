@@ -8,8 +8,10 @@ import {
   championshipCards,
   lineCards,
   listOpenChampionships,
+  listUserRegistrations,
   listUserTeams,
   paymentCard,
+  registrationCards,
   slotCards,
   teamCards,
 } from '@/features/lili/tools'
@@ -23,6 +25,7 @@ const menuActions = [
   { id: 'open-championships', label: 'Campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos' as LiliIntent, variant: 'primary' as const },
   { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao' as LiliIntent, variant: 'primary' as const },
   { id: 'my-teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes' as LiliIntent, variant: 'secondary' as const },
+  { id: 'my-registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'secondary' as const },
 ]
 
 function registrationContext(context: LiliClientContext, patch: Partial<LiliClientContext> = {}): LiliClientContext {
@@ -117,6 +120,29 @@ export async function POST(req: NextRequest) {
           intent: match.intent,
           cards: teamCards(teams),
           actions: menuActions,
+          source: match.source,
+        }
+        break
+      }
+
+
+      case 'listar_minhas_inscricoes': {
+        if (!user) {
+          response = { reply: 'Para consultar suas inscrições, preciso confirmar sua identidade.', intent: match.intent, requiresAuth: true, context: { currentFlow: 'registrations' }, source: match.source }
+          break
+        }
+        const registrations = await listUserRegistrations(user)
+        response = {
+          reply: registrations.length
+            ? `Encontrei ${registrations.length} inscrição${registrations.length === 1 ? '' : 'ões'} vinculada${registrations.length === 1 ? '' : 's'} às equipes que você administra.`
+            : 'Não encontrei inscrições vinculadas às equipes que você administra.',
+          intent: match.intent,
+          cards: registrationCards(registrations),
+          actions: [
+            { id: 'register-new', label: 'Fazer nova inscrição', message: 'Quero fazer uma nova inscrição', intent: 'iniciar_inscricao', variant: 'primary' },
+            { id: 'menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' },
+          ],
+          context: {},
           source: match.source,
         }
         break
