@@ -99,3 +99,66 @@ export async function buildRegistrationSummary(championshipId: string, teamId: s
   if (!championship || !team) throw new Error('Campeonato ou equipe não encontrado.')
   return { championship, team, existing }
 }
+
+export function lineCards(lines: any[], baseContext: Record<string, unknown>): LiliCard[] {
+  return lines.map((line) => ({
+    id: line.id,
+    kind: 'line',
+    title: line.nome,
+    subtitle: line.jogadores_count != null ? `${line.jogadores_count} jogador${Number(line.jogadores_count) === 1 ? '' : 'es'}` : 'Line da equipe',
+    badges: line.disponivel === false ? ['Já utilizada'] : ['Disponível'],
+    actions: line.disponivel === false ? undefined : [{
+      id: `line-${line.id}`,
+      label: 'Escolher esta line',
+      message: `Usar a line ${line.nome}`,
+      intent: 'selecionar_line_inscricao',
+      variant: 'primary',
+      context: { ...baseContext, selectedLineId: line.id, selectedLineName: line.nome, currentStep: 'slot' },
+    }],
+  }))
+}
+
+export function slotCards(slots: any[], baseContext: Record<string, unknown>): LiliCard[] {
+  return slots.map((slot) => {
+    const label = slot.slot_letra || String(slot.slot_numero || '')
+    return {
+      id: slot.id,
+      kind: 'slot',
+      title: `Slot ${label}`,
+      subtitle: 'Vaga livre',
+      badges: ['Disponível'],
+      actions: [{
+        id: `slot-${slot.id}`,
+        label: `Escolher slot ${label}`,
+        message: `Escolher o slot ${label}`,
+        intent: 'selecionar_slot_inscricao',
+        variant: 'primary',
+        context: { ...baseContext, selectedSlotId: slot.id, selectedSlotLabel: label, currentStep: 'confirm' },
+      }],
+    } as LiliCard
+  })
+}
+
+export function paymentCard(input: {
+  token: string
+  status: string
+  valueCents?: number | null
+  invoiceUrl?: string | null
+  pixPayload?: string | null
+}): LiliCard {
+  const value = input.valueCents != null
+    ? `R$ ${(Number(input.valueCents) / 100).toFixed(2).replace('.', ',')}`
+    : 'A confirmar'
+  const actions: any[] = []
+  if (input.pixPayload) actions.push({ id: 'copy-pix', label: 'Copiar código PIX', copyText: input.pixPayload, variant: 'primary' })
+  if (input.invoiceUrl) actions.push({ id: 'open-payment', label: 'Abrir pagamento', href: input.invoiceUrl, variant: input.pixPayload ? 'secondary' : 'primary' })
+  return {
+    id: input.token,
+    kind: 'payment',
+    title: 'Pagamento da inscrição',
+    subtitle: `Status: ${input.status}`,
+    badges: [value],
+    details: [{ label: 'Código', value: input.token }],
+    actions,
+  }
+}

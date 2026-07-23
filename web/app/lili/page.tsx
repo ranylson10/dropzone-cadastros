@@ -96,7 +96,16 @@ export default function LiliPage() {
     }
   }
 
-  function handleAction(action: LiliAction) {
+  async function handleAction(action: LiliAction) {
+    if (action.copyText) {
+      try {
+        await navigator.clipboard.writeText(action.copyText)
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: 'Código PIX copiado. Agora é só colar no aplicativo do seu banco.' }])
+      } catch {
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: 'Não consegui copiar automaticamente. Selecione o código PIX exibido e copie manualmente.' }])
+      }
+      return
+    }
     if (action.href) { window.location.href = action.href; return }
     void sendMessage(action.message || action.label, action.intent, action.context)
   }
@@ -138,11 +147,11 @@ export default function LiliPage() {
                   </div>
                   {card.badges?.length ? <div className="lili-hub-badges">{card.badges.map((badge) => <span key={badge}>{badge}</span>)}</div> : null}
                   {card.details?.length ? <dl>{card.details.map((detail) => <div key={`${detail.label}-${detail.value}`}><dt>{detail.label}</dt><dd>{detail.value}</dd></div>)}</dl> : null}
-                  {card.actions?.map((action) => <button type="button" key={action.id} className="primary" disabled={typing} onClick={() => handleAction(action)}>{action.label}</button>)}
+                  {card.actions?.map((action) => <button type="button" key={action.id} className="primary" disabled={typing} onClick={() => void handleAction(action)}>{action.label}</button>)}
                 </div>
               ))}</div> : null}
               {message.requiresAuth ? <button type="button" className="lili-hub-login" onClick={login}><LogIn size={17} /> Entrar com Google</button> : null}
-              {message.actions?.length ? <div className="lili-hub-actions">{message.actions.map((action) => <button type="button" key={action.id} className={action.variant || 'secondary'} disabled={typing} onClick={() => handleAction(action)}>{action.label}</button>)}</div> : null}
+              {message.actions?.length ? <div className="lili-hub-actions">{message.actions.map((action) => <button type="button" key={action.id} className={action.variant || 'secondary'} disabled={typing} onClick={() => void handleAction(action)}>{action.label}</button>)}</div> : null}
             </div>
           </article>
         ))}

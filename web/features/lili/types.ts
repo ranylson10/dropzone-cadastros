@@ -4,12 +4,25 @@ export type LiliIntent =
   | 'buscar_campeonato'
   | 'listar_minhas_equipes'
   | 'iniciar_inscricao'
+  | 'iniciar_pagamento_inscricao'
+  | 'verificar_pagamento_inscricao'
+  | 'selecionar_line_inscricao'
+  | 'criar_line_inscricao'
+  | 'selecionar_slot_inscricao'
+  | 'confirmar_inscricao'
   | 'desconhecido'
 
 export type LiliClientContext = {
   selectedChampionshipId?: string | null
   selectedTeamId?: string | null
+  selectedLineId?: string | null
+  selectedLineName?: string | null
+  selectedSlotId?: string | null
+  selectedSlotLabel?: string | null
+  purchaseToken?: string | null
   currentFlow?: string | null
+  currentStep?: string | null
+  awaitingLineName?: boolean
 }
 
 export type LiliAction = {
@@ -19,12 +32,13 @@ export type LiliAction = {
   intent?: LiliIntent
   variant?: 'primary' | 'secondary'
   href?: string
+  copyText?: string
   context?: LiliClientContext
 }
 
 export type LiliCard = {
   id: string
-  kind: 'championship' | 'team' | 'summary'
+  kind: 'championship' | 'team' | 'summary' | 'payment' | 'line' | 'slot'
   title: string
   subtitle?: string | null
   imageUrl?: string | null
