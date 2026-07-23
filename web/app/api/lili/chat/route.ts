@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
 import { AsaasNotConfiguredError } from '@backend/billing/asaas'
 import { claimVacancyPurchase, createVacancyPurchase, loadClaimContext } from '@backend/billing/vacancy-purchase'
-import { resolveLiliIntent } from '@/features/lili/intent-router'
+import { detectLiliLocale, resolveLiliIntent } from '@/features/lili/intent-router'
+import { localizeLiliResponse, normalizeLocale } from '@/features/lili/i18n'
 import {
   buildRegistrationSummary,
   championshipCards,
@@ -15,18 +16,30 @@ import {
   slotCards,
   teamCards,
 } from '@/features/lili/tools'
-import type { LiliChatResponse, LiliClientContext, LiliIntent } from '@/features/lili/types'
+import type { LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 
 async function optionalUser(req: NextRequest) {
   try { return await getBearerUser(req) } catch { return null }
 }
 
-const menuActions = [
-  { id: 'open-championships', label: 'Campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos' as LiliIntent, variant: 'primary' as const },
-  { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao' as LiliIntent, variant: 'primary' as const },
-  { id: 'my-teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes' as LiliIntent, variant: 'secondary' as const },
-  { id: 'my-registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'secondary' as const },
-]
+function menuActions(locale: LiliLocale) {
+  return [
+    { id: 'open-championships', label: 'Campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'my-teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'my-registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'language', label: 'Idioma / Language', message: 'Mudar idioma', intent: 'alterar_idioma' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+  ]
+}
+
+function languageActions() {
+  return [
+    { id: 'lang-pt', label: 'Português', message: 'Português', intent: 'menu' as LiliIntent, variant: 'secondary' as const, context: { locale: 'pt-BR' as const } },
+    { id: 'lang-es', label: 'Español', message: 'Español', intent: 'menu' as LiliIntent, variant: 'secondary' as const, context: { locale: 'es' as const } },
+    { id: 'lang-en', label: 'English', message: 'English', intent: 'menu' as LiliIntent, variant: 'secondary' as const, context: { locale: 'en' as const } },
+  ]
+}
+
 
 function registrationContext(context: LiliClientContext, patch: Partial<LiliClientContext> = {}): LiliClientContext {
   return { ...context, ...patch, currentFlow: 'registration' }
@@ -53,9 +66,19 @@ export async function POST(req: NextRequest) {
     if (!message && !forcedIntent) return NextResponse.json({ error: 'Mensagem ausente.' }, { status: 400 })
 
     const user = await optionalUser(req)
-    let match = forcedIntent
-      ? { intent: forcedIntent, confidence: 1, source: 'system' as const, searchTerm: undefined }
+    let match: {
+      intent: LiliIntent
+      confidence: number
+      source: 'rule' | 'pattern' | 'gemini' | 'system'
+      searchTerm?: string
+      locale?: LiliLocale
+    } = forcedIntent
+      ? { intent: forcedIntent, confidence: 1, source: 'system', searchTerm: undefined }
       : await resolveLiliIntent(message)
+
+    const requestedLocale = body?.context?.locale || context.locale || match.locale || detectLiliLocale(message)
+    const locale = normalizeLocale(requestedLocale)
+    context = { ...context, locale }
 
     if (context.awaitingLineName && !forcedIntent && message) {
       context = registrationContext(context, { selectedLineId: null, selectedLineName: message, awaitingLineName: false, currentStep: 'slot' })
@@ -68,7 +91,7 @@ export async function POST(req: NextRequest) {
       case 'menu':
         response = {
           reply: user ? 'Como posso ajudar agora?' : 'Olá! Sou a Lili, assistente do DropZone. Posso mostrar informações públicas agora e pedir seu login apenas quando os dados forem privados.',
-          intent: 'menu', actions: menuActions, context: {}, source: match.source,
+          intent: 'menu', actions: menuActions(locale), context: { locale }, source: match.source,
         }
         break
 
@@ -77,7 +100,7 @@ export async function POST(req: NextRequest) {
         response = {
           reply: items.length ? `Encontrei ${items.length} campeonato${items.length === 1 ? '' : 's'} com vagas abertas.` : 'Não encontrei campeonatos com vagas abertas neste momento.',
           intent: match.intent,
-          cards: championshipCards(items),
+          cards: championshipCards(items, false, locale),
           actions: [
             { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao', variant: 'primary' },
             { id: 'menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' },
@@ -100,7 +123,7 @@ export async function POST(req: NextRequest) {
         response = {
           reply: items.length ? `Encontrei estes campeonatos parecidos com “${term}”.` : `Não encontrei campeonato com o nome “${term}”. Posso mostrar os campeonatos com vagas abertas.`,
           intent: match.intent,
-          cards: championshipCards(items),
+          cards: championshipCards(items, false, locale),
           actions: items.length
             ? [{ id: 'menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }]
             : [{ id: 'open', label: 'Ver campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary' }],
@@ -119,7 +142,7 @@ export async function POST(req: NextRequest) {
           reply: teams.length ? `Encontrei ${teams.length} equipe${teams.length === 1 ? '' : 's'} que você pode acessar.` : 'Sua conta ainda não possui equipe vinculada.',
           intent: match.intent,
           cards: teamCards(teams),
-          actions: menuActions,
+          actions: menuActions(locale),
           source: match.source,
         }
         break
@@ -142,7 +165,7 @@ export async function POST(req: NextRequest) {
             { id: 'register-new', label: 'Fazer nova inscrição', message: 'Quero fazer uma nova inscrição', intent: 'iniciar_inscricao', variant: 'primary' },
             { id: 'menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' },
           ],
-          context: {},
+          context: { locale },
           source: match.source,
         }
         break
@@ -154,7 +177,7 @@ export async function POST(req: NextRequest) {
           response = {
             reply: items.length ? 'Primeiro, escolha o campeonato em que deseja inscrever uma equipe.' : 'Não há campeonatos com vagas abertas agora.',
             intent: match.intent,
-            cards: championshipCards(items, true),
+            cards: championshipCards(items, true, locale),
             actions: [{ id: 'menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
             context: registrationContext({}, { currentStep: 'championship' }),
             source: match.source,
@@ -193,7 +216,7 @@ export async function POST(req: NextRequest) {
               { label: 'Equipe', value: summary.team.nome },
               { label: 'Status', value: 'Ativa' },
             ] }],
-            actions: menuActions,
+            actions: menuActions(locale),
             context: {},
             source: 'system',
           }
@@ -277,7 +300,7 @@ export async function POST(req: NextRequest) {
           break
         }
         if (data.consumido) {
-          response = { reply: 'Esta compra já foi usada e a inscrição já está concluída.', intent: match.intent, actions: menuActions, context: {}, source: 'system' }
+          response = { reply: 'Esta compra já foi usada e a inscrição já está concluída.', intent: match.intent, actions: menuActions(locale), context: { locale }, source: 'system' }
           break
         }
         const nextContext = registrationContext(context, { currentStep: 'line' })
@@ -362,21 +385,32 @@ export async function POST(req: NextRequest) {
             { label: 'Slot', value: result.slot.slot_letra || String(result.slot.slot_numero) },
             { label: 'Status', value: 'Ativa' },
           ] }],
-          actions: menuActions,
-          context: {},
+          actions: menuActions(locale),
+          context: { locale },
           source: 'system',
         }
         break
       }
 
+      case 'alterar_idioma':
+        response = {
+          reply: 'Escolha o idioma da conversa.',
+          intent: match.intent,
+          actions: languageActions(),
+          context: { ...context, locale },
+          source: 'system',
+        }
+        break
+
       default:
         response = {
           reply: 'Ainda não reconheci esse pedido. Escolha uma opção abaixo ou escreva, por exemplo, “quero ver campeonatos com vagas”.',
-          intent: 'desconhecido', actions: menuActions, source: match.source,
+          intent: 'desconhecido', actions: menuActions(locale), source: match.source,
         }
     }
 
-    return NextResponse.json(response)
+    const localized = await localizeLiliResponse({ ...response, context: { ...(response.context || {}), locale } }, locale)
+    return NextResponse.json(localized)
   } catch (error: any) {
     if (error instanceof AsaasNotConfiguredError || error?.name === 'AsaasNotConfiguredError') {
       return NextResponse.json({ error: error.message || 'O pagamento online ainda não está configurado.' }, { status: 503 })

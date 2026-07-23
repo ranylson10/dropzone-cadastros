@@ -1,56 +1,66 @@
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
-import type { LiliIntent } from './types'
+import type { LiliIntent, LiliLocale } from './types'
+import { normalizeLocale } from './i18n'
 
 type IntentMatch = {
   intent: LiliIntent
   confidence: number
   source: 'rule' | 'pattern' | 'gemini'
   searchTerm?: string
+  locale?: LiliLocale
 }
 
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
     intent: 'listar_campeonatos_abertos',
     phrases: [
-      'campeonatos com vagas',
-      'vagas abertas',
-      'campeonatos abertos',
-      'ver campeonatos',
-      'tem vaga',
-      'quero vaga',
-      'tem algum campeonato',
-      'algum campeonato',
-      'campeonato para jogar',
-      'onde minha equipe possa jogar',
-      'onde minha equipe pode jogar',
-      'campeonato disponivel',
+      'campeonatos com vagas', 'vagas abertas', 'campeonatos abertos', 'ver campeonatos', 'tem vaga', 'quero vaga',
+      'tem algum campeonato', 'algum campeonato', 'campeonato para jogar', 'onde minha equipe possa jogar',
+      'onde minha equipe pode jogar', 'campeonato disponivel',
+      'torneos con cupos', 'cupos disponibles', 'torneos abiertos', 'ver torneos', 'hay cupos', 'quiero un cupo',
+      'donde puede jugar mi equipo', 'competencias disponibles',
+      'tournaments with spots', 'open spots', 'open tournaments', 'show tournaments', 'available spots',
+      'where can my team play', 'available tournaments',
     ],
   },
   {
     intent: 'listar_minhas_inscricoes',
     phrases: [
-      'minhas inscricoes',
-      'ver minhas inscricoes',
-      'campeonatos que estou inscrito',
-      'campeonatos que minha equipe esta inscrita',
-      'onde minha equipe esta inscrita',
-      'acompanhar minhas inscricoes',
-      'status das minhas inscricoes',
+      'minhas inscricoes', 'ver minhas inscricoes', 'campeonatos que estou inscrito',
+      'campeonatos que minha equipe esta inscrita', 'onde minha equipe esta inscrita', 'acompanhar minhas inscricoes',
+      'status das minhas inscricoes', 'mis inscripciones', 'ver mis inscripciones', 'donde esta inscrito mi equipo',
+      'estado de mis inscripciones', 'my registrations', 'show my registrations', 'where is my team registered',
+      'registration status',
     ],
   },
   {
     intent: 'listar_minhas_equipes',
-    phrases: ['minhas equipes', 'ver minhas equipes', 'qual minha equipe', 'equipes que administro', 'meus times'],
+    phrases: [
+      'minhas equipes', 'ver minhas equipes', 'qual minha equipe', 'equipes que administro', 'meus times',
+      'mis equipos', 'ver mis equipos', 'equipos que administro', 'my teams', 'show my teams', 'teams i manage',
+    ],
   },
   {
     intent: 'iniciar_inscricao',
-    phrases: ['fazer inscricao', 'quero me inscrever', 'inscrever equipe', 'nova inscricao', 'cadastrar no campeonato'],
+    phrases: [
+      'fazer inscricao', 'quero me inscrever', 'inscrever equipe', 'nova inscricao', 'cadastrar no campeonato',
+      'hacer inscripcion', 'quiero inscribirme', 'inscribir equipo', 'nueva inscripcion',
+      'register team', 'start registration', 'new registration', 'sign up for tournament',
+    ],
+  },
+  {
+    intent: 'alterar_idioma',
+    phrases: ['portugues', 'espanol', 'english', 'mudar idioma', 'cambiar idioma', 'change language'],
   },
   {
     intent: 'menu',
-    phrases: ['menu', 'inicio', 'voltar ao inicio', 'ajuda', 'o que voce faz'],
+    phrases: [
+      'menu', 'inicio', 'voltar ao inicio', 'ajuda', 'o que voce faz',
+      'volver al inicio', 'ayuda', 'que puedes hacer', 'back to start', 'help', 'what can you do',
+    ],
   },
 ]
+
 
 export function normalizeLiliText(value: string) {
   return value
@@ -62,11 +72,18 @@ export function normalizeLiliText(value: string) {
     .trim()
 }
 
+export function detectLiliLocale(message: string): LiliLocale {
+  const text = normalizeLiliText(message)
+  if (/\b(hello|hi|please|team|tournament|registration|spots|english)\b/.test(text)) return 'en'
+  if (/\b(hola|por favor|equipo|torneo|inscripcion|cupos|espanol|gracias)\b/.test(text)) return 'es'
+  return 'pt-BR'
+}
+
 function ruleMatch(message: string): IntentMatch | null {
   const text = normalizeLiliText(message)
   for (const rule of NORMALIZED_RULES) {
     if (rule.phrases.some((phrase) => text.includes(phrase))) {
-      return { intent: rule.intent, confidence: 0.99, source: 'rule' }
+      return { intent: rule.intent, confidence: 0.99, source: 'rule', locale: detectLiliLocale(message) }
     }
   }
 
@@ -77,7 +94,7 @@ function ruleMatch(message: string): IntentMatch | null {
     const searchTerm = namedSearch[1].trim()
     const generic = ['com vagas', 'aberto', 'abertos', 'disponivel', 'disponiveis', 'para jogar']
     if (!generic.some((value) => searchTerm === value || searchTerm.startsWith(`${value} `))) {
-      return { intent: 'buscar_campeonato', confidence: 0.9, source: 'rule', searchTerm }
+      return { intent: 'buscar_campeonato', confidence: 0.9, source: 'rule', searchTerm, locale: detectLiliLocale(message) }
     }
   }
   return null
@@ -103,6 +120,7 @@ async function patternMatch(message: string): Promise<IntentMatch | null> {
     intent: data.intent_code as LiliIntent,
     confidence: Number(data.confianca || 0.9),
     source: 'pattern',
+    locale: detectLiliLocale(message),
   }
 }
 
@@ -112,7 +130,7 @@ function stripJsonFence(value: string) {
 
 async function geminiMatch(message: string): Promise<IntentMatch> {
   const apiKey = String(process.env.GEMINI_API_KEY || '').trim()
-  if (!apiKey) return { intent: 'desconhecido', confidence: 0, source: 'gemini' }
+  if (!apiKey) return { intent: 'desconhecido', confidence: 0, source: 'gemini', locale: detectLiliLocale(message) }
   const model = String(process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite').trim()
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 12000)
@@ -125,18 +143,18 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
         signal: controller.signal,
         body: JSON.stringify({
           systemInstruction: {
-            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence e searchTerm. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, listar_minhas_inscricoes, iniciar_inscricao, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
+            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence, searchTerm e locale. locale deve ser pt-BR, es ou en conforme o idioma da mensagem. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, listar_minhas_inscricoes, iniciar_inscricao, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
           },
           contents: [{ role: 'user', parts: [{ text: message.slice(0, 500) }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 120, responseMimeType: 'application/json' },
         }),
       },
     )
-    if (!response.ok) return { intent: 'desconhecido', confidence: 0, source: 'gemini' }
+    if (!response.ok) return { intent: 'desconhecido', confidence: 0, source: 'gemini', locale: detectLiliLocale(message) }
     const json = await response.json()
     const text = json?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || ''
     const parsed = JSON.parse(stripJsonFence(text))
-    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'listar_minhas_equipes', 'listar_minhas_inscricoes', 'iniciar_inscricao', 'desconhecido']
+    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'listar_minhas_equipes', 'listar_minhas_inscricoes', 'iniciar_inscricao', 'alterar_idioma', 'desconhecido']
     let intent = allowed.includes(parsed.intent) ? parsed.intent : 'desconhecido'
     let searchTerm = String(parsed.searchTerm || '').trim() || undefined
 
@@ -160,9 +178,10 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
       confidence: Math.max(0, Math.min(1, Number(parsed.confidence || 0.6))),
       source: 'gemini',
       searchTerm,
+      locale: normalizeLocale(parsed.locale || detectLiliLocale(message)),
     }
   } catch {
-    return { intent: 'desconhecido', confidence: 0, source: 'gemini' }
+    return { intent: 'desconhecido', confidence: 0, source: 'gemini', locale: detectLiliLocale(message) }
   } finally {
     clearTimeout(timer)
   }

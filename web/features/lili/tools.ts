@@ -1,7 +1,7 @@
 import { getAccountsForUser } from '@backend/auth/server-auth'
 import { listControllableEquipes } from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
-import type { LiliCard } from './types'
+import type { LiliCard, LiliLocale } from './types'
 
 type AuthUser = { id: string; email?: string | null; email_confirmed_at?: string | null }
 
@@ -42,7 +42,7 @@ export async function listOpenChampionships(searchTerm?: string) {
   })
 }
 
-export function championshipCards(items: any[], registrationMode = false): LiliCard[] {
+export function championshipCards(items: any[], registrationMode = false, locale: LiliLocale = 'pt-BR'): LiliCard[] {
   return items.map((item) => ({
     id: item.id,
     kind: 'championship',
@@ -52,7 +52,7 @@ export function championshipCards(items: any[], registrationMode = false): LiliC
     badges: [`${item.vagas_livres} vaga${item.vagas_livres === 1 ? '' : 's'}`],
     details: [
       ...(item.valor_inscricao != null ? [{ label: 'Inscrição', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` }] : []),
-      ...(item.data_limite_inscricao ? [{ label: 'Prazo', value: new Date(item.data_limite_inscricao).toLocaleDateString('pt-BR') }] : []),
+      ...(item.data_limite_inscricao ? [{ label: 'Prazo', value: new Date(item.data_limite_inscricao).toLocaleDateString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR') }] : []),
     ],
     actions: [{
       id: `${registrationMode ? 'register' : 'view'}-${item.id}`,

@@ -4,7 +4,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Send, LogIn, RotateCcw } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
-import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent } from '@/features/lili/types'
+import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
+import { clientText, normalizeLocale } from '@/features/lili/i18n'
 
 type ChatMessage = {
   id: string
@@ -18,19 +19,26 @@ type ChatMessage = {
 const STORAGE_KEY = 'dropzone:lili:conversation:v1'
 const PENDING_KEY = 'dropzone:lili:pending:v1'
 
-function initialMessage(): ChatMessage {
-  return { id: 'welcome', role: 'assistant', text: 'Olá! Sou a Lili, assistente do DropZone. Como posso ajudar?', actions: [
-    { id: 'open', label: 'Campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary' },
-    { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao', variant: 'primary' },
-    { id: 'teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes', variant: 'secondary' },
-    { id: 'registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'secondary' },
+function initialMessage(locale: LiliLocale = 'pt-BR'): ChatMessage {
+  const copy = locale === 'es'
+    ? { text: '¡Hola! Soy Lili, la asistente de DropZone. ¿Cómo puedo ayudarte?', open: 'Torneos con cupos', register: 'Hacer inscripción', teams: 'Mis equipos', registrations: 'Mis inscripciones', language: 'Idioma' }
+    : locale === 'en'
+      ? { text: 'Hi! I’m Lili, the DropZone assistant. How can I help?', open: 'Tournaments with spots', register: 'Start registration', teams: 'My teams', registrations: 'My registrations', language: 'Language' }
+      : { text: 'Olá! Sou a Lili, assistente do DropZone. Como posso ajudar?', open: 'Campeonatos com vagas', register: 'Fazer inscrição', teams: 'Minhas equipes', registrations: 'Minhas inscrições', language: 'Idioma' }
+  return { id: 'welcome', role: 'assistant', text: copy.text, actions: [
+    { id: 'open', label: copy.open, message: copy.open, intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } },
+    { id: 'register', label: copy.register, message: copy.register, intent: 'iniciar_inscricao', variant: 'primary', context: { locale } },
+    { id: 'teams', label: copy.teams, message: copy.teams, intent: 'listar_minhas_equipes', variant: 'secondary', context: { locale } },
+    { id: 'registrations', label: copy.registrations, message: copy.registrations, intent: 'listar_minhas_inscricoes', variant: 'secondary', context: { locale } },
+    { id: 'language', label: copy.language, message: copy.language, intent: 'alterar_idioma', variant: 'secondary', context: { locale } },
   ] }
 }
 
+
 export default function LiliPage() {
   const [session, setSession] = useState<Session | null>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage()])
-  const [context, setContext] = useState<LiliClientContext>({})
+  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage('pt-BR')])
+  const [context, setContext] = useState<LiliClientContext>({ locale: 'pt-BR' })
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [ready, setReady] = useState(false)
@@ -46,6 +54,10 @@ export default function LiliPage() {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed.messages) && parsed.messages.length) setMessages(parsed.messages.slice(-60))
         if (parsed.context) setContext(parsed.context)
+      } else {
+        const locale = normalizeLocale(navigator.language)
+        setContext({ locale })
+        setMessages([initialMessage(locale)])
       }
     } catch { /* ignore */ }
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true) })
@@ -102,14 +114,15 @@ export default function LiliPage() {
         signal: controller.signal,
       })
       const json = await response.json()
-      if (!response.ok) throw new Error(json?.error || 'Não foi possível concluir a consulta.')
+      if (!response.ok) throw new Error(json?.error || ui.requestError)
       if (requestId !== requestIdRef.current) return
 
       const result = json as LiliChatResponse
       await new Promise((resolve) => setTimeout(resolve, 850))
       if (requestId !== requestIdRef.current) return
 
-      setContext(result.context ?? nextContext)
+      const resultLocale = normalizeLocale(result.locale || result.context?.locale || nextContext.locale)
+      setContext({ ...(result.context ?? nextContext), locale: resultLocale })
       setMessages((current) => [
         ...current,
         {
@@ -128,7 +141,7 @@ export default function LiliPage() {
         {
           id: crypto.randomUUID(),
           role: 'assistant',
-          text: error?.message || 'Tive um problema ao consultar o DropZone. Tente novamente.',
+          text: error?.message || ui.genericError,
         },
       ])
     } finally {
@@ -143,9 +156,9 @@ export default function LiliPage() {
     if (action.copyText) {
       try {
         await navigator.clipboard.writeText(action.copyText)
-        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: 'Código PIX copiado. Agora é só colar no aplicativo do seu banco.' }])
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: clientText[normalizeLocale(context.locale)].pixCopied }])
       } catch {
-        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: 'Não consegui copiar automaticamente. Selecione o código PIX exibido e copie manualmente.' }])
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: clientText[normalizeLocale(context.locale)].pixCopyError }])
       }
       return
     }
@@ -163,13 +176,16 @@ export default function LiliPage() {
     requestIdRef.current += 1
     busyRef.current = false
     setTyping(false)
-    setMessages([initialMessage()])
-    setContext({})
+    const locale = normalizeLocale(context.locale)
+    setMessages([initialMessage(locale)])
+    setContext({ locale })
     try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem(PENDING_KEY) } catch { /* ignore */ }
   }
 
   function submit(event: FormEvent) { event.preventDefault(); void sendMessage(input) }
-  const title = useMemo(() => session?.user?.email ? `Conectado como ${session.user.email}` : 'Atendimento inteligente DropZone', [session])
+  const locale = normalizeLocale(context.locale)
+  const ui = clientText[locale]
+  const title = useMemo(() => session?.user?.email ? `${ui.connected} ${session.user.email}` : ui.subtitle, [session, ui])
   const latestInteractiveMessageId = useMemo(() => {
     const latestAssistant = [...messages].reverse().find((message) => message.role === 'assistant')
     if (!latestAssistant) return null
@@ -184,7 +200,7 @@ export default function LiliPage() {
       <header className="lili-hub-header">
         <div className="lili-hub-avatar">L</div>
         <div><strong>Lili</strong><span>{title}</span></div>
-        <button type="button" onClick={resetConversation} aria-label="Reiniciar conversa"><RotateCcw size={18} /></button>
+        <button type="button" onClick={resetConversation} aria-label={ui.reset}><RotateCcw size={18} /></button>
       </header>
 
       <section className="lili-hub-feed" aria-live="polite">
@@ -207,7 +223,7 @@ export default function LiliPage() {
                   {card.actions?.map((action) => <button type="button" key={action.id} className="primary" disabled={!actionsEnabled} onClick={() => void handleAction(action)}>{action.label}</button>)}
                 </div>
               ))}</div> : null}
-              {message.requiresAuth ? <button type="button" className="lili-hub-login" onClick={login} disabled={!actionsEnabled}><LogIn size={17} /> Entrar com Google</button> : null}
+              {message.requiresAuth ? <button type="button" className="lili-hub-login" onClick={login} disabled={!actionsEnabled}><LogIn size={17} /> {ui.login}</button> : null}
               {message.actions?.length ? <div className="lili-hub-actions">{message.actions.map((action) => <button type="button" key={action.id} className={action.variant || 'secondary'} disabled={!actionsEnabled} onClick={() => void handleAction(action)}>{action.label}</button>)}</div> : null}
             </div>
           </article>
@@ -218,8 +234,8 @@ export default function LiliPage() {
       </section>
 
       <form className="lili-hub-composer" onSubmit={submit}>
-        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Digite sua mensagem..." maxLength={1000} disabled={typing} />
-        <button type="submit" disabled={typing || !input.trim()} aria-label="Enviar"><Send size={20} /></button>
+        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={ui.placeholder} maxLength={1000} disabled={typing} />
+        <button type="submit" disabled={typing || !input.trim()} aria-label={ui.send}><Send size={20} /></button>
       </form>
     </main>
   )

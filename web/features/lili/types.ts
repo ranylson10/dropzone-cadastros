@@ -1,3 +1,6 @@
+export type LiliLocale = 'pt-BR' | 'es' | 'en'
+export type LiliCurrency = 'BRL' | 'USD' | 'EUR'
+
 export type LiliIntent =
   | 'menu'
   | 'listar_campeonatos_abertos'
@@ -11,9 +14,12 @@ export type LiliIntent =
   | 'criar_line_inscricao'
   | 'selecionar_slot_inscricao'
   | 'confirmar_inscricao'
+  | 'alterar_idioma'
   | 'desconhecido'
 
 export type LiliClientContext = {
+  locale?: LiliLocale
+  currency?: LiliCurrency
   selectedChampionshipId?: string | null
   selectedTeamId?: string | null
   selectedLineId?: string | null
@@ -56,4 +62,5 @@ export type LiliChatResponse = {
   cards?: LiliCard[]
   context?: LiliClientContext
   source?: 'rule' | 'pattern' | 'gemini' | 'system'
+  locale?: LiliLocale
 }
