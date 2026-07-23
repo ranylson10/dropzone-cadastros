@@ -4,6 +4,8 @@ import { AsaasNotConfiguredError } from '@backend/billing/asaas'
 import { claimVacancyPurchase, createVacancyPurchase, loadClaimContext } from '@backend/billing/vacancy-purchase'
 import { detectLiliLocale, resolveLiliIntent } from '@/features/lili/intent-router'
 import { localizeLiliResponse, normalizeLocale } from '@/features/lili/i18n'
+import { createInternationalQuote, formatMoney } from '@/features/lili/currency'
+import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import {
   buildRegistrationSummary,
   championshipCards,
@@ -16,7 +18,7 @@ import {
   slotCards,
   teamCards,
 } from '@/features/lili/tools'
-import type { LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
+import type { LiliChatResponse, LiliClientContext, LiliCurrency, LiliIntent, LiliLocale } from '@/features/lili/types'
 
 async function optionalUser(req: NextRequest) {
   try { return await getBearerUser(req) } catch { return null }
@@ -28,6 +30,7 @@ function menuActions(locale: LiliLocale) {
     { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao' as LiliIntent, variant: 'primary' as const, context: { locale } },
     { id: 'my-teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'my-registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'international-payment', label: 'Pagamento internacional', message: 'Simular pagamento internacional', intent: 'simular_pagamento_internacional' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'language', label: 'Idioma / Language', message: 'Mudar idioma', intent: 'alterar_idioma' as LiliIntent, variant: 'secondary' as const, context: { locale } },
   ]
 }
@@ -387,6 +390,77 @@ export async function POST(req: NextRequest) {
           ] }],
           actions: menuActions(locale),
           context: { locale },
+          source: 'system',
+        }
+        break
+      }
+
+
+      case 'simular_pagamento_internacional': {
+        const requestedCurrency: LiliCurrency = context.currency === 'EUR' || context.currency === 'USD'
+          ? context.currency
+          : locale === 'en' || locale === 'es' ? 'USD' : 'USD'
+
+        if (!context.selectedChampionshipId) {
+          const items = await listOpenChampionships()
+          const cards = championshipCards(items, false, locale).map((card) => ({
+            ...card,
+            actions: [{
+              id: `quote-${card.id}`,
+              label: 'Calcular valor internacional',
+              message: 'Calcular pagamento internacional',
+              intent: 'simular_pagamento_internacional' as const,
+              variant: 'primary' as const,
+              context: { ...context, selectedChampionshipId: card.id, currency: requestedCurrency },
+            }],
+          }))
+          response = {
+            reply: items.length ? 'Escolha o campeonato para calcular o valor em dólar ou euro.' : 'Não há campeonatos com vagas abertas agora.',
+            intent: match.intent,
+            cards,
+            actions: [{ id: 'menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
+            context: { ...context, currency: requestedCurrency },
+            source: match.source,
+          }
+          break
+        }
+
+        const { data: config, error: configError } = await supabaseAdmin
+          .from('campeonato_configuracoes')
+          .select('valor_inscricao')
+          .eq('campeonato_id', context.selectedChampionshipId)
+          .maybeSingle()
+        if (configError) throw configError
+        const amount = Number(config?.valor_inscricao)
+        if (!Number.isFinite(amount) || amount <= 0) throw new Error('Este campeonato não possui valor de inscrição configurado.')
+        const quote = await createInternationalQuote(Math.round(amount * 100), requestedCurrency)
+        const base = formatMoney(amount, 'BRL', locale)
+        const total = formatMoney(quote.totalAmount, quote.currency, locale)
+        response = {
+          reply: `Cotação calculada e congelada por 10 minutos. O valor-base é ${base} e o total internacional é ${total}.`,
+          intent: match.intent,
+          cards: [{
+            id: quote.quoteId,
+            kind: 'payment',
+            title: 'Cotação internacional',
+            subtitle: `Válida até ${new Date(quote.expiresAt).toLocaleTimeString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+            badges: [total],
+            details: [
+              { label: 'Valor-base', value: base },
+              { label: 'Moeda', value: quote.currency },
+              { label: 'Câmbio', value: `1 BRL = ${quote.rate.toFixed(6)} ${quote.currency}` },
+              { label: 'Conversão', value: formatMoney(quote.convertedAmount, quote.currency, locale) },
+              { label: 'Proteção cambial', value: `${quote.fxMarginPercent.toFixed(2)}%` },
+              { label: 'Tarifa percentual configurada', value: `${quote.paypalPercent.toFixed(2)}%` },
+              { label: 'Tarifa fixa configurada', value: formatMoney(quote.paypalFixed, quote.currency, locale) },
+            ],
+            actions: [
+              { id: 'currency-usd', label: 'Calcular em USD', message: 'Calcular em dólar', intent: 'simular_pagamento_internacional', variant: requestedCurrency === 'USD' ? 'primary' : 'secondary', context: { ...context, currency: 'USD' } },
+              { id: 'currency-eur', label: 'Calcular em EUR', message: 'Calcular em euro', intent: 'simular_pagamento_internacional', variant: requestedCurrency === 'EUR' ? 'primary' : 'secondary', context: { ...context, currency: 'EUR' } },
+            ],
+          }],
+          actions: [{ id: 'menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
+          context: { ...context, currency: requestedCurrency },
           source: 'system',
         }
         break

@@ -15,6 +15,7 @@ export type LiliIntent =
   | 'selecionar_slot_inscricao'
   | 'confirmar_inscricao'
   | 'alterar_idioma'
+  | 'simular_pagamento_internacional'
   | 'desconhecido'
 
 export type LiliClientContext = {

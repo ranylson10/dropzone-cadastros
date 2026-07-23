@@ -49,6 +49,15 @@ const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
     ],
   },
   {
+    intent: 'simular_pagamento_internacional',
+    phrases: [
+      'converter valor', 'pagar em dolar', 'pagar em euro', 'pagamento internacional', 'simular paypal',
+      'valor em dolar', 'valor em euro', 'cotacao internacional',
+      'pagar en dolares', 'pagar en euros', 'pago internacional', 'simular paypal', 'precio en dolares', 'precio en euros',
+      'pay in dollars', 'pay in euros', 'international payment', 'paypal quote', 'price in dollars', 'price in euros',
+    ],
+  },
+  {
     intent: 'alterar_idioma',
     phrases: ['portugues', 'espanol', 'english', 'mudar idioma', 'cambiar idioma', 'change language'],
   },
@@ -143,7 +152,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
         signal: controller.signal,
         body: JSON.stringify({
           systemInstruction: {
-            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence, searchTerm e locale. locale deve ser pt-BR, es ou en conforme o idioma da mensagem. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, listar_minhas_inscricoes, iniciar_inscricao, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
+            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence, searchTerm e locale. locale deve ser pt-BR, es ou en conforme o idioma da mensagem. Intents permitidas: menu, listar_campeonatos_abertos, buscar_campeonato, listar_minhas_equipes, listar_minhas_inscricoes, iniciar_inscricao, simular_pagamento_internacional, alterar_idioma, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
           },
           contents: [{ role: 'user', parts: [{ text: message.slice(0, 500) }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 120, responseMimeType: 'application/json' },
@@ -154,7 +163,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
     const json = await response.json()
     const text = json?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || ''
     const parsed = JSON.parse(stripJsonFence(text))
-    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'listar_minhas_equipes', 'listar_minhas_inscricoes', 'iniciar_inscricao', 'alterar_idioma', 'desconhecido']
+    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'listar_minhas_equipes', 'listar_minhas_inscricoes', 'iniciar_inscricao', 'simular_pagamento_internacional', 'alterar_idioma', 'desconhecido']
     let intent = allowed.includes(parsed.intent) ? parsed.intent : 'desconhecido'
     let searchTerm = String(parsed.searchTerm || '').trim() || undefined
 
