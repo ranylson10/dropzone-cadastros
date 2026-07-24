@@ -21,24 +21,52 @@ export async function listOpenChampionships(searchTerm?: string) {
   const ids = (championships || []).map((item) => item.id)
   if (!ids.length) return []
 
-  const [{ data: configs }, { data: slots }] = await Promise.all([
+  const [{ data: configs }, { data: slots }, { data: phases }] = await Promise.all([
     supabaseAdmin
       .from('campeonato_configuracoes')
-      .select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes')
+      .select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,tem_live,tem_trofeu,premiacao,jogadores_por_vaga,vagas_por_equipe,permite_troca_jogadores,contatos_whatsapp')
       .in('campeonato_id', ids)
       .eq('aceita_novas_inscricoes_equipes', true),
     supabaseAdmin
       .from('campeonato_slots')
-      .select('campeonato_id,equipe_id,status')
+      .select('campeonato_id,fase_id,equipe_id,line_id,status')
       .in('campeonato_id', ids)
       .neq('status', 'excluido'),
+    supabaseAdmin
+      .from('campeonato_fases')
+      .select('id,campeonato_id,ordem')
+      .in('campeonato_id', ids),
   ])
   const configMap = new Map((configs || []).map((row: any) => [row.campeonato_id, row]))
+  const phaseMap = new Map<string, Set<string> | null>()
+
+  for (const championshipId of ids) {
+    const champPhases = (phases || []).filter((phase: any) => phase.campeonato_id === championshipId)
+    if (!champPhases.length) {
+      phaseMap.set(championshipId, null)
+      continue
+    }
+    const minOrder = Math.min(...champPhases.map((phase: any) => Number(phase.ordem || 0)))
+    phaseMap.set(
+      championshipId,
+      new Set(
+        champPhases
+          .filter((phase: any) => Number(phase.ordem || 0) === minOrder)
+          .map((phase: any) => String(phase.id)),
+      ),
+    )
+  }
+
   return (championships || []).flatMap((championship: any) => {
     const config: any = configMap.get(championship.id)
     if (!config) return []
-    const champSlots = (slots || []).filter((slot: any) => slot.campeonato_id === championship.id)
-    const free = champSlots.filter((slot: any) => !slot.equipe_id).length
+    const entryPhaseIds = phaseMap.get(championship.id) || null
+    const champSlots = (slots || []).filter((slot: any) => {
+      if (slot.campeonato_id !== championship.id) return false
+      if (!entryPhaseIds || entryPhaseIds.size === 0) return true
+      return !slot.fase_id || entryPhaseIds.has(String(slot.fase_id))
+    })
+    const free = champSlots.filter((slot: any) => !slot.equipe_id && !slot.line_id).length
     if (free <= 0) return []
     return [{ ...championship, ...config, vagas_livres: free, total_slots: champSlots.length }]
   })
@@ -287,20 +315,45 @@ export async function getChampionshipDetails(championshipId: string) {
     throw new Error('Campeonato não encontrado ou indisponível.')
   }
 
-  const [{ data: config }, { data: slots }] = await Promise.all([
+  const [{ data: config }, { data: slots }, { data: phases }] = await Promise.all([
     supabaseAdmin
       .from('campeonato_configuracoes')
-      .select('valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes')
+      .select('valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,tem_live,tem_trofeu,premiacao,jogadores_por_vaga,vagas_por_equipe,permite_troca_jogadores,data_limite_trocas,contatos_whatsapp')
       .eq('campeonato_id', championshipId)
       .maybeSingle(),
     supabaseAdmin
       .from('campeonato_slots')
-      .select('id,equipe_id,line_id,status')
+      .select('id,fase_id,equipe_id,line_id,status')
       .eq('campeonato_id', championshipId)
       .neq('status', 'excluido'),
+    supabaseAdmin
+      .from('campeonato_fases')
+      .select('id,ordem')
+      .eq('campeonato_id', championshipId),
   ])
-  const vagasLivres = (slots || []).filter((slot: any) => !slot.equipe_id && !slot.line_id).length
-  return { ...championship, ...(config || {}), vagas_livres: vagasLivres, total_slots: (slots || []).length }
+
+  const champPhases = phases || []
+  const entryPhaseIds = champPhases.length
+    ? new Set(
+        champPhases
+          .filter((phase: any) => Number(phase.ordem || 0) === Math.min(...champPhases.map((current: any) => Number(current.ordem || 0))))
+          .map((phase: any) => String(phase.id)),
+      )
+    : null
+
+  const entrySlots = (slots || []).filter((slot: any) => {
+    if (!entryPhaseIds || entryPhaseIds.size === 0) return true
+    return !slot.fase_id || entryPhaseIds.has(String(slot.fase_id))
+  })
+  const vagasLivres = entrySlots.filter((slot: any) => !slot.equipe_id && !slot.line_id).length
+  return {
+    ...championship,
+    ...(config || {}),
+    premiacao_texto: championship.premiacao,
+    premiacao_valor: config?.premiacao ?? null,
+    vagas_livres: vagasLivres,
+    total_slots: entrySlots.length,
+  }
 }
 
 

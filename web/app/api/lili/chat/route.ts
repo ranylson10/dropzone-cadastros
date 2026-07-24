@@ -345,14 +345,35 @@ export async function POST(req: NextRequest) {
       case 'abrir_campeonato': {
         if (!context.selectedChampionshipId) throw new Error('Campeonato não informado.')
         const item = await getChampionshipDetails(context.selectedChampionshipId)
+        const money = (value: number | string | null | undefined) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`
+        const formatDate = (value: string) => new Date(value).toLocaleDateString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR')
+        const paymentMethods = [
+          item.valor_inscricao != null ? '💠 PIX' : null,
+          item.valor_inscricao != null ? '💳 Cartão' : null,
+          item.valor_inscricao != null && paypalConfigured() ? '🅿️ PayPal' : null,
+          Array.isArray(item.contatos_whatsapp) && item.contatos_whatsapp.length ? '🟢 WhatsApp' : null,
+        ].filter(Boolean) as string[]
+        const prizeValue = item.premiacao_valor != null
+          ? money(item.premiacao_valor)
+          : item.premiacao_texto
+            ? String(item.premiacao_texto)
+            : null
         const details = [
+          { label: 'Disponibilidade', value: Number(item.vagas_livres || 0) > 0 ? `${item.vagas_livres} vaga${Number(item.vagas_livres || 0) === 1 ? '' : 's'} disponível${Number(item.vagas_livres || 0) === 1 ? '' : 'eis'} agora` : 'Sem vagas disponíveis no momento' },
+          item.valor_inscricao != null ? { label: 'Valor da vaga', value: money(item.valor_inscricao) } : null,
+          prizeValue ? { label: 'Premiação', value: prizeValue } : null,
+          item.jogadores_por_vaga ? { label: 'Jogadores por vaga', value: `${item.jogadores_por_vaga} player${Number(item.jogadores_por_vaga) === 1 ? '' : 's'}` } : null,
+          item.vagas_por_equipe ? { label: 'Vagas por equipe', value: `${item.vagas_por_equipe}` } : null,
+          { label: 'Live', value: item.tem_live ? '▶️ Sim, com transmissão' : 'Sem live confirmada' },
+          { label: 'Troféu', value: item.tem_trofeu ? '🏆 Sim' : '🏆 Não' },
+          { label: 'Troca de jogador', value: item.permite_troca_jogadores ? (item.data_limite_trocas ? `✅ Permitida até ${formatDate(item.data_limite_trocas)}` : '✅ Permitida') : '🚫 Não permitida' },
+          paymentMethods.length ? { label: 'Pagamento', value: paymentMethods.join(' • ') } : null,
+          item.data_limite_inscricao ? { label: 'Inscrições até', value: formatDate(item.data_limite_inscricao) } : null,
           item.plataforma ? { label: 'Plataforma', value: String(item.plataforma) } : null,
           item.servidor ? { label: 'Servidor', value: String(item.servidor) } : null,
-          item.valor_inscricao != null ? { label: 'Inscrição', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` } : null,
-          { label: 'Vagas livres', value: String(item.vagas_livres || 0) },
-          item.data_limite_inscricao ? { label: 'Prazo', value: new Date(item.data_limite_inscricao).toLocaleDateString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR') } : null,
         ].filter(Boolean) as Array<{ label: string; value: string }>
         const canBuy = Boolean(item.aceita_novas_inscricoes_equipes && Number(item.vagas_livres || 0) > 0)
+        const buyAction = canBuy ? { id: `buy-${item.id}`, label: 'Comprar vaga', message: `Comprar vaga em ${item.nome}`, intent: 'comprar_vaga' as const, variant: 'primary' as const, context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' } } : null
         response = {
           reply: `Aqui estão os detalhes de ${item.nome}.`,
           intent: match.intent,
@@ -364,10 +385,10 @@ export async function POST(req: NextRequest) {
             imageUrl: item.logo_url || item.banner_url || null,
             badges: [`${item.vagas_livres || 0} vaga${Number(item.vagas_livres || 0) === 1 ? '' : 's'} livre${Number(item.vagas_livres || 0) === 1 ? '' : 's'}`],
             details,
-            actions: [{ id: `public-${item.id}`, label: 'Abrir página do campeonato', href: `/campeonatos/${item.id}`, variant: 'secondary' }],
+            actions: buyAction ? [buyAction] : undefined,
           }],
           actions: [
-            ...(canBuy ? [{ id: `buy-${item.id}`, label: 'Comprar vaga', message: `Comprar vaga em ${item.nome}`, intent: 'comprar_vaga' as const, variant: 'primary' as const, context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' } }] : []),
+            ...(buyAction ? [buyAction] : []),
             { id: `rules-${item.id}`, label: 'Ver regras por tópico', message: `Ver regulamento de ${item.nome}`, intent: 'ver_regulamento_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship_rules' } },
             { id: `token-${item.id}`, label: 'Usar convite ou token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
             { id: 'back-open', label: 'Voltar aos campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'secondary', context: { locale } },
