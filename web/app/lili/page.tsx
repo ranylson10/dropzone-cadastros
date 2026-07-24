@@ -274,7 +274,14 @@ export default function LiliPage() {
                     <div><strong>{card.title}</strong>{card.subtitle ? <small>{card.subtitle}</small> : null}</div>
                   </div>
                   {card.badges?.length ? <div className="lili-hub-badges">{card.badges.map((badge) => <span key={badge}>{badge}</span>)}</div> : null}
-                  {card.details?.length ? <dl>{card.details.map((detail) => <div key={`${detail.label}-${detail.value}`}><dt>{detail.label}</dt><dd>{detail.value}</dd></div>)}</dl> : null}
+                  {card.details?.length ? card.kind === 'rulebook' ? (
+                    <div className="lili-rulebook-articles">{card.details.map((detail) => (
+                      <div className="lili-rulebook-article" key={`${detail.label}-${detail.value}`}>
+                        <span>{detail.label}</span>
+                        <p>{detail.value}</p>
+                      </div>
+                    ))}</div>
+                  ) : <dl>{card.details.map((detail) => <div key={`${detail.label}-${detail.value}`}><dt>{detail.label}</dt><dd>{detail.value}</dd></div>)}</dl> : null}
                   {card.actions?.map((action) => <button type="button" key={action.id} className="primary" disabled={!actionsEnabled} onClick={() => void handleAction(action)}>{action.label}</button>)}
                 </div>
               ))}</div> : null}

@@ -7,12 +7,15 @@ export type LiliIntent =
   | 'buscar_campeonato'
   | 'abrir_campeonato'
   | 'ver_regulamento_campeonato'
+  | 'abrir_topico_regulamento'
   | 'perguntar_regra_campeonato'
   | 'comprar_vaga'
   | 'usar_convite_token'
   | 'validar_token_inscricao'
   | 'listar_minhas_equipes'
   | 'listar_minhas_inscricoes'
+  | 'listar_proximos_jogos'
+  | 'resumo_minha_conta'
   | 'iniciar_inscricao'
   | 'iniciar_pagamento_inscricao'
   | 'verificar_pagamento_inscricao'
@@ -32,6 +35,7 @@ export type LiliClientContext = {
   locale?: LiliLocale
   currency?: LiliCurrency
   selectedChampionshipId?: string | null
+  selectedRulebookTopicId?: string | null
   selectedTeamId?: string | null
   selectedLineId?: string | null
   selectedLineName?: string | null
@@ -62,7 +66,7 @@ export type LiliAction = {
 
 export type LiliCard = {
   id: string
-  kind: 'championship' | 'rulebook' | 'team' | 'registration' | 'summary' | 'payment' | 'line' | 'slot'
+  kind: 'championship' | 'rulebook' | 'team' | 'registration' | 'agenda' | 'summary' | 'payment' | 'line' | 'slot'
   title: string
   subtitle?: string | null
   imageUrl?: string | null

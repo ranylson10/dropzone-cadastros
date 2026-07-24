@@ -1,6 +1,8 @@
 import { getAccountsForUser } from '@backend/auth/server-auth'
 import { listControllableEquipes } from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { getPublishedRulebook, getRulebook } from '@backend/campeonatos/rulebook'
+import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import type { LiliCard, LiliLocale } from './types'
 
 type AuthUser = { id: string; email?: string | null; email_confirmed_at?: string | null }
@@ -302,25 +304,35 @@ export async function getChampionshipDetails(championshipId: string) {
 }
 
 
-export async function getPublishedChampionshipRulebook(championshipId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('campeonato_rulebooks')
-    .select('campeonato_id,perfil,documento,status,publicado_em,versao')
-    .eq('campeonato_id', championshipId)
-    .eq('status', 'publicado')
-    .maybeSingle()
-  if (error) {
-    if (['42P01', 'PGRST205'].includes(error.code || '')) return null
-    throw error
+export async function getPublishedChampionshipRulebook(championshipId: string, userId?: string | null) {
+  // Primeiro usa exatamente o serviço público oficial do Rulebook Builder.
+  // Se ainda estiver em rascunho, somente um usuário com permissão no campeonato
+  // pode consultá-lo pela Lili; visitantes continuam vendo apenas versões publicadas.
+  let source: any = await getPublishedRulebook(championshipId)
+  let visibility: 'published' | 'draft' = 'published'
+
+  if (!source && userId) {
+    const permission = await getCampeonatoPermission(userId, championshipId)
+    const canManage = permission.role === 'owner' || permission.canManage || permission.canOrganizeGroups
+    if (canManage) {
+      source = await getRulebook(championshipId)
+      visibility = 'draft'
+    }
   }
-  if (!data) return null
-  const document = data.documento && typeof data.documento === 'object' ? data.documento as any : null
+
+  if (!source) return null
+
+  const row = source.rulebook && typeof source.rulebook === 'object' ? source.rulebook : source
+  const document = row.documento && typeof row.documento === 'object' ? row.documento as any : null
   if (!document || !Array.isArray(document.chapters)) return null
+
   return {
-    campeonatoId: data.campeonato_id,
-    perfil: data.perfil,
-    publicadoEm: data.publicado_em,
-    versao: data.versao,
+    campeonatoId: String(row.campeonato_id || championshipId),
+    perfil: row.perfil,
+    publicadoEm: row.publicado_em || null,
+    versao: row.versao,
+    status: String(row.status || (visibility === 'published' ? 'publicado' : 'rascunho')),
+    visibility,
     title: String(document.title || 'Regulamento'),
     subtitle: String(document.subtitle || ''),
     chapters: document.chapters
@@ -338,30 +350,58 @@ function truncateRuleText(value: unknown, max = 360) {
 export function rulebookTopicCards(rulebook: any, championshipId: string): LiliCard[] {
   return (rulebook.chapters || []).map((chapter: any, chapterIndex: number) => {
     const articles = Array.isArray(chapter.articles) ? chapter.articles : []
-    const details = articles.slice(0, 8).map((article: any) => ({
-      label: article.number ? `Art. ${article.number}` : `Regra ${detailsSafeIndex(article, articles) + 1}`,
-      value: [article.title, truncateRuleText(article.body)]
-        .filter(Boolean)
-        .join(' — '),
-    }))
-    if (articles.length > 8) {
-      details.push({ label: 'Mais regras', value: `Este tópico possui mais ${articles.length - 8} artigo${articles.length - 8 === 1 ? '' : 's'} no regulamento completo.` })
-    }
+    const topicId = String(chapter.id || chapterIndex)
     return {
-      id: `rulebook-${chapter.id || chapterIndex}`,
+      id: `rulebook-topic-${topicId}`,
       kind: 'rulebook',
       title: String(chapter.title || `Tópico ${chapterIndex + 1}`),
       subtitle: `${articles.length} artigo${articles.length === 1 ? '' : 's'}`,
       badges: [`Tópico ${chapterIndex + 1}`],
-      details,
       actions: [{
-        id: `open-rulebook-${chapter.id || chapterIndex}`,
-        label: 'Abrir regulamento completo',
-        href: `/campeonatos/${championshipId}/regulamento${chapter.id ? `#${encodeURIComponent(String(chapter.id))}` : ''}`,
-        variant: 'secondary',
+        id: `open-rulebook-topic-${topicId}`,
+        label: 'Ver regras deste tópico',
+        message: `Abrir tópico ${chapter.title || chapterIndex + 1}`,
+        intent: 'abrir_topico_regulamento',
+        variant: 'primary',
+        context: {
+          selectedChampionshipId: championshipId,
+          selectedRulebookTopicId: topicId,
+          currentFlow: 'championship_rules',
+          currentStep: 'rulebook_topic',
+        },
       }],
     }
   })
+}
+
+export function rulebookTopicDetailCard(rulebook: any, championshipId: string, topicId: string): LiliCard | null {
+  const chapters = Array.isArray(rulebook.chapters) ? rulebook.chapters : []
+  const chapterIndex = chapters.findIndex((chapter: any, index: number) => String(chapter?.id || index) === String(topicId))
+  if (chapterIndex < 0) return null
+
+  const chapter = chapters[chapterIndex]
+  const articles = Array.isArray(chapter.articles) ? chapter.articles : []
+  const details = articles.map((article: any, articleIndex: number) => ({
+    label: article.number ? `Art. ${article.number}` : `Regra ${articleIndex + 1}`,
+    value: [article.title, String(article.body || '').replace(/\s+/g, ' ').trim()]
+      .filter(Boolean)
+      .join(' — '),
+  }))
+
+  return {
+    id: `rulebook-topic-detail-${topicId}`,
+    kind: 'rulebook',
+    title: String(chapter.title || `Tópico ${chapterIndex + 1}`),
+    subtitle: `${articles.length} artigo${articles.length === 1 ? '' : 's'}`,
+    badges: [`Tópico ${chapterIndex + 1}`],
+    details,
+    actions: [{
+      id: `open-full-rulebook-topic-${topicId}`,
+      label: 'Abrir no regulamento completo',
+      href: `/campeonatos/${championshipId}/regulamento${chapter.id ? `#${encodeURIComponent(String(chapter.id))}` : ''}`,
+      variant: 'secondary',
+    }],
+  }
 }
 
 function detailsSafeIndex(article: any, articles: any[]) {
@@ -549,4 +589,50 @@ export async function resolveExistingInvite(value: string) {
   }
 
   throw new Error('Não encontrei um convite válido com esse token. Confira o código ou cole o link completo.')
+}
+
+
+export function agendaCards(items: any[], locale: LiliLocale = 'pt-BR'): LiliCard[] {
+  const labels = locale === 'en'
+    ? { match: 'Match', date: 'Date', time: 'Time', tournament: 'Tournament', rounds: 'Rounds', status: 'Status', open: 'Open tournament' }
+    : locale === 'es'
+      ? { match: 'Partido', date: 'Fecha', time: 'Horario', tournament: 'Campeonato', rounds: 'Partidas', status: 'Estado', open: 'Abrir campeonato' }
+      : { match: 'Jogo', date: 'Data', time: 'Horário', tournament: 'Campeonato', rounds: 'Quedas', status: 'Status', open: 'Abrir campeonato' }
+
+  const localeTag = locale === 'pt-BR' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US'
+  const dateFormatter = new Intl.DateTimeFormat(localeTag, { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+  return items.map((item: any) => {
+    const rawDate = String(item.data || item.data_jogo || '').slice(0, 10)
+    const parsedDate = rawDate ? new Date(`${rawDate}T12:00:00`) : null
+    const dateLabel = parsedDate && !Number.isNaN(parsedDate.getTime()) ? dateFormatter.format(parsedDate) : rawDate
+    const start = String(item.horario_inicio || item.horario || '').slice(0, 5)
+    const end = String(item.horario_fim || '').slice(0, 5)
+    const timeLabel = [start, end].filter(Boolean).join(' — ')
+    const championshipId = item.meta?.campeonato_id || item.campeonato_id || null
+    const championshipName = item.meta?.campeonato_nome || item.campeonato_nome || null
+
+    const details = [
+      dateLabel ? { label: labels.date, value: dateLabel } : null,
+      timeLabel ? { label: labels.time, value: timeLabel } : null,
+      championshipName ? { label: labels.tournament, value: championshipName } : null,
+      item.meta?.numero_partidas ? { label: labels.rounds, value: String(item.meta.numero_partidas) } : null,
+      item.meta?.status ? { label: labels.status, value: String(item.meta.status) } : null,
+    ].filter(Boolean) as Array<{ label: string; value: string }>
+
+    return {
+      id: String(item.id),
+      kind: 'agenda',
+      title: item.titulo || labels.match,
+      subtitle: championshipName || undefined,
+      badges: item.tipo ? [String(item.tipo)] : undefined,
+      details,
+      actions: championshipId ? [{
+        id: `open-agenda-championship-${championshipId}-${item.id}`,
+        label: labels.open,
+        href: `/campeonatos/${championshipId}`,
+        variant: 'secondary',
+      }] : undefined,
+    }
+  })
 }

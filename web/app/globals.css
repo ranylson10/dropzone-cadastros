@@ -9735,3 +9735,10 @@ input::placeholder, textarea::placeholder {
 .lili-hub-composer{display:flex;gap:9px;padding:10px max(12px,calc((100vw - 820px)/2)) max(10px,env(safe-area-inset-bottom));background:rgba(255,255,255,.92);border-top:1px solid #ded4ee;backdrop-filter:blur(14px)}.lili-hub-composer input{flex:1;min-width:0;height:46px;border:1px solid #d5c9e8;border-radius:23px;padding:0 17px;background:#fff;color:#221a2d;outline:0;font-size:14px}.lili-hub-composer input:focus{border-color:var(--lh-primary);box-shadow:0 0 0 3px rgba(109,62,232,.12)}.lili-hub-composer button{width:46px;height:46px;border:0;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--lh-primary),var(--lh-primary-dark));color:#fff;cursor:pointer}.lili-hub-composer button:disabled{opacity:.45;cursor:not-allowed}
 @keyframes liliHubIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}@keyframes liliHubDot{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-4px);opacity:1}}
 @media(max-width:640px){.lili-hub-header{padding:9px 12px}.lili-hub-feed{padding:15px 10px 10px}.lili-hub-message-content{max-width:calc(100vw - 58px)}.lili-hub-card{width:calc(100vw - 58px)}.lili-hub-bubble{font-size:13px}.lili-hub-actions{display:grid;width:100%}.lili-hub-actions button{width:100%;min-height:43px}}
+
+/* Lili: leitura de regulamento por tópico */
+.lili-rulebook-articles{display:grid;gap:10px}
+.lili-rulebook-article{display:grid;grid-template-columns:minmax(58px,auto) minmax(0,1fr);align-items:start;gap:10px;padding:10px;border:1px solid #ece5f8;border-radius:12px;background:#faf8ff}
+.lili-rulebook-article>span{display:block;padding:4px 7px;border-radius:8px;background:#eee7ff;color:#5c2fc5;font-size:10px;font-weight:900;line-height:1.25;text-align:center;white-space:nowrap}
+.lili-rulebook-article>p{margin:0;color:#332943;font-size:11px;font-weight:600;line-height:1.55;text-align:left;overflow-wrap:anywhere;word-break:normal;white-space:normal}
+@media(max-width:640px){.lili-rulebook-article{grid-template-columns:1fr;gap:7px}.lili-rulebook-article>span{width:max-content;max-width:100%}}
