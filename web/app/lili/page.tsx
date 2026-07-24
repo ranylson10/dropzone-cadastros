@@ -146,19 +146,26 @@ export default function LiliPage() {
     const paypalState = params.get('paypal')
     const paypalOrderId = paypalState === 'approved' ? params.get('token') : null
     const paypalReservationId = params.get('reservation')
+    const paypalPurchaseToken = params.get('purchase')
+    const paypalPurchaseId = params.get('purchase_id')
     if (paypalState) {
       deepLinkHandledRef.current = true
       params.delete('paypal')
       params.delete('token')
       params.delete('PayerID')
       params.delete('reservation')
+      params.delete('purchase')
+      params.delete('purchase_id')
       const cleanQuery = params.toString()
       window.history.replaceState({}, '', `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`)
       if (paypalState === 'cancelled') {
         setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: 'O pagamento PayPal foi cancelado. Sua reserva permanece válida até o horário informado.' }])
         return
       }
-      if (paypalOrderId && paypalReservationId) {
+      if (paypalOrderId && paypalPurchaseId && paypalPurchaseToken) {
+        const paypalContext: LiliClientContext = { ...context, purchaseId: paypalPurchaseId, purchaseToken: paypalPurchaseToken, paypalOrderId, selectedPaymentMethod: 'paypal', currentFlow: 'vacancy_purchase', currentStep: 'payment_wait' }
+        void sendMessage('Confirmar pagamento PayPal da vaga', 'capturar_paypal_compra', paypalContext, false)
+      } else if (paypalOrderId && paypalReservationId) {
         const paypalContext: LiliClientContext = { ...context, reservationId: paypalReservationId, paypalOrderId, selectedPaymentMethod: 'paypal', currentFlow: 'group_invite_payment', currentStep: 'payment_wait' }
         void sendMessage('Confirmar pagamento PayPal', 'capturar_paypal_convite_grupo', paypalContext, false)
       }

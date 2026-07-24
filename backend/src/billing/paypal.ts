@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { supabaseAdmin } from '../shared/supabase-admin'
 import { attachReservationPayment } from './lili-slot-reservation'
+import { liberarCompraVagaComSplit } from './vacancy-purchase'
 
 export type PayPalCurrency = 'BRL' | 'USD' | 'EUR'
 
@@ -69,11 +70,14 @@ export async function createLiliPayPalOrder(input: {
   amountMinor: number
   currency: PayPalCurrency
   returnOrigin: string
+  referenceType?: 'lili_reservas_slot' | 'sistema_compras_vaga'
 }) {
   if (!paypalConfigured()) throw new Error('PayPal ainda não foi configurado.')
   if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) throw new Error('Valor inválido para o PayPal.')
 
-  const externalReference = `lili_paypal:${input.reservation.id}`
+  const referenceType = input.referenceType || 'lili_reservas_slot'
+  const isPurchase = referenceType === 'sistema_compras_vaga'
+  const externalReference = `${isPurchase ? 'compra_vaga_paypal' : 'lili_paypal'}:${input.reservation.id}`
   const { data: existing } = await supabaseAdmin
     .from('sistema_pagamentos')
     .select('*')
@@ -85,8 +89,12 @@ export async function createLiliPayPalOrder(input: {
 
   if (existing?.paypal_order_id && existing?.paypal_approval_url) return existing
 
-  const returnUrl = `${input.returnOrigin}/lili?paypal=approved&reservation=${encodeURIComponent(input.reservation.id)}`
-  const cancelUrl = `${input.returnOrigin}/lili?paypal=cancelled&reservation=${encodeURIComponent(input.reservation.id)}`
+  const returnUrl = isPurchase
+    ? `${input.returnOrigin}/lili?paypal=approved&purchase=${encodeURIComponent(input.reservation.token)}&purchase_id=${encodeURIComponent(input.reservation.id)}`
+    : `${input.returnOrigin}/lili?paypal=approved&reservation=${encodeURIComponent(input.reservation.id)}`
+  const cancelUrl = isPurchase
+    ? `${input.returnOrigin}/lili?paypal=cancelled&purchase=${encodeURIComponent(input.reservation.token)}&purchase_id=${encodeURIComponent(input.reservation.id)}`
+    : `${input.returnOrigin}/lili?paypal=cancelled&reservation=${encodeURIComponent(input.reservation.id)}`
   const order = await paypalRequest('/v2/checkout/orders', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
@@ -116,8 +124,8 @@ export async function createLiliPayPalOrder(input: {
   if (!approvalUrl) throw new Error('O PayPal não retornou o link de aprovação.')
 
   const row = {
-    finalidade: 'inscricao_equipe',
-    referencia_tipo: 'lili_reservas_slot',
+    finalidade: isPurchase ? 'compra_vaga' : 'inscricao_equipe',
+    referencia_tipo: referenceType,
     referencia_id: input.reservation.id,
     pagador_auth_user_id: input.reservation.auth_user_id,
     pagador_tipo: 'equipe',
@@ -131,7 +139,7 @@ export async function createLiliPayPalOrder(input: {
     paypal_order_id: order.id,
     paypal_status: order.status,
     paypal_approval_url: approvalUrl,
-    payload_criacao: { ...order, dropzone: { lili_reserva_id: input.reservation.id } },
+    payload_criacao: { ...order, dropzone: isPurchase ? { compra_vaga_id: input.reservation.id, compra_token: input.reservation.token } : { lili_reserva_id: input.reservation.id } },
     updated_at: new Date().toISOString(),
   }
   const { data: saved, error } = await supabaseAdmin
@@ -140,7 +148,15 @@ export async function createLiliPayPalOrder(input: {
     .select('*')
     .single()
   if (error) throw error
-  await attachReservationPayment(input.reservation.id, '', saved.id)
+  if (isPurchase) {
+    const { error: linkError } = await supabaseAdmin
+      .from('sistema_compras_vaga')
+      .update({ pagamento_id: saved.id, updated_at: new Date().toISOString() })
+      .eq('id', input.reservation.id)
+    if (linkError) throw linkError
+  } else {
+    await attachReservationPayment(input.reservation.id, '', saved.id)
+  }
   return saved
 }
 
@@ -178,11 +194,15 @@ async function validateAndPersistOrder(order: any, expectedPayment: any) {
     .single()
   if (error) throw error
   if (completed) {
-    await supabaseAdmin
-      .from('lili_reservas_slot')
-      .update({ expira_em: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', expectedPayment.referencia_id)
-      .eq('status', 'ativa')
+    if (expectedPayment.referencia_tipo === 'sistema_compras_vaga') {
+      await liberarCompraVagaComSplit(updated)
+    } else {
+      await supabaseAdmin
+        .from('lili_reservas_slot')
+        .update({ expira_em: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', expectedPayment.referencia_id)
+        .eq('status', 'ativa')
+    }
   }
   return updated
 }
@@ -209,6 +229,51 @@ export async function captureLiliPayPalOrder(input: { orderId: string; reservati
     })
   }
   return validateAndPersistOrder(order, payment)
+}
+
+
+export async function captureVacancyPayPalOrder(input: { orderId: string; purchaseId: string; authUserId: string }) {
+  const { data: payment, error } = await supabaseAdmin
+    .from('sistema_pagamentos')
+    .select('*')
+    .eq('paypal_order_id', input.orderId)
+    .eq('referencia_tipo', 'sistema_compras_vaga')
+    .eq('referencia_id', input.purchaseId)
+    .eq('pagador_auth_user_id', input.authUserId)
+    .maybeSingle()
+  if (error) throw error
+  if (!payment) throw new Error('Pagamento PayPal não localizado para esta compra de vaga.')
+  if (['pago', 'confirmado'].includes(String(payment.status))) return payment
+
+  let order = await getPayPalOrder(input.orderId)
+  if (String(order?.status || '').toUpperCase() === 'APPROVED') {
+    order = await paypalRequest(`/v2/checkout/orders/${encodeURIComponent(input.orderId)}/capture`, {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: '{}',
+    })
+  }
+  return validateAndPersistOrder(order, payment)
+}
+
+export async function getVacancyPayPalPaymentStatus(purchaseId: string) {
+  const { data: payment, error } = await supabaseAdmin
+    .from('sistema_pagamentos')
+    .select('*')
+    .eq('referencia_tipo', 'sistema_compras_vaga')
+    .eq('referencia_id', purchaseId)
+    .eq('provider', 'paypal')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  if (!payment?.paypal_order_id || ['pago', 'confirmado'].includes(String(payment.status))) return payment
+  try {
+    const order = await getPayPalOrder(payment.paypal_order_id)
+    return validateAndPersistOrder(order, payment)
+  } catch {
+    return payment
+  }
 }
 
 export async function getLiliPayPalPaymentStatus(reservationId: string) {
@@ -279,11 +344,16 @@ export async function applyPayPalWebhook(event: any) {
     .eq('id', payment.id)
   if (updateError) throw updateError
   if (completed) {
-    await supabaseAdmin
-      .from('lili_reservas_slot')
-      .update({ expira_em: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', payment.referencia_id)
-      .eq('status', 'ativa')
+    if (payment.referencia_tipo === 'sistema_compras_vaga') {
+      const { data: updatedPayment } = await supabaseAdmin.from('sistema_pagamentos').select('*').eq('id', payment.id).single()
+      if (updatedPayment) await liberarCompraVagaComSplit(updatedPayment)
+    } else {
+      await supabaseAdmin
+        .from('lili_reservas_slot')
+        .update({ expira_em: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', payment.referencia_id)
+        .eq('status', 'ativa')
+    }
   }
   return { updated: true, status }
 }

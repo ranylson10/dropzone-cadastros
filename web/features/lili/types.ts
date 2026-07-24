@@ -10,6 +10,12 @@ export type LiliIntent =
   | 'abrir_topico_regulamento'
   | 'perguntar_regra_campeonato'
   | 'comprar_vaga'
+  | 'selecionar_forma_pagamento_compra'
+  | 'pagar_pix_compra'
+  | 'pagar_cartao_compra'
+  | 'pagar_paypal_compra'
+  | 'capturar_paypal_compra'
+  | 'selecionar_equipe_compra'
   | 'usar_convite_token'
   | 'validar_token_inscricao'
   | 'continuar_convite_grupo'
@@ -75,6 +81,7 @@ export type LiliClientContext = {
   paymentId?: string | null
   paypalOrderId?: string | null
   paypalApprovalUrl?: string | null
+  purchaseId?: string | null
 }
 
 export type LiliAction = {

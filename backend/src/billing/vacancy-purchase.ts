@@ -166,8 +166,10 @@ export async function createVacancyPurchase(input: {
   payerEmail: string
   cpfCnpj?: string | null
   vendedorManagerId?: string | null
+  method?: 'pix' | 'cartao' | 'paypal'
 }) {
-  if (!isAsaasConfigured()) throw new AsaasNotConfiguredError()
+  const method = input.method || 'pix'
+  if (method !== 'paypal' && !isAsaasConfigured()) throw new AsaasNotConfiguredError()
 
   const { data: champ, error: cErr } = await supabaseAdmin
     .from('campeonatos')
@@ -344,9 +346,13 @@ export async function createVacancyPurchase(input: {
     return { compra: paidCompra || compra, payment: existingPay, reused: true }
   }
 
+  if (method === 'paypal') {
+    return { compra, payment: existingPay || null, reused: Boolean(existingPay) }
+  }
+
   const cpfDigits = input.cpfCnpj ? String(input.cpfCnpj).replace(/\D/g, '') : ''
   if (!cpfDigits || (cpfDigits.length !== 11 && cpfDigits.length !== 14)) {
-    throw new Error('Para criar a cobrança PIX é necessário informar o CPF (11 dígitos) ou CNPJ (14 dígitos) do pagador.')
+    throw new Error('Para criar a cobrança é necessário informar o CPF (11 dígitos) ou CNPJ (14 dígitos) do pagador.')
   }
 
   const customer = await findOrCreateCustomer({
@@ -364,10 +370,10 @@ export async function createVacancyPurchase(input: {
     dueDate: dueDatePlusDays(3),
     description: `Vaga · ${champ.nome || 'Campeonato'}`.slice(0, 500),
     externalReference,
-    billingType: 'PIX',
+    billingType: method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
   })
 
-  const pix = await fetchPixQrWithRetry(payment.id)
+  const pix = method === 'pix' ? await fetchPixQrWithRetry(payment.id) : {}
 
   const dropzoneMeta = {
     compra_vaga_id: compra.id,
@@ -395,7 +401,7 @@ export async function createVacancyPurchase(input: {
     asaas_pix_qrcode: pix.encodedImage || null,
     asaas_pix_payload: pix.payload || null,
     asaas_status: payment.status,
-    billing_type: payment.billingType || 'UNDEFINED',
+    billing_type: payment.billingType || (method === 'cartao' ? 'CREDIT_CARD' : 'PIX'),
     external_reference: externalReference,
     payload_criacao: { ...payment, dropzone: dropzoneMeta },
     updated_at: new Date().toISOString(),

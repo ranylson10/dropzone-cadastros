@@ -3,7 +3,7 @@ import { getAccountsForUser, getActiveAccount, getBearerUser } from '@backend/au
 import { AsaasNotConfiguredError, isPaidStatus } from '@backend/billing/asaas'
 import { reserveSlotForLili, confirmLiliReservation } from '@backend/billing/lili-slot-reservation'
 import { createLiliAsaasPayment, getLiliPaymentStatus } from '@backend/billing/lili-payment'
-import { captureLiliPayPalOrder, createLiliPayPalOrder, getLiliPayPalPaymentStatus, paypalConfigured } from '@backend/billing/paypal'
+import { captureLiliPayPalOrder, captureVacancyPayPalOrder, createLiliPayPalOrder, getLiliPayPalPaymentStatus, getVacancyPayPalPaymentStatus, paypalConfigured } from '@backend/billing/paypal'
 import { listAgenda } from '@backend/agenda/agenda.service'
 import { claimVacancyPurchase, createVacancyPurchase, loadClaimContext } from '@backend/billing/vacancy-purchase'
 import { detectLiliLocale, resolveLiliIntent } from '@/features/lili/intent-router'
@@ -949,26 +949,18 @@ export async function POST(req: NextRequest) {
           throw new Error('Faltam dados para continuar esta inscrição.')
         }
         const groupInvite = await loadGroupInviteInChat(req, context.inviteToken, context.selectedTeamId)
-        const { data: cfg } = await supabaseAdmin
-          .from('campeonato_configuracoes')
-          .select('valor_inscricao')
-          .eq('campeonato_id', groupInvite?.campeonato?.id)
-          .maybeSingle()
-        const value = Number(cfg?.valor_inscricao || 0)
         const nextContext = {
           ...context,
           selectedChampionshipId: String(groupInvite?.campeonato?.id || context.selectedChampionshipId || ''),
           inviteGroupId: String(groupInvite?.grupo?.id || context.inviteGroupId || ''),
-          currentFlow: 'group_invite_payment',
-          currentStep: value > 0 ? 'payment_method' : 'confirm',
+          currentFlow: 'group_invite',
+          currentStep: 'confirm',
         }
         response = {
-          reply: value > 0
-            ? 'Slot selecionado. Escolha como deseja garantir esta vaga. Ao iniciar o pagamento ou atendimento, o slot será reservado temporariamente.'
-            : 'Confira os dados. Esta inscrição não possui cobrança online e pode ser confirmada agora.',
+          reply: 'Este token já representa uma vaga autorizada pelo administrador. Confira os dados e confirme a inscrição; não há cobrança neste fluxo.',
           intent: match.intent,
           cards: [{
-            id: 'group-invite-payment-summary', kind: 'summary',
+            id: 'group-invite-confirm-summary', kind: 'summary',
             title: String(groupInvite?.campeonato?.nome || 'Confirmar inscrição'),
             subtitle: String(groupInvite?.grupo?.nome || ''),
             imageUrl: groupInvite?.campeonato?.logo_url || null,
@@ -977,18 +969,13 @@ export async function POST(req: NextRequest) {
               { label: 'Line', value: String(context.selectedLineName || 'Line selecionada') },
               { label: 'Grupo', value: String(groupInvite?.grupo?.nome || 'Grupo do convite') },
               { label: 'Slot', value: String(context.selectedSlotLabel || 'Selecionado') },
-              { label: 'Valor', value: value > 0 ? `R$ ${value.toFixed(2).replace('.', ',')}` : 'Sem cobrança online' },
+              { label: 'Autorização', value: 'Token liberado pelo administrador' },
             ],
           }],
-          actions: value > 0 ? [
-            { id: 'pay-group-pix', label: 'PIX', message: 'Pagar por PIX', intent: 'pagar_pix_convite_grupo', variant: 'primary', context: { ...nextContext, selectedPaymentMethod: 'pix' } },
-            { id: 'pay-group-card', label: 'Cartão de crédito', message: 'Pagar com cartão', intent: 'pagar_cartao_convite_grupo', variant: 'primary', context: { ...nextContext, selectedPaymentMethod: 'cartao' } },
-            { id: 'pay-group-paypal', label: 'PayPal', message: 'Pagar com PayPal', intent: 'pagar_paypal_convite_grupo', variant: 'secondary', context: { ...nextContext, selectedPaymentMethod: 'paypal' } },
-            { id: 'pay-group-whatsapp', label: 'Falar com atendente no WhatsApp', message: 'Falar com atendente', intent: 'falar_atendente_convite_grupo', variant: 'secondary', context: { ...nextContext, selectedPaymentMethod: 'whatsapp' } },
-            { id: 'view-confirm-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: nextContext },
-          ] : [
+          actions: [
             { id: 'confirm-group-invite', label: 'Confirmar inscrição', message: 'Confirmar inscrição agora', intent: 'confirmar_convite_grupo', variant: 'primary', context: nextContext },
             { id: 'view-confirm-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: nextContext },
+            { id: 'cancel-token-entry', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: nextContext },
           ],
           context: nextContext,
           source: 'system',
@@ -1237,48 +1224,110 @@ export async function POST(req: NextRequest) {
         if (!context.selectedChampionshipId) {
           const items = await listOpenChampionships()
           response = {
-            reply: items.length ? 'Escolha o campeonato em que deseja comprar uma vaga.' : 'Não há campeonatos com vagas disponíveis para compra agora.',
+            reply: items.length ? 'Escolha o campeonato em que deseja comprar uma vaga diretamente pelo sistema.' : 'Não há campeonatos com vagas disponíveis para compra agora.',
             intent: match.intent,
             cards: championshipCards(items, true, locale),
             actions: [
               { id: 'have-token', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
               { id: 'menu-buy', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
             ],
-            context: { locale, currentFlow: 'vacancy_purchase' },
+            context: { locale, currentFlow: 'vacancy_purchase', currentStep: 'championship' },
             source: 'system',
           }
           break
         }
         const item = await getChampionshipDetails(context.selectedChampionshipId)
         if (!item.aceita_novas_inscricoes_equipes || Number(item.vagas_livres || 0) <= 0) {
-          response = {
-            reply: 'Este campeonato não possui vaga disponível para compra neste momento.',
-            intent: match.intent,
-            actions: [{ id: 'other-spots', label: 'Ver outros campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } }],
-            context: { locale },
-            source: 'system',
-          }
+          response = { reply: 'Este campeonato não possui vaga disponível para compra neste momento.', intent: match.intent, actions: [{ id: 'other-spots', label: 'Ver outros campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } }], context: { locale }, source: 'system' }
           break
         }
+        const nextContext = { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase', currentStep: 'payment_method' }
         response = {
-          reply: `A compra da vaga de ${item.nome} será feita na tela de vagas que já existe no sistema. Depois do pagamento, o próprio fluxo gera e controla a autorização para este campeonato.`,
+          reply: 'Escolha como deseja comprar a vaga. Depois que o pagamento for confirmado, a Lili libera a escolha da equipe, line e slot.',
           intent: match.intent,
-          cards: [{
-            id: item.id,
-            kind: 'championship',
-            title: item.nome,
-            imageUrl: item.logo_url || item.banner_url || null,
-            badges: [`${item.vagas_livres} vaga${Number(item.vagas_livres) === 1 ? '' : 's'} disponível${Number(item.vagas_livres) === 1 ? '' : 'is'}`],
-            details: item.valor_inscricao != null ? [{ label: 'Valor', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` }] : undefined,
-            actions: [{ id: 'open-buy-page', label: 'Comprar esta vaga', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'primary' }],
-          }],
+          cards: [{ id: item.id, kind: 'championship', title: item.nome, imageUrl: item.logo_url || item.banner_url || null, badges: [`${item.vagas_livres} vaga${Number(item.vagas_livres) === 1 ? '' : 's'} disponível${Number(item.vagas_livres) === 1 ? '' : 'is'}`], details: item.valor_inscricao != null ? [{ label: 'Valor', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` }] : undefined }],
           actions: [
-            { id: 'have-token-selected', label: 'Já tenho convite', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
-            { id: 'other-buy', label: 'Escolher outro campeonato', message: 'Quero comprar uma vaga', intent: 'comprar_vaga', variant: 'secondary', context: { locale } },
+            { id: 'buy-pix', label: 'PIX', message: 'Comprar vaga por PIX', intent: 'pagar_pix_compra', variant: 'primary', context: { ...nextContext, selectedPaymentMethod: 'pix' } },
+            { id: 'buy-card', label: 'Cartão de crédito', message: 'Comprar vaga com cartão', intent: 'pagar_cartao_compra', variant: 'primary', context: { ...nextContext, selectedPaymentMethod: 'cartao' } },
+            { id: 'buy-paypal', label: 'PayPal', message: 'Comprar vaga com PayPal', intent: 'pagar_paypal_compra', variant: 'secondary', context: { ...nextContext, selectedPaymentMethod: 'paypal' } },
+            { id: 'buy-whatsapp', label: 'Falar com atendente no WhatsApp', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'secondary' },
+            { id: 'have-token-selected', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
           ],
-          context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' },
+          context: nextContext,
           source: 'system',
         }
+        break
+      }
+
+      case 'pagar_pix_compra':
+      case 'pagar_cartao_compra': {
+        if (!user) { response = { reply: 'Entre na conta para gerar o pagamento.', intent: match.intent, requiresAuth: true, context, source: 'system' }; break }
+        if (!context.selectedChampionshipId) throw new Error('Campeonato não selecionado.')
+        const method: 'pix' | 'cartao' = match.intent === 'pagar_cartao_compra' ? 'cartao' : 'pix'
+        const digits = String(context.paymentDocument || '').replace(/\D/g, '')
+        if (![11, 14].includes(digits.length)) {
+          const nextContext = { ...context, selectedPaymentMethod: method, awaitingPaymentDocument: true, currentStep: 'payment_document' }
+          response = { reply: 'Digite o CPF ou CNPJ do pagador para gerar a cobrança segura.', intent: match.intent, actions: [{ id: 'back-buy-method', label: 'Voltar', message: 'Voltar uma etapa', intent: 'voltar_etapa', variant: 'secondary', context: nextContext }], context: nextContext, source: 'system' }
+          break
+        }
+        const account = await getActiveAccount(req, user)
+        const email = String(user.email || account?.data?.email_contato || '').trim()
+        const name = String(account?.name || user.user_metadata?.full_name || email).trim()
+        const { compra, payment } = await createVacancyPurchase({ campeonatoId: context.selectedChampionshipId, authUserId: user.id, payerName: name || 'Comprador', payerEmail: email, cpfCnpj: digits, method })
+        const nextContext = registrationContext(context, { purchaseToken: compra.token, purchaseId: compra.id, awaitingPaymentDocument: false, currentStep: 'payment_wait' })
+        response = {
+          reply: method === 'pix' ? 'Cobrança PIX criada. Pague e depois toque em “Já paguei, verificar”.' : 'Checkout de cartão criado. Abra a página segura do Asaas e depois volte para verificar.',
+          intent: match.intent,
+          cards: [paymentCard({ token: compra.token, status: payment?.status || compra.status, valueCents: payment?.valor_centavos || compra.valor_centavos, invoiceUrl: payment?.asaas_invoice_url, pixPayload: payment?.asaas_pix_payload })],
+          actions: [{ id: 'check-direct-payment', label: 'Já paguei, verificar', message: 'Verificar pagamento', intent: 'verificar_pagamento_inscricao', variant: 'primary', context: nextContext }, { id: 'menu-after-payment', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
+          context: nextContext, source: 'system',
+        }
+        break
+      }
+
+      case 'pagar_paypal_compra': {
+        if (!user) { response = { reply: 'Entre na conta para pagar com PayPal.', intent: match.intent, requiresAuth: true, context, source: 'system' }; break }
+        if (!context.selectedChampionshipId) throw new Error('Campeonato não selecionado.')
+        if (!paypalConfigured()) throw new Error('PayPal ainda não foi configurado na Vercel.')
+        if (!context.currency) {
+          response = { reply: 'Escolha a moeda do pagamento PayPal.', intent: match.intent, actions: [
+            { id: 'buy-paypal-brl', label: 'Real (BRL)', message: 'Pagar em reais pelo PayPal', intent: 'pagar_paypal_compra', variant: 'primary', context: { ...context, currency: 'BRL', selectedPaymentMethod: 'paypal' } },
+            { id: 'buy-paypal-usd', label: 'Dólar (USD)', message: 'Pagar em dólares pelo PayPal', intent: 'pagar_paypal_compra', variant: 'secondary', context: { ...context, currency: 'USD', selectedPaymentMethod: 'paypal' } },
+            { id: 'buy-paypal-eur', label: 'Euro (EUR)', message: 'Pagar em euros pelo PayPal', intent: 'pagar_paypal_compra', variant: 'secondary', context: { ...context, currency: 'EUR', selectedPaymentMethod: 'paypal' } },
+          ], context: { ...context, selectedPaymentMethod: 'paypal' }, source: 'system' }
+          break
+        }
+        const item = await getChampionshipDetails(context.selectedChampionshipId)
+        const base = Number(item.valor_inscricao || 0)
+        if (base <= 0) throw new Error('Este campeonato não possui valor online cobrável.')
+        const quote = context.currency === 'BRL' ? { currency: 'BRL' as const, totalMinor: Math.round(base * 100) } : await createInternationalQuote(Math.round(base * 100), context.currency)
+        const account = await getActiveAccount(req, user)
+        const email = String(user.email || account?.data?.email_contato || '').trim()
+        const name = String(account?.name || user.user_metadata?.full_name || email).trim()
+        const { compra } = await createVacancyPurchase({ campeonatoId: context.selectedChampionshipId, authUserId: user.id, payerName: name || 'Comprador', payerEmail: email, method: 'paypal' })
+        const payment = await createLiliPayPalOrder({ reservation: compra, campeonatoNome: item.nome, amountMinor: quote.totalMinor, currency: quote.currency, returnOrigin: req.nextUrl.origin, referenceType: 'sistema_compras_vaga' })
+        const nextContext = registrationContext(context, { purchaseToken: compra.token, purchaseId: compra.id, paypalOrderId: payment.paypal_order_id, paypalApprovalUrl: payment.paypal_approval_url, currentStep: 'payment_wait' })
+        response = { reply: 'Ordem PayPal criada. Abra o PayPal, aprove o pagamento e volte para a Lili.', intent: match.intent, cards: [{ id: payment.id, kind: 'payment', title: 'Pagamento PayPal', subtitle: item.nome, details: [{ label: 'Valor', value: formatMoney(quote.totalMinor / 100, quote.currency, locale) }, { label: 'Moeda', value: quote.currency }], actions: [{ id: 'open-paypal-buy', label: 'Abrir PayPal', href: payment.paypal_approval_url, variant: 'primary' }] }], actions: [{ id: 'check-paypal-buy', label: 'Já paguei, verificar', message: 'Verificar pagamento PayPal da vaga', intent: 'capturar_paypal_compra', variant: 'secondary', context: nextContext }], context: nextContext, source: 'system' }
+        break
+      }
+
+      case 'capturar_paypal_compra': {
+        if (!user || !context.purchaseId || !context.paypalOrderId || !context.purchaseToken) throw new Error('Retorno do PayPal incompleto.')
+        const payment = await captureVacancyPayPalOrder({ orderId: context.paypalOrderId, purchaseId: context.purchaseId, authUserId: user.id })
+        if (!isPaidStatus(payment.status)) {
+          response = { reply: 'O PayPal ainda não confirmou o pagamento. Tente novamente em alguns segundos.', intent: match.intent, actions: [{ id: 'retry-paypal-buy', label: 'Verificar novamente', message: 'Verificar pagamento PayPal da vaga', intent: 'capturar_paypal_compra', variant: 'primary', context }], context, source: 'system' }
+          break
+        }
+        const data = await claimContext(req, context)
+        const nextContext = registrationContext(context, { currentStep: 'team', selectedTeamId: null, selectedLineId: null, selectedLineName: null, selectedSlotId: null, selectedSlotLabel: null })
+        response = { reply: 'Pagamento confirmado. Agora escolha a equipe que usará esta vaga.', intent: match.intent, cards: teamCards(data.equipes || []).map((card: any) => ({ ...card, actions: [{ id: `purchase-team-${card.id}`, label: 'Usar esta equipe', message: `Usar equipe ${card.title}`, intent: 'selecionar_equipe_compra', variant: 'primary', context: { ...nextContext, selectedTeamId: card.id } }] })), actions: flowControlActions(nextContext), context: nextContext, source: 'system' }
+        break
+      }
+
+      case 'selecionar_equipe_compra': {
+        const data = await claimContext(req, context)
+        const nextContext = registrationContext(context, { currentStep: 'line' })
+        response = { reply: data.lines?.length ? 'Equipe selecionada. Agora escolha uma line disponível.' : 'Equipe selecionada. Digite o nome da nova line.', intent: match.intent, cards: data.lines?.length ? lineCards(data.lines, nextContext) : undefined, actions: data.lines?.length ? [{ id: 'new-line-after-buy', label: 'Criar nova line', message: 'Quero criar uma nova line', intent: 'criar_line_inscricao', variant: 'secondary', context: nextContext }, ...flowControlActions(nextContext)] : flowControlActions(registrationContext(nextContext, { awaitingLineName: true, currentStep: 'line_name' })), context: data.lines?.length ? nextContext : registrationContext(nextContext, { awaitingLineName: true, currentStep: 'line_name' }), source: 'system' }
         break
       }
 
@@ -1287,7 +1336,7 @@ export async function POST(req: NextRequest) {
           response = { reply: 'Para gerar o pagamento, preciso que você entre na sua conta.', intent: match.intent, requiresAuth: true, context, source: 'system' }
           break
         }
-        if (!context.selectedChampionshipId || !context.selectedTeamId) throw new Error('Escolha o campeonato e a equipe antes de gerar o pagamento.')
+        if (!context.selectedChampionshipId) throw new Error('Escolha o campeonato antes de gerar o pagamento.')
         const account = await getActiveAccount(req, user)
         const email = String(user.email || account?.data?.email_contato || '').trim()
         const name = String(account?.name || user.user_metadata?.full_name || email).trim()
@@ -1345,18 +1394,13 @@ export async function POST(req: NextRequest) {
           response = { reply: 'Esta compra já foi usada e a inscrição já está concluída.', intent: match.intent, actions: menuActions(locale), context: { locale }, source: 'system' }
           break
         }
-        const nextContext = registrationContext(context, { currentStep: 'line' })
+        const nextContext = registrationContext(context, { currentStep: 'team', selectedTeamId: null, selectedLineId: null, selectedLineName: null })
         response = {
-          reply: data.lines?.length ? 'Pagamento confirmado. Agora escolha a line que vai representar sua equipe.' : 'Pagamento confirmado. Sua equipe ainda não possui uma line disponível para este campeonato. Digite o nome da nova line.',
+          reply: 'Pagamento confirmado. Agora escolha a equipe que usará esta vaga.',
           intent: match.intent,
-          cards: data.lines?.length ? lineCards(data.lines, nextContext) : undefined,
-          actions: data.lines?.length
-            ? [
-                { id: 'new-line', label: 'Criar nova line', message: 'Quero criar uma nova line', intent: 'criar_line_inscricao', variant: 'secondary', context: nextContext },
-                ...flowControlActions(nextContext),
-              ]
-            : flowControlActions(registrationContext(nextContext, { awaitingLineName: true, currentStep: 'line_name' })),
-          context: data.lines?.length ? nextContext : registrationContext(nextContext, { awaitingLineName: true, currentStep: 'line_name' }),
+          cards: teamCards(data.equipes || []).map((card: any) => ({ ...card, actions: [{ id: `purchase-team-${card.id}`, label: 'Usar esta equipe', message: `Usar equipe ${card.title}`, intent: 'selecionar_equipe_compra', variant: 'primary', context: { ...nextContext, selectedTeamId: card.id } }] })),
+          actions: flowControlActions(nextContext),
+          context: nextContext,
           source: 'system',
         }
         break
