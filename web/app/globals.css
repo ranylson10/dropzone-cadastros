@@ -9840,3 +9840,60 @@ input::placeholder, textarea::placeholder {
 .lili-hub-card-slot .lili-hub-actions{grid-column:1/-1;display:flex}
 .lili-hub-card-slot .lili-hub-actions button{width:auto;min-height:32px;padding:7px 12px;margin-left:auto}
 @media(max-width:640px){.lili-hub-card-slot{width:calc(100vw - 58px)}.lili-hub-card-slot .lili-hub-actions{display:flex}.lili-hub-card-slot .lili-hub-actions button{width:auto;min-height:32px}.lili-hub-card-slot .lili-hub-card-head small{max-width:190px}}
+
+/* Lili — barra superior em uma única linha (correção definitiva) */
+.lili-hub-header{
+  display:grid!important;
+  grid-template-columns:minmax(160px,1fr) max-content!important;
+  align-items:center!important;
+  column-gap:18px!important;
+}
+.lili-hub-toolbar{
+  display:grid!important;
+  grid-template-columns:max-content max-content max-content max-content!important;
+  grid-auto-flow:column!important;
+  align-items:center!important;
+  justify-content:end!important;
+  gap:8px!important;
+  width:max-content!important;
+  max-width:none!important;
+  margin-left:0!important;
+}
+.lili-hub-toolbar>*{
+  width:auto!important;
+  min-width:0!important;
+  margin:0!important;
+  align-self:center!important;
+}
+.lili-hub-toolbar .notif-bell,
+.lili-profile-switcher{
+  display:block!important;
+  position:relative!important;
+}
+.lili-language-switch,
+.lili-profile-trigger,
+.lili-hub-toolbar .notif-bell-trigger,
+.lili-reset-button{
+  margin:0!important;
+}
+
+@media(max-width:760px){
+  .lili-hub-header{
+    grid-template-columns:max-content minmax(0,1fr)!important;
+    column-gap:8px!important;
+  }
+  .lili-hub-toolbar{
+    justify-self:end!important;
+    gap:5px!important;
+  }
+}
+
+@media(max-width:520px){
+  .lili-hub-toolbar{gap:4px!important}
+  .lili-language-switch{padding:3px!important}
+  .lili-language-switch button{min-width:23px!important;padding:0 3px!important}
+  .lili-hub-toolbar .notif-bell-trigger,
+  .lili-reset-button{width:34px!important;height:34px!important}
+  .lili-profile-trigger{height:34px!important}
+  .lili-profile-avatar{width:26px!important;height:26px!important;min-width:26px!important}
+}
