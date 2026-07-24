@@ -6,6 +6,7 @@ export type LiliIntent =
   | 'listar_campeonatos_abertos'
   | 'buscar_campeonato'
   | 'abrir_campeonato'
+  | 'ver_regulamento_campeonato'
   | 'comprar_vaga'
   | 'usar_convite_token'
   | 'validar_token_inscricao'
@@ -58,7 +59,7 @@ export type LiliAction = {
 
 export type LiliCard = {
   id: string
-  kind: 'championship' | 'team' | 'registration' | 'summary' | 'payment' | 'line' | 'slot'
+  kind: 'championship' | 'rulebook' | 'team' | 'registration' | 'summary' | 'payment' | 'line' | 'slot'
   title: string
   subtitle?: string | null
   imageUrl?: string | null

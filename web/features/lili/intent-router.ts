@@ -12,6 +12,14 @@ type IntentMatch = {
 
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
+    intent: 'ver_regulamento_campeonato',
+    phrases: [
+      'ver regulamento', 'regras do campeonato', 'mostrar regras', 'consultar regulamento', 'topicos do regulamento',
+      'ver reglamento', 'reglas del torneo', 'mostrar reglas', 'consultar reglamento', 'temas del reglamento',
+      'view rules', 'tournament rules', 'show rules', 'view rulebook', 'rulebook topics',
+    ],
+  },
+  {
     intent: 'listar_campeonatos_abertos',
     phrases: [
       'campeonatos com vagas', 'vagas abertas', 'campeonatos abertos', 'ver campeonatos', 'tem vaga', 'quero vaga',

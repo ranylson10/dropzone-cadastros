@@ -279,6 +279,74 @@ export async function getChampionshipDetails(championshipId: string) {
   return { ...championship, ...(config || {}), vagas_livres: vagasLivres, total_slots: (slots || []).length }
 }
 
+
+export async function getPublishedChampionshipRulebook(championshipId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('campeonato_rulebooks')
+    .select('campeonato_id,perfil,documento,status,publicado_em,versao')
+    .eq('campeonato_id', championshipId)
+    .eq('status', 'publicado')
+    .maybeSingle()
+  if (error) {
+    if (['42P01', 'PGRST205'].includes(error.code || '')) return null
+    throw error
+  }
+  if (!data) return null
+  const document = data.documento && typeof data.documento === 'object' ? data.documento as any : null
+  if (!document || !Array.isArray(document.chapters)) return null
+  return {
+    campeonatoId: data.campeonato_id,
+    perfil: data.perfil,
+    publicadoEm: data.publicado_em,
+    versao: data.versao,
+    title: String(document.title || 'Regulamento'),
+    subtitle: String(document.subtitle || ''),
+    chapters: document.chapters
+      .filter((chapter: any) => chapter && chapter.included !== false)
+      .sort((a: any, b: any) => Number(a.order || 0) - Number(b.order || 0)),
+  }
+}
+
+function truncateRuleText(value: unknown, max = 360) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim()
+  if (text.length <= max) return text
+  return `${text.slice(0, max - 1).trimEnd()}…`
+}
+
+export function rulebookTopicCards(rulebook: any, championshipId: string): LiliCard[] {
+  return (rulebook.chapters || []).map((chapter: any, chapterIndex: number) => {
+    const articles = Array.isArray(chapter.articles) ? chapter.articles : []
+    const details = articles.slice(0, 8).map((article: any) => ({
+      label: article.number ? `Art. ${article.number}` : `Regra ${detailsSafeIndex(article, articles) + 1}`,
+      value: [article.title, truncateRuleText(article.body)]
+        .filter(Boolean)
+        .join(' — '),
+    }))
+    if (articles.length > 8) {
+      details.push({ label: 'Mais regras', value: `Este tópico possui mais ${articles.length - 8} artigo${articles.length - 8 === 1 ? '' : 's'} no regulamento completo.` })
+    }
+    return {
+      id: `rulebook-${chapter.id || chapterIndex}`,
+      kind: 'rulebook',
+      title: String(chapter.title || `Tópico ${chapterIndex + 1}`),
+      subtitle: `${articles.length} artigo${articles.length === 1 ? '' : 's'}`,
+      badges: [`Tópico ${chapterIndex + 1}`],
+      details,
+      actions: [{
+        id: `open-rulebook-${chapter.id || chapterIndex}`,
+        label: 'Abrir regulamento completo',
+        href: `/campeonatos/${championshipId}/regulamento${chapter.id ? `#${encodeURIComponent(String(chapter.id))}` : ''}`,
+        variant: 'secondary',
+      }],
+    }
+  })
+}
+
+function detailsSafeIndex(article: any, articles: any[]) {
+  const index = articles.indexOf(article)
+  return index >= 0 ? index : 0
+}
+
 function extractInviteToken(value: string) {
   const raw = decodeURIComponent(String(value || '').trim())
   if (!raw) return { token: '', hintedPath: '' }

@@ -10,6 +10,7 @@ import {
   buildRegistrationSummary,
   championshipCards,
   getChampionshipDetails,
+  getPublishedChampionshipRulebook,
   resolveExistingInvite,
   lineCards,
   listOpenChampionships,
@@ -17,6 +18,7 @@ import {
   listUserTeams,
   paymentCard,
   registrationCards,
+  rulebookTopicCards,
   slotCards,
   teamCards,
 } from '@/features/lili/tools'
@@ -187,10 +189,62 @@ export async function POST(req: NextRequest) {
           }],
           actions: [
             ...(canBuy ? [{ id: `buy-${item.id}`, label: 'Comprar vaga', message: `Comprar vaga em ${item.nome}`, intent: 'comprar_vaga' as const, variant: 'primary' as const, context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' } }] : []),
+            { id: `rules-${item.id}`, label: 'Ver regras por tópico', message: `Ver regulamento de ${item.nome}`, intent: 'ver_regulamento_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship_rules' } },
             { id: `token-${item.id}`, label: 'Usar convite ou token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
             { id: 'back-open', label: 'Voltar aos campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'secondary', context: { locale } },
           ],
           context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship' },
+          source: 'system',
+        }
+        break
+      }
+
+      case 'ver_regulamento_campeonato': {
+        if (!context.selectedChampionshipId) {
+          const items = await listOpenChampionships()
+          response = {
+            reply: items.length
+              ? 'Escolha o campeonato para consultar as regras organizadas por tópico.'
+              : 'Não encontrei campeonatos disponíveis para consultar agora.',
+            intent: match.intent,
+            cards: championshipCards(items, false, locale),
+            actions: [{ id: 'back-rulebook-menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } }],
+            context: { locale, currentFlow: 'championship_rules' },
+            source: 'system',
+          }
+          break
+        }
+
+        const [item, rulebook] = await Promise.all([
+          getChampionshipDetails(context.selectedChampionshipId),
+          getPublishedChampionshipRulebook(context.selectedChampionshipId),
+        ])
+        if (!rulebook) {
+          response = {
+            reply: `O campeonato ${item.nome} ainda não possui um regulamento publicado.`,
+            intent: match.intent,
+            actions: [
+              { id: `open-public-${item.id}`, label: 'Abrir página do campeonato', href: `/campeonatos/${item.id}`, variant: 'secondary' },
+              { id: `back-details-${item.id}`, label: 'Voltar aos detalhes', message: `Abrir campeonato ${item.nome}`, intent: 'abrir_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+            ],
+            context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship' },
+            source: 'system',
+          }
+          break
+        }
+
+        const topicCards = rulebookTopicCards(rulebook, item.id)
+        response = {
+          reply: topicCards.length
+            ? `Estas são as regras publicadas de ${item.nome}, separadas por tópico. Você pode ler o resumo aqui ou abrir o regulamento completo.`
+            : `O regulamento de ${item.nome} está publicado, mas não possui tópicos visíveis.`,
+          intent: match.intent,
+          cards: topicCards,
+          actions: [
+            { id: `full-rulebook-${item.id}`, label: 'Abrir regulamento completo', href: `/campeonatos/${item.id}/regulamento`, variant: 'primary' },
+            { id: `back-details-${item.id}`, label: 'Voltar aos detalhes', message: `Abrir campeonato ${item.nome}`, intent: 'abrir_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+          ],
+          context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship_rules' },
           source: 'system',
         }
         break
