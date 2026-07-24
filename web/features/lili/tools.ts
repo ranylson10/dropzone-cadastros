@@ -220,29 +220,51 @@ export async function listUserRegistrations(user: AuthUser) {
   }))
 }
 
-export function registrationCards(items: any[]): LiliCard[] {
-  return items.map((item) => {
-    const championship = item.campeonato
-    const team = item.equipe
-    const line = item.line
-    const group = item.grupo
-    const status = String(item.status || 'ativo')
-    const statusLabel = status === 'ativo' ? 'Ativa' : status === 'pendente' ? 'Pendente' : status
+export function registrationCards(items: any[], locale: LiliLocale = 'pt-BR'): LiliCard[] {
+  const labels = locale === 'en'
+    ? { championship: 'Tournament', registrations: 'registrations', registration: 'registration', team: 'Team', line: 'Line', group: 'Group', slot: 'Slot', active: 'Active', pending: 'Pending', open: 'Open tournament' }
+    : locale === 'es'
+      ? { championship: 'Campeonato', registrations: 'inscripciones', registration: 'inscripción', team: 'Equipo', line: 'Line', group: 'Grupo', slot: 'Slot', active: 'Activa', pending: 'Pendiente', open: 'Abrir campeonato' }
+      : { championship: 'Campeonato', registrations: 'inscrições', registration: 'inscrição', team: 'Equipe', line: 'Line', group: 'Grupo', slot: 'Slot', active: 'Ativa', pending: 'Pendente', open: 'Abrir campeonato' }
+
+  const grouped = new Map<string, any[]>()
+  for (const item of items) {
+    const championshipId = String(item.campeonato?.id || item.campeonato_id || item.id)
+    const current = grouped.get(championshipId) || []
+    current.push(item)
+    grouped.set(championshipId, current)
+  }
+
+  return [...grouped.entries()].map(([championshipId, registrations]) => {
+    const first = registrations[0]
+    const championship = first.campeonato
+    const teamNames = [...new Set(registrations.map((item) => item.equipe?.nome).filter(Boolean))]
+    const count = registrations.length
+
+    const details = registrations.map((item, index) => {
+      const status = String(item.status || 'ativo')
+      const statusLabel = status === 'ativo' ? labels.active : status === 'pendente' ? labels.pending : status
+      const lineName = item.line?.nome || item.nome_exibicao || `${labels.line} ${index + 1}`
+      const values = [
+        item.equipe?.nome ? `${labels.team}: ${item.equipe.nome}` : null,
+        item.grupo?.nome ? `${labels.group}: ${item.grupo.nome}` : null,
+        item.slot_numero ? `${labels.slot}: ${item.slot_numero}` : null,
+        statusLabel,
+      ].filter(Boolean)
+      return { label: lineName, value: values.join(' • ') }
+    })
+
     return {
-      id: item.id,
+      id: `championship-registrations-${championshipId}`,
       kind: 'registration',
-      title: championship?.nome || 'Campeonato',
-      subtitle: [team?.nome, line?.nome].filter(Boolean).join(' • '),
-      imageUrl: championship?.logo_url || championship?.banner_url || team?.logo_url || null,
-      badges: [statusLabel],
-      details: [
-        ...(group?.nome ? [{ label: 'Grupo', value: group.nome }] : []),
-        ...(item.slot_numero ? [{ label: 'Slot', value: String(item.slot_numero) }] : []),
-        ...(line?.nome ? [{ label: 'Line', value: line.nome }] : []),
-      ],
+      title: championship?.nome || labels.championship,
+      subtitle: teamNames.join(' • ') || undefined,
+      imageUrl: championship?.logo_url || championship?.banner_url || first.equipe?.logo_url || null,
+      badges: [`${count} ${count === 1 ? labels.registration : labels.registrations}`],
+      details,
       actions: championship?.id ? [{
-        id: `open-registration-${item.id}`,
-        label: 'Abrir campeonato',
+        id: `open-registration-${championship.id}`,
+        label: labels.open,
         href: `/campeonatos/${championship.id}`,
         variant: 'secondary',
       }] : undefined,
@@ -345,6 +367,74 @@ export function rulebookTopicCards(rulebook: any, championshipId: string): LiliC
 function detailsSafeIndex(article: any, articles: any[]) {
   const index = articles.indexOf(article)
   return index >= 0 ? index : 0
+}
+
+
+function normalizeRuleSearchText(value: unknown) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const RULE_STOP_WORDS = new Set([
+  'a', 'ao', 'aos', 'as', 'com', 'como', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'eu', 'me', 'na', 'nas', 'no', 'nos',
+  'o', 'os', 'ou', 'para', 'por', 'posso', 'pode', 'podem', 'que', 'qual', 'quais', 'se', 'ser', 'sobre', 'tem', 'uma', 'um',
+  'al', 'con', 'como', 'de', 'del', 'el', 'en', 'es', 'la', 'las', 'los', 'o', 'para', 'por', 'puedo', 'puede', 'que', 'se', 'sobre', 'un', 'una',
+  'about', 'a', 'an', 'and', 'can', 'do', 'does', 'for', 'how', 'i', 'in', 'is', 'of', 'on', 'or', 'the', 'to', 'what', 'with',
+])
+
+function ruleSearchTokens(value: unknown) {
+  return normalizeRuleSearchText(value)
+    .split(' ')
+    .filter((token) => token.length >= 3 && !RULE_STOP_WORDS.has(token))
+}
+
+export function findRulebookAnswers(rulebook: any, question: string, championshipId: string): LiliCard[] {
+  const tokens = [...new Set(ruleSearchTokens(question))]
+  if (!tokens.length) return []
+
+  const matches: Array<{ score: number; chapter: any; chapterIndex: number; article: any; articleIndex: number }> = []
+  for (const [chapterIndex, chapter] of (rulebook.chapters || []).entries()) {
+    const chapterText = normalizeRuleSearchText(chapter?.title)
+    const articles = Array.isArray(chapter?.articles) ? chapter.articles : []
+    for (const [articleIndex, article] of articles.entries()) {
+      const titleText = normalizeRuleSearchText(article?.title)
+      const bodyText = normalizeRuleSearchText(article?.body)
+      const numberText = normalizeRuleSearchText(article?.number)
+      let score = 0
+      for (const token of tokens) {
+        if (numberText === token || numberText.includes(token)) score += 8
+        if (titleText.includes(token)) score += 5
+        if (chapterText.includes(token)) score += 3
+        if (bodyText.includes(token)) score += 1
+      }
+      const phrase = normalizeRuleSearchText(question)
+      if (phrase.length >= 8 && titleText.includes(phrase)) score += 10
+      if (score > 0) matches.push({ score, chapter, chapterIndex, article, articleIndex })
+    }
+  }
+
+  return matches
+    .sort((a, b) => b.score - a.score || a.chapterIndex - b.chapterIndex || a.articleIndex - b.articleIndex)
+    .slice(0, 4)
+    .map(({ chapter, chapterIndex, article, articleIndex }) => ({
+      id: `rule-answer-${chapter?.id || chapterIndex}-${article?.id || articleIndex}`,
+      kind: 'rulebook' as const,
+      title: String(article?.title || (article?.number ? `Artigo ${article.number}` : `Regra ${articleIndex + 1}`)),
+      subtitle: String(chapter?.title || `Tópico ${chapterIndex + 1}`),
+      badges: [article?.number ? `Art. ${article.number}` : `Tópico ${chapterIndex + 1}`],
+      details: [{ label: 'Regra publicada', value: truncateRuleText(article?.body, 900) || 'Conteúdo não informado.' }],
+      actions: [{
+        id: `open-rule-answer-${chapter?.id || chapterIndex}-${article?.id || articleIndex}`,
+        label: 'Abrir no regulamento completo',
+        href: `/campeonatos/${championshipId}/regulamento${chapter?.id ? `#${encodeURIComponent(String(chapter.id))}` : ''}`,
+        variant: 'secondary' as const,
+      }],
+    }))
 }
 
 function extractInviteToken(value: string) {

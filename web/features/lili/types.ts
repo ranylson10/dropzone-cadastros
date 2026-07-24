@@ -7,6 +7,7 @@ export type LiliIntent =
   | 'buscar_campeonato'
   | 'abrir_campeonato'
   | 'ver_regulamento_campeonato'
+  | 'perguntar_regra_campeonato'
   | 'comprar_vaga'
   | 'usar_convite_token'
   | 'validar_token_inscricao'
@@ -44,6 +45,8 @@ export type LiliClientContext = {
   inviteToken?: string | null
   inviteHref?: string | null
   autoOpenInvite?: boolean
+  awaitingRuleQuestion?: boolean
+  ruleQuestion?: string | null
 }
 
 export type LiliAction = {

@@ -11,6 +11,7 @@ import {
   championshipCards,
   getChampionshipDetails,
   getPublishedChampionshipRulebook,
+  findRulebookAnswers,
   resolveExistingInvite,
   lineCards,
   listOpenChampionships,
@@ -136,6 +137,16 @@ export async function POST(req: NextRequest) {
       match = { intent: 'validar_token_inscricao', confidence: 1, source: 'system' as const, searchTerm: undefined }
     }
 
+    if (context.awaitingRuleQuestion && !forcedIntent && message) {
+      context = { ...context, awaitingRuleQuestion: false, ruleQuestion: message, currentFlow: 'championship_rules', currentStep: 'answer_rule' }
+      match = { intent: 'perguntar_regra_campeonato', confidence: 1, source: 'system' as const, searchTerm: undefined }
+    }
+
+    if (!forcedIntent && match.intent === 'desconhecido' && context.selectedChampionshipId && context.currentFlow === 'championship_rules' && message) {
+      context = { ...context, awaitingRuleQuestion: false, ruleQuestion: message, currentStep: 'answer_rule' }
+      match = { intent: 'perguntar_regra_campeonato', confidence: 1, source: 'system' as const, searchTerm: undefined }
+    }
+
     let response: LiliChatResponse
 
     switch (match.intent) {
@@ -241,10 +252,75 @@ export async function POST(req: NextRequest) {
           intent: match.intent,
           cards: topicCards,
           actions: [
-            { id: `full-rulebook-${item.id}`, label: 'Abrir regulamento completo', href: `/campeonatos/${item.id}/regulamento`, variant: 'primary' },
+            { id: `ask-rule-${item.id}`, label: 'Perguntar sobre as regras', message: 'Quero perguntar sobre as regras', intent: 'perguntar_regra_campeonato', variant: 'primary', context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship_rules', awaitingRuleQuestion: true } },
+            { id: `full-rulebook-${item.id}`, label: 'Abrir regulamento completo', href: `/campeonatos/${item.id}/regulamento`, variant: 'secondary' },
             { id: `back-details-${item.id}`, label: 'Voltar aos detalhes', message: `Abrir campeonato ${item.nome}`, intent: 'abrir_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
           ],
           context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship_rules' },
+          source: 'system',
+        }
+        break
+      }
+
+      case 'perguntar_regra_campeonato': {
+        if (!context.selectedChampionshipId) {
+          const items = await listOpenChampionships()
+          response = {
+            reply: items.length
+              ? 'Escolha primeiro o campeonato sobre o qual deseja perguntar.'
+              : 'Não encontrei campeonatos disponíveis para consultar agora.',
+            intent: match.intent,
+            cards: championshipCards(items, false, locale),
+            actions: [{ id: 'back-rule-question-menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } }],
+            context: { locale, currentFlow: 'championship_rules' },
+            source: 'system',
+          }
+          break
+        }
+
+        const [item, rulebook] = await Promise.all([
+          getChampionshipDetails(context.selectedChampionshipId),
+          getPublishedChampionshipRulebook(context.selectedChampionshipId),
+        ])
+        if (!rulebook) {
+          response = {
+            reply: `O campeonato ${item.nome} ainda não possui um regulamento publicado para consulta.`,
+            intent: match.intent,
+            actions: [{ id: `back-details-${item.id}`, label: 'Voltar aos detalhes', message: `Abrir campeonato ${item.nome}`, intent: 'abrir_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } }],
+            context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship' },
+            source: 'system',
+          }
+          break
+        }
+
+        const question = String(context.ruleQuestion || '').trim()
+        if (!question || context.awaitingRuleQuestion) {
+          response = {
+            reply: `Qual é a sua dúvida sobre as regras de ${item.nome}? Escreva de forma direta, por exemplo: “quantos jogadores podem ser escalados?” ou “qual é a pontuação por posição?”.`,
+            intent: match.intent,
+            actions: [
+              { id: `show-rules-${item.id}`, label: 'Ver todos os tópicos', message: `Ver regulamento de ${item.nome}`, intent: 'ver_regulamento_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+              { id: `back-details-${item.id}`, label: 'Voltar aos detalhes', message: `Abrir campeonato ${item.nome}`, intent: 'abrir_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+            ],
+            context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship_rules', currentStep: 'ask_rule', awaitingRuleQuestion: true, ruleQuestion: null },
+            source: 'system',
+          }
+          break
+        }
+
+        const cards = findRulebookAnswers(rulebook, question, item.id)
+        response = {
+          reply: cards.length
+            ? `Encontrei estas regras publicadas de ${item.nome} relacionadas à sua pergunta. A Lili não inventa uma interpretação: confira o texto oficial abaixo.`
+            : `Não encontrei um artigo claramente relacionado a “${question}” no regulamento publicado de ${item.nome}. Tente usar palavras mais específicas ou consulte os tópicos completos.`,
+          intent: match.intent,
+          cards,
+          actions: [
+            { id: `ask-another-rule-${item.id}`, label: 'Fazer outra pergunta', message: 'Quero perguntar sobre as regras', intent: 'perguntar_regra_campeonato', variant: 'primary', context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship_rules', awaitingRuleQuestion: true, ruleQuestion: null } },
+            { id: `show-all-rules-${item.id}`, label: 'Ver todos os tópicos', message: `Ver regulamento de ${item.nome}`, intent: 'ver_regulamento_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+            { id: `full-rulebook-answer-${item.id}`, label: 'Abrir regulamento completo', href: `/campeonatos/${item.id}/regulamento`, variant: 'secondary' },
+          ],
+          context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship_rules', currentStep: 'rule_answer', awaitingRuleQuestion: false, ruleQuestion: null },
           source: 'system',
         }
         break
@@ -295,12 +371,22 @@ export async function POST(req: NextRequest) {
           break
         }
         const registrations = await listUserRegistrations(user)
+        const championshipCount = new Set(registrations.map((item: any) => item.campeonato?.id || item.campeonato_id).filter(Boolean)).size
+        const registrationsReply = locale === 'en'
+          ? `I found ${registrations.length} registration${registrations.length === 1 ? '' : 's'} across ${championshipCount} tournament${championshipCount === 1 ? '' : 's'}. Lines from the same tournament are grouped together.`
+          : locale === 'es'
+            ? `Encontré ${registrations.length} inscripción${registrations.length === 1 ? '' : 'es'} en ${championshipCount} campeonato${championshipCount === 1 ? '' : 's'}. Las lines del mismo campeonato aparecen agrupadas.`
+            : `Encontrei ${registrations.length} inscrição${registrations.length === 1 ? '' : 'ões'} em ${championshipCount} campeonato${championshipCount === 1 ? '' : 's'}. As lines do mesmo campeonato aparecem agrupadas.`
         response = {
           reply: registrations.length
-            ? `Encontrei ${registrations.length} inscrição${registrations.length === 1 ? '' : 'ões'} vinculada${registrations.length === 1 ? '' : 's'} às equipes que você administra.`
-            : 'Não encontrei inscrições vinculadas às equipes que você administra.',
+            ? registrationsReply
+            : locale === 'en'
+              ? 'I did not find registrations linked to teams you manage.'
+              : locale === 'es'
+                ? 'No encontré inscripciones vinculadas a los equipos que administras.'
+                : 'Não encontrei inscrições vinculadas às equipes que você administra.',
           intent: match.intent,
-          cards: registrationCards(registrations),
+          cards: registrationCards(registrations, locale),
           actions: [
             { id: 'register-new', label: 'Fazer nova inscrição', message: 'Quero fazer uma nova inscrição', intent: 'iniciar_inscricao', variant: 'primary' },
             { id: 'menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' },
