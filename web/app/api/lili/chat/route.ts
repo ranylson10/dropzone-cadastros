@@ -30,6 +30,7 @@ function menuActions(locale: LiliLocale) {
   return [
     { id: 'open-championships', label: 'Campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos' as LiliIntent, variant: 'primary' as const, context: { locale } },
     { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'use-invite', label: 'Usar convite ou token', message: 'Tenho um convite ou token', intent: 'usar_convite_token' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'my-teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'my-registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'international-payment', label: 'Pagamento internacional', message: 'Simular pagamento internacional', intent: 'simular_pagamento_internacional' as LiliIntent, variant: 'secondary' as const, context: { locale } },
@@ -45,6 +46,13 @@ function languageActions() {
   ]
 }
 
+
+function looksLikeInviteToken(value: string) {
+  const token = value.trim()
+  if (token.length < 8 || token.length > 240 || /\s/.test(token)) return false
+  if (/^https?:\/\//i.test(token)) return true
+  return /^[a-z0-9_-]+$/i.test(token) && /[0-9]/.test(token)
+}
 
 function registrationContext(context: LiliClientContext, patch: Partial<LiliClientContext> = {}): LiliClientContext {
   return { ...context, ...patch, currentFlow: 'registration' }
@@ -116,6 +124,11 @@ export async function POST(req: NextRequest) {
       match = { intent: 'selecionar_line_inscricao', confidence: 1, source: 'system' as const, searchTerm: undefined }
     }
 
+    if (!forcedIntent && !context.awaitingLineName && !context.awaitingInviteToken && looksLikeInviteToken(message)) {
+      context = { ...context, inviteToken: message, awaitingInviteToken: false, currentFlow: 'invite_token', currentStep: 'token' }
+      match = { intent: 'validar_token_inscricao', confidence: 1, source: 'system' as const, searchTerm: undefined }
+    }
+
     if (context.awaitingInviteToken && !forcedIntent && message) {
       context = { ...context, inviteToken: message, awaitingInviteToken: false, currentFlow: 'registration_token', currentStep: 'token' }
       match = { intent: 'validar_token_inscricao', confidence: 1, source: 'system' as const, searchTerm: undefined }
@@ -139,7 +152,7 @@ export async function POST(req: NextRequest) {
           cards: championshipCards(items, false, locale),
           actions: [
             { id: 'buy-list', label: 'Comprar uma vaga', message: 'Quero comprar uma vaga', intent: 'comprar_vaga', variant: 'primary', context: { locale } },
-            { id: 'register-token', label: 'Já tenho convite ou token', message: 'Já tenho um token de inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
+            { id: 'register-token', label: 'Já tenho convite ou token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
             { id: 'menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' },
           ],
           context: { locale },
@@ -174,7 +187,7 @@ export async function POST(req: NextRequest) {
           }],
           actions: [
             ...(canBuy ? [{ id: `buy-${item.id}`, label: 'Comprar vaga', message: `Comprar vaga em ${item.nome}`, intent: 'comprar_vaga' as const, variant: 'primary' as const, context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' } }] : []),
-            { id: `token-${item.id}`, label: 'Usar convite ou token', message: 'Já tenho um token de inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+            { id: `token-${item.id}`, label: 'Usar convite ou token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
             { id: 'back-open', label: 'Voltar aos campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'secondary', context: { locale } },
           ],
           context: { locale, selectedChampionshipId: item.id, currentFlow: 'championship' },
@@ -244,6 +257,25 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'usar_convite_token': {
+        const tokenContext: LiliClientContext = {
+          locale,
+          currentFlow: 'invite_token',
+          currentStep: 'token',
+          awaitingInviteToken: true,
+        }
+        response = {
+          reply: 'Digite somente o código do token recebido. A Lili identifica automaticamente se ele é de inscrição, grupo, escalação, convite individual de equipe ou compra de vaga.',
+          intent: match.intent,
+          actions: [
+            { id: 'cancel-invite', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: tokenContext },
+          ],
+          context: tokenContext,
+          source: 'system',
+        }
+        break
+      }
+
       case 'iniciar_inscricao': {
         const tokenContext: LiliClientContext = {
           locale,
@@ -286,7 +318,7 @@ export async function POST(req: NextRequest) {
             actions: [{ id: 'open-existing-invite', label: 'Continuar inscrição', href: invite.href, variant: 'primary' }],
           }],
           actions: [
-            { id: 'another-token', label: 'Usar outro token', message: 'Quero usar outro token', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
+            { id: 'another-token', label: 'Usar outro token', message: 'Quero usar outro token', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
             { id: 'menu-token', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
           ],
           context: { locale, inviteToken: invite.token, inviteHref: invite.href, autoOpenInvite: Boolean(context.autoOpenInvite) },
@@ -303,7 +335,7 @@ export async function POST(req: NextRequest) {
             intent: match.intent,
             cards: championshipCards(items, true, locale),
             actions: [
-              { id: 'have-token', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
+              { id: 'have-token', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
               { id: 'menu-buy', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
             ],
             context: { locale, currentFlow: 'vacancy_purchase' },
@@ -335,7 +367,7 @@ export async function POST(req: NextRequest) {
             actions: [{ id: 'open-buy-page', label: 'Comprar esta vaga', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'primary' }],
           }],
           actions: [
-            { id: 'have-token-selected', label: 'Já tenho convite', message: 'Já tenho um token de inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+            { id: 'have-token-selected', label: 'Já tenho convite', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
             { id: 'other-buy', label: 'Escolher outro campeonato', message: 'Quero comprar uma vaga', intent: 'comprar_vaga', variant: 'secondary', context: { locale } },
           ],
           context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' },

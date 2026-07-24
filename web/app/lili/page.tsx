@@ -21,15 +21,16 @@ const PENDING_KEY = 'dropzone:lili:pending:v1'
 
 function initialMessage(locale: LiliLocale = 'pt-BR'): ChatMessage {
   const copy = locale === 'es'
-    ? { text: '¡Hola! Soy Lili, la asistente de DropZone. ¿Cómo puedo ayudarte?', open: 'Torneos con cupos', register: 'Hacer inscripción', teams: 'Mis equipos', registrations: 'Mis inscripciones', language: 'Idioma' }
+    ? { text: '¡Hola! Soy Lili, la asistente de DropZone. ¿Cómo puedo ayudarte?', open: 'Torneos con cupos', register: 'Hacer inscripción', teams: 'Mis equipos', registrations: 'Mis inscripciones', invite: 'Usar invitación o token', language: 'Idioma' }
     : locale === 'en'
-      ? { text: 'Hi! I’m Lili, the DropZone assistant. How can I help?', open: 'Tournaments with spots', register: 'Start registration', teams: 'My teams', registrations: 'My registrations', language: 'Language' }
-      : { text: 'Olá! Sou a Lili, assistente do DropZone. Como posso ajudar?', open: 'Campeonatos com vagas', register: 'Fazer inscrição', teams: 'Minhas equipes', registrations: 'Minhas inscrições', language: 'Idioma' }
+      ? { text: 'Hi! I’m Lili, the DropZone assistant. How can I help?', open: 'Tournaments with spots', register: 'Start registration', teams: 'My teams', registrations: 'My registrations', invite: 'Use invite or token', language: 'Language' }
+      : { text: 'Olá! Sou a Lili, assistente do DropZone. Como posso ajudar?', open: 'Campeonatos com vagas', register: 'Fazer inscrição', teams: 'Minhas equipes', registrations: 'Minhas inscrições', invite: 'Usar convite ou token', language: 'Idioma' }
   return { id: 'welcome', role: 'assistant', text: copy.text, actions: [
     { id: 'open', label: copy.open, message: copy.open, intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } },
     { id: 'register', label: copy.register, message: copy.register, intent: 'iniciar_inscricao', variant: 'primary', context: { locale } },
     { id: 'teams', label: copy.teams, message: copy.teams, intent: 'listar_minhas_equipes', variant: 'secondary', context: { locale } },
     { id: 'registrations', label: copy.registrations, message: copy.registrations, intent: 'listar_minhas_inscricoes', variant: 'secondary', context: { locale } },
+    { id: 'invite', label: copy.invite, message: copy.invite, intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
     { id: 'language', label: copy.language, message: copy.language, intent: 'alterar_idioma', variant: 'secondary', context: { locale } },
   ] }
 }

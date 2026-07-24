@@ -7,6 +7,7 @@ export type LiliIntent =
   | 'buscar_campeonato'
   | 'abrir_campeonato'
   | 'comprar_vaga'
+  | 'usar_convite_token'
   | 'validar_token_inscricao'
   | 'listar_minhas_equipes'
   | 'listar_minhas_inscricoes'
