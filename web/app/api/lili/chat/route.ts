@@ -286,12 +286,16 @@ export async function POST(req: NextRequest) {
       match = { intent: 'selecionar_line_convite_grupo', confidence: 1, source: 'system' as const, searchTerm: undefined }
     }
 
-    if (context.awaitingPaymentDocument && !forcedIntent && message) {
+    const wasAwaitingPaymentDocument = Boolean(context.awaitingPaymentDocument)
+    if (wasAwaitingPaymentDocument && !forcedIntent && message) {
+      const paymentIntent: LiliIntent = context.currentFlow === 'vacancy_purchase'
+        ? (context.selectedPaymentMethod === 'cartao' ? 'pagar_cartao_compra' : 'pagar_pix_compra')
+        : (context.selectedPaymentMethod === 'cartao' ? 'pagar_cartao_convite_grupo' : 'pagar_pix_convite_grupo')
       context = { ...context, paymentDocument: message.replace(/\D/g, ''), awaitingPaymentDocument: false }
-      match = { intent: context.selectedPaymentMethod === 'cartao' ? 'pagar_cartao_convite_grupo' : 'pagar_pix_convite_grupo', confidence: 1, source: 'system' as const, searchTerm: undefined }
+      match = { intent: paymentIntent, confidence: 1, source: 'system' as const, searchTerm: undefined }
     }
 
-    if (!forcedIntent && !context.awaitingLineName && !context.awaitingInviteToken && looksLikeInviteToken(message)) {
+    if (!forcedIntent && !wasAwaitingPaymentDocument && !context.awaitingLineName && !context.awaitingInviteToken && looksLikeInviteToken(message)) {
       context = { ...context, inviteToken: message, awaitingInviteToken: false, currentFlow: 'invite_token', currentStep: 'token' }
       match = { intent: 'validar_token_inscricao', confidence: 1, source: 'system' as const, searchTerm: undefined }
     }
