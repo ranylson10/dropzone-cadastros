@@ -401,6 +401,7 @@ function championshipRow(row: any) {
       nome: row.nome,
       logo_url: row.logo_url,
       banner_url: row.banner_url,
+      regras_url: row.regras_url,
       tipo: row.tipo || DEFAULT_CHAMPIONSHIP_TYPE,
       aprovacao_status: row.aprovacao_status || 'aprovado',
       aprovacao_motivo: row.aprovacao_motivo || null,
@@ -918,18 +919,36 @@ export async function POST(req: NextRequest) {
       const nome = String(body.name || data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
       const bannerUrl = String(data.banner_url || '').trim()
+      const regrasUrl = String(data.regras_url || '').trim()
       if (!nome) throw new Error('Informe o nome do campeonato.')
       if (!logoUrl) throw new Error('Envie a logo do campeonato.')
+      if (regrasUrl && !/^https?:\/\//i.test(regrasUrl)) throw new Error('O link do regulamento precisa começar com http:// ou https://.')
 
       const { assertProdutoraAprovada } = await import('@backend/admin/aprovacao')
       await assertProdutoraAprovada(account.id)
+
+      const { data: producer, error: producerError } = await supabaseAdmin
+        .from('produtoras')
+        .select('id,auth_user_id')
+        .eq('id', account.id)
+        .maybeSingle()
+      if (producerError) throw producerError
+      if (!producer?.auth_user_id) throw new Error('A produtora ativa não possui proprietário vinculado.')
+      if (producer.auth_user_id !== user.id) throw new Error('Somente o proprietário da produtora pode criar campeonatos.')
+
+      // Valida todos os campos de configuração antes de criar a linha principal.
+      // O campeonato_id temporário será substituído após o INSERT.
+      const configurationDraft = championshipConfigurationPayload(data, crypto.randomUUID())
 
       const championshipPayload: Record<string, unknown> = {
         nome,
         tipo: normalizeChampionshipType(data.tipo),
         logo_url: logoUrl,
         banner_url: bannerUrl || null,
-        criado_por: user.id,
+        premiacao: String(data.premiacao || '').trim() || null,
+        divisao_premiacao: String(data.divisao_premiacao || '').trim() || null,
+        regras_url: regrasUrl || null,
+        criado_por: producer.auth_user_id,
         produtora_id: account.id,
         status: 'ativo',
         // novo campeonato não vai ao ar até admin aprovar (+ cobrança)
@@ -942,7 +961,7 @@ export async function POST(req: NextRequest) {
         .single()
       if (insertError) throw insertError
 
-      const configurationPayload = championshipConfigurationPayload(data, inserted.id)
+      const configurationPayload = { ...configurationDraft, campeonato_id: inserted.id }
       let configuration: any
       try {
         const saved = await saveChampionshipConfiguration(configurationPayload)
@@ -1452,11 +1471,22 @@ export async function PATCH(req: NextRequest) {
       const nome = String(data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
       const bannerUrl = String(data.banner_url || '').trim()
+      const regrasUrl = String(data.regras_url || '').trim()
       if (!nome || !logoUrl) throw new Error('Informe nome e logo do campeonato.')
-      const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({ nome, logo_url: logoUrl, banner_url: bannerUrl || null, tipo: normalizeChampionshipType(data.tipo) }).eq('id', id).select('*').single()
+      if (regrasUrl && !/^https?:\/\//i.test(regrasUrl)) throw new Error('O link do regulamento precisa começar com http:// ou https://.')
+      const configurationPayload = championshipConfigurationPayload(data, id)
+      const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({
+        nome,
+        logo_url: logoUrl,
+        banner_url: bannerUrl || null,
+        premiacao: String(data.premiacao || '').trim() || null,
+        divisao_premiacao: String(data.divisao_premiacao || '').trim() || null,
+        regras_url: regrasUrl || null,
+        tipo: normalizeChampionshipType(data.tipo),
+      }).eq('id', id).select('*').single()
       if (error) throw error
       const { data: configuration, warning } = await saveChampionshipConfiguration(
-        championshipConfigurationPayload(data, id),
+        configurationPayload,
       )
       // Mantém rulebook alinhado (premiação, taxa, transmissão, etc.)
       try {

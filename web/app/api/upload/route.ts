@@ -18,6 +18,7 @@ type UploadPayload = {
 
 const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+const MAX_CHAMPIONSHIP_IMAGE_SIZE = 15 * 1024 * 1024
 const MAX_VIDEO_SIZE = 25 * 1024 * 1024
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -167,7 +168,11 @@ export async function POST(req: NextRequest) {
       if (bucket !== 'campeonato') throw new Error('Video so e permitido no bucket campeonato.')
       if (decoded.buffer.length > MAX_VIDEO_SIZE) throw new Error('Video muito pesado. Limite: 25 MB.')
     } else {
-      if (decoded.buffer.length > MAX_IMAGE_SIZE) throw new Error('Imagem muito pesada. Limite: 5 MB.')
+      const imageLimit = bucket === 'campeonato' ? MAX_CHAMPIONSHIP_IMAGE_SIZE : MAX_IMAGE_SIZE
+      if (decoded.buffer.length > imageLimit) {
+        const limitMb = Math.round(imageLimit / 1024 / 1024)
+        throw new Error(`Imagem muito pesada. Limite para este envio: ${limitMb} MB.`)
+      }
       if (!decoded.buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
         throw new Error('Imagem invalida. Recorte novamente para gerar PNG antes de enviar.')
       }
