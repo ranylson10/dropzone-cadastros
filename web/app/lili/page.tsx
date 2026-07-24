@@ -2,10 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Send, LogIn, RotateCcw } from 'lucide-react'
+import { Send, LogIn, RotateCcw, ChevronDown, Globe2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 import { clientText, normalizeLocale } from '@/features/lili/i18n'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+import type { DropZoneRow } from '@/lib/types'
 
 type ChatMessage = {
   id: string
@@ -18,6 +20,18 @@ type ChatMessage = {
 
 const STORAGE_KEY = 'dropzone:lili:conversation:v1'
 const PENDING_KEY = 'dropzone:lili:pending:v1'
+
+const PROFILE_LABELS: Record<string, string> = {
+  produtora: 'Produtora',
+  equipe: 'Equipe',
+  jogador: 'Jogador',
+  manager: 'Manager',
+  broadcast: 'Broadcast',
+}
+
+function profileImage(account?: DropZoneRow | null) {
+  return String(account?.data?.logo_url || account?.data?.avatar_url || '')
+}
 
 function initialMessage(locale: LiliLocale = 'pt-BR'): ChatMessage {
   const copy = locale === 'es'
@@ -43,6 +57,9 @@ export default function LiliPage() {
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [ready, setReady] = useState(false)
+  const [account, setAccount] = useState<DropZoneRow | null>(null)
+  const [accounts, setAccounts] = useState<DropZoneRow[]>([])
+  const [profileOpen, setProfileOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const busyRef = useRef(false)
   const requestIdRef = useRef(0)
@@ -66,6 +83,42 @@ export default function LiliPage() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => setSession(next))
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!ready || !session?.access_token) {
+      setAccount(null)
+      setAccounts([])
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const preferred = localStorage.getItem('dropzone_active_profile_type') || ''
+        const response = await fetch('/api/me', {
+          cache: 'no-store',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            ...(preferred ? { 'X-Profile-Type': preferred } : {}),
+          },
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(payload?.error || 'Não foi possível carregar os perfis.')
+        if (cancelled) return
+        setAccount(payload.account || null)
+        setAccounts(payload.accounts || [])
+        if (payload.account) {
+          localStorage.setItem('dropzone_active_profile_type', String(payload.account.profile_type || ''))
+          localStorage.setItem('dropzone_recent_profiles', JSON.stringify(payload.accounts || [payload.account]))
+        }
+      } catch {
+        if (!cancelled) {
+          setAccount(null)
+          setAccounts([])
+        }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [ready, session?.access_token])
 
   useEffect(() => {
     if (!ready) return
@@ -237,6 +290,45 @@ export default function LiliPage() {
     try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem(PENDING_KEY) } catch { /* ignore */ }
   }
 
+  function changeLocale(nextLocale: LiliLocale) {
+    const normalized = normalizeLocale(nextLocale)
+    if (normalized === normalizeLocale(context.locale)) return
+    abortRef.current?.abort()
+    requestIdRef.current += 1
+    busyRef.current = false
+    setTyping(false)
+    setContext((current) => ({ ...current, locale: normalized }))
+    setMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        text: normalized === 'es'
+          ? 'Idioma cambiado a español.'
+          : normalized === 'en'
+            ? 'Language changed to English.'
+            : 'Idioma alterado para português.',
+      },
+    ])
+  }
+
+  function switchProfile(next: DropZoneRow) {
+    if (next.id === account?.id) {
+      setProfileOpen(false)
+      return
+    }
+    abortRef.current?.abort()
+    requestIdRef.current += 1
+    busyRef.current = false
+    setTyping(false)
+    localStorage.setItem('dropzone_active_profile_type', String(next.profile_type || ''))
+    try {
+      sessionStorage.removeItem(STORAGE_KEY)
+      sessionStorage.removeItem(PENDING_KEY)
+    } catch { /* ignore */ }
+    window.location.reload()
+  }
+
   function submit(event: FormEvent) { event.preventDefault(); void sendMessage(input) }
   const locale = normalizeLocale(context.locale)
   const ui = clientText[locale]
@@ -253,9 +345,70 @@ export default function LiliPage() {
   return (
     <main className="lili-hub-page">
       <header className="lili-hub-header">
-        <div className="lili-hub-avatar">L</div>
-        <div><strong>Lili</strong><span>{title}</span></div>
-        <button type="button" onClick={resetConversation} aria-label={ui.reset}><RotateCcw size={18} /></button>
+        <div className="lili-hub-identity">
+          <div className="lili-hub-avatar">L</div>
+          <div><strong>Lili</strong><span>{title}</span></div>
+        </div>
+
+        <div className="lili-hub-toolbar">
+          <div className="lili-language-switch" aria-label="Selecionar idioma">
+            <Globe2 size={16} aria-hidden="true" />
+            {(['pt-BR', 'es', 'en'] as LiliLocale[]).map((item) => (
+              <button
+                type="button"
+                key={item}
+                className={normalizeLocale(context.locale) === item ? 'is-active' : ''}
+                onClick={() => changeLocale(item)}
+                aria-pressed={normalizeLocale(context.locale) === item}
+              >
+                {item === 'pt-BR' ? 'PT' : item.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          {session ? <NotificationBell /> : null}
+
+          {session && account ? (
+            <div className="lili-profile-switcher">
+              <button
+                type="button"
+                className="lili-profile-trigger"
+                onClick={() => setProfileOpen((value) => !value)}
+                aria-expanded={profileOpen}
+              >
+                <span className="lili-profile-avatar">
+                  {profileImage(account) ? <img src={profileImage(account)} alt="" /> : String(account.name || account.username || 'DZ').slice(0, 2).toUpperCase()}
+                </span>
+                <span className="lili-profile-copy">
+                  <strong>{account.name || account.username}</strong>
+                  <small>{PROFILE_LABELS[String(account.profile_type || '')] || account.profile_type}</small>
+                </span>
+                <ChevronDown size={15} />
+              </button>
+              {profileOpen ? (
+                <div className="lili-profile-menu">
+                  <div className="lili-profile-menu-title">Perfis vinculados</div>
+                  {accounts.map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      className={item.id === account.id ? 'is-active' : ''}
+                      disabled={item.id === account.id}
+                      onClick={() => switchProfile(item)}
+                    >
+                      <span className="lili-profile-avatar small">
+                        {profileImage(item) ? <img src={profileImage(item)} alt="" /> : String(item.name || item.username || 'DZ').slice(0, 2).toUpperCase()}
+                      </span>
+                      <span><strong>{item.name || item.username}</strong><small>{PROFILE_LABELS[String(item.profile_type || '')] || item.profile_type} · @{item.username}</small></span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <button className="lili-reset-button" type="button" onClick={resetConversation} aria-label={ui.reset}><RotateCcw size={18} /></button>
+        </div>
       </header>
 
       <section className="lili-hub-feed" aria-live="polite">

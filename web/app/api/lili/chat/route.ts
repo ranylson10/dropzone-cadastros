@@ -104,6 +104,130 @@ async function claimContext(req: NextRequest, context: LiliClientContext) {
   })
 }
 
+function forwardedAuthHeaders(req: NextRequest) {
+  const headers = new Headers()
+  const authorization = req.headers.get('authorization')
+  const cookie = req.headers.get('cookie')
+  if (authorization) headers.set('authorization', authorization)
+  if (cookie) headers.set('cookie', cookie)
+  headers.set('content-type', 'application/json')
+  return headers
+}
+
+async function loadGroupInviteInChat(req: NextRequest, token: string, equipeId?: string | null) {
+  const url = new URL(`/api/convites/grupo/${encodeURIComponent(token)}`, req.nextUrl.origin)
+  if (equipeId) url.searchParams.set('equipe_id', equipeId)
+  const response = await fetch(url, { method: 'GET', headers: forwardedAuthHeaders(req), cache: 'no-store' })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data?.error || 'Não foi possível carregar este convite.')
+  return data
+}
+
+async function confirmGroupInviteInChat(req: NextRequest, context: LiliClientContext) {
+  if (!context.inviteToken) throw new Error('Convite não localizado nesta conversa.')
+  const url = new URL(`/api/convites/grupo/${encodeURIComponent(context.inviteToken)}`, req.nextUrl.origin)
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: forwardedAuthHeaders(req),
+    body: JSON.stringify({
+      equipe_id: context.selectedTeamId,
+      line_id: context.selectedLineId || null,
+      nome_line: context.selectedLineId ? null : context.selectedLineName || null,
+      slot_id: context.selectedSlotId,
+    }),
+    cache: 'no-store',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data?.error || 'Não foi possível concluir a inscrição.')
+  return data
+}
+
+function groupInviteSummaryCard(invite: any, token: string) {
+  const expiresAt = invite?.link?.expira_em
+  const expiration = expiresAt
+    ? new Date(expiresAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+    : 'Sem data definida'
+  const remaining = Number(invite?.resumo_link?.restantes ?? 0)
+  const freeSlots = Number(invite?.resumo_grupo?.livres ?? 0)
+  return {
+    id: `group-invite-${token}`,
+    kind: 'championship' as const,
+    title: String(invite?.campeonato?.nome || 'Convite de campeonato'),
+    subtitle: String(invite?.grupo?.nome || 'Grupo definido pelo convite'),
+    imageUrl: invite?.campeonato?.logo_url || null,
+    badges: [
+      invite?.inscricao_aberta ? 'Convite ativo' : 'Inscrição indisponível',
+      `${freeSlots} ${freeSlots === 1 ? 'slot livre' : 'slots livres'}`,
+    ],
+    details: [
+      { label: 'Grupo', value: String(invite?.grupo?.nome || 'Definido pelo convite') },
+      { label: 'Validade', value: expiration },
+      { label: 'Vagas restantes neste convite', value: String(remaining) },
+      { label: 'Status', value: invite?.status_mensagem || (invite?.inscricao_aberta ? 'Disponível para inscrição' : 'Indisponível') },
+    ],
+    actions: [] as Array<{ id: string; label: string; message?: string; intent?: LiliIntent; variant?: 'primary' | 'secondary'; context?: LiliClientContext }>,
+  }
+}
+
+function groupTeamCards(items: any[], context: LiliClientContext) {
+  return items.map((item) => ({
+    id: String(item.id),
+    kind: 'team' as const,
+    title: String(item.nome || 'Equipe'),
+    subtitle: item.tag ? String(item.tag) : null,
+    imageUrl: item.logo_url || null,
+    badges: item.inscrita_no_grupo ? ['Já inscrita neste grupo'] : [],
+    actions: item.inscrita_no_grupo ? [] : [{
+      id: `group-team-${item.id}`,
+      label: 'Usar esta equipe',
+      message: `Usar a equipe ${item.nome}`,
+      intent: 'selecionar_equipe_convite_grupo' as LiliIntent,
+      variant: 'primary' as const,
+      context: { ...context, selectedTeamId: String(item.id), currentStep: 'team' },
+    }],
+  }))
+}
+
+function groupLineCards(items: any[], context: LiliClientContext) {
+  return items.map((item) => ({
+    id: String(item.id),
+    kind: 'line' as const,
+    title: String(item.nome || 'Line'),
+    subtitle: item.tag ? String(item.tag) : null,
+    imageUrl: item.logo_url || null,
+    actions: [{
+      id: `group-line-${item.id}`,
+      label: 'Usar esta line',
+      message: `Usar a line ${item.nome}`,
+      intent: 'selecionar_line_convite_grupo' as LiliIntent,
+      variant: 'primary' as const,
+      context: { ...context, selectedLineId: String(item.id), selectedLineName: String(item.nome || ''), currentStep: 'line' },
+    }],
+  }))
+}
+
+function groupSlotCards(items: any[], context: LiliClientContext) {
+  return items
+    .filter((item) => !item.ocupada && item.slot_id)
+    .map((item) => {
+      const label = item.slot_letra || item.slot_numero || item.nome || 'Slot'
+      return {
+        id: String(item.slot_id),
+        kind: 'slot' as const,
+        title: `Slot ${label}`,
+        subtitle: 'Disponível',
+        actions: [{
+          id: `group-slot-${item.slot_id}`,
+          label: 'Escolher este slot',
+          message: `Escolher o slot ${label}`,
+          intent: 'selecionar_slot_convite_grupo' as LiliIntent,
+          variant: 'primary' as const,
+          context: { ...context, selectedSlotId: String(item.slot_id), selectedSlotLabel: String(label), currentStep: 'slot' },
+        }],
+      }
+    })
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -610,26 +734,219 @@ export async function POST(req: NextRequest) {
 
       case 'validar_token_inscricao': {
         const invite = await resolveExistingInvite(context.inviteToken || message)
+
+        if (invite.kind === 'inscricao_equipes_grupo' || invite.href.startsWith('/convite/grupo/')) {
+          const groupInvite = await loadGroupInviteInChat(req, invite.token)
+          const inviteContext: LiliClientContext = {
+            locale,
+            inviteToken: invite.token,
+            inviteKind: 'inscricao_equipes_grupo',
+            inviteHref: invite.href,
+            inviteGroupId: groupInvite?.grupo?.id || null,
+            selectedChampionshipId: groupInvite?.campeonato?.id || invite.campeonatoId || null,
+            currentFlow: 'group_invite',
+            currentStep: 'invite_summary',
+          }
+          const card = groupInviteSummaryCard(groupInvite, invite.token)
+          card.actions = groupInvite?.inscricao_aberta ? [{
+            id: 'continue-group-invite',
+            label: 'Continuar inscrição pela Lili',
+            message: 'Continuar inscrição',
+            intent: 'continuar_convite_grupo',
+            variant: 'primary',
+            context: inviteContext,
+          }] : []
+          response = {
+            reply: groupInvite?.inscricao_aberta
+              ? 'Convite validado. Você pode concluir toda a inscrição aqui na conversa com a Lili.'
+              : groupInvite?.status_mensagem || 'Este convite não está disponível para uma nova inscrição.',
+            intent: match.intent,
+            cards: [card],
+            actions: [
+              { id: 'view-invite-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: inviteContext },
+              { id: 'another-token', label: 'Usar outro token', message: 'Quero usar outro token', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
+            ],
+            context: inviteContext,
+            source: 'system',
+          }
+          break
+        }
+
         response = {
-          reply: context.autoOpenInvite
-            ? 'Convite validado. Vou abrir agora a próxima etapa correta.'
-            : 'Convite localizado. Continue pelo fluxo original do sistema, com todas as regras já existentes.',
+          reply: 'Convite localizado. A próxima etapa será trazida para dentro da conversa da Lili.',
           intent: match.intent,
           cards: [{
             id: invite.token,
             kind: 'summary',
             title: invite.title,
-            details: [
-              { label: 'Token', value: invite.token },
-              { label: 'Destino', value: invite.href },
-            ],
-            actions: [{ id: 'open-existing-invite', label: 'Continuar inscrição', href: invite.href, variant: 'primary' }],
+            details: [{ label: 'Tipo de convite', value: invite.title }],
+            actions: [{ id: 'continue-existing-invite', label: 'Continuar pela Lili', href: invite.href, variant: 'primary' }],
           }],
           actions: [
             { id: 'another-token', label: 'Usar outro token', message: 'Quero usar outro token', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
             { id: 'menu-token', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
           ],
-          context: { locale, inviteToken: invite.token, inviteHref: invite.href, autoOpenInvite: Boolean(context.autoOpenInvite) },
+          context: { locale, inviteToken: invite.token, inviteKind: invite.kind, inviteHref: invite.href, autoOpenInvite: Boolean(context.autoOpenInvite) },
+          source: 'system',
+        }
+        break
+      }
+
+      case 'continuar_convite_grupo': {
+        if (!user) {
+          response = {
+            reply: 'Entre na sua conta para continuar a inscrição deste convite. Depois do login, a Lili retoma daqui.',
+            intent: match.intent,
+            requiresAuth: true,
+            context,
+            source: 'system',
+          }
+          break
+        }
+        if (!context.inviteToken) throw new Error('Convite não localizado nesta conversa.')
+        const groupInvite = await loadGroupInviteInChat(req, context.inviteToken, context.selectedTeamId)
+        if (!groupInvite?.inscricao_aberta) throw new Error(groupInvite?.status_mensagem || 'Este convite não aceita novas inscrições.')
+
+        const baseContext: LiliClientContext = {
+          ...context,
+          inviteKind: 'inscricao_equipes_grupo',
+          inviteGroupId: groupInvite?.grupo?.id || context.inviteGroupId || null,
+          selectedChampionshipId: groupInvite?.campeonato?.id || context.selectedChampionshipId || null,
+          currentFlow: 'group_invite',
+        }
+
+        if (!context.selectedTeamId && Array.isArray(groupInvite?.equipes_disponiveis) && groupInvite.equipes_disponiveis.length > 1) {
+          response = {
+            reply: 'Escolha qual equipe você administra e deseja inscrever neste campeonato.',
+            intent: match.intent,
+            cards: groupTeamCards(groupInvite.equipes_disponiveis, { ...baseContext, currentStep: 'team' }),
+            actions: [{ id: 'cancel-group-invite', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: baseContext }],
+            context: { ...baseContext, currentStep: 'team' },
+            source: 'system',
+          }
+          break
+        }
+
+        const selectedTeamId = context.selectedTeamId || groupInvite?.equipe?.id || groupInvite?.equipes_disponiveis?.[0]?.id || null
+        const selectedContext = { ...baseContext, selectedTeamId, currentStep: 'line' }
+        const lines = Array.isArray(groupInvite?.lines_disponiveis) ? groupInvite.lines_disponiveis : []
+        response = {
+          reply: lines.length
+            ? 'Equipe confirmada. Agora escolha a line que será inscrita.'
+            : 'Esta equipe ainda não possui uma line disponível. Crie uma line no cadastro da equipe e depois retome este convite.',
+          intent: match.intent,
+          cards: lines.length ? groupLineCards(lines, selectedContext) : undefined,
+          actions: [
+            { id: 'view-group-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: selectedContext },
+            { id: 'cancel-group', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: selectedContext },
+          ],
+          context: selectedContext,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'selecionar_equipe_convite_grupo': {
+        response = {
+          reply: 'Equipe selecionada. Vou carregar as lines disponíveis.',
+          intent: 'continuar_convite_grupo',
+          actions: [{
+            id: 'load-group-lines',
+            label: 'Continuar',
+            message: 'Continuar inscrição',
+            intent: 'continuar_convite_grupo',
+            variant: 'primary',
+            context,
+          }],
+          context,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'selecionar_line_convite_grupo': {
+        if (!context.inviteToken || !context.selectedTeamId) throw new Error('Faltam dados do convite ou da equipe.')
+        const groupInvite = await loadGroupInviteInChat(req, context.inviteToken, context.selectedTeamId)
+        const nextContext = { ...context, currentFlow: 'group_invite', currentStep: 'slot' }
+        const slots = groupSlotCards(groupInvite?.vagas || [], nextContext)
+        response = {
+          reply: slots.length
+            ? `Line ${context.selectedLineName || 'selecionada'}. Escolha agora um slot livre no grupo ${groupInvite?.grupo?.nome || ''}.`
+            : 'Não há slots livres neste grupo no momento.',
+          intent: match.intent,
+          cards: slots,
+          actions: [
+            { id: 'view-slot-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: nextContext },
+            { id: 'cancel-slot', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: nextContext },
+          ],
+          context: nextContext,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'selecionar_slot_convite_grupo': {
+        if (!context.inviteToken || !context.selectedTeamId || !context.selectedLineId || !context.selectedSlotId) {
+          throw new Error('Faltam dados para confirmar esta inscrição.')
+        }
+        const groupInvite = await loadGroupInviteInChat(req, context.inviteToken, context.selectedTeamId)
+        const nextContext = { ...context, currentFlow: 'group_invite', currentStep: 'confirm' }
+        response = {
+          reply: 'Confira os dados. A inscrição só será criada depois da confirmação final.',
+          intent: match.intent,
+          cards: [{
+            id: 'group-invite-confirmation',
+            kind: 'summary',
+            title: String(groupInvite?.campeonato?.nome || 'Confirmar inscrição'),
+            subtitle: String(groupInvite?.grupo?.nome || ''),
+            imageUrl: groupInvite?.campeonato?.logo_url || null,
+            details: [
+              { label: 'Equipe', value: String(groupInvite?.equipe?.nome || 'Equipe selecionada') },
+              { label: 'Line', value: String(context.selectedLineName || 'Line selecionada') },
+              { label: 'Grupo', value: String(groupInvite?.grupo?.nome || 'Grupo do convite') },
+              { label: 'Slot', value: String(context.selectedSlotLabel || 'Selecionado') },
+            ],
+          }],
+          actions: [
+            { id: 'confirm-group-invite', label: 'Confirmar inscrição', message: 'Confirmar inscrição agora', intent: 'confirmar_convite_grupo', variant: 'primary', context: nextContext },
+            { id: 'change-group-slot', label: 'Escolher outro slot', message: 'Escolher outro slot', intent: 'selecionar_line_convite_grupo', variant: 'secondary', context: { ...nextContext, selectedSlotId: null, selectedSlotLabel: null, currentStep: 'slot' } },
+            { id: 'view-confirm-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: nextContext },
+          ],
+          context: nextContext,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'confirmar_convite_grupo': {
+        if (!user) {
+          response = { reply: 'Entre na conta para confirmar a inscrição.', intent: match.intent, requiresAuth: true, context, source: 'system' }
+          break
+        }
+        const result = await confirmGroupInviteInChat(req, context)
+        response = {
+          reply: result?.mensagem || 'Inscrição concluída com sucesso.',
+          intent: match.intent,
+          cards: [{
+            id: String(result?.campeonato_equipe_id || crypto.randomUUID()),
+            kind: 'summary',
+            title: 'Comprovante de inscrição',
+            subtitle: 'Inscrição confirmada pela Lili',
+            details: [
+              { label: 'Campeonato', value: String(result?.campeonato?.nome || 'Confirmado') },
+              { label: 'Grupo', value: String(result?.grupo?.nome || context.inviteGroupId || 'Confirmado') },
+              { label: 'Line', value: String(result?.line?.nome || context.selectedLineName || 'Confirmada') },
+              { label: 'Slot', value: String(result?.slot?.slot_letra || result?.slot?.slot_numero || context.selectedSlotLabel || 'Confirmado') },
+              { label: 'Status', value: 'Ativa' },
+              { label: 'Protocolo', value: String(result?.campeonato_equipe_id || 'Gerado pelo sistema') },
+            ],
+          }],
+          actions: [
+            { id: 'my-registrations-after-group', label: 'Ver minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
+            { id: 'view-rules-after-group', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: context.selectedChampionshipId } },
+            { id: 'menu-after-group', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale },
           source: 'system',
         }
         break

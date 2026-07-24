@@ -12,6 +12,11 @@ export type LiliIntent =
   | 'comprar_vaga'
   | 'usar_convite_token'
   | 'validar_token_inscricao'
+  | 'continuar_convite_grupo'
+  | 'selecionar_equipe_convite_grupo'
+  | 'selecionar_line_convite_grupo'
+  | 'selecionar_slot_convite_grupo'
+  | 'confirmar_convite_grupo'
   | 'listar_minhas_equipes'
   | 'listar_minhas_inscricoes'
   | 'listar_proximos_jogos'
@@ -48,6 +53,8 @@ export type LiliClientContext = {
   awaitingInviteToken?: boolean
   inviteToken?: string | null
   inviteHref?: string | null
+  inviteKind?: string | null
+  inviteGroupId?: string | null
   autoOpenInvite?: boolean
   awaitingRuleQuestion?: boolean
   ruleQuestion?: string | null
