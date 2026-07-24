@@ -18,6 +18,12 @@ export type LiliIntent =
   | 'criar_line_convite_grupo'
   | 'selecionar_slot_convite_grupo'
   | 'confirmar_convite_grupo'
+  | 'pagar_pix_convite_grupo'
+  | 'pagar_cartao_convite_grupo'
+  | 'pagar_paypal_convite_grupo'
+  | 'capturar_paypal_convite_grupo'
+  | 'falar_atendente_convite_grupo'
+  | 'verificar_pagamento_convite_grupo'
   | 'listar_minhas_equipes'
   | 'listar_minhas_inscricoes'
   | 'listar_proximos_jogos'
@@ -60,6 +66,15 @@ export type LiliClientContext = {
   autoOpenInvite?: boolean
   awaitingRuleQuestion?: boolean
   ruleQuestion?: string | null
+  selectedPaymentMethod?: 'pix' | 'cartao' | 'paypal' | 'whatsapp' | null
+  awaitingPaymentDocument?: boolean
+  paymentDocument?: string | null
+  reservationId?: string | null
+  reservationCode?: string | null
+  reservationExpiresAt?: string | null
+  paymentId?: string | null
+  paypalOrderId?: string | null
+  paypalApprovalUrl?: string | null
 }
 
 export type LiliAction = {

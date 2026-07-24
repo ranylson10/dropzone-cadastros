@@ -143,6 +143,28 @@ export default function LiliPage() {
     if (!ready || deepLinkHandledRef.current || busyRef.current) return
 
     const params = new URLSearchParams(window.location.search)
+    const paypalState = params.get('paypal')
+    const paypalOrderId = paypalState === 'approved' ? params.get('token') : null
+    const paypalReservationId = params.get('reservation')
+    if (paypalState) {
+      deepLinkHandledRef.current = true
+      params.delete('paypal')
+      params.delete('token')
+      params.delete('PayerID')
+      params.delete('reservation')
+      const cleanQuery = params.toString()
+      window.history.replaceState({}, '', `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`)
+      if (paypalState === 'cancelled') {
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'assistant', text: 'O pagamento PayPal foi cancelado. Sua reserva permanece válida até o horário informado.' }])
+        return
+      }
+      if (paypalOrderId && paypalReservationId) {
+        const paypalContext: LiliClientContext = { ...context, reservationId: paypalReservationId, paypalOrderId, selectedPaymentMethod: 'paypal', currentFlow: 'group_invite_payment', currentStep: 'payment_wait' }
+        void sendMessage('Confirmar pagamento PayPal', 'capturar_paypal_convite_grupo', paypalContext, false)
+      }
+      return
+    }
+
     const rawInvite = params.get('invite') || params.get('convite') || params.get('link') || params.get('token')
     if (!rawInvite) return
 

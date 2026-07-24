@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
-import { AsaasNotConfiguredError } from '@backend/billing/asaas'
+import { AsaasNotConfiguredError, isPaidStatus } from '@backend/billing/asaas'
+import { reserveSlotForLili, confirmLiliReservation } from '@backend/billing/lili-slot-reservation'
+import { createLiliAsaasPayment, getLiliPaymentStatus } from '@backend/billing/lili-payment'
+import { captureLiliPayPalOrder, createLiliPayPalOrder, getLiliPayPalPaymentStatus, paypalConfigured } from '@backend/billing/paypal'
 import { listAgenda } from '@backend/agenda/agenda.service'
 import { claimVacancyPurchase, createVacancyPurchase, loadClaimContext } from '@backend/billing/vacancy-purchase'
 import { detectLiliLocale, resolveLiliIntent } from '@/features/lili/intent-router'
@@ -281,6 +284,11 @@ export async function POST(req: NextRequest) {
     if (context.awaitingGroupLineName && !forcedIntent && message) {
       context = { ...context, selectedLineId: null, selectedLineName: message, awaitingGroupLineName: false, currentFlow: 'group_invite', currentStep: 'slot' }
       match = { intent: 'selecionar_line_convite_grupo', confidence: 1, source: 'system' as const, searchTerm: undefined }
+    }
+
+    if (context.awaitingPaymentDocument && !forcedIntent && message) {
+      context = { ...context, paymentDocument: message.replace(/\D/g, ''), awaitingPaymentDocument: false }
+      match = { intent: context.selectedPaymentMethod === 'cartao' ? 'pagar_cartao_convite_grupo' : 'pagar_pix_convite_grupo', confidence: 1, source: 'system' as const, searchTerm: undefined }
     }
 
     if (!forcedIntent && !context.awaitingLineName && !context.awaitingInviteToken && looksLikeInviteToken(message)) {
@@ -937,17 +945,30 @@ export async function POST(req: NextRequest) {
       }
 
       case 'selecionar_slot_convite_grupo': {
-        if (!context.inviteToken || !context.selectedTeamId || !context.selectedLineId || !context.selectedSlotId) {
-          throw new Error('Faltam dados para confirmar esta inscrição.')
+        if (!context.inviteToken || !context.selectedTeamId || !context.selectedSlotId || (!context.selectedLineId && !context.selectedLineName)) {
+          throw new Error('Faltam dados para continuar esta inscrição.')
         }
         const groupInvite = await loadGroupInviteInChat(req, context.inviteToken, context.selectedTeamId)
-        const nextContext = { ...context, currentFlow: 'group_invite', currentStep: 'confirm' }
+        const { data: cfg } = await supabaseAdmin
+          .from('campeonato_configuracoes')
+          .select('valor_inscricao')
+          .eq('campeonato_id', groupInvite?.campeonato?.id)
+          .maybeSingle()
+        const value = Number(cfg?.valor_inscricao || 0)
+        const nextContext = {
+          ...context,
+          selectedChampionshipId: String(groupInvite?.campeonato?.id || context.selectedChampionshipId || ''),
+          inviteGroupId: String(groupInvite?.grupo?.id || context.inviteGroupId || ''),
+          currentFlow: 'group_invite_payment',
+          currentStep: value > 0 ? 'payment_method' : 'confirm',
+        }
         response = {
-          reply: 'Confira os dados. A inscrição só será criada depois da confirmação final.',
+          reply: value > 0
+            ? 'Slot selecionado. Escolha como deseja garantir esta vaga. Ao iniciar o pagamento ou atendimento, o slot será reservado temporariamente.'
+            : 'Confira os dados. Esta inscrição não possui cobrança online e pode ser confirmada agora.',
           intent: match.intent,
           cards: [{
-            id: 'group-invite-confirmation',
-            kind: 'summary',
+            id: 'group-invite-payment-summary', kind: 'summary',
             title: String(groupInvite?.campeonato?.nome || 'Confirmar inscrição'),
             subtitle: String(groupInvite?.grupo?.nome || ''),
             imageUrl: groupInvite?.campeonato?.logo_url || null,
@@ -956,15 +977,224 @@ export async function POST(req: NextRequest) {
               { label: 'Line', value: String(context.selectedLineName || 'Line selecionada') },
               { label: 'Grupo', value: String(groupInvite?.grupo?.nome || 'Grupo do convite') },
               { label: 'Slot', value: String(context.selectedSlotLabel || 'Selecionado') },
+              { label: 'Valor', value: value > 0 ? `R$ ${value.toFixed(2).replace('.', ',')}` : 'Sem cobrança online' },
             ],
           }],
-          actions: [
+          actions: value > 0 ? [
+            { id: 'pay-group-pix', label: 'PIX', message: 'Pagar por PIX', intent: 'pagar_pix_convite_grupo', variant: 'primary', context: { ...nextContext, selectedPaymentMethod: 'pix' } },
+            { id: 'pay-group-card', label: 'Cartão de crédito', message: 'Pagar com cartão', intent: 'pagar_cartao_convite_grupo', variant: 'primary', context: { ...nextContext, selectedPaymentMethod: 'cartao' } },
+            { id: 'pay-group-paypal', label: 'PayPal', message: 'Pagar com PayPal', intent: 'pagar_paypal_convite_grupo', variant: 'secondary', context: { ...nextContext, selectedPaymentMethod: 'paypal' } },
+            { id: 'pay-group-whatsapp', label: 'Falar com atendente no WhatsApp', message: 'Falar com atendente', intent: 'falar_atendente_convite_grupo', variant: 'secondary', context: { ...nextContext, selectedPaymentMethod: 'whatsapp' } },
+            { id: 'view-confirm-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: nextContext },
+          ] : [
             { id: 'confirm-group-invite', label: 'Confirmar inscrição', message: 'Confirmar inscrição agora', intent: 'confirmar_convite_grupo', variant: 'primary', context: nextContext },
-            { id: 'change-group-slot', label: 'Escolher outro slot', message: 'Escolher outro slot', intent: 'selecionar_line_convite_grupo', variant: 'secondary', context: { ...nextContext, selectedSlotId: null, selectedSlotLabel: null, currentStep: 'slot' } },
             { id: 'view-confirm-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: nextContext },
           ],
           context: nextContext,
           source: 'system',
+        }
+        break
+      }
+
+      case 'pagar_pix_convite_grupo':
+      case 'pagar_cartao_convite_grupo': {
+        if (!user) {
+          response = { reply: 'Entre na conta para reservar o slot e gerar o pagamento.', intent: match.intent, requiresAuth: true, context, source: 'system' }
+          break
+        }
+        const method: 'pix' | 'cartao' = match.intent === 'pagar_cartao_convite_grupo' ? 'cartao' : 'pix'
+        const digits = String(context.paymentDocument || '').replace(/\D/g, '')
+        if (![11, 14].includes(digits.length)) {
+          const nextContext = { ...context, selectedPaymentMethod: method, awaitingPaymentDocument: true, currentStep: 'payment_document' }
+          response = {
+            reply: 'Digite o CPF ou CNPJ do pagador. O documento será enviado somente ao Asaas para gerar a cobrança segura.',
+            intent: match.intent,
+            actions: [{ id: 'cancel-payment-document', label: 'Voltar', message: 'Voltar uma etapa', intent: 'voltar_etapa', variant: 'secondary', context: nextContext }],
+            context: nextContext,
+            source: 'system',
+          }
+          break
+        }
+        const invite = await loadGroupInviteInChat(req, String(context.inviteToken), String(context.selectedTeamId))
+        const { data: cfg } = await supabaseAdmin.from('campeonato_configuracoes').select('valor_inscricao').eq('campeonato_id', invite.campeonato.id).maybeSingle()
+        const valueCents = Math.round(Number(cfg?.valor_inscricao || 0) * 100)
+        if (valueCents < 100) throw new Error('Este campeonato não possui valor online cobrável.')
+        const reservation = await reserveSlotForLili({
+          campeonatoId: invite.campeonato.id,
+          grupoId: invite.grupo.id,
+          slotId: String(context.selectedSlotId),
+          authUserId: user.id,
+          equipeId: String(context.selectedTeamId),
+          lineId: context.selectedLineId || null,
+          nomeLine: context.selectedLineId ? null : context.selectedLineName || null,
+          conviteToken: context.inviteToken || null,
+          metodo: method,
+          minutes: 15,
+          meta: { campeonato_nome: invite.campeonato.nome, grupo_nome: invite.grupo.nome, slot: context.selectedSlotLabel },
+        })
+        const account = await getActiveAccount(req, user)
+        const email = String(user.email || account?.data?.email_contato || '').trim()
+        const name = String(account?.name || user.user_metadata?.full_name || email).trim()
+        const payment = await createLiliAsaasPayment({ reservation, payerName: name || 'Equipe', payerEmail: email, cpfCnpj: digits, campeonatoNome: invite.campeonato.nome, valorCentavos: valueCents, method })
+        const nextContext = { ...context, awaitingPaymentDocument: false, reservationId: reservation.id, reservationCode: reservation.codigo, reservationExpiresAt: reservation.expira_em, paymentId: payment.id, currentStep: 'payment_wait' }
+        response = {
+          reply: method === 'pix'
+            ? `Slot reservado até ${new Date(reservation.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Pague pelo QR Code ou PIX copia e cola.`
+            : `Slot reservado até ${new Date(reservation.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Abra o checkout seguro do Asaas para pagar com cartão.`,
+          intent: match.intent,
+          cards: [paymentCard({ token: reservation.codigo, status: payment.status, valueCents: payment.valor_centavos, invoiceUrl: payment.asaas_invoice_url, pixPayload: payment.asaas_pix_payload })],
+          actions: [
+            { id: 'check-group-payment', label: 'Já paguei, verificar', message: 'Verificar pagamento', intent: 'verificar_pagamento_convite_grupo', variant: 'primary', context: nextContext },
+            { id: 'group-payment-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: nextContext },
+          ],
+          context: nextContext,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'verificar_pagamento_convite_grupo': {
+        if (!user || !context.reservationId) throw new Error('Reserva de pagamento não localizada.')
+        const payment = context.selectedPaymentMethod === 'paypal'
+          ? await getLiliPayPalPaymentStatus(context.reservationId)
+          : await getLiliPaymentStatus(context.reservationId)
+        if (!payment || !isPaidStatus(payment.status)) {
+          response = { reply: 'O pagamento ainda não foi confirmado. O slot continua reservado até o horário informado.', intent: match.intent, actions: [{ id: 'check-group-payment-again', label: 'Verificar novamente', message: 'Verificar pagamento novamente', intent: 'verificar_pagamento_convite_grupo', variant: 'primary', context }], context, source: 'system' }
+          break
+        }
+        const result = await confirmGroupInviteInChat(req, context)
+        await confirmLiliReservation(context.reservationId)
+        response = {
+          reply: result?.mensagem || 'Pagamento e inscrição confirmados com sucesso.',
+          intent: match.intent,
+          cards: [{ id: String(result?.campeonato_equipe_id || context.reservationId), kind: 'summary', title: 'Comprovante de inscrição', subtitle: 'Pagamento confirmado', details: [
+            { label: 'Campeonato', value: String(result?.campeonato?.nome || 'Confirmado') },
+            { label: 'Grupo', value: String(result?.grupo?.nome || context.inviteGroupId || 'Confirmado') },
+            { label: 'Line', value: String(result?.line?.nome || context.selectedLineName || 'Confirmada') },
+            { label: 'Slot', value: String(result?.slot?.slot_letra || result?.slot?.slot_numero || context.selectedSlotLabel || 'Confirmado') },
+            { label: 'Pagamento', value: String(context.selectedPaymentMethod || 'Online').toUpperCase() },
+            { label: 'Protocolo', value: String(context.reservationCode || result?.campeonato_equipe_id || 'Gerado') },
+          ] }],
+          actions: menuActions(locale), context: { locale }, source: 'system',
+        }
+        break
+      }
+
+      case 'falar_atendente_convite_grupo': {
+        if (!user) {
+          response = { reply: 'Entre na conta para reservar o slot antes de abrir o WhatsApp.', intent: match.intent, requiresAuth: true, context, source: 'system' }
+          break
+        }
+        const invite = await loadGroupInviteInChat(req, String(context.inviteToken), String(context.selectedTeamId))
+        const reservation = await reserveSlotForLili({ campeonatoId: invite.campeonato.id, grupoId: invite.grupo.id, slotId: String(context.selectedSlotId), authUserId: user.id, equipeId: String(context.selectedTeamId), lineId: context.selectedLineId || null, nomeLine: context.selectedLineId ? null : context.selectedLineName || null, conviteToken: context.inviteToken || null, metodo: 'whatsapp', minutes: 30, meta: { campeonato_nome: invite.campeonato.nome, grupo_nome: invite.grupo.nome, slot: context.selectedSlotLabel } })
+        const { data: cfg } = await supabaseAdmin.from('campeonato_configuracoes').select('contatos_whatsapp').eq('campeonato_id', invite.campeonato.id).maybeSingle()
+        const contacts = Array.isArray(cfg?.contatos_whatsapp) ? cfg.contatos_whatsapp : []
+        const text = `Olá, quero confirmar uma vaga no campeonato ${invite.campeonato.nome}.\nGrupo: ${invite.grupo.nome}\nSlot: ${context.selectedSlotLabel}\nEquipe: ${invite.equipe?.nome || 'Selecionada'}\nLine: ${context.selectedLineName || 'Selecionada'}\nReserva: ${reservation.codigo}\nValidade: ${new Date(reservation.expira_em).toLocaleString('pt-BR')}`
+        const actions = contacts.filter((c: any) => c?.url).map((c: any, i: number) => ({ id: `whatsapp-${i}`, label: `Falar com ${c.nome || 'atendente'}`, href: `${String(c.url).split('?')[0]}?text=${encodeURIComponent(text)}`, variant: 'primary' as const }))
+        response = {
+          reply: `Slot reservado por 30 minutos. Escolha um atendente para continuar pelo WhatsApp. Informe o código ${reservation.codigo}.`,
+          intent: match.intent,
+          cards: [{ id: reservation.id, kind: 'summary', title: 'Reserva temporária', subtitle: invite.campeonato.nome, details: [
+            { label: 'Grupo', value: invite.grupo.nome }, { label: 'Slot', value: String(context.selectedSlotLabel) }, { label: 'Equipe', value: String(invite.equipe?.nome || 'Selecionada') }, { label: 'Line', value: String(context.selectedLineName || 'Selecionada') }, { label: 'Reserva', value: reservation.codigo }, { label: 'Expira em', value: new Date(reservation.expira_em).toLocaleString('pt-BR') },
+          ], actions }],
+          actions: actions.length ? [] : [{ id: 'no-whatsapp', label: 'Voltar', message: 'Voltar uma etapa', intent: 'voltar_etapa', variant: 'secondary', context }],
+          context: { ...context, reservationId: reservation.id, reservationCode: reservation.codigo, reservationExpiresAt: reservation.expira_em }, source: 'system',
+        }
+        break
+      }
+
+      case 'pagar_paypal_convite_grupo': {
+        if (!user) {
+          response = { reply: 'Entre na conta para reservar o slot e pagar com PayPal.', intent: match.intent, requiresAuth: true, context, source: 'system' }
+          break
+        }
+        if (!paypalConfigured()) throw new Error('PayPal ainda não foi configurado na Vercel.')
+        if (!context.currency) {
+          response = {
+            reply: 'Escolha a moeda do pagamento PayPal. O valor ficará congelado durante esta reserva.',
+            intent: match.intent,
+            actions: [
+              { id: 'paypal-brl', label: 'Real (BRL)', message: 'Pagar em reais pelo PayPal', intent: 'pagar_paypal_convite_grupo', variant: 'primary', context: { ...context, currency: 'BRL', selectedPaymentMethod: 'paypal' } },
+              { id: 'paypal-usd', label: 'Dólar (USD)', message: 'Pagar em dólares pelo PayPal', intent: 'pagar_paypal_convite_grupo', variant: 'secondary', context: { ...context, currency: 'USD', selectedPaymentMethod: 'paypal' } },
+              { id: 'paypal-eur', label: 'Euro (EUR)', message: 'Pagar em euros pelo PayPal', intent: 'pagar_paypal_convite_grupo', variant: 'secondary', context: { ...context, currency: 'EUR', selectedPaymentMethod: 'paypal' } },
+            ],
+            context: { ...context, selectedPaymentMethod: 'paypal' }, source: 'system',
+          }
+          break
+        }
+        const invite = await loadGroupInviteInChat(req, String(context.inviteToken), String(context.selectedTeamId))
+        const { data: cfg } = await supabaseAdmin.from('campeonato_configuracoes').select('valor_inscricao').eq('campeonato_id', invite.campeonato.id).maybeSingle()
+        const baseCents = Math.round(Number(cfg?.valor_inscricao || 0) * 100)
+        if (baseCents < 100) throw new Error('Este campeonato não possui valor online cobrável.')
+        const quote = await createInternationalQuote(baseCents, context.currency)
+        const reservation = await reserveSlotForLili({
+          campeonatoId: invite.campeonato.id,
+          grupoId: invite.grupo.id,
+          slotId: String(context.selectedSlotId),
+          authUserId: user.id,
+          equipeId: String(context.selectedTeamId),
+          lineId: context.selectedLineId || null,
+          nomeLine: context.selectedLineId ? null : context.selectedLineName || null,
+          conviteToken: context.inviteToken || null,
+          metodo: 'paypal',
+          minutes: 15,
+          meta: { campeonato_nome: invite.campeonato.nome, grupo_nome: invite.grupo.nome, slot: context.selectedSlotLabel, quote },
+        })
+        const payment = await createLiliPayPalOrder({
+          reservation,
+          campeonatoNome: invite.campeonato.nome,
+          amountMinor: quote.totalMinor,
+          currency: quote.currency,
+          returnOrigin: req.nextUrl.origin,
+        })
+        const nextContext = {
+          ...context,
+          reservationId: reservation.id,
+          reservationCode: reservation.codigo,
+          reservationExpiresAt: reservation.expira_em,
+          paymentId: payment.id,
+          paypalOrderId: payment.paypal_order_id,
+          paypalApprovalUrl: payment.paypal_approval_url,
+          currentStep: 'payment_wait',
+        }
+        response = {
+          reply: `Slot reservado até ${new Date(reservation.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Abra o PayPal para aprovar ${formatMoney(quote.totalAmount, quote.currency, locale)}.`,
+          intent: match.intent,
+          cards: [{ id: payment.id, kind: 'payment', title: 'Pagamento PayPal', subtitle: invite.campeonato.nome, badges: ['Reserva temporária'], details: [
+            { label: 'Valor-base', value: formatMoney(baseCents / 100, 'BRL', locale) },
+            { label: 'Total PayPal', value: formatMoney(quote.totalAmount, quote.currency, locale) },
+            { label: 'Moeda', value: quote.currency },
+            { label: 'Reserva', value: reservation.codigo },
+            { label: 'Validade', value: new Date(reservation.expira_em).toLocaleString('pt-BR') },
+          ], actions: [{ id: 'open-paypal', label: 'Abrir PayPal', href: payment.paypal_approval_url, variant: 'primary' }] }],
+          actions: [
+            { id: 'check-paypal', label: 'Já paguei, verificar', message: 'Verificar pagamento PayPal', intent: 'verificar_pagamento_convite_grupo', variant: 'secondary', context: nextContext },
+            { id: 'cancel-paypal', label: 'Voltar', message: 'Voltar uma etapa', intent: 'voltar_etapa', variant: 'secondary', context: nextContext },
+          ],
+          context: nextContext, source: 'system',
+        }
+        break
+      }
+
+      case 'capturar_paypal_convite_grupo': {
+        if (!user || !context.reservationId || !context.paypalOrderId) throw new Error('Retorno do PayPal incompleto.')
+        const payment = await captureLiliPayPalOrder({ orderId: context.paypalOrderId, reservationId: context.reservationId, authUserId: user.id })
+        if (!isPaidStatus(payment.status)) {
+          response = { reply: 'O PayPal ainda não confirmou a captura. Tente verificar novamente em alguns segundos.', intent: match.intent, actions: [{ id: 'retry-paypal-capture', label: 'Verificar novamente', message: 'Verificar pagamento PayPal', intent: 'verificar_pagamento_convite_grupo', variant: 'primary', context }], context, source: 'system' }
+          break
+        }
+        const result = await confirmGroupInviteInChat(req, context)
+        await confirmLiliReservation(context.reservationId)
+        response = {
+          reply: 'Pagamento PayPal e inscrição confirmados com sucesso.', intent: match.intent,
+          cards: [{ id: String(result?.campeonato_equipe_id || context.reservationId), kind: 'summary', title: 'Comprovante de inscrição', subtitle: 'Pagamento confirmado pelo PayPal', details: [
+            { label: 'Campeonato', value: String(result?.campeonato?.nome || 'Confirmado') },
+            { label: 'Grupo', value: String(result?.grupo?.nome || context.inviteGroupId || 'Confirmado') },
+            { label: 'Line', value: String(result?.line?.nome || context.selectedLineName || 'Confirmada') },
+            { label: 'Slot', value: String(result?.slot?.slot_letra || result?.slot?.slot_numero || context.selectedSlotLabel || 'Confirmado') },
+            { label: 'Pagamento', value: `PAYPAL ${context.currency || 'BRL'}` },
+            { label: 'Protocolo', value: String(context.reservationCode || result?.campeonato_equipe_id || 'Gerado') },
+          ] }], actions: menuActions(locale), context: { locale }, source: 'system',
         }
         break
       }
