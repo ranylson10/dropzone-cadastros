@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Send, LogIn, RotateCcw, ChevronDown, Globe2 } from 'lucide-react'
+import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 import { clientText, normalizeLocale } from '@/features/lili/i18n'
@@ -332,7 +332,6 @@ export default function LiliPage() {
   function submit(event: FormEvent) { event.preventDefault(); void sendMessage(input) }
   const locale = normalizeLocale(context.locale)
   const ui = clientText[locale]
-  const title = useMemo(() => session?.user?.email ? `${ui.connected} ${session.user.email}` : ui.subtitle, [session, ui])
   const latestInteractiveMessageId = useMemo(() => {
     const latestAssistant = [...messages].reverse().find((message) => message.role === 'assistant')
     if (!latestAssistant) return null
@@ -346,8 +345,8 @@ export default function LiliPage() {
     <main className="lili-hub-page">
       <header className="lili-hub-header">
         <div className="lili-hub-identity">
-          <div className="lili-hub-avatar">L</div>
-          <div><strong>Lili</strong><span>{title}</span></div>
+          <div className="lili-hub-avatar" aria-hidden="true"><Bot size={22} strokeWidth={2.4} /></div>
+          <div><strong>Lili</strong><span>Assistente DropZone</span></div>
         </div>
 
         <div className="lili-hub-toolbar">
@@ -417,11 +416,11 @@ export default function LiliPage() {
           const actionsEnabled = message.id === latestInteractiveMessageId && !typing
           return (
           <article className={`lili-hub-message ${message.role}`} key={message.id}>
-            {message.role === 'assistant' ? <div className="lili-hub-mini-avatar">L</div> : null}
+            {message.role === 'assistant' ? <div className="lili-hub-mini-avatar" aria-hidden="true"><Bot size={17} strokeWidth={2.4} /></div> : null}
             <div className="lili-hub-message-content">
               <div className="lili-hub-bubble">{message.text}</div>
               {message.cards?.length ? <div className="lili-hub-cards">{message.cards.map((card) => (
-                <div className="lili-hub-card" key={`${message.id}-${card.id}`}>
+                <div className={`lili-hub-card lili-hub-card-${card.kind}`} key={`${message.id}-${card.id}`}>
                   <div className="lili-hub-card-head">
                     {card.imageUrl ? <img src={card.imageUrl} alt="" /> : <span>{card.title.slice(0, 1).toUpperCase()}</span>}
                     <div><strong>{card.title}</strong>{card.subtitle ? <small>{card.subtitle}</small> : null}</div>

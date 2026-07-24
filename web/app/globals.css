@@ -9784,3 +9784,59 @@ input::placeholder, textarea::placeholder {
   .lili-profile-avatar{width:28px;height:28px;min-width:28px}
   .lili-profile-trigger{height:36px!important}
 }
+
+/* Lili — correção final da barra superior e avatar */
+.lili-hub-header{
+  min-height:72px;
+  align-items:center;
+  flex-wrap:nowrap;
+  padding-top:10px;
+  padding-bottom:10px;
+}
+.lili-hub-identity{flex:0 0 auto}
+.lili-hub-identity>div:last-child span{opacity:.78;max-width:none}
+.lili-hub-avatar,.lili-hub-mini-avatar{
+  background:linear-gradient(145deg,#ff89b7 0%,#8d4df4 52%,#5624c7 100%);
+}
+.lili-hub-avatar svg,.lili-hub-mini-avatar svg{filter:drop-shadow(0 2px 3px rgba(41,16,101,.22))}
+.lili-hub-toolbar{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  flex-wrap:nowrap;
+  gap:8px;
+}
+.lili-hub-toolbar>*{flex:0 0 auto}
+.lili-hub-toolbar .notif-bell,.lili-profile-switcher{align-self:center}
+.lili-language-switch,.lili-profile-trigger,.lili-hub-toolbar .notif-bell-trigger,.lili-reset-button{align-self:center}
+
+@media(max-width:760px){
+  .lili-hub-header{min-height:60px;align-items:center;flex-wrap:nowrap;padding:8px 10px}
+  .lili-hub-identity{gap:8px}
+  .lili-hub-identity>div:last-child span{display:none}
+  .lili-hub-toolbar{margin-left:auto;gap:5px;flex-wrap:nowrap}
+  .lili-language-switch{order:1}
+  .lili-hub-toolbar .notif-bell{order:2}
+  .lili-profile-switcher{order:3}
+  .lili-reset-button{order:4}
+}
+@media(max-width:430px){
+  .lili-hub-identity>div:last-child{display:none}
+  .lili-hub-toolbar{gap:4px}
+  .lili-language-switch button{min-width:24px;padding:0 4px}
+}
+
+/* Lili: lines já inscritas e grade compacta de slots */
+.lili-hub-card-line .lili-hub-badges span:first-child{white-space:nowrap}
+.lili-hub-card-slot{grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 10px;border-radius:14px}
+.lili-hub-card-slot .lili-hub-card-head{grid-column:1/3;min-width:0}
+.lili-hub-card-slot .lili-hub-card-head img,.lili-hub-card-slot .lili-hub-card-head>span{width:34px;height:34px;border-radius:10px}
+.lili-hub-card-slot .lili-hub-card-head strong{font-size:12px}
+.lili-hub-card-slot .lili-hub-card-head small{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:255px}
+.lili-hub-card-slot .lili-hub-badges{grid-column:3;grid-row:1;justify-self:end}
+.lili-hub-card-slot .lili-hub-badges span{padding:3px 6px;font-size:9px}
+.lili-hub-card-slot dl{grid-column:1/-1;margin-top:-2px}
+.lili-hub-card-slot dl>div{font-size:10px}
+.lili-hub-card-slot .lili-hub-actions{grid-column:1/-1;display:flex}
+.lili-hub-card-slot .lili-hub-actions button{width:auto;min-height:32px;padding:7px 12px;margin-left:auto}
+@media(max-width:640px){.lili-hub-card-slot{width:calc(100vw - 58px)}.lili-hub-card-slot .lili-hub-actions{display:flex}.lili-hub-card-slot .lili-hub-actions button{width:auto;min-height:32px}.lili-hub-card-slot .lili-hub-card-head small{max-width:190px}}

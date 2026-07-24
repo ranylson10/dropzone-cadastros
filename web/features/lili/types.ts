@@ -15,6 +15,7 @@ export type LiliIntent =
   | 'continuar_convite_grupo'
   | 'selecionar_equipe_convite_grupo'
   | 'selecionar_line_convite_grupo'
+  | 'criar_line_convite_grupo'
   | 'selecionar_slot_convite_grupo'
   | 'confirmar_convite_grupo'
   | 'listar_minhas_equipes'
@@ -50,6 +51,7 @@ export type LiliClientContext = {
   currentFlow?: string | null
   currentStep?: string | null
   awaitingLineName?: boolean
+  awaitingGroupLineName?: boolean
   awaitingInviteToken?: boolean
   inviteToken?: string | null
   inviteHref?: string | null

@@ -188,13 +188,14 @@ function groupTeamCards(items: any[], context: LiliClientContext) {
   }))
 }
 
-function groupLineCards(items: any[], context: LiliClientContext) {
-  return items.map((item) => ({
+function groupLineCards(availableItems: any[], registeredItems: any[], context: LiliClientContext) {
+  const available = availableItems.map((item) => ({
     id: String(item.id),
     kind: 'line' as const,
     title: String(item.nome || 'Line'),
     subtitle: item.tag ? String(item.tag) : null,
     imageUrl: item.logo_url || null,
+    badges: ['Disponível para inscrição'],
     actions: [{
       id: `group-line-${item.id}`,
       label: 'Usar esta line',
@@ -204,21 +205,42 @@ function groupLineCards(items: any[], context: LiliClientContext) {
       context: { ...context, selectedLineId: String(item.id), selectedLineName: String(item.nome || ''), currentStep: 'line' },
     }],
   }))
+
+  const registered = registeredItems.map((item) => ({
+    id: `registered-${item.id}`,
+    kind: 'line' as const,
+    title: String(item.nome || item.nome_exibicao || 'Line'),
+    subtitle: item.tag ? String(item.tag) : null,
+    imageUrl: item.logo_url || null,
+    badges: ['Já inscrita neste campeonato'],
+    details: [
+      ...(item.grupo_id ? [{ label: 'Grupo', value: String(item.grupo_nome || 'Já definido') }] : []),
+      ...(item.slot_numero ? [{ label: 'Slot', value: String(item.slot_numero) }] : []),
+    ],
+    actions: [],
+  }))
+
+  return [...available, ...registered]
 }
 
 function groupSlotCards(items: any[], context: LiliClientContext) {
   return items
-    .filter((item) => !item.ocupada && item.slot_id)
+    .filter((item) => item.slot_id)
     .map((item) => {
       const label = item.slot_letra || item.slot_numero || item.nome || 'Slot'
+      const occupied = Boolean(item.ocupada)
+      const occupant = [item.equipe_nome, item.line_nome].filter(Boolean).join(' • ')
       return {
         id: String(item.slot_id),
         kind: 'slot' as const,
         title: `Slot ${label}`,
-        subtitle: 'Disponível',
-        actions: [{
+        subtitle: occupied ? (occupant || 'Ocupado') : 'Disponível',
+        imageUrl: item.logo_url || null,
+        badges: [occupied ? 'Ocupado' : 'Livre'],
+        details: occupied && occupant ? [{ label: 'Inscrição atual', value: occupant }] : [],
+        actions: occupied ? [] : [{
           id: `group-slot-${item.slot_id}`,
-          label: 'Escolher este slot',
+          label: 'Escolher',
           message: `Escolher o slot ${label}`,
           intent: 'selecionar_slot_convite_grupo' as LiliIntent,
           variant: 'primary' as const,
@@ -254,6 +276,11 @@ export async function POST(req: NextRequest) {
     if (context.awaitingLineName && !forcedIntent && message) {
       context = registrationContext(context, { selectedLineId: null, selectedLineName: message, awaitingLineName: false, currentStep: 'slot' })
       match = { intent: 'selecionar_line_inscricao', confidence: 1, source: 'system' as const, searchTerm: undefined }
+    }
+
+    if (context.awaitingGroupLineName && !forcedIntent && message) {
+      context = { ...context, selectedLineId: null, selectedLineName: message, awaitingGroupLineName: false, currentFlow: 'group_invite', currentStep: 'slot' }
+      match = { intent: 'selecionar_line_convite_grupo', confidence: 1, source: 'system' as const, searchTerm: undefined }
     }
 
     if (!forcedIntent && !context.awaitingLineName && !context.awaitingInviteToken && looksLikeInviteToken(message)) {
@@ -829,14 +856,21 @@ export async function POST(req: NextRequest) {
 
         const selectedTeamId = context.selectedTeamId || groupInvite?.equipe?.id || groupInvite?.equipes_disponiveis?.[0]?.id || null
         const selectedContext = { ...baseContext, selectedTeamId, currentStep: 'line' }
-        const lines = Array.isArray(groupInvite?.lines_disponiveis) ? groupInvite.lines_disponiveis : []
+        const availableLines = Array.isArray(groupInvite?.lines_disponiveis) ? groupInvite.lines_disponiveis : []
+        const registeredLines = Array.isArray(groupInvite?.lines_inscritas) ? groupInvite.lines_inscritas : []
+        const cards = groupLineCards(availableLines, registeredLines, selectedContext)
+        const availabilityText = availableLines.length
+          ? `Você tem ${availableLines.length} ${availableLines.length === 1 ? 'line disponível' : 'lines disponíveis'} para esta vaga.`
+          : 'Todas as lines existentes desta equipe já estão inscritas neste campeonato.'
+        const registeredText = registeredLines.length
+          ? ` ${registeredLines.length} ${registeredLines.length === 1 ? 'line já está inscrita' : 'lines já estão inscritas'} e aparece apenas para consulta.`
+          : ''
         response = {
-          reply: lines.length
-            ? 'Equipe confirmada. Agora escolha a line que será inscrita.'
-            : 'Esta equipe ainda não possui uma line disponível. Crie uma line no cadastro da equipe e depois retome este convite.',
+          reply: `Equipe confirmada. ${availabilityText}${registeredText}`,
           intent: match.intent,
-          cards: lines.length ? groupLineCards(lines, selectedContext) : undefined,
+          cards: cards.length ? cards : undefined,
           actions: [
+            { id: 'create-group-line', label: 'Criar nova line', message: 'Criar uma nova line', intent: 'criar_line_convite_grupo', variant: availableLines.length ? 'secondary' : 'primary', context: selectedContext },
             { id: 'view-group-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: selectedContext },
             { id: 'cancel-group', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: selectedContext },
           ],
@@ -864,15 +898,32 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'criar_line_convite_grupo': {
+        const nextContext = { ...context, selectedLineId: null, selectedLineName: null, awaitingGroupLineName: true, currentFlow: 'group_invite', currentStep: 'line_name' }
+        response = {
+          reply: 'Digite o nome da nova line. Ela será criada somente quando você confirmar a inscrição no final.',
+          intent: match.intent,
+          actions: [
+            { id: 'back-group-lines', label: 'Voltar às lines', message: 'Voltar às lines', intent: 'continuar_convite_grupo', variant: 'secondary', context: { ...context, awaitingGroupLineName: false, currentStep: 'line' } },
+            { id: 'cancel-new-line', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: nextContext },
+          ],
+          context: nextContext,
+          source: 'system',
+        }
+        break
+      }
+
       case 'selecionar_line_convite_grupo': {
         if (!context.inviteToken || !context.selectedTeamId) throw new Error('Faltam dados do convite ou da equipe.')
         const groupInvite = await loadGroupInviteInChat(req, context.inviteToken, context.selectedTeamId)
         const nextContext = { ...context, currentFlow: 'group_invite', currentStep: 'slot' }
-        const slots = groupSlotCards(groupInvite?.vagas || [], nextContext)
+        const allSlots = Array.isArray(groupInvite?.vagas) ? groupInvite.vagas : []
+        const slots = groupSlotCards(allSlots, nextContext)
+        const freeCount = allSlots.filter((item: any) => item.slot_id && !item.ocupada).length
         response = {
           reply: slots.length
-            ? `Line ${context.selectedLineName || 'selecionada'}. Escolha agora um slot livre no grupo ${groupInvite?.grupo?.nome || ''}.`
-            : 'Não há slots livres neste grupo no momento.',
+            ? `Line ${context.selectedLineName || 'selecionada'}. Veja a grade completa do grupo ${groupInvite?.grupo?.nome || ''}: ${freeCount} ${freeCount === 1 ? 'slot livre' : 'slots livres'}. Os slots ocupados mostram a equipe e a line atuais.`
+            : 'Este grupo ainda não possui slots configurados.',
           intent: match.intent,
           cards: slots,
           actions: [
