@@ -183,13 +183,23 @@ export async function createVacancyPurchase(input: {
 
   const { data: config, error: cfgErr } = await supabaseAdmin
     .from('campeonato_configuracoes')
-    .select('valor_inscricao,aceita_novas_inscricoes_equipes,data_limite_inscricao')
+    .select('valor_inscricao,aceita_novas_inscricoes_equipes,data_limite_inscricao,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo')
     .eq('campeonato_id', input.campeonatoId)
     .maybeSingle()
   if (cfgErr) throw cfgErr
   if (!config?.aceita_novas_inscricoes_equipes) {
     throw new Error('Este campeonato não está aceitando novas inscrições.')
   }
+  if (method === 'pix' && config.pagamento_pix_ativo === false) {
+    throw new Error('Pagamento por PIX não está disponível neste campeonato.')
+  }
+  if (method === 'cartao' && config.pagamento_cartao_ativo === false) {
+    throw new Error('Pagamento por cartão não está disponível neste campeonato.')
+  }
+  if (method === 'paypal' && config.pagamento_paypal_ativo !== true) {
+    throw new Error('Pagamento por PayPal não está disponível neste campeonato.')
+  }
+
   if (config.data_limite_inscricao) {
     const limit = String(config.data_limite_inscricao).slice(0, 10)
     const today = new Date().toISOString().slice(0, 10)

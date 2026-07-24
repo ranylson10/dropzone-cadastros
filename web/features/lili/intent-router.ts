@@ -12,6 +12,14 @@ type IntentMatch = {
 
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
+    intent: 'listar_minhas_vagas_compradas',
+    phrases: [
+      'minhas vagas compradas', 'vagas que comprei', 'vaga paga', 'usar minha vaga', 'continuar inscricao paga',
+      'mis cupos comprados', 'cupos que compre', 'usar mi cupo', 'continuar inscripcion pagada',
+      'my purchased spots', 'spots i bought', 'use my spot', 'continue paid registration',
+    ],
+  },
+  {
     intent: 'perguntar_regra_campeonato',
     phrases: [
       'perguntar sobre as regras', 'duvida sobre o regulamento', 'tenho uma duvida sobre as regras', 'consultar uma regra',

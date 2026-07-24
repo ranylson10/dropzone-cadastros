@@ -21,9 +21,11 @@ import {
   lineCards,
   listOpenChampionships,
   listUserRegistrations,
+  listUserVacancyPurchases,
   listUserTeams,
   paymentCard,
   registrationCards,
+  vacancyPurchaseCards,
   rulebookTopicCards,
   rulebookTopicDetailCard,
   slotCards,
@@ -43,6 +45,7 @@ function menuActions(locale: LiliLocale) {
     { id: 'my-teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'my-registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'account-summary', label: 'Minha central', message: 'Mostrar resumo da minha conta', intent: 'resumo_minha_conta' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'my-purchased-spots', label: 'Minhas vagas compradas', message: 'Mostrar minhas vagas compradas', intent: 'listar_minhas_vagas_compradas' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'upcoming-games', label: 'Próximos jogos', message: 'Mostrar meus próximos jogos', intent: 'listar_proximos_jogos' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'international-payment', label: 'Pagamento internacional', message: 'Simular pagamento internacional', intent: 'simular_pagamento_internacional' as LiliIntent, variant: 'secondary' as const, context: { locale } },
     { id: 'language', label: 'Idioma / Language', message: 'Mudar idioma', intent: 'alterar_idioma' as LiliIntent, variant: 'secondary' as const, context: { locale } },
@@ -56,6 +59,67 @@ function languageActions() {
     { id: 'lang-en', label: 'English', message: 'English', intent: 'menu' as LiliIntent, variant: 'secondary' as const, context: { locale: 'en' as const } },
   ]
 }
+
+function formatReceiptMoney(valueCents: number | string | null | undefined) {
+  const cents = Number(valueCents || 0)
+  return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`
+}
+
+function registrationReceiptCard(input: {
+  id: string
+  campeonato: string
+  equipe: string
+  line: string
+  grupo: string
+  slot: string
+  pagamento: string
+  valorCentavos?: number | string | null
+  protocolo: string
+  confirmadoEm?: string | null
+}) {
+  const confirmedAt = input.confirmadoEm ? new Date(input.confirmadoEm) : new Date()
+  const dateLabel = confirmedAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+  const paymentLabel = input.valorCentavos != null
+    ? `${input.pagamento} • ${formatReceiptMoney(input.valorCentavos)}`
+    : input.pagamento
+  const receiptText = [
+    'COMPROVANTE DE INSCRIÇÃO DROPZONE',
+    `Campeonato: ${input.campeonato}`,
+    `Equipe: ${input.equipe}`,
+    `Line: ${input.line}`,
+    `Grupo: ${input.grupo}`,
+    `Slot: ${input.slot}`,
+    `Pagamento: ${paymentLabel}`,
+    `Status: Confirmada`,
+    `Protocolo: ${input.protocolo}`,
+    `Data: ${dateLabel}`,
+  ].join('\n')
+
+  return {
+    id: input.id,
+    kind: 'summary' as const,
+    title: 'Comprovante de inscrição',
+    subtitle: 'Inscrição confirmada pela Lili',
+    details: [
+      { label: 'Campeonato', value: input.campeonato },
+      { label: 'Equipe', value: input.equipe },
+      { label: 'Line', value: input.line },
+      { label: 'Grupo', value: input.grupo },
+      { label: 'Slot', value: input.slot },
+      { label: 'Pagamento', value: paymentLabel },
+      { label: 'Status', value: 'Confirmada' },
+      { label: 'Protocolo', value: input.protocolo },
+      { label: 'Data', value: dateLabel },
+    ],
+    actions: [{
+      id: `copy-receipt-${input.id}`,
+      label: 'Copiar comprovante',
+      copyText: receiptText,
+      variant: 'primary' as const,
+    }],
+  }
+}
+
 
 
 function looksLikeInviteToken(value: string) {
@@ -348,10 +412,10 @@ export async function POST(req: NextRequest) {
         const money = (value: number | string | null | undefined) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`
         const formatDate = (value: string) => new Date(value).toLocaleDateString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR')
         const paymentMethods = [
-          item.valor_inscricao != null ? '💠 PIX' : null,
-          item.valor_inscricao != null ? '💳 Cartão' : null,
-          item.valor_inscricao != null && paypalConfigured() ? '🅿️ PayPal' : null,
-          Array.isArray(item.contatos_whatsapp) && item.contatos_whatsapp.length ? '🟢 WhatsApp' : null,
+          item.valor_inscricao != null && item.pagamento_pix_ativo ? '💠 PIX' : null,
+          item.valor_inscricao != null && item.pagamento_cartao_ativo ? `💳 Cartão${Number(item.cartao_max_parcelas || 1) > 1 ? ` até ${item.cartao_max_parcelas}x` : ''}` : null,
+          item.valor_inscricao != null && item.pagamento_paypal_ativo && paypalConfigured() ? `🅿️ PayPal (${(Array.isArray(item.paypal_moedas) ? item.paypal_moedas : ['BRL']).join('/')})` : null,
+          item.pagamento_whatsapp_ativo && Array.isArray(item.contatos_whatsapp) && item.contatos_whatsapp.length ? '🟢 WhatsApp' : null,
         ].filter(Boolean) as string[]
         const prizeValue = item.premiacao_valor != null
           ? money(item.premiacao_valor)
@@ -631,6 +695,64 @@ export async function POST(req: NextRequest) {
       }
 
 
+      case 'listar_minhas_vagas_compradas': {
+        if (!user) {
+          response = { reply: 'Para consultar suas vagas compradas, preciso confirmar sua identidade.', intent: match.intent, requiresAuth: true, context: { locale, currentFlow: 'vacancy_purchase' }, source: match.source }
+          break
+        }
+        const purchases = await listUserVacancyPurchases(user.id)
+        const releasedCount = purchases.filter((item: any) => item.liberada).length
+        const pendingCount = purchases.length - releasedCount
+        response = {
+          reply: purchases.length
+            ? `Encontrei ${releasedCount} vaga${releasedCount === 1 ? '' : 's'} paga${releasedCount === 1 ? '' : 's'} pronta${releasedCount === 1 ? '' : 's'} para usar${pendingCount ? ` e ${pendingCount} pagamento${pendingCount === 1 ? '' : 's'} pendente${pendingCount === 1 ? '' : 's'}` : ''}.`
+            : 'Você não possui vaga comprada aguardando uso nem pagamento pendente.',
+          intent: match.intent,
+          cards: vacancyPurchaseCards(purchases, locale),
+          actions: [
+            { id: 'buy-another-spot', label: 'Comprar outra vaga', message: 'Quero comprar uma vaga', intent: 'comprar_vaga', variant: 'primary', context: { locale } },
+            { id: 'back-account-summary', label: 'Minha central', message: 'Mostrar resumo da minha conta', intent: 'resumo_minha_conta', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale, currentFlow: 'vacancy_purchase' },
+          source: 'system',
+        }
+        break
+      }
+
+      case 'usar_vaga_comprada': {
+        if (!user) {
+          response = { reply: 'Entre na sua conta para usar esta vaga comprada.', intent: match.intent, requiresAuth: true, context, source: 'system' }
+          break
+        }
+        if (!context.purchaseToken) throw new Error('Não encontrei o código desta vaga comprada.')
+        const data = await claimContext(req, context)
+        if (data.consumido) {
+          response = { reply: 'Esta vaga já foi usada e a inscrição correspondente já está concluída.', intent: match.intent, actions: [{ id: 'view-registrations-used-spot', label: 'Ver minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } }], context: { locale }, source: 'system' }
+          break
+        }
+        if (!data.liberado) {
+          response = {
+            reply: 'O pagamento desta vaga ainda não foi confirmado.',
+            intent: match.intent,
+            cards: data.payment ? [paymentCard({ token: data.compra.token, status: data.payment.status, valueCents: data.payment.valor_centavos, invoiceUrl: data.payment.invoice_url, pixPayload: data.payment.pix_payload })] : undefined,
+            actions: [{ id: 'check-purchased-payment', label: 'Verificar pagamento', message: 'Verificar pagamento', intent: 'verificar_pagamento_inscricao', variant: 'primary', context }],
+            context,
+            source: 'system',
+          }
+          break
+        }
+        const nextContext = registrationContext(context, { selectedChampionshipId: data.compra.campeonato_id, currentStep: 'team', selectedTeamId: null, selectedLineId: null, selectedLineName: null, selectedSlotId: null, selectedSlotLabel: null })
+        response = {
+          reply: `Sua vaga em ${data.campeonato?.nome || 'este campeonato'} está paga e liberada. Escolha a equipe que vai utilizá-la.`,
+          intent: match.intent,
+          cards: teamCards(data.equipes || []).map((card: any) => ({ ...card, actions: [{ id: `paid-spot-team-${card.id}`, label: 'Usar esta equipe', message: `Usar equipe ${card.title}`, intent: 'selecionar_equipe_compra', variant: 'primary', context: { ...nextContext, selectedTeamId: card.id } }] })),
+          actions: flowControlActions(nextContext),
+          context: nextContext,
+          source: 'system',
+        }
+        break
+      }
+
       case 'resumo_minha_conta': {
         if (!user) {
           response = {
@@ -651,22 +773,25 @@ export async function POST(req: NextRequest) {
         const end = new Date(today)
         end.setDate(end.getDate() + 90)
         const isoDate = (value: Date) => value.toISOString().slice(0, 10)
-        const [teams, registrations, agenda] = await Promise.all([
+        const [teams, registrations, agenda, vacancyPurchases] = await Promise.all([
           listUserTeams(user),
           listUserRegistrations(user),
           listAgenda({ scope: 'me', from: isoDate(today), to: isoDate(end), authUserId: user.id }),
+          listUserVacancyPurchases(user.id),
         ])
         const championshipIds = new Set(registrations.map((item: any) => String(item.campeonato?.id || item.campeonato_id || '')).filter(Boolean))
         const pendingCount = registrations.filter((item: any) => String(item.status || '').toLowerCase() !== 'ativo').length
         const nextMatch = (agenda.items || []).find((item: any) => item.source === 'jogo')
         const labels = locale === 'en'
-          ? { teams: 'Teams managed', championships: 'Tournaments', registrations: 'Registrations', pending: 'Pending review', next: 'Next match', none: 'No match scheduled', title: 'Your DropZone overview' }
+          ? { teams: 'Teams managed', championships: 'Tournaments', registrations: 'Registrations', paidSpots: 'Paid spots to use', pendingPayments: 'Pending payments', pending: 'Pending review', next: 'Next match', none: 'No match scheduled', title: 'Your DropZone overview' }
           : locale === 'es'
-            ? { teams: 'Equipos administrados', championships: 'Campeonatos', registrations: 'Inscripciones', pending: 'Pendientes', next: 'Próximo partido', none: 'Ningún partido programado', title: 'Resumen de tu cuenta DropZone' }
-            : { teams: 'Equipes administradas', championships: 'Campeonatos', registrations: 'Inscrições', pending: 'Pendências', next: 'Próximo jogo', none: 'Nenhum jogo agendado', title: 'Resumo da sua conta DropZone' }
+            ? { teams: 'Equipos administrados', championships: 'Campeonatos', registrations: 'Inscripciones', paidSpots: 'Cupos pagados por usar', pendingPayments: 'Pagos pendientes', pending: 'Pendientes', next: 'Próximo partido', none: 'Ningún partido programado', title: 'Resumen de tu cuenta DropZone' }
+            : { teams: 'Equipes administradas', championships: 'Campeonatos', registrations: 'Inscrições', paidSpots: 'Vagas pagas para usar', pendingPayments: 'Pagamentos pendentes', pending: 'Pendências', next: 'Próximo jogo', none: 'Nenhum jogo agendado', title: 'Resumo da sua conta DropZone' }
         const nextMatchValue = nextMatch
           ? [nextMatch.titulo || 'Jogo', nextMatch.data, nextMatch.horario_inicio].filter(Boolean).join(' • ')
           : labels.none
+        const paidSpotsCount = vacancyPurchases.filter((item: any) => item.liberada).length
+        const pendingPaymentsCount = vacancyPurchases.length - paidSpotsCount
 
         response = {
           reply: labels.title,
@@ -679,12 +804,15 @@ export async function POST(req: NextRequest) {
               { label: labels.teams, value: String(teams.length) },
               { label: labels.championships, value: String(championshipIds.size) },
               { label: labels.registrations, value: String(registrations.length) },
+              { label: labels.paidSpots, value: String(paidSpotsCount) },
+              { label: labels.pendingPayments, value: String(pendingPaymentsCount) },
               { label: labels.pending, value: String(pendingCount) },
               { label: labels.next, value: nextMatchValue },
             ],
           }],
           actions: [
-            { id: 'summary-registrations', label: locale === 'en' ? 'My registrations' : locale === 'es' ? 'Mis inscripciones' : 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
+            ...(vacancyPurchases.length ? [{ id: 'summary-purchased-spots', label: locale === 'en' ? 'My purchased spots' : locale === 'es' ? 'Mis cupos comprados' : 'Minhas vagas compradas', message: 'Mostrar minhas vagas compradas', intent: 'listar_minhas_vagas_compradas' as const, variant: 'primary' as const, context: { locale } }] : []),
+            { id: 'summary-registrations', label: locale === 'en' ? 'My registrations' : locale === 'es' ? 'Mis inscripciones' : 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: vacancyPurchases.length ? 'secondary' : 'primary', context: { locale } },
             { id: 'summary-games', label: locale === 'en' ? 'Upcoming matches' : locale === 'es' ? 'Próximos partidos' : 'Próximos jogos', message: 'Mostrar meus próximos jogos', intent: 'listar_proximos_jogos', variant: 'secondary', context: { locale } },
             { id: 'summary-teams', label: locale === 'en' ? 'My teams' : locale === 'es' ? 'Mis equipos' : 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes', variant: 'secondary', context: { locale } },
             { id: 'summary-agenda', label: locale === 'en' ? 'Full schedule' : locale === 'es' ? 'Agenda completa' : 'Agenda completa', href: '/agenda', variant: 'secondary' },
@@ -1272,10 +1400,10 @@ export async function POST(req: NextRequest) {
           intent: match.intent,
           cards: [{ id: item.id, kind: 'championship', title: item.nome, imageUrl: item.logo_url || item.banner_url || null, badges: [`${item.vagas_livres} vaga${Number(item.vagas_livres) === 1 ? '' : 's'} disponível${Number(item.vagas_livres) === 1 ? '' : 'is'}`], details: item.valor_inscricao != null ? [{ label: 'Valor', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` }] : undefined }],
           actions: [
-            { id: 'buy-pix', label: 'PIX', message: 'Comprar vaga por PIX', intent: 'pagar_pix_compra', variant: 'primary', context: { ...nextContext, selectedPaymentMethod: 'pix' } },
-            { id: 'buy-card', label: 'Cartão de crédito', message: 'Comprar vaga com cartão', intent: 'pagar_cartao_compra', variant: 'primary', context: { ...nextContext, selectedPaymentMethod: 'cartao' } },
-            { id: 'buy-paypal', label: 'PayPal', message: 'Comprar vaga com PayPal', intent: 'pagar_paypal_compra', variant: 'secondary', context: { ...nextContext, selectedPaymentMethod: 'paypal' } },
-            { id: 'buy-whatsapp', label: 'Falar com atendente no WhatsApp', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'secondary' },
+            ...(item.pagamento_pix_ativo ? [{ id: 'buy-pix', label: '💠 PIX', message: 'Comprar vaga por PIX', intent: 'pagar_pix_compra' as const, variant: 'primary' as const, context: { ...nextContext, selectedPaymentMethod: 'pix' as const } }] : []),
+            ...(item.pagamento_cartao_ativo ? [{ id: 'buy-card', label: `💳 Cartão${Number(item.cartao_max_parcelas || 1) > 1 ? ` até ${item.cartao_max_parcelas}x` : ''}`, message: 'Comprar vaga com cartão', intent: 'pagar_cartao_compra' as const, variant: 'primary' as const, context: { ...nextContext, selectedPaymentMethod: 'cartao' as const } }] : []),
+            ...(item.pagamento_paypal_ativo && paypalConfigured() ? [{ id: 'buy-paypal', label: '🅿️ PayPal', message: 'Comprar vaga com PayPal', intent: 'pagar_paypal_compra' as const, variant: 'secondary' as const, context: { ...nextContext, selectedPaymentMethod: 'paypal' as const } }] : []),
+            ...(item.pagamento_whatsapp_ativo && Array.isArray(item.contatos_whatsapp) && item.contatos_whatsapp.length ? [{ id: 'buy-whatsapp', label: '🟢 Falar no WhatsApp', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'secondary' as const }] : []),
             { id: 'have-token-selected', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
           ],
           context: nextContext,
@@ -1495,15 +1623,34 @@ export async function POST(req: NextRequest) {
           nomeLine: context.selectedLineId ? null : context.selectedLineName || null,
           slotId: context.selectedSlotId,
         })
+        const [championshipResult, groupResult, teamResult] = await Promise.all([
+          supabaseAdmin.from('campeonatos').select('nome').eq('id', result.compra.campeonato_id).maybeSingle(),
+          result.grupo_id
+            ? supabaseAdmin.from('campeonato_grupos').select('nome').eq('id', result.grupo_id).maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+          supabaseAdmin.from('equipes').select('nome').eq('id', context.selectedTeamId).maybeSingle(),
+        ])
+        const paymentMethod = String(result.compra?.meta?.metodo_pagamento || result.compra?.meta?.payment_method || context.selectedPaymentMethod || 'Pagamento confirmado').toUpperCase()
         response = {
           reply: result.mensagem || 'Inscrição concluída com sucesso.',
           intent: match.intent,
-          cards: [{ id: result.campeonato_equipe_id, kind: 'summary', title: 'Inscrição confirmada', details: [
-            { label: 'Line', value: result.line.nome },
-            { label: 'Slot', value: result.slot.slot_letra || String(result.slot.slot_numero) },
-            { label: 'Status', value: 'Ativa' },
-          ] }],
-          actions: menuActions(locale),
+          cards: [registrationReceiptCard({
+            id: String(result.campeonato_equipe_id),
+            campeonato: championshipResult.data?.nome || 'Campeonato confirmado',
+            equipe: teamResult.data?.nome || 'Equipe confirmada',
+            line: result.line.nome,
+            grupo: groupResult.data?.nome || 'Grupo confirmado',
+            slot: result.slot.slot_letra || String(result.slot.slot_numero),
+            pagamento: paymentMethod,
+            valorCentavos: result.compra?.valor_centavos,
+            protocolo: String(result.compra?.token || result.campeonato_equipe_id),
+            confirmadoEm: result.compra?.consumido_em || new Date().toISOString(),
+          })],
+          actions: [
+            { id: 'view-registration-after-purchase', label: 'Ver minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
+            { id: 'view-rules-after-purchase', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: result.compra.campeonato_id } },
+            { id: 'menu-after-purchase', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
+          ],
           context: { locale },
           source: 'system',
         }

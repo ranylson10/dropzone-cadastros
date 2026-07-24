@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, Dumbbell, Medal, Plus, Swords, Trash2, Trophy } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CreditCard, Dumbbell, Medal, MessageCircle, Plus, QrCode, Swords, Trash2, Trophy, WalletCards } from 'lucide-react'
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import { Field, UploadField } from '@/features/dropzone/components/form-fields'
@@ -12,7 +12,6 @@ export type CampeonatoFormValue = {
   tipo: string
   logo_url: string
   banner_url: string
-  regras_url: string
   premiacao: string
   valor_inscricao: string
   descricao_premiacao: string
@@ -32,6 +31,12 @@ export type CampeonatoFormValue = {
   data_limite_inscricao: string
   aceita_novas_inscricoes_equipes: boolean
   contatos_whatsapp: CampeonatoWhatsappContact[]
+  pagamento_pix_ativo: boolean
+  pagamento_cartao_ativo: boolean
+  pagamento_paypal_ativo: boolean
+  pagamento_whatsapp_ativo: boolean
+  cartao_max_parcelas: string
+  paypal_moedas: string[]
   /** Tema visual do campeonato */
   cor_principal: string
   cor_secundaria: string
@@ -71,7 +76,6 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   tipo: '',
   logo_url: '',
   banner_url: '',
-  regras_url: '',
   premiacao: '',
   valor_inscricao: '',
   descricao_premiacao: '',
@@ -91,6 +95,12 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   data_limite_inscricao: '',
   aceita_novas_inscricoes_equipes: true,
   contatos_whatsapp: [],
+  pagamento_pix_ativo: true,
+  pagamento_cartao_ativo: true,
+  pagamento_paypal_ativo: false,
+  pagamento_whatsapp_ativo: true,
+  cartao_max_parcelas: '1',
+  paypal_moedas: ['BRL', 'USD', 'EUR'],
   cor_principal: '#ff4655',
   cor_secundaria: '#17191d',
   bg_opacidade: '18',
@@ -367,7 +377,6 @@ export function CampeonatoForm({
           <Field label="Nome do campeonato"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
           <UploadField label="Logo do campeonato *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
           <UploadField label="Banner do campeonato" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
-          <Field label="Link do regulamento (opcional)"><input type="url" value={value.regras_url} onChange={(e) => update('regras_url', e.target.value)} placeholder="https://..." /></Field>
         </div>
       </section>
 
@@ -553,6 +562,67 @@ export function CampeonatoForm({
         </div>
         {value.permite_troca_jogadores ? (
           <Field label="Data limite para troca de jogadores"><input type="datetime-local" value={value.data_limite_trocas} onChange={(e) => update('data_limite_trocas', e.target.value)} /></Field>
+        ) : null}
+      </section>
+
+      <section className="form-section-card">
+        <div className="form-section-heading">
+          <div>
+            <p className="eyebrow">Pagamento da vaga</p>
+            <strong>Meios aceitos neste campeonato</strong>
+          </div>
+        </div>
+        <p className="empty" style={{ margin: '0 0 12px' }}>
+          A Lili mostrará somente as opções ativadas abaixo. Em campeonato gratuito, não será exibida cobrança.
+        </p>
+        <div className="championship-resource-grid">
+          <label className="championship-resource-toggle">
+            <input type="checkbox" checked={value.pagamento_pix_ativo} onChange={(e) => update('pagamento_pix_ativo', e.target.checked)} />
+            <span><QrCode size={15} /> PIX</span>
+          </label>
+          <label className="championship-resource-toggle">
+            <input type="checkbox" checked={value.pagamento_cartao_ativo} onChange={(e) => update('pagamento_cartao_ativo', e.target.checked)} />
+            <span><CreditCard size={15} /> Cartão</span>
+          </label>
+          <label className="championship-resource-toggle">
+            <input type="checkbox" checked={value.pagamento_paypal_ativo} onChange={(e) => update('pagamento_paypal_ativo', e.target.checked)} />
+            <span><WalletCards size={15} /> PayPal</span>
+          </label>
+          <label className="championship-resource-toggle">
+            <input type="checkbox" checked={value.pagamento_whatsapp_ativo} onChange={(e) => update('pagamento_whatsapp_ativo', e.target.checked)} />
+            <span><MessageCircle size={15} /> WhatsApp</span>
+          </label>
+        </div>
+
+        {value.pagamento_cartao_ativo ? (
+          <Field label="Máximo de parcelas no cartão">
+            <select value={value.cartao_max_parcelas} onChange={(e) => update('cartao_max_parcelas', e.target.value)}>
+              {Array.from({ length: 12 }, (_, index) => index + 1).map((installment) => (
+                <option value={String(installment)} key={installment}>{installment === 1 ? 'À vista' : `Até ${installment}x`}</option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
+
+        {value.pagamento_paypal_ativo ? (
+          <Field label="Moedas aceitas no PayPal">
+            <div className="checkbox-row">
+              {(['BRL', 'USD', 'EUR'] as const).map((currency) => (
+                <label key={currency}>
+                  <input
+                    type="checkbox"
+                    checked={value.paypal_moedas.includes(currency)}
+                    onChange={(event) => update(
+                      'paypal_moedas',
+                      event.target.checked
+                        ? [...new Set([...value.paypal_moedas, currency])]
+                        : value.paypal_moedas.filter((item) => item !== currency),
+                    )}
+                  /> {currency}
+                </label>
+              ))}
+            </div>
+          </Field>
         ) : null}
       </section>
 
