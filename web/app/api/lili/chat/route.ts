@@ -31,7 +31,36 @@ import {
   slotCards,
   teamCards,
 } from '@/features/lili/tools'
-import type { LiliChatResponse, LiliClientContext, LiliCurrency, LiliIntent, LiliLocale } from '@/features/lili/types'
+import type { LiliAction, LiliChatResponse, LiliClientContext, LiliCurrency, LiliIntent, LiliLocale } from '@/features/lili/types'
+
+
+function whatsappHref(contact: any, text: string) {
+  const rawUrl = String(contact?.url || '').trim()
+  if (rawUrl) {
+    const base = rawUrl.split('?')[0]
+    return `${base}?text=${encodeURIComponent(text)}`
+  }
+  const rawPhone = String(contact?.numero || contact?.telefone || contact?.whatsapp || '').replace(/\D/g, '')
+  if (!rawPhone) return null
+  const phone = rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+}
+
+function whatsappContactActions(contacts: any[], text: string, prefix = 'whatsapp'): LiliAction[] {
+  const actions: LiliAction[] = []
+  contacts.forEach((contact: any, index: number) => {
+    const href = whatsappHref(contact, text)
+    if (!href) return
+    const name = String(contact?.nome || contact?.name || `Vendedor ${index + 1}`).trim()
+    actions.push({
+      id: `${prefix}-${index}`,
+      label: `🟢 WhatsApp · ${name}`,
+      href,
+      variant: 'whatsapp',
+    })
+  })
+  return actions
+}
 
 async function optionalUser(req: NextRequest) {
   try { return await getBearerUser(req) } catch { return null }
@@ -804,7 +833,7 @@ export async function POST(req: NextRequest) {
           response = {
             reply: 'O pagamento desta vaga ainda não foi confirmado.',
             intent: match.intent,
-            cards: data.payment ? [paymentCard({ token: data.compra.token, status: data.payment.status, valueCents: data.payment.valor_centavos, invoiceUrl: data.payment.invoice_url, pixPayload: data.payment.pix_payload })] : undefined,
+            cards: data.payment ? [paymentCard({ token: data.compra.token, status: data.payment.status, valueCents: data.payment.valor_centavos, invoiceUrl: data.payment.invoice_url, pixPayload: data.payment.pix_payload, pixQrCode: data.payment.pix_qrcode })] : undefined,
             actions: [{ id: 'check-purchased-payment', label: 'Verificar pagamento', message: 'Verificar pagamento', intent: 'verificar_pagamento_inscricao', variant: 'primary', context }],
             context,
             source: 'system',
@@ -1252,7 +1281,7 @@ export async function POST(req: NextRequest) {
             ? `Slot reservado até ${new Date(reservation.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Pague pelo QR Code ou PIX copia e cola.`
             : `Slot reservado até ${new Date(reservation.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Abra o checkout seguro do Asaas para pagar com cartão.`,
           intent: match.intent,
-          cards: [paymentCard({ token: reservation.codigo, status: payment.status, valueCents: payment.valor_centavos, invoiceUrl: payment.asaas_invoice_url, pixPayload: payment.asaas_pix_payload })],
+          cards: [paymentCard({ token: reservation.codigo, status: payment.status, valueCents: payment.valor_centavos, invoiceUrl: payment.asaas_invoice_url, pixPayload: payment.asaas_pix_payload, pixQrCode: payment.asaas_pix_qrcode })],
           actions: [
             { id: 'check-group-payment', label: 'Já paguei, verificar', message: 'Verificar pagamento', intent: 'verificar_pagamento_convite_grupo', variant: 'primary', context: nextContext },
             { id: 'group-payment-rules', label: 'Ver regulamento', message: 'Ver regulamento do campeonato', intent: 'ver_regulamento_campeonato', variant: 'secondary', context: nextContext },
@@ -1291,24 +1320,83 @@ export async function POST(req: NextRequest) {
       }
 
       case 'falar_atendente_convite_grupo': {
-        if (!user) {
-          response = { reply: 'Entre na conta para reservar o slot antes de abrir o WhatsApp.', intent: match.intent, requiresAuth: true, context, source: 'system' }
-          break
-        }
-        const invite = await loadGroupInviteInChat(req, String(context.inviteToken), String(context.selectedTeamId))
-        const reservation = await reserveSlotForLili({ campeonatoId: invite.campeonato.id, grupoId: invite.grupo.id, slotId: String(context.selectedSlotId), authUserId: user.id, equipeId: String(context.selectedTeamId), lineId: context.selectedLineId || null, nomeLine: context.selectedLineId ? null : context.selectedLineName || null, conviteToken: context.inviteToken || null, metodo: 'whatsapp', minutes: 30, meta: { campeonato_nome: invite.campeonato.nome, grupo_nome: invite.grupo.nome, slot: context.selectedSlotLabel } })
-        const { data: cfg } = await supabaseAdmin.from('campeonato_configuracoes').select('contatos_whatsapp').eq('campeonato_id', invite.campeonato.id).maybeSingle()
+        const invite = await loadGroupInviteInChat(req, String(context.inviteToken), context.selectedTeamId ? String(context.selectedTeamId) : undefined)
+        const { data: cfg } = await supabaseAdmin
+          .from('campeonato_configuracoes')
+          .select('contatos_whatsapp')
+          .eq('campeonato_id', invite.campeonato.id)
+          .maybeSingle()
         const contacts = Array.isArray(cfg?.contatos_whatsapp) ? cfg.contatos_whatsapp : []
-        const text = `Olá, quero confirmar uma vaga no campeonato ${invite.campeonato.nome}.\nGrupo: ${invite.grupo.nome}\nSlot: ${context.selectedSlotLabel}\nEquipe: ${invite.equipe?.nome || 'Selecionada'}\nLine: ${context.selectedLineName || 'Selecionada'}\nReserva: ${reservation.codigo}\nValidade: ${new Date(reservation.expira_em).toLocaleString('pt-BR')}`
-        const actions = contacts.filter((c: any) => c?.url).map((c: any, i: number) => ({ id: `whatsapp-${i}`, label: `Falar com ${c.nome || 'atendente'}`, href: `${String(c.url).split('?')[0]}?text=${encodeURIComponent(text)}`, variant: 'primary' as const }))
+        const text = [
+          `Olá, quero negociar uma vaga no campeonato ${invite.campeonato.nome}.`,
+          invite.grupo?.nome ? `Grupo: ${invite.grupo.nome}` : null,
+          context.selectedSlotLabel ? `Slot desejado: ${context.selectedSlotLabel}` : null,
+          invite.equipe?.nome ? `Equipe: ${invite.equipe.nome}` : null,
+          context.selectedLineName ? `Line: ${context.selectedLineName}` : null,
+          'A vaga ainda não foi reservada automaticamente. Gostaria de confirmar disponibilidade e pagamento.',
+        ].filter(Boolean).join('\n')
+        const actions = whatsappContactActions(contacts, text, `invite-whatsapp-${invite.campeonato.id}`)
         response = {
-          reply: `Slot reservado por 30 minutos. Escolha um atendente para continuar pelo WhatsApp. Informe o código ${reservation.codigo}.`,
+          reply: actions.length
+            ? 'Escolha um vendedor abaixo para continuar pelo WhatsApp. A vaga não será reservada automaticamente; o organizador decide se deseja agendá-la durante o atendimento.'
+            : 'A organização ainda não cadastrou vendedores com WhatsApp para este campeonato.',
           intent: match.intent,
-          cards: [{ id: reservation.id, kind: 'summary', title: 'Reserva temporária', subtitle: invite.campeonato.nome, details: [
-            { label: 'Grupo', value: invite.grupo.nome }, { label: 'Slot', value: String(context.selectedSlotLabel) }, { label: 'Equipe', value: String(invite.equipe?.nome || 'Selecionada') }, { label: 'Line', value: String(context.selectedLineName || 'Selecionada') }, { label: 'Reserva', value: reservation.codigo }, { label: 'Expira em', value: new Date(reservation.expira_em).toLocaleString('pt-BR') },
-          ], actions }],
-          actions: actions.length ? [] : [{ id: 'no-whatsapp', label: 'Voltar', message: 'Voltar uma etapa', intent: 'voltar_etapa', variant: 'secondary', context }],
-          context: { ...context, reservationId: reservation.id, reservationCode: reservation.codigo, reservationExpiresAt: reservation.expira_em }, source: 'system',
+          cards: actions.length ? [{
+            id: `whatsapp-invite-${invite.campeonato.id}`,
+            kind: 'summary',
+            title: 'Atendimento pelo WhatsApp',
+            subtitle: invite.campeonato.nome,
+            details: [
+              ...(invite.grupo?.nome ? [{ label: 'Grupo', value: String(invite.grupo.nome) }] : []),
+              ...(context.selectedSlotLabel ? [{ label: 'Slot desejado', value: String(context.selectedSlotLabel) }] : []),
+              { label: 'Reserva automática', value: 'Não. A organização decide manualmente.' },
+            ],
+            actions,
+          }] : undefined,
+          actions: [
+            ...(!actions.length ? [{ id: 'no-whatsapp', label: 'Voltar', message: 'Voltar uma etapa', intent: 'voltar_etapa' as const, variant: 'secondary' as const, context }] : []),
+          ],
+          context,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'falar_atendente_compra': {
+        if (!context.selectedChampionshipId) throw new Error('Campeonato não selecionado.')
+        const item = await getChampionshipDetails(context.selectedChampionshipId)
+        const contacts = Array.isArray(item.contatos_whatsapp) ? item.contatos_whatsapp : []
+        const value = item.valor_inscricao == null ? 'sob consulta' : `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}`
+        const text = [
+          `Olá, quero comprar uma vaga no campeonato ${item.nome}.`,
+          `Valor informado: ${value}.`,
+          'Estou falando pela Lili do DropZone.',
+          'A vaga ainda não foi reservada automaticamente. Gostaria de confirmar disponibilidade e forma de pagamento.',
+        ].join('\n')
+        const actions = whatsappContactActions(contacts, text, `buy-whatsapp-${item.id}`)
+        response = {
+          reply: actions.length
+            ? 'Escolha um vendedor abaixo. O WhatsApp abrirá diretamente, sem sair antes para a página de vagas. A vaga não fica presa automaticamente.'
+            : 'A organização ainda não cadastrou vendedores com WhatsApp para este campeonato.',
+          intent: match.intent,
+          cards: actions.length ? [{
+            id: `whatsapp-buy-${item.id}`,
+            kind: 'summary',
+            title: 'Comprar pelo WhatsApp',
+            subtitle: item.nome,
+            imageUrl: item.logo_url || item.banner_url || null,
+            details: [
+              { label: 'Valor', value },
+              { label: 'Reserva automática', value: 'Não. A organização decide manualmente.' },
+              { label: 'Vendedores disponíveis', value: String(actions.length) },
+            ],
+            actions,
+          }] : undefined,
+          actions: [
+            { id: 'whatsapp-back-payment', label: 'Voltar aos meios de pagamento', message: `Comprar vaga em ${item.nome}`, intent: 'comprar_vaga', variant: 'secondary', context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' } },
+          ],
+          context: { ...context, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' },
+          source: 'system',
         }
         break
       }
@@ -1485,7 +1573,7 @@ export async function POST(req: NextRequest) {
             reply: whatsappAvailable ? 'O valor desta vaga está sob consulta. Fale com a organização pelo WhatsApp para negociar e receber seu token.' : 'O valor desta vaga está sob consulta, mas a organização ainda não cadastrou um canal de atendimento.',
             intent: match.intent,
             actions: [
-              ...(whatsappAvailable ? [{ id: `consult-whatsapp-${item.id}`, label: '🟢 Falar no WhatsApp', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'primary' as const }] : []),
+              ...(whatsappAvailable ? [{ id: `consult-whatsapp-${item.id}`, label: '🟢 Escolher vendedor no WhatsApp', message: 'Quero falar com um vendedor pelo WhatsApp', intent: 'falar_atendente_compra' as const, variant: 'whatsapp' as const, context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' } }] : []),
               { id: 'consult-token', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
               { id: 'consult-back', label: 'Ver outros campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'secondary', context: { locale } },
             ],
@@ -1514,7 +1602,7 @@ export async function POST(req: NextRequest) {
             ...(pixAvailable ? [{ id: 'buy-pix', label: '💠 PIX', message: 'Comprar vaga por PIX', intent: 'pagar_pix_compra' as const, variant: 'primary' as const, context: { ...nextContext, selectedPaymentMethod: 'pix' as const } }] : []),
             ...(cardAvailable ? [{ id: 'buy-card', label: `💳 Cartão${Number(item.cartao_max_parcelas || 1) > 1 ? ` até ${item.cartao_max_parcelas}x` : ''}`, message: 'Comprar vaga com cartão', intent: 'pagar_cartao_compra' as const, variant: 'primary' as const, context: { ...nextContext, selectedPaymentMethod: 'cartao' as const } }] : []),
             ...(paypalAvailable ? [{ id: 'buy-paypal', label: '🅿️ PayPal', message: 'Comprar vaga com PayPal', intent: 'pagar_paypal_compra' as const, variant: 'secondary' as const, context: { ...nextContext, selectedPaymentMethod: 'paypal' as const } }] : []),
-            ...(item.pagamento_whatsapp_ativo && Array.isArray(item.contatos_whatsapp) && item.contatos_whatsapp.length ? [{ id: 'buy-whatsapp', label: '🟢 Falar no WhatsApp', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'secondary' as const }] : []),
+            ...(item.pagamento_whatsapp_ativo && Array.isArray(item.contatos_whatsapp) && item.contatos_whatsapp.length ? [{ id: 'buy-whatsapp', label: '🟢 Escolher vendedor no WhatsApp', message: 'Quero comprar pelo WhatsApp', intent: 'falar_atendente_compra' as const, variant: 'whatsapp' as const, context: { ...nextContext, selectedPaymentMethod: 'whatsapp' as const } }] : []),
             { id: 'have-token-selected', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
           ],
           context: nextContext,
@@ -1556,7 +1644,7 @@ export async function POST(req: NextRequest) {
         response = {
           reply: method === 'pix' ? 'Cobrança PIX criada. Pague e depois toque em “Já paguei, verificar”.' : 'Checkout de cartão criado. Abra a página segura do Asaas e depois volte para verificar.',
           intent: match.intent,
-          cards: [paymentCard({ token: compra.token, status: payment?.status || compra.status, valueCents: payment?.valor_centavos || compra.valor_centavos, invoiceUrl: payment?.asaas_invoice_url, pixPayload: payment?.asaas_pix_payload, expiresAt: compra.expira_em })],
+          cards: [paymentCard({ token: compra.token, status: payment?.status || compra.status, valueCents: payment?.valor_centavos || compra.valor_centavos, invoiceUrl: payment?.asaas_invoice_url, pixPayload: payment?.asaas_pix_payload, pixQrCode: payment?.asaas_pix_qrcode, expiresAt: compra.expira_em })],
           actions: [{ id: 'check-direct-payment', label: 'Já paguei, verificar', message: 'Verificar pagamento', intent: 'verificar_pagamento_inscricao', variant: 'primary', context: nextContext }, { id: 'menu-after-payment', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
           context: nextContext, source: 'system',
         }
@@ -1634,6 +1722,7 @@ export async function POST(req: NextRequest) {
             valueCents: payment?.valor_centavos || compra.valor_centavos,
             invoiceUrl: payment?.asaas_invoice_url,
             pixPayload: payment?.asaas_pix_payload,
+            pixQrCode: payment?.asaas_pix_qrcode,
             expiresAt: compra.expira_em,
           })],
           actions: [
@@ -1662,6 +1751,7 @@ export async function POST(req: NextRequest) {
               valueCents: data.payment.valor_centavos,
               invoiceUrl: data.payment.invoice_url,
               pixPayload: data.payment.pix_payload,
+              pixQrCode: data.payment.pix_qrcode,
               expiresAt: data.compra.expira_em,
             })] : undefined,
             actions: [{ id: 'check-again', label: 'Verificar novamente', message: 'Verificar pagamento novamente', intent: 'verificar_pagamento_inscricao', variant: 'primary', context }],

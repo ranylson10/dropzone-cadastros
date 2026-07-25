@@ -232,12 +232,18 @@ export function paymentCard(input: {
   valueCents?: number | null
   invoiceUrl?: string | null
   pixPayload?: string | null
+  pixQrCode?: string | null
   expiresAt?: string | null
 }): LiliCard {
   const value = input.valueCents != null
     ? `R$ ${(Number(input.valueCents) / 100).toFixed(2).replace('.', ',')}`
     : 'A confirmar'
   const actions: any[] = []
+  const qrCodeUrl = input.pixQrCode
+    ? String(input.pixQrCode).startsWith('data:image/')
+      ? String(input.pixQrCode)
+      : `data:image/png;base64,${String(input.pixQrCode).replace(/^data:image\/[^;]+;base64,/, '')}`
+    : null
   if (input.pixPayload) actions.push({ id: 'copy-pix', label: 'Copiar código PIX', copyText: input.pixPayload, variant: 'primary' })
   if (input.invoiceUrl) actions.push({ id: 'open-payment', label: 'Abrir pagamento', href: input.invoiceUrl, variant: input.pixPayload ? 'secondary' : 'primary' })
   return {
@@ -245,6 +251,7 @@ export function paymentCard(input: {
     kind: 'payment',
     title: 'Pagamento da inscrição',
     subtitle: `Status: ${input.status}`,
+    qrCodeUrl,
     expiresAt: input.expiresAt || null,
     badges: [value],
     details: [{ label: 'Código', value: input.token }],

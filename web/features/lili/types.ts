@@ -29,6 +29,7 @@ export type LiliIntent =
   | 'pagar_paypal_convite_grupo'
   | 'capturar_paypal_convite_grupo'
   | 'falar_atendente_convite_grupo'
+  | 'falar_atendente_compra'
   | 'verificar_pagamento_convite_grupo'
   | 'listar_minhas_equipes'
   | 'abrir_equipe'
@@ -94,7 +95,7 @@ export type LiliAction = {
   label: string
   message?: string
   intent?: LiliIntent
-  variant?: 'primary' | 'secondary'
+  variant?: 'primary' | 'secondary' | 'whatsapp'
   href?: string
   copyText?: string
   context?: LiliClientContext
@@ -106,6 +107,7 @@ export type LiliCard = {
   title: string
   subtitle?: string | null
   imageUrl?: string | null
+  qrCodeUrl?: string | null
   expiresAt?: string | null
   badges?: string[]
   details?: Array<{ label: string; value: string }>

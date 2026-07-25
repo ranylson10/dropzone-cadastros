@@ -268,7 +268,7 @@ export default function LiliPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready])
 
-  async function sendMessage(text: string, intent?: LiliIntent, actionContext?: LiliClientContext, echo = true) {
+  async function sendMessage(text: string, intent?: LiliIntent, actionContext?: LiliClientContext, echo = true, replaceLatestAssistant = false, silent = false) {
     const clean = text.trim()
     if ((!clean && !intent) || busyRef.current) return
 
@@ -286,7 +286,7 @@ export default function LiliPage() {
       ])
     }
     setInput('')
-    setTyping(true)
+    if (!silent) setTyping(true)
 
     try {
       const response = await fetch('/api/lili/chat', {
@@ -303,39 +303,46 @@ export default function LiliPage() {
       if (requestId !== requestIdRef.current) return
 
       const result = json as LiliChatResponse
-      await new Promise((resolve) => setTimeout(resolve, 850))
+      if (!silent) await new Promise((resolve) => setTimeout(resolve, 850))
       if (requestId !== requestIdRef.current) return
 
       const resultLocale = normalizeLocale(result.locale || result.context?.locale || nextContext.locale)
       setContext({ ...(result.context ?? nextContext), locale: resultLocale })
-      setMessages((current) => [
-        ...current,
-        {
+      setMessages((current) => {
+        const nextMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
           text: result.reply,
           cards: result.cards,
           actions: result.actions,
           requiresAuth: result.requiresAuth,
-        },
-      ])
+        }
+        if (!replaceLatestAssistant) return [...current, nextMessage]
+        const next = [...current]
+        const lastAssistantIndex = next.findLastIndex((message) => message.role === 'assistant')
+        if (lastAssistantIndex >= 0) next[lastAssistantIndex] = nextMessage
+        else next.push(nextMessage)
+        return next
+      })
       if (nextContext.autoOpenInvite && result.context?.inviteHref) {
         window.setTimeout(() => window.location.replace(result.context!.inviteHref!), 450)
       }
     } catch (error: any) {
       if (error?.name === 'AbortError' || requestId !== requestIdRef.current) return
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          text: error?.message || ui.genericError,
-        },
-      ])
+      if (!silent) {
+        setMessages((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            text: error?.message || ui.genericError,
+          },
+        ])
+      }
     } finally {
       if (requestId === requestIdRef.current) {
         busyRef.current = false
-        setTyping(false)
+        if (!silent) setTyping(false)
       }
     }
   }
@@ -350,7 +357,14 @@ export default function LiliPage() {
       }
       return
     }
-    if (action.href) { window.location.href = action.href; return }
+    if (action.href) {
+      if (/^https?:\/\/(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)/i.test(action.href)) {
+        window.open(action.href, '_blank', 'noopener,noreferrer')
+      } else {
+        window.location.href = action.href
+      }
+      return
+    }
     void sendMessage(action.message || action.label, action.intent, action.context)
   }
 
@@ -420,6 +434,36 @@ export default function LiliPage() {
       ? latestAssistant.id
       : null
   }, [messages])
+
+  const automaticPaymentCheck = useMemo(() => {
+    const latestAssistant = [...messages].reverse().find((message) => message.role === 'assistant')
+    if (!latestAssistant) return null
+    const expiresAt = latestAssistant.cards?.find((card) => card.kind === 'payment' && card.expiresAt)?.expiresAt
+    if (!expiresAt || new Date(expiresAt).getTime() <= Date.now()) return null
+    const action = latestAssistant.actions?.find((item) =>
+      item.intent === 'verificar_pagamento_inscricao'
+      || item.intent === 'capturar_paypal_compra'
+      || item.intent === 'verificar_pagamento_convite_grupo',
+    )
+    if (!action?.intent) return null
+    return { messageId: latestAssistant.id, expiresAt, action }
+  }, [messages])
+
+  useEffect(() => {
+    if (!automaticPaymentCheck || !session?.access_token) return
+    const expiresAtMs = new Date(automaticPaymentCheck.expiresAt).getTime()
+    const timer = window.setInterval(() => {
+      if (Date.now() >= expiresAtMs) {
+        window.clearInterval(timer)
+        return
+      }
+      if (busyRef.current || document.visibilityState !== 'visible') return
+      const action = automaticPaymentCheck.action
+      void sendMessage(action.message || action.label, action.intent, action.context, false, true, true)
+    }, 8000)
+    return () => window.clearInterval(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [automaticPaymentCheck?.messageId, automaticPaymentCheck?.expiresAt, session?.access_token])
 
   return (
     <main className="lili-hub-page">
@@ -507,6 +551,13 @@ export default function LiliPage() {
                   </div>
                   {card.expiresAt ? <PaymentCountdown expiresAt={card.expiresAt} /> : null}
                   {card.badges?.length ? <div className="lili-hub-badges">{card.badges.map((badge) => <span key={badge}>{badge}</span>)}</div> : null}
+                  {card.kind === 'payment' && card.qrCodeUrl ? (
+                    <div className="lili-payment-qr">
+                      <img src={card.qrCodeUrl} alt="QR Code PIX para pagamento" />
+                      <strong>Escaneie para pagar com PIX</strong>
+                      <small>Ou use o botão “Copiar código PIX” abaixo.</small>
+                    </div>
+                  ) : null}
                   {card.details?.length ? card.kind === 'rulebook' ? (
                     <div className="lili-rulebook-articles">{card.details.map((detail) => (
                       <div className="lili-rulebook-article" key={`${detail.label}-${detail.value}`}>
@@ -515,7 +566,7 @@ export default function LiliPage() {
                       </div>
                     ))}</div>
                   ) : <dl>{card.details.map((detail) => <div key={`${detail.label}-${detail.value}`}><dt>{detail.label}</dt><dd>{detail.value}</dd></div>)}</dl> : null}
-                  {card.actions?.map((action) => <button type="button" key={action.id} className="primary" disabled={!actionsEnabled} onClick={() => void handleAction(action)}>{action.label}</button>)}
+                  {card.actions?.map((action) => <button type="button" key={action.id} className={action.variant || 'primary'} disabled={!actionsEnabled} onClick={() => void handleAction(action)}>{action.label}</button>)}
                 </div>
               ))}</div> : null}
               {message.requiresAuth ? <button type="button" className="lili-hub-login" onClick={login} disabled={!actionsEnabled}><LogIn size={17} /> {ui.login}</button> : null}

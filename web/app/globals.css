@@ -9899,3 +9899,18 @@ input::placeholder, textarea::placeholder {
 }
 
 .lili-payment-countdown{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #f2cf67;border-radius:12px;background:#fff8dc;color:#6c4c00;font-size:11px;font-weight:800}.lili-payment-countdown strong{font-size:18px;letter-spacing:.06em;font-variant-numeric:tabular-nums}.lili-payment-countdown.expired{align-items:flex-start;flex-direction:column;gap:2px;border-color:#efb0b0;background:#fff0f0;color:#8e2525}.lili-payment-countdown.expired strong{font-size:12px;letter-spacing:0}.lili-payment-countdown.expired span{font-size:10px;font-weight:700}
+
+.lili-payment-qr{display:grid;justify-items:center;gap:5px;padding:12px;border:1px solid #ded4ef;border-radius:14px;background:#fff}.lili-payment-qr img{width:min(220px,72vw);height:auto;aspect-ratio:1;object-fit:contain;border-radius:10px}.lili-payment-qr strong{font-size:12px;color:#35264d}.lili-payment-qr small{font-size:10px;color:#776b89;text-align:center}
+
+
+/* Lili · botões diretos de vendedores no WhatsApp */
+.lili-hub-actions button.whatsapp,.lili-hub-card button.whatsapp{
+  border-color:#18a957;
+  background:linear-gradient(135deg,#25d366,#128c4b);
+  color:#fff;
+  box-shadow:0 6px 16px rgba(18,140,75,.24);
+}
+.lili-hub-actions button.whatsapp:hover,.lili-hub-card button.whatsapp:hover{
+  filter:brightness(.97);
+  transform:translateY(-1px);
+}
