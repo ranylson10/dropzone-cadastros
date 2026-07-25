@@ -424,6 +424,7 @@ export async function POST(req: NextRequest) {
             : null
         const details = [
           { label: 'Disponibilidade', value: Number(item.vagas_livres || 0) > 0 ? `${item.vagas_livres} vaga${Number(item.vagas_livres || 0) === 1 ? '' : 's'} disponível${Number(item.vagas_livres || 0) === 1 ? '' : 'eis'} agora` : 'Sem vagas disponíveis no momento' },
+          Number(item.vagas_em_compra || 0) > 0 ? { label: 'Em processo de compra', value: `${item.vagas_em_compra} vaga${Number(item.vagas_em_compra) === 1 ? '' : 's'} temporariamente reservada${Number(item.vagas_em_compra) === 1 ? '' : 's'}` } : null,
           item.price_mode === 'free' ? { label: 'Inscrição', value: 'Gratuita' } : item.price_mode === 'consult' ? { label: 'Valor da vaga', value: 'Sob consulta' } : { label: 'Valor da vaga', value: money(item.valor_inscricao) },
           prizeValue ? { label: 'Premiação', value: prizeValue } : null,
           item.jogadores_por_vaga ? { label: 'Jogadores por vaga', value: `${item.jogadores_por_vaga} player${Number(item.jogadores_por_vaga) === 1 ? '' : 's'}` } : null,
@@ -763,11 +764,19 @@ export async function POST(req: NextRequest) {
         }
         const purchases = await listUserVacancyPurchases(user.id)
         const releasedCount = purchases.filter((item: any) => item.liberada).length
-        const pendingCount = purchases.length - releasedCount
+        const pendingCount = purchases.filter((item: any) => item.pendente).length
+        const consumedCount = purchases.filter((item: any) => item.consumida).length
+        const closedCount = purchases.filter((item: any) => item.encerrada).length
+        const summaryParts = [
+          releasedCount ? `${releasedCount} vaga${releasedCount === 1 ? '' : 's'} pronta${releasedCount === 1 ? '' : 's'} para usar` : null,
+          pendingCount ? `${pendingCount} pagamento${pendingCount === 1 ? '' : 's'} pendente${pendingCount === 1 ? '' : 's'}` : null,
+          consumedCount ? `${consumedCount} vaga${consumedCount === 1 ? '' : 's'} já utilizada${consumedCount === 1 ? '' : 's'}` : null,
+          closedCount ? `${closedCount} compra${closedCount === 1 ? '' : 's'} encerrada${closedCount === 1 ? '' : 's'}` : null,
+        ].filter(Boolean)
         response = {
           reply: purchases.length
-            ? `Encontrei ${releasedCount} vaga${releasedCount === 1 ? '' : 's'} paga${releasedCount === 1 ? '' : 's'} pronta${releasedCount === 1 ? '' : 's'} para usar${pendingCount ? ` e ${pendingCount} pagamento${pendingCount === 1 ? '' : 's'} pendente${pendingCount === 1 ? '' : 's'}` : ''}.`
-            : 'Você não possui vaga comprada aguardando uso nem pagamento pendente.',
+            ? `Encontrei ${summaryParts.join(', ')}.`
+            : 'Você ainda não possui compras de vaga registradas.',
           intent: match.intent,
           cards: vacancyPurchaseCards(purchases, locale),
           actions: [

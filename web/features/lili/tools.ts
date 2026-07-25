@@ -35,7 +35,7 @@ export async function listOpenChampionships(searchTerm?: string) {
   const ids = (championships || []).map((item) => item.id)
   if (!ids.length) return []
 
-  const [{ data: configs }, { data: slots }, { data: phases }] = await Promise.all([
+  const [{ data: configs }, { data: slots }, { data: phases }, { data: purchases }] = await Promise.all([
     supabaseAdmin
       .from('campeonato_configuracoes')
       .select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,tem_live,tem_trofeu,premiacao,jogadores_por_vaga,vagas_por_equipe,permite_troca_jogadores,contatos_whatsapp,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,pagamento_whatsapp_ativo,cartao_max_parcelas,paypal_moedas')
@@ -50,6 +50,11 @@ export async function listOpenChampionships(searchTerm?: string) {
       .from('campeonato_fases')
       .select('id,campeonato_id,ordem')
       .in('campeonato_id', ids),
+    supabaseAdmin
+      .from('sistema_compras_vaga')
+      .select('campeonato_id,status,expira_em')
+      .in('campeonato_id', ids)
+      .in('status', ['pendente', 'pago', 'liberado']),
   ])
   const configMap = new Map((configs || []).map((row: any) => [row.campeonato_id, row]))
   const phaseMap = new Map<string, Set<string> | null>()
@@ -80,9 +85,26 @@ export async function listOpenChampionships(searchTerm?: string) {
       if (!entryPhaseIds || entryPhaseIds.size === 0) return true
       return !slot.fase_id || entryPhaseIds.has(String(slot.fase_id))
     })
-    const free = champSlots.filter((slot: any) => !slot.equipe_id && !slot.line_id).length
+    const physicalFree = champSlots.filter((slot: any) => !slot.equipe_id && !slot.line_id).length
+    const now = Date.now()
+    const commercialReservations = (purchases || []).filter((purchase: any) => {
+      if (purchase.campeonato_id !== championship.id) return false
+      if (purchase.status === 'pendente') {
+        return !purchase.expira_em || new Date(purchase.expira_em).getTime() > now
+      }
+      return purchase.status === 'pago' || purchase.status === 'liberado'
+    }).length
+    const free = Math.max(0, physicalFree - commercialReservations)
     if (free <= 0) return []
-    return [{ ...championship, ...config, vagas_livres: free, total_slots: champSlots.length, price_mode: liliPriceMode(config.valor_inscricao) }]
+    return [{
+      ...championship,
+      ...config,
+      vagas_livres: free,
+      vagas_fisicamente_livres: physicalFree,
+      vagas_em_compra: commercialReservations,
+      total_slots: champSlots.length,
+      price_mode: liliPriceMode(config.valor_inscricao),
+    }]
   })
 }
 
@@ -232,75 +254,134 @@ export function paymentCard(input: {
 export async function listUserVacancyPurchases(authUserId: string) {
   const { data: purchases, error } = await supabaseAdmin
     .from('sistema_compras_vaga')
-    .select('id,token,campeonato_id,status,valor_centavos,pago_em,liberado_em,expira_em,created_at')
+    .select('id,token,campeonato_id,status,valor_centavos,pagamento_id,pago_em,liberado_em,consumido_em,expira_em,created_at')
     .eq('auth_user_id', authUserId)
-    .in('status', ['pendente', 'pago', 'liberado'])
+    .in('status', ['pendente', 'pago', 'liberado', 'consumido', 'cancelado', 'expirado', 'estornado'])
     .order('created_at', { ascending: false })
-    .limit(30)
+    .limit(40)
   if (error) throw error
   if (!purchases?.length) return []
 
   const championshipIds = [...new Set(purchases.map((row: any) => row.campeonato_id).filter(Boolean))]
-  const { data: championships, error: championshipError } = await supabaseAdmin
-    .from('campeonatos')
-    .select('id,nome,logo_url,banner_url,status,aprovacao_status')
-    .in('id', championshipIds)
-  if (championshipError) throw championshipError
-  const championshipMap = new Map((championships || []).map((row: any) => [row.id, row]))
+  const paymentIds = [...new Set(purchases.map((row: any) => row.pagamento_id).filter(Boolean))]
+  const [championshipResult, paymentResult] = await Promise.all([
+    supabaseAdmin
+      .from('campeonatos')
+      .select('id,nome,logo_url,banner_url,status,aprovacao_status')
+      .in('id', championshipIds),
+    paymentIds.length
+      ? supabaseAdmin
+          .from('sistema_pagamentos')
+          .select('id,status,metodo,provider,valor_centavos,invoice_url,pix_payload,created_at,updated_at')
+          .in('id', paymentIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (championshipResult.error) throw championshipResult.error
+  if (paymentResult.error) throw paymentResult.error
 
-  return purchases.map((purchase: any) => ({
-    ...purchase,
-    campeonato: championshipMap.get(purchase.campeonato_id) || null,
-    liberada: ['pago', 'liberado'].includes(String(purchase.status)),
-  }))
+  const championshipMap = new Map((championshipResult.data || []).map((row: any) => [row.id, row]))
+  const paymentMap = new Map((paymentResult.data || []).map((row: any) => [row.id, row]))
+  const now = Date.now()
+
+  return purchases.map((purchase: any) => {
+    const expiredByDate = purchase.status === 'pendente' && purchase.expira_em && new Date(purchase.expira_em).getTime() < now
+    const effectiveStatus = expiredByDate ? 'expirado' : String(purchase.status)
+    return {
+      ...purchase,
+      status_original: purchase.status,
+      status_efetivo: effectiveStatus,
+      campeonato: championshipMap.get(purchase.campeonato_id) || null,
+      pagamento: purchase.pagamento_id ? paymentMap.get(purchase.pagamento_id) || null : null,
+      liberada: ['pago', 'liberado'].includes(effectiveStatus),
+      consumida: effectiveStatus === 'consumido',
+      pendente: effectiveStatus === 'pendente',
+      encerrada: ['cancelado', 'expirado', 'estornado'].includes(effectiveStatus),
+    }
+  })
 }
 
 export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR'): LiliCard[] {
   const formatMoney = (cents: unknown) => `R$ ${(Number(cents || 0) / 100).toFixed(2).replace('.', ',')}`
-  const formatDate = (value: string | null | undefined) => value
-    ? new Date(value).toLocaleDateString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR')
+  const formatDateTime = (value: string | null | undefined) => value
+    ? new Date(value).toLocaleString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR', { dateStyle: 'short', timeStyle: 'short' })
     : '—'
 
+  const labels: Record<string, { badge: string; subtitle: string }> = {
+    pendente: { badge: '⏳ Pendente', subtitle: 'Pagamento aguardando confirmação' },
+    pago: { badge: '✅ Paga', subtitle: 'Pagamento confirmado · pronta para usar' },
+    liberado: { badge: '✅ Liberada', subtitle: 'Vaga pronta para usar' },
+    consumido: { badge: '🎟️ Utilizada', subtitle: 'Inscrição concluída' },
+    cancelado: { badge: '🚫 Cancelada', subtitle: 'Compra cancelada' },
+    expirado: { badge: '⌛ Expirada', subtitle: 'Prazo de pagamento encerrado' },
+    estornado: { badge: '↩️ Estornada', subtitle: 'Pagamento devolvido' },
+  }
+
   return items.map((item) => {
-    const released = Boolean(item.liberada)
-    const title = item.campeonato?.nome || (locale === 'en' ? 'Purchased spot' : locale === 'es' ? 'Cupo comprado' : 'Vaga comprada')
-    const statusLabel = released
-      ? locale === 'en' ? 'Paid · ready to use' : locale === 'es' ? 'Pagado · listo para usar' : 'Paga · pronta para usar'
-      : locale === 'en' ? 'Payment pending' : locale === 'es' ? 'Pago pendiente' : 'Pagamento pendente'
-    const action = released
-      ? {
-          id: `use-purchased-spot-${item.id}`,
-          label: locale === 'en' ? 'Use spot now' : locale === 'es' ? 'Usar cupo ahora' : 'Usar vaga agora',
-          message: locale === 'en' ? 'Use my purchased spot' : locale === 'es' ? 'Usar mi cupo comprado' : 'Usar minha vaga comprada',
-          intent: 'usar_vaga_comprada' as const,
-          variant: 'primary' as const,
-          context: { purchaseToken: item.token, selectedChampionshipId: item.campeonato_id, currentFlow: 'vacancy_purchase', currentStep: 'team' },
-        }
-      : {
-          id: `check-purchased-spot-${item.id}`,
-          label: locale === 'en' ? 'Check payment' : locale === 'es' ? 'Verificar pago' : 'Verificar pagamento',
-          message: locale === 'en' ? 'Check payment' : locale === 'es' ? 'Verificar pago' : 'Verificar pagamento',
-          intent: 'verificar_pagamento_inscricao' as const,
-          variant: 'primary' as const,
-          context: { purchaseToken: item.token, selectedChampionshipId: item.campeonato_id, currentFlow: 'vacancy_purchase', currentStep: 'payment_wait' },
-        }
+    const status = String(item.status_efetivo || item.status || 'pendente')
+    const statusInfo = labels[status] || { badge: status, subtitle: status }
+    const title = item.campeonato?.nome || 'Vaga de campeonato'
+    const actions: any[] = []
+
+    if (item.liberada) {
+      actions.push({
+        id: `use-purchased-spot-${item.id}`,
+        label: 'Usar vaga agora',
+        message: 'Usar minha vaga comprada',
+        intent: 'usar_vaga_comprada',
+        variant: 'primary',
+        context: { purchaseToken: item.token, selectedChampionshipId: item.campeonato_id, currentFlow: 'vacancy_purchase', currentStep: 'team' },
+      })
+      actions.push({
+        id: `resume-purchased-spot-${item.id}`,
+        label: 'Abrir link de recuperação',
+        href: `/lili?purchase=${encodeURIComponent(String(item.token))}`,
+        variant: 'secondary',
+      })
+    } else if (item.pendente) {
+      actions.push({
+        id: `check-purchased-spot-${item.id}`,
+        label: 'Verificar pagamento',
+        message: 'Verificar pagamento',
+        intent: 'verificar_pagamento_inscricao',
+        variant: 'primary',
+        context: { purchaseToken: item.token, selectedChampionshipId: item.campeonato_id, currentFlow: 'vacancy_purchase', currentStep: 'payment_wait' },
+      })
+      if (item.pagamento?.invoice_url) {
+        actions.push({ id: `open-payment-${item.id}`, label: 'Abrir pagamento', href: item.pagamento.invoice_url, variant: 'secondary' })
+      }
+      actions.push({
+        id: `resume-pending-purchase-${item.id}`,
+        label: 'Abrir link de recuperação',
+        href: `/lili?purchase=${encodeURIComponent(String(item.token))}`,
+        variant: 'secondary',
+      })
+    } else if (item.consumida) {
+      actions.push({ id: `view-registration-${item.id}`, label: 'Ver minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary' })
+    } else if (item.encerrada) {
+      actions.push({ id: `buy-again-${item.id}`, label: 'Comprar outra vaga', message: `Comprar vaga em ${title}`, intent: 'comprar_vaga', variant: 'primary', context: { selectedChampionshipId: item.campeonato_id, currentFlow: 'vacancy_purchase' } })
+    }
 
     return {
       id: `vacancy-purchase-${item.id}`,
       kind: 'payment',
       title,
-      subtitle: statusLabel,
+      subtitle: statusInfo.subtitle,
       imageUrl: item.campeonato?.logo_url || item.campeonato?.banner_url || null,
-      badges: [released ? '✅ Liberada' : '⏳ Pendente', formatMoney(item.valor_centavos)],
+      badges: [statusInfo.badge, formatMoney(item.valor_centavos)],
       details: [
-        { label: locale === 'en' ? 'Value' : locale === 'es' ? 'Valor' : 'Valor', value: formatMoney(item.valor_centavos) },
-        { label: locale === 'en' ? 'Purchased on' : locale === 'es' ? 'Comprado el' : 'Compra em', value: formatDate(item.created_at) },
-        { label: locale === 'en' ? 'Valid until' : locale === 'es' ? 'Válido hasta' : 'Válida até', value: formatDate(item.expira_em) },
+        { label: 'Valor', value: formatMoney(item.valor_centavos) },
+        { label: 'Forma de pagamento', value: String(item.pagamento?.metodo || item.pagamento?.provider || 'Não informada').toUpperCase() },
+        { label: 'Criada em', value: formatDateTime(item.created_at) },
+        ...(item.pago_em ? [{ label: 'Pago em', value: formatDateTime(item.pago_em) }] : []),
+        ...(item.consumido_em ? [{ label: 'Utilizada em', value: formatDateTime(item.consumido_em) }] : []),
+        ...(status === 'pendente' ? [{ label: 'Pagamento válido até', value: formatDateTime(item.expira_em) }] : []),
+        { label: 'Protocolo', value: String(item.token) },
       ],
-      actions: [action],
+      actions,
     }
   })
 }
+
 
 export async function listUserRegistrations(user: AuthUser) {
   const teams = await listUserTeams(user)
@@ -413,7 +494,7 @@ export async function getChampionshipDetails(championshipId: string) {
     throw new Error('Campeonato não encontrado ou indisponível.')
   }
 
-  const [{ data: config }, { data: slots }, { data: phases }] = await Promise.all([
+  const [{ data: config }, { data: slots }, { data: phases }, { data: purchases }] = await Promise.all([
     supabaseAdmin
       .from('campeonato_configuracoes')
       .select('valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,tem_live,tem_trofeu,premiacao,jogadores_por_vaga,vagas_por_equipe,permite_troca_jogadores,data_limite_trocas,contatos_whatsapp,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,pagamento_whatsapp_ativo,cartao_max_parcelas,paypal_moedas')
@@ -428,6 +509,11 @@ export async function getChampionshipDetails(championshipId: string) {
       .from('campeonato_fases')
       .select('id,ordem')
       .eq('campeonato_id', championshipId),
+    supabaseAdmin
+      .from('sistema_compras_vaga')
+      .select('status,expira_em')
+      .eq('campeonato_id', championshipId)
+      .in('status', ['pendente', 'pago', 'liberado']),
   ])
 
   const champPhases = phases || []
@@ -443,13 +529,23 @@ export async function getChampionshipDetails(championshipId: string) {
     if (!entryPhaseIds || entryPhaseIds.size === 0) return true
     return !slot.fase_id || entryPhaseIds.has(String(slot.fase_id))
   })
-  const vagasLivres = entrySlots.filter((slot: any) => !slot.equipe_id && !slot.line_id).length
+  const physicalFree = entrySlots.filter((slot: any) => !slot.equipe_id && !slot.line_id).length
+  const now = Date.now()
+  const commercialReservations = (purchases || []).filter((purchase: any) => {
+    if (purchase.status === 'pendente') {
+      return !purchase.expira_em || new Date(purchase.expira_em).getTime() > now
+    }
+    return purchase.status === 'pago' || purchase.status === 'liberado'
+  }).length
+  const vagasLivres = Math.max(0, physicalFree - commercialReservations)
   return {
     ...championship,
     ...(config || {}),
     premiacao_texto: championship.premiacao,
     premiacao_valor: config?.premiacao ?? null,
     vagas_livres: vagasLivres,
+    vagas_fisicamente_livres: physicalFree,
+    vagas_em_compra: commercialReservations,
     total_slots: entrySlots.length,
     price_mode: liliPriceMode(config?.valor_inscricao),
     prazo_aberto: liliRegistrationDeadlineOpen(config?.data_limite_inscricao),

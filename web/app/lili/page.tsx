@@ -172,6 +172,26 @@ export default function LiliPage() {
       return
     }
 
+    const purchaseToken = params.get('purchase') || params.get('compra') || params.get('vaga')
+    if (purchaseToken) {
+      deepLinkHandledRef.current = true
+      params.delete('purchase')
+      params.delete('compra')
+      params.delete('vaga')
+      const cleanQuery = params.toString()
+      window.history.replaceState({}, '', `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`)
+      const requestedLocale = normalizeLocale(params.get('lang') || params.get('locale') || context.locale || navigator.language)
+      const resumeContext: LiliClientContext = {
+        ...context,
+        locale: requestedLocale,
+        purchaseToken: purchaseToken.trim(),
+        currentFlow: 'vacancy_purchase',
+      }
+      setMessages([{ id: 'purchase-resume-processing', role: 'assistant', text: requestedLocale === 'es' ? 'Estoy recuperando tu compra…' : requestedLocale === 'en' ? 'I’m recovering your purchase…' : 'Estou recuperando sua compra…' }])
+      void sendMessage('Continuar minha vaga comprada', 'usar_vaga_comprada', resumeContext, false)
+      return
+    }
+
     const rawInvite = params.get('invite') || params.get('convite') || params.get('link') || params.get('token')
     if (!rawInvite) return
 

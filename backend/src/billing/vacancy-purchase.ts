@@ -62,6 +62,24 @@ function randomToken() {
   return out
 }
 
+
+async function countActiveCommercialReservations(campeonatoId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .select('id,status,expira_em')
+    .eq('campeonato_id', campeonatoId)
+    .in('status', ['pendente', 'pago', 'liberado'])
+  if (error) throw error
+
+  const now = Date.now()
+  return (data || []).filter((purchase: any) => {
+    if (purchase.status === 'pendente') {
+      return !purchase.expira_em || new Date(purchase.expira_em).getTime() > now
+    }
+    return purchase.status === 'pago' || purchase.status === 'liberado'
+  }).length
+}
+
 /** Próximo grupo com vagas livres (mesma lógica de /api/vagas). */
 export async function findNextOpenGroup(campeonatoId: string): Promise<{
   id: string
@@ -215,10 +233,7 @@ export async function createVacancyPurchase(input: {
   }
   const valorCentavos = Math.round(valorReais * 100)
 
-  const nextGroup = await findNextOpenGroup(input.campeonatoId)
-  if (!nextGroup) throw new Error('Não há grupos com vagas livres neste campeonato.')
-
-  // Reutiliza compra pendente do mesmo usuário no mesmo campeonato
+  // Reutiliza compra pendente do mesmo usuário no mesmo campeonato antes de reservar nova capacidade.
   const { data: existingOpen } = await supabaseAdmin
     .from('sistema_compras_vaga')
     .select('*')
@@ -231,6 +246,16 @@ export async function createVacancyPurchase(input: {
 
   if (existingOpen && ['pago', 'liberado'].includes(existingOpen.status)) {
     return { compra: existingOpen, payment: await loadPaymentForCompra(existingOpen), reused: true }
+  }
+  if (existingOpen?.status === 'pendente' && (!existingOpen.expira_em || new Date(existingOpen.expira_em).getTime() > Date.now())) {
+    return { compra: existingOpen, payment: await loadPaymentForCompra(existingOpen), reused: true }
+  }
+
+  const nextGroup = await findNextOpenGroup(input.campeonatoId)
+  if (!nextGroup) throw new Error('Não há grupos com vagas livres neste campeonato.')
+  const activeCommercialReservations = await countActiveCommercialReservations(input.campeonatoId)
+  if (nextGroup.vagas_livres - activeCommercialReservations <= 0) {
+    throw new Error('As vagas restantes estão temporariamente em processo de compra por outros usuários. Tente novamente em alguns minutos.')
   }
 
   let vendedorManagerId = input.vendedorManagerId || null
