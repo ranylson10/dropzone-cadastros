@@ -233,6 +233,16 @@ export async function captureLiliPayPalOrder(input: { orderId: string; reservati
 
 
 export async function captureVacancyPayPalOrder(input: { orderId: string; purchaseId: string; authUserId: string }) {
+  const { data: purchase, error: purchaseError } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .select('id,status,expira_em,auth_user_id')
+    .eq('id', input.purchaseId)
+    .maybeSingle()
+  if (purchaseError) throw purchaseError
+  if (!purchase || purchase.auth_user_id !== input.authUserId) {
+    throw new Error('Compra de vaga não localizada para esta conta.')
+  }
+
   const { data: payment, error } = await supabaseAdmin
     .from('sistema_pagamentos')
     .select('*')
@@ -246,6 +256,25 @@ export async function captureVacancyPayPalOrder(input: { orderId: string; purcha
   if (['pago', 'confirmado'].includes(String(payment.status))) return payment
 
   let order = await getPayPalOrder(input.orderId)
+  const orderStatus = String(order?.status || '').toUpperCase()
+  const purchaseExpired = purchase.status === 'pendente'
+    && purchase.expira_em
+    && new Date(purchase.expira_em).getTime() <= Date.now()
+
+  if (purchaseExpired && !['COMPLETED', 'APPROVED'].includes(orderStatus)) {
+    const now = new Date().toISOString()
+    await supabaseAdmin
+      .from('sistema_compras_vaga')
+      .update({ status: 'expirado', updated_at: now })
+      .eq('id', purchase.id)
+      .eq('status', 'pendente')
+    await supabaseAdmin
+      .from('sistema_pagamentos')
+      .update({ status: 'expirado', updated_at: now })
+      .eq('id', payment.id)
+      .in('status', ['pendente', 'aguardando'])
+    throw new Error('O prazo de 2 minutos desta compra expirou. Inicie uma nova compra para reservar outra vaga.')
+  }
   if (String(order?.status || '').toUpperCase() === 'APPROVED') {
     order = await paypalRequest(`/v2/checkout/orders/${encodeURIComponent(input.orderId)}/capture`, {
       method: 'POST',

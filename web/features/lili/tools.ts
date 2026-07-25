@@ -232,6 +232,7 @@ export function paymentCard(input: {
   valueCents?: number | null
   invoiceUrl?: string | null
   pixPayload?: string | null
+  expiresAt?: string | null
 }): LiliCard {
   const value = input.valueCents != null
     ? `R$ ${(Number(input.valueCents) / 100).toFixed(2).replace('.', ',')}`
@@ -244,6 +245,7 @@ export function paymentCard(input: {
     kind: 'payment',
     title: 'Pagamento da inscrição',
     subtitle: `Status: ${input.status}`,
+    expiresAt: input.expiresAt || null,
     badges: [value],
     details: [{ label: 'Código', value: input.token }],
     actions,
@@ -367,6 +369,7 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
       title,
       subtitle: statusInfo.subtitle,
       imageUrl: item.campeonato?.logo_url || item.campeonato?.banner_url || null,
+      expiresAt: status === 'pendente' ? item.expira_em || null : null,
       badges: [statusInfo.badge, formatMoney(item.valor_centavos)],
       details: [
         { label: 'Valor', value: formatMoney(item.valor_centavos) },
@@ -374,7 +377,10 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
         { label: 'Criada em', value: formatDateTime(item.created_at) },
         ...(item.pago_em ? [{ label: 'Pago em', value: formatDateTime(item.pago_em) }] : []),
         ...(item.consumido_em ? [{ label: 'Utilizada em', value: formatDateTime(item.consumido_em) }] : []),
-        ...(status === 'pendente' ? [{ label: 'Pagamento válido até', value: formatDateTime(item.expira_em) }] : []),
+        ...(status === 'pendente' ? [
+          { label: 'Reserva da vaga', value: 'Mantida por até 2 minutos enquanto o pagamento é concluído' },
+          { label: 'Pagamento válido até', value: formatDateTime(item.expira_em) },
+        ] : []),
         { label: 'Protocolo', value: String(item.token) },
       ],
       actions,

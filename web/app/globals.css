@@ -9897,3 +9897,5 @@ input::placeholder, textarea::placeholder {
   .lili-profile-trigger{height:34px!important}
   .lili-profile-avatar{width:26px!important;height:26px!important;min-width:26px!important}
 }
+
+.lili-payment-countdown{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #f2cf67;border-radius:12px;background:#fff8dc;color:#6c4c00;font-size:11px;font-weight:800}.lili-payment-countdown strong{font-size:18px;letter-spacing:.06em;font-variant-numeric:tabular-nums}.lili-payment-countdown.expired{align-items:flex-start;flex-direction:column;gap:2px;border-color:#efb0b0;background:#fff0f0;color:#8e2525}.lili-payment-countdown.expired strong{font-size:12px;letter-spacing:0}.lili-payment-countdown.expired span{font-size:10px;font-weight:700}

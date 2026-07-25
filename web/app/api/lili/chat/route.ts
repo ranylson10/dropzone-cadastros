@@ -1556,7 +1556,7 @@ export async function POST(req: NextRequest) {
         response = {
           reply: method === 'pix' ? 'Cobrança PIX criada. Pague e depois toque em “Já paguei, verificar”.' : 'Checkout de cartão criado. Abra a página segura do Asaas e depois volte para verificar.',
           intent: match.intent,
-          cards: [paymentCard({ token: compra.token, status: payment?.status || compra.status, valueCents: payment?.valor_centavos || compra.valor_centavos, invoiceUrl: payment?.asaas_invoice_url, pixPayload: payment?.asaas_pix_payload })],
+          cards: [paymentCard({ token: compra.token, status: payment?.status || compra.status, valueCents: payment?.valor_centavos || compra.valor_centavos, invoiceUrl: payment?.asaas_invoice_url, pixPayload: payment?.asaas_pix_payload, expiresAt: compra.expira_em })],
           actions: [{ id: 'check-direct-payment', label: 'Já paguei, verificar', message: 'Verificar pagamento', intent: 'verificar_pagamento_inscricao', variant: 'primary', context: nextContext }, { id: 'menu-after-payment', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
           context: nextContext, source: 'system',
         }
@@ -1585,7 +1585,7 @@ export async function POST(req: NextRequest) {
         const { compra } = await createVacancyPurchase({ campeonatoId: context.selectedChampionshipId, authUserId: user.id, payerName: name || 'Comprador', payerEmail: email, method: 'paypal' })
         const payment = await createLiliPayPalOrder({ reservation: compra, campeonatoNome: item.nome, amountMinor: quote.totalMinor, currency: quote.currency, returnOrigin: req.nextUrl.origin, referenceType: 'sistema_compras_vaga' })
         const nextContext = registrationContext(context, { purchaseToken: compra.token, purchaseId: compra.id, paypalOrderId: payment.paypal_order_id, paypalApprovalUrl: payment.paypal_approval_url, currentStep: 'payment_wait' })
-        response = { reply: 'Ordem PayPal criada. Abra o PayPal, aprove o pagamento e volte para a Lili.', intent: match.intent, cards: [{ id: payment.id, kind: 'payment', title: 'Pagamento PayPal', subtitle: item.nome, details: [{ label: 'Valor', value: formatMoney(quote.totalMinor / 100, quote.currency, locale) }, { label: 'Moeda', value: quote.currency }], actions: [{ id: 'open-paypal-buy', label: 'Abrir PayPal', href: payment.paypal_approval_url, variant: 'primary' }] }], actions: [{ id: 'check-paypal-buy', label: 'Já paguei, verificar', message: 'Verificar pagamento PayPal da vaga', intent: 'capturar_paypal_compra', variant: 'secondary', context: nextContext }], context: nextContext, source: 'system' }
+        response = { reply: 'Ordem PayPal criada. Abra o PayPal, aprove o pagamento e volte para a Lili.', intent: match.intent, cards: [{ id: payment.id, kind: 'payment', title: 'Pagamento PayPal', subtitle: item.nome, expiresAt: compra.expira_em, details: [{ label: 'Valor', value: formatMoney(quote.totalMinor / 100, quote.currency, locale) }, { label: 'Moeda', value: quote.currency }], actions: [{ id: 'open-paypal-buy', label: 'Abrir PayPal', href: payment.paypal_approval_url, variant: 'primary' }] }], actions: [{ id: 'check-paypal-buy', label: 'Já paguei, verificar', message: 'Verificar pagamento PayPal da vaga', intent: 'capturar_paypal_compra', variant: 'secondary', context: nextContext }], context: nextContext, source: 'system' }
         break
       }
 
@@ -1634,6 +1634,7 @@ export async function POST(req: NextRequest) {
             valueCents: payment?.valor_centavos || compra.valor_centavos,
             invoiceUrl: payment?.asaas_invoice_url,
             pixPayload: payment?.asaas_pix_payload,
+            expiresAt: compra.expira_em,
           })],
           actions: [
             { id: 'check-payment', label: 'Já paguei, verificar', message: 'Verificar pagamento', intent: 'verificar_pagamento_inscricao', variant: 'primary', context: nextContext },
@@ -1661,6 +1662,7 @@ export async function POST(req: NextRequest) {
               valueCents: data.payment.valor_centavos,
               invoiceUrl: data.payment.invoice_url,
               pixPayload: data.payment.pix_payload,
+              expiresAt: data.compra.expira_em,
             })] : undefined,
             actions: [{ id: 'check-again', label: 'Verificar novamente', message: 'Verificar pagamento novamente', intent: 'verificar_pagamento_inscricao', variant: 'primary', context }],
             context,

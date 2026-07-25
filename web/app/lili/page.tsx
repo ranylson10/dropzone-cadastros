@@ -50,6 +50,37 @@ function initialMessage(locale: LiliLocale = 'pt-BR'): ChatMessage {
 }
 
 
+function PaymentCountdown({ expiresAt }: { expiresAt?: string | null }) {
+  const [remaining, setRemaining] = useState(() => {
+    if (!expiresAt) return 0
+    return Math.max(0, new Date(expiresAt).getTime() - Date.now())
+  })
+
+  useEffect(() => {
+    if (!expiresAt) return
+    const update = () => setRemaining(Math.max(0, new Date(expiresAt).getTime() - Date.now()))
+    update()
+    const timer = window.setInterval(update, 1000)
+    return () => window.clearInterval(timer)
+  }, [expiresAt])
+
+  if (!expiresAt) return null
+  if (remaining <= 0) {
+    return <div className="lili-payment-countdown expired"><strong>Tempo esgotado</strong><span>A vaga foi liberada para venda novamente.</span></div>
+  }
+
+  const totalSeconds = Math.ceil(remaining / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return (
+    <div className="lili-payment-countdown" aria-live="polite">
+      <span>Tempo para pagar</span>
+      <strong>{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</strong>
+    </div>
+  )
+}
+
+
 export default function LiliPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage('pt-BR')])
@@ -474,6 +505,7 @@ export default function LiliPage() {
                     {card.imageUrl ? <img src={card.imageUrl} alt="" /> : <span>{card.title.slice(0, 1).toUpperCase()}</span>}
                     <div><strong>{card.title}</strong>{card.subtitle ? <small>{card.subtitle}</small> : null}</div>
                   </div>
+                  {card.expiresAt ? <PaymentCountdown expiresAt={card.expiresAt} /> : null}
                   {card.badges?.length ? <div className="lili-hub-badges">{card.badges.map((badge) => <span key={badge}>{badge}</span>)}</div> : null}
                   {card.details?.length ? card.kind === 'rulebook' ? (
                     <div className="lili-rulebook-articles">{card.details.map((detail) => (

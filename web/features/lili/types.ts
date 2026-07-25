@@ -106,6 +106,7 @@ export type LiliCard = {
   title: string
   subtitle?: string | null
   imageUrl?: string | null
+  expiresAt?: string | null
   badges?: string[]
   details?: Array<{ label: string; value: string }>
   actions?: LiliAction[]

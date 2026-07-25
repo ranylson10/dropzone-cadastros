@@ -48,6 +48,12 @@ async function fetchPixQrWithRetry(paymentId: string, attempts = 3) {
   return last
 }
 
+const COMMERCIAL_RESERVATION_MINUTES = 2
+
+function commercialReservationExpiresAt() {
+  return new Date(Date.now() + COMMERCIAL_RESERVATION_MINUTES * 60 * 1000).toISOString()
+}
+
 function dueDatePlusDays(days = 3) {
   const d = new Date()
   d.setDate(d.getDate() + days)
@@ -234,7 +240,7 @@ export async function createVacancyPurchase(input: {
   const valorCentavos = Math.round(valorReais * 100)
 
   // Reutiliza compra pendente do mesmo usuário no mesmo campeonato antes de reservar nova capacidade.
-  const { data: existingOpen } = await supabaseAdmin
+  const { data: existingResult } = await supabaseAdmin
     .from('sistema_compras_vaga')
     .select('*')
     .eq('campeonato_id', input.campeonatoId)
@@ -244,12 +250,24 @@ export async function createVacancyPurchase(input: {
     .limit(1)
     .maybeSingle()
 
+  let existingOpen = existingResult
   if (existingOpen && ['pago', 'liberado'].includes(existingOpen.status)) {
     return { compra: existingOpen, payment: await loadPaymentForCompra(existingOpen), reused: true }
   }
-  if (existingOpen?.status === 'pendente' && (!existingOpen.expira_em || new Date(existingOpen.expira_em).getTime() > Date.now())) {
-    return { compra: existingOpen, payment: await loadPaymentForCompra(existingOpen), reused: true }
+  if (existingOpen?.status === 'pendente') {
+    const stillValid = !existingOpen.expira_em || new Date(existingOpen.expira_em).getTime() > Date.now()
+    if (stillValid) {
+      return { compra: existingOpen, payment: await loadPaymentForCompra(existingOpen), reused: true }
+    }
+
+    await supabaseAdmin
+      .from('sistema_compras_vaga')
+      .update({ status: 'expirado', updated_at: new Date().toISOString() })
+      .eq('id', existingOpen.id)
+      .eq('status', 'pendente')
+    existingOpen = null
   }
+
 
   const nextGroup = await findNextOpenGroup(input.campeonatoId)
   if (!nextGroup) throw new Error('Não há grupos com vagas livres neste campeonato.')
@@ -302,6 +320,7 @@ export async function createVacancyPurchase(input: {
         vendedor_auth_user_id: vendedorAuthUserId,
         valor_centavos: valorCentavos,
         status: 'pendente',
+        expira_em: commercialReservationExpiresAt(),
         meta: {
           grupo_nome: nextGroup.nome,
           campeonato_nome: champ.nome,
@@ -319,6 +338,7 @@ export async function createVacancyPurchase(input: {
       .update({
         grupo_id: nextGroup.id,
         valor_centavos: valorCentavos,
+        expira_em: commercialReservationExpiresAt(),
         vendedor_manager_id: vendedorManagerId || compra.vendedor_manager_id,
         vendedor_auth_user_id: vendedorAuthUserId || compra.vendedor_auth_user_id,
         meta: {
@@ -513,6 +533,7 @@ export async function markVacancyPurchasePaid(compraId: string, pagamentoId?: st
       grupo_id: grupoId,
       pago_em: compra.pago_em || now,
       liberado_em: now,
+      expira_em: null,
       meta: {
         ...(compra.meta || {}),
         grupo_nome: grupoNome,
@@ -666,6 +687,34 @@ export async function getVacancyPurchaseByToken(token: string) {
     if (synced) Object.assign(compra, synced)
   }
 
+  // O prazo de 2 minutos vale somente enquanto a compra está pendente.
+  // Se o pagamento não foi confirmado dentro do prazo, invalida a compra e o link.
+  if (
+    compra.status === 'pendente'
+    && compra.expira_em
+    && new Date(compra.expira_em).getTime() <= Date.now()
+    && !(payment && isPaidStatus(payment.status))
+  ) {
+    const now = new Date().toISOString()
+    const { data: expired } = await supabaseAdmin
+      .from('sistema_compras_vaga')
+      .update({ status: 'expirado', updated_at: now })
+      .eq('id', compra.id)
+      .eq('status', 'pendente')
+      .select('*')
+      .maybeSingle()
+    if (expired) Object.assign(compra, expired)
+
+    if (payment && !isPaidStatus(payment.status)) {
+      await supabaseAdmin
+        .from('sistema_pagamentos')
+        .update({ status: 'expirado', updated_at: now })
+        .eq('id', payment.id)
+        .in('status', ['pendente', 'aguardando'])
+      payment = { ...payment, status: 'expirado' }
+    }
+  }
+
   let grupo: any = null
   let slotsLivres: any[] = []
   if (['pago', 'liberado'].includes(compra.status) || (payment && isPaidStatus(payment.status))) {
@@ -776,10 +825,6 @@ export async function claimVacancyPurchase(input: {
   if (!['pago', 'liberado'].includes(compra.status)) {
     throw new Error('Pagamento ainda não confirmado. Conclua o pagamento e aguarde a liberação.')
   }
-  if (compra.expira_em && new Date(compra.expira_em).getTime() < Date.now()) {
-    throw new Error('Esta compra expirou. Entre em contato com a organização.')
-  }
-
   // Só o comprador pode consumir
   const { data: full } = await supabaseAdmin
     .from('sistema_compras_vaga')
