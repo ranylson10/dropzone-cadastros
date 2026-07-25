@@ -18,7 +18,7 @@ import {
   AsaasNotConfiguredError,
 } from './asaas'
 // payments só importa este módulo de forma dinâmica (sem ciclo em load)
-import { creditInscriptionSplit } from './payments'
+import { creditInscriptionSplit, reverseInscriptionSplit } from './payments'
 import {
   inserirParticipacaoNoSlot,
   listLinesDisponiveisNoCampeonato,
@@ -662,6 +662,179 @@ export async function liberarCompraVagaComSplit(pagamento: any) {
   }
 
   return compra
+}
+
+
+
+async function notifyVacancyPurchaseReversal(input: {
+  compra: any
+  motivo: string
+  consumed: boolean
+  occurredAt: string
+}) {
+  const compra = input.compra
+  const { data: campeonato } = await supabaseAdmin
+    .from('campeonatos')
+    .select('id,nome,criado_por,produtora_id')
+    .eq('id', compra.campeonato_id)
+    .maybeSingle()
+
+  let organizadorAuthUserId = campeonato?.criado_por || null
+  if (campeonato?.produtora_id) {
+    const { data: produtora } = await supabaseAdmin
+      .from('produtoras')
+      .select('auth_user_id')
+      .eq('id', campeonato.produtora_id)
+      .maybeSingle()
+    organizadorAuthUserId = produtora?.auth_user_id || organizadorAuthUserId
+  }
+
+  const campeonatoNome = String(campeonato?.nome || compra.meta?.campeonato_nome || 'Campeonato')
+  const valor = `R$ ${(Number(compra.valor_centavos || 0) / 100).toFixed(2).replace('.', ',')}`
+  const basePayload = {
+    compra_vaga_id: compra.id,
+    campeonato_id: compra.campeonato_id,
+    pagamento_id: compra.pagamento_id || null,
+    motivo: input.motivo,
+    consumida: input.consumed,
+    valor_centavos: Number(compra.valor_centavos || 0),
+    ocorreu_em: input.occurredAt,
+  }
+
+  const rows: any[] = []
+  if (compra.auth_user_id) {
+    rows.push({
+      destinatario_auth_user_id: compra.auth_user_id,
+      tipo: 'compra_vaga_estornada',
+      titulo: input.consumed ? 'Pagamento da vaga foi estornado' : 'Compra da vaga foi estornada',
+      corpo: input.consumed
+        ? `O pagamento de ${valor} para ${campeonatoNome} foi estornado. Sua inscrição foi preservada e está em revisão com a organização.`
+        : `O pagamento de ${valor} para ${campeonatoNome} foi estornado e o direito à vaga foi cancelado.`,
+      payload: basePayload,
+      status: 'nao_lida',
+      referencia_tipo: 'sistema_compras_vaga',
+      referencia_id: compra.id,
+    })
+  }
+
+  if (organizadorAuthUserId && organizadorAuthUserId !== compra.auth_user_id) {
+    rows.push({
+      destinatario_auth_user_id: organizadorAuthUserId,
+      tipo: input.consumed ? 'revisao_financeira_inscricao' : 'compra_vaga_estornada',
+      titulo: input.consumed ? 'Inscrição exige revisão financeira' : 'Vaga estornada e liberada',
+      corpo: input.consumed
+        ? `${campeonatoNome}: houve estorno de ${valor} após a vaga já ter sido utilizada. A equipe permanece inscrita e precisa de decisão manual.`
+        : `${campeonatoNome}: uma compra de ${valor} foi estornada antes do uso e a vaga voltou automaticamente para venda.`,
+      payload: basePayload,
+      status: 'nao_lida',
+      referencia_tipo: 'sistema_compras_vaga',
+      referencia_id: compra.id,
+    })
+  }
+
+  if (
+    compra.vendedor_auth_user_id
+    && compra.vendedor_auth_user_id !== compra.auth_user_id
+    && compra.vendedor_auth_user_id !== organizadorAuthUserId
+  ) {
+    rows.push({
+      destinatario_auth_user_id: compra.vendedor_auth_user_id,
+      tipo: 'comissao_vaga_estornada',
+      titulo: 'Comissão de venda estornada',
+      corpo: `${campeonatoNome}: o pagamento de ${valor} foi estornado e a comissão relacionada foi revertida.`,
+      payload: basePayload,
+      status: 'nao_lida',
+      referencia_tipo: 'sistema_compras_vaga',
+      referencia_id: compra.id,
+    })
+  }
+
+  if (!rows.length) return false
+
+  const { error } = await supabaseAdmin.from('notificacoes').insert(rows)
+  if (error) {
+    // Notificação não pode impedir o estorno financeiro. Mantemos o evento
+    // sem marcar como enviado para que um webhook repetido possa tentar novamente.
+    console.error('[vacancy-purchase] falha ao notificar estorno', error)
+    return false
+  }
+  return true
+}
+
+/**
+ * Trata estorno, chargeback ou reversão de uma compra de vaga.
+ * - Se a vaga ainda não foi usada, revoga o direito e devolve a capacidade.
+ * - Se a inscrição já foi concluída, preserva equipe/slot e marca revisão manual;
+ *   nunca remove uma equipe automaticamente por evento financeiro.
+ * - Reverte o split financeiro de forma idempotente.
+ */
+export async function handleVacancyPurchaseReversal(pagamento: any, motivo = 'estorno') {
+  const compraId =
+    pagamento.referencia_id
+    || pagamento.payload_criacao?.dropzone?.compra_vaga_id
+    || null
+  if (!compraId) return { ignored: true }
+
+  const { data: compra, error } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .select('*')
+    .eq('id', String(compraId))
+    .maybeSingle()
+  if (error) throw error
+  if (!compra) return { ignored: true }
+
+  await reverseInscriptionSplit(pagamento, motivo)
+
+  const now = new Date().toISOString()
+  const consumed = compra.status === 'consumido' || Boolean(compra.campeonato_equipe_id)
+  const alreadyNotified = Boolean(compra.meta?.financeiro_notificacoes_enviadas_em)
+  const meta = {
+    ...(compra.meta || {}),
+    financeiro_status: 'estornado',
+    financeiro_motivo: motivo,
+    financeiro_revisao_manual: consumed,
+    financeiro_revisao_status: consumed ? 'pendente' : 'nao_necessaria',
+    financeiro_estornado_em: now,
+  }
+
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .update({
+      status: consumed ? 'consumido' : 'estornado',
+      expira_em: consumed ? compra.expira_em : now,
+      meta,
+      updated_at: now,
+    })
+    .eq('id', compra.id)
+    .select('*')
+    .single()
+  if (updateError) throw updateError
+
+  let finalCompra = updated
+  if (!alreadyNotified) {
+    const sent = await notifyVacancyPurchaseReversal({
+      compra: updated,
+      motivo,
+      consumed,
+      occurredAt: now,
+    })
+    if (sent) {
+      const notifiedAt = new Date().toISOString()
+      const notifiedMeta = {
+        ...(updated.meta || {}),
+        financeiro_notificacoes_enviadas_em: notifiedAt,
+      }
+      const { data: notifiedCompra } = await supabaseAdmin
+        .from('sistema_compras_vaga')
+        .update({ meta: notifiedMeta, updated_at: notifiedAt })
+        .eq('id', updated.id)
+        .select('*')
+        .maybeSingle()
+      finalCompra = notifiedCompra || { ...updated, meta: notifiedMeta }
+    }
+  }
+
+  return { ignored: false, consumed, compra: finalCompra }
 }
 
 export async function getVacancyPurchaseByToken(token: string) {

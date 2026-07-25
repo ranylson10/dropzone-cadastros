@@ -78,6 +78,41 @@ export async function creditWallet(input: {
   return data as { skipped: boolean; carteira_id?: string; saldo_disponivel_centavos?: number }
 }
 
+
+/**
+ * Estorna um crédito anterior da carteira.
+ * É idempotente por referência e permite saldo negativo quando o valor já foi
+ * sacado, deixando a dívida financeira registrada em vez de esconder o estorno.
+ */
+export async function reverseWalletCredit(input: {
+  donoTipo: WalletOwnerType
+  donoId?: string | null
+  authUserId?: string | null
+  valorCentavos: number
+  tipo: string
+  descricao?: string
+  referenciaTipo: string
+  referenciaId: string
+  meta?: Record<string, unknown>
+  criadoPor?: string | null
+}) {
+  if (input.valorCentavos <= 0) throw new Error('Valor de estorno inválido.')
+  const { data, error } = await supabaseAdmin.rpc('fn_carteira_estornar_credito', {
+    p_dono_tipo: input.donoTipo,
+    p_dono_id: input.donoId || null,
+    p_auth_user_id: input.authUserId || null,
+    p_valor_centavos: input.valorCentavos,
+    p_tipo: input.tipo,
+    p_descricao: input.descricao || null,
+    p_referencia_tipo: input.referenciaTipo,
+    p_referencia_id: input.referenciaId,
+    p_meta: input.meta || {},
+    p_criado_por: input.criadoPor || null,
+  })
+  if (error) throw error
+  return data as { skipped: boolean; carteira_id?: string; saldo_disponivel_centavos?: number }
+}
+
 export async function listWalletMovements(carteiraId: string, limit = 50) {
   const { data, error } = await supabaseAdmin
     .from('sistema_carteira_lancamentos')

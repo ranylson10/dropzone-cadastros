@@ -10,7 +10,7 @@ import {
   AsaasNotConfiguredError,
   type AsaasPayment,
 } from './asaas'
-import { creditWallet, getCommissionBps, splitCommission } from './wallet'
+import { creditWallet, getCommissionBps, reverseWalletCredit, splitCommission } from './wallet'
 
 function moneyReais(centavos: number) {
   return Math.round(centavos) / 100
@@ -308,6 +308,15 @@ export async function applyAsaasPaymentUpdate(payment: AsaasPayment, rawWebhook?
     await onPaymentConfirmed(updated)
   }
 
+  if (status === 'estornado' && row.status !== 'estornado') {
+    if (updated.finalidade === 'compra_vaga') {
+      const { handleVacancyPurchaseReversal } = await import('./vacancy-purchase')
+      await handleVacancyPurchaseReversal(updated, String(payment.status || 'ESTORNADO'))
+    } else if (updated.finalidade === 'inscricao_equipe') {
+      await reverseInscriptionSplit(updated, String(payment.status || 'ESTORNADO'))
+    }
+  }
+
   return { ignored: false, payment: updated }
 }
 
@@ -419,4 +428,76 @@ export async function creditInscriptionSplit(pagamento: any) {
       meta,
     })
   }
+}
+
+
+/**
+ * Reverte, uma única vez, os créditos gerados pelo split de uma inscrição.
+ * Se algum recebedor já tiver sacado o dinheiro, a carteira pode ficar negativa,
+ * preservando a dívida para acerto posterior.
+ */
+export async function reverseInscriptionSplit(pagamento: any, motivo = 'estorno') {
+  const { data: commission, error } = await supabaseAdmin
+    .from('sistema_comissoes')
+    .select('*')
+    .eq('pagamento_id', pagamento.id)
+    .maybeSingle()
+  if (error) throw error
+  if (!commission || commission.status === 'estornada') return { skipped: true }
+
+  const meta = commission.meta || pagamento.payload_criacao?.dropzone || {}
+  const reversalMeta = {
+    ...meta,
+    motivo,
+    pagamento_id: pagamento.id,
+    comissao_id: commission.id,
+  }
+
+  if (Number(commission.comissao_plataforma_centavos || 0) > 0) {
+    await reverseWalletCredit({
+      donoTipo: 'sistema',
+      valorCentavos: Number(commission.comissao_plataforma_centavos),
+      tipo: 'estorno_comissao',
+      descricao: 'Estorno da taxa da plataforma',
+      referenciaTipo: 'pagamento_estorno',
+      referenciaId: `${pagamento.id}:plataforma`,
+      meta: reversalMeta,
+    })
+  }
+
+  if (Number(commission.comissao_vendedor_centavos || 0) > 0 && commission.vendedor_manager_id) {
+    await reverseWalletCredit({
+      donoTipo: 'manager',
+      donoId: commission.vendedor_manager_id,
+      authUserId: commission.vendedor_auth_user_id || null,
+      valorCentavos: Number(commission.comissao_vendedor_centavos),
+      tipo: 'estorno_comissao',
+      descricao: 'Estorno da comissão de venda',
+      referenciaTipo: 'pagamento_estorno',
+      referenciaId: `${pagamento.id}:vendedor`,
+      meta: reversalMeta,
+    })
+  }
+
+  if (Number(commission.valor_liquido_produtora_centavos || 0) > 0 && meta.produtora_id) {
+    await reverseWalletCredit({
+      donoTipo: 'produtora',
+      donoId: meta.produtora_id,
+      valorCentavos: Number(commission.valor_liquido_produtora_centavos),
+      tipo: 'estorno_pagamento',
+      descricao: 'Estorno do valor líquido da inscrição',
+      referenciaTipo: 'pagamento_estorno',
+      referenciaId: `${pagamento.id}:produtora`,
+      meta: reversalMeta,
+    })
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('sistema_comissoes')
+    .update({ status: 'estornada', meta: reversalMeta })
+    .eq('id', commission.id)
+    .neq('status', 'estornada')
+  if (updateError) throw updateError
+
+  return { skipped: false }
 }

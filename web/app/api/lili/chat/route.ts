@@ -794,11 +794,13 @@ export async function POST(req: NextRequest) {
         const purchases = await listUserVacancyPurchases(user.id)
         const releasedCount = purchases.filter((item: any) => item.liberada).length
         const pendingCount = purchases.filter((item: any) => item.pendente).length
-        const consumedCount = purchases.filter((item: any) => item.consumida).length
+        const reviewCount = purchases.filter((item: any) => item.em_revisao_financeira).length
+        const consumedCount = purchases.filter((item: any) => item.consumida && !item.em_revisao_financeira).length
         const closedCount = purchases.filter((item: any) => item.encerrada).length
         const summaryParts = [
           releasedCount ? `${releasedCount} vaga${releasedCount === 1 ? '' : 's'} pronta${releasedCount === 1 ? '' : 's'} para usar` : null,
           pendingCount ? `${pendingCount} pagamento${pendingCount === 1 ? '' : 's'} pendente${pendingCount === 1 ? '' : 's'}` : null,
+          reviewCount ? `${reviewCount} inscrição${reviewCount === 1 ? '' : 'ões'} em revisão financeira` : null,
           consumedCount ? `${consumedCount} vaga${consumedCount === 1 ? '' : 's'} já utilizada${consumedCount === 1 ? '' : 's'}` : null,
           closedCount ? `${closedCount} compra${closedCount === 1 ? '' : 's'} encerrada${closedCount === 1 ? '' : 's'}` : null,
         ].filter(Boolean)

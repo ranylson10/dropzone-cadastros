@@ -384,5 +384,14 @@ export async function applyPayPalWebhook(event: any) {
         .eq('status', 'ativa')
     }
   }
+
+  if ((refunded || eventType === 'PAYMENT.CAPTURE.REVERSED') && payment.referencia_tipo === 'sistema_compras_vaga') {
+    const { data: updatedPayment } = await supabaseAdmin.from('sistema_pagamentos').select('*').eq('id', payment.id).single()
+    if (updatedPayment) {
+      const { handleVacancyPurchaseReversal } = await import('./vacancy-purchase')
+      await handleVacancyPurchaseReversal(updatedPayment, eventType)
+    }
+  }
+
   return { updated: true, status }
 }

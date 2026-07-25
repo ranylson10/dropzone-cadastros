@@ -296,7 +296,7 @@ export function paymentCard(input: {
 export async function listUserVacancyPurchases(authUserId: string) {
   const { data: purchases, error } = await supabaseAdmin
     .from('sistema_compras_vaga')
-    .select('id,token,campeonato_id,status,valor_centavos,pagamento_id,pago_em,liberado_em,consumido_em,expira_em,created_at')
+    .select('id,token,campeonato_id,status,valor_centavos,pagamento_id,pago_em,liberado_em,consumido_em,expira_em,created_at,meta')
     .eq('auth_user_id', authUserId)
     .in('status', ['pendente', 'pago', 'liberado', 'consumido', 'cancelado', 'expirado', 'estornado'])
     .order('created_at', { ascending: false })
@@ -338,6 +338,13 @@ export async function listUserVacancyPurchases(authUserId: string) {
       consumida: effectiveStatus === 'consumido',
       pendente: effectiveStatus === 'pendente',
       encerrada: ['cancelado', 'expirado', 'estornado'].includes(effectiveStatus),
+      em_revisao_financeira: Boolean(
+        purchase.meta?.financeiro_revisao_manual
+        && purchase.meta?.financeiro_revisao_status === 'pendente',
+      ),
+      financeiro_status: purchase.meta?.financeiro_status || null,
+      financeiro_motivo: purchase.meta?.financeiro_motivo || null,
+      financeiro_estornado_em: purchase.meta?.financeiro_estornado_em || null,
     }
   })
 }
@@ -360,7 +367,10 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
 
   return items.map((item) => {
     const status = String(item.status_efetivo || item.status || 'pendente')
-    const statusInfo = labels[status] || { badge: status, subtitle: status }
+    const financialReview = Boolean(item.em_revisao_financeira)
+    const statusInfo = financialReview
+      ? { badge: '⚠️ Revisão financeira', subtitle: 'Inscrição preservada · pagamento estornado em análise' }
+      : labels[status] || { badge: status, subtitle: status }
     const title = item.campeonato?.nome || 'Vaga de campeonato'
     const actions: any[] = []
 
@@ -408,7 +418,7 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
         })
       }
     } else if (item.consumida) {
-      actions.push({ id: `view-registration-${item.id}`, label: 'Ver minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary' })
+      actions.push({ id: `view-registration-${item.id}`, label: financialReview ? 'Ver inscrição preservada' : 'Ver minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary' })
     } else if (item.encerrada) {
       actions.push({ id: `buy-again-${item.id}`, label: 'Comprar outra vaga', message: `Comprar vaga em ${title}`, intent: 'comprar_vaga', variant: 'primary', context: { selectedChampionshipId: item.campeonato_id, currentFlow: 'vacancy_purchase' } })
     }
@@ -427,6 +437,13 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
         { label: 'Criada em', value: formatDateTime(item.created_at) },
         ...(item.pago_em ? [{ label: 'Pago em', value: formatDateTime(item.pago_em) }] : []),
         ...(item.consumido_em ? [{ label: 'Utilizada em', value: formatDateTime(item.consumido_em) }] : []),
+        ...(financialReview ? [
+          { label: 'Situação da inscrição', value: 'Preservada no campeonato enquanto a organização revisa o caso' },
+          { label: 'Situação financeira', value: 'Pagamento estornado · valores e comissões revertidos' },
+          { label: 'Motivo registrado', value: String(item.financeiro_motivo || 'Estorno ou chargeback') },
+          { label: 'Estornado em', value: formatDateTime(item.financeiro_estornado_em) },
+          { label: 'Próximo passo', value: 'Aguarde a decisão manual da organização. A equipe não será removida automaticamente.' },
+        ] : []),
         ...(status === 'pendente' ? [
           { label: 'Reserva da vaga', value: 'Mantida por até 2 minutos enquanto o pagamento é concluído' },
           { label: 'Pagamento válido até', value: formatDateTime(item.expira_em) },
