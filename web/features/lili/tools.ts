@@ -7,6 +7,20 @@ import type { LiliCard, LiliLocale } from './types'
 
 type AuthUser = { id: string; email?: string | null; email_confirmed_at?: string | null }
 
+function liliRegistrationDeadlineOpen(value: unknown) {
+  if (!value) return true
+  const raw = String(value)
+  const deadline = raw.includes('T') ? new Date(raw) : new Date(`${raw.slice(0, 10)}T23:59:59.999`)
+  return Number.isFinite(deadline.getTime()) && deadline.getTime() >= Date.now()
+}
+
+function liliPriceMode(value: unknown): 'paid' | 'free' | 'consult' {
+  if (value == null || value === '') return 'consult'
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return 'consult'
+  return amount <= 0 ? 'free' : 'paid'
+}
+
 export async function listOpenChampionships(searchTerm?: string) {
   let query = supabaseAdmin
     .from('campeonatos')
@@ -59,7 +73,7 @@ export async function listOpenChampionships(searchTerm?: string) {
 
   return (championships || []).flatMap((championship: any) => {
     const config: any = configMap.get(championship.id)
-    if (!config) return []
+    if (!config || !liliRegistrationDeadlineOpen(config.data_limite_inscricao)) return []
     const entryPhaseIds = phaseMap.get(championship.id) || null
     const champSlots = (slots || []).filter((slot: any) => {
       if (slot.campeonato_id !== championship.id) return false
@@ -68,7 +82,7 @@ export async function listOpenChampionships(searchTerm?: string) {
     })
     const free = champSlots.filter((slot: any) => !slot.equipe_id && !slot.line_id).length
     if (free <= 0) return []
-    return [{ ...championship, ...config, vagas_livres: free, total_slots: champSlots.length }]
+    return [{ ...championship, ...config, vagas_livres: free, total_slots: champSlots.length, price_mode: liliPriceMode(config.valor_inscricao) }]
   })
 }
 
@@ -81,17 +95,21 @@ export function championshipCards(items: any[], registrationMode = false, locale
     imageUrl: item.logo_url || item.banner_url || null,
     badges: [`${item.vagas_livres} vaga${item.vagas_livres === 1 ? '' : 's'}`],
     details: [
-      ...(item.valor_inscricao != null ? [{ label: 'Inscrição', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` }] : []),
+      ...(item.price_mode === 'free'
+        ? [{ label: 'Inscrição', value: 'Gratuita' }]
+        : item.price_mode === 'consult'
+          ? [{ label: 'Inscrição', value: 'Valor sob consulta' }]
+          : [{ label: 'Inscrição', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` }]),
       ...(item.data_limite_inscricao ? [{ label: 'Prazo', value: new Date(item.data_limite_inscricao).toLocaleDateString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR') }] : []),
     ],
     actions: registrationMode
       ? [{
           id: `buy-${item.id}`,
-          label: 'Comprar vaga',
-          message: `Comprar vaga em ${item.nome}`,
+          label: item.price_mode === 'free' ? 'Fazer inscrição grátis' : item.price_mode === 'consult' ? 'Consultar vaga' : 'Comprar vaga',
+          message: item.price_mode === 'free' ? `Fazer inscrição grátis em ${item.nome}` : item.price_mode === 'consult' ? `Consultar vaga em ${item.nome}` : `Comprar vaga em ${item.nome}`,
           intent: 'comprar_vaga',
           variant: 'primary',
-          context: { selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' },
+          context: { selectedChampionshipId: item.id, currentFlow: item.price_mode === 'free' ? 'registration' : 'vacancy_purchase' },
         }]
       : [{
           id: `view-${item.id}`,
@@ -124,7 +142,14 @@ export function teamCards(teams: any[], championshipId?: string | null): LiliCar
       intent: 'iniciar_inscricao',
       variant: 'primary',
       context: { selectedChampionshipId: championshipId, selectedTeamId: team.id, currentFlow: 'registration', currentStep: 'team' },
-    }] : undefined,
+    }] : [{
+      id: `open-team-${team.id}`,
+      label: 'Abrir equipe',
+      message: `Abrir equipe ${team.nome}`,
+      intent: 'abrir_equipe',
+      variant: 'primary',
+      context: { selectedTeamId: team.id, currentFlow: 'team_hub' },
+    }],
   }))
 }
 
@@ -426,6 +451,8 @@ export async function getChampionshipDetails(championshipId: string) {
     premiacao_valor: config?.premiacao ?? null,
     vagas_livres: vagasLivres,
     total_slots: entrySlots.length,
+    price_mode: liliPriceMode(config?.valor_inscricao),
+    prazo_aberto: liliRegistrationDeadlineOpen(config?.data_limite_inscricao),
   }
 }
 

@@ -424,7 +424,7 @@ export async function POST(req: NextRequest) {
             : null
         const details = [
           { label: 'Disponibilidade', value: Number(item.vagas_livres || 0) > 0 ? `${item.vagas_livres} vaga${Number(item.vagas_livres || 0) === 1 ? '' : 's'} disponível${Number(item.vagas_livres || 0) === 1 ? '' : 'eis'} agora` : 'Sem vagas disponíveis no momento' },
-          item.valor_inscricao != null ? { label: 'Valor da vaga', value: money(item.valor_inscricao) } : null,
+          item.price_mode === 'free' ? { label: 'Inscrição', value: 'Gratuita' } : item.price_mode === 'consult' ? { label: 'Valor da vaga', value: 'Sob consulta' } : { label: 'Valor da vaga', value: money(item.valor_inscricao) },
           prizeValue ? { label: 'Premiação', value: prizeValue } : null,
           item.jogadores_por_vaga ? { label: 'Jogadores por vaga', value: `${item.jogadores_por_vaga} player${Number(item.jogadores_por_vaga) === 1 ? '' : 's'}` } : null,
           item.vagas_por_equipe ? { label: 'Vagas por equipe', value: `${item.vagas_por_equipe}` } : null,
@@ -436,8 +436,8 @@ export async function POST(req: NextRequest) {
           item.plataforma ? { label: 'Plataforma', value: String(item.plataforma) } : null,
           item.servidor ? { label: 'Servidor', value: String(item.servidor) } : null,
         ].filter(Boolean) as Array<{ label: string; value: string }>
-        const canBuy = Boolean(item.aceita_novas_inscricoes_equipes && Number(item.vagas_livres || 0) > 0)
-        const buyAction = canBuy ? { id: `buy-${item.id}`, label: 'Comprar vaga', message: `Comprar vaga em ${item.nome}`, intent: 'comprar_vaga' as const, variant: 'primary' as const, context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' } } : null
+        const canBuy = Boolean(item.aceita_novas_inscricoes_equipes && item.prazo_aberto && Number(item.vagas_livres || 0) > 0)
+        const buyAction = canBuy ? { id: `buy-${item.id}`, label: item.price_mode === 'free' ? 'Fazer inscrição grátis' : item.price_mode === 'consult' ? 'Consultar vaga' : 'Comprar vaga', message: item.price_mode === 'free' ? `Fazer inscrição grátis em ${item.nome}` : item.price_mode === 'consult' ? `Consultar vaga em ${item.nome}` : `Comprar vaga em ${item.nome}`, intent: 'comprar_vaga' as const, variant: 'primary' as const, context: { locale, selectedChampionshipId: item.id, currentFlow: item.price_mode === 'free' ? 'registration' : 'vacancy_purchase' } } : null
         response = {
           reply: `Aqui estão os detalhes de ${item.nome}.`,
           intent: match.intent,
@@ -652,12 +652,73 @@ export async function POST(req: NextRequest) {
         }
         const teams = await listUserTeams(user)
         response = {
-          reply: teams.length ? `Encontrei ${teams.length} equipe${teams.length === 1 ? '' : 's'} que você pode acessar.` : 'Sua conta ainda não possui equipe vinculada.',
+          reply: teams.length ? `Encontrei ${teams.length} equipe${teams.length === 1 ? '' : 's'} que você pode acessar. Escolha uma para abrir a central da equipe.` : 'Sua conta ainda não possui equipe vinculada.',
           intent: match.intent,
           cards: teamCards(teams),
-          actions: menuActions(locale),
+          actions: [{ id: 'back-team-list', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } }],
+          context: { locale, currentFlow: 'team_hub' },
           source: match.source,
         }
+        break
+      }
+
+      case 'abrir_equipe': {
+        if (!user) {
+          response = { reply: 'Entre na sua conta para abrir esta equipe.', intent: match.intent, requiresAuth: true, context, source: 'system' }
+          break
+        }
+        if (!context.selectedTeamId) throw new Error('Equipe não informada.')
+        const teams = await listUserTeams(user)
+        const team = teams.find((item: any) => String(item.id) === String(context.selectedTeamId))
+        if (!team) throw new Error('Você não possui acesso a esta equipe.')
+        const registrations = (await listUserRegistrations(user)).filter((item: any) => String(item.equipe_id) === String(team.id))
+        const today = new Date(); const end = new Date(today); end.setDate(end.getDate() + 90)
+        const agenda = await listAgenda({ scope: 'equipe', scopeId: String(team.id), from: today.toISOString().slice(0,10), to: end.toISOString().slice(0,10), authUserId: user.id })
+        const upcoming = (agenda.items || []).filter((item: any) => item.source === 'jogo').length
+        const championships = new Set(registrations.map((item: any) => String(item.campeonato_id || '')).filter(Boolean)).size
+        response = {
+          reply: `Central da equipe ${team.nome}.`,
+          intent: match.intent,
+          cards: [{ id: `team-hub-${team.id}`, kind: 'team', title: team.nome, subtitle: team.tag ? `${team.tag} • ${team.papel === 'dono' ? 'Proprietário' : 'Staff'}` : undefined, imageUrl: team.logo_url || null, badges: [team.permissoes?.pode_escalar ? 'Pode escalar' : 'Visualização'], details: [
+            { label: 'Campeonatos inscritos', value: String(championships) },
+            { label: 'Inscrições/lines', value: String(registrations.length) },
+            { label: 'Próximos jogos', value: String(upcoming) },
+            { label: 'Acesso', value: team.papel === 'dono' ? 'Proprietário' : 'Staff' },
+          ] }],
+          actions: [
+            { id: `team-agenda-${team.id}`, label: 'Agenda da equipe', message: `Ver agenda da equipe ${team.nome}`, intent: 'ver_agenda_equipe', variant: 'primary', context: { locale, selectedTeamId: team.id, currentFlow: 'team_hub' } },
+            { id: `team-champs-${team.id}`, label: 'Campeonatos inscritos', message: `Ver campeonatos da equipe ${team.nome}`, intent: 'ver_campeonatos_equipe', variant: 'primary', context: { locale, selectedTeamId: team.id, currentFlow: 'team_hub' } },
+            { id: `team-page-${team.id}`, label: 'Abrir perfil da equipe', href: `/equipes/${team.id}`, variant: 'secondary' },
+            { id: 'back-my-teams', label: 'Voltar às equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale, selectedTeamId: team.id, currentFlow: 'team_hub' }, source: 'system',
+        }
+        break
+      }
+
+      case 'ver_agenda_equipe': {
+        if (!user || !context.selectedTeamId) throw new Error('Equipe não informada.')
+        const teams = await listUserTeams(user); const team = teams.find((item: any) => String(item.id) === String(context.selectedTeamId))
+        if (!team) throw new Error('Você não possui acesso a esta equipe.')
+        const today = new Date(); const end = new Date(today); end.setDate(end.getDate() + 90)
+        const agenda = await listAgenda({ scope: 'equipe', scopeId: String(team.id), from: today.toISOString().slice(0,10), to: end.toISOString().slice(0,10), authUserId: user.id })
+        const items = (agenda.items || []).slice(0,20)
+        response = { reply: items.length ? `Encontrei ${items.length} compromisso${items.length === 1 ? '' : 's'} da ${team.nome} nos próximos 90 dias.` : `Não encontrei compromissos da ${team.nome} nos próximos 90 dias.`, intent: match.intent, cards: agendaCards(items, locale), actions: [
+          { id: `back-team-hub-${team.id}`, label: 'Voltar à equipe', message: `Abrir equipe ${team.nome}`, intent: 'abrir_equipe', variant: 'secondary', context: { locale, selectedTeamId: team.id, currentFlow: 'team_hub' } },
+          { id: `open-team-agenda-${team.id}`, label: 'Abrir agenda completa', href: `/agenda?scope=equipe&scopeId=${team.id}`, variant: 'secondary' },
+        ], context: { locale, selectedTeamId: team.id, currentFlow: 'team_hub' }, source: 'system' }
+        break
+      }
+
+      case 'ver_campeonatos_equipe': {
+        if (!user || !context.selectedTeamId) throw new Error('Equipe não informada.')
+        const teams = await listUserTeams(user); const team = teams.find((item: any) => String(item.id) === String(context.selectedTeamId))
+        if (!team) throw new Error('Você não possui acesso a esta equipe.')
+        const registrations = (await listUserRegistrations(user)).filter((item: any) => String(item.equipe_id) === String(team.id))
+        response = { reply: registrations.length ? `${team.nome} possui ${registrations.length} inscrição${registrations.length === 1 ? '' : 'ões'} em campeonato.` : `${team.nome} ainda não possui inscrições em campeonatos.`, intent: match.intent, cards: registrationCards(registrations, locale), actions: [
+          { id: `back-team-hub-champs-${team.id}`, label: 'Voltar à equipe', message: `Abrir equipe ${team.nome}`, intent: 'abrir_equipe', variant: 'secondary', context: { locale, selectedTeamId: team.id, currentFlow: 'team_hub' } },
+          { id: `new-registration-team-${team.id}`, label: 'Fazer nova inscrição', message: 'Quero fazer uma nova inscrição', intent: 'iniciar_inscricao', variant: 'primary', context: { locale, selectedTeamId: team.id, currentFlow: 'registration', currentStep: 'championship' } },
+        ], context: { locale, selectedTeamId: team.id, currentFlow: 'team_hub' }, source: 'system' }
         break
       }
 
@@ -1394,15 +1455,56 @@ export async function POST(req: NextRequest) {
           response = { reply: 'Este campeonato não possui vaga disponível para compra neste momento.', intent: match.intent, actions: [{ id: 'other-spots', label: 'Ver outros campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } }], context: { locale }, source: 'system' }
           break
         }
+        if (!item.prazo_aberto) {
+          response = { reply: 'O prazo de inscrição deste campeonato já encerrou.', intent: match.intent, actions: [{ id: 'other-open-deadline', label: 'Ver outros campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } }], context: { locale }, source: 'system' }
+          break
+        }
+        if (item.price_mode === 'free') {
+          const freeContext = { locale, selectedChampionshipId: item.id, currentFlow: 'registration', currentStep: 'team' }
+          response = {
+            reply: 'A inscrição neste campeonato é gratuita. Escolha sua equipe para continuar sem pagamento.',
+            intent: match.intent,
+            actions: [{ id: `start-free-${item.id}`, label: 'Continuar inscrição grátis', message: 'Continuar inscrição', intent: 'iniciar_inscricao', variant: 'primary', context: freeContext }, { id: 'free-token', label: 'Já tenho convite ou token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } }],
+            context: freeContext,
+            source: 'system',
+          }
+          break
+        }
+        if (item.price_mode === 'consult') {
+          const whatsappAvailable = Boolean(item.pagamento_whatsapp_ativo && Array.isArray(item.contatos_whatsapp) && item.contatos_whatsapp.length)
+          response = {
+            reply: whatsappAvailable ? 'O valor desta vaga está sob consulta. Fale com a organização pelo WhatsApp para negociar e receber seu token.' : 'O valor desta vaga está sob consulta, mas a organização ainda não cadastrou um canal de atendimento.',
+            intent: match.intent,
+            actions: [
+              ...(whatsappAvailable ? [{ id: `consult-whatsapp-${item.id}`, label: '🟢 Falar no WhatsApp', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'primary' as const }] : []),
+              { id: 'consult-token', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
+              { id: 'consult-back', label: 'Ver outros campeonatos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'secondary', context: { locale } },
+            ],
+            context: { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase' },
+            source: 'system',
+          }
+          break
+        }
         const nextContext = { locale, selectedChampionshipId: item.id, currentFlow: 'vacancy_purchase', currentStep: 'payment_method' }
+        const onlineValue = Number(item.valor_inscricao || 0)
+        const asaasMinimumMet = onlineValue >= 5
+        const pixAvailable = Boolean(item.pagamento_pix_ativo && asaasMinimumMet)
+        const cardAvailable = Boolean(item.pagamento_cartao_ativo && asaasMinimumMet)
+        const paypalAvailable = Boolean(item.pagamento_paypal_ativo && paypalConfigured())
+        const minimumNotice = !asaasMinimumMet && (item.pagamento_pix_ativo || item.pagamento_cartao_ativo)
+          ? ' PIX e cartão não aparecem porque o Asaas exige cobrança mínima de R$ 5,00 para esses meios.'
+          : ''
         response = {
-          reply: 'Escolha como deseja comprar a vaga. Depois que o pagamento for confirmado, a Lili libera a escolha da equipe, line e slot.',
+          reply: `Escolha como deseja comprar a vaga. Depois que o pagamento for confirmado, a Lili libera a escolha da equipe, line e slot.${minimumNotice}`,
           intent: match.intent,
-          cards: [{ id: item.id, kind: 'championship', title: item.nome, imageUrl: item.logo_url || item.banner_url || null, badges: [`${item.vagas_livres} vaga${Number(item.vagas_livres) === 1 ? '' : 's'} disponível${Number(item.vagas_livres) === 1 ? '' : 'is'}`], details: item.valor_inscricao != null ? [{ label: 'Valor', value: `R$ ${Number(item.valor_inscricao).toFixed(2).replace('.', ',')}` }] : undefined }],
+          cards: [{ id: item.id, kind: 'championship', title: item.nome, imageUrl: item.logo_url || item.banner_url || null, badges: [`${item.vagas_livres} vaga${Number(item.vagas_livres) === 1 ? '' : 's'} disponível${Number(item.vagas_livres) === 1 ? '' : 'is'}`], details: [
+            { label: 'Valor', value: `R$ ${onlineValue.toFixed(2).replace('.', ',')}` },
+            ...(!asaasMinimumMet && (item.pagamento_pix_ativo || item.pagamento_cartao_ativo) ? [{ label: 'PIX e cartão', value: 'Disponíveis a partir de R$ 5,00' }] : []),
+          ] }],
           actions: [
-            ...(item.pagamento_pix_ativo ? [{ id: 'buy-pix', label: '💠 PIX', message: 'Comprar vaga por PIX', intent: 'pagar_pix_compra' as const, variant: 'primary' as const, context: { ...nextContext, selectedPaymentMethod: 'pix' as const } }] : []),
-            ...(item.pagamento_cartao_ativo ? [{ id: 'buy-card', label: `💳 Cartão${Number(item.cartao_max_parcelas || 1) > 1 ? ` até ${item.cartao_max_parcelas}x` : ''}`, message: 'Comprar vaga com cartão', intent: 'pagar_cartao_compra' as const, variant: 'primary' as const, context: { ...nextContext, selectedPaymentMethod: 'cartao' as const } }] : []),
-            ...(item.pagamento_paypal_ativo && paypalConfigured() ? [{ id: 'buy-paypal', label: '🅿️ PayPal', message: 'Comprar vaga com PayPal', intent: 'pagar_paypal_compra' as const, variant: 'secondary' as const, context: { ...nextContext, selectedPaymentMethod: 'paypal' as const } }] : []),
+            ...(pixAvailable ? [{ id: 'buy-pix', label: '💠 PIX', message: 'Comprar vaga por PIX', intent: 'pagar_pix_compra' as const, variant: 'primary' as const, context: { ...nextContext, selectedPaymentMethod: 'pix' as const } }] : []),
+            ...(cardAvailable ? [{ id: 'buy-card', label: `💳 Cartão${Number(item.cartao_max_parcelas || 1) > 1 ? ` até ${item.cartao_max_parcelas}x` : ''}`, message: 'Comprar vaga com cartão', intent: 'pagar_cartao_compra' as const, variant: 'primary' as const, context: { ...nextContext, selectedPaymentMethod: 'cartao' as const } }] : []),
+            ...(paypalAvailable ? [{ id: 'buy-paypal', label: '🅿️ PayPal', message: 'Comprar vaga com PayPal', intent: 'pagar_paypal_compra' as const, variant: 'secondary' as const, context: { ...nextContext, selectedPaymentMethod: 'paypal' as const } }] : []),
             ...(item.pagamento_whatsapp_ativo && Array.isArray(item.contatos_whatsapp) && item.contatos_whatsapp.length ? [{ id: 'buy-whatsapp', label: '🟢 Falar no WhatsApp', href: `/vagas?comprar=${encodeURIComponent(item.id)}`, variant: 'secondary' as const }] : []),
             { id: 'have-token-selected', label: 'Já tenho token', message: 'Já tenho um token de inscrição', intent: 'usar_convite_token', variant: 'secondary', context: { locale, selectedChampionshipId: item.id } },
           ],
@@ -1417,6 +1519,20 @@ export async function POST(req: NextRequest) {
         if (!user) { response = { reply: 'Entre na conta para gerar o pagamento.', intent: match.intent, requiresAuth: true, context, source: 'system' }; break }
         if (!context.selectedChampionshipId) throw new Error('Campeonato não selecionado.')
         const method: 'pix' | 'cartao' = match.intent === 'pagar_cartao_compra' ? 'cartao' : 'pix'
+        const paymentChampionship = await getChampionshipDetails(context.selectedChampionshipId)
+        if (Number(paymentChampionship.valor_inscricao || 0) < 5) {
+          response = {
+            reply: 'PIX e cartão pelo Asaas exigem valor mínimo de R$ 5,00. Para esta vaga, use PayPal ou WhatsApp quando estiverem disponíveis.',
+            intent: match.intent,
+            actions: [
+              ...(paymentChampionship.pagamento_paypal_ativo && paypalConfigured() ? [{ id: 'minimum-use-paypal', label: '🅿️ Usar PayPal', message: 'Comprar vaga com PayPal', intent: 'pagar_paypal_compra' as const, variant: 'primary' as const, context: { ...context, selectedPaymentMethod: 'paypal' as const } }] : []),
+              { id: 'minimum-back-methods', label: 'Voltar aos pagamentos', message: 'Comprar vaga', intent: 'comprar_vaga', variant: 'secondary', context: { locale, selectedChampionshipId: context.selectedChampionshipId, currentFlow: 'vacancy_purchase' } },
+            ],
+            context,
+            source: 'system',
+          }
+          break
+        }
         const digits = String(context.paymentDocument || '').replace(/\D/g, '')
         if (![11, 14].includes(digits.length)) {
           const nextContext = { ...context, selectedPaymentMethod: method, awaitingPaymentDocument: true, currentStep: 'payment_document' }

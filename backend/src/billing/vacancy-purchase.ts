@@ -210,6 +210,9 @@ export async function createVacancyPurchase(input: {
   if (!Number.isFinite(valorReais) || valorReais < 1) {
     throw new Error('Este campeonato não tem valor de inscrição cobrável online (mín. R$ 1,00). Use o WhatsApp.')
   }
+  if ((method === 'pix' || method === 'cartao') && valorReais < 5) {
+    throw new Error('PIX e cartão pelo Asaas exigem valor mínimo de R$ 5,00. Escolha PayPal, WhatsApp ou ajuste o valor da vaga.')
+  }
   const valorCentavos = Math.round(valorReais * 100)
 
   const nextGroup = await findNextOpenGroup(input.campeonatoId)
