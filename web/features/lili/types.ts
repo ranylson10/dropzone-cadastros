@@ -42,6 +42,7 @@ export type LiliIntent =
   | 'iniciar_pagamento_inscricao'
   | 'verificar_pagamento_inscricao'
   | 'listar_minhas_vagas_compradas'
+  | 'cancelar_compra_vaga_pendente'
   | 'usar_vaga_comprada'
   | 'selecionar_line_inscricao'
   | 'criar_line_inscricao'

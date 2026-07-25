@@ -5,8 +5,10 @@
  */
 
 import { supabaseAdmin } from '../shared/supabase-admin'
+import { appUrl } from '../shared/env'
 import {
   createPaymentLink,
+  deletePayment,
   findOrCreateCustomer,
   getPayment,
   getPixQrCode,
@@ -429,6 +431,7 @@ export async function createVacancyPurchase(input: {
     description: `Vaga · ${champ.nome || 'Campeonato'}`.slice(0, 500),
     externalReference,
     billingType: method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
+    callbackUrl: method === 'cartao' ? `${appUrl()}/lili?purchase=${encodeURIComponent(compra.token)}` : undefined,
   })
 
   const pix = method === 'pix' ? await fetchPixQrWithRetry(payment.id) : {}
@@ -503,6 +506,65 @@ async function loadPaymentForCompra(compra: any) {
   return data
 }
 
+export async function cancelPendingVacancyPurchase(input: {
+  token: string
+  authUserId: string
+}) {
+  const normalized = String(input.token || '').trim().toUpperCase()
+  if (!normalized) throw new Error('Compra não informada.')
+
+  const { data: compra, error } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .select('*')
+    .eq('token', normalized)
+    .eq('auth_user_id', input.authUserId)
+    .maybeSingle()
+  if (error) throw error
+  if (!compra) throw new Error('Compra não encontrada para esta conta.')
+
+  if (['pago', 'liberado', 'consumido'].includes(String(compra.status))) {
+    throw new Error('Esta compra já foi paga ou utilizada e não pode ser cancelada por aqui.')
+  }
+  if (['cancelado', 'expirado', 'estornado'].includes(String(compra.status))) {
+    return { compra, alreadyClosed: true }
+  }
+
+  const payment = await loadPaymentForCompra(compra)
+  if (String(payment?.provider || '').toLowerCase() === 'paypal') {
+    throw new Error('A ordem PayPal expira automaticamente ao fim dos 2 minutos. Não conclua o pagamento e aguarde a liberação automática da vaga.')
+  }
+
+  if (payment?.asaas_payment_id && isAsaasConfigured()) {
+    const remote = await getPayment(payment.asaas_payment_id)
+    if (isPaidStatus(mapAsaasPaymentStatus(remote.status))) {
+      const { applyAsaasPaymentUpdate } = await import('./payments')
+      await applyAsaasPaymentUpdate(remote)
+      throw new Error('O pagamento já foi confirmado. A vaga não pode mais ser cancelada.')
+    }
+    await deletePayment(payment.asaas_payment_id)
+  }
+
+  const now = new Date().toISOString()
+  if (payment?.id) {
+    await supabaseAdmin
+      .from('sistema_pagamentos')
+      .update({ status: 'cancelado', updated_at: now })
+      .eq('id', payment.id)
+      .in('status', ['pendente', 'aguardando'])
+  }
+
+  const { data: canceled, error: cancelError } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .update({ status: 'cancelado', expira_em: now, updated_at: now })
+    .eq('id', compra.id)
+    .eq('status', 'pendente')
+    .select('*')
+    .maybeSingle()
+  if (cancelError) throw cancelError
+
+  return { compra: canceled || compra, alreadyClosed: false }
+}
+
 /** Marca compra como paga/liberada e resolve grupo com vaga. */
 export async function markVacancyPurchasePaid(compraId: string, pagamentoId?: string | null) {
   const next = await supabaseAdmin
@@ -547,7 +609,11 @@ export async function markVacancyPurchasePaid(compraId: string, pagamentoId?: st
   return updated
 }
 
-/** Libera compra + split de carteiras (ledger idempotente; comissão só na 1ª liberação). */
+/**
+ * Libera a compra e executa o split financeiro uma única vez.
+ * ASAAS, PayPal e o polling da Lili podem confirmar o mesmo pagamento quase
+ * simultaneamente; o claim atômico no banco impede crédito/comissão duplicados.
+ */
 export async function liberarCompraVagaComSplit(pagamento: any) {
   const compraId =
     pagamento.referencia_id
@@ -555,16 +621,15 @@ export async function liberarCompraVagaComSplit(pagamento: any) {
     || null
   if (!compraId) return null
 
-  const { data: before } = await supabaseAdmin
-    .from('sistema_compras_vaga')
-    .select('id,status')
-    .eq('id', String(compraId))
-    .maybeSingle()
-  const alreadyOpen = Boolean(before && ['pago', 'liberado', 'consumido'].includes(before.status))
-
   const compra = await markVacancyPurchasePaid(String(compraId), pagamento.id)
   if (!compra) return null
-  if (alreadyOpen) return compra
+
+  const { data: claimed, error: claimError } = await supabaseAdmin
+    .rpc('fn_claim_compra_vaga_split', { p_compra_id: String(compraId) })
+  if (claimError) throw claimError
+
+  // Outro webhook/polling já está processando ou já concluiu este split.
+  if (!claimed) return compra
 
   const meta = {
     ...(pagamento.payload_criacao?.dropzone || {}),
@@ -574,11 +639,28 @@ export async function liberarCompraVagaComSplit(pagamento: any) {
     vendedor_auth_user_id: compra.vendedor_auth_user_id,
     compra_vaga_id: compra.id,
   }
-  await creditInscriptionSplit({
-    ...pagamento,
-    meta,
-    payload_criacao: { ...(pagamento.payload_criacao || {}), dropzone: meta },
-  })
+
+  try {
+    await creditInscriptionSplit({
+      ...pagamento,
+      meta,
+      payload_criacao: { ...(pagamento.payload_criacao || {}), dropzone: meta },
+    })
+
+    const { error: finishError } = await supabaseAdmin
+      .rpc('fn_finish_compra_vaga_split', { p_compra_id: String(compraId) })
+    if (finishError) throw finishError
+  } catch (error) {
+    // Libera o claim para uma nova tentativa caso algum crédito falhe.
+    try {
+      await supabaseAdmin
+        .rpc('fn_release_compra_vaga_split_claim', { p_compra_id: String(compraId) })
+    } catch {
+      // O claim expira sozinho em 5 minutos; não mascara o erro original.
+    }
+    throw error
+  }
+
   return compra
 }
 
@@ -605,7 +687,7 @@ export async function getVacancyPurchaseByToken(token: string) {
     const { data: pay } = await supabaseAdmin
       .from('sistema_pagamentos')
       .select(
-        'id,status,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
+        'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
       )
       .eq('id', compra.pagamento_id)
       .maybeSingle()
@@ -634,7 +716,7 @@ export async function getVacancyPurchaseByToken(token: string) {
         const { data: payAgain } = await supabaseAdmin
           .from('sistema_pagamentos')
           .select(
-            'id,status,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
+            'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
           )
           .eq('id', payment.id)
           .maybeSingle()
@@ -671,7 +753,7 @@ export async function getVacancyPurchaseByToken(token: string) {
           })
           .eq('id', payment.id)
           .select(
-            'id,status,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
+            'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
           )
           .single()
         if (withPix) payment = withPix
@@ -795,6 +877,9 @@ export async function getVacancyPurchaseByToken(token: string) {
           pix_qrcode: payment.asaas_pix_qrcode,
           pix_payload: payment.asaas_pix_payload,
           asaas_status: payment.asaas_status,
+          metodo: payment.metodo || (String(payment.billing_type || '').toUpperCase() === 'CREDIT_CARD' ? 'cartao' : 'pix'),
+          provider: payment.provider || 'asaas',
+          billing_type: payment.billing_type || null,
           pago_em: payment.pago_em,
         }
       : null,

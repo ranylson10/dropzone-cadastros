@@ -177,6 +177,12 @@ export async function getPayment(paymentId: string): Promise<AsaasPayment> {
   return asaasFetch<AsaasPayment>(`/payments/${encodeURIComponent(paymentId)}`)
 }
 
+export async function deletePayment(paymentId: string): Promise<{ deleted?: boolean; id?: string }> {
+  return asaasFetch<{ deleted?: boolean; id?: string }>(`/payments/${encodeURIComponent(paymentId)}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function getPixQrCode(paymentId: string): Promise<{
   encodedImage?: string
   payload?: string

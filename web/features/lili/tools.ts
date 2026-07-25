@@ -234,27 +234,60 @@ export function paymentCard(input: {
   pixPayload?: string | null
   pixQrCode?: string | null
   expiresAt?: string | null
+  method?: 'pix' | 'cartao' | 'paypal' | string | null
+  maxInstallments?: number | null
 }): LiliCard {
   const value = input.valueCents != null
     ? `R$ ${(Number(input.valueCents) / 100).toFixed(2).replace('.', ',')}`
     : 'A confirmar'
   const actions: any[] = []
+  const normalizedStatus = String(input.status || 'pendente').toLowerCase()
+  const statusLabels: Record<string, string> = {
+    pendente: 'Aguardando pagamento',
+    aguardando: 'Em processamento',
+    em_analise: 'Em análise pela operadora',
+    pago: 'Pagamento aprovado',
+    confirmado: 'Pagamento aprovado',
+    recebido: 'Pagamento aprovado',
+    liberado: 'Vaga liberada',
+    recusado: 'Pagamento recusado',
+    negado: 'Pagamento recusado',
+    cancelado: 'Pagamento cancelado',
+    expirado: 'Tempo de pagamento encerrado',
+    estornado: 'Pagamento estornado',
+  }
+  const statusLabel = statusLabels[normalizedStatus] || input.status
+  const terminalStatus = ['recusado', 'negado', 'cancelado', 'expirado', 'estornado'].includes(normalizedStatus)
   const qrCodeUrl = input.pixQrCode
     ? String(input.pixQrCode).startsWith('data:image/')
       ? String(input.pixQrCode)
       : `data:image/png;base64,${String(input.pixQrCode).replace(/^data:image\/[^;]+;base64,/, '')}`
     : null
-  if (input.pixPayload) actions.push({ id: 'copy-pix', label: 'Copiar código PIX', copyText: input.pixPayload, variant: 'primary' })
-  if (input.invoiceUrl) actions.push({ id: 'open-payment', label: 'Abrir pagamento', href: input.invoiceUrl, variant: input.pixPayload ? 'secondary' : 'primary' })
+  const isCard = input.method === 'cartao'
+  if (!terminalStatus && input.pixPayload) actions.push({ id: 'copy-pix', label: 'Copiar código PIX', copyText: input.pixPayload, variant: 'primary' })
+  if (!terminalStatus && input.invoiceUrl) actions.push({
+    id: 'open-payment',
+    label: isCard ? 'Abrir checkout seguro do cartão' : 'Abrir pagamento',
+    href: input.invoiceUrl,
+    variant: input.pixPayload ? 'secondary' : 'primary',
+  })
   return {
     id: input.token,
     kind: 'payment',
-    title: 'Pagamento da inscrição',
-    subtitle: `Status: ${input.status}`,
-    qrCodeUrl,
-    expiresAt: input.expiresAt || null,
-    badges: [value],
-    details: [{ label: 'Código', value: input.token }],
+    title: isCard ? 'Pagamento com cartão' : 'Pagamento da inscrição',
+    subtitle: statusLabel,
+    qrCodeUrl: terminalStatus ? null : qrCodeUrl,
+    expiresAt: terminalStatus ? null : input.expiresAt || null,
+    badges: [value, statusLabel],
+    details: [
+      ...(isCard ? [{ label: 'Segurança', value: 'Os dados do cartão são informados somente no checkout do Asaas' }] : []),
+      ...(isCard && Number(input.maxInstallments || 1) > 1 ? [{ label: 'Parcelamento', value: `Disponível em até ${Number(input.maxInstallments)}x, conforme as opções exibidas no checkout` }] : []),
+      ...(isCard && normalizedStatus === 'em_analise' ? [{ label: 'Análise', value: 'A operadora ainda está validando o pagamento. Não faça outra cobrança enquanto este status estiver ativo.' }] : []),
+      ...(isCard && ['recusado', 'negado'].includes(normalizedStatus) ? [{ label: 'Próximo passo', value: 'Tente novamente com outro cartão ou escolha outro meio de pagamento.' }] : []),
+      ...(isCard && !terminalStatus ? [{ label: 'Retorno', value: 'Após pagar, você volta para a Lili e continua a inscrição' }] : []),
+      { label: 'Status', value: statusLabel },
+      { label: 'Código', value: input.token },
+    ],
     actions,
   }
 }
@@ -281,7 +314,7 @@ export async function listUserVacancyPurchases(authUserId: string) {
     paymentIds.length
       ? supabaseAdmin
           .from('sistema_pagamentos')
-          .select('id,status,metodo,provider,valor_centavos,invoice_url,pix_payload,created_at,updated_at')
+          .select('id,status,metodo,provider,valor_centavos,invoice_url,pix_payload,asaas_payment_id,created_at,updated_at')
           .in('id', paymentIds)
       : Promise.resolve({ data: [], error: null }),
   ])
@@ -364,6 +397,16 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
         href: `/lili?purchase=${encodeURIComponent(String(item.token))}`,
         variant: 'secondary',
       })
+      if (String(item.pagamento?.provider || '').toLowerCase() !== 'paypal') {
+        actions.push({
+          id: `cancel-pending-purchase-${item.id}`,
+          label: 'Desistir e liberar vaga',
+          message: 'Cancelar esta compra pendente e liberar a vaga',
+          intent: 'cancelar_compra_vaga_pendente',
+          variant: 'secondary',
+          context: { purchaseToken: item.token, selectedChampionshipId: item.campeonato_id, currentFlow: 'vacancy_purchase', currentStep: 'payment_wait' },
+        })
+      }
     } else if (item.consumida) {
       actions.push({ id: `view-registration-${item.id}`, label: 'Ver minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary' })
     } else if (item.encerrada) {

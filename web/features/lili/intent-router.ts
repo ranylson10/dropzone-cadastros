@@ -12,6 +12,14 @@ type IntentMatch = {
 
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
+    intent: 'cancelar_compra_vaga_pendente',
+    phrases: [
+      'cancelar compra da vaga', 'desistir da compra', 'liberar a vaga', 'cancelar pagamento pendente',
+      'cancelar compra del cupo', 'desistir de la compra', 'liberar el cupo',
+      'cancel spot purchase', 'give up purchase', 'release the spot', 'cancel pending payment',
+    ],
+  },
+  {
     intent: 'listar_minhas_vagas_compradas',
     phrases: [
       'minhas vagas compradas', 'vagas que comprei', 'vaga paga', 'usar minha vaga', 'continuar inscricao paga',

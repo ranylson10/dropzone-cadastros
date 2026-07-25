@@ -5,7 +5,7 @@ import { reserveSlotForLili, confirmLiliReservation } from '@backend/billing/lil
 import { createLiliAsaasPayment, getLiliPaymentStatus } from '@backend/billing/lili-payment'
 import { captureLiliPayPalOrder, captureVacancyPayPalOrder, createLiliPayPalOrder, getLiliPayPalPaymentStatus, getVacancyPayPalPaymentStatus, paypalConfigured } from '@backend/billing/paypal'
 import { listAgenda } from '@backend/agenda/agenda.service'
-import { claimVacancyPurchase, createVacancyPurchase, loadClaimContext } from '@backend/billing/vacancy-purchase'
+import { cancelPendingVacancyPurchase, claimVacancyPurchase, createVacancyPurchase, loadClaimContext } from '@backend/billing/vacancy-purchase'
 import { detectLiliLocale, resolveLiliIntent } from '@/features/lili/intent-router'
 import { localizeLiliResponse, normalizeLocale } from '@/features/lili/i18n'
 import { createInternationalQuote, formatMoney } from '@/features/lili/currency'
@@ -813,6 +813,29 @@ export async function POST(req: NextRequest) {
             { id: 'back-account-summary', label: 'Minha central', message: 'Mostrar resumo da minha conta', intent: 'resumo_minha_conta', variant: 'secondary', context: { locale } },
           ],
           context: { locale, currentFlow: 'vacancy_purchase' },
+          source: 'system',
+        }
+        break
+      }
+
+      case 'cancelar_compra_vaga_pendente': {
+        if (!user) {
+          response = { reply: 'Entre na sua conta para cancelar esta compra pendente.', intent: match.intent, requiresAuth: true, context, source: 'system' }
+          break
+        }
+        if (!context.purchaseToken) throw new Error('Não encontrei o código da compra que deve ser cancelada.')
+        const result = await cancelPendingVacancyPurchase({ token: context.purchaseToken, authUserId: user.id })
+        response = {
+          reply: result.alreadyClosed
+            ? 'Esta compra já estava encerrada e não prendia mais nenhuma vaga.'
+            : 'Compra cancelada. A cobrança foi invalidada e a vaga voltou imediatamente para venda.',
+          intent: match.intent,
+          actions: [
+            { id: 'buy-after-cancel', label: 'Comprar outra vaga', message: 'Quero comprar uma vaga', intent: 'comprar_vaga', variant: 'primary', context: { locale } },
+            { id: 'purchases-after-cancel', label: 'Minhas vagas compradas', message: 'Mostrar minhas vagas compradas', intent: 'listar_minhas_vagas_compradas', variant: 'secondary', context: { locale } },
+            { id: 'menu-after-cancel', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale },
           source: 'system',
         }
         break
@@ -1642,9 +1665,9 @@ export async function POST(req: NextRequest) {
         const { compra, payment } = await createVacancyPurchase({ campeonatoId: context.selectedChampionshipId, authUserId: user.id, payerName: name || 'Comprador', payerEmail: email, cpfCnpj: digits, method })
         const nextContext = registrationContext(context, { purchaseToken: compra.token, purchaseId: compra.id, awaitingPaymentDocument: false, currentStep: 'payment_wait' })
         response = {
-          reply: method === 'pix' ? 'Cobrança PIX criada. Pague e depois toque em “Já paguei, verificar”.' : 'Checkout de cartão criado. Abra a página segura do Asaas e depois volte para verificar.',
+          reply: method === 'pix' ? 'Cobrança PIX criada. Pague e depois toque em “Já paguei, verificar”.' : 'Checkout seguro do cartão criado. Abra o Asaas, conclua o pagamento e use o retorno automático para continuar na Lili.',
           intent: match.intent,
-          cards: [paymentCard({ token: compra.token, status: payment?.status || compra.status, valueCents: payment?.valor_centavos || compra.valor_centavos, invoiceUrl: payment?.asaas_invoice_url, pixPayload: payment?.asaas_pix_payload, pixQrCode: payment?.asaas_pix_qrcode, expiresAt: compra.expira_em })],
+          cards: [paymentCard({ token: compra.token, status: payment?.status || compra.status, valueCents: payment?.valor_centavos || compra.valor_centavos, invoiceUrl: payment?.asaas_invoice_url, pixPayload: payment?.asaas_pix_payload, pixQrCode: payment?.asaas_pix_qrcode, expiresAt: compra.expira_em, method, maxInstallments: paymentChampionship.cartao_max_parcelas })],
           actions: [{ id: 'check-direct-payment', label: 'Já paguei, verificar', message: 'Verificar pagamento', intent: 'verificar_pagamento_inscricao', variant: 'primary', context: nextContext }, { id: 'menu-after-payment', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
           context: nextContext, source: 'system',
         }
@@ -1742,19 +1765,38 @@ export async function POST(req: NextRequest) {
         }
         const data = await claimContext(req, context)
         if (!data.liberado && !data.consumido) {
+          const paymentStatus = String(data.payment?.status || data.compra.status || 'pendente').toLowerCase()
+          const terminalPayment = ['recusado', 'negado', 'cancelado', 'expirado', 'estornado'].includes(paymentStatus)
+          const underReview = ['em_analise', 'aguardando'].includes(paymentStatus)
+          const paymentMethod = data.payment?.metodo || context.selectedPaymentMethod || null
+          const paymentCardData = data.payment ? paymentCard({
+            token: data.compra.token,
+            status: data.payment.status,
+            valueCents: data.payment.valor_centavos,
+            invoiceUrl: data.payment.invoice_url,
+            pixPayload: data.payment.pix_payload,
+            pixQrCode: data.payment.pix_qrcode,
+            expiresAt: data.compra.expira_em,
+            method: paymentMethod,
+          }) : undefined
           response = {
-            reply: 'O pagamento ainda não foi confirmado. Aguarde alguns segundos e tente novamente.',
+            reply: terminalPayment
+              ? paymentStatus === 'expirado'
+                ? 'O prazo desta cobrança terminou e a vaga foi liberada. Você pode iniciar uma nova compra.'
+                : paymentStatus === 'estornado'
+                  ? 'Este pagamento foi estornado e não libera vaga.'
+                  : 'O pagamento não foi aprovado. Tente novamente ou escolha outro meio de pagamento.'
+              : underReview
+                ? 'O pagamento está em análise pela operadora. Aguarde a atualização antes de tentar outra cobrança.'
+                : 'O pagamento ainda não foi confirmado. Aguarde alguns segundos e tente novamente.',
             intent: match.intent,
-            cards: data.payment ? [paymentCard({
-              token: data.compra.token,
-              status: data.payment.status,
-              valueCents: data.payment.valor_centavos,
-              invoiceUrl: data.payment.invoice_url,
-              pixPayload: data.payment.pix_payload,
-              pixQrCode: data.payment.pix_qrcode,
-              expiresAt: data.compra.expira_em,
-            })] : undefined,
-            actions: [{ id: 'check-again', label: 'Verificar novamente', message: 'Verificar pagamento novamente', intent: 'verificar_pagamento_inscricao', variant: 'primary', context }],
+            cards: paymentCardData ? [paymentCardData] : undefined,
+            actions: terminalPayment
+              ? [
+                  { id: 'retry-purchase-payment', label: 'Tentar outra forma de pagamento', message: `Comprar vaga em ${data.campeonato?.nome || 'este campeonato'}`, intent: 'comprar_vaga', variant: 'primary', context: { locale, selectedChampionshipId: data.compra.campeonato_id, currentFlow: 'vacancy_purchase' } },
+                  { id: 'back-payment-menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
+                ]
+              : [{ id: 'check-again', label: underReview ? 'Atualizar análise' : 'Verificar novamente', message: 'Verificar pagamento novamente', intent: 'verificar_pagamento_inscricao', variant: 'primary', context }],
             context,
             source: 'system',
           }
