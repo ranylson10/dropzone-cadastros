@@ -41,7 +41,11 @@ export type LiliIntent =
   | 'iniciar_inscricao'
   | 'iniciar_pagamento_inscricao'
   | 'verificar_pagamento_inscricao'
+  | 'abrir_central_financeira'
   | 'listar_minhas_vagas_compradas'
+  | 'listar_revisoes_financeiras'
+  | 'listar_historico_revisoes_financeiras'
+  | 'resolver_revisao_financeira'
   | 'cancelar_compra_vaga_pendente'
   | 'usar_vaga_comprada'
   | 'selecionar_line_inscricao'
@@ -89,6 +93,8 @@ export type LiliClientContext = {
   paypalOrderId?: string | null
   paypalApprovalUrl?: string | null
   purchaseId?: string | null
+  selectedFinancialReviewId?: string | null
+  selectedFinancialReviewDecision?: 'manter_inscricao' | 'solicitar_regularizacao' | 'marcar_regularizada' | null
 }
 
 export type LiliAction = {

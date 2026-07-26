@@ -12,6 +12,32 @@ type IntentMatch = {
 
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
+    intent: 'abrir_central_financeira',
+    phrases: [
+      'central financeira', 'minha central financeira', 'resumo financeiro', 'meus pagamentos',
+      'financeiro da lili', 'situacao dos pagamentos', 'pagamentos e estornos',
+      'central financiera', 'resumen financiero', 'mis pagos',
+      'financial center', 'financial overview', 'my payments', 'payment overview',
+    ],
+  },
+  {
+    intent: 'listar_historico_revisoes_financeiras',
+    phrases: [
+      'historico de revisoes financeiras', 'revisoes financeiras encerradas', 'decisoes financeiras anteriores',
+      'historico de estornos do campeonato', 'casos financeiros resolvidos',
+      'historial de revisiones financieras', 'revisiones financieras cerradas',
+      'financial review history', 'closed financial reviews', 'resolved chargebacks',
+    ],
+  },
+  {
+    intent: 'listar_revisoes_financeiras',
+    phrases: [
+      'revisoes financeiras', 'pendencias financeiras do campeonato', 'estornos para revisar', 'chargebacks para revisar',
+      'revisiones financieras', 'pendencias financieras del torneo', 'reembolsos para revisar',
+      'financial reviews', 'tournament financial issues', 'refunds to review', 'chargebacks to review',
+    ],
+  },
+  {
     intent: 'cancelar_compra_vaga_pendente',
     phrases: [
       'cancelar compra da vaga', 'desistir da compra', 'liberar a vaga', 'cancelar pagamento pendente',

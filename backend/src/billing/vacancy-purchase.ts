@@ -25,6 +25,7 @@ import {
   resolveLineForInscricao,
 } from '../campeonatos/participacao-sync'
 import { listControllableEquipes } from '../equipes/manager-team-access'
+import { getCampeonatoPermission } from '../campeonatos/campeonato-permissions'
 
 function moneyReais(centavos: number) {
   return Math.round(centavos) / 100
@@ -1213,4 +1214,145 @@ export async function loadClaimContext(input: {
     lines,
     equipe_selecionada_id: selectedEquipeId,
   }
+}
+
+
+export type FinancialReviewDecision = 'manter_inscricao' | 'solicitar_regularizacao' | 'marcar_regularizada'
+
+export async function listVacancyFinancialReviews(authUserId: string, mode: 'pending' | 'history' = 'pending') {
+  const { data: purchases, error } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .select('*')
+    .eq('status', 'consumido')
+    .order('updated_at', { ascending: false })
+    .limit(100)
+  if (error) throw error
+
+  const reviewStatuses = mode === 'history'
+    ? ['resolvida_mantida', 'resolvida_regularizada']
+    : ['pendente', 'aguardando_regularizacao']
+  const selected = (purchases || []).filter((purchase: any) =>
+    Boolean(purchase.meta?.financeiro_revisao_manual)
+    && reviewStatuses.includes(String(purchase.meta?.financeiro_revisao_status || '')),
+  )
+  if (!selected.length) return []
+
+  const allowed: any[] = []
+  for (const purchase of selected) {
+    const permission = await getCampeonatoPermission(authUserId, purchase.campeonato_id)
+    const canReview = permission.role === 'owner' || permission.canManage
+    if (canReview) allowed.push(purchase)
+  }
+  if (!allowed.length) return []
+
+  const championshipIds = [...new Set(allowed.map((purchase: any) => purchase.campeonato_id).filter(Boolean))]
+  const participationIds = [...new Set(allowed.map((purchase: any) => purchase.campeonato_equipe_id).filter(Boolean))]
+  const [{ data: championships }, { data: participations }] = await Promise.all([
+    supabaseAdmin.from('campeonatos').select('id,nome,logo_url,banner_url').in('id', championshipIds),
+    participationIds.length
+      ? supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,nome_exibicao,status,slot_numero').in('id', participationIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  const teamIds = [...new Set((participations || []).map((row: any) => row.equipe_id).filter(Boolean))]
+  const { data: teams } = teamIds.length
+    ? await supabaseAdmin.from('equipes').select('id,nome,tag,logo_url').in('id', teamIds)
+    : { data: [] as any[] }
+
+  const championshipMap = new Map((championships || []).map((row: any) => [row.id, row]))
+  const participationMap = new Map((participations || []).map((row: any) => [row.id, row]))
+  const teamMap = new Map((teams || []).map((row: any) => [row.id, row]))
+
+  return allowed.map((purchase: any) => {
+    const participation: any = participationMap.get(purchase.campeonato_equipe_id) || null
+    return {
+      ...purchase,
+      campeonato: championshipMap.get(purchase.campeonato_id) || null,
+      participacao: participation,
+      equipe: participation?.equipe_id ? teamMap.get(participation.equipe_id) || null : null,
+      revisao_status: String(purchase.meta?.financeiro_revisao_status || 'pendente'),
+      revisao_motivo: String(purchase.meta?.financeiro_motivo || 'estorno'),
+      revisao_iniciada_em: purchase.meta?.financeiro_estornado_em || purchase.updated_at,
+      revisao_decisao: purchase.meta?.financeiro_revisao_decisao || null,
+      revisao_observacao: purchase.meta?.financeiro_revisao_observacao || null,
+      revisao_decidida_em: purchase.meta?.financeiro_revisao_decidida_em || null,
+      revisao_decidida_por: purchase.meta?.financeiro_revisao_decidida_por || null,
+    }
+  })
+}
+
+export async function resolveVacancyFinancialReview(input: {
+  compraId: string
+  authUserId: string
+  decision: FinancialReviewDecision
+  note?: string | null
+}) {
+  const { data: purchase, error } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .select('*')
+    .eq('id', input.compraId)
+    .maybeSingle()
+  if (error) throw error
+  if (!purchase) throw new Error('Revisão financeira não encontrada.')
+
+  const permission = await getCampeonatoPermission(input.authUserId, purchase.campeonato_id)
+  if (!(permission.role === 'owner' || permission.canManage)) {
+    throw new Error('Você não possui permissão para decidir esta revisão financeira.')
+  }
+  if (!purchase.meta?.financeiro_revisao_manual) {
+    throw new Error('Esta compra não exige revisão financeira manual.')
+  }
+
+  const currentStatus = String(purchase.meta?.financeiro_revisao_status || 'pendente')
+  if (!['pendente', 'aguardando_regularizacao'].includes(currentStatus)) {
+    return { purchase, alreadyResolved: true }
+  }
+
+  const now = new Date().toISOString()
+  const statusByDecision: Record<FinancialReviewDecision, string> = {
+    manter_inscricao: 'resolvida_mantida',
+    solicitar_regularizacao: 'aguardando_regularizacao',
+    marcar_regularizada: 'resolvida_regularizada',
+  }
+  const meta = {
+    ...(purchase.meta || {}),
+    financeiro_revisao_status: statusByDecision[input.decision],
+    financeiro_revisao_decisao: input.decision,
+    financeiro_revisao_observacao: String(input.note || '').trim() || null,
+    financeiro_revisao_decidida_em: now,
+    financeiro_revisao_decidida_por: input.authUserId,
+  }
+
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .update({ meta, updated_at: now })
+    .eq('id', purchase.id)
+    .select('*')
+    .single()
+  if (updateError) throw updateError
+
+  const decisionText = input.decision === 'manter_inscricao'
+    ? 'A organização decidiu manter a inscrição, mesmo após o estorno.'
+    : input.decision === 'solicitar_regularizacao'
+      ? 'A organização solicitou a regularização do pagamento. Entre em contato para resolver a pendência.'
+      : 'A organização confirmou que a pendência financeira foi regularizada.'
+
+  if (purchase.auth_user_id) {
+    await supabaseAdmin.from('notificacoes').insert({
+      destinatario_auth_user_id: purchase.auth_user_id,
+      tipo: 'revisao_financeira_decidida',
+      titulo: 'Atualização da revisão financeira',
+      corpo: decisionText,
+      payload: {
+        compra_vaga_id: purchase.id,
+        campeonato_id: purchase.campeonato_id,
+        decisao: input.decision,
+        observacao: String(input.note || '').trim() || null,
+      },
+      status: 'nao_lida',
+      referencia_tipo: 'sistema_compras_vaga',
+      referencia_id: purchase.id,
+    })
+  }
+
+  return { purchase: updated, alreadyResolved: false }
 }
