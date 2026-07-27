@@ -2,11 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot } from 'lucide-react'
+import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot, Trophy } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 import { clientText, normalizeLocale } from '@/features/lili/i18n'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { LiliChampionshipHub } from '@/components/lili/LiliChampionshipHub'
 import type { DropZoneRow } from '@/lib/types'
 
 type ChatMessage = {
@@ -101,6 +102,7 @@ export default function LiliPage() {
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [profileOpen, setProfileOpen] = useState(false)
+  const [activeHubTab, setActiveHubTab] = useState<'chat' | 'championships'>('chat')
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const busyRef = useRef(false)
   const requestIdRef = useRef(0)
@@ -562,6 +564,14 @@ export default function LiliPage() {
         </div>
       </header>
 
+      <nav className="lili-hub-tabs" aria-label="Áreas da Lili">
+        <button type="button" className={activeHubTab === 'chat' ? 'is-active' : ''} onClick={() => setActiveHubTab('chat')}><Bot size={17} /> Conversar com a Lili</button>
+        <button type="button" className={activeHubTab === 'championships' ? 'is-active' : ''} onClick={() => setActiveHubTab('championships')}><Trophy size={17} /> Meus campeonatos</button>
+      </nav>
+
+      {activeHubTab === 'championships' ? (
+        <div className="lili-hub-panel"><LiliChampionshipHub accessToken={session?.access_token} /></div>
+      ) : <>
       <section className="lili-hub-feed" aria-live="polite">
         <div className="lili-hub-spacer" />
         {messages.map((message) => {
@@ -611,6 +621,7 @@ export default function LiliPage() {
         <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={ui.placeholder} maxLength={1000} disabled={typing} />
         <button type="submit" disabled={typing || !input.trim()} aria-label={ui.send}><Send size={20} /></button>
       </form>
+      </>}
     </main>
   )
 }
