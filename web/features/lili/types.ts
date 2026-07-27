@@ -8,6 +8,7 @@ export type LiliIntent =
   | 'explorar_jogadores'
   | 'explorar_organizacao'
   | 'explorar_servicos'
+  | 'ajuda_contextual'
   | 'abrir_central_agenda'
   | 'listar_notificacoes'
   | 'marcar_notificacoes_lidas'
@@ -122,6 +123,9 @@ export type LiliClientContext = {
   purchaseId?: string | null
   selectedFinancialReviewId?: string | null
   selectedFinancialReviewDecision?: 'manter_inscricao' | 'solicitar_regularizacao' | 'marcar_regularizada' | null
+  currentPath?: string | null
+  currentEntityType?: 'campeonato' | 'equipe' | 'jogador' | 'manager' | 'produtora' | 'carteira' | 'agenda' | 'transmissao' | 'pontuador' | 'geral' | null
+  currentEntityId?: string | null
 }
 
 export type LiliAction = {

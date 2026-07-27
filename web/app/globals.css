@@ -9914,3 +9914,6 @@ input::placeholder, textarea::placeholder {
   filter:brightness(.97);
   transform:translateY(-1px);
 }
+
+
+.lili-global-launcher{position:fixed;right:18px;bottom:18px;z-index:9000;display:flex;align-items:center;gap:7px;min-height:44px;padding:0 16px;border:1px solid #d9c9ee;border-radius:999px;background:#fff;color:#4d2b72;text-decoration:none;font-size:13px;font-weight:900;box-shadow:0 8px 24px rgba(40,23,62,.16);transition:transform .16s ease,box-shadow .16s ease}.lili-global-launcher:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(40,23,62,.22)}@media(max-width:640px){.lili-global-launcher{right:12px;bottom:12px;min-width:46px;padding:0 12px}.lili-global-launcher span{display:none}}

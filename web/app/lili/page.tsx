@@ -106,6 +106,7 @@ export default function LiliPage() {
   const requestIdRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
   const deepLinkHandledRef = useRef(false)
+  const contextualEntryHandledRef = useRef(false)
 
   useEffect(() => {
     try {
@@ -179,6 +180,23 @@ export default function LiliPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, session])
 
+
+  useEffect(() => {
+    if (!ready || contextualEntryHandledRef.current || busyRef.current) return
+    const params = new URLSearchParams(window.location.search)
+    const currentPath = params.get('origem')
+    if (!currentPath) return
+    contextualEntryHandledRef.current = true
+    const currentEntityType = (params.get('tipo') || 'geral') as LiliClientContext['currentEntityType']
+    const currentEntityId = params.get('id')
+    params.delete('origem'); params.delete('tipo'); params.delete('id')
+    const clean = params.toString()
+    window.history.replaceState({}, '', `${window.location.pathname}${clean ? `?${clean}` : ''}${window.location.hash}`)
+    const contextual: LiliClientContext = { ...context, currentPath, currentEntityType, currentEntityId }
+    setContext(contextual)
+    void sendMessage('Ajuda nesta página', 'ajuda_contextual', contextual, false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
 
   useEffect(() => {
     if (!ready || deepLinkHandledRef.current || busyRef.current) return
