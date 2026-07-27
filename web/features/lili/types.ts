@@ -8,6 +8,17 @@ export type LiliIntent =
   | 'explorar_jogadores'
   | 'explorar_organizacao'
   | 'explorar_servicos'
+  | 'abrir_central_agenda'
+  | 'listar_notificacoes'
+  | 'marcar_notificacoes_lidas'
+  | 'abrir_central_carteira'
+  | 'listar_movimentacoes_carteira'
+  | 'listar_saques_carteira'
+  | 'abrir_central_vendedores'
+  | 'abrir_central_competitiva'
+  | 'listar_jogos_pontuacao'
+  | 'auditar_resultados_campeonato'
+  | 'abrir_central_transmissao'
   | 'listar_campeonatos_abertos'
   | 'buscar_campeonato'
   | 'abrir_campeonato'
@@ -126,7 +137,7 @@ export type LiliAction = {
 
 export type LiliCard = {
   id: string
-  kind: 'championship' | 'rulebook' | 'team' | 'registration' | 'agenda' | 'summary' | 'payment' | 'line' | 'slot'
+  kind: 'championship' | 'rulebook' | 'team' | 'registration' | 'agenda' | 'summary' | 'payment' | 'line' | 'slot' | 'notification' | 'wallet' | 'withdrawal' | 'seller' | 'game' | 'result' | 'broadcast'
   title: string
   subtitle?: string | null
   imageUrl?: string | null

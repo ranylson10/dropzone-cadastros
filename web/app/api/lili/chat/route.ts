@@ -44,6 +44,20 @@ import {
   teamLineManagementCards,
   teamStaffCards,
   teamAuditCards,
+  getLiliNotifications,
+  markAllLiliNotificationsRead,
+  notificationCards,
+  getLiliWalletOverview,
+  walletSummaryCard,
+  walletMovementCards,
+  withdrawalCards,
+  getLiliSellerOverview,
+  sellerOverviewCards,
+  getCompetitiveOperationsOverview,
+  competitiveSummaryCard,
+  scoringGameCards,
+  competitiveAuditCards,
+  broadcastOperationsCards,
 } from '@/features/lili/tools'
 import type { LiliAction, LiliChatResponse, LiliClientContext, LiliCurrency, LiliIntent, LiliLocale } from '@/features/lili/types'
 
@@ -523,13 +537,212 @@ export async function POST(req: NextRequest) {
           reply: locale === 'en' ? 'Choose the service you want to access.' : locale === 'es' ? 'Elige el servicio que quieres acceder.' : 'Escolha o serviço que deseja acessar.',
           intent: match.intent,
           actions: [
-            { id: 'services-schedule', label: locale === 'en' ? 'Schedule and upcoming matches' : locale === 'es' ? 'Agenda y próximos partidos' : 'Agenda e próximos jogos', message: 'Mostrar meus próximos jogos', intent: 'listar_proximos_jogos', variant: 'primary', context: { locale } },
+            { id: 'services-schedule', label: locale === 'en' ? 'Schedule and notifications' : locale === 'es' ? 'Agenda y notificaciones' : 'Agenda e notificações', message: 'Abrir central de agenda', intent: 'abrir_central_agenda', variant: 'primary', context: { locale } },
             { id: 'services-financial', label: locale === 'en' ? 'Financial center' : locale === 'es' ? 'Central financiera' : 'Central financeira', message: 'Abrir minha central financeira', intent: 'abrir_central_financeira', variant: 'primary', context: { locale } },
             { id: 'services-registration', label: locale === 'en' ? 'Registration and spots' : locale === 'es' ? 'Inscripción y cupos' : 'Inscrição e vagas', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
             { id: 'services-invite', label: locale === 'en' ? 'Invite or token' : locale === 'es' ? 'Invitación o token' : 'Convite ou token', message: 'Tenho um convite ou token', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
-            { id: 'services-wallet', label: locale === 'en' ? 'Open wallet' : locale === 'es' ? 'Abrir cartera' : 'Abrir carteira', href: '/carteira', variant: 'secondary' },
+            { id: 'services-wallet', label: locale === 'en' ? 'Wallet and withdrawals' : locale === 'es' ? 'Cartera y retiros' : 'Carteira e saques', message: 'Abrir central da carteira', intent: 'abrir_central_carteira', variant: 'secondary', context: { locale } },
+            { id: 'services-sellers', label: locale === 'en' ? 'Sales and sellers' : locale === 'es' ? 'Ventas y vendedores' : 'Vendas e vendedores', message: 'Abrir central de vendedores', intent: 'abrir_central_vendedores', variant: 'secondary', context: { locale } },
+            { id: 'services-competitive', label: locale === 'en' ? 'Scoring, results and broadcast' : locale === 'es' ? 'Puntuación, resultados y transmisión' : 'Pontuação, resultados e transmissão', message: 'Abrir central competitiva', intent: 'abrir_central_competitiva', variant: 'secondary', context: { locale } },
             backToMainMenu(locale),
           ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'abrir_central_agenda': {
+        if (!user) {
+          response = { reply: locale === 'en' ? 'Sign in to view your schedule and notifications.' : locale === 'es' ? 'Inicia sesión para ver tu agenda y notificaciones.' : 'Entre na sua conta para consultar sua agenda e notificações.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }
+          break
+        }
+        const today = new Date()
+        const end = new Date(today); end.setDate(end.getDate() + 90)
+        const iso = (d: Date) => d.toISOString().slice(0, 10)
+        const [agenda, notifications] = await Promise.all([
+          listAgenda({ scope: 'me', from: iso(today), to: iso(end), authUserId: user.id }),
+          getLiliNotifications(user.id, 10),
+        ])
+        const matches = (agenda.items || []).filter((item: any) => item.source === 'jogo')
+        response = {
+          reply: locale === 'en' ? `You have ${matches.length} upcoming match(es) and ${notifications.unread} unread notification(s).` : locale === 'es' ? `Tienes ${matches.length} próximo(s) partido(s) y ${notifications.unread} notificación(es) sin leer.` : `Você tem ${matches.length} próximo${matches.length === 1 ? '' : 's'} jogo${matches.length === 1 ? '' : 's'} e ${notifications.unread} notificação${notifications.unread === 1 ? '' : 'ões'} não lida${notifications.unread === 1 ? '' : 's'}.`,
+          intent: match.intent,
+          cards: [
+            { id: 'agenda-summary', kind: 'summary', title: locale === 'en' ? 'Schedule and notifications' : locale === 'es' ? 'Agenda y notificaciones' : 'Agenda e notificações', details: [
+              { label: locale === 'en' ? 'Upcoming matches' : locale === 'es' ? 'Próximos partidos' : 'Próximos jogos', value: String(matches.length) },
+              { label: locale === 'en' ? 'Unread notifications' : locale === 'es' ? 'Notificaciones sin leer' : 'Notificações não lidas', value: String(notifications.unread) },
+              { label: locale === 'en' ? 'Period checked' : locale === 'es' ? 'Período consultado' : 'Período consultado', value: locale === 'en' ? 'Next 90 days' : locale === 'es' ? 'Próximos 90 días' : 'Próximos 90 dias' },
+            ] },
+            ...agendaCards(matches.slice(0, 3), locale),
+            ...notificationCards(notifications.items.slice(0, 3), locale),
+          ],
+          actions: [
+            { id: 'agenda-all-games', label: locale === 'en' ? 'All upcoming matches' : locale === 'es' ? 'Todos los próximos partidos' : 'Todos os próximos jogos', message: 'Mostrar meus próximos jogos', intent: 'listar_proximos_jogos', variant: 'primary', context: { locale } },
+            { id: 'agenda-notifications', label: locale === 'en' ? 'All notifications' : locale === 'es' ? 'Todas las notificaciones' : 'Todas as notificações', message: 'Mostrar minhas notificações', intent: 'listar_notificacoes', variant: 'secondary', context: { locale } },
+            ...(notifications.unread ? [{ id: 'agenda-read-all', label: locale === 'en' ? 'Mark all as read' : locale === 'es' ? 'Marcar todas como leídas' : 'Marcar todas como lidas', message: 'Marcar todas notificações como lidas', intent: 'marcar_notificacoes_lidas' as const, variant: 'secondary' as const, context: { locale } }] : []),
+            { id: 'agenda-open-page', label: locale === 'en' ? 'Open full schedule' : locale === 'es' ? 'Abrir agenda completa' : 'Abrir agenda completa', href: '/agenda', variant: 'secondary' },
+          ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'listar_notificacoes': {
+        if (!user) { response = { reply: 'Entre na sua conta para consultar suas notificações.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
+        const notifications = await getLiliNotifications(user.id, 30)
+        response = {
+          reply: notifications.items.length ? `Encontrei ${notifications.items.length} notificação${notifications.items.length === 1 ? '' : 'ões'}. ${notifications.unread} ainda não lida${notifications.unread === 1 ? '' : 's'}.` : 'Você não possui notificações no momento.',
+          intent: match.intent, cards: notificationCards(notifications.items, locale),
+          actions: [
+            ...(notifications.unread ? [{ id: 'notifications-read-all', label: 'Marcar todas como lidas', message: 'Marcar todas notificações como lidas', intent: 'marcar_notificacoes_lidas' as const, variant: 'primary' as const, context: { locale } }] : []),
+            { id: 'notifications-agenda', label: 'Voltar para agenda', message: 'Abrir central de agenda', intent: 'abrir_central_agenda', variant: 'secondary', context: { locale } },
+          ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'marcar_notificacoes_lidas': {
+        if (!user) { response = { reply: 'Entre na sua conta para atualizar suas notificações.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
+        await markAllLiliNotificationsRead(user.id)
+        response = { reply: 'Todas as suas notificações foram marcadas como lidas.', intent: match.intent, actions: [{ id: 'notifications-refresh', label: 'Ver notificações', message: 'Mostrar minhas notificações', intent: 'listar_notificacoes', variant: 'primary', context: { locale } }], context: { locale }, source: 'system' }
+        break
+      }
+
+      case 'abrir_central_carteira': {
+        if (!user) { response = { reply: 'Entre na sua conta para abrir sua carteira.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
+        const wallet = await getLiliWalletOverview(user)
+        response = {
+          reply: wallet.wallet ? 'Aqui está o resumo atualizado da sua carteira.' : 'Sua carteira ainda não foi criada ou configurada.',
+          intent: match.intent, cards: wallet.wallet ? [walletSummaryCard(wallet, locale)] : undefined,
+          actions: [
+            ...(wallet.wallet ? [
+              { id: 'wallet-movements', label: 'Ver movimentações', message: 'Mostrar movimentações da carteira', intent: 'listar_movimentacoes_carteira' as const, variant: 'primary' as const, context: { locale } },
+              { id: 'wallet-withdrawals', label: 'Acompanhar saques', message: 'Mostrar meus saques', intent: 'listar_saques_carteira' as const, variant: 'secondary' as const, context: { locale } },
+            ] : []),
+            { id: 'wallet-page', label: wallet.wallet ? 'Solicitar saque ou cadastrar PIX' : 'Configurar carteira', href: '/carteira', variant: 'secondary' },
+          ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'listar_movimentacoes_carteira': {
+        if (!user) { response = { reply: 'Entre na sua conta para consultar o extrato.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
+        const wallet = await getLiliWalletOverview(user)
+        response = { reply: wallet.movements.length ? `Encontrei ${wallet.movements.length} movimentação${wallet.movements.length === 1 ? '' : 'ões'} recente${wallet.movements.length === 1 ? '' : 's'}.` : 'Sua carteira ainda não possui movimentações.', intent: match.intent, cards: walletMovementCards(wallet.movements, locale), actions: [{ id: 'movements-wallet', label: 'Voltar para carteira', message: 'Abrir central da carteira', intent: 'abrir_central_carteira', variant: 'secondary', context: { locale } }], context: { locale }, source: match.source }
+        break
+      }
+
+      case 'listar_saques_carteira': {
+        if (!user) { response = { reply: 'Entre na sua conta para acompanhar seus saques.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
+        const wallet = await getLiliWalletOverview(user)
+        response = { reply: wallet.withdrawals.length ? `Encontrei ${wallet.withdrawals.length} solicitação${wallet.withdrawals.length === 1 ? '' : 'ões'} de saque.` : 'Você ainda não solicitou saques.', intent: match.intent, cards: withdrawalCards(wallet.withdrawals, locale), actions: [{ id: 'withdrawals-new', label: 'Solicitar novo saque', href: '/carteira', variant: 'primary' }, { id: 'withdrawals-wallet', label: 'Voltar para carteira', message: 'Abrir central da carteira', intent: 'abrir_central_carteira', variant: 'secondary', context: { locale } }], context: { locale }, source: match.source }
+        break
+      }
+
+      case 'abrir_central_vendedores': {
+        if (!user) { response = { reply: 'Entre na sua conta para acessar vendas e vendedores.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
+        const seller = await getLiliSellerOverview(user)
+        const cards = sellerOverviewCards(seller, locale)
+        response = {
+          reply: cards.length ? 'Reuni seus dados de vendas e da equipe comercial.' : 'Sua conta ainda não possui perfil de vendedor nem produtora com vendedores cadastrados.',
+          intent: match.intent, cards,
+          actions: [
+            ...(seller.manager ? [{ id: 'seller-my-page', label: 'Abrir minhas vagas', href: `/vendedores/${seller.manager.id}`, variant: 'primary' as const }] : []),
+            ...(seller.producer ? [{ id: 'seller-producer-page', label: 'Gerenciar equipe comercial', href: '/produtoras', variant: 'primary' as const }] : []),
+            { id: 'seller-wallet', label: 'Ver carteira e comissões', message: 'Abrir central da carteira', intent: 'abrir_central_carteira', variant: 'secondary', context: { locale } },
+          ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'abrir_central_competitiva': {
+        if (!user) { response = { reply: 'Entre na sua conta para acessar pontuação, resultados e transmissão.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
+        let championshipId = context.selectedChampionshipId ? String(context.selectedChampionshipId) : ''
+        if (!championshipId) {
+          const managed = await listManagedChampionships(user.id)
+          if (!managed.length) {
+            response = { reply: 'Não encontrei campeonatos com acesso operacional na sua conta.', intent: match.intent, actions: [{ id: 'competitive-back', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } }], context: { locale }, source: 'system' }
+            break
+          }
+          response = {
+            reply: 'Escolha o campeonato para consultar pontuação, resultados e transmissão.',
+            intent: match.intent,
+            cards: managedChampionshipCards(managed, locale),
+            actions: [{ id: 'competitive-back-menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } }],
+            context: { locale, currentFlow: 'competitive_center' }, source: 'system',
+          }
+          break
+        }
+        const overview = await getCompetitiveOperationsOverview(user.id, championshipId)
+        const critical = overview.issues.filter((issue) => issue.level === 'critical').length
+        const attention = overview.issues.filter((issue) => issue.level === 'attention').length
+        response = {
+          reply: critical || attention
+            ? `Central competitiva de ${overview.championship.nome}: encontrei ${critical} problema(s) crítico(s) e ${attention} ponto(s) de atenção.`
+            : `Central competitiva de ${overview.championship.nome} pronta. Pontuação, resultados e transmissão estão organizados.`,
+          intent: match.intent,
+          cards: [competitiveSummaryCard(overview, locale)],
+          actions: [
+            { id: `competitive-games-${championshipId}`, label: 'Jogos e pontuador', message: `Mostrar jogos para pontuar de ${overview.championship.nome}`, intent: 'listar_jogos_pontuacao', variant: 'primary', context: { locale, selectedChampionshipId: championshipId, currentFlow: 'competitive_center' } },
+            { id: `competitive-audit-${championshipId}`, label: 'Auditar resultados', message: `Auditar resultados do campeonato ${overview.championship.nome}`, intent: 'auditar_resultados_campeonato', variant: critical ? 'primary' : 'secondary', context: { locale, selectedChampionshipId: championshipId, currentFlow: 'competitive_center' } },
+            { id: `competitive-broadcast-${championshipId}`, label: 'Transmissão e OBS', message: `Abrir transmissão e OBS de ${overview.championship.nome}`, intent: 'abrir_central_transmissao', variant: 'primary', context: { locale, selectedChampionshipId: championshipId, currentFlow: 'competitive_center' } },
+            { id: `competitive-championship-${championshipId}`, label: 'Abrir campeonato', href: `/campeonatos/${championshipId}`, variant: 'secondary' },
+            { id: 'competitive-other', label: 'Escolher outro campeonato', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale, selectedChampionshipId: championshipId, currentFlow: 'competitive_center' }, source: 'system',
+        }
+        break
+      }
+
+      case 'listar_jogos_pontuacao': {
+        if (!user || !context.selectedChampionshipId) throw new Error('Campeonato não informado.')
+        const overview = await getCompetitiveOperationsOverview(user.id, String(context.selectedChampionshipId))
+        response = {
+          reply: overview.games.length ? `Encontrei ${overview.games.length} jogo(s) em ${overview.championship.nome}. Abra o pontuador do jogo desejado.` : `${overview.championship.nome} ainda não possui jogos cadastrados.`,
+          intent: match.intent,
+          cards: overview.games.length ? scoringGameCards(overview, locale) : [competitiveSummaryCard(overview, locale)],
+          actions: [
+            { id: `games-audit-${overview.championship.id}`, label: 'Auditar resultados', message: `Auditar resultados do campeonato ${overview.championship.nome}`, intent: 'auditar_resultados_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
+            { id: `games-back-${overview.championship.id}`, label: 'Voltar à central competitiva', message: `Abrir central competitiva do campeonato ${overview.championship.nome}`, intent: 'abrir_central_competitiva', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
+          ],
+          context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' }, source: 'system',
+        }
+        break
+      }
+
+      case 'auditar_resultados_campeonato': {
+        if (!user || !context.selectedChampionshipId) throw new Error('Campeonato não informado.')
+        const overview = await getCompetitiveOperationsOverview(user.id, String(context.selectedChampionshipId))
+        const critical = overview.issues.filter((issue) => issue.level === 'critical').length
+        const attention = overview.issues.filter((issue) => issue.level === 'attention').length
+        response = {
+          reply: critical || attention ? `Auditoria competitiva concluída: ${critical} problema(s) crítico(s) e ${attention} ponto(s) de atenção.` : 'Auditoria competitiva concluída sem pendências básicas.',
+          intent: match.intent,
+          cards: competitiveAuditCards(overview),
+          actions: [
+            { id: `audit-games-${overview.championship.id}`, label: 'Abrir jogos e pontuador', message: `Mostrar jogos para pontuar de ${overview.championship.nome}`, intent: 'listar_jogos_pontuacao', variant: 'primary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
+            { id: `audit-refresh-${overview.championship.id}`, label: 'Auditar novamente', message: `Auditar resultados do campeonato ${overview.championship.nome}`, intent: 'auditar_resultados_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
+            { id: `audit-back-competitive-${overview.championship.id}`, label: 'Voltar à central competitiva', message: `Abrir central competitiva do campeonato ${overview.championship.nome}`, intent: 'abrir_central_competitiva', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
+          ],
+          context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' }, source: 'system',
+        }
+        break
+      }
+
+      case 'abrir_central_transmissao': {
+        if (!user || !context.selectedChampionshipId) throw new Error('Campeonato não informado.')
+        const overview = await getCompetitiveOperationsOverview(user.id, String(context.selectedChampionshipId))
+        const cards = broadcastOperationsCards(overview)
+        response = {
+          reply: cards.length
+            ? `Transmissão de ${overview.championship.nome}: encontrei ${overview.liveSessions.length} sessão(ões), sendo ${overview.liveSessions.filter((row: any) => row.ativo).length} ativa(s).`
+            : 'Não encontrei perfil ou sessão de transmissão vinculada a este campeonato.',
+          intent: match.intent,
+          cards: cards.length ? cards : [competitiveSummaryCard(overview, locale)],
+          actions: [
+            { id: `broadcast-config-${overview.championship.id}`, label: 'Configurar transmissão', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'primary' },
+            { id: 'broadcast-catalog', label: 'Catálogo de overlays', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'secondary' },
+            { id: `broadcast-back-${overview.championship.id}`, label: 'Voltar à central competitiva', message: `Abrir central competitiva do campeonato ${overview.championship.nome}`, intent: 'abrir_central_competitiva', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
+          ],
+          context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' }, source: 'system',
         }
         break
       }
@@ -846,6 +1059,7 @@ export async function POST(req: NextRequest) {
             { id: `organizer-audit-${overview.championship.id}`, label: 'Auditar campeonato', message: `Auditar campeonato ${overview.championship.nome}`, intent: 'auditar_campeonato', variant: critical || attention ? 'primary' : 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
             { id: `organizer-rulebook-${overview.championship.id}`, label: 'Regulamento', href: `/campeonatos/${overview.championship.id}/regulamento`, variant: 'secondary' },
             { id: `organizer-stream-${overview.championship.id}`, label: 'Transmissão', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'secondary' },
+            { id: `organizer-competitive-${overview.championship.id}`, label: 'Pontuação e resultados', message: `Abrir central competitiva do campeonato ${overview.championship.nome}`, intent: 'abrir_central_competitiva', variant: 'primary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
             { id: `organizer-open-page-${overview.championship.id}`, label: 'Abrir painel completo', href: `/campeonatos/${overview.championship.id}`, variant: 'secondary' },
             { id: 'organizer-back-list', label: 'Outros campeonatos', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'secondary', context: { locale } },
           ],

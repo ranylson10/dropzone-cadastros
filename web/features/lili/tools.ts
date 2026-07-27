@@ -1505,3 +1505,341 @@ export function championshipAuditCards(overview: ChampionshipOperationsOverview)
     actions: [{ id: `audit-open-${index}`, label: 'Abrir painel do campeonato', href: `/campeonatos/${overview.championship.id}`, variant: issue.level === 'critical' ? 'primary' : 'secondary' }],
   }))
 }
+
+function liliMoney(cents: unknown, locale: LiliLocale = 'pt-BR') {
+  const value = Number(cents || 0) / 100
+  return new Intl.NumberFormat(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : 'pt-BR', {
+    style: 'currency', currency: 'BRL',
+  }).format(value)
+}
+
+export async function getLiliNotifications(userId: string, limit = 20) {
+  const { data, error } = await supabaseAdmin
+    .from('notificacoes')
+    .select('id,tipo,titulo,mensagem,status,acao_url,metadata,created_at,read_at')
+    .eq('destinatario_auth_user_id', userId)
+    .neq('status', 'arquivada')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error && !['42P01', 'PGRST205'].includes(error.code || '')) throw error
+  const items = data || []
+  return { items, unread: items.filter((item: any) => item.status === 'nao_lida').length }
+}
+
+export async function markAllLiliNotificationsRead(userId: string) {
+  const { error } = await supabaseAdmin
+    .from('notificacoes')
+    .update({ status: 'lida', read_at: new Date().toISOString() })
+    .eq('destinatario_auth_user_id', userId)
+    .eq('status', 'nao_lida')
+  if (error && !['42P01', 'PGRST205'].includes(error.code || '')) throw error
+}
+
+export function notificationCards(items: any[], locale: LiliLocale = 'pt-BR'): LiliCard[] {
+  const dateLocale = locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : 'pt-BR'
+  return items.map((item: any) => ({
+    id: `notification-${item.id}`,
+    kind: 'notification',
+    title: item.titulo || (locale === 'en' ? 'Notification' : locale === 'es' ? 'Notificación' : 'Notificação'),
+    subtitle: item.mensagem || undefined,
+    badges: [item.status === 'nao_lida' ? (locale === 'en' ? 'New' : locale === 'es' ? 'Nueva' : 'Nova') : (locale === 'en' ? 'Read' : locale === 'es' ? 'Leída' : 'Lida')],
+    details: item.created_at ? [{ label: locale === 'en' ? 'Received' : locale === 'es' ? 'Recibida' : 'Recebida', value: new Date(item.created_at).toLocaleString(dateLocale) }] : undefined,
+    actions: item.acao_url ? [{ id: `notification-open-${item.id}`, label: locale === 'en' ? 'Open' : locale === 'es' ? 'Abrir' : 'Abrir', href: item.acao_url, variant: 'primary' }] : undefined,
+  }))
+}
+
+export async function getLiliWalletOverview(user: AuthUser) {
+  const accounts = await getAccountsForUser(user as any)
+  const account: any = accounts.find((item: any) => item.is_active) || accounts[0] || null
+  let ownerType: 'manager' | 'produtora' | 'auth_user' = 'auth_user'
+  let ownerId = account?.id || user.id
+  if (account?.profile_type === 'manager') ownerType = 'manager'
+  if (account?.profile_type === 'produtora') ownerType = 'produtora'
+
+  let walletQuery = supabaseAdmin.from('sistema_carteiras').select('*').eq('dono_tipo', ownerType)
+  walletQuery = walletQuery.eq('dono_id', ownerId)
+  let { data: wallet, error } = await walletQuery.maybeSingle()
+  if (error && !['42P01', 'PGRST205'].includes(error.code || '')) throw error
+  if (!wallet) return { account, wallet: null, movements: [], withdrawals: [] }
+
+  const [{ data: movements }, { data: withdrawals }] = await Promise.all([
+    supabaseAdmin.from('sistema_carteira_lancamentos').select('*').eq('carteira_id', wallet.id).order('created_at', { ascending: false }).limit(30),
+    supabaseAdmin.from('sistema_saques').select('id,valor_centavos,status,pix_chave,pix_tipo,titular_nome,created_at,pago_em,rejeicao_motivo,analisado_em').eq('carteira_id', wallet.id).order('created_at', { ascending: false }).limit(30),
+  ])
+  return { account, wallet, movements: movements || [], withdrawals: withdrawals || [] }
+}
+
+export function walletSummaryCard(data: any, locale: LiliLocale = 'pt-BR'): LiliCard {
+  const wallet = data.wallet || {}
+  const pending = (data.withdrawals || []).filter((item: any) => ['solicitado', 'em_analise', 'processando'].includes(String(item.status))).length
+  return {
+    id: 'lili-wallet-summary', kind: 'wallet',
+    title: locale === 'en' ? 'Wallet overview' : locale === 'es' ? 'Resumen de cartera' : 'Resumo da carteira',
+    subtitle: data.account?.name || data.account?.username || undefined,
+    details: [
+      { label: locale === 'en' ? 'Available balance' : locale === 'es' ? 'Saldo disponible' : 'Saldo disponível', value: liliMoney(wallet.saldo_disponivel_centavos, locale) },
+      { label: locale === 'en' ? 'Held balance' : locale === 'es' ? 'Saldo retenido' : 'Saldo retido', value: liliMoney(wallet.saldo_bloqueado_centavos, locale) },
+      { label: locale === 'en' ? 'Recent transactions' : locale === 'es' ? 'Movimientos recientes' : 'Movimentações recentes', value: String((data.movements || []).length) },
+      { label: locale === 'en' ? 'Pending withdrawals' : locale === 'es' ? 'Retiros pendientes' : 'Saques pendentes', value: String(pending) },
+      { label: 'PIX', value: wallet.pix_chave ? `${wallet.pix_tipo || 'chave'} • cadastrado` : (locale === 'en' ? 'Not registered' : locale === 'es' ? 'No registrado' : 'Não cadastrado') },
+    ],
+    actions: [{ id: 'wallet-open-page', label: locale === 'en' ? 'Open wallet' : locale === 'es' ? 'Abrir cartera' : 'Abrir carteira', href: '/carteira', variant: 'primary' }],
+  }
+}
+
+export function walletMovementCards(items: any[], locale: LiliLocale = 'pt-BR'): LiliCard[] {
+  return items.slice(0, 20).map((item: any) => ({
+    id: `wallet-movement-${item.id}`, kind: 'wallet',
+    title: item.descricao || item.tipo || (locale === 'en' ? 'Transaction' : locale === 'es' ? 'Movimiento' : 'Movimentação'),
+    subtitle: item.created_at ? new Date(item.created_at).toLocaleString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : 'pt-BR') : undefined,
+    badges: [liliMoney(item.valor_centavos, locale), String(item.natureza || item.tipo || '').toUpperCase()].filter(Boolean),
+    details: item.saldo_apos_centavos != null ? [{ label: locale === 'en' ? 'Balance after' : locale === 'es' ? 'Saldo posterior' : 'Saldo após lançamento', value: liliMoney(item.saldo_apos_centavos, locale) }] : undefined,
+  }))
+}
+
+export function withdrawalCards(items: any[], locale: LiliLocale = 'pt-BR'): LiliCard[] {
+  return items.slice(0, 20).map((item: any) => ({
+    id: `withdrawal-${item.id}`, kind: 'withdrawal',
+    title: `${locale === 'en' ? 'Withdrawal' : locale === 'es' ? 'Retiro' : 'Saque'} · ${liliMoney(item.valor_centavos, locale)}`,
+    subtitle: item.created_at ? new Date(item.created_at).toLocaleString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : 'pt-BR') : undefined,
+    badges: [String(item.status || 'solicitado').replaceAll('_', ' ')],
+    details: [
+      item.pix_chave ? { label: 'PIX', value: `${item.pix_tipo || 'chave'} • ${String(item.pix_chave).slice(0, 4)}••••` } : null,
+      item.rejeicao_motivo ? { label: locale === 'en' ? 'Reason' : locale === 'es' ? 'Motivo' : 'Motivo', value: item.rejeicao_motivo } : null,
+    ].filter(Boolean) as Array<{ label: string; value: string }>,
+  }))
+}
+
+export async function getLiliSellerOverview(user: AuthUser) {
+  const accounts = await getAccountsForUser(user as any)
+  const manager: any = accounts.find((item: any) => item.profile_type === 'manager') || null
+  const producer: any = accounts.find((item: any) => item.profile_type === 'produtora') || null
+  const assignments = manager ? (await supabaseAdmin.from('campeonato_vendedores').select('id,campeonato_id,limite_vagas,status,nome_publico,whatsapp_url,permissoes,campeonatos:campeonato_id(id,nome,logo_url,status)').eq('manager_id', manager.id).neq('status', 'cancelado')).data || [] : []
+  const roster = producer ? (await supabaseAdmin.from('produtora_vendedores').select('id,manager_id,nome_publico,status,whatsapp_url,created_at').eq('produtora_id', producer.id).neq('status', 'cancelado')).data || [] : []
+  return { manager, producer, assignments, roster }
+}
+
+export function sellerOverviewCards(data: any, locale: LiliLocale = 'pt-BR'): LiliCard[] {
+  const cards: LiliCard[] = []
+  if (data.manager) cards.push({
+    id: 'seller-manager-summary', kind: 'seller',
+    title: locale === 'en' ? 'My seller operation' : locale === 'es' ? 'Mi operación de ventas' : 'Minha operação como vendedor',
+    subtitle: data.manager.name || data.manager.username || undefined,
+    details: [
+      { label: locale === 'en' ? 'Assigned tournaments' : locale === 'es' ? 'Campeonatos vinculados' : 'Campeonatos vinculados', value: String(data.assignments.length) },
+      { label: locale === 'en' ? 'Active assignments' : locale === 'es' ? 'Vínculos activos' : 'Vínculos ativos', value: String(data.assignments.filter((x: any) => x.status === 'ativo').length) },
+    ],
+    actions: [{ id: 'seller-open-profile', label: locale === 'en' ? 'Open seller page' : locale === 'es' ? 'Abrir página de vendedor' : 'Abrir página de vendedor', href: `/vendedores/${data.manager.id}`, variant: 'primary' }],
+  })
+  if (data.producer) cards.push({
+    id: 'seller-producer-summary', kind: 'seller',
+    title: locale === 'en' ? 'Producer sales team' : locale === 'es' ? 'Equipo de ventas de la productora' : 'Equipe de vendedores da produtora',
+    subtitle: data.producer.name || undefined,
+    details: [
+      { label: locale === 'en' ? 'Registered sellers' : locale === 'es' ? 'Vendedores registrados' : 'Vendedores cadastrados', value: String(data.roster.length) },
+      { label: locale === 'en' ? 'Active sellers' : locale === 'es' ? 'Vendedores activos' : 'Vendedores ativos', value: String(data.roster.filter((x: any) => x.status === 'ativo').length) },
+    ],
+    actions: [{ id: 'seller-open-management', label: locale === 'en' ? 'Manage sellers' : locale === 'es' ? 'Gestionar vendedores' : 'Gerenciar vendedores', href: '/produtoras', variant: 'primary' }],
+  })
+  return cards
+}
+
+export type CompetitiveOperationsOverview = {
+  championship: ManagedChampionship
+  games: any[]
+  teamResults: any[]
+  playerResults: any[]
+  broadcastProfile: any | null
+  broadcastLinks: any[]
+  liveSessions: any[]
+  streamKeys: any[]
+  issues: Array<{ level: 'critical' | 'attention' | 'info'; title: string; detail: string }>
+}
+
+function optionalRelationError(error: any) {
+  return Boolean(error && ['42P01', 'PGRST205', '42703'].includes(String(error.code || '')))
+}
+
+export async function getCompetitiveOperationsOverview(authUserId: string, championshipId: string): Promise<CompetitiveOperationsOverview> {
+  const permission = await getCampeonatoPermission(authUserId, championshipId)
+  if (permission.role === 'none') throw new Error('Você não possui acesso operacional a este campeonato.')
+
+  const { data: championship, error: championshipError } = await supabaseAdmin
+    .from('campeonatos')
+    .select('id,nome,tipo,logo_url,banner_url,status,aprovacao_status')
+    .eq('id', championshipId)
+    .maybeSingle()
+  if (championshipError) throw championshipError
+  if (!championship) throw new Error('Campeonato não encontrado.')
+
+  const [gamesResult, teamResultsResult, playerResultsResult, broadcastResult, keysResult] = await Promise.all([
+    supabaseAdmin.from('jogos').select('*').eq('campeonato_id', championshipId).order('created_at', { ascending: false }).limit(100),
+    supabaseAdmin.from('campeonato_resultados_equipes').select('*').eq('campeonato_id', championshipId).order('updated_at', { ascending: false }).limit(500),
+    supabaseAdmin.from('campeonato_resultados_jogadores').select('*').eq('campeonato_id', championshipId).order('updated_at', { ascending: false }).limit(1000),
+    supabaseAdmin.from('broadcasts').select('id,nome,username,papel,avatar_url,status').eq('auth_user_id', authUserId).order('created_at', { ascending: true }).limit(1).maybeSingle(),
+    supabaseAdmin.from('campeonato_stream_keys').select('id,label,ativo,created_at,updated_at').eq('campeonato_id', championshipId).order('created_at', { ascending: false }),
+  ])
+
+  for (const result of [gamesResult, teamResultsResult, playerResultsResult, broadcastResult, keysResult]) {
+    if (result.error && !optionalRelationError(result.error)) throw result.error
+  }
+
+  const broadcastProfile = broadcastResult.error ? null : broadcastResult.data
+  let broadcastLinks: any[] = []
+  let liveSessions: any[] = []
+  if (broadcastProfile?.id) {
+    const [linksResult, sessionsResult] = await Promise.all([
+      supabaseAdmin.from('broadcast_campeonato_links').select('id,display_name,created_at,stream_key_id').eq('broadcast_id', broadcastProfile.id).eq('campeonato_id', championshipId),
+      supabaseAdmin.from('broadcast_live_sessions').select('id,nome,controller_token,obs_token,active_overlay_id,ativo,created_at,updated_at').eq('broadcast_id', broadcastProfile.id).eq('campeonato_id', championshipId).order('updated_at', { ascending: false }),
+    ])
+    if (linksResult.error && !optionalRelationError(linksResult.error)) throw linksResult.error
+    if (sessionsResult.error && !optionalRelationError(sessionsResult.error)) throw sessionsResult.error
+    broadcastLinks = linksResult.error ? [] : linksResult.data || []
+    liveSessions = sessionsResult.error ? [] : sessionsResult.data || []
+  }
+
+  const games = gamesResult.error ? [] : gamesResult.data || []
+  const teamResults = teamResultsResult.error ? [] : teamResultsResult.data || []
+  const playerResults = playerResultsResult.error ? [] : playerResultsResult.data || []
+  const streamKeys = keysResult.error ? [] : keysResult.data || []
+  const issues: CompetitiveOperationsOverview['issues'] = []
+
+  if (!games.length) issues.push({ level: 'attention', title: 'Nenhum jogo cadastrado', detail: 'Crie os jogos antes de abrir o pontuador ou preparar a transmissão.' })
+  const unscheduled = games.filter((game: any) => !(game.data || game.data_jogo || game.inicio_em || game.data_hora))
+  if (unscheduled.length) issues.push({ level: 'attention', title: 'Jogos sem horário', detail: `${unscheduled.length} jogo(s) ainda não possuem data e horário definidos.` })
+
+  const teamKillsByMatch = new Map<string, number>()
+  for (const row of teamResults) teamKillsByMatch.set(`${row.partida_id}:${row.campeonato_equipe_id}`, Number(row.abates || 0))
+  const playerKillsByMatch = new Map<string, number>()
+  for (const row of playerResults) {
+    const key = `${row.partida_id}:${row.campeonato_equipe_id}`
+    playerKillsByMatch.set(key, (playerKillsByMatch.get(key) || 0) + Number(row.abates || 0))
+  }
+  const killMismatches = [...teamKillsByMatch.entries()].filter(([key, teamKills]) => playerKillsByMatch.has(key) && playerKillsByMatch.get(key) !== teamKills)
+  if (killMismatches.length) issues.push({ level: 'critical', title: 'Divergência de abates', detail: `${killMismatches.length} resultado(s) possuem total da equipe diferente da soma dos jogadores.` })
+
+  const invalidPositions = teamResults.filter((row: any) => Number(row.posicao || 0) <= 0)
+  if (invalidPositions.length) issues.push({ level: 'critical', title: 'Posições inválidas', detail: `${invalidPositions.length} resultado(s) possuem posição inválida.` })
+
+  const resultGameIds = new Set(teamResults.map((row: any) => String(row.jogo_id || '')).filter(Boolean))
+  const gamesWithoutResults = games.filter((game: any) => {
+    const state = String(game.status || game.situacao || '').toLowerCase()
+    const finished = ['finalizado', 'encerrado', 'concluido', 'concluído'].includes(state)
+    return finished && !resultGameIds.has(String(game.id))
+  })
+  if (gamesWithoutResults.length) issues.push({ level: 'attention', title: 'Jogos finalizados sem resultados', detail: `${gamesWithoutResults.length} jogo(s) aparecem como finalizados, mas não possuem resultados de equipe.` })
+
+  if (!broadcastProfile) issues.push({ level: 'info', title: 'Perfil de transmissão não vinculado', detail: 'Use a área Stream para criar ou vincular um perfil de broadcast.' })
+  else if (!broadcastLinks.length) issues.push({ level: 'attention', title: 'Campeonato não vinculado ao Stream', detail: 'Envie ou aceite a chave do campeonato para disponibilizá-lo na mesa de transmissão.' })
+  if (broadcastProfile && broadcastLinks.length && !liveSessions.some((row: any) => row.ativo)) issues.push({ level: 'attention', title: 'Nenhuma sessão de live ativa', detail: 'Crie ou reative a mesa para gerar os links de controle e OBS.' })
+  if (!streamKeys.some((row: any) => row.ativo)) issues.push({ level: 'info', title: 'Chave Stream ausente', detail: 'O organizador pode gerar uma chave para vincular uma equipe de transmissão.' })
+  if (!issues.length) issues.push({ level: 'info', title: 'Operação competitiva organizada', detail: 'Não encontrei pendências básicas de pontuação, resultados ou transmissão.' })
+
+  return {
+    championship: { ...championship, permission } as ManagedChampionship,
+    games,
+    teamResults,
+    playerResults,
+    broadcastProfile,
+    broadcastLinks,
+    liveSessions,
+    streamKeys,
+    issues,
+  }
+}
+
+function gameDateLabel(game: any, locale: LiliLocale) {
+  const raw = game.data_hora || game.inicio_em || game.data_jogo || game.data
+  if (!raw) return 'Horário não definido'
+  const date = new Date(raw)
+  if (!Number.isFinite(date.getTime())) return String(raw)
+  return date.toLocaleString(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-419' : 'pt-BR')
+}
+
+export function competitiveSummaryCard(overview: CompetitiveOperationsOverview, locale: LiliLocale = 'pt-BR'): LiliCard {
+  const activeSessions = overview.liveSessions.filter((row: any) => row.ativo).length
+  const critical = overview.issues.filter((issue) => issue.level === 'critical').length
+  const attention = overview.issues.filter((issue) => issue.level === 'attention').length
+  return {
+    id: `competitive-summary-${overview.championship.id}`,
+    kind: 'summary',
+    title: overview.championship.nome,
+    subtitle: 'Pontuador, resultados e transmissão',
+    imageUrl: overview.championship.logo_url || overview.championship.banner_url || null,
+    badges: [`${overview.games.length} jogo(s)`, `${overview.teamResults.length} resultado(s)`, `${activeSessions} live ativa(s)`],
+    details: [
+      { label: 'Resultados de equipes', value: String(overview.teamResults.length) },
+      { label: 'Resultados de jogadores', value: String(overview.playerResults.length) },
+      { label: 'Alertas críticos', value: String(critical) },
+      { label: 'Pontos de atenção', value: String(attention) },
+    ],
+  }
+}
+
+export function scoringGameCards(overview: CompetitiveOperationsOverview, locale: LiliLocale = 'pt-BR'): LiliCard[] {
+  const resultsByGame = new Map<string, number>()
+  for (const row of overview.teamResults) resultsByGame.set(String(row.jogo_id), (resultsByGame.get(String(row.jogo_id)) || 0) + 1)
+  return overview.games.slice(0, 20).map((game: any, index: number) => ({
+    id: `score-game-${game.id}`,
+    kind: 'game',
+    title: game.nome || game.titulo || `Jogo ${index + 1}`,
+    subtitle: game.grupo_nome || game.fase_nome || game.status || 'Jogo do campeonato',
+    badges: [game.status || game.situacao || 'Pendente', `${resultsByGame.get(String(game.id)) || 0} resultado(s)`],
+    details: [
+      { label: 'Data e hora', value: gameDateLabel(game, locale) },
+      { label: 'Quedas', value: String(game.quantidade_partidas || game.numero_quedas || (Array.isArray(game.quedas) ? game.quedas.length : 'Não informado')) },
+      { label: 'Resultados lançados', value: String(resultsByGame.get(String(game.id)) || 0) },
+    ],
+    actions: [{ id: `open-score-${game.id}`, label: 'Abrir pontuador', href: `/campeonatos/${overview.championship.id}/pontuador/${game.id}`, variant: 'primary' }],
+  }))
+}
+
+export function competitiveAuditCards(overview: CompetitiveOperationsOverview): LiliCard[] {
+  return overview.issues.map((issue, index) => ({
+    id: `competitive-audit-${index}`,
+    kind: 'result',
+    title: issue.title,
+    subtitle: issue.detail,
+    badges: [issue.level === 'critical' ? 'Crítico' : issue.level === 'attention' ? 'Atenção' : 'Informação'],
+    actions: [{ id: `competitive-fix-${index}`, label: issue.title.toLowerCase().includes('transmiss') || issue.title.toLowerCase().includes('stream') || issue.title.toLowerCase().includes('live') ? 'Abrir transmissão' : 'Abrir campeonato', href: issue.title.toLowerCase().includes('transmiss') || issue.title.toLowerCase().includes('stream') || issue.title.toLowerCase().includes('live') ? `/campeonatos/${overview.championship.id}/stream` : `/campeonatos/${overview.championship.id}`, variant: issue.level === 'critical' ? 'primary' : 'secondary' }],
+  }))
+}
+
+export function broadcastOperationsCards(overview: CompetitiveOperationsOverview): LiliCard[] {
+  const cards: LiliCard[] = []
+  if (overview.broadcastProfile) {
+    cards.push({
+      id: `broadcast-profile-${overview.broadcastProfile.id}`,
+      kind: 'broadcast',
+      title: overview.broadcastProfile.nome || overview.broadcastProfile.username || 'Perfil Stream',
+      subtitle: overview.broadcastProfile.papel || 'broadcast',
+      imageUrl: overview.broadcastProfile.avatar_url || null,
+      badges: [overview.broadcastProfile.status || 'ativo', overview.broadcastLinks.length ? 'Campeonato vinculado' : 'Sem vínculo'],
+      details: [
+        { label: 'Sessões', value: String(overview.liveSessions.length) },
+        { label: 'Sessões ativas', value: String(overview.liveSessions.filter((row: any) => row.ativo).length) },
+        { label: 'Chaves ativas', value: String(overview.streamKeys.filter((row: any) => row.ativo).length) },
+      ],
+      actions: [{ id: 'broadcast-panel', label: 'Abrir mesa Stream', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'primary' }],
+    })
+  }
+  for (const session of overview.liveSessions.slice(0, 8)) {
+    cards.push({
+      id: `broadcast-session-${session.id}`,
+      kind: 'broadcast',
+      title: session.nome || 'Mesa de transmissão',
+      subtitle: session.ativo ? 'Sessão ativa' : 'Sessão encerrada',
+      badges: [session.ativo ? 'Ao vivo / pronta' : 'Inativa', session.active_overlay_id ? 'Overlay selecionado' : 'Sem overlay'],
+      details: [
+        { label: 'Controle', value: session.controller_token ? 'Link disponível' : 'Não gerado' },
+        { label: 'OBS', value: session.obs_token ? 'Browser Source disponível' : 'Não gerado' },
+        { label: 'Atualizada', value: session.updated_at ? new Date(session.updated_at).toLocaleString('pt-BR') : 'Sem registro' },
+      ],
+      actions: [
+        ...(session.controller_token ? [{ id: `broadcast-control-${session.id}`, label: 'Abrir controle', href: `/broadcast/control/${session.controller_token}`, variant: 'primary' as const }] : []),
+        ...(session.obs_token ? [{ id: `broadcast-obs-${session.id}`, label: 'Abrir fonte OBS', href: `/broadcast/obs/${session.obs_token}`, variant: 'secondary' as const }] : []),
+      ],
+    })
+  }
+  return cards
+}

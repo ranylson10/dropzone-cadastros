@@ -12,6 +12,50 @@ type IntentMatch = {
 
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
+    intent: 'abrir_central_agenda',
+    phrases: ['central de agenda', 'agenda e notificacoes', 'meus compromissos e avisos', 'painel de agenda', 'agenda y notificaciones', 'schedule and notifications'],
+  },
+  {
+    intent: 'listar_notificacoes',
+    phrases: ['minhas notificacoes', 'ver notificacoes', 'avisos da conta', 'novas notificacoes', 'mis notificaciones', 'my notifications'],
+  },
+  {
+    intent: 'marcar_notificacoes_lidas',
+    phrases: ['marcar notificacoes como lidas', 'ler todas notificacoes', 'limpar avisos', 'marcar todas como lidas', 'marcar notificaciones leidas', 'mark notifications read'],
+  },
+  {
+    intent: 'abrir_central_carteira',
+    phrases: ['central da carteira', 'resumo da carteira', 'meu saldo', 'saldo disponivel', 'minha carteira', 'resumen de cartera', 'wallet overview', 'my balance'],
+  },
+  {
+    intent: 'listar_movimentacoes_carteira',
+    phrases: ['movimentacoes da carteira', 'extrato da carteira', 'meus lancamentos', 'historico do saldo', 'movimientos de cartera', 'wallet transactions'],
+  },
+  {
+    intent: 'listar_saques_carteira',
+    phrases: ['meus saques', 'historico de saques', 'status do saque', 'acompanhar saque', 'mis retiros', 'withdrawal history'],
+  },
+  {
+    intent: 'abrir_central_vendedores',
+    phrases: ['central de vendedores', 'meus vendedores', 'minhas vendas', 'comissoes de vendedor', 'vagas que vendo', 'central de vendedores', 'seller center', 'my sales'],
+  },
+  {
+    intent: 'abrir_central_competitiva',
+    phrases: ['central competitiva', 'pontuacao resultados e transmissao', 'operacao competitiva', 'jogos e resultados', 'central competitiva do campeonato', 'central competitiva del torneo', 'competitive operations center'],
+  },
+  {
+    intent: 'listar_jogos_pontuacao',
+    phrases: ['jogos para pontuar', 'abrir pontuador', 'partidas para pontuacao', 'status dos jogos', 'juegos para puntuar', 'games to score', 'scoring games'],
+  },
+  {
+    intent: 'auditar_resultados_campeonato',
+    phrases: ['auditar resultados', 'verificar pontuacao', 'problemas nos resultados', 'divergencia de abates', 'conferir sumula', 'auditar resultados del torneo', 'audit tournament results'],
+  },
+  {
+    intent: 'abrir_central_transmissao',
+    phrases: ['central de transmissao', 'transmissao e obs', 'configurar obs', 'links da live', 'mesa de transmissao', 'transmision y obs', 'broadcast and obs', 'stream control'],
+  },
+  {
     intent: 'explorar_campeonatos',
     phrases: [
       'campeonatos', 'ver campeonatos', 'informacoes de campeonatos', 'quero acessar campeonatos',
@@ -405,7 +449,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
         signal: controller.signal,
         body: JSON.stringify({
           systemInstruction: {
-            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence, searchTerm e locale. locale deve ser pt-BR, es ou en conforme o idioma da mensagem. Intents permitidas: menu, explorar_campeonatos, explorar_equipes, explorar_jogadores, explorar_organizacao, explorar_servicos, listar_campeonatos_abertos, buscar_campeonato, ver_regulamento_campeonato, perguntar_regra_campeonato, comprar_vaga, usar_convite_token, listar_minhas_equipes, listar_campeonatos_gerenciados, abrir_central_organizador, ver_estrutura_operacional_campeonato, ver_operacao_campeonato, auditar_campeonato, central_operacional_equipe, ver_elenco_equipe, ver_lines_equipe, ver_staff_equipe, ver_convites_equipe, auditar_equipe, listar_minhas_inscricoes, listar_proximos_jogos, abrir_central_financeira, iniciar_inscricao, simular_pagamento_internacional, alterar_idioma, voltar_etapa, cancelar_fluxo, status_fluxo, reiniciar_conversa, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
+            parts: [{ text: 'Classifique a mensagem de um usuário do DropZone. Responda SOMENTE JSON válido com intent, confidence, searchTerm e locale. locale deve ser pt-BR, es ou en conforme o idioma da mensagem. Intents permitidas: menu, explorar_campeonatos, explorar_equipes, explorar_jogadores, explorar_organizacao, explorar_servicos, listar_campeonatos_abertos, buscar_campeonato, ver_regulamento_campeonato, perguntar_regra_campeonato, comprar_vaga, usar_convite_token, listar_minhas_equipes, listar_campeonatos_gerenciados, abrir_central_organizador, ver_estrutura_operacional_campeonato, ver_operacao_campeonato, auditar_campeonato, central_operacional_equipe, ver_elenco_equipe, ver_lines_equipe, ver_staff_equipe, ver_convites_equipe, auditar_equipe, listar_minhas_inscricoes, listar_proximos_jogos, abrir_central_financeira, abrir_central_competitiva, listar_jogos_pontuacao, auditar_resultados_campeonato, abrir_central_transmissao, iniciar_inscricao, simular_pagamento_internacional, alterar_idioma, voltar_etapa, cancelar_fluxo, status_fluxo, reiniciar_conversa, desconhecido. Use listar_campeonatos_abertos para perguntas genéricas sobre campeonatos, vagas, oportunidades ou onde uma equipe pode jogar. Use buscar_campeonato somente quando houver um nome próprio explícito de campeonato, liga ou copa. searchTerm deve conter exclusivamente esse nome próprio e deve ficar vazio nas perguntas genéricas.' }],
           },
           contents: [{ role: 'user', parts: [{ text: message.slice(0, 500) }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 120, responseMimeType: 'application/json' },
@@ -416,7 +460,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
     const json = await response.json()
     const text = json?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || ''
     const parsed = JSON.parse(stripJsonFence(text))
-    const allowed: LiliIntent[] = ['menu', 'explorar_campeonatos', 'explorar_equipes', 'explorar_jogadores', 'explorar_organizacao', 'explorar_servicos', 'listar_campeonatos_abertos', 'buscar_campeonato', 'ver_regulamento_campeonato', 'perguntar_regra_campeonato', 'comprar_vaga', 'usar_convite_token', 'listar_minhas_equipes', 'listar_campeonatos_gerenciados', 'abrir_central_organizador', 'ver_estrutura_operacional_campeonato', 'ver_operacao_campeonato', 'auditar_campeonato', 'central_operacional_equipe', 'ver_elenco_equipe', 'ver_lines_equipe', 'ver_staff_equipe', 'ver_convites_equipe', 'auditar_equipe', 'listar_minhas_inscricoes', 'listar_proximos_jogos', 'abrir_central_financeira', 'iniciar_inscricao', 'simular_pagamento_internacional', 'alterar_idioma', 'voltar_etapa', 'cancelar_fluxo', 'status_fluxo', 'reiniciar_conversa', 'desconhecido']
+    const allowed: LiliIntent[] = ['menu', 'explorar_campeonatos', 'explorar_equipes', 'explorar_jogadores', 'explorar_organizacao', 'explorar_servicos', 'listar_campeonatos_abertos', 'buscar_campeonato', 'ver_regulamento_campeonato', 'perguntar_regra_campeonato', 'comprar_vaga', 'usar_convite_token', 'listar_minhas_equipes', 'listar_campeonatos_gerenciados', 'abrir_central_organizador', 'ver_estrutura_operacional_campeonato', 'ver_operacao_campeonato', 'auditar_campeonato', 'central_operacional_equipe', 'ver_elenco_equipe', 'ver_lines_equipe', 'ver_staff_equipe', 'ver_convites_equipe', 'auditar_equipe', 'listar_minhas_inscricoes', 'listar_proximos_jogos', 'abrir_central_financeira', 'abrir_central_competitiva', 'listar_jogos_pontuacao', 'auditar_resultados_campeonato', 'abrir_central_transmissao', 'iniciar_inscricao', 'simular_pagamento_internacional', 'alterar_idioma', 'voltar_etapa', 'cancelar_fluxo', 'status_fluxo', 'reiniciar_conversa', 'desconhecido']
     let intent = allowed.includes(parsed.intent) ? parsed.intent : 'desconhecido'
     let searchTerm = String(parsed.searchTerm || '').trim() || undefined
 
