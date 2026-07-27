@@ -446,28 +446,18 @@ export async function POST(req: NextRequest) {
         break
 
       case 'explorar_campeonatos': {
-        const publicLabel = locale === 'en' ? 'Public information' : locale === 'es' ? 'Información pública' : 'Informações públicas'
-        const privateLabel = locale === 'en' ? 'My account or organization' : locale === 'es' ? 'Mi cuenta u organización' : 'Minha conta ou organização'
         response = {
           reply: locale === 'en'
-            ? 'Do you want public tournament information or data linked to your account and organization?'
+            ? 'What tournament information do you want to access?'
             : locale === 'es'
-              ? '¿Quieres información pública de campeonatos o datos vinculados a tu cuenta y organización?'
-              : 'Você quer informações públicas de campeonatos ou dados ligados à sua conta e organização?',
+              ? '¿Qué información de campeonatos quieres consultar?'
+              : 'Quais dados de campeonatos você quer acessar?',
           intent: match.intent,
-          cards: [{
-            id: 'championship-access-scope', kind: 'summary', title: 'Campeonatos',
-            subtitle: locale === 'en' ? 'Choose the type of access' : locale === 'es' ? 'Elige el tipo de acceso' : 'Escolha o tipo de acesso',
-            details: [
-              { label: publicLabel, value: locale === 'en' ? 'Open tournaments, available spots, rules and public pages.' : locale === 'es' ? 'Torneos abiertos, cupos, reglamentos y páginas públicas.' : 'Campeonatos abertos, vagas, regulamentos e páginas públicas.' },
-              { label: privateLabel, value: locale === 'en' ? 'Registrations, managed tournaments and operational data.' : locale === 'es' ? 'Inscripciones, torneos administrados y datos operativos.' : 'Inscrições, campeonatos administrados e dados operacionais.' },
-            ],
-          }],
           actions: [
-            { id: 'championships-public-open', label: locale === 'en' ? 'Public · Open tournaments' : locale === 'es' ? 'Público · Torneos abiertos' : 'Público · Campeonatos abertos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } },
-            { id: 'championships-public-page', label: locale === 'en' ? 'Public · All tournaments' : locale === 'es' ? 'Público · Todos los torneos' : 'Público · Todos os campeonatos', href: '/campeonatos', variant: 'secondary' },
-            { id: 'championships-private-registrations', label: locale === 'en' ? 'My data · Registrations' : locale === 'es' ? 'Mis datos · Inscripciones' : 'Meus dados · Inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
-            { id: 'championships-org-managed', label: locale === 'en' ? 'Organization · Managed tournaments' : locale === 'es' ? 'Organización · Torneos administrados' : 'Organização · Campeonatos administrados', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'secondary', context: { locale } },
+            { id: 'championships-open', label: locale === 'en' ? 'Open tournaments' : locale === 'es' ? 'Torneos abiertos' : 'Campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } },
+            { id: 'championships-all', label: locale === 'en' ? 'All tournaments' : locale === 'es' ? 'Todos los torneos' : 'Todos os campeonatos', href: '/campeonatos', variant: 'secondary' },
+            { id: 'championships-registrations', label: locale === 'en' ? 'My registrations' : locale === 'es' ? 'Mis inscripciones' : 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
+            { id: 'championships-managed', label: locale === 'en' ? 'Tournaments I manage' : locale === 'es' ? 'Torneos que administro' : 'Campeonatos que administro', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'secondary', context: { locale } },
             backToMainMenu(locale),
           ],
           context: { locale }, source: match.source,
@@ -478,22 +468,16 @@ export async function POST(req: NextRequest) {
       case 'explorar_equipes': {
         response = {
           reply: locale === 'en'
-            ? 'Do you want to browse public teams or access teams linked to your account and organization?'
+            ? 'What team information do you want to access?'
             : locale === 'es'
-              ? '¿Quieres ver equipos públicos o acceder a los equipos vinculados a tu cuenta y organización?'
-              : 'Você quer consultar equipes públicas ou acessar as equipes ligadas à sua conta e organização?',
+              ? '¿Qué información de equipos quieres consultar?'
+              : 'Quais dados de equipes você quer acessar?',
           intent: match.intent,
-          cards: [{
-            id: 'team-access-scope', kind: 'summary', title: locale === 'en' ? 'Teams' : locale === 'es' ? 'Equipos' : 'Equipes',
-            details: [
-              { label: locale === 'en' ? 'Public' : locale === 'es' ? 'Público' : 'Público', value: locale === 'en' ? 'Team directory, profiles and public rankings.' : locale === 'es' ? 'Directorio, perfiles y rankings públicos.' : 'Lista de equipes, perfis e rankings públicos.' },
-              { label: locale === 'en' ? 'My organization' : locale === 'es' ? 'Mi organización' : 'Minha organização', value: locale === 'en' ? 'Roster, lines, staff, invitations and registrations.' : locale === 'es' ? 'Plantilla, lines, staff, invitaciones e inscripciones.' : 'Elenco, lines, staff, convites e inscrições.' },
-            ],
-          }],
           actions: [
-            { id: 'teams-public', label: locale === 'en' ? 'Public · Browse teams' : locale === 'es' ? 'Público · Ver equipos' : 'Público · Ver equipes', href: '/equipes', variant: 'primary' },
-            { id: 'teams-mine', label: locale === 'en' ? 'My data · My teams' : locale === 'es' ? 'Mis datos · Mis equipos' : 'Meus dados · Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes', variant: 'primary', context: { locale } },
-            { id: 'teams-audit', label: locale === 'en' ? 'Organization · Manage team' : locale === 'es' ? 'Organización · Gestionar equipo' : 'Organização · Gerenciar equipe', message: 'Gerenciar minha equipe', intent: 'central_operacional_equipe', variant: 'secondary', context: { locale } },
+            { id: 'teams-list', label: locale === 'en' ? 'Browse teams' : locale === 'es' ? 'Ver equipos' : 'Lista de equipes', href: '/equipes', variant: 'primary' },
+            { id: 'teams-mine', label: locale === 'en' ? 'My teams' : locale === 'es' ? 'Mis equipos' : 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes', variant: 'primary', context: { locale } },
+            { id: 'teams-management', label: locale === 'en' ? 'Manage my team' : locale === 'es' ? 'Gestionar mi equipo' : 'Gerenciar minha equipe', message: 'Gerenciar minha equipe', intent: 'central_operacional_equipe', variant: 'secondary', context: { locale } },
+            { id: 'teams-audit', label: locale === 'en' ? 'Check team issues' : locale === 'es' ? 'Revisar problemas del equipo' : 'Ver pendências da equipe', message: 'Auditar equipe', intent: 'auditar_equipe', variant: 'secondary', context: { locale } },
             backToMainMenu(locale),
           ], context: { locale }, source: match.source,
         }
@@ -503,22 +487,15 @@ export async function POST(req: NextRequest) {
       case 'explorar_jogadores': {
         response = {
           reply: locale === 'en'
-            ? 'Player information can be public or linked to your team. Choose what you need.'
+            ? 'What player information do you want to access?'
             : locale === 'es'
-              ? 'La información de jugadores puede ser pública o vinculada a tu equipo. Elige lo que necesitas.'
-              : 'As informações de jogadores podem ser públicas ou ligadas à sua equipe. Escolha o que você precisa.',
+              ? '¿Qué información de jugadores quieres consultar?'
+              : 'Quais dados de jogadores você quer acessar?',
           intent: match.intent,
-          cards: [{
-            id: 'player-access-scope', kind: 'summary', title: locale === 'en' ? 'Players' : locale === 'es' ? 'Jugadores' : 'Jogadores',
-            details: [
-              { label: locale === 'en' ? 'Public data' : locale === 'es' ? 'Datos públicos' : 'Dados públicos', value: locale === 'en' ? 'Player directory, profiles, statistics and rankings made public.' : locale === 'es' ? 'Lista, perfiles, estadísticas y rankings públicos.' : 'Lista, perfis, estatísticas e rankings disponibilizados publicamente.' },
-              { label: locale === 'en' ? 'Organization data' : locale === 'es' ? 'Datos de la organización' : 'Dados da organização', value: locale === 'en' ? 'Team roster, roles, game IDs and missing information.' : locale === 'es' ? 'Plantilla, funciones, IDs del juego y datos pendientes.' : 'Elenco da equipe, funções, IDs do jogo e informações pendentes.' },
-            ],
-          }],
           actions: [
-            { id: 'players-public', label: locale === 'en' ? 'Public · Browse players' : locale === 'es' ? 'Público · Ver jugadores' : 'Público · Ver jogadores', href: '/jogadores', variant: 'primary' },
-            { id: 'players-team-roster', label: locale === 'en' ? 'Organization · Team roster' : locale === 'es' ? 'Organización · Plantilla del equipo' : 'Organização · Elenco da equipe', message: 'Ver elenco da equipe', intent: 'ver_elenco_equipe', variant: 'primary', context: { locale } },
-            { id: 'players-team-audit', label: locale === 'en' ? 'Organization · Check missing data' : locale === 'es' ? 'Organización · Revisar datos pendientes' : 'Organização · Ver dados pendentes', message: 'Auditar equipe', intent: 'auditar_equipe', variant: 'secondary', context: { locale } },
+            { id: 'players-list', label: locale === 'en' ? 'Browse players' : locale === 'es' ? 'Ver jugadores' : 'Lista de jogadores', href: '/jogadores', variant: 'primary' },
+            { id: 'players-roster', label: locale === 'en' ? 'Team roster' : locale === 'es' ? 'Plantilla del equipo' : 'Elenco da minha equipe', message: 'Ver elenco da equipe', intent: 'ver_elenco_equipe', variant: 'primary', context: { locale } },
+            { id: 'players-pending', label: locale === 'en' ? 'Missing player data' : locale === 'es' ? 'Datos pendientes de jugadores' : 'Dados pendentes dos jogadores', message: 'Auditar equipe', intent: 'auditar_equipe', variant: 'secondary', context: { locale } },
             backToMainMenu(locale),
           ], context: { locale }, source: match.source,
         }
