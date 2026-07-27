@@ -35,15 +35,25 @@ function profileImage(account?: DropZoneRow | null) {
 
 function initialMessage(locale: LiliLocale = 'pt-BR'): ChatMessage {
   const copy = locale === 'es'
-    ? { text: '¡Hola! Soy Lili, la asistente de DropZone. ¿Cómo puedo ayudarte?', open: 'Torneos con cupos', register: 'Hacer inscripción', teams: 'Mis equipos', registrations: 'Mis inscripciones', invite: 'Usar invitación o token', language: 'Idioma' }
+    ? {
+        text: '¡Hola! Soy Lili, la asistente de DropZone. ¿Qué área quieres consultar?',
+        championships: 'Campeonatos', teams: 'Equipos', players: 'Jugadores', organization: 'Mi organización', services: 'Agenda y servicios', invite: 'Invitación o token', language: 'Idioma',
+      }
     : locale === 'en'
-      ? { text: 'Hi! I’m Lili, the DropZone assistant. How can I help?', open: 'Tournaments with spots', register: 'Start registration', teams: 'My teams', registrations: 'My registrations', invite: 'Use invite or token', language: 'Language' }
-      : { text: 'Olá! Sou a Lili, assistente do DropZone. Como posso ajudar?', open: 'Campeonatos com vagas', register: 'Fazer inscrição', teams: 'Minhas equipes', registrations: 'Minhas inscrições', invite: 'Usar convite ou token', language: 'Idioma' }
+      ? {
+          text: 'Hi! I’m Lili, the DropZone assistant. Which area would you like to access?',
+          championships: 'Tournaments', teams: 'Teams', players: 'Players', organization: 'My organization', services: 'Schedule and services', invite: 'Invite or token', language: 'Language',
+        }
+      : {
+          text: 'Olá! Sou a Lili, assistente do DropZone. Qual área você quer acessar?',
+          championships: 'Campeonatos', teams: 'Equipes', players: 'Jogadores', organization: 'Minha organização', services: 'Agenda e serviços', invite: 'Convite ou token', language: 'Idioma',
+        }
   return { id: 'welcome', role: 'assistant', text: copy.text, actions: [
-    { id: 'open', label: copy.open, message: copy.open, intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } },
-    { id: 'register', label: copy.register, message: copy.register, intent: 'iniciar_inscricao', variant: 'primary', context: { locale } },
-    { id: 'teams', label: copy.teams, message: copy.teams, intent: 'listar_minhas_equipes', variant: 'secondary', context: { locale } },
-    { id: 'registrations', label: copy.registrations, message: copy.registrations, intent: 'listar_minhas_inscricoes', variant: 'secondary', context: { locale } },
+    { id: 'championships', label: copy.championships, message: copy.championships, intent: 'explorar_campeonatos', variant: 'primary', context: { locale } },
+    { id: 'teams', label: copy.teams, message: copy.teams, intent: 'explorar_equipes', variant: 'primary', context: { locale } },
+    { id: 'players', label: copy.players, message: copy.players, intent: 'explorar_jogadores', variant: 'primary', context: { locale } },
+    { id: 'organization', label: copy.organization, message: copy.organization, intent: 'explorar_organizacao', variant: 'secondary', context: { locale } },
+    { id: 'services', label: copy.services, message: copy.services, intent: 'explorar_servicos', variant: 'secondary', context: { locale } },
     { id: 'invite', label: copy.invite, message: copy.invite, intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
     { id: 'language', label: copy.language, message: copy.language, intent: 'alterar_idioma', variant: 'secondary', context: { locale } },
   ] }

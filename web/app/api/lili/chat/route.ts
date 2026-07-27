@@ -16,6 +16,12 @@ import {
   championshipCards,
   getChampionshipDetails,
   getTeamOperationsOverview,
+  listManagedChampionships,
+  managedChampionshipCards,
+  getChampionshipOperationsOverview,
+  championshipOperationsSummaryCard,
+  championshipStructureCards,
+  championshipAuditCards,
   getPublishedChampionshipRulebook,
   findRulebookAnswers,
   financialCenterCards,
@@ -75,18 +81,31 @@ async function optionalUser(req: NextRequest) {
 }
 
 function menuActions(locale: LiliLocale) {
+  const labels = locale === 'es'
+    ? { championships: 'Campeonatos', teams: 'Equipos', players: 'Jugadores', organization: 'Mi organización', services: 'Agenda y servicios', invite: 'Invitación o token', language: 'Idioma' }
+    : locale === 'en'
+      ? { championships: 'Tournaments', teams: 'Teams', players: 'Players', organization: 'My organization', services: 'Schedule and services', invite: 'Invite or token', language: 'Language' }
+      : { championships: 'Campeonatos', teams: 'Equipes', players: 'Jogadores', organization: 'Minha organização', services: 'Agenda e serviços', invite: 'Convite ou token', language: 'Idioma' }
   return [
-    { id: 'open-championships', label: 'Campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos' as LiliIntent, variant: 'primary' as const, context: { locale } },
-    { id: 'register', label: 'Fazer inscrição', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao' as LiliIntent, variant: 'primary' as const, context: { locale } },
-    { id: 'use-invite', label: 'Usar convite ou token', message: 'Tenho um convite ou token', intent: 'usar_convite_token' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'my-teams', label: 'Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'my-registrations', label: 'Minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'account-summary', label: 'Minha central', message: 'Mostrar resumo da minha conta', intent: 'resumo_minha_conta' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'financial-center', label: 'Central financeira', message: 'Abrir minha central financeira', intent: 'abrir_central_financeira' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'upcoming-games', label: 'Próximos jogos', message: 'Mostrar meus próximos jogos', intent: 'listar_proximos_jogos' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'international-payment', label: 'Pagamento internacional', message: 'Simular pagamento internacional', intent: 'simular_pagamento_internacional' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'language', label: 'Idioma / Language', message: 'Mudar idioma', intent: 'alterar_idioma' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'menu-championships', label: labels.championships, message: labels.championships, intent: 'explorar_campeonatos' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'menu-teams', label: labels.teams, message: labels.teams, intent: 'explorar_equipes' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'menu-players', label: labels.players, message: labels.players, intent: 'explorar_jogadores' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'menu-organization', label: labels.organization, message: labels.organization, intent: 'explorar_organizacao' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'menu-services', label: labels.services, message: labels.services, intent: 'explorar_servicos' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'menu-invite', label: labels.invite, message: labels.invite, intent: 'usar_convite_token' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'menu-language', label: labels.language, message: labels.language, intent: 'alterar_idioma' as LiliIntent, variant: 'secondary' as const, context: { locale } },
   ]
+}
+
+function backToMainMenu(locale: LiliLocale): LiliAction {
+  return {
+    id: 'back-main-menu',
+    label: locale === 'en' ? 'Back to main menu' : locale === 'es' ? 'Volver al menú principal' : 'Voltar ao menu principal',
+    message: locale === 'en' ? 'Back to start' : locale === 'es' ? 'Volver al inicio' : 'Voltar ao início',
+    intent: 'menu',
+    variant: 'secondary',
+    context: { locale },
+  }
 }
 
 function languageActions() {
@@ -426,6 +445,118 @@ export async function POST(req: NextRequest) {
         }
         break
 
+      case 'explorar_campeonatos': {
+        const publicLabel = locale === 'en' ? 'Public information' : locale === 'es' ? 'Información pública' : 'Informações públicas'
+        const privateLabel = locale === 'en' ? 'My account or organization' : locale === 'es' ? 'Mi cuenta u organización' : 'Minha conta ou organização'
+        response = {
+          reply: locale === 'en'
+            ? 'Do you want public tournament information or data linked to your account and organization?'
+            : locale === 'es'
+              ? '¿Quieres información pública de campeonatos o datos vinculados a tu cuenta y organización?'
+              : 'Você quer informações públicas de campeonatos ou dados ligados à sua conta e organização?',
+          intent: match.intent,
+          cards: [{
+            id: 'championship-access-scope', kind: 'summary', title: 'Campeonatos',
+            subtitle: locale === 'en' ? 'Choose the type of access' : locale === 'es' ? 'Elige el tipo de acceso' : 'Escolha o tipo de acesso',
+            details: [
+              { label: publicLabel, value: locale === 'en' ? 'Open tournaments, available spots, rules and public pages.' : locale === 'es' ? 'Torneos abiertos, cupos, reglamentos y páginas públicas.' : 'Campeonatos abertos, vagas, regulamentos e páginas públicas.' },
+              { label: privateLabel, value: locale === 'en' ? 'Registrations, managed tournaments and operational data.' : locale === 'es' ? 'Inscripciones, torneos administrados y datos operativos.' : 'Inscrições, campeonatos administrados e dados operacionais.' },
+            ],
+          }],
+          actions: [
+            { id: 'championships-public-open', label: locale === 'en' ? 'Public · Open tournaments' : locale === 'es' ? 'Público · Torneos abiertos' : 'Público · Campeonatos abertos', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } },
+            { id: 'championships-public-page', label: locale === 'en' ? 'Public · All tournaments' : locale === 'es' ? 'Público · Todos los torneos' : 'Público · Todos os campeonatos', href: '/campeonatos', variant: 'secondary' },
+            { id: 'championships-private-registrations', label: locale === 'en' ? 'My data · Registrations' : locale === 'es' ? 'Mis datos · Inscripciones' : 'Meus dados · Inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
+            { id: 'championships-org-managed', label: locale === 'en' ? 'Organization · Managed tournaments' : locale === 'es' ? 'Organización · Torneos administrados' : 'Organização · Campeonatos administrados', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
+          ],
+          context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'explorar_equipes': {
+        response = {
+          reply: locale === 'en'
+            ? 'Do you want to browse public teams or access teams linked to your account and organization?'
+            : locale === 'es'
+              ? '¿Quieres ver equipos públicos o acceder a los equipos vinculados a tu cuenta y organización?'
+              : 'Você quer consultar equipes públicas ou acessar as equipes ligadas à sua conta e organização?',
+          intent: match.intent,
+          cards: [{
+            id: 'team-access-scope', kind: 'summary', title: locale === 'en' ? 'Teams' : locale === 'es' ? 'Equipos' : 'Equipes',
+            details: [
+              { label: locale === 'en' ? 'Public' : locale === 'es' ? 'Público' : 'Público', value: locale === 'en' ? 'Team directory, profiles and public rankings.' : locale === 'es' ? 'Directorio, perfiles y rankings públicos.' : 'Lista de equipes, perfis e rankings públicos.' },
+              { label: locale === 'en' ? 'My organization' : locale === 'es' ? 'Mi organización' : 'Minha organização', value: locale === 'en' ? 'Roster, lines, staff, invitations and registrations.' : locale === 'es' ? 'Plantilla, lines, staff, invitaciones e inscripciones.' : 'Elenco, lines, staff, convites e inscrições.' },
+            ],
+          }],
+          actions: [
+            { id: 'teams-public', label: locale === 'en' ? 'Public · Browse teams' : locale === 'es' ? 'Público · Ver equipos' : 'Público · Ver equipes', href: '/equipes', variant: 'primary' },
+            { id: 'teams-mine', label: locale === 'en' ? 'My data · My teams' : locale === 'es' ? 'Mis datos · Mis equipos' : 'Meus dados · Minhas equipes', message: 'Mostrar minhas equipes', intent: 'listar_minhas_equipes', variant: 'primary', context: { locale } },
+            { id: 'teams-audit', label: locale === 'en' ? 'Organization · Manage team' : locale === 'es' ? 'Organización · Gestionar equipo' : 'Organização · Gerenciar equipe', message: 'Gerenciar minha equipe', intent: 'central_operacional_equipe', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
+          ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'explorar_jogadores': {
+        response = {
+          reply: locale === 'en'
+            ? 'Player information can be public or linked to your team. Choose what you need.'
+            : locale === 'es'
+              ? 'La información de jugadores puede ser pública o vinculada a tu equipo. Elige lo que necesitas.'
+              : 'As informações de jogadores podem ser públicas ou ligadas à sua equipe. Escolha o que você precisa.',
+          intent: match.intent,
+          cards: [{
+            id: 'player-access-scope', kind: 'summary', title: locale === 'en' ? 'Players' : locale === 'es' ? 'Jugadores' : 'Jogadores',
+            details: [
+              { label: locale === 'en' ? 'Public data' : locale === 'es' ? 'Datos públicos' : 'Dados públicos', value: locale === 'en' ? 'Player directory, profiles, statistics and rankings made public.' : locale === 'es' ? 'Lista, perfiles, estadísticas y rankings públicos.' : 'Lista, perfis, estatísticas e rankings disponibilizados publicamente.' },
+              { label: locale === 'en' ? 'Organization data' : locale === 'es' ? 'Datos de la organización' : 'Dados da organização', value: locale === 'en' ? 'Team roster, roles, game IDs and missing information.' : locale === 'es' ? 'Plantilla, funciones, IDs del juego y datos pendientes.' : 'Elenco da equipe, funções, IDs do jogo e informações pendentes.' },
+            ],
+          }],
+          actions: [
+            { id: 'players-public', label: locale === 'en' ? 'Public · Browse players' : locale === 'es' ? 'Público · Ver jugadores' : 'Público · Ver jogadores', href: '/jogadores', variant: 'primary' },
+            { id: 'players-team-roster', label: locale === 'en' ? 'Organization · Team roster' : locale === 'es' ? 'Organización · Plantilla del equipo' : 'Organização · Elenco da equipe', message: 'Ver elenco da equipe', intent: 'ver_elenco_equipe', variant: 'primary', context: { locale } },
+            { id: 'players-team-audit', label: locale === 'en' ? 'Organization · Check missing data' : locale === 'es' ? 'Organización · Revisar datos pendientes' : 'Organização · Ver dados pendentes', message: 'Auditar equipe', intent: 'auditar_equipe', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
+          ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'explorar_organizacao': {
+        response = {
+          reply: locale === 'en' ? 'Choose the private area of your organization.' : locale === 'es' ? 'Elige el área privada de tu organización.' : 'Escolha a área privada da sua organização.',
+          intent: match.intent,
+          actions: [
+            { id: 'org-account', label: locale === 'en' ? 'My account overview' : locale === 'es' ? 'Resumen de mi cuenta' : 'Resumo da minha conta', message: 'Mostrar resumo da minha conta', intent: 'resumo_minha_conta', variant: 'primary', context: { locale } },
+            { id: 'org-team', label: locale === 'en' ? 'Team management' : locale === 'es' ? 'Gestión del equipo' : 'Gestão da equipe', message: 'Gerenciar minha equipe', intent: 'central_operacional_equipe', variant: 'primary', context: { locale } },
+            { id: 'org-tournaments', label: locale === 'en' ? 'Tournament management' : locale === 'es' ? 'Gestión de torneos' : 'Gestão de campeonatos', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'primary', context: { locale } },
+            { id: 'org-managers', label: locale === 'en' ? 'Managers and staff' : locale === 'es' ? 'Managers y staff' : 'Managers e staff', href: '/managers', variant: 'secondary' },
+            { id: 'org-producers', label: locale === 'en' ? 'Producer profile' : locale === 'es' ? 'Perfil de productora' : 'Perfil da produtora', href: '/produtoras', variant: 'secondary' },
+            backToMainMenu(locale),
+          ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
+      case 'explorar_servicos': {
+        response = {
+          reply: locale === 'en' ? 'Choose the service you want to access.' : locale === 'es' ? 'Elige el servicio que quieres acceder.' : 'Escolha o serviço que deseja acessar.',
+          intent: match.intent,
+          actions: [
+            { id: 'services-schedule', label: locale === 'en' ? 'Schedule and upcoming matches' : locale === 'es' ? 'Agenda y próximos partidos' : 'Agenda e próximos jogos', message: 'Mostrar meus próximos jogos', intent: 'listar_proximos_jogos', variant: 'primary', context: { locale } },
+            { id: 'services-financial', label: locale === 'en' ? 'Financial center' : locale === 'es' ? 'Central financiera' : 'Central financeira', message: 'Abrir minha central financeira', intent: 'abrir_central_financeira', variant: 'primary', context: { locale } },
+            { id: 'services-registration', label: locale === 'en' ? 'Registration and spots' : locale === 'es' ? 'Inscripción y cupos' : 'Inscrição e vagas', message: 'Quero fazer uma inscrição', intent: 'iniciar_inscricao', variant: 'secondary', context: { locale } },
+            { id: 'services-invite', label: locale === 'en' ? 'Invite or token' : locale === 'es' ? 'Invitación o token' : 'Convite ou token', message: 'Tenho um convite ou token', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
+            { id: 'services-wallet', label: locale === 'en' ? 'Open wallet' : locale === 'es' ? 'Abrir cartera' : 'Abrir carteira', href: '/carteira', variant: 'secondary' },
+            backToMainMenu(locale),
+          ], context: { locale }, source: match.source,
+        }
+        break
+      }
+
       case 'listar_campeonatos_abertos': {
         const items = await listOpenChampionships()
         response = {
@@ -679,6 +810,148 @@ export async function POST(req: NextRequest) {
             ? [{ id: 'menu', label: 'Voltar', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }]
             : [{ id: 'open', label: 'Ver campeonatos com vagas', message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary' }],
           source: match.source,
+        }
+        break
+      }
+
+      case 'listar_campeonatos_gerenciados': {
+        if (!user) {
+          response = { reply: 'Entre na sua conta para abrir a central do organizador.', intent: match.intent, requiresAuth: true, context, source: match.source }
+          break
+        }
+        const championships = await listManagedChampionships(user.id)
+        response = {
+          reply: championships.length
+            ? `Encontrei ${championships.length} campeonato${championships.length === 1 ? '' : 's'} em que você possui acesso operacional. Escolha um para abrir a gestão completa.`
+            : 'Não encontrei campeonatos que você administra ou opera nesta conta.',
+          intent: match.intent,
+          cards: managedChampionshipCards(championships, locale),
+          actions: [
+            { id: 'organizer-create-championship', label: 'Criar campeonato', href: '/campeonatos', variant: 'primary' },
+            { id: 'organizer-back-menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale, currentFlow: 'organizer_center' },
+          source: match.source,
+        }
+        break
+      }
+
+      case 'abrir_central_organizador': {
+        if (!user) {
+          response = { reply: 'Entre na sua conta para abrir a gestão do campeonato.', intent: match.intent, requiresAuth: true, context, source: 'system' }
+          break
+        }
+        if (!context.selectedChampionshipId) {
+          const championships = await listManagedChampionships(user.id)
+          response = {
+            reply: championships.length ? 'Escolha o campeonato que deseja administrar.' : 'Não encontrei campeonatos com acesso operacional nesta conta.',
+            intent: match.intent,
+            cards: managedChampionshipCards(championships, locale),
+            context: { locale, currentFlow: 'organizer_center' },
+            source: 'system',
+          }
+          break
+        }
+        const overview = await getChampionshipOperationsOverview(user.id, String(context.selectedChampionshipId))
+        const critical = overview.issues.filter((issue) => issue.level === 'critical').length
+        const attention = overview.issues.filter((issue) => issue.level === 'attention').length
+        response = {
+          reply: critical
+            ? `Central do organizador de ${overview.championship.nome}. Encontrei ${critical} problema${critical === 1 ? '' : 's'} crítico${critical === 1 ? '' : 's'} e ${attention} ponto${attention === 1 ? '' : 's'} de atenção.`
+            : attention
+              ? `Central do organizador de ${overview.championship.nome}. A operação está funcionando, mas existem ${attention} ponto${attention === 1 ? '' : 's'} para revisar.`
+              : `Central do organizador de ${overview.championship.nome}. A estrutura operacional básica está organizada.`,
+          intent: match.intent,
+          cards: [championshipOperationsSummaryCard(overview)],
+          actions: [
+            { id: `organizer-structure-${overview.championship.id}`, label: 'Fases, grupos e slots', message: `Ver estrutura do campeonato ${overview.championship.nome}`, intent: 'ver_estrutura_operacional_campeonato', variant: 'primary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
+            { id: `organizer-operation-${overview.championship.id}`, label: 'Jogos e inscrições', message: `Ver operação do campeonato ${overview.championship.nome}`, intent: 'ver_operacao_campeonato', variant: 'primary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
+            { id: `organizer-audit-${overview.championship.id}`, label: 'Auditar campeonato', message: `Auditar campeonato ${overview.championship.nome}`, intent: 'auditar_campeonato', variant: critical || attention ? 'primary' : 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
+            { id: `organizer-rulebook-${overview.championship.id}`, label: 'Regulamento', href: `/campeonatos/${overview.championship.id}/regulamento`, variant: 'secondary' },
+            { id: `organizer-stream-${overview.championship.id}`, label: 'Transmissão', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'secondary' },
+            { id: `organizer-open-page-${overview.championship.id}`, label: 'Abrir painel completo', href: `/campeonatos/${overview.championship.id}`, variant: 'secondary' },
+            { id: 'organizer-back-list', label: 'Outros campeonatos', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'secondary', context: { locale } },
+          ],
+          context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' },
+          source: 'system',
+        }
+        break
+      }
+
+      case 'ver_estrutura_operacional_campeonato':
+      case 'ver_operacao_campeonato':
+      case 'auditar_campeonato': {
+        if (!user || !context.selectedChampionshipId) throw new Error('Campeonato não informado.')
+        const overview = await getChampionshipOperationsOverview(user.id, String(context.selectedChampionshipId))
+        const backAction: LiliAction = {
+          id: `organizer-back-${overview.championship.id}`,
+          label: 'Voltar à central',
+          message: `Abrir central do organizador do campeonato ${overview.championship.nome}`,
+          intent: 'abrir_central_organizador',
+          variant: 'secondary',
+          context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' },
+        }
+        if (match.intent === 'ver_estrutura_operacional_campeonato') {
+          response = {
+            reply: overview.phases.length
+              ? `Estrutura de ${overview.championship.nome}: ${overview.phases.length} fase(s), ${overview.groups.length} grupo(s) e ${overview.slots.length} slot(s).`
+              : `${overview.championship.nome} ainda não possui fases configuradas.`,
+            intent: match.intent,
+            cards: overview.phases.length ? championshipStructureCards(overview) : [championshipAuditCards(overview).find((card) => card.title.includes('fase')) || championshipOperationsSummaryCard(overview)],
+            actions: [
+              { id: `structure-panel-${overview.championship.id}`, label: 'Organizar estrutura', href: `/campeonatos/${overview.championship.id}`, variant: 'primary' },
+              { id: `structure-audit-${overview.championship.id}`, label: 'Auditar campeonato', message: `Auditar campeonato ${overview.championship.nome}`, intent: 'auditar_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
+              backAction,
+            ],
+            context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' },
+            source: 'system',
+          }
+        } else if (match.intent === 'ver_operacao_campeonato') {
+          const occupied = overview.slots.filter((slot: any) => slot.equipe_id || slot.line_id).length
+          const activeTeams = overview.teams.filter((team: any) => String(team.status || 'ativo') === 'ativo').length
+          const scheduledGames = overview.games.filter((game: any) => game.data || game.data_jogo || game.inicio_em).length
+          response = {
+            reply: `Operação de ${overview.championship.nome}: ${activeTeams} equipe(s) ativa(s), ${occupied}/${overview.slots.length} slots ocupados e ${scheduledGames}/${overview.games.length} jogos com data.`,
+            intent: match.intent,
+            cards: [{
+              ...championshipOperationsSummaryCard(overview),
+              id: `organizer-operation-${overview.championship.id}`,
+              subtitle: 'Resumo de jogos, inscrições e publicação',
+              details: [
+                { label: 'Equipes ativas', value: String(activeTeams) },
+                { label: 'Slots ocupados', value: `${occupied}/${overview.slots.length}` },
+                { label: 'Jogos cadastrados', value: String(overview.games.length) },
+                { label: 'Jogos com data', value: String(scheduledGames) },
+                { label: 'Rodadas', value: String(overview.rounds.length) },
+                { label: 'Inscrições', value: overview.config?.aceita_novas_inscricoes_equipes ? 'Abertas' : 'Fechadas' },
+              ],
+            }],
+            actions: [
+              { id: `operation-games-${overview.championship.id}`, label: 'Gerenciar jogos', href: `/campeonatos/${overview.championship.id}`, variant: 'primary' },
+              { id: `operation-score-${overview.championship.id}`, label: 'Abrir pontuador', href: `/campeonatos/${overview.championship.id}`, variant: 'secondary' },
+              { id: `operation-audit-${overview.championship.id}`, label: 'Ver pendências', message: `Auditar campeonato ${overview.championship.nome}`, intent: 'auditar_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
+              backAction,
+            ],
+            context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' },
+            source: 'system',
+          }
+        } else {
+          const critical = overview.issues.filter((issue) => issue.level === 'critical').length
+          const attention = overview.issues.filter((issue) => issue.level === 'attention').length
+          response = {
+            reply: critical || attention
+              ? `Auditoria concluída: ${critical} problema(s) crítico(s), ${attention} ponto(s) de atenção e ${overview.issues.length - critical - attention} informação(ões).`
+              : 'Auditoria concluída. Não encontrei pendências operacionais básicas.',
+            intent: match.intent,
+            cards: championshipAuditCards(overview),
+            actions: [
+              { id: `audit-refresh-${overview.championship.id}`, label: 'Executar auditoria novamente', message: `Auditar campeonato ${overview.championship.nome}`, intent: 'auditar_campeonato', variant: 'primary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
+              { id: `audit-open-${overview.championship.id}`, label: 'Corrigir no painel', href: `/campeonatos/${overview.championship.id}`, variant: 'secondary' },
+              backAction,
+            ],
+            context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' },
+            source: 'system',
+          }
         }
         break
       }
