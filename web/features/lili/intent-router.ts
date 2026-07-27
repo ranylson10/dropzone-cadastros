@@ -12,6 +12,54 @@ type IntentMatch = {
 
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
+    intent: 'central_operacional_equipe',
+    phrases: [
+      'central operacional da equipe', 'gerenciar minha equipe', 'gestao da equipe', 'painel da equipe', 'administrar equipe',
+      'central operativa del equipo', 'gestionar mi equipo', 'administrar equipo',
+      'team operations center', 'manage my team', 'team management',
+    ],
+  },
+  {
+    intent: 'ver_elenco_equipe',
+    phrases: [
+      'ver elenco da equipe', 'jogadores da minha equipe', 'quem esta na equipe', 'listar jogadores da equipe',
+      'ver plantilla del equipo', 'jugadores de mi equipo', 'quien esta en el equipo',
+      'team roster', 'players on my team', 'show team players',
+    ],
+  },
+  {
+    intent: 'ver_lines_equipe',
+    phrases: [
+      'ver lines da equipe', 'minhas lines', 'listar lines', 'composicoes da equipe',
+      'ver lines del equipo', 'mis lines', 'listar lines del equipo',
+      'team lines', 'my lineups', 'show team lines',
+    ],
+  },
+  {
+    intent: 'ver_staff_equipe',
+    phrases: [
+      'ver staff da equipe', 'managers da equipe', 'quem administra a equipe', 'equipe tecnica',
+      'ver staff del equipo', 'managers del equipo', 'quien administra el equipo',
+      'team staff', 'team managers', 'who manages the team',
+    ],
+  },
+  {
+    intent: 'ver_convites_equipe',
+    phrases: [
+      'convites da equipe', 'convites pendentes da equipe', 'links de convite da equipe', 'gerenciar convites',
+      'invitaciones del equipo', 'invitaciones pendientes', 'gestionar invitaciones',
+      'team invites', 'pending team invites', 'manage invitations',
+    ],
+  },
+  {
+    intent: 'auditar_equipe',
+    phrases: [
+      'auditar equipe', 'ver pendencias da equipe', 'o que falta na equipe', 'diagnostico da equipe', 'problemas da equipe',
+      'auditar equipo', 'pendencias del equipo', 'que falta en el equipo', 'diagnostico del equipo',
+      'audit team', 'team issues', 'what is missing from my team', 'team diagnostics',
+    ],
+  },
+  {
     intent: 'abrir_central_financeira',
     phrases: [
       'central financeira', 'minha central financeira', 'resumo financeiro', 'meus pagamentos',
@@ -288,7 +336,7 @@ async function geminiMatch(message: string): Promise<IntentMatch> {
     const json = await response.json()
     const text = json?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || ''
     const parsed = JSON.parse(stripJsonFence(text))
-    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'ver_regulamento_campeonato', 'perguntar_regra_campeonato', 'comprar_vaga', 'usar_convite_token', 'listar_minhas_equipes', 'listar_minhas_inscricoes', 'listar_proximos_jogos', 'iniciar_inscricao', 'simular_pagamento_internacional', 'alterar_idioma', 'voltar_etapa', 'cancelar_fluxo', 'status_fluxo', 'reiniciar_conversa', 'desconhecido']
+    const allowed: LiliIntent[] = ['menu', 'listar_campeonatos_abertos', 'buscar_campeonato', 'ver_regulamento_campeonato', 'perguntar_regra_campeonato', 'comprar_vaga', 'usar_convite_token', 'listar_minhas_equipes', 'central_operacional_equipe', 'ver_elenco_equipe', 'ver_lines_equipe', 'ver_staff_equipe', 'ver_convites_equipe', 'auditar_equipe', 'listar_minhas_inscricoes', 'listar_proximos_jogos', 'iniciar_inscricao', 'simular_pagamento_internacional', 'alterar_idioma', 'voltar_etapa', 'cancelar_fluxo', 'status_fluxo', 'reiniciar_conversa', 'desconhecido']
     let intent = allowed.includes(parsed.intent) ? parsed.intent : 'desconhecido'
     let searchTerm = String(parsed.searchTerm || '').trim() || undefined
 
