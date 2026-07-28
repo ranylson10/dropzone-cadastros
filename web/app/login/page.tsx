@@ -7,6 +7,7 @@ import { SystemLogo } from '@/components/brand/SystemLogo'
 import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/auth/SocialLogin'
 import { parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
+import { signOutEverywhere } from '@/lib/auth-client-state'
 
 const profileLabels = {
   produtora: 'produtora',
@@ -62,7 +63,7 @@ export default function LoginPage() {
       try {
         if (switchAccount && !complete) {
           try {
-            await supabase.auth.signOut()
+            await signOutEverywhere()
           } catch {
             // ignore
           }

@@ -54,7 +54,8 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
 
       const providerOptions: Record<SocialProvider, { scopes?: string; queryParams?: Record<string, string> }> = {
         google: {
-          queryParams: { prompt: 'select_account' },
+          // Impede o Google de reutilizar silenciosamente a conta anterior.
+          queryParams: { prompt: 'select_account', access_type: 'offline' },
         },
         facebook: {
           // e-mail + perfil público (padrão Facebook Login)

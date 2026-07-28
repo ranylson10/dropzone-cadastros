@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase-browser'
 import type { DropZoneRow } from '@/lib/types'
 import { AppHeader } from './AppHeader'
 import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
+import { signOutEverywhere } from '@/lib/auth-client-state'
 
 const TYPE_LABELS: Record<string, string> = {
   produtora: 'Produtora',
@@ -156,10 +157,13 @@ export function AppShell({
   }, [loadSession, controlled])
 
   async function defaultSignOut() {
-    await supabase.auth.signOut()
-    setSessionAccount(null)
-    setSessionAccounts([])
-    window.location.href = '/'
+    try {
+      await signOutEverywhere()
+    } finally {
+      setSessionAccount(null)
+      setSessionAccounts([])
+      window.location.href = '/login?switch=1'
+    }
   }
 
   function defaultSwitch(next: DropZoneRow) {

@@ -1,5 +1,14 @@
 # Histórico de alterações
 
+## 2026-07-28 — Logout completo e troca de conta
+
+- Logout passou a revogar globalmente a sessão Supabase.
+- Perfis recentes, perfil ativo, snapshots de painel e estado OAuth são removidos ao sair.
+- A limpeza é repetida após o evento de logout para impedir restauração por listeners.
+- “Usar outra conta” e `?switch=1` usam o mesmo fluxo centralizado.
+- Login Google mantém `prompt=select_account` para impedir reutilização silenciosa da conta anterior.
+- `npm run typecheck` e `npm run build`: aprovados.
+
 ## 2026-07-22 — Criação de perfis e uploads
 
 - Corrigido upload de foto/logo antes da criação de perfil vinculado.

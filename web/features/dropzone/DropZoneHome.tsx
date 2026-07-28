@@ -16,6 +16,7 @@ import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppShell, APP_NAV } from '@/components/layout'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 import { safeInternalPath } from '@/features/auth/auth-return'
+import { signOutEverywhere } from '@/lib/auth-client-state'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SystemLogo } from '@/components/brand/SystemLogo'
@@ -426,7 +427,7 @@ export function DropZoneHome() {
 
           if (wantsSwitchAccount || wantsNewAccount) {
             try {
-              await supabase.auth.signOut()
+              await signOutEverywhere()
             } catch {
               // ignore
             }
@@ -927,13 +928,17 @@ export function DropZoneHome() {
 
 
   async function signOut() {
-    await supabase.auth.signOut()
-    setAccount(null)
-    setAccounts([])
-    setLinkingProfile(false)
-    setRows([])
-    setMessage('')
-    setError('')
+    try {
+      await signOutEverywhere()
+    } finally {
+      setAccount(null)
+      setAccounts([])
+      setRecentProfiles([])
+      setLinkingProfile(false)
+      setRows([])
+      setMessage('')
+      setError('')
+    }
   }
 
   async function createRow(payload: Record<string, unknown>, success = 'Cadastro salvo na DropZone.') {

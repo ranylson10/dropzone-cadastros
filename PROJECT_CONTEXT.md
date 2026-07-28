@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 22 de julho de 2026
-**Estado:** Upload de pré-criação corrigido; unicidade de perfil por tipo/login e consumo atômico de códigos aplicados no Supabase pela migration `20260722_perfil_unico_por_tipo.sql`.
+**Última atualização:** 28 de julho de 2026
+**Estado:** Logout completo corrigido para revogar a sessão e limpar caches de conta/OAuth antes de permitir login com outra conta.
 
 ## 1. Objetivo do sistema
 
