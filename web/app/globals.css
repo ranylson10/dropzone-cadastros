@@ -9988,3 +9988,51 @@ input::placeholder, textarea::placeholder {
 .lili-config-actions{display:grid;gap:7px}.lili-config-actions>button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;border:1px solid #dfe5ec;border-radius:11px;background:#fff;color:#344054;padding:11px;text-align:left;cursor:pointer}.lili-config-actions>button.primary{border-color:#cbd7ff;background:#f6f8ff;color:#2847a1}.lili-config-actions button>span{display:flex;min-width:0;flex-direction:column;gap:2px}.lili-config-actions strong{font-size:11px}.lili-config-actions small{font-size:9px;color:#667085}
 .lili-structure-manager.mobile-guided,.lili-bulk-builder.mobile-guided{margin:0;border-radius:12px}.lili-structure-manager.mobile-guided .lili-structure-phase{padding:0}.lili-structure-manager.mobile-guided details>summary{display:flex;align-items:center;justify-content:space-between;list-style:none;padding:11px 12px;cursor:pointer}.lili-structure-manager.mobile-guided details>summary::-webkit-details-marker{display:none}.lili-structure-manager.mobile-guided details>summary span{display:flex;flex-direction:column;gap:2px}.lili-structure-manager.mobile-guided details>summary strong{font-size:11px}.lili-structure-manager.mobile-guided details>summary small{font-size:9px;color:#667085}.lili-structure-manager.mobile-guided details[open]>summary svg{transform:rotate(90deg)}.lili-structure-phase-content{padding:0 10px 10px}.lili-bulk-builder.mobile-guided .lili-bulk-phase{border-radius:10px}.lili-bulk-builder.mobile-guided .lili-bulk-group>span{border-radius:50%}.mobile-first .lili-games-manager,.mobile-first .lili-links-manager{margin:0;border-radius:12px;overflow:hidden}
 @media(max-width:560px){.lili-champ-hub.mobile-first{padding:0 8px 20px}.lili-champ-detail-head{padding-top:5px}.lili-champ-title{padding:8px 0}.lili-champ-title .large{width:42px;height:42px}.lili-champ-title strong{font-size:13px}.lili-mobile-sections{grid-template-columns:repeat(5,1fr);margin-left:-2px;margin-right:-2px}.lili-mobile-sections button{padding:7px 1px;font-size:8px}.lili-mobile-sections button svg{width:16px;height:16px}.lili-mobile-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.lili-mobile-callout{grid-template-columns:auto minmax(0,1fr)}.lili-mobile-callout button{grid-column:1/-1;width:100%}.lili-mobile-group-pills button{flex-basis:36px;width:36px;height:36px}.lili-mobile-slots-area{padding:8px}.lili-structure-manager.mobile-guided .lili-structure-phase-row,.lili-structure-manager.mobile-guided .lili-structure-group-row{grid-template-columns:1fr 80px;gap:7px}.lili-structure-manager.mobile-guided .save{grid-column:1/2}.lili-structure-manager.mobile-guided .danger{grid-column:2/3}.lili-bulk-builder.mobile-guided .lili-bulk-phase-fields{grid-template-columns:1fr 76px}.lili-bulk-builder.mobile-guided .lili-bulk-group{grid-template-columns:28px minmax(0,1fr) 70px 30px}.mobile-first .lili-games-head,.mobile-first .lili-links-head{padding:11px}}
+
+/* Lili mobile: editor compacto, jogos recolhidos e slots por letras */
+.lili-structure-manager.compact-editor{padding-bottom:58px}
+.lili-structure-manager.compact-editor .lili-structure-phase-content{padding:9px}
+.lili-structure-manager.compact-editor .compact-row{display:grid;grid-template-columns:minmax(0,1fr) 70px 34px;gap:7px;align-items:end}
+.lili-structure-manager.compact-editor .lili-structure-group-row.compact-row{grid-template-columns:minmax(0,1fr) 68px auto 34px;padding:7px 0;border-top:1px solid #edf0f3}
+.lili-structure-manager.compact-editor .compact-row label{min-width:0}
+.lili-structure-manager.compact-editor .compact-row input{height:34px;padding:6px 8px;border-radius:8px}
+.lili-structure-manager.compact-editor .compact-row>small{align-self:center;font-size:9px;color:#667085;white-space:nowrap}
+.lili-structure-manager.compact-editor .icon-danger{width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:8px;background:#fff1f1;color:#c23838;padding:0}
+.lili-structure-savebar{position:sticky;bottom:0;z-index:5;display:flex;justify-content:flex-end;padding:9px 10px;border-top:1px solid #dfe5ec;background:rgba(248,250,252,.96);backdrop-filter:blur(8px)}
+.lili-structure-savebar button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:9px;background:#172235;color:#fff;padding:9px 13px;font-size:10px;font-weight:800}
+.lili-structure-savebar button:disabled{opacity:.55}
+
+.lili-games-manager{border-radius:11px;overflow:hidden}
+.lili-games-head{padding:10px 11px}
+.lili-games-head-actions button{padding:7px 9px;border-radius:8px}
+.lili-games-toolbar{align-items:stretch;flex-direction:column;padding:8px 10px}
+.lili-games-filter,.lili-games-bulk-actions{width:100%}
+.lili-games-filter select{flex:1}
+.lili-games-bulk-actions{display:grid;grid-template-columns:1fr 1fr}
+.lili-games-bulk-actions button:last-child{grid-column:1/-1}
+.lili-games-list.compact article{padding:0;border-bottom:1px solid #edf0f3}
+.lili-game-row-top.compact-row{gap:4px;align-items:center;padding:7px 8px}
+.lili-game-row-top.compact-row .lili-game-select{padding:0 2px}
+.lili-game-summary{display:grid;grid-template-columns:30px minmax(0,1fr) 18px;align-items:center;gap:8px;flex:1;min-width:0;border:0;background:transparent;text-align:left;padding:2px;color:#172235}
+.lili-game-icon{width:30px;height:30px;display:grid;place-items:center;border:1px solid #dfe5ec;border-radius:8px;background:#f8fafc}
+.lili-game-copy{display:flex;min-width:0;flex-direction:column;gap:1px}
+.lili-game-copy strong,.lili-game-copy small,.lili-game-copy em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lili-game-copy strong{font-size:11px}.lili-game-copy small,.lili-game-copy em{font-size:9px;color:#667085;font-style:normal}
+.lili-game-chevron{font-size:20px;color:#667085;transform:rotate(0);transition:transform .18s}.lili-game-chevron.open{transform:rotate(90deg)}
+.lili-game-details{padding:0 10px 9px 48px}
+.lili-game-details .lili-game-maps-inline{margin:2px 0 7px}
+.lili-game-actions.compact-actions{display:flex;gap:5px}
+.lili-game-actions.compact-actions button{border-radius:7px;padding:6px 8px;font-size:9px}
+.lili-game-actions.compact-actions .danger{margin-left:auto;color:#b42318;background:#fff5f4;border-color:#ffd5d2}
+.lili-champ-slots.mobile-list>div>span:first-child,.lili-champ-slots.manager>button>span:first-child{border-radius:50%;font-size:11px;letter-spacing:0}
+
+@media(max-width:420px){
+  .lili-structure-manager.compact-editor .lili-structure-phase-row.compact-row{grid-template-columns:minmax(0,1fr) 62px 32px}
+  .lili-structure-manager.compact-editor .lili-structure-group-row.compact-row{grid-template-columns:minmax(0,1fr) 62px 32px}
+  .lili-structure-manager.compact-editor .lili-structure-group-row.compact-row>small{grid-column:1/3;margin-top:-3px}
+  .lili-structure-savebar button{width:auto;min-width:142px}
+  .lili-games-head{align-items:flex-start}
+  .lili-games-head-actions{width:auto;display:flex}
+  .lili-games-head-actions button{width:auto!important;flex:0 0 auto}
+  .lili-game-details{padding-left:46px}
+}

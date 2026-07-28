@@ -68,6 +68,7 @@ export function LiliGamesManager({ championshipId, phases, groups, games, canMan
   const [selectedGames, setSelectedGames] = useState<string[]>([])
   const [bulkStatus, setBulkStatus] = useState('agendado')
   const [phaseFilter, setPhaseFilter] = useState('all')
+  const [expandedGameId, setExpandedGameId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!maps.length) void request('/api/mapas').then((payload) => setMaps(payload.mapas || [])).catch(() => setMaps([]))
@@ -228,13 +229,23 @@ export function LiliGamesManager({ championshipId, phases, groups, games, canMan
         {canManage ? <div className="lili-games-bulk-actions"><button type="button" onClick={selectAllVisible}><CheckSquare size={15} /> {selectedGames.length ? `${selectedGames.length} selecionado(s)` : 'Selecionar visíveis'}</button><select value={bulkStatus} onChange={(event) => setBulkStatus(event.target.value)}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select><button type="button" onClick={() => void applyBulkStatus()} disabled={!selectedGames.length || action === 'bulk-status'}>{action === 'bulk-status' ? <Loader2 className="spin" size={15} /> : <Save size={15} />} Aplicar status</button></div> : null}
       </div> : null}
 
-      <div className="lili-games-list">{visibleGames.map((game) => {
+      <div className="lili-games-list compact">{visibleGames.map((game) => {
         const gameGroups = groups.filter((group) => (game.grupos_ids || []).map(String).includes(String(group.id)))
         const selected = selectedGames.includes(String(game.id))
-        return <article key={game.id} className={selected ? 'is-selected' : ''}>
-          <div className="lili-game-row-top">{canManage ? <label className="lili-game-select"><input type="checkbox" checked={selected} onChange={() => setSelectedGames((current) => selected ? current.filter((id) => id !== String(game.id)) : [...current, String(game.id)])} /><span /></label> : null}<div className="lili-game-main"><span><Swords size={17} /></span><div><strong>{game.nome || 'Jogo'}</strong><small>{game.data_jogo ? new Date(`${game.data_jogo}T12:00:00`).toLocaleDateString('pt-BR') : 'Data não definida'}{game.horario ? ` · ${String(game.horario).slice(0, 5)}` : ''} · {game.numero_partidas || 0} queda(s)</small><em>{gameGroups.map((group) => group.nome).join(', ') || 'Sem grupo vinculado'} · {String(game.status || 'agendado').replace('_', ' ')}</em></div></div></div>
-          <div className="lili-game-maps-inline">{(game.mapas || []).map((map: string, index: number) => <span key={`${game.id}-${index}`}>{index + 1}. {maps.find((item) => item.codigo === map)?.nome || map}</span>)}</div>
-          {canManage ? <div className="lili-game-actions"><button type="button" onClick={() => beginEdit(game)}><Pencil size={15} /> Editar</button><button type="button" onClick={() => void duplicate(game)} disabled={Boolean(action)}>{action === `copy:${game.id}` ? <Loader2 className="spin" size={15} /> : <Copy size={15} />} Duplicar</button><button type="button" onClick={() => void remove(game)} disabled={Boolean(action)}>{action === `delete:${game.id}` ? <Loader2 className="spin" size={15} /> : <Trash2 size={15} />} Excluir</button></div> : null}
+        const expanded = expandedGameId === String(game.id)
+        return <article key={game.id} className={`${selected ? 'is-selected' : ''} ${expanded ? 'is-expanded' : ''}`}>
+          <div className="lili-game-row-top compact-row">
+            {canManage ? <label className="lili-game-select"><input type="checkbox" checked={selected} onChange={() => setSelectedGames((current) => selected ? current.filter((id) => id !== String(game.id)) : [...current, String(game.id)])} /><span /></label> : null}
+            <button type="button" className="lili-game-summary" onClick={() => setExpandedGameId(expanded ? null : String(game.id))}>
+              <span className="lili-game-icon"><Swords size={16} /></span>
+              <span className="lili-game-copy"><strong>{game.nome || 'Jogo'}</strong><small>{game.data_jogo ? new Date(`${game.data_jogo}T12:00:00`).toLocaleDateString('pt-BR') : 'Sem data'}{game.horario ? ` · ${String(game.horario).slice(0, 5)}` : ''} · {game.numero_partidas || 0} quedas</small><em>{gameGroups.map((group) => group.nome).join(', ') || 'Sem grupo'} · {String(game.status || 'agendado').replace('_', ' ')}</em></span>
+              <span className={`lili-game-chevron ${expanded ? 'open' : ''}`}>›</span>
+            </button>
+          </div>
+          {expanded ? <div className="lili-game-details">
+            <div className="lili-game-maps-inline">{(game.mapas || []).map((map: string, index: number) => <span key={`${game.id}-${index}`}>{index + 1}. {maps.find((item) => item.codigo === map)?.nome || map}</span>)}</div>
+            {canManage ? <div className="lili-game-actions compact-actions"><button type="button" onClick={() => beginEdit(game)}><Pencil size={14} /> Editar</button><button type="button" onClick={() => void duplicate(game)} disabled={Boolean(action)}>{action === `copy:${game.id}` ? <Loader2 className="spin" size={14} /> : <Copy size={14} />} Duplicar</button><button type="button" className="danger" onClick={() => void remove(game)} disabled={Boolean(action)}>{action === `delete:${game.id}` ? <Loader2 className="spin" size={14} /> : <Trash2 size={14} />} Excluir</button></div> : null}
+          </div> : null}
         </article>
       })}</div>
       {!visibleGames.length ? <div className="lili-games-empty"><CalendarDays size={24} /><strong>Nenhum jogo encontrado</strong><span>Crie manualmente ou use a geração automática por grupos.</span></div> : null}
