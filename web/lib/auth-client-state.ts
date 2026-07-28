@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from './supabase-browser'
+import type { Session } from '@supabase/supabase-js'
 
 const EXACT_LOCAL_KEYS = new Set([
   'dropzone_active_profile_type',
@@ -41,7 +42,12 @@ export function clearDropzoneClientState() {
 export async function signOutEverywhere() {
   clearDropzoneClientState()
   try {
-    const { error } = await supabase.auth.signOut({ scope: 'global' })
+    const { error } = await Promise.race([
+      supabase.auth.signOut({ scope: 'global' }),
+      new Promise<never>((_, reject) =>
+        window.setTimeout(() => reject(new Error('Tempo esgotado ao encerrar a sessão.')), 6000),
+      ),
+    ])
     if (error) throw error
   } finally {
     // Limpa novamente porque listeners de auth podem gravar estado durante o logout.
@@ -49,3 +55,13 @@ export async function signOutEverywhere() {
   }
 }
 
+export async function getSessionWithTimeout(timeoutMs = 6000): Promise<Session | null> {
+  const result = await Promise.race([
+    supabase.auth.getSession(),
+    new Promise<never>((_, reject) =>
+      window.setTimeout(() => reject(new Error('Tempo esgotado ao verificar a sessão.')), timeoutMs),
+    ),
+  ])
+  if (result.error) throw result.error
+  return result.data.session
+}

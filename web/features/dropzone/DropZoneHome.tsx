@@ -16,7 +16,7 @@ import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppShell, APP_NAV } from '@/components/layout'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 import { safeInternalPath } from '@/features/auth/auth-return'
-import { signOutEverywhere } from '@/lib/auth-client-state'
+import { getSessionWithTimeout, signOutEverywhere } from '@/lib/auth-client-state'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SystemLogo } from '@/components/brand/SystemLogo'
@@ -288,9 +288,16 @@ export function DropZoneHome() {
     setError('')
     setMessage('')
 
-    const { data } = await supabase.auth.getSession()
+    let session: Awaited<ReturnType<typeof getSessionWithTimeout>> = null
+    try {
+      session = await getSessionWithTimeout()
+    } catch {
+      // Falha/timeout ao consultar a sessão não pode bloquear o cartão:
+      // segue como deslogado e abre o login social do tipo escolhido.
+      session = null
+    }
 
-    if (data.session) {
+    if (session) {
       setLoading(true)
       setAccessLoadingType(type)
       try {
@@ -300,23 +307,23 @@ export function DropZoneHome() {
           setRows(cachedRows)
           setActiveAuthType(null)
           setLinkingProfile(false)
-          await loadMeAndRows(data.session.access_token, type)
+          await loadMeAndRows(session.access_token, type)
           return
         }
 
         const availableAccounts = accounts.length
           ? accounts
-          : await loadAccountsOnly(data.session.access_token)
+          : await loadAccountsOnly(session.access_token)
         const existing = availableAccounts.find((item) => item.profile_type === type)
 
         if (existing) {
-          await loadMeAndRows(data.session.access_token, type)
+          await loadMeAndRows(session.access_token, type)
           setActiveAuthType(null)
           setLinkingProfile(false)
           return
         }
 
-        prepareGoogleProfile(data.session.user, type)
+        prepareGoogleProfile(session.user, type)
         return
       } catch (cause: any) {
         setError(cause?.message || 'Não foi possível abrir este perfil.')

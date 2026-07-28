@@ -4,7 +4,7 @@
 > Atualize-o ao fim de cada rodada relevante.
 
 **Última atualização:** 28 de julho de 2026
-**Estado:** Logout completo corrigido para revogar a sessão e limpar caches de conta/OAuth antes de permitir login com outra conta.
+**Estado:** Logout completo e cartões de escolha de acesso corrigidos com limpeza de cache, revogação global e timeouts para evitar interface travada.
 
 ## 1. Objetivo do sistema
 

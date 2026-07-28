@@ -7,6 +7,8 @@
 - A limpeza é repetida após o evento de logout para impedir restauração por listeners.
 - “Usar outra conta” e `?switch=1` usam o mesmo fluxo centralizado.
 - Login Google mantém `prompt=select_account` para impedir reutilização silenciosa da conta anterior.
+- Cartões “Quem vai entrar?” não aguardam mais `getSession()` indefinidamente; timeout segue para o login social.
+- Logout global também possui timeout e sempre libera a interface após limpar o estado local.
 - `npm run typecheck` e `npm run build`: aprovados.
 
 ## 2026-07-22 — Criação de perfis e uploads
