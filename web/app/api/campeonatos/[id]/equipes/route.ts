@@ -500,6 +500,424 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 }
 
+
+export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await context.params
+    const user = await getBearerUser(req)
+    const permission = await getCampeonatoPermission(user.id, id)
+    if (!permission.canManage) throw new Error('Você não tem permissão para mover equipes entre slots.')
+
+    const body = await req.json()
+
+    if (body.mode === 'distribute_phase') {
+      const phaseId = String(body.phase_id || '')
+      const groupIds: string[] = Array.isArray(body.group_ids) ? body.group_ids.map(String).filter(Boolean) : []
+      const strategy = body.strategy === 'random' ? 'random' : 'balanced'
+      if (!phaseId) throw new Error('Selecione a fase que será organizada.')
+      if (groupIds.length < 2) throw new Error('Selecione pelo menos dois grupos para distribuir as equipes.')
+
+      const { data: selectedGroups, error: groupsError } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .select('id,nome,fase_id')
+        .eq('campeonato_id', id)
+        .eq('fase_id', phaseId)
+        .in('id', groupIds)
+      if (groupsError) throw groupsError
+      if ((selectedGroups || []).length !== groupIds.length) throw new Error('Um ou mais grupos não pertencem à fase selecionada.')
+
+      const { data: phaseSlots, error: slotsError } = await supabaseAdmin
+        .from('campeonato_slots')
+        .select('id,campeonato_id,fase_id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status')
+        .eq('campeonato_id', id)
+        .eq('fase_id', phaseId)
+        .in('grupo_id', groupIds)
+        .order('slot_numero', { ascending: true })
+      if (slotsError) throw slotsError
+      if (!phaseSlots?.length) throw new Error('Nenhum slot foi encontrado nos grupos selecionados.')
+
+      const occupiedSlots = phaseSlots.filter((slot) => slot.equipe_id || slot.line_id)
+      if (occupiedSlots.length < 2) throw new Error('É necessário ter pelo menos duas equipes para realizar a distribuição.')
+
+      const occupiedSlotIds = occupiedSlots.map((slot) => String(slot.id))
+      const { data: participations, error: participationsError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id,line_id,equipe_id,slot_id,grupo_id,slot_numero,status')
+        .eq('campeonato_id', id)
+        .eq('status', 'ativo')
+        .in('slot_id', occupiedSlotIds)
+      if (participationsError) throw participationsError
+
+      let entries = occupiedSlots.map((slot) => {
+        const participation = (participations || []).find((row) => String(row.slot_id) === String(slot.id))
+        if (!participation) throw new Error(`Não foi possível localizar a participação do slot ${slot.slot_letra || slot.slot_numero}.`)
+        return { slot, participation }
+      })
+
+      for (let index = entries.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1))
+        const current = entries[index]
+        entries[index] = entries[randomIndex]
+        entries[randomIndex] = current
+      }
+
+      const slotsByGroup = new Map<string, any[]>()
+      for (const groupId of groupIds) {
+        slotsByGroup.set(groupId, phaseSlots.filter((slot) => String(slot.grupo_id) === groupId).sort((a, b) => Number(a.slot_numero || 0) - Number(b.slot_numero || 0)))
+      }
+
+      let targets: any[] = []
+      if (strategy === 'balanced') {
+        const maxSlots = Math.max(...[...slotsByGroup.values()].map((items) => items.length))
+        for (let slotIndex = 0; slotIndex < maxSlots; slotIndex += 1) {
+          for (const groupId of groupIds) {
+            const target = slotsByGroup.get(groupId)?.[slotIndex]
+            if (target) targets.push(target)
+          }
+        }
+      } else {
+        targets = [...phaseSlots]
+        for (let index = targets.length - 1; index > 0; index -= 1) {
+          const randomIndex = Math.floor(Math.random() * (index + 1))
+          const current = targets[index]
+          targets[index] = targets[randomIndex]
+          targets[randomIndex] = current
+        }
+      }
+      targets = targets.slice(0, entries.length)
+      if (targets.length < entries.length) throw new Error('Os grupos selecionados não possuem slots suficientes para todas as equipes.')
+
+      const now = new Date().toISOString()
+      const rollback = async () => {
+        await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: now }).eq('campeonato_id', id).eq('fase_id', phaseId).in('grupo_id', groupIds)
+        for (const entry of entries) {
+          await supabaseAdmin.from('campeonato_equipes').update({ slot_id: entry.slot.id, grupo_id: entry.slot.grupo_id, slot_numero: entry.slot.slot_numero, updated_at: now }).eq('id', entry.participation.id).eq('campeonato_id', id)
+          await supabaseAdmin.from('campeonato_slots').update({ equipe_id: entry.slot.equipe_id, line_id: entry.slot.line_id, status: 'ocupado', updated_at: now }).eq('id', entry.slot.id).eq('campeonato_id', id)
+        }
+      }
+
+      try {
+        const { error: clearSlotsError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: now }).eq('campeonato_id', id).eq('fase_id', phaseId).in('grupo_id', groupIds)
+        if (clearSlotsError) throw clearSlotsError
+
+        const participationIds = entries.map((entry) => entry.participation.id)
+        const { error: clearParticipationsError } = await supabaseAdmin.from('campeonato_equipes').update({ slot_id: null, updated_at: now }).eq('campeonato_id', id).in('id', participationIds)
+        if (clearParticipationsError) throw clearParticipationsError
+
+        for (let index = 0; index < entries.length; index += 1) {
+          const entry = entries[index]
+          const target = targets[index]
+          const { error: participationUpdateError } = await supabaseAdmin.from('campeonato_equipes').update({ slot_id: target.id, grupo_id: target.grupo_id, slot_numero: target.slot_numero, updated_at: now }).eq('id', entry.participation.id).eq('campeonato_id', id)
+          if (participationUpdateError) throw participationUpdateError
+          const { error: slotUpdateError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: entry.slot.equipe_id, line_id: entry.slot.line_id, status: 'ocupado', updated_at: now }).eq('id', target.id).eq('campeonato_id', id)
+          if (slotUpdateError) throw slotUpdateError
+        }
+      } catch (distributionError) {
+        await rollback()
+        throw distributionError
+      }
+
+      const counts = groupIds.map((groupId) => ({
+        grupo_id: groupId,
+        equipes: targets.filter((slot) => String(slot.grupo_id) === groupId).length,
+      }))
+      return NextResponse.json({
+        ok: true,
+        mensagem: `${entries.length} equipe(s) distribuída(s) entre ${groupIds.length} grupos.`,
+        distribuicao: counts,
+      })
+    }
+
+    if (body.mode === 'shuffle_group') {
+      const groupId = String(body.group_id || '')
+      if (!groupId) throw new Error('Selecione o grupo que será sorteado.')
+
+      const { data: groupSlots, error: groupSlotsError } = await supabaseAdmin
+        .from('campeonato_slots')
+        .select('id,campeonato_id,fase_id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status')
+        .eq('campeonato_id', id)
+        .eq('grupo_id', groupId)
+        .order('slot_numero', { ascending: true })
+      if (groupSlotsError) throw groupSlotsError
+      if (!groupSlots?.length) throw new Error('Nenhum slot foi encontrado neste grupo.')
+
+      const occupiedSlots = groupSlots.filter((slot) => slot.equipe_id || slot.line_id)
+      if (occupiedSlots.length < 2) throw new Error('É necessário ter pelo menos duas equipes no grupo para realizar o sorteio.')
+
+      const occupiedSlotIds = occupiedSlots.map((slot) => String(slot.id))
+      const { data: participations, error: participationsError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id,line_id,equipe_id,slot_id,grupo_id,slot_numero,status')
+        .eq('campeonato_id', id)
+        .eq('status', 'ativo')
+        .in('slot_id', occupiedSlotIds)
+      if (participationsError) throw participationsError
+
+      const entries = occupiedSlots.map((slot) => {
+        const participation = (participations || []).find((row) => String(row.slot_id) === String(slot.id))
+        if (!participation) throw new Error(`Não foi possível localizar a participação do slot ${slot.slot_letra || slot.slot_numero}.`)
+        return { slot, participation }
+      })
+
+      const shuffledTargets = [...groupSlots]
+      for (let index = shuffledTargets.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1))
+        const current = shuffledTargets[index]
+        shuffledTargets[index] = shuffledTargets[randomIndex]
+        shuffledTargets[randomIndex] = current
+      }
+      const targets = shuffledTargets.slice(0, entries.length)
+      const unchanged = entries.every((entry, index) => String(entry.slot.id) === String(targets[index]?.id))
+      if (unchanged && targets.length > 1) {
+        const first = targets[0]
+        targets[0] = targets[1]
+        targets[1] = first
+      }
+
+      const now = new Date().toISOString()
+      const rollback = async () => {
+        await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: now }).eq('campeonato_id', id).eq('grupo_id', groupId)
+        for (const entry of entries) {
+          await supabaseAdmin.from('campeonato_equipes').update({
+            slot_id: entry.slot.id,
+            grupo_id: entry.slot.grupo_id,
+            slot_numero: entry.slot.slot_numero,
+            updated_at: now,
+          }).eq('id', entry.participation.id).eq('campeonato_id', id)
+          await supabaseAdmin.from('campeonato_slots').update({
+            equipe_id: entry.slot.equipe_id,
+            line_id: entry.slot.line_id,
+            status: 'ocupado',
+            updated_at: now,
+          }).eq('id', entry.slot.id).eq('campeonato_id', id)
+        }
+      }
+
+      try {
+        const { error: clearSlotsError } = await supabaseAdmin
+          .from('campeonato_slots')
+          .update({ equipe_id: null, line_id: null, status: 'livre', updated_at: now })
+          .eq('campeonato_id', id)
+          .eq('grupo_id', groupId)
+        if (clearSlotsError) throw clearSlotsError
+
+        const participationIds = entries.map((entry) => entry.participation.id)
+        const { error: clearParticipationsError } = await supabaseAdmin
+          .from('campeonato_equipes')
+          .update({ slot_id: null, updated_at: now })
+          .eq('campeonato_id', id)
+          .in('id', participationIds)
+        if (clearParticipationsError) throw clearParticipationsError
+
+        for (let index = 0; index < entries.length; index += 1) {
+          const entry = entries[index]
+          const target = targets[index]
+          const { error: participationUpdateError } = await supabaseAdmin
+            .from('campeonato_equipes')
+            .update({ slot_id: target.id, grupo_id: target.grupo_id, slot_numero: target.slot_numero, updated_at: now })
+            .eq('id', entry.participation.id)
+            .eq('campeonato_id', id)
+          if (participationUpdateError) throw participationUpdateError
+
+          const { error: slotUpdateError } = await supabaseAdmin
+            .from('campeonato_slots')
+            .update({ equipe_id: entry.slot.equipe_id, line_id: entry.slot.line_id, status: 'ocupado', updated_at: now })
+            .eq('id', target.id)
+            .eq('campeonato_id', id)
+          if (slotUpdateError) throw slotUpdateError
+        }
+      } catch (shuffleError) {
+        await rollback()
+        throw shuffleError
+      }
+
+      return NextResponse.json({
+        ok: true,
+        mensagem: `${entries.length} equipe(s) sorteada(s) novamente entre os slots do grupo.`,
+      })
+    }
+
+    const sourceSlotId = String(body.source_slot_id || '')
+    const targetSlotId = String(body.target_slot_id || '')
+    const mode = body.mode === 'swap' ? 'swap' : 'move'
+    if (!sourceSlotId || !targetSlotId || sourceSlotId === targetSlotId) {
+      throw new Error('Selecione dois slots diferentes.')
+    }
+
+    const { data: slotRows, error: slotsError } = await supabaseAdmin
+      .from('campeonato_slots')
+      .select('id,campeonato_id,fase_id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status')
+      .eq('campeonato_id', id)
+      .in('id', [sourceSlotId, targetSlotId])
+    if (slotsError) throw slotsError
+
+    const source = (slotRows || []).find((slot) => String(slot.id) === sourceSlotId)
+    const target = (slotRows || []).find((slot) => String(slot.id) === targetSlotId)
+    if (!source || !target) throw new Error('Um dos slots selecionados não foi encontrado.')
+    if (!source.line_id && !source.equipe_id) throw new Error('O slot de origem está livre.')
+
+    const targetOccupied = Boolean(target.line_id || target.equipe_id)
+    if (mode === 'move' && targetOccupied) throw new Error('O slot de destino precisa estar livre.')
+    if (mode === 'swap' && !targetOccupied) throw new Error('Para trocar posições, selecione outro slot ocupado.')
+
+    const { data: participacoes, error: participacoesError } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id,line_id,equipe_id,slot_id,grupo_id,slot_numero,status')
+      .eq('campeonato_id', id)
+      .eq('status', 'ativo')
+      .in('slot_id', [sourceSlotId, targetSlotId])
+    if (participacoesError) throw participacoesError
+
+    const sourceParticipation = (participacoes || []).find((row) => String(row.slot_id) === sourceSlotId)
+    const targetParticipation = (participacoes || []).find((row) => String(row.slot_id) === targetSlotId)
+    if (!sourceParticipation) throw new Error('Não foi possível localizar a participação vinculada ao slot de origem.')
+    if (mode === 'swap' && !targetParticipation) {
+      throw new Error('Não foi possível localizar a participação vinculada ao slot de destino.')
+    }
+
+    const now = new Date().toISOString()
+
+    if (mode === 'swap' && targetParticipation) {
+      const rollback = async () => {
+        await supabaseAdmin.from('campeonato_slots').update({
+          equipe_id: source.equipe_id,
+          line_id: source.line_id,
+          status: 'ocupado',
+          updated_at: now,
+        }).eq('id', sourceSlotId).eq('campeonato_id', id)
+        await supabaseAdmin.from('campeonato_slots').update({
+          equipe_id: target.equipe_id,
+          line_id: target.line_id,
+          status: 'ocupado',
+          updated_at: now,
+        }).eq('id', targetSlotId).eq('campeonato_id', id)
+        await supabaseAdmin.from('campeonato_equipes').update({
+          slot_id: sourceSlotId,
+          grupo_id: source.grupo_id,
+          slot_numero: source.slot_numero,
+          updated_at: now,
+        }).eq('id', sourceParticipation.id).eq('campeonato_id', id)
+        await supabaseAdmin.from('campeonato_equipes').update({
+          slot_id: targetSlotId,
+          grupo_id: target.grupo_id,
+          slot_numero: target.slot_numero,
+          updated_at: now,
+        }).eq('id', targetParticipation.id).eq('campeonato_id', id)
+      }
+
+      try {
+        const { error: clearSlotsError } = await supabaseAdmin
+          .from('campeonato_slots')
+          .update({ equipe_id: null, line_id: null, status: 'livre', updated_at: now })
+          .eq('campeonato_id', id)
+          .in('id', [sourceSlotId, targetSlotId])
+        if (clearSlotsError) throw clearSlotsError
+
+        const { error: releaseSourceParticipationError } = await supabaseAdmin
+          .from('campeonato_equipes')
+          .update({ slot_id: null, updated_at: now })
+          .eq('id', sourceParticipation.id)
+          .eq('campeonato_id', id)
+        if (releaseSourceParticipationError) throw releaseSourceParticipationError
+
+        const { error: targetParticipationError } = await supabaseAdmin
+          .from('campeonato_equipes')
+          .update({
+            slot_id: sourceSlotId,
+            grupo_id: source.grupo_id,
+            slot_numero: source.slot_numero,
+            updated_at: now,
+          })
+          .eq('id', targetParticipation.id)
+          .eq('campeonato_id', id)
+        if (targetParticipationError) throw targetParticipationError
+
+        const { error: sourceParticipationError } = await supabaseAdmin
+          .from('campeonato_equipes')
+          .update({
+            slot_id: targetSlotId,
+            grupo_id: target.grupo_id,
+            slot_numero: target.slot_numero,
+            updated_at: now,
+          })
+          .eq('id', sourceParticipation.id)
+          .eq('campeonato_id', id)
+        if (sourceParticipationError) throw sourceParticipationError
+
+        const { error: sourceSlotError } = await supabaseAdmin
+          .from('campeonato_slots')
+          .update({
+            equipe_id: target.equipe_id,
+            line_id: target.line_id,
+            status: 'ocupado',
+            updated_at: now,
+          })
+          .eq('id', sourceSlotId)
+          .eq('campeonato_id', id)
+        if (sourceSlotError) throw sourceSlotError
+
+        const { error: targetSlotError } = await supabaseAdmin
+          .from('campeonato_slots')
+          .update({
+            equipe_id: source.equipe_id,
+            line_id: source.line_id,
+            status: 'ocupado',
+            updated_at: now,
+          })
+          .eq('id', targetSlotId)
+          .eq('campeonato_id', id)
+        if (targetSlotError) throw targetSlotError
+      } catch (swapError) {
+        await rollback()
+        throw swapError
+      }
+
+      return NextResponse.json({
+        ok: true,
+        mensagem: `Equipes trocadas entre os slots ${source.slot_letra || source.slot_numero} e ${target.slot_letra || target.slot_numero}.`,
+      })
+    }
+
+    const { error: targetUpdateError } = await supabaseAdmin
+      .from('campeonato_slots')
+      .update({ equipe_id: source.equipe_id, line_id: source.line_id, status: 'ocupado', updated_at: now })
+      .eq('id', targetSlotId)
+      .eq('campeonato_id', id)
+      .is('equipe_id', null)
+      .is('line_id', null)
+    if (targetUpdateError) throw targetUpdateError
+
+    const { error: participationUpdateError } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .update({
+        slot_id: targetSlotId,
+        grupo_id: target.grupo_id,
+        slot_numero: target.slot_numero,
+        updated_at: now,
+      })
+      .eq('id', sourceParticipation.id)
+      .eq('campeonato_id', id)
+    if (participationUpdateError) {
+      await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre', updated_at: now }).eq('id', targetSlotId)
+      throw participationUpdateError
+    }
+
+    const { error: sourceUpdateError } = await supabaseAdmin
+      .from('campeonato_slots')
+      .update({ equipe_id: null, line_id: null, status: 'livre', updated_at: now })
+      .eq('id', sourceSlotId)
+      .eq('campeonato_id', id)
+    if (sourceUpdateError) throw sourceUpdateError
+
+    return NextResponse.json({
+      ok: true,
+      mensagem: `Equipe movida para o slot ${target.slot_letra || target.slot_numero}.`,
+    })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao organizar slots.' }, { status: 400 })
+  }
+}
+
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params

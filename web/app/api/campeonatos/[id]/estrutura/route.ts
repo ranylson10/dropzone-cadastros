@@ -109,6 +109,7 @@ async function loadStructure(campeonatoId: string) {
       equipe_nome: part?.equipe_nome || equipe?.nome || null,
       line_logo_url: line?.logo_url || equipe?.logo_url || null,
       origem_entrada: part?.origem_entrada || null,
+      participacao_id: part?.id || null,
     }
   })
 
@@ -575,6 +576,15 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
         .eq('campeonato_id', campeonatoId)
       const grupoIds = (grupos || []).map((g) => g.id)
       if (grupoIds.length) {
+        const { count: occupiedCount, error: occupiedError } = await supabaseAdmin
+          .from('campeonato_slots')
+          .select('id', { count: 'exact', head: true })
+          .in('grupo_id', grupoIds)
+          .or('equipe_id.not.is.null,line_id.not.is.null')
+        if (occupiedError) throw occupiedError
+        if ((occupiedCount || 0) > 0) {
+          throw new Error('Não é possível excluir uma fase que possui equipes nos slots.')
+        }
         await supabaseAdmin.from('campeonato_slots').delete().in('grupo_id', grupoIds)
         await supabaseAdmin.from('campeonato_grupos').delete().in('id', grupoIds)
       }
@@ -588,6 +598,15 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     }
 
     if (entity === 'group') {
+      const { count: occupiedCount, error: occupiedError } = await supabaseAdmin
+        .from('campeonato_slots')
+        .select('id', { count: 'exact', head: true })
+        .eq('grupo_id', entityId)
+        .or('equipe_id.not.is.null,line_id.not.is.null')
+      if (occupiedError) throw occupiedError
+      if ((occupiedCount || 0) > 0) {
+        throw new Error('Não é possível excluir um grupo que possui equipes nos slots.')
+      }
       await supabaseAdmin.from('campeonato_slots').delete().eq('grupo_id', entityId)
       const { error } = await supabaseAdmin
         .from('campeonato_grupos')
