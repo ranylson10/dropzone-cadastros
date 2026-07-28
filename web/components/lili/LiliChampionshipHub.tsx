@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRightLeft, CalendarDays, ChevronRight, CirclePlus, ExternalLink, Link2, Loader2, Minus, Pencil, Plus, RefreshCw, Save, Search, Shield, Shuffle, Sparkles, Swords, Trash2, Trophy, UserMinus, UserPlus, Users, X } from 'lucide-react'
 import { LiliGamesManager } from './LiliGamesManager'
 import { LiliPhaseDistributor } from './LiliPhaseDistributor'
+import { LiliLinksManager } from './LiliLinksManager'
 
 type ChampionshipItem = {
   id: string
@@ -55,6 +56,9 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
   const [searchingTeams, setSearchingTeams] = useState(false)
   const [slotAction, setSlotAction] = useState<string | null>(null)
   const [moveSourceSlotId, setMoveSourceSlotId] = useState<string | null>(null)
+  const [detailTab, setDetailTab] = useState<'overview' | 'groups' | 'games' | 'links' | 'config'>('overview')
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null)
+  const [slotsExpanded, setSlotsExpanded] = useState(false)
 
   async function request(url: string, options?: RequestInit) {
     const response = await fetch(url, {
@@ -83,7 +87,7 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
   }
 
   async function openChampionship(item: ChampionshipItem) {
-    setSelected(item); setStructure(null); setDetailLoading(true); setError(''); setActivePhase('all')
+    setSelected(item); setStructure(null); setDetailLoading(true); setError(''); setActivePhase('all'); setDetailTab('overview'); setOpenGroupId(null); setSlotsExpanded(false)
     try {
       const payload = await request(`/api/campeonatos/${item.id}/estrutura`)
       setStructure(payload)
@@ -161,8 +165,24 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
     if (!selected || !bulkPhases.length) return
     const invalidPhase = bulkPhases.find((phase) => !phase.nome.trim() || !phase.grupos.length)
     const invalidGroup = bulkPhases.flatMap((phase) => phase.grupos).find((group) => !group.nome.trim() || group.slots < 1)
+    const normalizeName = (value: unknown) => String(value || '').trim().toLocaleLowerCase('pt-BR')
+    const existingPhaseNames = new Set(phases.map((phase) => normalizeName(phase.nome)))
+    const draftPhaseNames = bulkPhases.map((phase) => normalizeName(phase.nome))
+    const duplicatedPhase = draftPhaseNames.find((name, index) => existingPhaseNames.has(name) || draftPhaseNames.indexOf(name) !== index)
+    const duplicatedGroup = bulkPhases.find((phase) => {
+      const names = phase.grupos.map((group) => normalizeName(group.nome))
+      return names.some((name, index) => names.indexOf(name) !== index)
+    })
     if (invalidPhase || invalidGroup) {
       setFeedback('Preencha o nome de todas as fases e grupos e mantenha ao menos um grupo por fase.')
+      return
+    }
+    if (duplicatedPhase) {
+      setFeedback('Já existe uma fase com esse nome. Use outro nome para evitar duplicidade.')
+      return
+    }
+    if (duplicatedGroup) {
+      setFeedback('Existem grupos repetidos na montagem. Cada grupo da fase precisa ter um nome diferente.')
       return
     }
     setSavingBulk(true)
@@ -427,7 +447,7 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
 
   if (!selected) return (
     <section className="lili-champ-hub">
-      <div className="lili-champ-toolbar"><div><strong>Meus campeonatos</strong><span>Todos os campeonatos em que você participa ou administra.</span></div><button type="button" onClick={() => void loadItems()} aria-label="Atualizar"><RefreshCw size={17} /></button></div>
+      <div className="lili-champ-toolbar"><div><strong>Meus campeonatos</strong><span>Escolha um campeonato para consultar ou administrar.</span></div><button type="button" onClick={() => void loadItems()} aria-label="Atualizar"><RefreshCw size={17} /></button></div>
       {loading ? <div className="lili-champ-loading"><Loader2 className="spin" size={24} /> Carregando campeonatos…</div> : null}
       {error ? <div className="lili-champ-feedback error">{error}</div> : null}
       {!loading && !items.length ? <div className="lili-champ-empty"><Trophy size={30} /><strong>Nenhum campeonato encontrado</strong><span>Quando sua equipe entrar em um grupo ou você criar um campeonato, ele aparecerá aqui.</span><a href="/campeonatos">Explorar campeonatos</a></div> : null}
@@ -435,132 +455,114 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
         const registration = item.registrations?.[0]
         return <button type="button" key={item.id} className="lili-champ-list-item" onClick={() => void openChampionship(item)}>
           <span className="lili-champ-logo">{item.logo_url || item.banner_url ? <img src={item.logo_url || item.banner_url || ''} alt="" /> : <Trophy size={22} />}</span>
-          <span className="lili-champ-list-copy"><strong>{item.nome}</strong><small>{registration?.grupo_nome ? `${registration.grupo_nome}${registration.slot_numero ? ` · Slot ${registration.slot_numero}` : ''}` : item.relationship === 'admin' ? 'Acesso administrativo' : 'Participante'} </small><span>{item.tipo || 'Campeonato'} · {item.status || 'ativo'}</span></span>
+          <span className="lili-champ-list-copy"><strong>{item.nome}</strong><small>{registration?.grupo_nome ? `${registration.grupo_nome}${registration.slot_numero ? ` · Slot ${registration.slot_numero}` : ''}` : item.relationship === 'admin' ? 'Acesso administrativo' : 'Participante'}</small><span>{item.tipo || 'Campeonato'} · {item.status || 'ativo'}</span></span>
           <span className={`lili-champ-role ${item.relationship}`}>{item.relationship === 'admin' ? 'Admin' : 'Minha equipe'}</span><ChevronRight size={18} />
         </button>
       })}</div>
     </section>
   )
 
+  const occupiedSlots = slots.filter((slot) => slot.equipe_id || slot.line_id).length
+  const phaseGroups = activePhase === 'all' ? groups : groups.filter((group) => String(group.fase_id) === activePhase)
+  const chosenGroup = phaseGroups.find((group) => String(group.id) === openGroupId) || phaseGroups[0] || null
+  const chosenGroupSlots = chosenGroup ? slots.filter((slot) => String(slot.grupo_id) === String(chosenGroup.id)).sort((a, b) => Number(a.slot_numero || 0) - Number(b.slot_numero || 0)) : []
+  const chosenGroupGames = chosenGroup ? games.filter((game) => Array.isArray(game.grupos_ids) ? game.grupos_ids.map(String).includes(String(chosenGroup.id)) : String(game.grupo_id || '') === String(chosenGroup.id)) : []
+
+  function selectPhase(phaseId: string) {
+    setActivePhase(phaseId)
+    const firstGroup = groups.find((group) => phaseId === 'all' || String(group.fase_id) === phaseId)
+    setOpenGroupId(firstGroup ? String(firstGroup.id) : null)
+    setSlotsExpanded(false)
+    setSlotManagerGroup(null)
+  }
+
+  function groupLetter(group: Record<string, any>, index: number) {
+    const match = String(group.nome || '').match(/(?:grupo\s*)?([A-Z])(?:\b|$)/i)
+    return match?.[1]?.toUpperCase() || String.fromCharCode(65 + index)
+  }
+
+  function renderSlotManager() {
+    if (!chosenGroup) return null
+    return <div className="lili-slot-manager mobile-clean">
+      <div className="lili-slot-manager-note"><strong>Toque em uma equipe e depois no destino</strong><span>Um slot livre move; um slot ocupado troca as equipes.</span>{moveSourceSlotId ? <button type="button" onClick={() => setMoveSourceSlotId(null)}><X size={14} /> Cancelar seleção</button> : null}</div>
+      <div className="lili-champ-slots manager">{chosenGroupSlots.map((slot) => {
+        const occupied = Boolean(slot.equipe_id || slot.line_id)
+        const selectedSlot = selectedSlotId === String(slot.id)
+        const movingSource = moveSourceSlotId === String(slot.id)
+        const movingNow = Boolean(slotAction?.startsWith('move:'))
+        return <button type="button" className={`${occupied ? 'occupied' : 'free'} ${selectedSlot ? 'selected' : ''} ${movingSource ? 'move-source' : ''}`} key={slot.id} onClick={() => {
+          if (moveSourceSlotId) {
+            if (occupied) {
+              if (movingSource) return
+              const source = slots.find((item) => String(item.id) === moveSourceSlotId)
+              const confirmed = window.confirm(`Trocar ${source?.line_nome || source?.equipe_nome || 'a equipe selecionada'} com ${slot.line_nome || slot.equipe_nome || 'esta equipe'}?`)
+              if (confirmed) void moveTeamToSlot(String(slot.id), true)
+              return
+            }
+            void moveTeamToSlot(String(slot.id)); return
+          }
+          if (occupied) { setMoveSourceSlotId(String(slot.id)); setSelectedSlotId(null); setFeedback('Equipe selecionada. Escolha o slot de destino.'); return }
+          setSelectedSlotId(String(slot.id))
+        }} disabled={slotAction === `remove:${slot.id}` || movingNow}>
+          <span>{String(slot.slot_numero || slot.numero || '?').padStart(2, '0')}</span><div><strong>{slot.nome_exibicao || slot.line_nome || slot.equipe_nome || 'Slot disponível'}</strong><small>{movingSource ? 'Origem selecionada' : occupied ? (slot.equipe_nome && slot.line_nome ? `${slot.equipe_nome} · ${slot.line_nome}` : slot.equipe_nome || slot.line_nome) : moveSourceSlotId ? 'Mover para cá' : selectedSlot ? 'Selecionado para receber equipe' : 'Disponível'}</small></div>{movingSource ? <ArrowRightLeft size={16} /> : null}{occupied && slot.participacao_id ? <span className="lili-slot-remove" onClick={(event) => { event.stopPropagation(); void freeOccupiedSlot(slot) }} title="Liberar slot"><UserMinus size={15} /></span> : null}
+        </button>
+      })}</div>
+      {selectedSlotId ? <div className="lili-slot-search"><div className="lili-slot-search-form"><label>Buscar equipe<input value={slotSearch} onChange={(event) => setSlotSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchTeams() } }} placeholder="Nome ou tag" /></label><button type="button" onClick={() => void searchTeams()} disabled={searchingTeams || slotSearch.trim().length < 2}>{searchingTeams ? <Loader2 className="spin" size={16} /> : <Search size={16} />}</button></div>{teamResults.length ? <div className="lili-slot-results">{teamResults.map((team) => <section key={team.id}><div className="lili-slot-team"><span>{team.logo_url ? <img src={team.logo_url} alt="" /> : <Users size={16} />}</span><div><strong>{team.nome}</strong><small>{team.tag || 'Sem tag'}</small></div></div><div className="lili-slot-lines">{(team.lines || []).map((line: Record<string, any>) => <button type="button" key={line.id} disabled={line.ja_inscrita || Boolean(slotAction)} onClick={() => void assignLineToSlot(selectedSlotId, String(team.id), String(line.id))}><span>{line.nome}</span><small>{line.ja_inscrita ? 'Já inscrita' : 'Adicionar'}</small>{slotAction === `assign:${selectedSlotId}:${line.id}` ? <Loader2 className="spin" size={15} /> : <UserPlus size={15} />}</button>)}</div></section>)}</div> : null}</div> : null}
+    </div>
+  }
+
   return (
-    <section className="lili-champ-hub detail">
-      <div className="lili-champ-detail-head"><button type="button" onClick={() => { setSelected(null); setStructure(null); setFeedback('') }}><ArrowLeft size={18} /> Voltar</button><a href={`/campeonatos/${selected.id}`}><ExternalLink size={16} /> Painel completo</a></div>
+    <section className="lili-champ-hub detail mobile-first">
+      <div className="lili-champ-detail-head"><button type="button" onClick={() => { setSelected(null); setStructure(null); setFeedback('') }}><ArrowLeft size={18} /> Voltar</button><a href={`/campeonatos/${selected.id}`}><ExternalLink size={16} /> Site completo</a></div>
       <div className="lili-champ-title"><span className="lili-champ-logo large">{selected.logo_url || selected.banner_url ? <img src={selected.logo_url || selected.banner_url || ''} alt="" /> : <Trophy size={25} />}</span><div><strong>{selected.nome}</strong><span>{selected.tipo || 'Campeonato'} · {selected.status || 'ativo'}</span></div></div>
       {detailLoading ? <div className="lili-champ-loading"><Loader2 className="spin" size={24} /> Carregando estrutura…</div> : null}
       {error ? <div className="lili-champ-feedback error">{error}</div> : null}
       {feedback ? <div className="lili-champ-feedback">{feedback}</div> : null}
       {structure ? <>
-        <div className="lili-champ-metrics"><div><span>Fases</span><strong>{phases.length}</strong></div><div><span>Grupos</span><strong>{groups.length}</strong></div><div><span>Slots ocupados</span><strong>{slots.filter((slot) => slot.equipe_id || slot.line_id).length}/{slots.length}</strong></div><div><span>Jogos</span><strong>{games.length}</strong></div></div>
-        {structure.permission?.canOrganizeGroups ? <div className="lili-champ-admin-actions"><button type="button" className="primary" onClick={openBulkBuilder}><Sparkles size={17} /> Montagem rápida</button><button type="button" onClick={openStructureManager}><Pencil size={17} /> Gerenciar estrutura</button><button type="button" onClick={() => { setManagingStructure(false); setCreating(creating === 'phase' ? null : 'phase') }}><CirclePlus size={17} /> Criar fase</button><button type="button" onClick={() => { setManagingStructure(false); setCreating(creating === 'group' ? null : 'group') }} disabled={!phases.length}><Users size={17} /> Criar grupo</button></div> : null}
+        <nav className="lili-mobile-sections" aria-label="Áreas do campeonato">
+          <button type="button" className={detailTab === 'overview' ? 'active' : ''} onClick={() => setDetailTab('overview')}><Trophy size={17} /><span>Resumo</span></button>
+          <button type="button" className={detailTab === 'groups' ? 'active' : ''} onClick={() => { setDetailTab('groups'); if (!openGroupId && groups[0]) setOpenGroupId(String(groups[0].id)) }}><Users size={17} /><span>Grupos</span></button>
+          <button type="button" className={detailTab === 'games' ? 'active' : ''} onClick={() => setDetailTab('games')}><Swords size={17} /><span>Jogos</span></button>
+          <button type="button" className={detailTab === 'links' ? 'active' : ''} onClick={() => setDetailTab('links')}><Link2 size={17} /><span>Links</span></button>
+          {structure.permission?.canManage ? <button type="button" className={detailTab === 'config' ? 'active' : ''} onClick={() => setDetailTab('config')}><Pencil size={17} /><span>Configurar</span></button> : null}
+        </nav>
 
-
-        {managingStructure ? <div className="lili-structure-manager">
-          <div className="lili-structure-manager-head"><div><strong>Gerenciar estrutura</strong><span>Edite nomes, ordem e quantidade de slots. Estruturas com equipes não podem ser excluídas.</span></div><button type="button" onClick={() => setManagingStructure(false)}><X size={16} /> Fechar</button></div>
-          <div className="lili-structure-phase-list">{phases.map((phase) => {
-            const phaseId = String(phase.id)
-            const phaseDraft = editPhases[phaseId] || { id: phaseId, nome: String(phase.nome || ''), ordem: Number(phase.ordem || 1) }
-            const phaseGroups = groups.filter((group) => String(group.fase_id) === phaseId)
-            return <section className="lili-structure-phase" key={phaseId}>
-              <div className="lili-structure-phase-row">
-                <label>Fase<input value={phaseDraft.nome} onChange={(event) => setEditPhases((current) => ({ ...current, [phaseId]: { ...phaseDraft, nome: event.target.value } }))} /></label>
-                <label>Ordem<input type="number" min="1" value={phaseDraft.ordem} onChange={(event) => setEditPhases((current) => ({ ...current, [phaseId]: { ...phaseDraft, ordem: Math.max(1, Number(event.target.value || 1)) } }))} /></label>
-                <button type="button" className="save" onClick={() => void savePhase(phaseId)} disabled={savingEntity === `phase:${phaseId}`}><Save size={15} /> Salvar</button>
-                <button type="button" className="danger" onClick={() => void deleteStructureEntity('phase', phaseId, `a fase ${phase.nome}`)} disabled={savingEntity === `phase:${phaseId}`}><Trash2 size={15} /></button>
-              </div>
-              <div className="lili-structure-groups">{phaseGroups.map((group) => {
-                const groupId = String(group.id)
-                const groupDraft = editGroups[groupId] || { id: groupId, nome: String(group.nome || ''), slots: Number(group.slots_total || group.slots || 12) }
-                return <div className="lili-structure-group-row" key={groupId}>
-                  <label>Grupo<input value={groupDraft.nome} onChange={(event) => setEditGroups((current) => ({ ...current, [groupId]: { ...groupDraft, nome: event.target.value } }))} /></label>
-                  <label>Slots<input type="number" min="1" max="52" value={groupDraft.slots} onChange={(event) => setEditGroups((current) => ({ ...current, [groupId]: { ...groupDraft, slots: Math.max(1, Math.min(52, Number(event.target.value || 1))) } }))} /></label>
-                  <span>{Number(group.slots_ocupados || 0)} ocupado(s)</span>
-                  <button type="button" className="save" onClick={() => void saveGroup(groupId)} disabled={savingEntity === `group:${groupId}`}><Save size={15} /> Salvar</button>
-                  <button type="button" className="danger" onClick={() => void deleteStructureEntity('group', groupId, `o grupo ${group.nome}`)} disabled={savingEntity === `group:${groupId}`}><Trash2 size={15} /></button>
-                </div>
-              })}</div>
-            </section>
-          })}</div>
+        {detailTab === 'overview' ? <div className="lili-mobile-panel">
+          <div className="lili-mobile-metrics"><div><span>Fases</span><strong>{phases.length}</strong></div><div><span>Grupos</span><strong>{groups.length}</strong></div><div><span>Equipes</span><strong>{occupiedSlots}/{slots.length}</strong></div><div><span>Jogos</span><strong>{games.length}</strong></div></div>
+          <section className="lili-mobile-summary-card"><div><strong>Estrutura do campeonato</strong><span>{phases.length ? `${phases.length} fase(s) e ${groups.length} grupo(s) configurados` : 'Estrutura ainda não configurada'}</span></div><button type="button" onClick={() => { setDetailTab('groups'); if (groups[0]) setOpenGroupId(String(groups[0].id)) }}>Abrir <ChevronRight size={16} /></button></section>
+          <section className="lili-mobile-summary-card"><div><strong>Jogos e quedas</strong><span>{games.length ? `${games.length} jogo(s) cadastrado(s)` : 'Nenhum jogo cadastrado'}</span></div><button type="button" onClick={() => setDetailTab('games')}>Abrir <ChevronRight size={16} /></button></section>
+          {structure.permission?.canManage ? <section className="lili-mobile-callout"><Sparkles size={20} /><div><strong>Administração simplificada</strong><span>Use Configurar para revisar o que já existe antes de adicionar novas fases ou grupos.</span></div><button type="button" onClick={() => setDetailTab('config')}>Configurar</button></section> : null}
         </div> : null}
 
-        {creating === 'bulk' ? <div className="lili-bulk-builder">
-          <div className="lili-bulk-builder-head"><div><strong>Montagem rápida</strong><span>Crie várias fases, grupos e slots em uma única ação.</span></div><button type="button" onClick={addBulkPhase}><Plus size={16} /> Adicionar fase</button></div>
-          <div className="lili-bulk-phases">{bulkPhases.map((phase, phaseIndex) => <section className="lili-bulk-phase" key={phase.id}>
-            <div className="lili-bulk-phase-head"><strong>Fase {phaseIndex + 1}</strong><button type="button" aria-label="Remover fase" onClick={() => removeBulkPhase(phase.id)} disabled={bulkPhases.length === 1}><Trash2 size={16} /></button></div>
-            <div className="lili-bulk-phase-fields"><label>Nome da fase<input value={phase.nome} onChange={(event) => updateBulkPhase(phase.id, { nome: event.target.value })} placeholder="Ex.: Fase classificatória" /></label><label>Ordem<input type="number" min="1" value={phase.ordem} onChange={(event) => updateBulkPhase(phase.id, { ordem: Math.max(1, Number(event.target.value || 1)) })} /></label></div>
-            <div className="lili-bulk-groups">{phase.grupos.map((group, groupIndex) => <div className="lili-bulk-group" key={group.id}><span>{String(groupIndex + 1).padStart(2, '0')}</span><label>Grupo<input value={group.nome} onChange={(event) => updateBulkGroup(phase.id, group.id, { nome: event.target.value })} /></label><label>Slots<input type="number" min="1" max="52" value={group.slots} onChange={(event) => updateBulkGroup(phase.id, group.id, { slots: Math.max(1, Math.min(52, Number(event.target.value || 1))) })} /></label><button type="button" aria-label="Remover grupo" onClick={() => removeBulkGroup(phase.id, group.id)} disabled={phase.grupos.length === 1}><Minus size={15} /></button></div>)}</div>
-            <button className="lili-bulk-add-group" type="button" onClick={() => addBulkGroup(phase.id)} disabled={phase.grupos.length >= 26}><Plus size={15} /> Adicionar grupo</button>
-          </section>)}</div>
-          <div className="lili-bulk-summary"><span>{bulkPhases.length} fase(s)</span><span>{bulkPhases.reduce((total, phase) => total + phase.grupos.length, 0)} grupo(s)</span><span>{bulkPhases.reduce((total, phase) => total + phase.grupos.reduce((sum, group) => sum + group.slots, 0), 0)} slot(s)</span><button type="button" onClick={() => void createBulkStructure()} disabled={savingBulk}>{savingBulk ? <><Loader2 className="spin" size={16} /> Criando…</> : <><Sparkles size={16} /> Criar estrutura completa</>}</button></div>
-        </div> : null}
-        {creating === 'phase' ? <form className="lili-champ-form" onSubmit={createPhase}><label>Nome da fase<input name="nome" required placeholder="Ex.: Fase classificatória" /></label><label>Ordem<input name="ordem" type="number" min="1" defaultValue={phases.length + 1} /></label><button type="submit">Salvar fase</button></form> : null}
-        {creating === 'group' ? <form className="lili-champ-form" onSubmit={createGroup}><label>Fase<select name="fase_id" required>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</select></label><label>Nome do grupo<input name="nome" required placeholder="Ex.: Grupo A" /></label><label>Quantidade de slots<input name="slots" type="number" min="1" max="52" defaultValue="12" /></label><button type="submit">Criar grupo e slots</button></form> : null}
-        <LiliPhaseDistributor
-          championshipId={String(selected.id)}
-          phases={phases}
-          groups={groups}
-          slots={slots}
-          canManage={Boolean(structure.permission?.canManage)}
-          request={request}
-          onChanged={async () => { await openChampionship(selected) }}
-          onFeedback={setFeedback}
-        />
-        <LiliGamesManager
-          championshipId={String(selected.id)}
-          phases={phases}
-          groups={groups}
-          games={games}
-          canManage={Boolean(structure.permission?.canManageGames)}
-          request={request}
-          onChanged={async () => { await openChampionship(selected) }}
-          onFeedback={setFeedback}
-        />
-        <div className="lili-champ-phase-filter"><button type="button" className={activePhase === 'all' ? 'is-active' : ''} onClick={() => setActivePhase('all')}>Todos</button>{phases.map((phase) => <button type="button" key={phase.id} className={activePhase === String(phase.id) ? 'is-active' : ''} onClick={() => setActivePhase(String(phase.id))}>{phase.nome}</button>)}</div>
-        <div className="lili-champ-groups">{visibleGroups.map((group) => {
-          const groupSlots = slots.filter((slot) => String(slot.grupo_id) === String(group.id)).sort((a, b) => Number(a.slot_numero || 0) - Number(b.slot_numero || 0))
-          const groupGames = games.filter((game) => Array.isArray(game.grupos_ids) ? game.grupos_ids.includes(group.id) : String(game.grupo_id || '') === String(group.id))
-          return <article className="lili-champ-group" key={group.id}><div className="lili-champ-group-head"><div><strong>{group.nome}</strong><span>{groupSlots.filter((slot) => slot.equipe_id || slot.line_id).length}/{groupSlots.length || group.slots || 0} slots ocupados</span></div><div className="lili-champ-group-actions">{structure.permission?.canManage ? <button type="button" className={slotManagerGroup === String(group.id) ? 'active' : ''} onClick={() => toggleSlotManager(String(group.id))}><Users size={16} /> Organizar slots</button> : null}{structure.permission?.canGenerateToken ? <button type="button" onClick={() => void generateLink(group)} disabled={!groupSlots.some((slot) => !slot.equipe_id && !slot.line_id)}><Link2 size={16} /> Gerar link</button> : null}</div></div>
-            {groupGames.length ? <div className="lili-champ-games">{groupGames.map((game) => <div key={game.id}><CalendarDays size={15} /><span><strong>{game.nome || 'Jogo'}</strong>{game.data_hora || game.inicio_em ? new Date(game.data_hora || game.inicio_em).toLocaleString('pt-BR') : 'Horário não definido'}</span><Swords size={15} /></div>)}</div> : null}
-            {slotManagerGroup === String(group.id) ? <div className="lili-slot-manager">
-              <div className="lili-slot-manager-note"><strong>Organizar slots</strong><span>Selecione um slot ocupado e depois escolha um slot livre para mover ou outro ocupado para trocar as equipes de posição.</span><button type="button" onClick={() => void shuffleGroupSlots(group, groupSlots)} disabled={Boolean(slotAction) || groupSlots.filter((slot) => slot.equipe_id || slot.line_id).length < 2}>{slotAction === `shuffle:${group.id}` ? <Loader2 className="spin" size={14} /> : <Shuffle size={14} />} Sortear slots</button>{moveSourceSlotId ? <button type="button" onClick={() => setMoveSourceSlotId(null)}><X size={14} /> Cancelar movimentação</button> : null}</div>
-              <div className="lili-champ-slots manager">{groupSlots.map((slot) => {
-                const occupied = Boolean(slot.equipe_id || slot.line_id)
-                const selectedSlot = selectedSlotId === String(slot.id)
-                const movingSource = moveSourceSlotId === String(slot.id)
-                const movingNow = Boolean(slotAction?.startsWith('move:'))
-                return <button type="button" className={`${occupied ? 'occupied' : 'free'} ${selectedSlot ? 'selected' : ''} ${movingSource ? 'move-source' : ''}`} key={slot.id} onClick={() => {
-                  if (moveSourceSlotId) {
-                    if (occupied) {
-                      if (movingSource) return
-                      const source = slots.find((item) => String(item.id) === moveSourceSlotId)
-                      const sourceName = source?.line_nome || source?.equipe_nome || 'a equipe selecionada'
-                      const targetName = slot.line_nome || slot.equipe_nome || 'a equipe deste slot'
-                      const confirmed = window.confirm(`Trocar ${sourceName} de posição com ${targetName}?`)
-                      if (confirmed) void moveTeamToSlot(String(slot.id), true)
-                      return
-                    }
-                    void moveTeamToSlot(String(slot.id))
-                    return
-                  }
-                  if (occupied) {
-                    setMoveSourceSlotId(String(slot.id))
-                    setSelectedSlotId(null)
-                    setFeedback('Equipe selecionada. Escolha um slot livre para mover ou outro ocupado para trocar.')
-                    return
-                  }
-                  setSelectedSlotId(String(slot.id))
-                }} disabled={slotAction === `remove:${slot.id}` || movingNow}>
-                  <span>{String(slot.slot_numero || slot.numero || '?').padStart(2, '0')}</span><div><strong>{slot.nome_exibicao || slot.line_nome || slot.equipe_nome || 'Slot disponível'}</strong><small>{movingSource ? 'Origem selecionada — escolha o destino' : occupied ? (moveSourceSlotId ? 'Clique para trocar com a equipe selecionada' : (slot.equipe_nome && slot.line_nome ? `${slot.equipe_nome} · ${slot.line_nome}` : slot.equipe_nome || slot.line_nome)) : moveSourceSlotId ? 'Clique para mover a equipe para cá' : selectedSlot ? 'Selecionado para receber uma equipe' : 'Clique para selecionar'}</small></div>
-                  {movingSource ? <ArrowRightLeft size={16} /> : null}
-                  {occupied && slot.participacao_id ? <span className="lili-slot-remove" onClick={(event) => { event.stopPropagation(); void freeOccupiedSlot(slot) }} title="Liberar slot"><UserMinus size={15} /></span> : null}
-                </button>
-              })}</div>
-              {selectedSlotId ? <div className="lili-slot-search"><div className="lili-slot-search-form"><label>Buscar equipe ou tag<input value={slotSearch} onChange={(event) => setSlotSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchTeams() } }} placeholder="Digite pelo menos 2 letras" /></label><button type="button" onClick={() => void searchTeams()} disabled={searchingTeams || slotSearch.trim().length < 2}>{searchingTeams ? <Loader2 className="spin" size={16} /> : <Search size={16} />} Buscar</button></div>
-                {teamResults.length ? <div className="lili-slot-results">{teamResults.map((team) => <section key={team.id}><div className="lili-slot-team"><span>{team.logo_url ? <img src={team.logo_url} alt="" /> : <Users size={16} />}</span><div><strong>{team.nome}</strong><small>{team.tag || 'Sem tag'} · {team.lines_livres || 0} line(s) disponível(is)</small></div></div><div className="lili-slot-lines">{(team.lines || []).map((line: Record<string, any>) => <button type="button" key={line.id} disabled={line.ja_inscrita || Boolean(slotAction)} onClick={() => void assignLineToSlot(selectedSlotId, String(team.id), String(line.id))}><span>{line.nome}</span><small>{line.ja_inscrita ? `Já inscrita${line.slot_letra ? ` no slot ${line.slot_letra}` : ''}` : 'Adicionar neste slot'}</small>{slotAction === `assign:${selectedSlotId}:${line.id}` ? <Loader2 className="spin" size={15} /> : <UserPlus size={15} />}</button>)}</div></section>)}</div> : null}
+        {detailTab === 'groups' ? <div className="lili-mobile-panel">
+          <div className="lili-mobile-phase-chips"><button type="button" className={activePhase === 'all' ? 'active' : ''} onClick={() => selectPhase('all')}>Todos</button>{phases.map((phase) => <button type="button" key={phase.id} className={activePhase === String(phase.id) ? 'active' : ''} onClick={() => selectPhase(String(phase.id))}>{phase.nome}</button>)}</div>
+          {phaseGroups.length ? <>
+            <div className="lili-mobile-group-pills" aria-label="Selecionar grupo">{phaseGroups.map((group, index) => <button type="button" key={group.id} title={group.nome} className={String(chosenGroup?.id) === String(group.id) ? 'active' : ''} onClick={() => { setOpenGroupId(String(group.id)); setSlotsExpanded(false); setSlotManagerGroup(null) }}>{groupLetter(group, index)}</button>)}</div>
+            {chosenGroup ? <article className="lili-mobile-group-card">
+              <div className="lili-mobile-group-head"><div><strong>{chosenGroup.nome}</strong><span>{chosenGroupSlots.filter((slot) => slot.equipe_id || slot.line_id).length}/{chosenGroupSlots.length || chosenGroup.slots || 0} slots ocupados · {chosenGroupGames.length} jogo(s)</span></div>{structure.permission?.canGenerateToken ? <button type="button" className="icon-action" title="Gerar link" onClick={() => void generateLink(chosenGroup)} disabled={!chosenGroupSlots.some((slot) => !slot.equipe_id && !slot.line_id)}><Link2 size={17} /></button> : null}</div>
+              {chosenGroupGames.length ? <div className="lili-mobile-game-preview">{chosenGroupGames.slice(0, 2).map((game) => <div key={game.id}><CalendarDays size={15} /><span><strong>{game.nome || 'Jogo'}</strong><small>{game.data_hora || game.inicio_em ? new Date(game.data_hora || game.inicio_em).toLocaleString('pt-BR') : 'Horário não definido'}</small></span></div>)}</div> : null}
+              <button type="button" className="lili-mobile-expand" onClick={() => { setSlotsExpanded((value) => !value); if (slotsExpanded) setSlotManagerGroup(null) }}>{slotsExpanded ? 'Fechar slots' : 'Ver equipes e slots'} <ChevronRight size={16} className={slotsExpanded ? 'rotated' : ''} /></button>
+              {slotsExpanded ? <div className="lili-mobile-slots-area">
+                {structure.permission?.canManage ? <div className="lili-mobile-slot-toolbar"><button type="button" className={slotManagerGroup === String(chosenGroup.id) ? 'active' : ''} onClick={() => toggleSlotManager(String(chosenGroup.id))}><Users size={15} /> {slotManagerGroup === String(chosenGroup.id) ? 'Finalizar' : 'Organizar'}</button>{slotManagerGroup === String(chosenGroup.id) ? <button type="button" onClick={() => void shuffleGroupSlots(chosenGroup, chosenGroupSlots)} disabled={Boolean(slotAction) || chosenGroupSlots.filter((slot) => slot.equipe_id || slot.line_id).length < 2}><Shuffle size={15} /> Sortear</button> : null}</div> : null}
+                {slotManagerGroup === String(chosenGroup.id) ? renderSlotManager() : <div className="lili-champ-slots mobile-list">{chosenGroupSlots.map((slot) => <div className={slot.equipe_id || slot.line_id ? 'occupied' : 'free'} key={slot.id}><span>{String(slot.slot_numero || slot.numero || '?').padStart(2, '0')}</span><div><strong>{slot.nome_exibicao || slot.line_nome || slot.equipe_nome || 'Slot disponível'}</strong><small>{slot.equipe_nome && slot.line_nome ? `${slot.equipe_nome} · ${slot.line_nome}` : slot.equipe_nome || slot.line_nome || 'Aguardando equipe'}</small></div></div>)}</div>}
               </div> : null}
-            </div> : <div className="lili-champ-slots">{groupSlots.map((slot) => <div className={slot.equipe_id || slot.line_id ? 'occupied' : 'free'} key={slot.id}><span>{String(slot.slot_numero || slot.numero || '?').padStart(2, '0')}</span><div><strong>{slot.nome_exibicao || slot.line_nome || slot.equipe_nome || 'Slot disponível'}</strong><small>{slot.equipe_nome && slot.line_nome ? `${slot.equipe_nome} · ${slot.line_nome}` : slot.equipe_nome || slot.line_nome || 'Aguardando equipe'}</small></div></div>)}</div>}
-          </article>
-        })}</div>
-        {!visibleGroups.length ? <div className="lili-champ-empty compact"><Users size={25} /><strong>Nenhum grupo nesta fase</strong><span>O administrador pode criar o primeiro grupo acima.</span></div> : null}
+            </article> : null}
+          </> : <div className="lili-champ-empty compact"><Users size={25} /><strong>Nenhum grupo nesta fase</strong><span>Abra Configurar para montar a estrutura.</span></div>}
+        </div> : null}
+
+        {detailTab === 'games' ? <div className="lili-mobile-panel"><LiliGamesManager championshipId={String(selected.id)} phases={phases} groups={groups} games={games} canManage={Boolean(structure.permission?.canManageGames)} request={request} onChanged={async () => { await openChampionship(selected) }} onFeedback={setFeedback} /></div> : null}
+        {detailTab === 'links' ? <div className="lili-mobile-panel"><LiliLinksManager championshipId={String(selected.id)} phases={phases} groups={groups} slots={slots} canManage={Boolean(structure.permission?.canGenerateToken)} request={request} onFeedback={setFeedback} /></div> : null}
+
+        {detailTab === 'config' ? <div className="lili-mobile-panel lili-config-panel">
+          <section className="lili-existing-structure"><div className="lili-config-title"><div><strong>Estrutura atual</strong><span>Confira o que já existe antes de adicionar ou editar.</span></div><span>{phases.length} fase(s)</span></div>{phases.length ? phases.map((phase) => { const items = groups.filter((group) => String(group.fase_id) === String(phase.id)); return <div className="lili-existing-phase" key={phase.id}><strong>{phase.nome}</strong><div>{items.length ? items.map((group) => <span key={group.id}>{group.nome} · {Number(group.slots_total || group.slots || 0)} slots</span>) : <span>Sem grupos</span>}</div></div> }) : <div className="lili-config-empty">Nenhuma fase criada.</div>}</section>
+          {structure.permission?.canOrganizeGroups ? <div className="lili-config-actions"><button type="button" className="primary" onClick={openBulkBuilder}><Sparkles size={17} /><span><strong>{phases.length ? 'Adicionar estrutura' : 'Montar campeonato'}</strong><small>Fluxo guiado para fases, grupos e slots</small></span><ChevronRight size={17} /></button><button type="button" onClick={openStructureManager}><Pencil size={17} /><span><strong>Editar estrutura atual</strong><small>Renomear, ordenar e ajustar slots</small></span><ChevronRight size={17} /></button></div> : null}
+
+          {managingStructure ? <div className="lili-structure-manager mobile-guided"><div className="lili-structure-manager-head"><div><strong>Editar estrutura atual</strong><span>Abra uma fase e altere somente o necessário.</span></div><button type="button" onClick={() => setManagingStructure(false)}><X size={16} /></button></div><div className="lili-structure-phase-list">{phases.map((phase) => { const phaseId = String(phase.id); const phaseDraft = editPhases[phaseId] || { id: phaseId, nome: String(phase.nome || ''), ordem: Number(phase.ordem || 1) }; const phaseItems = groups.filter((group) => String(group.fase_id) === phaseId); return <details className="lili-structure-phase" key={phaseId}><summary><span><strong>{phase.nome}</strong><small>{phaseItems.length} grupo(s)</small></span><ChevronRight size={17} /></summary><div className="lili-structure-phase-content"><div className="lili-structure-phase-row"><label>Nome<input value={phaseDraft.nome} onChange={(event) => setEditPhases((current) => ({ ...current, [phaseId]: { ...phaseDraft, nome: event.target.value } }))} /></label><label>Ordem<input type="number" min="1" value={phaseDraft.ordem} onChange={(event) => setEditPhases((current) => ({ ...current, [phaseId]: { ...phaseDraft, ordem: Math.max(1, Number(event.target.value || 1)) } }))} /></label><button type="button" className="save" onClick={() => void savePhase(phaseId)} disabled={savingEntity === `phase:${phaseId}`}><Save size={15} /> Salvar fase</button><button type="button" className="danger" onClick={() => void deleteStructureEntity('phase', phaseId, `a fase ${phase.nome}`)} disabled={savingEntity === `phase:${phaseId}`}><Trash2 size={15} /></button></div><div className="lili-structure-groups">{phaseItems.map((group) => { const groupId = String(group.id); const groupDraft = editGroups[groupId] || { id: groupId, nome: String(group.nome || ''), slots: Number(group.slots_total || group.slots || 12) }; return <div className="lili-structure-group-row" key={groupId}><label>Grupo<input value={groupDraft.nome} onChange={(event) => setEditGroups((current) => ({ ...current, [groupId]: { ...groupDraft, nome: event.target.value } }))} /></label><label>Slots<input type="number" min="1" max="52" value={groupDraft.slots} onChange={(event) => setEditGroups((current) => ({ ...current, [groupId]: { ...groupDraft, slots: Math.max(1, Math.min(52, Number(event.target.value || 1))) } }))} /></label><span>{Number(group.slots_ocupados || 0)} ocupado(s)</span><button type="button" className="save" onClick={() => void saveGroup(groupId)} disabled={savingEntity === `group:${groupId}`}><Save size={15} /> Salvar</button><button type="button" className="danger" onClick={() => void deleteStructureEntity('group', groupId, `o grupo ${group.nome}`)} disabled={savingEntity === `group:${groupId}`}><Trash2 size={15} /></button></div> })}</div></div></details> })}</div></div> : null}
+
+          {creating === 'bulk' ? <div className="lili-bulk-builder mobile-guided"><div className="lili-bulk-builder-head"><div><strong>{phases.length ? 'Adicionar nova estrutura' : 'Montagem guiada'}</strong><span>O sistema mostra acima tudo que já existe para evitar repetição.</span></div><button type="button" onClick={addBulkPhase}><Plus size={16} /> Fase</button></div><div className="lili-bulk-phases">{bulkPhases.map((phase, phaseIndex) => <section className="lili-bulk-phase" key={phase.id}><div className="lili-bulk-phase-head"><strong>Nova fase {phaseIndex + 1}</strong><button type="button" aria-label="Remover fase" onClick={() => removeBulkPhase(phase.id)} disabled={bulkPhases.length === 1}><Trash2 size={16} /></button></div><div className="lili-bulk-phase-fields"><label>Nome da fase<input value={phase.nome} onChange={(event) => updateBulkPhase(phase.id, { nome: event.target.value })} placeholder="Ex.: Semifinal" list="lili-phase-suggestions" /></label><label>Ordem<input type="number" min="1" value={phase.ordem} onChange={(event) => updateBulkPhase(phase.id, { ordem: Math.max(1, Number(event.target.value || 1)) })} /></label></div><datalist id="lili-phase-suggestions"><option value="Fase 1"/><option value="Fase 2"/><option value="Quartas de final"/><option value="Semifinal"/><option value="Grande final"/></datalist><div className="lili-bulk-groups">{phase.grupos.map((group, groupIndex) => <div className="lili-bulk-group" key={group.id}><span>{String.fromCharCode(65 + groupIndex)}</span><label>Grupo<input value={group.nome} onChange={(event) => updateBulkGroup(phase.id, group.id, { nome: event.target.value })} placeholder={`Grupo ${String.fromCharCode(65 + groupIndex)}`} /></label><label>Slots<input type="number" min="1" max="52" value={group.slots} onChange={(event) => updateBulkGroup(phase.id, group.id, { slots: Math.max(1, Math.min(52, Number(event.target.value || 1))) })} /></label><button type="button" aria-label="Remover grupo" onClick={() => removeBulkGroup(phase.id, group.id)} disabled={phase.grupos.length === 1}><Minus size={15} /></button></div>)}</div><button type="button" className="lili-bulk-add-group" onClick={() => addBulkGroup(phase.id)}><Plus size={15} /> Adicionar grupo</button></section>)}</div><div className="lili-bulk-summary"><span>{bulkPhases.length} nova(s) fase(s)</span><span>{bulkPhases.reduce((sum, phase) => sum + phase.grupos.length, 0)} grupo(s)</span><span>{bulkPhases.flatMap((phase) => phase.grupos).reduce((sum, group) => sum + group.slots, 0)} slot(s)</span><button type="button" onClick={() => void createBulkStructure()} disabled={savingBulk}>{savingBulk ? <><Loader2 className="spin" size={16} /> Criando…</> : <><Sparkles size={16} /> Criar estrutura</>}</button></div></div> : null}
+
+          <LiliPhaseDistributor championshipId={String(selected.id)} phases={phases} groups={groups} slots={slots} canManage={Boolean(structure.permission?.canManage)} request={request} onChanged={async () => { await openChampionship(selected) }} onFeedback={setFeedback} />
+        </div> : null}
       </> : null}
     </section>
   )
