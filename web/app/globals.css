@@ -4614,6 +4614,51 @@ button.invite-slot-button.selected strong {
   font-size: 0.86rem;
 }
 
+.lineup-invite-token > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.lineup-token-list {
+  display: grid;
+  gap: 10px;
+}
+
+.lineup-token-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.lineup-token-card span,
+.lineup-token-card strong,
+.lineup-token-card code {
+  display: block;
+}
+
+.lineup-token-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lineup-token-card code {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 700px) {
+  .lineup-token-card {
+    grid-template-columns: 1fr;
+  }
+}
+
 .lineup-invite-preview {
   margin: 0;
   padding: 16px;

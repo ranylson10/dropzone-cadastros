@@ -105,6 +105,16 @@ export async function POST(req: NextRequest, ctx: any) {
     if (existingError) throw existingError
     if (existing) return NextResponse.json({ already_registered: true, id: existing.id })
 
+    const { count: activePlayers, error: countError } = await supabaseAdmin
+      .from('campeonato_jogadores')
+      .select('id', { count: 'exact', head: true })
+      .eq('campeonato_equipe_id', link.campeonato_equipe_id)
+      .eq('status', 'ativo')
+    if (countError) throw countError
+    if (Number(activePlayers || 0) >= Number(link.limite_jogadores || 0)) {
+      throw new Error('Esta escalação já atingiu o limite de jogadores.')
+    }
+
     const body = await req.json().catch(() => ({}))
     const { data: participation, error: participationError } = await supabaseAdmin
       .from('campeonato_equipes')

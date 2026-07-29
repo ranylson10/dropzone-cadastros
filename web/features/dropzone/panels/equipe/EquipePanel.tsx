@@ -516,6 +516,7 @@ Acesse: ${url}`
                   <div className="button-row lineup-actions">
                     {lineup.link_token ? <>
                       <button className={`button ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><Copy size={15}/> {copiedLineupId === lineup.campeonato_equipe_id ? 'Link copiado' : 'Copiar link'}</button>
+                      <button className={`button secondary ${copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'copied' : ''}`} onClick={() => void copyLink(String(lineup.link_token), `token:${lineup.campeonato_equipe_id}`)}><Copy size={15}/> {copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'Token copiado' : 'Copiar só token'}</button>
                       <button className="button secondary" onClick={() => openInviteEditor(lineup)}>Alterar</button>
                       <button className="button secondary danger" onClick={() => void removeLineupInvite(lineup)}><Trash2 size={15}/> Remover</button>
                     </> : <button className="button" onClick={() => void createLineupLink(lineup)} disabled={lineupLoading}><Link2 size={15}/> Criar link</button>}
@@ -535,7 +536,7 @@ Acesse: ${url}`
 
         {tab === 'jogadores' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Elenco</p><h3>Jogadores da equipe</h3></div><span className="count-pill"><Users size={14}/>{teamPlayers.length}</span></div>{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador vinculado ao elenco.</p> : null}<div className="team-player-grid">{teamPlayers.map((row) => <article className="team-player-card" key={row.id}><img src={dataText(row, 'foto_url') || '/favicon.ico'} alt=""/><div><strong>{dataText(row, 'nick') || rowTitle(row)}</strong><span>ID {dataText(row, 'id_jogo') || '-'}</span><small>{dataText(row, 'funcao') || 'Função não informada'}</small></div></article>)}</div></div> : null}
 
-        {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Envie diretamente pelo correio ou gere um link compartilhável. O jogador pode aceitar ou recusar.</p>{props.managedTeams.map((team) => <PlayerTeamRequest key={team.id} mode="invite_player" equipeId={team.id}/>)}<div className="token-list">{props.managedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <button key={lineup.campeonato_equipe_id} className={`token-card ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><span>{lineup.campeonato_nome} · {lineup.line_nome}</span><strong>{copiedLineupId === lineup.campeonato_equipe_id ? 'Link copiado' : 'Copiar convite'}</strong><Copy size={15}/></button>)}</div></div></div> : null}
+        {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Envie diretamente pelo correio ou gere um link compartilhável. O jogador pode aceitar ou recusar.</p>{props.managedTeams.map((team) => <PlayerTeamRequest key={team.id} mode="invite_player" equipeId={team.id}/>)}<div className="token-list">{props.managedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="lineup-token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <article className="lineup-token-card" key={lineup.campeonato_equipe_id}><div><span>{lineup.campeonato_nome}</span><strong>{lineup.line_nome}</strong><code>{lineup.link_token}</code></div><div className="button-row"><button className={`button compact ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><Copy size={15}/>{copiedLineupId === lineup.campeonato_equipe_id ? 'Convite copiado' : 'Copiar convite'}</button><button className={`button secondary compact ${copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'copied' : ''}`} onClick={() => void copyLink(String(lineup.link_token), `token:${lineup.campeonato_equipe_id}`)}><Copy size={15}/>{copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'Token copiado' : 'Copiar só token'}</button></div></article>)}</div></div></div> : null}
 
         {tab === 'staff' ? (
           <div className="panel-tab-body staff-tab">
@@ -835,12 +836,13 @@ Acesse: ${url}`
       >
         {generatedInvite ? <div className="lineup-invite-result">
           <div className="lineup-invite-token">
-            <span>Link de escalação</span>
-            <strong>{generatedInvite.link}</strong>
+            <div><span>Token de escalação</span><strong>{generatedInvite.token}</strong></div>
+            <div><span>Link de escalação</span><strong>{generatedInvite.link}</strong></div>
           </div>
           <pre className="lineup-invite-preview">{generatedInvite.texto}</pre>
           <div className="button-row">
             <button className="button" type="button" onClick={() => void copyLink(generatedInvite.texto, 'modal')}><Copy size={15}/> {copiedLineupId === 'modal' ? 'Link copiado' : 'Copiar convite'}</button>
+            <button className={`button secondary ${copiedLineupId === 'modal-token' ? 'copied' : ''}`} type="button" onClick={() => void copyLink(generatedInvite.token, 'modal-token')}><Copy size={15}/> {copiedLineupId === 'modal-token' ? 'Token copiado' : 'Copiar só token'}</button>
             <button className="button secondary" type="button" onClick={() => setGeneratedInvite(null)}>Fechar</button>
           </div>
         </div> : null}
