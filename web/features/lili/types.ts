@@ -50,6 +50,8 @@ export type LiliIntent =
   | 'verificar_pagamento_convite_grupo'
   | 'listar_minhas_equipes'
   | 'escalar_elenco'
+  | 'abrir_escalacoes_equipe'
+  | 'gerar_token_escalacao'
   | 'listar_campeonatos_gerenciados'
   | 'abrir_central_organizador'
   | 'ver_estrutura_operacional_campeonato'

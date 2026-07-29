@@ -23,7 +23,7 @@ type ChatMessage = {
   requiresAuth?: boolean
 }
 
-const STORAGE_KEY = 'dropzone:lili:conversation:v2'
+const STORAGE_KEY = 'dropzone:lili:conversation:v3'
 const PENDING_KEY = 'dropzone:lili:pending:v1'
 
 const PROFILE_LABELS: Record<string, string> = {
@@ -41,16 +41,16 @@ function profileImage(account?: DropZoneRow | null) {
 function initialMessage(locale: LiliLocale = 'pt-BR'): ChatMessage {
   const copy = locale === 'es'
     ? {
-        text: '¡Hola! Soy Lili. ¿Qué necesitas hacer ahora?',
+        text: '¡Hola! Soy Lili, tu asistente en DropZone. Puedo ayudarte a encontrar un campeonato, organizar la plantilla, seguir tus inscripciones o revisar tu agenda. ¿Por dónde empezamos?',
         championships: 'Campeonatos con cupos', teams: 'Gestionar plantilla', players: 'Campeonatos inscritos', organization: 'Mi agenda',
       }
     : locale === 'en'
       ? {
-          text: 'Hi! I’m Lili. What do you need to do now?',
+          text: 'Hi! I’m Lili, your DropZone assistant. I can help you find a tournament, organize your lineup, follow registrations, or check your schedule. Where should we start?',
           championships: 'Tournaments with spots', teams: 'Manage lineup', players: 'Registered tournaments', organization: 'My schedule',
         }
       : {
-          text: 'Olá! Sou a Lili. O que você precisa fazer agora?',
+          text: 'Oi! Eu sou a Lili, sua assistente no DropZone. Posso te ajudar a encontrar um campeonato, organizar o elenco, acompanhar suas inscrições ou conferir a agenda. Por onde começamos?',
           championships: 'Campeonatos com vagas', teams: 'Escalar elenco', players: 'Campeonatos inscritos', organization: 'Minha agenda',
         }
   return { id: 'welcome', role: 'assistant', text: copy.text, actions: [
