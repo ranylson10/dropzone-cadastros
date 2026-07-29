@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import './compact.css'
 import { LiliGlobalLauncher } from '@/components/lili/LiliGlobalLauncher'
 
 export const metadata: Metadata = {

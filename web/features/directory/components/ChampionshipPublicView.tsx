@@ -157,6 +157,13 @@ export function ChampionshipPublicView({
     jogos: sectionMap.jogos?.items.length || 0,
     estatisticas: sectionMap.estatisticas?.items.length || 0,
   }
+  const visibleTabs = TABS.filter(
+    (item) =>
+      item.id === 'info' ||
+      item.id === 'equipes' ||
+      item.id === 'jogos' ||
+      counts[item.id] > 0,
+  )
 
   const themeStyle = useMemo(
     () =>
@@ -226,8 +233,8 @@ export function ChampionshipPublicView({
             </div>
           </div>
 
-          <nav className="champ-public-nav champ-public-nav-5" aria-label="Seções do campeonato">
-            {TABS.map((item) => {
+          <nav className="champ-public-nav" aria-label="Seções do campeonato">
+            {visibleTabs.map((item) => {
               const Icon = item.icon
               const active = tab === item.id
               return (
