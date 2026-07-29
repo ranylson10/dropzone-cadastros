@@ -64,7 +64,7 @@ async function acceptPlayerTeamRelationship(user: any, accounts: any[], notif: a
 
   const [{ data: equipe, error: teamError }, { data: jogador, error: playerError }] = await Promise.all([
     supabaseAdmin.from('equipes').select('id,nome,auth_user_id').eq('id', equipeId).maybeSingle(),
-    supabaseAdmin.from('jogadores').select('id,nick,avatar_url,id_jogo,funcao,localidade,auth_user_id').eq('id', jogadorId).maybeSingle(),
+    supabaseAdmin.from('jogadores').select('id,nome,avatar_url,id_jogo,funcao,localidade,auth_user_id').eq('id', jogadorId).maybeSingle(),
   ])
   if (teamError) throw teamError
   if (playerError) throw playerError
@@ -81,7 +81,7 @@ async function acceptPlayerTeamRelationship(user: any, accounts: any[], notif: a
   const { error } = await supabaseAdmin.from('equipe_jogadores').upsert({
     equipe_id: equipe.id,
     jogador_auth_user_id: jogador.auth_user_id,
-    nick: jogador.nick,
+    nick: jogador.nome,
     foto_url: jogador.avatar_url,
     id_jogo: jogador.id_jogo,
     funcao: jogador.funcao,
@@ -98,13 +98,13 @@ async function acceptPlayerTeamRelationship(user: any, accounts: any[], notif: a
       destinatarioAuthUserId: notif.remetente_auth_user_id,
       tipo: 'vinculo_jogador_equipe_resposta',
       titulo: 'Solicitação aceita',
-      corpo: `${jogador.nick} agora faz parte do elenco de ${equipe.nome}.`,
+      corpo: `${jogador.nome} agora faz parte do elenco de ${equipe.nome}.`,
       payload: { equipe_id: equipe.id, jogador_id: jogador.id, resposta: 'aceito' },
       referenciaTipo: 'equipe_jogador',
       referenciaId: equipe.id,
     })
   } catch {}
-  return NextResponse.json({ ok: true, mensagem: `${jogador.nick} agora faz parte do elenco de ${equipe.nome}.` })
+  return NextResponse.json({ ok: true, mensagem: `${jogador.nome} agora faz parte do elenco de ${equipe.nome}.` })
 }
 
 async function acceptEquipeInvite(user: any, accounts: any[], notif: any) {

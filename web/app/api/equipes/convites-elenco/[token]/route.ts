@@ -81,7 +81,7 @@ async function tryAddFormation(item: any, equipeJogador: any, jogador: any, user
     campeonato_id: participation.campeonato_id,
     equipe_id: item.equipe_id,
     jogador_id: jogador.id,
-    nick: equipeJogador.nick || jogador.nick || 'Jogador',
+    nick: equipeJogador.nick || jogador.nome || 'Jogador',
     foto_url: equipeJogador.foto_url || jogador.avatar_url || null,
     id_jogo: equipeJogador.id_jogo || jogador.id_jogo || 'pendente',
     funcao: equipeJogador.funcao || jogador.funcao || 'support',
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const item = await convite((await context.params).token)
     const { data: jogador, error: playerError } = await supabaseAdmin
       .from('jogadores')
-      .select('id,nick,avatar_url,id_jogo,funcao,localidade')
+      .select('id,nome,avatar_url,id_jogo,funcao,localidade')
       .eq('auth_user_id', user.id)
       .maybeSingle()
     if (playerError) throw playerError
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     const rosterPayload = {
       equipe_id: item.equipe_id,
       jogador_auth_user_id: user.id,
-      nick: jogador.nick,
+      nick: jogador.nome,
       foto_url: jogador.avatar_url,
       id_jogo: jogador.id_jogo,
       funcao: jogador.funcao,

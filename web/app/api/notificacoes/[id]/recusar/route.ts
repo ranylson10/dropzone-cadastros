@@ -47,7 +47,7 @@ async function refusePlayerTeamRelationship(user: any, accounts: any[], notif: a
   const jogadorId = String(notif.payload?.jogador_id || '')
   const [{ data: equipe }, { data: jogador }] = await Promise.all([
     supabaseAdmin.from('equipes').select('id,nome,auth_user_id').eq('id', equipeId).maybeSingle(),
-    supabaseAdmin.from('jogadores').select('id,nick,auth_user_id').eq('id', jogadorId).maybeSingle(),
+    supabaseAdmin.from('jogadores').select('id,nome,auth_user_id').eq('id', jogadorId).maybeSingle(),
   ])
   if (notif.tipo === 'convite_jogador_equipe_direto') {
     if (jogador?.auth_user_id !== user.id || !accounts.some((item) => item.profile_type === 'jogador' && item.id === jogadorId)) throw new Error('Este convite não pertence ao seu perfil.')
@@ -59,7 +59,7 @@ async function refusePlayerTeamRelationship(user: any, accounts: any[], notif: a
       destinatarioAuthUserId: notif.remetente_auth_user_id,
       tipo: 'vinculo_jogador_equipe_resposta',
       titulo: 'Solicitação recusada',
-      corpo: `${jogador?.nick || 'O jogador'} e ${equipe?.nome || 'a equipe'} não foram vinculados.`,
+      corpo: `${jogador?.nome || 'O jogador'} e ${equipe?.nome || 'a equipe'} não foram vinculados.`,
       payload: { equipe_id: equipeId, jogador_id: jogadorId, resposta: 'recusado' },
       referenciaTipo: 'equipe_jogador',
       referenciaId: equipeId,

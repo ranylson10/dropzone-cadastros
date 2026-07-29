@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       const jogadorId = String(body.jogador_id || '')
       const [{ data: equipe, error: teamError }, { data: jogador, error: playerError }] = await Promise.all([
         supabaseAdmin.from('equipes').select('id,nome,auth_user_id').eq('id', equipeId).maybeSingle(),
-        supabaseAdmin.from('jogadores').select('id,nick,username,auth_user_id,status').eq('id', jogadorId).eq('status', 'ativo').maybeSingle(),
+        supabaseAdmin.from('jogadores').select('id,nome,username,auth_user_id,status').eq('id', jogadorId).eq('status', 'ativo').maybeSingle(),
       ])
       if (teamError) throw teamError
       if (playerError) throw playerError
