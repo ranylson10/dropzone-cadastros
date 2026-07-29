@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Loader2, Lock, Save, UserMinus, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Copy, Link2, Loader2, Lock, Save, UserMinus, UserPlus, Users } from 'lucide-react'
 
 type Props = {
   accessToken: string
@@ -17,6 +17,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
+  const [inviteUrl, setInviteUrl] = useState('')
   const [openEvent, setOpenEvent] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Array<{ equipe_jogador_id: string; tipo_formacao: 'titular' | 'reserva' }>>>({})
 
@@ -53,6 +54,32 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
   }
 
   useEffect(() => { void load() }, [equipeId, line.id, accessToken])
+
+  async function createInvite(campeonatoEquipeId?: string) {
+    setBusy(`invite:${campeonatoEquipeId || 'line'}`); setMessage(''); setInviteUrl('')
+    try {
+      const response = await fetch('/api/equipes/convites-elenco', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ equipe_id: equipeId, line_id: line.id, campeonato_equipe_id: campeonatoEquipeId || null }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error || 'Não foi possível gerar o convite.')
+      const url = String(payload.url || '')
+      setInviteUrl(url)
+      if (url && navigator.clipboard) await navigator.clipboard.writeText(url)
+      setMessage(campeonatoEquipeId
+        ? 'Convite da formação copiado. Ao aceitar, o jogador entra no elenco, na line e, se permitido, na formação.'
+        : 'Convite da line copiado. Ao aceitar, o jogador entra no elenco e nesta line.')
+    } catch (error: any) { setMessage(error?.message || 'Não foi possível gerar o convite.') }
+    finally { setBusy('') }
+  }
+
+  async function copyInvite() {
+    if (!inviteUrl || !navigator.clipboard) return
+    await navigator.clipboard.writeText(inviteUrl)
+    setMessage('Link copiado novamente.')
+  }
 
   async function act(action: string, body: Record<string, unknown>, key: string) {
     setBusy(key); setMessage('')
@@ -97,10 +124,10 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
       <div><strong>{line.nome}</strong><span>{data.members?.length || 0} jogador(es) · {data.events?.length || 0} campeonato(s)</span></div>
     </div>
 
-    {message ? <div className={`line-roster-message ${message.includes('Erro') || message.includes('Não') ? 'error' : ''}`}>{message}</div> : null}
+    {message ? <div className={`line-roster-message ${message.includes('Erro') || message.includes('Não') ? 'error' : ''}`}><span>{message}</span>{inviteUrl ? <button type="button" onClick={() => void copyInvite()}><Copy size={13}/> Copiar link</button> : null}</div> : null}
 
     <section className="line-roster-block">
-      <div className="line-roster-title"><div><strong>Jogadores da line</strong><span>Um jogador pode participar de várias lines.</span></div></div>
+      <div className="line-roster-title with-action"><div><strong>Jogadores da line</strong><span>Adicione quem já está no elenco ou convide um novo jogador.</span></div>{data.permissions?.pode_editar || data.permissions?.pode_gerar_token ? <button type="button" className="line-small-action" disabled={Boolean(busy)} onClick={() => void createInvite()}>{busy === 'invite:line' ? <Loader2 className="spin" size={14}/> : <Link2 size={14}/>} Convidar</button> : null}</div>
       <div className="line-roster-list">
         {(data.roster || []).map((player: any) => {
           const member = memberIds.has(String(player.id))
@@ -134,6 +161,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
             </button>
             {open ? <div className="line-event-editor">
               {!event.pode_alterar ? <div className="line-event-lock"><Lock size={15}/><span>{event.bloqueio_motivo || 'Formação bloqueada.'}</span></div> : null}
+              {data.permissions?.pode_gerar_token || data.permissions?.pode_editar ? <button type="button" className="line-invite-formation" disabled={Boolean(busy)} onClick={() => void createInvite(String(event.id))}>{busy === `invite:${event.id}` ? <Loader2 className="spin" size={14}/> : <UserPlus size={14}/>} Convidar jogador para esta formação</button> : null}
               <div className="line-formation-list">
                 {(data.members || []).map((player: any) => {
                   const selected = draft.some((row) => row.equipe_jogador_id === String(player.id))

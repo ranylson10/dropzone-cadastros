@@ -2,13 +2,14 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot, Trophy, Users } from 'lucide-react'
+import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot, Trophy, Users, Gamepad2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 import { clientText, normalizeLocale } from '@/features/lili/i18n'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { LiliChampionshipHub } from '@/components/lili/LiliChampionshipHub'
 import { LiliTeamHub } from '@/components/lili/LiliTeamHub'
+import { LiliPlayerHub } from '@/components/lili/LiliPlayerHub'
 import type { DropZoneRow } from '@/lib/types'
 
 type ChatMessage = {
@@ -103,7 +104,7 @@ export default function LiliPage() {
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [profileOpen, setProfileOpen] = useState(false)
-  const [activeHubTab, setActiveHubTab] = useState<'chat' | 'championships' | 'teams'>('chat')
+  const [activeHubTab, setActiveHubTab] = useState<'chat' | 'championships' | 'teams' | 'players'>('chat')
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const busyRef = useRef(false)
   const requestIdRef = useRef(0)
@@ -569,12 +570,15 @@ export default function LiliPage() {
         <button type="button" className={activeHubTab === 'chat' ? 'is-active' : ''} onClick={() => setActiveHubTab('chat')}><Bot size={17} /> Conversar com a Lili</button>
         <button type="button" className={activeHubTab === 'championships' ? 'is-active' : ''} onClick={() => setActiveHubTab('championships')}><Trophy size={17} /> Campeonatos</button>
         <button type="button" className={activeHubTab === 'teams' ? 'is-active' : ''} onClick={() => setActiveHubTab('teams')}><Users size={17} /> Equipes</button>
+        <button type="button" className={activeHubTab === 'players' ? 'is-active' : ''} onClick={() => setActiveHubTab('players')}><Gamepad2 size={17} /> Players</button>
       </nav>
 
       {activeHubTab === 'championships' ? (
         <div className="lili-hub-panel"><LiliChampionshipHub accessToken={session?.access_token} /></div>
       ) : activeHubTab === 'teams' ? (
         <div className="lili-hub-panel"><LiliTeamHub accessToken={session?.access_token} /></div>
+      ) : activeHubTab === 'players' ? (
+        <div className="lili-hub-panel"><LiliPlayerHub accessToken={session?.access_token} /></div>
       ) : <>
       <section className="lili-hub-feed" aria-live="polite">
         <div className="lili-hub-spacer" />
