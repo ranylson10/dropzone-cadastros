@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 28 de julho de 2026
-**Estado:** Logout e escolha de acesso corrigidos; o retorno social abre a criação para qualquer tipo de perfil ausente e consultas de sessão/perfis possuem timeout.
+**Última atualização:** 29 de julho de 2026
+**Estado:** Lili separa acompanhamento de administração: participantes visualizam fases, grupos, equipes, datas, horários e mapas, enquanto ações de edição permanecem protegidas por permissão.
 
 ## 1. Objetivo do sistema
 

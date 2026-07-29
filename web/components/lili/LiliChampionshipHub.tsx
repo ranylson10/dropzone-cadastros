@@ -1,8 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRightLeft, CalendarDays, ChevronRight, CirclePlus, ExternalLink, Link2, Loader2, Minus, Pencil, Plus, RefreshCw, Save, Search, Shield, Shuffle, Sparkles, Swords, Trash2, Trophy, UserMinus, UserPlus, Users, X } from 'lucide-react'
-import { LiliGamesManager } from './LiliGamesManager'
+import { ArrowLeft, ArrowRightLeft, CalendarDays, ChevronRight, CirclePlus, ExternalLink, Link2, Loader2, Map, Minus, Pencil, Plus, RefreshCw, Save, Search, Shield, Shuffle, Sparkles, Trash2, Trophy, UserMinus, UserPlus, Users, X } from 'lucide-react'
 import { LiliPhaseDistributor } from './LiliPhaseDistributor'
 import { LiliLinksManager } from './LiliLinksManager'
 
@@ -56,7 +55,7 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
   const [searchingTeams, setSearchingTeams] = useState(false)
   const [slotAction, setSlotAction] = useState<string | null>(null)
   const [moveSourceSlotId, setMoveSourceSlotId] = useState<string | null>(null)
-  const [detailTab, setDetailTab] = useState<'overview' | 'groups' | 'games' | 'links' | 'config'>('overview')
+  const [detailTab, setDetailTab] = useState<'overview' | 'groups' | 'links' | 'config'>('overview')
   const [openGroupId, setOpenGroupId] = useState<string | null>(null)
   const [slotsExpanded, setSlotsExpanded] = useState(false)
 
@@ -553,15 +552,13 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
         <nav className="lili-mobile-sections" aria-label="Áreas do campeonato">
           <button type="button" className={detailTab === 'overview' ? 'active' : ''} onClick={() => setDetailTab('overview')}><Trophy size={17} /><span>Resumo</span></button>
           <button type="button" className={detailTab === 'groups' ? 'active' : ''} onClick={() => { setDetailTab('groups'); if (!openGroupId && groups[0]) setOpenGroupId(String(groups[0].id)) }}><Users size={17} /><span>Grupos</span></button>
-          <button type="button" className={detailTab === 'games' ? 'active' : ''} onClick={() => setDetailTab('games')}><Swords size={17} /><span>Jogos</span></button>
-          <button type="button" className={detailTab === 'links' ? 'active' : ''} onClick={() => setDetailTab('links')}><Link2 size={17} /><span>Links</span></button>
+          {structure.permission?.canGenerateToken ? <button type="button" className={detailTab === 'links' ? 'active' : ''} onClick={() => setDetailTab('links')}><Link2 size={17} /><span>Links</span></button> : null}
           {structure.permission?.canManage ? <button type="button" className={detailTab === 'config' ? 'active' : ''} onClick={() => setDetailTab('config')}><Pencil size={17} /><span>Configurar</span></button> : null}
         </nav>
 
         {detailTab === 'overview' ? <div className="lili-mobile-panel">
           <div className="lili-mobile-metrics"><div><span>Fases</span><strong>{phases.length}</strong></div><div><span>Grupos</span><strong>{groups.length}</strong></div><div><span>Equipes</span><strong>{occupiedSlots}/{slots.length}</strong></div><div><span>Jogos</span><strong>{games.length}</strong></div></div>
-          <section className="lili-mobile-summary-card"><div><strong>Estrutura do campeonato</strong><span>{phases.length ? `${phases.length} fase(s) e ${groups.length} grupo(s) configurados` : 'Estrutura ainda não configurada'}</span></div><button type="button" onClick={() => { setDetailTab('groups'); if (groups[0]) setOpenGroupId(String(groups[0].id)) }}>Abrir <ChevronRight size={16} /></button></section>
-          <section className="lili-mobile-summary-card"><div><strong>Jogos e quedas</strong><span>{games.length ? `${games.length} jogo(s) cadastrado(s)` : 'Nenhum jogo cadastrado'}</span></div><button type="button" onClick={() => setDetailTab('games')}>Abrir <ChevronRight size={16} /></button></section>
+          <section className="lili-mobile-summary-card"><div><strong>Fases, grupos e calendário</strong><span>{phases.length ? `${phases.length} fase(s), ${groups.length} grupo(s) e ${games.length} jogo(s)` : 'Estrutura ainda não configurada'}</span></div><button type="button" onClick={() => { setDetailTab('groups'); if (groups[0]) setOpenGroupId(String(groups[0].id)) }}>Acompanhar <ChevronRight size={16} /></button></section>
           {structure.permission?.canManage ? <section className="lili-mobile-callout"><Sparkles size={20} /><div><strong>Administração simplificada</strong><span>Use Configurar para revisar o que já existe antes de adicionar novas fases ou grupos.</span></div><button type="button" onClick={() => setDetailTab('config')}>Configurar</button></section> : null}
         </div> : null}
 
@@ -571,17 +568,23 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
             <div className="lili-mobile-group-pills" aria-label="Selecionar grupo">{phaseGroups.map((group, index) => <button type="button" key={group.id} title={group.nome} className={String(chosenGroup?.id) === String(group.id) ? 'active' : ''} onClick={() => { setOpenGroupId(String(group.id)); setSlotsExpanded(false); setSlotManagerGroup(null) }}>{groupLetter(group, index)}</button>)}</div>
             {chosenGroup ? <article className="lili-mobile-group-card">
               <div className="lili-mobile-group-head"><div><strong>{chosenGroup.nome}</strong><span>{chosenGroupSlots.filter((slot) => slot.equipe_id || slot.line_id).length}/{chosenGroupSlots.length || chosenGroup.slots || 0} slots ocupados · {chosenGroupGames.length} jogo(s)</span></div>{structure.permission?.canGenerateToken ? <button type="button" className="icon-action" title="Gerar link" onClick={() => void generateLink(chosenGroup)} disabled={!chosenGroupSlots.some((slot) => !slot.equipe_id && !slot.line_id)}><Link2 size={17} /></button> : null}</div>
-              {chosenGroupGames.length ? <div className="lili-mobile-game-preview">{chosenGroupGames.slice(0, 2).map((game) => <div key={game.id}><CalendarDays size={15} /><span><strong>{game.nome || 'Jogo'}</strong><small>{game.data_hora || game.inicio_em ? new Date(game.data_hora || game.inicio_em).toLocaleString('pt-BR') : 'Horário não definido'}</small></span></div>)}</div> : null}
-              <button type="button" className="lili-mobile-expand" onClick={() => { setSlotsExpanded((value) => !value); if (slotsExpanded) setSlotManagerGroup(null) }}>{slotsExpanded ? 'Fechar slots' : 'Ver equipes e slots'} <ChevronRight size={16} className={slotsExpanded ? 'rotated' : ''} /></button>
-              {slotsExpanded ? <div className="lili-mobile-slots-area">
+              {chosenGroupGames.length ? <div className="lili-mobile-game-preview">{chosenGroupGames.map((game) => {
+                const date = game.data_jogo
+                  ? new Date(`${String(game.data_jogo).slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR')
+                  : null
+                const time = game.horario ? String(game.horario).slice(0, 5) : null
+                const maps = Array.isArray(game.mapas) ? game.mapas.filter(Boolean) : []
+                return <div key={game.id}><CalendarDays size={15} /><span><strong>{game.nome || 'Jogo'}</strong><small>{[date, time].filter(Boolean).join(' às ') || 'Data e horário a definir'}</small>{maps.length ? <small><Map size={13} /> {maps.join(' · ')}</small> : null}</span></div>
+              })}</div> : <div className="lili-mobile-game-preview"><div><CalendarDays size={15} /><span><strong>Calendário</strong><small>Data e mapas ainda não definidos para este grupo.</small></span></div></div>}
+              {structure.permission?.canManage ? <button type="button" className="lili-mobile-expand" onClick={() => { setSlotsExpanded((value) => !value); if (slotsExpanded) setSlotManagerGroup(null) }}>{slotsExpanded ? 'Fechar equipes' : 'Ver equipes'} <ChevronRight size={16} className={slotsExpanded ? 'rotated' : ''} /></button> : null}
+              {slotsExpanded || !structure.permission?.canManage ? <div className="lili-mobile-slots-area">
                 {structure.permission?.canManage ? <div className="lili-mobile-slot-toolbar"><button type="button" className={slotManagerGroup === String(chosenGroup.id) ? 'active' : ''} onClick={() => toggleSlotManager(String(chosenGroup.id))}><Users size={15} /> {slotManagerGroup === String(chosenGroup.id) ? 'Finalizar' : 'Organizar'}</button>{slotManagerGroup === String(chosenGroup.id) ? <button type="button" onClick={() => void shuffleGroupSlots(chosenGroup, chosenGroupSlots)} disabled={Boolean(slotAction) || chosenGroupSlots.filter((slot) => slot.equipe_id || slot.line_id).length < 2}><Shuffle size={15} /> Sortear</button> : null}</div> : null}
                 {slotManagerGroup === String(chosenGroup.id) ? renderSlotManager() : <div className="lili-champ-slots mobile-list">{chosenGroupSlots.map((slot, index) => <div className={slot.equipe_id || slot.line_id ? 'occupied' : 'free'} key={slot.id}><span>{slotLetter(slot, index)}</span><div><strong>{slot.nome_exibicao || slot.line_nome || slot.equipe_nome || 'Slot disponível'}</strong><small>{slot.equipe_nome && slot.line_nome ? `${slot.equipe_nome} · ${slot.line_nome}` : slot.equipe_nome || slot.line_nome || 'Aguardando equipe'}</small></div></div>)}</div>}
               </div> : null}
             </article> : null}
-          </> : <div className="lili-champ-empty compact"><Users size={25} /><strong>Nenhum grupo nesta fase</strong><span>Abra Configurar para montar a estrutura.</span></div>}
+          </> : <div className="lili-champ-empty compact"><Users size={25} /><strong>Nenhum grupo nesta fase</strong><span>{structure.permission?.canOrganizeGroups ? 'Abra Configurar para montar a estrutura.' : 'A organização ainda não publicou grupos nesta fase.'}</span></div>}
         </div> : null}
 
-        {detailTab === 'games' ? <div className="lili-mobile-panel"><LiliGamesManager championshipId={String(selected.id)} phases={phases} groups={groups} games={games} canManage={Boolean(structure.permission?.canManageGames)} request={request} onChanged={async () => { await openChampionship(selected) }} onFeedback={setFeedback} /></div> : null}
         {detailTab === 'links' ? <div className="lili-mobile-panel"><LiliLinksManager championshipId={String(selected.id)} phases={phases} groups={groups} slots={slots} canManage={Boolean(structure.permission?.canGenerateToken)} request={request} onFeedback={setFeedback} /></div> : null}
 
         {detailTab === 'config' ? <div className="lili-mobile-panel lili-config-panel">

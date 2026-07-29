@@ -1,5 +1,13 @@
 # Histórico de alterações
 
+## 2026-07-29 — Lili em modo de acompanhamento
+
+- Participantes podem consultar fases, grupos, equipes, calendário e mapas sem receber permissão de edição.
+- Campeonatos ativos e aprovados permitem a mesma leitura para usuários autenticados em modo espectador.
+- A aba separada de jogos foi removida da Lili; datas, horários e mapas agora aparecem dentro do grupo selecionado.
+- A data do grupo é derivada de `data_jogo` e `horario` dos jogos associados ao grupo.
+- Controles de links e configuração continuam exclusivos para perfis com as permissões administrativas correspondentes.
+
 ## 2026-07-28 — Logout completo e troca de conta
 
 - Retorno do login social agora reconhece `cadastro` para todos os cinco tipos de perfil; uma conta sem perfil abre diretamente o formulário solicitado.

@@ -6,8 +6,9 @@ import {
 } from '@backend/campeonatos/campeonato-permissions'
 import { assertPodeCriarSlots } from '@backend/campeonatos/capacidade'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { listUserRegistrations } from '@/features/lili/tools'
 
-function canReadStructure(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
+function canManageStructure(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
   if (permission.role === 'owner' || permission.role === 'manager') return permission.canView
   if (permission.role === 'seller') {
     const perms = permission.sellerPermissions
@@ -42,10 +43,11 @@ async function loadStructure(campeonatoId: string) {
     { data: grupos, error: gruposError },
     { data: slots, error: slotsError },
     { data: jogos, error: jogosError },
+    { data: jogosGrupos, error: jogosGruposError },
   ] = await Promise.all([
     supabaseAdmin
       .from('campeonatos')
-      .select('id,nome,logo_url,status,banner_url')
+      .select('id,nome,logo_url,status,aprovacao_status,banner_url')
       .eq('id', campeonatoId)
       .is('deleted_at', null)
       .maybeSingle(),
@@ -69,6 +71,10 @@ async function loadStructure(campeonatoId: string) {
       .select('id,nome,fase_id,rodada_id,data_jogo,horario,numero_partidas,mapas,grupos_ids,status,created_at')
       .eq('campeonato_id', campeonatoId)
       .order('created_at', { ascending: true }),
+    supabaseAdmin
+      .from('campeonato_jogos_grupos')
+      .select('jogo_id,grupo_id')
+      .eq('campeonato_id', campeonatoId),
   ])
 
   if (campError) throw campError
@@ -77,6 +83,7 @@ async function loadStructure(campeonatoId: string) {
   if (gruposError) throw gruposError
   if (slotsError) throw slotsError
   if (jogosError) throw jogosError
+  if (jogosGruposError) throw jogosGruposError
 
   // Enriquecer slots com line/equipe
   const lineIds = [...new Set((slots || []).map((s) => s.line_id).filter(Boolean))]
@@ -137,6 +144,13 @@ async function loadStructure(campeonatoId: string) {
       slots_livres: stats.livres || Math.max(0, (stats.total || Number(grupo.slots || 0)) - stats.ocupados),
     }
   })
+  const gruposPorJogo = new Map<string, string[]>()
+  for (const relation of jogosGrupos || []) {
+    const jogoId = String(relation.jogo_id || '')
+    const grupoId = String(relation.grupo_id || '')
+    if (!jogoId || !grupoId) continue
+    gruposPorJogo.set(jogoId, [...(gruposPorJogo.get(jogoId) || []), grupoId])
+  }
 
   return {
     campeonato,
@@ -151,7 +165,10 @@ async function loadStructure(campeonatoId: string) {
             .split(',')
             .map((m: string) => m.trim())
             .filter(Boolean),
-      grupos_ids: Array.isArray(jogo.grupos_ids) ? jogo.grupos_ids : [],
+      grupos_ids: [...new Set([
+        ...(Array.isArray(jogo.grupos_ids) ? jogo.grupos_ids.map(String) : []),
+        ...(gruposPorJogo.get(String(jogo.id)) || []),
+      ])],
     })),
     resumo: {
       fases: (fases || []).length,
@@ -168,22 +185,27 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const { id } = await context.params
     const user = await getBearerUser(req)
     const permission = await getCampeonatoPermission(user.id, id)
-    if (!canReadStructure(permission)) {
+    const registrations = canManageStructure(permission) ? [] : await listUserRegistrations(user)
+    const isParticipant = registrations.some((item: any) => String(item.campeonato_id || item.campeonato?.id || '') === id)
+    const structure = await loadStructure(id)
+    const isPublic = String(structure.campeonato?.status || '') === 'ativo'
+      && structure.campeonato?.aprovacao_status === 'aprovado'
+    if (!canManageStructure(permission) && !isParticipant && !isPublic) {
       throw new Error('Você não tem permissão para ver a estrutura deste campeonato.')
     }
 
-    const structure = await loadStructure(id)
+    const spectator = !canManageStructure(permission)
     return NextResponse.json({
       ...structure,
       permission: {
-        canView: permission.canView,
-        canManage: permission.canManage,
-        canRemove: permission.canRemove,
-        canGenerateToken: permission.canGenerateToken,
-        canOrganizeGroups: permission.canOrganizeGroups,
-        canManageGames: permission.canManageGames,
-        canScore: permission.canScore,
-        role: permission.role,
+        canView: true,
+        canManage: spectator ? false : permission.canManage,
+        canRemove: spectator ? false : permission.canRemove,
+        canGenerateToken: spectator ? false : permission.canGenerateToken,
+        canOrganizeGroups: spectator ? false : permission.canOrganizeGroups,
+        canManageGames: spectator ? false : permission.canManageGames,
+        canScore: spectator ? false : permission.canScore,
+        role: spectator ? 'viewer' : permission.role,
       },
     })
   } catch (error: any) {
