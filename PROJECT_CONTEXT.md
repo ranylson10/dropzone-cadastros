@@ -4,7 +4,7 @@
 > Atualize-o ao fim de cada rodada relevante.
 
 **Última atualização:** 28 de julho de 2026
-**Estado:** Logout completo e cartões de escolha de acesso corrigidos com limpeza de cache, revogação global e timeouts para evitar interface travada.
+**Estado:** Logout e escolha de acesso corrigidos; o retorno social abre a criação para qualquer tipo de perfil ausente e consultas de sessão/perfis possuem timeout.
 
 ## 1. Objetivo do sistema
 

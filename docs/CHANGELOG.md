@@ -2,6 +2,8 @@
 
 ## 2026-07-28 — Logout completo e troca de conta
 
+- Retorno do login social agora reconhece `cadastro` para todos os cinco tipos de perfil; uma conta sem perfil abre diretamente o formulário solicitado.
+- A consulta de perfis da conta possui limite de tempo e não deixa a seleção de acesso carregando indefinidamente.
 - Logout passou a revogar globalmente a sessão Supabase.
 - Perfis recentes, perfil ativo, snapshots de painel e estado OAuth são removidos ao sair.
 - A limpeza é repetida após o evento de logout para impedir restauração por listeners.

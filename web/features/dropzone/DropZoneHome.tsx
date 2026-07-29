@@ -85,6 +85,10 @@ const typeDescriptions: Record<ProfileType, string> = {
   broadcast: 'Stream, narrador, comentarista ou apresentador — lives e overlays.',
 }
 
+function parseProfileType(value: string): ProfileType | null {
+  return PROFILE_TYPES.includes(value as ProfileType) ? value as ProfileType : null
+}
+
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
 const PLAYER_INVITE_TYPES = new Set(['convite_jogador_campeonato', 'convite_jogador_equipe', 'player_invite'])
 const PANEL_CACHE_TTL_MS = 5 * 60 * 1000
@@ -364,12 +368,10 @@ export function DropZoneHome() {
         const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
         const requestedLogin = String(params.get('login') || '').trim()
         const requestedRegister = String(params.get('cadastro') || '').trim()
-        const forcedProfileType: ProfileType | null =
-          requestedLogin === 'equipe' || requestedRegister === 'equipe'
-            ? 'equipe'
-            : requestedLogin === 'jogador' || requestedRegister === 'jogador'
-              ? 'jogador'
-              : null
+        // O retorno do login social pode pedir qualquer um dos cinco perfis.
+        // Antes, somente equipe e jogador eram reconhecidos; produtora, manager
+        // e broadcast voltavam para a seleção mesmo quando o cadastro era explícito.
+        const forcedProfileType = parseProfileType(requestedRegister) || parseProfileType(requestedLogin)
         const forcedType = Boolean(forcedProfileType)
         const wantsCreate = Boolean(forcedProfileType && requestedRegister === forcedProfileType)
         const wantsNewAccount = params.get('nova_conta') === '1'
@@ -721,9 +723,23 @@ export function DropZoneHome() {
   }
 
   async function loadAccountsOnly(accessToken: string) {
-    const meRes = await fetch('/api/me', {
-      headers: authHeaders(accessToken),
-    })
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 8000)
+    let meRes: Response
+    try {
+      meRes = await fetch('/api/me', {
+        headers: authHeaders(accessToken),
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') {
+        throw new Error('Tempo esgotado ao consultar os perfis desta conta.')
+      }
+      throw cause
+    } finally {
+      window.clearTimeout(timeout)
+    }
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
     const loadedAccounts = (meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[]
