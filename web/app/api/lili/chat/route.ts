@@ -1915,6 +1915,29 @@ export async function POST(req: NextRequest) {
           currentFlow: 'group_invite',
         }
 
+        if (!context.selectedTeamId && (!Array.isArray(groupInvite?.equipes_disponiveis) || groupInvite.equipes_disponiveis.length === 0)) {
+          const resumeContext: LiliClientContext = { ...baseContext, currentStep: 'team_profile' }
+          response = {
+            reply: 'Sua conta ainda não possui um perfil de equipe. Cadastre os dados da equipe e, ao concluir, a Lili voltará automaticamente para este mesmo campeonato para você escolher a line e o slot.',
+            intent: match.intent,
+            actions: [
+              {
+                id: 'create-team-for-group-invite',
+                label: 'Cadastrar equipe',
+                message: 'Continuar inscrição após cadastrar equipe',
+                intent: 'continuar_convite_grupo',
+                href: `/?cadastro=equipe&vincular=1&returnTo=${encodeURIComponent('/lili')}`,
+                variant: 'primary',
+                context: resumeContext,
+              },
+              { id: 'cancel-group-invite', label: 'Cancelar', message: 'Cancelar operação', intent: 'cancelar_fluxo', variant: 'secondary', context: resumeContext },
+            ],
+            context: resumeContext,
+            source: 'system',
+          }
+          break
+        }
+
         if (!context.selectedTeamId && Array.isArray(groupInvite?.equipes_disponiveis) && groupInvite.equipes_disponiveis.length > 1) {
           response = {
             reply: 'Escolha qual equipe você administra e deseja inscrever neste campeonato.',

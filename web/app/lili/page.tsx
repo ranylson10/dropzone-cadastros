@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot, Trophy, Users, Gamepad2, Medal } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { OAUTH_RETURN_KEY } from '@/features/auth/SocialLogin'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 import { clientText, normalizeLocale } from '@/features/lili/i18n'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -391,6 +392,15 @@ export default function LiliPage() {
       return
     }
     if (action.href) {
+      if (action.intent && action.context) {
+        try {
+          sessionStorage.setItem(PENDING_KEY, JSON.stringify({
+            message: action.message || action.label,
+            intent: action.intent,
+            context: action.context,
+          }))
+        } catch { /* ignore */ }
+      }
       if (/^https?:\/\/(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)/i.test(action.href)) {
         window.open(action.href, '_blank', 'noopener,noreferrer')
       } else {
@@ -401,9 +411,41 @@ export default function LiliPage() {
     void sendMessage(action.message || action.label, action.intent, action.context)
   }
 
-  function login() {
-    try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ message: 'Continuar consulta após login', intent: context.currentFlow === 'registration' ? 'iniciar_inscricao' : context.currentFlow === 'registrations' ? 'listar_minhas_inscricoes' : 'listar_minhas_equipes', context })) } catch { /* ignore */ }
-    window.location.href = `/login?returnTo=${encodeURIComponent('/lili')}`
+  async function login() {
+    const pendingIntent: LiliIntent = context.currentFlow === 'group_invite'
+      ? 'continuar_convite_grupo'
+      : context.currentFlow === 'registration'
+        ? 'iniciar_inscricao'
+        : context.currentFlow === 'registrations'
+          ? 'listar_minhas_inscricoes'
+          : 'listar_minhas_equipes'
+    try {
+      sessionStorage.setItem(PENDING_KEY, JSON.stringify({
+        message: 'Continuar consulta após login',
+        intent: pendingIntent,
+        context,
+      }))
+      sessionStorage.setItem(OAUTH_RETURN_KEY, '/lili')
+    } catch { /* ignore */ }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/login?complete=1`,
+          skipBrowserRedirect: false,
+          queryParams: { prompt: 'select_account', access_type: 'offline' },
+        },
+      })
+      if (error) throw error
+      if (data?.url) window.location.assign(data.url)
+    } catch (error: any) {
+      setMessages((current) => [...current, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        text: error?.message || 'Não foi possível abrir o login com Google.',
+      }])
+    }
   }
 
   function resetConversation() {
