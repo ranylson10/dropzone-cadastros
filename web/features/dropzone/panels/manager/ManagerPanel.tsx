@@ -189,7 +189,7 @@ export function ManagerPanel(props: {
       setSellerError('Configure o WhatsApp antes de copiar o link.')
       return
     }
-    const publicUrl = `${window.location.origin}/vendedores/${props.account.id}`
+    const publicUrl = `${window.location.origin}/vagas?vendedor=${props.account.id}`
     navigator.clipboard.writeText(publicUrl)
     setFeedback('Link copiado.')
   }

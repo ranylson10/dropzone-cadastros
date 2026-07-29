@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, CheckCircle2, Filter, MapPin, Search, Ticket, Users, X, ZoomIn } from 'lucide-react'
+import { ArrowRight, CalendarDays, CheckCircle2, Filter, MapPin, Search, Ticket, Users, X, ZoomIn } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
@@ -30,6 +30,7 @@ export default function VacanciesPage() {
   const [preview, setPreview] = useState<any | null>(null)
   const [gate, setGate] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
+  const [scope, setScope] = useState<any | null>(null)
 
   async function load() {
     setLoading(true)
@@ -38,10 +39,15 @@ export default function VacanciesPage() {
       const { data } = await supabase.auth.getSession()
       const token = data.session?.access_token
       setAuthenticated(Boolean(token))
-      const response = await fetch('/api/vagas', { cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      const params = new URLSearchParams(window.location.search)
+      const catalog = new URLSearchParams()
+      if (params.get('produtora')) catalog.set('produtora', String(params.get('produtora')))
+      if (params.get('vendedor')) catalog.set('vendedor', String(params.get('vendedor')))
+      const response = await fetch(`/api/vagas${catalog.size ? `?${catalog}` : ''}`, { cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : {} })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error)
       setItems(payload.announcements || [])
+      setScope(payload.scope || null)
     } catch (cause: any) {
       setError(cause.message)
     } finally {
@@ -50,12 +56,7 @@ export default function VacanciesPage() {
   }
 
   useEffect(() => {
-    void (async () => {
-      const { data } = await supabase.auth.getSession()
-      const guest = sessionStorage.getItem('dropzone_vagas_guest') === '1'
-      setGate(!data.session && !guest)
-      await load()
-    })()
+    void load()
   }, [])
 
   useEffect(() => {
@@ -76,6 +77,7 @@ export default function VacanciesPage() {
     (filter === 'all' || item.ja_tem_vaga)
     && (!sellerFilter || (item.vendedores || []).some((seller: any) => seller.id === sellerFilter))
     && `${item.nome} ${item.tipo} ${item.proximo_grupo} ${item.servidor}`.toLowerCase().includes(query.toLowerCase())), [items, filter, query, sellerFilter])
+  const returnTo = typeof window === 'undefined' ? '/vagas' : `${window.location.pathname}${window.location.search}`
 
   function openBuyModal(item: any) {
     if (!sellerFilter) {
@@ -100,22 +102,23 @@ export default function VacanciesPage() {
   }
 
   return (
-    <AppShell activeLabel="Vagas abertas" loadSession mainClassName="vacancies-page page">
+    <AppShell activeLabel="Vagas abertas" loadSession mainClassName={`vacancies-page page ${scope ? 'is-scoped' : ''}`}>
       <section className="vacancies-hero">
         <div>
-          <p className="eyebrow">Agenda competitiva</p>
-          <h1>Campeonatos com vagas abertas</h1>
-          <p>Pague com PIX ou fale com a organização no WhatsApp para garantir sua vaga.</p>
+          <p className="eyebrow">{scope?.tipo === 'vendedor' ? 'Seleção do vendedor' : scope?.tipo === 'produtora' ? 'Eventos da produtora' : 'Agenda competitiva'}</p>
+          <h1>{scope ? `Vagas abertas · ${scope.nome}` : 'Campeonatos com vagas abertas'}</h1>
+          <p>Escolha seu campeonato, confira a próxima data e garanta a vaga da sua equipe.</p>
         </div>
+        {scope?.logo_url ? <img className="vacancies-scope-logo" src={scope.logo_url} alt="" /> : null}
         <div className="vacancies-hero-count"><Ticket /><strong>{items.reduce((sum, item) => sum + item.vagas_livres, 0)}</strong><span>vagas disponíveis</span></div>
       </section>
 
-      <section className="vacancies-toolbar">
-        <div className="vacancies-filter"><Filter size={15} /><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Campeonatos gerais</button><button className={filter === 'mine' ? 'active' : ''} onClick={() => authenticated ? setFilter('mine') : setGate(true)}>Meus campeonatos</button></div>
-        <select value={sellerFilter} onChange={(event) => setSellerFilter(event.target.value)} aria-label="Filtrar por vendedor">
+      <section className={`vacancies-toolbar ${scope ? 'scoped-toolbar' : ''}`}>
+        {!scope ? <div className="vacancies-filter"><Filter size={15} /><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Campeonatos gerais</button><button className={filter === 'mine' ? 'active' : ''} onClick={() => authenticated ? setFilter('mine') : setGate(true)}>Meus campeonatos</button></div> : <strong>{visible.length} {visible.length === 1 ? 'campeonato disponível' : 'campeonatos disponíveis'}</strong>}
+        {!scope ? <select value={sellerFilter} onChange={(event) => setSellerFilter(event.target.value)} aria-label="Filtrar por vendedor">
           <option value="">Todos os vendedores</option>
           {sellerOptions.map((seller) => <option key={seller.id} value={seller.id}>{seller.nome}</option>)}
-        </select>
+        </select> : null}
         <label><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar campeonato" /></label>
       </section>
 
@@ -138,8 +141,9 @@ export default function VacanciesPage() {
                 <span>Pague com PIX ou fale no WhatsApp da organização.</span>
               </div>
               <button className="button vacancy-register" type="button" onClick={() => openBuyModal(item)}>
-                Quero me inscrever
+                Garantir minha vaga <ArrowRight size={15} />
               </button>
+              <a className="vacancy-details-link" href={`/campeonatos/${item.id}`}>Ver detalhes do campeonato</a>
             </div>
           </article>)}
           {visible.length === 0 ? <div className="vacancies-empty"><Ticket size={32} /><strong>Nenhuma vaga encontrada</strong><span>Tente outro filtro ou volte mais tarde.</span></div> : null}
@@ -158,14 +162,14 @@ export default function VacanciesPage() {
             proximo_grupo: buyTarget.proximo_grupo,
           }}
           vendedorManagerId={buyTarget._vendedor_manager_id || sellerFilter || null}
-          returnTo="/vagas"
+          returnTo={returnTo}
           authenticated={authenticated}
           onClose={() => setBuyTarget(null)}
           onRequireLogin={() => setGate(true)}
         />
       ) : null}
 
-      {gate ? <div className="vacancies-access-gate"><section><button className="gate-close" onClick={continueAsGuest}><X size={18} /></button><img src="/dropzone-icon.png" alt="" /><p className="eyebrow">Vagas abertas</p><h2>Como deseja continuar?</h2><p>Entre para pagar online e identificar campeonatos em que sua equipe já possui vaga.</p><SocialLogin returnTo="/vagas" /><button className="continue-guest" onClick={continueAsGuest}>Continuar sem login</button></section></div> : null}
+      {gate ? <div className="vacancies-access-gate"><section><button className="gate-close" onClick={continueAsGuest}><X size={18} /></button><img src="/dropzone-icon.png" alt="" /><p className="eyebrow">Identificar sua equipe</p><h2>Entre para continuar</h2><p>O login é necessário somente para pagar online ou consultar vagas da sua equipe.</p><SocialLogin returnTo={returnTo} /><button className="continue-guest" onClick={continueAsGuest}>Voltar aos campeonatos</button></section></div> : null}
     </AppShell>
   )
 }

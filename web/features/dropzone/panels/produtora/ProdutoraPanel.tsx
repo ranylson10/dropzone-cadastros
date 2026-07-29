@@ -151,6 +151,7 @@ export function ProdutoraPanel(props: {
   })
   const [mgrInvites, setMgrInvites] = useState<any[]>([])
   const [mgrInviteMsg, setMgrInviteMsg] = useState('')
+  const [catalogCopied, setCatalogCopied] = useState(false)
   const [showInviteForm, setShowInviteForm] = useState(false)
 
   useEffect(() => {
@@ -445,6 +446,16 @@ export function ProdutoraPanel(props: {
     || props.account?.data?.aprovacao_status
     || 'aprovado',
   )
+  const producerCatalogLink = props.account?.id
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/vagas?produtora=${props.account.id}`
+    : ''
+
+  async function copyProducerCatalog() {
+    if (!producerCatalogLink) return
+    await navigator.clipboard.writeText(producerCatalogLink)
+    setCatalogCopied(true)
+    window.setTimeout(() => setCatalogCopied(false), 1800)
+  }
 
   useEffect(() => {
     if (!selectedChamp?.id) {
@@ -1020,6 +1031,16 @@ ${params.url}`
         >
           Novo campeonato
         </button>
+        {producerCatalogLink ? (
+          <div className="producer-catalog-actions">
+            <button className="button secondary full" type="button" onClick={() => void copyProducerCatalog()}>
+              <Copy size={14} /> {catalogCopied ? 'Link copiado' : 'Copiar página de vagas'}
+            </button>
+            <a className="button secondary full" href={producerCatalogLink} target="_blank" rel="noreferrer">
+              <Link2 size={14} /> Abrir página
+            </a>
+          </div>
+        ) : null}
       </aside>
 
       <SystemModal

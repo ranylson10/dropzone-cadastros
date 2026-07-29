@@ -126,7 +126,7 @@ export function ManagerVendasView(props: {
           </button>
           <a
             className="button secondary"
-            href={`/vendedores/${props.accountId}`}
+            href={`/vagas?vendedor=${props.accountId}`}
             target="_blank"
             rel="noreferrer"
           >

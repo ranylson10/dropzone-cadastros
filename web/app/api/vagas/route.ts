@@ -3,19 +3,43 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 export async function GET(req: NextRequest) {
   try {
+    const produtoraId = String(req.nextUrl.searchParams.get('produtora') || '').trim()
+    const vendedorId = String(req.nextUrl.searchParams.get('vendedor') || '').trim()
+    if (produtoraId && vendedorId) throw new Error('Use somente um catálogo por vez.')
+    let sellerProfile: any = null
+    let sellerPortfolio: string[] = []
+    if (vendedorId) {
+      const { data, error } = await supabaseAdmin
+        .from('managers')
+        .select('id,nome,username,avatar_url,nome_publico_vendas,portfolio_anuncios')
+        .eq('id', vendedorId)
+        .maybeSingle()
+      if (error) throw error
+      if (!data) throw new Error('Catálogo do vendedor não encontrado.')
+      sellerProfile = data
+      sellerPortfolio = Array.isArray(data.portfolio_anuncios) ? data.portfolio_anuncios.map(String) : []
+    }
+    let championsQuery = supabaseAdmin
+      .from('campeonatos')
+      .select('id,nome,tipo,logo_url,banner_url,status,aprovacao_status,produtora_id')
+      .eq('status', 'ativo')
+      .eq('aprovacao_status', 'aprovado')
+      .is('deleted_at', null)
+    if (produtoraId) championsQuery = championsQuery.eq('produtora_id', produtoraId)
+    let sellersQuery = supabaseAdmin
+      .from('campeonato_vendedores')
+      .select('campeonato_id,manager_id,nome_publico,whatsapp_url,status')
+      .eq('status', 'ativo')
+    if (vendedorId) sellersQuery = sellersQuery.eq('manager_id', vendedorId)
+
     const [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, sellersResult] = await Promise.all([
-      supabaseAdmin
-        .from('campeonatos')
-        .select('id,nome,tipo,logo_url,banner_url,status,aprovacao_status')
-        .eq('status', 'ativo')
-        .eq('aprovacao_status', 'aprovado')
-        .is('deleted_at', null),
+      championsQuery,
       supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').eq('aceita_novas_inscricoes_equipes', true),
       supabaseAdmin.from('campeonato_grupos').select('id,campeonato_id,nome,fase_id'),
       supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,equipe_id,status,slot_numero'),
       supabaseAdmin.from('campeonato_jogos').select('id,campeonato_id,nome,data_jogo,horario,grupos_ids,status').eq('status', 'ativo'),
       supabaseAdmin.from('campeonato_jogos_grupos').select('jogo_id,grupo_id'),
-      supabaseAdmin.from('campeonato_vendedores').select('campeonato_id,manager_id,nome_publico,whatsapp_url,status').eq('status', 'ativo'),
+      sellersQuery,
     ])
     for (const result of [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult]) if (result.error) throw result.error
     if (sellersResult.error && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(sellersResult.error.code || '')) throw sellersResult.error
@@ -29,13 +53,24 @@ export async function GET(req: NextRequest) {
     if (bearer) { const { data } = await supabaseAdmin.auth.getUser(bearer); if (data.user) { const { data: teams } = await supabaseAdmin.from('equipes').select('id').or(`auth_user_id.eq.${data.user.id},dono_auth_user_id.eq.${data.user.id}`); teamIds = (teams || []).map((row:any) => row.id); if (teamIds.length) { const { data: entries } = await supabaseAdmin.from('campeonato_equipes').select('campeonato_id').in('equipe_id', teamIds).eq('status', 'ativo'); enrolledIds = new Set((entries || []).map((row:any) => row.campeonato_id)) } } }
     const announcements = (championsResult.data || []).flatMap((champ:any) => {
       const config:any = configs.get(champ.id); if (!config || !champ.banner_url) return []
+      if (vendedorId && !(sellersByChampionship.get(champ.id) || []).length) return []
+      if (vendedorId && sellerPortfolio.length && !sellerPortfolio.includes(String(champ.id))) return []
       const groups = (groupsResult.data || []).filter((group:any) => group.campeonato_id === champ.id)
       const openGroups = groups.map((group:any) => { const slots = (slotsResult.data || []).filter((slot:any) => slot.grupo_id === group.id && slot.status !== 'excluido'); const free = slots.filter((slot:any) => !slot.equipe_id).length; if (!free) return null; const nextGames = (gamesResult.data || []).filter((game:any) => game.campeonato_id === champ.id && game.data_jogo >= today && ([...(game.grupos_ids || []), ...(gameGroupMap.get(game.id) || [])].includes(group.id))).sort((a:any,b:any) => `${a.data_jogo} ${a.horario||''}`.localeCompare(`${b.data_jogo} ${b.horario||''}`)); return { id:group.id, nome:group.nome, vagas_livres:free, total_slots:slots.length, proximo_jogo:nextGames[0] || null } }).filter(Boolean) as any[]
       if (!openGroups.length) return []
       const dated = openGroups.filter((group:any) => group.proximo_jogo).sort((a:any,b:any) => `${a.proximo_jogo.data_jogo} ${a.proximo_jogo.horario||''}`.localeCompare(`${b.proximo_jogo.data_jogo} ${b.proximo_jogo.horario||''}`)); const next = dated[0] || openGroups[0]
       const sellers = (sellersByChampionship.get(champ.id) || []).map((seller:any) => ({ id:seller.manager_id, nome:seller.nome_publico || 'Vendedor', contato:{ id:`manager-${seller.manager_id}`, manager_id:seller.manager_id, nome:seller.nome_publico || 'Vendedor', url:seller.whatsapp_url } }))
-      return [{ id:champ.id, nome:champ.nome, tipo:champ.tipo, logo_url:champ.logo_url, banner_url:champ.banner_url, valor_inscricao:config.valor_inscricao, plataforma:config.plataforma, servidor:config.servidor, data_limite_inscricao:config.data_limite_inscricao, contatos_whatsapp:config.contatos_whatsapp || [], vendedores:sellers, grupos:openGroups, vagas_livres:openGroups.reduce((sum:number, group:any)=>sum+group.vagas_livres,0), proxima_data:next.proximo_jogo?.data_jogo || null, proximo_horario:next.proximo_jogo?.horario || null, proximo_grupo:next.nome, ja_tem_vaga:enrolledIds.has(champ.id) }]
+      const sellerContacts = vendedorId ? sellers.map((seller:any) => seller.contato).filter((contact:any) => contact.url) : config.contatos_whatsapp || []
+      return [{ id:champ.id, nome:champ.nome, tipo:champ.tipo, logo_url:champ.logo_url, banner_url:champ.banner_url, valor_inscricao:config.valor_inscricao, plataforma:config.plataforma, servidor:config.servidor, data_limite_inscricao:config.data_limite_inscricao, contatos_whatsapp:sellerContacts, vendedores:sellers, grupos:openGroups, vagas_livres:openGroups.reduce((sum:number, group:any)=>sum+group.vagas_livres,0), proxima_data:next.proximo_jogo?.data_jogo || null, proximo_horario:next.proximo_jogo?.horario || null, proximo_grupo:next.nome, ja_tem_vaga:enrolledIds.has(champ.id) }]
     }).sort((a:any,b:any) => (a.proxima_data ? 0 : 1) - (b.proxima_data ? 0 : 1) || String(a.proxima_data||'9999').localeCompare(String(b.proxima_data||'9999')))
-    return NextResponse.json({ announcements, authenticated:Boolean(bearer), hasTeam:teamIds.length>0 })
+    let scope: any = null
+    if (produtoraId) {
+      const { data } = await supabaseAdmin.from('produtoras').select('id,nome,logo_url,username').eq('id', produtoraId).maybeSingle()
+      if (!data) throw new Error('Catálogo da produtora não encontrado.')
+      scope = { tipo: 'produtora', id: data.id, nome: data.nome || data.username || 'Produtora', logo_url: data.logo_url || null }
+    } else if (vendedorId) {
+      scope = { tipo: 'vendedor', id: sellerProfile.id, nome: sellerProfile.nome_publico_vendas || sellerProfile.nome || sellerProfile.username || 'Vendedor', logo_url: sellerProfile.avatar_url || null }
+    }
+    return NextResponse.json({ announcements, authenticated:Boolean(bearer), hasTeam:teamIds.length>0, scope })
   } catch (error:any) { return NextResponse.json({ error:error?.message || 'Erro ao carregar vagas.' }, { status:400 }) }
 }

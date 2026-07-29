@@ -252,3 +252,17 @@
     padding: 7px 9px;
   }
 }
+
+.producer-catalog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.producer-catalog-actions .button {
+  min-width: 0;
+  padding-inline: 8px;
+  font-size: 9px;
+  text-align: center;
+}
