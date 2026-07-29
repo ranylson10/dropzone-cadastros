@@ -35,7 +35,7 @@ async function assertSellerCanInvite(userId: string, campeonatoId: string) {
           .from('tokens')
           .select('id', { count: 'exact', head: true })
           .eq('campeonato_id', campeonatoId)
-          .eq('tipo', 'convite_equipe_campeonato')
+          .in('tipo', ['convite_equipe_campeonato', 'team_invite'])
           .eq('criado_por', userId)
           .eq('status', 'ativo')
           .eq('usado', false),
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           .from('tokens')
           .select('id,expira_em')
           .eq('campeonato_id', id)
-          .eq('tipo', 'convite_equipe_campeonato')
+          .in('tipo', ['convite_equipe_campeonato', 'team_invite'])
           .eq('status', 'ativo')
           .eq('usado', false)
           .eq('slot_id', slotId)

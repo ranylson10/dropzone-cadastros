@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRightLeft, CalendarDays, ChevronRight, CirclePlus, ExternalLink, Link2, Loader2, Map, Minus, Pencil, Plus, RefreshCw, Save, Search, Shield, Shuffle, Sparkles, Trash2, Trophy, UserMinus, UserPlus, Users, X } from 'lucide-react'
 import { LiliPhaseDistributor } from './LiliPhaseDistributor'
 import { LiliLinksManager } from './LiliLinksManager'
+import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@/components/forms/campeonato'
+import { SystemModal } from '@/components/layout/SystemModal'
 
 type ChampionshipItem = {
   id: string
@@ -32,7 +34,13 @@ type Structure = {
   permission?: Record<string, any>
 }
 
-export function LiliChampionshipHub({ accessToken }: { accessToken?: string | null }) {
+type ActiveAccount = {
+  id?: string
+  profile_type?: string | null
+  data?: Record<string, any> | null
+}
+
+export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToken?: string | null; activeAccount?: ActiveAccount | null }) {
   const [items, setItems] = useState<ChampionshipItem[]>([])
   const [selected, setSelected] = useState<ChampionshipItem | null>(null)
   const [structure, setStructure] = useState<Structure | null>(null)
@@ -58,6 +66,9 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
   const [detailTab, setDetailTab] = useState<'overview' | 'groups' | 'links' | 'config'>('overview')
   const [openGroupId, setOpenGroupId] = useState<string | null>(null)
   const [slotsExpanded, setSlotsExpanded] = useState(false)
+  const [showCreateChampionship, setShowCreateChampionship] = useState(false)
+  const [championshipDraft, setChampionshipDraft] = useState<CampeonatoFormValue>({ ...emptyCampeonatoForm })
+  const [creatingChampionship, setCreatingChampionship] = useState(false)
 
   async function request(url: string, options?: RequestInit) {
     const response = await fetch(url, {
@@ -66,6 +77,7 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
       headers: {
         ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(activeAccount?.profile_type ? { 'X-Profile-Type': activeAccount.profile_type } : {}),
         ...(options?.headers || {}),
       },
     })
@@ -83,6 +95,64 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
     } catch (err: any) {
       setError(err?.message || 'Não foi possível carregar seus campeonatos.')
     } finally { setLoading(false) }
+  }
+
+  async function uploadChampionshipFile(file: File, bucket: string) {
+    if (!accessToken) throw new Error('Entre novamente para enviar a imagem.')
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('Não foi possível ler a imagem.'))
+      reader.readAsDataURL(file)
+    })
+    const payload = await request('/api/upload', {
+      method: 'POST',
+      body: JSON.stringify({
+        bucket,
+        file_name: file.name || `${bucket}.png`,
+        content_type: file.type || 'image/png',
+        data_url: dataUrl,
+        upload_intent: 'create_campeonato',
+      }),
+    })
+    if (!payload?.url) throw new Error('O upload terminou sem retornar a imagem.')
+    return String(payload.url)
+  }
+
+  async function createChampionship() {
+    if (activeAccount?.profile_type !== 'produtora') {
+      setError('Selecione um perfil de produtora para criar campeonatos.')
+      return
+    }
+    if (!championshipDraft.nome.trim()) {
+      setError('Informe o nome do campeonato.')
+      return
+    }
+    if (!championshipDraft.logo_url.trim()) {
+      setError('Envie a logo do campeonato.')
+      return
+    }
+    setCreatingChampionship(true)
+    setError('')
+    setFeedback('')
+    try {
+      await request('/api/dropzone', {
+        method: 'POST',
+        body: JSON.stringify({
+          entity_type: 'championship',
+          name: championshipDraft.nome.trim(),
+          data: championshipDraft,
+        }),
+      })
+      setChampionshipDraft({ ...emptyCampeonatoForm })
+      setShowCreateChampionship(false)
+      setFeedback('Campeonato criado. Agora ele aguarda pagamento ou liberação administrativa para ser publicado.')
+      await loadItems()
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível criar o campeonato.')
+    } finally {
+      setCreatingChampionship(false)
+    }
   }
 
   async function openChampionship(item: ChampionshipItem) {
@@ -468,9 +538,10 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
 
   if (!selected) return (
     <section className="lili-champ-hub">
-      <div className="lili-champ-toolbar"><div><strong>Meus campeonatos</strong><span>Escolha um campeonato para consultar ou administrar.</span></div><button type="button" onClick={() => void loadItems()} aria-label="Atualizar"><RefreshCw size={17} /></button></div>
+      <div className="lili-champ-toolbar"><div><strong>Meus campeonatos</strong><span>Escolha um campeonato para consultar ou administrar.</span></div><div className="lili-champ-toolbar-actions">{activeAccount?.profile_type === 'produtora' ? <button type="button" className="create" onClick={() => setShowCreateChampionship(true)} title="Criar campeonato"><CirclePlus size={17} /><span>Novo</span></button> : null}<button type="button" onClick={() => void loadItems()} aria-label="Atualizar"><RefreshCw size={17} /></button></div></div>
       {loading ? <div className="lili-champ-loading"><Loader2 className="spin" size={24} /> Carregando campeonatos…</div> : null}
       {error ? <div className="lili-champ-feedback error">{error}</div> : null}
+      {feedback ? <div className="lili-champ-feedback">{feedback}</div> : null}
       {!loading && !items.length ? <div className="lili-champ-empty"><Trophy size={30} /><strong>Nenhum campeonato encontrado</strong><span>Quando sua equipe entrar em um grupo ou você criar um campeonato, ele aparecerá aqui.</span><a href="/campeonatos">Explorar campeonatos</a></div> : null}
       <div className="lili-champ-list">{items.map((item) => {
         const registration = item.registrations?.[0]
@@ -480,6 +551,9 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
           <span className={`lili-champ-role ${item.relationship}`}>{item.relationship === 'admin' ? 'Admin' : 'Minha equipe'}</span><ChevronRight size={18} />
         </button>
       })}</div>
+      <SystemModal open={showCreateChampionship} title="Novo campeonato pela Lili" description="Preencha todas as configurações. Esta opção está disponível somente no perfil de produtora." onClose={() => setShowCreateChampionship(false)} size="wide">
+        <CampeonatoForm value={championshipDraft} onChange={setChampionshipDraft} onSubmit={() => void createChampionship()} onCancel={() => setShowCreateChampionship(false)} loading={creatingChampionship} uploadPublicFile={uploadChampionshipFile} />
+      </SystemModal>
     </section>
   )
 

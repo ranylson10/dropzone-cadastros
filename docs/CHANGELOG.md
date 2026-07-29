@@ -178,3 +178,9 @@
 - Premiação e inscrição agora usam máscara em reais.
 - Tipo de premiação virou seletor com Sem premiação, PIX, Dinheiro e Brinde.
 - Brindes usam descrição própria; valores monetários são persistidos em campos numéricos.
+## 2026-07-29 — Convites e criação de campeonatos na Lili
+
+- Convites de equipe para campeonato agora aceitam também o formato histórico `team_invite` em validação, listagem, renovação e aceite.
+- A Lili envia explicitamente o perfil ativo nas operações de campeonato.
+- O formulário completo de criação de campeonato foi disponibilizado na Lili somente para o perfil ativo de produtora.
+- A capacidade ignora slots excluídos, impedindo falsos bloqueios por limite após ajustes de estrutura.

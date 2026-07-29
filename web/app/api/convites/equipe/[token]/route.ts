@@ -99,7 +99,7 @@ async function carregar(token: string) {
     .from('tokens')
     .select(TOKEN_SELECT)
     .eq('token', clean)
-    .eq('tipo', 'convite_equipe_campeonato')
+    .in('tipo', ['convite_equipe_campeonato', 'team_invite'])
     .maybeSingle()
   if (error) throw error
   if (!convite) throw new Error('Convite não encontrado.')

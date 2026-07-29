@@ -64,7 +64,7 @@ async function liberarExpirados(campeonatoId: string) {
       .from('tokens')
       .select('id,slot_id,expira_em')
       .eq('campeonato_id', campeonatoId)
-      .eq('tipo', 'convite_equipe_campeonato')
+      .in('tipo', ['convite_equipe_campeonato', 'team_invite'])
       .eq('status', 'ativo')
       .eq('usado', false)
 
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         .from('tokens')
         .select('id,token,slot_id,grupo_id,expira_em,status,usado,nome_equipe_reservada,nome_line_reservada,created_at')
         .eq('campeonato_id', id)
-        .eq('tipo', 'convite_equipe_campeonato')
+        .in('tipo', ['convite_equipe_campeonato', 'team_invite'])
         .eq('status', 'ativo')
         .eq('usado', false)
         .order('created_at', { ascending: false }),

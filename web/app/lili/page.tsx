@@ -576,7 +576,7 @@ export default function LiliPage() {
       </nav>
 
       {activeHubTab === 'championships' ? (
-        <div className="lili-hub-panel"><LiliChampionshipHub accessToken={session?.access_token} /></div>
+        <div className="lili-hub-panel"><LiliChampionshipHub accessToken={session?.access_token} activeAccount={account} /></div>
       ) : activeHubTab === 'teams' ? (
         <div className="lili-hub-panel"><LiliTeamHub accessToken={session?.access_token} /></div>
       ) : activeHubTab === 'players' ? (

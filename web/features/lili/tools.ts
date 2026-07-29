@@ -845,7 +845,7 @@ export async function resolveExistingInvite(value: string) {
     .from('tokens')
     .select('token,tipo,campeonato_id,grupo_id,slot_id,status,expira_em')
     .ilike('token', token)
-    .eq('tipo', 'convite_equipe_campeonato')
+    .in('tipo', ['convite_equipe_campeonato', 'team_invite'])
     .maybeSingle()
   if (teamError) throw teamError
   if (teamInvite) {

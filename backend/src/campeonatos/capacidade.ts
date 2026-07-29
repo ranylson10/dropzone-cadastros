@@ -88,6 +88,7 @@ async function countSlotsEntrada(
     .from('campeonato_slots')
     .select('id', { count: 'exact', head: true })
     .eq('campeonato_id', campeonatoId)
+    .neq('status', 'excluido')
 
   if (onlyOccupied) {
     query = query.or('line_id.not.is.null,status.eq.ocupado')
