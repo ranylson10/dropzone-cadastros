@@ -52,6 +52,8 @@ export type LiliIntent =
   | 'escalar_elenco'
   | 'abrir_escalacoes_equipe'
   | 'gerar_token_escalacao'
+  | 'continuar_convite_escalacao'
+  | 'confirmar_convite_escalacao'
   | 'listar_campeonatos_gerenciados'
   | 'abrir_central_organizador'
   | 'ver_estrutura_operacional_campeonato'

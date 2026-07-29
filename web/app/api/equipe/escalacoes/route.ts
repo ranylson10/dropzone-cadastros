@@ -106,10 +106,12 @@ export async function GET(req: NextRequest) {
         const link = linksByParticipation.get(summary.campeonato_equipe_id)
         return {
           ...summary,
-          link_id: link?.id || summary.link_id || null,
-          link_token: link?.token || summary.link_token || null,
-          link_ativo: link ? true : summary.link_ativo || false,
-          link_expira_em: link?.expira_em || summary.link_expira_em || null,
+          // A view pode conservar o último token após ele expirar. Só exponha
+          // convites que foram confirmados como ativos e válidos acima.
+          link_id: link?.id || null,
+          link_token: link?.token || null,
+          link_ativo: Boolean(link),
+          link_expira_em: link?.expira_em || null,
           limite_jogadores: Number(link?.limite_jogadores || summary.limite_jogadores || 6),
           equipe_nome: (teams || []).find((team: any) => team.id === summary.equipe_id)?.nome || 'Equipe',
           equipe_tag: (teams || []).find((team: any) => team.id === summary.equipe_id)?.tag || null,

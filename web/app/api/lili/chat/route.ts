@@ -257,6 +257,16 @@ async function loadGroupInviteInChat(req: NextRequest, token: string, equipeId?:
   return data
 }
 
+async function loadLineupInviteInChat(req: NextRequest, token: string) {
+  const response = await fetch(
+    new URL(`/api/escalacoes/${encodeURIComponent(token)}`, req.nextUrl.origin),
+    { method: 'GET', headers: forwardedAuthHeaders(req), cache: 'no-store' },
+  )
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data?.error || 'Não foi possível carregar este convite de escalação.')
+  return data
+}
+
 async function confirmGroupInviteInChat(req: NextRequest, context: LiliClientContext) {
   if (!context.inviteToken) throw new Error('Convite não localizado nesta conversa.')
   const url = new URL(`/api/convites/grupo/${encodeURIComponent(context.inviteToken)}`, req.nextUrl.origin)
@@ -740,7 +750,7 @@ export async function POST(req: NextRequest) {
           intent: match.intent,
           cards: lineups.map((lineup: any) => {
             const token = String(lineup.link_token || '')
-            const publicUrl = token ? `${req.nextUrl.origin}/escala/${token}` : ''
+            const publicUrl = token ? `${req.nextUrl.origin}/lili?invite=${encodeURIComponent(token)}` : ''
             return {
               id: `lineup-${lineup.campeonato_equipe_id}`,
               kind: 'summary' as const,
@@ -800,7 +810,7 @@ export async function POST(req: NextRequest) {
             details: [{ label: 'Token', value: String(created.token) }],
             actions: [
               { id: 'copy-created-lineup-token', label: 'Copiar só token', copyText: String(created.token), variant: 'primary' },
-              { id: 'copy-created-lineup-link', label: 'Copiar link', copyText: String(created.public_url), variant: 'secondary' },
+              { id: 'copy-created-lineup-link', label: 'Copiar link', copyText: `${req.nextUrl.origin}/lili?invite=${encodeURIComponent(String(created.token))}`, variant: 'secondary' },
             ],
           }],
           actions: [
@@ -2072,6 +2082,47 @@ export async function POST(req: NextRequest) {
           break
         }
 
+        if (invite.kind === 'escalacao_line' || invite.href.startsWith('/escala/')) {
+          const lineup = await loadLineupInviteInChat(req, invite.token)
+          const lineupContext: LiliClientContext = {
+            locale,
+            inviteToken: invite.token,
+            inviteKind: 'escalacao_line',
+            selectedChampionshipId: lineup.campeonato_id || invite.campeonatoId || null,
+            currentFlow: 'lineup_invite',
+            currentStep: 'summary',
+            autoOpenInvite: false,
+          }
+          response = {
+            reply: `Encontrei o convite da ${lineup.line_nome || 'line'} para ${lineup.campeonato_nome || 'o campeonato'}. Você pode concluir a entrada aqui comigo.`,
+            intent: match.intent,
+            cards: [{
+              id: `lineup-invite-${invite.token}`,
+              kind: 'summary',
+              title: lineup.campeonato_nome || 'Convite de escalação',
+              subtitle: lineup.line_nome || null,
+              badges: [`${Number(lineup.jogadores?.length || 0)}/${Number(lineup.link?.limite_jogadores || lineup.limite_jogadores || 0)} jogadores`],
+              details: [
+                { label: 'Equipe', value: lineup.equipe_nome || 'Equipe' },
+                { label: 'Grupo', value: lineup.grupo_nome || 'Não definido' },
+                { label: 'Data', value: lineup.data_jogo ? new Date(`${lineup.data_jogo}T00:00:00`).toLocaleDateString('pt-BR') : 'Não definida' },
+              ],
+              actions: [{
+                id: 'continue-lineup-invite',
+                label: 'Continuar com a Lili',
+                message: 'Continuar convite de escalação',
+                intent: 'continuar_convite_escalacao',
+                variant: 'primary',
+                context: lineupContext,
+              }],
+            }],
+            actions: [backToMainMenu(locale)],
+            context: lineupContext,
+            source: 'system',
+          }
+          break
+        }
+
         response = {
           reply: 'Convite localizado. A próxima etapa será trazida para dentro da conversa da Lili.',
           intent: match.intent,
@@ -2087,6 +2138,112 @@ export async function POST(req: NextRequest) {
             { id: 'menu-token', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } },
           ],
           context: { locale, inviteToken: invite.token, inviteKind: invite.kind, inviteHref: invite.href, autoOpenInvite: Boolean(context.autoOpenInvite) },
+          source: 'system',
+        }
+        break
+      }
+
+      case 'continuar_convite_escalacao': {
+        if (!user) {
+          response = {
+            reply: 'Entre com sua conta de jogador. Depois do login, eu continuo exatamente deste convite.',
+            intent: match.intent,
+            requiresAuth: true,
+            context: { ...context, currentFlow: 'lineup_invite' },
+            source: 'system',
+          }
+          break
+        }
+        if (!context.inviteToken) throw new Error('Convite de escalação não localizado.')
+        const lineup = await loadLineupInviteInChat(req, context.inviteToken)
+        const resumeContext: LiliClientContext = { ...context, currentFlow: 'lineup_invite', currentStep: 'confirm' }
+        if (!lineup.jogador) {
+          response = {
+            reply: 'Seu login ainda não possui um perfil de jogador. Cadastre os dados do jogador e eu volto automaticamente para confirmar esta escalação.',
+            intent: match.intent,
+            actions: [{
+              id: 'create-player-for-lineup',
+              label: 'Cadastrar jogador',
+              message: 'Continuar convite de escalação',
+              intent: 'continuar_convite_escalacao',
+              href: `/?cadastro=jogador&vincular=1&returnTo=${encodeURIComponent('/lili')}`,
+              variant: 'primary',
+              context: resumeContext,
+            }, backToMainMenu(locale)],
+            context: resumeContext,
+            source: 'system',
+          }
+          break
+        }
+        if (lineup.ja_inscrito) {
+          response = {
+            reply: `Você já está confirmado nesta escalação como ${lineup.inscricao_atual?.nick || lineup.jogador.nome || lineup.jogador.username}.`,
+            intent: match.intent,
+            actions: [
+              { id: 'lineup-invite-agenda', label: 'Ver minha agenda', message: 'Abrir minha agenda', intent: 'abrir_central_agenda', variant: 'primary', context: { locale } },
+              backToMainMenu(locale),
+            ],
+            context: resumeContext,
+            source: 'system',
+          }
+          break
+        }
+        const limit = Number(lineup.link?.limite_jogadores || lineup.limite_jogadores || 0)
+        const occupied = Number(lineup.jogadores?.length || 0)
+        response = {
+          reply: occupied >= limit
+            ? 'Esta escalação já está completa. Posso te mostrar sua agenda ou voltar ao início.'
+            : `Tudo certo, ${lineup.jogador.nome || lineup.jogador.username}. Você vai entrar na ${lineup.line_nome || 'line'} para disputar ${lineup.campeonato_nome || 'este campeonato'}. Quer confirmar?`,
+          intent: match.intent,
+          cards: [{
+            id: `confirm-lineup-${context.inviteToken}`,
+            kind: 'summary',
+            title: lineup.campeonato_nome || 'Escalação',
+            subtitle: lineup.line_nome || null,
+            badges: [`${occupied}/${limit} jogadores`],
+            details: [
+              { label: 'Equipe', value: lineup.equipe_nome || 'Equipe' },
+              { label: 'Fase / grupo', value: [lineup.fase_nome, lineup.grupo_nome].filter(Boolean).join(' · ') || 'Não definido' },
+              { label: 'Jogador', value: lineup.jogador.nome || lineup.jogador.username || 'Jogador' },
+            ],
+            actions: occupied < limit ? [{
+              id: 'confirm-lineup-entry',
+              label: 'Confirmar minha entrada',
+              message: 'Confirmar minha entrada na escalação',
+              intent: 'confirmar_convite_escalacao',
+              variant: 'primary',
+              context: resumeContext,
+            }] : undefined,
+          }],
+          actions: [
+            { id: 'lineup-confirm-agenda', label: 'Ver minha agenda', message: 'Abrir minha agenda', intent: 'abrir_central_agenda', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
+          ],
+          context: resumeContext,
+          source: 'system',
+        }
+        break
+      }
+
+      case 'confirmar_convite_escalacao': {
+        if (!user || !context.inviteToken) throw new Error('Faça login para confirmar este convite.')
+        const joinResponse = await fetch(
+          new URL(`/api/escalacoes/${encodeURIComponent(context.inviteToken)}`, req.nextUrl.origin),
+          { method: 'POST', headers: forwardedAuthHeaders(req), body: '{}' },
+        )
+        const joined = await joinResponse.json().catch(() => ({}))
+        if (!joinResponse.ok) throw new Error(joined?.error || 'Não foi possível confirmar sua entrada.')
+        response = {
+          reply: joined.already_registered
+            ? 'Você já estava confirmado nesta escalação.'
+            : 'Pronto! Sua entrada na escalação foi confirmada. Agora esse campeonato também aparecerá nas suas inscrições e na sua agenda.',
+          intent: match.intent,
+          actions: [
+            { id: 'joined-registrations', label: 'Ver campeonatos inscritos', message: 'Mostrar campeonatos inscritos', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
+            { id: 'joined-agenda', label: 'Ver minha agenda', message: 'Abrir minha agenda', intent: 'abrir_central_agenda', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
+          ],
+          context: { locale, currentFlow: 'lineup_invite', currentStep: 'done' },
           source: 'system',
         }
         break

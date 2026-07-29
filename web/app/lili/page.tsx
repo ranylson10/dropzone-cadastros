@@ -413,6 +413,8 @@ export default function LiliPage() {
   async function login() {
     const pendingIntent: LiliIntent = context.currentFlow === 'group_invite'
       ? 'continuar_convite_grupo'
+      : context.currentFlow === 'lineup_invite'
+        ? 'continuar_convite_escalacao'
       : context.currentFlow === 'registration'
         ? 'iniciar_inscricao'
         : context.currentFlow === 'registrations'
