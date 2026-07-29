@@ -1474,6 +1474,8 @@ ${params.url}`
               {tab === 'estatisticas' ? (
                 <CampeonatoEstatisticasTab
                   campeonatoId={selectedChamp.id}
+                  campeonatoNome={String(selectedChamp.data?.nome || selectedChamp.name || 'Campeonato')}
+                  campeonatoLogo={String(selectedChamp.data?.logo_url || '') || null}
                   phases={orderedChampPhases}
                   groups={orderedChampGroups}
                   games={champGames}
@@ -2378,4 +2380,3 @@ ${params.url}`
     </div>
   )
 }
-

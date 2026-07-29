@@ -622,6 +622,8 @@ export function ManagerCampeonatosView(props: {
               {props.tab === 'estatisticas' ? (
                 <CampeonatoEstatisticasTab
                   campeonatoId={selected.campeonato_id}
+                  campeonatoNome={selected.campeonatos?.nome || 'Campeonato'}
+                  campeonatoLogo={selected.campeonatos?.logo_url}
                   phases={phaseRows}
                   groups={groupRows}
                   games={gameRows}

@@ -5995,6 +5995,15 @@ button.invite-slot-button.selected strong {
 .statistics-message.error { color: #a21d2c; border-color: #efb7be; background: var(--danger-soft); }
 .statistics-message.success { color: #176b3a; border-color: #a9dbbd; background: #edf9f2; }
 .statistics-loading { display: flex; min-height: 90px; align-items: center; justify-content: center; gap: 9px; color: var(--muted, #777e89); }
+.result-share-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e2c45d; background: linear-gradient(120deg, #fffdf5, #fff); }
+.result-share-copy h4 { margin: 2px 0 4px; font-size: 17px; }
+.result-share-copy p:last-child { margin: 0; color: var(--muted); font-size: 12px; }
+.result-share-actions { display: flex; gap: 7px; }
+.result-share-notice { grid-column: 1 / -1; margin: 0; padding: 8px 10px; background: #f6f1df; color: #755d0a; font-size: 12px; }
+.result-share-preview { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(180px, 320px) 1fr; align-items: end; gap: 14px; padding-top: 4px; }
+.result-share-preview img { width: 100%; border: 1px solid #d8ae28; box-shadow: 0 12px 28px rgba(15, 18, 25, .18); }
+.result-share-preview > div { display: flex; flex-wrap: wrap; gap: 8px; }
+@media(max-width:700px){.result-share-card{grid-template-columns:1fr;padding:11px}.result-share-actions{display:grid;grid-template-columns:1fr 1fr}.result-share-preview{grid-template-columns:1fr}.result-share-preview img{max-width:320px;margin:auto}.result-share-preview>div{display:grid;grid-template-columns:1fr 1fr}}
 .scorer-shell { display: grid; gap: 14px; }
 .scorer-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) auto auto; align-items: end; gap: 10px; padding: 14px; border: 1px solid var(--border, #e1e4e9); background: var(--surface); }
 .scorer-toolbar > label { display: grid; gap: 6px; }

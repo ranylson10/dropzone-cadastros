@@ -98,6 +98,11 @@ export function ChampionshipPublicView({
   const [faseId, setFaseId] = useState('')
   const [grupoId, setGrupoId] = useState('')
   const [buyOpen, setBuyOpen] = useState(false)
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('aba')
+    if (requested === 'estatisticas') setTab('estatisticas')
+  }, [])
   const [authenticated, setAuthenticated] = useState(false)
 
   const enrollment = profile.enrollment

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FileUp, Loader2, Medal, RefreshCcw, Save, Trophy } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { DropZoneRow } from '@/lib/types'
+import { ResultadoWhatsappCard } from './ResultadoWhatsappCard'
 
 type InnerTab = 'geral' | 'mvp' | 'pontuador'
 type ScoringMode = 'manual' | 'matchresult'
@@ -98,6 +99,8 @@ function queryString(filters: Filters) {
 
 export function CampeonatoEstatisticasTab(props: {
   campeonatoId: string
+  campeonatoNome?: string
+  campeonatoLogo?: string | null
   phases: DropZoneRow[]
   groups: DropZoneRow[]
   games: DropZoneRow[]
@@ -176,6 +179,17 @@ export function CampeonatoEstatisticasTab(props: {
   const selectedJogo = props.games.find((game) => game.id === selectedPartida?.jogo_id)
   const participatingGroupIds = Array.isArray(selectedJogo?.data?.grupos_ids) ? selectedJogo?.data?.grupos_ids as string[] : []
   const eligibleTeams = sumulaTeams.filter((team) => participatingGroupIds.length === 0 || participatingGroupIds.includes(team.grupo_id))
+  const shareScope = useMemo(() => {
+    const selectedDrop = filteredPartidas.find((item) => item.id === filters.partida_id)
+    const values = [
+      props.phases.find((item) => item.id === filters.fase_id)?.data?.nome,
+      props.groups.find((item) => item.id === filters.grupo_id)?.data?.nome,
+      rounds.find((item) => item.id === filters.rodada_id)?.nome,
+      props.games.find((item) => item.id === filters.jogo_id)?.data?.nome,
+      selectedDrop ? `Queda ${selectedDrop.numero_partida}` : null,
+    ].filter(Boolean)
+    return values.length ? `Classificação · ${values.join(' · ')}` : 'Classificação geral do campeonato'
+  }, [filteredPartidas, filters, props.games, props.groups, props.phases, rounds])
 
   function setManualTeam(teamId: string, patch: Partial<{ posicao: string; abates: string }>) {
     setManual((current) => {
@@ -309,6 +323,16 @@ export function CampeonatoEstatisticasTab(props: {
       {error ? <div className="statistics-message error">{error}</div> : null}
       {notice ? <div className="statistics-message success">{notice}</div> : null}
       {loadingStats && tab !== 'pontuador' ? <div className="statistics-loading"><Loader2 className="button-spinner" /> Carregando estatísticas...</div> : null}
+
+      {tab === 'geral' && !loadingStats ? (
+        <ResultadoWhatsappCard
+          campeonatoId={props.campeonatoId}
+          campeonatoNome={props.campeonatoNome || 'Campeonato DropZone'}
+          campeonatoLogo={props.campeonatoLogo}
+          recorte={shareScope}
+          ranking={teamStats}
+        />
+      ) : null}
 
       {tab === 'geral' && !loadingStats ? (
         <div className="statistics-table-wrap"><table className="statistics-table"><thead><tr><th>#</th><th>Equipe</th><th>Quedas</th><th>Booyahs</th><th>Abates</th><th>P. posição</th><th>P. abates</th><th>Total</th></tr></thead><tbody>
