@@ -266,3 +266,51 @@
   font-size: 9px;
   text-align: center;
 }
+
+.app-global-language {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.app-global-language > svg {
+  margin: 0 3px;
+  color: var(--muted);
+}
+
+.app-global-language button {
+  min-width: 27px;
+  height: 27px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.app-global-language button.active {
+  background: var(--text);
+  color: var(--surface);
+}
+
+@media (max-width: 760px) {
+  .app-global-language {
+    margin-left: auto;
+  }
+
+  .app-global-language > svg {
+    display: none;
+  }
+
+  .app-global-language button {
+    min-width: 24px;
+    padding: 0 3px;
+  }
+}

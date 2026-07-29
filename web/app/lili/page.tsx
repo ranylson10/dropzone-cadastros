@@ -13,6 +13,12 @@ import { LiliTeamHub } from '@/components/lili/LiliTeamHub'
 import { LiliPlayerHub } from '@/components/lili/LiliPlayerHub'
 import { LiliRankHub } from '@/components/lili/LiliRankHub'
 import type { DropZoneRow } from '@/lib/types'
+import {
+  GLOBAL_LOCALE_EVENT,
+  readGlobalLocale,
+  setGlobalLocale,
+  type GlobalLocale,
+} from '@/features/i18n/global-locale'
 
 type ChatMessage = {
   id: string
@@ -113,13 +119,14 @@ export default function LiliPage() {
 
   useEffect(() => {
     try {
+      const globalLocale = readGlobalLocale()
       const stored = sessionStorage.getItem(STORAGE_KEY)
       if (stored) {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed.messages) && parsed.messages.length) setMessages(parsed.messages.slice(-60))
-        if (parsed.context) setContext(parsed.context)
+        if (parsed.context) setContext({ ...parsed.context, locale: globalLocale })
       } else {
-        const locale = normalizeLocale(navigator.language)
+        const locale = normalizeLocale(globalLocale)
         setContext({ locale })
         setMessages([initialMessage(locale)])
       }
@@ -127,6 +134,15 @@ export default function LiliPage() {
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true) })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => setSession(next))
     return () => listener.subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    function syncGlobalLocale(event: Event) {
+      const locale = normalizeLocale((event as CustomEvent<GlobalLocale>).detail)
+      setContext((current) => ({ ...current, locale }))
+    }
+    window.addEventListener(GLOBAL_LOCALE_EVENT, syncGlobalLocale)
+    return () => window.removeEventListener(GLOBAL_LOCALE_EVENT, syncGlobalLocale)
   }, [])
 
   useEffect(() => {
@@ -471,6 +487,7 @@ export default function LiliPage() {
     requestIdRef.current += 1
     busyRef.current = false
     setTyping(false)
+    setGlobalLocale(normalized)
     setContext((current) => ({ ...current, locale: normalized }))
     setMessages((current) => [
       ...current,

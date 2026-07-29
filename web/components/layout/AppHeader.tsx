@@ -1,12 +1,13 @@
 'use client'
 
-import { ChevronDown, Loader2, LogOut, Menu, Plus, Wallet, X } from 'lucide-react'
+import { ChevronDown, Globe2, Loader2, LogOut, Menu, Plus, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { DropZoneRow } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { APP_NAV, type AppNavItem } from './nav'
 import { supabase } from '@/lib/supabase-browser'
+import { useGlobalLocale } from '@/features/i18n/global-locale'
 
 export type AppHeaderNavItem = AppNavItem
 
@@ -109,6 +110,7 @@ export function AppHeader({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [walletSaldo, setWalletSaldo] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [globalLocale, changeGlobalLocale] = useGlobalLocale()
   const profileRef = useRef<HTMLDivElement>(null)
   const isAuthenticated = Boolean(profileName && onSignOut)
 
@@ -229,6 +231,20 @@ export function AppHeader({
             )
           })}
         </nav>
+
+        <div className="app-global-language" data-no-translate aria-label="Language">
+          <Globe2 size={14} />
+          {(['pt-BR', 'es', 'en'] as const).map((item) => (
+            <button
+              type="button"
+              key={item}
+              className={globalLocale === item ? 'active' : ''}
+              onClick={() => changeGlobalLocale(item)}
+            >
+              {item === 'pt-BR' ? 'PT' : item.toUpperCase()}
+            </button>
+          ))}
+        </div>
 
         {isAuthenticated ? (
           <div className="app-profile" ref={profileRef} style={{ position: 'relative', maxWidth: 360 }}>
