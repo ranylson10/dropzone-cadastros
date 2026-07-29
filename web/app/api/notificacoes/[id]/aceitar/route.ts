@@ -13,6 +13,7 @@ import {
   sellerLimit,
 } from '@backend/campeonatos/manager-champ-invites'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { saveTeamPlayer } from '@backend/equipes/player-roster'
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -78,7 +79,7 @@ async function acceptPlayerTeamRelationship(user: any, accounts: any[], notif: a
     throw new Error('Somente o dono da equipe pode aceitar este pedido.')
   }
 
-  const { error } = await supabaseAdmin.from('equipe_jogadores').upsert({
+  await saveTeamPlayer({
     equipe_id: equipe.id,
     jogador_auth_user_id: jogador.auth_user_id,
     nick: jogador.nome,
@@ -88,9 +89,7 @@ async function acceptPlayerTeamRelationship(user: any, accounts: any[], notif: a
     localidade: jogador.localidade,
     origem: notif.tipo === 'pedido_jogador_equipe' ? 'pedido_jogador' : 'convite_direto',
     status: 'ativo',
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'equipe_id,jogador_auth_user_id' })
-  if (error) throw error
+  })
 
   await supabaseAdmin.from('notificacoes').update({ status: 'lida', read_at: new Date().toISOString() }).eq('id', notif.id)
   try {

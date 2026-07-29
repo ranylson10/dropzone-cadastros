@@ -305,78 +305,56 @@ export async function POST(req: NextRequest) {
       )
 
       const token = novoToken()
-      const { data: link, error: linkError } = await supabaseAdmin
+      const { data: existingLink, error: existingLinkError } = await supabaseAdmin
         .from('campeonato_vendedores')
-        .upsert(
-          {
-            token,
-            campeonato_id: campeonatoId,
+        .select('id')
+        .eq('campeonato_id', campeonatoId)
+        .eq('manager_id', managerId)
+        .neq('status', 'cancelado')
+        .maybeSingle()
+      if (existingLinkError) throw existingLinkError
+
+      if (existingLink?.id) {
+        const { data: updated, error: updateError } = await supabaseAdmin
+          .from('campeonato_vendedores')
+          .update({
             produtora_id: produtora.id,
-            manager_id: managerId,
             manager_auth_user_id: manager.auth_user_id,
             nome_publico: manager.nome_publico_vendas || manager.nome || manager.username,
             whatsapp_url: manager.whatsapp_url,
             status: 'ativo',
             limite_vagas: limiteVagas,
             permissoes,
-            criado_por: user.id,
             aceito_em: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'campeonato_id,manager_id' },
-        )
-        .select('*')
-        .maybeSingle()
-
-      // unique parcial pode não ser onConflict — tenta insert ou update
-      if (linkError) {
-        const existing = await supabaseAdmin
-          .from('campeonato_vendedores')
-          .select('id')
-          .eq('campeonato_id', campeonatoId)
-          .eq('manager_id', managerId)
-          .maybeSingle()
-        if (existing.data?.id) {
-          const { data: updated, error: upError } = await supabaseAdmin
-            .from('campeonato_vendedores')
-            .update({
-              status: 'ativo',
-              limite_vagas: limiteVagas,
-              permissoes,
-              whatsapp_url: manager.whatsapp_url,
-              nome_publico: manager.nome_publico_vendas || manager.nome || manager.username,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', existing.data.id)
-            .select('*')
-            .single()
-          if (upError) throw upError
-          return NextResponse.json({ ok: true, vinculo: updated, mensagem: `Vendedor atualizado em ${camp.nome}.` })
-        }
-        // insert simples
-        const { data: inserted, error: insError } = await supabaseAdmin
-          .from('campeonato_vendedores')
-          .insert({
-            token,
-            campeonato_id: campeonatoId,
-            produtora_id: produtora.id,
-            manager_id: managerId,
-            manager_auth_user_id: manager.auth_user_id,
-            nome_publico: manager.nome_publico_vendas || manager.nome || manager.username,
-            whatsapp_url: manager.whatsapp_url,
-            status: 'ativo',
-            limite_vagas: limiteVagas,
-            permissoes,
-            criado_por: user.id,
-            aceito_em: new Date().toISOString(),
           })
+          .eq('id', existingLink.id)
           .select('*')
           .single()
-        if (insError) throw insError
-        return NextResponse.json({ ok: true, vinculo: inserted, mensagem: `Vendedor adicionado a ${camp.nome}.` }, { status: 201 })
+        if (updateError) throw updateError
+        return NextResponse.json({ ok: true, vinculo: updated, mensagem: `Vendedor atualizado em ${camp.nome}.` })
       }
 
-      return NextResponse.json({ ok: true, vinculo: link, mensagem: `Vendedor adicionado a ${camp.nome}.` }, { status: 201 })
+      const { data: inserted, error: insertError } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .insert({
+          token,
+          campeonato_id: campeonatoId,
+          produtora_id: produtora.id,
+          manager_id: managerId,
+          manager_auth_user_id: manager.auth_user_id,
+          nome_publico: manager.nome_publico_vendas || manager.nome || manager.username,
+          whatsapp_url: manager.whatsapp_url,
+          status: 'ativo',
+          limite_vagas: limiteVagas,
+          permissoes,
+          criado_por: user.id,
+          aceito_em: new Date().toISOString(),
+        })
+        .select('*')
+        .single()
+      if (insertError) throw insertError
+      return NextResponse.json({ ok: true, vinculo: inserted, mensagem: `Vendedor adicionado a ${camp.nome}.` }, { status: 201 })
     }
 
     // Convite geral da produtora

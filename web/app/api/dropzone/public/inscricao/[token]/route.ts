@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { assertCampeonatoNoAr } from '@backend/admin/aprovacao'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { saveTeamPlayer } from '@backend/equipes/player-roster'
 
 async function optionalPlayer(req: NextRequest) {
   try {
@@ -190,7 +191,7 @@ export async function POST(req: NextRequest, ctx: any) {
       throw new Error('Esse ID de jogo ja esta inscrito neste campeonato.')
     }
 
-    const { error: teamPlayerError } = await supabaseAdmin.from('equipe_jogadores').upsert({
+    await saveTeamPlayer({
       equipe_id: champTeam.equipe_id,
       jogador_auth_user_id: user.id,
       nick,
@@ -200,8 +201,7 @@ export async function POST(req: NextRequest, ctx: any) {
       localidade: account.localidade || body.localidade || null,
       origem: 'link',
       status: 'ativo',
-    }, { onConflict: 'equipe_id,jogador_auth_user_id' })
-    if (teamPlayerError) throw teamPlayerError
+    })
 
     const { data: inserted, error } = await supabaseAdmin.from('campeonato_jogadores').insert({
       campeonato_id: link.campeonato_id,

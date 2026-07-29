@@ -150,7 +150,8 @@ export function CampeonatoEstruturaTab({
   const [groupForm, setGroupForm] = useState({ nome: 'Grupo A', fase_id: '', slots: '12', whatsapp_url: '' })
   const [bulkPhases, setBulkPhases] = useState<BulkPhaseDraft[]>(() => [createEmptyBulkPhase(1)])
   const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
-  const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string } | null>(null)
+  const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string; slot_start_letter: string } | null>(null)
+  const [editingSlot, setEditingSlot] = useState<{ id: string; letra: string } | null>(null)
 
   // Slot: adicionar / remover line
   const [slotAlvo, setSlotAlvo] = useState<Slot | null>(null)
@@ -948,6 +949,7 @@ export function CampeonatoEstruturaTab({
                                     nome: group.nome,
                                     slots: String(slotCount),
                                     whatsapp_url: String(group.whatsapp_url || ''),
+                                    slot_start_letter: String(slotsOfGroup[0]?.slot_letra || 'A'),
                                   })
                                   setOpenGroups((value) => ({ ...value, [group.id]: true }))
                                 }}
@@ -989,6 +991,14 @@ export function CampeonatoEstruturaTab({
                                     onChange={(e) => setEditingGroup({ ...editingGroup, slots: e.target.value })}
                                   />
                                 </Field>
+                                <Field label="Iniciar sequência dos slots em">
+                                  <input
+                                    value={editingGroup.slot_start_letter}
+                                    maxLength={3}
+                                    onChange={(e) => setEditingGroup({ ...editingGroup, slot_start_letter: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })}
+                                    placeholder="Ex.: A, G, M"
+                                  />
+                                </Field>
                                 <Field label="Link do WhatsApp">
                                   <input
                                     value={editingGroup.whatsapp_url}
@@ -1010,6 +1020,7 @@ export function CampeonatoEstruturaTab({
                                         nome: editingGroup.nome.trim(),
                                         slots: Number(editingGroup.slots || 1),
                                         whatsapp_url: editingGroup.whatsapp_url.trim() || null,
+                                        slot_start_letter: editingGroup.slot_start_letter.trim().toUpperCase() || undefined,
                                       })
                                       if (ok) setEditingGroup(null)
                                     }}
@@ -1102,6 +1113,15 @@ export function CampeonatoEstruturaTab({
                                           {clickable ? <ChevronRight size={17} /> : null}
                                         </span>
                                       </button>
+                                      {canEdit ? (editingSlot?.id === slot.id ? (
+                                        <div className="slot-letter-editor">
+                                          <input value={editingSlot.letra} maxLength={3} autoFocus onChange={(e) => setEditingSlot({ id: slot.id, letra: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })} />
+                                          <button type="button" className="button" disabled={busy || !editingSlot.letra} onClick={async () => { const ok = await mutate('PATCH', { entity: 'slot', id: slot.id, slot_letra: editingSlot.letra }); if (ok) setEditingSlot(null) }}>Salvar letra</button>
+                                          <button type="button" className="button secondary" onClick={() => setEditingSlot(null)}>Cancelar</button>
+                                        </div>
+                                      ) : (
+                                        <button type="button" className="slot-letter-edit-button" title="Editar letra deste slot" onClick={() => setEditingSlot({ id: slot.id, letra: letter })}><Pencil size={13} /> Editar letra</button>
+                                      )) : null}
                                     </article>
                                   )
                                 })

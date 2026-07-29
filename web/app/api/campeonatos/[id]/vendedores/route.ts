@@ -17,6 +17,28 @@ function sellerLimit(value: unknown) {
   return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0
 }
 
+function normalizePerms(raw: unknown) {
+  const value = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return {
+    vendedor_vagas: value.vendedor_vagas !== false,
+    adicionar_equipes: value.adicionar_equipes === true,
+    remover_proprias_equipes: value.remover_proprias_equipes === true,
+    gerar_convites_equipe: value.gerar_convites_equipe !== false,
+    ver_estrutura: value.ver_estrutura !== false,
+    organizar_grupos: value.organizar_grupos === true,
+    pontuar_tabela: value.pontuar_tabela === true,
+  }
+}
+
+async function requireOwner(req: NextRequest, campeonatoId: string) {
+  const user = await getBearerUser(req)
+  const permission = await requireCampeonatoManage(user.id, campeonatoId)
+  if (permission.role !== 'owner') {
+    throw new Error('Somente o dono da produtora pode gerenciar vendedores.')
+  }
+  return { user, permission }
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
@@ -137,5 +159,104 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ convite, link, texto_whatsapp: textoWhatsapp, whatsapp_url: `https://wa.me/?text=${encodeURIComponent(textoWhatsapp)}` }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao criar convite de vendedor.' }, { status: 400 })
+  }
+}
+
+
+/** Atualiza limite, permissões e status de um vendedor já vinculado ao campeonato. */
+export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await context.params
+    await requireOwner(req, id)
+    const body = await req.json().catch(() => ({}))
+    const managerId = String(body.manager_id || '').trim()
+    const vinculoId = String(body.vinculo_id || '').trim()
+
+    if (!managerId && !vinculoId) {
+      throw new Error('Informe manager_id ou vinculo_id.')
+    }
+
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if ('limite_vagas' in body) update.limite_vagas = sellerLimit(body.limite_vagas)
+    if ('permissoes' in body) update.permissoes = normalizePerms(body.permissoes)
+    if ('status' in body) {
+      const status = String(body.status || '').trim().toLowerCase()
+      if (!['ativo', 'inativo', 'cancelado'].includes(status)) {
+        throw new Error('Status inválido.')
+      }
+      update.status = status
+    }
+
+    let query = supabaseAdmin
+      .from('campeonato_vendedores')
+      .update(update)
+      .eq('campeonato_id', id)
+    query = vinculoId ? query.eq('id', vinculoId) : query.eq('manager_id', managerId)
+
+    const { data, error } = await query.select('*').maybeSingle()
+    if (error) throw error
+    if (!data) throw new Error('Vendedor não encontrado neste campeonato.')
+
+    return NextResponse.json({ ok: true, vendedor: data })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro ao atualizar vendedor.' },
+      { status: 400 },
+    )
+  }
+}
+
+/** Cancela convite pendente ou remove o vínculo ativo do vendedor deste campeonato. */
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await context.params
+    await requireOwner(req, id)
+    const body = await req.json().catch(() => ({}))
+    const managerId = String(body.manager_id || '').trim()
+    const vinculoId = String(body.vinculo_id || '').trim()
+    const tokenId = String(body.token_id || '').trim()
+
+    if (!managerId && !vinculoId && !tokenId) {
+      throw new Error('Informe manager_id, vinculo_id ou token_id.')
+    }
+
+    if (tokenId) {
+      const { data, error } = await supabaseAdmin
+        .from('tokens')
+        .update({ status: 'cancelado', usado: true })
+        .eq('id', tokenId)
+        .eq('campeonato_id', id)
+        .eq('tipo', 'manager_invite')
+        .select('id')
+        .maybeSingle()
+      if (error) throw error
+      if (!data) throw new Error('Convite pendente não encontrado.')
+      return NextResponse.json({ ok: true, tipo: 'convite', id: data.id })
+    }
+
+    let query = supabaseAdmin
+      .from('campeonato_vendedores')
+      .update({ status: 'cancelado', updated_at: new Date().toISOString() })
+      .eq('campeonato_id', id)
+    query = vinculoId ? query.eq('id', vinculoId) : query.eq('manager_id', managerId)
+
+    const { data, error } = await query.select('id,manager_id').maybeSingle()
+    if (error) throw error
+    if (!data) throw new Error('Vendedor não encontrado neste campeonato.')
+
+    await supabaseAdmin
+      .from('tokens')
+      .update({ status: 'cancelado', usado: true })
+      .eq('campeonato_id', id)
+      .eq('manager_id', data.manager_id)
+      .eq('tipo', 'manager_invite')
+      .eq('usado', false)
+
+    return NextResponse.json({ ok: true, tipo: 'vinculo', id: data.id })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro ao remover vendedor.' },
+      { status: 400 },
+    )
   }
 }

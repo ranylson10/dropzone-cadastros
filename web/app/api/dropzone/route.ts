@@ -22,6 +22,7 @@ import {
   registrationLinkData,
 } from '@backend/shared/campeonato-link-metadata'
 import { randomToken } from '@backend/shared/validation'
+import { saveTeamPlayer } from '@backend/equipes/player-roster'
 
 const HIDDEN_DATA_KEYS = new Set([
   'senha',
@@ -1374,7 +1375,7 @@ export async function POST(req: NextRequest) {
       if (!jogador) throw new Error('Entre com uma conta de jogador.')
       const idJogo = String(data.id_jogo || jogador.id_jogo || '').trim()
       await assertPlayerUniqueInChampionship(campeonatoId, champTeam.id, idJogo)
-      const { error: linkError } = await supabaseAdmin.from('equipe_jogadores').upsert({
+      await saveTeamPlayer({
         equipe_id: equipeId,
         jogador_auth_user_id: user.id,
         nick: body.name || data.nick || jogador.nome,
@@ -1384,8 +1385,7 @@ export async function POST(req: NextRequest) {
         localidade: data.localidade || jogador.localidade || null,
         origem: 'token',
         status: 'ativo',
-      }, { onConflict: 'equipe_id,jogador_auth_user_id' })
-      if (linkError) throw linkError
+      })
       const { data: inserted, error } = await supabaseAdmin.from('campeonato_jogadores').insert({
         campeonato_id: campeonatoId,
         equipe_id: equipeId,

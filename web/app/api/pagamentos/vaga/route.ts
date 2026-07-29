@@ -82,16 +82,18 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    if (withContext) {
-      const { data: ownership } = await supabaseAdmin
-        .from('sistema_compras_vaga')
-        .select('auth_user_id')
-        .eq('token', token.toUpperCase())
-        .maybeSingle()
-      if (ownership && ownership.auth_user_id !== user.id) {
-        throw new Error('Esta compra pertence a outra conta.')
-      }
+    const { data: ownership, error: ownershipError } = await supabaseAdmin
+      .from('sistema_compras_vaga')
+      .select('auth_user_id')
+      .eq('token', token.toUpperCase())
+      .maybeSingle()
+    if (ownershipError) throw ownershipError
+    if (!ownership) throw new Error('Compra não encontrada.')
+    if (ownership.auth_user_id !== user.id) {
+      throw new Error('Esta compra pertence a outra conta.')
+    }
 
+    if (withContext) {
       const accounts = await getAccountsForUser(user)
       const ctx = await loadClaimContext({
         token,

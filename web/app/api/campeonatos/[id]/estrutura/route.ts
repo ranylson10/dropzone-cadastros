@@ -36,6 +36,19 @@ function slotLetterFromNumber(number: number) {
   return label
 }
 
+
+function slotNumberFromLetter(label: string) {
+  let value = 0
+  for (const char of label) value = value * 26 + (char.charCodeAt(0) - 64)
+  return value
+}
+
+function normalizeSlotLetter(value: unknown) {
+  const label = String(value || '').trim().toUpperCase()
+  if (!/^[A-Z]{1,3}$/.test(label)) throw new Error('A letra do slot deve usar apenas A-Z, como A, G ou AA.')
+  return label
+}
+
 async function loadStructure(campeonatoId: string) {
   const [
     { data: campeonato, error: campError },
@@ -500,6 +513,20 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       return NextResponse.json({ ok: true, fase: data })
     }
 
+    if (entity === 'slot') {
+      const slotLetter = normalizeSlotLetter(body.slot_letra)
+      const { data, error } = await supabaseAdmin
+        .from('campeonato_slots')
+        .update({ slot_letra: slotLetter, updated_at: new Date().toISOString() })
+        .eq('id', entityId)
+        .eq('campeonato_id', campeonatoId)
+        .select('*')
+        .single()
+      if (error?.code === '23505') throw new Error(`Já existe o slot ${slotLetter} neste grupo.`)
+      if (error) throw error
+      return NextResponse.json({ ok: true, slot: data })
+    }
+
     if (entity === 'group') {
       const { data: current, error: readError } = await supabaseAdmin
         .from('campeonato_grupos')
@@ -565,6 +592,32 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           .is('equipe_id', null)
           .is('line_id', null)
         if (removeError) throw removeError
+      }
+
+      if (body.slot_start_letter !== undefined) {
+        const startLetter = normalizeSlotLetter(body.slot_start_letter)
+        const startNumber = slotNumberFromLetter(startLetter)
+        const { data: groupSlots, error: groupSlotsError } = await supabaseAdmin
+          .from('campeonato_slots')
+          .select('id,slot_numero,slot_letra')
+          .eq('grupo_id', entityId)
+          .eq('campeonato_id', campeonatoId)
+          .order('slot_numero', { ascending: true })
+        if (groupSlotsError) throw groupSlotsError
+        const original = groupSlots || []
+        try {
+          for (const [index, slot] of original.entries()) {
+            const { error: tempError } = await supabaseAdmin.from('campeonato_slots').update({ slot_letra: `TMP${Date.now()}${index}` }).eq('id', slot.id)
+            if (tempError) throw tempError
+          }
+          for (const [index, slot] of original.entries()) {
+            const { error: finalError } = await supabaseAdmin.from('campeonato_slots').update({ slot_letra: slotLetterFromNumber(startNumber + index), updated_at: new Date().toISOString() }).eq('id', slot.id)
+            if (finalError) throw finalError
+          }
+        } catch (reletterError) {
+          for (const slot of original) await supabaseAdmin.from('campeonato_slots').update({ slot_letra: slot.slot_letra }).eq('id', slot.id)
+          throw reletterError
+        }
       }
 
       return NextResponse.json({ ok: true, grupo: updated })

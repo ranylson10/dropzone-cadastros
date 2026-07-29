@@ -153,3 +153,98 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Erro', missing_table: e?.missing_table }, { status })
   }
 }
+
+
+/**
+ * PATCH — mantém a mesa Stream sem expor sessões de outros perfis.
+ * Permite renomear, trocar/limpar campeonato, limpar overlay e regenerar tokens.
+ */
+export async function PATCH(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const body = await req.json().catch(() => ({}))
+    const broadcastId = await getBroadcastId(user.id)
+    if (!broadcastId) {
+      return NextResponse.json({ error: 'Perfil Broadcast não encontrado.' }, { status: 404 })
+    }
+
+    const desk = await ensureDesk(broadcastId)
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'nome')) {
+      const nome = String(body.nome || '').trim()
+      if (!nome || nome.length > 80) {
+        return NextResponse.json({ error: 'Nome da mesa deve ter entre 1 e 80 caracteres.' }, { status: 400 })
+      }
+      updates.nome = nome
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'campeonato_id')) {
+      const campeonatoId = String(body.campeonato_id || '').trim() || null
+      if (campeonatoId) {
+        const { data: link, error: linkError } = await supabaseAdmin
+          .from('broadcast_campeonato_links')
+          .select('id')
+          .eq('broadcast_id', broadcastId)
+          .eq('campeonato_id', campeonatoId)
+          .maybeSingle()
+        if (linkError) throw linkError
+        if (!link) {
+          return NextResponse.json({ error: 'Campeonato não pertence à sua lista de transmissão.' }, { status: 403 })
+        }
+      }
+      updates.campeonato_id = campeonatoId
+      updates.active_overlay_id = null
+    }
+
+    if (body.clear_overlay === true) updates.active_overlay_id = null
+    if (body.regenerate_controller_token === true) updates.controller_token = tok()
+    if (body.regenerate_obs_token === true) updates.obs_token = tok()
+
+    if (Object.keys(updates).length === 1) {
+      return NextResponse.json({ error: 'Nenhuma alteração válida foi informada.' }, { status: 400 })
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('broadcast_live_sessions')
+      .update(updates)
+      .eq('id', desk.id)
+      .eq('broadcast_id', broadcastId)
+      .eq('ativo', true)
+      .select('*')
+      .single()
+
+    if (error) throw error
+    return NextResponse.json({ desk: updated, session: updated })
+  } catch (e: any) {
+    const status = e?.missing_table ? 503 : 400
+    return NextResponse.json({ error: e?.message || 'Erro', missing_table: e?.missing_table }, { status })
+  }
+}
+
+/**
+ * DELETE — encerra a mesa atual e invalida imediatamente os links/tokens antigos.
+ * Uma nova mesa será criada automaticamente no próximo acesso autenticado.
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const broadcastId = await getBroadcastId(user.id)
+    if (!broadcastId) {
+      return NextResponse.json({ error: 'Perfil Broadcast não encontrado.' }, { status: 404 })
+    }
+
+    const { data: sessions, error } = await supabaseAdmin
+      .from('broadcast_live_sessions')
+      .update({ ativo: false, campeonato_id: null, active_overlay_id: null, updated_at: new Date().toISOString() })
+      .eq('broadcast_id', broadcastId)
+      .eq('ativo', true)
+      .select('id')
+
+    if (error) throw error
+    return NextResponse.json({ ok: true, encerradas: sessions?.length || 0 })
+  } catch (e: any) {
+    const status = e?.missing_table ? 503 : 400
+    return NextResponse.json({ error: e?.message || 'Erro', missing_table: e?.missing_table }, { status })
+  }
+}

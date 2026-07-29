@@ -14,3 +14,7 @@ web/.env.local
 !.env.example
 web/.env.*
 !web/.env.example
+
+# Relatorios gerados pelo robo de auditoria
+relatorios-testes/*.txt
+relatorios-testes/*.json

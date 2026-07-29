@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { saveTeamPlayer } from '@backend/equipes/player-roster'
 
 function activeStatus(value: unknown) {
   return !['finalizado', 'cancelado', 'encerrado', 'inativo'].includes(String(value || '').toLowerCase())
@@ -150,12 +151,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       status: 'ativo',
       updated_at: new Date().toISOString(),
     }
-    const { data: equipeJogador, error } = await supabaseAdmin
-      .from('equipe_jogadores')
-      .upsert(rosterPayload, { onConflict: 'equipe_id,jogador_auth_user_id' })
-      .select('*')
-      .single()
-    if (error) throw error
+    const equipeJogador = await saveTeamPlayer(rosterPayload)
 
     let lineAdded = false
     if (item.line_id) {

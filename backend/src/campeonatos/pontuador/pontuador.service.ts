@@ -221,6 +221,85 @@ export async function registrarVinculosMatchResult(
   return { ids, vinculos: atualizados || [] }
 }
 
+export async function atualizarVinculoMatchResult(
+  campeonatoId: string,
+  jogoId: string,
+  userId: string,
+  body: { id?: string; nome_raw?: string; campeonato_equipe_id?: string },
+) {
+  const vinculoId = body?.id?.trim()
+  const nomeRaw = body?.nome_raw?.trim()
+  const equipeId = body?.campeonato_equipe_id?.trim()
+  if (!vinculoId) throw new Error('Informe o vínculo que será alterado.')
+  if (!nomeRaw || !equipeId) throw new Error('Nome do MatchResult e equipe de destino são obrigatórios.')
+
+  const { data: vinculo, error: vinculoError } = await supabaseAdmin
+    .from('matchresult_vinculos_equipes')
+    .select('id')
+    .eq('id', vinculoId)
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+    .maybeSingle()
+  if (vinculoError) throw vinculoError
+  if (!vinculo) throw new Error('Vínculo não encontrado neste jogo.')
+
+  const { data: equipe, error: equipeError } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('id')
+    .eq('id', equipeId)
+    .eq('campeonato_id', campeonatoId)
+    .maybeSingle()
+  if (equipeError) throw equipeError
+  if (!equipe) throw new Error('Equipe não pertence a este campeonato.')
+
+  const nomeNormalizado = nomeRaw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+  const { data, error } = await supabaseAdmin
+    .from('matchresult_vinculos_equipes')
+    .update({
+      nome_raw: nomeRaw,
+      nome_normalizado: nomeNormalizado,
+      campeonato_equipe_id: equipeId,
+      criado_por: userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', vinculoId)
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+    .select('*')
+    .single()
+  if (error) {
+    if (error.code === '23505') throw new Error('Já existe um vínculo com esse nome neste jogo.')
+    throw error
+  }
+  return data
+}
+
+export async function removerVinculoMatchResult(
+  campeonatoId: string,
+  jogoId: string,
+  vinculoId: string,
+) {
+  if (!vinculoId?.trim()) throw new Error('Informe o vínculo que será removido.')
+
+  const { data, error } = await supabaseAdmin
+    .from('matchresult_vinculos_equipes')
+    .delete()
+    .eq('id', vinculoId)
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+    .select('id')
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Vínculo não encontrado neste jogo.')
+  return { id: data.id }
+}
+
 export async function marcarFaltaPontuador(
   campeonatoId: string,
   jogoId: string,

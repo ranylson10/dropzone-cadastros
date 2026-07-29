@@ -1397,7 +1397,7 @@ export async function getChampionshipOperationsOverview(authUserId: string, cham
     supabaseAdmin.from('campeonato_grupos').select('*').eq('campeonato_id', championshipId),
     supabaseAdmin.from('campeonato_slots').select('*').eq('campeonato_id', championshipId).neq('status', 'excluido'),
     supabaseAdmin.from('campeonato_equipes').select('*').eq('campeonato_id', championshipId).neq('status', 'excluido'),
-    supabaseAdmin.from('jogos').select('*').eq('campeonato_id', championshipId),
+    supabaseAdmin.from('campeonato_jogos').select('*').eq('campeonato_id', championshipId),
     supabaseAdmin.from('campeonato_rodadas').select('*').eq('campeonato_id', championshipId),
   ])
 
@@ -1673,7 +1673,7 @@ export async function getCompetitiveOperationsOverview(authUserId: string, champ
   if (!championship) throw new Error('Campeonato não encontrado.')
 
   const [gamesResult, teamResultsResult, playerResultsResult, broadcastResult, keysResult] = await Promise.all([
-    supabaseAdmin.from('jogos').select('*').eq('campeonato_id', championshipId).order('created_at', { ascending: false }).limit(100),
+    supabaseAdmin.from('campeonato_jogos').select('*').eq('campeonato_id', championshipId).order('created_at', { ascending: false }).limit(100),
     supabaseAdmin.from('campeonato_resultados_equipes').select('*').eq('campeonato_id', championshipId).order('updated_at', { ascending: false }).limit(500),
     supabaseAdmin.from('campeonato_resultados_jogadores').select('*').eq('campeonato_id', championshipId).order('updated_at', { ascending: false }).limit(1000),
     supabaseAdmin.from('broadcasts').select('id,nome,username,papel,avatar_url,status').eq('auth_user_id', authUserId).order('created_at', { ascending: true }).limit(1).maybeSingle(),

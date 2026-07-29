@@ -10,7 +10,9 @@
     "build": "npm run build --workspace dropzone-web",
     "start": "npm run start --workspace dropzone-web",
     "lint": "npm run lint --workspace dropzone-web",
-    "typecheck": "npm run typecheck --workspace dropzone-web"
+    "typecheck": "npm run typecheck --workspace dropzone-web",
+    "audit:dropzone": "node scripts/testes/executar.mjs",
+    "audit:dropzone:full": "node scripts/testes/executar.mjs --full"
   },
   "devDependencies": {
     "depcheck": "^1.4.7"
