@@ -96,18 +96,15 @@ async function optionalUser(req: NextRequest) {
 
 function menuActions(locale: LiliLocale) {
   const labels = locale === 'es'
-    ? { championships: 'Campeonatos', teams: 'Equipos', players: 'Jugadores', organization: 'Mi organización', services: 'Agenda y servicios', invite: 'Invitación o token', language: 'Idioma' }
+    ? { open: 'Campeonatos con cupos', lineup: 'Gestionar plantilla', registrations: 'Campeonatos inscritos', agenda: 'Mi agenda' }
     : locale === 'en'
-      ? { championships: 'Tournaments', teams: 'Teams', players: 'Players', organization: 'My organization', services: 'Schedule and services', invite: 'Invite or token', language: 'Language' }
-      : { championships: 'Campeonatos', teams: 'Equipes', players: 'Jogadores', organization: 'Minha organização', services: 'Agenda e serviços', invite: 'Convite ou token', language: 'Idioma' }
+      ? { open: 'Tournaments with spots', lineup: 'Manage lineup', registrations: 'Registered tournaments', agenda: 'My schedule' }
+      : { open: 'Campeonatos com vagas', lineup: 'Escalar elenco', registrations: 'Campeonatos inscritos', agenda: 'Minha agenda' }
   return [
-    { id: 'menu-championships', label: labels.championships, message: labels.championships, intent: 'explorar_campeonatos' as LiliIntent, variant: 'primary' as const, context: { locale } },
-    { id: 'menu-teams', label: labels.teams, message: labels.teams, intent: 'explorar_equipes' as LiliIntent, variant: 'primary' as const, context: { locale } },
-    { id: 'menu-players', label: labels.players, message: labels.players, intent: 'explorar_jogadores' as LiliIntent, variant: 'primary' as const, context: { locale } },
-    { id: 'menu-organization', label: labels.organization, message: labels.organization, intent: 'explorar_organizacao' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'menu-services', label: labels.services, message: labels.services, intent: 'explorar_servicos' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'menu-invite', label: labels.invite, message: labels.invite, intent: 'usar_convite_token' as LiliIntent, variant: 'secondary' as const, context: { locale } },
-    { id: 'menu-language', label: labels.language, message: labels.language, intent: 'alterar_idioma' as LiliIntent, variant: 'secondary' as const, context: { locale } },
+    { id: 'menu-open-championships', label: labels.open, message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'menu-lineup', label: labels.lineup, message: 'Escalar elenco', intent: 'escalar_elenco' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'menu-registrations', label: labels.registrations, message: 'Mostrar campeonatos inscritos', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'menu-agenda', label: labels.agenda, message: 'Abrir minha agenda', intent: 'abrir_central_agenda' as LiliIntent, variant: 'primary' as const, context: { locale } },
   ]
 }
 
@@ -608,19 +605,43 @@ export async function POST(req: NextRequest) {
 
       case 'abrir_central_agenda': {
         if (!user) {
-          response = { reply: locale === 'en' ? 'Sign in to view your schedule and notifications.' : locale === 'es' ? 'Inicia sesión para ver tu agenda y notificaciones.' : 'Entre na sua conta para consultar sua agenda e notificações.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }
+          response = { reply: locale === 'en' ? 'Sign in to view your schedule and notifications.' : locale === 'es' ? 'Inicia sesión para ver tu agenda y notificaciones.' : 'Entre na sua conta para consultar sua agenda e notificações.', intent: match.intent, requiresAuth: true, context: { locale, currentFlow: 'agenda' }, source: 'system' }
           break
         }
         const today = new Date()
         const end = new Date(today); end.setDate(end.getDate() + 90)
         const iso = (d: Date) => d.toISOString().slice(0, 10)
+        const activeAccount = await getActiveAccount(req, user)
+        const activeType = String(activeAccount.profile_type || '')
+        const activeName = String(activeAccount.name || activeAccount.username || '')
+        const agendaRequest = activeType === 'equipe'
+          ? { scope: 'equipe' as const, scopeId: String(activeAccount.id), from: iso(today), to: iso(end), authUserId: user.id }
+          : { scope: 'me' as const, from: iso(today), to: iso(end), authUserId: user.id }
         const [agenda, notifications] = await Promise.all([
-          listAgenda({ scope: 'me', from: iso(today), to: iso(end), authUserId: user.id }),
+          listAgenda(agendaRequest),
           getLiliNotifications(user.id, 10),
         ])
-        const matches = (agenda.items || []).filter((item: any) => item.source === 'jogo')
+        let matches = (agenda.items || []).filter((item: any) => item.source === 'jogo')
+        if (activeType === 'jogador') {
+          const { data: playerEntries } = await supabaseAdmin
+            .from('campeonato_jogadores')
+            .select('campeonato_id')
+            .eq('jogador_id', activeAccount.id)
+            .eq('status', 'ativo')
+          const playerChampionships = new Set((playerEntries || []).map((item: any) => String(item.campeonato_id)))
+          matches = matches.filter((item: any) => playerChampionships.has(String(item.meta?.campeonato_id || '')))
+        }
+        const agendaOwner = activeType === 'equipe'
+          ? `da equipe ${activeName}`
+          : activeType === 'jogador'
+            ? `do jogador ${activeName}`
+            : activeType === 'produtora'
+              ? `da produtora ${activeName}`
+              : activeType === 'manager'
+                ? `do manager ${activeName}`
+                : `do perfil ${activeName}`
         response = {
-          reply: locale === 'en' ? `You have ${matches.length} upcoming match(es) and ${notifications.unread} unread notification(s).` : locale === 'es' ? `Tienes ${matches.length} próximo(s) partido(s) y ${notifications.unread} notificación(es) sin leer.` : `Você tem ${matches.length} próximo${matches.length === 1 ? '' : 's'} jogo${matches.length === 1 ? '' : 's'} e ${notifications.unread} notificação${notifications.unread === 1 ? '' : 'ões'} não lida${notifications.unread === 1 ? '' : 's'}.`,
+          reply: locale === 'en' ? `You have ${matches.length} upcoming match(es) and ${notifications.unread} unread notification(s).` : locale === 'es' ? `Tienes ${matches.length} próximo(s) partido(s) y ${notifications.unread} notificación(es) sin leer.` : `Esta é a agenda ${agendaOwner}: ${matches.length} próximo${matches.length === 1 ? '' : 's'} jogo${matches.length === 1 ? '' : 's'} e ${notifications.unread} notificação${notifications.unread === 1 ? '' : 'ões'} não lida${notifications.unread === 1 ? '' : 's'}.`,
           intent: match.intent,
           cards: [
             { id: 'agenda-summary', kind: 'summary', title: locale === 'en' ? 'Schedule and notifications' : locale === 'es' ? 'Agenda y notificaciones' : 'Agenda e notificações', details: [
@@ -635,8 +656,65 @@ export async function POST(req: NextRequest) {
             { id: 'agenda-all-games', label: locale === 'en' ? 'All upcoming matches' : locale === 'es' ? 'Todos los próximos partidos' : 'Todos os próximos jogos', message: 'Mostrar meus próximos jogos', intent: 'listar_proximos_jogos', variant: 'primary', context: { locale } },
             { id: 'agenda-notifications', label: locale === 'en' ? 'All notifications' : locale === 'es' ? 'Todas las notificaciones' : 'Todas as notificações', message: 'Mostrar minhas notificações', intent: 'listar_notificacoes', variant: 'secondary', context: { locale } },
             ...(notifications.unread ? [{ id: 'agenda-read-all', label: locale === 'en' ? 'Mark all as read' : locale === 'es' ? 'Marcar todas como leídas' : 'Marcar todas como lidas', message: 'Marcar todas notificações como lidas', intent: 'marcar_notificacoes_lidas' as const, variant: 'secondary' as const, context: { locale } }] : []),
-            { id: 'agenda-open-page', label: locale === 'en' ? 'Open full schedule' : locale === 'es' ? 'Abrir agenda completa' : 'Abrir agenda completa', href: '/agenda', variant: 'secondary' },
-          ], context: { locale }, source: match.source,
+            { id: 'agenda-open-page', label: locale === 'en' ? 'Open full schedule' : locale === 'es' ? 'Abrir agenda completa' : 'Abrir agenda completa', href: activeType === 'equipe' ? `/agenda?scope=equipe&scopeId=${activeAccount.id}` : '/agenda', variant: 'secondary' },
+            { id: 'agenda-registrations', label: locale === 'en' ? 'Registered tournaments' : locale === 'es' ? 'Campeonatos inscritos' : 'Campeonatos inscritos', message: 'Mostrar campeonatos inscritos', intent: 'listar_minhas_inscricoes', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
+          ], context: { locale, currentFlow: 'agenda', currentEntityType: activeType === 'equipe' || activeType === 'jogador' || activeType === 'manager' || activeType === 'produtora' ? activeType : 'geral', currentEntityId: String(activeAccount.id) }, source: match.source,
+        }
+        break
+      }
+
+      case 'escalar_elenco': {
+        if (!user) {
+          response = { reply: 'Entre na sua conta para eu localizar as equipes que você pode escalar.', intent: match.intent, requiresAuth: true, context: { locale, currentFlow: 'lineup' }, source: 'system' }
+          break
+        }
+        const activeAccount = await getActiveAccount(req, user)
+        const teams = await listUserTeams(user)
+        const activeTeam = String(activeAccount.profile_type) === 'equipe'
+          ? teams.find((team: any) => String(team.id) === String(activeAccount.id))
+          : null
+        const orderedTeams = activeTeam ? [activeTeam, ...teams.filter((team: any) => String(team.id) !== String(activeTeam.id))] : teams
+        if (!orderedTeams.length) {
+          response = {
+            reply: String(activeAccount.profile_type) === 'jogador'
+              ? 'Seu perfil ativo é de jogador e não administra uma equipe. Você pode consultar seus campeonatos ou usar um convite de escalação recebido.'
+              : 'Não encontrei uma equipe com permissão de escalação neste perfil.',
+            intent: match.intent,
+            actions: [
+              { id: 'lineup-use-token', label: 'Usar token de escalação', message: 'Tenho um token de escalação', intent: 'usar_convite_token', variant: 'primary', context: { locale } },
+              { id: 'lineup-my-games', label: 'Ver minha agenda', message: 'Abrir minha agenda', intent: 'abrir_central_agenda', variant: 'secondary', context: { locale } },
+              backToMainMenu(locale),
+            ],
+            context: { locale, currentFlow: 'lineup' },
+            source: 'system',
+          }
+          break
+        }
+        response = {
+          reply: orderedTeams.length === 1
+            ? `Encontrei a equipe ${orderedTeams[0].nome}. Abra as escalações para adicionar jogadores, gerar token ou ajustar o limite.`
+            : `Você pode escalar ${orderedTeams.length} equipes. Escolha a equipe que deseja administrar.`,
+          intent: match.intent,
+          cards: orderedTeams.map((team: any) => ({
+            id: `lineup-team-${team.id}`,
+            kind: 'team' as const,
+            title: team.nome,
+            subtitle: team.papel === 'dono' ? 'Proprietário' : 'Staff autorizado',
+            imageUrl: team.logo_url || null,
+            badges: [team.permissoes?.pode_escalar ? 'Pode escalar' : 'Acesso limitado'],
+            actions: [
+              { id: `open-lineup-${team.id}`, label: 'Abrir escalações', href: `/equipes/${team.id}?section=campeonatos`, variant: 'primary' as const },
+              { id: `view-roster-${team.id}`, label: 'Ver elenco', message: `Ver elenco da equipe ${team.nome}`, intent: 'ver_elenco_equipe' as const, variant: 'secondary' as const, context: { locale, selectedTeamId: team.id, currentFlow: 'team_operations' } },
+            ],
+          })),
+          actions: [
+            { id: 'lineup-use-invite', label: 'Usar token recebido', message: 'Tenho um token de escalação', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
+            { id: 'lineup-agenda', label: 'Ver agenda', message: 'Abrir minha agenda', intent: 'abrir_central_agenda', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
+          ],
+          context: { locale, currentFlow: 'lineup' },
+          source: 'system',
         }
         break
       }
@@ -1421,7 +1499,32 @@ export async function POST(req: NextRequest) {
           response = { reply: 'Para consultar suas inscrições, preciso confirmar sua identidade.', intent: match.intent, requiresAuth: true, context: { currentFlow: 'registrations' }, source: match.source }
           break
         }
-        const registrations = await listUserRegistrations(user)
+        const activeAccount = await getActiveAccount(req, user)
+        let registrations = await listUserRegistrations(user)
+        if (String(activeAccount.profile_type) === 'equipe') {
+          registrations = registrations.filter((item: any) => String(item.equipe_id) === String(activeAccount.id))
+        } else if (String(activeAccount.profile_type) === 'jogador') {
+          const { data: playerEntries, error: playerEntriesError } = await supabaseAdmin
+            .from('campeonato_jogadores')
+            .select('id,campeonato_id,equipe_id,line_id,status,created_at')
+            .eq('jogador_id', activeAccount.id)
+            .eq('status', 'ativo')
+            .order('created_at', { ascending: false })
+          if (playerEntriesError) throw playerEntriesError
+          const championshipIds = [...new Set((playerEntries || []).map((item: any) => item.campeonato_id).filter(Boolean))]
+          const teamIds = [...new Set((playerEntries || []).map((item: any) => item.equipe_id).filter(Boolean))]
+          const [{ data: championships }, { data: teams }] = await Promise.all([
+            championshipIds.length ? supabaseAdmin.from('campeonatos').select('id,nome,tipo,logo_url,banner_url,status').in('id', championshipIds) : Promise.resolve({ data: [] }),
+            teamIds.length ? supabaseAdmin.from('equipes').select('id,nome,tag,logo_url').in('id', teamIds) : Promise.resolve({ data: [] }),
+          ])
+          const championshipMap = new Map((championships || []).map((item: any) => [String(item.id), item]))
+          const teamMap = new Map((teams || []).map((item: any) => [String(item.id), item]))
+          registrations = (playerEntries || []).map((item: any) => ({
+            ...item,
+            campeonato: championshipMap.get(String(item.campeonato_id)) || null,
+            equipe: teamMap.get(String(item.equipe_id)) || null,
+          }))
+        }
         const championshipCount = new Set(registrations.map((item: any) => item.campeonato?.id || item.campeonato_id).filter(Boolean)).size
         const registrationsReply = locale === 'en'
           ? `I found ${registrations.length} registration${registrations.length === 1 ? '' : 's'} across ${championshipCount} tournament${championshipCount === 1 ? '' : 's'}. Lines from the same tournament are grouped together.`
@@ -1440,7 +1543,9 @@ export async function POST(req: NextRequest) {
           cards: registrationCards(registrations, locale),
           actions: [
             { id: 'register-new', label: 'Fazer nova inscrição', message: 'Quero fazer uma nova inscrição', intent: 'iniciar_inscricao', variant: 'primary' },
-            { id: 'menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' },
+            { id: 'registrations-agenda', label: 'Ver agenda', message: 'Abrir minha agenda', intent: 'abrir_central_agenda', variant: 'secondary', context: { locale } },
+            { id: 'registrations-lineup', label: 'Escalar elenco', message: 'Escalar elenco', intent: 'escalar_elenco', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
           ],
           context: { locale },
           source: match.source,

@@ -49,6 +49,7 @@ export type LiliIntent =
   | 'falar_atendente_compra'
   | 'verificar_pagamento_convite_grupo'
   | 'listar_minhas_equipes'
+  | 'escalar_elenco'
   | 'listar_campeonatos_gerenciados'
   | 'abrir_central_organizador'
   | 'ver_estrutura_operacional_campeonato'

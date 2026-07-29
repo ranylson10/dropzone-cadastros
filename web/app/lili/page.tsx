@@ -23,7 +23,7 @@ type ChatMessage = {
   requiresAuth?: boolean
 }
 
-const STORAGE_KEY = 'dropzone:lili:conversation:v1'
+const STORAGE_KEY = 'dropzone:lili:conversation:v2'
 const PENDING_KEY = 'dropzone:lili:pending:v1'
 
 const PROFILE_LABELS: Record<string, string> = {
@@ -41,26 +41,23 @@ function profileImage(account?: DropZoneRow | null) {
 function initialMessage(locale: LiliLocale = 'pt-BR'): ChatMessage {
   const copy = locale === 'es'
     ? {
-        text: '¡Hola! Soy Lili, la asistente de DropZone. ¿Qué área quieres consultar?',
-        championships: 'Campeonatos', teams: 'Equipos', players: 'Jugadores', organization: 'Mi organización', services: 'Agenda y servicios', invite: 'Invitación o token', language: 'Idioma',
+        text: '¡Hola! Soy Lili. ¿Qué necesitas hacer ahora?',
+        championships: 'Campeonatos con cupos', teams: 'Gestionar plantilla', players: 'Campeonatos inscritos', organization: 'Mi agenda',
       }
     : locale === 'en'
       ? {
-          text: 'Hi! I’m Lili, the DropZone assistant. Which area would you like to access?',
-          championships: 'Tournaments', teams: 'Teams', players: 'Players', organization: 'My organization', services: 'Schedule and services', invite: 'Invite or token', language: 'Language',
+          text: 'Hi! I’m Lili. What do you need to do now?',
+          championships: 'Tournaments with spots', teams: 'Manage lineup', players: 'Registered tournaments', organization: 'My schedule',
         }
       : {
-          text: 'Olá! Sou a Lili, assistente do DropZone. Qual área você quer acessar?',
-          championships: 'Campeonatos', teams: 'Equipes', players: 'Jogadores', organization: 'Minha organização', services: 'Agenda e serviços', invite: 'Convite ou token', language: 'Idioma',
+          text: 'Olá! Sou a Lili. O que você precisa fazer agora?',
+          championships: 'Campeonatos com vagas', teams: 'Escalar elenco', players: 'Campeonatos inscritos', organization: 'Minha agenda',
         }
   return { id: 'welcome', role: 'assistant', text: copy.text, actions: [
-    { id: 'championships', label: copy.championships, message: copy.championships, intent: 'explorar_campeonatos', variant: 'primary', context: { locale } },
-    { id: 'teams', label: copy.teams, message: copy.teams, intent: 'explorar_equipes', variant: 'primary', context: { locale } },
-    { id: 'players', label: copy.players, message: copy.players, intent: 'explorar_jogadores', variant: 'primary', context: { locale } },
-    { id: 'organization', label: copy.organization, message: copy.organization, intent: 'explorar_organizacao', variant: 'secondary', context: { locale } },
-    { id: 'services', label: copy.services, message: copy.services, intent: 'explorar_servicos', variant: 'secondary', context: { locale } },
-    { id: 'invite', label: copy.invite, message: copy.invite, intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
-    { id: 'language', label: copy.language, message: copy.language, intent: 'alterar_idioma', variant: 'secondary', context: { locale } },
+    { id: 'open-championships', label: copy.championships, message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } },
+    { id: 'manage-lineup', label: copy.teams, message: 'Escalar elenco', intent: 'escalar_elenco', variant: 'primary', context: { locale } },
+    { id: 'my-registrations', label: copy.players, message: 'Mostrar campeonatos inscritos', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
+    { id: 'my-agenda', label: copy.organization, message: 'Abrir minha agenda', intent: 'abrir_central_agenda', variant: 'primary', context: { locale } },
   ] }
 }
 
@@ -323,11 +320,13 @@ export default function LiliPage() {
     if (!silent) setTyping(true)
 
     try {
+      const activeProfileType = String(account?.profile_type || localStorage.getItem('dropzone_active_profile_type') || '')
       const response = await fetch('/api/lili/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          ...(activeProfileType ? { 'x-profile-type': activeProfileType } : {}),
         },
         body: JSON.stringify({ message: clean, intent, context: nextContext }),
         signal: controller.signal,
@@ -418,7 +417,11 @@ export default function LiliPage() {
         ? 'iniciar_inscricao'
         : context.currentFlow === 'registrations'
           ? 'listar_minhas_inscricoes'
-          : 'listar_minhas_equipes'
+          : context.currentFlow === 'agenda'
+            ? 'abrir_central_agenda'
+            : context.currentFlow === 'lineup'
+              ? 'escalar_elenco'
+              : 'listar_minhas_equipes'
     try {
       sessionStorage.setItem(PENDING_KEY, JSON.stringify({
         message: 'Continuar consulta após login',
