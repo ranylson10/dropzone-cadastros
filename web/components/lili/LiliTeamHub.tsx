@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ChevronRight, Copy, ExternalLink, Plus, RefreshCw, Shield, Swords, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, ChevronRight, ExternalLink, Plus, RefreshCw, Shield, Swords, UserPlus, Users } from 'lucide-react'
+import { LineRosterManager } from '@/components/equipes/LineRosterManager'
 
 type TeamItem = {
   id: string
@@ -38,6 +39,7 @@ export function LiliTeamHub({ accessToken }: { accessToken?: string | null }) {
   const [feedback, setFeedback] = useState('')
   const [creatingLine, setCreatingLine] = useState(false)
   const [lineName, setLineName] = useState('')
+  const [selectedLine, setSelectedLine] = useState<any | null>(null)
 
   async function request(url: string, options?: RequestInit) {
     if (!accessToken) throw new Error('Entre na sua conta para ver suas equipes.')
@@ -63,7 +65,7 @@ export function LiliTeamHub({ accessToken }: { accessToken?: string | null }) {
   }
 
   async function openTeam(team: TeamItem) {
-    setSelected(team); setDetail(null); setSection('overview'); setLoading(true); setError(''); setFeedback('')
+    setSelected(team); setDetail(null); setSection('overview'); setSelectedLine(null); setLoading(true); setError(''); setFeedback('')
     try { setDetail(await request(`/api/lili/equipes?id=${encodeURIComponent(team.id)}`)) }
     catch (err: any) { setError(err?.message || 'Não foi possível carregar a equipe.') }
     finally { setLoading(false) }
@@ -116,7 +118,7 @@ export function LiliTeamHub({ accessToken }: { accessToken?: string | null }) {
       <nav className="lili-team-sections">
         <button className={section === 'overview' ? 'active' : ''} onClick={() => setSection('overview')}><Shield size={16}/><span>Resumo</span></button>
         <button className={section === 'players' ? 'active' : ''} onClick={() => setSection('players')}><Users size={16}/><span>Elenco</span></button>
-        <button className={section === 'lines' ? 'active' : ''} onClick={() => setSection('lines')}><Swords size={16}/><span>Lines</span></button>
+        <button className={section === 'lines' ? 'active' : ''} onClick={() => { setSection('lines'); setSelectedLine(null) }}><Swords size={16}/><span>Lines</span></button>
         <button className={section === 'staff' ? 'active' : ''} onClick={() => setSection('staff')}><Shield size={16}/><span>Staff</span></button>
         <button className={section === 'championships' ? 'active' : ''} onClick={() => setSection('championships')}><Swords size={16}/><span>Eventos</span></button>
       </nav>
@@ -137,10 +139,10 @@ export function LiliTeamHub({ accessToken }: { accessToken?: string | null }) {
         {!counts.players ? <div className="lili-team-empty compact"><Users size={26}/><strong>Elenco vazio</strong><span>Gere um convite para adicionar jogadores.</span></div> : null}
       </div> : null}
 
-      {detail && section === 'lines' ? <div className="lili-team-section">
-        <div className="lili-team-section-title"><div><strong>Lines</strong><span>{counts.lines} line(s)</span></div>{team.permissoes?.pode_editar ? <button onClick={() => setCreatingLine((v) => !v)}><Plus size={15}/> Nova</button> : null}</div>
+      {detail && section === 'lines' ? selectedLine ? <LineRosterManager accessToken={accessToken || ''} equipeId={team.id} line={selectedLine} compact onBack={() => setSelectedLine(null)} onChanged={() => void openTeam(selected)} /> : <div className="lili-team-section">
+        <div className="lili-team-section-title"><div><strong>Lines</strong><span>{counts.lines} time(s) da equipe</span></div>{team.permissoes?.pode_editar ? <button onClick={() => setCreatingLine((v) => !v)}><Plus size={15}/> Nova</button> : null}</div>
         {creatingLine ? <div className="lili-team-inline-form"><input value={lineName} onChange={(e) => setLineName(e.target.value)} placeholder="Nome da line"/><button onClick={() => void createLine()}>Criar</button></div> : null}
-        <div className="lili-team-rows">{detail.overview.lines.map((line: any) => <article key={line.id}><span className="lili-team-avatar">{line.logo_url ? <img src={line.logo_url} alt=""/> : String(line.tag || line.nome || 'L').slice(0,2)}</span><div><strong>{line.nome}</strong><small>{line.tag || 'Sem tag'} · {line.status || 'ativo'}</small></div></article>)}</div>
+        <div className="lili-team-rows clickable">{detail.overview.lines.map((line: any) => <button type="button" key={line.id} onClick={() => setSelectedLine(line)}><span className="lili-team-avatar">{line.logo_url ? <img src={line.logo_url} alt=""/> : String(line.tag || line.nome || 'L').slice(0,2)}</span><div><strong>{line.nome}</strong><small>{line.tag || 'Sem tag'} · toque para abrir jogadores e formações</small></div><ChevronRight size={17}/></button>)}</div>
       </div> : null}
 
       {detail && section === 'staff' ? <div className="lili-team-section"><div className="lili-team-section-title"><div><strong>Staff</strong><span>{counts.staff} membro(s)</span></div></div><div className="lili-team-rows">{detail.overview.staff.map((row: any) => <article key={row.id}><span className="lili-team-avatar">{row.manager?.avatar_url ? <img src={row.manager.avatar_url} alt=""/> : 'M'}</span><div><strong>{row.manager?.nome || row.manager?.username || 'Manager'}</strong><small>{row.pode_editar ? 'Pode editar' : 'Visualização'} · {row.pode_escalar ? 'Pode escalar' : 'Sem escalação'}</small></div></article>)}</div>{!counts.staff ? <div className="lili-team-empty compact"><Shield size={26}/><strong>Sem staff adicional</strong><span>O dono continua com controle total.</span></div> : null}</div> : null}

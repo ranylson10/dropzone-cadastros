@@ -7,6 +7,7 @@ import { getDirectoryProfile } from '../server'
 import type { DirectoryKind } from '../types'
 import { ChampionshipPublicView } from './ChampionshipPublicView'
 import { DirectoryProfileTabs } from './DirectoryProfileTabs'
+import { TeamLinesWorkspace } from '@/components/equipes/TeamLinesWorkspace'
 
 export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; id: string }) {
   const profile = await getDirectoryProfile(kind, id)
@@ -84,6 +85,7 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
               : null
           }
         />
+        {kind === 'equipes' ? <TeamLinesWorkspace equipeId={id} /> : null}
       </div>
     </AppShell>
   )
