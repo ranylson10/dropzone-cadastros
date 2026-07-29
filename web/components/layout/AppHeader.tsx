@@ -247,7 +247,7 @@ export function AppHeader({
         </div>
 
         {isAuthenticated ? (
-          <div className="app-profile" ref={profileRef} style={{ position: 'relative', maxWidth: 360 }}>
+          <div className="app-profile" ref={profileRef}>
             {showWallet ? (
               <a
                 href="/carteira"
