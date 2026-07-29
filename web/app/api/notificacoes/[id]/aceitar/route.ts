@@ -46,11 +46,65 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (notif.tipo === 'pedido_manager_campeonato') {
       return await acceptChampPedidoAsAdmin(user, notif)
     }
+    if (notif.tipo === 'convite_jogador_equipe_direto' || notif.tipo === 'pedido_jogador_equipe') {
+      return await acceptPlayerTeamRelationship(user, accounts, notif)
+    }
 
     throw new Error('Esta notificação não aceita resposta de aceite.')
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao aceitar convite.' }, { status: 400 })
   }
+}
+
+async function acceptPlayerTeamRelationship(user: any, accounts: any[], notif: any) {
+  if (notif.status !== 'nao_lida') throw new Error('Esta solicitação já foi respondida.')
+  const equipeId = String(notif.payload?.equipe_id || '')
+  const jogadorId = String(notif.payload?.jogador_id || '')
+  if (!equipeId || !jogadorId) throw new Error('Solicitação incompleta.')
+
+  const [{ data: equipe, error: teamError }, { data: jogador, error: playerError }] = await Promise.all([
+    supabaseAdmin.from('equipes').select('id,nome,auth_user_id').eq('id', equipeId).maybeSingle(),
+    supabaseAdmin.from('jogadores').select('id,nick,avatar_url,id_jogo,funcao,localidade,auth_user_id').eq('id', jogadorId).maybeSingle(),
+  ])
+  if (teamError) throw teamError
+  if (playerError) throw playerError
+  if (!equipe || !jogador?.auth_user_id) throw new Error('Equipe ou jogador não encontrado.')
+
+  if (notif.tipo === 'convite_jogador_equipe_direto') {
+    if (jogador.auth_user_id !== user.id || !accounts.some((item) => item.profile_type === 'jogador' && item.id === jogador.id)) {
+      throw new Error('Este convite não pertence ao seu perfil de jogador.')
+    }
+  } else if (equipe.auth_user_id !== user.id) {
+    throw new Error('Somente o dono da equipe pode aceitar este pedido.')
+  }
+
+  const { error } = await supabaseAdmin.from('equipe_jogadores').upsert({
+    equipe_id: equipe.id,
+    jogador_auth_user_id: jogador.auth_user_id,
+    nick: jogador.nick,
+    foto_url: jogador.avatar_url,
+    id_jogo: jogador.id_jogo,
+    funcao: jogador.funcao,
+    localidade: jogador.localidade,
+    origem: notif.tipo === 'pedido_jogador_equipe' ? 'pedido_jogador' : 'convite_direto',
+    status: 'ativo',
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'equipe_id,jogador_auth_user_id' })
+  if (error) throw error
+
+  await supabaseAdmin.from('notificacoes').update({ status: 'lida', read_at: new Date().toISOString() }).eq('id', notif.id)
+  try {
+    await createNotificacao({
+      destinatarioAuthUserId: notif.remetente_auth_user_id,
+      tipo: 'vinculo_jogador_equipe_resposta',
+      titulo: 'Solicitação aceita',
+      corpo: `${jogador.nick} agora faz parte do elenco de ${equipe.nome}.`,
+      payload: { equipe_id: equipe.id, jogador_id: jogador.id, resposta: 'aceito' },
+      referenciaTipo: 'equipe_jogador',
+      referenciaId: equipe.id,
+    })
+  } catch {}
+  return NextResponse.json({ ok: true, mensagem: `${jogador.nick} agora faz parte do elenco de ${equipe.nome}.` })
 }
 
 async function acceptEquipeInvite(user: any, accounts: any[], notif: any) {

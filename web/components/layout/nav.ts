@@ -27,6 +27,7 @@ export const APP_NAV: AppNavItem[] = [
   { label: 'Agenda', href: '/agenda' },
   { label: 'Equipes', href: '/equipes' },
   { label: 'Jogadores', href: '/jogadores' },
+  { label: 'Rank', href: '/rank' },
   { label: 'Managers', href: '/managers' },
 ]
 

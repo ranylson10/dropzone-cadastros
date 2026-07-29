@@ -31,11 +31,41 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (notif.tipo === 'pedido_manager_campeonato') {
       return await refuseChampPedido(user, notif)
     }
+    if (notif.tipo === 'convite_jogador_equipe_direto' || notif.tipo === 'pedido_jogador_equipe') {
+      return await refusePlayerTeamRelationship(user, accounts, notif)
+    }
 
     throw new Error('Esta notificação não aceita recusa.')
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao recusar convite.' }, { status: 400 })
   }
+}
+
+async function refusePlayerTeamRelationship(user: any, accounts: any[], notif: any) {
+  if (notif.status !== 'nao_lida') throw new Error('Esta solicitação já foi respondida.')
+  const equipeId = String(notif.payload?.equipe_id || '')
+  const jogadorId = String(notif.payload?.jogador_id || '')
+  const [{ data: equipe }, { data: jogador }] = await Promise.all([
+    supabaseAdmin.from('equipes').select('id,nome,auth_user_id').eq('id', equipeId).maybeSingle(),
+    supabaseAdmin.from('jogadores').select('id,nick,auth_user_id').eq('id', jogadorId).maybeSingle(),
+  ])
+  if (notif.tipo === 'convite_jogador_equipe_direto') {
+    if (jogador?.auth_user_id !== user.id || !accounts.some((item) => item.profile_type === 'jogador' && item.id === jogadorId)) throw new Error('Este convite não pertence ao seu perfil.')
+  } else if (equipe?.auth_user_id !== user.id) throw new Error('Somente o dono da equipe pode recusar este pedido.')
+
+  await supabaseAdmin.from('notificacoes').update({ status: 'lida', read_at: new Date().toISOString() }).eq('id', notif.id)
+  try {
+    await createNotificacao({
+      destinatarioAuthUserId: notif.remetente_auth_user_id,
+      tipo: 'vinculo_jogador_equipe_resposta',
+      titulo: 'Solicitação recusada',
+      corpo: `${jogador?.nick || 'O jogador'} e ${equipe?.nome || 'a equipe'} não foram vinculados.`,
+      payload: { equipe_id: equipeId, jogador_id: jogadorId, resposta: 'recusado' },
+      referenciaTipo: 'equipe_jogador',
+      referenciaId: equipeId,
+    })
+  } catch {}
+  return NextResponse.json({ ok: true, mensagem: 'Solicitação recusada.' })
 }
 
 async function refuseEquipe(user: any, accounts: any[], notif: any) {

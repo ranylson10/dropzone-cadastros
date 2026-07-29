@@ -9,6 +9,7 @@ import { Field, UploadField } from '../../components/form-fields'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { dataText, rowTitle } from '../../utils'
+import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 
 type Lineup = {
   campeonato_equipe_id: string
@@ -101,6 +102,13 @@ export function EquipePanel(props: {
   const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id)), [props.playerTeams, props.managedTeams])
 
   useEffect(() => { void loadLineups() }, [])
+
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section')
+    if (section === 'campeonatos' || section === 'lines' || section === 'jogadores' || section === 'convites' || section === 'staff' || section === 'config') {
+      setTab(section)
+    }
+  }, [])
 
   useEffect(() => {
     if (props.managedTeams[0]?.id && !staffTeamId) setStaffTeamId(props.managedTeams[0].id)
@@ -527,7 +535,7 @@ Acesse: ${url}`
 
         {tab === 'jogadores' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Elenco</p><h3>Jogadores da equipe</h3></div><span className="count-pill"><Users size={14}/>{teamPlayers.length}</span></div>{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador vinculado ao elenco.</p> : null}<div className="team-player-grid">{teamPlayers.map((row) => <article className="team-player-card" key={row.id}><img src={dataText(row, 'foto_url') || '/favicon.ico'} alt=""/><div><strong>{dataText(row, 'nick') || rowTitle(row)}</strong><span>ID {dataText(row, 'id_jogo') || '-'}</span><small>{dataText(row, 'funcao') || 'Função não informada'}</small></div></article>)}</div></div> : null}
 
-        {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Este convite adiciona o jogador ao elenco. Ele não inscreve o jogador em campeonato.</p><div className="token-list">{props.managedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <button key={lineup.campeonato_equipe_id} className={`token-card ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><span>{lineup.campeonato_nome} · {lineup.line_nome}</span><strong>{copiedLineupId === lineup.campeonato_equipe_id ? 'Link copiado' : 'Copiar convite'}</strong><Copy size={15}/></button>)}</div></div></div> : null}
+        {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Envie diretamente pelo correio ou gere um link compartilhável. O jogador pode aceitar ou recusar.</p>{props.managedTeams.map((team) => <PlayerTeamRequest key={team.id} mode="invite_player" equipeId={team.id}/>)}<div className="token-list">{props.managedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <button key={lineup.campeonato_equipe_id} className={`token-card ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><span>{lineup.campeonato_nome} · {lineup.line_nome}</span><strong>{copiedLineupId === lineup.campeonato_equipe_id ? 'Link copiado' : 'Copiar convite'}</strong><Copy size={15}/></button>)}</div></div></div> : null}
 
         {tab === 'staff' ? (
           <div className="panel-tab-body staff-tab">

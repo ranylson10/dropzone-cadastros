@@ -543,7 +543,7 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
 
   return (
     <section className="lili-champ-hub detail mobile-first">
-      <div className="lili-champ-detail-head"><button type="button" onClick={() => { setSelected(null); setStructure(null); setFeedback('') }}><ArrowLeft size={18} /> Voltar</button><a href={`/campeonatos/${selected.id}`}><ExternalLink size={16} /> Site completo</a></div>
+      <div className="lili-champ-detail-head"><button type="button" onClick={() => { setSelected(null); setStructure(null); setFeedback('') }}><ArrowLeft size={18} /> Voltar</button><a href={structure?.permission?.canManage ? `/?perfil=produtora&campeonato=${encodeURIComponent(String(selected.id))}&section=grupos` : `/campeonatos/${selected.id}`}><ExternalLink size={16} /> {structure?.permission?.canManage ? 'Gerenciar no site' : 'Site completo'}</a></div>
       <div className="lili-champ-title"><span className="lili-champ-logo large">{selected.logo_url || selected.banner_url ? <img src={selected.logo_url || selected.banner_url || ''} alt="" /> : <Trophy size={25} />}</span><div><strong>{selected.nome}</strong><span>{selected.tipo || 'Campeonato'} · {selected.status || 'ativo'}</span></div></div>
       {detailLoading ? <div className="lili-champ-loading"><Loader2 className="spin" size={24} /> Carregando estrutura…</div> : null}
       {error ? <div className="lili-champ-feedback error">{error}</div> : null}
@@ -552,14 +552,12 @@ export function LiliChampionshipHub({ accessToken }: { accessToken?: string | nu
         <nav className="lili-mobile-sections" aria-label="Áreas do campeonato">
           <button type="button" className={detailTab === 'overview' ? 'active' : ''} onClick={() => setDetailTab('overview')}><Trophy size={17} /><span>Resumo</span></button>
           <button type="button" className={detailTab === 'groups' ? 'active' : ''} onClick={() => { setDetailTab('groups'); if (!openGroupId && groups[0]) setOpenGroupId(String(groups[0].id)) }}><Users size={17} /><span>Grupos</span></button>
-          {structure.permission?.canGenerateToken ? <button type="button" className={detailTab === 'links' ? 'active' : ''} onClick={() => setDetailTab('links')}><Link2 size={17} /><span>Links</span></button> : null}
-          {structure.permission?.canManage ? <button type="button" className={detailTab === 'config' ? 'active' : ''} onClick={() => setDetailTab('config')}><Pencil size={17} /><span>Configurar</span></button> : null}
         </nav>
 
         {detailTab === 'overview' ? <div className="lili-mobile-panel">
           <div className="lili-mobile-metrics"><div><span>Fases</span><strong>{phases.length}</strong></div><div><span>Grupos</span><strong>{groups.length}</strong></div><div><span>Equipes</span><strong>{occupiedSlots}/{slots.length}</strong></div><div><span>Jogos</span><strong>{games.length}</strong></div></div>
           <section className="lili-mobile-summary-card"><div><strong>Fases, grupos e calendário</strong><span>{phases.length ? `${phases.length} fase(s), ${groups.length} grupo(s) e ${games.length} jogo(s)` : 'Estrutura ainda não configurada'}</span></div><button type="button" onClick={() => { setDetailTab('groups'); if (groups[0]) setOpenGroupId(String(groups[0].id)) }}>Acompanhar <ChevronRight size={16} /></button></section>
-          {structure.permission?.canManage ? <section className="lili-mobile-callout"><Sparkles size={20} /><div><strong>Administração simplificada</strong><span>Use Configurar para revisar o que já existe antes de adicionar novas fases ou grupos.</span></div><button type="button" onClick={() => setDetailTab('config')}>Configurar</button></section> : null}
+          {structure.permission?.canManage ? <section className="lili-mobile-callout"><Sparkles size={20} /><div><strong>Alterações avançadas no site</strong><span>A Lili mantém a consulta rápida. Estrutura, jogos e convites são gerenciados na tela completa.</span></div><a href={`/?perfil=produtora&campeonato=${encodeURIComponent(String(selected.id))}&section=grupos`}>Gerenciar</a></section> : null}
         </div> : null}
 
         {detailTab === 'groups' ? <div className="lili-mobile-panel">

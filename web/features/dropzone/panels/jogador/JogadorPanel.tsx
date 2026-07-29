@@ -5,6 +5,7 @@ import { BarChart3, Gamepad2, Shield, Swords, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { dataText, rowTitle } from '../../utils'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
+import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 
 export function JogadorPanel(props: {
   account: DropZoneRow
@@ -107,6 +108,7 @@ export function JogadorPanel(props: {
                 </article>
               ))}
             </div>
+            <PlayerTeamRequest mode="request_join"/>
           </section>
           <section className="panel">
             <h2>Minhas lines</h2>

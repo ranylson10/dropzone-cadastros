@@ -142,6 +142,8 @@ export function NotificationBell() {
                 item.tipo === 'convite_manager_equipe'
                 || item.tipo === 'convite_manager_campeonato'
                 || item.tipo === 'pedido_manager_campeonato'
+                || item.tipo === 'convite_jogador_equipe_direto'
+                || item.tipo === 'pedido_jogador_equipe'
               const unreadItem = item.status === 'nao_lida'
               const perms = item.payload?.permissoes || {}
               const permLine = item.tipo === 'convite_manager_equipe'

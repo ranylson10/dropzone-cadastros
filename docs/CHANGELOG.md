@@ -1,5 +1,16 @@
 # Histórico de alterações
 
+## 2026-07-29 — Ranking, convites e navegação rápida
+
+- Navegação mobile da Lili abreviada para `Lili`, `Camp.`, `Equipes`, `Players` e `Rank`.
+- Criado ranking global de equipes por pontos/BOOYAH/abates e de jogadores por abates/dano.
+- Ranking disponível na Lili e na página `/rank` do site.
+- Equipes podem buscar e convidar diretamente jogadores; jogadores podem buscar equipes e solicitar entrada.
+- Convites e pedidos chegam ao correio, com aceite e recusa protegidos no backend.
+- Solicitações duplicadas e aceite repetido são bloqueados.
+- Fluxos estão disponíveis tanto na Lili quanto nos painéis de equipe e jogador do site.
+- Alterações avançadas direcionam da Lili para a seção correspondente no painel completo.
+
 ## 2026-07-29 — Lili em modo de acompanhamento
 
 - Participantes podem consultar fases, grupos, equipes, calendário e mapas sem receber permissão de edição.

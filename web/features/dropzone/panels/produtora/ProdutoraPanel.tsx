@@ -125,6 +125,14 @@ export function ProdutoraPanel(props: {
     gerenciar_jogos: false,
     pontuar_tabela: false,
   })
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const championshipId = params.get('campeonato')
+    const section = params.get('section') as ProducerTab | null
+    if (championshipId && props.championships.some((item) => item.id === championshipId)) props.setSelectedChampId(championshipId)
+    if (section && producerTabs.some((item) => item.id === section)) setTab(section)
+  }, [props.championships])
   // Convite por pesquisa (correio) — por campeonato
   const [mgrQuery, setMgrQuery] = useState('')
   const [mgrSearch, setMgrSearch] = useState<any[]>([])
@@ -2370,5 +2378,4 @@ ${params.url}`
     </div>
   )
 }
-
 

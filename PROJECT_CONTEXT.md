@@ -4,7 +4,7 @@
 > Atualize-o ao fim de cada rodada relevante.
 
 **Última atualização:** 29 de julho de 2026
-**Estado:** Lili separa acompanhamento de administração: participantes visualizam fases, grupos, equipes, datas, horários e mapas, enquanto ações de edição permanecem protegidas por permissão.
+**Estado:** Lili funciona como acesso rápido com ranking, acompanhamento e solicitações; operações avançadas abrem a seção correspondente no site. Convites jogador–equipe possuem aceite/recusa pelo correio.
 
 ## 1. Objetivo do sistema
 

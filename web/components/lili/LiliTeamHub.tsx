@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ChevronRight, ExternalLink, Plus, RefreshCw, Shield, Swords, UserPlus, Users } from 'lucide-react'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
+import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 
 type TeamItem = {
   id: string
@@ -137,6 +138,8 @@ export function LiliTeamHub({ accessToken }: { accessToken?: string | null }) {
         <div className="lili-team-section-title"><div><strong>Elenco</strong><span>{counts.players} jogador(es)</span></div>{team.papel === 'dono' ? <button onClick={() => void createRosterInvite()}><UserPlus size={15}/> Convidar</button> : null}</div>
         <div className="lili-team-rows">{detail.overview.players.map((player: any) => <article key={player.id}><span className="lili-team-avatar">{player.foto_url ? <img src={player.foto_url} alt=""/> : String(player.nick || 'J').slice(0,1)}</span><div><strong>{player.nick || 'Jogador'}</strong><small>{player.funcao || 'Função não informada'} · ID {player.id_jogo || 'pendente'}</small></div></article>)}</div>
         {!counts.players ? <div className="lili-team-empty compact"><Users size={26}/><strong>Elenco vazio</strong><span>Gere um convite para adicionar jogadores.</span></div> : null}
+        {team.papel === 'dono' ? <PlayerTeamRequest mode="invite_player" equipeId={team.id} accessToken={accessToken}/> : null}
+        <a className="lili-advanced-link" href={`/?perfil=equipe&team=${encodeURIComponent(team.id)}&section=convites`}>Gestão avançada de convites <ExternalLink size={14}/></a>
       </div> : null}
 
       {detail && section === 'lines' ? selectedLine ? <LineRosterManager accessToken={accessToken || ''} equipeId={team.id} line={selectedLine} compact onBack={() => setSelectedLine(null)} onChanged={() => void openTeam(selected)} /> : <div className="lili-team-section">
