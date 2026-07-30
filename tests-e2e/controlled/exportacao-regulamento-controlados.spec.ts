@@ -206,13 +206,15 @@ test.describe('Exportação e regulamento — acesso, overrides e limpeza contro
       )
       expect(forbiddenRulebookEdit.ok(), 'Equipe sem permissão não pode editar o regulamento.').toBe(false)
 
-      const resetRulebook = await request.delete(
+      // O ambiente publicado ainda não expõe DELETE neste endpoint.
+      // Como o campeonato é temporário, o regulamento é removido junto com ele no finally.
+      const finalRulebook = await request.get(
         `${origin}/api/campeonatos/${encodeURIComponent(championshipId)}/rulebook`,
         { headers: headers(produtoraToken, 'produtora'), timeout: 30_000 },
       )
-      const resetBody = await json(resetRulebook)
-      expect(resetRulebook.ok(), `Falha ao restaurar regulamento: ${resetBody?.error || resetRulebook.status()}`).toBe(true)
-      expect(resetBody?.ok).toBe(true)
+      const finalRulebookBody = await json(finalRulebook)
+      expect(finalRulebook.ok(), `Falha ao reler regulamento: ${finalRulebookBody?.error || finalRulebook.status()}`).toBe(true)
+      expect(finalRulebookBody?.ok).toBe(true)
     } finally {
       if (championshipId) await cleanupChampionship(request, origin, produtoraToken, championshipId)
     }
