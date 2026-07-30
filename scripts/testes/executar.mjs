@@ -16,6 +16,7 @@ import { executar as serviceRolePermissoes } from './modulos/12-service-role-per
 import { executar as coberturaCrud } from './modulos/13-cobertura-crud.mjs';
 
 const full = process.argv.includes('--full');
+const skipQuality = process.argv.includes('--skip-quality');
 const startedAt = new Date();
 const modules = [
   ['Ambiente', ambiente],
@@ -30,11 +31,11 @@ const modules = [
   ['Matriz RLS', matrizRls],
   ['Service Role e permissões', serviceRolePermissoes],
   ['Cobertura CRUD', coberturaCrud],
-  ['Qualidade', () => qualidade({ full })],
+  ...(!skipQuality ? [['Qualidade', () => qualidade({ full })]] : []),
 ];
 const results = [];
 
-console.log(`\nDROPZONE — AUDITORIA ${full ? 'COMPLETA' : 'RÁPIDA'}\n`);
+console.log(`\nDROPZONE — AUDITORIA ${full ? 'COMPLETA' : 'RÁPIDA'}${skipQuality ? ' (QUALIDADE JÁ VALIDADA PELO ORQUESTRADOR)' : ''}\n`);
 for (const [name, fn] of modules) {
   process.stdout.write(`Testando ${name}... `);
   try {

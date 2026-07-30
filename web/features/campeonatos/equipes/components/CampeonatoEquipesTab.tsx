@@ -7,6 +7,7 @@ import {
   Copy,
   Link2,
   Loader2,
+  Pencil,
   RefreshCw,
   Search,
   Shield,
@@ -258,6 +259,35 @@ Acesse: ${link}`
     setFeedback(copiou ? 'Convite de grupo copiado.' : 'Não foi possível copiar automaticamente.')
   }
 
+  async function editarConvite(
+    tokenId: string,
+    referenciaAtualEquipe?: string | null,
+    referenciaAtualLine?: string | null,
+  ) {
+    if (!tokenId) return
+    const referenciaEquipe = window.prompt('Identificação da reserva:', referenciaAtualEquipe || '')
+    if (referenciaEquipe === null) return
+    const referenciaLine = window.prompt('Identificação da line:', referenciaAtualLine || '')
+    if (referenciaLine === null) return
+    if (!referenciaEquipe.trim() || !referenciaLine.trim()) {
+      setFeedback('As duas identificações são obrigatórias.')
+      return
+    }
+    setProcessando(true)
+    try {
+      await campeonatoEquipesService.editarConvite(campeonatoId, tokenId, {
+        referencia_equipe: referenciaEquipe.trim(),
+        referencia_line: referenciaLine.trim(),
+      })
+      await reload()
+      setFeedback('Identificações do convite atualizadas.')
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Erro ao editar convite.')
+    } finally {
+      setProcessando(false)
+    }
+  }
+
   async function renovar(tokenId: string) {
     if (!tokenId) return
     setProcessando(true)
@@ -424,6 +454,13 @@ Acesse: ${link}`
                     <button type="button" onClick={() => void copiarConviteGrupo(convite)} title="Copiar convite">
                       <Copy size={15} />
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => void editarConvite(convite.id, convite.nome_equipe_reservada, convite.nome_line_reservada)}
+                      title="Editar identificações"
+                    >
+                      <Pencil size={15} />
+                    </button>
                     <button type="button" onClick={() => void renovar(convite.id)} title="Renovar 24h">
                       <RefreshCw size={15} />
                     </button>
@@ -557,6 +594,16 @@ Acesse: ${link}`
                       {vaga.status === 'reservada' && data.permission.canGenerateToken && vaga.convite ? (
                         <>
                           <button type="button" onClick={() => void copiarConvite(vaga)}><Copy size={14} /> Copiar convite</button>
+                          <button
+                            type="button"
+                            onClick={() => void editarConvite(
+                              vaga.convite!.id,
+                              vaga.nome_equipe_reservada,
+                              vaga.nome_line_reservada,
+                            )}
+                          >
+                            <Pencil size={14} /> Editar referências
+                          </button>
                           <button type="button" onClick={() => void renovar(vaga.convite!.id)}><RefreshCw size={14} /> Renovar 24h</button>
                           <button
                             type="button"

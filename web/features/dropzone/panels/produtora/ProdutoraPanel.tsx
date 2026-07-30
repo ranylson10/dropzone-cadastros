@@ -115,6 +115,8 @@ export function ProdutoraPanel(props: {
   const [sellerError, setSellerError] = useState('')
   const [sellerSelected, setSellerSelected] = useState<any | null>(null)
   const [sellerLimite, setSellerLimite] = useState('')
+  const [sellerNomePublico, setSellerNomePublico] = useState('')
+  const [sellerWhatsapp, setSellerWhatsapp] = useState('')
   const [sellerBusy, setSellerBusy] = useState(false)
   const [sellerPerms, setSellerPerms] = useState({
     adicionar_equipes: false,
@@ -249,6 +251,8 @@ export function ProdutoraPanel(props: {
   function openSellerEditor(seller: any) {
     const perms = seller?.vinculo_atual?.permissoes || seller?.permissoes || {}
     setSellerSelected(seller)
+    setSellerNomePublico(String(seller?.nome_publico || seller?.managers?.nome_publico_vendas || seller?.managers?.nome || seller?.managers?.username || ''))
+    setSellerWhatsapp(String(seller?.whatsapp_url || seller?.managers?.whatsapp_url || ''))
     setSellerLimite(
       seller?.limite_vagas_atual != null && seller.limite_vagas_atual !== ''
         ? String(seller.limite_vagas_atual)
@@ -292,6 +296,50 @@ export function ProdutoraPanel(props: {
       if (fresh) openSellerEditor(fresh)
     } catch (error) {
       setSellerError(error instanceof Error ? error.message : 'Erro ao adicionar no campeonato.')
+    } finally {
+      setSellerBusy(false)
+    }
+  }
+
+  async function updateProducerSeller(status?: 'ativo' | 'inativo') {
+    if (!sellerSelected?.manager_id) return
+    setSellerBusy(true)
+    setSellerError('')
+    try {
+      await sellerRequest('/api/produtora/vendedores', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          manager_id: sellerSelected.manager_id,
+          nome_publico: sellerNomePublico,
+          whatsapp_url: sellerWhatsapp,
+          status,
+        }),
+      })
+      const rows = await loadSellers(selectedChamp?.id)
+      const fresh = rows.find((row) => row.manager_id === sellerSelected.manager_id)
+      if (fresh) openSellerEditor(fresh)
+      else setSellerSelected(null)
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro ao atualizar vendedor.')
+    } finally {
+      setSellerBusy(false)
+    }
+  }
+
+  async function removeProducerSeller(managerId: string) {
+    if (!window.confirm('Remover este vendedor da produtora e encerrar a atuação dele em todos os campeonatos? O histórico será preservado.')) return
+    setSellerBusy(true)
+    setSellerError('')
+    try {
+      await sellerRequest('/api/produtora/vendedores', {
+        method: 'DELETE',
+        body: JSON.stringify({ manager_id: managerId }),
+      })
+      setSellerSelected(null)
+      await loadSellers(selectedChamp?.id)
+      if (selectedChamp?.id) await loadChampManagerInvites(selectedChamp.id)
+    } catch (error) {
+      setSellerError(error instanceof Error ? error.message : 'Erro ao remover vendedor da produtora.')
     } finally {
       setSellerBusy(false)
     }
@@ -1644,6 +1692,22 @@ ${params.url}`
                                         placeholder="0"
                                       />
                                     </Field>
+                                    <div className="mini-grid two">
+                                      <Field label="Nome público">
+                                        <input
+                                          value={sellerNomePublico}
+                                          onChange={(e) => setSellerNomePublico(e.target.value)}
+                                          placeholder="Nome exibido nas vendas"
+                                        />
+                                      </Field>
+                                      <Field label="WhatsApp / link de contato">
+                                        <input
+                                          value={sellerWhatsapp}
+                                          onChange={(e) => setSellerWhatsapp(e.target.value)}
+                                          placeholder="https://wa.me/55..."
+                                        />
+                                      </Field>
+                                    </div>
                                     <div className="seller-perm-grid compact">
                                       {([
                                         ['gerar_convites_equipe', 'Gerar convites'],
@@ -1674,6 +1738,13 @@ ${params.url}`
                                       >
                                         {sellerBusy ? 'Salvando...' : 'Salvar'}
                                       </button>
+                                      <button
+                                        type="button"
+                                        disabled={sellerBusy}
+                                        onClick={() => void updateProducerSeller()}
+                                      >
+                                        Salvar perfil
+                                      </button>
                                       {publicPanel ? (
                                         <button type="button" onClick={() => props.copyToken(publicPanel)}>
                                           <Copy size={14} /> Link
@@ -1686,6 +1757,14 @@ ${params.url}`
                                         onClick={() => void detachSellerFromChampionship(seller.manager_id)}
                                       >
                                         <Trash2 size={14} /> Encerrar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="danger"
+                                        disabled={sellerBusy}
+                                        onClick={() => void removeProducerSeller(seller.manager_id)}
+                                      >
+                                        <Trash2 size={14} /> Remover da produtora
                                       </button>
                                     </div>
                                   </div>
@@ -1749,6 +1828,22 @@ ${params.url}`
                                         placeholder="0"
                                       />
                                     </Field>
+                                    <div className="mini-grid two">
+                                      <Field label="Nome público">
+                                        <input
+                                          value={sellerNomePublico}
+                                          onChange={(e) => setSellerNomePublico(e.target.value)}
+                                          placeholder="Nome exibido nas vendas"
+                                        />
+                                      </Field>
+                                      <Field label="WhatsApp / link de contato">
+                                        <input
+                                          value={sellerWhatsapp}
+                                          onChange={(e) => setSellerWhatsapp(e.target.value)}
+                                          placeholder="https://wa.me/55..."
+                                        />
+                                      </Field>
+                                    </div>
                                     <div className="seller-perm-grid compact">
                                       {([
                                         ['gerar_convites_equipe', 'Gerar convites'],
@@ -1778,6 +1873,21 @@ ${params.url}`
                                         onClick={() => void attachSellerToChampionship()}
                                       >
                                         {sellerBusy ? 'Salvando...' : 'Liberar neste evento'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={sellerBusy}
+                                        onClick={() => void updateProducerSeller(seller.status === 'inativo' ? 'ativo' : 'inativo')}
+                                      >
+                                        {seller.status === 'inativo' ? 'Reativar na produtora' : 'Pausar na produtora'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="danger"
+                                        disabled={sellerBusy}
+                                        onClick={() => void removeProducerSeller(seller.manager_id)}
+                                      >
+                                        <Trash2 size={14} /> Remover da produtora
                                       </button>
                                     </div>
                                   </div>

@@ -4,7 +4,18 @@ import { REPORT_DIR, ROOT, normalizePath, result, safeRead, walk } from '../lib/
 
 function collectCodeTables() {
   const refs = new Map();
-  const files = walk(ROOT).filter((file) => /\.(?:ts|tsx|js|mjs)$/.test(file) && !normalizePath(file).includes('/node_modules/'));
+  const files = walk(ROOT, {
+    ignored: [
+      '.git',
+      '.next',
+      'node_modules',
+      'relatorios-testes',
+      '.chrome-auth-profile',
+      '.auth',
+      'playwright-report',
+      'test-results',
+    ],
+  }).filter((file) => /\.(?:ts|tsx|js|mjs)$/.test(file));
   for (const file of files) {
     const text = safeRead(file);
     const rel = normalizePath(path.relative(ROOT, file));

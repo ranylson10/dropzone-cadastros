@@ -18,3 +18,21 @@ web/.env.*
 # Relatorios gerados pelo robo de auditoria
 relatorios-testes/*.txt
 relatorios-testes/*.json
+
+# Playwright E2E
+/playwright-report/
+/test-results/
+/relatorios-testes/playwright-report/
+/relatorios-testes/playwright-resultados/
+/tests-e2e/.auth/
+
+# Sessões locais do Playwright (contêm tokens de autenticação)
+tests-e2e/.auth/*.json
+
+# Arquivos temporarios dos testes E2E
+tests-e2e/.chrome-auth-profile/
+tests-e2e/.auth/
+relatorios-testes/
+**/.next/
+**/node_modules/
+**/.env.local

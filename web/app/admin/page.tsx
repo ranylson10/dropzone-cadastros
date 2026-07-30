@@ -197,6 +197,27 @@ export default function AdminPage() {
     }
   }
 
+  async function togglePreco(chave: string, ativoAtual: boolean) {
+    const acao = ativoAtual ? 'desativar' : 'reativar'
+    if (!window.confirm(`Confirma ${acao} este item da tabela de preços?`)) return
+    setBusyId(chave)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/precos', {
+        method: 'DELETE',
+        headers: await headers(),
+        body: JSON.stringify({ chave, reativar: !ativoAtual }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      await loadPrecos()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId('')
+    }
+  }
+
   async function savePreco(chave: string, valorReais: string) {
     const reais = Number(String(valorReais).replace(',', '.'))
     if (!Number.isFinite(reais) || reais < 0) {
@@ -455,6 +476,7 @@ export default function AdminPage() {
                   <th>Item</th>
                   <th>Categoria</th>
                   <th>Valor (R$)</th>
+                  <th>Status</th>
                   <th></th>
                 </tr>
               </thead>
@@ -478,16 +500,31 @@ export default function AdminPage() {
                       />
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        disabled={busyId === row.chave}
-                        onClick={() => {
-                          const el = document.getElementById(`preco-${row.chave}`) as HTMLInputElement | null
-                          void savePreco(row.chave, el?.value || '0')
-                        }}
-                      >
-                        Salvar
-                      </button>
+                      <span className={`admin-status ${row.ativo === false ? 'rejeitado' : 'aprovado'}`}>
+                        {row.ativo === false ? 'Inativo' : 'Ativo'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="admin-row-actions">
+                        <button
+                          type="button"
+                          disabled={busyId === row.chave || row.ativo === false}
+                          onClick={() => {
+                            const el = document.getElementById(`preco-${row.chave}`) as HTMLInputElement | null
+                            void savePreco(row.chave, el?.value || '0')
+                          }}
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          type="button"
+                          className={row.ativo === false ? '' : 'danger'}
+                          disabled={busyId === row.chave}
+                          onClick={() => void togglePreco(row.chave, row.ativo !== false)}
+                        >
+                          {row.ativo === false ? 'Reativar' : 'Desativar'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

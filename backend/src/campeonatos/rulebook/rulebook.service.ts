@@ -456,6 +456,66 @@ export async function saveRulebook(input: {
   })
 }
 
+export async function resetRulebook(input: {
+  campeonatoId: string
+  userId: string
+}) {
+  const campSource = await loadCampeonatoSeedSource(input.campeonatoId)
+  const seeded = seedAnswersFromCampeonato(campSource, {})
+  const perfil: RulebookPerfil = 'comunitario'
+  const respostas = applyProfileDefaults(perfil, seeded.respostas)
+  const nome = String(campSource.nome || (await getCampeonatoNome(input.campeonatoId)) || 'Campeonato')
+  const logoUrl = campSource.logo_url ? String(campSource.logo_url) : null
+  const engine = buildEngineState({
+    perfil,
+    respostas,
+    campeonatoNome: nome,
+    logoUrl,
+  })
+
+  const resetPayload = {
+    perfil,
+    etapa_atual: 0,
+    respostas: engine.respostas,
+    modules_ativos: engine.modules,
+    infracoes: engine.infracoes,
+    alertas: engine.alerts,
+    confirmacoes_alertas: {},
+    documento: engine.documento,
+    status: engine.alerts.some((a) => a.severity === 'blocking')
+      ? 'bloqueado_alertas'
+      : 'rascunho',
+    catalog_version: CATALOG_VERSION,
+    versao: 1,
+    publicado_em: null,
+    atualizado_por: input.userId,
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('campeonato_rulebooks')
+    .update(resetPayload)
+    .eq('campeonato_id', input.campeonatoId)
+    .select('*')
+    .single()
+
+  if (error) throw new Error(error.message)
+
+  try {
+    await supabaseAdmin
+      .from('campeonatos')
+      .update({ regras_url: null })
+      .eq('id', input.campeonatoId)
+  } catch {
+    // best-effort: o reset do rulebook não deve falhar por causa do espelho público
+  }
+
+  return buildRulebookResponse(normalizeRow(data), nome, {
+    seedCampos: seeded.campos,
+    seedAplicado: seeded.campos.length > 0,
+    logoUrl,
+  })
+}
+
 export async function publishRulebook(input: {
   campeonatoId: string
   userId: string

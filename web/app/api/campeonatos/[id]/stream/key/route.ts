@@ -26,6 +26,8 @@ function newKeyToken() {
 /**
  * GET — chave Stream ativa do campeonato (ou null).
  * POST — gera / regenera chave (links antigos de streams já vinculados permanecem).
+ * PATCH — altera o nome/identificação da chave ativa.
+ * DELETE — revoga a chave ativa.
  */
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -127,6 +129,81 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
 
     return NextResponse.json({ key: data, created: true })
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
+  }
+}
+
+
+export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await getBearerUser(req)
+    const { id } = await context.params
+    const permission = await getCampeonatoPermission(user.id, id)
+    if (!canStream(permission)) {
+      return NextResponse.json({ error: 'Sem permissão.' }, { status: 403 })
+    }
+
+    const body = await req.json().catch(() => ({}))
+    const label = String(body?.label || '').trim().slice(0, 80)
+    if (!label) {
+      return NextResponse.json({ error: 'Informe um nome para a chave.' }, { status: 400 })
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('campeonato_stream_keys')
+      .update({ label, updated_at: new Date().toISOString() })
+      .eq('campeonato_id', id)
+      .eq('ativo', true)
+      .select('id,key_token,label,ativo,created_at,updated_at')
+      .maybeSingle()
+
+    if (error) {
+      if (missingTable(error)) {
+        return NextResponse.json({
+          error: 'Rode o SQL de broadcast: database/migrations/20260718_broadcast_stream.sql',
+          missing_table: true,
+        }, { status: 503 })
+      }
+      throw error
+    }
+    if (!data) {
+      return NextResponse.json({ error: 'Nenhuma chave ativa foi encontrada.' }, { status: 404 })
+    }
+
+    return NextResponse.json({ key: data })
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
+  }
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await getBearerUser(req)
+    const { id } = await context.params
+    const permission = await getCampeonatoPermission(user.id, id)
+    if (!canStream(permission)) {
+      return NextResponse.json({ error: 'Sem permissão.' }, { status: 403 })
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('campeonato_stream_keys')
+      .update({ ativo: false, updated_at: new Date().toISOString() })
+      .eq('campeonato_id', id)
+      .eq('ativo', true)
+      .select('id')
+
+    if (error) {
+      if (missingTable(error)) {
+        return NextResponse.json({
+          error: 'Rode o SQL de broadcast: database/migrations/20260718_broadcast_stream.sql',
+          missing_table: true,
+        }, { status: 503 })
+      }
+      throw error
+    }
+
+    return NextResponse.json({ revoked: Array.isArray(data) ? data.length : 0 })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
   }

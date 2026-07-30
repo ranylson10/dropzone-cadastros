@@ -640,6 +640,36 @@ export async function atualizarConfiguracaoFase(campeonatoId: string, faseId: st
   return obterConfiguracaoFase(campeonatoId, faseId)
 }
 
+export async function restaurarConfiguracaoFase(campeonatoId: string, faseId: string) {
+  await assertCampeonatoFase(campeonatoId, faseId)
+
+  const { error: bonusError } = await supabaseAdmin
+    .from('campeonato_fases_bonus_ranking')
+    .delete()
+    .eq('fase_id', faseId)
+  if (bonusError) throw bonusError
+
+  const { data, error } = await supabaseAdmin
+    .from('campeonato_fases_configuracoes')
+    .update({
+      quantidade_classificados: null,
+      criterio_classificacao: 'pontuacao',
+      modo_decisao: 'pontuacao_normal',
+      modo_acumulacao: 'acumulado',
+      booyah_ouro_pontos_limite: null,
+      booyah_ouro_queda_minima: null,
+      booyah_ouro_desempate_final: 'maior_pontuacao',
+      jogo_decisivo_id: null,
+    })
+    .eq('campeonato_id', campeonatoId)
+    .eq('fase_id', faseId)
+    .select('*')
+    .single()
+  if (error) throw error
+
+  return { ...data, bonus_ranking: [] }
+}
+
 export async function aplicarBonusRanking(campeonatoId: string, faseId: string, userId: string) {
   await assertCampeonatoFase(campeonatoId, faseId)
   const { data, error } = await supabaseAdmin.rpc('fn_aplicar_bonus_ranking_fase', {

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit",
+    "lint": "eslint . --quiet",
+    "lint:report": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -26,6 +27,8 @@
     "@types/node": "20.19.25",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "16.2.11"
   }
 }

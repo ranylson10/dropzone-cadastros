@@ -27,8 +27,28 @@ export async function executar() {
   else large.slice(0, 20).forEach(({ file, size }) => out.push(result('AVISO', 'Estrutura', `Arquivo grande: ${normalizePath(path.relative(ROOT, file))}`, formatBytes(size), 'Confirme se o arquivo precisa estar no repositório ou mova-o para Storage.')));
 
   const debugRoutes = files.filter((file) => normalizePath(path.relative(ROOT, file)).includes('web/app/api/debug/'));
-  if (debugRoutes.length === 0) out.push(result('OK', 'Segurança', 'Rotas de debug', 'Nenhuma rota /api/debug encontrada.'));
-  else debugRoutes.forEach((file) => out.push(result('AVISO', 'Segurança', `Rota de debug presente`, normalizePath(path.relative(ROOT, file)), 'Na rodada de APIs, provar que retorna 404/403 em produção ou removê-la.')));
+  if (debugRoutes.length === 0) {
+    out.push(result('OK', 'Segurança', 'Rotas de debug', 'Nenhuma rota /api/debug encontrada.'));
+  } else {
+    const unsafe = [];
+    const protectedRoutes = [];
+
+    for (const file of debugRoutes) {
+      const source = fs.readFileSync(file, 'utf8');
+      const disabled = /status\s*:\s*404/.test(source) && /Endpoint desabilitado|Nao encontrado|Não encontrado/i.test(source);
+      const productionBlocked = /blockDebugRouteInProduction\s*\(/.test(source);
+      const adminProtected = /requireSystemAdmin\s*\(/.test(source);
+
+      if (disabled || (productionBlocked && adminProtected)) protectedRoutes.push(file);
+      else unsafe.push(file);
+    }
+
+    if (unsafe.length === 0) {
+      out.push(result('OK', 'Segurança', 'Rotas de debug controladas', `${protectedRoutes.length} rota(s) desabilitada(s) ou bloqueada(s) em produção com exigência de administrador.`));
+    } else {
+      unsafe.forEach((file) => out.push(result('AVISO', 'Segurança', 'Rota de debug sem proteção comprovada', normalizePath(path.relative(ROOT, file)), 'Desabilite com 404 ou combine bloqueio em produção com autenticação de administrador.')));
+    }
+  }
 
   return out;
 }

@@ -4,6 +4,100 @@ import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { requireEquipeAccess } from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const accounts = await getAccountsForUser(user)
+    const equipeId = String(req.nextUrl.searchParams.get('equipe_id') || '')
+    const lineId = String(req.nextUrl.searchParams.get('line_id') || '')
+    if (!equipeId) throw new Error('Equipe não informada.')
+
+    await requireEquipeAccess(user.id, accounts, equipeId, 'token')
+
+    let query = supabaseAdmin
+      .from('tokens')
+      .select('id,token,line_id,campeonato_equipe_id,status,usado,expira_em,created_at')
+      .eq('tipo', 'convite_jogador_equipe')
+      .eq('equipe_id', equipeId)
+      .eq('usado', false)
+      .eq('status', 'ativo')
+      .order('created_at', { ascending: false })
+
+    if (lineId) query = query.eq('line_id', lineId)
+
+    const { data, error } = await query
+    if (error) throw error
+
+    return NextResponse.json({
+      invites: (data || []).map((item: any) => ({
+        ...item,
+        url: `${req.nextUrl.origin}/equipe/entrar/${item.token}`,
+        expired: Boolean(item.expira_em && new Date(item.expira_em).getTime() < Date.now()),
+      })),
+    })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao listar convites.' }, { status: 400 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const accounts = await getAccountsForUser(user)
+    const body = await req.json().catch(() => ({}))
+    const equipeId = String(body.equipe_id || '')
+    const tokenId = String(body.token_id || '')
+    if (!equipeId || !tokenId) throw new Error('Convite ou equipe não informado.')
+
+    await requireEquipeAccess(user.id, accounts, equipeId, 'token')
+    const { data: item, error: readError } = await supabaseAdmin
+      .from('tokens')
+      .select('id,status,usado')
+      .eq('id', tokenId)
+      .eq('tipo', 'convite_jogador_equipe')
+      .eq('equipe_id', equipeId)
+      .maybeSingle()
+    if (readError) throw readError
+    if (!item || item.usado || item.status !== 'ativo') throw new Error('Este convite não pode mais ser renovado.')
+
+    const expiraEm = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { error } = await supabaseAdmin.from('tokens').update({ expira_em: expiraEm, updated_at: new Date().toISOString() }).eq('id', tokenId)
+    if (error) throw error
+    return NextResponse.json({ success: true, expires_at: expiraEm })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao renovar convite.' }, { status: 400 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const accounts = await getAccountsForUser(user)
+    const body = await req.json().catch(() => ({}))
+    const equipeId = String(body.equipe_id || '')
+    const tokenId = String(body.token_id || '')
+    if (!equipeId || !tokenId) throw new Error('Convite ou equipe não informado.')
+
+    await requireEquipeAccess(user.id, accounts, equipeId, 'token')
+    const { data: item, error: readError } = await supabaseAdmin
+      .from('tokens')
+      .select('id,status,usado')
+      .eq('id', tokenId)
+      .eq('tipo', 'convite_jogador_equipe')
+      .eq('equipe_id', equipeId)
+      .maybeSingle()
+    if (readError) throw readError
+    if (!item) throw new Error('Convite não encontrado.')
+    if (item.usado) throw new Error('Convites já utilizados não podem ser cancelados.')
+
+    const { error } = await supabaseAdmin.from('tokens').update({ status: 'cancelado', updated_at: new Date().toISOString() }).eq('id', tokenId)
+    if (error) throw error
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao cancelar convite.' }, { status: 400 })
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Copy, ExternalLink, Plus, Trash2, MonitorPlay } from 'lucide-react'
+import { Check, Copy, ExternalLink, Pencil, Plus, Trash2, MonitorPlay, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import '../broadcast.css'
 import '@/features/campeonatos/stream/stream.css'
@@ -49,6 +49,8 @@ export function StreamDashboard(props: { profileName?: string }) {
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [missingTable, setMissingTable] = useState(false)
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -87,6 +89,41 @@ export function StreamDashboard(props: { profileName?: string }) {
       await reload()
     } catch (err: any) {
       setFeedback(err?.message || 'Falha ao resgatar chave.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function startEdit(link: LinkRow) {
+    setEditingLinkId(link.id)
+    setEditingName(link.display_name)
+    setFeedback('')
+  }
+
+  function cancelEdit() {
+    setEditingLinkId(null)
+    setEditingName('')
+  }
+
+  async function saveLinkName(id: string) {
+    const nextName = editingName.trim()
+    if (!nextName) {
+      setFeedback('Informe um nome para identificar este campeonato.')
+      return
+    }
+    setBusy(true)
+    setFeedback('')
+    try {
+      await authFetch(`/api/broadcast/links/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ display_name: nextName }),
+      })
+      setEditingLinkId(null)
+      setEditingName('')
+      setFeedback('Nome do campeonato atualizado.')
+      await reload()
+    } catch (err: any) {
+      setFeedback(err?.message || 'Erro ao atualizar o nome.')
     } finally {
       setBusy(false)
     }
@@ -233,11 +270,40 @@ export function StreamDashboard(props: { profileName?: string }) {
             const isActive = desk?.campeonato_id === link.campeonato_id
             return (
               <li key={link.id}>
-                <div>
-                  <strong>
-                    {link.display_name}
-                    {isActive ? ' · no ar' : ''}
-                  </strong>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  {editingLinkId === link.id ? (
+                    <div className="broadcast-row" style={{ alignItems: 'center' }}>
+                      <input
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        maxLength={80}
+                        autoFocus
+                        aria-label="Nome do campeonato na lista"
+                        style={{ minWidth: 220 }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') void saveLinkName(link.id)
+                          if (e.key === 'Escape') cancelEdit()
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="stream-primary-btn"
+                        title="Salvar nome"
+                        disabled={busy}
+                        onClick={() => void saveLinkName(link.id)}
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button type="button" className="stream-secondary-btn" title="Cancelar" onClick={cancelEdit}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <strong>
+                      {link.display_name}
+                      {isActive ? ' · no ar' : ''}
+                    </strong>
+                  )}
                   <small>
                     {link.campeonato?.nome || link.campeonato_id}
                     {typeof link.scenes_count === 'number'
@@ -246,6 +312,11 @@ export function StreamDashboard(props: { profileName?: string }) {
                   </small>
                 </div>
                 <div className="broadcast-row">
+                  {editingLinkId !== link.id ? (
+                    <button type="button" className="stream-secondary-btn" title="Editar nome" onClick={() => startEdit(link)}>
+                      <Pencil size={14} />
+                    </button>
+                  ) : null}
                   <button type="button" className="stream-secondary-btn" title="Remover" onClick={() => void removeLink(link.id)}>
                     <Trash2 size={14} />
                   </button>

@@ -29,9 +29,37 @@ function auditDebugRoutes() {
 
 function auditDownloads() {
   const out = [];
+  const manifestFile = path.join(ROOT, 'database', 'downloads-manifest.json');
+  let manifest = { files: {} };
+  if (fs.existsSync(manifestFile)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+      if (parsed && typeof parsed.files === 'object') manifest = parsed;
+    } catch {
+      return [result('ERRO', 'Banco', 'Manifesto de SQLs DOWNLOAD inválido', 'database/downloads-manifest.json não contém JSON válido.', 'Corrija o manifesto antes de executar a auditoria.')];
+    }
+  }
+
   const files = walk(path.join(ROOT, 'database')).filter((file) => /DOWNLOAD_.*\.sql$/i.test(path.basename(file)));
-  const byName = new Map();
+  const classified = [];
+  const unclassified = [];
   for (const file of files) {
+    const rel = normalizePath(path.relative(ROOT, file));
+    const entry = manifest.files?.[rel];
+    if (entry?.classification === 'legacy_manual_copy') classified.push({ file, rel, entry });
+    else unclassified.push(file);
+  }
+
+  for (const item of classified) {
+    const targets = [item.entry.official_migration, ...(item.entry.official_migrations || [])].filter(Boolean);
+    const missing = targets.filter((target) => !fs.existsSync(path.join(ROOT, target)));
+    if (targets.length === 0 || missing.length > 0) {
+      out.push(result('ERRO', 'Banco', `SQL DOWNLOAD com mapeamento inválido: ${path.basename(item.file).toLowerCase()}`, `${item.rel}${missing.length ? ` | migration ausente: ${missing.join(', ')}` : ''}`, 'Aponte o arquivo legado para uma migration oficial existente.'));
+    }
+  }
+
+  const byName = new Map();
+  for (const file of unclassified) {
     const name = path.basename(file).toLowerCase();
     if (!byName.has(name)) byName.set(name, []);
     byName.get(name).push(file);
@@ -45,13 +73,15 @@ function auditDownloads() {
         'Banco',
         `SQL DOWNLOAD duplicado: ${name}`,
         group.map((file) => normalizePath(path.relative(ROOT, file))).join(' | '),
-        hashes.size === 1 ? 'Mover a cópia de documentação para database/downloads e manter apenas uma fonte.' : 'Os arquivos têm o mesmo nome, mas conteúdos diferentes. Comparar manualmente antes de qualquer remoção.',
+        hashes.size === 1 ? 'Classifique a cópia no manifesto e mantenha uma migration oficial.' : 'Os arquivos têm o mesmo nome, mas conteúdos diferentes. Comparar manualmente antes de qualquer remoção.',
       ));
     } else {
       out.push(result('AVISO', 'Banco', `SQL DOWNLOAD isolado: ${name}`, normalizePath(path.relative(ROOT, group[0])), 'Classificar como migration oficial, script operacional ou documentação. Não executar automaticamente.'));
     }
   }
+
   if (files.length === 0) out.push(result('OK', 'Banco', 'SQLs DOWNLOAD', 'Nenhum arquivo DOWNLOAD_*.sql encontrado.'));
+  else if (unclassified.length === 0) out.push(result('OK', 'Banco', 'SQLs DOWNLOAD legados controlados', `${classified.length} arquivo(s) classificado(s), com migration oficial verificada.`));
   return out;
 }
 

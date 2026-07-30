@@ -57,6 +57,43 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const admin = await requireSystemAdmin(req)
+    const body = await req.json().catch(() => ({}))
+    const chave = String(body.chave || '').trim()
+    if (!chave) throw new Error('chave obrigatória.')
+
+    const ativo = Boolean(body.reativar)
+    const { data, error } = await supabaseAdmin
+      .from('sistema_precos')
+      .update({
+        ativo,
+        updated_at: new Date().toISOString(),
+        updated_by: admin.id,
+      })
+      .eq('chave', chave)
+      .select('*')
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data) throw new Error('Chave de preço não encontrada.')
+
+    await supabaseAdmin.from('sistema_auditoria').insert({
+      administrador_auth_user_id: admin.id,
+      acao: ativo ? 'preco_reativado' : 'preco_desativado',
+      alvo_tipo: 'sistema_precos',
+      alvo_id: chave,
+      detalhes: { ativo },
+    })
+
+    return NextResponse.json({ preco: data })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro' }, { status: 400 })
+  }
+}
+
 /** Preview público autenticado? Só admin — cálculo interno também em create. */
 export async function POST(req: NextRequest) {
   try {

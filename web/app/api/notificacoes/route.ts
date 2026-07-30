@@ -88,3 +88,41 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Erro ao atualizar notificação.' }, { status: 400 })
   }
 }
+
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const id = String(req.nextUrl.searchParams.get('id') || '').trim()
+    const archiveAllRead = req.nextUrl.searchParams.get('all_read') === '1'
+
+    if (archiveAllRead) {
+      const { error } = await supabaseAdmin
+        .from('notificacoes')
+        .update({ status: 'arquivada', archived_at: new Date().toISOString() })
+        .eq('destinatario_auth_user_id', user.id)
+        .eq('status', 'lida')
+      if (isMissingRelation(error)) return NextResponse.json({ ok: true, setup_required: true })
+      if (error) throw error
+      return NextResponse.json({ ok: true })
+    }
+
+    if (!id) throw new Error('id obrigatório.')
+
+    const { data, error } = await supabaseAdmin
+      .from('notificacoes')
+      .update({ status: 'arquivada', archived_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('destinatario_auth_user_id', user.id)
+      .select('id,status')
+      .maybeSingle()
+
+    if (isMissingRelation(error)) throw new Error('Tabelas de correio ainda não existem.')
+    if (error) throw error
+    if (!data) throw new Error('Notificação não encontrada.')
+
+    return NextResponse.json({ ok: true, item: data })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao arquivar notificação.' }, { status: 400 })
+  }
+}

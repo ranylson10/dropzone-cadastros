@@ -64,6 +64,14 @@ export const rulebookService = {
     return parseJson(res) as Promise<RulebookApiResponse>
   },
 
+  async reset(campeonatoId: string, token: string) {
+    const res = await fetch(`/api/campeonatos/${campeonatoId}/rulebook`, {
+      method: 'DELETE',
+      headers: authHeaders(token),
+    })
+    return parseJson(res) as Promise<RulebookApiResponse>
+  },
+
   async loadPublic(campeonatoId: string) {
     const res = await fetch(`/api/campeonatos/${campeonatoId}/rulebook?public=1`, {
       cache: 'no-store',

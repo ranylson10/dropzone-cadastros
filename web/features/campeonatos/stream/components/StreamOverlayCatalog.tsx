@@ -71,7 +71,7 @@ export function StreamOverlayCatalog(props: { campeonatoId: string }) {
     void reload()
   }, [reload])
 
-  async function useModel(model: StreamCatalogModel) {
+  async function applyModel(model: StreamCatalogModel) {
     setBusyId(model.id)
     setError('')
     setFeedback('')
@@ -232,7 +232,7 @@ export function StreamOverlayCatalog(props: { campeonatoId: string }) {
             type="button"
             className="stream-primary-btn"
             disabled={busy}
-            onClick={() => void useModel(m)}
+            onClick={() => void applyModel(m)}
           >
             {busy ? <Loader2 size={14} className="spin" /> : <Plus size={14} />}
             Usar neste campeonato

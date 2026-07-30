@@ -3,6 +3,7 @@ import path from 'node:path';
 import { REPORT_DIR, ROOT, ensureReportDir, normalizePath, result, safeRead, walk } from '../lib/util.mjs';
 
 const API_ROOT = path.join(ROOT, 'web', 'app', 'api');
+const CLASSIFICATION_FILE = path.join(ROOT, 'database', 'service-role-classification.json');
 const WRITE_METHOD_RE = /export\s+async\s+function\s+(POST|PUT|PATCH|DELETE)\b/g;
 const READ_METHOD_RE = /export\s+async\s+function\s+GET\b/g;
 const ADMIN_RE = /\bsupabaseAdmin\b|shared\/supabase-admin|SUPABASE_SERVICE_ROLE_KEY/;
@@ -20,6 +21,9 @@ function methods(source) {
 
 export async function executar() {
   ensureReportDir();
+  let manual = { routes: {} };
+  try { manual = JSON.parse(fs.readFileSync(CLASSIFICATION_FILE, 'utf8')); } catch {}
+  const manualRoutes = manual?.routes && typeof manual.routes === 'object' ? manual.routes : {};
   const files = walk(API_ROOT).filter((file) => file.endsWith('route.ts') || file.endsWith('route.js'));
   const rows = [];
 
@@ -61,6 +65,13 @@ export async function executar() {
       reason = 'Leitura com Service Role sem autenticação local; confirmar se é pública por desenho ou protegida em helper externo.';
     }
 
+    const manualDecision = manualRoutes[route];
+    if (manualDecision?.decision && manualDecision?.reason) {
+      classification = `classificada: ${manualDecision.decision}`;
+      severity = 'OK';
+      reason = manualDecision.reason;
+    }
+
     rows.push({
       route,
       file: normalizePath(path.relative(ROOT, file)),
@@ -85,12 +96,26 @@ export async function executar() {
   }
   fs.writeFileSync(path.join(REPORT_DIR, 'matriz-service-role-rotas.csv'), csv.join('\n'));
 
+  const missingManualRoutes = Object.keys(manualRoutes).filter((route) => !rows.some((row) => row.route === route));
+  const invalidManualRoutes = Object.entries(manualRoutes).filter(([, item]) => !item || typeof item !== 'object' || !item.decision || !item.reason).map(([route]) => route);
   const warnings = rows.filter((row) => row.severity === 'AVISO');
   const protectedCount = rows.filter((row) => row.classification === 'protegida').length;
   const publicCount = rows.filter((row) => row.classification === 'pública/token/webhook').length;
   const output = [
     result('OK', 'Service Role', 'Matriz de rotas gerada', `${rows.length} rota(s) que usam cliente administrativo. ${protectedCount} protegida(s); ${publicCount} pública(s)/token/webhook. Arquivos: relatorios-testes/matriz-service-role-rotas.json e .csv.`),
   ];
+
+  if (missingManualRoutes.length || invalidManualRoutes.length) {
+    output.push(result(
+      'AVISO',
+      'Service Role',
+      'Classificação manual inconsistente',
+      [missingManualRoutes.length ? `Rotas inexistentes: ${missingManualRoutes.join(', ')}` : '', invalidManualRoutes.length ? `Entradas inválidas: ${invalidManualRoutes.join(', ')}` : ''].filter(Boolean).join('. '),
+      'Corrigir database/service-role-classification.json.',
+    ));
+  } else if (Object.keys(manualRoutes).length) {
+    output.push(result('OK', 'Service Role', 'Revisão manual registrada', `${Object.keys(manualRoutes).length} rota(s) possuem decisão explícita e justificativa verificável em database/service-role-classification.json.`));
+  }
 
   if (warnings.length) {
     const byClass = warnings.reduce((acc, row) => { acc[row.classification] = (acc[row.classification] ?? 0) + 1; return acc; }, {});

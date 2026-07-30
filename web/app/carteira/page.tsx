@@ -12,6 +12,7 @@ import {
   Loader2,
   Printer,
   RefreshCw,
+  Trash2,
   Wallet,
   X,
 } from 'lucide-react'
@@ -112,6 +113,35 @@ export default function CarteiraPage() {
       await load()
     } catch (e: any) {
       setError(e?.message || 'Erro ao salvar PIX')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removerPix() {
+    if (!pixChave && !data?.carteira?.pix_chave) return
+    const confirmado = window.confirm(
+      'Remover a chave PIX desta carteira? O saldo, os saques e o histórico não serão apagados.',
+    )
+    if (!confirmado) return
+
+    setBusy(true)
+    setMsg('')
+    setError('')
+    try {
+      const res = await fetch('/api/me/carteira', {
+        method: 'DELETE',
+        headers: await headers(),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setPixChave('')
+      setPixTipo('aleatoria')
+      setPixTitular('')
+      setMsg('Chave PIX removida. A carteira e o histórico foram preservados.')
+      await load()
+    } catch (e: any) {
+      setError(e?.message || 'Erro ao remover chave PIX')
     } finally {
       setBusy(false)
     }
@@ -396,9 +426,21 @@ export default function CarteiraPage() {
                   placeholder="Como no banco"
                 />
               </label>
-              <button type="button" className="button" disabled={busy} onClick={() => void salvarPix()}>
-                {busy ? 'Salvando…' : 'Salvar chave PIX'}
-              </button>
+              <div className="bank-form-actions">
+                <button type="button" className="button" disabled={busy} onClick={() => void salvarPix()}>
+                  {busy ? 'Salvando…' : 'Salvar chave PIX'}
+                </button>
+                {data?.carteira?.pix_chave ? (
+                  <button
+                    type="button"
+                    className="button secondary danger"
+                    disabled={busy}
+                    onClick={() => void removerPix()}
+                  >
+                    <Trash2 size={16} /> Remover chave PIX
+                  </button>
+                ) : null}
+              </div>
             </div>
           </section>
         ) : null}

@@ -13,4 +13,5 @@ export {
   getPublishedRulebook,
   saveRulebook,
   publishRulebook,
+  resetRulebook,
 } from './rulebook.service'

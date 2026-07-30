@@ -128,3 +128,41 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Erro ao salvar PIX' }, { status: 400 })
   }
 }
+
+/** DELETE — remover a chave PIX cadastrada sem excluir a carteira ou o histórico */
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const account = await getActiveAccount(req, user)
+    const { donoTipo, donoId } = resolveOwner(account, user.id)
+
+    const wallet = await getOrCreateWallet({
+      donoTipo,
+      donoId,
+      authUserId: user.id,
+    })
+
+    const { data, error } = await supabaseAdmin
+      .from('sistema_carteiras')
+      .update({
+        pix_chave: null,
+        pix_tipo: null,
+        pix_titular: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', wallet.id)
+      .select('id,pix_chave,pix_tipo,pix_titular,saldo_disponivel_centavos')
+      .single()
+
+    if (error) {
+      if (['42703', 'PGRST204'].includes(error.code || '')) {
+        throw new Error('Rode o SQL: database/migrations/20260719_carteira_pix_keys.sql')
+      }
+      throw error
+    }
+
+    return NextResponse.json({ carteira: data, removed: true })
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Erro ao remover chave PIX' }, { status: 400 })
+  }
+}

@@ -40,14 +40,23 @@ function familyOf(route, routeNames) {
   return parts.join('/').replace(/\/\[[^/]+\]/g, '/[id]');
 }
 
+function isTokenWorkflowRoute(route) {
+  return /\/(?:convites?\/(?:equipe|grupo)|vendedores\/convite)\/\[[^/]+\]$/i.test(route);
+}
+
 function classifyFamily(item) {
   const segments = item.routes.map((route) => lastSegment(route.route));
   const actionOnly = segments.every((segment) => ACTION_SEGMENTS.has(segment));
   const immutable = /\/(?:quote|preview|confirmar|publish|finalizar|falta|atual|redeem|claim|signed|capture|saque)$/i.test(item.family)
     || /\/(?:convites?|pedidos)(?:\/\[id\])?$/i.test(item.family)
     || item.routes.every((route) => /\/(?:quote|preview|confirmar|publish|finalizar|falta|atual|redeem|claim|signed)(?:\/|$)/i.test(route.route));
-  const likelyEntity = !actionOnly && !immutable && item.creates;
-  return { actionOnly, immutable, likelyEntity };
+  // POST em links com token representa consumo/aceite de convite, não criação de recurso.
+  // Sem isso, famílias públicas como convites/equipe/[token] e vendedores/convite/[token]
+  // aparecem falsamente como CRUD incompleto.
+  const createRoutes = item.routes.filter((route) => route.methods.includes('POST'));
+  const tokenWorkflow = createRoutes.length > 0 && createRoutes.every((route) => isTokenWorkflowRoute(route.route));
+  const likelyEntity = !actionOnly && !immutable && item.creates && !tokenWorkflow;
+  return { actionOnly, immutable, tokenWorkflow, likelyEntity };
 }
 
 export async function executar() {
@@ -97,15 +106,15 @@ export async function executar() {
 
   fs.writeFileSync(path.join(REPORT_DIR, 'matriz-cobertura-crud.json'), JSON.stringify({ generatedAt: new Date().toISOString(), families, priority }, null, 2));
 
-  const csv = ['familia,metodos,cria,edita,exclui,acao,imutavel,candidato_revisao,prioridade,faltando,rotas'];
+  const csv = ['familia,metodos,cria,edita,exclui,acao,imutavel,fluxo_token,candidato_revisao,prioridade,faltando,rotas'];
   for (const item of families) {
     const p = priority.find((candidate) => candidate.family === item.family);
-    const values = [item.family, item.methods.join('|'), item.creates, item.updates, item.deletes, item.actionOnly, item.immutable, Boolean(p), p?.priority ?? '', p?.missing?.join('|') ?? '', item.routes.map((route) => route.route).join('|')];
+    const values = [item.family, item.methods.join('|'), item.creates, item.updates, item.deletes, item.actionOnly, item.immutable, item.tokenWorkflow, Boolean(p), p?.priority ?? '', p?.missing?.join('|') ?? '', item.routes.map((route) => route.route).join('|')];
     csv.push(values.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','));
   }
   fs.writeFileSync(path.join(REPORT_DIR, 'matriz-cobertura-crud.csv'), csv.join('\n'));
 
-  const output = [result('OK', 'Cobertura CRUD', 'Matriz de recursos gerada', `${families.length} família(s) de API analisada(s). Ações operacionais e endpoints imutáveis foram separados de recursos editáveis.`)];
+  const output = [result('OK', 'Cobertura CRUD', 'Matriz de recursos gerada', `${families.length} família(s) de API analisada(s). Ações operacionais, fluxos por token e endpoints imutáveis foram separados de recursos editáveis.`)];
   if (priority.length) {
     output.push(result(
       'AVISO',

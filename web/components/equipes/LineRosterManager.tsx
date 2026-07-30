@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Copy, Link2, Loader2, Lock, Save, UserMinus, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Copy, Link2, Loader2, Lock, RefreshCw, Save, Trash2, UserMinus, UserPlus, Users } from 'lucide-react'
 
 type Props = {
   accessToken: string
@@ -18,6 +18,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
   const [inviteUrl, setInviteUrl] = useState('')
+  const [invites, setInvites] = useState<any[]>([])
   const [openEvent, setOpenEvent] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Array<{ equipe_jogador_id: string; tipo_formacao: 'titular' | 'reserva' }>>>({})
 
@@ -39,7 +40,16 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
   async function load() {
     setLoading(true); setMessage('')
     try {
-      const payload = await request()
+      const [payload, inviteResponse] = await Promise.all([
+        request(),
+        fetch(`/api/equipes/convites-elenco?equipe_id=${encodeURIComponent(equipeId)}&line_id=${encodeURIComponent(line.id)}`, {
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+      ])
+      const invitePayload = await inviteResponse.json().catch(() => ({}))
+      if (!inviteResponse.ok) throw new Error(invitePayload?.error || 'Não foi possível carregar os convites.')
+      setInvites(invitePayload.invites || [])
       setData(payload)
       const next: Record<string, any[]> = {}
       for (const event of payload.events || []) {
@@ -71,6 +81,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
       setMessage(campeonatoEquipeId
         ? 'Convite da formação copiado. Ao aceitar, o jogador entra no elenco, na line e, se permitido, na formação.'
         : 'Convite da line copiado. Ao aceitar, o jogador entra no elenco e nesta line.')
+      await load()
     } catch (error: any) { setMessage(error?.message || 'Não foi possível gerar o convite.') }
     finally { setBusy('') }
   }
@@ -79,6 +90,22 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
     if (!inviteUrl || !navigator.clipboard) return
     await navigator.clipboard.writeText(inviteUrl)
     setMessage('Link copiado novamente.')
+  }
+
+  async function manageInvite(method: 'PATCH' | 'DELETE', tokenId: string) {
+    setBusy(`invite-manage:${tokenId}`); setMessage('')
+    try {
+      const response = await fetch('/api/equipes/convites-elenco', {
+        method,
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ equipe_id: equipeId, token_id: tokenId }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error || 'Não foi possível atualizar o convite.')
+      setMessage(method === 'DELETE' ? 'Convite cancelado.' : 'Convite renovado por mais 7 dias.')
+      await load()
+    } catch (error: any) { setMessage(error?.message || 'Não foi possível atualizar o convite.') }
+    finally { setBusy('') }
   }
 
   async function act(action: string, body: Record<string, unknown>, key: string) {
@@ -145,6 +172,15 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
         })}
       </div>
       {!data.roster?.length ? <div className="line-roster-empty"><Users size={24}/><span>O elenco geral da equipe ainda está vazio.</span></div> : null}
+      {invites.length ? <div className="line-roster-list">
+        {invites.map((invite: any) => <article key={invite.id}>
+          <span className="line-roster-avatar"><Link2 size={15}/></span>
+          <div><strong>{invite.campeonato_equipe_id ? 'Convite para formação' : 'Convite da line'}</strong><small>Expira em {invite.expira_em ? new Date(invite.expira_em).toLocaleString('pt-BR') : 'data não informada'}</small></div>
+          <button type="button" className="positive-icon" disabled={Boolean(busy)} title="Copiar convite" onClick={() => navigator.clipboard?.writeText(invite.url)}><Copy size={15}/></button>
+          <button type="button" className="positive-icon" disabled={Boolean(busy)} title="Renovar por 7 dias" onClick={() => void manageInvite('PATCH', invite.id)}>{busy === `invite-manage:${invite.id}` ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>}</button>
+          <button type="button" className="danger-icon" disabled={Boolean(busy)} title="Cancelar convite" onClick={() => void manageInvite('DELETE', invite.id)}><Trash2 size={15}/></button>
+        </article>)}
+      </div> : null}
     </section>
 
     <section className="line-roster-block">

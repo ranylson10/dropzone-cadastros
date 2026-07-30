@@ -23,5 +23,6 @@ export const campeonatoEquipesService = {
   remover: (campeonatoId: string, participacaoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes?participacao_id=${encodeURIComponent(participacaoId)}`, { method: 'DELETE' }),
   criarConvite: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/convites-equipe`, { method: 'POST', body: JSON.stringify(body) }),
   renovarConvite: (campeonatoId: string, tokenId: string) => request(`/api/campeonatos/${campeonatoId}/convites-equipe/${tokenId}/renovar`, { method: 'POST' }),
+  editarConvite: (campeonatoId: string, tokenId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/convites-equipe/${tokenId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   cancelarConvite: (campeonatoId: string, tokenId: string) => request(`/api/campeonatos/${campeonatoId}/convites-equipe/${tokenId}`, { method: 'DELETE' }),
 }

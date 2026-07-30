@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "description": "Classificação dos SQLs manuais legados. Estes arquivos não pertencem ao fluxo automático de migrations.",
+  "files": {
+    "database/DOWNLOAD_broadcast_stream.sql": {
+      "classification": "legacy_manual_copy",
+      "official_migration": "database/migrations/20260718_broadcast_stream.sql"
+    },
+    "database/DOWNLOAD_compra_vaga_online.sql": {
+      "classification": "legacy_manual_copy",
+      "official_migration": "database/migrations/20260719_compra_vaga_online.sql"
+    },
+    "database/DOWNLOAD_limite_vagas_fase_entrada.sql": {
+      "classification": "legacy_manual_copy",
+      "official_migration": "database/migrations/20260719_limite_vagas_somente_fase_entrada.sql"
+    },
+    "database/DOWNLOAD_stream_overlay_catalog.sql": {
+      "classification": "legacy_manual_copy",
+      "official_migration": "database/migrations/20260718_stream_overlay_catalog.sql"
+    },
+    "database/DOWNLOAD_stream_overlays.sql": {
+      "classification": "legacy_manual_copy",
+      "official_migration": "database/migrations/20260718_campeonato_stream_overlays.sql"
+    },
+    "database/migrations/DOWNLOAD_bio_e_cores_campeonato.sql": {
+      "classification": "legacy_manual_copy",
+      "official_migrations": [
+        "database/migrations/20260716_perfil_bio.sql",
+        "database/migrations/20260716_campeonato_cores_tema.sql"
+      ]
+    },
+    "database/migrations/DOWNLOAD_export_overrides.sql": {
+      "classification": "legacy_manual_copy",
+      "official_migration": "database/migrations/20260717_campeonato_export_overrides.sql"
+    },
+    "database/migrations/DOWNLOAD_tema_campeonato_bg.sql": {
+      "classification": "legacy_manual_copy",
+      "official_migration": "database/migrations/20260716_campeonato_bg_tema.sql"
+    }
+  }
+}

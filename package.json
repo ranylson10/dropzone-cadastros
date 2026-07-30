@@ -12,9 +12,23 @@
     "lint": "npm run lint --workspace dropzone-web",
     "typecheck": "npm run typecheck --workspace dropzone-web",
     "audit:dropzone": "node scripts/testes/executar.mjs",
-    "audit:dropzone:full": "node scripts/testes/executar.mjs --full"
+    "audit:dropzone:full": "node scripts/testes/executar.mjs --full",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report relatorios-testes/playwright-report",
+    "test:e2e:auth:capture": "node scripts/e2e/capturar-sessao.mjs",
+    "test:e2e:auth": "playwright test tests-e2e/auth",
+    "test:e2e:auth:prepare": "node scripts/e2e/gerar-sessoes.mjs",
+    "test:e2e:functional": "playwright test tests-e2e/functional",
+    "test:e2e:all": "playwright test tests-e2e/public tests-e2e/auth tests-e2e/functional tests-e2e/controlled",
+    "test:e2e:controlled": "playwright test tests-e2e/controlled",
+    "testar:tudo": "node scripts/testes/testar-tudo.mjs",
+    "audit:dropzone:full:orchestrated": "node scripts/testes/executar.mjs --full --skip-quality"
   },
   "devDependencies": {
-    "depcheck": "^1.4.7"
+    "depcheck": "^1.4.7",
+    "@playwright/test": "^1.54.1"
   }
 }

@@ -35,6 +35,10 @@ export async function executar() {
 
   try {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const classificationFile = path.join(ROOT, 'database', 'rls-classification.json');
+    const reviewed = fs.existsSync(classificationFile)
+      ? JSON.parse(fs.readFileSync(classificationFile, 'utf8')).tables ?? {}
+      : {};
     const policies = Array.isArray(parsed.policies) ? parsed.policies : [];
     const baseTables = (parsed.tables || []).filter((item) => item.table_type === 'BASE TABLE');
     const noPolicy = baseTables.filter((table) => !policies.some((policy) => policy.tablename === table.table_name));
@@ -54,7 +58,8 @@ export async function executar() {
         classification = 'somente_service_role_candidato';
         recommendation = 'Pode permanecer sem policy se todas as operações forem exclusivamente por Service Role e houver autorização antes da consulta.';
       }
-      return { table_name: table.table_name, classification, recommendation, usages: usages.slice(0, 20) };
+      const reviewedClassification = reviewed[table.table_name] ?? null;
+      return { table_name: table.table_name, classification, reviewed_classification: reviewedClassification, recommendation, usages: usages.slice(0, 20) };
     });
 
     fs.writeFileSync(path.join(REPORT_DIR, 'matriz-rls-sem-policies.json'), JSON.stringify({ generated_at: new Date().toISOString(), tables: matrix }, null, 2));
@@ -62,12 +67,21 @@ export async function executar() {
     const serverAuth = matrix.filter((item) => item.classification === 'backend_autenticado');
     const serviceOnly = matrix.filter((item) => item.classification === 'somente_service_role_candidato');
     const unused = matrix.filter((item) => item.classification === 'sem_uso_localizado');
+    const unreviewed = matrix.filter((item) => !item.reviewed_classification);
+    const invalidReviewed = matrix.filter((item) => !['service_role_only', 'legacy_controlled'].includes(item.reviewed_classification));
+    const serviceMismatch = matrix.filter((item) => item.reviewed_classification === 'service_role_only' && item.classification !== 'somente_service_role_candidato');
+    const legacyMismatch = matrix.filter((item) => item.reviewed_classification === 'legacy_controlled' && item.usages.length > 0);
     const out = [result('OK', 'Matriz RLS', 'Classificação gerada', `${matrix.length} tabela(s) sem policy classificadas. Arquivo: relatorios-testes/matriz-rls-sem-policies.json.`)];
     if (priority.length) out.push(result('ERRO', 'Matriz RLS', 'Acesso possivelmente direto sem policy', priority.map((item) => item.table_name).join(', '), 'Auditar imediatamente estas referências.'));
     else out.push(result('OK', 'Matriz RLS', 'Nenhum acesso direto evidente', 'O scanner não encontrou uso claramente client-side nas tabelas sem policy.'));
     if (serverAuth.length) out.push(result('AVISO', 'Matriz RLS', 'Backend com sessão exige revisão', serverAuth.map((item) => item.table_name).join(', '), 'Confirmar se as consultas usam sessão do usuário e criar policies quando necessário.'));
     if (serviceOnly.length) out.push(result('OK', 'Matriz RLS', 'Candidatas a Service Role', `${serviceOnly.length} tabela(s) aparecem apenas em operações administrativas do servidor.`));
-    if (unused.length) out.push(result('AVISO', 'Matriz RLS', 'Sem uso localizado no código', unused.map((item) => item.table_name).join(', '), 'Confirmar uso por RPC, trigger, SQL operacional ou remover legado após validação.'));
+    if (unreviewed.length) out.push(result('AVISO', 'Matriz RLS', 'Classificação manual pendente', unreviewed.map((item) => item.table_name).join(', '), 'Adicionar cada tabela ao arquivo database/rls-classification.json.'));
+    else out.push(result('OK', 'Matriz RLS', 'Classificação manual completa', `${matrix.length} tabela(s) sem policy possuem decisão explícita registrada.`));
+    if (invalidReviewed.length) out.push(result('ERRO', 'Matriz RLS', 'Classificação manual inválida', invalidReviewed.map((item) => item.table_name).join(', '), 'Use apenas service_role_only ou legacy_controlled.'));
+    if (serviceMismatch.length) out.push(result('ERRO', 'Matriz RLS', 'Service Role com uso incompatível', serviceMismatch.map((item) => item.table_name).join(', '), 'A tabela foi aprovada como Service Role, mas o scanner encontrou outro tipo de acesso.'));
+    if (legacyMismatch.length) out.push(result('AVISO', 'Matriz RLS', 'Legado voltou a ser usado', legacyMismatch.map((item) => item.table_name).join(', '), 'Reclassificar a tabela e revisar o acesso encontrado.'));
+    if (unused.length && !unreviewed.length && !legacyMismatch.length) out.push(result('OK', 'Matriz RLS', 'Legados sem uso controlados', `${unused.length} tabela(s) sem uso localizado foram preservadas e classificadas como legado controlado.`));
     return out;
   } catch (error) {
     return [result('ERRO', 'Matriz RLS', 'Falha ao gerar matriz', error instanceof Error ? error.message : String(error), 'Verifique banco-publicado.json e o scanner.')];

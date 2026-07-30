@@ -4,7 +4,7 @@ import {
   requireCampeonatoGamesWrite,
   requireCampeonatoStructure,
 } from '@backend/campeonatos/campeonato-permissions'
-import { atualizarConfiguracaoFase, obterConfiguracaoFase } from '@backend/campeonatos/jogos/jogos.service'
+import { atualizarConfiguracaoFase, obterConfiguracaoFase, restaurarConfiguracaoFase } from '@backend/campeonatos/jogos/jogos.service'
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string; faseId: string }> }) {
   try {
@@ -26,5 +26,20 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     return NextResponse.json({ ok: true, configuracao })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao atualizar configuração da fase.' }, { status: 400 })
+  }
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string; faseId: string }> }) {
+  try {
+    const { id, faseId } = await context.params
+    const user = await getBearerUser(req)
+    await requireCampeonatoGamesWrite(user.id, id)
+    const configuracao = await restaurarConfiguracaoFase(id, faseId)
+    return NextResponse.json({ ok: true, configuracao })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro ao restaurar a configuração padrão da fase.' },
+      { status: 400 },
+    )
   }
 }

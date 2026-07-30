@@ -6,6 +6,7 @@ import {
   getPublishedRulebook,
   getRulebook,
   saveRulebook,
+  resetRulebook,
 } from '@backend/campeonatos/rulebook'
 import type { RulebookSaveInput } from '@backend/campeonatos/rulebook'
 
@@ -119,6 +120,34 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || 'Erro ao criar rulebook.' },
+      { status: 500 },
+    )
+  }
+}
+
+
+/**
+ * DELETE — restaura o regulamento para um rascunho inicial baseado no campeonato.
+ * Não exclui o campeonato nem outros dados operacionais.
+ */
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await getBearerUser(req)
+    const { id } = await context.params
+    const permission = await getCampeonatoPermission(user.id, id)
+
+    if (!canManageRulebook(permission)) {
+      return NextResponse.json(
+        { error: 'Sem permissão para restaurar o regulamento.' },
+        { status: 403 },
+      )
+    }
+
+    const result = await resetRulebook({ campeonatoId: id, userId: user.id })
+    return NextResponse.json({ ok: true, ...result })
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error?.message || 'Erro ao restaurar regulamento.' },
       { status: 500 },
     )
   }

@@ -62,6 +62,8 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
   const [overlays, setOverlays] = useState<StreamOverlay[]>([])
   const [loading, setLoading] = useState(true)
   const [keyToken, setKeyToken] = useState<string | null>(null)
+  const [keyLabel, setKeyLabel] = useState('Chave Stream')
+  const [editingKeyLabel, setEditingKeyLabel] = useState(false)
   const [keyLoading, setKeyLoading] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [missingBroadcastSql, setMissingBroadcastSql] = useState(false)
@@ -108,6 +110,8 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     try {
       const res = await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/key`)
       setKeyToken(res.key?.key_token || null)
+      setKeyLabel(res.key?.label || 'Chave Stream')
+      setEditingKeyLabel(false)
       setMissingBroadcastSql(false)
     } catch (e: any) {
       if (String(e?.message || '').includes('broadcast') || String(e?.message || '').includes('SQL')) {
@@ -157,11 +161,55 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
         body: JSON.stringify({ regenerate }),
       })
       setKeyToken(res.key?.key_token || null)
+      setKeyLabel(res.key?.label || 'Chave Stream')
+      setEditingKeyLabel(false)
       setFeedback(regenerate ? 'Nova chave gerada. Streams já vinculados permanecem.' : 'Chave pronta para copiar.')
       setMissingBroadcastSql(false)
     } catch (e: any) {
       setFeedback(e?.message || 'Erro ao gerar chave')
       if (String(e?.message || '').includes('SQL')) setMissingBroadcastSql(true)
+    } finally {
+      setKeyLoading(false)
+    }
+  }
+
+
+  async function saveKeyLabel() {
+    const label = keyLabel.trim()
+    if (!label) {
+      setFeedback('Informe um nome para a chave.')
+      return
+    }
+    setKeyLoading(true)
+    setFeedback('')
+    try {
+      const res = await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/key`, {
+        method: 'PATCH',
+        body: JSON.stringify({ label }),
+      })
+      setKeyLabel(res.key?.label || label)
+      setEditingKeyLabel(false)
+      setFeedback('Nome da chave atualizado.')
+    } catch (e: any) {
+      setFeedback(e?.message || 'Erro ao atualizar a chave')
+    } finally {
+      setKeyLoading(false)
+    }
+  }
+
+  async function revokeKey() {
+    if (!keyToken) return
+    if (!window.confirm('Revogar esta chave? Ela deixará de aceitar novos vínculos de Broadcast.')) return
+    setKeyLoading(true)
+    setFeedback('')
+    try {
+      await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/key`, { method: 'DELETE' })
+      setKeyToken(null)
+      setKeyLabel('Chave Stream')
+      setEditingKeyLabel(false)
+      setFeedback('Chave revogada. Gere uma nova quando precisar.')
+    } catch (e: any) {
+      setFeedback(e?.message || 'Erro ao revogar a chave')
     } finally {
       setKeyLoading(false)
     }
@@ -568,6 +616,35 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
             </p>
           </div>
         </div>
+        {keyToken ? (
+          <div className="stream-panel-actions" style={{ flexWrap: 'wrap', marginBottom: 8 }}>
+            {editingKeyLabel ? (
+              <input
+                value={keyLabel}
+                maxLength={80}
+                autoFocus
+                onChange={(event) => setKeyLabel(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void saveKeyLabel()
+                  if (event.key === 'Escape') setEditingKeyLabel(false)
+                }}
+                aria-label="Nome da chave Stream"
+                style={{ flex: '1 1 220px', minHeight: 36 }}
+              />
+            ) : (
+              <strong style={{ flex: '1 1 220px' }}>{keyLabel}</strong>
+            )}
+            <button
+              type="button"
+              className="stream-secondary-btn"
+              disabled={keyLoading}
+              onClick={() => void (editingKeyLabel ? saveKeyLabel() : setEditingKeyLabel(true))}
+            >
+              {editingKeyLabel ? <Save size={15} /> : <Pencil size={15} />}
+              {editingKeyLabel ? 'Salvar nome' : 'Renomear'}
+            </button>
+          </div>
+        ) : null}
         <div className="stream-panel-actions" style={{ flexWrap: 'wrap' }}>
           <code
             style={{
@@ -588,9 +665,14 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
             <KeyRound size={15} /> {keyToken ? 'Copiar chave' : 'Gerar chave'}
           </button>
           {keyToken ? (
-            <button type="button" className="stream-secondary-btn" disabled={keyLoading} onClick={() => void ensureKey(true)}>
-              <RefreshCw size={15} /> Regenerar
-            </button>
+            <>
+              <button type="button" className="stream-secondary-btn" disabled={keyLoading} onClick={() => void ensureKey(true)}>
+                <RefreshCw size={15} /> Regenerar
+              </button>
+              <button type="button" className="stream-secondary-btn" disabled={keyLoading} onClick={() => void revokeKey()}>
+                <Trash2 size={15} /> Revogar
+              </button>
+            </>
           ) : null}
         </div>
       </section>

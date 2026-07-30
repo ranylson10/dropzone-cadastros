@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Loader2,
   Save,
+  RotateCcw,
   ShieldAlert,
   Sparkles,
   Wand2,
@@ -180,6 +181,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [error, setError] = useState('')
   const [stepError, setStepError] = useState('')
   const [data, setData] = useState<RulebookApiResponse | null>(null)
@@ -470,6 +472,30 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
     }
   }
 
+  async function resetRulebookDraft() {
+    const confirmed = window.confirm(
+      'Restaurar o regulamento? As respostas e personalizações atuais serão substituídas pelos dados padrão do campeonato. O campeonato, equipes, partidas e resultados não serão apagados.',
+    )
+    if (!confirmed) return
+
+    setResetting(true)
+    setError('')
+    try {
+      const token = await getAccessToken()
+      if (!token) throw new Error('Faça login para restaurar o regulamento.')
+      const json = await rulebookService.reset(campeonatoId, token)
+      applyResponse(json)
+      setViewMode('wizard')
+      setSeedBanner(json.meta?.seedCampos || null)
+      setStepError('')
+      setHighlightMissing(new Set())
+    } catch (e: any) {
+      setError(e?.message || 'Não foi possível restaurar o regulamento.')
+    } finally {
+      setResetting(false)
+    }
+  }
+
   function updateInfracao(codigo: string, patch: Partial<InfracaoConfig>) {
     setDraftInfracoes((list) =>
       list.map((i) => (i.codigo === codigo ? { ...i, ...patch } : i)),
@@ -543,6 +569,16 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
             </span>
           ) : null}
         </div>
+        <button
+          type="button"
+          className="button secondary no-print"
+          onClick={() => void resetRulebookDraft()}
+          disabled={saving || autoSaving || resetting}
+          title="Restaurar respostas, infrações e publicação para o padrão inicial"
+        >
+          {resetting ? <Loader2 className="spin" size={15} /> : <RotateCcw size={15} />}
+          {resetting ? 'Restaurando…' : 'Restaurar padrão'}
+        </button>
       </header>
 
       {/* Progresso global */}

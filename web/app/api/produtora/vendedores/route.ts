@@ -438,3 +438,119 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+
+/** Atualiza os dados públicos ou pausa/reativa um vendedor no roster da produtora. */
+export async function PATCH(req: NextRequest) {
+  try {
+    const { produtora } = await requireProdutoraAccount(req)
+    const body = await req.json().catch(() => ({}))
+    const managerId = String(body.manager_id || '').trim()
+    if (!managerId) throw new Error('Informe o vendedor.')
+
+    const { data: current, error: currentError } = await supabaseAdmin
+      .from('produtora_vendedores')
+      .select('id,manager_id,status,nome_publico,whatsapp_url')
+      .eq('produtora_id', produtora.id)
+      .eq('manager_id', managerId)
+      .maybeSingle()
+    if (currentError) throw currentError
+    if (!current) throw new Error('Vendedor não pertence a esta produtora.')
+
+    const statusRaw = body.status == null ? null : String(body.status).trim().toLowerCase()
+    if (statusRaw && !['ativo', 'inativo'].includes(statusRaw)) {
+      throw new Error('Status inválido para o vendedor.')
+    }
+
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (body.nome_publico !== undefined) {
+      const nome = String(body.nome_publico || '').trim()
+      if (!nome) throw new Error('Informe o nome público do vendedor.')
+      patch.nome_publico = nome.slice(0, 120)
+    }
+    if (body.whatsapp_url !== undefined) {
+      const whatsapp = String(body.whatsapp_url || '').trim()
+      patch.whatsapp_url = whatsapp ? whatsapp.slice(0, 500) : null
+    }
+    if (statusRaw) patch.status = statusRaw
+
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('produtora_vendedores')
+      .update(patch)
+      .eq('id', current.id)
+      .eq('produtora_id', produtora.id)
+      .select('*')
+      .single()
+    if (updateError) throw updateError
+
+    if (statusRaw === 'inativo') {
+      const { error: linksError } = await supabaseAdmin
+        .from('campeonato_vendedores')
+        .update({ status: 'inativo', updated_at: new Date().toISOString() })
+        .eq('produtora_id', produtora.id)
+        .eq('manager_id', managerId)
+        .eq('status', 'ativo')
+      if (linksError) throw linksError
+    }
+
+    return NextResponse.json({
+      ok: true,
+      vendedor: updated,
+      mensagem: statusRaw === 'inativo'
+        ? 'Vendedor pausado na produtora e nos campeonatos ativos.'
+        : statusRaw === 'ativo'
+          ? 'Vendedor reativado na produtora. Libere novamente os campeonatos necessários.'
+          : 'Dados do vendedor atualizados.',
+    })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro ao atualizar vendedor.' },
+      { status: 400 },
+    )
+  }
+}
+
+/** Remove o vendedor da produtora sem apagar histórico de vendas ou campeonatos. */
+export async function DELETE(req: NextRequest) {
+  try {
+    const { produtora } = await requireProdutoraAccount(req)
+    const body = await req.json().catch(() => ({}))
+    const managerId = String(body.manager_id || '').trim()
+    if (!managerId) throw new Error('Informe o vendedor.')
+
+    const now = new Date().toISOString()
+    const { data: current, error: currentError } = await supabaseAdmin
+      .from('produtora_vendedores')
+      .select('id')
+      .eq('produtora_id', produtora.id)
+      .eq('manager_id', managerId)
+      .maybeSingle()
+    if (currentError) throw currentError
+    if (!current) throw new Error('Vendedor não pertence a esta produtora.')
+
+    const { error: rosterError } = await supabaseAdmin
+      .from('produtora_vendedores')
+      .update({ status: 'cancelado', updated_at: now })
+      .eq('id', current.id)
+      .eq('produtora_id', produtora.id)
+    if (rosterError) throw rosterError
+
+    const { error: linksError } = await supabaseAdmin
+      .from('campeonato_vendedores')
+      .update({ status: 'cancelado', updated_at: now })
+      .eq('produtora_id', produtora.id)
+      .eq('manager_id', managerId)
+      .neq('status', 'cancelado')
+    if (linksError) throw linksError
+
+    return NextResponse.json({
+      ok: true,
+      mensagem: 'Vendedor removido da produtora. O histórico foi preservado.',
+    })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro ao remover vendedor.' },
+      { status: 400 },
+    )
+  }
+}

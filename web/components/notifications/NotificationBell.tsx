@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bell, Check, Loader2, X } from 'lucide-react'
+import { Archive, Bell, Check, Loader2, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 
 type Notif = {
@@ -77,6 +77,25 @@ export function NotificationBell() {
       body: JSON.stringify({ id, status: 'lida' }),
     })
     await load()
+  }
+
+  async function archive(id: string) {
+    setBusyId(id)
+    setError('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`/api/notificacoes?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao arquivar notificação.')
+      await load()
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao arquivar notificação.')
+    } finally {
+      setBusyId('')
+    }
   }
 
   async function respond(id: string, action: 'aceitar' | 'recusar') {
@@ -200,6 +219,17 @@ export function NotificationBell() {
                     ) : unreadItem ? (
                       <button type="button" className="button secondary small" onClick={() => void markRead(item.id)}>
                         Marcar como lida
+                      </button>
+                    ) : null}
+                    {!actionable || !unreadItem ? (
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        disabled={busyId === item.id}
+                        onClick={() => void archive(item.id)}
+                        title="Arquivar notificação"
+                      >
+                        <Archive size={14} /> Arquivar
                       </button>
                     ) : null}
                   </div>
