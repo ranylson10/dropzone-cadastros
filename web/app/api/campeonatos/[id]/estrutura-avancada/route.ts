@@ -499,6 +499,46 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (oldSlotId && oldSlotId !== String(reserved.id)) await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', oldSlotId).eq('campeonato_id', campeonatoId)
       const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: group.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: oldGroupId, grupo_novo_id: groupId, slot_anterior_id: oldSlotId, slot_novo_id: reserved.id, origem: 'administrador', alterado_por: user.id, observacao: nullableText(body?.note, 500) })
       if (historyError) throw historyError
+    } else if (action === 'cancel_group_choice_admin') {
+      const participationId = text(body?.campeonato_equipe_id)
+      if (!participationId) throw new Error('Equipe/line é obrigatória.')
+      const { data: participation, error: participationError } = await supabaseAdmin.from('campeonato_equipes').select('id,grupo_id,slot_id').eq('id', participationId).eq('campeonato_id', campeonatoId).maybeSingle()
+      if (participationError) throw participationError
+      if (!participation?.grupo_id || !participation?.slot_id) throw new Error('Esta equipe não possui escolha ativa.')
+      const { data: group, error: groupError } = await supabaseAdmin.from('campeonato_grupos').select('fase_id').eq('id', participation.grupo_id).eq('campeonato_id', campeonatoId).maybeSingle()
+      if (groupError) throw groupError
+      if (!group) throw new Error('Grupo atual não encontrado.')
+      const oldGroupId = String(participation.grupo_id)
+      const oldSlotId = String(participation.slot_id)
+      const { error: updateError } = await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: null, slot_id: null, slot_numero: null }).eq('id', participationId).eq('campeonato_id', campeonatoId)
+      if (updateError) throw updateError
+      const { error: freeError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', oldSlotId).eq('campeonato_id', campeonatoId)
+      if (freeError) throw freeError
+      const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: group.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: oldGroupId, grupo_novo_id: null, slot_anterior_id: oldSlotId, slot_novo_id: null, origem: 'administrador', alterado_por: user.id, observacao: nullableText(body?.note, 500) || 'Escolha cancelada pela administração.' })
+      if (historyError) throw historyError
+    } else if (action === 'restore_group_choice_admin') {
+      const participationId = text(body?.campeonato_equipe_id)
+      if (!participationId) throw new Error('Equipe/line é obrigatória.')
+      const { data: participation, error: participationError } = await supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,grupo_id,slot_id').eq('id', participationId).eq('campeonato_id', campeonatoId).maybeSingle()
+      if (participationError) throw participationError
+      if (!participation) throw new Error('Equipe não encontrada.')
+      if (participation.grupo_id || participation.slot_id) throw new Error('A equipe já possui escolha ativa.')
+      const { data: cancelled, error: cancelledError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').select('*').eq('campeonato_id', campeonatoId).eq('campeonato_equipe_id', participationId).is('grupo_novo_id', null).not('grupo_anterior_id', 'is', null).not('slot_anterior_id', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (cancelledError) throw cancelledError
+      if (!cancelled) throw new Error('Nenhuma escolha cancelada encontrada.')
+      const { data: slot, error: slotError } = await supabaseAdmin.from('campeonato_slots').select('id,slot_numero,status,equipe_id,line_id').eq('id', cancelled.slot_anterior_id).eq('campeonato_id', campeonatoId).eq('grupo_id', cancelled.grupo_anterior_id).maybeSingle()
+      if (slotError) throw slotError
+      if (!slot || slot.status !== 'livre' || slot.equipe_id || slot.line_id) throw new Error('O slot anterior não está mais disponível.')
+      const { data: reserved, error: reserveError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: participation.equipe_id, line_id: participation.line_id, status: 'ocupado' }).eq('id', slot.id).eq('status', 'livre').is('equipe_id', null).is('line_id', null).select('id,slot_numero').maybeSingle()
+      if (reserveError) throw reserveError
+      if (!reserved) throw new Error('O slot anterior acabou de ser ocupado.')
+      const { error: updateError } = await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: cancelled.grupo_anterior_id, slot_id: reserved.id, slot_numero: reserved.slot_numero }).eq('id', participationId).eq('campeonato_id', campeonatoId)
+      if (updateError) {
+        await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', reserved.id)
+        throw updateError
+      }
+      const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: cancelled.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: null, grupo_novo_id: cancelled.grupo_anterior_id, slot_anterior_id: null, slot_novo_id: reserved.id, origem: 'administrador', alterado_por: user.id, observacao: nullableText(body?.note, 500) || 'Escolha restaurada pela administração.' })
+      if (historyError) throw historyError
     } else if (action === 'create_daily_hour') {
       const hour = text(body?.hour, 8)
       if (!hour) throw new Error('Informe o horário.')

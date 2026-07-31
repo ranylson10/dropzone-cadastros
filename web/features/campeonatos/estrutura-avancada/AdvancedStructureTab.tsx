@@ -48,6 +48,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [groupAssignment, setGroupAssignment] = useState({ campeonato_equipe_id: '', group_id: '', slot_id: '' })
   const [choiceSchedule, setChoiceSchedule] = useState<Record<string, { opens_at: string; closes_at: string }>>({})
   const [choiceBlock, setChoiceBlock] = useState({ phase_id: '', group_id: '', slot_id: '', reason: '' })
+  const [choiceOpsFilter, setChoiceOpsFilter] = useState({ phase_id: '', group_id: '', status: 'all', query: '' })
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -157,6 +158,37 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
     return map
   }, [data.stageTeams])
 
+  const choiceOperationalRows = useMemo(() => data.teams.map((team) => {
+    const group = data.groups.find((row) => row.id === team.grupo_id)
+    const phase = data.phases.find((row) => row.id === group?.fase_id)
+    const slot = data.slots.find((row) => row.id === team.slot_id)
+    const cancelled = data.groupChoiceHistory.find((row) => row.campeonato_equipe_id === team.id && !row.grupo_novo_id && row.grupo_anterior_id)
+    return { team, group, phase, slot, cancelled, status: group && slot ? 'chosen' : cancelled ? 'cancelled' : 'pending' }
+  }), [data.teams, data.groups, data.phases, data.slots, data.groupChoiceHistory])
+
+  const filteredChoiceRows = useMemo(() => {
+    const query = choiceOpsFilter.query.trim().toLowerCase()
+    return choiceOperationalRows.filter((row) => {
+      if (choiceOpsFilter.phase_id && row.phase?.id !== choiceOpsFilter.phase_id) return false
+      if (choiceOpsFilter.group_id && row.group?.id !== choiceOpsFilter.group_id) return false
+      if (choiceOpsFilter.status !== 'all' && row.status !== choiceOpsFilter.status) return false
+      if (query && !teamName(row.team).toLowerCase().includes(query)) return false
+      return true
+    })
+  }, [choiceOperationalRows, choiceOpsFilter, teamName])
+
+  function exportChoiceCsv() {
+    const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
+    const rows = [['Equipe/line', 'Fase', 'Grupo', 'Slot', 'Status'], ...filteredChoiceRows.map((row) => [teamName(row.team), row.phase?.nome || '', row.group?.nome || '', row.slot?.slot_letra || row.slot?.slot_numero || '', row.status === 'chosen' ? 'Escolhida' : row.status === 'cancelled' ? 'Cancelada' : 'Pendente'])]
+    const blob = new Blob([rows.map((row) => row.map(escape).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `escolhas-grupos-${campeonatoId}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   if (loading) return <div className="advanced-structure-loading"><Loader2 className="button-spinner" size={18} /> Carregando estrutura avançada…</div>
 
   const canManage = data.permission?.canManage !== false
@@ -258,6 +290,16 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
             <button className="button secondary" disabled={!choiceBlock.phase_id || (!choiceBlock.group_id && !choiceBlock.slot_id)} onClick={() => void act({ action: 'set_group_choice_block', ...choiceBlock })}>Bloquear opção</button>
             <div className="advanced-chip-row">{data.groupChoiceBlocks.map((row) => { const group = data.groups.find((item) => item.id === row.grupo_id); const slot = data.slots.find((item) => item.id === row.slot_id); return <span className="advanced-chip" key={row.id}>{group?.nome || slot?.slot_letra || `Slot ${slot?.slot_numero || ''}`} {row.motivo ? `· ${row.motivo}` : ''}<button title="Remover bloqueio" onClick={() => void act({ action: 'remove_group_choice_block', block_id: row.id })}><Trash2 size={13} /></button></span> })}</div>
           </div>
+        </div>
+        <div className="advanced-choice-operations">
+          <div className="advanced-choice-operations-head"><div><h5>Painel operacional das escolhas</h5><small>{choiceOperationalRows.filter((row) => row.status === 'chosen').length} escolhidas · {choiceOperationalRows.filter((row) => row.status === 'pending').length} pendentes · {data.slots.filter((row) => row.status === 'livre' && !row.equipe_id && !row.line_id).length} slots livres · {data.groupChoiceBlocks.length} bloqueios</small></div><button className="button secondary" onClick={exportChoiceCsv}>Exportar CSV</button></div>
+          <div className="mini-grid four">
+            <label><span>Busca</span><input value={choiceOpsFilter.query} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, query: e.target.value })} placeholder="Nome ou tag" /></label>
+            <label><span>Fase</span><select value={choiceOpsFilter.phase_id} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, phase_id: e.target.value, group_id: '' })}><option value="">Todas</option>{data.phases.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
+            <label><span>Grupo</span><select value={choiceOpsFilter.group_id} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, group_id: e.target.value })}><option value="">Todos</option>{data.groups.filter((row) => !choiceOpsFilter.phase_id || row.fase_id === choiceOpsFilter.phase_id).map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
+            <label><span>Status</span><select value={choiceOpsFilter.status} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, status: e.target.value })}><option value="all">Todos</option><option value="chosen">Escolhidas</option><option value="pending">Pendentes</option><option value="cancelled">Canceladas</option></select></label>
+          </div>
+          <div className="advanced-choice-operations-list">{filteredChoiceRows.length ? filteredChoiceRows.map((row) => <article key={row.team.id} className={`is-${row.status}`}><div><b>{teamName(row.team)}</b><small>{row.phase?.nome || 'Sem fase'} · {row.group?.nome || 'Sem grupo'} · {row.slot?.slot_letra || (row.slot?.slot_numero ? `Slot ${row.slot.slot_numero}` : 'Sem slot')}</small></div><span>{row.status === 'chosen' ? 'Escolhida' : row.status === 'cancelled' ? 'Cancelada' : 'Pendente'}</span><div className="advanced-choice-row-actions">{row.status === 'chosen' ? <><button className="button secondary" onClick={() => setGroupAssignment({ campeonato_equipe_id: row.team.id, group_id: row.group?.id || '', slot_id: '' })}>Mover</button><button className="button secondary danger" onClick={() => void act({ action: 'cancel_group_choice_admin', campeonato_equipe_id: row.team.id })}>Cancelar</button></> : row.status === 'cancelled' ? <button className="button secondary" onClick={() => void act({ action: 'restore_group_choice_admin', campeonato_equipe_id: row.team.id })}>Restaurar</button> : <button className="button secondary" onClick={() => setGroupAssignment({ campeonato_equipe_id: row.team.id, group_id: '', slot_id: '' })}>Definir</button>}</div></article>) : <div className="message">Nenhuma equipe encontrada com esses filtros.</div>}</div>
         </div>
         {data.groupChoiceHistory.length ? <div className="advanced-choice-history"><h5>Últimas alterações</h5>{data.groupChoiceHistory.slice(0, 12).map((row) => { const team = data.teams.find((item) => item.id === row.campeonato_equipe_id); const group = data.groups.find((item) => item.id === row.grupo_novo_id); return <span key={row.id}><b>{team ? teamName(team) : 'Equipe'}</b> → {group?.nome || 'sem grupo'} <small>{row.origem}</small></span> })}</div> : null}
       </section> : null}
