@@ -50,11 +50,20 @@ export async function PATCH(req: NextRequest) {
     const markAll = Boolean(body.mark_all_read)
 
     if (markAll) {
-      const { error } = await supabaseAdmin
+      const actionableTypes = [
+        'convite_manager_equipe',
+        'convite_manager_campeonato',
+        'pedido_manager_campeonato',
+        'convite_jogador_equipe_direto',
+        'pedido_jogador_equipe',
+      ]
+      let update = supabaseAdmin
         .from('notificacoes')
         .update({ status: 'lida', read_at: new Date().toISOString() })
         .eq('destinatario_auth_user_id', user.id)
         .eq('status', 'nao_lida')
+      if (!body.include_actionable) update = update.not('tipo', 'in', `(${actionableTypes.join(',')})`)
+      const { error } = await update
       if (isMissingRelation(error)) return NextResponse.json({ ok: true, setup_required: true })
       if (error) throw error
       return NextResponse.json({ ok: true })

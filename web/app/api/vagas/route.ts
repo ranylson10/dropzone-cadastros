@@ -32,17 +32,24 @@ export async function GET(req: NextRequest) {
       .eq('status', 'ativo')
     if (vendedorId) sellersQuery = sellersQuery.eq('manager_id', vendedorId)
 
-    const [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, sellersResult] = await Promise.all([
+    const [championsResult, configsResult, phasesResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, sellersResult] = await Promise.all([
       championsQuery,
       supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').eq('aceita_novas_inscricoes_equipes', true),
+      supabaseAdmin.from('campeonato_fases').select('id,campeonato_id,ordem'),
       supabaseAdmin.from('campeonato_grupos').select('id,campeonato_id,nome,fase_id'),
       supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,equipe_id,status,slot_numero'),
       supabaseAdmin.from('campeonato_jogos').select('id,campeonato_id,nome,data_jogo,horario,grupos_ids,status').eq('status', 'ativo'),
       supabaseAdmin.from('campeonato_jogos_grupos').select('jogo_id,grupo_id'),
       sellersQuery,
     ])
-    for (const result of [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult]) if (result.error) throw result.error
+    for (const result of [championsResult, configsResult, phasesResult, groupsResult, slotsResult, gamesResult, gameGroupsResult]) if (result.error) throw result.error
     if (sellersResult.error && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(sellersResult.error.code || '')) throw sellersResult.error
+    const entryPhaseIds = new Map<string, Set<string>>()
+    for (const champ of championsResult.data || []) {
+      const phases = (phasesResult.data || []).filter((phase:any) => phase.campeonato_id === champ.id)
+      const minOrder = phases.length ? Math.min(...phases.map((phase:any) => Number(phase.ordem || 0))) : null
+      entryPhaseIds.set(champ.id, new Set(minOrder == null ? [] : phases.filter((phase:any) => Number(phase.ordem || 0) === minOrder).map((phase:any) => String(phase.id))))
+    }
     const configs = new Map((configsResult.data || []).map((row:any) => [row.campeonato_id, row]))
     const sellersByChampionship = new Map<string, any[]>()
     for (const seller of sellersResult.data || []) sellersByChampionship.set(seller.campeonato_id, [...(sellersByChampionship.get(seller.campeonato_id) || []), seller])
@@ -55,7 +62,8 @@ export async function GET(req: NextRequest) {
       const config:any = configs.get(champ.id); if (!config || !champ.banner_url) return []
       if (vendedorId && !(sellersByChampionship.get(champ.id) || []).length) return []
       if (vendedorId && sellerPortfolio.length && !sellerPortfolio.includes(String(champ.id))) return []
-      const groups = (groupsResult.data || []).filter((group:any) => group.campeonato_id === champ.id)
+      const entryIds = entryPhaseIds.get(champ.id) || new Set<string>()
+      const groups = (groupsResult.data || []).filter((group:any) => group.campeonato_id === champ.id && (entryIds.size === 0 || !group.fase_id || entryIds.has(String(group.fase_id))))
       const openGroups = groups.map((group:any) => { const slots = (slotsResult.data || []).filter((slot:any) => slot.grupo_id === group.id && slot.status !== 'excluido'); const free = slots.filter((slot:any) => !slot.equipe_id).length; if (!free) return null; const nextGames = (gamesResult.data || []).filter((game:any) => game.campeonato_id === champ.id && game.data_jogo >= today && ([...(game.grupos_ids || []), ...(gameGroupMap.get(game.id) || [])].includes(group.id))).sort((a:any,b:any) => `${a.data_jogo} ${a.horario||''}`.localeCompare(`${b.data_jogo} ${b.horario||''}`)); return { id:group.id, nome:group.nome, vagas_livres:free, total_slots:slots.length, proximo_jogo:nextGames[0] || null } }).filter(Boolean) as any[]
       if (!openGroups.length) return []
       const dated = openGroups.filter((group:any) => group.proximo_jogo).sort((a:any,b:any) => `${a.proximo_jogo.data_jogo} ${a.proximo_jogo.horario||''}`.localeCompare(`${b.proximo_jogo.data_jogo} ${b.proximo_jogo.horario||''}`)); const next = dated[0] || openGroups[0]

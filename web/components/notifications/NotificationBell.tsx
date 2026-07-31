@@ -1,8 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Archive, Bell, Check, Loader2, X } from 'lucide-react'
+import { Archive, Bell, Check, CheckCheck, Loader2, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+
+
+const ACTIONABLE_NOTIFICATION_TYPES = new Set([
+  'convite_manager_equipe',
+  'convite_manager_campeonato',
+  'pedido_manager_campeonato',
+  'convite_jogador_equipe_direto',
+  'pedido_jogador_equipe',
+])
 
 type Notif = {
   id: string
@@ -70,12 +79,65 @@ export function NotificationBell() {
   }
 
   async function markRead(id: string) {
-    const token = await authToken()
-    await fetch('/api/notificacoes', {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status: 'lida' }),
-    })
+    setBusyId(id)
+    setError('')
+    try {
+      const token = await authToken()
+      const res = await fetch('/api/notificacoes', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'lida' }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao marcar notificação como lida.')
+      setItems((current) => current.map((item) => item.id === id ? { ...item, status: 'lida' } : item))
+      setUnread((current) => Math.max(0, current - 1))
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao marcar notificação como lida.')
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  async function markRoutineNotificationsRead() {
+    const routineUnread = items.filter((item) => item.status === 'nao_lida' && !ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo)).length
+    if (!routineUnread) return
+    setBusyId('all-read')
+    setError('')
+    try {
+      const token = await authToken()
+      const res = await fetch('/api/notificacoes', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mark_all_read: true }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao marcar avisos como lidos.')
+      setItems((current) => current.map((item) => ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo) ? item : { ...item, status: 'lida' }))
+      setUnread((current) => Math.max(0, current - routineUnread))
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao marcar avisos como lidos.')
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  async function toggleInbox() {
+    if (open) {
+      setOpen(false)
+      return
+    }
+    setOpen(true)
+    try {
+      const token = await authToken()
+      await fetch('/api/notificacoes', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mark_all_read: true }),
+      })
+    } catch {
+      // A listagem abaixo continua disponível mesmo se a atualização falhar.
+    }
     await load()
   }
 
@@ -124,10 +186,7 @@ export function NotificationBell() {
         className="notif-bell-trigger"
         aria-label="Correio"
         aria-expanded={open}
-        onClick={() => {
-          setOpen((v) => !v)
-          if (!open) void load()
-        }}
+        onClick={() => void toggleInbox()}
       >
         <Bell size={18} />
         {unread > 0 ? <span className="notif-bell-badge">{unread > 9 ? '9+' : unread}</span> : null}
@@ -140,9 +199,16 @@ export function NotificationBell() {
               <strong>Correio</strong>
               <small>{unread} não lida(s)</small>
             </div>
-            <button type="button" className="button secondary small" onClick={() => setOpen(false)} aria-label="Fechar">
-              <X size={14} />
-            </button>
+            <div className="notif-inbox-head-actions">
+              {items.some((item) => item.status === 'nao_lida' && !ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo)) ? (
+                <button type="button" className="button secondary small" disabled={busyId === 'all-read'} onClick={() => void markRoutineNotificationsRead()}>
+                  <CheckCheck size={14} /> Marcar avisos como lidos
+                </button>
+              ) : null}
+              <button type="button" className="button secondary small" onClick={() => setOpen(false)} aria-label="Fechar">
+                <X size={14} />
+              </button>
+            </div>
           </header>
 
           {error ? <div className="message error compact">{error}</div> : null}
@@ -157,12 +223,7 @@ export function NotificationBell() {
 
           <div className="notif-inbox-list">
             {items.map((item) => {
-              const actionable =
-                item.tipo === 'convite_manager_equipe'
-                || item.tipo === 'convite_manager_campeonato'
-                || item.tipo === 'pedido_manager_campeonato'
-                || item.tipo === 'convite_jogador_equipe_direto'
-                || item.tipo === 'pedido_jogador_equipe'
+              const actionable = ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo)
               const unreadItem = item.status === 'nao_lida'
               const perms = item.payload?.permissoes || {}
               const permLine = item.tipo === 'convite_manager_equipe'
@@ -217,7 +278,7 @@ export function NotificationBell() {
                         </button>
                       </>
                     ) : unreadItem ? (
-                      <button type="button" className="button secondary small" onClick={() => void markRead(item.id)}>
+                      <button type="button" className="button secondary small" disabled={busyId === item.id} onClick={() => void markRead(item.id)}>
                         Marcar como lida
                       </button>
                     ) : null}

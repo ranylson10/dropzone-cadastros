@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission, permissionPublicPayload } from '@backend/campeonatos/campeonato-permissions'
+import { getCampeonatoCapacidade } from '@backend/campeonatos/capacidade'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function missingRelation(error: any) {
@@ -18,7 +19,7 @@ async function safeCount(table: string, campeonatoId: string, apply?: (query: an
 async function authorizedChampionships(userId: string) {
   const { data, error } = await supabaseAdmin
     .from('campeonatos')
-    .select('id,nome,tipo,status,aprovacao_status,numero_vagas,logo_url,produtora_id,created_at')
+    .select('id,nome,tipo,status,aprovacao_status,logo_url,produtora_id,created_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
   if (error) throw error
@@ -41,7 +42,7 @@ async function championshipSummary(userId: string, campeonatoId: string) {
 
   const { data: campeonato, error: campeonatoError } = await supabaseAdmin
     .from('campeonatos')
-    .select('id,nome,tipo,status,aprovacao_status,numero_vagas,logo_url,banner_url,produtora_id,created_at')
+    .select('id,nome,tipo,status,aprovacao_status,logo_url,banner_url,produtora_id,created_at')
     .eq('id', campeonatoId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -50,7 +51,7 @@ async function championshipSummary(userId: string, campeonatoId: string) {
 
   const [
     equipes,
-    slots,
+    capacidade,
     grupos,
     jogos,
     quedas,
@@ -60,7 +61,7 @@ async function championshipSummary(userId: string, campeonatoId: string) {
     rulebook,
   ] = await Promise.all([
     safeCount('campeonato_equipes', campeonatoId, (q) => q.eq('status', 'ativo')),
-    safeCount('campeonato_slots', campeonatoId),
+    getCampeonatoCapacidade(campeonatoId),
     safeCount('campeonato_grupos', campeonatoId),
     safeCount('campeonato_jogos', campeonatoId),
     safeCount('campeonato_partidas', campeonatoId),
@@ -72,8 +73,8 @@ async function championshipSummary(userId: string, campeonatoId: string) {
 
   if (rulebook.error && !missingRelation(rulebook.error)) throw rulebook.error
 
-  const vagasTotais = Number(campeonato.numero_vagas || slots || 0)
-  const vagasOcupadas = Math.min(vagasTotais || equipes, equipes)
+  const vagasTotais = Number(capacidade.limite_vagas ?? capacidade.slots_criados ?? 0)
+  const vagasOcupadas = Math.min(vagasTotais || capacidade.slots_ocupados, capacidade.slots_ocupados)
   const vagasDisponiveis = Math.max(0, vagasTotais - vagasOcupadas)
   const jogosSemQuedas = Math.max(0, jogos - quedas)
   const resultadosPendentes = Math.max(0, quedas - resultados)
