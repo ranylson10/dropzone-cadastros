@@ -10,7 +10,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  // Contra a Vercel, limite a concorrência para evitar saturar rotas e o banco
+  // durante os testes controlados. Localmente, preserve o paralelismo padrão.
+  workers: process.env.CI ? 2 : configuredBaseUrl ? 4 : undefined,
   timeout: 45_000,
   expect: {
     timeout: 10_000,
@@ -25,7 +27,9 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    actionTimeout: 12_000,
+    // Operações de API contra a Vercel podem sofrer cold start e contenção.
+    // Mantém limite finito, mas evita falsos negativos de exatamente 12 segundos.
+    actionTimeout: configuredBaseUrl ? 30_000 : 12_000,
     navigationTimeout: 30_000,
   },
   webServer: configuredBaseUrl
