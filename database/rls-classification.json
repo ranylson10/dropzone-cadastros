@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-29",
+  "updated_at": "2026-07-31",
   "description": "Classificação revisada das tabelas com RLS habilitado e sem policies no banco publicado. service_role_only exige acesso exclusivo por cliente administrativo com autorização prévia. legacy_controlled indica tabela preservada para compatibilidade/histórico, sem acesso direto localizado no código atual.",
   "tables": {
     "agenda_eventos": "service_role_only",
@@ -34,6 +34,14 @@
     "sistema_administradores": "service_role_only",
     "sistema_auditoria": "service_role_only",
     "sistema_denuncias": "service_role_only",
-    "sistema_restricoes_conta": "service_role_only"
+    "sistema_restricoes_conta": "service_role_only",
+    "campeonato_franquias": "service_role_only",
+    "campeonato_edicoes": "service_role_only",
+    "campeonato_divisoes": "service_role_only",
+    "campeonato_etapas": "service_role_only",
+    "campeonato_etapa_fontes": "service_role_only",
+    "campeonato_progressao_regras": "service_role_only",
+    "campeonato_etapa_premiacoes": "service_role_only",
+    "campeonato_diario_horarios": "service_role_only"
   }
 }
