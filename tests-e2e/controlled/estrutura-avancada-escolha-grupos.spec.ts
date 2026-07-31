@@ -20,7 +20,7 @@ test.describe('Estrutura avançada — escolha manual de grupos', () => {
     expect(adminRoute).toContain("action === 'assign_group_manual'")
     expect(adminRoute).toContain("action === 'save_group_choice_config'")
     expect(teamRoute).toContain('A escolha de grupos não está aberta')
-    expect(teamRoute).toContain('A última vaga deste grupo acabou de ser ocupada')
+    expect(teamRoute).toContain('O slot escolhido acabou de ser ocupado')
     expect(component).toContain('Nenhum grupo é distribuído automaticamente')
     expect(component).toContain('Escolha pelas equipes')
   })

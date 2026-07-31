@@ -44,7 +44,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [progressionPreview, setProgressionPreview] = useState<Row | null>(null)
   const [selectedProgressionRule, setSelectedProgressionRule] = useState('')
   const [replaceProgressionConflicts, setReplaceProgressionConflicts] = useState(false)
-  const [groupAssignment, setGroupAssignment] = useState({ campeonato_equipe_id: '', group_id: '' })
+  const [groupAssignment, setGroupAssignment] = useState({ campeonato_equipe_id: '', group_id: '', slot_id: '' })
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -238,8 +238,9 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           <div>
             <h5>Distribuição manual</h5>
             <label><span>Equipe/line</span><select value={groupAssignment.campeonato_equipe_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, campeonato_equipe_id: e.target.value })}><option value="">Selecione</option>{data.teams.map((row) => <option key={row.id} value={row.id}>{teamName(row)}</option>)}</select></label>
-            <label><span>Grupo</span><select value={groupAssignment.group_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, group_id: e.target.value })}><option value="">Selecione</option>{data.groups.map((group) => { const free = data.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} vaga(s)</option> })}</select></label>
-            <button className="button" disabled={busy || !groupAssignment.campeonato_equipe_id || !groupAssignment.group_id} onClick={() => void act({ action: 'assign_group_manual', ...groupAssignment })}>Confirmar grupo</button>
+            <label><span>Grupo</span><select value={groupAssignment.group_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, group_id: e.target.value, slot_id: '' })}><option value="">Selecione</option>{data.groups.map((group) => { const free = data.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} vaga(s)</option> })}</select></label>
+            <label><span>Slot</span><select value={groupAssignment.slot_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, slot_id: e.target.value })} disabled={!groupAssignment.group_id}><option value="">Selecione o slot</option>{data.slots.filter((slot) => slot.grupo_id === groupAssignment.group_id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</select></label>
+            <button className="button" disabled={busy || !groupAssignment.campeonato_equipe_id || !groupAssignment.group_id || !groupAssignment.slot_id} onClick={() => void act({ action: 'assign_group_manual', ...groupAssignment })}>Confirmar grupo e slot</button>
           </div>
           <div>
             <h5>Escolha pelas equipes</h5>

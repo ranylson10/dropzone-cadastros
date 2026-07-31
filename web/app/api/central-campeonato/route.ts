@@ -153,6 +153,37 @@ async function authorizedChampionships(userId: string) {
   return visible
 }
 
+
+async function participantChampionships(userId: string) {
+  const { data: teams, error: teamsError } = await supabaseAdmin
+    .from('equipes')
+    .select('id')
+    .or(`auth_user_id.eq.${userId},dono_auth_user_id.eq.${userId}`)
+  if (teamsError) throw teamsError
+  const teamIds = (teams || []).map((row) => String(row.id)).filter(Boolean)
+  if (!teamIds.length) return []
+
+  const { data: participations, error: participationsError } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('campeonato_id')
+    .eq('status', 'ativo')
+    .in('equipe_id', teamIds)
+  if (participationsError) throw participationsError
+
+  const championshipIds = [...new Set((participations || []).map((row) => String(row.campeonato_id)).filter(Boolean))]
+  if (!championshipIds.length) return []
+
+  const { data: championships, error: championshipsError } = await supabaseAdmin
+    .from('campeonatos')
+    .select('id,nome,tipo,status,logo_url')
+    .in('id', championshipIds)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+  if (championshipsError) throw championshipsError
+
+  return (championships || []).map((row) => ({ ...row, access: 'participant' }))
+}
+
 async function championshipSummary(userId: string, campeonatoId: string) {
   const permission = await getCampeonatoPermission(userId, campeonatoId)
   if (!['owner', 'manager', 'seller'].includes(permission.role) || !permission.canView) {
@@ -354,7 +385,14 @@ export async function GET(req: NextRequest) {
     const user = await getBearerUser(req)
     const campeonatoId = String(req.nextUrl.searchParams.get('campeonato_id') || '').trim()
     if (!campeonatoId) {
-      return NextResponse.json({ items: await authorizedChampionships(user.id) })
+      const [adminItems, participantItems] = await Promise.all([
+        authorizedChampionships(user.id),
+        participantChampionships(user.id),
+      ])
+      return NextResponse.json({
+        items: adminItems.map((row) => ({ ...row, access: 'administration' })),
+        participant_items: participantItems,
+      })
     }
     return NextResponse.json(await championshipSummary(user.id, campeonatoId))
   } catch (error: any) {

@@ -451,7 +451,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } else if (action === 'assign_group_manual') {
       const participationId = text(body?.campeonato_equipe_id)
       const groupId = text(body?.group_id)
-      if (!participationId || !groupId) throw new Error('Equipe e grupo são obrigatórios.')
+      const slotId = text(body?.slot_id)
+      if (!participationId || !groupId || !slotId) throw new Error('Equipe, grupo e slot são obrigatórios.')
       const [{ data: participation, error: participationError }, { data: group, error: groupError }] = await Promise.all([
         supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,grupo_id,slot_id').eq('id', participationId).eq('campeonato_id', campeonatoId).maybeSingle(),
         supabaseAdmin.from('campeonato_grupos').select('id,fase_id').eq('id', groupId).eq('campeonato_id', campeonatoId).maybeSingle(),
@@ -459,12 +460,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (participationError) throw participationError
       if (groupError) throw groupError
       if (!participation || !group) throw new Error('Equipe ou grupo inválido.')
-      const { data: freeSlot, error: freeSlotError } = await supabaseAdmin.from('campeonato_slots').select('*').eq('campeonato_id', campeonatoId).eq('grupo_id', groupId).eq('status', 'livre').is('equipe_id', null).is('line_id', null).order('slot_numero').limit(1).maybeSingle()
-      if (freeSlotError) throw freeSlotError
-      if (!freeSlot) throw new Error('O grupo selecionado não possui vagas livres.')
-      const { data: reserved, error: reserveError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: participation.equipe_id, line_id: participation.line_id, status: 'ocupado' }).eq('id', freeSlot.id).eq('status', 'livre').is('equipe_id', null).is('line_id', null).select('id,slot_numero').maybeSingle()
+      const { data: chosenSlot, error: chosenSlotError } = await supabaseAdmin.from('campeonato_slots').select('*').eq('id', slotId).eq('campeonato_id', campeonatoId).eq('grupo_id', groupId).eq('status', 'livre').is('equipe_id', null).is('line_id', null).maybeSingle()
+      if (chosenSlotError) throw chosenSlotError
+      if (!chosenSlot) throw new Error('O slot selecionado não está mais disponível.')
+      const { data: reserved, error: reserveError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: participation.equipe_id, line_id: participation.line_id, status: 'ocupado' }).eq('id', chosenSlot.id).eq('status', 'livre').is('equipe_id', null).is('line_id', null).select('id,slot_numero').maybeSingle()
       if (reserveError) throw reserveError
-      if (!reserved) throw new Error('A última vaga deste grupo acabou de ser ocupada.')
+      if (!reserved) throw new Error('O slot escolhido acabou de ser ocupado.')
       const oldSlotId = participation.slot_id ? String(participation.slot_id) : null
       const oldGroupId = participation.grupo_id ? String(participation.grupo_id) : null
       const { error: updateError } = await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: groupId, slot_id: reserved.id, slot_numero: reserved.slot_numero }).eq('id', participationId).eq('campeonato_id', campeonatoId)
