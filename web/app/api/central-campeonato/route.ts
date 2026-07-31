@@ -17,18 +17,81 @@ async function safeCount(table: string, campeonatoId: string, apply?: (query: an
 }
 
 async function authorizedChampionships(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('campeonatos')
-    .select('id,nome,tipo,status,aprovacao_status,logo_url,produtora_id,created_at')
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-  if (error) throw error
+  const [championshipsResult, producersResult, managersResult] = await Promise.all([
+    supabaseAdmin
+      .from('campeonatos')
+      .select('id,nome,tipo,status,aprovacao_status,logo_url,produtora_id,criado_por,created_at')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+    supabaseAdmin.from('produtoras').select('id').eq('auth_user_id', userId),
+    supabaseAdmin.from('managers').select('id').eq('auth_user_id', userId).eq('status', 'ativo'),
+  ])
+  if (championshipsResult.error) throw championshipsResult.error
+  if (producersResult.error) throw producersResult.error
+  if (managersResult.error) throw managersResult.error
+
+  const producerIds = (producersResult.data || []).map((row) => String(row.id)).filter(Boolean)
+  const managerIds = (managersResult.data || []).map((row) => String(row.id)).filter(Boolean)
+  const candidateIds = new Set<string>()
+
+  for (const campeonato of championshipsResult.data || []) {
+    if (campeonato.criado_por === userId || producerIds.includes(String(campeonato.produtora_id || ''))) {
+      candidateIds.add(String(campeonato.id))
+    }
+  }
+
+  if (managerIds.length) {
+    const [staffResult, sellersResult, tokensResult] = await Promise.all([
+      supabaseAdmin
+        .from('manager_produtora')
+        .select('produtora_id,pode_ver,pode_gerenciar_campeonato,status')
+        .in('manager_id', managerIds)
+        .eq('status', 'ativo'),
+      supabaseAdmin
+        .from('campeonato_vendedores')
+        .select('campeonato_id,status')
+        .in('manager_id', managerIds)
+        .eq('status', 'ativo'),
+      supabaseAdmin
+        .from('tokens')
+        .select('campeonato_id,status')
+        .eq('tipo', 'manager_invite')
+        .in('manager_id', managerIds)
+        .eq('status', 'ativo'),
+    ])
+
+    if (staffResult.error && !missingRelation(staffResult.error)) throw staffResult.error
+    if (sellersResult.error && !missingRelation(sellersResult.error)) throw sellersResult.error
+    if (tokensResult.error && !missingRelation(tokensResult.error)) throw tokensResult.error
+
+    const staffProducerIds = new Set(
+      (staffResult.data || [])
+        .filter((row) => Boolean(row.pode_ver) || Boolean(row.pode_gerenciar_campeonato))
+        .map((row) => String(row.produtora_id)),
+    )
+    for (const campeonato of championshipsResult.data || []) {
+      if (staffProducerIds.has(String(campeonato.produtora_id || ''))) candidateIds.add(String(campeonato.id))
+    }
+    for (const row of sellersResult.data || []) candidateIds.add(String(row.campeonato_id))
+    for (const row of tokensResult.data || []) candidateIds.add(String(row.campeonato_id))
+  }
 
   const visible = []
-  for (const campeonato of data || []) {
+  for (const campeonato of championshipsResult.data || []) {
+    if (!candidateIds.has(String(campeonato.id))) continue
     const permission = await getCampeonatoPermission(userId, campeonato.id)
     if (permission.role === 'owner' || permission.role === 'manager' || permission.role === 'seller') {
-      visible.push({ ...campeonato, permission: permissionPublicPayload(permission) })
+      visible.push({
+        id: campeonato.id,
+        nome: campeonato.nome,
+        tipo: campeonato.tipo,
+        status: campeonato.status,
+        aprovacao_status: campeonato.aprovacao_status,
+        logo_url: campeonato.logo_url,
+        produtora_id: campeonato.produtora_id,
+        created_at: campeonato.created_at,
+        permission: permissionPublicPayload(permission),
+      })
     }
   }
   return visible

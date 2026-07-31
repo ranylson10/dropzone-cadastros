@@ -174,29 +174,31 @@ export async function getCampeonatoPermission(userId: string, campeonatoId: stri
     return fullOwnerPermission(produtoraId)
   }
 
-  const { data: manager, error: managerError } = await supabaseAdmin
+  const { data: managers, error: managerError } = await supabaseAdmin
     .from('managers')
     .select('id')
     .eq('auth_user_id', userId)
     .eq('status', 'ativo')
-    .maybeSingle()
 
   if (managerError) throw managerError
-  if (!manager) {
+  const managerIds = (managers || []).map((row) => String(row.id)).filter(Boolean)
+  if (!managerIds.length) {
     return nonePermission(produtoraId)
   }
 
-  // Staff da produtora (manager operacional)
+  // Staff da produtora (manager operacional). Suporta mais de um perfil manager
+  // ligado ao mesmo login sem depender de maybeSingle().
   if (produtoraId) {
-    const { data: vínculo, error: vínculoError } = await supabaseAdmin
+    const { data: vínculos, error: vínculoError } = await supabaseAdmin
       .from('manager_produtora')
       .select('pode_ver, pode_gerenciar_campeonato, pode_gerar_token, status')
-      .eq('manager_id', manager.id)
+      .in('manager_id', managerIds)
       .eq('produtora_id', produtoraId)
-      .maybeSingle()
+      .eq('status', 'ativo')
 
     if (vínculoError && !missingRelation(vínculoError)) throw vínculoError
-    if (vínculo?.status === 'ativo') {
+    const vínculo = (vínculos || []).find((row) => Boolean(row.pode_ver) || Boolean(row.pode_gerenciar_campeonato))
+    if (vínculo) {
       const manage = Boolean(vínculo.pode_gerenciar_campeonato)
       return {
         canView: Boolean(vínculo.pode_ver) || manage,
@@ -214,30 +216,30 @@ export async function getCampeonatoPermission(userId: string, campeonatoId: stri
   }
 
   // Vendedor liberado no campeonato
-  const { data: vendedor, error: vendedorError } = await supabaseAdmin
+  const { data: vendedores, error: vendedorError } = await supabaseAdmin
     .from('campeonato_vendedores')
     .select('id, status, permissoes, limite_vagas')
     .eq('campeonato_id', campeonatoId)
-    .eq('manager_id', manager.id)
+    .in('manager_id', managerIds)
     .eq('status', 'ativo')
-    .maybeSingle()
 
   if (vendedorError && !missingRelation(vendedorError)) throw vendedorError
+  const vendedor = (vendedores || [])[0]
   if (vendedor) {
     return sellerPermissionFromRow(produtoraId, vendedor.permissoes)
   }
 
   // Fallback legado: token manager_invite
-  const { data: tokenVendedor, error: tokenError } = await supabaseAdmin
+  const { data: tokensVendedor, error: tokenError } = await supabaseAdmin
     .from('tokens')
     .select('id, manager_permissoes')
     .eq('tipo', 'manager_invite')
     .eq('campeonato_id', campeonatoId)
-    .eq('manager_id', manager.id)
+    .in('manager_id', managerIds)
     .eq('status', 'ativo')
-    .maybeSingle()
 
   if (tokenError && !missingRelation(tokenError)) throw tokenError
+  const tokenVendedor = (tokensVendedor || [])[0]
   if (tokenVendedor) {
     return sellerPermissionFromRow(produtoraId, tokenVendedor.manager_permissoes)
   }
