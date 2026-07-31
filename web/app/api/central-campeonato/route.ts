@@ -65,6 +65,8 @@ type OperationalAlert = {
   status?: 'new' | 'read' | 'resolved' | 'dismissed'
   status_note?: string | null
   status_updated_at?: string | null
+  entity_id?: string | null
+  entity_label?: string | null
 }
 
 function hoursUntil(value?: string | null) {
@@ -236,6 +238,7 @@ async function championshipSummary(userId: string, campeonatoId: string) {
     capacidade,
     grupos,
     jogosRows,
+    jogoGruposRows,
     quedas,
     resultados,
     pagamentosPendentes,
@@ -254,11 +257,12 @@ async function championshipSummary(userId: string, campeonatoId: string) {
     pagamentosLogRows,
     auditoriaRows,
   ] = await Promise.all([
-    safeRows('campeonato_equipes', 'id,equipe_id,status', campeonatoId, (q) => q.eq('status', 'ativo')),
+    safeRows('campeonato_equipes', 'id,equipe_id,line_id,nome_exibicao,grupo_id,slot_id,status,equipes(nome,tag),equipe_lines(nome,tag)', campeonatoId, (q) => q.eq('status', 'ativo')),
     safeRows('campeonato_jogadores', 'id,campeonato_equipe_id,status', campeonatoId, (q) => q.neq('status', 'deletado')),
     getCampeonatoCapacidade(campeonatoId),
     safeCount('campeonato_grupos', campeonatoId),
-    safeRows('campeonato_jogos', 'id,nome,data_jogo,horario,numero_partidas,mapas,status', campeonatoId, (q) => q.neq('status', 'excluido')),
+    safeRows('campeonato_jogos', 'id,nome,data_jogo,horario,numero_partidas,mapas,status,limite_escalacao_minutos', campeonatoId, (q) => q.neq('status', 'excluido')),
+    safeRows('campeonato_jogos_grupos', 'jogo_id,grupo_id', campeonatoId),
     safeCount('campeonato_partidas', campeonatoId),
     safeCount('campeonato_resultados_equipes', campeonatoId),
     safeCount('sistema_pagamentos', campeonatoId, (q) => q.eq('referencia_tipo', 'campeonato_cobranca').in('status', ['pendente', 'aguardando', 'pending']), 'referencia_id'),
@@ -289,12 +293,38 @@ async function championshipSummary(userId: string, campeonatoId: string) {
   const jogosSemQuedas = Math.max(0, jogos - quedas)
   const resultadosPendentes = Math.max(0, quedas - resultados)
   const requiredPlayers = Math.max(1, Number(config.data?.jogadores_por_vaga || regrasRows[0]?.vagas_por_equipe || 4))
+  const teamLabel = (team: any) => {
+    const line = Array.isArray(team?.equipe_lines) ? team.equipe_lines[0] : team?.equipe_lines
+    const base = Array.isArray(team?.equipes) ? team.equipes[0] : team?.equipes
+    return String(team?.nome_exibicao || line?.tag || line?.nome || base?.tag || base?.nome || 'Equipe sem nome')
+  }
   const playersByTeam = new Map<string, number>()
   for (const player of jogadoresRows) {
     const teamId = String(player.campeonato_equipe_id || '')
     if (teamId) playersByTeam.set(teamId, (playersByTeam.get(teamId) || 0) + 1)
   }
   const lineupsIncomplete = equipesRows.filter((team: { id?: string | null }) => (playersByTeam.get(String(team.id || '')) || 0) < requiredPlayers).length
+  const gameGroups = new Map<string, string[]>()
+  for (const relation of jogoGruposRows as Array<{ jogo_id?: string | null; grupo_id?: string | null }>) {
+    const gameId = String(relation.jogo_id || '')
+    const groupId = String(relation.grupo_id || '')
+    if (!gameId || !groupId) continue
+    gameGroups.set(gameId, [...(gameGroups.get(gameId) || []), groupId])
+  }
+  const teamsByGroup = new Map<string, any[]>()
+  for (const team of equipesRows as any[]) {
+    const groupId = String(team.grupo_id || '')
+    if (!groupId) continue
+    teamsByGroup.set(groupId, [...(teamsByGroup.get(groupId) || []), team])
+  }
+  const matchesByGame = new Map<string, string[]>()
+  for (const match of partidasLogRows as Array<{ id?: string | null; jogo_id?: string | null }>) {
+    const gameId = String(match.jogo_id || '')
+    const matchId = String(match.id || '')
+    if (!gameId || !matchId) continue
+    matchesByGame.set(gameId, [...(matchesByGame.get(gameId) || []), matchId])
+  }
+  const resultMatchIds = new Set((resultadosLogRows as Array<{ partida_id?: string | null }>).map((row) => String(row.partida_id || '')).filter(Boolean))
   const gamesWithoutDate = jogosRows.filter((game: { data_jogo?: string | null }) => !game.data_jogo).length
   const gamesWithoutTime = jogosRows.filter((game: { horario?: string | null }) => !game.horario).length
   const gamesWithoutMatches = jogosRows.filter((game: { numero_partidas?: number | string | null }) => Number(game.numero_partidas || 0) <= 0).length
