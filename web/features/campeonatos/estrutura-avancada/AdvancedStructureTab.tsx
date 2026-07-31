@@ -19,11 +19,14 @@ type Structure = {
   stageTeams: Row[]
   phases: Row[]
   groups: Row[]
+  slots: Row[]
+  groupChoiceConfigs: Row[]
+  groupChoiceHistory: Row[]
   progressionExecutions: Row[]
   progressionExecutionItems: Row[]
 }
 
-const empty: Structure = { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: [], teams: [], stageTeams: [], phases: [], groups: [], progressionExecutions: [], progressionExecutionItems: [] }
+const empty: Structure = { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: [], teams: [], stageTeams: [], phases: [], groups: [], slots: [], groupChoiceConfigs: [], groupChoiceHistory: [], progressionExecutions: [], progressionExecutionItems: [] }
 
 export function AdvancedStructureTab({ campeonatoId, championshipType }: { campeonatoId: string; championshipType: string }) {
   const [data, setData] = useState<Structure>(empty)
@@ -41,6 +44,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [progressionPreview, setProgressionPreview] = useState<Row | null>(null)
   const [selectedProgressionRule, setSelectedProgressionRule] = useState('')
   const [replaceProgressionConflicts, setReplaceProgressionConflicts] = useState(false)
+  const [groupAssignment, setGroupAssignment] = useState({ campeonato_equipe_id: '', group_id: '' })
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -227,9 +231,27 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         {data.phases.length ? <div className="advanced-link-list"><h5>Vincular fases existentes</h5>{data.phases.map((phase) => <label key={phase.id}><span>{phase.nome}</span><select value={phase.etapa_id || ''} onChange={(e) => void act({ action: 'link_phase', phase_id: phase.id, stage_id: e.target.value })}><option value="">Sem etapa</option>{data.stages.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>)}</div> : null}
       </section> : null}
 
+      {data.phases.length && data.groups.length ? <section className="advanced-card">
+        <h4>Grupos: escolha manual ou pela equipe</h4>
+        <p className="advanced-help">Nenhum grupo é distribuído automaticamente. O administrador pode escolher manualmente ou liberar a escolha para as equipes.</p>
+        <div className="advanced-group-choice-grid">
+          <div>
+            <h5>Distribuição manual</h5>
+            <label><span>Equipe/line</span><select value={groupAssignment.campeonato_equipe_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, campeonato_equipe_id: e.target.value })}><option value="">Selecione</option>{data.teams.map((row) => <option key={row.id} value={row.id}>{teamName(row)}</option>)}</select></label>
+            <label><span>Grupo</span><select value={groupAssignment.group_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, group_id: e.target.value })}><option value="">Selecione</option>{data.groups.map((group) => { const free = data.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} vaga(s)</option> })}</select></label>
+            <button className="button" disabled={busy || !groupAssignment.campeonato_equipe_id || !groupAssignment.group_id} onClick={() => void act({ action: 'assign_group_manual', ...groupAssignment })}>Confirmar grupo</button>
+          </div>
+          <div>
+            <h5>Escolha pelas equipes</h5>
+            <div className="advanced-choice-config-list">{data.phases.map((phase) => { const config = data.groupChoiceConfigs.find((row) => row.fase_id === phase.id); const groups = data.groups.filter((row) => row.fase_id === phase.id); if (!groups.length) return null; return <article key={phase.id}><div><b>{phase.nome}</b><small>{groups.length} grupo(s) disponíveis</small></div><label className="checkbox-row"><input type="checkbox" checked={Boolean(config?.aberta)} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: e.target.checked, allow_change: config?.permite_troca !== false })} /> Escolha aberta</label><label className="checkbox-row"><input type="checkbox" checked={config?.permite_troca !== false} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: Boolean(config?.aberta), allow_change: e.target.checked })} /> Permitir troca enquanto estiver aberta</label></article> })}</div>
+          </div>
+        </div>
+        {data.groupChoiceHistory.length ? <div className="advanced-choice-history"><h5>Últimas alterações</h5>{data.groupChoiceHistory.slice(0, 12).map((row) => { const team = data.teams.find((item) => item.id === row.campeonato_equipe_id); const group = data.groups.find((item) => item.id === row.grupo_novo_id); return <span key={row.id}><b>{team ? teamName(team) : 'Equipe'}</b> → {group?.nome || 'sem grupo'} <small>{row.origem}</small></span> })}</div> : null}
+      </section> : null}
+
       {data.progressions.length ? <section className="advanced-card">
-        <h4>Progressão automática</h4>
-        <p className="advanced-help">Gere uma prévia usando a classificação da fase vinculada à etapa de origem. A aplicação é idempotente e respeita a capacidade do destino.</p>
+        <h4>Classificação entre etapas</h4>
+        <p className="advanced-help">Gere a lista de classificadas usando o ranking da etapa de origem. O grupo de destino permanece sem distribuição automática.</p>
         <div className="mini-grid two">
           <label><span>Regra</span><select value={selectedProgressionRule} onChange={(e) => { setSelectedProgressionRule(e.target.value); setProgressionPreview(null) }}><option value="">Selecione</option>{data.progressions.filter((row) => row.etapa_destino_id).map((row) => { const sourceStage = data.stages.find((stageRow) => stageRow.id === row.etapa_origem_id); const destinationStage = data.stages.find((stageRow) => stageRow.id === row.etapa_destino_id); return <option key={row.id} value={row.id}>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'} · {row.posicao_inicio || 1}º a {row.posicao_fim || row.quantidade || '?' }º</option> })}</select></label>
           <div className="advanced-progression-actions"><button className="button secondary" disabled={!selectedProgressionRule || busy} onClick={() => void previewProgression(selectedProgressionRule)}>Gerar prévia</button>{progressionPreview ? <button className="button" disabled={busy || (!progressionPreview.summary?.canApply && !replaceProgressionConflicts) || (!progressionPreview.summary?.newCount && !progressionPreview.summary?.conflictCount)} onClick={() => void applyProgression()}>Aplicar progressão</button> : null}</div>

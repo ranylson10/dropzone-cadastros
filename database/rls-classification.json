@@ -45,6 +45,8 @@
     "sistema_administradores": "service_role_only",
     "sistema_auditoria": "service_role_only",
     "sistema_denuncias": "service_role_only",
-    "sistema_restricoes_conta": "service_role_only"
+    "sistema_restricoes_conta": "service_role_only",
+    "campeonato_grupo_escolha_configuracoes": "service_role_only",
+    "campeonato_grupo_escolha_historico": "service_role_only"
   }
 }

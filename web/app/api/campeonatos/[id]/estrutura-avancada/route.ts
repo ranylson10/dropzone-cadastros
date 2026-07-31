@@ -12,6 +12,7 @@ const MUTABLE_TABLES = new Set([
   'campeonato_etapa_premiacoes',
   'campeonato_diario_horarios',
   'campeonato_etapa_equipes',
+  'campeonato_grupo_escolha_configuracoes',
 ])
 
 function text(value: unknown, max = 180) {
@@ -52,10 +53,10 @@ async function loadStructure(campeonatoId: string) {
     ])
     if (dailyError) throw dailyError
     if (teamsError) throw teamsError
-    return { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: dailyHours || [], teams: teams || [], stageTeams: [], phases: [], groups: [], progressionExecutions: [], progressionExecutionItems: [] }
+    return { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: dailyHours || [], teams: teams || [], stageTeams: [], phases: [], groups: [], slots: [], groupChoiceConfigs: [], groupChoiceHistory: [], progressionExecutions: [], progressionExecutionItems: [] }
   }
 
-  const [{ data: franchise, error: franchiseError }, divisionsResult, stagesResult, dailyResult, teamsResult, phasesResult, groupsResult] = await Promise.all([
+  const [{ data: franchise, error: franchiseError }, divisionsResult, stagesResult, dailyResult, teamsResult, phasesResult, groupsResult, slotsResult, choiceConfigResult, choiceHistoryResult] = await Promise.all([
     supabaseAdmin.from('campeonato_franquias').select('*').eq('id', edition.franquia_id).maybeSingle(),
     supabaseAdmin.from('campeonato_divisoes').select('*').eq('edicao_id', edition.id).order('ordem'),
     supabaseAdmin.from('campeonato_etapas').select('*').eq('edicao_id', edition.id).order('ordem'),
@@ -63,6 +64,9 @@ async function loadStructure(campeonatoId: string) {
     supabaseAdmin.from('campeonato_equipes').select('id,nome_exibicao,equipe_id,line_id,status,equipes(nome,tag,logo_url),equipe_lines(nome,tag,logo_url)').eq('campeonato_id', campeonatoId).eq('status', 'ativo').order('created_at'),
     supabaseAdmin.from('campeonato_fases').select('id,nome,ordem,status,etapa_id').eq('campeonato_id', campeonatoId).order('ordem'),
     supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id,slots,diario_horario_id').eq('campeonato_id', campeonatoId).order('nome'),
+    supabaseAdmin.from('campeonato_slots').select('id,fase_id,grupo_id,slot_numero,slot_letra,status,equipe_id,line_id').eq('campeonato_id', campeonatoId).order('slot_numero'),
+    supabaseAdmin.from('campeonato_grupo_escolha_configuracoes').select('*').eq('campeonato_id', campeonatoId),
+    supabaseAdmin.from('campeonato_grupo_escolha_historico').select('*').eq('campeonato_id', campeonatoId).order('created_at', { ascending: false }).limit(100),
   ])
   if (franchiseError) throw franchiseError
   if (divisionsResult.error) throw divisionsResult.error
@@ -71,6 +75,9 @@ async function loadStructure(campeonatoId: string) {
   if (teamsResult.error) throw teamsResult.error
   if (phasesResult.error) throw phasesResult.error
   if (groupsResult.error) throw groupsResult.error
+  if (slotsResult.error) throw slotsResult.error
+  if (choiceConfigResult.error) throw choiceConfigResult.error
+  if (choiceHistoryResult.error) throw choiceHistoryResult.error
 
   const stageIds = (stagesResult.data || []).map((row) => String(row.id))
   let sources: unknown[] = []
@@ -118,6 +125,9 @@ async function loadStructure(campeonatoId: string) {
     stageTeams,
     phases: phasesResult.data || [],
     groups: groupsResult.data || [],
+    slots: slotsResult.data || [],
+    groupChoiceConfigs: choiceConfigResult.data || [],
+    groupChoiceHistory: choiceHistoryResult.data || [],
     progressionExecutions,
     progressionExecutionItems,
   }
@@ -420,6 +430,51 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         descricao: nullableText(body?.description, 500),
       })
       if (error) throw error
+    } else if (action === 'save_group_choice_config') {
+      const phaseId = text(body?.phase_id)
+      if (!phaseId) throw new Error('Fase não informada.')
+      const { data: phase, error: phaseError } = await supabaseAdmin.from('campeonato_fases').select('id').eq('id', phaseId).eq('campeonato_id', campeonatoId).maybeSingle()
+      if (phaseError) throw phaseError
+      if (!phase) throw new Error('Fase inválida para este campeonato.')
+      const { error } = await supabaseAdmin.from('campeonato_grupo_escolha_configuracoes').upsert({
+        campeonato_id: campeonatoId,
+        fase_id: phaseId,
+        aberta: Boolean(body?.open),
+        permite_troca: body?.allow_change !== false,
+        abre_em: nullableText(body?.opens_at, 40),
+        fecha_em: nullableText(body?.closes_at, 40),
+        criado_por: user.id,
+        atualizado_por: user.id,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'fase_id' })
+      if (error) throw error
+    } else if (action === 'assign_group_manual') {
+      const participationId = text(body?.campeonato_equipe_id)
+      const groupId = text(body?.group_id)
+      if (!participationId || !groupId) throw new Error('Equipe e grupo são obrigatórios.')
+      const [{ data: participation, error: participationError }, { data: group, error: groupError }] = await Promise.all([
+        supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,grupo_id,slot_id').eq('id', participationId).eq('campeonato_id', campeonatoId).maybeSingle(),
+        supabaseAdmin.from('campeonato_grupos').select('id,fase_id').eq('id', groupId).eq('campeonato_id', campeonatoId).maybeSingle(),
+      ])
+      if (participationError) throw participationError
+      if (groupError) throw groupError
+      if (!participation || !group) throw new Error('Equipe ou grupo inválido.')
+      const { data: freeSlot, error: freeSlotError } = await supabaseAdmin.from('campeonato_slots').select('*').eq('campeonato_id', campeonatoId).eq('grupo_id', groupId).eq('status', 'livre').is('equipe_id', null).is('line_id', null).order('slot_numero').limit(1).maybeSingle()
+      if (freeSlotError) throw freeSlotError
+      if (!freeSlot) throw new Error('O grupo selecionado não possui vagas livres.')
+      const { data: reserved, error: reserveError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: participation.equipe_id, line_id: participation.line_id, status: 'ocupado' }).eq('id', freeSlot.id).eq('status', 'livre').is('equipe_id', null).is('line_id', null).select('id,slot_numero').maybeSingle()
+      if (reserveError) throw reserveError
+      if (!reserved) throw new Error('A última vaga deste grupo acabou de ser ocupada.')
+      const oldSlotId = participation.slot_id ? String(participation.slot_id) : null
+      const oldGroupId = participation.grupo_id ? String(participation.grupo_id) : null
+      const { error: updateError } = await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: groupId, slot_id: reserved.id, slot_numero: reserved.slot_numero }).eq('id', participationId).eq('campeonato_id', campeonatoId)
+      if (updateError) {
+        await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', reserved.id)
+        throw updateError
+      }
+      if (oldSlotId && oldSlotId !== String(reserved.id)) await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', oldSlotId).eq('campeonato_id', campeonatoId)
+      const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: group.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: oldGroupId, grupo_novo_id: groupId, slot_anterior_id: oldSlotId, slot_novo_id: reserved.id, origem: 'administrador', alterado_por: user.id, observacao: nullableText(body?.note, 500) })
+      if (historyError) throw historyError
     } else if (action === 'create_daily_hour') {
       const hour = text(body?.hour, 8)
       if (!hour) throw new Error('Informe o horário.')
