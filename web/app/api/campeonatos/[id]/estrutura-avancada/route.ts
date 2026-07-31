@@ -95,8 +95,22 @@ async function loadStructure(campeonatoId: string) {
 }
 
 async function context(request: NextRequest, campeonatoId: string) {
-  const user = await getBearerUser(request)
-  if (!user) throw new Error('UNAUTHORIZED')
+  const authorization = request.headers.get('authorization') || ''
+  if (!authorization.startsWith('Bearer ') || !authorization.slice(7).trim()) {
+    throw new Error('UNAUTHORIZED')
+  }
+
+  let user: Awaited<ReturnType<typeof getBearerUser>>
+  try {
+    user = await getBearerUser(request)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    if (message === 'Sessao ausente.' || message === 'Sessao invalida.') {
+      throw new Error('UNAUTHORIZED')
+    }
+    throw error
+  }
+
   const permission = await getCampeonatoPermission(user.id, campeonatoId)
   if (!permission.canView || permission.role === 'none') throw new Error('FORBIDDEN')
   return { user, permission }
