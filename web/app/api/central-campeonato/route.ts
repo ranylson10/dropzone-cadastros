@@ -48,6 +48,17 @@ function makeLog(log: OperationalLog): OperationalLog {
   return log
 }
 
+type AlertHistoryRow = {
+  id: string
+  alerta_chave: string
+  status_anterior?: 'new' | 'read' | 'resolved' | 'dismissed' | null
+  status_novo: 'new' | 'read' | 'resolved' | 'dismissed'
+  observacao?: string | null
+  alterado_por_auth_user_id?: string | null
+  alterado_por_email?: string | null
+  created_at: string
+}
+
 type OperationalAlert = {
   id: string
   severity: 'critical' | 'warning' | 'info'
@@ -367,6 +378,15 @@ async function championshipSummary(userId: string, campeonatoId: string) {
     alert.status_updated_at = state?.updated_at || null
   }
 
+  const { data: alertHistoryRows, error: alertHistoryError } = await supabaseAdmin
+    .from('campeonato_alerta_historico')
+    .select('id,alerta_chave,status_anterior,status_novo,observacao,alterado_por_auth_user_id,alterado_por_email,created_at')
+    .eq('campeonato_id', campeonatoId)
+    .order('created_at', { ascending: false })
+    .limit(500)
+  if (alertHistoryError && !missingRelation(alertHistoryError)) throw alertHistoryError
+  const alertHistory = (alertHistoryRows || []) as AlertHistoryRow[]
+
   const severityOrder = { critical: 0, warning: 1, info: 2 }
   const statusOrder = { new: 0, read: 1, resolved: 2, dismissed: 3 }
   alerts.sort((a, b) =>
@@ -444,6 +464,7 @@ async function championshipSummary(userId: string, campeonatoId: string) {
       regulamento: { publicado: Boolean(rulebook.data?.published_at || String(rulebook.data?.status || '').toLowerCase() === 'publicado'), status: rulebook.data?.status || 'não publicado' },
     },
     alerts,
+    alert_history: alertHistory,
     alert_summary: {
       total: alerts.length,
       active: alerts.filter((alert) => !['resolved', 'dismissed'].includes(alert.status || 'new')).length,
@@ -501,17 +522,26 @@ export async function PATCH(req: NextRequest) {
     const user = await getBearerUser(req)
     const body = await req.json().catch(() => ({}))
     const campeonatoId = String(body?.campeonato_id || '').trim()
-    const alertKey = String(body?.alert_key || '').trim()
+    const requestedKeys = Array.isArray(body?.alert_keys) ? body.alert_keys : [body?.alert_key]
+    const alertKeys: string[] = Array.from(new Set<string>(requestedKeys.map((value: unknown) => String(value || '').trim()).filter(Boolean))).slice(0, 200)
     const status = String(body?.status || '').trim()
     const note = String(body?.note || '').trim().slice(0, 500) || null
-    if (!campeonatoId || !alertKey) return NextResponse.json({ error: 'Campeonato e alerta são obrigatórios.' }, { status: 400 })
+    if (!campeonatoId || !alertKeys.length) return NextResponse.json({ error: 'Campeonato e ao menos um alerta são obrigatórios.' }, { status: 400 })
     if (!['new', 'read', 'resolved', 'dismissed'].includes(status)) return NextResponse.json({ error: 'Status de alerta inválido.' }, { status: 400 })
 
     const permission = await getCampeonatoPermission(user.id, campeonatoId)
     if (!permission.canManage) return NextResponse.json({ error: 'Você não possui permissão para gerenciar os alertas deste campeonato.' }, { status: 403 })
 
+    const { data: previousRows, error: previousError } = await supabaseAdmin
+      .from('campeonato_alerta_estados')
+      .select('alerta_chave,status')
+      .eq('campeonato_id', campeonatoId)
+      .in('alerta_chave', alertKeys)
+    if (previousError && !missingRelation(previousError)) throw previousError
+    const previousByKey = new Map((previousRows || []).map((row: any) => [String(row.alerta_chave), String(row.status || 'new')]))
+
     const now = new Date().toISOString()
-    const payload: Record<string, any> = {
+    const payloads = alertKeys.map((alertKey) => ({
       campeonato_id: campeonatoId,
       alerta_chave: alertKey,
       status,
@@ -521,11 +551,24 @@ export async function PATCH(req: NextRequest) {
       lido_em: status === 'read' ? now : null,
       resolvido_em: status === 'resolved' ? now : null,
       dispensado_em: status === 'dismissed' ? now : null,
-    }
+    }))
     const { error } = await supabaseAdmin
       .from('campeonato_alerta_estados')
-      .upsert(payload, { onConflict: 'campeonato_id,alerta_chave' })
+      .upsert(payloads, { onConflict: 'campeonato_id,alerta_chave' })
     if (error) throw error
+
+    const historyPayloads = alertKeys.map((alertKey) => ({
+      campeonato_id: campeonatoId,
+      alerta_chave: alertKey,
+      status_anterior: previousByKey.get(alertKey) || 'new',
+      status_novo: status,
+      observacao: note,
+      alterado_por_auth_user_id: user.id,
+      alterado_por_email: user.email || null,
+      created_at: now,
+    }))
+    const { error: historyError } = await supabaseAdmin.from('campeonato_alerta_historico').insert(historyPayloads)
+    if (historyError && !missingRelation(historyError)) throw historyError
 
     return NextResponse.json(await championshipSummary(user.id, campeonatoId))
   } catch (error: any) {

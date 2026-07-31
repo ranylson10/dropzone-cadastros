@@ -18,6 +18,7 @@ type Summary = {
     regulamento: { publicado: boolean; status: string }
   }
   alerts: Array<{ id: string; severity: 'critical' | 'warning' | 'info'; category: 'capacity' | 'structure' | 'schedule' | 'lineup' | 'registration' | 'payment' | 'result' | 'rulebook'; scope: 'championship' | 'team' | 'game'; title: string; message: string; context: string; impact: string; recommendation: string; action: string; href: string; due_at?: string | null; priority_score?: number; status?: 'new' | 'read' | 'resolved' | 'dismissed'; status_note?: string | null; status_updated_at?: string | null; entity_id?: string | null; entity_label?: string | null }>
+  alert_history: Array<{ id: string; alerta_chave: string; status_anterior?: 'new' | 'read' | 'resolved' | 'dismissed' | null; status_novo: 'new' | 'read' | 'resolved' | 'dismissed'; observacao?: string | null; alterado_por_auth_user_id?: string | null; alterado_por_email?: string | null; created_at: string }>
   alert_summary: { total: number; active: number; new: number; read: number; resolved: number; dismissed: number; critical: number; warning: number; info: number }
   logs: Array<{ id: string; category: 'championship' | 'structure' | 'team' | 'lineup' | 'game' | 'result' | 'payment' | 'rulebook' | 'security'; action: string; title: string; detail: string; occurred_at: string; actor: string; source: string }>
   log_summary: { total: number; visible: number; latest_at: string | null; categories: Record<string, number> }
@@ -53,6 +54,7 @@ export function ChampionshipCentral() {
   const [success, setSuccess] = useState('')
   const [logFilter, setLogFilter] = useState('all')
   const [alertFilter, setAlertFilter] = useState('active')
+  const [alertAdvancedFilter, setAlertAdvancedFilter] = useState({ severity: 'all', category: 'all', scope: 'all', query: '', date_from: '', date_to: '' })
   const [alertBusy, setAlertBusy] = useState('')
 
   const selectedItem = items.find((item) => item.id === selected)
@@ -194,6 +196,53 @@ export function ChampionshipCentral() {
     } finally { setAlertBusy('') }
   }
 
+  async function markFilteredAlertsRead() {
+    const keys = filteredAlerts.filter((alert) => (alert.status || 'new') === 'new').map((alert) => alert.id)
+    if (!keys.length || !selected) { setSuccess('Nenhum alerta novo nos filtros atuais.'); return }
+    setAlertBusy('bulk-read')
+    setError('')
+    setSuccess('')
+    try {
+      const headers = await authHeaders()
+      const response = await fetch('/api/central-campeonato', {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campeonato_id: selected, alert_keys: keys, status: 'read' }),
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || 'Não foi possível marcar os alertas como lidos.')
+      setSummary(body)
+      setSuccess(`${keys.length} alerta(s) marcado(s) como lido(s).`)
+    } catch (e: any) { setError(e?.message || 'Erro ao atualizar alertas.') }
+    finally { setAlertBusy('') }
+  }
+
+  function exportAlertsCsv() {
+    if (!summary) return
+    const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
+    const rows = [['Título', 'Prioridade', 'Categoria', 'Estado', 'Escopo', 'Entidade', 'Prazo', 'Mensagem', 'Impacto', 'Ação recomendada'], ...filteredAlerts.map((alert) => [alert.title, alert.severity, alertCategoryLabel(alert.category), alert.status || 'new', alertScopeLabel(alert.scope), alert.entity_label || '', alert.due_at || '', alert.message, alert.impact, alert.recommendation])]
+    const blob = new Blob([`\uFEFF${rows.map((row) => row.map(escape).join(';')).join('\n')}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `alertas-${selected}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function exportAlertHistoryCsv() {
+    if (!summary) return
+    const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
+    const rows = [['Data', 'Alerta', 'Estado anterior', 'Estado novo', 'Responsável', 'Observação'], ...filteredAlertHistory.map((row) => [new Date(row.created_at).toLocaleString('pt-BR'), row.alerta_chave, row.status_anterior || 'new', row.status_novo, row.alterado_por_email || row.alterado_por_auth_user_id || 'Sistema', row.observacao || ''])]
+    const blob = new Blob([`\uFEFF${rows.map((row) => row.map(escape).join(';')).join('\n')}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `historico-alertas-${selected}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   const alertCategoryLabel = (category: string) => ({
     capacity: 'Vagas',
     structure: 'Estrutura',
@@ -209,9 +258,25 @@ export function ChampionshipCentral() {
 
   const filteredAlerts = summary?.alerts?.filter((alert) => {
     const status = alert.status || 'new'
-    if (alertFilter === 'active') return status === 'new' || status === 'read'
-    if (alertFilter === 'closed') return status === 'resolved' || status === 'dismissed'
-    return alertFilter === 'all' || status === alertFilter
+    const statusMatches = alertFilter === 'active' ? status === 'new' || status === 'read' : alertFilter === 'closed' ? status === 'resolved' || status === 'dismissed' : alertFilter === 'all' || status === alertFilter
+    if (!statusMatches) return false
+    if (alertAdvancedFilter.severity !== 'all' && alert.severity !== alertAdvancedFilter.severity) return false
+    if (alertAdvancedFilter.category !== 'all' && alert.category !== alertAdvancedFilter.category) return false
+    if (alertAdvancedFilter.scope !== 'all' && alert.scope !== alertAdvancedFilter.scope) return false
+    const query = alertAdvancedFilter.query.trim().toLowerCase()
+    if (query && !`${alert.title} ${alert.message} ${alert.entity_label || ''}`.toLowerCase().includes(query)) return false
+    const timestamp = new Date(alert.status_updated_at || alert.due_at || 0).getTime()
+    if (alertAdvancedFilter.date_from && timestamp && timestamp < new Date(`${alertAdvancedFilter.date_from}T00:00:00`).getTime()) return false
+    if (alertAdvancedFilter.date_to && timestamp && timestamp > new Date(`${alertAdvancedFilter.date_to}T23:59:59.999`).getTime()) return false
+    return true
+  }) || []
+
+  const filteredAlertHistory = summary?.alert_history?.filter((row) => {
+    const timestamp = new Date(row.created_at).getTime()
+    if (alertAdvancedFilter.date_from && timestamp < new Date(`${alertAdvancedFilter.date_from}T00:00:00`).getTime()) return false
+    if (alertAdvancedFilter.date_to && timestamp > new Date(`${alertAdvancedFilter.date_to}T23:59:59.999`).getTime()) return false
+    const query = alertAdvancedFilter.query.trim().toLowerCase()
+    return !query || `${row.alerta_chave} ${row.observacao || ''} ${row.alterado_por_email || ''}`.toLowerCase().includes(query)
   }) || []
 
   const filteredLogs = summary?.logs?.filter((log) => logFilter === 'all' || log.category === logFilter) || []
@@ -261,8 +326,22 @@ export function ChampionshipCentral() {
           <section className="championship-central-grid">{cards.map(([label, value, detail, Icon]) => <article key={label}><Icon size={18} /><small>{label}</small><strong>{value}</strong><span>{detail}</span></article>)}</section>
           <section className="championship-central-alerts">
             <div className="championship-central-alerts-heading"><div><small>PRIORIDADES DA OPERAÇÃO</small><h3>Alertas inteligentes</h3></div><div className="championship-central-alert-counts" aria-label="Resumo dos alertas"><span className="critical">{summary.alert_summary.critical} críticos</span><span className="warning">{summary.alert_summary.warning} avisos</span><span className="info">{summary.alert_summary.info} informativos</span></div></div>
+            <div className="championship-central-alert-dashboard"><span><b>{summary.alert_summary.new}</b> novos</span><span><b>{summary.alert_summary.read}</b> lidos</span><span><b>{summary.alert_summary.resolved}</b> resolvidos</span><span><b>{summary.alert_summary.dismissed}</b> dispensados</span></div>
             <div className="championship-central-alert-filters" aria-label="Filtrar alertas inteligentes">{[['active', 'Ativos'], ['new', 'Novos'], ['read', 'Lidos'], ['closed', 'Encerrados'], ['all', 'Todos']].map(([value, label]) => <button key={value} type="button" className={alertFilter === value ? 'active' : ''} onClick={() => setAlertFilter(value)}>{label}</button>)}</div>
-            {filteredAlerts.length ? <div className="championship-central-alert-list">{filteredAlerts.map((alert) => { const Icon = alert.severity === 'critical' ? AlertCircle : alert.severity === 'warning' ? AlertTriangle : Info; const status = alert.status || 'new'; return <article key={alert.id} className={`smart-alert ${alert.severity} status-${status}`}><div className="smart-alert-icon"><Icon size={19} /></div><div className="smart-alert-copy"><div className="smart-alert-title"><strong>{alert.title}</strong><span>{status === 'resolved' ? 'Resolvido' : status === 'dismissed' ? 'Dispensado' : status === 'read' ? 'Lido' : alert.severity === 'critical' ? 'Crítico' : alert.severity === 'warning' ? 'Atenção' : 'Informativo'}</span></div><div className="smart-alert-meta"><span>{alertCategoryLabel(alert.category)}</span><span>{alertScopeLabel(alert.scope)}</span>{alert.entity_label ? <span>{alert.entity_label}</span> : null}{alert.due_at ? <span>Prazo: {new Date(alert.due_at).toLocaleString('pt-BR')}</span> : null}</div><p>{alert.message}</p><small>{alert.context}</small><div className="smart-alert-guidance"><span><b>Impacto:</b> {alert.impact}</span><span><b>Ação recomendada:</b> {alert.recommendation}</span></div>{alert.status_note ? <em>{alert.status_note}</em> : null}</div><div className="smart-alert-actions"><a href={alert.href}>{alert.action}<ExternalLink size={14} /></a>{status === 'new' ? <button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'read')}>Marcar lido</button> : null}{status === 'new' || status === 'read' ? <><button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'resolved')}>Resolver</button><button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'dismissed')}>Dispensar</button></> : <button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'new')}>Reabrir</button>}</div></article> })}</div> : <div className="championship-central-alert-empty"><CheckCircle2 size={19} /><div><strong>Nenhum alerta neste filtro</strong><span>{summary.alerts.length ? 'Altere o filtro para consultar outros estados.' : 'Nenhuma pendência acionável foi encontrada nesta leitura.'}</span></div></div>}
+            <div className="championship-central-alert-advanced">
+              <input value={alertAdvancedFilter.query} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, query: event.target.value })} placeholder="Buscar alerta, equipe ou jogo" />
+              <select value={alertAdvancedFilter.severity} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, severity: event.target.value })}><option value="all">Todas as prioridades</option><option value="critical">Crítico</option><option value="warning">Atenção</option><option value="info">Informativo</option></select>
+              <select value={alertAdvancedFilter.category} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, category: event.target.value })}><option value="all">Todas as categorias</option>{['capacity','structure','schedule','lineup','registration','payment','result','rulebook'].map((value) => <option key={value} value={value}>{alertCategoryLabel(value)}</option>)}</select>
+              <select value={alertAdvancedFilter.scope} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, scope: event.target.value })}><option value="all">Todos os escopos</option><option value="championship">Campeonato</option><option value="team">Equipe</option><option value="game">Jogo</option></select>
+              <input type="date" value={alertAdvancedFilter.date_from} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, date_from: event.target.value })} aria-label="Data inicial" />
+              <input type="date" value={alertAdvancedFilter.date_to} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, date_to: event.target.value })} aria-label="Data final" />
+            </div>
+            <div className="championship-central-alert-toolbar"><span>{filteredAlerts.length} alerta(s) exibido(s)</span><div><button type="button" disabled={alertBusy === 'bulk-read'} onClick={() => void markFilteredAlertsRead()}>Marcar novos como lidos</button><button type="button" onClick={exportAlertsCsv}>Exportar alertas CSV</button></div></div>
+            {filteredAlerts.length ? <div className="championship-central-alert-list">{filteredAlerts.map((alert) => { const Icon = alert.severity === 'critical' ? AlertCircle : alert.severity === 'warning' ? AlertTriangle : Info; const status = alert.status || 'new'; return <article key={alert.id} className={`smart-alert ${alert.severity} status-${status}`}><div className="smart-alert-icon"><Icon size={19} /></div><div className="smart-alert-copy"><div className="smart-alert-title"><strong>{alert.title}</strong><span>{status === 'resolved' ? 'Resolvido' : status === 'dismissed' ? 'Dispensado' : status === 'read' ? 'Lido' : alert.severity === 'critical' ? 'Crítico' : alert.severity === 'warning' ? 'Atenção' : 'Informativo'}</span></div><div className="smart-alert-meta"><span>{alertCategoryLabel(alert.category)}</span><span>{alertScopeLabel(alert.scope)}</span>{alert.entity_label ? <span>{alert.entity_label}</span> : null}{alert.due_at ? <span>Prazo: {new Date(alert.due_at).toLocaleString('pt-BR')}</span> : null}</div><p>{alert.message}</p><small>{alert.context}</small><div className="smart-alert-guidance"><span><b>Impacto:</b> {alert.impact}</span><span><b>Ação recomendada:</b> {alert.recommendation}</span></div>{alert.status_note ? <em>{alert.status_note}</em> : null}</div><div className="smart-alert-actions"><a href={alert.href}>{alert.action}<ExternalLink size={14} /></a>{status === 'new' ? <button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'read')}>Marcar lido</button> : null}{status === 'new' || status === 'read' ? <><button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'resolved')}>Resolver</button><button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'dismissed')}>Dispensar</button></> : <button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'new')}>Reabrir</button>}</div></article> })}</div> : <div className="championship-central-alert-empty"><CheckCircle2 size={19} /><div><strong>Nenhum alerta neste filtro</strong><span>{summary.alerts.length ? 'Altere os filtros para consultar outros alertas.' : 'Nenhuma pendência acionável foi encontrada nesta leitura.'}</span></div></div>}
+            <div className="championship-central-alert-history">
+              <div><h4>Histórico de mudanças</h4><button type="button" onClick={exportAlertHistoryCsv}>Exportar histórico CSV</button></div>
+              {filteredAlertHistory.length ? filteredAlertHistory.slice(0, 100).map((row) => <article key={row.id}><span>{new Date(row.created_at).toLocaleString('pt-BR')}</span><strong>{row.alerta_chave}</strong><small>{row.status_anterior || 'new'} → {row.status_novo} · {row.alterado_por_email || row.alterado_por_auth_user_id || 'Sistema'}{row.observacao ? ` · ${row.observacao}` : ''}</small></article>) : <p>Nenhuma mudança registrada nos filtros atuais.</p>}
+            </div>
           </section>
           <section className="championship-central-logs">
             <div className="championship-central-logs-heading"><div><small>HISTÓRICO RASTREÁVEL</small><h3>Logs operacionais</h3><p>Eventos reais consolidados da estrutura, inscrições, jogos, resultados, pagamentos e segurança.</p></div><div className="championship-central-log-total"><Activity size={16} />{summary.log_summary.visible} exibidos</div></div>
