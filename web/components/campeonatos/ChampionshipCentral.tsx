@@ -17,8 +17,8 @@ type Summary = {
     pagamentos: { pendentes: number; aprovados: number }
     regulamento: { publicado: boolean; status: string }
   }
-  alerts: Array<{ id: string; severity: 'critical' | 'warning' | 'info'; title: string; message: string; context: string; action: string; href: string }>
-  alert_summary: { total: number; critical: number; warning: number; info: number }
+  alerts: Array<{ id: string; severity: 'critical' | 'warning' | 'info'; title: string; message: string; context: string; action: string; href: string; status?: 'new' | 'read' | 'resolved' | 'dismissed'; status_note?: string | null; status_updated_at?: string | null }>
+  alert_summary: { total: number; active: number; new: number; read: number; resolved: number; dismissed: number; critical: number; warning: number; info: number }
   logs: Array<{ id: string; category: 'championship' | 'structure' | 'team' | 'lineup' | 'game' | 'result' | 'payment' | 'rulebook' | 'security'; action: string; title: string; detail: string; occurred_at: string; actor: string; source: string }>
   log_summary: { total: number; visible: number; latest_at: string | null; categories: Record<string, number> }
 }
@@ -52,6 +52,8 @@ export function ChampionshipCentral() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [logFilter, setLogFilter] = useState('all')
+  const [alertFilter, setAlertFilter] = useState('active')
+  const [alertBusy, setAlertBusy] = useState('')
 
   const selectedItem = items.find((item) => item.id === selected)
   const participantMode = selectedItem?.access === 'participant'
@@ -165,6 +167,40 @@ export function ChampionshipCentral() {
     } finally { setChoiceAction(null) }
   }
 
+
+  async function updateAlertStatus(alertKey: string, status: 'new' | 'read' | 'resolved' | 'dismissed') {
+    if (!selected) return
+    let note: string | null = null
+    if (status === 'resolved' || status === 'dismissed') {
+      note = window.prompt(status === 'resolved' ? 'Informe como o alerta foi resolvido (opcional):' : 'Informe o motivo para dispensar este alerta (opcional):')
+      if (note === null) return
+    }
+    setAlertBusy(alertKey)
+    setError('')
+    setSuccess('')
+    try {
+      const headers = await authHeaders()
+      const response = await fetch('/api/central-campeonato', {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campeonato_id: selected, alert_key: alertKey, status, note }),
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || 'Não foi possível atualizar o alerta.')
+      setSummary(body)
+      setSuccess(status === 'read' ? 'Alerta marcado como lido.' : status === 'resolved' ? 'Alerta marcado como resolvido.' : status === 'dismissed' ? 'Alerta dispensado.' : 'Alerta reaberto.')
+    } catch (e: any) {
+      setError(e?.message || 'Erro ao atualizar o alerta.')
+    } finally { setAlertBusy('') }
+  }
+
+  const filteredAlerts = summary?.alerts?.filter((alert) => {
+    const status = alert.status || 'new'
+    if (alertFilter === 'active') return status === 'new' || status === 'read'
+    if (alertFilter === 'closed') return status === 'resolved' || status === 'dismissed'
+    return alertFilter === 'all' || status === alertFilter
+  }) || []
+
   const filteredLogs = summary?.logs?.filter((log) => logFilter === 'all' || log.category === logFilter) || []
   const cards = summary ? [
     ['Vagas', `${summary.cards.vagas.ocupadas}/${summary.cards.vagas.total}`, `${summary.cards.vagas.disponiveis} disponíveis`, Users],
@@ -212,7 +248,8 @@ export function ChampionshipCentral() {
           <section className="championship-central-grid">{cards.map(([label, value, detail, Icon]) => <article key={label}><Icon size={18} /><small>{label}</small><strong>{value}</strong><span>{detail}</span></article>)}</section>
           <section className="championship-central-alerts">
             <div className="championship-central-alerts-heading"><div><small>PRIORIDADES DA OPERAÇÃO</small><h3>Alertas inteligentes</h3></div><div className="championship-central-alert-counts" aria-label="Resumo dos alertas"><span className="critical">{summary.alert_summary.critical} críticos</span><span className="warning">{summary.alert_summary.warning} avisos</span><span className="info">{summary.alert_summary.info} informativos</span></div></div>
-            {summary.alerts.length ? <div className="championship-central-alert-list">{summary.alerts.map((alert) => { const Icon = alert.severity === 'critical' ? AlertCircle : alert.severity === 'warning' ? AlertTriangle : Info; return <article key={alert.id} className={`smart-alert ${alert.severity}`}><div className="smart-alert-icon"><Icon size={19} /></div><div className="smart-alert-copy"><div className="smart-alert-title"><strong>{alert.title}</strong><span>{alert.severity === 'critical' ? 'Crítico' : alert.severity === 'warning' ? 'Atenção' : 'Informativo'}</span></div><p>{alert.message}</p><small>{alert.context}</small></div><a href={alert.href}>{alert.action}<ExternalLink size={14} /></a></article> })}</div> : <div className="championship-central-alert-empty"><CheckCircle2 size={19} /><div><strong>Operação em dia</strong><span>Nenhuma pendência acionável foi encontrada nesta leitura.</span></div></div>}
+            <div className="championship-central-alert-filters" aria-label="Filtrar alertas inteligentes">{[['active', 'Ativos'], ['new', 'Novos'], ['read', 'Lidos'], ['closed', 'Encerrados'], ['all', 'Todos']].map(([value, label]) => <button key={value} type="button" className={alertFilter === value ? 'active' : ''} onClick={() => setAlertFilter(value)}>{label}</button>)}</div>
+            {filteredAlerts.length ? <div className="championship-central-alert-list">{filteredAlerts.map((alert) => { const Icon = alert.severity === 'critical' ? AlertCircle : alert.severity === 'warning' ? AlertTriangle : Info; const status = alert.status || 'new'; return <article key={alert.id} className={`smart-alert ${alert.severity} status-${status}`}><div className="smart-alert-icon"><Icon size={19} /></div><div className="smart-alert-copy"><div className="smart-alert-title"><strong>{alert.title}</strong><span>{status === 'resolved' ? 'Resolvido' : status === 'dismissed' ? 'Dispensado' : status === 'read' ? 'Lido' : alert.severity === 'critical' ? 'Crítico' : alert.severity === 'warning' ? 'Atenção' : 'Informativo'}</span></div><p>{alert.message}</p><small>{alert.context}</small>{alert.status_note ? <em>{alert.status_note}</em> : null}</div><div className="smart-alert-actions"><a href={alert.href}>{alert.action}<ExternalLink size={14} /></a>{status === 'new' ? <button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'read')}>Marcar lido</button> : null}{status === 'new' || status === 'read' ? <><button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'resolved')}>Resolver</button><button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'dismissed')}>Dispensar</button></> : <button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'new')}>Reabrir</button>}</div></article> })}</div> : <div className="championship-central-alert-empty"><CheckCircle2 size={19} /><div><strong>Nenhum alerta neste filtro</strong><span>{summary.alerts.length ? 'Altere o filtro para consultar outros estados.' : 'Nenhuma pendência acionável foi encontrada nesta leitura.'}</span></div></div>}
           </section>
           <section className="championship-central-logs">
             <div className="championship-central-logs-heading"><div><small>HISTÓRICO RASTREÁVEL</small><h3>Logs operacionais</h3><p>Eventos reais consolidados da estrutura, inscrições, jogos, resultados, pagamentos e segurança.</p></div><div className="championship-central-log-total"><Activity size={16} />{summary.log_summary.visible} exibidos</div></div>

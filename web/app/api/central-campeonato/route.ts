@@ -56,6 +56,9 @@ type OperationalAlert = {
   context: string
   action: string
   href: string
+  status?: 'new' | 'read' | 'resolved' | 'dismissed'
+  status_note?: string | null
+  status_updated_at?: string | null
 }
 
 function hoursUntil(value?: string | null) {
@@ -299,8 +302,22 @@ async function championshipSummary(userId: string, campeonatoId: string) {
   if (resultadosPendentes > 0) alerts.push(alertItem(campeonatoId, { id: 'resultados-pendentes', severity: 'warning', title: 'Resultados pendentes', message: `${resultadosPendentes} queda(s) ainda não possuem resultado completo.`, context: 'A classificação pode ficar desatualizada enquanto houver resultados faltando.', action: 'Abrir pontuador' }))
   if (!rulebook.data?.published_at) alerts.push(alertItem(campeonatoId, { id: 'regulamento-pendente', severity: 'critical', title: 'Regulamento não publicado', message: 'O regulamento ainda não está disponível para os participantes.', context: 'Publique a versão oficial antes do início das partidas.', action: 'Publicar regulamento', href: `/campeonatos/${encodeURIComponent(campeonatoId)}/regulamento` }))
 
+  const { data: alertStateRows, error: alertStateError } = await supabaseAdmin
+    .from('campeonato_alerta_estados')
+    .select('alerta_chave,status,observacao,updated_at')
+    .eq('campeonato_id', campeonatoId)
+  if (alertStateError && !missingRelation(alertStateError)) throw alertStateError
+  const alertStateByKey = new Map((alertStateRows || []).map((row: any) => [String(row.alerta_chave), row]))
+  for (const alert of alerts) {
+    const state: any = alertStateByKey.get(alert.id)
+    alert.status = state?.status || 'new'
+    alert.status_note = state?.observacao || null
+    alert.status_updated_at = state?.updated_at || null
+  }
+
   const severityOrder = { critical: 0, warning: 1, info: 2 }
-  alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity] || a.title.localeCompare(b.title))
+  const statusOrder = { new: 0, read: 1, resolved: 2, dismissed: 3 }
+  alerts.sort((a, b) => statusOrder[a.status || 'new'] - statusOrder[b.status || 'new'] || severityOrder[a.severity] - severityOrder[b.severity] || a.title.localeCompare(b.title))
 
   const logs: OperationalLog[] = []
   const addLog = (log: OperationalLog) => {
@@ -372,9 +389,14 @@ async function championshipSummary(userId: string, campeonatoId: string) {
     alerts,
     alert_summary: {
       total: alerts.length,
-      critical: alerts.filter((alert) => alert.severity === 'critical').length,
-      warning: alerts.filter((alert) => alert.severity === 'warning').length,
-      info: alerts.filter((alert) => alert.severity === 'info').length,
+      active: alerts.filter((alert) => !['resolved', 'dismissed'].includes(alert.status || 'new')).length,
+      new: alerts.filter((alert) => (alert.status || 'new') === 'new').length,
+      read: alerts.filter((alert) => alert.status === 'read').length,
+      resolved: alerts.filter((alert) => alert.status === 'resolved').length,
+      dismissed: alerts.filter((alert) => alert.status === 'dismissed').length,
+      critical: alerts.filter((alert) => alert.severity === 'critical' && !['resolved', 'dismissed'].includes(alert.status || 'new')).length,
+      warning: alerts.filter((alert) => alert.severity === 'warning' && !['resolved', 'dismissed'].includes(alert.status || 'new')).length,
+      info: alerts.filter((alert) => alert.severity === 'info' && !['resolved', 'dismissed'].includes(alert.status || 'new')).length,
     },
     logs: operationalLogs,
     log_summary: {
@@ -412,6 +434,46 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     const message = error?.message || 'Erro ao carregar a Central do Campeonato.'
     const status = /Sessao/.test(message) ? 401 : /vínculo|permissão/.test(message) ? 403 : 400
+    return NextResponse.json({ error: message }, { status })
+  }
+}
+
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const body = await req.json().catch(() => ({}))
+    const campeonatoId = String(body?.campeonato_id || '').trim()
+    const alertKey = String(body?.alert_key || '').trim()
+    const status = String(body?.status || '').trim()
+    const note = String(body?.note || '').trim().slice(0, 500) || null
+    if (!campeonatoId || !alertKey) return NextResponse.json({ error: 'Campeonato e alerta são obrigatórios.' }, { status: 400 })
+    if (!['new', 'read', 'resolved', 'dismissed'].includes(status)) return NextResponse.json({ error: 'Status de alerta inválido.' }, { status: 400 })
+
+    const permission = await getCampeonatoPermission(user.id, campeonatoId)
+    if (!permission.canManage) return NextResponse.json({ error: 'Você não possui permissão para gerenciar os alertas deste campeonato.' }, { status: 403 })
+
+    const now = new Date().toISOString()
+    const payload: Record<string, any> = {
+      campeonato_id: campeonatoId,
+      alerta_chave: alertKey,
+      status,
+      observacao: note,
+      atualizado_por_auth_user_id: user.id,
+      updated_at: now,
+      lido_em: status === 'read' ? now : null,
+      resolvido_em: status === 'resolved' ? now : null,
+      dispensado_em: status === 'dismissed' ? now : null,
+    }
+    const { error } = await supabaseAdmin
+      .from('campeonato_alerta_estados')
+      .upsert(payload, { onConflict: 'campeonato_id,alerta_chave' })
+    if (error) throw error
+
+    return NextResponse.json(await championshipSummary(user.id, campeonatoId))
+  } catch (error: any) {
+    const message = error?.message || 'Erro ao atualizar o alerta inteligente.'
+    const status = /Sessao/.test(message) ? 401 : /permissão/.test(message) ? 403 : 400
     return NextResponse.json({ error: message }, { status })
   }
 }
