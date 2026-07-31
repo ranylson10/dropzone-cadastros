@@ -32,6 +32,39 @@ function positiveInt(value: unknown, nullable = true) {
   return parsed
 }
 
+
+async function notifyParticipationOwner(input: { campeonatoId: string; participationId: string; senderId: string; type: string; title: string; body: string; payload?: Record<string, unknown> }) {
+  const { data: participation, error: participationError } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('id,equipe_id')
+    .eq('id', input.participationId)
+    .eq('campeonato_id', input.campeonatoId)
+    .maybeSingle()
+  if (participationError) throw participationError
+  if (!participation?.equipe_id) return false
+  const { data: team, error: teamError } = await supabaseAdmin
+    .from('equipes')
+    .select('auth_user_id,dono_auth_user_id')
+    .eq('id', participation.equipe_id)
+    .maybeSingle()
+  if (teamError) throw teamError
+  const recipientId = String(team?.dono_auth_user_id || team?.auth_user_id || '')
+  if (!recipientId) return false
+  const { error } = await supabaseAdmin.from('notificacoes').insert({
+    destinatario_auth_user_id: recipientId,
+    remetente_auth_user_id: input.senderId,
+    tipo: input.type,
+    titulo: input.title,
+    corpo: input.body,
+    payload: { campeonato_id: input.campeonatoId, campeonato_equipe_id: input.participationId, ...(input.payload || {}) },
+    status: 'nao_lida',
+    referencia_tipo: 'campeonato_escolha_grupo',
+    referencia_id: input.participationId,
+  })
+  if (error) throw error
+  return true
+}
+
 function money(value: unknown) {
   if (value === '' || value == null) return null
   const parsed = Number(value)
@@ -499,6 +532,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (oldSlotId && oldSlotId !== String(reserved.id)) await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', oldSlotId).eq('campeonato_id', campeonatoId)
       const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: group.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: oldGroupId, grupo_novo_id: groupId, slot_anterior_id: oldSlotId, slot_novo_id: reserved.id, origem: 'administrador', alterado_por: user.id, observacao: nullableText(body?.note, 500) })
       if (historyError) throw historyError
+      await notifyParticipationOwner({ campeonatoId, participationId, senderId: user.id, type: oldGroupId ? 'escolha_grupo_movida_admin' : 'escolha_grupo_definida_admin', title: oldGroupId ? 'Grupo e slot alterados' : 'Grupo e slot definidos', body: oldGroupId ? 'A administração alterou o grupo ou slot da sua equipe. Consulte a Central do Campeonato.' : 'A administração definiu o grupo e slot da sua equipe. Consulte a Central do Campeonato.', payload: { grupo_id: groupId, slot_id: reserved.id } })
     } else if (action === 'cancel_group_choice_admin') {
       const participationId = text(body?.campeonato_equipe_id)
       if (!participationId) throw new Error('Equipe/line é obrigatória.')
@@ -516,6 +550,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (freeError) throw freeError
       const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: group.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: oldGroupId, grupo_novo_id: null, slot_anterior_id: oldSlotId, slot_novo_id: null, origem: 'administrador', alterado_por: user.id, observacao: nullableText(body?.note, 500) || 'Escolha cancelada pela administração.' })
       if (historyError) throw historyError
+      await notifyParticipationOwner({ campeonatoId, participationId, senderId: user.id, type: 'escolha_grupo_cancelada_admin', title: 'Escolha de grupo cancelada', body: 'A administração cancelou a escolha de grupo e slot da sua equipe. Consulte a Central do Campeonato.' })
     } else if (action === 'restore_group_choice_admin') {
       const participationId = text(body?.campeonato_equipe_id)
       if (!participationId) throw new Error('Equipe/line é obrigatória.')
@@ -539,6 +574,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
       const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: cancelled.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: null, grupo_novo_id: cancelled.grupo_anterior_id, slot_anterior_id: null, slot_novo_id: reserved.id, origem: 'administrador', alterado_por: user.id, observacao: nullableText(body?.note, 500) || 'Escolha restaurada pela administração.' })
       if (historyError) throw historyError
+      await notifyParticipationOwner({ campeonatoId, participationId, senderId: user.id, type: 'escolha_grupo_restaurada_admin', title: 'Escolha de grupo restaurada', body: 'A administração restaurou a escolha anterior de grupo e slot da sua equipe. Consulte a Central do Campeonato.', payload: { grupo_id: cancelled.grupo_anterior_id, slot_id: reserved.id } })
+    } else if (action === 'send_group_choice_notifications') {
+      const participationIds: string[] = Array.isArray(body?.campeonato_equipe_ids)
+        ? [...new Set<string>(body.campeonato_equipe_ids.map((value: unknown) => text(value, 80)).filter(Boolean))].slice(0, 200)
+        : []
+      if (!participationIds.length) throw new Error('Selecione ao menos uma equipe para avisar.')
+      const notificationType = text(body?.notification_type || 'pending', 40)
+      const allowedTypes = new Set(['pending', 'deadline', 'general'])
+      if (!allowedTypes.has(notificationType)) throw new Error('Tipo de aviso inválido.')
+      const { data: championship, error: championshipError } = await supabaseAdmin.from('campeonatos').select('nome').eq('id', campeonatoId).maybeSingle()
+      if (championshipError) throw championshipError
+      const championshipName = championship?.nome || 'Campeonato'
+      let sent = 0
+      for (const participationId of participationIds) {
+        const title = notificationType === 'deadline' ? 'Prazo de escolha de grupo próximo' : notificationType === 'general' ? 'Aviso sobre grupo e slot' : 'Escolha de grupo e slot pendente'
+        const bodyText = notificationType === 'deadline'
+          ? `${championshipName}: confira o prazo e conclua sua escolha de grupo e slot antes do encerramento.`
+          : notificationType === 'general'
+            ? `${championshipName}: consulte a Central do Campeonato para verificar sua situação de grupo e slot.`
+            : `${championshipName}: sua equipe ainda precisa escolher grupo e slot na Central do Campeonato.`
+        if (await notifyParticipationOwner({ campeonatoId, participationId, senderId: user.id, type: `escolha_grupo_${notificationType}`, title, body: bodyText, payload: { notification_type: notificationType } })) sent += 1
+      }
+      return NextResponse.json({ ok: true, sent, ...(await loadStructure(campeonatoId)) })
     } else if (action === 'create_daily_hour') {
       const hour = text(body?.hour, 8)
       if (!hour) throw new Error('Informe o horário.')

@@ -49,6 +49,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [choiceSchedule, setChoiceSchedule] = useState<Record<string, { opens_at: string; closes_at: string }>>({})
   const [choiceBlock, setChoiceBlock] = useState({ phase_id: '', group_id: '', slot_id: '', reason: '' })
   const [choiceOpsFilter, setChoiceOpsFilter] = useState({ phase_id: '', group_id: '', status: 'all', query: '' })
+  const [choiceNoticeType, setChoiceNoticeType] = useState('pending')
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -177,6 +178,28 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
     })
   }, [choiceOperationalRows, choiceOpsFilter, teamName])
 
+
+  async function sendChoiceNotifications(onlyPending = false) {
+    const rows = onlyPending ? filteredChoiceRows.filter((row) => row.status === 'pending') : filteredChoiceRows
+    if (!rows.length) {
+      setMessage('Nenhuma equipe disponível para avisar com os filtros atuais.')
+      return
+    }
+    setBusy(true)
+    setMessage('')
+    try {
+      const response = await request('POST', {
+        action: 'send_group_choice_notifications',
+        notification_type: choiceNoticeType,
+        campeonato_equipe_ids: rows.map((row) => row.team.id),
+      }) as any
+      setData(response)
+      setMessage(`${Number(response.sent || 0)} aviso(s) enviado(s).`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Falha ao enviar avisos.')
+    } finally { setBusy(false) }
+  }
+
   function exportChoiceCsv() {
     const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
     const rows = [['Equipe/line', 'Fase', 'Grupo', 'Slot', 'Status'], ...filteredChoiceRows.map((row) => [teamName(row.team), row.phase?.nome || '', row.group?.nome || '', row.slot?.slot_letra || row.slot?.slot_numero || '', row.status === 'chosen' ? 'Escolhida' : row.status === 'cancelled' ? 'Cancelada' : 'Pendente'])]
@@ -293,6 +316,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         </div>
         <div className="advanced-choice-operations">
           <div className="advanced-choice-operations-head"><div><h5>Painel operacional das escolhas</h5><small>{choiceOperationalRows.filter((row) => row.status === 'chosen').length} escolhidas · {choiceOperationalRows.filter((row) => row.status === 'pending').length} pendentes · {data.slots.filter((row) => row.status === 'livre' && !row.equipe_id && !row.line_id).length} slots livres · {data.groupChoiceBlocks.length} bloqueios</small></div><button className="button secondary" onClick={exportChoiceCsv}>Exportar CSV</button></div>
+          <div className="advanced-choice-notices"><label><span>Tipo de aviso</span><select value={choiceNoticeType} onChange={(e) => setChoiceNoticeType(e.target.value)}><option value="pending">Escolha pendente</option><option value="deadline">Prazo próximo</option><option value="general">Aviso geral</option></select></label><button className="button secondary" disabled={busy || !filteredChoiceRows.length} onClick={() => void sendChoiceNotifications(false)}>Avisar filtradas</button><button className="button" disabled={busy || !filteredChoiceRows.some((row) => row.status === 'pending')} onClick={() => void sendChoiceNotifications(true)}>Avisar apenas pendentes</button></div>
           <div className="mini-grid four">
             <label><span>Busca</span><input value={choiceOpsFilter.query} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, query: e.target.value })} placeholder="Nome ou tag" /></label>
             <label><span>Fase</span><select value={choiceOpsFilter.phase_id} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, phase_id: e.target.value, group_id: '' })}><option value="">Todas</option>{data.phases.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
