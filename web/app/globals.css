@@ -10527,3 +10527,6 @@ input::placeholder, textarea::placeholder {
 .smart-alert-actions a,.smart-alert-actions button{width:100%;justify-content:center;border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 9px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px;text-decoration:none;color:inherit}
 .smart-alert-actions button:disabled{opacity:.55;cursor:wait}
 @media(max-width:760px){.smart-alert-actions{width:100%;min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.smart-alert-actions a,.smart-alert-actions button{width:auto}.smart-alert{flex-wrap:wrap}}
+
+/* Rodada 86B — contexto e prioridade dos alertas inteligentes */
+.smart-alert-meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.smart-alert-meta span{padding:2px 6px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase}.smart-alert-guidance{display:grid;gap:3px;margin-top:7px;padding-top:7px;border-top:1px dashed var(--line)}.smart-alert-guidance span{color:var(--muted);font-size:11px;line-height:1.4}.smart-alert-guidance b{color:var(--text)}

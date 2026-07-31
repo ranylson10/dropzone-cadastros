@@ -51,11 +51,17 @@ function makeLog(log: OperationalLog): OperationalLog {
 type OperationalAlert = {
   id: string
   severity: 'critical' | 'warning' | 'info'
+  category: 'capacity' | 'structure' | 'schedule' | 'lineup' | 'registration' | 'payment' | 'result' | 'rulebook'
+  scope: 'championship' | 'team' | 'game'
   title: string
   message: string
   context: string
+  impact: string
+  recommendation: string
   action: string
   href: string
+  due_at?: string | null
+  priority_score?: number
   status?: 'new' | 'read' | 'resolved' | 'dismissed'
   status_note?: string | null
   status_updated_at?: string | null
@@ -68,9 +74,22 @@ function hoursUntil(value?: string | null) {
   return (time - Date.now()) / 3_600_000
 }
 
-function alertItem(campeonatoId: string, alert: Omit<OperationalAlert, 'href'> & { href?: string }): OperationalAlert {
+function alertItem(
+  campeonatoId: string,
+  alert: Omit<OperationalAlert, 'href' | 'impact' | 'recommendation'> & {
+    href?: string
+    impact?: string
+    recommendation?: string
+  },
+): OperationalAlert {
+  const dueHours = hoursUntil(alert.due_at)
+  const urgency = dueHours == null ? 0 : dueHours < 0 ? 35 : dueHours <= 24 ? 30 : dueHours <= 72 ? 20 : dueHours <= 168 ? 10 : 0
+  const severityScore = alert.severity === 'critical' ? 100 : alert.severity === 'warning' ? 60 : 20
   return {
     ...alert,
+    impact: alert.impact || alert.context,
+    recommendation: alert.recommendation || alert.action,
+    priority_score: severityScore + urgency,
     href: alert.href || `/campeonatos/${encodeURIComponent(campeonatoId)}`,
   }
 }
@@ -289,18 +308,21 @@ async function championshipSummary(userId: string, campeonatoId: string) {
   const lineupHours = hoursUntil(lineupDeadline)
   const alerts: OperationalAlert[] = []
 
-  if (!vagasTotais) alerts.push(alertItem(campeonatoId, { id: 'vagas-sem-limite', severity: 'critical', title: 'Total oficial de vagas não configurado', message: 'O campeonato não possui numero_vagas válido em campeonato_configuracoes.', context: 'Sem esse valor, inscrições e capacidade comercial não podem ser controladas com segurança.', action: 'Configurar vagas oficiais' }))
-  if (vagasTotais > 0 && capacidade.slots_criados < vagasTotais) alerts.push(alertItem(campeonatoId, { id: 'estrutura-incompleta', severity: 'warning', title: 'Estrutura inicial incompleta', message: `Existem ${capacidade.slots_criados} de ${vagasTotais} slots estruturados na fase de entrada.`, context: `Ainda faltam ${Math.max(0, vagasTotais - capacidade.slots_criados)} slot(s) para representar a capacidade oficial.`, action: 'Completar grupos e slots' }))
-  if (vagasTotais > 0 && vagasDisponiveis === 0) alerts.push(alertItem(campeonatoId, { id: 'vagas-esgotadas', severity: 'info', title: 'Vagas oficiais esgotadas', message: 'Todas as vagas oficiais da fase de entrada estão ocupadas.', context: 'Confira pagamentos e inscrições antes de encerrar definitivamente as vendas.', action: 'Revisar equipes inscritas' }))
-  else if (vagasTotais > 0 && vagasDisponiveis <= Math.max(2, Math.ceil(vagasTotais * .2))) alerts.push(alertItem(campeonatoId, { id: 'vagas-baixas', severity: 'warning', title: 'Poucas vagas disponíveis', message: `Restam apenas ${vagasDisponiveis} de ${vagasTotais} vagas oficiais.`, context: 'A capacidade está próxima de esgotar.', action: 'Revisar inscrições e vendas' }))
-  if (!grupos) alerts.push(alertItem(campeonatoId, { id: 'sem-grupos', severity: 'critical', title: 'Nenhum grupo criado', message: 'O campeonato ainda não possui grupos para a fase de entrada.', context: 'As equipes não poderão ser distribuídas até que a estrutura seja criada.', action: 'Criar grupos' }))
-  if (!jogos) alerts.push(alertItem(campeonatoId, { id: 'sem-jogos', severity: 'critical', title: 'Nenhum jogo programado', message: 'O campeonato ainda não possui jogos cadastrados.', context: 'Cadastre ao menos o primeiro jogo com data, horário e número de quedas.', action: 'Programar jogos' }))
-  if (gamesWithoutDate || gamesWithoutTime || gamesWithoutMatches) alerts.push(alertItem(campeonatoId, { id: 'jogos-incompletos', severity: nextGame && Number(nextGame.hours) <= 72 ? 'critical' : 'warning', title: 'Jogos com configuração incompleta', message: `${gamesWithoutDate} sem data, ${gamesWithoutTime} sem horário e ${gamesWithoutMatches} sem quantidade de quedas.`, context: nextGame && Number(nextGame.hours) <= 72 ? 'Há jogo previsto nas próximas 72 horas.' : 'Complete os dados antes de divulgar a programação.', action: 'Completar programação' }))
-  if (lineupsIncomplete > 0) alerts.push(alertItem(campeonatoId, { id: 'escalacoes-incompletas', severity: lineupHours != null && lineupHours <= 24 ? 'critical' : 'warning', title: 'Escalações incompletas', message: `${lineupsIncomplete} equipe(s) ainda não atingiram o mínimo de ${requiredPlayers} jogador(es).`, context: lineupHours == null ? 'Nenhum prazo geral de escalação foi localizado.' : lineupHours < 0 ? 'O prazo de escalação já venceu.' : `O prazo termina em aproximadamente ${Math.ceil(lineupHours)} hora(s).`, action: 'Revisar escalações' }))
-  if (registrationHours != null && registrationHours < 0 && config.data?.aceita_novas_inscricoes_equipes) alerts.push(alertItem(campeonatoId, { id: 'inscricao-vencida-aberta', severity: 'critical', title: 'Inscrições abertas após o prazo', message: 'A data limite de inscrição já passou, mas novas inscrições continuam habilitadas.', context: 'Isso pode permitir entradas fora do prazo divulgado.', action: 'Encerrar inscrições' }))
-  if (pagamentosPendentes > 0) alerts.push(alertItem(campeonatoId, { id: 'pagamentos-pendentes', severity: 'warning', title: 'Pagamentos aguardando conferência', message: `${pagamentosPendentes} pagamento(s) permanecem pendentes.`, context: 'Confirme ou rejeite os pagamentos antes de consolidar as vagas.', action: 'Revisar pagamentos' }))
-  if (resultadosPendentes > 0) alerts.push(alertItem(campeonatoId, { id: 'resultados-pendentes', severity: 'warning', title: 'Resultados pendentes', message: `${resultadosPendentes} queda(s) ainda não possuem resultado completo.`, context: 'A classificação pode ficar desatualizada enquanto houver resultados faltando.', action: 'Abrir pontuador' }))
-  if (!rulebook.data?.published_at) alerts.push(alertItem(campeonatoId, { id: 'regulamento-pendente', severity: 'critical', title: 'Regulamento não publicado', message: 'O regulamento ainda não está disponível para os participantes.', context: 'Publique a versão oficial antes do início das partidas.', action: 'Publicar regulamento', href: `/campeonatos/${encodeURIComponent(campeonatoId)}/regulamento` }))
+  if (!vagasTotais) alerts.push(alertItem(campeonatoId, { id: 'vagas-sem-limite', severity: 'critical', category: 'capacity', scope: 'championship', title: 'Total oficial de vagas não configurado', message: 'O campeonato não possui numero_vagas válido em campeonato_configuracoes.', context: 'Sem esse valor, inscrições e capacidade comercial não podem ser controladas com segurança.', action: 'Configurar vagas oficiais' }))
+  if (vagasTotais > 0 && capacidade.slots_criados < vagasTotais) alerts.push(alertItem(campeonatoId, { id: 'estrutura-incompleta', severity: 'warning', category: 'structure', scope: 'championship', title: 'Estrutura inicial incompleta', message: `Existem ${capacidade.slots_criados} de ${vagasTotais} slots estruturados na fase de entrada.`, context: `Ainda faltam ${Math.max(0, vagasTotais - capacidade.slots_criados)} slot(s) para representar a capacidade oficial.`, action: 'Completar grupos e slots' }))
+  if (vagasTotais > 0 && vagasDisponiveis === 0) alerts.push(alertItem(campeonatoId, { id: 'vagas-esgotadas', severity: 'info', category: 'capacity', scope: 'championship', title: 'Vagas oficiais esgotadas', message: 'Todas as vagas oficiais da fase de entrada estão ocupadas.', context: 'Confira pagamentos e inscrições antes de encerrar definitivamente as vendas.', action: 'Revisar equipes inscritas' }))
+  else if (vagasTotais > 0 && vagasDisponiveis <= Math.max(2, Math.ceil(vagasTotais * .2))) alerts.push(alertItem(campeonatoId, { id: 'vagas-baixas', severity: 'warning', category: 'capacity', scope: 'championship', title: 'Poucas vagas disponíveis', message: `Restam apenas ${vagasDisponiveis} de ${vagasTotais} vagas oficiais.`, context: 'A capacidade está próxima de esgotar.', action: 'Revisar inscrições e vendas' }))
+  if (!grupos) alerts.push(alertItem(campeonatoId, { id: 'sem-grupos', severity: 'critical', category: 'structure', scope: 'championship', title: 'Nenhum grupo criado', message: 'O campeonato ainda não possui grupos para a fase de entrada.', context: 'As equipes não poderão ser distribuídas até que a estrutura seja criada.', action: 'Criar grupos' }))
+  if (!jogos) alerts.push(alertItem(campeonatoId, { id: 'sem-jogos', severity: 'critical', category: 'schedule', scope: 'championship', title: 'Nenhum jogo programado', message: 'O campeonato ainda não possui jogos cadastrados.', context: 'Cadastre ao menos o primeiro jogo com data, horário e número de quedas.', action: 'Programar jogos' }))
+  if (gamesWithoutDate || gamesWithoutTime || gamesWithoutMatches) alerts.push(alertItem(campeonatoId, { id: 'jogos-incompletos', severity: nextGame && Number(nextGame.hours) <= 72 ? 'critical' : 'warning', category: 'schedule', scope: 'game', due_at: nextGame?.data_jogo ? `${nextGame.data_jogo}T${nextGame.horario || '23:59:00'}` : null, title: 'Jogos com configuração incompleta', message: `${gamesWithoutDate} sem data, ${gamesWithoutTime} sem horário e ${gamesWithoutMatches} sem quantidade de quedas.`, context: nextGame && Number(nextGame.hours) <= 72 ? 'Há jogo previsto nas próximas 72 horas.' : 'Complete os dados antes de divulgar a programação.', action: 'Completar programação' }))
+  if (lineupsIncomplete > 0) alerts.push(alertItem(campeonatoId, { id: 'escalacoes-incompletas', severity: lineupHours != null && lineupHours <= 24 ? 'critical' : 'warning', category: 'lineup', scope: 'team', due_at: lineupDeadline, title: 'Escalações incompletas', message: `${lineupsIncomplete} equipe(s) ainda não atingiram o mínimo de ${requiredPlayers} jogador(es).`, context: lineupHours == null ? 'Nenhum prazo geral de escalação foi localizado.' : lineupHours < 0 ? 'O prazo de escalação já venceu.' : `O prazo termina em aproximadamente ${Math.ceil(lineupHours)} hora(s).`, action: 'Revisar escalações' }))
+  if (registrationHours != null && registrationHours < 0 && config.data?.aceita_novas_inscricoes_equipes) alerts.push(alertItem(campeonatoId, { id: 'inscricao-vencida-aberta', severity: 'critical', category: 'registration', scope: 'championship', due_at: config.data?.data_limite_inscricao || null, title: 'Inscrições abertas após o prazo', message: 'A data limite de inscrição já passou, mas novas inscrições continuam habilitadas.', context: 'Isso pode permitir entradas fora do prazo divulgado.', action: 'Encerrar inscrições' }))
+  if (pagamentosPendentes > 0) alerts.push(alertItem(campeonatoId, { id: 'pagamentos-pendentes', severity: 'warning', category: 'payment', scope: 'team', title: 'Pagamentos aguardando conferência', message: `${pagamentosPendentes} pagamento(s) permanecem pendentes.`, context: 'Confirme ou rejeite os pagamentos antes de consolidar as vagas.', action: 'Revisar pagamentos' }))
+  if (resultadosPendentes > 0) alerts.push(alertItem(campeonatoId, { id: 'resultados-pendentes', severity: 'warning', category: 'result', scope: 'game', title: 'Resultados pendentes', message: `${resultadosPendentes} queda(s) ainda não possuem resultado completo.`, context: 'A classificação pode ficar desatualizada enquanto houver resultados faltando.', action: 'Abrir pontuador' }))
+  if (!rulebook.data?.published_at) alerts.push(alertItem(campeonatoId, { id: 'regulamento-pendente', severity: 'critical', category: 'rulebook', scope: 'championship', title: 'Regulamento não publicado', message: 'O regulamento ainda não está disponível para os participantes.', context: 'Publique a versão oficial antes do início das partidas.', action: 'Publicar regulamento', href: `/campeonatos/${encodeURIComponent(campeonatoId)}/regulamento` }))
+
+  const uniqueAlerts = Array.from(new Map(alerts.map((alert) => [alert.id, alert])).values())
+  alerts.splice(0, alerts.length, ...uniqueAlerts)
 
   const { data: alertStateRows, error: alertStateError } = await supabaseAdmin
     .from('campeonato_alerta_estados')
@@ -317,7 +339,12 @@ async function championshipSummary(userId: string, campeonatoId: string) {
 
   const severityOrder = { critical: 0, warning: 1, info: 2 }
   const statusOrder = { new: 0, read: 1, resolved: 2, dismissed: 3 }
-  alerts.sort((a, b) => statusOrder[a.status || 'new'] - statusOrder[b.status || 'new'] || severityOrder[a.severity] - severityOrder[b.severity] || a.title.localeCompare(b.title))
+  alerts.sort((a, b) =>
+    statusOrder[a.status || 'new'] - statusOrder[b.status || 'new']
+    || Number(b.priority_score || 0) - Number(a.priority_score || 0)
+    || severityOrder[a.severity] - severityOrder[b.severity]
+    || a.title.localeCompare(b.title),
+  )
 
   const logs: OperationalLog[] = []
   const addLog = (log: OperationalLog) => {
