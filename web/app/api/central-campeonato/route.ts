@@ -155,12 +155,21 @@ async function authorizedChampionships(userId: string) {
 
 
 async function participantChampionships(userId: string) {
-  const { data: teams, error: teamsError } = await supabaseAdmin
+  let teamsResult = await supabaseAdmin
     .from('equipes')
     .select('id')
     .or(`auth_user_id.eq.${userId},dono_auth_user_id.eq.${userId}`)
-  if (teamsError) throw teamsError
-  const teamIds = (teams || []).map((row) => String(row.id)).filter(Boolean)
+
+  // Bancos antigos podem ainda não possuir dono_auth_user_id. Nesse caso,
+  // mantém a Central funcional usando o vínculo principal da equipe.
+  if (teamsResult.error && missingRelation(teamsResult.error)) {
+    teamsResult = await supabaseAdmin
+      .from('equipes')
+      .select('id')
+      .eq('auth_user_id', userId)
+  }
+  if (teamsResult.error) throw teamsResult.error
+  const teamIds = (teamsResult.data || []).map((row) => String(row.id)).filter(Boolean)
   if (!teamIds.length) return []
 
   const { data: participations, error: participationsError } = await supabaseAdmin
@@ -385,10 +394,15 @@ export async function GET(req: NextRequest) {
     const user = await getBearerUser(req)
     const campeonatoId = String(req.nextUrl.searchParams.get('campeonato_id') || '').trim()
     if (!campeonatoId) {
-      const [adminItems, participantItems] = await Promise.all([
-        authorizedChampionships(user.id),
-        participantChampionships(user.id),
-      ])
+      const adminItems = await authorizedChampionships(user.id)
+      let participantItems: Awaited<ReturnType<typeof participantChampionships>> = []
+      try {
+        participantItems = await participantChampionships(user.id)
+      } catch (participantError) {
+        // A lista administrativa é o conteúdo principal desta rota. Uma falha
+        // isolada na consulta de participações não deve derrubar toda a Central.
+        console.error('[central-campeonato] Falha ao carregar participações:', participantError)
+      }
       return NextResponse.json({
         items: adminItems.map((row) => ({ ...row, access: 'administration' })),
         participant_items: participantItems,

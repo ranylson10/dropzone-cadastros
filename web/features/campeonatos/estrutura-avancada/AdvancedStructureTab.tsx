@@ -389,7 +389,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
       </section> : null}
 
       {data.progressions.length ? <section className="advanced-card">
-        <h4>Classificação entre etapas</h4>
+        <h4>Progressão automática</h4>
         <p className="advanced-help">Gere a lista de classificadas usando o ranking da etapa de origem. O grupo de destino permanece sem distribuição automática.</p>
         <div className="mini-grid two">
           <label><span>Regra</span><select value={selectedProgressionRule} onChange={(e) => { setSelectedProgressionRule(e.target.value); setProgressionPreview(null) }}><option value="">Selecione</option>{data.progressions.filter((row) => row.etapa_destino_id).map((row) => { const sourceStage = data.stages.find((stageRow) => stageRow.id === row.etapa_origem_id); const destinationStage = data.stages.find((stageRow) => stageRow.id === row.etapa_destino_id); return <option key={row.id} value={row.id}>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'} · {row.posicao_inicio || 1}º a {row.posicao_fim || row.quantidade || '?' }º</option> })}</select></label>
