@@ -10483,3 +10483,14 @@ input::placeholder, textarea::placeholder {
 .championship-central-state.success{border-color:#b8dec5;background:#effaf3;color:#24613a}.championship-choice-panel{display:grid;gap:14px;padding:16px;border:1px solid #dce2e8;border-radius:12px;background:#fff}.championship-choice-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.championship-choice-heading small{font-size:10px;font-weight:900;letter-spacing:.08em;color:#627083}.championship-choice-heading h2{margin:3px 0;font-size:22px}.championship-choice-heading p{margin:0;color:#697586;font-size:12px}.championship-choice-current{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}.championship-choice-current article{display:grid;gap:3px;padding:10px;border:1px solid #e0e5eb;border-radius:9px;background:#f8fafc}.championship-choice-current span{font-size:11px;color:#667385}.championship-choice-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:9px;align-items:end;padding-top:12px;border-top:1px solid #edf0f3}.championship-choice-form label{display:grid;gap:5px}.championship-choice-form label>span{font-size:11px;font-weight:800}.championship-choice-form select{width:100%;min-height:38px}.championship-choice-form button{min-height:38px;display:flex;align-items:center;justify-content:center;gap:6px}.championship-choice-closed{display:flex;align-items:flex-start;gap:9px;padding:12px;border:1px dashed #d5dce4;border-radius:9px;background:#fafbfc}.championship-choice-closed>div{display:grid;gap:2px}.championship-choice-closed span{font-size:11px;color:#6d7886}@media(max-width:900px){.championship-choice-form{grid-template-columns:1fr 1fr}.championship-choice-form button{width:100%}}@media(max-width:620px){.championship-choice-panel{padding:12px}.championship-choice-form{grid-template-columns:1fr}.championship-choice-heading h2{font-size:19px}}
 
 .advanced-choice-blocks{display:grid;gap:.65rem}.advanced-choice-blocks>h5{margin:0}.advanced-choice-config-list article .mini-grid{margin-top:.35rem}.advanced-choice-config-list input[type=datetime-local]{min-width:0}
+
+/* Rodada 85I — ações explícitas da escolha manual */
+.championship-choice-current article { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.championship-choice-current article > div:first-child { display:flex; flex-direction:column; gap:3px; }
+.championship-choice-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.championship-choice-actions .button { min-height:34px; padding:7px 11px; font-size:12px; }
+.championship-choice-actions .danger { border-color:#dc2626; color:#b91c1c; }
+@media (max-width: 720px) {
+  .championship-choice-current article { align-items:stretch; flex-direction:column; }
+  .championship-choice-actions { justify-content:flex-start; }
+}

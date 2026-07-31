@@ -29,6 +29,7 @@ type ChoicePayload = {
   groups: Array<{ id: string; nome: string; fase_id: string; slots?: number | null }>
   slots: Array<{ id: string; fase_id?: string | null; grupo_id: string; slot_numero: number; slot_letra?: string | null; status: string; equipe_id?: string | null; line_id?: string | null }>
   blocks: Array<{ id: string; fase_id: string; grupo_id?: string | null; slot_id?: string | null; motivo?: string | null }>
+  history: Array<{ id: string; campeonato_equipe_id: string; grupo_anterior_id?: string | null; grupo_novo_id?: string | null; slot_anterior_id?: string | null; slot_novo_id?: string | null; observacao?: string | null; created_at: string }>
   server_time?: string
 }
 
@@ -47,6 +48,7 @@ export function ChampionshipCentral() {
   const [choiceForm, setChoiceForm] = useState({ campeonato_equipe_id: '', grupo_id: '', slot_id: '' })
   const [loading, setLoading] = useState(true)
   const [savingChoice, setSavingChoice] = useState(false)
+  const [choiceAction, setChoiceAction] = useState<'cancel' | 'restore' | ''>('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [logFilter, setLogFilter] = useState('all')
@@ -142,6 +144,27 @@ export function ChampionshipCentral() {
     } finally { setSavingChoice(false) }
   }
 
+  async function runChoiceAction(method: 'DELETE' | 'PUT', participationId: string) {
+    if (!selected || !participationId) return
+    setChoiceAction(method === 'DELETE' ? 'cancel' : 'restore')
+    setError('')
+    setSuccess('')
+    try {
+      const headers = await authHeaders()
+      const response = await fetch(`/api/campeonatos/${encodeURIComponent(selected)}/escolha-grupo`, {
+        method,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campeonato_equipe_id: participationId }),
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || (method === 'DELETE' ? 'Não foi possível cancelar a escolha.' : 'Não foi possível restaurar a escolha.'))
+      setChoice(body)
+      setSuccess(method === 'DELETE' ? 'Escolha cancelada. O grupo e o slot foram liberados.' : 'Escolha anterior restaurada com sucesso.')
+    } catch (e: any) {
+      setError(e?.message || 'Erro ao atualizar a escolha.')
+    } finally { setChoiceAction('') }
+  }
+
   const filteredLogs = summary?.logs?.filter((log) => logFilter === 'all' || log.category === logFilter) || []
   const cards = summary ? [
     ['Vagas', `${summary.cards.vagas.ocupadas}/${summary.cards.vagas.total}`, `${summary.cards.vagas.disponiveis} disponíveis`, Users],
@@ -172,7 +195,7 @@ export function ChampionshipCentral() {
         <section className="championship-choice-panel">
           <div className="championship-choice-heading"><div><small>ESCOLHA DA EQUIPE</small><h2>{selectedItem.nome}</h2><p>Nenhum grupo ou slot é definido automaticamente. Escolha apenas entre as opções liberadas pela administração.</p></div><MapPin size={24} /></div>
           {choice.participations.length ? <>
-            <div className="championship-choice-current">{choice.participations.map((row) => { const group = choice.groups.find((item) => item.id === row.grupo_id); const slot = choice.slots.find((item) => item.id === row.slot_id); return <article key={row.id}><strong>{row.nome_exibicao || 'Minha equipe'}</strong><span>{group ? `${group.nome} · ${slot?.slot_letra || `Slot ${slot?.slot_numero || row.slot_numero || '-'}`}` : 'Grupo e slot ainda não escolhidos'}</span></article> })}</div>
+            <div className="championship-choice-current">{choice.participations.map((row) => { const group = choice.groups.find((item) => item.id === row.grupo_id); const slot = choice.slots.find((item) => item.id === row.slot_id); const canRestore = !row.grupo_id && choice.history.some((item) => item.campeonato_equipe_id === row.id && !item.grupo_novo_id && item.grupo_anterior_id && item.slot_anterior_id); return <article key={row.id}><div><strong>{row.nome_exibicao || 'Minha equipe'}</strong><span>{group ? `${group.nome} · ${slot?.slot_letra || `Slot ${slot?.slot_numero || row.slot_numero || '-'}`}` : 'Grupo e slot ainda não escolhidos'}</span></div><div className="championship-choice-actions">{row.grupo_id ? <button type="button" className="button secondary danger" disabled={Boolean(choiceAction)} onClick={() => void runChoiceAction('DELETE', row.id)}>{choiceAction === 'cancel' ? 'Cancelando...' : 'Cancelar escolha'}</button> : null}{canRestore ? <button type="button" className="button secondary" disabled={Boolean(choiceAction)} onClick={() => void runChoiceAction('PUT', row.id)}>{choiceAction === 'restore' ? 'Restaurando...' : 'Restaurar anterior'}</button> : null}</div></article> })}</div>
             {availableGroups.length ? <div className="championship-choice-form">
               <label><span>Equipe/line</span><select value={choiceForm.campeonato_equipe_id} onChange={(event) => setChoiceForm({ ...choiceForm, campeonato_equipe_id: event.target.value })}>{choice.participations.map((row) => <option key={row.id} value={row.id}>{row.nome_exibicao || 'Minha equipe'}</option>)}</select></label>
               <label><span>Grupo</span><select value={choiceForm.grupo_id} onChange={(event) => setChoiceForm({ ...choiceForm, grupo_id: event.target.value, slot_id: '' })}><option value="">Escolha o grupo</option>{availableGroups.map((group) => { const free = choice.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} slot(s) livre(s)</option> })}</select></label>
