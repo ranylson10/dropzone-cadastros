@@ -11,6 +11,7 @@ import { SystemModal } from '@/components/layout/SystemModal'
 import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
 import { CampeonatoEstruturaTab } from '@/features/campeonatos/fases'
+import { AdvancedStructureTab } from '@/features/campeonatos/estrutura-avancada'
 import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { CampeonatoExportTab } from '@/features/campeonatos/export'
 import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
@@ -1350,6 +1351,8 @@ ${params.url}`
                   }}
                 />
               ) : null}
+
+              {tab === 'estrutura_avancada' ? <AdvancedStructureTab campeonatoId={selectedChamp.id} championshipType={selectedChampType} /> : null}
 
               {tab === 'jogos' ? (
                 <div className="ref-section-stack">
