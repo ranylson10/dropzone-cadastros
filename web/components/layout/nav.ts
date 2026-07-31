@@ -20,6 +20,7 @@ export const APP_NAV: AppNavItem[] = [
     href: '/campeonatos',
     children: [
       { label: 'Todos os campeonatos', href: '/campeonatos' },
+      { label: 'Central do Campeonato', href: '/central-campeonato' },
       { label: 'Vagas abertas', href: '/vagas' },
       { label: 'Produtoras', href: '/produtoras' },
     ],
@@ -45,6 +46,8 @@ export function resolveActiveNavLabel(pathname?: string | null): string | undefi
     || clean.startsWith('/produtoras/')
     || clean === '/campeonatos'
     || clean.startsWith('/campeonatos/')
+    || clean === '/central-campeonato'
+    || clean.startsWith('/central-campeonato/')
   ) {
     return 'Campeonatos'
   }
