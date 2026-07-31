@@ -281,21 +281,38 @@ async function listGamesByChampionshipIds(campeonatoIds: string[], from: string,
   const ids = [...new Set(campeonatoIds.filter(Boolean))]
   if (!ids.length) return [] as any[]
 
-  const { data, error } = await supabaseAdmin
-    .from('campeonato_jogos')
-    .select('*')
-    .in('campeonato_id', ids)
-    .gte('data_jogo', from)
-    .lte('data_jogo', to)
-    .order('data_jogo', { ascending: true })
-    .order('horario', { ascending: true })
+  // O perfil de uma produtora pode acumular muitos campeonatos ao longo do tempo.
+  // Enviar todos os UUIDs em um único filtro `in` pode ultrapassar o limite da URL
+  // do PostgREST e resultar em 400 mesmo quando o intervalo consultado é válido.
+  const BATCH_SIZE = 50
+  const games: any[] = []
 
-  if (error) throw error
-  return (data || []).filter((game: any) => {
-    if (!game.data_jogo) return false
-    const status = String(game.status || '').toLowerCase()
-    return !['cancelado', 'rascunho', 'deletado'].includes(status)
-  })
+  for (let index = 0; index < ids.length; index += BATCH_SIZE) {
+    const batch = ids.slice(index, index + BATCH_SIZE)
+    const { data, error } = await supabaseAdmin
+      .from('campeonato_jogos')
+      .select('*')
+      .in('campeonato_id', batch)
+      .gte('data_jogo', from)
+      .lte('data_jogo', to)
+      .order('data_jogo', { ascending: true })
+      .order('horario', { ascending: true })
+
+    if (error) throw error
+    games.push(...(data || []))
+  }
+
+  return games
+    .filter((game: any) => {
+      if (!game.data_jogo) return false
+      const status = String(game.status || '').toLowerCase()
+      return !['cancelado', 'rascunho', 'deletado'].includes(status)
+    })
+    .sort((a: any, b: any) => {
+      const byDate = String(a.data_jogo || '').localeCompare(String(b.data_jogo || ''))
+      if (byDate !== 0) return byDate
+      return String(a.horario || '').localeCompare(String(b.horario || ''))
+    })
 }
 
 async function resolveUserContext(authUserId: string) {
