@@ -12,27 +12,16 @@ database/supabase/.temp/
 web/.env.local
 .env.*
 !.env.example
+!.env.*.example
 web/.env.*
 !web/.env.example
+!web/.env.*.example
 
-# Relatorios gerados pelo robo de auditoria
-relatorios-testes/*.txt
-relatorios-testes/*.json
-
-# Playwright E2E
-/playwright-report/
-/test-results/
-/relatorios-testes/playwright-report/
-/relatorios-testes/playwright-resultados/
-/tests-e2e/.auth/
-
-# Sessões locais do Playwright (contêm tokens de autenticação)
-tests-e2e/.auth/*.json
-
-# Arquivos temporarios dos testes E2E
+# Artefatos gerados pelos testes E2E
 tests-e2e/.chrome-auth-profile/
 tests-e2e/.auth/
+
+# Relatórios gerados pelo robô de auditoria e Playwright
 relatorios-testes/
-**/.next/
-**/node_modules/
-**/.env.local
+playwright-report/
+playwright-resultados/
