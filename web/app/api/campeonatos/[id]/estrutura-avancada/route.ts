@@ -10,6 +10,7 @@ const MUTABLE_TABLES = new Set([
   'campeonato_progressao_regras',
   'campeonato_etapa_premiacoes',
   'campeonato_diario_horarios',
+  'campeonato_etapa_equipes',
 ])
 
 function text(value: unknown, max = 180) {
@@ -44,42 +45,52 @@ async function loadStructure(campeonatoId: string) {
   if (editionError) throw editionError
 
   if (!edition) {
-    const { data: dailyHours, error: dailyError } = await supabaseAdmin
-      .from('campeonato_diario_horarios')
-      .select('*')
-      .eq('campeonato_id', campeonatoId)
-      .order('horario')
+    const [{ data: dailyHours, error: dailyError }, { data: teams, error: teamsError }] = await Promise.all([
+      supabaseAdmin.from('campeonato_diario_horarios').select('*').eq('campeonato_id', campeonatoId).order('horario'),
+      supabaseAdmin.from('campeonato_equipes').select('id,nome_exibicao,equipe_id,line_id,status,equipes(nome,tag,logo_url),equipe_lines(nome,tag,logo_url)').eq('campeonato_id', campeonatoId).eq('status', 'ativo').order('created_at'),
+    ])
     if (dailyError) throw dailyError
-    return { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: dailyHours || [] }
+    if (teamsError) throw teamsError
+    return { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: dailyHours || [], teams: teams || [], stageTeams: [], phases: [], groups: [] }
   }
 
-  const [{ data: franchise, error: franchiseError }, divisionsResult, stagesResult, dailyResult] = await Promise.all([
+  const [{ data: franchise, error: franchiseError }, divisionsResult, stagesResult, dailyResult, teamsResult, phasesResult, groupsResult] = await Promise.all([
     supabaseAdmin.from('campeonato_franquias').select('*').eq('id', edition.franquia_id).maybeSingle(),
     supabaseAdmin.from('campeonato_divisoes').select('*').eq('edicao_id', edition.id).order('ordem'),
     supabaseAdmin.from('campeonato_etapas').select('*').eq('edicao_id', edition.id).order('ordem'),
     supabaseAdmin.from('campeonato_diario_horarios').select('*').eq('campeonato_id', campeonatoId).order('horario'),
+    supabaseAdmin.from('campeonato_equipes').select('id,nome_exibicao,equipe_id,line_id,status,equipes(nome,tag,logo_url),equipe_lines(nome,tag,logo_url)').eq('campeonato_id', campeonatoId).eq('status', 'ativo').order('created_at'),
+    supabaseAdmin.from('campeonato_fases').select('id,nome,ordem,status,etapa_id').eq('campeonato_id', campeonatoId).order('ordem'),
+    supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id,slots,diario_horario_id').eq('campeonato_id', campeonatoId).order('nome'),
   ])
   if (franchiseError) throw franchiseError
   if (divisionsResult.error) throw divisionsResult.error
   if (stagesResult.error) throw stagesResult.error
   if (dailyResult.error) throw dailyResult.error
+  if (teamsResult.error) throw teamsResult.error
+  if (phasesResult.error) throw phasesResult.error
+  if (groupsResult.error) throw groupsResult.error
 
   const stageIds = (stagesResult.data || []).map((row) => String(row.id))
   let sources: unknown[] = []
   let progressions: unknown[] = []
   let prizes: unknown[] = []
+  let stageTeams: unknown[] = []
   if (stageIds.length) {
-    const [sourcesResult, progressionsResult, prizesResult] = await Promise.all([
+    const [sourcesResult, progressionsResult, prizesResult, stageTeamsResult] = await Promise.all([
       supabaseAdmin.from('campeonato_etapa_fontes').select('*').in('etapa_destino_id', stageIds).order('created_at'),
       supabaseAdmin.from('campeonato_progressao_regras').select('*').in('etapa_origem_id', stageIds).order('created_at'),
       supabaseAdmin.from('campeonato_etapa_premiacoes').select('*').in('etapa_id', stageIds).order('posicao'),
+      supabaseAdmin.from('campeonato_etapa_equipes').select('*').in('etapa_id', stageIds).neq('status', 'retirada').order('created_at'),
     ])
     if (sourcesResult.error) throw sourcesResult.error
     if (progressionsResult.error) throw progressionsResult.error
     if (prizesResult.error) throw prizesResult.error
+    if (stageTeamsResult.error) throw stageTeamsResult.error
     sources = sourcesResult.data || []
     progressions = progressionsResult.data || []
     prizes = prizesResult.data || []
+    stageTeams = stageTeamsResult.data || []
   }
 
   return {
@@ -91,6 +102,10 @@ async function loadStructure(campeonatoId: string) {
     progressions,
     prizes,
     dailyHours: dailyResult.data || [],
+    teams: teamsResult.data || [],
+    stageTeams,
+    phases: phasesResult.data || [],
+    groups: groupsResult.data || [],
   }
 }
 
@@ -251,6 +266,58 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         numero_quedas: positiveInt(body?.drops, false) || 1,
       })
       if (error) throw error
+    } else if (action === 'assign_team') {
+      const stageId = text(body?.stage_id)
+      const participationId = text(body?.campeonato_equipe_id)
+      if (!stageId || !participationId) throw new Error('Etapa e equipe são obrigatórias.')
+      const [{ data: stageRow, error: stageError }, { data: participationRow, error: participationError }] = await Promise.all([
+        supabaseAdmin.from('campeonato_etapas').select('id,capacidade_total,campeonato_edicoes!inner(campeonato_id)').eq('id', stageId).maybeSingle(),
+        supabaseAdmin.from('campeonato_equipes').select('id,campeonato_id').eq('id', participationId).maybeSingle(),
+      ])
+      if (stageError) throw stageError
+      if (participationError) throw participationError
+      const stageChampionshipId = String((stageRow as any)?.campeonato_edicoes?.campeonato_id || '')
+      if (!stageRow || !participationRow || stageChampionshipId !== campeonatoId || String(participationRow.campeonato_id) !== campeonatoId) throw new Error('Etapa ou equipe inválida para este campeonato.')
+      const { count, error: countError } = await supabaseAdmin.from('campeonato_etapa_equipes').select('id', { count: 'exact', head: true }).eq('etapa_id', stageId).neq('status', 'retirada')
+      if (countError) throw countError
+      if (stageRow.capacidade_total != null && Number(count || 0) >= Number(stageRow.capacidade_total)) throw new Error('A etapa já atingiu sua capacidade máxima.')
+      const { error } = await supabaseAdmin.from('campeonato_etapa_equipes').upsert({
+        campeonato_id: campeonatoId,
+        etapa_id: stageId,
+        campeonato_equipe_id: participationId,
+        tipo_origem: text(body?.source_type || 'manual', 30),
+        etapa_origem_id: nullableText(body?.source_stage_id, 50),
+        posicao_origem: positiveInt(body?.source_position),
+        status: 'ativa',
+        observacao: nullableText(body?.note, 500),
+      }, { onConflict: 'etapa_id,campeonato_equipe_id' })
+      if (error) throw error
+    } else if (action === 'remove_team') {
+      const stageTeamId = text(body?.stage_team_id)
+      if (!stageTeamId) throw new Error('Vínculo da equipe não informado.')
+      const { error } = await supabaseAdmin.from('campeonato_etapa_equipes').update({ status: 'retirada' }).eq('id', stageTeamId).eq('campeonato_id', campeonatoId)
+      if (error) throw error
+    } else if (action === 'link_phase') {
+      const phaseId = text(body?.phase_id)
+      const stageId = nullableText(body?.stage_id, 50)
+      if (!phaseId) throw new Error('Fase não informada.')
+      if (stageId) {
+        const { data: stageRow, error: stageError } = await supabaseAdmin.from('campeonato_etapas').select('id,campeonato_edicoes!inner(campeonato_id)').eq('id', stageId).maybeSingle()
+        if (stageError) throw stageError
+        if (String((stageRow as any)?.campeonato_edicoes?.campeonato_id || '') !== campeonatoId) throw new Error('Etapa inválida para este campeonato.')
+      }
+      const { error } = await supabaseAdmin.from('campeonato_fases').update({ etapa_id: stageId }).eq('id', phaseId).eq('campeonato_id', campeonatoId)
+      if (error) throw error
+    } else if (action === 'link_daily_group') {
+      const dailyHourId = text(body?.daily_hour_id)
+      const groupId = text(body?.group_id)
+      if (!dailyHourId || !groupId) throw new Error('Horário e grupo são obrigatórios.')
+      const { error: clearError } = await supabaseAdmin.from('campeonato_grupos').update({ diario_horario_id: null }).eq('campeonato_id', campeonatoId).eq('diario_horario_id', dailyHourId)
+      if (clearError) throw clearError
+      const { error: groupError } = await supabaseAdmin.from('campeonato_grupos').update({ diario_horario_id: dailyHourId }).eq('id', groupId).eq('campeonato_id', campeonatoId)
+      if (groupError) throw groupError
+      const { error: hourError } = await supabaseAdmin.from('campeonato_diario_horarios').update({ grupo_id: groupId }).eq('id', dailyHourId).eq('campeonato_id', campeonatoId)
+      if (hourError) throw hourError
     } else if (action === 'delete') {
       const table = text(body?.table, 80)
       const rowId = text(body?.row_id, 60)
