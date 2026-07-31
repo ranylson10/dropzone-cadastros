@@ -25,6 +25,29 @@ async function safeRows(table: string, select: string, campeonatoId: string, app
   return error ? [] : (data || [])
 }
 
+
+
+type OperationalLog = {
+  id: string
+  category: 'championship' | 'structure' | 'team' | 'lineup' | 'game' | 'result' | 'payment' | 'rulebook' | 'security'
+  action: string
+  title: string
+  detail: string
+  occurred_at: string
+  actor: string
+  source: string
+}
+
+function logTime(value?: string | null) {
+  if (!value) return null
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? new Date(time).toISOString() : null
+}
+
+function makeLog(log: OperationalLog): OperationalLog {
+  return log
+}
+
 type OperationalAlert = {
   id: string
   severity: 'critical' | 'warning' | 'info'
@@ -158,6 +181,16 @@ async function championshipSummary(userId: string, campeonatoId: string) {
     rulebook,
     config,
     regrasRows,
+    equipesLogRows,
+    jogadoresLogRows,
+    jogosLogRows,
+    fasesLogRows,
+    gruposLogRows,
+    slotsLogRows,
+    partidasLogRows,
+    resultadosLogRows,
+    pagamentosLogRows,
+    auditoriaRows,
   ] = await Promise.all([
     safeRows('campeonato_equipes', 'id,equipe_id,status', campeonatoId, (q) => q.eq('status', 'ativo')),
     safeRows('campeonato_jogadores', 'id,campeonato_equipe_id,status', campeonatoId, (q) => q.neq('status', 'deletado')),
@@ -171,6 +204,16 @@ async function championshipSummary(userId: string, campeonatoId: string) {
     supabaseAdmin.from('campeonato_rulebooks').select('id,status,published_at,updated_at').eq('campeonato_id', campeonatoId).maybeSingle(),
     supabaseAdmin.from('campeonato_configuracoes').select('numero_vagas,jogadores_por_vaga,data_limite_inscricao,aceita_novas_inscricoes_equipes').eq('campeonato_id', campeonatoId).maybeSingle(),
     safeRows('campeonato_regras', 'id,grupo_id,vagas_por_equipe,encerra_em,status', campeonatoId, (q) => q.eq('status', 'ativo')),
+    safeRows('campeonato_equipes', 'id,status,created_at,updated_at', campeonatoId),
+    safeRows('campeonato_jogadores', 'id,status,created_at,updated_at', campeonatoId),
+    safeRows('campeonato_jogos', 'id,nome,status,created_at,updated_at', campeonatoId),
+    safeRows('campeonato_fases', 'id,nome,status,created_at,updated_at', campeonatoId),
+    safeRows('campeonato_grupos', 'id,nome,status,created_at,updated_at', campeonatoId),
+    safeRows('campeonato_slots', 'id,grupo_id,equipe_id,line_id,status,created_at,updated_at', campeonatoId),
+    safeRows('campeonato_partidas', 'id,jogo_id,numero,status,created_at,updated_at', campeonatoId),
+    safeRows('campeonato_resultados_equipes', 'id,partida_id,campeonato_equipe_id,created_at,updated_at', campeonatoId),
+    safeRows('sistema_pagamentos', 'id,status,valor,created_at,updated_at,referencia_tipo', campeonatoId, undefined, 'referencia_id'),
+    safeRows('sistema_auditoria', 'id,acao,alvo_tipo,alvo_id,detalhes,created_at', campeonatoId, undefined, 'alvo_id'),
   ])
 
   if (rulebook.error && !missingRelation(rulebook.error)) throw rulebook.error
@@ -219,6 +262,60 @@ async function championshipSummary(userId: string, campeonatoId: string) {
   const severityOrder = { critical: 0, warning: 1, info: 2 }
   alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity] || a.title.localeCompare(b.title))
 
+  const logs: OperationalLog[] = []
+  const addLog = (log: OperationalLog) => {
+    if (log.occurred_at) logs.push(makeLog(log))
+  }
+
+  addLog({
+    id: `championship-created-${campeonato.id}`,
+    category: 'championship',
+    action: 'created',
+    title: 'Campeonato criado',
+    detail: `${campeonato.nome} entrou na operação.`,
+    occurred_at: logTime(campeonato.created_at) || new Date(0).toISOString(),
+    actor: 'Produtora',
+    source: 'campeonatos',
+  })
+
+  for (const phase of fasesLogRows as Array<{ id?: string; nome?: string | null; created_at?: string | null; updated_at?: string | null }>) {
+    addLog({ id: `phase-${phase.id}`, category: 'structure', action: 'phase_created', title: 'Fase criada', detail: String(phase.nome || 'Nova fase'), occurred_at: logTime(phase.created_at || phase.updated_at) || '', actor: 'Operação', source: 'campeonato_fases' })
+  }
+  for (const group of gruposLogRows as Array<{ id?: string; nome?: string | null; created_at?: string | null; updated_at?: string | null }>) {
+    addLog({ id: `group-${group.id}`, category: 'structure', action: 'group_created', title: 'Grupo criado', detail: String(group.nome || 'Novo grupo'), occurred_at: logTime(group.created_at || group.updated_at) || '', actor: 'Operação', source: 'campeonato_grupos' })
+  }
+  for (const slot of slotsLogRows as Array<{ id?: string; equipe_id?: string | null; line_id?: string | null; status?: string | null; created_at?: string | null; updated_at?: string | null }>) {
+    if (!slot.equipe_id && !slot.line_id) continue
+    addLog({ id: `slot-${slot.id}`, category: 'team', action: 'slot_occupied', title: 'Vaga ocupada', detail: `Uma line foi vinculada à estrutura do campeonato${slot.status ? ` (${slot.status})` : ''}.`, occurred_at: logTime(slot.updated_at || slot.created_at) || '', actor: 'Operação', source: 'campeonato_slots' })
+  }
+  for (const team of equipesLogRows as Array<{ id?: string; status?: string | null; created_at?: string | null; updated_at?: string | null }>) {
+    addLog({ id: `team-${team.id}`, category: 'team', action: 'team_registered', title: 'Equipe inscrita', detail: `Inscrição registrada${team.status ? ` com status ${team.status}` : ''}.`, occurred_at: logTime(team.created_at || team.updated_at) || '', actor: 'Equipe/Produtora', source: 'campeonato_equipes' })
+  }
+  for (const player of jogadoresLogRows as Array<{ id?: string; status?: string | null; created_at?: string | null; updated_at?: string | null }>) {
+    addLog({ id: `player-${player.id}`, category: 'lineup', action: 'player_registered', title: 'Jogador escalado', detail: `Jogador incluído na escalação${player.status ? ` (${player.status})` : ''}.`, occurred_at: logTime(player.created_at || player.updated_at) || '', actor: 'Equipe', source: 'campeonato_jogadores' })
+  }
+  for (const game of jogosLogRows as Array<{ id?: string; nome?: string | null; status?: string | null; created_at?: string | null; updated_at?: string | null }>) {
+    addLog({ id: `game-${game.id}`, category: 'game', action: 'game_created', title: 'Jogo programado', detail: `${game.nome || 'Jogo'}${game.status ? ` — ${game.status}` : ''}.`, occurred_at: logTime(game.created_at || game.updated_at) || '', actor: 'Operação', source: 'campeonato_jogos' })
+  }
+  for (const match of partidasLogRows as Array<{ id?: string; numero?: number | string | null; status?: string | null; created_at?: string | null; updated_at?: string | null }>) {
+    addLog({ id: `match-${match.id}`, category: 'game', action: 'match_created', title: 'Queda criada', detail: `Queda ${match.numero || ''}${match.status ? ` — ${match.status}` : ''}`.trim(), occurred_at: logTime(match.created_at || match.updated_at) || '', actor: 'Operação', source: 'campeonato_partidas' })
+  }
+  for (const result of resultadosLogRows as Array<{ id?: string; partida_id?: string | null; created_at?: string | null; updated_at?: string | null }>) {
+    addLog({ id: `result-${result.id}`, category: 'result', action: 'result_recorded', title: 'Resultado registrado', detail: `Resultado operacional lançado${result.partida_id ? ` para a queda ${String(result.partida_id).slice(0, 8)}` : ''}.`, occurred_at: logTime(result.updated_at || result.created_at) || '', actor: 'Pontuador', source: 'campeonato_resultados_equipes' })
+  }
+  for (const payment of pagamentosLogRows as Array<{ id?: string; status?: string | null; valor?: number | string | null; created_at?: string | null; updated_at?: string | null }>) {
+    addLog({ id: `payment-${payment.id}`, category: 'payment', action: 'payment_updated', title: 'Pagamento atualizado', detail: `Status ${payment.status || 'registrado'}${payment.valor != null ? ` — valor ${payment.valor}` : ''}.`, occurred_at: logTime(payment.updated_at || payment.created_at) || '', actor: 'Financeiro', source: 'sistema_pagamentos' })
+  }
+  if (rulebook.data?.updated_at || rulebook.data?.published_at) {
+    addLog({ id: `rulebook-${rulebook.data?.id || campeonatoId}`, category: 'rulebook', action: rulebook.data?.published_at ? 'published' : 'updated', title: rulebook.data?.published_at ? 'Regulamento publicado' : 'Regulamento atualizado', detail: `Status atual: ${rulebook.data?.status || 'rascunho'}.`, occurred_at: logTime(rulebook.data?.published_at || rulebook.data?.updated_at) || '', actor: 'Produtora', source: 'campeonato_rulebooks' })
+  }
+  for (const audit of auditoriaRows as Array<{ id?: string | number; acao?: string | null; alvo_tipo?: string | null; created_at?: string | null }>) {
+    addLog({ id: `audit-${audit.id}`, category: 'security', action: String(audit.acao || 'audit'), title: 'Ação administrativa', detail: `${audit.acao || 'Ação registrada'}${audit.alvo_tipo ? ` em ${audit.alvo_tipo}` : ''}.`, occurred_at: logTime(audit.created_at) || '', actor: 'Administrador', source: 'sistema_auditoria' })
+  }
+
+  logs.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime())
+  const operationalLogs = logs.slice(0, 120)
+
   return {
     campeonato,
     permission: permissionPublicPayload(permission),
@@ -238,6 +335,16 @@ async function championshipSummary(userId: string, campeonatoId: string) {
       critical: alerts.filter((alert) => alert.severity === 'critical').length,
       warning: alerts.filter((alert) => alert.severity === 'warning').length,
       info: alerts.filter((alert) => alert.severity === 'info').length,
+    },
+    logs: operationalLogs,
+    log_summary: {
+      total: logs.length,
+      visible: operationalLogs.length,
+      latest_at: operationalLogs[0]?.occurred_at || null,
+      categories: operationalLogs.reduce<Record<string, number>>((acc, log) => {
+        acc[log.category] = (acc[log.category] || 0) + 1
+        return acc
+      }, {}),
     },
   }
 }

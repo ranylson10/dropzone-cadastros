@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertCircle, AlertTriangle, BookOpen, CheckCircle2, CreditCard, ExternalLink, Gamepad2, Info, LoaderCircle, Trophy, Users } from 'lucide-react'
+import { Activity, AlertCircle, AlertTriangle, BookOpen, CheckCircle2, Clock3, CreditCard, ExternalLink, Gamepad2, Info, LoaderCircle, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 
 type Championship = { id: string; nome: string; tipo?: string; permission?: { role?: string } }
@@ -19,6 +19,8 @@ type Summary = {
   }
   alerts: Array<{ id: string; severity: 'critical' | 'warning' | 'info'; title: string; message: string; context: string; action: string; href: string }>
   alert_summary: { total: number; critical: number; warning: number; info: number }
+  logs: Array<{ id: string; category: 'championship' | 'structure' | 'team' | 'lineup' | 'game' | 'result' | 'payment' | 'rulebook' | 'security'; action: string; title: string; detail: string; occurred_at: string; actor: string; source: string }>
+  log_summary: { total: number; visible: number; latest_at: string | null; categories: Record<string, number> }
 }
 
 async function authHeaders() {
@@ -34,6 +36,7 @@ export function ChampionshipCentral() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [logFilter, setLogFilter] = useState('all')
 
   useEffect(() => {
     let active = true
@@ -76,6 +79,8 @@ export function ChampionshipCentral() {
     })()
     return () => { active = false }
   }, [selected])
+
+  const filteredLogs = summary?.logs?.filter((log) => logFilter === 'all' || log.category === logFilter) || []
 
   const cards = summary ? [
     ['Vagas', `${summary.cards.vagas.ocupadas}/${summary.cards.vagas.total}`, `${summary.cards.vagas.disponiveis} disponíveis`, Users],
@@ -139,6 +144,35 @@ export function ChampionshipCentral() {
             ) : (
               <div className="championship-central-alert-empty"><CheckCircle2 size={19} /><div><strong>Operação em dia</strong><span>Nenhuma pendência acionável foi encontrada nesta leitura.</span></div></div>
             )}
+          </section>
+          <section className="championship-central-logs">
+            <div className="championship-central-logs-heading">
+              <div>
+                <small>HISTÓRICO RASTREÁVEL</small>
+                <h3>Logs operacionais</h3>
+                <p>Eventos reais consolidados da estrutura, inscrições, jogos, resultados, pagamentos e segurança.</p>
+              </div>
+              <div className="championship-central-log-total"><Activity size={16} />{summary.log_summary.visible} exibidos</div>
+            </div>
+            <div className="championship-central-log-filters" aria-label="Filtrar logs operacionais">
+              {[
+                ['all', 'Todos'], ['structure', 'Estrutura'], ['team', 'Equipes'], ['lineup', 'Escalações'], ['game', 'Jogos'], ['result', 'Resultados'], ['payment', 'Pagamentos'], ['rulebook', 'Regulamento'], ['security', 'Segurança'],
+              ].map(([value, label]) => <button key={value} type="button" className={logFilter === value ? 'active' : ''} onClick={() => setLogFilter(value)}>{label}</button>)}
+            </div>
+            {filteredLogs.length ? (
+              <div className="championship-central-log-list">
+                {filteredLogs.map((log) => (
+                  <article key={log.id} className={`operational-log ${log.category}`}>
+                    <div className="operational-log-marker"><Clock3 size={15} /></div>
+                    <div className="operational-log-copy">
+                      <div><strong>{log.title}</strong><span>{log.actor}</span></div>
+                      <p>{log.detail}</p>
+                      <small>{new Date(log.occurred_at).toLocaleString('pt-BR')} · fonte: {log.source}</small>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : <div className="championship-central-log-empty">Nenhum evento encontrado neste filtro.</div>}
           </section>
         </>
       ) : null}
