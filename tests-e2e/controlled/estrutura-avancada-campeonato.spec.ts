@@ -28,7 +28,7 @@ test.describe('Estrutura avançada — edições, séries e etapas', () => {
     const central = await request.get(`${origin}/api/central-campeonato`, { headers: { Authorization: `Bearer ${token}`, 'x-profile-type': 'produtora' } })
     expect(central.ok()).toBe(true)
     const centralBody = await central.json()
-    const championship = centralBody?.campeonatos?.[0]
+    const championship = centralBody?.items?.[0]
     expect(championship?.id).toBeTruthy()
 
     const response = await request.get(`${origin}/api/campeonatos/${championship.id}/estrutura-avancada`, { headers: { Authorization: `Bearer ${token}`, 'x-profile-type': 'produtora' } })
