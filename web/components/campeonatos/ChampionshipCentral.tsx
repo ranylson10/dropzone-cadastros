@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertTriangle, BookOpen, CreditCard, Gamepad2, LoaderCircle, Trophy, Users } from 'lucide-react'
+import { AlertCircle, AlertTriangle, BookOpen, CheckCircle2, CreditCard, ExternalLink, Gamepad2, Info, LoaderCircle, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 
 type Championship = { id: string; nome: string; tipo?: string; permission?: { role?: string } }
@@ -17,7 +17,8 @@ type Summary = {
     pagamentos: { pendentes: number; aprovados: number }
     regulamento: { publicado: boolean; status: string }
   }
-  alerts: Array<{ severity: string; message: string }>
+  alerts: Array<{ id: string; severity: 'critical' | 'warning' | 'info'; title: string; message: string; context: string; action: string; href: string }>
+  alert_summary: { total: number; critical: number; warning: number; info: number }
 }
 
 async function authHeaders() {
@@ -107,8 +108,37 @@ export function ChampionshipCentral() {
             {cards.map(([label, value, detail, Icon]) => <article key={label}><Icon size={18} /><small>{label}</small><strong>{value}</strong><span>{detail}</span></article>)}
           </section>
           <section className="championship-central-alerts">
-            <h3>Alertas operacionais</h3>
-            {summary.alerts.length ? summary.alerts.map((alert, index) => <div key={`${alert.message}-${index}`} className={`alert ${alert.severity}`}><AlertTriangle size={16} /><span>{alert.message}</span></div>) : <p>Nenhum alerta crítico nesta leitura.</p>}
+            <div className="championship-central-alerts-heading">
+              <div>
+                <small>PRIORIDADES DA OPERAÇÃO</small>
+                <h3>Alertas inteligentes</h3>
+              </div>
+              <div className="championship-central-alert-counts" aria-label="Resumo dos alertas">
+                <span className="critical">{summary.alert_summary.critical} críticos</span>
+                <span className="warning">{summary.alert_summary.warning} avisos</span>
+                <span className="info">{summary.alert_summary.info} informativos</span>
+              </div>
+            </div>
+            {summary.alerts.length ? (
+              <div className="championship-central-alert-list">
+                {summary.alerts.map((alert) => {
+                  const Icon = alert.severity === 'critical' ? AlertCircle : alert.severity === 'warning' ? AlertTriangle : Info
+                  return (
+                    <article key={alert.id} className={`smart-alert ${alert.severity}`}>
+                      <div className="smart-alert-icon"><Icon size={19} /></div>
+                      <div className="smart-alert-copy">
+                        <div className="smart-alert-title"><strong>{alert.title}</strong><span>{alert.severity === 'critical' ? 'Crítico' : alert.severity === 'warning' ? 'Atenção' : 'Informativo'}</span></div>
+                        <p>{alert.message}</p>
+                        <small>{alert.context}</small>
+                      </div>
+                      <a href={alert.href}>{alert.action}<ExternalLink size={14} /></a>
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="championship-central-alert-empty"><CheckCircle2 size={19} /><div><strong>Operação em dia</strong><span>Nenhuma pendência acionável foi encontrada nesta leitura.</span></div></div>
+            )}
           </section>
         </>
       ) : null}

@@ -16,6 +16,39 @@ async function safeCount(table: string, campeonatoId: string, apply?: (query: an
   return error ? 0 : Number(count || 0)
 }
 
+
+async function safeRows(table: string, select: string, campeonatoId: string, apply?: (query: any) => any, championshipColumn = 'campeonato_id') {
+  let query: any = supabaseAdmin.from(table).select(select).eq(championshipColumn, campeonatoId)
+  if (apply) query = apply(query)
+  const { data, error } = await query
+  if (error && !missingRelation(error)) throw error
+  return error ? [] : (data || [])
+}
+
+type OperationalAlert = {
+  id: string
+  severity: 'critical' | 'warning' | 'info'
+  title: string
+  message: string
+  context: string
+  action: string
+  href: string
+}
+
+function hoursUntil(value?: string | null) {
+  if (!value) return null
+  const time = new Date(value).getTime()
+  if (!Number.isFinite(time)) return null
+  return (time - Date.now()) / 3_600_000
+}
+
+function alertItem(campeonatoId: string, alert: Omit<OperationalAlert, 'href'> & { href?: string }): OperationalAlert {
+  return {
+    ...alert,
+    href: alert.href || `/campeonatos/${encodeURIComponent(campeonatoId)}`,
+  }
+}
+
 async function authorizedChampionships(userId: string) {
   const [championshipsResult, producersResult, managersResult] = await Promise.all([
     supabaseAdmin
@@ -113,65 +146,99 @@ async function championshipSummary(userId: string, campeonatoId: string) {
   if (!campeonato) throw new Error('Campeonato não encontrado.')
 
   const [
-    equipes,
+    equipesRows,
+    jogadoresRows,
     capacidade,
     grupos,
-    jogos,
+    jogosRows,
     quedas,
     resultados,
     pagamentosPendentes,
     pagamentosAprovados,
     rulebook,
+    config,
+    regrasRows,
   ] = await Promise.all([
-    safeCount('campeonato_equipes', campeonatoId, (q) => q.eq('status', 'ativo')),
+    safeRows('campeonato_equipes', 'id,equipe_id,status', campeonatoId, (q) => q.eq('status', 'ativo')),
+    safeRows('campeonato_jogadores', 'id,campeonato_equipe_id,status', campeonatoId, (q) => q.neq('status', 'deletado')),
     getCampeonatoCapacidade(campeonatoId),
     safeCount('campeonato_grupos', campeonatoId),
-    safeCount('campeonato_jogos', campeonatoId),
+    safeRows('campeonato_jogos', 'id,nome,data_jogo,horario,numero_partidas,mapas,status', campeonatoId, (q) => q.neq('status', 'excluido')),
     safeCount('campeonato_partidas', campeonatoId),
     safeCount('campeonato_resultados_equipes', campeonatoId),
     safeCount('sistema_pagamentos', campeonatoId, (q) => q.eq('referencia_tipo', 'campeonato_cobranca').in('status', ['pendente', 'aguardando', 'pending']), 'referencia_id'),
     safeCount('sistema_pagamentos', campeonatoId, (q) => q.eq('referencia_tipo', 'campeonato_cobranca').in('status', ['aprovado', 'pago', 'paid', 'confirmed']), 'referencia_id'),
     supabaseAdmin.from('campeonato_rulebooks').select('id,status,published_at,updated_at').eq('campeonato_id', campeonatoId).maybeSingle(),
+    supabaseAdmin.from('campeonato_configuracoes').select('numero_vagas,jogadores_por_vaga,data_limite_inscricao,aceita_novas_inscricoes_equipes').eq('campeonato_id', campeonatoId).maybeSingle(),
+    safeRows('campeonato_regras', 'id,grupo_id,vagas_por_equipe,encerra_em,status', campeonatoId, (q) => q.eq('status', 'ativo')),
   ])
 
   if (rulebook.error && !missingRelation(rulebook.error)) throw rulebook.error
+  if (config.error && !missingRelation(config.error)) throw config.error
 
+  const equipes = equipesRows.length
   const vagasTotais = Number(capacidade.limite_vagas || 0)
   const vagasOcupadas = Math.min(vagasTotais, capacidade.slots_ocupados)
   const vagasDisponiveis = Math.max(0, vagasTotais - vagasOcupadas)
+  const jogos = jogosRows.length
   const jogosSemQuedas = Math.max(0, jogos - quedas)
   const resultadosPendentes = Math.max(0, quedas - resultados)
+  const requiredPlayers = Math.max(1, Number(config.data?.jogadores_por_vaga || regrasRows[0]?.vagas_por_equipe || 4))
+  const playersByTeam = new Map<string, number>()
+  for (const player of jogadoresRows) {
+    const teamId = String(player.campeonato_equipe_id || '')
+    if (teamId) playersByTeam.set(teamId, (playersByTeam.get(teamId) || 0) + 1)
+  }
+  const lineupsIncomplete = equipesRows.filter((team: { id?: string | null }) => (playersByTeam.get(String(team.id || '')) || 0) < requiredPlayers).length
+  const gamesWithoutDate = jogosRows.filter((game: { data_jogo?: string | null }) => !game.data_jogo).length
+  const gamesWithoutTime = jogosRows.filter((game: { horario?: string | null }) => !game.horario).length
+  const gamesWithoutMatches = jogosRows.filter((game: { numero_partidas?: number | string | null }) => Number(game.numero_partidas || 0) <= 0).length
+  const nextGame = jogosRows
+    .filter((game: { data_jogo?: string | null }) => game.data_jogo)
+    .map((game: { data_jogo: string; horario?: string | null }) => ({ ...game, hours: hoursUntil(`${game.data_jogo}T${game.horario || '23:59:00'}`) }))
+    .filter((game: { hours: number | null }) => game.hours != null && game.hours >= 0)
+    .sort((a: { hours: number | null }, b: { hours: number | null }) => Number(a.hours) - Number(b.hours))[0]
+  const registrationHours = hoursUntil(config.data?.data_limite_inscricao)
+  const lineupDeadline = regrasRows.map((rule: { encerra_em?: string | null }) => rule.encerra_em).filter(Boolean).sort()[0] || null
+  const lineupHours = hoursUntil(lineupDeadline)
+  const alerts: OperationalAlert[] = []
+
+  if (!vagasTotais) alerts.push(alertItem(campeonatoId, { id: 'vagas-sem-limite', severity: 'critical', title: 'Total oficial de vagas não configurado', message: 'O campeonato não possui numero_vagas válido em campeonato_configuracoes.', context: 'Sem esse valor, inscrições e capacidade comercial não podem ser controladas com segurança.', action: 'Configurar vagas oficiais' }))
+  if (vagasTotais > 0 && capacidade.slots_criados < vagasTotais) alerts.push(alertItem(campeonatoId, { id: 'estrutura-incompleta', severity: 'warning', title: 'Estrutura inicial incompleta', message: `Existem ${capacidade.slots_criados} de ${vagasTotais} slots estruturados na fase de entrada.`, context: `Ainda faltam ${Math.max(0, vagasTotais - capacidade.slots_criados)} slot(s) para representar a capacidade oficial.`, action: 'Completar grupos e slots' }))
+  if (vagasTotais > 0 && vagasDisponiveis === 0) alerts.push(alertItem(campeonatoId, { id: 'vagas-esgotadas', severity: 'info', title: 'Vagas oficiais esgotadas', message: 'Todas as vagas oficiais da fase de entrada estão ocupadas.', context: 'Confira pagamentos e inscrições antes de encerrar definitivamente as vendas.', action: 'Revisar equipes inscritas' }))
+  else if (vagasTotais > 0 && vagasDisponiveis <= Math.max(2, Math.ceil(vagasTotais * .2))) alerts.push(alertItem(campeonatoId, { id: 'vagas-baixas', severity: 'warning', title: 'Poucas vagas disponíveis', message: `Restam apenas ${vagasDisponiveis} de ${vagasTotais} vagas oficiais.`, context: 'A capacidade está próxima de esgotar.', action: 'Revisar inscrições e vendas' }))
+  if (!grupos) alerts.push(alertItem(campeonatoId, { id: 'sem-grupos', severity: 'critical', title: 'Nenhum grupo criado', message: 'O campeonato ainda não possui grupos para a fase de entrada.', context: 'As equipes não poderão ser distribuídas até que a estrutura seja criada.', action: 'Criar grupos' }))
+  if (!jogos) alerts.push(alertItem(campeonatoId, { id: 'sem-jogos', severity: 'critical', title: 'Nenhum jogo programado', message: 'O campeonato ainda não possui jogos cadastrados.', context: 'Cadastre ao menos o primeiro jogo com data, horário e número de quedas.', action: 'Programar jogos' }))
+  if (gamesWithoutDate || gamesWithoutTime || gamesWithoutMatches) alerts.push(alertItem(campeonatoId, { id: 'jogos-incompletos', severity: nextGame && Number(nextGame.hours) <= 72 ? 'critical' : 'warning', title: 'Jogos com configuração incompleta', message: `${gamesWithoutDate} sem data, ${gamesWithoutTime} sem horário e ${gamesWithoutMatches} sem quantidade de quedas.`, context: nextGame && Number(nextGame.hours) <= 72 ? 'Há jogo previsto nas próximas 72 horas.' : 'Complete os dados antes de divulgar a programação.', action: 'Completar programação' }))
+  if (lineupsIncomplete > 0) alerts.push(alertItem(campeonatoId, { id: 'escalacoes-incompletas', severity: lineupHours != null && lineupHours <= 24 ? 'critical' : 'warning', title: 'Escalações incompletas', message: `${lineupsIncomplete} equipe(s) ainda não atingiram o mínimo de ${requiredPlayers} jogador(es).`, context: lineupHours == null ? 'Nenhum prazo geral de escalação foi localizado.' : lineupHours < 0 ? 'O prazo de escalação já venceu.' : `O prazo termina em aproximadamente ${Math.ceil(lineupHours)} hora(s).`, action: 'Revisar escalações' }))
+  if (registrationHours != null && registrationHours < 0 && config.data?.aceita_novas_inscricoes_equipes) alerts.push(alertItem(campeonatoId, { id: 'inscricao-vencida-aberta', severity: 'critical', title: 'Inscrições abertas após o prazo', message: 'A data limite de inscrição já passou, mas novas inscrições continuam habilitadas.', context: 'Isso pode permitir entradas fora do prazo divulgado.', action: 'Encerrar inscrições' }))
+  if (pagamentosPendentes > 0) alerts.push(alertItem(campeonatoId, { id: 'pagamentos-pendentes', severity: 'warning', title: 'Pagamentos aguardando conferência', message: `${pagamentosPendentes} pagamento(s) permanecem pendentes.`, context: 'Confirme ou rejeite os pagamentos antes de consolidar as vagas.', action: 'Revisar pagamentos' }))
+  if (resultadosPendentes > 0) alerts.push(alertItem(campeonatoId, { id: 'resultados-pendentes', severity: 'warning', title: 'Resultados pendentes', message: `${resultadosPendentes} queda(s) ainda não possuem resultado completo.`, context: 'A classificação pode ficar desatualizada enquanto houver resultados faltando.', action: 'Abrir pontuador' }))
+  if (!rulebook.data?.published_at) alerts.push(alertItem(campeonatoId, { id: 'regulamento-pendente', severity: 'critical', title: 'Regulamento não publicado', message: 'O regulamento ainda não está disponível para os participantes.', context: 'Publique a versão oficial antes do início das partidas.', action: 'Publicar regulamento', href: `/campeonatos/${encodeURIComponent(campeonatoId)}/regulamento` }))
+
+  const severityOrder = { critical: 0, warning: 1, info: 2 }
+  alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity] || a.title.localeCompare(b.title))
 
   return {
     campeonato,
     permission: permissionPublicPayload(permission),
     cards: {
-      vagas: {
-        total: vagasTotais,
-        ocupadas: vagasOcupadas,
-        disponiveis: vagasDisponiveis,
-        fonte: 'campeonato_configuracoes.numero_vagas',
-        slots_estruturados: capacidade.slots_criados,
-        slots_livres_estrutura: capacidade.slots_livres_estrutura,
-        slots_ainda_necessarios: capacidade.slots_ainda_podem_ser_criados,
-      },
+      vagas: { total: vagasTotais, ocupadas: vagasOcupadas, disponiveis: vagasDisponiveis, fonte: 'campeonato_configuracoes.numero_vagas', slots_estruturados: capacidade.slots_criados, slots_livres_estrutura: capacidade.slots_livres_estrutura, slots_ainda_necessarios: capacidade.slots_ainda_podem_ser_criados },
       equipes: { confirmadas: equipes },
-      escalacoes: { incompletas: 0, status: 'aguardando_integracao' },
-      grupos: { total: grupos, incompletos: 0 },
+      escalacoes: { incompletas: lineupsIncomplete, minimo_jogadores: requiredPlayers, prazo: lineupDeadline },
+      grupos: { total: grupos, incompletos: capacidade.slots_criados < vagasTotais ? Math.max(0, vagasTotais - capacidade.slots_criados) : 0 },
       jogos: { total: jogos, sem_quedas: jogosSemQuedas, quedas },
       resultados: { registrados: resultados, pendentes: resultadosPendentes },
       pagamentos: { pendentes: pagamentosPendentes, aprovados: pagamentosAprovados },
-      regulamento: {
-        publicado: Boolean(rulebook.data?.published_at || String(rulebook.data?.status || '').toLowerCase() === 'publicado'),
-        status: rulebook.data?.status || 'não publicado',
-      },
+      regulamento: { publicado: Boolean(rulebook.data?.published_at || String(rulebook.data?.status || '').toLowerCase() === 'publicado'), status: rulebook.data?.status || 'não publicado' },
     },
-    alerts: [
-      ...(vagasDisponiveis === 0 ? [] : [{ severity: 'info', message: `${vagasDisponiveis} vaga(s) disponível(is).` }]),
-      ...(jogosSemQuedas > 0 ? [{ severity: 'warning', message: `${jogosSemQuedas} jogo(s) sem quedas configuradas.` }] : []),
-      ...(resultadosPendentes > 0 ? [{ severity: 'warning', message: `${resultadosPendentes} resultado(s) pendente(s).` }] : []),
-      ...(!rulebook.data?.published_at ? [{ severity: 'critical', message: 'Regulamento ainda não publicado.' }] : []),
-    ],
+    alerts,
+    alert_summary: {
+      total: alerts.length,
+      critical: alerts.filter((alert) => alert.severity === 'critical').length,
+      warning: alerts.filter((alert) => alert.severity === 'warning').length,
+      info: alerts.filter((alert) => alert.severity === 'info').length,
+    },
   }
 }
 
