@@ -101,7 +101,7 @@ async function loadStructure(campeonatoId: string) {
     supabaseAdmin.from('campeonato_slots').select('id,fase_id,grupo_id,slot_numero,slot_letra,status,equipe_id,line_id').eq('campeonato_id', campeonatoId).order('slot_numero'),
     supabaseAdmin.from('campeonato_grupo_escolha_configuracoes').select('*').eq('campeonato_id', campeonatoId),
     supabaseAdmin.from('campeonato_grupo_escolha_bloqueios').select('*').eq('campeonato_id', campeonatoId).eq('ativo', true).order('created_at', { ascending: false }),
-    supabaseAdmin.from('campeonato_grupo_escolha_historico').select('*').eq('campeonato_id', campeonatoId).order('created_at', { ascending: false }).limit(100),
+    supabaseAdmin.from('campeonato_grupo_escolha_historico').select('*').eq('campeonato_id', campeonatoId).order('created_at', { ascending: false }).limit(500),
   ])
   if (franchiseError) throw franchiseError
   if (divisionsResult.error) throw divisionsResult.error
@@ -114,6 +114,20 @@ async function loadStructure(campeonatoId: string) {
   if (choiceConfigResult.error) throw choiceConfigResult.error
   if (choiceBlocksResult.error) throw choiceBlocksResult.error
   if (choiceHistoryResult.error) throw choiceHistoryResult.error
+
+  const choiceHistory = choiceHistoryResult.data || []
+  const actorIds = [...new Set(choiceHistory.map((row: any) => String(row.alterado_por || '')).filter(Boolean))]
+  const actorEntries = await Promise.all(actorIds.map(async (actorId) => {
+    const { data } = await supabaseAdmin.auth.admin.getUserById(actorId)
+    const metadata = data.user?.user_metadata || {}
+    const label = String(metadata.full_name || metadata.name || metadata.user_name || data.user?.email || '').trim()
+    return [actorId, label || `Usuário ${actorId.slice(0, 8)}`] as const
+  }))
+  const actorNames = new Map(actorEntries)
+  const enrichedChoiceHistory = choiceHistory.map((row: any) => ({
+    ...row,
+    alterado_por_nome: row.alterado_por ? actorNames.get(String(row.alterado_por)) || `Usuário ${String(row.alterado_por).slice(0, 8)}` : 'Sistema',
+  }))
 
   const stageIds = (stagesResult.data || []).map((row) => String(row.id))
   let sources: unknown[] = []
@@ -164,7 +178,7 @@ async function loadStructure(campeonatoId: string) {
     slots: slotsResult.data || [],
     groupChoiceConfigs: choiceConfigResult.data || [],
     groupChoiceBlocks: choiceBlocksResult.data || [],
-    groupChoiceHistory: choiceHistoryResult.data || [],
+    groupChoiceHistory: enrichedChoiceHistory,
     progressionExecutions,
     progressionExecutionItems,
   }

@@ -50,6 +50,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [choiceBlock, setChoiceBlock] = useState({ phase_id: '', group_id: '', slot_id: '', reason: '' })
   const [choiceOpsFilter, setChoiceOpsFilter] = useState({ phase_id: '', group_id: '', status: 'all', query: '' })
   const [choiceNoticeType, setChoiceNoticeType] = useState('pending')
+  const [choiceHistoryFilter, setChoiceHistoryFilter] = useState({ team_id: '', action: 'all', phase_id: '', group_id: '', date_from: '', date_to: '' })
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -212,6 +213,54 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
     URL.revokeObjectURL(url)
   }
 
+  const groupChoiceHistoryRows = useMemo(() => data.groupChoiceHistory.map((row) => {
+    const team = data.teams.find((item) => item.id === row.campeonato_equipe_id)
+    const phase = data.phases.find((item) => item.id === row.fase_id)
+    const previousGroup = data.groups.find((item) => item.id === row.grupo_anterior_id)
+    const nextGroup = data.groups.find((item) => item.id === row.grupo_novo_id)
+    const previousSlot = data.slots.find((item) => item.id === row.slot_anterior_id)
+    const nextSlot = data.slots.find((item) => item.id === row.slot_novo_id)
+    const action = row.grupo_anterior_id && !row.grupo_novo_id ? 'cancelled' : !row.grupo_anterior_id && row.grupo_novo_id ? (String(row.observacao || '').toLowerCase().includes('restaur') ? 'restored' : 'created') : row.grupo_anterior_id && row.grupo_novo_id ? 'changed' : 'updated'
+    return { row, team, phase, previousGroup, nextGroup, previousSlot, nextSlot, action }
+  }), [data.groupChoiceHistory, data.teams, data.phases, data.groups, data.slots])
+
+  const filteredGroupChoiceHistory = useMemo(() => groupChoiceHistoryRows.filter((item) => {
+    if (choiceHistoryFilter.team_id && item.row.campeonato_equipe_id !== choiceHistoryFilter.team_id) return false
+    if (choiceHistoryFilter.action !== 'all' && item.action !== choiceHistoryFilter.action) return false
+    if (choiceHistoryFilter.phase_id && item.row.fase_id !== choiceHistoryFilter.phase_id) return false
+    if (choiceHistoryFilter.group_id && item.row.grupo_anterior_id !== choiceHistoryFilter.group_id && item.row.grupo_novo_id !== choiceHistoryFilter.group_id) return false
+    const createdAt = new Date(item.row.created_at).getTime()
+    if (choiceHistoryFilter.date_from && createdAt < new Date(`${choiceHistoryFilter.date_from}T00:00:00`).getTime()) return false
+    if (choiceHistoryFilter.date_to && createdAt > new Date(`${choiceHistoryFilter.date_to}T23:59:59.999`).getTime()) return false
+    return true
+  }), [groupChoiceHistoryRows, choiceHistoryFilter])
+
+  function choiceActionLabel(action: string) {
+    if (action === 'created') return 'Confirmada'
+    if (action === 'changed') return 'Movida/trocada'
+    if (action === 'cancelled') return 'Cancelada'
+    if (action === 'restored') return 'Restaurada'
+    return 'Atualizada'
+  }
+
+  function choicePosition(group?: Row, slot?: Row) {
+    if (!group && !slot) return 'Sem grupo/slot'
+    return `${group?.nome || 'Grupo'} · ${slot?.slot_letra || (slot?.slot_numero ? `Slot ${slot.slot_numero}` : 'sem slot')}`
+  }
+
+  function exportChoiceHistoryCsv() {
+    const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
+    const rows = [['Data', 'Equipe/line', 'Ação', 'Origem', 'Responsável', 'Fase', 'Anterior', 'Novo', 'Motivo'], ...filteredGroupChoiceHistory.map((item) => [new Date(item.row.created_at).toLocaleString('pt-BR'), item.team ? teamName(item.team) : 'Equipe', choiceActionLabel(item.action), item.row.origem || '', item.row.alterado_por_nome || item.row.alterado_por || 'Sistema', item.phase?.nome || '', choicePosition(item.previousGroup, item.previousSlot), choicePosition(item.nextGroup, item.nextSlot), item.row.observacao || ''])]
+    const blob = new Blob([`\uFEFF${rows.map((row) => row.map(escape).join(';')).join('\n')}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `historico-escolhas-${campeonatoId}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+
   if (loading) return <div className="advanced-structure-loading"><Loader2 className="button-spinner" size={18} /> Carregando estrutura avançada…</div>
 
   const canManage = data.permission?.canManage !== false
@@ -325,7 +374,18 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           </div>
           <div className="advanced-choice-operations-list">{filteredChoiceRows.length ? filteredChoiceRows.map((row) => <article key={row.team.id} className={`is-${row.status}`}><div><b>{teamName(row.team)}</b><small>{row.phase?.nome || 'Sem fase'} · {row.group?.nome || 'Sem grupo'} · {row.slot?.slot_letra || (row.slot?.slot_numero ? `Slot ${row.slot.slot_numero}` : 'Sem slot')}</small></div><span>{row.status === 'chosen' ? 'Escolhida' : row.status === 'cancelled' ? 'Cancelada' : 'Pendente'}</span><div className="advanced-choice-row-actions">{row.status === 'chosen' ? <><button className="button secondary" onClick={() => setGroupAssignment({ campeonato_equipe_id: row.team.id, group_id: row.group?.id || '', slot_id: '' })}>Mover</button><button className="button secondary danger" onClick={() => void act({ action: 'cancel_group_choice_admin', campeonato_equipe_id: row.team.id })}>Cancelar</button></> : row.status === 'cancelled' ? <button className="button secondary" onClick={() => void act({ action: 'restore_group_choice_admin', campeonato_equipe_id: row.team.id })}>Restaurar</button> : <button className="button secondary" onClick={() => setGroupAssignment({ campeonato_equipe_id: row.team.id, group_id: '', slot_id: '' })}>Definir</button>}</div></article>) : <div className="message">Nenhuma equipe encontrada com esses filtros.</div>}</div>
         </div>
-        {data.groupChoiceHistory.length ? <div className="advanced-choice-history"><h5>Últimas alterações</h5>{data.groupChoiceHistory.slice(0, 12).map((row) => { const team = data.teams.find((item) => item.id === row.campeonato_equipe_id); const group = data.groups.find((item) => item.id === row.grupo_novo_id); return <span key={row.id}><b>{team ? teamName(team) : 'Equipe'}</b> → {group?.nome || 'sem grupo'} <small>{row.origem}</small></span> })}</div> : null}
+        {data.groupChoiceHistory.length ? <div className="advanced-choice-audit">
+          <div className="advanced-choice-audit-head"><div><h5>Histórico e logs das escolhas</h5><small>{filteredGroupChoiceHistory.length} registro(s) exibido(s) de {data.groupChoiceHistory.length}</small></div><button className="button secondary" onClick={exportChoiceHistoryCsv}>Exportar logs CSV</button></div>
+          <div className="mini-grid three">
+            <label><span>Equipe/line</span><select value={choiceHistoryFilter.team_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, team_id: e.target.value })}><option value="">Todas</option>{data.teams.map((row) => <option key={row.id} value={row.id}>{teamName(row)}</option>)}</select></label>
+            <label><span>Ação</span><select value={choiceHistoryFilter.action} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, action: e.target.value })}><option value="all">Todas</option><option value="created">Confirmada</option><option value="changed">Movida/trocada</option><option value="cancelled">Cancelada</option><option value="restored">Restaurada</option></select></label>
+            <label><span>Fase</span><select value={choiceHistoryFilter.phase_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, phase_id: e.target.value, group_id: '' })}><option value="">Todas</option>{data.phases.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
+            <label><span>Grupo</span><select value={choiceHistoryFilter.group_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, group_id: e.target.value })}><option value="">Todos</option>{data.groups.filter((row) => !choiceHistoryFilter.phase_id || row.fase_id === choiceHistoryFilter.phase_id).map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
+            <label><span>De</span><input type="date" value={choiceHistoryFilter.date_from} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, date_from: e.target.value })} /></label>
+            <label><span>Até</span><input type="date" value={choiceHistoryFilter.date_to} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, date_to: e.target.value })} /></label>
+          </div>
+          <div className="advanced-choice-timeline">{filteredGroupChoiceHistory.length ? filteredGroupChoiceHistory.map((item) => <article key={item.row.id} className={`is-${item.action}`}><span className="advanced-choice-timeline-dot" /><div className="advanced-choice-timeline-main"><div><b>{item.team ? teamName(item.team) : 'Equipe removida'}</b><strong>{choiceActionLabel(item.action)}</strong></div><small>{new Date(item.row.created_at).toLocaleString('pt-BR')} · {item.phase?.nome || 'Fase não informada'} · {item.row.origem === 'administrador' ? 'Administração' : item.row.origem === 'equipe' ? 'Equipe' : item.row.origem || 'Sistema'}</small><p><span>Anterior: {choicePosition(item.previousGroup, item.previousSlot)}</span><span>Novo: {choicePosition(item.nextGroup, item.nextSlot)}</span></p>{item.row.observacao ? <em>Motivo/observação: {item.row.observacao}</em> : null}<small>Responsável: {item.row.alterado_por_nome || item.row.alterado_por || 'Sistema'}</small></div></article>) : <div className="message">Nenhum registro encontrado com esses filtros.</div>}</div>
+        </div> : null}
       </section> : null}
 
       {data.progressions.length ? <section className="advanced-card">
