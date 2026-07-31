@@ -268,3 +268,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: message === 'UNAUTHORIZED' ? 'Não autenticado.' : message }, { status })
   }
 }
+
+export async function PATCH(request: NextRequest, contextParams: { params: Promise<{ id: string }> }) {
+  return POST(request, contextParams)
+}
+
+export async function DELETE(request: NextRequest, contextParams: { params: Promise<{ id: string }> }) {
+  return POST(request, contextParams)
+}
+

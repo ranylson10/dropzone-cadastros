@@ -32,7 +32,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [prize, setPrize] = useState({ stage_id: '', prize_type: 'colocacao', position: '1', title: '', value: '' })
   const [daily, setDaily] = useState({ hour: '', display_name: '', capacity: '', vacancy_value: '', prize_description: '', prize_value: '', map: '', drops: '1' })
 
-  const request = useCallback(async (method: 'GET' | 'POST', body?: Row) => {
+  const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
     const response = await fetch(`/api/campeonatos/${campeonatoId}/estrutura-avancada`, {
@@ -68,7 +68,8 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
     setBusy(true)
     setMessage('')
     try {
-      const next = await request('POST', body)
+      const method = body.action === 'save_edition' ? 'PATCH' : body.action === 'delete' ? 'DELETE' : 'POST'
+      const next = await request(method, body)
       setData(next)
       setMessage('Alteração salva.')
     } catch (error) {
