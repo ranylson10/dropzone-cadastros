@@ -120,7 +120,12 @@ async function choose(request: NextRequest, campeonatoId: string, userId: string
   }
   if (oldSlotId && oldSlotId !== String(reserved.id)) await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', oldSlotId).eq('campeonato_id', campeonatoId)
   const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: group.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: oldGroupId, grupo_novo_id: groupId, slot_anterior_id: oldSlotId, slot_novo_id: reserved.id, origem: 'equipe', alterado_por: userId, observacao: oldGroupId ? 'Escolha editada pela equipe.' : 'Escolha confirmada pela equipe.' })
-  if (historyError) throw historyError
+  if (historyError) {
+    await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: oldGroupId, slot_id: oldSlotId, slot_numero: participation.slot_numero || null }).eq('id', participationId).eq('campeonato_id', campeonatoId)
+    await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', reserved.id).eq('campeonato_id', campeonatoId)
+    if (oldSlotId) await supabaseAdmin.from('campeonato_slots').update({ equipe_id: participation.equipe_id, line_id: participation.line_id, status: 'ocupado' }).eq('id', oldSlotId).eq('campeonato_id', campeonatoId)
+    throw historyError
+  }
   await notifyUser({ userId, campeonatoId, participationId, type: oldGroupId ? 'escolha_grupo_editada' : 'escolha_grupo_confirmada', title: oldGroupId ? 'Escolha de grupo atualizada' : 'Escolha de grupo confirmada', body: oldGroupId ? 'Sua troca de grupo e slot foi registrada com sucesso.' : 'Sua escolha de grupo e slot foi registrada com sucesso.', payload: { grupo_id: groupId, slot_id: reserved.id } })
 }
 
@@ -172,9 +177,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { error: updateError } = await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: null, slot_id: null, slot_numero: null }).eq('id', participationId).eq('campeonato_id', campeonatoId)
     if (updateError) throw updateError
     const { error: freeError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', oldSlotId).eq('campeonato_id', campeonatoId)
-    if (freeError) throw freeError
+    if (freeError) {
+      await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: oldGroupId, slot_id: oldSlotId, slot_numero: participation.slot_numero }).eq('id', participationId).eq('campeonato_id', campeonatoId)
+      throw freeError
+    }
     const { error: historyError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: group.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: oldGroupId, grupo_novo_id: null, slot_anterior_id: oldSlotId, slot_novo_id: null, origem: 'equipe', alterado_por: user.id, observacao: 'Escolha cancelada pela equipe.' })
-    if (historyError) throw historyError
+    if (historyError) {
+      await supabaseAdmin.from('campeonato_slots').update({ equipe_id: participation.equipe_id, line_id: participation.line_id, status: 'ocupado' }).eq('id', oldSlotId).eq('campeonato_id', campeonatoId)
+      await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: oldGroupId, slot_id: oldSlotId, slot_numero: participation.slot_numero }).eq('id', participationId).eq('campeonato_id', campeonatoId)
+      throw historyError
+    }
     await notifyUser({ userId: user.id, campeonatoId, participationId, type: 'escolha_grupo_cancelada', title: 'Escolha de grupo cancelada', body: 'Sua escolha de grupo e slot foi cancelada e o slot foi liberado.' })
     return NextResponse.json({ ok: true, ...(await payload(user.id, campeonatoId)) })
   } catch (error) {
@@ -212,7 +224,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       throw updateError
     }
     const { error: restoreHistoryError } = await supabaseAdmin.from('campeonato_grupo_escolha_historico').insert({ campeonato_id: campeonatoId, fase_id: cancelled.fase_id, campeonato_equipe_id: participationId, grupo_anterior_id: null, grupo_novo_id: cancelled.grupo_anterior_id, slot_anterior_id: null, slot_novo_id: reserved.id, origem: 'equipe', alterado_por: user.id, observacao: 'Escolha restaurada pela equipe.' })
-    if (restoreHistoryError) throw restoreHistoryError
+    if (restoreHistoryError) {
+      await supabaseAdmin.from('campeonato_equipes').update({ grupo_id: null, slot_id: null, slot_numero: null }).eq('id', participationId).eq('campeonato_id', campeonatoId)
+      await supabaseAdmin.from('campeonato_slots').update({ equipe_id: null, line_id: null, status: 'livre' }).eq('id', reserved.id).eq('campeonato_id', campeonatoId)
+      throw restoreHistoryError
+    }
     await notifyUser({ userId: user.id, campeonatoId, participationId, type: 'escolha_grupo_restaurada', title: 'Escolha de grupo restaurada', body: 'Sua escolha anterior de grupo e slot foi restaurada com sucesso.', payload: { grupo_id: cancelled.grupo_anterior_id, slot_id: reserved.id } })
     return NextResponse.json({ ok: true, ...(await payload(user.id, campeonatoId)) })
   } catch (error) {

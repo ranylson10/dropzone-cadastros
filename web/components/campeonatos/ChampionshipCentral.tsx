@@ -48,7 +48,7 @@ export function ChampionshipCentral() {
   const [choiceForm, setChoiceForm] = useState({ campeonato_equipe_id: '', grupo_id: '', slot_id: '' })
   const [loading, setLoading] = useState(true)
   const [savingChoice, setSavingChoice] = useState(false)
-  const [choiceAction, setChoiceAction] = useState<'cancel' | 'restore' | ''>('')
+  const [choiceAction, setChoiceAction] = useState<{ participationId: string; kind: 'cancel' | 'restore' } | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [logFilter, setLogFilter] = useState('all')
@@ -146,7 +146,7 @@ export function ChampionshipCentral() {
 
   async function runChoiceAction(method: 'DELETE' | 'PUT', participationId: string) {
     if (!selected || !participationId) return
-    setChoiceAction(method === 'DELETE' ? 'cancel' : 'restore')
+    setChoiceAction({ participationId, kind: method === 'DELETE' ? 'cancel' : 'restore' })
     setError('')
     setSuccess('')
     try {
@@ -162,7 +162,7 @@ export function ChampionshipCentral() {
       setSuccess(method === 'DELETE' ? 'Escolha cancelada. O grupo e o slot foram liberados.' : 'Escolha anterior restaurada com sucesso.')
     } catch (e: any) {
       setError(e?.message || 'Erro ao atualizar a escolha.')
-    } finally { setChoiceAction('') }
+    } finally { setChoiceAction(null) }
   }
 
   const filteredLogs = summary?.logs?.filter((log) => logFilter === 'all' || log.category === logFilter) || []
@@ -195,10 +195,10 @@ export function ChampionshipCentral() {
         <section className="championship-choice-panel">
           <div className="championship-choice-heading"><div><small>ESCOLHA DA EQUIPE</small><h2>{selectedItem.nome}</h2><p>Nenhum grupo ou slot é definido automaticamente. Escolha apenas entre as opções liberadas pela administração.</p></div><MapPin size={24} /></div>
           {choice.participations.length ? <>
-            <div className="championship-choice-current">{choice.participations.map((row) => { const group = choice.groups.find((item) => item.id === row.grupo_id); const slot = choice.slots.find((item) => item.id === row.slot_id); const canRestore = !row.grupo_id && choice.history.some((item) => item.campeonato_equipe_id === row.id && !item.grupo_novo_id && item.grupo_anterior_id && item.slot_anterior_id); return <article key={row.id}><div><strong>{row.nome_exibicao || 'Minha equipe'}</strong><span>{group ? `${group.nome} · ${slot?.slot_letra || `Slot ${slot?.slot_numero || row.slot_numero || '-'}`}` : 'Grupo e slot ainda não escolhidos'}</span></div><div className="championship-choice-actions">{row.grupo_id ? <button type="button" className="button secondary danger" disabled={Boolean(choiceAction)} onClick={() => void runChoiceAction('DELETE', row.id)}>{choiceAction === 'cancel' ? 'Cancelando...' : 'Cancelar escolha'}</button> : null}{canRestore ? <button type="button" className="button secondary" disabled={Boolean(choiceAction)} onClick={() => void runChoiceAction('PUT', row.id)}>{choiceAction === 'restore' ? 'Restaurando...' : 'Restaurar anterior'}</button> : null}</div></article> })}</div>
+            <div className="championship-choice-current">{choice.participations.map((row) => { const group = choice.groups.find((item) => item.id === row.grupo_id); const slot = choice.slots.find((item) => item.id === row.slot_id); const canRestore = !row.grupo_id && choice.history.some((item) => item.campeonato_equipe_id === row.id && !item.grupo_novo_id && item.grupo_anterior_id && item.slot_anterior_id); return <article key={row.id}><div><strong>{row.nome_exibicao || 'Minha equipe'}</strong><span>{group ? `${group.nome} · ${slot?.slot_letra || `Slot ${slot?.slot_numero || row.slot_numero || '-'}`}` : 'Grupo e slot ainda não escolhidos'}</span></div><div className="championship-choice-actions">{row.grupo_id ? <button type="button" className="button secondary danger" disabled={Boolean(choiceAction)} onClick={() => void runChoiceAction('DELETE', row.id)}>{choiceAction?.participationId === row.id && choiceAction.kind === 'cancel' ? 'Cancelando...' : 'Cancelar escolha'}</button> : null}{canRestore ? <button type="button" className="button secondary" disabled={Boolean(choiceAction)} onClick={() => void runChoiceAction('PUT', row.id)}>{choiceAction?.participationId === row.id && choiceAction.kind === 'restore' ? 'Restaurando...' : 'Restaurar anterior'}</button> : null}</div></article> })}</div>
             {availableGroups.length ? <div className="championship-choice-form">
               <label><span>Equipe/line</span><select value={choiceForm.campeonato_equipe_id} onChange={(event) => setChoiceForm({ ...choiceForm, campeonato_equipe_id: event.target.value })}>{choice.participations.map((row) => <option key={row.id} value={row.id}>{row.nome_exibicao || 'Minha equipe'}</option>)}</select></label>
-              <label><span>Grupo</span><select value={choiceForm.grupo_id} onChange={(event) => setChoiceForm({ ...choiceForm, grupo_id: event.target.value, slot_id: '' })}><option value="">Escolha o grupo</option>{availableGroups.map((group) => { const free = choice.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} slot(s) livre(s)</option> })}</select></label>
+              <label><span>Grupo</span><select value={choiceForm.grupo_id} onChange={(event) => setChoiceForm({ ...choiceForm, grupo_id: event.target.value, slot_id: '' })}><option value="">Escolha o grupo</option>{availableGroups.map((group) => { const free = choice.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id && !choice.blocks.some((block) => String(block.slot_id || '') === String(slot.id))).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} slot(s) livre(s)</option> })}</select></label>
               <label><span>Slot</span><select value={choiceForm.slot_id} onChange={(event) => setChoiceForm({ ...choiceForm, slot_id: event.target.value })} disabled={!choiceForm.grupo_id}><option value="">Escolha o slot</option>{availableSlots.map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</select></label>
               <button type="button" className="button" disabled={savingChoice || !choiceForm.campeonato_equipe_id || !choiceForm.grupo_id || !choiceForm.slot_id} onClick={() => void saveGroupChoice()}>{savingChoice ? <LoaderCircle className="spin" size={15} /> : null} Confirmar grupo e slot</button>
             </div> : <div className="championship-choice-closed"><Clock3 size={18} /><div><strong>Escolha indisponível</strong><span>A escolha ainda não abriu, o prazo terminou ou todas as opções foram bloqueadas pela administração.</span></div></div>}
