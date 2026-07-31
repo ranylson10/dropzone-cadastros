@@ -19,9 +19,11 @@ type Structure = {
   stageTeams: Row[]
   phases: Row[]
   groups: Row[]
+  progressionExecutions: Row[]
+  progressionExecutionItems: Row[]
 }
 
-const empty: Structure = { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: [], teams: [], stageTeams: [], phases: [], groups: [] }
+const empty: Structure = { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: [], teams: [], stageTeams: [], phases: [], groups: [], progressionExecutions: [], progressionExecutionItems: [] }
 
 export function AdvancedStructureTab({ campeonatoId, championshipType }: { campeonatoId: string; championshipType: string }) {
   const [data, setData] = useState<Structure>(empty)
@@ -38,6 +40,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [assignment, setAssignment] = useState({ stage_id: '', campeonato_equipe_id: '', source_type: 'manual', source_stage_id: '', source_position: '' })
   const [progressionPreview, setProgressionPreview] = useState<Row | null>(null)
   const [selectedProgressionRule, setSelectedProgressionRule] = useState('')
+  const [replaceProgressionConflicts, setReplaceProgressionConflicts] = useState(false)
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -89,12 +92,27 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
     setBusy(true)
     setMessage('')
     try {
-      const response = await request('POST', { action: 'apply_progression', rule_id: selectedProgressionRule }) as any
+      const response = await request('POST', { action: 'apply_progression', rule_id: selectedProgressionRule, replace_conflicts: replaceProgressionConflicts }) as any
       setData(response)
       setProgressionPreview(response.preview || null)
       setMessage(`${Number(response.applied || 0)} equipe(s) promovida(s).`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Falha ao aplicar progressão.')
+    } finally { setBusy(false) }
+  }
+
+  async function reverseProgression(executionId: string) {
+    const reason = window.prompt('Informe o motivo da reversão:')
+    if (reason == null) return
+    setBusy(true)
+    setMessage('')
+    try {
+      const response = await request('POST', { action: 'reverse_progression', execution_id: executionId, reason }) as any
+      setData(response)
+      setProgressionPreview(null)
+      setMessage(`${Number(response.reversed || 0)} vínculo(s) revertido(s).`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Falha ao reverter progressão.')
     } finally { setBusy(false) }
   }
 
@@ -214,13 +232,15 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         <p className="advanced-help">Gere uma prévia usando a classificação da fase vinculada à etapa de origem. A aplicação é idempotente e respeita a capacidade do destino.</p>
         <div className="mini-grid two">
           <label><span>Regra</span><select value={selectedProgressionRule} onChange={(e) => { setSelectedProgressionRule(e.target.value); setProgressionPreview(null) }}><option value="">Selecione</option>{data.progressions.filter((row) => row.etapa_destino_id).map((row) => { const sourceStage = data.stages.find((stageRow) => stageRow.id === row.etapa_origem_id); const destinationStage = data.stages.find((stageRow) => stageRow.id === row.etapa_destino_id); return <option key={row.id} value={row.id}>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'} · {row.posicao_inicio || 1}º a {row.posicao_fim || row.quantidade || '?' }º</option> })}</select></label>
-          <div className="advanced-progression-actions"><button className="button secondary" disabled={!selectedProgressionRule || busy} onClick={() => void previewProgression(selectedProgressionRule)}>Gerar prévia</button>{progressionPreview ? <button className="button" disabled={busy || !progressionPreview.summary?.canApply || !progressionPreview.summary?.newCount} onClick={() => void applyProgression()}>Aplicar progressão</button> : null}</div>
+          <div className="advanced-progression-actions"><button className="button secondary" disabled={!selectedProgressionRule || busy} onClick={() => void previewProgression(selectedProgressionRule)}>Gerar prévia</button>{progressionPreview ? <button className="button" disabled={busy || (!progressionPreview.summary?.canApply && !replaceProgressionConflicts) || (!progressionPreview.summary?.newCount && !progressionPreview.summary?.conflictCount)} onClick={() => void applyProgression()}>Aplicar progressão</button> : null}</div>
         </div>
         {progressionPreview ? <div className="advanced-progression-preview">
-          <div className="advanced-progression-summary"><span><b>{progressionPreview.summary?.selected || 0}</b> selecionadas</span><span><b>{progressionPreview.summary?.newCount || 0}</b> novas</span><span><b>{progressionPreview.summary?.alreadyApplied || 0}</b> já aplicadas</span><span><b>{progressionPreview.summary?.available ?? '∞'}</b> vagas disponíveis</span></div>
-          {!progressionPreview.summary?.canApply ? <div className="message">A etapa de destino não possui vagas suficientes.</div> : null}
-          <div className="advanced-progression-list">{(progressionPreview.candidates || []).map((row: Row) => <article key={row.campeonato_equipe_id}><b>{row.colocacao}º · {row.tag ? `${row.tag} — ` : ''}{row.nome}</b><small>{row.pontos_total || 0} pontos · {row.booyahs || 0} booyah(s) · {row.abates || 0} abates</small><span>{row.alreadyApplied ? 'Já aplicada' : 'Pronta para aplicar'}</span></article>)}</div>
+          <div className="advanced-progression-summary"><span><b>{progressionPreview.summary?.selected || 0}</b> selecionadas</span><span><b>{progressionPreview.summary?.newCount || 0}</b> novas</span><span><b>{progressionPreview.summary?.conflictCount || 0}</b> conflitos</span><span><b>{progressionPreview.summary?.alreadyApplied || 0}</b> já aplicadas</span><span><b>{progressionPreview.summary?.available ?? '∞'}</b> vagas disponíveis</span></div>
+          {progressionPreview.summary?.conflictCount ? <label className="advanced-progression-replace"><input type="checkbox" checked={replaceProgressionConflicts} onChange={(e) => setReplaceProgressionConflicts(e.target.checked)} /><span>Substituir vínculos conflitantes e preservar o estado anterior no histórico</span></label> : null}
+          {!progressionPreview.summary?.canApply && !progressionPreview.summary?.conflictCount ? <div className="message">A etapa de destino não possui vagas suficientes.</div> : null}
+          <div className="advanced-progression-list">{(progressionPreview.candidates || []).map((row: Row) => <article key={row.campeonato_equipe_id} className={row.conflict ? 'has-conflict' : ''}><b>{row.colocacao}º · {row.tag ? `${row.tag} — ` : ''}{row.nome}</b><small>{row.pontos_total || 0} pontos · {row.booyahs || 0} booyah(s) · {row.abates || 0} abates</small><span>{row.alreadyApplied ? 'Já aplicada por esta regra' : row.conflict ? 'Conflito com outra origem' : 'Pronta para aplicar'}</span></article>)}</div>
         </div> : null}
+        {data.progressionExecutions.length ? <div className="advanced-progression-history"><h5>Histórico de execuções</h5>{data.progressionExecutions.map((execution) => { const rule = data.progressions.find((row) => row.id === execution.regra_id); const sourceStage = data.stages.find((row) => row.id === rule?.etapa_origem_id); const destinationStage = data.stages.find((row) => row.id === rule?.etapa_destino_id); const items = data.progressionExecutionItems.filter((row) => row.execucao_id === execution.id); return <article key={execution.id}><div><b>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'}</b><small>{new Date(execution.aplicada_em || execution.created_at).toLocaleString('pt-BR')} · {items.length} equipe(s) · {execution.status}</small>{execution.motivo_reversao ? <small>Motivo: {execution.motivo_reversao}</small> : null}</div>{execution.status === 'aplicada' ? <button className="button secondary" disabled={busy} onClick={() => void reverseProgression(execution.id)}>Reverter</button> : null}</article> })}</div> : null}
       </section> : null}
 
       {championshipType === 'diario' ? <section className="advanced-card">

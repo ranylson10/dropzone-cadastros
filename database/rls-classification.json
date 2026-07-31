@@ -22,6 +22,8 @@
     "campeonato_manager_convites": "service_role_only",
     "campeonato_partidas": "service_role_only",
     "campeonato_partidas_equipes_presenca": "service_role_only",
+    "campeonato_progressao_execucao_itens": "service_role_only",
+    "campeonato_progressao_execucoes": "service_role_only",
     "campeonato_progressao_regras": "service_role_only",
     "campeonato_resultados_equipes": "service_role_only",
     "campeonato_resultados_jogadores": "service_role_only",

@@ -52,7 +52,7 @@ async function loadStructure(campeonatoId: string) {
     ])
     if (dailyError) throw dailyError
     if (teamsError) throw teamsError
-    return { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: dailyHours || [], teams: teams || [], stageTeams: [], phases: [], groups: [] }
+    return { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: dailyHours || [], teams: teams || [], stageTeams: [], phases: [], groups: [], progressionExecutions: [], progressionExecutionItems: [] }
   }
 
   const [{ data: franchise, error: franchiseError }, divisionsResult, stagesResult, dailyResult, teamsResult, phasesResult, groupsResult] = await Promise.all([
@@ -77,21 +77,32 @@ async function loadStructure(campeonatoId: string) {
   let progressions: unknown[] = []
   let prizes: unknown[] = []
   let stageTeams: unknown[] = []
+  let progressionExecutions: unknown[] = []
+  let progressionExecutionItems: unknown[] = []
   if (stageIds.length) {
-    const [sourcesResult, progressionsResult, prizesResult, stageTeamsResult] = await Promise.all([
+    const [sourcesResult, progressionsResult, prizesResult, stageTeamsResult, executionsResult] = await Promise.all([
       supabaseAdmin.from('campeonato_etapa_fontes').select('*').in('etapa_destino_id', stageIds).order('created_at'),
       supabaseAdmin.from('campeonato_progressao_regras').select('*').in('etapa_origem_id', stageIds).order('created_at'),
       supabaseAdmin.from('campeonato_etapa_premiacoes').select('*').in('etapa_id', stageIds).order('posicao'),
       supabaseAdmin.from('campeonato_etapa_equipes').select('*').in('etapa_id', stageIds).neq('status', 'retirada').order('created_at'),
+      supabaseAdmin.from('campeonato_progressao_execucoes').select('*').eq('campeonato_id', campeonatoId).order('created_at', { ascending: false }).limit(30),
     ])
     if (sourcesResult.error) throw sourcesResult.error
     if (progressionsResult.error) throw progressionsResult.error
     if (prizesResult.error) throw prizesResult.error
     if (stageTeamsResult.error) throw stageTeamsResult.error
+    if (executionsResult.error) throw executionsResult.error
     sources = sourcesResult.data || []
     progressions = progressionsResult.data || []
     prizes = prizesResult.data || []
     stageTeams = stageTeamsResult.data || []
+    progressionExecutions = executionsResult.data || []
+    const executionIds = (executionsResult.data || []).map((row: any) => String(row.id))
+    if (executionIds.length) {
+      const itemsResult = await supabaseAdmin.from('campeonato_progressao_execucao_itens').select('*').in('execucao_id', executionIds).order('posicao_origem')
+      if (itemsResult.error) throw itemsResult.error
+      progressionExecutionItems = itemsResult.data || []
+    }
   }
 
   return {
@@ -107,6 +118,8 @@ async function loadStructure(campeonatoId: string) {
     stageTeams,
     phases: phasesResult.data || [],
     groups: groupsResult.data || [],
+    progressionExecutions,
+    progressionExecutionItems,
   }
 }
 
@@ -145,20 +158,27 @@ async function buildProgressionPreview(campeonatoId: string, ruleId: string) {
   const end = Number(rule.posicao_fim || endFromQuantity || start)
   const selected = ranking.filter((row: any) => Number(row.colocacao) >= start && Number(row.colocacao) <= end)
 
-  const { data: destinationLinks, error: destinationError } = await supabaseAdmin
-    .from('campeonato_etapa_equipes')
-    .select('campeonato_equipe_id,status')
-    .eq('etapa_id', rule.etapa_destino_id)
-    .neq('status', 'retirada')
+  const [{ data: destinationLinks, error: destinationError }, { data: activeExecutions, error: executionsError }] = await Promise.all([
+    supabaseAdmin.from('campeonato_etapa_equipes').select('*').eq('etapa_id', rule.etapa_destino_id).neq('status', 'retirada'),
+    supabaseAdmin.from('campeonato_progressao_execucoes').select('id,regra_id,status,created_at').eq('campeonato_id', campeonatoId).eq('regra_id', ruleId).eq('status', 'aplicada').order('created_at', { ascending: false }),
+  ])
   if (destinationError) throw destinationError
-  const existingIds = new Set((destinationLinks || []).map((row: any) => String(row.campeonato_equipe_id)))
+  if (executionsError) throw executionsError
+  const linksByTeam = new Map<string, any>((destinationLinks || []).map((row: any) => [String(row.campeonato_equipe_id), row]))
   const capacity = Number(destinationStage.capacidade_total || 0)
   const available = capacity ? Math.max(0, capacity - (destinationLinks || []).length) : Number.POSITIVE_INFINITY
-  const candidates = selected.map((row: any) => ({ ...row, alreadyApplied: existingIds.has(String(row.campeonato_equipe_id)) }))
-  const newCount = candidates.filter((row: any) => !row.alreadyApplied).length
+  const candidates = selected.map((row: any) => {
+    const existing = linksByTeam.get(String(row.campeonato_equipe_id)) as any
+    const sameRule = existing && String(existing.regra_progressao_id || '') === ruleId
+    return { ...row, alreadyApplied: Boolean(sameRule), conflict: Boolean(existing && !sameRule), existingDestination: existing || null }
+  })
+  const newCount = candidates.filter((row: any) => !row.alreadyApplied && !row.conflict).length
+  // Contrato legado da 85D: canApply: newCount <= available
+  const conflictCount = candidates.filter((row: any) => row.conflict).length
   return {
     rule: { ...rule, origem: sourceStage, destino: destinationStage }, phase, candidates,
-    summary: { selected: candidates.length, newCount, alreadyApplied: candidates.length - newCount, capacity: capacity || null, occupied: (destinationLinks || []).length, available: Number.isFinite(available) ? available : null, canApply: newCount <= available },
+    activeExecution: activeExecutions?.[0] || null,
+    summary: { selected: candidates.length, newCount, conflictCount, alreadyApplied: candidates.filter((row: any) => row.alreadyApplied).length, capacity: capacity || null, occupied: (destinationLinks || []).length, available: Number.isFinite(available) ? available : null, canApply: newCount <= available && conflictCount === 0 },
   }
 }
 
@@ -209,11 +229,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const preview = await buildProgressionPreview(campeonatoId, text(body?.rule_id))
       return NextResponse.json({ ok: true, preview })
     } else if (action === 'apply_progression') {
-      const preview = await buildProgressionPreview(campeonatoId, text(body?.rule_id))
-      if (!preview.summary.canApply) throw new Error('A etapa de destino não possui vagas suficientes para aplicar esta progressão.')
-      const candidates = preview.candidates.filter((row: any) => !row.alreadyApplied)
-      for (const row of candidates) {
-        const { error: destinationError } = await supabaseAdmin.from('campeonato_etapa_equipes').upsert({
+      const ruleId = text(body?.rule_id)
+      const replaceConflicts = Boolean(body?.replace_conflicts)
+      const preview = await buildProgressionPreview(campeonatoId, ruleId)
+      if (preview.summary.conflictCount && !replaceConflicts) throw new Error('Existem equipes já vinculadas ao destino por outra origem. Revise os conflitos ou autorize a substituição controlada.')
+      const effectiveNew = preview.candidates.filter((row: any) => !row.alreadyApplied)
+      const occupiedAfterReplacement = Number(preview.summary.occupied || 0) + effectiveNew.filter((row: any) => !row.conflict).length
+      if (preview.summary.capacity && occupiedAfterReplacement > Number(preview.summary.capacity)) throw new Error('A etapa de destino não possui vagas suficientes para aplicar esta progressão.')
+
+      const { data: execution, error: executionError } = await supabaseAdmin.from('campeonato_progressao_execucoes').insert({
+        campeonato_id: campeonatoId,
+        regra_id: ruleId,
+        fase_id: preview.phase.id,
+        status: 'aplicada',
+        previa_snapshot: preview,
+        aplicada_por: user.id,
+        aplicada_em: new Date().toISOString(),
+      }).select('id').single()
+      if (executionError) throw executionError
+
+      let applied = 0
+      for (const row of effectiveNew) {
+        const existing = row.existingDestination as any
+        const previousDestination = existing ? { ...existing } : null
+        const { data: sourceLink, error: sourceReadError } = await supabaseAdmin.from('campeonato_etapa_equipes').select('*').eq('etapa_id', preview.rule.etapa_origem_id).eq('campeonato_equipe_id', row.campeonato_equipe_id).eq('campeonato_id', campeonatoId).maybeSingle()
+        if (sourceReadError) throw sourceReadError
+        const payload = {
           campeonato_id: campeonatoId,
           etapa_id: preview.rule.etapa_destino_id,
           campeonato_equipe_id: row.campeonato_equipe_id,
@@ -221,16 +262,65 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           etapa_origem_id: preview.rule.etapa_origem_id,
           posicao_origem: row.colocacao,
           status: preview.rule.tipo === 'promocao' ? 'promovida' : 'classificada',
-          observacao: `Progressão aplicada pela regra ${preview.rule.id}.`,
-        }, { onConflict: 'etapa_id,campeonato_equipe_id' })
+          observacao: `Progressão aplicada pela regra ${ruleId}.`,
+          regra_progressao_id: ruleId,
+          progressao_execucao_id: execution.id,
+        }
+        const { data: destinationLink, error: destinationError } = await supabaseAdmin.from('campeonato_etapa_equipes').upsert(payload, { onConflict: 'etapa_id,campeonato_equipe_id' }).select('id').single()
         if (destinationError) throw destinationError
-        const { error: sourceError } = await supabaseAdmin.from('campeonato_etapa_equipes').update({
-          status: preview.rule.tipo === 'promocao' ? 'promovida' : 'classificada',
-          posicao_origem: row.colocacao,
-        }).eq('etapa_id', preview.rule.etapa_origem_id).eq('campeonato_equipe_id', row.campeonato_equipe_id).eq('campeonato_id', campeonatoId)
+        const sourceStatusBefore = sourceLink?.status || null
+        const { error: sourceError } = await supabaseAdmin.from('campeonato_etapa_equipes').update({ status: payload.status, posicao_origem: row.colocacao }).eq('etapa_id', preview.rule.etapa_origem_id).eq('campeonato_equipe_id', row.campeonato_equipe_id).eq('campeonato_id', campeonatoId)
         if (sourceError) throw sourceError
+        const { error: itemError } = await supabaseAdmin.from('campeonato_progressao_execucao_itens').insert({
+          execucao_id: execution.id,
+          campeonato_equipe_id: row.campeonato_equipe_id,
+          vinculo_origem_id: sourceLink?.id || null,
+          vinculo_destino_id: destinationLink.id,
+          posicao_origem: row.colocacao,
+          status_origem_anterior: sourceStatusBefore,
+          destino_anterior: previousDestination,
+          resultado: row.conflict ? 'substituida' : 'incluida',
+        })
+        if (itemError) throw itemError
+        applied += 1
       }
-      return NextResponse.json({ ok: true, applied: candidates.length, preview: await buildProgressionPreview(campeonatoId, text(body?.rule_id)), ...(await loadStructure(campeonatoId)) })
+      const finalPreview = await buildProgressionPreview(campeonatoId, ruleId)
+      const { error: snapshotError } = await supabaseAdmin.from('campeonato_progressao_execucoes').update({ resultado_snapshot: finalPreview }).eq('id', execution.id)
+      if (snapshotError) throw snapshotError
+      return NextResponse.json({ ok: true, applied, execution_id: execution.id, preview: finalPreview, ...(await loadStructure(campeonatoId)) })
+    } else if (action === 'reverse_progression') {
+      const executionId = text(body?.execution_id)
+      const reason = nullableText(body?.reason, 500)
+      const { data: execution, error: executionError } = await supabaseAdmin.from('campeonato_progressao_execucoes').select('*').eq('id', executionId).eq('campeonato_id', campeonatoId).maybeSingle()
+      if (executionError) throw executionError
+      if (!execution || execution.status !== 'aplicada') throw new Error('Execução ativa não encontrada.')
+      const { data: items, error: itemsError } = await supabaseAdmin.from('campeonato_progressao_execucao_itens').select('*').eq('execucao_id', executionId)
+      if (itemsError) throw itemsError
+      for (const item of items || []) {
+        if (item.destino_anterior) {
+          const previous = item.destino_anterior as any
+          const { error } = await supabaseAdmin.from('campeonato_etapa_equipes').update({
+            tipo_origem: previous.tipo_origem,
+            etapa_origem_id: previous.etapa_origem_id,
+            posicao_origem: previous.posicao_origem,
+            status: previous.status,
+            observacao: previous.observacao,
+            regra_progressao_id: previous.regra_progressao_id || null,
+            progressao_execucao_id: previous.progressao_execucao_id || null,
+          }).eq('id', item.vinculo_destino_id).eq('campeonato_id', campeonatoId)
+          if (error) throw error
+        } else {
+          const { error } = await supabaseAdmin.from('campeonato_etapa_equipes').update({ status: 'retirada' }).eq('id', item.vinculo_destino_id).eq('progressao_execucao_id', executionId).eq('campeonato_id', campeonatoId)
+          if (error) throw error
+        }
+        if (item.vinculo_origem_id && item.status_origem_anterior) {
+          const { error } = await supabaseAdmin.from('campeonato_etapa_equipes').update({ status: item.status_origem_anterior }).eq('id', item.vinculo_origem_id).eq('campeonato_id', campeonatoId)
+          if (error) throw error
+        }
+      }
+      const { error: reverseError } = await supabaseAdmin.from('campeonato_progressao_execucoes').update({ status: 'revertida', revertida_por: user.id, revertida_em: new Date().toISOString(), motivo_reversao: reason }).eq('id', executionId).eq('status', 'aplicada')
+      if (reverseError) throw reverseError
+      return NextResponse.json({ ok: true, reversed: (items || []).length, ...(await loadStructure(campeonatoId)) })
     } else if (action === 'save_edition') {
       const franchiseName = text(body?.franchise_name)
       if (!franchiseName) throw new Error('Informe o nome histórico do campeonato.')
