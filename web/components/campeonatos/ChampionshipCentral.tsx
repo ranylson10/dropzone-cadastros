@@ -28,6 +28,8 @@ type ChoicePayload = {
   configs: Array<{ fase_id: string; aberta: boolean; permite_troca: boolean; abre_em?: string | null; fecha_em?: string | null }>
   groups: Array<{ id: string; nome: string; fase_id: string; slots?: number | null }>
   slots: Array<{ id: string; fase_id?: string | null; grupo_id: string; slot_numero: number; slot_letra?: string | null; status: string; equipe_id?: string | null; line_id?: string | null }>
+  blocks: Array<{ id: string; fase_id: string; grupo_id?: string | null; slot_id?: string | null; motivo?: string | null }>
+  server_time?: string
 }
 
 async function authHeaders() {
@@ -110,11 +112,12 @@ export function ChampionshipCentral() {
   const availableGroups = useMemo(() => {
     if (!choice) return []
     const openPhases = new Set(choice.configs.map((row) => String(row.fase_id)))
-    return choice.groups.filter((group) => openPhases.has(String(group.fase_id)))
+    const blockedGroups = new Set((choice.blocks || []).map((row) => String(row.grupo_id || '')).filter(Boolean))
+    return choice.groups.filter((group) => openPhases.has(String(group.fase_id)) && !blockedGroups.has(String(group.id)))
   }, [choice])
 
   const availableSlots = useMemo(() => (choice?.slots || []).filter((slot) =>
-    String(slot.grupo_id) === choiceForm.grupo_id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id,
+    String(slot.grupo_id) === choiceForm.grupo_id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id && !(choice?.blocks || []).some((row) => String(row.slot_id || '') === String(slot.id)),
   ), [choice, choiceForm.grupo_id])
 
   async function saveGroupChoice() {
@@ -175,7 +178,7 @@ export function ChampionshipCentral() {
               <label><span>Grupo</span><select value={choiceForm.grupo_id} onChange={(event) => setChoiceForm({ ...choiceForm, grupo_id: event.target.value, slot_id: '' })}><option value="">Escolha o grupo</option>{availableGroups.map((group) => { const free = choice.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} slot(s) livre(s)</option> })}</select></label>
               <label><span>Slot</span><select value={choiceForm.slot_id} onChange={(event) => setChoiceForm({ ...choiceForm, slot_id: event.target.value })} disabled={!choiceForm.grupo_id}><option value="">Escolha o slot</option>{availableSlots.map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</select></label>
               <button type="button" className="button" disabled={savingChoice || !choiceForm.campeonato_equipe_id || !choiceForm.grupo_id || !choiceForm.slot_id} onClick={() => void saveGroupChoice()}>{savingChoice ? <LoaderCircle className="spin" size={15} /> : null} Confirmar grupo e slot</button>
-            </div> : <div className="championship-choice-closed"><Clock3 size={18} /><div><strong>Escolha indisponível</strong><span>A administração ainda não abriu a escolha de grupos para sua fase.</span></div></div>}
+            </div> : <div className="championship-choice-closed"><Clock3 size={18} /><div><strong>Escolha indisponível</strong><span>A escolha ainda não abriu, o prazo terminou ou todas as opções foram bloqueadas pela administração.</span></div></div>}
           </> : <div className="championship-choice-closed"><Info size={18} /><div><strong>Nenhuma participação ativa</strong><span>Não encontramos uma equipe sua neste campeonato.</span></div></div>}
         </section>
       ) : null}

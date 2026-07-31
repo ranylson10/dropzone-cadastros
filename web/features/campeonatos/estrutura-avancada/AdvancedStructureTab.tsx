@@ -21,12 +21,13 @@ type Structure = {
   groups: Row[]
   slots: Row[]
   groupChoiceConfigs: Row[]
+  groupChoiceBlocks: Row[]
   groupChoiceHistory: Row[]
   progressionExecutions: Row[]
   progressionExecutionItems: Row[]
 }
 
-const empty: Structure = { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: [], teams: [], stageTeams: [], phases: [], groups: [], slots: [], groupChoiceConfigs: [], groupChoiceHistory: [], progressionExecutions: [], progressionExecutionItems: [] }
+const empty: Structure = { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: [], teams: [], stageTeams: [], phases: [], groups: [], slots: [], groupChoiceConfigs: [], groupChoiceBlocks: [], groupChoiceHistory: [], progressionExecutions: [], progressionExecutionItems: [] }
 
 export function AdvancedStructureTab({ campeonatoId, championshipType }: { campeonatoId: string; championshipType: string }) {
   const [data, setData] = useState<Structure>(empty)
@@ -45,6 +46,8 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [selectedProgressionRule, setSelectedProgressionRule] = useState('')
   const [replaceProgressionConflicts, setReplaceProgressionConflicts] = useState(false)
   const [groupAssignment, setGroupAssignment] = useState({ campeonato_equipe_id: '', group_id: '', slot_id: '' })
+  const [choiceSchedule, setChoiceSchedule] = useState<Record<string, { opens_at: string; closes_at: string }>>({})
+  const [choiceBlock, setChoiceBlock] = useState({ phase_id: '', group_id: '', slot_id: '', reason: '' })
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -244,7 +247,16 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           </div>
           <div>
             <h5>Escolha pelas equipes</h5>
-            <div className="advanced-choice-config-list">{data.phases.map((phase) => { const config = data.groupChoiceConfigs.find((row) => row.fase_id === phase.id); const groups = data.groups.filter((row) => row.fase_id === phase.id); if (!groups.length) return null; return <article key={phase.id}><div><b>{phase.nome}</b><small>{groups.length} grupo(s) disponíveis</small></div><label className="checkbox-row"><input type="checkbox" checked={Boolean(config?.aberta)} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: e.target.checked, allow_change: config?.permite_troca !== false })} /> Escolha aberta</label><label className="checkbox-row"><input type="checkbox" checked={config?.permite_troca !== false} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: Boolean(config?.aberta), allow_change: e.target.checked })} /> Permitir troca enquanto estiver aberta</label></article> })}</div>
+            <div className="advanced-choice-config-list">{data.phases.map((phase) => { const config = data.groupChoiceConfigs.find((row) => row.fase_id === phase.id); const groups = data.groups.filter((row) => row.fase_id === phase.id); if (!groups.length) return null; const draft = choiceSchedule[phase.id] || { opens_at: config?.abre_em ? String(config.abre_em).slice(0, 16) : '', closes_at: config?.fecha_em ? String(config.fecha_em).slice(0, 16) : '' }; return <article key={phase.id}><div><b>{phase.nome}</b><small>{groups.length} grupo(s) disponíveis</small></div><label className="checkbox-row"><input type="checkbox" checked={Boolean(config?.aberta)} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: e.target.checked, allow_change: config?.permite_troca !== false, opens_at: draft.opens_at, closes_at: draft.closes_at })} /> Escolha habilitada</label><label className="checkbox-row"><input type="checkbox" checked={config?.permite_troca !== false} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: Boolean(config?.aberta), allow_change: e.target.checked, opens_at: draft.opens_at, closes_at: draft.closes_at })} /> Permitir troca</label><div className="mini-grid two"><label><span>Abre em</span><input type="datetime-local" value={draft.opens_at} onChange={(e) => setChoiceSchedule({ ...choiceSchedule, [phase.id]: { ...draft, opens_at: e.target.value } })} /></label><label><span>Fecha em</span><input type="datetime-local" value={draft.closes_at} onChange={(e) => setChoiceSchedule({ ...choiceSchedule, [phase.id]: { ...draft, closes_at: e.target.value } })} /></label></div><button className="button secondary" onClick={() => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: Boolean(config?.aberta), allow_change: config?.permite_troca !== false, opens_at: draft.opens_at, closes_at: draft.closes_at })}>Salvar prazo</button></article> })}</div>
+          </div>
+          <div className="advanced-choice-blocks">
+            <h5>Bloqueios manuais</h5>
+            <label><span>Fase</span><select value={choiceBlock.phase_id} onChange={(e) => setChoiceBlock({ phase_id: e.target.value, group_id: '', slot_id: '', reason: choiceBlock.reason })}><option value="">Selecione</option>{data.phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</select></label>
+            <label><span>Grupo</span><select value={choiceBlock.group_id} onChange={(e) => setChoiceBlock({ ...choiceBlock, group_id: e.target.value, slot_id: '' })}><option value="">Nenhum</option>{data.groups.filter((group) => !choiceBlock.phase_id || group.fase_id === choiceBlock.phase_id).map((group) => <option key={group.id} value={group.id}>{group.nome}</option>)}</select></label>
+            <label><span>Slot</span><select value={choiceBlock.slot_id} onChange={(e) => setChoiceBlock({ ...choiceBlock, slot_id: e.target.value, group_id: '' })}><option value="">Nenhum</option>{data.slots.filter((slot) => !choiceBlock.phase_id || slot.fase_id === choiceBlock.phase_id).map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</select></label>
+            <label><span>Motivo</span><input value={choiceBlock.reason} onChange={(e) => setChoiceBlock({ ...choiceBlock, reason: e.target.value })} placeholder="Ex.: reservado para convidada" /></label>
+            <button className="button secondary" disabled={!choiceBlock.phase_id || (!choiceBlock.group_id && !choiceBlock.slot_id)} onClick={() => void act({ action: 'set_group_choice_block', ...choiceBlock })}>Bloquear opção</button>
+            <div className="advanced-chip-row">{data.groupChoiceBlocks.map((row) => { const group = data.groups.find((item) => item.id === row.grupo_id); const slot = data.slots.find((item) => item.id === row.slot_id); return <span className="advanced-chip" key={row.id}>{group?.nome || slot?.slot_letra || `Slot ${slot?.slot_numero || ''}`} {row.motivo ? `· ${row.motivo}` : ''}<button title="Remover bloqueio" onClick={() => void act({ action: 'remove_group_choice_block', block_id: row.id })}><Trash2 size={13} /></button></span> })}</div>
           </div>
         </div>
         {data.groupChoiceHistory.length ? <div className="advanced-choice-history"><h5>Últimas alterações</h5>{data.groupChoiceHistory.slice(0, 12).map((row) => { const team = data.teams.find((item) => item.id === row.campeonato_equipe_id); const group = data.groups.find((item) => item.id === row.grupo_novo_id); return <span key={row.id}><b>{team ? teamName(team) : 'Equipe'}</b> → {group?.nome || 'sem grupo'} <small>{row.origem}</small></span> })}</div> : null}

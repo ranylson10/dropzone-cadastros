@@ -47,6 +47,7 @@
     "sistema_denuncias": "service_role_only",
     "sistema_restricoes_conta": "service_role_only",
     "campeonato_grupo_escolha_configuracoes": "service_role_only",
-    "campeonato_grupo_escolha_historico": "service_role_only"
+    "campeonato_grupo_escolha_historico": "service_role_only",
+    "campeonato_grupo_escolha_bloqueios": "service_role_only"
   }
 }

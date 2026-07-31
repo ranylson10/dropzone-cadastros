@@ -24,17 +24,19 @@ async function ownedParticipations(userId: string, campeonatoId: string) {
 
 async function payload(userId: string, campeonatoId: string) {
   const participations = await ownedParticipations(userId, campeonatoId)
-  const [{ data: configs, error: configError }, { data: groups, error: groupsError }, { data: slots, error: slotsError }] = await Promise.all([
+  const [{ data: configs, error: configError }, { data: groups, error: groupsError }, { data: slots, error: slotsError }, { data: blocks, error: blocksError }] = await Promise.all([
     supabaseAdmin.from('campeonato_grupo_escolha_configuracoes').select('*').eq('campeonato_id', campeonatoId),
     supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id,slots').eq('campeonato_id', campeonatoId).order('nome'),
     supabaseAdmin.from('campeonato_slots').select('id,fase_id,grupo_id,slot_numero,slot_letra,status,equipe_id,line_id').eq('campeonato_id', campeonatoId).order('slot_numero'),
+    supabaseAdmin.from('campeonato_grupo_escolha_bloqueios').select('id,fase_id,grupo_id,slot_id,motivo').eq('campeonato_id', campeonatoId).eq('ativo', true),
   ])
   if (configError) throw configError
   if (groupsError) throw groupsError
   if (slotsError) throw slotsError
+  if (blocksError) throw blocksError
   const now = Date.now()
   const availableConfigs = (configs || []).filter((row) => row.aberta && (!row.abre_em || new Date(row.abre_em).getTime() <= now) && (!row.fecha_em || new Date(row.fecha_em).getTime() >= now))
-  return { participations, configs: availableConfigs, groups: groups || [], slots: slots || [] }
+  return { participations, configs: availableConfigs, groups: groups || [], slots: slots || [], blocks: blocks || [], server_time: new Date().toISOString() }
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -69,6 +71,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (configError) throw configError
     const now = Date.now()
     if (!config?.aberta || (config.abre_em && new Date(config.abre_em).getTime() > now) || (config.fecha_em && new Date(config.fecha_em).getTime() < now)) throw new Error('A escolha de grupos não está aberta para esta fase.')
+    const { data: blockRows, error: blockError } = await supabaseAdmin.from('campeonato_grupo_escolha_bloqueios').select('grupo_id,slot_id,motivo').eq('campeonato_id', campeonatoId).eq('fase_id', group.fase_id).eq('ativo', true)
+    if (blockError) throw blockError
+    const groupBlock = (blockRows || []).find((row) => String(row.grupo_id || '') === groupId)
+    if (groupBlock) throw new Error(groupBlock.motivo ? `Grupo bloqueado: ${groupBlock.motivo}` : 'Este grupo está bloqueado pela administração.')
+    const slotBlock = (blockRows || []).find((row) => String(row.slot_id || '') === slotId)
+    if (slotBlock) throw new Error(slotBlock.motivo ? `Slot bloqueado: ${slotBlock.motivo}` : 'Este slot está bloqueado pela administração.')
     if (participation.grupo_id && !config.permite_troca) throw new Error('A troca de grupo está bloqueada nesta fase.')
 
     const { data: chosenSlot, error: slotError } = await supabaseAdmin.from('campeonato_slots').select('*').eq('id', slotId).eq('campeonato_id', campeonatoId).eq('grupo_id', groupId).eq('status', 'livre').is('equipe_id', null).is('line_id', null).maybeSingle()

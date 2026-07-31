@@ -13,6 +13,7 @@ const MUTABLE_TABLES = new Set([
   'campeonato_diario_horarios',
   'campeonato_etapa_equipes',
   'campeonato_grupo_escolha_configuracoes',
+  'campeonato_grupo_escolha_bloqueios',
 ])
 
 function text(value: unknown, max = 180) {
@@ -53,10 +54,10 @@ async function loadStructure(campeonatoId: string) {
     ])
     if (dailyError) throw dailyError
     if (teamsError) throw teamsError
-    return { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: dailyHours || [], teams: teams || [], stageTeams: [], phases: [], groups: [], slots: [], groupChoiceConfigs: [], groupChoiceHistory: [], progressionExecutions: [], progressionExecutionItems: [] }
+    return { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: dailyHours || [], teams: teams || [], stageTeams: [], phases: [], groups: [], slots: [], groupChoiceConfigs: [], groupChoiceBlocks: [], groupChoiceHistory: [], progressionExecutions: [], progressionExecutionItems: [] }
   }
 
-  const [{ data: franchise, error: franchiseError }, divisionsResult, stagesResult, dailyResult, teamsResult, phasesResult, groupsResult, slotsResult, choiceConfigResult, choiceHistoryResult] = await Promise.all([
+  const [{ data: franchise, error: franchiseError }, divisionsResult, stagesResult, dailyResult, teamsResult, phasesResult, groupsResult, slotsResult, choiceConfigResult, choiceBlocksResult, choiceHistoryResult] = await Promise.all([
     supabaseAdmin.from('campeonato_franquias').select('*').eq('id', edition.franquia_id).maybeSingle(),
     supabaseAdmin.from('campeonato_divisoes').select('*').eq('edicao_id', edition.id).order('ordem'),
     supabaseAdmin.from('campeonato_etapas').select('*').eq('edicao_id', edition.id).order('ordem'),
@@ -66,6 +67,7 @@ async function loadStructure(campeonatoId: string) {
     supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id,slots,diario_horario_id').eq('campeonato_id', campeonatoId).order('nome'),
     supabaseAdmin.from('campeonato_slots').select('id,fase_id,grupo_id,slot_numero,slot_letra,status,equipe_id,line_id').eq('campeonato_id', campeonatoId).order('slot_numero'),
     supabaseAdmin.from('campeonato_grupo_escolha_configuracoes').select('*').eq('campeonato_id', campeonatoId),
+    supabaseAdmin.from('campeonato_grupo_escolha_bloqueios').select('*').eq('campeonato_id', campeonatoId).eq('ativo', true).order('created_at', { ascending: false }),
     supabaseAdmin.from('campeonato_grupo_escolha_historico').select('*').eq('campeonato_id', campeonatoId).order('created_at', { ascending: false }).limit(100),
   ])
   if (franchiseError) throw franchiseError
@@ -77,6 +79,7 @@ async function loadStructure(campeonatoId: string) {
   if (groupsResult.error) throw groupsResult.error
   if (slotsResult.error) throw slotsResult.error
   if (choiceConfigResult.error) throw choiceConfigResult.error
+  if (choiceBlocksResult.error) throw choiceBlocksResult.error
   if (choiceHistoryResult.error) throw choiceHistoryResult.error
 
   const stageIds = (stagesResult.data || []).map((row) => String(row.id))
@@ -127,6 +130,7 @@ async function loadStructure(campeonatoId: string) {
     groups: groupsResult.data || [],
     slots: slotsResult.data || [],
     groupChoiceConfigs: choiceConfigResult.data || [],
+    groupChoiceBlocks: choiceBlocksResult.data || [],
     groupChoiceHistory: choiceHistoryResult.data || [],
     progressionExecutions,
     progressionExecutionItems,
@@ -447,6 +451,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         atualizado_por: user.id,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'fase_id' })
+      if (error) throw error
+    } else if (action === 'set_group_choice_block') {
+      const phaseId = text(body?.phase_id)
+      const groupId = nullableText(body?.group_id, 80)
+      const slotId = nullableText(body?.slot_id, 80)
+      if (!phaseId || (!!groupId === !!slotId)) throw new Error('Informe uma fase e apenas um grupo ou slot.')
+      const { error } = await supabaseAdmin.from('campeonato_grupo_escolha_bloqueios').insert({
+        campeonato_id: campeonatoId,
+        fase_id: phaseId,
+        grupo_id: groupId,
+        slot_id: slotId,
+        motivo: nullableText(body?.reason, 300),
+        criado_por: user.id,
+      })
+      if (error) throw error
+    } else if (action === 'remove_group_choice_block') {
+      const blockId = text(body?.block_id)
+      if (!blockId) throw new Error('Bloqueio não informado.')
+      const { error } = await supabaseAdmin.from('campeonato_grupo_escolha_bloqueios').update({ ativo: false, removido_por: user.id, removed_at: new Date().toISOString() }).eq('id', blockId).eq('campeonato_id', campeonatoId).eq('ativo', true)
       if (error) throw error
     } else if (action === 'assign_group_manual') {
       const participationId = text(body?.campeonato_equipe_id)
