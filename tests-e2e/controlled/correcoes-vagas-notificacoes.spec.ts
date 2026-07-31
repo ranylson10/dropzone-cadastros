@@ -39,6 +39,8 @@ test.describe('Correções operacionais — vagas e notificações', () => {
     const summary = await request.get(`${origin}/api/central-campeonato?campeonato_id=${encodeURIComponent(firstId)}`, { headers: authorization })
     expect(summary.ok()).toBe(true)
     const body = await summary.json()
+    expect(body?.cards?.vagas?.fonte).toBe('campeonato_configuracoes.numero_vagas')
+    expect(Number(body?.cards?.vagas?.slots_estruturados || 0)).toBeGreaterThanOrEqual(0)
     expect(Number(body?.cards?.vagas?.total || 0)).toBeGreaterThanOrEqual(Number(body?.cards?.vagas?.ocupadas || 0))
     expect(Number(body?.cards?.vagas?.disponiveis || 0)).toBe(
       Number(body?.cards?.vagas?.total || 0) - Number(body?.cards?.vagas?.ocupadas || 0),

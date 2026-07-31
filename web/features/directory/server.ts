@@ -158,12 +158,26 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
       cor_texto_clara: cfg.cor_texto_clara || null,
       cor_texto_escura: cfg.cor_texto_escura || null,
     }
-    const freeSlots = slots.filter(
+    const champPhasesForCapacity = phases
+      .filter((row: any) => row.campeonato_id === id)
+      .sort((a: any, b: any) => Number(a.ordem || 0) - Number(b.ordem || 0))
+    const entryOrder = champPhasesForCapacity.length ? Number(champPhasesForCapacity[0].ordem || 0) : null
+    const entryPhaseIds = new Set(
+      entryOrder == null
+        ? []
+        : champPhasesForCapacity
+            .filter((row: any) => Number(row.ordem || 0) === entryOrder)
+            .map((row: any) => String(row.id)),
+    )
+    const entrySlots = slots.filter(
       (row: any) =>
         row.campeonato_id === id
-        && !row.equipe_id
-        && String(row.status || '') !== 'excluido',
-    ).length
+        && String(row.status || '') !== 'excluido'
+        && (entryPhaseIds.size === 0 || !row.fase_id || entryPhaseIds.has(String(row.fase_id))),
+    )
+    const occupiedSlots = entrySlots.filter((row: any) => Boolean(row.equipe_id || row.line_id)).length
+    const officialTotal = Math.max(0, Math.floor(Number(cfg.numero_vagas || 0)))
+    const freeSlots = Math.max(0, officialTotal - occupiedSlots)
     enrollment = {
       aceita_novas_inscricoes: Boolean(cfg.aceita_novas_inscricoes_equipes),
       valor_inscricao:

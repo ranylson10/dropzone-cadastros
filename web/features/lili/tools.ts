@@ -38,7 +38,7 @@ export async function listOpenChampionships(searchTerm?: string) {
   const [{ data: configs }, { data: slots }, { data: phases }, { data: purchases }] = await Promise.all([
     supabaseAdmin
       .from('campeonato_configuracoes')
-      .select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,tem_live,tem_trofeu,premiacao,jogadores_por_vaga,vagas_por_equipe,permite_troca_jogadores,contatos_whatsapp,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,pagamento_whatsapp_ativo,cartao_max_parcelas,paypal_moedas')
+      .select('campeonato_id,numero_vagas,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,tem_live,tem_trofeu,premiacao,jogadores_por_vaga,vagas_por_equipe,permite_troca_jogadores,contatos_whatsapp,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,pagamento_whatsapp_ativo,cartao_max_parcelas,paypal_moedas')
       .in('campeonato_id', ids)
       .eq('aceita_novas_inscricoes_equipes', true),
     supabaseAdmin
@@ -94,7 +94,10 @@ export async function listOpenChampionships(searchTerm?: string) {
       }
       return purchase.status === 'pago' || purchase.status === 'liberado'
     }).length
-    const free = Math.max(0, physicalFree - commercialReservations)
+    const officialTotal = Math.max(0, Math.floor(Number(config.numero_vagas || 0)))
+    const occupied = champSlots.filter((slot: any) => Boolean(slot.equipe_id || slot.line_id)).length
+    const officialFree = Math.max(0, officialTotal - occupied)
+    const free = Math.max(0, officialFree - commercialReservations)
     if (free <= 0) return []
     return [{
       ...championship,
@@ -103,6 +106,7 @@ export async function listOpenChampionships(searchTerm?: string) {
       vagas_fisicamente_livres: physicalFree,
       vagas_em_compra: commercialReservations,
       total_slots: champSlots.length,
+      total_vagas: officialTotal,
       price_mode: liliPriceMode(config.valor_inscricao),
     }]
   })
@@ -570,7 +574,7 @@ export async function getChampionshipDetails(championshipId: string) {
   const [{ data: config }, { data: slots }, { data: phases }, { data: purchases }] = await Promise.all([
     supabaseAdmin
       .from('campeonato_configuracoes')
-      .select('valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,tem_live,tem_trofeu,premiacao,jogadores_por_vaga,vagas_por_equipe,permite_troca_jogadores,data_limite_trocas,contatos_whatsapp,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,pagamento_whatsapp_ativo,cartao_max_parcelas,paypal_moedas')
+      .select('numero_vagas,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,tem_live,tem_trofeu,premiacao,jogadores_por_vaga,vagas_por_equipe,permite_troca_jogadores,data_limite_trocas,contatos_whatsapp,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,pagamento_whatsapp_ativo,cartao_max_parcelas,paypal_moedas')
       .eq('campeonato_id', championshipId)
       .maybeSingle(),
     supabaseAdmin
@@ -610,7 +614,10 @@ export async function getChampionshipDetails(championshipId: string) {
     }
     return purchase.status === 'pago' || purchase.status === 'liberado'
   }).length
-  const vagasLivres = Math.max(0, physicalFree - commercialReservations)
+  const officialTotal = Math.max(0, Math.floor(Number(config?.numero_vagas || 0)))
+  const occupied = entrySlots.filter((slot: any) => Boolean(slot.equipe_id || slot.line_id)).length
+  const officialFree = Math.max(0, officialTotal - occupied)
+  const vagasLivres = Math.max(0, officialFree - commercialReservations)
   return {
     ...championship,
     ...(config || {}),
@@ -620,6 +627,7 @@ export async function getChampionshipDetails(championshipId: string) {
     vagas_fisicamente_livres: physicalFree,
     vagas_em_compra: commercialReservations,
     total_slots: entrySlots.length,
+    total_vagas: officialTotal,
     price_mode: liliPriceMode(config?.valor_inscricao),
     prazo_aberto: liliRegistrationDeadlineOpen(config?.data_limite_inscricao),
   }

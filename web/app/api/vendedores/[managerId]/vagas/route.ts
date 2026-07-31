@@ -78,7 +78,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
     }
     if (!campeonatoIds.length) return NextResponse.json({ manager: publicManager, announcements: [] })
 
-    const [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult] = await Promise.all([
+    const [championsResult, configsResult, phasesResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, purchasesResult] = await Promise.all([
       supabaseAdmin
         .from('campeonatos')
         .select('id,nome,tipo,logo_url,banner_url,status,aprovacao_status')
@@ -86,13 +86,15 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
         .eq('status', 'ativo')
         .eq('aprovacao_status', 'aprovado')
         .is('deleted_at', null),
-      supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').in('campeonato_id', campeonatoIds).eq('aceita_novas_inscricoes_equipes', true),
+      supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,numero_vagas,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').in('campeonato_id', campeonatoIds).eq('aceita_novas_inscricoes_equipes', true),
+      supabaseAdmin.from('campeonato_fases').select('id,campeonato_id,ordem').in('campeonato_id', campeonatoIds),
       supabaseAdmin.from('campeonato_grupos').select('id,campeonato_id,nome,fase_id').in('campeonato_id', campeonatoIds),
-      supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,equipe_id,status,slot_numero').in('campeonato_id', campeonatoIds),
+      supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,fase_id,equipe_id,line_id,status,slot_numero').in('campeonato_id', campeonatoIds),
       supabaseAdmin.from('campeonato_jogos').select('id,campeonato_id,nome,data_jogo,horario,grupos_ids,status').in('campeonato_id', campeonatoIds).eq('status', 'ativo'),
       supabaseAdmin.from('campeonato_jogos_grupos').select('jogo_id,grupo_id'),
+      supabaseAdmin.from('sistema_compras_vaga').select('campeonato_id,status,expira_em').in('campeonato_id', campeonatoIds).in('status', ['pendente', 'pago', 'liberado']),
     ])
-    for (const result of [championsResult, configsResult, groupsResult, slotsResult, gamesResult, gameGroupsResult]) if (result.error) throw result.error
+    for (const result of [championsResult, configsResult, phasesResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, purchasesResult]) if (result.error) throw result.error
 
     const configs = new Map((configsResult.data || []).map((row: any) => [row.campeonato_id, row]))
     const sellerByChampionship = new Map(links.map((row: any) => [row.campeonato_id, row]))
@@ -105,10 +107,20 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
       const seller = sellerByChampionship.get(champ.id) || {}
       if (!config || !champ.banner_url) return []
 
-      const groups = (groupsResult.data || []).filter((group: any) => group.campeonato_id === champ.id)
+      const phases = (phasesResult.data || []).filter((phase: any) => phase.campeonato_id === champ.id)
+      const minOrder = phases.length ? Math.min(...phases.map((phase: any) => Number(phase.ordem || 0))) : null
+      const entryIds = new Set(minOrder == null ? [] : phases.filter((phase: any) => Number(phase.ordem || 0) === minOrder).map((phase: any) => String(phase.id)))
+      const groups = (groupsResult.data || []).filter((group: any) => group.campeonato_id === champ.id && (entryIds.size === 0 || !group.fase_id || entryIds.has(String(group.fase_id))))
+      const entrySlots = (slotsResult.data || []).filter((slot: any) => slot.campeonato_id === champ.id && slot.status !== 'excluido' && (entryIds.size === 0 || !slot.fase_id || entryIds.has(String(slot.fase_id))))
+      const occupied = entrySlots.filter((slot: any) => Boolean(slot.equipe_id || slot.line_id)).length
+      const officialTotal = Math.max(0, Math.floor(Number(config.numero_vagas || 0)))
+      const now = Date.now()
+      const commercialReservations = (purchasesResult.data || []).filter((purchase: any) => purchase.campeonato_id === champ.id && (purchase.status !== 'pendente' || !purchase.expira_em || new Date(purchase.expira_em).getTime() > now)).length
+      const officialFree = Math.max(0, officialTotal - occupied - commercialReservations)
+      if (officialFree <= 0) return []
       const openGroups = groups.map((group: any) => {
-        const slots = (slotsResult.data || []).filter((slot: any) => slot.grupo_id === group.id && slot.status !== 'excluido')
-        const free = slots.filter((slot: any) => !slot.equipe_id).length
+        const slots = entrySlots.filter((slot: any) => slot.grupo_id === group.id)
+        const free = slots.filter((slot: any) => !slot.equipe_id && !slot.line_id).length
         if (!free) return null
         const nextGames = (gamesResult.data || []).filter((game: any) => game.campeonato_id === champ.id && game.data_jogo >= today && ([...(game.grupos_ids || []), ...(gameGroupMap.get(game.id) || [])].includes(group.id))).sort((a: any, b: any) => `${a.data_jogo} ${a.horario || ''}`.localeCompare(`${b.data_jogo} ${b.horario || ''}`))
         return { id: group.id, nome: group.nome, vagas_livres: free, total_slots: slots.length, proximo_jogo: nextGames[0] || null }
@@ -148,7 +160,10 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
         data_limite_inscricao: config.data_limite_inscricao,
         contatos_whatsapp: contact.url ? [contact] : [],
         grupos: openGroups,
-        vagas_livres: openGroups.reduce((sum: number, group: any) => sum + group.vagas_livres, 0),
+        vagas_livres: officialFree,
+        total_vagas: officialTotal,
+        vagas_estruturadas_livres: openGroups.reduce((sum: number, group: any) => sum + group.vagas_livres, 0),
+        vagas_em_compra: commercialReservations,
         proxima_data: next.proximo_jogo?.data_jogo || null,
         proximo_horario: next.proximo_jogo?.horario || null,
         proximo_grupo: next.nome,

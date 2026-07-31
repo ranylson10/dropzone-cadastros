@@ -136,8 +136,8 @@ async function championshipSummary(userId: string, campeonatoId: string) {
 
   if (rulebook.error && !missingRelation(rulebook.error)) throw rulebook.error
 
-  const vagasTotais = Number(capacidade.limite_vagas ?? capacidade.slots_criados ?? 0)
-  const vagasOcupadas = Math.min(vagasTotais || capacidade.slots_ocupados, capacidade.slots_ocupados)
+  const vagasTotais = Number(capacidade.limite_vagas || 0)
+  const vagasOcupadas = Math.min(vagasTotais, capacidade.slots_ocupados)
   const vagasDisponiveis = Math.max(0, vagasTotais - vagasOcupadas)
   const jogosSemQuedas = Math.max(0, jogos - quedas)
   const resultadosPendentes = Math.max(0, quedas - resultados)
@@ -146,7 +146,15 @@ async function championshipSummary(userId: string, campeonatoId: string) {
     campeonato,
     permission: permissionPublicPayload(permission),
     cards: {
-      vagas: { total: vagasTotais, ocupadas: vagasOcupadas, disponiveis: vagasDisponiveis },
+      vagas: {
+        total: vagasTotais,
+        ocupadas: vagasOcupadas,
+        disponiveis: vagasDisponiveis,
+        fonte: 'campeonato_configuracoes.numero_vagas',
+        slots_estruturados: capacidade.slots_criados,
+        slots_livres_estrutura: capacidade.slots_livres_estrutura,
+        slots_ainda_necessarios: capacidade.slots_ainda_podem_ser_criados,
+      },
       equipes: { confirmadas: equipes },
       escalacoes: { incompletas: 0, status: 'aguardando_integracao' },
       grupos: { total: grupos, incompletos: 0 },
