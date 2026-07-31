@@ -36,6 +36,8 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [prize, setPrize] = useState({ stage_id: '', prize_type: 'colocacao', position: '1', title: '', value: '' })
   const [daily, setDaily] = useState({ hour: '', display_name: '', capacity: '', vacancy_value: '', prize_description: '', prize_value: '', map: '', drops: '1' })
   const [assignment, setAssignment] = useState({ stage_id: '', campeonato_equipe_id: '', source_type: 'manual', source_stage_id: '', source_position: '' })
+  const [progressionPreview, setProgressionPreview] = useState<Row | null>(null)
+  const [selectedProgressionRule, setSelectedProgressionRule] = useState('')
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -68,6 +70,33 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   }, [request])
 
   useEffect(() => { void load() }, [load])
+
+  async function previewProgression(ruleId: string) {
+    if (!ruleId) return
+    setBusy(true)
+    setMessage('')
+    try {
+      const response = await request('POST', { action: 'preview_progression', rule_id: ruleId }) as any
+      setProgressionPreview(response.preview || null)
+    } catch (error) {
+      setProgressionPreview(null)
+      setMessage(error instanceof Error ? error.message : 'Falha ao gerar prévia.')
+    } finally { setBusy(false) }
+  }
+
+  async function applyProgression() {
+    if (!selectedProgressionRule) return
+    setBusy(true)
+    setMessage('')
+    try {
+      const response = await request('POST', { action: 'apply_progression', rule_id: selectedProgressionRule }) as any
+      setData(response)
+      setProgressionPreview(response.preview || null)
+      setMessage(`${Number(response.applied || 0)} equipe(s) promovida(s).`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Falha ao aplicar progressão.')
+    } finally { setBusy(false) }
+  }
 
   async function act(body: Row) {
     setBusy(true)
@@ -178,6 +207,20 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           return <article key={row.id} className="advanced-operation-stage"><div className="advanced-operation-stage-head"><div><b>{row.nome}</b><small>{linked.length}/{capacity || '∞'} ocupadas · {Math.max(0, capacity - linked.length) || (capacity ? 0 : '∞')} disponíveis</small></div></div><div className="advanced-assignment-list">{linked.length ? linked.map((link) => { const team = data.teams.find((item) => item.id === link.campeonato_equipe_id); return <span key={link.id}>{team ? teamName(team) : 'Equipe'}<small>{link.tipo_origem}</small><button title="Retirar da etapa" onClick={() => void act({ action: 'remove_team', stage_team_id: link.id })}><Trash2 size={12} /></button></span> }) : <small>Nenhuma equipe vinculada.</small>}</div></article>
         })}</div>
         {data.phases.length ? <div className="advanced-link-list"><h5>Vincular fases existentes</h5>{data.phases.map((phase) => <label key={phase.id}><span>{phase.nome}</span><select value={phase.etapa_id || ''} onChange={(e) => void act({ action: 'link_phase', phase_id: phase.id, stage_id: e.target.value })}><option value="">Sem etapa</option>{data.stages.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>)}</div> : null}
+      </section> : null}
+
+      {data.progressions.length ? <section className="advanced-card">
+        <h4>Progressão automática</h4>
+        <p className="advanced-help">Gere uma prévia usando a classificação da fase vinculada à etapa de origem. A aplicação é idempotente e respeita a capacidade do destino.</p>
+        <div className="mini-grid two">
+          <label><span>Regra</span><select value={selectedProgressionRule} onChange={(e) => { setSelectedProgressionRule(e.target.value); setProgressionPreview(null) }}><option value="">Selecione</option>{data.progressions.filter((row) => row.etapa_destino_id).map((row) => { const sourceStage = data.stages.find((stageRow) => stageRow.id === row.etapa_origem_id); const destinationStage = data.stages.find((stageRow) => stageRow.id === row.etapa_destino_id); return <option key={row.id} value={row.id}>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'} · {row.posicao_inicio || 1}º a {row.posicao_fim || row.quantidade || '?' }º</option> })}</select></label>
+          <div className="advanced-progression-actions"><button className="button secondary" disabled={!selectedProgressionRule || busy} onClick={() => void previewProgression(selectedProgressionRule)}>Gerar prévia</button>{progressionPreview ? <button className="button" disabled={busy || !progressionPreview.summary?.canApply || !progressionPreview.summary?.newCount} onClick={() => void applyProgression()}>Aplicar progressão</button> : null}</div>
+        </div>
+        {progressionPreview ? <div className="advanced-progression-preview">
+          <div className="advanced-progression-summary"><span><b>{progressionPreview.summary?.selected || 0}</b> selecionadas</span><span><b>{progressionPreview.summary?.newCount || 0}</b> novas</span><span><b>{progressionPreview.summary?.alreadyApplied || 0}</b> já aplicadas</span><span><b>{progressionPreview.summary?.available ?? '∞'}</b> vagas disponíveis</span></div>
+          {!progressionPreview.summary?.canApply ? <div className="message">A etapa de destino não possui vagas suficientes.</div> : null}
+          <div className="advanced-progression-list">{(progressionPreview.candidates || []).map((row: Row) => <article key={row.campeonato_equipe_id}><b>{row.colocacao}º · {row.tag ? `${row.tag} — ` : ''}{row.nome}</b><small>{row.pontos_total || 0} pontos · {row.booyahs || 0} booyah(s) · {row.abates || 0} abates</small><span>{row.alreadyApplied ? 'Já aplicada' : 'Pronta para aplicar'}</span></article>)}</div>
+        </div> : null}
       </section> : null}
 
       {championshipType === 'diario' ? <section className="advanced-card">

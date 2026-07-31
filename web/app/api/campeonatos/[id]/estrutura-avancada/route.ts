@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission, permissionPublicPayload } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { listarEstatisticasEquipes } from '@backend/campeonatos/estatisticas/estatisticas.service'
 
 const MUTABLE_TABLES = new Set([
   'campeonato_divisoes',
@@ -109,6 +110,58 @@ async function loadStructure(campeonatoId: string) {
   }
 }
 
+async function buildProgressionPreview(campeonatoId: string, ruleId: string) {
+  const { data: rule, error: ruleError } = await supabaseAdmin
+    .from('campeonato_progressao_regras')
+    .select('*')
+    .eq('id', ruleId)
+    .maybeSingle()
+  if (ruleError) throw ruleError
+  if (!rule) throw new Error('Regra de progressão não encontrada.')
+  if (!rule.etapa_destino_id) throw new Error('A regra não possui etapa de destino.')
+  const [{ data: sourceStage, error: sourceStageError }, { data: destinationStage, error: destinationStageError }] = await Promise.all([
+    supabaseAdmin.from('campeonato_etapas').select('id,nome,capacidade_total,campeonato_edicoes!inner(campeonato_id)').eq('id', rule.etapa_origem_id).maybeSingle(),
+    supabaseAdmin.from('campeonato_etapas').select('id,nome,capacidade_total,campeonato_edicoes!inner(campeonato_id)').eq('id', rule.etapa_destino_id).maybeSingle(),
+  ])
+  if (sourceStageError) throw sourceStageError
+  if (destinationStageError) throw destinationStageError
+  const sourceChampionship = String((sourceStage as any)?.campeonato_edicoes?.campeonato_id || '')
+  const destinationChampionship = String((destinationStage as any)?.campeonato_edicoes?.campeonato_id || '')
+  if (!sourceStage || !destinationStage || sourceChampionship !== campeonatoId || destinationChampionship !== campeonatoId) throw new Error('Regra inválida para este campeonato.')
+
+  const { data: phases, error: phasesError } = await supabaseAdmin
+    .from('campeonato_fases')
+    .select('id,nome,ordem')
+    .eq('campeonato_id', campeonatoId)
+    .eq('etapa_id', rule.etapa_origem_id)
+    .order('ordem', { ascending: false })
+  if (phasesError) throw phasesError
+  const phase = phases?.[0] || null
+  if (!phase) throw new Error('Vincule uma fase com resultados à etapa de origem.')
+
+  const ranking = await listarEstatisticasEquipes(campeonatoId, { faseId: String(phase.id) })
+  const start = Number(rule.posicao_inicio || 1)
+  const endFromQuantity = rule.quantidade ? start + Number(rule.quantidade) - 1 : null
+  const end = Number(rule.posicao_fim || endFromQuantity || start)
+  const selected = ranking.filter((row: any) => Number(row.colocacao) >= start && Number(row.colocacao) <= end)
+
+  const { data: destinationLinks, error: destinationError } = await supabaseAdmin
+    .from('campeonato_etapa_equipes')
+    .select('campeonato_equipe_id,status')
+    .eq('etapa_id', rule.etapa_destino_id)
+    .neq('status', 'retirada')
+  if (destinationError) throw destinationError
+  const existingIds = new Set((destinationLinks || []).map((row: any) => String(row.campeonato_equipe_id)))
+  const capacity = Number(destinationStage.capacidade_total || 0)
+  const available = capacity ? Math.max(0, capacity - (destinationLinks || []).length) : Number.POSITIVE_INFINITY
+  const candidates = selected.map((row: any) => ({ ...row, alreadyApplied: existingIds.has(String(row.campeonato_equipe_id)) }))
+  const newCount = candidates.filter((row: any) => !row.alreadyApplied).length
+  return {
+    rule: { ...rule, origem: sourceStage, destino: destinationStage }, phase, candidates,
+    summary: { selected: candidates.length, newCount, alreadyApplied: candidates.length - newCount, capacity: capacity || null, occupied: (destinationLinks || []).length, available: Number.isFinite(available) ? available : null, canApply: newCount <= available },
+  }
+}
+
 async function context(request: NextRequest, campeonatoId: string) {
   const authorization = request.headers.get('authorization') || ''
   if (!authorization.startsWith('Bearer ') || !authorization.slice(7).trim()) {
@@ -152,7 +205,33 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json()
     const action = text(body?.action, 60)
 
-    if (action === 'save_edition') {
+    if (action === 'preview_progression') {
+      const preview = await buildProgressionPreview(campeonatoId, text(body?.rule_id))
+      return NextResponse.json({ ok: true, preview })
+    } else if (action === 'apply_progression') {
+      const preview = await buildProgressionPreview(campeonatoId, text(body?.rule_id))
+      if (!preview.summary.canApply) throw new Error('A etapa de destino não possui vagas suficientes para aplicar esta progressão.')
+      const candidates = preview.candidates.filter((row: any) => !row.alreadyApplied)
+      for (const row of candidates) {
+        const { error: destinationError } = await supabaseAdmin.from('campeonato_etapa_equipes').upsert({
+          campeonato_id: campeonatoId,
+          etapa_id: preview.rule.etapa_destino_id,
+          campeonato_equipe_id: row.campeonato_equipe_id,
+          tipo_origem: preview.rule.tipo === 'promocao' ? 'promocao' : 'outra_etapa',
+          etapa_origem_id: preview.rule.etapa_origem_id,
+          posicao_origem: row.colocacao,
+          status: preview.rule.tipo === 'promocao' ? 'promovida' : 'classificada',
+          observacao: `Progressão aplicada pela regra ${preview.rule.id}.`,
+        }, { onConflict: 'etapa_id,campeonato_equipe_id' })
+        if (destinationError) throw destinationError
+        const { error: sourceError } = await supabaseAdmin.from('campeonato_etapa_equipes').update({
+          status: preview.rule.tipo === 'promocao' ? 'promovida' : 'classificada',
+          posicao_origem: row.colocacao,
+        }).eq('etapa_id', preview.rule.etapa_origem_id).eq('campeonato_equipe_id', row.campeonato_equipe_id).eq('campeonato_id', campeonatoId)
+        if (sourceError) throw sourceError
+      }
+      return NextResponse.json({ ok: true, applied: candidates.length, preview: await buildProgressionPreview(campeonatoId, text(body?.rule_id)), ...(await loadStructure(campeonatoId)) })
+    } else if (action === 'save_edition') {
       const franchiseName = text(body?.franchise_name)
       if (!franchiseName) throw new Error('Informe o nome histórico do campeonato.')
       let franchiseId = text(body?.franchise_id)
