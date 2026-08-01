@@ -218,6 +218,41 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
       const approvalBody = await json(approval)
       expect(approval.ok(), `Falha ao aprovar campeonato: ${approvalBody?.error || approval.status()}`).toBeTruthy()
 
+      // Garante explicitamente a configuração comercial usada pelo catálogo.
+      // A criação do campeonato já deveria persistir essa linha, mas o teste
+      // não pode seguir com uma fixture incompleta e produzir falso negativo.
+      const configurationResponse = await request.patch(`${origin}/api/dropzone`, {
+        headers: headers(produtoraToken, 'produtora'),
+        data: {
+          entity_type: 'championship',
+          id: championshipId,
+          data: {
+            nome: championshipName,
+            tipo: 'copa',
+            logo_url: `${origin}/favicon.ico`,
+            banner_url: `${origin}/favicon.ico`,
+            numero_vagas: 4,
+            formato: 'Mata-mata',
+            plataforma: 'mobile',
+            servidor: 'BR',
+            valor_inscricao: 10,
+            aceita_novas_inscricoes_equipes: true,
+            recurso_export: false,
+            recurso_stream: false,
+            recurso_rulebook: false,
+            recurso_stats: false,
+            recurso_broadcast: false,
+          },
+        },
+      })
+      const configurationBody = await json(configurationResponse)
+      expect(
+        configurationResponse.ok(),
+        `Falha ao consolidar configuração comercial: ${configurationBody?.error || configurationResponse.status()}`,
+      ).toBeTruthy()
+      expect(configurationBody?.row?.data?.aceita_novas_inscricoes_equipes).toBe(true)
+      expect(Number(configurationBody?.row?.data?.numero_vagas || 0)).toBe(4)
+
       const phase = await createEntity(request, origin, produtoraToken, {
         entity_type: 'phase',
         parent_id: championshipId,
