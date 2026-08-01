@@ -10615,3 +10615,77 @@ input::placeholder, textarea::placeholder {
   .championship-review-grid { grid-template-columns: 1fr; }
   .structure-workspace-toggle { align-items: flex-start; }
 }
+
+/* Rodada 87B — origem guiada do campeonato */
+.championship-origin-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.championship-origin-option,
+.championship-source-item {
+  border: 1px solid var(--line, #d8dee8);
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: left;
+  display: grid;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.championship-origin-option:hover,
+.championship-source-item:hover,
+.championship-origin-option.active,
+.championship-source-item.active {
+  border-color: var(--gold, #d6aa19);
+  box-shadow: 0 0 0 2px rgb(214 170 25 / 12%);
+}
+
+.championship-origin-option small,
+.championship-source-item small {
+  color: var(--muted, #687386);
+  line-height: 1.35;
+}
+
+.championship-source-picker {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.championship-source-results {
+  display: grid;
+  gap: 8px;
+  max-height: 250px;
+  overflow: auto;
+}
+
+.championship-source-item {
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+}
+
+.championship-source-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 7px;
+  background: #f2f5f9;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.championship-source-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 760px) {
+  .championship-origin-options {
+    grid-template-columns: 1fr;
+  }
+}

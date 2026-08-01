@@ -617,6 +617,9 @@ export function ProdutoraPanel(props: {
       numero_edicao: '1',
       temporada: '',
       titulo_publico: '',
+      origem_criacao: 'novo',
+      campeonato_origem_id: '',
+      franquia_origem_id: '',
     }
   }
 
@@ -630,6 +633,8 @@ export function ProdutoraPanel(props: {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save_edition',
+        franchise_id: form.origem_criacao === 'season' ? form.franquia_origem_id || null : null,
+        source_championship_id: form.origem_criacao === 'season' ? form.campeonato_origem_id || null : null,
         franchise_name: form.nome_historico.trim() || form.nome.trim(),
         edition_number: Number(form.numero_edicao) || 1,
         season: form.temporada.trim() || null,
@@ -1146,6 +1151,7 @@ ${params.url}`
           }}
           onCancel={() => setShowCreateChamp(false)}
           loading={props.loading}
+          championships={props.championships}
           uploadPublicFile={props.uploadPublicFile}
         />
       </SystemModal>
@@ -1207,6 +1213,7 @@ ${params.url}`
           }}
           onCancel={() => setEditingChampId('')}
           loading={props.loading}
+          championships={props.championships}
           uploadPublicFile={props.uploadPublicFile}
         />
       </SystemModal>

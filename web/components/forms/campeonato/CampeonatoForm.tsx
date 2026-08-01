@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, CalendarDays, CreditCard, Dumbbell, Medal, MessageCircle, Plus, QrCode, Swords, Trash2, Trophy, WalletCards } from 'lucide-react'
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
+import type { DropZoneRow } from '@/lib/types'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import { Field, UploadField } from '@/features/dropzone/components/form-fields'
 import { PremiacaoDivisaoEditor } from './PremiacaoDivisaoEditor'
@@ -56,6 +57,9 @@ export type CampeonatoFormValue = {
   numero_edicao: string
   temporada: string
   titulo_publico: string
+  origem_criacao: 'novo' | 'modelo' | 'season'
+  campeonato_origem_id: string
+  franquia_origem_id: string
 }
 
 export type CampeonatoWhatsappContact = {
@@ -120,6 +124,9 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   numero_edicao: '1',
   temporada: '',
   titulo_publico: '',
+  origem_criacao: 'novo',
+  campeonato_origem_id: '',
+  franquia_origem_id: '',
 }
 
 const TYPE_OPTIONS: Array<{
@@ -200,6 +207,7 @@ export function CampeonatoForm({
   onCancel,
   loading,
   mode = 'create',
+  championships = [],
   uploadPublicFile,
 }: {
   value: CampeonatoFormValue
@@ -208,17 +216,23 @@ export function CampeonatoForm({
   onCancel?: () => void
   loading: boolean
   mode?: 'create' | 'edit'
+  championships?: DropZoneRow[]
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
-  const [formPage, setFormPage] = useState<'identity' | 'season' | 'format' | 'operation' | 'review'>('identity')
+  const [formPage, setFormPage] = useState<'origin' | 'identity' | 'season' | 'format' | 'operation' | 'review'>('origin')
+  const [sourceSearch, setSourceSearch] = useState('')
+  const [sourceLoading, setSourceLoading] = useState(false)
+  const [sourceError, setSourceError] = useState('')
   const [quote, setQuote] = useState<PriceQuote | null>(null)
   const [quoteError, setQuoteError] = useState('')
   const [quoteLoading, setQuoteLoading] = useState(false)
 
   useEffect(() => {
     setStep(mode === 'edit' ? 'form' : 'type')
-    setFormPage('identity')
+    setFormPage(mode === 'edit' ? 'identity' : 'origin')
+    setSourceSearch('')
+    setSourceError('')
   }, [mode])
 
   const selectedType = useMemo(
@@ -295,9 +309,102 @@ export function CampeonatoForm({
       ...value,
       tipo: type,
       formato: nextFormat,
+      origem_criacao: 'novo',
+      campeonato_origem_id: '',
+      franquia_origem_id: '',
     })
     setStep('form')
-    setFormPage('identity')
+    setFormPage('origin')
+    setSourceSearch('')
+    setSourceError('')
+  }
+
+  function sourceValue(source: DropZoneRow, key: keyof CampeonatoFormValue) {
+    if (key === 'nome') return String(source.name || source.data?.nome || '')
+    return source.data?.[key]
+  }
+
+  const sourceCandidates = useMemo(() => {
+    const term = sourceSearch.trim().toLocaleLowerCase('pt-BR')
+    return championships
+      .filter((item) => String(item.data?.tipo || '') === value.tipo)
+      .filter((item) => !term || String(item.name || item.data?.nome || '').toLocaleLowerCase('pt-BR').includes(term))
+      .slice(0, 20)
+  }, [championships, sourceSearch, value.tipo])
+
+  async function selectCreationOrigin(modeValue: 'novo' | 'modelo' | 'season') {
+    setSourceError('')
+    setSourceSearch('')
+    onChange({
+      ...value,
+      origem_criacao: modeValue,
+      campeonato_origem_id: '',
+      franquia_origem_id: '',
+      nome_historico: modeValue === 'season' ? value.nome_historico : '',
+      temporada: modeValue === 'season' ? value.temporada : '',
+      titulo_publico: modeValue === 'season' ? value.titulo_publico : '',
+      numero_edicao: modeValue === 'season' ? value.numero_edicao : '1',
+    })
+  }
+
+  async function applySourceChampionship(source: DropZoneRow) {
+    setSourceLoading(true)
+    setSourceError('')
+    try {
+      let franchiseId = ''
+      let franchiseName = String(source.name || source.data?.nome || '')
+      let editionNumber = 1
+      if (value.origem_criacao === 'season') {
+        const { data } = await import('@/lib/supabase-browser').then((module) => module.supabase.auth.getSession())
+        const token = data.session?.access_token
+        const response = await fetch(`/api/campeonatos/${encodeURIComponent(source.id)}/estrutura-avancada`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const json = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(json.error || 'Não foi possível carregar a season escolhida.')
+        franchiseId = String(json?.franchise?.id || '')
+        franchiseName = String(json?.franchise?.nome || franchiseName)
+        editionNumber = Number(json?.edition?.numero_edicao || 0) + 1
+      }
+
+      const copied: CampeonatoFormValue = { ...value }
+      const copyKeys: Array<keyof CampeonatoFormValue> = [
+        'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
+        'divisao_premiacao', 'numero_vagas', 'formato', 'plataforma', 'servidor', 'tipo_premiacao',
+        'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
+        'permite_jogador_multiplas_equipes', 'permite_troca_jogadores', 'data_limite_trocas',
+        'data_limite_inscricao', 'aceita_novas_inscricoes_equipes', 'contatos_whatsapp',
+        'pagamento_pix_ativo', 'pagamento_cartao_ativo', 'pagamento_paypal_ativo',
+        'pagamento_whatsapp_ativo', 'cartao_max_parcelas', 'paypal_moedas',
+        'cor_principal', 'cor_secundaria', 'bg_opacidade', 'bg_image_url',
+        'recurso_export', 'recurso_stream', 'recurso_rulebook', 'recurso_stats', 'recurso_broadcast',
+      ]
+      for (const key of copyKeys) {
+        const sourceField = sourceValue(source, key)
+        if (sourceField !== undefined && sourceField !== null) (copied as any)[key] = sourceField
+      }
+      copied.tipo = value.tipo
+      copied.campeonato_origem_id = source.id
+      copied.origem_criacao = value.origem_criacao
+      copied.franquia_origem_id = value.origem_criacao === 'season' ? franchiseId : ''
+      if (value.origem_criacao === 'season') {
+        copied.nome_historico = franchiseName
+        copied.numero_edicao = String(Math.max(1, editionNumber))
+        copied.temporada = `Season ${Math.max(1, editionNumber)}`
+        copied.titulo_publico = `${franchiseName} — Season ${Math.max(1, editionNumber)}`
+        copied.nome = copied.titulo_publico
+      } else {
+        copied.nome_historico = ''
+        copied.numero_edicao = '1'
+        copied.temporada = ''
+        copied.titulo_publico = ''
+      }
+      onChange(copied)
+    } catch (error) {
+      setSourceError(error instanceof Error ? error.message : 'Não foi possível usar este campeonato.')
+    } finally {
+      setSourceLoading(false)
+    }
   }
 
   function updatePrizeType(nextType: string) {
@@ -364,16 +471,29 @@ export function CampeonatoForm({
     )
   }
 
-  const wizardPages = [
-    { id: 'identity', label: 'Identidade' },
-    { id: 'season', label: 'Temporada' },
-    { id: 'format', label: 'Formato' },
-    { id: 'operation', label: 'Operação' },
-    { id: 'review', label: 'Revisão' },
-  ] as const
-  const currentPageIndex = wizardPages.findIndex((page) => page.id === formPage)
-  const pageVisible = (page: typeof formPage) => mode === 'edit' || formPage === page || formPage === 'review'
+  const wizardPages: Array<{ id: typeof formPage; label: string }> = mode === 'edit'
+    ? [
+        { id: 'identity', label: 'Identidade' },
+        { id: 'season', label: 'Temporada' },
+        { id: 'format', label: 'Formato' },
+        { id: 'operation', label: 'Operação' },
+      ]
+    : [
+        { id: 'origin', label: 'Origem' },
+        { id: 'identity', label: 'Identidade' },
+        ...(value.origem_criacao === 'season' || value.tipo === 'liga'
+          ? [{ id: 'season' as const, label: 'Temporada' }]
+          : []),
+        ...(['liga', 'xtreino', 'confronto'].includes(value.tipo)
+          ? [{ id: 'format' as const, label: value.tipo === 'liga' ? 'Liga' : 'Formato' }]
+          : []),
+        { id: 'operation', label: 'Operação' },
+        { id: 'review', label: 'Revisão' },
+      ]
+  const currentPageIndex = Math.max(0, wizardPages.findIndex((page) => page.id === formPage))
+  const pageVisible = (page: typeof formPage) => mode === 'edit' || formPage === page
   function goNext() {
+    if (formPage === 'origin' && value.origem_criacao !== 'novo' && !value.campeonato_origem_id) return
     if (formPage === 'identity' && (!value.nome.trim() || !value.logo_url)) return
     const next = wizardPages[currentPageIndex + 1]
     if (next) setFormPage(next.id)
@@ -415,6 +535,82 @@ export function CampeonatoForm({
             </button>
           ))}
         </div>
+      ) : null}
+
+      {mode === 'create' ? (
+        <section className="form-section-card championship-origin-card" hidden={!pageVisible('origin')}>
+          <p className="eyebrow">Como deseja criar?</p>
+          <div className="championship-origin-options">
+            <button
+              type="button"
+              className={value.origem_criacao === 'novo' ? 'championship-origin-option active' : 'championship-origin-option'}
+              onClick={() => void selectCreationOrigin('novo')}
+            >
+              <strong>Criar do zero</strong>
+              <small>Comece um campeonato totalmente novo.</small>
+            </button>
+            <button
+              type="button"
+              className={value.origem_criacao === 'modelo' ? 'championship-origin-option active' : 'championship-origin-option'}
+              onClick={() => void selectCreationOrigin('modelo')}
+            >
+              <strong>Usar como modelo</strong>
+              <small>Copie os dados de outro {selectedType?.title?.toLocaleLowerCase('pt-BR') || 'campeonato'} e altere antes de salvar.</small>
+            </button>
+            <button
+              type="button"
+              className={value.origem_criacao === 'season' ? 'championship-origin-option active' : 'championship-origin-option'}
+              onClick={() => void selectCreationOrigin('season')}
+            >
+              <strong>Criar nova season</strong>
+              <small>Crie uma nova edição ligada ao histórico da competição escolhida.</small>
+            </button>
+          </div>
+
+          {value.origem_criacao !== 'novo' ? (
+            <div className="championship-source-picker">
+              <Field label={`Pesquisar ${selectedType?.title || 'campeonato'} da sua produtora`}>
+                <input
+                  value={sourceSearch}
+                  onChange={(event) => setSourceSearch(event.target.value)}
+                  placeholder={`Digite o nome de um campeonato do tipo ${selectedType?.title || value.tipo}`}
+                />
+              </Field>
+              <div className="championship-source-results">
+                {sourceCandidates.length ? sourceCandidates.map((source) => (
+                  <button
+                    type="button"
+                    key={source.id}
+                    disabled={sourceLoading}
+                    className={value.campeonato_origem_id === source.id ? 'championship-source-item active' : 'championship-source-item'}
+                    onClick={() => void applySourceChampionship(source)}
+                  >
+                    <span className="championship-source-logo">
+                      {String(source.data?.logo_url || '') ? <img src={String(source.data?.logo_url)} alt="" /> : <Trophy size={18} />}
+                    </span>
+                    <span>
+                      <strong>{String(source.name || source.data?.nome || 'Campeonato')}</strong>
+                      <small>{value.origem_criacao === 'season' ? 'Usar como season anterior' : 'Usar como modelo independente'}</small>
+                    </span>
+                  </button>
+                )) : (
+                  <p className="form-empty-note">Nenhum campeonato desse tipo foi encontrado nesta produtora.</p>
+                )}
+              </div>
+              {sourceLoading ? <p className="form-empty-note">Carregando campeonato escolhido...</p> : null}
+              {sourceError ? <div className="message error">{sourceError}</div> : null}
+              {value.campeonato_origem_id ? (
+                <div className="message">
+                  {value.origem_criacao === 'season'
+                    ? 'Season anterior selecionada. Os dados foram copiados e a nova edição continuará ligada à mesma competição.'
+                    : 'Modelo selecionado. Os campos foram preenchidos, mas o novo campeonato será independente.'}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="form-empty-note">Você preencherá apenas os campos necessários para o tipo escolhido.</p>
+          )}
+        </section>
       ) : null}
 
       <section className="form-section-card" hidden={!pageVisible('identity')}>
@@ -798,7 +994,7 @@ export function CampeonatoForm({
       <div className="button-row championship-wizard-actions">
         {mode === 'create' ? <button className="button secondary" type="button" onClick={goBack} disabled={loading}>Voltar</button> : null}
         {mode === 'create' && formPage !== 'review' ? (
-          <button className="button" type="button" onClick={goNext} disabled={loading || (formPage === 'identity' && (!value.nome.trim() || !value.logo_url))}>Continuar</button>
+          <button className="button" type="button" onClick={goNext} disabled={loading || (formPage === 'origin' && value.origem_criacao !== 'novo' && !value.campeonato_origem_id) || (formPage === 'identity' && (!value.nome.trim() || !value.logo_url))}>Continuar</button>
         ) : (
           <button className="button" type="button" onClick={onSubmit} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
         )}

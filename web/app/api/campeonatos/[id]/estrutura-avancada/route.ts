@@ -386,6 +386,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const franchiseName = text(body?.franchise_name)
       if (!franchiseName) throw new Error('Informe o nome histórico do campeonato.')
       let franchiseId = text(body?.franchise_id)
+      const sourceChampionshipId = text(body?.source_championship_id, 80)
+      if (!franchiseId && sourceChampionshipId) {
+        const sourcePermission = await getCampeonatoPermission(user.id, sourceChampionshipId)
+        if (!sourcePermission.canManage) throw new Error('O campeonato escolhido como season não pertence a esta produtora.')
+        const { data: sourceEdition, error: sourceEditionError } = await supabaseAdmin
+          .from('campeonato_edicoes')
+          .select('id,franquia_id')
+          .eq('campeonato_id', sourceChampionshipId)
+          .maybeSingle()
+        if (sourceEditionError) throw sourceEditionError
+        franchiseId = String(sourceEdition?.franquia_id || '')
+      }
       if (franchiseId) {
         const { error } = await supabaseAdmin.from('campeonato_franquias').update({
           nome: franchiseName,
@@ -401,6 +413,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }).select('id').single()
         if (error) throw error
         franchiseId = String(data.id)
+        if (sourceChampionshipId) {
+          const { error: sourceLinkError } = await supabaseAdmin.from('campeonato_edicoes').upsert({
+            franquia_id: franchiseId,
+            campeonato_id: sourceChampionshipId,
+            numero_edicao: 1,
+            temporada: null,
+            titulo_publico: franchiseName,
+            status: 'encerrada',
+          }, { onConflict: 'campeonato_id' })
+          if (sourceLinkError) throw sourceLinkError
+        }
       }
       const editionPayload = {
         franquia_id: franchiseId,
