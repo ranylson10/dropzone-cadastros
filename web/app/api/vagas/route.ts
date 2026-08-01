@@ -49,16 +49,61 @@ export async function GET(req: NextRequest) {
     ])
     for (const result of [championsResult, configsResult, phasesResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, purchasesResult]) if (result.error) throw result.error
     if (sellersResult.error && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(sellersResult.error.code || '')) throw sellersResult.error
+
+    // As consultas globais do catálogo podem atingir o limite de linhas do PostgREST.
+    // Para catálogo de vendedor e diagnóstico, recarrega diretamente os campeonatos-alvo,
+    // evitando que registros recém-criados desapareçam por truncamento da resposta.
+    const targetChampionshipIds = [...new Set([
+      ...(vendedorId ? (sellersResult.data || []).map((row:any) => String(row.campeonato_id || '')) : []),
+      ...(debugCampeonatoId ? [debugCampeonatoId] : []),
+    ].filter(Boolean))]
+
+    let configRows = [...(configsResult.data || [])]
+    let phaseRows = [...(phasesResult.data || [])]
+    let groupRows = [...(groupsResult.data || [])]
+    let slotRows = [...(slotsResult.data || [])]
+    let gameRows = [...(gamesResult.data || [])]
+    let gameGroupRows = [...(gameGroupsResult.data || [])]
+    let purchaseRows = [...(purchasesResult.data || [])]
+
+    const mergeRows = (current:any[], incoming:any[], key:(row:any) => string) =>
+      Array.from(new Map([...current, ...incoming].map((row:any) => [key(row), row])).values())
+
+    if (targetChampionshipIds.length) {
+      const [targetConfigs, targetPhases, targetGroups, targetSlots, targetGames, targetPurchases] = await Promise.all([
+        supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,numero_vagas,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').in('campeonato_id', targetChampionshipIds).eq('aceita_novas_inscricoes_equipes', true),
+        supabaseAdmin.from('campeonato_fases').select('id,campeonato_id,ordem').in('campeonato_id', targetChampionshipIds),
+        supabaseAdmin.from('campeonato_grupos').select('id,campeonato_id,nome,fase_id').in('campeonato_id', targetChampionshipIds),
+        supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,fase_id,equipe_id,line_id,status,slot_numero').in('campeonato_id', targetChampionshipIds),
+        supabaseAdmin.from('campeonato_jogos').select('id,campeonato_id,nome,data_jogo,horario,grupos_ids,status').in('campeonato_id', targetChampionshipIds).eq('status', 'ativo'),
+        supabaseAdmin.from('sistema_compras_vaga').select('id,campeonato_id,status,expira_em').in('campeonato_id', targetChampionshipIds).in('status', ['pendente', 'pago', 'liberado']),
+      ])
+      for (const result of [targetConfigs, targetPhases, targetGroups, targetSlots, targetGames, targetPurchases]) if (result.error) throw result.error
+      configRows = mergeRows(configRows, targetConfigs.data || [], (row) => String(row.campeonato_id))
+      phaseRows = mergeRows(phaseRows, targetPhases.data || [], (row) => String(row.id))
+      groupRows = mergeRows(groupRows, targetGroups.data || [], (row) => String(row.id))
+      slotRows = mergeRows(slotRows, targetSlots.data || [], (row) => String(row.id))
+      gameRows = mergeRows(gameRows, targetGames.data || [], (row) => String(row.id))
+      purchaseRows = mergeRows(purchaseRows, targetPurchases.data || [], (row) => String(row.id || `${row.campeonato_id}:${row.status}:${row.expira_em || ''}`))
+
+      const targetGameIds = (targetGames.data || []).map((row:any) => String(row.id || '')).filter(Boolean)
+      if (targetGameIds.length) {
+        const targetGameGroups = await supabaseAdmin.from('campeonato_jogos_grupos').select('jogo_id,grupo_id').in('jogo_id', targetGameIds)
+        if (targetGameGroups.error) throw targetGameGroups.error
+        gameGroupRows = mergeRows(gameGroupRows, targetGameGroups.data || [], (row) => `${row.jogo_id}:${row.grupo_id}`)
+      }
+    }
+
     const entryPhaseIds = new Map<string, Set<string>>()
     for (const champ of championsResult.data || []) {
-      const phases = (phasesResult.data || []).filter((phase:any) => phase.campeonato_id === champ.id)
+      const phases = phaseRows.filter((phase:any) => phase.campeonato_id === champ.id)
       const minOrder = phases.length ? Math.min(...phases.map((phase:any) => Number(phase.ordem || 0))) : null
       entryPhaseIds.set(champ.id, new Set(minOrder == null ? [] : phases.filter((phase:any) => Number(phase.ordem || 0) === minOrder).map((phase:any) => String(phase.id))))
     }
-    const configs = new Map((configsResult.data || []).map((row:any) => [row.campeonato_id, row]))
+    const configs = new Map(configRows.map((row:any) => [row.campeonato_id, row]))
     const sellersByChampionship = new Map<string, any[]>()
     for (const seller of sellersResult.data || []) sellersByChampionship.set(seller.campeonato_id, [...(sellersByChampionship.get(seller.campeonato_id) || []), seller])
-    const gameGroupMap = new Map<string, string[]>(); for (const row of gameGroupsResult.data || []) gameGroupMap.set(row.jogo_id, [...(gameGroupMap.get(row.jogo_id) || []), row.grupo_id])
+    const gameGroupMap = new Map<string, string[]>(); for (const row of gameGroupRows) gameGroupMap.set(row.jogo_id, [...(gameGroupMap.get(row.jogo_id) || []), row.grupo_id])
     const today = new Date().toISOString().slice(0, 10)
     let teamIds: string[] = []; let enrolledIds = new Set<string>()
     const bearer = String(req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
@@ -96,12 +141,12 @@ export async function GET(req: NextRequest) {
       // Um vínculo direto e ativo em campeonato_vendedores sempre publica o campeonato.
       // portfolio_anuncios limita apenas anúncios opcionais, não convites específicos já aceitos.
       const entryIds = entryPhaseIds.get(champ.id) || new Set<string>()
-      const groups = (groupsResult.data || []).filter((group:any) => group.campeonato_id === champ.id && (entryIds.size === 0 || !group.fase_id || entryIds.has(String(group.fase_id))))
-      const entrySlots = (slotsResult.data || []).filter((slot:any) => slot.campeonato_id === champ.id && slot.status !== 'excluido' && (entryIds.size === 0 || !slot.fase_id || entryIds.has(String(slot.fase_id))))
+      const groups = groupRows.filter((group:any) => group.campeonato_id === champ.id && (entryIds.size === 0 || !group.fase_id || entryIds.has(String(group.fase_id))))
+      const entrySlots = slotRows.filter((slot:any) => slot.campeonato_id === champ.id && slot.status !== 'excluido' && (entryIds.size === 0 || !slot.fase_id || entryIds.has(String(slot.fase_id))))
       const occupied = entrySlots.filter((slot:any) => Boolean(slot.equipe_id || slot.line_id)).length
       const officialTotal = Math.max(0, Math.floor(Number(config.numero_vagas || 0)))
       const now = Date.now()
-      const commercialReservations = (purchasesResult.data || []).filter((purchase:any) => purchase.campeonato_id === champ.id && (purchase.status !== 'pendente' || !purchase.expira_em || new Date(purchase.expira_em).getTime() > now)).length
+      const commercialReservations = purchaseRows.filter((purchase:any) => purchase.campeonato_id === champ.id && (purchase.status !== 'pendente' || !purchase.expira_em || new Date(purchase.expira_em).getTime() > now)).length
       const officialFree = Math.max(0, officialTotal - occupied - commercialReservations)
       Object.assign(diagnostic, {
         fases_entrada: entryIds.size,
@@ -117,7 +162,7 @@ export async function GET(req: NextRequest) {
         if (isDebugTarget) diagnostics.push(diagnostic)
         return []
       }
-      const openGroups = groups.map((group:any) => { const slots = entrySlots.filter((slot:any) => slot.grupo_id === group.id); const free = slots.filter((slot:any) => !slot.equipe_id && !slot.line_id).length; if (!free) return null; const nextGames = (gamesResult.data || []).filter((game:any) => game.campeonato_id === champ.id && game.data_jogo >= today && ([...(game.grupos_ids || []), ...(gameGroupMap.get(game.id) || [])].includes(group.id))).sort((a:any,b:any) => `${a.data_jogo} ${a.horario||''}`.localeCompare(`${b.data_jogo} ${b.horario||''}`)); return { id:group.id, nome:group.nome, vagas_livres:free, total_slots:slots.length, proximo_jogo:nextGames[0] || null } }).filter(Boolean) as any[]
+      const openGroups = groups.map((group:any) => { const slots = entrySlots.filter((slot:any) => slot.grupo_id === group.id); const free = slots.filter((slot:any) => !slot.equipe_id && !slot.line_id).length; if (!free) return null; const nextGames = gameRows.filter((game:any) => game.campeonato_id === champ.id && game.data_jogo >= today && ([...(game.grupos_ids || []), ...(gameGroupMap.get(game.id) || [])].includes(group.id))).sort((a:any,b:any) => `${a.data_jogo} ${a.horario||''}`.localeCompare(`${b.data_jogo} ${b.horario||''}`)); return { id:group.id, nome:group.nome, vagas_livres:free, total_slots:slots.length, proximo_jogo:nextGames[0] || null } }).filter(Boolean) as any[]
       diagnostic.grupos_abertos = openGroups.length
       if (!openGroups.length) {
         diagnostic.motivo_exclusao = 'nenhum_grupo_com_slot_livre'
