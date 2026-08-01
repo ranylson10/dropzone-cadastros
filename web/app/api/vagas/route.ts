@@ -62,7 +62,8 @@ export async function GET(req: NextRequest) {
     const announcements = (championsResult.data || []).flatMap((champ:any) => {
       const config:any = configs.get(champ.id); if (!config || !champ.banner_url) return []
       if (vendedorId && !(sellersByChampionship.get(champ.id) || []).length) return []
-      if (vendedorId && sellerPortfolio.length && !sellerPortfolio.includes(String(champ.id))) return []
+      // Um vínculo direto e ativo em campeonato_vendedores sempre publica o campeonato.
+      // portfolio_anuncios limita apenas anúncios opcionais, não convites específicos já aceitos.
       const entryIds = entryPhaseIds.get(champ.id) || new Set<string>()
       const groups = (groupsResult.data || []).filter((group:any) => group.campeonato_id === champ.id && (entryIds.size === 0 || !group.fase_id || entryIds.has(String(group.fase_id))))
       const entrySlots = (slotsResult.data || []).filter((slot:any) => slot.campeonato_id === champ.id && slot.status !== 'excluido' && (entryIds.size === 0 || !slot.fase_id || entryIds.has(String(slot.fase_id))))

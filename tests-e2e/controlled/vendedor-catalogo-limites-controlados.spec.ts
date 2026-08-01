@@ -288,13 +288,19 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
       expect(seller, 'O manager deve aparecer como vendedor ativo.').toBeTruthy()
       expect(Number(seller?.limite_vagas || 0)).toBe(2)
 
-      const catalogResponse = await request.get(`${origin}/api/vagas?vendedor=${encodeURIComponent(managerId)}`)
-      const catalogBody = await json(catalogResponse)
-      expect(catalogResponse.ok(), `Falha ao abrir catálogo público: ${catalogBody?.error || catalogResponse.status()}`).toBeTruthy()
-      expect(catalogBody?.scope?.tipo).toBe('vendedor')
-      const announcement = (Array.isArray(catalogBody?.announcements) ? catalogBody.announcements : [])
-        .find((item: any) => String(item?.id || '') === championshipId)
-      expect(announcement, 'O campeonato deve aparecer no catálogo público do vendedor.').toBeTruthy()
+      let announcement: any
+      await expect.poll(async () => {
+        const catalogResponse = await request.get(`${origin}/api/vagas?vendedor=${encodeURIComponent(managerId)}`)
+        const catalogBody = await json(catalogResponse)
+        if (!catalogResponse.ok() || catalogBody?.scope?.tipo !== 'vendedor') return false
+        announcement = (Array.isArray(catalogBody?.announcements) ? catalogBody.announcements : [])
+          .find((item: any) => String(item?.id || '') === championshipId)
+        return Boolean(announcement)
+      }, {
+        message: 'O campeonato deve aparecer no catálogo público do vendedor.',
+        timeout: 20_000,
+        intervals: [500, 1_000, 2_000],
+      }).toBe(true)
       expect(Number(announcement?.vagas_livres || 0)).toBeGreaterThanOrEqual(1)
 
       const publicSellerApi = await request.get(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vagas`)

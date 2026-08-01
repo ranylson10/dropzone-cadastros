@@ -362,6 +362,118 @@ async function championshipSummary(userId: string, campeonatoId: string) {
   if (resultadosPendentes > 0) alerts.push(alertItem(campeonatoId, { id: 'resultados-pendentes', severity: 'warning', category: 'result', scope: 'game', title: 'Resultados pendentes', message: `${resultadosPendentes} queda(s) ainda não possuem resultado completo.`, context: 'A classificação pode ficar desatualizada enquanto houver resultados faltando.', action: 'Abrir pontuador' }))
   if (!rulebook.data?.published_at) alerts.push(alertItem(campeonatoId, { id: 'regulamento-pendente', severity: 'critical', category: 'rulebook', scope: 'championship', title: 'Regulamento não publicado', message: 'O regulamento ainda não está disponível para os participantes.', context: 'Publique a versão oficial antes do início das partidas.', action: 'Publicar regulamento', href: `/campeonatos/${encodeURIComponent(campeonatoId)}/regulamento` }))
 
+  for (const team of equipesRows as Array<{ id?: string | null; grupo_id?: string | null; slot_id?: string | null }>) {
+    const teamId = String(team.id || '')
+    if (!teamId || (team.grupo_id && team.slot_id)) continue
+    const label = teamLabel(team)
+    alerts.push(alertItem(campeonatoId, {
+      id: `equipe-sem-grupo-slot:${teamId}`,
+      severity: 'warning',
+      category: 'structure',
+      scope: 'team',
+      title: 'Equipe sem grupo ou slot',
+      message: `${label} ainda não está completamente posicionada na estrutura do campeonato.`,
+      context: !team.grupo_id ? 'A equipe ainda não possui grupo definido.' : 'A equipe possui grupo, mas ainda não ocupa um slot.',
+      action: 'Definir grupo e slot manualmente',
+      entity_id: teamId,
+      entity_label: label,
+    }))
+  }
+
+  for (const game of jogosRows as Array<{ id?: string | null; nome?: string | null; data_jogo?: string | null; horario?: string | null; numero_partidas?: number | string | null; mapas?: unknown; limite_escalacao_minutos?: number | string | null }>) {
+    const gameId = String(game.id || '')
+    if (!gameId) continue
+    const gameLabel = String(game.nome || `Jogo ${gameId.slice(0, 8)}`)
+    const groupIds = gameGroups.get(gameId) || []
+    const scheduledAt = game.data_jogo ? `${game.data_jogo}T${game.horario || '23:59:00'}` : null
+    const scheduledTime = scheduledAt ? new Date(scheduledAt).getTime() : Number.NaN
+    const lineupMinutes = Math.max(0, Number(game.limite_escalacao_minutos || 0))
+    const gameLineupDeadline = Number.isFinite(scheduledTime) && lineupMinutes > 0
+      ? new Date(scheduledTime - lineupMinutes * 60_000).toISOString()
+      : lineupDeadline
+    const gameLineupHours = hoursUntil(gameLineupDeadline)
+
+    if (!groupIds.length) {
+      alerts.push(alertItem(campeonatoId, {
+        id: `jogo-sem-grupos:${gameId}`,
+        severity: scheduledAt && Number(hoursUntil(scheduledAt)) <= 72 ? 'critical' : 'warning',
+        category: 'structure',
+        scope: 'game',
+        due_at: scheduledAt,
+        title: 'Jogo sem grupos vinculados',
+        message: `${gameLabel} ainda não possui grupos participantes.`,
+        context: 'Sem grupos vinculados, nenhuma equipe poderá ser relacionada ao jogo.',
+        action: 'Vincular grupos manualmente',
+        entity_id: gameId,
+        entity_label: gameLabel,
+      }))
+    }
+
+    const expectedMatches = Math.max(0, Number(game.numero_partidas || 0))
+    const configuredMaps = Array.isArray(game.mapas)
+      ? game.mapas.filter(Boolean).length
+      : typeof game.mapas === 'string'
+        ? game.mapas.split(',').map((value) => value.trim()).filter(Boolean).length
+        : 0
+    if (expectedMatches > 0 && configuredMaps < expectedMatches) {
+      alerts.push(alertItem(campeonatoId, {
+        id: `jogo-mapas-incompletos:${gameId}`,
+        severity: scheduledAt && Number(hoursUntil(scheduledAt)) <= 72 ? 'critical' : 'warning',
+        category: 'schedule',
+        scope: 'game',
+        due_at: scheduledAt,
+        title: 'Mapas incompletos no jogo',
+        message: `${gameLabel} possui ${configuredMaps} mapa(s) definido(s) para ${expectedMatches} queda(s).`,
+        context: 'Todas as quedas devem ter mapa definido antes da publicação da programação.',
+        action: 'Completar mapas do jogo',
+        entity_id: gameId,
+        entity_label: gameLabel,
+      }))
+    }
+
+    const matchIds = matchesByGame.get(gameId) || []
+    const missingResults = matchIds.filter((matchId) => !resultMatchIds.has(matchId)).length
+    if (missingResults > 0 && Number.isFinite(scheduledTime) && scheduledTime < Date.now()) {
+      alerts.push(alertItem(campeonatoId, {
+        id: `resultados-jogo:${gameId}`,
+        severity: 'critical',
+        category: 'result',
+        scope: 'game',
+        due_at: scheduledAt,
+        title: 'Resultados pendentes após o jogo',
+        message: `${gameLabel} possui ${missingResults} queda(s) sem resultado registrado.`,
+        context: 'O horário programado já passou e a classificação pode estar desatualizada.',
+        action: 'Abrir pontuador do jogo',
+        entity_id: gameId,
+        entity_label: gameLabel,
+      }))
+    }
+
+    const gameTeams = groupIds.flatMap((groupId) => teamsByGroup.get(groupId) || [])
+    for (const team of gameTeams) {
+      const teamId = String(team?.id || '')
+      if (!teamId || (playersByTeam.get(teamId) || 0) >= requiredPlayers) continue
+      const label = teamLabel(team)
+      alerts.push(alertItem(campeonatoId, {
+        id: `escalacao-jogo:${gameId}:${teamId}`,
+        severity: gameLineupHours != null && gameLineupHours <= 24 ? 'critical' : 'warning',
+        category: 'lineup',
+        scope: 'team',
+        due_at: gameLineupDeadline,
+        title: 'Escalação incompleta para o jogo',
+        message: `${label} ainda não atingiu o mínimo de ${requiredPlayers} jogador(es) para ${gameLabel}.`,
+        context: gameLineupHours == null
+          ? 'Nenhum prazo de escalação foi localizado para este jogo.'
+          : gameLineupHours < 0
+            ? 'O prazo de escalação deste jogo já venceu.'
+            : `O prazo de escalação deste jogo termina em aproximadamente ${Math.ceil(gameLineupHours)} hora(s).`,
+        action: 'Revisar escalação da equipe',
+        entity_id: teamId,
+        entity_label: `${label} — ${gameLabel}`,
+      }))
+    }
+  }
+
   const uniqueAlerts = Array.from(new Map(alerts.map((alert) => [alert.id, alert])).values())
   alerts.splice(0, alerts.length, ...uniqueAlerts)
 

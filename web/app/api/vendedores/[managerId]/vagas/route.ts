@@ -60,11 +60,16 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ manage
       ? (manager as any).portfolio_anuncios.map(String)
       : []
 
+    const directChampionshipIds = new Set(
+      (sellerLinksResult.data || []).map((item: any) => String(item.campeonato_id || '')).filter(Boolean),
+    )
     const linksByChampionship = new Map<string, any>()
     for (const item of [...(sellerLinksResult.data || []), ...(tokenLinksResult.data || [])]) {
       if (!item.campeonato_id || linksByChampionship.has(item.campeonato_id)) continue
-      // Portfolio afiliado: se lista preenchida, só anuncia os escolhidos
-      if (portfolio.length && !portfolio.includes(String(item.campeonato_id))) continue
+      const championshipId = String(item.campeonato_id)
+      // Convites específicos aceitos geram vínculo direto e devem sempre aparecer.
+      // O portfólio limita somente anúncios opcionais herdados de tokens antigos.
+      if (!directChampionshipIds.has(championshipId) && portfolio.length && !portfolio.includes(championshipId)) continue
       linksByChampionship.set(item.campeonato_id, item)
     }
     const links = Array.from(linksByChampionship.values())
