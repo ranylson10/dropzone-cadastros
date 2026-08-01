@@ -1,1 +1,2 @@
-export * from './AdvancedStructureTab'
+export { AdvancedStructureTab } from './AdvancedStructureTab'
+export { CampeonatoStructureWorkspace } from './CampeonatoStructureWorkspace'

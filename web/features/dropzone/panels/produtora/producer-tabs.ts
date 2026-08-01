@@ -1,8 +1,7 @@
 export type ProducerTab =
   | 'equipes'
   | 'jogadores'
-  | 'grupos'
-  | 'estrutura_avancada'
+  | 'estrutura'
   | 'jogos'
   | 'vendedores'
   | 'links'
@@ -14,13 +13,12 @@ export type ProducerTab =
 export const producerTabs: Array<{ id: ProducerTab; label: string }> = [
   { id: 'equipes', label: 'Equipes' },
   { id: 'jogadores', label: 'Jogadores' },
-  { id: 'grupos', label: 'Fases e grupos' },
-  { id: 'estrutura_avancada', label: 'Estrutura avançada' },
+  { id: 'estrutura', label: 'Estrutura' },
   { id: 'jogos', label: 'Jogos' },
   { id: 'vendedores', label: 'Vendedores' },
   { id: 'links', label: 'Links' },
   { id: 'regulamento', label: 'Regulamento' },
   { id: 'estatisticas', label: 'Estatísticas' },
-  { id: 'stream', label: 'Stream' },
-  { id: 'exportar', label: 'Exportar' },
+  { id: 'stream', label: 'Transmissão' },
+  { id: 'exportar', label: 'Exportação' },
 ]

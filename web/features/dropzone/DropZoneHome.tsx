@@ -27,6 +27,10 @@ const AUTH_RESEND_COOLDOWN_SECONDS = 60
 
 const emptyChampionship = {
   nome: '',
+  nome_historico: '',
+  numero_edicao: '1',
+  temporada: '',
+  titulo_publico: '',
   tipo: 'copa',
   logo_url: '',
   banner_url: '',

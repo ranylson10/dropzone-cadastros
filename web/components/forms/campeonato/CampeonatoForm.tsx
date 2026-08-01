@@ -52,6 +52,10 @@ export type CampeonatoFormValue = {
   recurso_rulebook: boolean
   recurso_stats: boolean
   recurso_broadcast: boolean
+  nome_historico: string
+  numero_edicao: string
+  temporada: string
+  titulo_publico: string
 }
 
 export type CampeonatoWhatsappContact = {
@@ -112,6 +116,10 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   recurso_rulebook: true,
   recurso_stats: true,
   recurso_broadcast: false,
+  nome_historico: '',
+  numero_edicao: '1',
+  temporada: '',
+  titulo_publico: '',
 }
 
 const TYPE_OPTIONS: Array<{
@@ -203,12 +211,14 @@ export function CampeonatoForm({
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
+  const [formPage, setFormPage] = useState<'identity' | 'season' | 'format' | 'operation' | 'review'>('identity')
   const [quote, setQuote] = useState<PriceQuote | null>(null)
   const [quoteError, setQuoteError] = useState('')
   const [quoteLoading, setQuoteLoading] = useState(false)
 
   useEffect(() => {
     setStep(mode === 'edit' ? 'form' : 'type')
+    setFormPage('identity')
   }, [mode])
 
   const selectedType = useMemo(
@@ -287,6 +297,7 @@ export function CampeonatoForm({
       formato: nextFormat,
     })
     setStep('form')
+    setFormPage('identity')
   }
 
   function updatePrizeType(nextType: string) {
@@ -353,6 +364,26 @@ export function CampeonatoForm({
     )
   }
 
+  const wizardPages = [
+    { id: 'identity', label: 'Identidade' },
+    { id: 'season', label: 'Temporada' },
+    { id: 'format', label: 'Formato' },
+    { id: 'operation', label: 'Operação' },
+    { id: 'review', label: 'Revisão' },
+  ] as const
+  const currentPageIndex = wizardPages.findIndex((page) => page.id === formPage)
+  const pageVisible = (page: typeof formPage) => mode === 'edit' || formPage === page || formPage === 'review'
+  function goNext() {
+    if (formPage === 'identity' && (!value.nome.trim() || !value.logo_url)) return
+    const next = wizardPages[currentPageIndex + 1]
+    if (next) setFormPage(next.id)
+  }
+  function goBack() {
+    const previous = wizardPages[currentPageIndex - 1]
+    if (previous) setFormPage(previous.id)
+    else if (mode === 'create') setStep('type')
+  }
+
   const showMoneyPrize = value.tipo_premiacao === 'pix' || value.tipo_premiacao === 'dinheiro'
   const showGiftPrize = value.tipo_premiacao === 'brinde'
 
@@ -360,7 +391,7 @@ export function CampeonatoForm({
     <div className="championship-form-stack">
       <div className="championship-form-progress">
         <div>
-          <p className="eyebrow">Etapa 2 de 2</p>
+          <p className="eyebrow">Assistente de criação · etapa {currentPageIndex + 1} de {wizardPages.length}</p>
           <strong>{selectedType?.title || CHAMPIONSHIP_TYPE_LABELS[value.tipo as ChampionshipType] || 'Campeonato'}</strong>
           <small>{selectedType?.description}</small>
         </div>
@@ -371,7 +402,22 @@ export function CampeonatoForm({
         ) : null}
       </div>
 
-      <section className="form-section-card">
+      {mode === 'create' ? (
+        <div className="championship-wizard-steps" aria-label="Etapas da criação">
+          {wizardPages.map((page, index) => (
+            <button
+              type="button"
+              key={page.id}
+              className={`${formPage === page.id ? 'active' : ''} ${index < currentPageIndex ? 'done' : ''}`}
+              onClick={() => index <= currentPageIndex && setFormPage(page.id)}
+            >
+              <span>{index + 1}</span>{page.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <section className="form-section-card" hidden={!pageVisible('identity')}>
         <p className="eyebrow">Dados obrigatórios</p>
         <div className="mini-grid two">
           <Field label="Nome do campeonato"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
@@ -380,7 +426,7 @@ export function CampeonatoForm({
         </div>
       </section>
 
-      <section className="form-section-card">
+      <section className="form-section-card" hidden={!pageVisible('identity')}>
         <p className="eyebrow">Identidade visual</p>
         <p className="empty" style={{ margin: '0 0 12px' }}>
           Escolha 2 cores, a intensidade do fundo e (opcional) uma imagem de background. O sistema usa a cor{' '}
@@ -451,8 +497,29 @@ export function CampeonatoForm({
         </div>
       </section>
 
-      <section className="form-section-card">
-        <p className="eyebrow">Estrutura do campeonato</p>
+      <section className="form-section-card" hidden={!pageVisible('season')}>
+        <p className="eyebrow">Temporada e edição</p>
+        <p className="empty" style={{ margin: '0 0 12px' }}>
+          Use esta etapa para identificar seasons, edições anuais ou ciclos recorrentes. Os campos são opcionais.
+        </p>
+        <div className="mini-grid two">
+          <Field label="Nome histórico da competição">
+            <input value={value.nome_historico} onChange={(event) => update('nome_historico', event.target.value)} placeholder={value.nome || 'Ex.: Liga ALOE'} />
+          </Field>
+          <Field label="Título público desta edição">
+            <input value={value.titulo_publico} onChange={(event) => update('titulo_publico', event.target.value)} placeholder="Ex.: Liga ALOE — Ouro 2026" />
+          </Field>
+          <Field label="Season / temporada">
+            <input value={value.temporada} onChange={(event) => update('temporada', event.target.value)} placeholder="Ex.: Temporada 2026 ou Season 3" />
+          </Field>
+          <Field label="Número da edição">
+            <input type="number" min="1" value={value.numero_edicao} onChange={(event) => update('numero_edicao', event.target.value)} />
+          </Field>
+        </div>
+      </section>
+
+      <section className="form-section-card" hidden={!pageVisible('format')}>
+        <p className="eyebrow">Formato inicial</p>
         <div className="mini-grid three">
           <Field label="Limite de vagas (meta)">
             <input
@@ -496,7 +563,7 @@ export function CampeonatoForm({
         </div>
       </section>
 
-      <section className="form-section-card">
+      <section className="form-section-card" hidden={!pageVisible('operation')}>
         <p className="eyebrow">Premiação e inscrição</p>
         <div className="mini-grid three">
           <Field label="Tipo de premiação">
@@ -548,7 +615,7 @@ export function CampeonatoForm({
         </div>
       </section>
 
-      <section className="form-section-card">
+      <section className="form-section-card" hidden={!pageVisible('operation')}>
         <p className="eyebrow">Controle de inscrições</p>
         <div className="mini-grid three">
           <Field label="Vagas por equipe"><input type="number" min="1" value={value.vagas_por_equipe} onChange={(e) => update('vagas_por_equipe', e.target.value)} /></Field>
@@ -565,7 +632,7 @@ export function CampeonatoForm({
         ) : null}
       </section>
 
-      <section className="form-section-card">
+      <section className="form-section-card" hidden={!pageVisible('operation')}>
         <div className="form-section-heading">
           <div>
             <p className="eyebrow">Pagamento da vaga</p>
@@ -626,7 +693,7 @@ export function CampeonatoForm({
         ) : null}
       </section>
 
-      <section className="form-section-card whatsapp-contacts-section">
+      <section className="form-section-card whatsapp-contacts-section" hidden={!pageVisible('operation')}>
         <div className="form-section-heading">
           <div><p className="eyebrow">Venda de vagas</p><strong>Contatos do WhatsApp</strong></div>
           <button className="button secondary" type="button" onClick={addWhatsappContact}><Plus size={15} /> Adicionar contato</button>
@@ -654,8 +721,23 @@ export function CampeonatoForm({
         ) : <p className="form-empty-note">Nenhum contato de venda cadastrado.</p>}
       </section>
 
+      {mode === 'create' && formPage === 'review' ? (
+        <section className="form-section-card championship-review-card">
+          <p className="eyebrow">Revisão da criação</p>
+          <div className="championship-review-grid">
+            <div><small>Campeonato</small><strong>{value.nome || 'Não informado'}</strong></div>
+            <div><small>Tipo</small><strong>{selectedType?.title || value.tipo}</strong></div>
+            <div><small>Temporada</small><strong>{value.temporada || 'Sem temporada definida'}</strong></div>
+            <div><small>Edição</small><strong>{value.numero_edicao || '1'}</strong></div>
+            <div><small>Vagas</small><strong>{value.numero_vagas || 'Não definidas'}</strong></div>
+            <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
+          </div>
+          <p className="form-empty-note">Divisões, fases, datas por divisão e progressão serão configuradas na etapa Estrutura após a fundação desta rodada.</p>
+        </section>
+      ) : null}
+
       {mode === 'create' ? (
-        <section className="form-section-card championship-pricing-card">
+        <section className="form-section-card championship-pricing-card" hidden={!pageVisible('review')}>
           <p className="eyebrow">Pacote DropZone · valor estimado</p>
           <p className="empty" style={{ margin: '0 0 12px' }}>
             O campeonato fica <strong>pendente de aprovação</strong> do admin do sistema. O valor abaixo é a
@@ -713,8 +795,13 @@ export function CampeonatoForm({
         </section>
       ) : null}
 
-      <div className="button-row">
-        <button className="button" type="button" onClick={onSubmit} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
+      <div className="button-row championship-wizard-actions">
+        {mode === 'create' ? <button className="button secondary" type="button" onClick={goBack} disabled={loading}>Voltar</button> : null}
+        {mode === 'create' && formPage !== 'review' ? (
+          <button className="button" type="button" onClick={goNext} disabled={loading || (formPage === 'identity' && (!value.nome.trim() || !value.logo_url))}>Continuar</button>
+        ) : (
+          <button className="button" type="button" onClick={onSubmit} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
+        )}
         {onCancel ? <button className="button secondary" type="button" onClick={onCancel} disabled={loading}>Cancelar</button> : null}
       </div>
     </div>

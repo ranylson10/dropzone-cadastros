@@ -10,8 +10,7 @@ import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@
 import { SystemModal } from '@/components/layout/SystemModal'
 import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
-import { CampeonatoEstruturaTab } from '@/features/campeonatos/fases'
-import { AdvancedStructureTab } from '@/features/campeonatos/estrutura-avancada'
+import { CampeonatoStructureWorkspace } from '@/features/campeonatos/estrutura-avancada'
 import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { CampeonatoExportTab } from '@/features/campeonatos/export'
 import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
@@ -132,7 +131,8 @@ export function ProdutoraPanel(props: {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const championshipId = params.get('campeonato')
-    const section = params.get('section') as ProducerTab | null
+    const rawSection = params.get('section')
+    const section = (rawSection === 'grupos' || rawSection === 'estrutura_avancada' ? 'estrutura' : rawSection) as ProducerTab | null
     if (championshipId && props.championships.some((item) => item.id === championshipId)) props.setSelectedChampId(championshipId)
     if (section && producerTabs.some((item) => item.id === section)) setTab(section)
   }, [props.championships])
@@ -613,7 +613,32 @@ export function ProdutoraPanel(props: {
       recurso_rulebook: champ.data?.recurso_rulebook !== false,
       recurso_stats: champ.data?.recurso_stats !== false,
       recurso_broadcast: champ.data?.recurso_broadcast === true,
+      nome_historico: '',
+      numero_edicao: '1',
+      temporada: '',
+      titulo_publico: '',
     }
+  }
+
+  async function saveCreationEdition(campeonatoId: string, form: CampeonatoFormValue) {
+    if (!form.nome_historico.trim() && !form.temporada.trim() && !form.titulo_publico.trim()) return
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) throw new Error('Sessão expirada ao salvar temporada e edição.')
+    const response = await fetch(`/api/campeonatos/${campeonatoId}/estrutura-avancada`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'save_edition',
+        franchise_name: form.nome_historico.trim() || form.nome.trim(),
+        edition_number: Number(form.numero_edicao) || 1,
+        season: form.temporada.trim() || null,
+        public_title: form.titulo_publico.trim() || null,
+        edition_status: 'planejada',
+      }),
+    })
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(json.error || 'Não foi possível salvar temporada e edição.')
   }
 
   function startEditChampionship(champ: DropZoneRow) {
@@ -1108,6 +1133,11 @@ ${params.url}`
             const created = await props.createChampionship()
             if (created && typeof created !== 'boolean') {
               props.setSelectedChampId(created.id)
+              try {
+                await saveCreationEdition(created.id, props.championship)
+              } catch (error) {
+                setPayMsg(error instanceof Error ? error.message : 'Campeonato criado, mas a temporada não foi salva.')
+              }
               setShowCreateChamp(false)
               setCreatedChampAction(created)
             } else if (created) {
@@ -1343,16 +1373,15 @@ ${params.url}`
 
               {tab === 'jogadores' ? <CampeonatoJogadoresTab campeonatoId={selectedChamp.id} /> : null}
 
-              {tab === 'grupos' ? (
-                <CampeonatoEstruturaTab
+              {tab === 'estrutura' ? (
+                <CampeonatoStructureWorkspace
                   campeonatoId={selectedChamp.id}
+                  championshipType={selectedChampType}
                   onChanged={() => {
                     void props.reloadStructure?.()
                   }}
                 />
               ) : null}
-
-              {tab === 'estrutura_avancada' ? <AdvancedStructureTab campeonatoId={selectedChamp.id} championshipType={selectedChampType} /> : null}
 
               {tab === 'jogos' ? (
                 <div className="ref-section-stack">
