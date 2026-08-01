@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSystemAdmin } from '@backend/admin/admin-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 export async function GET(req: NextRequest) {
   try {
     const produtoraId = String(req.nextUrl.searchParams.get('produtora') || '').trim()
     const vendedorId = String(req.nextUrl.searchParams.get('vendedor') || '').trim()
+    const debugCampeonatoId = String(req.nextUrl.searchParams.get('debug_campeonato') || '').trim()
+    const diagnostics: Record<string, unknown>[] = []
+    if (debugCampeonatoId) await requireSystemAdmin(req)
     if (produtoraId && vendedorId) throw new Error('Use somente um catálogo por vez.')
     let sellerProfile: any = null
     let sellerPortfolio: string[] = []
@@ -60,8 +64,35 @@ export async function GET(req: NextRequest) {
     const bearer = String(req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
     if (bearer) { const { data } = await supabaseAdmin.auth.getUser(bearer); if (data.user) { const { data: teams } = await supabaseAdmin.from('equipes').select('id').or(`auth_user_id.eq.${data.user.id},dono_auth_user_id.eq.${data.user.id}`); teamIds = (teams || []).map((row:any) => row.id); if (teamIds.length) { const { data: entries } = await supabaseAdmin.from('campeonato_equipes').select('campeonato_id').in('equipe_id', teamIds).eq('status', 'ativo'); enrolledIds = new Set((entries || []).map((row:any) => row.campeonato_id)) } } }
     const announcements = (championsResult.data || []).flatMap((champ:any) => {
-      const config:any = configs.get(champ.id); if (!config || !champ.banner_url) return []
-      if (vendedorId && !(sellersByChampionship.get(champ.id) || []).length) return []
+      const isDebugTarget = Boolean(debugCampeonatoId && champ.id === debugCampeonatoId)
+      const config:any = configs.get(champ.id)
+      const sellerLinks = sellersByChampionship.get(champ.id) || []
+      const diagnostic: Record<string, unknown> = {
+        campeonato_id: champ.id,
+        campeonato_encontrado: true,
+        status: champ.status,
+        aprovacao_status: champ.aprovacao_status,
+        banner_presente: Boolean(champ.banner_url),
+        configuracao_encontrada: Boolean(config),
+        aceita_novas_inscricoes_equipes: Boolean(config?.aceita_novas_inscricoes_equipes),
+        vinculos_vendedor_ativos: sellerLinks.length,
+        motivo_exclusao: null,
+      }
+      if (!config) {
+        diagnostic.motivo_exclusao = 'configuracao_ausente_ou_inscricoes_fechadas'
+        if (isDebugTarget) diagnostics.push(diagnostic)
+        return []
+      }
+      if (!champ.banner_url) {
+        diagnostic.motivo_exclusao = 'banner_ausente'
+        if (isDebugTarget) diagnostics.push(diagnostic)
+        return []
+      }
+      if (vendedorId && !sellerLinks.length) {
+        diagnostic.motivo_exclusao = 'vinculo_vendedor_ativo_ausente'
+        if (isDebugTarget) diagnostics.push(diagnostic)
+        return []
+      }
       // Um vínculo direto e ativo em campeonato_vendedores sempre publica o campeonato.
       // portfolio_anuncios limita apenas anúncios opcionais, não convites específicos já aceitos.
       const entryIds = entryPhaseIds.get(champ.id) || new Set<string>()
@@ -72,9 +103,29 @@ export async function GET(req: NextRequest) {
       const now = Date.now()
       const commercialReservations = (purchasesResult.data || []).filter((purchase:any) => purchase.campeonato_id === champ.id && (purchase.status !== 'pendente' || !purchase.expira_em || new Date(purchase.expira_em).getTime() > now)).length
       const officialFree = Math.max(0, officialTotal - occupied - commercialReservations)
-      if (officialFree <= 0) return []
+      Object.assign(diagnostic, {
+        fases_entrada: entryIds.size,
+        grupos_entrada: groups.length,
+        slots_entrada: entrySlots.length,
+        slots_ocupados: occupied,
+        vagas_oficiais: officialTotal,
+        reservas_comerciais: commercialReservations,
+        vagas_oficiais_livres: officialFree,
+      })
+      if (officialFree <= 0) {
+        diagnostic.motivo_exclusao = 'sem_vagas_oficiais_livres'
+        if (isDebugTarget) diagnostics.push(diagnostic)
+        return []
+      }
       const openGroups = groups.map((group:any) => { const slots = entrySlots.filter((slot:any) => slot.grupo_id === group.id); const free = slots.filter((slot:any) => !slot.equipe_id && !slot.line_id).length; if (!free) return null; const nextGames = (gamesResult.data || []).filter((game:any) => game.campeonato_id === champ.id && game.data_jogo >= today && ([...(game.grupos_ids || []), ...(gameGroupMap.get(game.id) || [])].includes(group.id))).sort((a:any,b:any) => `${a.data_jogo} ${a.horario||''}`.localeCompare(`${b.data_jogo} ${b.horario||''}`)); return { id:group.id, nome:group.nome, vagas_livres:free, total_slots:slots.length, proximo_jogo:nextGames[0] || null } }).filter(Boolean) as any[]
-      if (!openGroups.length) return []
+      diagnostic.grupos_abertos = openGroups.length
+      if (!openGroups.length) {
+        diagnostic.motivo_exclusao = 'nenhum_grupo_com_slot_livre'
+        if (isDebugTarget) diagnostics.push(diagnostic)
+        return []
+      }
+      diagnostic.motivo_exclusao = null
+      if (isDebugTarget) diagnostics.push(diagnostic)
       const dated = openGroups.filter((group:any) => group.proximo_jogo).sort((a:any,b:any) => `${a.proximo_jogo.data_jogo} ${a.proximo_jogo.horario||''}`.localeCompare(`${b.proximo_jogo.data_jogo} ${b.proximo_jogo.horario||''}`)); const next = dated[0] || openGroups[0]
       const sellers = (sellersByChampionship.get(champ.id) || []).map((seller:any) => ({ id:seller.manager_id, nome:seller.nome_publico || 'Vendedor', contato:{ id:`manager-${seller.manager_id}`, manager_id:seller.manager_id, nome:seller.nome_publico || 'Vendedor', url:seller.whatsapp_url } }))
       const sellerContacts = vendedorId ? sellers.map((seller:any) => seller.contato).filter((contact:any) => contact.url) : config.contatos_whatsapp || []
@@ -88,6 +139,13 @@ export async function GET(req: NextRequest) {
     } else if (vendedorId) {
       scope = { tipo: 'vendedor', id: sellerProfile.id, nome: sellerProfile.nome_publico_vendas || sellerProfile.nome || sellerProfile.username || 'Vendedor', logo_url: sellerProfile.avatar_url || null }
     }
-    return NextResponse.json({ announcements, authenticated:Boolean(bearer), hasTeam:teamIds.length>0, scope })
+    if (debugCampeonatoId && !diagnostics.length) {
+      diagnostics.push({
+        campeonato_id: debugCampeonatoId,
+        campeonato_encontrado: false,
+        motivo_exclusao: 'fora_da_consulta_inicial_status_aprovacao_deleted_at_ou_produtora',
+      })
+    }
+    return NextResponse.json({ announcements, authenticated:Boolean(bearer), hasTeam:teamIds.length>0, scope, ...(debugCampeonatoId ? { diagnostics } : {}) })
   } catch (error:any) { return NextResponse.json({ error:error?.message || 'Erro ao carregar vagas.' }, { status:400 }) }
 }

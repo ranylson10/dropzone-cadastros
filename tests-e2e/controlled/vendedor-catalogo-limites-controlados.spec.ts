@@ -289,18 +289,29 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
       expect(Number(seller?.limite_vagas || 0)).toBe(2)
 
       let announcement: any
-      await expect.poll(async () => {
-        const catalogResponse = await request.get(`${origin}/api/vagas?vendedor=${encodeURIComponent(managerId)}`)
+      let catalogDiagnostic: any = null
+      const deadline = Date.now() + 8_000
+      while (!announcement && Date.now() < deadline) {
+        const catalogResponse = await request.get(
+          `${origin}/api/vagas?vendedor=${encodeURIComponent(managerId)}&debug_campeonato=${encodeURIComponent(championshipId)}`,
+          { headers: headers(adminToken) },
+        )
         const catalogBody = await json(catalogResponse)
-        if (!catalogResponse.ok() || catalogBody?.scope?.tipo !== 'vendedor') return false
-        announcement = (Array.isArray(catalogBody?.announcements) ? catalogBody.announcements : [])
-          .find((item: any) => String(item?.id || '') === championshipId)
-        return Boolean(announcement)
-      }, {
-        message: 'O campeonato deve aparecer no catálogo público do vendedor.',
-        timeout: 20_000,
-        intervals: [500, 1_000, 2_000],
-      }).toBe(true)
+        catalogDiagnostic = catalogBody?.diagnostics?.[0] || {
+          status_http: catalogResponse.status(),
+          erro: catalogBody?.error || null,
+          scope: catalogBody?.scope || null,
+        }
+        if (catalogResponse.ok() && catalogBody?.scope?.tipo === 'vendedor') {
+          announcement = (Array.isArray(catalogBody?.announcements) ? catalogBody.announcements : [])
+            .find((item: any) => String(item?.id || '') === championshipId)
+        }
+        if (!announcement) await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+      expect(
+        announcement,
+        `O campeonato deve aparecer no catálogo público do vendedor. Diagnóstico: ${JSON.stringify(catalogDiagnostic)}`,
+      ).toBeTruthy()
       expect(Number(announcement?.vagas_livres || 0)).toBeGreaterThanOrEqual(1)
 
       const publicSellerApi = await request.get(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vagas`)
