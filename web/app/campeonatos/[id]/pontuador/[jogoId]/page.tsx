@@ -340,9 +340,15 @@ export default function PontuadorJogoPage() {
         `/api/campeonatos/${params.id}/pontuador/${params.jogoId}/quedas/${selectedDropId}/falta`,
         { method: 'POST', body: JSON.stringify({ campeonato_equipe_id: equipeId }) },
       )
+      // A falta é persistida imediatamente, mas o restante do Match Result continua
+      // sendo uma prévia local até o usuário confirmar. Recarregar o pontuador aqui
+      // substituía os dados importados pelos valores antigos do banco e fazia toda a
+      // conferência desaparecer momentaneamente.
+      setPreviewLinks((current) => Object.fromEntries(
+        Object.entries(current).map(([nome, teamId]) => [nome, teamId === equipeId ? '' : teamId]),
+      ))
       setFaltas((f) => ({ ...f, [equipeId]: true }))
       setNotice('Falta registrada para a equipe nesta queda.')
-      await load()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erro ao marcar falta.')
     } finally {
