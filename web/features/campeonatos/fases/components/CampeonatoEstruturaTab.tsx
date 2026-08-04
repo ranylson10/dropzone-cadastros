@@ -151,7 +151,6 @@ export function CampeonatoEstruturaTab({
   const [bulkPhases, setBulkPhases] = useState<BulkPhaseDraft[]>(() => [createEmptyBulkPhase(1)])
   const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ id: string; nome: string; slots: string; whatsapp_url: string; slot_start_letter: string } | null>(null)
-  const [editingSlot, setEditingSlot] = useState<{ id: string; letra: string } | null>(null)
 
   // Slot: adicionar / remover line
   const [slotAlvo, setSlotAlvo] = useState<Slot | null>(null)
@@ -172,9 +171,9 @@ export function CampeonatoEstruturaTab({
   const canRemove = Boolean(permission.canRemove)
   const canInvite = Boolean(permission.canGenerateToken)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!campeonatoId) return
-    setLoading(true)
+    if (!options?.silent) setLoading(true)
     setError('')
     try {
       const headers = await authHeaders()
@@ -214,7 +213,7 @@ export function CampeonatoEstruturaTab({
       setGrupos([])
       setSlots([])
     } finally {
-      setLoading(false)
+      if (!options?.silent) setLoading(false)
     }
   }, [campeonatoId])
 
@@ -378,7 +377,7 @@ export function CampeonatoEstruturaTab({
         nome_line: nomeLine || undefined,
       })
       fecharSlot()
-      await load()
+      await load({ silent: true })
       onChanged?.()
     } catch (err: any) {
       setSlotFeedback(err?.message || 'Erro ao adicionar.')
@@ -410,7 +409,7 @@ export function CampeonatoEstruturaTab({
       } else {
         setSlotFeedback(json.mensagem || 'Convite criado.')
       }
-      await load()
+      await load({ silent: true })
     } catch (err: any) {
       setSlotFeedback(err?.message || 'Erro ao criar convite.')
     } finally {
@@ -430,7 +429,7 @@ export function CampeonatoEstruturaTab({
     setError('')
     try {
       await campeonatoEquipesService.remover(campeonatoId, participacaoId)
-      await load()
+      await load({ silent: true })
       onChanged?.()
     } catch (err: any) {
       setError(err?.message || 'Erro ao remover line.')
@@ -451,7 +450,7 @@ export function CampeonatoEstruturaTab({
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao salvar estrutura.')
-      await load()
+      await load({ silent: true })
       onChanged?.()
       return true
     } catch (err: any) {
@@ -1113,15 +1112,6 @@ export function CampeonatoEstruturaTab({
                                           {clickable ? <ChevronRight size={17} /> : null}
                                         </span>
                                       </button>
-                                      {canEdit ? (editingSlot?.id === slot.id ? (
-                                        <div className="slot-letter-editor">
-                                          <input value={editingSlot.letra} maxLength={3} autoFocus onChange={(e) => setEditingSlot({ id: slot.id, letra: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })} />
-                                          <button type="button" className="button" disabled={busy || !editingSlot.letra} onClick={async () => { const ok = await mutate('PATCH', { entity: 'slot', id: slot.id, slot_letra: editingSlot.letra }); if (ok) setEditingSlot(null) }}>Salvar letra</button>
-                                          <button type="button" className="button secondary" onClick={() => setEditingSlot(null)}>Cancelar</button>
-                                        </div>
-                                      ) : (
-                                        <button type="button" className="slot-letter-edit-button" title="Editar letra deste slot" onClick={() => setEditingSlot({ id: slot.id, letra: letter })}><Pencil size={13} /> Editar letra</button>
-                                      )) : null}
                                     </article>
                                   )
                                 })

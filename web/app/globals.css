@@ -11111,3 +11111,145 @@ input::placeholder, textarea::placeholder {
     flex-basis: 145px;
   }
 }
+
+/* =========================================================
+   RODADA 87E — ESTRUTURA COMPACTA E ATUALIZAÇÕES LOCAIS
+   Fases, grupos, slots e jogos com o mesmo padrão operacional.
+   ========================================================= */
+.producer-layout-ref .phase-folder-tree { gap: 8px; }
+.producer-layout-ref .phase-folder,
+.producer-layout-ref .group-folder {
+  border: 1px solid var(--producer-line);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--producer-panel);
+}
+.producer-layout-ref .phase-folder { border-left: 3px solid var(--producer-gold); }
+.producer-layout-ref .group-folder {
+  margin: 6px 0;
+  border-left: 2px solid #70757d;
+  background: var(--producer-surface);
+}
+.producer-layout-ref .folder-row {
+  min-height: 46px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--producer-line-soft);
+}
+.producer-layout-ref .phase-folder-row {
+  background: #25282e;
+  color: #fff;
+}
+.producer-layout-ref .phase-folder-row .folder-toggle small { color: #c8ccd2; }
+.producer-layout-ref .group-folder-row { background: #d7dade; }
+.producer-layout-ref .folder-toggle { gap: 7px; }
+.producer-layout-ref .folder-toggle span { gap: 0; }
+.producer-layout-ref .folder-toggle strong { font-size: 12px; }
+.producer-layout-ref .folder-toggle small { font-size: 10px; }
+.producer-layout-ref .folder-actions { gap: 4px; }
+.producer-layout-ref .folder-actions > button:not(.button) {
+  width: 30px;
+  height: 30px;
+  border-color: var(--producer-line);
+  background: transparent;
+}
+.producer-layout-ref .folder-actions > button:not(.button):hover {
+  border-color: var(--producer-gold-deep);
+  background: #ece8db;
+}
+.producer-layout-ref .phase-folder-content {
+  padding: 4px 8px 8px 24px;
+  background: #cfd3d7;
+}
+.producer-layout-ref .group-folder .championship-vaga-row {
+  border: 0;
+  border-bottom: 1px solid #c4c8ce;
+  border-left: 3px solid transparent;
+  background: #e7e9ec;
+}
+.producer-layout-ref .group-folder .championship-vaga-row:last-child { border-bottom: 0; }
+.producer-layout-ref .group-folder .championship-vaga-row.status-livre,
+.producer-layout-ref .group-folder .championship-vaga-row.status-reservada,
+.producer-layout-ref .group-folder .championship-vaga-row.status-ocupada,
+.producer-layout-ref .group-folder .championship-vaga-row.is-open {
+  background: #e7e9ec;
+  border-left-color: transparent;
+}
+.producer-layout-ref .group-folder .championship-vaga-row.status-ocupada { border-left-color: var(--producer-gold); }
+.producer-layout-ref .group-folder .vaga-row-summary {
+  min-height: 46px;
+  grid-template-columns: 34px 34px minmax(150px, 1fr) auto 22px;
+  gap: 8px;
+  padding: 5px 10px;
+}
+.producer-layout-ref .group-folder .vaga-row-number { font-size: 13px; }
+.producer-layout-ref .group-folder .vaga-row-number::before { display: none; }
+.producer-layout-ref .group-folder .vaga-row-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
+  border-color: #aeb4bc;
+  background: #f0f1f3;
+}
+.producer-layout-ref .group-folder .vaga-row-avatar.status-ocupada,
+.producer-layout-ref .group-folder .vaga-row-avatar.status-livre,
+.producer-layout-ref .group-folder .vaga-row-avatar.status-reservada {
+  border-color: #aeb4bc;
+  background: #f0f1f3;
+  color: #555b64;
+}
+.producer-layout-ref .group-folder .vaga-row-identity strong { font-size: 11px; }
+.producer-layout-ref .group-folder .vaga-row-identity small { margin-top: 0; font-size: 9px; }
+.producer-layout-ref .group-folder .vaga-status-pill {
+  padding: 3px 6px;
+  border-radius: 2px;
+  background: #d4d7dc;
+  color: #30343a;
+}
+.producer-layout-ref .group-folder .vaga-status-pill.status-ocupada {
+  background: var(--producer-gold);
+  color: #17191d;
+}
+.producer-layout-ref .group-folder-row .whatsapp-ready,
+.producer-layout-ref .group-folder-row .whatsapp-missing { color: var(--producer-muted); }
+.producer-layout-ref .inline-action-panel.group-edit-form {
+  margin: 0;
+  padding: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--producer-line);
+  background: #eceef0;
+}
+.producer-layout-ref .games-list { gap: 6px; }
+.producer-layout-ref .game-card {
+  border: 1px solid var(--producer-line);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--producer-surface);
+}
+.producer-layout-ref .game-card-summary {
+  min-height: 48px;
+  padding: 8px 10px;
+  background: #d9dde1;
+}
+.producer-layout-ref .game-card.is-open .game-card-summary,
+.producer-layout-ref .game-card:hover .game-card-summary { background: #cfd3d7; }
+.producer-layout-ref .game-card-details,
+.producer-layout-ref .game-form-panel,
+.producer-layout-ref .game-rules-panel {
+  border-color: var(--producer-line);
+  background: #e7e9ec;
+  box-shadow: none;
+}
+.producer-layout-ref .teams-tab-loading {
+  min-height: 84px;
+  border-color: var(--producer-line);
+  background: #d9dde1;
+}
+@media (max-width: 760px) {
+  .producer-layout-ref .folder-row { align-items: center; flex-direction: row; }
+  .producer-layout-ref .folder-actions { width: auto; }
+  .producer-layout-ref .phase-folder-content { padding-left: 6px; }
+  .producer-layout-ref .group-folder .vaga-row-summary {
+    grid-template-columns: 30px 32px minmax(0, 1fr) 20px;
+  }
+  .producer-layout-ref .group-folder .vaga-row-meta { display: none; }
+}
