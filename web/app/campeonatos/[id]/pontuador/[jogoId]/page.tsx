@@ -29,10 +29,23 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     window.location.replace(`/login?profileType=${encodeURIComponent(profileType)}&returnTo=${encodeURIComponent(returnTo)}`)
     throw new Error('Redirecionando para o login...')
   }
-  const response = await fetch(url, {
-    ...options, cache: 'no-store',
-    headers: { ...(options?.body ? { 'Content-Type': 'application/json' } : {}), Authorization: `Bearer ${token}`, ...(options?.headers || {}) },
-  })
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 30_000)
+  const abortFromCaller = () => controller.abort()
+  options?.signal?.addEventListener('abort', abortFromCaller, { once: true })
+  let response: Response
+  try {
+    response = await fetch(url, {
+      ...options, cache: 'no-store', signal: controller.signal,
+      headers: { ...(options?.body ? { 'Content-Type': 'application/json' } : {}), Authorization: `Bearer ${token}`, ...(options?.headers || {}) },
+    })
+  } catch (cause) {
+    if (controller.signal.aborted) throw new Error('A operação demorou demais. Tente novamente.')
+    throw cause
+  } finally {
+    window.clearTimeout(timeout)
+    options?.signal?.removeEventListener('abort', abortFromCaller)
+  }
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(payload.error || 'Não foi possível concluir a operação.')
   return payload as T
@@ -205,12 +218,21 @@ export default function PontuadorJogoPage() {
         }),
       })
       // 3) finaliza queda → fica só leitura
-      await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' })
+      const finalized = await request<{ queda?: Row }>(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' })
       setPreview(null)
       setMatchContent('')
       setMatchName('')
       setPreviewLinks({})
       setNotice(`Q${selectedDrop?.numero_partida} salva e travada. Vínculos gravados. Use Editar para alterar.`)
+      // A queda já pode ser travada com a resposta da finalização. A recarga das
+      // classificações não deve manter o botão Salvar preso se a rede estiver lenta.
+      setData((current) => current ? {
+        ...current,
+        partidas: current.partidas.map((partida) => partida.id === selectedDropId
+          ? { ...partida, ...(finalized.queda || {}), status: 'finalizada' }
+          : partida),
+      } : current)
+      setSaving(false)
       await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao salvar a queda.') }
     finally { setSaving(false) }
