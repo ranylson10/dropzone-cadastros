@@ -620,6 +620,16 @@ export function ProdutoraPanel(props: {
       origem_criacao: 'novo',
       campeonato_origem_id: '',
       franquia_origem_id: '',
+      liga_usa_divisoes: champ.data?.liga_usa_divisoes === true,
+      liga_nome_agrupamento: String(champ.data?.liga_nome_agrupamento || 'Divisões'),
+      liga_divisoes: Array.isArray(champ.data?.liga_divisoes)
+        ? champ.data.liga_divisoes.map((division: any, index: number) => ({
+            id: String(division?.id || `division-${index + 1}`),
+            nome: String(division?.nome || ''),
+            codigo: String(division?.codigo || ''),
+            ordem: Number(division?.ordem || index + 1),
+          }))
+        : [],
     }
   }
 

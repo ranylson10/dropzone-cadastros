@@ -60,6 +60,14 @@ export type CampeonatoFormValue = {
   origem_criacao: 'novo' | 'modelo' | 'season'
   campeonato_origem_id: string
   franquia_origem_id: string
+  liga_usa_divisoes: boolean
+  liga_nome_agrupamento: string
+  liga_divisoes: Array<{
+    id: string
+    nome: string
+    codigo: string
+    ordem: number
+  }>
 }
 
 export type CampeonatoWhatsappContact = {
@@ -127,6 +135,9 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   origem_criacao: 'novo',
   campeonato_origem_id: '',
   franquia_origem_id: '',
+  liga_usa_divisoes: false,
+  liga_nome_agrupamento: 'Divisões',
+  liga_divisoes: [],
 }
 
 const TYPE_OPTIONS: Array<{
@@ -147,14 +158,14 @@ const TYPE_OPTIONS: Array<{
     type: 'copa',
     title: 'Copa',
     description: 'Competição eliminatória com grupos, classificatórias e fases finais.',
-    format: 'Grupos e fases eliminatórias',
+    format: 'Mata-mata',
     icon: Trophy,
   },
   {
     type: 'liga',
     title: 'Liga',
     description: 'Poucas equipes disputam várias rodadas em sistema de pontos corridos.',
-    format: 'Pontos corridos',
+    format: 'Pontos corridos ou híbrido',
     icon: Medal,
   },
   {
@@ -312,6 +323,9 @@ export function CampeonatoForm({
       origem_criacao: 'novo',
       campeonato_origem_id: '',
       franquia_origem_id: '',
+      liga_usa_divisoes: type === 'liga' ? value.liga_usa_divisoes : false,
+      liga_nome_agrupamento: type === 'liga' ? value.liga_nome_agrupamento || 'Divisões' : 'Divisões',
+      liga_divisoes: type === 'liga' ? value.liga_divisoes : [],
     })
     setStep('form')
     setFormPage('origin')
@@ -378,6 +392,7 @@ export function CampeonatoForm({
         'pagamento_whatsapp_ativo', 'cartao_max_parcelas', 'paypal_moedas',
         'cor_principal', 'cor_secundaria', 'bg_opacidade', 'bg_image_url',
         'recurso_export', 'recurso_stream', 'recurso_rulebook', 'recurso_stats', 'recurso_broadcast',
+        'liga_usa_divisoes', 'liga_nome_agrupamento', 'liga_divisoes',
       ]
       for (const key of copyKeys) {
         const sourceField = sourceValue(source, key)
@@ -430,6 +445,27 @@ export function CampeonatoForm({
 
   function removeWhatsappContact(id: string) {
     update('contatos_whatsapp', value.contatos_whatsapp.filter((contact) => contact.id !== id))
+  }
+
+  function addLeagueDivision() {
+    const nextOrder = value.liga_divisoes.length + 1
+    update('liga_divisoes', [
+      ...value.liga_divisoes,
+      {
+        id: crypto.randomUUID(),
+        nome: `${value.liga_nome_agrupamento.replace(/s$/i, '') || 'Divisão'} ${nextOrder}`,
+        codigo: '',
+        ordem: nextOrder,
+      },
+    ])
+  }
+
+  function updateLeagueDivision(id: string, patch: Partial<CampeonatoFormValue['liga_divisoes'][number]>) {
+    update('liga_divisoes', value.liga_divisoes.map((division) => division.id === id ? { ...division, ...patch } : division))
+  }
+
+  function removeLeagueDivision(id: string) {
+    update('liga_divisoes', value.liga_divisoes.filter((division) => division.id !== id).map((division, index) => ({ ...division, ordem: index + 1 })))
   }
 
   if (step === 'type') {
@@ -727,7 +763,27 @@ export function CampeonatoForm({
             />
           </Field>
 
-          {value.tipo === 'xtreino' ? (
+          {value.tipo === 'liga' ? (
+            <Field label="Modelo da liga">
+              <select
+                value={value.liga_usa_divisoes ? 'divisoes' : 'simples'}
+                onChange={(event) => {
+                  const useDivisions = event.target.value === 'divisoes'
+                  onChange({
+                    ...value,
+                    liga_usa_divisoes: useDivisions,
+                    liga_divisoes: useDivisions && !value.liga_divisoes.length
+                      ? [{ id: crypto.randomUUID(), nome: 'Divisão 1', codigo: '', ordem: 1 }]
+                      : value.liga_divisoes,
+                    formato: useDivisions ? 'Liga híbrida por divisões' : 'Pontos corridos',
+                  })
+                }}
+              >
+                <option value="simples">Liga simples — pontos corridos</option>
+                <option value="divisoes">Liga com divisões, séries ou categorias</option>
+              </select>
+            </Field>
+          ) : value.tipo === 'xtreino' ? (
             <Field label="Formato do X-Treino">
               <select value={value.formato} onChange={(e) => update('formato', e.target.value)}>
                 <option value="Jogo único">Jogo único</option>
@@ -744,7 +800,7 @@ export function CampeonatoForm({
               </select>
             </Field>
           ) : (
-            <Field label="Formato automático"><input value={value.formato || defaultFormat(value.tipo)} readOnly /></Field>
+            <Field label="Formato definido pelo tipo"><input value={value.tipo === 'copa' ? 'Mata-mata' : 'Jogo único'} readOnly /></Field>
           )}
 
           <Field label="Plataforma">
@@ -758,6 +814,66 @@ export function CampeonatoForm({
           <Field label="Servidor"><input value={value.servidor} onChange={(e) => update('servidor', e.target.value)} placeholder="Ex.: Brasil" /></Field>
         </div>
       </section>
+
+      {value.tipo === 'liga' && pageVisible('format') && value.liga_usa_divisoes ? (
+        <section className="form-section-card league-organization-card">
+          <div className="form-section-heading">
+            <div>
+              <p className="eyebrow">Organização da liga</p>
+              <strong>Defina como os níveis serão chamados</strong>
+            </div>
+          </div>
+          <p className="form-empty-note">
+            Você pode usar Série A/B/C, Bronze/Prata/Ouro, Elite/Challenger ou qualquer nome próprio.
+          </p>
+          <div className="mini-grid two">
+            <Field label="Nome do agrupamento">
+              <select
+                value={['Séries', 'Divisões', 'Categorias', 'Níveis', 'Conferências', 'Circuitos'].includes(value.liga_nome_agrupamento) ? value.liga_nome_agrupamento : 'Personalizado'}
+                onChange={(event) => update('liga_nome_agrupamento', event.target.value === 'Personalizado' ? '' : event.target.value)}
+              >
+                <option value="Divisões">Divisões</option>
+                <option value="Séries">Séries</option>
+                <option value="Categorias">Categorias</option>
+                <option value="Níveis">Níveis</option>
+                <option value="Conferências">Conferências</option>
+                <option value="Circuitos">Circuitos</option>
+                <option value="Personalizado">Nome personalizado</option>
+              </select>
+            </Field>
+            <Field label="Nome exibido">
+              <input
+                value={value.liga_nome_agrupamento}
+                onChange={(event) => update('liga_nome_agrupamento', event.target.value)}
+                placeholder="Ex.: Copas, Faixas ou Classes"
+              />
+            </Field>
+          </div>
+          <div className="league-division-list">
+            {value.liga_divisoes.map((division, index) => (
+              <div className="league-division-row" key={division.id}>
+                <span className="league-division-order">{index + 1}</span>
+                <Field label="Nome">
+                  <input value={division.nome} onChange={(event) => updateLeagueDivision(division.id, { nome: event.target.value })} placeholder="Ex.: Ouro" />
+                </Field>
+                <Field label="Código opcional">
+                  <input value={division.codigo} onChange={(event) => updateLeagueDivision(division.id, { codigo: event.target.value })} placeholder="Ex.: OURO" />
+                </Field>
+                <button className="inline-icon-button" type="button" onClick={() => removeLeagueDivision(division.id)} aria-label={`Remover ${division.nome || 'divisão'}`}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button className="button secondary" type="button" onClick={addLeagueDivision}>
+            <Plus size={15} /> Adicionar {value.liga_nome_agrupamento.replace(/s$/i, '').toLocaleLowerCase('pt-BR') || 'divisão'}
+          </button>
+          <p className="form-empty-note">
+            Datas, vendas, fases, promoção e rebaixamento de cada item serão configurados na próxima etapa da criação da Liga.
+          </p>
+        </section>
+      ) : null}
+
 
       <section className="form-section-card" hidden={!pageVisible('operation')}>
         <p className="eyebrow">Premiação e inscrição</p>
@@ -927,6 +1043,9 @@ export function CampeonatoForm({
             <div><small>Edição</small><strong>{value.numero_edicao || '1'}</strong></div>
             <div><small>Vagas</small><strong>{value.numero_vagas || 'Não definidas'}</strong></div>
             <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
+            {value.tipo === 'liga' ? (
+              <div><small>Organização</small><strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} ${value.liga_nome_agrupamento || 'divisões'}` : 'Liga simples'}</strong></div>
+            ) : null}
           </div>
           <p className="form-empty-note">Fases, grupos, datas e progressão serão configurados na aba Grupos e fases após a criação do campeonato.</p>
         </section>

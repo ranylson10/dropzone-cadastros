@@ -10642,3 +10642,48 @@ input::placeholder, textarea::placeholder {
     background: var(--surface);
   }
 }
+
+/* Rodada 87C — organização guiada de ligas */
+.league-organization-card {
+  display: grid;
+  gap: 14px;
+}
+
+.league-division-list {
+  display: grid;
+  gap: 10px;
+}
+
+.league-division-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(150px, .55fr) 38px;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line, #d9dee7);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .72);
+}
+
+.league-division-order {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border-radius: 999px;
+  background: var(--gold, #d9ad20);
+  color: #17191d;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .league-division-row {
+    grid-template-columns: 30px minmax(0, 1fr) 38px;
+  }
+
+  .league-division-row > label:nth-of-type(2) {
+    grid-column: 2 / 4;
+  }
+}
