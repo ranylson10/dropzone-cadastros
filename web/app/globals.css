@@ -11295,3 +11295,33 @@ input::placeholder, textarea::placeholder {
     padding-right: 6px;
   }
 }
+
+
+/* Rodada 87J2 — variação de posição em classificação e MVP */
+.statistics-variation {
+  display: inline-flex;
+  min-width: 42px;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+.statistics-variation.is-up { color: #1f9d55; }
+.statistics-variation.is-down { color: #d64545; }
+.statistics-variation.is-neutral { color: #b88900; }
+
+.producer-layout-ref .statistics-table-ranking th:nth-child(2),
+.producer-layout-ref .statistics-table-ranking td:nth-child(2),
+.producer-layout-ref .statistics-table-mvp th:nth-child(2),
+.producer-layout-ref .statistics-table-mvp td:nth-child(2) {
+  width: 72px;
+  text-align: center;
+}
+.producer-layout-ref .statistics-table-ranking th:nth-child(3),
+.producer-layout-ref .statistics-table-ranking td:nth-child(3),
+.producer-layout-ref .statistics-table-mvp th:nth-child(3),
+.producer-layout-ref .statistics-table-mvp td:nth-child(3) {
+  width: auto;
+  text-align: left;
+}

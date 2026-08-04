@@ -117,7 +117,7 @@ export function FillStyleEditor(props: {
       set({
         mode: 'image',
         imageUrl: url,
-        fit: v.fit || 'cover',
+        fit: v.fit || 'contain',
         position: v.position || 'center',
         repeat: v.repeat || 'no-repeat',
         fallbackColor: v.fallbackColor || '#000000',
@@ -202,11 +202,11 @@ export function FillStyleEditor(props: {
               type="url"
               value={v.imageUrl || ''}
               placeholder="https://… ou envie acima"
-              onChange={(e) => set({ mode: 'image', imageUrl: e.target.value })}
+              onChange={(e) => set({ mode: 'image', imageUrl: e.target.value, fit: v.fit || 'contain' })}
             />
           </Field>
           <Field label="Ajuste">
-            <select value={v.fit || 'cover'} onChange={(e) => set({ fit: e.target.value as FillStyle['fit'] })}>
+            <select value={v.fit || 'contain'} onChange={(e) => set({ fit: e.target.value as FillStyle['fit'] })}>
               <option value="cover">Cobrir</option>
               <option value="contain">Conter</option>
               <option value="stretch">Esticar</option>

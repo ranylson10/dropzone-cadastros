@@ -34,6 +34,13 @@ function deltaLabel(delta: unknown) {
   return `${n} ▼`
 }
 
+function deltaTone(delta: unknown) {
+  const n = Number(delta || 0)
+  if (n > 0) return { className: 'is-up', color: '#28c76f' }
+  if (n < 0) return { className: 'is-down', color: '#ea5455' }
+  return { className: 'is-neutral', color: '#d8a600' }
+}
+
 function resolveSourceRows(props: {
   table: StreamTableBlock
   standings: PreviewStanding[]
@@ -260,9 +267,11 @@ function TablePanel(props: {
                 },
               )
               const textAlign = c.align || colField.text.textAlign || 'center'
+              const deltaStyle = c.field === 'delta' ? deltaTone(dataRow.delta) : null
               return (
                 <span
                   key={c.id}
+                  className={deltaStyle ? `col-delta ${deltaStyle.className}` : undefined}
                   style={{
                     ...colField.wrap,
                     ...colField.text,
@@ -288,6 +297,7 @@ function TablePanel(props: {
                       c.fill ||
                       undefined,
                     color:
+                      deltaStyle?.color ||
                       (colField.text.color as string | undefined) ||
                       c.textColor ||
                       undefined,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FileUp, Loader2, Medal, RefreshCcw, Save, Trophy } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { DropZoneRow } from '@/lib/types'
@@ -22,6 +22,7 @@ type TeamStat = {
   pontos_posicao: number
   pontos_abates: number
   pontos_total: number
+  variacao?: number
 }
 
 type MvpStat = {
@@ -33,6 +34,7 @@ type MvpStat = {
   tipo_jogador: string
   quedas: number
   abates: number
+  variacao?: number
 }
 
 type SumulaTeam = Record<string, any>
@@ -103,6 +105,19 @@ function kdValue(abates: number, quedas: number) {
   return (abates / quedas).toFixed(2).replace('.', ',')
 }
 
+
+function variationLabel(value: number | undefined) {
+  const n = Number(value || 0)
+  if (n > 0) return { text: `+${n} ▲`, className: 'is-up', title: `Subiu ${n} posição${n === 1 ? '' : 'ões'}` }
+  if (n < 0) return { text: `${n} ▼`, className: 'is-down', title: `Desceu ${Math.abs(n)} posição${Math.abs(n) === 1 ? '' : 'ões'}` }
+  return { text: '0 =', className: 'is-neutral', title: 'Manteve a posição' }
+}
+
+function VariationCell({ value }: { value?: number }) {
+  const meta = variationLabel(value)
+  return <span className={`statistics-variation ${meta.className}`} title={meta.title}>{meta.text}</span>
+}
+
 function queryString(filters: Filters) {
   const query = new URLSearchParams()
   Object.entries(filters).forEach(([key, value]) => value && query.set(key, value))
@@ -124,6 +139,8 @@ export function CampeonatoEstatisticasTab(props: {
   const [mvpStats, setMvpStats] = useState<MvpStat[]>([])
   const [loadingStats, setLoadingStats] = useState(false)
   const [error, setError] = useState('')
+  const previousTeamPositions = useRef(new Map<string, number>())
+  const previousMvpPositions = useRef(new Map<string, number>())
 
   const [sumulaLoading, setSumulaLoading] = useState(false)
   const [sumulaTeams, setSumulaTeams] = useState<SumulaTeam[]>([])
@@ -159,8 +176,22 @@ export function CampeonatoEstatisticasTab(props: {
         request<{ equipes: TeamStat[] }>(`/api/campeonatos/${props.campeonatoId}/estatisticas/equipes${suffix}`),
         request<{ jogadores: MvpStat[] }>(`/api/campeonatos/${props.campeonatoId}/estatisticas/mvp${suffix}`),
       ])
-      setTeamStats(teamsResult.equipes || [])
-      setMvpStats(mvpResult.jogadores || [])
+      const nextTeams = (teamsResult.equipes || []).map((row) => ({
+        ...row,
+        variacao: previousTeamPositions.current.has(row.campeonato_equipe_id)
+          ? (previousTeamPositions.current.get(row.campeonato_equipe_id) || row.colocacao) - row.colocacao
+          : 0,
+      }))
+      const nextMvp = (mvpResult.jogadores || []).map((row) => ({
+        ...row,
+        variacao: previousMvpPositions.current.has(row.campeonato_jogador_id)
+          ? (previousMvpPositions.current.get(row.campeonato_jogador_id) || row.colocacao) - row.colocacao
+          : 0,
+      }))
+      previousTeamPositions.current = new Map(nextTeams.map((row) => [row.campeonato_equipe_id, row.colocacao]))
+      previousMvpPositions.current = new Map(nextMvp.map((row) => [row.campeonato_jogador_id, row.colocacao]))
+      setTeamStats(nextTeams)
+      setMvpStats(nextMvp)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erro ao carregar estatísticas.')
     } finally {
@@ -347,16 +378,16 @@ export function CampeonatoEstatisticasTab(props: {
       ) : null}
 
       {tab === 'geral' && !loadingStats ? (
-        <div className="statistics-table-wrap"><table className="statistics-table statistics-table-compact"><thead><tr><th>#</th><th>Equipe</th><th title="Grupo">GP</th><th title="Quedas">QD</th><th title="Booyah">B!</th><th title="Abates">KILL</th><th title="Pontos">PTS</th></tr></thead><tbody>
-          {teamStats.map((row) => <tr key={row.campeonato_equipe_id}><td><strong>{row.colocacao}</strong></td><td><div className="statistics-identity">{row.logo_url ? <img src={row.logo_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nome.slice(0, 1)}</span>}<span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></div></td><td className="statistics-code">{groupCode(row.grupo_id, props.groups)}</td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td className="statistics-total">{row.pontos_total}</td></tr>)}
-          {teamStats.length === 0 ? <tr><td colSpan={7} className="empty">Nenhuma pontuação registrada.</td></tr> : null}
+        <div className="statistics-table-wrap"><table className="statistics-table statistics-table-compact statistics-table-ranking"><thead><tr><th>#</th><th title="Variação da posição">Δ</th><th>Equipe</th><th title="Grupo">GP</th><th title="Quedas">QD</th><th title="Booyah">B!</th><th title="Abates">KILL</th><th title="Pontos">PTS</th></tr></thead><tbody>
+          {teamStats.map((row) => <tr key={row.campeonato_equipe_id}><td><strong>{row.colocacao}</strong></td><td><VariationCell value={row.variacao} /></td><td><div className="statistics-identity">{row.logo_url ? <img src={row.logo_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nome.slice(0, 1)}</span>}<span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></div></td><td className="statistics-code">{groupCode(row.grupo_id, props.groups)}</td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td className="statistics-total">{row.pontos_total}</td></tr>)}
+          {teamStats.length === 0 ? <tr><td colSpan={8} className="empty">Nenhuma pontuação registrada.</td></tr> : null}
         </tbody></table></div>
       ) : null}
 
       {tab === 'mvp' && !loadingStats ? (
-        <div className="statistics-table-wrap"><table className="statistics-table statistics-table-compact statistics-table-mvp"><thead><tr><th>#</th><th>Jogador</th><th title="Quedas">QD</th><th title="Abates por queda">K.D</th><th title="Abates">KILL</th></tr></thead><tbody>
-          {mvpStats.map((row) => <tr key={row.campeonato_jogador_id}><td><strong>{row.colocacao}</strong></td><td><div className="statistics-identity">{row.foto_url ? <img src={row.foto_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nick.slice(0, 1)}</span>}<span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></div></td><td>{row.quedas}</td><td className="statistics-code">{kdValue(row.abates, row.quedas)}</td><td className="statistics-total">{row.abates}</td></tr>)}
-          {mvpStats.length === 0 ? <tr><td colSpan={5} className="empty">Nenhuma estatística de jogador registrada.</td></tr> : null}
+        <div className="statistics-table-wrap"><table className="statistics-table statistics-table-compact statistics-table-mvp"><thead><tr><th>#</th><th title="Variação da posição">Δ</th><th>Jogador</th><th title="Quedas">QD</th><th title="Abates por queda">K.D</th><th title="Abates">KILL</th></tr></thead><tbody>
+          {mvpStats.map((row) => <tr key={row.campeonato_jogador_id}><td><strong>{row.colocacao}</strong></td><td><VariationCell value={row.variacao} /></td><td><div className="statistics-identity">{row.foto_url ? <img src={row.foto_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nick.slice(0, 1)}</span>}<span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></div></td><td>{row.quedas}</td><td className="statistics-code">{kdValue(row.abates, row.quedas)}</td><td className="statistics-total">{row.abates}</td></tr>)}
+          {mvpStats.length === 0 ? <tr><td colSpan={6} className="empty">Nenhuma estatística de jogador registrada.</td></tr> : null}
         </tbody></table></div>
       ) : null}
 
