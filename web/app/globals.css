@@ -10687,3 +10687,427 @@ input::placeholder, textarea::placeholder {
     grid-column: 2 / 4;
   }
 }
+
+/* =========================================================
+   RODADA 87D — PAINEL DA PRODUTORA: LINGUAGEM VISUAL ÚNICA
+   Cinza médio, ouro e grafite; menos branco, sombra e ruído.
+   ========================================================= */
+.producer-layout-ref {
+  --producer-bg: #c9cdd2;
+  --producer-surface: #e6e8eb;
+  --producer-surface-strong: #d9dde1;
+  --producer-panel: #f0f1f3;
+  --producer-ink: #17191d;
+  --producer-muted: #5d626b;
+  --producer-gold: #c9a227;
+  --producer-gold-deep: #9d7b16;
+  --producer-line: #aeb4bc;
+  --producer-line-soft: #c7cbd1;
+  padding: 10px;
+  background: var(--producer-bg);
+  border: 1px solid var(--producer-line);
+  border-radius: 8px;
+}
+
+.producer-layout-ref .panel,
+.producer-layout-ref .panel-soft,
+.producer-layout-ref .detail-hero-ref,
+.producer-layout-ref .subtab-actionbar,
+.producer-layout-ref .inline-action-panel,
+.producer-layout-ref .phase-card,
+.producer-layout-ref .group-mini-card,
+.producer-layout-ref .detail-stat,
+.producer-layout-ref .champ-list-item,
+.producer-layout-ref .compact-row,
+.producer-layout-ref .token-card,
+.producer-layout-ref .card {
+  box-shadow: none;
+}
+
+.producer-layout-ref .championship-nav-card,
+.producer-layout-ref .championship-detail-card {
+  background: var(--producer-surface);
+  border-color: var(--producer-line);
+}
+
+.producer-layout-ref .championship-nav-card {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  max-height: calc(100vh - 170px);
+  min-height: 520px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.producer-layout-ref .championship-nav-card > .section-head {
+  margin: 0;
+  padding: 16px 16px 12px;
+  background: var(--producer-ink);
+  color: #fff;
+  border-bottom: 3px solid var(--producer-gold);
+}
+
+.producer-layout-ref .championship-nav-card > .section-head h2,
+.producer-layout-ref .championship-nav-card > .section-head svg {
+  color: #fff;
+}
+
+.producer-layout-ref .championship-nav-card > .section-head .eyebrow {
+  color: var(--producer-gold);
+}
+
+.producer-layout-ref .championship-type-filter {
+  gap: 0;
+  padding: 0;
+  background: var(--producer-surface-strong);
+  border-bottom: 1px solid var(--producer-line);
+  scrollbar-width: thin;
+}
+
+.producer-layout-ref .championship-type-filter button {
+  min-height: 38px;
+  padding: 0 11px;
+  border: 0;
+  border-right: 1px solid var(--producer-line-soft);
+  border-radius: 0;
+  background: transparent;
+  color: var(--producer-muted);
+}
+
+.producer-layout-ref .championship-type-filter button.active {
+  background: var(--producer-gold);
+  color: var(--producer-ink);
+  box-shadow: inset 0 -3px 0 var(--producer-gold-deep);
+}
+
+.producer-layout-ref .championship-list {
+  display: block;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  background: var(--producer-panel);
+  scrollbar-width: thin;
+}
+
+.producer-layout-ref .champ-list-item {
+  grid-template-columns: 42px minmax(0, 1fr);
+  min-height: 58px;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--producer-line-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+.producer-layout-ref .champ-list-item:hover {
+  background: #e0e2e5;
+}
+
+.producer-layout-ref .champ-list-item.active {
+  background: #d5d8dc;
+  box-shadow: inset 4px 0 0 var(--producer-gold);
+}
+
+.producer-layout-ref .champ-list-item strong {
+  color: var(--producer-ink);
+  font-size: 12px;
+}
+
+.producer-layout-ref .champ-list-item small {
+  overflow: hidden;
+  color: var(--producer-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.producer-layout-ref .champ-thumb {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--producer-line-soft);
+  border-radius: 4px;
+  background: #d7dade;
+}
+
+.producer-layout-ref .championship-nav-card > .button.full {
+  margin: 10px 10px 6px;
+  width: calc(100% - 20px);
+  min-height: 40px;
+  background: var(--producer-gold);
+  border-color: var(--producer-gold-deep);
+  color: var(--producer-ink);
+  box-shadow: none;
+}
+
+.producer-layout-ref .producer-catalog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+
+.producer-layout-ref .producer-catalog-actions .button {
+  min-height: 36px;
+  padding-inline: 8px;
+  background: var(--producer-ink);
+  border-color: var(--producer-ink);
+  color: #fff;
+}
+
+.producer-layout-ref .championship-detail-card {
+  padding: 10px;
+}
+
+.producer-layout-ref .detail-hero-ref {
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  background: var(--producer-surface-strong);
+  border-color: var(--producer-line);
+  border-radius: 4px;
+}
+
+.producer-layout-ref .detail-logo-ref {
+  width: 70px;
+  height: 70px;
+  border: 1px solid var(--producer-line);
+  border-radius: 4px;
+  background: var(--producer-panel);
+}
+
+.producer-layout-ref .detail-title-ref h2 {
+  margin-bottom: 4px;
+  font-size: clamp(25px, 3vw, 34px);
+  color: var(--producer-ink);
+}
+
+.producer-layout-ref .detail-title-ref > p:not(.eyebrow):first-of-type {
+  color: var(--producer-muted);
+}
+
+.producer-layout-ref .championship-admin-actions {
+  gap: 5px;
+}
+
+.producer-layout-ref .championship-admin-actions .icon-action-button {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  justify-content: center;
+  overflow: hidden;
+  border-color: var(--producer-line);
+  border-radius: 4px;
+  background: var(--producer-panel);
+  color: var(--producer-ink);
+  font-size: 0;
+}
+
+.producer-layout-ref .championship-admin-actions .icon-action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.producer-layout-ref .detail-stats-ref {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--producer-line);
+  border: 1px solid var(--producer-line);
+}
+
+.producer-layout-ref .detail-stat {
+  min-height: 58px;
+  padding: 9px;
+  border: 0;
+  border-radius: 0;
+  background: var(--producer-panel);
+}
+
+.producer-layout-ref .detail-stat strong {
+  color: var(--producer-gold-deep);
+  font-size: 21px;
+}
+
+.producer-layout-ref .detail-stat span {
+  color: var(--producer-muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.producer-layout-ref .champ-subtabs-ref {
+  display: flex;
+  gap: 0;
+  margin: 10px 0;
+  overflow-x: auto;
+  background: var(--producer-ink);
+  border: 1px solid var(--producer-ink);
+  scrollbar-width: thin;
+}
+
+.producer-layout-ref .champ-subtabs-ref button {
+  flex: 0 0 auto;
+  min-width: 100px;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 0;
+  border-right: 1px solid #34383f;
+  background: transparent;
+  color: #d9dce0;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.producer-layout-ref .champ-subtabs-ref button.active {
+  background: var(--producer-gold);
+  color: var(--producer-ink);
+}
+
+.producer-layout-ref .champ-tab-body-ref {
+  padding: 0;
+}
+
+.producer-layout-ref .subtab-actionbar,
+.producer-layout-ref .statistics-heading {
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid var(--producer-line);
+  border-radius: 4px;
+  background: var(--producer-surface-strong);
+}
+
+.producer-layout-ref .subtab-actionbar .eyebrow,
+.producer-layout-ref .statistics-heading .eyebrow {
+  display: none;
+}
+
+.producer-layout-ref .subtab-actionbar h3,
+.producer-layout-ref .statistics-heading h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.producer-layout-ref .statistics-inner-tabs {
+  display: flex;
+  gap: 0;
+  margin-top: 8px;
+  border: 1px solid var(--producer-line);
+  background: var(--producer-panel);
+}
+
+.producer-layout-ref .statistics-inner-tabs button {
+  min-height: 42px;
+  border: 0;
+  border-right: 1px solid var(--producer-line);
+  background: transparent;
+}
+
+.producer-layout-ref .statistics-inner-tabs button.active {
+  background: var(--producer-gold);
+  color: var(--producer-ink);
+}
+
+.producer-layout-ref .statistics-filters {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 7px;
+  overflow-x: auto;
+  border: 1px solid var(--producer-line);
+  background: var(--producer-surface-strong);
+  scrollbar-width: thin;
+}
+
+.producer-layout-ref .statistics-filters select {
+  flex: 0 0 160px;
+  min-height: 34px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--producer-line);
+  border-radius: 3px;
+  background-color: var(--producer-panel);
+  color: var(--producer-ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.producer-layout-ref .statistics-table-wrap,
+.producer-layout-ref .statistics-message,
+.producer-layout-ref .statistics-loading {
+  border-color: var(--producer-line);
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.producer-layout-ref .statistics-table thead th {
+  background: var(--producer-ink);
+  color: #fff;
+}
+
+.producer-layout-ref .statistics-table tbody tr:nth-child(even) {
+  background: #e2e4e7;
+}
+
+.producer-layout-ref .statistics-table tbody tr:hover {
+  background: #d5d8dc;
+}
+
+.producer-layout-ref .statistics-table td,
+.producer-layout-ref .statistics-table th {
+  border-color: var(--producer-line-soft);
+}
+
+.producer-layout-ref .form-section-card,
+.producer-layout-ref .inline-action-panel,
+.producer-layout-ref .game-form-section,
+.producer-layout-ref .teams-tab-loading,
+.producer-layout-ref .teams-tab-error {
+  border-color: var(--producer-line);
+  background: var(--producer-panel);
+  box-shadow: none;
+}
+
+.producer-layout-ref .button,
+.producer-layout-ref .icon-action-button,
+.producer-layout-ref input,
+.producer-layout-ref select,
+.producer-layout-ref textarea {
+  border-radius: 3px;
+}
+
+@media (max-width: 1100px) {
+  .producer-layout-ref {
+    padding: 6px;
+  }
+
+  .producer-layout-ref .championship-nav-card {
+    max-height: none;
+    min-height: 0;
+  }
+
+  .producer-layout-ref .championship-list {
+    max-height: 330px;
+  }
+}
+
+@media (max-width: 700px) {
+  .producer-layout-ref .detail-hero-ref {
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+  }
+
+  .producer-layout-ref .detail-logo-ref {
+    width: 58px;
+    height: 58px;
+  }
+
+  .producer-layout-ref .detail-stats-ref {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .producer-layout-ref .statistics-filters select {
+    flex-basis: 145px;
+  }
+}
