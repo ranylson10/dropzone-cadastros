@@ -76,7 +76,10 @@ export type FillStyle = {
   colorTo?: string
   angle?: number
   imageUrl?: string
-  fit?: 'cover' | 'contain'
+  fit?: 'cover' | 'contain' | 'stretch'
+  position?: 'center' | 'top' | 'bottom' | 'left' | 'right'
+  repeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'
+  fallbackColor?: string
   overlayColor?: string
   overlayOpacity?: number
   opacity?: number
@@ -313,6 +316,8 @@ export type TableRowItem = {
   height?: number
   /** @deprecated use columnDefs.fill / rowStyle */
   fill?: string
+  /** estilo individual opcional da linha */
+  style?: FieldStyle
   /** @deprecated use columnDefs.textColor / rowStyle */
   textColor?: string
 }
@@ -338,6 +343,8 @@ export type TableBlockData = {
   /** estilo da linha modelo (todas as linhas) */
   rowStyle?: FieldStyle
   altRowFill?: string
+  /** estilo completo para linhas alternadas; substitui altRowFill quando presente */
+  altRowStyle?: FieldStyle
   highlightFirst?: boolean
   /** altura da linha modelo (px) — aplica em todas */
   rowHeight?: number

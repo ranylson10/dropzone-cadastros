@@ -118,6 +118,9 @@ export function FillStyleEditor(props: {
         mode: 'image',
         imageUrl: url,
         fit: v.fit || 'cover',
+        position: v.position || 'center',
+        repeat: v.repeat || 'no-repeat',
+        fallbackColor: v.fallbackColor || '#000000',
         overlayOpacity: 0,
         overlayColor: v.overlayColor || '#000000',
         opacity: 1,
@@ -202,10 +205,31 @@ export function FillStyleEditor(props: {
             />
           </Field>
           <Field label="Ajuste">
-            <select value={v.fit || 'cover'} onChange={(e) => set({ fit: e.target.value as 'cover' | 'contain' })}>
+            <select value={v.fit || 'cover'} onChange={(e) => set({ fit: e.target.value as FillStyle['fit'] })}>
               <option value="cover">Cobrir</option>
               <option value="contain">Conter</option>
+              <option value="stretch">Esticar</option>
             </select>
+          </Field>
+          <Field label="Posição">
+            <select value={v.position || 'center'} onChange={(e) => set({ position: e.target.value as FillStyle['position'] })}>
+              <option value="center">Centro</option>
+              <option value="top">Topo</option>
+              <option value="bottom">Base</option>
+              <option value="left">Esquerda</option>
+              <option value="right">Direita</option>
+            </select>
+          </Field>
+          <Field label="Repetição">
+            <select value={v.repeat || 'no-repeat'} onChange={(e) => set({ repeat: e.target.value as FillStyle['repeat'] })}>
+              <option value="no-repeat">Não repetir</option>
+              <option value="repeat">Repetir</option>
+              <option value="repeat-x">Repetir horizontal</option>
+              <option value="repeat-y">Repetir vertical</option>
+            </select>
+          </Field>
+          <Field label="Cor de segurança">
+            <input type="color" value={(v.fallbackColor || '#000000').slice(0, 7)} onChange={(e) => set({ fallbackColor: e.target.value })} />
           </Field>
           <Field label="Escurecer (0 = limpo)">
             <input

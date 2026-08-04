@@ -8,6 +8,7 @@ import type {
   TableColumnDef,
   TableRowItem,
   TransitionStyle,
+  FieldStyle,
 } from '../types/stream.types'
 import { normalizeTransition } from '../types/stream.types'
 import { boxToCssSafe, fieldToCss, unitMotionClass, unitMotionStyle } from '../utils/stream-style'
@@ -62,6 +63,7 @@ function TablePanel(props: {
   headerCss: ReturnType<typeof fieldToCss>
   rowCss: ReturnType<typeof fieldToCss>
   altRowFill?: string
+  altRowStyle?: FieldStyle
   headerStyleUpper?: boolean
   editable?: boolean
   /** índice base para stagger entre painéis */
@@ -82,6 +84,7 @@ function TablePanel(props: {
     headerCss,
     rowCss,
     altRowFill,
+    altRowStyle,
     editable,
     motion,
     transition,
@@ -170,10 +173,29 @@ function TablePanel(props: {
 
         const d = Number(dataRow.delta || 0)
         const rankClass = d > 0 ? 'is-up' : d < 0 ? 'is-down' : ''
+        const itemCss = fieldToCss(
+          item.style ||
+            (item.fill || item.textColor
+              ? {
+                  box: item.fill ? { fill: { mode: 'solid', color: item.fill, opacity: 1 } } : undefined,
+                  text: item.textColor
+                    ? {
+                        fontFamily: 'Rajdhani',
+                        fontWeight: 700,
+                        fontSize: 14,
+                        color: item.textColor,
+                        align: 'center',
+                      }
+                    : undefined,
+                }
+              : undefined),
+        )
+        const alternateCss = i % 2 === 1 ? fieldToCss(altRowStyle) : null
         const bg =
-          i % 2 === 1 && altRowFill
-            ? altRowFill
-            : (rowCss.wrap.backgroundColor as string | undefined)
+          (itemCss.wrap.backgroundColor as string | undefined) ||
+          (alternateCss?.wrap.backgroundColor as string | undefined) ||
+          (i % 2 === 1 && altRowFill ? altRowFill : undefined) ||
+          (rowCss.wrap.backgroundColor as string | undefined)
         // stagger por dataIndex global (ordem real das linhas)
         const unitIndex = motionBase + (showHeader ? 1 : 0) + i
 
@@ -185,6 +207,10 @@ function TablePanel(props: {
               ...grid,
               ...rowCss.wrap,
               ...rowCss.text,
+              ...(alternateCss?.wrap || {}),
+              ...(alternateCss?.text || {}),
+              ...itemCss.wrap,
+              ...itemCss.text,
               minHeight: rowHeight,
               marginBottom: rowGap,
               backgroundColor: bg,
@@ -402,6 +428,7 @@ export function StreamTableCanvas(props: {
           headerCss={headerCss}
           rowCss={rowCss}
           altRowFill={data.altRowFill}
+          altRowStyle={data.altRowStyle}
           headerStyleUpper={data.headerStyle?.text?.uppercase !== false}
           editable={props.editable}
           motionIndexBase={panelBases[panelIndex] || 0}

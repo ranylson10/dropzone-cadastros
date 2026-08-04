@@ -204,15 +204,13 @@ export function TablePartInspector(props: {
                 }
               />
             </label>
-            <label className="stream-style-field">
-              <span>Linha alternada</span>
-              <input
-                type="color"
-                value={(data.altRowFill || '#141820').slice(0, 7)}
-                onChange={(e) => patch((d) => ({ ...d, altRowFill: e.target.value }))}
-              />
-            </label>
           </div>
+          <p className="stream-hint"><strong>Fundo da linha alternada</strong></p>
+          <FieldStyleEditor
+            value={data.altRowStyle || (data.altRowFill ? { box: { fill: { mode: 'solid', color: data.altRowFill } } } : undefined)}
+            hideText
+            onChange={(altRowStyle) => patch((d) => ({ ...d, altRowStyle }))}
+          />
           {sourceId ? (
             <p className="stream-hint">
               Planilha: <code>{sheetDef.title}</code> (pelo vínculo das colunas)

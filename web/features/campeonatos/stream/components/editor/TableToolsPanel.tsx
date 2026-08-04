@@ -181,14 +181,6 @@ export function TableToolsPanel(props: {
                 onChange={(e) => patch((d) => ({ ...d, headerHeight: Number(e.target.value) || 0 }))}
               />
             </label>
-            <label className="stream-style-field">
-              <span>Linha alternada</span>
-              <input
-                type="color"
-                value={(data.altRowFill || '#1a1d24').slice(0, 7)}
-                onChange={(e) => patch((d) => ({ ...d, altRowFill: e.target.value }))}
-              />
-            </label>
           </div>
           <label className="stream-field stream-check-inline">
             <input
@@ -198,6 +190,12 @@ export function TableToolsPanel(props: {
             />
             <span>Mostrar cabeçalho</span>
           </label>
+
+          <p className="stream-hint"><strong>Estilo da linha alternada</strong></p>
+          <FieldStyleEditor
+            value={data.altRowStyle || (data.altRowFill ? { box: { fill: { mode: 'solid', color: data.altRowFill } } } : undefined)}
+            onChange={(altRowStyle) => patch((d) => ({ ...d, altRowStyle }))}
+          />
 
           <p className="stream-hint"><strong>Estilo do cabeçalho</strong></p>
           <FieldStyleEditor
@@ -218,52 +216,20 @@ export function TableToolsPanel(props: {
               <div className="stream-style-grid">
                 <label className="stream-style-field">
                   <span>Nome</span>
-                  <input
-                    value={props.selectedRow.name}
-                    onChange={(e) =>
-                      patch((d) => updateTableRow(d, props.selectedRow!.id, { name: e.target.value }))
-                    }
-                  />
+                  <input value={props.selectedRow.name} onChange={(e) => patch((d) => updateTableRow(d, props.selectedRow!.id, { name: e.target.value }))} />
                 </label>
                 <label className="stream-style-field">
                   <span>Altura (px)</span>
-                  <input
-                    type="number"
-                    min={18}
-                    max={200}
-                    value={props.selectedRow.height ?? data.rowHeight ?? 36}
-                    onChange={(e) =>
-                      patch((d) =>
-                        updateTableRow(d, props.selectedRow!.id, {
-                          height: Number(e.target.value) || 36,
-                        }),
-                      )
-                    }
-                  />
-                </label>
-                <label className="stream-style-field">
-                  <span>Fundo</span>
-                  <input
-                    type="color"
-                    value={(props.selectedRow.fill || '#1a1d24').slice(0, 7)}
-                    onChange={(e) =>
-                      patch((d) => updateTableRow(d, props.selectedRow!.id, { fill: e.target.value }))
-                    }
-                  />
-                </label>
-                <label className="stream-style-field">
-                  <span>Texto</span>
-                  <input
-                    type="color"
-                    value={(props.selectedRow.textColor || '#ffffff').slice(0, 7)}
-                    onChange={(e) =>
-                      patch((d) =>
-                        updateTableRow(d, props.selectedRow!.id, { textColor: e.target.value }),
-                      )
-                    }
-                  />
+                  <input type="number" min={18} max={200} value={props.selectedRow.height ?? data.rowHeight ?? 36} onChange={(e) => patch((d) => updateTableRow(d, props.selectedRow!.id, { height: Number(e.target.value) || 36 }))} />
                 </label>
               </div>
+              <FieldStyleEditor
+                value={props.selectedRow.style || {
+                  box: props.selectedRow.fill ? { fill: { mode: 'solid', color: props.selectedRow.fill } } : undefined,
+                  text: props.selectedRow.textColor ? { fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 14, color: props.selectedRow.textColor, align: 'center' } : undefined,
+                }}
+                onChange={(style) => patch((d) => updateTableRow(d, props.selectedRow!.id, { style }))}
+              />
             </>
           ) : (
             <p className="stream-hint">Selecione a linha no canvas ou em Camadas para cor individual.</p>

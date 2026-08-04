@@ -42,10 +42,10 @@ export function fillToCss(fill?: FillStyle): CSSProperties {
         ovAmount > 0
           ? `linear-gradient(#${full}${a}, #${full}${a}), url("${safeUrl}")`
           : `url("${safeUrl}")`,
-      backgroundSize: fill.fit === 'contain' ? 'contain' : 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      backgroundColor: 'transparent',
+      backgroundSize: fill.fit === 'contain' ? 'contain' : fill.fit === 'stretch' ? '100% 100%' : 'cover',
+      backgroundPosition: fill.position || 'center',
+      backgroundRepeat: fill.repeat || 'no-repeat',
+      backgroundColor: fill.fallbackColor || 'transparent',
       opacity,
     }
   }
@@ -111,10 +111,10 @@ export function fillToCssSafe(fill?: FillStyle): CSSProperties {
     const safeUrl = String(fill.imageUrl).replace(/\\/g, '/').replace(/"/g, '%22')
     return {
       backgroundImage: ovAmount > 0 ? `linear-gradient(${ov}, ${ov}), url("${safeUrl}")` : `url("${safeUrl}")`,
-      backgroundSize: fill.fit === 'contain' ? 'contain' : 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      backgroundColor: 'transparent',
+      backgroundSize: fill.fit === 'contain' ? 'contain' : fill.fit === 'stretch' ? '100% 100%' : 'cover',
+      backgroundPosition: fill.position || 'center',
+      backgroundRepeat: fill.repeat || 'no-repeat',
+      backgroundColor: fill.fallbackColor || 'transparent',
       opacity: fill.opacity ?? 1,
     }
   }
