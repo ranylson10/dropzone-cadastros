@@ -765,24 +765,22 @@ export function StreamOverlayEditor(props: {
 
   function addStandaloneLayer(type: 'text' | 'image') {
     if (!overlay) return
-    const n = overlay.blocks.length
-    const offset = (n % 8) * 28
+    const frameSize = getOverlayFrame(overlay)
     const isText = type === 'text'
-    const card = createEmptyCard(isText ? 'Texto livre' : 'Imagem livre', {
-      x: 48 + offset,
-      y: 48 + offset,
-      w: isText ? 360 : 320,
-      h: isText ? 90 : 220,
-    })
+    const freeCard = overlay.blocks.find(
+      (block): block is StreamCardBlock => block.type === 'card' && Boolean(block.freeCanvas),
+    )
+    const currentCount = freeCard?.layers.length || 0
+    const offset = (currentCount % 10) * 24
     const baseLayer = createDefaultLayer(type, 1)
     const layer: StreamLayer = {
       ...baseLayer,
       name: isText ? 'Texto livre' : 'Imagem livre',
-      x: 0,
-      y: 0,
-      w: card.canvasW,
-      h: card.canvasH,
-      z: 1,
+      x: 48 + offset,
+      y: 48 + offset,
+      w: isText ? 420 : 360,
+      h: isText ? 96 : 240,
+      z: currentCount + 1,
       data: { source: 'fixed', value: isText ? 'SEU TEXTO' : '' },
       objectFit: isText ? undefined : 'contain',
       style: isText
@@ -806,9 +804,46 @@ export function StreamOverlayEditor(props: {
           }
         : baseLayer.style,
     }
-    const nextCard: StreamCardBlock = { ...card, layers: [layer] }
-    patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, nextCard] }), 'force')
-    setSelectedBlockId(nextCard.id)
+
+    if (freeCard) {
+      updateBlock(
+        freeCard.id,
+        (block) =>
+          block.type === 'card'
+            ? {
+                ...block,
+                x: 0,
+                y: 0,
+                canvasW: frameSize.w,
+                canvasH: frameSize.h,
+                freeCanvas: true,
+                layers: [...block.layers, layer],
+              }
+            : block,
+        { history: 'force' },
+      )
+      setSelectedBlockId(freeCard.id)
+    } else {
+      const card = createEmptyCard('Elementos livres', {
+        x: 0,
+        y: 0,
+        w: frameSize.w,
+        h: frameSize.h,
+      })
+      const nextCard: StreamCardBlock = {
+        ...card,
+        freeCanvas: true,
+        box: {
+          ...card.box,
+          fill: { mode: 'none', color: 'transparent' },
+          borderWidth: 0,
+          borderColor: 'transparent',
+        },
+        layers: [layer],
+      }
+      patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, nextCard] }), 'force')
+      setSelectedBlockId(nextCard.id)
+    }
     setSelectedLayerId(layer.id)
     setSelectedTablePart(null)
   }

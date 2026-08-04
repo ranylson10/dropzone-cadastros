@@ -380,6 +380,8 @@ export type StreamCardBlock = StreamBlockBase & {
   /** altura do bloco em px no frame */
   canvasH: number
   layers: StreamLayer[]
+  /** Canvas transparente compartilhado por texto/imagem livres no frame inteiro. */
+  freeCanvas?: boolean
   /**
    * 'px' = camadas em pixels (padrão).
    * Ausente em overlays antigos → migrar de % em ensureCardLayers.
