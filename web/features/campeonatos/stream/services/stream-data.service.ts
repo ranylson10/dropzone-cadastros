@@ -409,6 +409,38 @@ async function loadMvpRows(campeonatoId: string, filters?: StreamSheetFilters): 
   })
 }
 
+async function loadDedicatedMvpRows(
+  campeonatoId: string,
+  sheet: 'jogadores_mapa' | 'mvp_partida' | 'mvp_dia',
+  filters?: StreamSheetFilters,
+): Promise<StreamSheetRow[]> {
+  const [payload, metaP] = await Promise.all([
+    loadDedicatedStreamSheet(campeonatoId, sheet, filters),
+    loadPlayerMeta(campeonatoId),
+  ])
+  const players = Array.isArray(payload?.jogadores) ? payload.jogadores : []
+  return players.map((row: any, index: number) => {
+    const id = text(row.campeonato_jogador_id || `mvp-${index}`)
+    const nick = text(row.nick || '—')
+    const pm = metaP.get(nick.toLowerCase())
+    const abates = Number(row.abates || 0)
+    const quedas = Math.max(1, Number(row.quedas || 1))
+    return {
+      id,
+      cells: {
+        pos: text(row.colocacao ?? index + 1),
+        foto: text(row.foto_url || pm?.foto || ''),
+        logo: text(pm?.logo || ''),
+        tag: text(pm?.tag || ''),
+        nick,
+        quedas: text(row.quedas ?? 0),
+        kd: (abates / quedas).toFixed(1).replace('.', ','),
+        abates: text(abates),
+      },
+    }
+  })
+}
+
 async function loadMapasRows(
   campeonatoId: string,
   filters?: StreamSheetFilters,
@@ -610,6 +642,24 @@ export async function loadStreamFilterOptions(campeonatoId: string) {
   }
 }
 
+async function loadDedicatedStreamSheet(
+  campeonatoId: string,
+  sheet: string,
+  filters?: StreamSheetFilters,
+): Promise<any> {
+  const params = new URLSearchParams({ sheet })
+  if (filters?.mapa_codigo) params.set('mapa_codigo', filters.mapa_codigo)
+  if (filters?.jogo_id) params.set('jogo_id', filters.jogo_id)
+  if (filters?.fase_id) params.set('fase_id', filters.fase_id)
+  if (filters?.grupo_id) params.set('grupo_id', filters.grupo_id)
+  if (filters?.partida_id) params.set('partida_id', filters.partida_id)
+  return authFetch(`/api/campeonatos/${campeonatoId}/stream/data?${params.toString()}`)
+}
+
+function rowsFromPayload(payload: any): StreamSheetRow[] {
+  return Array.isArray(payload?.rows) ? payload.rows : []
+}
+
 /** Converte payload de APIs existentes em linhas da planilha Stream. */
 export async function loadStreamSheet(
   campeonatoId: string,
@@ -619,13 +669,16 @@ export async function loadStreamSheet(
   const id = resolveSheetId(sheetId)
 
   if (id === 'equipes_geral') return loadEquipesScoped(campeonatoId, undefined, false)
-  if (id === 'equipes_mapa') return loadEquipesScoped(campeonatoId, { mapa_codigo: filters?.mapa_codigo }, false)
-  if (id === 'equipes_jogo') return loadEquipesScoped(campeonatoId, { jogo_id: filters?.jogo_id }, false)
+  if (id === 'equipes_mapa') return rowsFromPayload(await loadDedicatedStreamSheet(campeonatoId, 'equipes_mapa', filters))
+  if (id === 'equipes_jogo') return rowsFromPayload(await loadDedicatedStreamSheet(campeonatoId, 'equipes_jogo', filters))
   if (id === 'equipes_fase') return loadEquipesScoped(campeonatoId, { fase_id: filters?.fase_id }, false)
   if (id === 'equipes_grupo') return loadEquipesScoped(campeonatoId, { grupo_id: filters?.grupo_id }, false)
-  if (id === 'equipes_partida') return loadEquipesScoped(campeonatoId, { partida_id: filters?.partida_id }, true)
+  if (id === 'equipes_partida') return rowsFromPayload(await loadDedicatedStreamSheet(campeonatoId, 'equipes_partida', filters))
 
-  if (id === 'mvp') return loadMvpRows(campeonatoId, filters)
+  if (id === 'jogadores_mapa') return loadDedicatedMvpRows(campeonatoId, 'jogadores_mapa', filters)
+  if (id === 'mvp_partida') return loadDedicatedMvpRows(campeonatoId, 'mvp_partida', filters)
+  if (id === 'mvp_dia') return loadDedicatedMvpRows(campeonatoId, 'mvp_dia', filters)
+  if (id === 'mvp_geral' || id === 'mvp') return loadMvpRows(campeonatoId, undefined)
   if (id === 'mapas') return loadMapasRows(campeonatoId, filters)
   if (id === 'partida_atual') return loadPartidaAtual(campeonatoId)
   if (id === 'proxima_queda') return loadProximaQueda(campeonatoId)

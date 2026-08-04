@@ -111,7 +111,7 @@ export function columnDefsFromSheet(
 ): TableColumnDef[] {
   const def = getSheetDef(sheetId)
   const preferred =
-    sheetId === 'mvp'
+    (String(sheetId).startsWith('mvp') || sheetId === 'jogadores_mapa')
       ? ['pos', 'logo', 'nick', 'quedas', 'kd', 'abates', 'delta']
       : sheetId.startsWith('equipes') || sheetId === 'classificacao'
         ? ['pos', 'logo', 'nome', 'booyahs', 'abates', 'pontos', 'delta']
@@ -197,7 +197,7 @@ export function ensureTableStructure(block: StreamTableBlock): StreamTableBlock 
     data: {
       ...data,
       source,
-      variant: source === 'mvp' ? 'mvp_list' : data.variant || 'standings',
+      variant: (String(source).startsWith('mvp') || source === 'jogadores_mapa') ? 'mvp_list' : data.variant || 'standings',
       columns: columnDefs.map((c) => c.field) as TableColumnKey[],
       rows: desiredRows,
       columnDefs,
@@ -335,7 +335,7 @@ export function setTableSheetSource(
   return {
     ...data,
     source,
-    variant: source === 'mvp' ? 'mvp_list' : 'standings',
+    variant: (String(source).startsWith('mvp') || source === 'jogadores_mapa') ? 'mvp_list' : 'standings',
     columnDefs: nextCols,
     columns: nextCols.map((c) => c.field) as TableColumnKey[],
   }

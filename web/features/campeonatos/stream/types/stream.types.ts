@@ -13,6 +13,10 @@ export type StreamSheetId =
   | 'equipes_fase'
   | 'equipes_grupo'
   | 'equipes_partida'
+  | 'jogadores_mapa'
+  | 'mvp_partida'
+  | 'mvp_dia'
+  | 'mvp_geral'
   | 'mvp'
   | 'mapas'
   | 'partida_atual'
@@ -48,7 +52,7 @@ export type StreamSheetDefinition = {
   live: boolean
   /** filtro secundário da aba */
   filter?: StreamSheetFilterKind
-  group?: 'equipes' | 'mvp' | 'mapas' | 'partida' | 'legado'
+  group?: 'equipes' | 'jogadores' | 'mvp' | 'mapas' | 'partida' | 'legado'
 }
 
 export type StreamSheetFilters = {
@@ -564,10 +568,34 @@ const COLS_EQUIPE = [
   { key: 'pontos', label: 'Pontos', letter: 'I' },
 ] as StreamSheetColumn[]
 
-const COLS_EQUIPE_PARTIDA: StreamSheetColumn[] = [
-  ...COLS_EQUIPE,
-  { key: 'pos_morte', label: 'Pos. morte', letter: 'J' },
+const COLS_EQUIPE_JOGO: StreamSheetColumn[] = [
+  { key: 'slot', label: 'Slot', letter: 'A' },
+  { key: 'logo', label: 'Logo', letter: 'B', image: true },
+  { key: 'nome', label: 'Equipe', letter: 'C' },
+  { key: 'grupo', label: 'Grupo', letter: 'D' },
 ]
+
+const COLS_EQUIPE_PARTIDA: StreamSheetColumn[] = [
+  { key: 'pos', label: 'Pos', letter: 'A' },
+  { key: 'logo', label: 'Logo', letter: 'B', image: true },
+  { key: 'nome', label: 'Equipe', letter: 'C' },
+  { key: 'abates', label: 'Kills', letter: 'D' },
+  { key: 'pontos_posicao', label: 'Pts posição', letter: 'E' },
+  { key: 'pontos_abates', label: 'Pts kills', letter: 'F' },
+  { key: 'pontos', label: 'Pts total', letter: 'G' },
+]
+
+const COLS_MVP: StreamSheetColumn[] = [
+  { key: 'pos', label: 'Pos', letter: 'A' },
+  { key: 'foto', label: 'Foto', letter: 'B', image: true },
+  { key: 'logo', label: 'Logo equipe', letter: 'C', image: true },
+  { key: 'tag', label: 'Tag', letter: 'D' },
+  { key: 'nick', label: 'Nick', letter: 'E' },
+  { key: 'quedas', label: 'Quedas', letter: 'F' },
+  { key: 'kd', label: 'K.D', letter: 'G' },
+  { key: 'abates', label: 'Kills', letter: 'H' },
+]
+
 
 /** Abas principais da planilha (UI). */
 export const STREAM_SHEETS: StreamSheetDefinition[] = [
@@ -596,7 +624,7 @@ export const STREAM_SHEETS: StreamSheetDefinition[] = [
     live: true,
     group: 'equipes',
     filter: 'jogo',
-    columns: COLS_EQUIPE,
+    columns: COLS_EQUIPE_JOGO,
   },
   {
     id: 'equipes_fase',
@@ -626,26 +654,40 @@ export const STREAM_SHEETS: StreamSheetDefinition[] = [
     columns: COLS_EQUIPE_PARTIDA,
   },
   {
-    id: 'mvp',
-    title: 'MVP',
-    refName: 'MVP',
+    id: 'jogadores_mapa',
+    title: 'Jogadores · Mapa',
+    refName: 'JogadoresMapa',
+    live: true,
+    group: 'jogadores',
+    filter: 'mapa',
+    columns: COLS_MVP,
+  },
+  {
+    id: 'mvp_partida',
+    title: 'MVP · Partida',
+    refName: 'MVPPartida',
+    live: true,
+    group: 'mvp',
+    filter: 'partida',
+    columns: COLS_MVP,
+  },
+  {
+    id: 'mvp_dia',
+    title: 'MVP · Dia',
+    refName: 'MVPDia',
+    live: true,
+    group: 'mvp',
+    filter: 'jogo',
+    columns: COLS_MVP,
+  },
+  {
+    id: 'mvp_geral',
+    title: 'MVP · Geral',
+    refName: 'MVPGeral',
     live: true,
     group: 'mvp',
     filter: 'none',
-    columns: [
-      { key: 'pos', label: 'Pos', letter: 'A' },
-      { key: 'delta', label: 'Δ', letter: 'B' },
-      { key: 'foto', label: 'Foto', letter: 'C', image: true },
-      { key: 'logo', label: 'Logo equipe', letter: 'D', image: true },
-      { key: 'tag', label: 'Tag', letter: 'E' },
-      { key: 'nick', label: 'Nick', letter: 'F' },
-      { key: 'funcao', label: 'Função', letter: 'G' },
-      { key: 'cidade', label: 'Cidade', letter: 'H' },
-      { key: 'grupo', label: 'Grupo', letter: 'I' },
-      { key: 'quedas', label: 'Quedas', letter: 'J' },
-      { key: 'kd', label: 'K.D', letter: 'K' },
-      { key: 'abates', label: 'Abates', letter: 'L' },
-    ],
+    columns: COLS_MVP,
   },
   {
     id: 'mapas',
@@ -712,6 +754,7 @@ export const STREAM_SHEET_ALIASES: Partial<Record<StreamSheetId, StreamSheetId>>
   sumula: 'equipes_partida',
   quedas: 'mapas',
   equipes: 'equipes_geral',
+  mvp: 'mvp_geral',
 }
 
 export function resolveSheetId(id: StreamSheetId): StreamSheetId {

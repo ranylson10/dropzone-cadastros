@@ -359,7 +359,12 @@ export function StreamOverlayEditor(props: {
     try {
       const ids: StreamSheetId[] = [
         'equipes_geral',
-        'mvp',
+        'mvp_geral',
+        'mvp_dia',
+        'mvp_partida',
+        'jogadores_mapa',
+        'equipes_jogo',
+        'equipes_mapa',
         'mapas',
         'partida_atual',
         'proxima_queda',
@@ -377,7 +382,8 @@ export function StreamOverlayEditor(props: {
       setSheets(next)
 
       const classif = next.equipes_geral || []
-      const mvp = next.mvp || []
+      next.mvp = next.mvp_geral
+      const mvp = next.mvp_geral || []
       const standingRows: PreviewStanding[] = classif.map((row, i) => ({
         pos: Number(row.cells.pos || row.cells.colocacao) || i + 1,
         nome: row.cells.nome || row.cells.line || '—',

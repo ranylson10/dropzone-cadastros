@@ -395,7 +395,7 @@ export function TablePartInspector(props: {
           return {
             ...next,
             source: pick.sheetId,
-            variant: pick.sheetId === 'mvp' ? 'mvp_list' : 'standings',
+            variant: (String(pick.sheetId).startsWith('mvp') || pick.sheetId === 'jogadores_mapa') ? 'mvp_list' : 'standings',
           }
         }, 'force')
       }}

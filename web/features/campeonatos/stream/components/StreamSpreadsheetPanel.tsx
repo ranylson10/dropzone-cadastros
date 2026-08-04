@@ -145,10 +145,10 @@ export function StreamSpreadsheetPanel(props: {
   }
 
   const groups = useMemo(() => {
-    const order = ['equipes', 'mvp', 'mapas', 'partida'] as const
+    const order = ['equipes', 'jogadores', 'mvp', 'mapas', 'partida'] as const
     return order.map((g) => ({
       id: g,
-      label: g === 'equipes' ? 'Equipes' : g === 'mvp' ? 'MVP' : g === 'mapas' ? 'Mapas' : 'Partida',
+      label: g === 'equipes' ? 'Equipes' : g === 'jogadores' ? 'Jogadores' : g === 'mvp' ? 'MVP' : g === 'mapas' ? 'Mapas' : 'Partida',
       items: STREAM_SHEETS.filter((s) => s.group === g),
     }))
   }, [])
