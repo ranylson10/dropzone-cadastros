@@ -13,6 +13,8 @@ import {
   PanelRight,
   Plus,
   Save,
+  Play,
+  Square,
   Trash2,
   Undo2,
   ZoomIn,
@@ -142,6 +144,10 @@ export function StreamOverlayEditor(props: {
     kind: 'enter' | 'exit'
     token: number
   } | null>(null)
+  const [scenePreview, setScenePreview] = useState<{
+    kind: 'enter' | 'exit'
+    token: number
+  } | null>(null)
   /** Passo de escala da tabela (% aplicado em − / +). */
   const [scaleStepPct, setScaleStepPct] = useState('10')
 
@@ -171,6 +177,19 @@ export function StreamOverlayEditor(props: {
     startClientY: number
     origX: number
     origY: number
+  } | null>(null)
+  const layerGesture = useRef<{
+    kind: 'move' | 'resize'
+    blockId: string
+    layerId: string
+    handle?: 'nw' | 'ne' | 'sw' | 'se'
+    startClientX: number
+    startClientY: number
+    origX: number
+    origY: number
+    origW: number
+    origH: number
+    keepRatio: boolean
   } | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   /** Pilha de undos (máx. UNDO_MAX). */
@@ -455,6 +474,24 @@ export function StreamOverlayEditor(props: {
       ? (selectedTable.data.columnDefs || []).find((c) => c.id === selectedTablePart.id) || null
       : null
 
+  useEffect(() => {
+    function moveSelectedLayerByKeyboard(e: KeyboardEvent) {
+      if (!selectedCard || !selectedLayer || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return
+      e.preventDefault()
+      const step = e.shiftKey ? 10 : 1
+      const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+      const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+      updateLayer(selectedLayer.id, {
+        x: Math.max(0, Math.min(selectedCard.canvasW - selectedLayer.w, selectedLayer.x + dx)),
+        y: Math.max(0, Math.min(selectedCard.canvasH - selectedLayer.h, selectedLayer.y + dy)),
+      })
+    }
+    window.addEventListener('keydown', moveSelectedLayerByKeyboard)
+    return () => window.removeEventListener('keydown', moveSelectedLayerByKeyboard)
+  }, [selectedCard, selectedLayer])
+
   function selectBlockOnly(blockId: string) {
     setSelectedBlockId(blockId)
     setSelectedLayerId(null)
@@ -501,6 +538,35 @@ export function StreamOverlayEditor(props: {
     window.setTimeout(() => {
       setAnimPreview((cur) => (cur?.token === token ? null : cur))
     }, ms)
+  }
+
+  function previewSceneTransition(kind: 'enter' | 'exit' = 'enter') {
+    if (!overlay?.blocks.length) return
+    const token = Date.now()
+    setAnimPreview(null)
+    setScenePreview({ kind, token })
+    const ms = Math.max(
+      1,
+      ...overlay.blocks.map((block) => {
+        let units = 1
+        if (block.type === 'table') {
+          const table = ensureTableStructure(block)
+          units = (table.data.rowItems?.length || table.data.rows || 1)
+            + (table.data.showHeader === false ? 0 : Math.max(1, table.data.splitPanels || 1))
+        } else {
+          units = Math.max(1, ensureCardLayers(block).layers?.length || 1)
+        }
+        return transitionTotalMs(block.transition, units)
+      }),
+    )
+    window.setTimeout(() => {
+      setScenePreview((cur) => (cur?.token === token ? null : cur))
+    }, ms)
+  }
+
+  function stopScenePreview() {
+    setScenePreview(null)
+    setAnimPreview(null)
   }
 
   const ctx = useMemo(
@@ -833,6 +899,7 @@ export function StreamOverlayEditor(props: {
     startPan(e)
   }
   function onStagePointerMove(e: React.PointerEvent) {
+    if (updateLayerGesture(e)) return
     if (dragBlock.current) {
       const dx = (e.clientX - dragBlock.current.startClientX) / zoom
       const dy = (e.clientY - dragBlock.current.startClientY) / zoom
@@ -850,6 +917,7 @@ export function StreamOverlayEditor(props: {
     })
   }
   function onStagePointerUp() {
+    layerGesture.current = null
     dragBlock.current = null
     setDraggingId(null)
     setPanning(false)
@@ -879,6 +947,114 @@ export function StreamOverlayEditor(props: {
     }
     setDraggingId(block.id)
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+
+
+  function startLayerMove(layerId: string, e: React.PointerEvent<HTMLElement>) {
+    if (!selectedCard || e.button !== 0) return
+    const layer = selectedCard.layers.find((item) => item.id === layerId)
+    if (!layer) return
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedBlockId(selectedCard.id)
+    setSelectedLayerId(layerId)
+    setSelectedTablePart(null)
+    if (overlay) recordUndo(overlay, 'force')
+    layerGesture.current = {
+      kind: 'move',
+      blockId: selectedCard.id,
+      layerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      origX: layer.x,
+      origY: layer.y,
+      origW: layer.w,
+      origH: layer.h,
+      keepRatio: false,
+    }
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+
+  function startLayerResize(
+    layerId: string,
+    handle: 'nw' | 'ne' | 'sw' | 'se',
+    e: React.PointerEvent<HTMLElement>,
+  ) {
+    if (!selectedCard || e.button !== 0) return
+    const layer = selectedCard.layers.find((item) => item.id === layerId)
+    if (!layer) return
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedBlockId(selectedCard.id)
+    setSelectedLayerId(layerId)
+    setSelectedTablePart(null)
+    if (overlay) recordUndo(overlay, 'force')
+    layerGesture.current = {
+      kind: 'resize',
+      blockId: selectedCard.id,
+      layerId,
+      handle,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      origX: layer.x,
+      origY: layer.y,
+      origW: layer.w,
+      origH: layer.h,
+      keepRatio: layer.type === 'image' || layer.type === 'logo',
+    }
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+
+  function updateLayerGesture(e: React.PointerEvent) {
+    const gesture = layerGesture.current
+    if (!gesture) return false
+    const dx = (e.clientX - gesture.startClientX) / zoom
+    const dy = (e.clientY - gesture.startClientY) / zoom
+    updateBlock(
+      gesture.blockId,
+      (block) => {
+        if (block.type !== 'card') return block
+        const card = ensureCardLayers(block)
+        return {
+          ...card,
+          layers: card.layers.map((layer) => {
+            if (layer.id !== gesture.layerId) return layer
+            if (gesture.kind === 'move') {
+              return {
+                ...layer,
+                x: Math.max(0, Math.min(card.canvasW - layer.w, Math.round(gesture.origX + dx))),
+                y: Math.max(0, Math.min(card.canvasH - layer.h, Math.round(gesture.origY + dy))),
+              }
+            }
+            const handle = gesture.handle || 'se'
+            const sx = handle.includes('w') ? -1 : 1
+            const sy = handle.includes('n') ? -1 : 1
+            let nextW = Math.max(12, gesture.origW + dx * sx)
+            let nextH = Math.max(12, gesture.origH + dy * sy)
+            if (gesture.keepRatio && !e.shiftKey) {
+              const ratio = gesture.origW / Math.max(1, gesture.origH)
+              if (Math.abs(dx) >= Math.abs(dy)) nextH = nextW / ratio
+              else nextW = nextH * ratio
+            }
+            let nextX = handle.includes('w') ? gesture.origX + (gesture.origW - nextW) : gesture.origX
+            let nextY = handle.includes('n') ? gesture.origY + (gesture.origH - nextH) : gesture.origY
+            nextX = Math.max(0, nextX)
+            nextY = Math.max(0, nextY)
+            nextW = Math.min(nextW, card.canvasW - nextX)
+            nextH = Math.min(nextH, card.canvasH - nextY)
+            return {
+              ...layer,
+              x: Math.round(nextX),
+              y: Math.round(nextY),
+              w: Math.round(nextW),
+              h: Math.round(nextH),
+            }
+          }),
+        }
+      },
+      { history: false },
+    )
+    return true
   }
 
   if (!overlay) {
@@ -912,6 +1088,24 @@ export function StreamOverlayEditor(props: {
           {overlay.share_token ? (
             <a className="stream-secondary-btn" href={`/stream/live/${overlay.share_token}`} target="_blank" rel="noopener noreferrer">Live</a>
           ) : null}
+          <button
+            type="button"
+            className="stream-secondary-btn"
+            title="Executar a animação de todos os itens visíveis"
+            onClick={() => previewSceneTransition('enter')}
+            data-testid="stream-preview-scene"
+          >
+            <Play size={15} /> Testar cena
+          </button>
+          <button
+            type="button"
+            className="stream-icon-btn"
+            title="Parar animações"
+            onClick={stopScenePreview}
+            disabled={!scenePreview && !animPreview}
+          >
+            <Square size={14} />
+          </button>
           <StreamSpreadsheetPanel
             campeonatoId={props.campeonatoId}
             asModal
@@ -1622,7 +1816,11 @@ export function StreamOverlayEditor(props: {
                         const bx = block.x ?? 40
                         const by = block.y ?? 40
                         const preview =
-                          animPreview?.blockId === block.id ? animPreview : null
+                          scenePreview
+                            ? { blockId: block.id, kind: scenePreview.kind, token: scenePreview.token }
+                            : animPreview?.blockId === block.id
+                              ? animPreview
+                              : null
                         const trNorm = normalizeTransition(block.transition)
                         const wholeAnim = preview && trNorm.applyTo === 'whole'
                         const childMotion =
@@ -1667,6 +1865,8 @@ export function StreamOverlayEditor(props: {
                                   setSelectedLayerId(id)
                                   setSelectedTablePart(null)
                                 }}
+                                onLayerPointerDown={startLayerMove}
+                                onResizePointerDown={startLayerResize}
                                 motion={childMotion}
                               />
                             </div>

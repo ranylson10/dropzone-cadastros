@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { StreamCardBlock, StreamLayer } from '../types/stream.types'
 import { normalizeTransition } from '../types/stream.types'
 import { boxToCssSafe, fieldToCss, unitMotionClass, unitMotionStyle } from '../utils/stream-style'
@@ -11,6 +11,8 @@ export function CardLayerCanvas(props: {
   ctx: LayerResolveContext
   selectedLayerId?: string | null
   onSelectLayer?: (id: string) => void
+  onLayerPointerDown?: (id: string, e: ReactPointerEvent<HTMLElement>) => void
+  onResizePointerDown?: (id: string, handle: 'nw' | 'ne' | 'sw' | 'se', e: ReactPointerEvent<HTMLElement>) => void
   /** modo editor: mostra handles/outline */
   editable?: boolean
   /** preenche o pai (live com % de largura) em vez de px fixos */
@@ -52,6 +54,8 @@ export function CardLayerCanvas(props: {
           selected={props.selectedLayerId === layer.id}
           editable={props.editable}
           onSelect={() => props.onSelectLayer?.(layer.id)}
+          onPointerDown={(e) => props.onLayerPointerDown?.(layer.id, e)}
+          onResizePointerDown={(handle, e) => props.onResizePointerDown?.(layer.id, handle, e)}
           motionClass={playChildren ? unitMotionClass(card.transition, motionKind) : ''}
           motionStyle={playChildren ? unitMotionStyle(card.transition, motionKind, index) : undefined}
         />
@@ -71,6 +75,8 @@ function LayerView(props: {
   selected?: boolean
   editable?: boolean
   onSelect?: () => void
+  onPointerDown?: (e: ReactPointerEvent<HTMLElement>) => void
+  onResizePointerDown?: (handle: 'nw' | 'ne' | 'sw' | 'se', e: ReactPointerEvent<HTMLElement>) => void
   motionClass?: string
   motionStyle?: CSSProperties
 }) {
@@ -117,8 +123,33 @@ function LayerView(props: {
 
   if (props.editable) {
     return (
-      <button type="button" className={cls} style={box} onClick={props.onSelect}>
+      <button
+        type="button"
+        className={cls}
+        style={box}
+        onClick={props.onSelect}
+        onPointerDown={props.onPointerDown}
+        data-layer-id={layer.id}
+        aria-label={`Editar ${layer.name}`}
+      >
         {inner}
+        {props.selected ? (
+          <>
+            {(['nw', 'ne', 'sw', 'se'] as const).map((handle) => (
+              <span
+                key={handle}
+                className={`stream-layer-resize-handle is-${handle}`}
+                data-resize-handle={handle}
+                onPointerDown={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  props.onResizePointerDown?.(handle, e)
+                }}
+                aria-hidden
+              />
+            ))}
+          </>
+        ) : null}
       </button>
     )
   }

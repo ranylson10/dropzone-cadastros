@@ -2899,3 +2899,153 @@ body.stream-editor-scroll-lock {
   border-color: var(--brand);
 }
 
+
+
+/* Rodada 87G — editor visual direto, grafite + cinza + dourado */
+.stream-editor.stream-gt {
+  --stream-editor-bg: #8b8f94;
+  --stream-editor-panel: #d4d7da;
+  --stream-editor-panel-soft: #e3e5e7;
+  --stream-editor-graphite: #1b1e23;
+  --stream-editor-graphite-2: #252930;
+  --stream-editor-gold: #cfa820;
+  --stream-editor-line: #aeb3b8;
+  background: var(--stream-editor-bg);
+  background-image: none;
+}
+
+.stream-editor.stream-gt .stream-workspace-header {
+  border-color: #3a3e44;
+  background: var(--stream-editor-graphite);
+  color: #f4f4f4;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.stream-editor.stream-gt .stream-workspace-header .eyebrow {
+  color: var(--stream-editor-gold);
+}
+
+.stream-editor.stream-gt .stream-name-input {
+  color: #fff;
+  border-color: transparent;
+  background: transparent;
+}
+
+.stream-editor.stream-gt .stream-name-input:focus {
+  border-color: var(--stream-editor-gold);
+  background: var(--stream-editor-graphite-2);
+}
+
+.stream-editor.stream-gt .stream-panel {
+  border-color: var(--stream-editor-line);
+  background: var(--stream-editor-panel);
+  box-shadow: none;
+}
+
+.stream-editor.stream-gt .stream-gt-left,
+.stream-editor.stream-gt .stream-gt-right {
+  color: #17191d;
+}
+
+.stream-editor.stream-gt .stream-gt-layer-head,
+.stream-editor.stream-gt .stream-workspace-details > summary,
+.stream-editor.stream-gt .stream-inspector-section > summary {
+  background: var(--stream-editor-graphite);
+  color: #fff;
+  border-color: #3b4048;
+}
+
+.stream-editor.stream-gt .stream-workspace-details,
+.stream-editor.stream-gt .stream-inspector-section,
+.stream-editor.stream-gt .stream-gt-workspace-box,
+.stream-editor.stream-gt .stream-gt-tool-section {
+  border-color: var(--stream-editor-line);
+}
+
+.stream-editor.stream-gt .stream-field,
+.stream-editor.stream-gt .stream-style-field,
+.stream-editor.stream-gt .stream-hint {
+  color: #555b63;
+}
+
+.stream-editor.stream-gt input,
+.stream-editor.stream-gt select,
+.stream-editor.stream-gt textarea,
+.stream-editor.stream-gt .stream-folder-items button,
+.stream-editor.stream-gt .stream-dock-row button {
+  border-color: var(--stream-editor-line);
+  background: var(--stream-editor-panel-soft);
+  color: #17191d;
+  box-shadow: none;
+}
+
+.stream-editor.stream-gt .stream-secondary-btn,
+.stream-editor.stream-gt .stream-icon-btn {
+  border-color: #555b63;
+  background: var(--stream-editor-graphite-2);
+  color: #f5f5f5;
+}
+
+.stream-editor.stream-gt .stream-primary-btn {
+  border-color: #9c7d0e;
+  background: var(--stream-editor-gold);
+  color: #17191d;
+  box-shadow: none;
+}
+
+.stream-editor.stream-gt .stream-secondary-btn:hover,
+.stream-editor.stream-gt .stream-icon-btn:hover,
+.stream-editor.stream-gt .stream-dock-row button.is-active {
+  border-color: var(--stream-editor-gold);
+}
+
+.stream-editor.stream-gt .stream-gt-stage {
+  border: 1px solid #343840;
+  background: #111318;
+}
+
+.stream-editor.stream-gt .stream-gt-frame {
+  box-shadow: 0 0 0 1px rgba(255,255,255,.18);
+}
+
+.stream-editor.stream-gt .stream-gt-block.is-selected {
+  outline: 2px solid var(--stream-editor-gold);
+  outline-offset: 2px;
+}
+
+.stream-editor.stream-gt .stream-layer-hit {
+  touch-action: none;
+  user-select: none;
+}
+
+.stream-editor.stream-gt .stream-layer-hit:active {
+  cursor: grabbing !important;
+}
+
+.stream-layer-resize-handle {
+  position: absolute;
+  z-index: 20;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #17191d;
+  background: #dfb926;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.stream-layer-resize-handle.is-nw { left: -7px; top: -7px; cursor: nwse-resize; }
+.stream-layer-resize-handle.is-ne { right: -7px; top: -7px; cursor: nesw-resize; }
+.stream-layer-resize-handle.is-sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.stream-layer-resize-handle.is-se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+
+.stream-editor.stream-gt [data-testid="stream-preview-scene"] {
+  border-color: var(--stream-editor-gold);
+  color: #fff;
+}
+
+.stream-editor.stream-gt .stream-badge {
+  border-color: var(--stream-editor-gold);
+  background: var(--stream-editor-graphite-2);
+  color: #fff;
+}
