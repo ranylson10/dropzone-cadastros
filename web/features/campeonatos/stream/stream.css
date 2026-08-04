@@ -3049,3 +3049,14 @@ body.stream-editor-scroll-lock {
   background: var(--stream-editor-graphite-2);
   color: #fff;
 }
+
+
+/* Rodada 87H — atalhos de criação de conteúdo livre */
+.stream-editor.stream-gt .stream-gt-add {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stream-editor.stream-gt .stream-gt-add .stream-primary-btn {
+  justify-content: center;
+  white-space: nowrap;
+}

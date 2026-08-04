@@ -763,6 +763,56 @@ export function StreamOverlayEditor(props: {
     setSelectedBlockId(copy.id)
   }
 
+  function addStandaloneLayer(type: 'text' | 'image') {
+    if (!overlay) return
+    const n = overlay.blocks.length
+    const offset = (n % 8) * 28
+    const isText = type === 'text'
+    const card = createEmptyCard(isText ? 'Texto livre' : 'Imagem livre', {
+      x: 48 + offset,
+      y: 48 + offset,
+      w: isText ? 360 : 320,
+      h: isText ? 90 : 220,
+    })
+    const baseLayer = createDefaultLayer(type, 1)
+    const layer: StreamLayer = {
+      ...baseLayer,
+      name: isText ? 'Texto livre' : 'Imagem livre',
+      x: 0,
+      y: 0,
+      w: card.canvasW,
+      h: card.canvasH,
+      z: 1,
+      data: { source: 'fixed', value: isText ? 'SEU TEXTO' : '' },
+      objectFit: isText ? undefined : 'contain',
+      style: isText
+        ? {
+            ...baseLayer.style,
+            text: {
+              fontFamily: baseLayer.style?.text?.fontFamily || 'Inter, sans-serif',
+              fontWeight: baseLayer.style?.text?.fontWeight || 700,
+              fontSize: 28,
+              color: '#ffffff',
+              align: 'center',
+              uppercase: baseLayer.style?.text?.uppercase,
+              letterSpacing: baseLayer.style?.text?.letterSpacing,
+              textShadow: baseLayer.style?.text?.textShadow,
+            },
+            box: {
+              ...(baseLayer.style?.box || {}),
+              fill: { mode: 'none', color: 'transparent' },
+              padding: 8,
+            },
+          }
+        : baseLayer.style,
+    }
+    const nextCard: StreamCardBlock = { ...card, layers: [layer] }
+    patchOverlay((prev) => ({ ...prev, blocks: [...prev.blocks, nextCard] }), 'force')
+    setSelectedBlockId(nextCard.id)
+    setSelectedLayerId(layer.id)
+    setSelectedTablePart(null)
+  }
+
   function addLayer(type: LayerContentType) {
     if (!selectedCard) return
     const layer = createDefaultLayer(type, 1)
@@ -1230,6 +1280,22 @@ export function StreamOverlayEditor(props: {
             </button>
             <button type="button" className="stream-primary-btn" onClick={() => addBlock('table')}>
               <Plus size={14} /> Tabela
+            </button>
+            <button
+              type="button"
+              className="stream-primary-btn"
+              onClick={() => addStandaloneLayer('text')}
+              data-testid="stream-add-free-text"
+            >
+              <Plus size={14} /> Texto
+            </button>
+            <button
+              type="button"
+              className="stream-primary-btn"
+              onClick={() => addStandaloneLayer('image')}
+              data-testid="stream-add-free-image"
+            >
+              <Plus size={14} /> Imagem
             </button>
           </div>
 
