@@ -148,7 +148,9 @@ export function FillStyleEditor(props: {
               props.onChange({ mode: 'none', color: 'transparent', imageUrl: '', opacity: 1 })
               return
             }
-            set({ mode })
+            set(mode === 'image'
+              ? { mode, fit: v.fit || 'contain', position: v.position || 'center', repeat: v.repeat || 'no-repeat' }
+              : { mode })
           }}
         >
           <option value="none">Sem fundo (transparente)</option>

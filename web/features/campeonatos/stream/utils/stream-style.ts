@@ -42,7 +42,10 @@ export function fillToCss(fill?: FillStyle): CSSProperties {
         ovAmount > 0
           ? `linear-gradient(#${full}${a}, #${full}${a}), url("${safeUrl}")`
           : `url("${safeUrl}")`,
-      backgroundSize: fill.fit === 'contain' ? 'contain' : fill.fit === 'stretch' ? '100% 100%' : 'cover',
+      // Fundos antigos não possuíam `fit` salvo e acabavam usando cover, que
+      // recortava a arte nas células estreitas. Contain mantém a imagem inteira
+      // e redimensiona proporcionalmente para caber na largura e na altura.
+      backgroundSize: fill.fit === 'cover' ? 'cover' : fill.fit === 'stretch' ? '100% 100%' : 'contain',
       backgroundPosition: fill.position || 'center',
       backgroundRepeat: fill.repeat || 'no-repeat',
       backgroundColor: fill.useFallbackColor ? fill.fallbackColor || '#000000' : 'transparent',
@@ -111,7 +114,7 @@ export function fillToCssSafe(fill?: FillStyle): CSSProperties {
     const safeUrl = String(fill.imageUrl).replace(/\\/g, '/').replace(/"/g, '%22')
     return {
       backgroundImage: ovAmount > 0 ? `linear-gradient(${ov}, ${ov}), url("${safeUrl}")` : `url("${safeUrl}")`,
-      backgroundSize: fill.fit === 'contain' ? 'contain' : fill.fit === 'stretch' ? '100% 100%' : 'cover',
+      backgroundSize: fill.fit === 'cover' ? 'cover' : fill.fit === 'stretch' ? '100% 100%' : 'contain',
       backgroundPosition: fill.position || 'center',
       backgroundRepeat: fill.repeat || 'no-repeat',
       backgroundColor: fill.useFallbackColor ? fill.fallbackColor || '#000000' : 'transparent',
