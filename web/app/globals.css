@@ -11253,3 +11253,45 @@ input::placeholder, textarea::placeholder {
   }
   .producer-layout-ref .group-folder .vaga-row-meta { display: none; }
 }
+
+/* =========================================================
+   RODADA 87F — LEITURA DE FASES E TABELAS COMPETITIVAS
+   ========================================================= */
+.producer-layout-ref .phase-folder-row .folder-toggle,
+.producer-layout-ref .phase-folder-row .folder-toggle strong,
+.producer-layout-ref .phase-folder-row .folder-toggle svg {
+  color: #f7f7f5;
+}
+.producer-layout-ref .phase-folder-row .folder-toggle small {
+  color: #d0d3d8;
+}
+.producer-layout-ref .statistics-table-compact th:not(:nth-child(2)),
+.producer-layout-ref .statistics-table-compact td:not(:nth-child(2)) {
+  width: 82px;
+  text-align: center;
+  white-space: nowrap;
+}
+.producer-layout-ref .statistics-table-compact th:first-child,
+.producer-layout-ref .statistics-table-compact td:first-child {
+  width: 44px;
+}
+.producer-layout-ref .statistics-table-compact th:nth-child(2),
+.producer-layout-ref .statistics-table-compact td:nth-child(2) {
+  text-align: left;
+}
+.producer-layout-ref .statistics-table-compact .statistics-code {
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+.producer-layout-ref .statistics-table-mvp th:not(:nth-child(2)),
+.producer-layout-ref .statistics-table-mvp td:not(:nth-child(2)) {
+  width: 110px;
+}
+@media (max-width: 760px) {
+  .producer-layout-ref .statistics-table-compact th:not(:nth-child(2)),
+  .producer-layout-ref .statistics-table-compact td:not(:nth-child(2)) {
+    width: 58px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}

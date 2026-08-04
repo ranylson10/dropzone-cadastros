@@ -15,6 +15,7 @@ type TeamStat = {
   nome: string
   tag?: string | null
   logo_url?: string | null
+  grupo_id?: string | null
   quedas: number
   booyahs: number
   abates: number
@@ -32,9 +33,6 @@ type MvpStat = {
   tipo_jogador: string
   quedas: number
   abates: number
-  dano: number
-  assistencias: number
-  revives: number
 }
 
 type SumulaTeam = Record<string, any>
@@ -89,6 +87,20 @@ function rowName(row: Record<string, any>) {
 
 function playerName(row: Record<string, any>) {
   return row.jogadores?.nome || row.jogadores_temporarios?.nick || row.nick || 'Jogador'
+}
+
+
+function groupCode(groupId: string | null | undefined, groups: DropZoneRow[]) {
+  if (!groupId) return '—'
+  const group = groups.find((item) => item.id === groupId)
+  const name = String(group?.data?.nome || group?.name || '').trim()
+  const match = name.match(/(?:grupo\s*)?([A-Z0-9]+)$/i)
+  return (match?.[1] || name || '—').toUpperCase()
+}
+
+function kdValue(abates: number, quedas: number) {
+  if (!quedas) return '0,00'
+  return (abates / quedas).toFixed(2).replace('.', ',')
 }
 
 function queryString(filters: Filters) {
@@ -335,16 +347,16 @@ export function CampeonatoEstatisticasTab(props: {
       ) : null}
 
       {tab === 'geral' && !loadingStats ? (
-        <div className="statistics-table-wrap"><table className="statistics-table"><thead><tr><th>#</th><th>Equipe</th><th>Quedas</th><th>Booyahs</th><th>Abates</th><th>P. posição</th><th>P. abates</th><th>Total</th></tr></thead><tbody>
-          {teamStats.map((row) => <tr key={row.campeonato_equipe_id}><td><strong>{row.colocacao}</strong></td><td><div className="statistics-identity">{row.logo_url ? <img src={row.logo_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nome.slice(0, 1)}</span>}<span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></div></td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td>{row.pontos_posicao}</td><td>{row.pontos_abates}</td><td className="statistics-total">{row.pontos_total}</td></tr>)}
-          {teamStats.length === 0 ? <tr><td colSpan={8} className="empty">Nenhuma pontuação registrada.</td></tr> : null}
+        <div className="statistics-table-wrap"><table className="statistics-table statistics-table-compact"><thead><tr><th>#</th><th>Equipe</th><th title="Grupo">GP</th><th title="Quedas">QD</th><th title="Booyah">B!</th><th title="Abates">KILL</th><th title="Pontos">PTS</th></tr></thead><tbody>
+          {teamStats.map((row) => <tr key={row.campeonato_equipe_id}><td><strong>{row.colocacao}</strong></td><td><div className="statistics-identity">{row.logo_url ? <img src={row.logo_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nome.slice(0, 1)}</span>}<span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></div></td><td className="statistics-code">{groupCode(row.grupo_id, props.groups)}</td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td className="statistics-total">{row.pontos_total}</td></tr>)}
+          {teamStats.length === 0 ? <tr><td colSpan={7} className="empty">Nenhuma pontuação registrada.</td></tr> : null}
         </tbody></table></div>
       ) : null}
 
       {tab === 'mvp' && !loadingStats ? (
-        <div className="statistics-table-wrap"><table className="statistics-table"><thead><tr><th>#</th><th>Jogador</th><th>Tipo</th><th>Quedas</th><th>Abates</th><th>Dano</th><th>Assist.</th><th>Revives</th></tr></thead><tbody>
-          {mvpStats.map((row) => <tr key={row.campeonato_jogador_id}><td><strong>{row.colocacao}</strong></td><td><div className="statistics-identity">{row.foto_url ? <img src={row.foto_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nick.slice(0, 1)}</span>}<span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></div></td><td><span className={`player-type-badge ${row.tipo_jogador}`}>{row.tipo_jogador}</span></td><td>{row.quedas}</td><td className="statistics-total">{row.abates}</td><td>{row.dano}</td><td>{row.assistencias}</td><td>{row.revives}</td></tr>)}
-          {mvpStats.length === 0 ? <tr><td colSpan={8} className="empty">Nenhuma estatística de jogador registrada.</td></tr> : null}
+        <div className="statistics-table-wrap"><table className="statistics-table statistics-table-compact statistics-table-mvp"><thead><tr><th>#</th><th>Jogador</th><th title="Quedas">QD</th><th title="Abates por queda">K.D</th><th title="Abates">KILL</th></tr></thead><tbody>
+          {mvpStats.map((row) => <tr key={row.campeonato_jogador_id}><td><strong>{row.colocacao}</strong></td><td><div className="statistics-identity">{row.foto_url ? <img src={row.foto_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nick.slice(0, 1)}</span>}<span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></div></td><td>{row.quedas}</td><td className="statistics-code">{kdValue(row.abates, row.quedas)}</td><td className="statistics-total">{row.abates}</td></tr>)}
+          {mvpStats.length === 0 ? <tr><td colSpan={5} className="empty">Nenhuma estatística de jogador registrada.</td></tr> : null}
         </tbody></table></div>
       ) : null}
 

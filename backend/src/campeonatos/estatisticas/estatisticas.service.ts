@@ -41,6 +41,7 @@ export async function listarEstatisticasEquipes(campeonatoId: string, filters: F
       nome: row.nome_exibicao || row.line_nome || row.equipe_nome || 'Equipe',
       tag: row.line_tag || row.equipe_tag || null,
       logo_url: row.line_logo_url || row.equipe_logo_url || null,
+      grupo_id: row.grupo_id || null,
       quedas: 0,
       booyahs: 0,
       abates: 0,
