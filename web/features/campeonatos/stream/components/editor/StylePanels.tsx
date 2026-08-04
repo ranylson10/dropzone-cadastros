@@ -121,6 +121,7 @@ export function FillStyleEditor(props: {
         position: v.position || 'center',
         repeat: v.repeat || 'no-repeat',
         fallbackColor: v.fallbackColor || '#000000',
+        useFallbackColor: false,
         overlayOpacity: 0,
         overlayColor: v.overlayColor || '#000000',
         opacity: 1,
@@ -228,9 +229,21 @@ export function FillStyleEditor(props: {
               <option value="repeat-y">Repetir vertical</option>
             </select>
           </Field>
-          <Field label="Cor de segurança">
-            <input type="color" value={(v.fallbackColor || '#000000').slice(0, 7)} onChange={(e) => set({ fallbackColor: e.target.value })} />
+          <Field label="Cor atrás da imagem">
+            <label className="stream-inline-check">
+              <input
+                type="checkbox"
+                checked={Boolean(v.useFallbackColor)}
+                onChange={(e) => set({ useFallbackColor: e.target.checked })}
+              />
+              Usar cor de apoio
+            </label>
           </Field>
+          {v.useFallbackColor ? (
+            <Field label="Cor de apoio">
+              <input type="color" value={(v.fallbackColor || '#000000').slice(0, 7)} onChange={(e) => set({ fallbackColor: e.target.value })} />
+            </Field>
+          ) : null}
           <Field label="Escurecer (0 = limpo)">
             <input
               type="range"

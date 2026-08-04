@@ -45,7 +45,7 @@ export function fillToCss(fill?: FillStyle): CSSProperties {
       backgroundSize: fill.fit === 'contain' ? 'contain' : fill.fit === 'stretch' ? '100% 100%' : 'cover',
       backgroundPosition: fill.position || 'center',
       backgroundRepeat: fill.repeat || 'no-repeat',
-      backgroundColor: fill.fallbackColor || 'transparent',
+      backgroundColor: fill.useFallbackColor ? fill.fallbackColor || '#000000' : 'transparent',
       opacity,
     }
   }
@@ -114,7 +114,7 @@ export function fillToCssSafe(fill?: FillStyle): CSSProperties {
       backgroundSize: fill.fit === 'contain' ? 'contain' : fill.fit === 'stretch' ? '100% 100%' : 'cover',
       backgroundPosition: fill.position || 'center',
       backgroundRepeat: fill.repeat || 'no-repeat',
-      backgroundColor: fill.fallbackColor || 'transparent',
+      backgroundColor: fill.useFallbackColor ? fill.fallbackColor || '#000000' : 'transparent',
       opacity: fill.opacity ?? 1,
     }
   }

@@ -3060,3 +3060,21 @@ body.stream-editor-scroll-lock {
   justify-content: center;
   white-space: nowrap;
 }
+
+/* Rodada 87J1: imagem limpa por padrão; cor atrás só quando ativada. */
+.stream-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.stream-inline-check input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}

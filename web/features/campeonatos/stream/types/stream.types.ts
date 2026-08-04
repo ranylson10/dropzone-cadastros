@@ -80,6 +80,7 @@ export type FillStyle = {
   position?: 'center' | 'top' | 'bottom' | 'left' | 'right'
   repeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'
   fallbackColor?: string
+  useFallbackColor?: boolean
   overlayColor?: string
   overlayOpacity?: number
   opacity?: number
