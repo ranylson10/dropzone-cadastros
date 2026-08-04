@@ -10,7 +10,7 @@ import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@
 import { SystemModal } from '@/components/layout/SystemModal'
 import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
-import { CampeonatoStructureWorkspace } from '@/features/campeonatos/estrutura-avancada'
+import { CampeonatoEstruturaTab } from '@/features/campeonatos/fases'
 import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { CampeonatoExportTab } from '@/features/campeonatos/export'
 import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
@@ -132,7 +132,7 @@ export function ProdutoraPanel(props: {
     const params = new URLSearchParams(window.location.search)
     const championshipId = params.get('campeonato')
     const rawSection = params.get('section')
-    const section = (rawSection === 'grupos' || rawSection === 'estrutura_avancada' ? 'estrutura' : rawSection) as ProducerTab | null
+    const section = (rawSection === 'estrutura' || rawSection === 'estrutura_avancada' ? 'grupos' : rawSection) as ProducerTab | null
     if (championshipId && props.championships.some((item) => item.id === championshipId)) props.setSelectedChampId(championshipId)
     if (section && producerTabs.some((item) => item.id === section)) setTab(section)
   }, [props.championships])
@@ -1380,10 +1380,9 @@ ${params.url}`
 
               {tab === 'jogadores' ? <CampeonatoJogadoresTab campeonatoId={selectedChamp.id} /> : null}
 
-              {tab === 'estrutura' ? (
-                <CampeonatoStructureWorkspace
+              {tab === 'grupos' ? (
+                <CampeonatoEstruturaTab
                   campeonatoId={selectedChamp.id}
-                  championshipType={selectedChampType}
                   onChanged={() => {
                     void props.reloadStructure?.()
                   }}

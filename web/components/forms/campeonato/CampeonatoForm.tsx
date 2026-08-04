@@ -928,7 +928,7 @@ export function CampeonatoForm({
             <div><small>Vagas</small><strong>{value.numero_vagas || 'Não definidas'}</strong></div>
             <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
           </div>
-          <p className="form-empty-note">Divisões, fases, datas por divisão e progressão serão configuradas na etapa Estrutura após a fundação desta rodada.</p>
+          <p className="form-empty-note">Fases, grupos, datas e progressão serão configurados na aba Grupos e fases após a criação do campeonato.</p>
         </section>
       ) : null}
 
