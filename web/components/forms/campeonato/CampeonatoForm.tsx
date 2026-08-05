@@ -624,9 +624,12 @@ export function CampeonatoForm({
                     <span className="championship-source-logo">
                       {String(source.data?.logo_url || '') ? <img src={String(source.data?.logo_url)} alt="" /> : <Trophy size={18} />}
                     </span>
-                    <span>
+                    <span className="championship-source-copy">
                       <strong>{String(source.name || source.data?.nome || 'Campeonato')}</strong>
-                      <small>{value.origem_criacao === 'season' ? 'Usar como season anterior' : 'Usar como modelo independente'}</small>
+                      <small>{value.origem_criacao === 'season' ? 'Continuar como nova temporada' : 'Copiar como modelo independente'}</small>
+                    </span>
+                    <span className="championship-source-action">
+                      {value.campeonato_origem_id === source.id ? 'Selecionado' : 'Selecionar'}
                     </span>
                   </button>
                 )) : (
