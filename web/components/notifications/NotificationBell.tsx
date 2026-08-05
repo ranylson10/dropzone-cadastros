@@ -141,6 +141,25 @@ export function NotificationBell() {
     await load()
   }
 
+  async function archiveReadNotifications() {
+    setBusyId('archive-read')
+    setError('')
+    try {
+      const token = await authToken()
+      const res = await fetch('/api/notificacoes?all_read=1', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao arquivar mensagens lidas.')
+      await load()
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao arquivar mensagens lidas.')
+    } finally {
+      setBusyId('')
+    }
+  }
+
   async function archive(id: string) {
     setBusyId(id)
     setError('')
@@ -203,6 +222,11 @@ export function NotificationBell() {
               {items.some((item) => item.status === 'nao_lida' && !ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo)) ? (
                 <button type="button" className="button secondary small" disabled={busyId === 'all-read'} onClick={() => void markRoutineNotificationsRead()}>
                   <CheckCheck size={14} /> Marcar avisos como lidos
+                </button>
+              ) : null}
+              {items.some((item) => item.status === 'lida') ? (
+                <button type="button" className="button secondary small" disabled={busyId === 'archive-read'} onClick={() => void archiveReadNotifications()}>
+                  <Archive size={14} /> Arquivar lidas
                 </button>
               ) : null}
               <button type="button" className="button secondary small" onClick={() => setOpen(false)} aria-label="Fechar">

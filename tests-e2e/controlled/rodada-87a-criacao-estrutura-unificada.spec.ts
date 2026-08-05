@@ -18,14 +18,16 @@ test.describe('Rodada 87A — criação guiada e estrutura unificada', () => {
     expect(source).toContain('Revisão da criação')
   })
 
-  test('página da produtora consolida grupos e estrutura avançada em Estrutura', () => {
+  test('página da produtora centraliza fases, grupos e slots em Grupos e fases', () => {
     const tabs = read('web/features/dropzone/panels/produtora/producer-tabs.ts')
     const panel = read('web/features/dropzone/panels/produtora/ProdutoraPanel.tsx')
     const workspace = read('web/features/campeonatos/estrutura-avancada/CampeonatoStructureWorkspace.tsx')
-    expect(tabs).toContain("{ id: 'estrutura', label: 'Estrutura' }")
+
+    expect(tabs).toContain("{ id: 'grupos', label: 'Grupos e fases' }")
     expect(tabs).not.toContain("id: 'estrutura_avancada'")
-    expect(tabs).not.toContain("id: 'grupos'")
-    expect(panel).toContain('CampeonatoStructureWorkspace')
+    expect(panel).toContain("rawSection === 'estrutura' || rawSection === 'estrutura_avancada' ? 'grupos'")
+    expect(panel).toContain("tab === 'grupos'")
+    expect(panel).toContain('CampeonatoEstruturaTab')
     expect(workspace).toContain('Planejamento competitivo')
     expect(workspace).toContain('Fases, grupos e slots')
     expect(workspace).toContain('sem distribuição automática')

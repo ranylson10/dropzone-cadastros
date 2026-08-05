@@ -15,17 +15,42 @@ function money(value: unknown) {
 }
 function location(row: any) { return first(row.localidade, [row.cidade, row.estado, row.pais].filter(Boolean).join(' · ')) }
 
+const DIRECTORY_PAGE_SIZE = 1000
+const DIRECTORY_MAX_ROWS = 10000
+
+function normalized(value: unknown) {
+  return String(value ?? '').trim().toLowerCase()
+}
+
 async function rows(table: string) {
-  const { data, error } = await supabaseAdmin.from(table).select('*').order('created_at', { ascending: false }).limit(500)
-  if (error) {
-    if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
-    throw error
+  const collected: any[] = []
+
+  for (let from = 0; from < DIRECTORY_MAX_ROWS; from += DIRECTORY_PAGE_SIZE) {
+    const to = from + DIRECTORY_PAGE_SIZE - 1
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (error) {
+      if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
+      throw error
+    }
+
+    const page = data || []
+    collected.push(...page)
+    if (page.length < DIRECTORY_PAGE_SIZE) break
   }
-  return (data || []).filter((row: any) => {
-    if (['suspenso', 'banido', 'excluido'].includes(String(row.status || 'ativo'))) return false
-    // Só no ar se aprovado pelo admin (legado sem coluna = liberado)
-    const ap = row.aprovacao_status
-    if (ap != null && ap !== '' && ap !== 'aprovado') return false
+
+  return collected.filter((row: any) => {
+    const status = normalized(row.status || 'ativo')
+    if (['suspenso', 'banido', 'excluido', 'excluído'].includes(status)) return false
+    if (row.deleted_at) return false
+
+    // Só no ar se aprovado pelo admin. Normalização evita exclusão por espaços/caixa.
+    const approval = normalized(row.aprovacao_status)
+    if (approval && approval !== 'aprovado') return false
     return true
   })
 }

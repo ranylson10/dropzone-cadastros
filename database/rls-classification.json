@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-31",
+  "updated_at": "2026-08-05",
   "description": "Classificação revisada das tabelas com RLS habilitado e sem policies no banco publicado. service_role_only exige acesso exclusivo por cliente administrativo com autorização prévia. legacy_controlled indica tabela preservada para compatibilidade/histórico, sem acesso direto localizado no código atual.",
   "tables": {
     "agenda_eventos": "service_role_only",
@@ -50,6 +50,8 @@
     "sistema_restricoes_conta": "service_role_only",
     "campeonato_grupo_escolha_configuracoes": "service_role_only",
     "campeonato_grupo_escolha_historico": "service_role_only",
-    "campeonato_grupo_escolha_bloqueios": "service_role_only"
+    "campeonato_grupo_escolha_bloqueios": "service_role_only",
+    "xtreino_mapa_calls": "service_role_only",
+    "xtreino_mapa_call_equipes": "service_role_only"
   }
 }

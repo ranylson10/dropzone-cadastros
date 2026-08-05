@@ -14,9 +14,12 @@ test.describe('Rodada 87H — texto e imagem livres no overlay', () => {
     expect(editor).toContain("addStandaloneLayer('image')")
   })
 
-  test('cria itens livres como camadas editáveis e animáveis', () => {
+  test('cria e reutiliza canvas livre com camadas editáveis e animáveis', () => {
     const editor = source('web/features/campeonatos/stream/components/StreamOverlayEditor.tsx')
-    expect(editor).toContain("const nextCard: StreamCardBlock = { ...card, layers: [layer] }")
+    expect(editor).toContain("block.type === 'card' && Boolean(block.freeCanvas)")
+    expect(editor).toContain('freeCanvas: true')
+    expect(editor).toContain('layers: [...block.layers, layer]')
+    expect(editor).toContain('layers: [layer]')
     expect(editor).toContain('setSelectedLayerId(layer.id)')
     expect(editor).toContain('previewSceneTransition')
     expect(editor).toContain('...overlay.blocks.map')
