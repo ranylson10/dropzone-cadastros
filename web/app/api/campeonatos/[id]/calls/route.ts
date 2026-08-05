@@ -63,6 +63,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         observacao: text(body.observacao) || null,
         cor: text(body.cor) || '#d6b84b',
         ordem: Number(body.ordem || 0),
+        poligono: Array.isArray(body.poligono) ? body.poligono : null,
+        label_x: Number.isFinite(Number(body.label_x)) ? Number(body.label_x) : null,
+        label_y: Number.isFinite(Number(body.label_y)) ? Number(body.label_y) : null,
       }).select('*').single()
       if (error) throw error
       return NextResponse.json({ call: data }, { status: 201 })
@@ -80,12 +83,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       ])
       if (!call || !participacao) throw new Error('Call ou equipe não pertence a este Xtreino.')
 
-      if (tipo === 'principal') {
-        const { data: sameMapCalls } = await supabaseAdmin.from('xtreino_mapa_calls').select('id').eq('campeonato_id', id).eq('mapa_codigo', call.mapa_codigo)
-        const ids = (sameMapCalls || []).map((item) => item.id)
-        if (ids.length) await supabaseAdmin.from('xtreino_mapa_call_equipes').delete().eq('campeonato_id', id).eq('campeonato_equipe_id', participacaoId).eq('tipo', 'principal').in('call_id', ids)
-      }
-
       const { data, error } = await supabaseAdmin.from('xtreino_mapa_call_equipes').upsert({
         campeonato_id: id,
         call_id: callId,
@@ -94,6 +91,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         tipo,
         permitir_conflito: Boolean(body.permitir_conflito),
         observacao: text(body.observacao) || null,
+        cor: text(body.cor) || '#d6b84b',
+        opacidade: Math.min(0.9, Math.max(0.1, Number(body.opacidade || 0.42))),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'call_id,campeonato_equipe_id,tipo' }).select('*').single()
       if (error) throw error
@@ -117,6 +116,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       nome: text(body.nome),
       observacao: text(body.observacao) || null,
       cor: text(body.cor) || '#d6b84b',
+      poligono: Array.isArray(body.poligono) ? body.poligono : undefined,
+      label_x: body.label_x == null ? undefined : Number(body.label_x),
+      label_y: body.label_y == null ? undefined : Number(body.label_y),
       updated_at: new Date().toISOString(),
     }).eq('id', callId).eq('campeonato_id', id).select('*').single()
     if (error) throw error
