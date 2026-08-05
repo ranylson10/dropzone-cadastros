@@ -51,7 +51,7 @@ async function openInternalArea(page: Page, href: string, label: RegExp) {
 }
 
 test.describe('Fluxos funcionais principais — sem alterar dados reais', () => {
-  test('produtora abre, preenche, envia validação e cancela novo campeonato', async ({ browser }) => {
+  test('produtora abre, percorre o assistente e cancela novo campeonato', async ({ browser }) => {
     const { context, page } = await authenticatedPage(browser, 'produtora')
     try {
       // O painel da produtora e o botão de criação ficam na página inicial autenticada.
@@ -66,24 +66,23 @@ test.describe('Fluxos funcionais principais — sem alterar dados reais', () => 
       const modal = page.getByRole('dialog').filter({ hasText: /novo campeonato/i }).first()
       await expect(modal).toBeVisible()
 
-      // A criação tem duas etapas. O botão final só existe depois de escolher o tipo.
+      // Primeiro escolhe o tipo; depois o assistente multipágina começa pela origem.
       await expect(modal.getByText(/etapa 1 de 2/i)).toBeVisible()
       const dailyOption = modal.getByRole('button', { name: /diário/i }).first()
       await expect(dailyOption).toBeVisible()
       await dailyOption.click()
 
-      await expect(modal.getByText(/etapa 2 de 2/i)).toBeVisible()
+      await expect(modal.getByText(/assistente de criação · etapa 1 de/i)).toBeVisible()
+      await expect(modal.getByText(/como deseja criar/i)).toBeVisible()
+      await expect(modal.getByRole('button', { name: /criar do zero/i })).toBeVisible()
 
-      // Envio real do formulário vazio: a aplicação deve rejeitar sem criar registro.
-      const createButton = modal.getByRole('button', { name: /^criar campeonato$/i })
-      await expect(createButton).toBeVisible({ timeout: 12_000 })
-      await createButton.click()
-      await expect(page.locator('.message.error, [role="alert"]').filter({ visible: true }).first()).toContainText(
-        /nome do campeonato|informe o nome/i,
-      )
+      const continueButton = modal.getByRole('button', { name: /^continuar$/i })
+      await expect(continueButton).toBeVisible()
+      await expect(continueButton).toBeEnabled()
+      await continueButton.click()
 
-      // O componente Field exibe o texto do rótulo, mas não associa htmlFor/id ao input.
-      // Por isso usamos o primeiro campo obrigatório da etapa 2.
+      // A página seguinte deve exibir os dados obrigatórios sem criar registro real.
+      await expect(modal.getByText(/dados obrigatórios/i)).toBeVisible()
       const championshipName = modal.locator('input[required]').first()
       await expect(championshipName).toBeVisible()
       await championshipName.fill(`E2E validação ${Date.now()}`)

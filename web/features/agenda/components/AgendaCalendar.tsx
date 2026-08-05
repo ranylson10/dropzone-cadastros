@@ -125,6 +125,18 @@ function todayISO() {
   return padDate(now.getFullYear(), now.getMonth() + 1, now.getDate())
 }
 
+function formatEventDate(value: string) {
+  const [year, month, day] = String(value).slice(0, 10).split('-')
+  if (!year || !month || !day) return value
+  return `${day} ${MONTH_NAMES_PT[Number(month) - 1].slice(0, 3)}`
+}
+
+function formatEventDateLong(value: string) {
+  const [year, month, day] = String(value).slice(0, 10).split('-')
+  if (!year || !month || !day) return value
+  return `${day} DE ${MONTH_NAMES_PT[Number(month) - 1]} DE ${year}`
+}
+
 export function AgendaCalendar(props: AgendaCalendarProps) {
   const now = new Date()
   const [year, setYear] = useState(props.initialYear || now.getFullYear())
@@ -205,6 +217,37 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
     const start = Math.max(0, Math.min(days.length - 7, selectedIndex - 3))
     return days.slice(start, start + 7)
   }, [days, selectedDay?.date])
+
+  const contextualMode = Boolean(props.compact && !canCreate)
+
+  const eventDates = useMemo(() => {
+    const grouped = new Map<string, AgendaItem[]>()
+    items
+      .slice()
+      .sort((a, b) => a.data.localeCompare(b.data) || a.horario_inicio.localeCompare(b.horario_inicio))
+      .forEach((item) => {
+        const current = grouped.get(item.data) || []
+        current.push(item)
+        grouped.set(item.data, current)
+      })
+    return Array.from(grouped.entries()).map(([date, dateItems]) => ({ date, items: dateItems }))
+  }, [items])
+
+  useEffect(() => {
+    if (!contextualMode) return
+    if (!eventDates.length) {
+      setSelectedDate('')
+      return
+    }
+    if (!eventDates.some((entry) => entry.date === selectedDate)) {
+      setSelectedDate(eventDates[0].date)
+    }
+  }, [contextualMode, eventDates, selectedDate])
+
+  const selectedEventDate = useMemo(
+    () => eventDates.find((entry) => entry.date === selectedDate) || eventDates[0] || null,
+    [eventDates, selectedDate],
+  )
 
   function shiftSelectedDay(delta: number) {
     if (!selectedDay) return
@@ -314,15 +357,17 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
         </div>
       </div>
 
-      <div className="agenda-legend">
-        <span>
-          <i style={{ background: '#3b82f6' }} /> Jogos de campeonato
-        </span>
-        <span>
-          <i style={{ background: '#16a34a', border: '1px dashed #fff' }} /> Agenda livre
-        </span>
-        {canCreate ? <span>Clique em um horário vazio para adicionar</span> : <span>Agenda somente para consulta</span>}
-      </div>
+      {!contextualMode ? (
+        <div className="agenda-legend">
+          <span>
+            <i style={{ background: '#3b82f6' }} /> Jogos de campeonato
+          </span>
+          <span>
+            <i style={{ background: '#16a34a', border: '1px dashed #fff' }} /> Agenda livre
+          </span>
+          {canCreate ? <span>Clique em um horário vazio para adicionar</span> : <span>Agenda somente para consulta</span>}
+        </div>
+      ) : null}
 
       {setupRequired ? (
         <div className="agenda-setup-banner">
@@ -335,15 +380,69 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
 
       <div className={`agenda-sheet ${props.compact ? 'is-compact' : ''}`}>
         <div className="agenda-sheet-title">{title}</div>
-        <div className="agenda-sheet-month">
-          {MONTH_NAMES_PT[month - 1]} {year}
-        </div>
+        {!contextualMode ? (
+          <div className="agenda-sheet-month">
+            {MONTH_NAMES_PT[month - 1]} {year}
+          </div>
+        ) : null}
 
         {loading ? (
           <div className="agenda-loading" aria-label="Carregando calendário">
             <span />
             <span />
             <span />
+          </div>
+        ) : contextualMode ? (
+          <div className="agenda-event-only" data-testid="agenda-event-only">
+            {eventDates.length === 0 ? (
+              <div className="agenda-day-empty">Nenhum jogo ou compromisso agendado neste mês.</div>
+            ) : (
+              <>
+                <div className="agenda-event-date-strip" aria-label="Datas com jogos">
+                  {eventDates.map((entry) => (
+                    <button
+                      key={entry.date}
+                      type="button"
+                      className={entry.date === selectedEventDate?.date ? 'is-active' : ''}
+                      onClick={() => setSelectedDate(entry.date)}
+                    >
+                      <strong>{formatEventDate(entry.date)}</strong>
+                      <span>{entry.items.length} jogo(s)</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="agenda-event-date-panel">
+                  <div className="agenda-day-panel-head">
+                    <span>
+                      <CalendarDays size={16} />
+                      {selectedEventDate ? formatEventDateLong(selectedEventDate.date) : 'Agenda'}
+                    </span>
+                    <small>{selectedEventDate?.items.length || 0} compromisso(s)</small>
+                  </div>
+                  <div className="agenda-day-events">
+                    {selectedEventDate?.items.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`agenda-timeline-event ${item.source === 'jogo' ? 'is-jogo' : 'is-livre'}`}
+                        style={{ ['--agenda-event-color' as string]: item.cor }}
+                        onClick={() => openItem(item)}
+                      >
+                        <span className="agenda-timeline-time">
+                          <Clock3 size={14} />
+                          {item.horario_inicio}
+                          {item.horario_fim ? <small>{item.horario_fim}</small> : null}
+                        </span>
+                        <span className="agenda-timeline-copy">
+                          <strong>{item.titulo}</strong>
+                          <small>{item.meta.campeonato_nome || item.meta.equipe_nome || item.tipo}</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <>

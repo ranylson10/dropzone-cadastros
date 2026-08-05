@@ -15,7 +15,9 @@ test.describe('Rodada 87J — imagem nos fundos', () => {
     expect(panel).toContain('<option value="stretch">Esticar</option>')
     expect(panel).toContain('label="Posição"')
     expect(panel).toContain('label="Repetição"')
-    expect(panel).toContain('label="Cor de segurança"')
+    expect(panel).toContain('label="Cor atrás da imagem"')
+    expect(panel).toContain('label="Cor de apoio"')
+    expect(panel).toContain('useFallbackColor')
   })
 
   test('renderização respeita contain, cover, stretch, posição e repetição', () => {
@@ -23,7 +25,7 @@ test.describe('Rodada 87J — imagem nos fundos', () => {
     expect(style).toContain("fill.fit === 'stretch' ? '100% 100%'")
     expect(style).toContain("backgroundPosition: fill.position || 'center'")
     expect(style).toContain("backgroundRepeat: fill.repeat || 'no-repeat'")
-    expect(style).toContain("backgroundColor: fill.fallbackColor || 'transparent'")
+    expect(style).toContain("backgroundColor: fill.useFallbackColor ? fill.fallbackColor || '#000000' : 'transparent'")
   })
 
   test('linhas alternadas e linhas individuais aceitam estilo completo com imagem', () => {

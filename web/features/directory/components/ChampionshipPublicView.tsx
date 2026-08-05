@@ -400,11 +400,11 @@ export function ChampionshipPublicView({
               <Gamepad2 size={16} />
               <div>
                 <strong>Agenda de jogos</strong>
-                <small>Calendário mensal com horários e partidas do campeonato</small>
+                <small>Somente as datas que possuem jogos do campeonato</small>
               </div>
             </header>
             <AgendaCalendar
-              title={`CALENDÁRIO ${profile.name}`.toUpperCase()}
+              title={`AGENDA ${profile.name}`.toUpperCase()}
               scope="campeonato"
               scopeId={profile.id}
               canCreate={false}
