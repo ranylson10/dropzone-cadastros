@@ -16,7 +16,7 @@ async function contextData(req: NextRequest, context: { params: Promise<{ id: st
     .maybeSingle()
   if (error) throw error
   if (!line) throw new Error('Line não encontrada nesta equipe.')
-  return { user, equipeId, lineId, line, access }
+  return { user, accounts, equipeId, lineId, line, access }
 }
 
 function activeStatus(value: unknown) {
@@ -96,6 +96,29 @@ async function loadLine(equipeId: string, lineId: string) {
   }
 }
 
+
+
+async function transferContext(accounts: Array<{ id: string; profile_type?: string | null }>, equipeId: string, lineId: string) {
+  const current = await loadLine(equipeId, lineId)
+  const producerIds = new Set(accounts.filter((account) => account.profile_type === 'produtora').map((account) => String(account.id)))
+  const championships = (current.events || []).map((event: any) => ({
+    id: String(event.campeonato_id || event.campeonato?.id || ''),
+    nome: String(event.campeonato?.nome || 'Campeonato'),
+    produtora_id: String(event.campeonato?.produtora_id || ''),
+  }))
+  const foreign = championships.filter((championship: any) => !championship.produtora_id || !producerIds.has(championship.produtora_id))
+  const allowed = championships.length > 0 && foreign.length === 0
+  return {
+    allowed,
+    reason: championships.length === 0
+      ? 'A transferência fica disponível quando a line participa de campeonato da sua produtora.'
+      : foreign.length > 0
+        ? 'Esta line participa de campeonato que não pertence à sua produtora.'
+        : null,
+    championships,
+  }
+}
+
 async function writeHistory(values: Record<string, unknown>) {
   const { error } = await supabaseAdmin.from('equipe_formacao_historico').insert(values)
   if (error) throw error
@@ -103,8 +126,9 @@ async function writeHistory(values: Record<string, unknown>) {
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string; lineId: string }> }) {
   try {
-    const { equipeId, lineId, line, access } = await contextData(req, context, 'ver')
-    return NextResponse.json({ line, permissions: access.permissoes, ...(await loadLine(equipeId, lineId)) })
+    const { accounts, equipeId, lineId, line, access } = await contextData(req, context, 'ver')
+    const [loaded, transfer] = await Promise.all([loadLine(equipeId, lineId), transferContext(accounts, equipeId, lineId)])
+    return NextResponse.json({ line, permissions: access.permissoes, transfer, ...loaded })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Não foi possível carregar a line.' }, { status: 400 })
   }
@@ -115,9 +139,45 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const body = await req.json().catch(() => ({}))
     const action = String(body.action || '')
     const requiredAction = action === 'save_formation' ? 'escalar' : 'editar'
-    const { user, equipeId, lineId } = await contextData(req, context, requiredAction)
+    const { user, accounts, equipeId, lineId, line } = await contextData(req, context, requiredAction)
 
-    if (action === 'add_member') {
+    if (action === 'transfer_line') {
+      const destinationId = String(body.equipe_destino_id || '').trim()
+      if (!destinationId) throw new Error('Selecione a equipe real que receberá a line.')
+      if (destinationId === equipeId) throw new Error('A line já pertence a esta equipe.')
+
+      const transfer = await transferContext(accounts, equipeId, lineId)
+      if (!transfer.allowed) throw new Error(transfer.reason || 'Esta line não pode ser transferida.')
+
+      const { data: destination, error: destinationError } = await supabaseAdmin
+        .from('equipes')
+        .select('id,nome,tag,logo_url,status')
+        .eq('id', destinationId)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      if (destinationError) throw destinationError
+      if (!destination) throw new Error('Equipe de destino não encontrada ou inativa.')
+
+      const { data: conflict, error: conflictError } = await supabaseAdmin
+        .from('equipe_lines')
+        .select('id,nome')
+        .eq('equipe_id', destinationId)
+        .eq('status', 'ativo')
+        .ilike('nome', String(line.nome || ''))
+        .neq('id', lineId)
+        .maybeSingle()
+      if (conflictError) throw conflictError
+      if (conflict) throw new Error(`A equipe de destino já possui uma line chamada ${conflict.nome}.`)
+
+      const { data: result, error: transferError } = await supabaseAdmin.rpc('fn_transferir_line_equipe', {
+        p_line_id: lineId,
+        p_equipe_origem_id: equipeId,
+        p_equipe_destino_id: destinationId,
+        p_realizado_por: user.id,
+      })
+      if (transferError) throw transferError
+      return NextResponse.json({ ok: true, transferred: true, destination, result, championships: transfer.championships })
+    } else if (action === 'add_member') {
       const playerId = String(body.equipe_jogador_id || '')
       const { data: player, error } = await supabaseAdmin.from('equipe_jogadores').select('id,equipe_id').eq('id', playerId).eq('equipe_id', equipeId).eq('status', 'ativo').maybeSingle()
       if (error) throw error
