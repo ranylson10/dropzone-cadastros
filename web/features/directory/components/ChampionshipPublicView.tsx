@@ -400,38 +400,26 @@ export function ChampionshipPublicView({
               <Gamepad2 size={16} />
               <div>
                 <strong>Agenda de jogos</strong>
-                <small>Somente as datas que possuem jogos do campeonato</small>
+                <small>Calendário mensal com horários e partidas do campeonato</small>
               </div>
             </header>
             <AgendaCalendar
-              title={`AGENDA ${profile.name}`.toUpperCase()}
+              title={`CALENDÁRIO ${profile.name}`.toUpperCase()}
               scope="campeonato"
               scopeId={profile.id}
-              canCreate={false}
+              canCreate
               compact
             />
           </section>
         ) : null}
 
         {tab === 'estatisticas' ? (
-          <div className="champ-public-stats">
-            <SectionPanel
-              title="Tabela"
-              subtitle="Classificação de equipes"
-              icon={<BarChart3 size={16} />}
-              empty="Tabela ainda sem dados."
-              section={sectionMap.estatisticas}
-            />
-            {sectionMap.mvpExtra && sectionMap.mvpExtra.items.length > 0 ? (
-              <SectionPanel
-                title="MVP"
-                subtitle="Destaques individuais"
-                icon={<Flag size={16} />}
-                empty=""
-                section={sectionMap.mvpExtra}
-              />
-            ) : null}
-          </div>
+          <StatsDashboard
+            championshipId={profile.id}
+            filters={profile.statsFilters}
+            teamsSection={sectionMap.estatisticas}
+            mvpSection={sectionMap.mvpExtra}
+          />
         ) : null}
       </div>
 
@@ -454,6 +442,203 @@ export function ChampionshipPublicView({
         />
       ) : null}
     </div>
+  )
+}
+
+
+type StatsView = 'tabela' | 'mvp'
+
+type TeamStatsRow = {
+  campeonato_equipe_id: string
+  nome: string
+  tag?: string | null
+  logo_url?: string | null
+  grupo_id?: string | null
+  colocacao: number
+  quedas: number
+  booyahs: number
+  abates: number
+  pontos_posicao: number
+  pontos_abates: number
+  pontos_total: number
+}
+
+type MvpStatsRow = {
+  campeonato_jogador_id: string
+  nick: string
+  id_jogo?: string | null
+  foto_url?: string | null
+  campeonato_equipe_id?: string | null
+  colocacao: number
+  quedas: number
+  abates: number
+  dano: number
+  assistencias: number
+  revives: number
+}
+
+function sectionTeams(section?: DirectoryProfile['sections'][number]): TeamStatsRow[] {
+  return (section?.items || []).map((item) => ({
+    campeonato_equipe_id: item.id,
+    nome: item.title,
+    tag: item.subtitle || null,
+    logo_url: item.image || null,
+    grupo_id: String(item.stats?.grupo_id || '') || null,
+    colocacao: Number(item.stats?.colocacao || 0),
+    quedas: Number(item.stats?.quedas || 0),
+    booyahs: Number(item.stats?.booyahs || 0),
+    abates: Number(item.stats?.abates || 0),
+    pontos_posicao: Number(item.stats?.pontos_posicao || 0),
+    pontos_abates: Number(item.stats?.pontos_abates || 0),
+    pontos_total: Number(item.stats?.pontos_total || 0),
+  }))
+}
+
+function sectionMvp(section?: DirectoryProfile['sections'][number]): MvpStatsRow[] {
+  return (section?.items || []).map((item) => ({
+    campeonato_jogador_id: item.id,
+    nick: item.title,
+    id_jogo: item.subtitle || null,
+    foto_url: item.image || null,
+    campeonato_equipe_id: String(item.stats?.campeonato_equipe_id || '') || null,
+    colocacao: Number(item.stats?.colocacao || 0),
+    quedas: Number(item.stats?.quedas || 0),
+    abates: Number(item.stats?.abates || 0),
+    dano: Number(item.stats?.dano || 0),
+    assistencias: Number(item.stats?.assistencias || 0),
+    revives: Number(item.stats?.revives || 0),
+  }))
+}
+
+function StatsDashboard({
+  championshipId,
+  filters,
+  teamsSection,
+  mvpSection,
+}: {
+  championshipId: string
+  filters?: DirectoryProfile['statsFilters']
+  teamsSection?: DirectoryProfile['sections'][number]
+  mvpSection?: DirectoryProfile['sections'][number]
+}) {
+  const [view, setView] = useState<StatsView>('tabela')
+  const [faseId, setFaseId] = useState('')
+  const [grupoId, setGrupoId] = useState('')
+  const [jogoId, setJogoId] = useState('')
+  const [partidaId, setPartidaId] = useState('')
+  const [mapaCodigo, setMapaCodigo] = useState('')
+  const [teams, setTeams] = useState<TeamStatsRow[]>(() => sectionTeams(teamsSection))
+  const [players, setPlayers] = useState<MvpStatsRow[]>(() => sectionMvp(mvpSection))
+  const [loading, setLoading] = useState(false)
+
+  const availableGroups = useMemo(
+    () => (filters?.groups || []).filter((group) => !faseId || group.phaseId === faseId),
+    [filters?.groups, faseId],
+  )
+  const availableRounds = useMemo(
+    () => (filters?.rounds || []).filter((round) => !jogoId || round.gameId === jogoId),
+    [filters?.rounds, jogoId],
+  )
+
+  useEffect(() => {
+    if (grupoId && !availableGroups.some((group) => group.id === grupoId)) setGrupoId('')
+  }, [availableGroups, grupoId])
+
+  useEffect(() => {
+    if (partidaId && !availableRounds.some((round) => round.id === partidaId)) setPartidaId('')
+  }, [availableRounds, partidaId])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (faseId) params.set('fase_id', faseId)
+    if (grupoId) params.set('grupo_id', grupoId)
+    if (jogoId) params.set('jogo_id', jogoId)
+    if (partidaId) params.set('partida_id', partidaId)
+    if (mapaCodigo) params.set('mapa_codigo', mapaCodigo)
+
+    const controller = new AbortController()
+    setLoading(true)
+    Promise.all([
+      fetch(`/api/campeonatos/${championshipId}/estatisticas/equipes?${params}`, { signal: controller.signal }).then((res) => res.json()),
+      fetch(`/api/campeonatos/${championshipId}/estatisticas/mvp?${params}`, { signal: controller.signal }).then((res) => res.json()),
+    ])
+      .then(([teamData, playerData]) => {
+        if (Array.isArray(teamData.equipes)) setTeams(teamData.equipes)
+        if (Array.isArray(playerData.jogadores)) setPlayers(playerData.jogadores)
+      })
+      .catch((error) => {
+        if (error?.name !== 'AbortError') console.error(error)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [championshipId, faseId, grupoId, jogoId, partidaId, mapaCodigo])
+
+  const groupName = (id?: string | null) =>
+    filters?.groups.find((group) => group.id === id)?.label || '—'
+
+  const hasFilters = Boolean(
+    filters?.phases.length || filters?.groups.length || filters?.games.length || filters?.rounds.length || filters?.maps.length,
+  )
+
+  return (
+    <section className="champ-public-section champ-stats-section">
+      <header className="champ-public-panel-head champ-stats-head">
+        <BarChart3 size={16} />
+        <div>
+          <strong>Estatísticas</strong>
+          <small>Classificação e desempenho individual</small>
+        </div>
+        {loading ? <span className="champ-stats-loading">Atualizando…</span> : null}
+      </header>
+
+      <div className="champ-stats-tabs" role="tablist" aria-label="Tipo de estatística">
+        <button type="button" className={view === 'tabela' ? 'active' : ''} onClick={() => setView('tabela')}>
+          <BarChart3 size={14} /> Tabela
+        </button>
+        <button type="button" className={view === 'mvp' ? 'active' : ''} onClick={() => setView('mvp')}>
+          <Flag size={14} /> MVP
+        </button>
+      </div>
+
+      {hasFilters ? (
+        <div className="champ-stats-filters">
+          {filters?.phases.length ? (
+            <label><span>Fase</span><select value={faseId} onChange={(event) => setFaseId(event.target.value)}><option value="">Todas</option>{filters.phases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+          ) : null}
+          {filters?.groups.length ? (
+            <label><span>Grupo</span><select value={grupoId} onChange={(event) => setGrupoId(event.target.value)}><option value="">Todos</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+          ) : null}
+          {filters?.games.length ? (
+            <label><span>Jogo</span><select value={jogoId} onChange={(event) => setJogoId(event.target.value)}><option value="">Todos</option>{filters.games.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+          ) : null}
+          {filters?.rounds.length ? (
+            <label><span>Queda</span><select value={partidaId} onChange={(event) => setPartidaId(event.target.value)}><option value="">Todas</option>{availableRounds.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+          ) : null}
+          {filters?.maps.length ? (
+            <label><span>Mapa</span><select value={mapaCodigo} onChange={(event) => setMapaCodigo(event.target.value)}><option value="">Todos</option>{filters.maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="champ-stats-table-wrap">
+        {view === 'tabela' ? (
+          teams.length ? (
+            <table className="champ-stats-table">
+              <thead><tr><th className="pos">#</th><th className="identity">Equipe</th><th>Grupo</th><th>Quedas</th><th>Booyah</th><th>Abates</th><th>P. posição</th><th>P. abates</th><th className="total">Total</th></tr></thead>
+              <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></td><td>{groupName(row.grupo_id)}</td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td>{row.pontos_posicao}</td><td>{row.pontos_abates}</td><td className="total"><b>{row.pontos_total}</b></td></tr>)}</tbody>
+            </table>
+          ) : <div className="directory-empty compact">Tabela ainda sem dados para este filtro.</div>
+        ) : players.length ? (
+          <table className="champ-stats-table champ-stats-mvp-table">
+            <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>Quedas</th><th>Abates</th><th>Dano</th><th>Assist.</th><th>Revives</th></tr></thead>
+            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player">{row.foto_url ? <img src={row.foto_url} alt="" /> : row.nick.slice(0, 2).toUpperCase()}</span><span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></td><td>{row.quedas}</td><td className="total"><b>{row.abates}</b></td><td>{row.dano}</td><td>{row.assistencias}</td><td>{row.revives}</td></tr>)}</tbody>
+          </table>
+        ) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
+      </div>
+    </section>
   )
 }
 

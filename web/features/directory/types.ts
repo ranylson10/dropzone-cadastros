@@ -25,6 +25,7 @@ export type DirectorySectionItem = {
   /** Estado visual do slot: livre | ocupada | reservada */
   status?: 'livre' | 'ocupada' | 'reservada' | string
   children?: DirectorySectionItem[]
+  stats?: Record<string, string | number | null>
 }
 
 export type ChampionshipTheme = {
@@ -63,6 +64,13 @@ export type DirectoryProfile = DirectoryItem & {
   bio?: string | null
   /** Inscrição / compra de vaga (somente campeonatos com vagas abertas) */
   enrollment?: ChampionshipEnrollment | null
+  statsFilters?: {
+    phases: Array<{ id: string; label: string }>
+    groups: Array<{ id: string; label: string; phaseId?: string | null }>
+    games: Array<{ id: string; label: string }>
+    rounds: Array<{ id: string; label: string; gameId?: string | null; mapCode?: string | null }>
+    maps: Array<{ id: string; label: string }>
+  }
   sections: Array<{
     title: string
     layout?: 'list' | 'table' | 'stats' | 'structure'

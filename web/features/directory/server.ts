@@ -22,6 +22,15 @@ function normalized(value: unknown) {
   return String(value ?? '').trim().toLowerCase()
 }
 
+async function rowsPlain(table: string) {
+  const { data, error } = await supabaseAdmin.from(table).select('*')
+  if (error) {
+    if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
+    throw error
+  }
+  return data || []
+}
+
 async function rows(table: string) {
   const collected: any[] = []
 
@@ -160,13 +169,15 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
 
   let theme: DirectoryProfile['theme'] = null
   let enrollment: DirectoryProfile['enrollment'] = null
+  let statsFilters: DirectoryProfile['statsFilters'] = undefined
 
   if (kind === 'campeonatos') {
-    const [phases, groups, slots, games, participations, teams, teamLines, teamStats, mvpStats, configs] = await Promise.all([
+    const [phases, groups, slots, games, rounds, participations, teams, teamLines, teamStats, mvpStats, configs] = await Promise.all([
       rows('campeonato_fases'),
       rows('campeonato_grupos'),
       rows('campeonato_slots'),
       rows('campeonato_jogos'),
+      rowsPlain('campeonato_partidas_com_mapa'),
       rows('campeonato_equipes'),
       rows('equipes'),
       rows('equipe_lines'),
@@ -221,38 +232,69 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     const champGroups = groups.filter((row: any) => row.campeonato_id === id)
     const champSlots = slots.filter((row: any) => row.campeonato_id === id)
     const champGames = games.filter((row: any) => row.campeonato_id === id)
+    const champRounds = rounds.filter((row: any) => row.campeonato_id === id)
     const champParts = participations.filter((row: any) => row.campeonato_id === id && String(row.status || 'ativo') === 'ativo')
+
+    const gameNameById = new Map(champGames.map((row: any) => [String(row.id), first(row.nome, `Jogo ${row.id}`)]))
+    const mapCodes = Array.from(new Set(champRounds.map((row: any) => text(row.mapa_codigo)).filter(Boolean)))
+    statsFilters = {
+      phases: champPhases.map((row: any) => ({ id: String(row.id), label: first(row.nome, 'Fase') })),
+      groups: champGroups.map((row: any) => ({
+        id: String(row.id),
+        label: first(row.nome, 'Grupo'),
+        phaseId: row.fase_id ? String(row.fase_id) : null,
+      })),
+      games: champGames.map((row: any) => ({ id: String(row.id), label: first(row.nome, 'Jogo') })),
+      rounds: champRounds
+        .sort((a: any, b: any) => Number(a.numero_partida || 0) - Number(b.numero_partida || 0))
+        .map((row: any) => ({
+          id: String(row.id),
+          label: `${gameNameById.get(String(row.jogo_id)) || 'Jogo'} · Queda ${Number(row.numero_partida || 0) || '-'}`,
+          gameId: row.jogo_id ? String(row.jogo_id) : null,
+          mapCode: text(row.mapa_codigo) || null,
+        })),
+      maps: mapCodes.map((code) => ({ id: code, label: code })),
+    }
 
     // Ações antigas removidas do banner — navegação via ChampionshipPublicView
     actions.length = 0
     sections.push({
       title: 'Tabela',
       layout: 'stats',
-      items: teamStats.slice(0, 30).map((row: any) => ({
+      items: teamStats.slice(0, 100).map((row: any) => ({
         id: row.campeonato_equipe_id,
-        title: `${row.colocacao}º · ${row.nome}`,
-        subtitle: `${row.pontos_total} pts · ${row.abates} abates · ${row.booyahs} booyah(s)`,
+        title: row.nome,
+        subtitle: row.tag || undefined,
         image: first(row.logo_url),
-        meta: [
-          { label: 'Quedas', value: String(row.quedas) },
-          { label: 'P. posição', value: String(row.pontos_posicao) },
-          { label: 'P. abates', value: String(row.pontos_abates) },
-        ],
+        stats: {
+          colocacao: Number(row.colocacao || 0),
+          grupo_id: row.grupo_id || null,
+          quedas: Number(row.quedas || 0),
+          booyahs: Number(row.booyahs || 0),
+          abates: Number(row.abates || 0),
+          pontos_posicao: Number(row.pontos_posicao || 0),
+          pontos_abates: Number(row.pontos_abates || 0),
+          pontos_total: Number(row.pontos_total || 0),
+        },
       })),
     })
     sections.push({
       title: 'MVP',
       layout: 'stats',
-      items: mvpStats.slice(0, 30).map((row: any) => ({
+      items: mvpStats.slice(0, 100).map((row: any) => ({
         id: row.campeonato_jogador_id,
-        title: `${row.colocacao}º · ${row.nick}`,
-        subtitle: `${row.abates} abates · ${row.quedas} quedas`,
+        title: row.nick,
+        subtitle: row.id_jogo || undefined,
         image: first(row.foto_url),
-        meta: [
-          { label: 'Dano', value: String(row.dano) },
-          { label: 'Assist.', value: String(row.assistencias) },
-          { label: 'Revives', value: String(row.revives) },
-        ],
+        stats: {
+          colocacao: Number(row.colocacao || 0),
+          campeonato_equipe_id: row.campeonato_equipe_id || null,
+          quedas: Number(row.quedas || 0),
+          abates: Number(row.abates || 0),
+          dano: Number(row.dano || 0),
+          assistencias: Number(row.assistencias || 0),
+          revives: Number(row.revives || 0),
+        },
       })),
     })
 
@@ -390,5 +432,6 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     sections,
     theme,
     enrollment,
+    statsFilters,
   }
 }
