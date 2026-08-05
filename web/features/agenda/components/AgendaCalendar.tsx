@@ -164,9 +164,11 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
-    const rangeStart = padDate(year, month, 1)
-    const rangeEndDate = new Date(year, month + 11, 0)
-    const rangeEnd = padDate(rangeEndDate.getFullYear(), rangeEndDate.getMonth() + 1, rangeEndDate.getDate())
+    // Nas agendas públicas em formato de lista, carregamos todo o histórico
+    // e todos os compromissos futuros do perfil. Assim, meses anteriores
+    // não desaparecem quando o mês atual muda.
+    const rangeStart = '2000-01-01'
+    const rangeEnd = '2100-12-31'
     const result = await fetchAgenda({
       scope: props.scope,
       scopeId: props.scopeId,
