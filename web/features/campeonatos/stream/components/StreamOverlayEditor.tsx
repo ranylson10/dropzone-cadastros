@@ -1479,6 +1479,45 @@ export function StreamOverlayEditor(props: {
                     ))}
                   </div>
                   <p className="stream-hint">Medidas do item em pixels dentro do bloco. Z maior fica por cima.</p>
+                  <div className="stream-inspector-subsection">
+                    <p className="stream-hint"><strong>Mover somente o conteúdo</strong></p>
+                    <p className="stream-hint">Desloque o texto ou a imagem sem mover o fundo nem a caixa da camada.</p>
+                    <div className="stream-style-grid">
+                      <label className="stream-style-field">
+                        <span>Conteúdo X (px)</span>
+                        <input
+                          type="number"
+                          value={selectedLayer.contentOffsetX || 0}
+                          onChange={(e) =>
+                            updateLayer(selectedLayer.id, {
+                              contentOffsetX: Math.round(Number(e.target.value) || 0),
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="stream-style-field">
+                        <span>Conteúdo Y (px)</span>
+                        <input
+                          type="number"
+                          value={selectedLayer.contentOffsetY || 0}
+                          onChange={(e) =>
+                            updateLayer(selectedLayer.id, {
+                              contentOffsetY: Math.round(Number(e.target.value) || 0),
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      className="stream-secondary-btn"
+                      onClick={() =>
+                        updateLayer(selectedLayer.id, { contentOffsetX: 0, contentOffsetY: 0 })
+                      }
+                    >
+                      Centralizar conteúdo
+                    </button>
+                  </div>
                 </details>
 
                 <details className="stream-inspector-section" open>

@@ -94,6 +94,10 @@ function LayerView(props: {
     ...props.motionStyle,
   }
 
+  const contentOffsetX = Math.round(Number(layer.contentOffsetX) || 0)
+  const contentOffsetY = Math.round(Number(layer.contentOffsetY) || 0)
+  const contentTransform = `translate(${contentOffsetX}px, ${contentOffsetY}px)`
+
   const inner =
     resolved.kind === 'image' ? (
       resolved.src ? (
@@ -106,15 +110,28 @@ function LayerView(props: {
             height: '100%',
             objectFit: layer.objectFit || (layer.type === 'logo' ? 'contain' : 'cover'),
             display: 'block',
+            transform: contentTransform,
           }}
         />
       ) : (
-        <span className="stream-prev-logo-fallback" style={{ width: '70%', height: '70%', fontSize: 12 }}>
+        <span
+          className="stream-prev-logo-fallback"
+          style={{ width: '70%', height: '70%', fontSize: 12, transform: contentTransform }}
+        >
           {props.editable ? (layer.type === 'logo' ? 'UPLOAD LOGO' : 'UPLOAD IMG') : ''}
         </span>
       )
     ) : (
-      <span style={{ width: '100%', padding: '0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span
+        style={{
+          width: '100%',
+          padding: '0 4px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          transform: contentTransform,
+        }}
+      >
         {resolved.text || (props.editable ? layer.name : '')}
       </span>
     )

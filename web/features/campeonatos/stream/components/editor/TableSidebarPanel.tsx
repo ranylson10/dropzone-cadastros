@@ -150,7 +150,7 @@ export function TablePartInspector(props: {
     const splitHint =
       panels > 1
         ? `Ex.: painel 1 = #${start}–#${start + perPanel - 1}, painel 2 = #${start + perPanel}–#${start + perPanel * 2 - 1}`
-        : 'Use 2+ painéis para top 1–6 de um lado e top 7–12 do outro.'
+        : 'Ex.: posição inicial 2 + 9 linhas mostra o TOP 2 ao TOP 10.'
 
     return (
       <div className="stream-table-part-inspector">
@@ -161,7 +161,7 @@ export function TablePartInspector(props: {
           </p>
           <div className="stream-style-grid">
             <label className="stream-style-field">
-              <span>Nº de linhas</span>
+              <span>Quantidade de linhas</span>
               <input
                 type="number"
                 min={1}
@@ -194,7 +194,7 @@ export function TablePartInspector(props: {
               />
             </label>
             <label className="stream-style-field">
-              <span>Rank inicial</span>
+              <span>Começar na posição</span>
               <input
                 type="number"
                 min={1}

@@ -247,6 +247,10 @@ export type StreamLayer = {
   data: LayerDataSource
   style?: FieldStyle
   objectFit?: 'cover' | 'contain'
+  /** deslocamento horizontal do conteúdo dentro da caixa da camada (px) */
+  contentOffsetX?: number
+  /** deslocamento vertical do conteúdo dentro da caixa da camada (px) */
+  contentOffsetY?: number
 }
 
 /** Coluna da tabela (parte da linha modelo) — medidas e estilo em px. */

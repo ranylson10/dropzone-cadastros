@@ -172,7 +172,7 @@ function TablePanel(props: {
         const byPos = sourceRows.find((r) => Number(r.pos) === startRank + item.dataIndex)
         const dataRow =
           byPos ||
-          sourceRows[item.dataIndex] ||
+          sourceRows[Math.max(0, startRank - 1) + item.dataIndex] ||
           ({
             pos: startRank + item.dataIndex,
             nome: editable ? item.name : '—',
