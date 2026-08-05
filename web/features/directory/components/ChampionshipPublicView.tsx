@@ -407,7 +407,7 @@ export function ChampionshipPublicView({
               title={`CALENDÁRIO ${profile.name}`.toUpperCase()}
               scope="campeonato"
               scopeId={profile.id}
-              canCreate
+              canCreate={false}
               compact
             />
           </section>

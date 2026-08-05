@@ -2,6 +2,10 @@ import { supabase } from '@/lib/supabase-browser'
 import { authHeaders } from '@/features/dropzone/utils'
 import type { AgendaEventForm, AgendaItem, AgendaScope } from '../types/agenda.types'
 
+type AgendaFetchResult = { items: AgendaItem[]; setup_required: boolean; error?: string }
+const agendaCache = new Map<string, { expiresAt: number; value: AgendaFetchResult }>()
+const agendaPending = new Map<string, Promise<AgendaFetchResult>>()
+
 async function sessionToken() {
   const { data } = await supabase.auth.getSession()
   return data.session?.access_token || null
@@ -12,26 +16,41 @@ export async function fetchAgenda(params: {
   scopeId?: string | null
   year: number
   month: number
-}): Promise<{ items: AgendaItem[]; setup_required: boolean; error?: string }> {
-  const token = await sessionToken()
-  const qs = new URLSearchParams({
-    scope: params.scope,
-    year: String(params.year),
-    month: String(params.month),
-  })
-  if (params.scopeId) qs.set('id', params.scopeId)
+}): Promise<AgendaFetchResult> {
+  const cacheKey = `${params.scope}:${params.scopeId || 'me'}:${params.year}-${params.month}`
+  const cached = agendaCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) return cached.value
 
-  const headers: Record<string, string> = {}
-  if (token) Object.assign(headers, authHeaders(token))
+  const pending = agendaPending.get(cacheKey)
+  if (pending) return pending
 
-  const res = await fetch(`/api/agenda?${qs.toString()}`, { headers, cache: 'no-store' })
-  const json = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    return { items: [], setup_required: false, error: json.error || 'Erro ao carregar agenda.' }
-  }
-  return {
-    items: (json.items || []) as AgendaItem[],
-    setup_required: Boolean(json.setup_required),
+  const request = (async () => {
+    const token = await sessionToken()
+    const qs = new URLSearchParams({
+      scope: params.scope,
+      year: String(params.year),
+      month: String(params.month),
+    })
+    if (params.scopeId) qs.set('id', params.scopeId)
+
+    const headers: Record<string, string> = {}
+    if (token) Object.assign(headers, authHeaders(token))
+
+    const res = await fetch(`/api/agenda?${qs.toString()}`, { headers, cache: 'no-store' })
+    const json = await res.json().catch(() => ({}))
+    const value: AgendaFetchResult = !res.ok
+      ? { items: [], setup_required: false, error: json.error || 'Erro ao carregar agenda.' }
+      : { items: (json.items || []) as AgendaItem[], setup_required: Boolean(json.setup_required) }
+
+    if (!value.error) agendaCache.set(cacheKey, { expiresAt: Date.now() + 30_000, value })
+    return value
+  })()
+
+  agendaPending.set(cacheKey, request)
+  try {
+    return await request
+  } finally {
+    agendaPending.delete(cacheKey)
   }
 }
 

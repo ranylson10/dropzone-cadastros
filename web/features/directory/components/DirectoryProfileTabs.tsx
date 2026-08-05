@@ -214,7 +214,7 @@ export function DirectoryProfileTabs({
             title={agenda.title}
             scope={agenda.scope}
             scopeId={agenda.scopeId}
-            canCreate
+            canCreate={false}
             compact
           />
         ) : section?.layout === 'structure' ? (

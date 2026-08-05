@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, RefreshCw } from 'lucide-react'
 import {
   createAgendaItem,
   deleteAgendaItem,
@@ -134,6 +134,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [setupRequired, setSetupRequired] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(todayISO())
 
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create')
@@ -165,8 +166,11 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
 
   function shiftMonth(delta: number) {
     const date = new Date(year, month - 1 + delta, 1)
-    setYear(date.getFullYear())
-    setMonth(date.getMonth() + 1)
+    const nextYear = date.getFullYear()
+    const nextMonth = date.getMonth() + 1
+    setYear(nextYear)
+    setMonth(nextMonth)
+    setSelectedDate(padDate(nextYear, nextMonth, 1))
   }
 
   const days = useMemo(() => {
@@ -189,6 +193,32 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
       }
     })
   }, [year, month, items])
+
+  const selectedDay = useMemo(
+    () => days.find((day) => day.date === selectedDate) || days.find((day) => day.isToday) || days[0],
+    [days, selectedDate],
+  )
+
+  const visibleDayStrip = useMemo(() => {
+    if (!days.length) return []
+    const selectedIndex = Math.max(0, days.findIndex((day) => day.date === selectedDay?.date))
+    const start = Math.max(0, Math.min(days.length - 7, selectedIndex - 3))
+    return days.slice(start, start + 7)
+  }, [days, selectedDay?.date])
+
+  function shiftSelectedDay(delta: number) {
+    if (!selectedDay) return
+    const date = new Date(`${selectedDay.date}T12:00:00`)
+    date.setDate(date.getDate() + delta)
+    const nextYear = date.getFullYear()
+    const nextMonth = date.getMonth() + 1
+    const nextDate = padDate(nextYear, nextMonth, date.getDate())
+    if (nextYear !== year || nextMonth !== month) {
+      setYear(nextYear)
+      setMonth(nextMonth)
+    }
+    setSelectedDate(nextDate)
+  }
 
   function openCreate(date?: string, time?: string) {
     if (!canCreate) return
@@ -291,7 +321,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
         <span>
           <i style={{ background: '#16a34a', border: '1px dashed #fff' }} /> Agenda livre
         </span>
-        <span>Clique em um horário vazio para adicionar</span>
+        {canCreate ? <span>Clique em um horário vazio para adicionar</span> : <span>Agenda somente para consulta</span>}
       </div>
 
       {setupRequired ? (
@@ -310,9 +340,86 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
         </div>
 
         {loading ? (
-          <div className="agenda-empty-month">Carregando calendário...</div>
+          <div className="agenda-loading" aria-label="Carregando calendário">
+            <span />
+            <span />
+            <span />
+          </div>
         ) : (
           <>
+            <div className="agenda-day-navigation">
+              <button type="button" aria-label="Dia anterior" onClick={() => shiftSelectedDay(-1)}>
+                <ChevronLeft size={17} />
+              </button>
+              <div className="agenda-day-strip">
+                {visibleDayStrip.map((day) => (
+                  <button
+                    key={day.date}
+                    type="button"
+                    className={`${day.date === selectedDay?.date ? 'is-active' : ''} ${day.isToday ? 'is-today' : ''}`}
+                    onClick={() => setSelectedDate(day.date)}
+                  >
+                    <small>{day.weekdayLabel}</small>
+                    <strong>{String(day.day).padStart(2, '0')}</strong>
+                  </button>
+                ))}
+              </div>
+              <button type="button" aria-label="Próximo dia" onClick={() => shiftSelectedDay(1)}>
+                <ChevronRight size={17} />
+              </button>
+            </div>
+
+            <div className="agenda-day-panel">
+              <div className="agenda-day-panel-head">
+                <span>
+                  <CalendarDays size={16} />
+                  {selectedDay ? `${selectedDay.weekdayLabel}, ${String(selectedDay.day).padStart(2, '0')} ${MONTH_NAMES_PT[month - 1].slice(0, 3)}` : 'Agenda'}
+                </span>
+                <small>{selectedDay?.items.length || 0} compromisso(s)</small>
+              </div>
+              <div className="agenda-day-events">
+                {selectedDay?.items.length ? (
+                  selectedDay.items
+                    .slice()
+                    .sort((a, b) => a.horario_inicio.localeCompare(b.horario_inicio))
+                    .map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`agenda-timeline-event ${item.source === 'jogo' ? 'is-jogo' : 'is-livre'}`}
+                        style={{ ['--agenda-event-color' as string]: item.cor }}
+                        onClick={() => openItem(item)}
+                      >
+                        <span className="agenda-timeline-time">
+                          <Clock3 size={14} />
+                          {item.horario_inicio}
+                          {item.horario_fim ? <small>{item.horario_fim}</small> : null}
+                        </span>
+                        <span className="agenda-timeline-copy">
+                          <strong>{item.titulo}</strong>
+                          <small>
+                            {item.meta.campeonato_nome || item.meta.equipe_nome || (item.source === 'jogo' ? 'Jogo de campeonato' : item.tipo)}
+                          </small>
+                        </span>
+                      </button>
+                    ))
+                ) : (
+                  <div className="agenda-day-empty">Nenhum compromisso neste dia.</div>
+                )}
+                {canCreate ? (
+                  <div className="agenda-available-slots">
+                    {AGENDA_TIME_SLOTS.filter(
+                      (slot) => !selectedDay?.items.some((item) => nearestSlotIndex(item.horario_inicio, AGENDA_TIME_SLOTS) === AGENDA_TIME_SLOTS.indexOf(slot)),
+                    ).map((slot) => (
+                      <button key={slot} type="button" onClick={() => openCreate(selectedDay?.date, slot)}>
+                        <Plus size={13} /> {slot} livre
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
             <div className="agenda-sheet-scroll">
               <table className="agenda-sheet-table">
                 <thead>
@@ -379,29 +486,6 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
               </table>
             </div>
 
-            {/* lista mobile auxiliar */}
-            <div className="agenda-list-mobile" style={{ padding: 12 }}>
-              {items.length === 0 ? (
-                <div className="agenda-empty-month">Nenhum compromisso neste mês.</div>
-              ) : (
-                items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="agenda-list-card"
-                    style={{ borderLeftColor: item.cor, textAlign: 'left', width: '100%' }}
-                    onClick={() => openItem(item)}
-                  >
-                    <strong>{item.titulo}</strong>
-                    <small>
-                      {formatDateBr(item.data)} · {item.horario_inicio}
-                      {item.horario_fim ? `–${item.horario_fim}` : ''}
-                      {item.meta.campeonato_nome ? ` · ${item.meta.campeonato_nome}` : ''}
-                    </small>
-                  </button>
-                ))
-              )}
-            </div>
           </>
         )}
       </div>
@@ -420,8 +504,3 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   )
 }
 
-function formatDateBr(value: string) {
-  const [y, m, d] = String(value).slice(0, 10).split('-')
-  if (!y || !m || !d) return value
-  return `${d}/${m}/${y}`
-}
