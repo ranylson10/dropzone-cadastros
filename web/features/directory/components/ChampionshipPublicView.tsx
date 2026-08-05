@@ -576,8 +576,14 @@ function StatsDashboard({
     return () => controller.abort()
   }, [championshipId, faseId, grupoId, jogoId, partidaId, mapaCodigo])
 
-  const groupName = (id?: string | null) =>
-    filters?.groups.find((group) => group.id === id)?.label || '—'
+  const groupName = (id?: string | null) => {
+    const label = filters?.groups.find((group) => group.id === id)?.label || ''
+    const normalized = label.replace(/^grupo\s*/i, '').trim()
+    return normalized || '—'
+  }
+
+  const kdLabel = (row: MvpStatsRow) =>
+    row.quedas > 0 ? (row.abates / row.quedas).toFixed(2).replace('.', ',') : '0,00'
 
   const hasFilters = Boolean(
     filters?.phases.length || filters?.groups.length || filters?.games.length || filters?.rounds.length || filters?.maps.length,
@@ -626,15 +632,15 @@ function StatsDashboard({
       <div className="champ-stats-table-wrap">
         {view === 'tabela' ? (
           teams.length ? (
-            <table className="champ-stats-table">
-              <thead><tr><th className="pos">#</th><th className="identity">Equipe</th><th>Grupo</th><th>Quedas</th><th>Booyah</th><th>Abates</th><th>P. posição</th><th>P. abates</th><th className="total">Total</th></tr></thead>
-              <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></td><td>{groupName(row.grupo_id)}</td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td>{row.pontos_posicao}</td><td>{row.pontos_abates}</td><td className="total"><b>{row.pontos_total}</b></td></tr>)}</tbody>
+            <table className="champ-stats-table champ-stats-team-table">
+              <thead><tr><th className="pos">#</th><th className="identity">Equipe</th><th>GP</th><th>QD</th><th>B!</th><th>Kill</th><th className="total">Pts</th></tr></thead>
+              <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></td><td><b>{groupName(row.grupo_id)}</b></td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td className="total"><b>{row.pontos_total}</b></td></tr>)}</tbody>
             </table>
           ) : <div className="directory-empty compact">Tabela ainda sem dados para este filtro.</div>
         ) : players.length ? (
           <table className="champ-stats-table champ-stats-mvp-table">
-            <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>Quedas</th><th>Abates</th><th>Dano</th><th>Assist.</th><th>Revives</th></tr></thead>
-            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player">{row.foto_url ? <img src={row.foto_url} alt="" /> : row.nick.slice(0, 2).toUpperCase()}</span><span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></td><td>{row.quedas}</td><td className="total"><b>{row.abates}</b></td><td>{row.dano}</td><td>{row.assistencias}</td><td>{row.revives}</td></tr>)}</tbody>
+            <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>QD</th><th>K.D</th><th className="total">Kill</th></tr></thead>
+            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></td><td>{row.quedas}</td><td><b>{kdLabel(row)}</b></td><td className="total"><b>{row.abates}</b></td></tr>)}</tbody>
           </table>
         ) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
       </div>
