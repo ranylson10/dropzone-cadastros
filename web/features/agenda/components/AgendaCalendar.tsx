@@ -125,16 +125,20 @@ function todayISO() {
   return padDate(now.getFullYear(), now.getMonth() + 1, now.getDate())
 }
 
-function formatEventDate(value: string) {
+function formatEventDay(value: string) {
   const [year, month, day] = String(value).slice(0, 10).split('-')
   if (!year || !month || !day) return value
-  return `${day} ${MONTH_NAMES_PT[Number(month) - 1].slice(0, 3)}`
+  const weekday = WEEKDAY_SHORT_PT[new Date(Number(year), Number(month) - 1, Number(day)).getDay()]
+  return `${weekday}, ${day}`
 }
 
-function formatEventDateLong(value: string) {
-  const [year, month, day] = String(value).slice(0, 10).split('-')
-  if (!year || !month || !day) return value
-  return `${day} DE ${MONTH_NAMES_PT[Number(month) - 1]} DE ${year}`
+function monthGroupKey(value: string) {
+  return String(value).slice(0, 7)
+}
+
+function formatMonthGroup(value: string) {
+  const [year, month] = value.split('-')
+  return `${MONTH_NAMES_PT[Number(month) - 1]} ${year}`
 }
 
 export function AgendaCalendar(props: AgendaCalendarProps) {
@@ -156,21 +160,26 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const canCreate = props.canCreate !== undefined
     ? Boolean(props.canCreate)
     : props.scope === 'me'
-
+  const contextualMode = Boolean(props.compact && !canCreate)
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
+    const rangeStart = padDate(year, month, 1)
+    const rangeEndDate = new Date(year, month + 11, 0)
+    const rangeEnd = padDate(rangeEndDate.getFullYear(), rangeEndDate.getMonth() + 1, rangeEndDate.getDate())
     const result = await fetchAgenda({
       scope: props.scope,
       scopeId: props.scopeId,
       year,
       month,
+      from: contextualMode ? rangeStart : undefined,
+      to: contextualMode ? rangeEnd : undefined,
     })
     if (result.error) setError(result.error)
     setItems(result.items)
     setSetupRequired(result.setup_required)
     setLoading(false)
-  }, [props.scope, props.scopeId, year, month])
+  }, [props.scope, props.scopeId, year, month, contextualMode])
 
   useEffect(() => {
     void load()
@@ -218,36 +227,32 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
     return days.slice(start, start + 7)
   }, [days, selectedDay?.date])
 
-  const contextualMode = Boolean(props.compact && !canCreate)
 
-  const eventDates = useMemo(() => {
-    const grouped = new Map<string, AgendaItem[]>()
+  const eventMonths = useMemo(() => {
+    const dates = new Map<string, AgendaItem[]>()
     items
       .slice()
       .sort((a, b) => a.data.localeCompare(b.data) || a.horario_inicio.localeCompare(b.horario_inicio))
       .forEach((item) => {
-        const current = grouped.get(item.data) || []
+        const current = dates.get(item.data) || []
         current.push(item)
-        grouped.set(item.data, current)
+        dates.set(item.data, current)
       })
-    return Array.from(grouped.entries()).map(([date, dateItems]) => ({ date, items: dateItems }))
+
+    const months = new Map<string, Array<{ date: string; items: AgendaItem[] }>>()
+    Array.from(dates.entries()).forEach(([date, dateItems]) => {
+      const key = monthGroupKey(date)
+      const current = months.get(key) || []
+      current.push({ date, items: dateItems })
+      months.set(key, current)
+    })
+
+    return Array.from(months.entries()).map(([key, datesInMonth]) => ({
+      key,
+      label: formatMonthGroup(key),
+      dates: datesInMonth,
+    }))
   }, [items])
-
-  useEffect(() => {
-    if (!contextualMode) return
-    if (!eventDates.length) {
-      setSelectedDate('')
-      return
-    }
-    if (!eventDates.some((entry) => entry.date === selectedDate)) {
-      setSelectedDate(eventDates[0].date)
-    }
-  }, [contextualMode, eventDates, selectedDate])
-
-  const selectedEventDate = useMemo(
-    () => eventDates.find((entry) => entry.date === selectedDate) || eventDates[0] || null,
-    [eventDates, selectedDate],
-  )
 
   function shiftSelectedDay(delta: number) {
     if (!selectedDay) return
@@ -325,7 +330,8 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
     }
   }
 
-  const title = props.title || 'CALENDÁRIO'
+  const rawTitle = props.title || 'CALENDÁRIO'
+  const title = contextualMode ? rawTitle.replace(/^CALENDÁRIO/i, 'AGENDA') : rawTitle
 
   return (
     <div className={`agenda-root ${props.compact ? 'is-compact' : ''} ${props.className || ''}`}>
@@ -335,7 +341,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
           {props.compact ? <h3>{title}</h3> : <h2>{title}</h2>}
         </div>
         <div className="agenda-toolbar-actions">
-          <div className="agenda-month-nav">
+          {!contextualMode ? <div className="agenda-month-nav">
             <button type="button" aria-label="Mês anterior" onClick={() => shiftMonth(-1)}>
               <ChevronLeft size={18} />
             </button>
@@ -345,7 +351,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
             <button type="button" aria-label="Próximo mês" onClick={() => shiftMonth(1)}>
               <ChevronRight size={18} />
             </button>
-          </div>
+          </div> : null}
           <button type="button" className="button secondary" onClick={() => void load()} disabled={loading}>
             <RefreshCw size={15} /> Atualizar
           </button>
@@ -393,55 +399,50 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
             <span />
           </div>
         ) : contextualMode ? (
-          <div className="agenda-event-only" data-testid="agenda-event-only">
-            {eventDates.length === 0 ? (
-              <div className="agenda-day-empty">Nenhum jogo ou compromisso agendado neste mês.</div>
+          <div className="agenda-sequence" data-testid="agenda-event-only">
+            {eventMonths.length === 0 ? (
+              <div className="agenda-day-empty">Nenhum jogo ou compromisso agendado nos próximos meses.</div>
             ) : (
-              <>
-                <div className="agenda-event-date-strip" aria-label="Datas com jogos">
-                  {eventDates.map((entry) => (
-                    <button
-                      key={entry.date}
-                      type="button"
-                      className={entry.date === selectedEventDate?.date ? 'is-active' : ''}
-                      onClick={() => setSelectedDate(entry.date)}
-                    >
-                      <strong>{formatEventDate(entry.date)}</strong>
-                      <span>{entry.items.length} jogo(s)</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="agenda-event-date-panel">
-                  <div className="agenda-day-panel-head">
-                    <span>
-                      <CalendarDays size={16} />
-                      {selectedEventDate ? formatEventDateLong(selectedEventDate.date) : 'Agenda'}
-                    </span>
-                    <small>{selectedEventDate?.items.length || 0} compromisso(s)</small>
-                  </div>
-                  <div className="agenda-day-events">
-                    {selectedEventDate?.items.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`agenda-timeline-event ${item.source === 'jogo' ? 'is-jogo' : 'is-livre'}`}
-                        style={{ ['--agenda-event-color' as string]: item.cor }}
-                        onClick={() => openItem(item)}
-                      >
-                        <span className="agenda-timeline-time">
-                          <Clock3 size={14} />
-                          {item.horario_inicio}
-                          {item.horario_fim ? <small>{item.horario_fim}</small> : null}
-                        </span>
-                        <span className="agenda-timeline-copy">
-                          <strong>{item.titulo}</strong>
-                          <small>{item.meta.campeonato_nome || item.meta.equipe_nome || item.tipo}</small>
-                        </span>
-                      </button>
+              eventMonths.map((monthGroup) => (
+                <section key={monthGroup.key} className="agenda-sequence-month">
+                  <header className="agenda-sequence-month-head">
+                    <CalendarDays size={16} />
+                    <strong>{monthGroup.label}</strong>
+                    <span>{monthGroup.dates.reduce((total, entry) => total + entry.items.length, 0)} compromisso(s)</span>
+                  </header>
+                  <div className="agenda-sequence-days">
+                    {monthGroup.dates.map((entry) => (
+                      <div key={entry.date} className="agenda-sequence-day">
+                        <div className="agenda-sequence-date">
+                          <strong>{formatEventDay(entry.date)}</strong>
+                          <small>{entry.items.length} compromisso(s)</small>
+                        </div>
+                        <div className="agenda-sequence-events">
+                          {entry.items.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              className={`agenda-sequence-event ${item.source === 'jogo' ? 'is-jogo' : 'is-livre'}`}
+                              style={{ ['--agenda-event-color' as string]: item.cor }}
+                              onClick={() => openItem(item)}
+                            >
+                              <span className="agenda-sequence-time">
+                                <Clock3 size={14} />
+                                <strong>{item.horario_inicio}</strong>
+                                {item.horario_fim ? <small>{item.horario_fim}</small> : null}
+                              </span>
+                              <span className="agenda-sequence-copy">
+                                <strong>{item.titulo}</strong>
+                                <small>{item.meta.campeonato_nome || item.meta.equipe_nome || item.tipo}</small>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-              </>
+                </section>
+              ))
             )}
           </div>
         ) : (

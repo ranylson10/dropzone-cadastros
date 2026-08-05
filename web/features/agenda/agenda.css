@@ -776,3 +776,172 @@
     align-items: flex-start;
   }
 }
+
+/* Rodada 87O2 — agenda pública em lista contínua, sem dias vazios */
+.agenda-sequence {
+  display: grid;
+  gap: 14px;
+  padding: 10px;
+  background: #eef1f5;
+}
+
+.agenda-sequence-month {
+  overflow: hidden;
+  border: 1px solid #cfd4dc;
+  background: #fff;
+}
+
+.agenda-sequence-month-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #171a20;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.agenda-sequence-month-head strong {
+  font-size: .88rem;
+}
+
+.agenda-sequence-month-head span {
+  color: #c9ced6;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.agenda-sequence-days {
+  display: grid;
+}
+
+.agenda-sequence-day {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  border-top: 1px solid #d8dde4;
+}
+
+.agenda-sequence-day:first-child {
+  border-top: 0;
+}
+
+.agenda-sequence-date {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 12px;
+  border-right: 1px solid #d8dde4;
+  background: #f4f6f8;
+  text-transform: uppercase;
+}
+
+.agenda-sequence-date strong {
+  font-size: .82rem;
+  letter-spacing: .04em;
+}
+
+.agenda-sequence-date small {
+  color: var(--muted);
+  font-size: .65rem;
+  text-transform: none;
+}
+
+.agenda-sequence-events {
+  display: grid;
+}
+
+.agenda-sequence-event {
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid #e0e4e9;
+  border-left: 4px solid var(--agenda-event-color, var(--gold));
+  background: #fff;
+  color: var(--text);
+  text-align: left;
+}
+
+.agenda-sequence-event:first-child {
+  border-top: 0;
+}
+
+.agenda-sequence-event:hover {
+  background: #f8f9fb;
+}
+
+.agenda-sequence-time,
+.agenda-sequence-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.agenda-sequence-time {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px;
+}
+
+.agenda-sequence-time small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.agenda-sequence-copy strong,
+.agenda-sequence-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-sequence-copy strong {
+  font-size: .86rem;
+}
+
+.agenda-sequence-copy small {
+  color: var(--muted);
+  font-size: .7rem;
+}
+
+@media (max-width: 760px) {
+  .agenda-sequence {
+    gap: 10px;
+    padding: 6px;
+  }
+
+  .agenda-sequence-month-head {
+    grid-template-columns: auto 1fr;
+  }
+
+  .agenda-sequence-month-head span {
+    grid-column: 2;
+  }
+
+  .agenda-sequence-day {
+    grid-template-columns: 1fr;
+  }
+
+  .agenda-sequence-date {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-right: 0;
+    border-bottom: 1px solid #d8dde4;
+  }
+
+  .agenda-sequence-event {
+    grid-template-columns: 76px minmax(0, 1fr);
+    padding: 9px 10px;
+  }
+}
