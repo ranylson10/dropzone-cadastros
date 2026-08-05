@@ -15,6 +15,7 @@ import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { CampeonatoExportTab } from '@/features/campeonatos/export'
 import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
 import { CampeonatoStreamTab } from '@/features/campeonatos/stream'
+import { CampeonatoCallsTab } from '@/features/campeonatos/calls'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
 
@@ -1380,7 +1381,7 @@ ${params.url}`
             </header>
 
             <nav className="champ-subtabs-ref" aria-label="Abas do campeonato">
-              {producerTabs.map((item) => (
+              {producerTabs.filter((item) => item.id !== 'calls' || String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino').map((item) => (
                 <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
               ))}
             </nav>
@@ -1398,6 +1399,8 @@ ${params.url}`
                   }}
                 />
               ) : null}
+
+              {tab === 'calls' && String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino' ? <CampeonatoCallsTab campeonatoId={selectedChamp.id} /> : null}
 
               {tab === 'jogos' ? (
                 <div className="ref-section-stack">
