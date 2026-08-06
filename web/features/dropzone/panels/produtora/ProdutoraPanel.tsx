@@ -92,6 +92,25 @@ export function ProdutoraPanel(props: {
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [showCreateChamp, setShowCreateChamp] = useState(false)
+
+
+  function closeCreateChampionship() {
+    setShowCreateChamp(false)
+    props.setChampionship({ ...emptyCampeonatoForm })
+  }
+
+  async function cancelPendingChampionship(championship: DropZoneRow) {
+    const approvalStatus = String(championship.data?.aprovacao_status || 'aprovado')
+    if (approvalStatus !== 'pendente') return
+    const confirmed = window.confirm(
+      `Desistir da criação de "${rowTitle(championship)}"? O campeonato pendente será removido e não seguirá para aprovação.`,
+    )
+    if (!confirmed) return
+    await props.deleteChampionship(championship.id)
+    if (createdChampAction?.id === championship.id) setCreatedChampAction(null)
+    if (props.selectedChampId === championship.id) props.setSelectedChampId('')
+    setPayMsg('Criação cancelada. O campeonato pendente foi removido.')
+  }
   const [createdChampAction, setCreatedChampAction] = useState<DropZoneRow | null>(null)
   const [editingChampId, setEditingChampId] = useState('')
   const [editingChamp, setEditingChamp] = useState<CampeonatoFormValue>(emptyCampeonatoForm)
@@ -664,7 +683,7 @@ export function ProdutoraPanel(props: {
   function startEditChampionship(champ: DropZoneRow) {
     const aprovacao = String(dataText(champ, 'aprovacao_status') || 'aprovado')
     if (aprovacao !== 'aprovado') {
-      setPayMsg('Campeonato aguardando liberaÃ§Ã£o. Pague via PIX ou aguarde o admin liberar para editar.')
+      setPayMsg('Campeonato aguardando liberação. Pague via PIX ou aguarde o admin liberar para editar.')
       return
     }
     setEditingChampId(champ.id)
@@ -1187,8 +1206,8 @@ ${params.url}`
       <SystemModal
         open={showCreateChamp}
         title="Novo campeonato"
-        description="Cadastre os dados bÃ¡sicos, informaÃ§Ãµes e controles do campeonato."
-        onClose={() => setShowCreateChamp(false)}
+        description="Cadastre os dados básicos, informações e controles do campeonato."
+        onClose={closeCreateChampionship}
         size="wide"
       >
         {props.error ? <div className="message error" style={{ marginBottom: 12 }}>{props.error}</div> : null}
@@ -1206,12 +1225,14 @@ ${params.url}`
                 setPayMsg(error instanceof Error ? error.message : 'Campeonato criado, mas a temporada não foi salva.')
               }
               setShowCreateChamp(false)
+              props.setChampionship({ ...emptyCampeonatoForm })
               setCreatedChampAction(created)
             } else if (created) {
               setShowCreateChamp(false)
+              props.setChampionship({ ...emptyCampeonatoForm })
             }
           }}
-          onCancel={() => setShowCreateChamp(false)}
+          onCancel={closeCreateChampionship}
           loading={props.loading}
           championships={props.championships}
           uploadPublicFile={props.uploadPublicFile}
@@ -1226,8 +1247,8 @@ ${params.url}`
       >
         <div className="form-section-card" style={{ display: 'grid', gap: 12 }}>
           <p>
-            O campeonato <strong>{createdChampAction ? rowTitle(createdChampAction) : ''}</strong> foi criado e estÃ¡
-            pendente. Ele aparece para vocÃª, mas sÃ³ vai ao ar apÃ³s pagamento PIX confirmado ou liberaÃ§Ã£o manual do admin.
+            O campeonato <strong>{createdChampAction ? rowTitle(createdChampAction) : ''}</strong> foi criado e está
+            pendente. Ele aparece para você, mas só vai ao ar após pagamento PIX confirmado ou liberação manual do admin.
           </p>
           <div className="button-row compact-actions">
             <button
@@ -1249,10 +1270,18 @@ ${params.url}`
               className="button secondary"
               onClick={() => {
                 setCreatedChampAction(null)
-                setPayMsg('Campeonato criado. Aguarde a liberaÃ§Ã£o manual do admin para ele ir ao ar.')
+                setPayMsg('Campeonato criado. Aguarde a liberação manual do admin para ele ir ao ar.')
               }}
             >
-              Aguardar liberaÃ§Ã£o do admin
+              Aguardar liberação do admin
+            </button>
+            <button
+              type="button"
+              className="button secondary danger"
+              disabled={props.loading || !createdChampAction}
+              onClick={() => createdChampAction && void cancelPendingChampionship(createdChampAction)}
+            >
+              Desistir da criação
             </button>
           </div>
         </div>
@@ -1356,11 +1385,23 @@ ${params.url}`
                   const ap = String(dataText(selectedChamp, 'aprovacao_status') || 'aprovado')
                   if (ap === 'aprovado') return null
                   return (
-                    <p className={ap === 'rejeitado' ? 'message error' : 'message'} style={{ marginTop: 8 }}>
-                      {ap === 'rejeitado'
-                        ? 'Rejeitado pela administração. Ajuste e aguarde nova análise se aplicável.'
-                        : 'Aguardando aprovação do admin para ir ao ar (diretório público e chave Stream bloqueados).'}
-                    </p>
+                    <div className={ap === 'rejeitado' ? 'message error championship-pending-box' : 'message championship-pending-box'} style={{ marginTop: 8 }}>
+                      <span>
+                        {ap === 'rejeitado'
+                          ? 'Rejeitado pela administração. Ajuste e aguarde nova análise se aplicável.'
+                          : 'Aguardando aprovação do admin para ir ao ar (diretório público e chave Stream bloqueados).'}
+                      </span>
+                      {ap === 'pendente' ? (
+                        <button
+                          type="button"
+                          className="button secondary danger"
+                          disabled={props.loading}
+                          onClick={() => void cancelPendingChampionship(selectedChamp)}
+                        >
+                          Desistir da criação
+                        </button>
+                      ) : null}
+                    </div>
                   )
                 })()}
                 {payInfo?.cobranca && !['pago', 'cortesia', 'isento'].includes(String(payInfo.cobranca.status)) ? (
@@ -1418,7 +1459,7 @@ ${params.url}`
               <div className="championship-admin-actions">
                 <button className="icon-action-button" disabled={String(dataText(selectedChamp, 'aprovacao_status') || 'aprovado') !== 'aprovado'} onClick={() => startEditChampionship(selectedChamp)} title="Editar campeonato"><Pencil size={16} /> Editar</button>
                 <button className="icon-action-button danger" onClick={() => {
-                  if (window.confirm(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficarÃ¡ oculto, mas os dados serÃ£o preservados.`)) props.deleteChampionship(selectedChamp.id)
+                  if (window.confirm(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficará oculto, mas os dados serão preservados.`)) props.deleteChampionship(selectedChamp.id)
                 }} title="Excluir campeonato"><Trash2 size={16} /> Excluir</button>
               </div>
               <div className="detail-stats-ref">
@@ -1477,7 +1518,7 @@ ${params.url}`
                       <div className="game-editor-heading">
                         <div>
                           <p className="eyebrow">{editingGameId ? 'Editar jogo' : 'Novo jogo'}</p>
-                          <h4>{editingGameId ? 'Atualize as informaÃ§Ãµes do jogo' : 'Cadastre um jogo na fase selecionada'}</h4>
+                          <h4>{editingGameId ? 'Atualize as informações do jogo' : 'Cadastre um jogo na fase selecionada'}</h4>
                         </div>
                         <button className="button secondary" type="button" onClick={() => { setOpenAction(''); setEditingGameId('') }}>Cancelar</button>
                       </div>
@@ -1489,11 +1530,11 @@ ${params.url}`
                           </select>
                         </Field>
                         <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Jogo 1 - A x B" /></Field>
-                        <Field label="NÃºmero de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => { const total = Math.max(1, Number(e.target.value || 1)); props.setGame({ ...props.game, numero_partidas: e.target.value, mapas: Array.from({ length: total }, (_, index) => props.game.mapas[index] || ''), campeonato_id: selectedChamp.id }) }} /></Field>
+                        <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => { const total = Math.max(1, Number(e.target.value || 1)); props.setGame({ ...props.game, numero_partidas: e.target.value, mapas: Array.from({ length: total }, (_, index) => props.game.mapas[index] || ''), campeonato_id: selectedChamp.id }) }} /></Field>
                       </div>
                       <div className="mini-grid two">
                         <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
-                        <Field label="HorÃ¡rio"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                        <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
                       </div>
 
                       <div className="game-form-section">
@@ -1558,7 +1599,7 @@ ${params.url}`
                             if (saved) { setOpenAction(''); setEditingGameId('') }
                           }}
                         >
-                          {props.pendingCreate === 'game' || props.pendingCreate === 'game_update' ? <><Loader2 size={15} className="button-spinner" /> {editingGameId ? 'Salvando jogo...' : 'Criando jogo...'}</> : editingGameId ? 'Salvar alteraÃ§Ãµes' : 'Criar jogo'}
+                          {props.pendingCreate === 'game' || props.pendingCreate === 'game_update' ? <><Loader2 size={15} className="button-spinner" /> {editingGameId ? 'Salvando jogo...' : 'Criando jogo...'}</> : editingGameId ? 'Salvar alterações' : 'Criar jogo'}
                         </button>
                         <button className="button secondary" type="button" onClick={() => { setOpenAction(''); setEditingGameId('') }}>Cancelar</button>
                       </div>
@@ -1592,7 +1633,7 @@ ${params.url}`
                                       <button className="folder-toggle" onClick={() => setOpenGames((value) => ({ ...value, [gameRow.id]: !gameOpen }))}>
                                         {gameOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                         <Folder size={18} />
-                                        <span><strong>{rowTitle(gameRow)}</strong><small>{dataText(gameRow, 'data_jogo') || 'Sem data'} Â· {total} queda(s)</small></span>
+                                        <span><strong>{rowTitle(gameRow)}</strong><small>{dataText(gameRow, 'data_jogo') || 'Sem data'} · {total} queda(s)</small></span>
                                       </button>
                                       <div className="folder-actions">
                                         <button title="Editar jogo" onClick={() => {
@@ -1620,10 +1661,10 @@ ${params.url}`
                                     {gameOpen ? (
                                       <div className="game-folder-details">
                                         <div><span>Fase</span><strong>{rowTitle(phase)}</strong></div>
-                                        <div><span>Data e horÃ¡rio</span><strong>{dataText(gameRow, 'data_jogo') || 'NÃ£o definida'}{gameRow.data?.horario ? ` Â· ${String(gameRow.data.horario).slice(0, 5)}` : ''}</strong></div>
+                                        <div><span>Data e horário</span><strong>{dataText(gameRow, 'data_jogo') || 'Não definida'}{gameRow.data?.horario ? ` · ${String(gameRow.data.horario).slice(0, 5)}` : ''}</strong></div>
                                         <div><span>Quedas</span><strong>{total}</strong></div>
                                         <div><span>Grupos</span><strong>{groupIds.map((id) => groupName(id)).join(', ') || 'Nenhum grupo'}</strong></div>
-                                        <div className="wide"><span>Mapas</span><strong>{mapNames.join(' Â· ') || 'NÃ£o definidos'}</strong></div>
+                                        <div className="wide"><span>Mapas</span><strong>{mapNames.join(' · ') || 'Não definidos'}</strong></div>
                                       </div>
                                     ) : null}
                                   </article>

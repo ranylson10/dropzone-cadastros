@@ -3063,7 +3063,7 @@ body:has(.cropper-overlay) {
   }
 }
 
-/* Campeonato: formulÃ¡rio reutilizÃ¡vel, filtros e aÃ§Ãµes administrativas */
+/* Campeonato: formulário reutilizável, filtros e ações administrativas */
 .championship-type-filter {
   display: flex;
   gap: 6px;
@@ -3176,7 +3176,7 @@ body:has(.cropper-overlay) {
 }
 
 /* =========================================================
-   PADRÃƒO GLOBAL DE MODAIS DO SISTEMA
+   PADRÃO GLOBAL DE MODAIS DO SISTEMA
    ========================================================= */
 .system-modal-backdrop {
   position: fixed;
@@ -3286,7 +3286,7 @@ body:has(.cropper-overlay) {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Resumo do campeonato: tÃ­tulo e aÃ§Ãµes na primeira linha; nÃºmeros na linha inteira abaixo. */
+/* Resumo do campeonato: título e ações na primeira linha; números na linha inteira abaixo. */
 .detail-hero-ref {
   grid-template-columns: 86px minmax(0, 1fr) auto;
   grid-template-areas:
@@ -3404,7 +3404,7 @@ body:has(.cropper-overlay) {
 .invite-page{min-height:100vh;display:grid;place-items:center;padding:24px;background-color:var(--bg);background-image:var(--bg-texture);background-size:var(--bg-texture-size);background-attachment:fixed}.invite-card{width:min(560px,100%);background: var(--surface);padding:34px;text-align:center;box-shadow:0 28px 80px #0008}.invite-champ-logo{width:92px;height:92px;object-fit:contain;margin-bottom:12px}.invite-card h1{margin:5px 0 22px;font-size:30px}.invite-details{display:grid;grid-template-columns:1fr 1fr;text-align:left;border: 1px solid var(--line);margin-bottom:22px}.invite-details span{padding:13px;border-right:1px solid #e2e4e8;border-bottom:1px solid #e2e4e8;display:flex;align-items:center;gap:5px}.invite-details span:nth-child(even){border-right:0}.invite-details span:nth-last-child(-n+2){border-bottom:0}.invite-details strong{display:block;min-width:70px;font-size:10px;text-transform:uppercase;color:var(--muted)}.invite-auth-actions{display:flex;justify-content:center;gap:10px}.invite-confirm{width:100%;justify-content:center}.invite-expired,.invite-message{display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;background:#f2f4f6}.spin{animation:dz-spin .8s linear infinite}@keyframes dz-spin{to{transform:rotate(360deg)}}
 @media(max-width:760px){.teams-vaga-stats{grid-template-columns:1fr 1fr}.teams-vaga-stats span:nth-child(2){border-right:0}.teams-vaga-stats span:nth-child(-n+2){border-bottom:1px solid #e4e6ea}.teams-tab-header{flex-direction:column}.championship-vagas-grid{grid-template-columns:1fr}.team-search-row{grid-template-columns:1fr}.invite-details{grid-template-columns:1fr}.invite-details span{border-right:0!important;border-bottom:1px solid #e2e4e8!important}.invite-details span:last-child{border-bottom:0!important}.invite-auth-actions{flex-direction:column}}
 
-/* Campeonato: escalaÃ§Ãµes organizadas por participaÃ§Ã£o/line */
+/* Campeonato: escalações organizadas por participação/line */
 .player-line-row.status-pendente { border-left-color: var(--warning, #d89b35); }
 .player-line-row.status-parcial { border-left-color: var(--accent, #d14b38); }
 .player-line-row.status-completa { border-left-color: var(--success, #4b9b6d); }
@@ -3425,7 +3425,7 @@ body:has(.cropper-overlay) {
   .lineup-player-row > span:nth-child(3), .lineup-player-row > span:nth-child(4) { display: none; }
 }
 
-/* Perfis vinculados e cabeÃ§alho global */
+/* Perfis vinculados e cabeçalho global */
 .linked-account-menu {
   min-width: 310px;
 }
@@ -4249,7 +4249,7 @@ button.invite-slot-button.free.clickable b {
   background: var(--brand);
 }
 
-/* Slot escolhido na inscriÃ§Ã£o (link de grupo) */
+/* Slot escolhido na inscrição (link de grupo) */
 button.invite-slot-button.free.selected,
 button.invite-slot-button.selected {
   border-color: var(--text) !important;
@@ -4581,7 +4581,7 @@ button.invite-slot-button.selected strong {
 .folder-actions>button:not(.button):hover,.slot-letter-row>button:hover{border-color:var(--accent);color:var(--accent)}
 .folder-actions .danger{color:#d92d20!important}
 .phase-folder-content{background: var(--surface)}
-/* slot-letter-row legado removido do JSX; regras mantidas neutras para nÃ£o vazar em outras listas */
+/* slot-letter-row legado removido do JSX; regras mantidas neutras para não vazar em outras listas */
 .slot-letter-list{display:none}
 .slot-letter-row{display:none}
 .slot-assignment-modal{display:grid;gap:16px}
@@ -4699,7 +4699,7 @@ button.invite-slot-button.selected strong {
 .structure-edit-actions{align-self:end;grid-column:1/-1}
 @media(max-width:760px){.group-edit-form{margin-left:8px}.structure-edit-actions{width:100%}}
 
-/* Painel da equipe e escalaÃ§Ãµes */
+/* Painel da equipe e escalações */
 .team-panel-tabs{grid-template-columns:repeat(5,minmax(0,1fr))}
 .team-section-title{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:4px 0 14px}
 .team-section-title h3{margin:0;font-size:20px}.team-section-title .eyebrow{margin-bottom:3px}
@@ -4813,14 +4813,14 @@ button.invite-slot-button.selected strong {
   overflow-wrap: anywhere;
 }
 
-/* Public directory â€” header unificado no AppHeader (.app-header).
+/* Public directory — header unificado no AppHeader (.app-header).
    Classes antigas redirecionam para o layout do painel (compat). */
 .public-directory-header{/* legacy no-op: pages use AppShell */display:none}
 .public-directory-header-inner,
 .public-directory-nav,
 .public-directory-access{display:none!important}
 
-/* PÃ¡ginas de diretÃ³rio: NÃƒO sobrescrever padding-top (fica sob o header fixo) */
+/* Páginas de diretório: NÃO sobrescrever padding-top (fica sob o header fixo) */
 .directory-page,
 .directory-profile-page{
   max-width:none;
@@ -4830,7 +4830,7 @@ button.invite-slot-button.selected strong {
 }
 .directory-page.page-authenticated,
 .directory-profile-page.page-authenticated{
-  padding-top:96px; /* espaÃ§o da barra fixa */
+  padding-top:96px; /* espaço da barra fixa */
 }
 .directory-page-body{
   max-width:1180px;
@@ -4839,7 +4839,7 @@ button.invite-slot-button.selected strong {
 }
 
 
-/* Banners temÃ¡ticos â€” largura central + texto branco forÃ§ado */
+/* Banners temáticos — largura central + texto branco forçado */
 .directory-page-body-with-banner{
   display:flex;
   flex-direction:column;
@@ -5034,7 +5034,7 @@ button.invite-slot-button.selected strong {
 .directory-profile-banner.is-compact .directory-profile-toolbar{margin-top:4px}
 .directory-profile-banner.is-compact .directory-profile-action{padding:5px 7px !important;font-size:8px !important}
 
-/* Slots pÃºblicos = mesmo row da aba Equipes */
+/* Slots públicos = mesmo row da aba Equipes */
 .directory-public-slots{
   border:1px solid #e1e4e8;
   background: var(--surface);
@@ -5051,7 +5051,7 @@ button.invite-slot-button.selected strong {
   border-radius:0;
 }
 
-/* Cores por tipo â€” fundos um pouco mais escuros p/ texto branco legÃ­vel */
+/* Cores por tipo — fundos um pouco mais escuros p/ texto branco legível */
 .theme-campeonatos,
 .directory-theme-campeonatos .directory-hero-banner,
 .directory-theme-campeonatos .directory-profile-banner{
@@ -5078,7 +5078,7 @@ button.invite-slot-button.selected strong {
   background:linear-gradient(135deg,#9a3412 0%,#ea580c 48%,#7c2d12 100%);
 }
 
-/* Abas do perfil: faixa com textura alinhada ao tema da pÃ¡gina */
+/* Abas do perfil: faixa com textura alinhada ao tema da página */
 .directory-theme-campeonatos .directory-profile-tabs,
 .directory-theme-equipes .directory-profile-tabs,
 .directory-theme-jogadores .directory-profile-tabs,
@@ -5155,7 +5155,7 @@ button.invite-slot-button.selected strong {
   height:3px;
 }
 
-/* Tipografia padrÃ£o do diretÃ³rio â€” NÃƒO aplicar em banners coloridos */
+/* Tipografia padrão do diretório — NÃO aplicar em banners coloridos */
 .directory-hero:not(.directory-hero-banner) small,
 .directory-profile-hero:not(.on-banner) small,
 .directory-section-title>small{color:var(--brand);font-weight:900;letter-spacing:.16em;font-size:10px}
@@ -5197,9 +5197,9 @@ button.invite-slot-button.selected strong {
   .directory-profile-details:not(.on-banner) div{border-right:0;border-bottom:1px solid #e4e7ec}
 }
 
-/* (padding do directory-page definido no bloco principal â€” nÃ£o zerar o topo) */
+/* (padding do directory-page definido no bloco principal — não zerar o topo) */
 
-/* Ãrvore pÃºblica fases â†’ grupos â†’ slots (somente leitura) */
+/* Árvore pública fases â†’ grupos â†’ slots (somente leitura) */
 .directory-structure{display:grid;gap:6px}
 .directory-structure-node{border: 1px solid var(--line);background: var(--surface);overflow:hidden}
 .directory-structure-node.depth-0{border-left:3px solid var(--brand)}
@@ -5279,7 +5279,7 @@ button.invite-slot-button.selected strong {
   .directory-structure-node.depth-2 .directory-structure-row{grid-template-columns:20px 30px minmax(0,1fr)}
   .directory-structure-pill,.directory-structure-count{display:none}
 }
-/* DiretÃ³rio â€” tipografia legÃ­vel no desktop; compacto no mobile */
+/* Diretório — tipografia legível no desktop; compacto no mobile */
 .directory-hero:not(.directory-hero-banner){padding:18px 0 20px;margin-bottom:18px}
 .directory-hero:not(.directory-hero-banner) h1{font-size:36px;margin:6px 0 8px;line-height:1.05}
 .directory-hero:not(.directory-hero-banner) p{font-size:15px;line-height:1.45;color:var(--muted)}
@@ -5372,7 +5372,7 @@ button.invite-slot-button.selected strong {
 }
 .directory-list-arrow{color:#98a2b3}
 
-/* Perfil pÃºblico â€” desktop mais legÃ­vel */
+/* Perfil público — desktop mais legível */
 .compact-profile{padding-top:20px}
 .compact-profile .directory-back{margin-bottom:14px;font-size:13px}
 .directory-profile-hero.compact{
@@ -5480,7 +5480,7 @@ button.invite-slot-button.selected strong {
 }
 .directory-profile-action.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
 
-/* Tablet: meta some, nome ainda legÃ­vel */
+/* Tablet: meta some, nome ainda legível */
 @media(max-width:1050px){
   .directory-list-row{grid-template-columns:64px 1fr 24px;min-height:84px;padding:12px 14px;gap:14px}
   .directory-list-meta{display:none}
@@ -5490,7 +5490,7 @@ button.invite-slot-button.selected strong {
   .directory-profile-details.compact{grid-column:1/-1;border-top:1px solid #e4e7ec}
 }
 
-/* Mobile â€” faixa baixa + offset do header */
+/* Mobile — faixa baixa + offset do header */
 @media(max-width:640px){
   .directory-page.page-authenticated,
   .directory-profile-page.page-authenticated{
@@ -5850,7 +5850,7 @@ button.invite-slot-button.selected strong {
   width: 100%;
 }
 
-/* Pontuador: workspace independente para operaÃ§Ã£o em outra aba */
+/* Pontuador: workspace independente para operação em outra aba */
 .scorer-workspace{min-height:100vh;background: var(--surface-muted);color:#161a22;font-family:var(--font-body);padding:10px}.scorer-workspace-header{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:minmax(260px,1fr) minmax(220px,320px) auto;align-items:center;gap:14px;min-height:76px;padding:10px 14px;border: 1px solid var(--line);background:rgba(255,255,255,.97);box-shadow:0 8px 24px rgba(15,23,42,.06);backdrop-filter:blur(12px)}.scorer-brand{display:flex;align-items:center;gap:11px;min-width:0}.scorer-brand>img{width:46px;height:46px;object-fit:cover;border: 1px solid var(--line)}.scorer-brand div{min-width:0}.scorer-brand p,.scorer-brand small{display:block;margin:0;color:#7b8089;font-size:10px;font-weight:800;text-transform:uppercase}.scorer-brand h1{margin:2px 0;font-size:20px;line-height:1;text-transform:uppercase}.scorer-drop-picker{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:9px}.scorer-drop-picker span,.scorer-link-form label>span{font-size:9px;font-weight:900;text-transform:uppercase;color:#777c85}.scorer-drop-picker select,.scorer-link-form input,.scorer-link-form select{height:40px;border:1px solid #d7dbe1;background: var(--surface);padding:0 11px;font:inherit;font-size:12px;font-weight:750}.scorer-header-actions{display:flex;justify-content:flex-end;gap:7px}.scorer-file-button{position:relative;overflow:hidden}.scorer-file-button input{position:absolute;inset:0;opacity:0;cursor:pointer}.scorer-commandbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;border: 1px solid var(--line);background: var(--surface);padding:5px}.scorer-commandbar nav,.scorer-visibility{display:flex;gap:4px}.scorer-commandbar button{min-height:36px;border:1px solid transparent;background: var(--surface);padding:0 13px;display:inline-flex;align-items:center;justify-content:center;gap:7px;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}.scorer-commandbar nav button.active{border-color:var(--brand);background:var(--brand);color:var(--on-brand)}.scorer-visibility button{border-color:#e1e4e8}.scorer-feedback,.scorer-import-ready{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;padding:10px 13px;border:1px solid}.scorer-feedback.error{border-color:#f3b3ba;background: var(--gold-soft);color:#ac1f2d}.scorer-feedback.success{border-color:#b8dfcb;background:#f1fbf6;color:#17633d}.scorer-feedback button{border:0;background:transparent;color:inherit;cursor:pointer}.scorer-import-ready{border-color:#f6bdc3;background: var(--surface)}.scorer-import-ready>div{display:flex;align-items:center;gap:10px}.scorer-import-ready span{display:flex;flex-direction:column}.scorer-import-ready small{color:#777c85}.scorer-preview{margin-top:8px;border:1px solid #d9dde3;background: var(--surface);box-shadow:0 18px 50px rgba(15,23,42,.12)}.scorer-preview>header,.scorer-preview>footer{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #e5e7eb}.scorer-preview>footer{justify-content:flex-end;border:0;border-top:1px solid #e5e7eb}.scorer-preview h2{margin:2px 0 0;font-size:17px}.scorer-preview-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1px;background:#e5e7eb}.scorer-preview-list>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(160px,44%);align-items:center;gap:10px;padding:10px 13px;background: var(--surface)}.scorer-preview-list span{display:flex;min-width:0;flex-direction:column}.scorer-preview-list small{color:#777c85}.scorer-preview-list select{height:36px;border:1px solid #d7dbe1;background: var(--surface)}.scorer-edit-table-wrap{margin-top:8px;overflow:auto;border:1px solid #d8dce2;background: var(--surface);max-height:calc(100vh - 178px)}.scorer-edit-table{width:100%;min-width:980px;border-collapse:separate;border-spacing:0;font-size:11px}.scorer-edit-table th{position:sticky;top:0;z-index:5;height:42px;padding:7px 9px;border-right:1px solid #dfe3e8;border-bottom:1px solid #cfd4db;background:#e9edf2;color:#4d535d;font-size:9px;font-weight:950;text-align:center;text-transform:uppercase}.scorer-edit-table td{height:50px;padding:6px 9px;border-right:1px solid #e3e6ea;border-bottom:1px solid #e3e6ea;text-align:center}.scorer-edit-table td:nth-child(2){text-align:left}.scorer-edit-table tr:hover td{background: var(--surface-soft)}.scorer-edit-table tr.is-empty{color:#9aa0a9}.scorer-edit-table td>small{display:block;color:#8a9099;font-size:9px}.scorer-edit-table input{width:74px;height:34px;border:1px solid #cfd4db;background: var(--surface);text-align:center;font:inherit;font-weight:900}.scorer-edit-table input:focus{outline:2px solid rgba(201, 162, 39,.18);border-color:var(--brand)}.scorer-team{display:flex;align-items:center;gap:9px;min-width:180px}.scorer-team>img,.scorer-team>span{width:34px;height:34px;flex:0 0 auto;border: 1px solid var(--line);background: var(--surface-muted);object-fit:cover}.scorer-team>div{display:flex;min-width:0;flex-direction:column}.scorer-team strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.score-accent{background: var(--gold-soft);color:var(--brand);font-weight:950}.scorer-edit-table .score-total{background:#e7f1f8;color:#13243a;font-size:13px;font-weight:950}.link-chip{display:inline-flex;max-width:130px;margin:2px;padding:3px 6px;background: var(--surface-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:800}.scorer-links-panel{margin-top:8px;display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:8px}.scorer-link-form,.scorer-link-list{border: 1px solid var(--line);background: var(--surface);padding:14px}.scorer-link-form{display:grid;align-content:start;gap:12px}.scorer-link-form label{display:grid;gap:6px}.scorer-link-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:7px}.scorer-link-list article{display:flex;flex-direction:column;padding:10px;border:1px solid #e1e4e8}.scorer-link-list article span{color:var(--brand);font-size:10px;font-weight:900}.scorer-link-list article small{color:#858a93}.spin{animation:scorerSpin .8s linear infinite}@keyframes scorerSpin{to{transform:rotate(360deg)}}
 @media(max-width:900px){.scorer-workspace-header{position:relative;grid-template-columns:1fr}.scorer-header-actions{justify-content:flex-start;flex-wrap:wrap}.scorer-commandbar{align-items:flex-start;flex-direction:column}.scorer-commandbar nav,.scorer-visibility{width:100%;overflow:auto}.scorer-commandbar button{white-space:nowrap}.scorer-links-panel{grid-template-columns:1fr}.scorer-edit-table-wrap{max-height:none}.scorer-preview-list{grid-template-columns:1fr}}
 
@@ -5859,7 +5859,7 @@ button.invite-slot-button.selected strong {
 /* Revisao compacta do Match Result */
 .scorer-sheet-workspace{max-width:1680px;margin:0 auto}.scorer-sheet-workspace .scorer-workspace-header{min-height:58px;padding:6px 10px}.scorer-sheet-workspace .scorer-brand>img{width:36px;height:36px}.scorer-sheet-workspace .scorer-brand h1{font-size:16px}.scorer-sheet-workspace .scorer-sheet-toolbar{top:68px;margin-top:5px;padding:3px}.scorer-sheet-workspace .scorer-sheet-toolbar button{min-height:30px;padding:0 9px}.scorer-sheet-workspace .scorer-edit-table-wrap{margin-top:5px}.scorer-sheet-workspace .scorer-sheet-table{min-width:1080px}.scorer-sheet-workspace .scorer-edit-table th{height:30px;padding:4px 6px;font-size:8px}.scorer-sheet-workspace .scorer-edit-table td{height:36px;padding:3px 6px;font-size:10px}.scorer-sheet-workspace .scorer-edit-table input{width:54px;height:26px}.scorer-sheet-workspace .scorer-team{min-width:150px;gap:6px}.scorer-sheet-workspace .scorer-team>img,.scorer-sheet-workspace .scorer-team>span{width:27px;height:27px}.scorer-sheet-workspace .scorer-team>div{display:flex;flex-direction:column}.scorer-sheet-workspace .inline-link-select{width:135px;height:27px}.scorer-sheet-workspace .rank-cell{font-size:11px}.scorer-sheet-workspace .drop-points-cell,.scorer-sheet-workspace .score-total{font-size:11px}.penalty-cell{display:flex;align-items:center;justify-content:center;gap:4px}.scorer-sheet-workspace .penalty-cell .penalty-input{width:48px;height:26px}.scorer-sheet-workspace .penalty-reason-inline{width:118px;height:26px;text-align:left;padding:0 6px;font-size:9px}.match-player-review{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:5px;max-height:220px;margin-top:5px;padding:5px;overflow:auto;border: 1px solid var(--line);background:#f2f4f6}.match-player-review article{border: 1px solid var(--line);background: var(--surface)}.match-player-review article>header{display:flex;align-items:center;justify-content:space-between;height:29px;padding:0 8px;border-bottom:1px solid #e4e7eb;font-size:9px;text-transform:uppercase}.match-player-review article>header span{color:var(--brand);font-weight:900}.match-player-review article>div{display:grid;grid-template-columns:76px minmax(90px,1fr) 92px 42px;gap:3px;align-items:center;min-height:30px;padding:2px 5px;border-bottom:1px solid #edf0f2}.match-player-review article>div:last-child{border-bottom:0}.match-player-review input{min-width:0;width:100%;height:24px;border:1px solid #d9dde3;padding:0 5px;font-size:9px}.match-player-review input:disabled{background:#f5f6f7;color:var(--muted)}.match-player-review .player-kills-input{text-align:center}.player-link-state{font-size:7px;font-weight:950;text-transform:uppercase}.player-link-state.oficial{color:#15804a}.player-link-state.temporario{color:#9a6500}.player-link-state.pendente{color:#c52838}.scorer-sheet-workspace .scorer-match-strip{margin-top:5px;padding:5px 8px}.scorer-sheet-workspace .scorer-match-strip .button{min-height:30px;padding:0 10px;font-size:8px}
 
-/* Escala tipogrÃ¡fica alinhada aos painÃ©is do sistema */
+/* Escala tipográfica alinhada aos painéis do sistema */
 .scorer-sheet-workspace{max-width:1560px}.scorer-sheet-workspace .scorer-brand p,.scorer-sheet-workspace .scorer-brand small{font-size:10px}.scorer-sheet-workspace .scorer-brand h1{font-size:18px}.scorer-sheet-workspace .scorer-sheet-toolbar button{font-size:10px}.scorer-sheet-workspace .scorer-drop-tabs small{font-size:8px}.scorer-sheet-workspace .scorer-edit-table th{height:34px;font-size:10px}.scorer-sheet-workspace .scorer-edit-table td{height:42px;font-size:12px}.scorer-sheet-workspace .scorer-edit-table input,.scorer-sheet-workspace .inline-link-select{height:30px;font-size:11px}.scorer-sheet-workspace .scorer-team>img,.scorer-sheet-workspace .scorer-team>span{width:30px;height:30px}.scorer-sheet-workspace .scorer-team strong{font-size:12px}.scorer-sheet-workspace .scorer-team small{font-size:9px}.scorer-sheet-workspace .rank-cell,.scorer-sheet-workspace .drop-points-cell,.scorer-sheet-workspace .score-total{font-size:12px}.scorer-sheet-workspace .scorer-match-strip{font-size:11px}.scorer-sheet-workspace .scorer-match-strip .button{font-size:9px}.match-player-review article>header{height:34px;font-size:10px}.match-player-review article>div{min-height:34px;grid-template-columns:92px minmax(100px,1fr) 106px 48px}.match-player-review input{height:28px;font-size:10px}.player-link-state{font-size:8px}.scorer-sheet-workspace .is-empty td{color:#8c929b;background: var(--surface-soft)}.scorer-sheet-workspace .is-empty .rank-cell{color:#65717e;background:#edf2f6}
 
 .scorer-sheet-workspace .scorer-edit-table th{font-size:11px}.scorer-sheet-workspace .scorer-edit-table td{font-size:13px}.scorer-sheet-workspace .scorer-team strong{font-size:13px}.scorer-sheet-workspace .scorer-team small{font-size:10px}.scorer-sheet-workspace .scorer-sheet-toolbar button{font-size:11px}.scorer-sheet-workspace .scorer-edit-table input,.scorer-sheet-workspace .inline-link-select{font-size:12px}
@@ -6109,7 +6109,7 @@ button.invite-slot-button.selected strong {
   }
 }
 
-/* EstatÃ­sticas e pontuador do campeonato */
+/* Estatísticas e pontuador do campeonato */
 .statistics-tab-shell { display: grid; gap: 14px; }
 .statistics-heading { margin-bottom: 0; }
 .statistics-inner-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border, #e1e4e9); background: var(--surface); }
@@ -6177,7 +6177,7 @@ button.invite-slot-button.selected strong {
 @media (max-width: 900px) { .statistics-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .scorer-toolbar { grid-template-columns: 1fr; align-items: stretch; } }
 @media (max-width: 640px) { .statistics-inner-tabs { grid-template-columns: 1fr; } .statistics-inner-tabs button { border-right: 0; border-bottom: 1px solid var(--border, #e1e4e9); } .statistics-filters { grid-template-columns: 1fr; } .manual-team-card > header { align-items: stretch; flex-direction: column; } .matchresult-preview > article { grid-template-columns: 1fr; } }
 
-/* LanÃ§ador e tela cheia do pontuador */
+/* Lançador e tela cheia do pontuador */
 .scorer-launcher { display: grid; gap: 18px; padding: 20px; border: 1px solid var(--border, #e1e4e9); background: var(--surface); }
 .scorer-launcher-copy { display: grid; gap: 5px; }
 .scorer-launcher-copy h4 { margin: 0; font-size: 22px; text-transform: uppercase; }
@@ -6911,7 +6911,7 @@ button.invite-slot-button.selected strong {
 .teams-capacidade-bar strong{font-size:18px;line-height:1.1}
 .teams-capacidade-bar span{color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 
-/* Slots na aba Grupos â€” mesmo padrÃ£o visual da aba Equipes */
+/* Slots na aba Grupos — mesmo padrão visual da aba Equipes */
 .group-slots-list{
   margin:0;
   padding:0;
@@ -7035,7 +7035,7 @@ button.invite-slot-button.selected strong {
   .group-folder .championship-vaga-row .vaga-row-identity small{display:none}
 }
 
-/* ===== Campeonato pÃºblico mobile: nav de botÃµes no banner ===== */
+/* ===== Campeonato público mobile: nav de botões no banner ===== */
 .champ-public-banner .directory-profile-banner-inner{padding:10px 12px 12px}
 .champ-public-hero{margin-bottom:10px}
 .champ-public-nav{
@@ -7202,7 +7202,7 @@ button.invite-slot-button.selected strong {
 .champ-public-desktop-tabs{display:none}
 .champ-public-banner .directory-profile-details{display:none}
 
-/* Desktop: botÃµes em linha + abas clÃ¡ssicas opcionais escondidas (sÃ³ nav de cima) */
+/* Desktop: botões em linha + abas clássicas opcionais escondidas (só nav de cima) */
 @media(min-width:900px){
   .champ-public-nav{
     grid-template-columns:repeat(6,minmax(0,1fr));
@@ -7219,7 +7219,7 @@ button.invite-slot-button.selected strong {
   .champ-public-desktop-tabs{display:none}
 }
 
-/* Filtros da aba Equipes (mobile campeonato pÃºblico) */
+/* Filtros da aba Equipes (mobile campeonato público) */
 .champ-public-nav-5{
   grid-template-columns:repeat(3,minmax(0,1fr));
 }
@@ -7492,7 +7492,7 @@ button.invite-slot-button.selected strong {
 .manager-staff-card .button { grid-column: 1 / -1; }
 .manager-profile-card-create { border-style: dashed; }
 
-/* Manager master-detail (mesmo padrÃ£o do campeonato da produtora) */
+/* Manager master-detail (mesmo padrão do campeonato da produtora) */
 .manager-context-stack.span-3,
 .manager-champ-layout.span-3 {
   grid-column: 1 / -1;
@@ -7735,7 +7735,7 @@ button.invite-slot-button.selected strong {
   color: var(--dz-text);
 }
 
-/* PÃ¡gina / corpo */
+/* Página / corpo */
 .champ-theme.directory-page-body,
 .champ-theme.champ-public {
   background-color: var(--dz-bg) !important;
@@ -7787,7 +7787,7 @@ button.invite-slot-button.selected strong {
   color: var(--dz-btn-text) !important;
 }
 
-/* BotÃµes de aÃ§Ã£o (Ã¡rea escura / forte) */
+/* Botões de ação (área escura / forte) */
 .champ-theme .button:not(.secondary):not(.danger),
 .champ-theme .invite-confirm,
 .champ-theme button.primary {
@@ -7801,7 +7801,7 @@ button.invite-slot-button.selected strong {
   color: var(--dz-text) !important;
 }
 
-/* PainÃ©is e cards (Ã¡reas claras) */
+/* Painéis e cards (áreas claras) */
 .champ-theme .champ-public-panel,
 .champ-theme .champ-public-section,
 .champ-theme .champ-public-info,
@@ -7905,7 +7905,7 @@ button.invite-slot-button.selected strong {
   color: var(--dz-text-muted) !important;
 }
 
-/* ===== PÃ¡gina de convite (layout inteiro tingido) ===== */
+/* ===== Página de convite (layout inteiro tingido) ===== */
 .invite-page.champ-theme {
   background-color: var(--dz-bg) !important;
   background-image:
@@ -8319,7 +8319,7 @@ button.invite-slot-button.selected strong {
   margin-top: 0 !important;
 }
 
-/* Bio da produtora no perfil pÃºblico */
+/* Bio da produtora no perfil público */
 .directory-profile-desc {
   margin-top: 6px !important;
   max-width: 52ch;
@@ -12183,4 +12183,114 @@ input::placeholder, textarea::placeholder {
   .account-strip-compact .account-strip-head strong{font-size:18px!important}
   .account-strip-compact .account-strip-metrics{gap:10px!important;overflow-x:auto!important;white-space:nowrap!important}
   .account-strip-compact .account-strip-metrics .metric span{display:none!important}
+}
+
+
+/* Rodada 85 — correção do assistente de criação e seletor de modelo */
+.championship-source-results {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  max-height: min(360px, 44vh);
+  padding: 0;
+}
+
+.championship-source-item {
+  position: relative;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  min-height: 82px;
+  gap: 10px;
+  padding: 10px;
+  overflow: visible;
+}
+
+.championship-source-logo,
+.championship-source-logo img {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  max-width: 64px;
+  max-height: 64px;
+}
+
+.championship-source-action {
+  min-width: 86px;
+  text-align: center;
+}
+
+.championship-pending-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.championship-pending-box > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.championship-pending-box .button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .system-modal-wide:has(.championship-form-stack) .system-modal-content {
+    padding-inline: 14px;
+  }
+
+  .championship-origin-card {
+    padding-inline: 0;
+    border-inline: 0;
+    background: transparent;
+  }
+
+  .championship-source-picker {
+    gap: 10px;
+  }
+
+  .championship-source-results {
+    max-height: 46vh;
+    overflow-x: hidden;
+    padding-bottom: 4px;
+  }
+
+  .championship-source-item {
+    grid-template-columns: 56px minmax(0, 1fr);
+    min-height: 76px;
+    padding: 9px;
+    border-radius: 10px;
+  }
+
+  .championship-source-logo,
+  .championship-source-logo img {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    max-width: 56px;
+    max-height: 56px;
+  }
+
+  .championship-source-copy strong {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .championship-source-action {
+    grid-column: 2;
+    justify-self: start;
+    min-width: 0;
+    padding: 6px 9px;
+  }
+
+  .championship-pending-box {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .championship-pending-box .button {
+    width: 100%;
+    justify-content: center;
+  }
 }
