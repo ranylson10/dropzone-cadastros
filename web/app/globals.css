@@ -15599,3 +15599,368 @@ textarea {
     display: none !important;
   }
 }
+
+
+/* =========================================================
+   FASE VISUAL 9 — SWEEP FINAL DOS PAINÉIS INTERNOS
+   Remove brancos puros restantes, unifica tons internos
+   e refina a faixa superior / header autenticado.
+   ========================================================= */
+.page-authenticated {
+  --auth-panel-bg: #f3eee6;
+  --auth-panel-bg-soft: #ece6dd;
+  --auth-panel-bg-muted: #f7f2ea;
+  --auth-panel-line: #d7d0c6;
+  --auth-panel-line-strong: #c8c0b4;
+}
+
+.page-authenticated .panel,
+.page-authenticated .panel-soft,
+.page-authenticated .account-strip,
+.page-authenticated .card,
+.page-authenticated .list-item,
+.page-authenticated .compact-row,
+.page-authenticated .token-card,
+.page-authenticated .phase-card,
+.page-authenticated .group-mini-card,
+.page-authenticated .detail-stat,
+.page-authenticated .subtab-actionbar,
+.page-authenticated .inline-action-panel,
+.page-authenticated .message,
+.page-authenticated .invite-preview {
+  border-color: var(--auth-panel-line) !important;
+  background: var(--auth-panel-bg) !important;
+  color: #171a22 !important;
+}
+
+.page-authenticated .panel-soft,
+.page-authenticated .token-card,
+.page-authenticated .detail-stat,
+.page-authenticated .subtab-actionbar,
+.page-authenticated .inline-action-panel,
+.page-authenticated .message,
+.page-authenticated .invite-preview {
+  background: var(--auth-panel-bg-soft) !important;
+}
+
+.page-authenticated .panel,
+.page-authenticated .account-strip,
+.page-authenticated .panel-soft,
+.page-authenticated .token-card,
+.page-authenticated .detail-stat,
+.page-authenticated .subtab-actionbar,
+.page-authenticated .inline-action-panel {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.page-authenticated .section-head,
+.page-authenticated .team-section-title,
+.page-authenticated .form-section-heading,
+.page-authenticated .invite-section-head,
+.page-authenticated .seller-panel-head {
+  border-color: rgba(16,24,32,.14) !important;
+}
+
+.page-authenticated input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+.page-authenticated select,
+.page-authenticated textarea {
+  border-color: var(--auth-panel-line-strong) !important;
+  border-radius: 0 !important;
+  background: var(--auth-panel-bg-muted) !important;
+  color: #171a22 !important;
+  box-shadow: none !important;
+}
+
+.page-authenticated input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):focus,
+.page-authenticated select:focus,
+.page-authenticated textarea:focus {
+  outline: none !important;
+  border-color: #a98935 !important;
+  box-shadow: 0 0 0 1px rgba(169,137,53,.18) !important;
+}
+
+.page-authenticated .button.secondary,
+.page-authenticated .tab.secondary,
+.page-authenticated .file-button.secondary,
+.page-authenticated .inline-icon-button.secondary,
+.page-authenticated .icon-action-button.secondary,
+.page-authenticated .button.ghost,
+.page-authenticated .button:not(.danger).secondary.small {
+  border-color: var(--auth-panel-line-strong) !important;
+  background: var(--auth-panel-bg-muted) !important;
+  color: #18212b !important;
+}
+
+.page-authenticated .button.secondary:hover,
+.page-authenticated .tab.secondary:hover,
+.page-authenticated .file-button.secondary:hover,
+.page-authenticated .inline-icon-button.secondary:hover,
+.page-authenticated .icon-action-button.secondary:hover,
+.page-authenticated .button.ghost:hover {
+  background: #e9e2d7 !important;
+}
+
+.page-authenticated .account-strip.account-strip-compact {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 10px 14px !important;
+  margin: 0 !important;
+  padding: 14px 4px 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--auth-panel-line) !important;
+  background: transparent !important;
+}
+
+.page-authenticated .account-strip-compact .account-strip-head strong {
+  color: #141821 !important;
+}
+
+.page-authenticated .account-strip-compact .account-strip-head strong span,
+.page-authenticated .account-strip-compact .account-strip-metrics .metric span {
+  color: #6b6f77 !important;
+}
+
+.page-authenticated .account-strip-compact .account-strip-metrics {
+  grid-column: 1 / -1 !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 14px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.page-authenticated .account-strip-compact .account-strip-metrics .metric {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.page-authenticated .account-strip-compact .account-strip-metrics .metric b {
+  color: #9b7a17 !important;
+}
+
+.page-authenticated .account-strip-compact .account-strip-action {
+  width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  border: 1px solid var(--auth-panel-line) !important;
+  border-radius: 0 !important;
+  background: var(--auth-panel-bg-soft) !important;
+  color: #171a22 !important;
+}
+
+.app-header {
+  background: linear-gradient(180deg, #081017 0%, #0d1115 100%) !important;
+  border-bottom: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: none !important;
+}
+
+.app-header-inner {
+  width: min(1480px, calc(100% - 28px)) !important;
+  min-height: 64px !important;
+  gap: 16px !important;
+}
+
+.app-main-nav > a,
+.app-main-nav .app-nav-parent {
+  min-height: 64px !important;
+}
+
+.app-global-language-trigger,
+.app-wallet-chip,
+.app-admin-chip,
+.app-header-login {
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.app-global-language-trigger,
+.app-wallet-chip {
+  background: rgba(247,244,238,.08) !important;
+  color: #f7f4ee !important;
+}
+
+.app-global-language-trigger span,
+.app-wallet-chip span,
+.app-wallet-chip svg {
+  color: #f7f4ee !important;
+}
+
+.app-admin-chip,
+.app-header-login {
+  background: var(--dz-accent) !important;
+  color: #fff !important;
+}
+
+.app-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-profile-trigger {
+  min-height: 42px !important;
+  padding: 0 8px !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 0 !important;
+  background: rgba(255,255,255,.03) !important;
+  box-shadow: none !important;
+}
+
+.app-profile-trigger .app-profile-copy strong {
+  color: #fff !important;
+}
+
+.app-profile-trigger .app-profile-copy small {
+  color: rgba(247,244,238,.54) !important;
+}
+
+.team-dashboard > .section-head,
+.player-dashboard > .section-head,
+.manager-dashboard > .section-head,
+.manager-hub-header,
+.manager-hub-header-compact,
+.producer-layout-ref .championship-nav-card > .section-head {
+  border-bottom-color: var(--auth-panel-line) !important;
+}
+
+.team-dashboard .panel-tab-body,
+.player-dashboard .panel-tab-body,
+.manager-dashboard .panel-tab-body,
+.producer-layout-ref .panel-tab-body {
+  padding-top: 14px;
+}
+
+.team-dashboard .team-championship-card,
+.team-dashboard .team-line-card,
+.team-dashboard .team-player-card,
+.team-dashboard .lineup-token-card,
+.team-dashboard .player-team-request,
+.team-dashboard .player-team-request-results article,
+.team-dashboard .lineup-token-list,
+.team-dashboard .lineup-invite-result,
+.team-dashboard .lineup-invite-preview,
+.team-dashboard .staff-search-results,
+.player-dashboard .panel-soft,
+.manager-dashboard .panel-soft,
+.manager-dashboard .manager-champ-panel,
+.manager-dashboard .manager-detail-panel,
+.producer-layout-ref .panel-soft,
+.producer-layout-ref .token-card,
+.producer-layout-ref .championship-vaga-row,
+.producer-layout-ref .championship-vagas-list > * {
+  border-color: var(--auth-panel-line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.team-dashboard .player-team-request,
+.team-dashboard .lineup-token-card,
+.team-dashboard .lineup-token-list,
+.team-dashboard .lineup-invite-result,
+.team-dashboard .lineup-invite-preview,
+.team-dashboard .staff-search-results,
+.player-dashboard .panel-soft,
+.manager-dashboard .panel-soft,
+.producer-layout-ref .panel-soft,
+.producer-layout-ref .token-card {
+  background: var(--auth-panel-bg-soft) !important;
+}
+
+.team-dashboard .player-team-request-title span,
+.team-dashboard .lineup-token-card span,
+.team-dashboard .team-player-card small,
+.team-dashboard .team-player-card span,
+.team-dashboard .team-line-card small,
+.team-dashboard .team-line-card span,
+.team-dashboard .lineup-slot div span,
+.player-dashboard .panel-soft small,
+.manager-dashboard .panel-soft small,
+.producer-layout-ref .panel-soft small {
+  color: #6b6f77 !important;
+}
+
+.team-dashboard .player-team-request-search input,
+.team-dashboard .staff-search-row input,
+.team-dashboard .lineup-token-card code,
+.team-dashboard .player-team-request-results article,
+.team-dashboard .token-card,
+.producer-layout-ref .token-card {
+  background: var(--auth-panel-bg-muted) !important;
+}
+
+.team-dashboard .player-team-request-search button,
+.team-dashboard .player-team-request-results article > button,
+.team-dashboard .staff-search-row .button.secondary,
+.team-dashboard .token-card,
+.producer-layout-ref .token-card {
+  border-radius: 0 !important;
+}
+
+.team-dashboard .token-card,
+.producer-layout-ref .token-card {
+  border: 1px solid var(--auth-panel-line) !important;
+}
+
+.team-dashboard .token-card:hover,
+.producer-layout-ref .token-card:hover {
+  background: #e9e2d7 !important;
+}
+
+.team-dashboard .lineup-token-card code {
+  padding: 7px 9px !important;
+  border: 1px solid var(--auth-panel-line) !important;
+  color: #334155 !important;
+}
+
+.team-dashboard .team-championship-card:hover,
+.team-dashboard .team-line-card:hover,
+.team-dashboard .team-player-card:hover,
+.manager-dashboard .manager-champ-panel:hover,
+.manager-dashboard .manager-detail-panel:hover,
+.producer-layout-ref .championship-vaga-row:hover {
+  background: #ece6dd !important;
+}
+
+.team-dashboard .team-championship-head,
+.team-dashboard .lineup-token-card,
+.team-dashboard .player-team-request-title,
+.producer-layout-ref .championship-vagas-list .vaga-row-summary {
+  border-color: rgba(16,24,32,.12) !important;
+}
+
+@media (max-width: 760px) {
+  .app-header-inner {
+    width: calc(100% - 20px) !important;
+    gap: 10px !important;
+  }
+
+  .page-authenticated .account-strip.account-strip-compact {
+    padding: 12px 0 12px !important;
+    gap: 8px 10px !important;
+  }
+
+  .page-authenticated .account-strip-compact .account-strip-head strong {
+    display: grid;
+    gap: 2px;
+    font-size: 20px !important;
+    line-height: 1.05;
+  }
+
+  .page-authenticated .account-strip-compact .account-strip-head strong span {
+    font-size: 9px !important;
+  }
+
+  .page-authenticated .account-strip-compact .account-strip-metrics {
+    gap: 10px !important;
+  }
+}
