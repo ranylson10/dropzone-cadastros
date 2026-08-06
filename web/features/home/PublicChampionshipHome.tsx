@@ -62,7 +62,8 @@ export function PublicChampionshipHome({ onAccess }: Props) {
   const urgent = items.filter((item) => Number(item.vagas_livres || 0) > 0 && Number(item.vagas_livres || 0) <= 3).slice(0, 4)
 
   return (
-    <main className="public-home">
+    <main className="public-home public-home-redesign">
+      <div className="public-home-alert"><span>DROPZONE COMPETITIVE</span><strong>Vagas abertas, campeonatos e resultados em um só lugar.</strong><a href="/vagas">Ver vagas <ArrowRight size={13} /></a></div>
       <header className="public-home-header">
         <a className="public-home-brand" href="/" aria-label="DropZone início"><SystemLogo size={42} alt="DropZone" /><span><b>DropZone</b><small>Campeonatos</small></span></a>
         <nav className="public-home-nav" aria-label="Navegação principal"><a href="#vagas">Vagas</a><a href="#tipos">Categorias</a><a href="/campeonatos">Resultados</a></nav>
@@ -70,10 +71,17 @@ export function PublicChampionshipHome({ onAccess }: Props) {
       </header>
 
       <section className="public-home-hero">
+        <div className="public-home-hero-media" aria-hidden="true">
+          <video autoPlay muted loop playsInline preload="metadata" poster="/login-dropzone-hero.png">
+            <source src="/videos/dropzone-home.webm" type="video/webm" />
+            <source src="/videos/dropzone-home.mp4" type="video/mp4" />
+          </video>
+        </div>
+        <div className="public-home-hero-overlay" aria-hidden="true" />
         <div className="public-home-hero-copy home-reveal">
-          <span className="home-kicker"><Sparkles size={15} /> Sua próxima queda começa aqui</span>
-          <h1>Encontre campeonatos, garanta sua vaga e jogue hoje.</h1>
-          <p>Vagas abertas, horários, premiações e inscrições reunidos em uma experiência rápida para equipe, jogador e produtora.</p>
+          <span className="home-kicker"><Sparkles size={15} /> Plataforma competitiva de Free Fire</span>
+          <h1>SUA PRÓXIMA QUEDA COMEÇA AQUI.</h1>
+          <p>Descubra campeonatos, garanta vagas e acompanhe toda a competição em uma plataforma criada para o cenário mobile.</p>
           <div className="public-home-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, tipo ou plataforma" /><button type="button" onClick={() => document.querySelector('#vagas')?.scrollIntoView({ behavior: 'smooth' })}>Buscar</button></div>
           <div className="public-home-trust"><span><ShieldCheck size={16} /> Campeonatos aprovados</span><span><Ticket size={16} /> Compra segura</span><span><Clock3 size={16} /> Vagas em tempo real</span></div>
         </div>
