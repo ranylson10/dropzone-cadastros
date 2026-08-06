@@ -16623,3 +16623,296 @@ textarea {
     grid-template-columns: 42px minmax(0,1fr) auto !important;
   }
 }
+
+/* =========================================================
+   AUDITORIA VISUAL 12 — diretórios, subabas e ranking
+   Correção final de contraste, largura, alinhamento e avatares.
+   Este bloco fica por último para neutralizar regras antigas.
+   ========================================================= */
+
+/* Contraste definitivo nas listas públicas e sublistas. */
+.directory-page .directory-list-row,
+.directory-profile-page .directory-related-list > a,
+.directory-profile-page .directory-related-list > article,
+.directory-profile-page .champ-public-team-row,
+.directory-profile-page .champ-public-player-row,
+.directory-profile-page .directory-public-slot,
+.directory-profile-page .directory-public-slots .championship-vaga-row {
+  color: #18222d !important;
+}
+
+.directory-page .directory-list-main > strong,
+.directory-page .directory-list-meta b,
+.directory-page .directory-list-meta em b,
+.directory-profile-page .directory-related-list strong,
+.directory-profile-page .directory-related-list em,
+.directory-profile-page .directory-related-list small,
+.directory-profile-page .champ-public-team-copy strong,
+.directory-profile-page .champ-public-team-copy small,
+.directory-profile-page .champ-public-player-copy strong,
+.directory-profile-page .champ-public-player-copy small,
+.directory-profile-page .directory-public-slots .vaga-row-identity strong,
+.directory-profile-page .directory-public-slots .vaga-row-identity small,
+.directory-profile-page .directory-structure-copy strong,
+.directory-profile-page .directory-structure-copy small,
+.directory-profile-page .directory-structure-count {
+  color: #24313e !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.directory-page .directory-list-main > span,
+.directory-profile-page .directory-related-list small,
+.directory-profile-page .directory-related-list em,
+.directory-profile-page .champ-public-team-copy small,
+.directory-profile-page .champ-public-player-copy small,
+.directory-profile-page .directory-public-slots .vaga-row-identity small,
+.directory-profile-page .directory-structure-copy small {
+  color: #56616d !important;
+}
+
+.directory-page .directory-list-meta em,
+.directory-page .directory-list-head-meta em {
+  text-align: left !important;
+  justify-content: center !important;
+}
+.directory-page .directory-list-meta b,
+.directory-page .directory-list-head-meta em {
+  text-align: left !important;
+}
+
+/* Ranking com a mesma largura e linguagem visual dos diretórios. */
+.directory-rank-content,
+.directory-rank-table,
+.directory-rank-toolbar,
+.directory-rank-head,
+.lili-rank-list {
+  width: min(1240px, calc(100% - 32px)) !important;
+  max-width: none !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.directory-rank-content {
+  padding: 16px 0 40px !important;
+}
+
+.directory-rank-table > header {
+  display: none !important;
+}
+
+.directory-rank-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 46px !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+}
+
+.directory-rank-toolbar nav {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 1px !important;
+  margin: 0 !important;
+  background: #cfc7bb !important;
+}
+
+.directory-rank-toolbar nav button {
+  position: relative !important;
+  min-height: 48px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #ded8ce !important;
+  color: #596470 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .065em !important;
+  box-shadow: none !important;
+}
+
+.directory-rank-toolbar nav button:hover {
+  background: #d6cfc4 !important;
+  color: #18222d !important;
+}
+
+.directory-rank-toolbar nav button.active {
+  background: #e8e2d8 !important;
+  color: #18222d !important;
+  box-shadow: inset 0 -3px 0 var(--dz-accent, #ff5468) !important;
+}
+
+.directory-rank-refresh {
+  display: grid !important;
+  place-items: center !important;
+  min-height: 48px !important;
+  border: 1px solid #c7beb2 !important;
+  border-radius: 0 !important;
+  background: #ded8ce !important;
+  color: #263441 !important;
+  box-shadow: none !important;
+}
+.directory-rank-refresh:hover {
+  background: #d2cabe !important;
+}
+
+.directory-rank-head {
+  display: grid !important;
+  grid-template-columns: 48px minmax(280px, 1.6fr) minmax(240px, 1fr) 110px !important;
+  align-items: center !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  border: 1px solid #c8bfb3 !important;
+  border-bottom: 0 !important;
+  background: #d5cec2 !important;
+  color: #6d665c !important;
+}
+.directory-rank-head span {
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .1em !important;
+}
+.directory-rank-head span:last-child {
+  text-align: right !important;
+}
+
+.lili-rank-list {
+  display: grid !important;
+  gap: 1px !important;
+  border: 1px solid #c8bfb3 !important;
+  border-radius: 0 !important;
+  background: #c8bfb3 !important;
+  overflow: hidden !important;
+}
+
+.lili-rank-list article {
+  display: grid !important;
+  grid-template-columns: 48px 48px minmax(0, 1fr) 110px !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-height: 66px !important;
+  padding: 8px 14px !important;
+  border: 0 !important;
+  border-left: 3px solid transparent !important;
+  border-radius: 0 !important;
+  background: #e3ddd3 !important;
+  color: #18222d !important;
+  box-shadow: none !important;
+}
+
+.lili-rank-list article:nth-child(even) {
+  background: #d9d2c7 !important;
+}
+
+.lili-rank-list article:hover {
+  border-left-color: var(--dz-accent, #ff5468) !important;
+  background: #d1c9bd !important;
+}
+
+.directory-rank-position {
+  font-size: 14px !important;
+  color: #263441 !important;
+  text-align: center !important;
+}
+
+.lili-rank-avatar {
+  width: 42px !important;
+  height: 42px !important;
+  border: 1px solid rgba(24,34,45,.12) !important;
+  border-radius: 0 !important;
+  background: rgba(255,255,255,.34) !important;
+  color: #465361 !important;
+  overflow: hidden !important;
+}
+.lili-rank-avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+.directory-rank-identity {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+}
+.directory-rank-identity strong {
+  color: #18222d !important;
+  font-size: 14px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.directory-rank-identity small {
+  color: #5d6874 !important;
+  font-size: 10px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.lili-rank-list article > em {
+  color: #18222d !important;
+  font-size: 13px !important;
+  font-style: normal !important;
+  font-weight: 950 !important;
+  text-align: right !important;
+}
+
+/* Subabas: mantém visual escuro, mas conteúdo abaixo segue claro e legível. */
+.directory-profile-tab-panel,
+.champ-public-panel {
+  background: transparent !important;
+  color: #18222d !important;
+}
+.directory-profile-tab-panel *:not(.directory-profile-tabs button):not(svg),
+.champ-public-panel *:not(.champ-public-nav-btn):not(svg) {
+  text-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .directory-rank-content,
+  .directory-rank-table,
+  .directory-rank-toolbar,
+  .directory-rank-head,
+  .lili-rank-list {
+    width: calc(100% - 18px) !important;
+  }
+
+  .directory-rank-toolbar {
+    grid-template-columns: minmax(0, 1fr) 44px !important;
+  }
+
+  .directory-rank-toolbar nav button {
+    min-height: 46px !important;
+    font-size: 10px !important;
+  }
+
+  .directory-rank-head {
+    display: none !important;
+  }
+
+  .lili-rank-list article {
+    grid-template-columns: 30px 44px minmax(0, 1fr) auto !important;
+    min-height: 62px !important;
+    gap: 9px !important;
+    padding: 8px 10px !important;
+  }
+
+  .lili-rank-avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .directory-rank-identity strong {
+    font-size: 13px !important;
+  }
+
+  .directory-rank-identity small {
+    font-size: 9px !important;
+  }
+
+  .lili-rank-list article > em {
+    font-size: 11px !important;
+  }
+}

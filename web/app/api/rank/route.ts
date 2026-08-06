@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
+type PlayerProfileRow = {
+  id?: string | null
+  nick?: string | null
+  nome?: string | null
+  id_jogo?: string | null
+  avatar_url?: string | null
+  foto_url?: string | null
+}
+
 export async function GET() {
   try {
     const [teamsResult, playersResult, championshipsResult] = await Promise.all([
@@ -31,7 +40,19 @@ export async function GET() {
       if (!publicChampionshipIds.has(String(row.campeonato_id || ''))) continue
       const key = String(row.jogador_id || row.id_jogo || row.campeonato_jogador_id || '')
       if (!key) continue
-      const current = players.get(key) || { key, jogador_id: row.jogador_id || null, nick: row.nick || row.nick_snapshot || 'Jogador', id_jogo: row.id_jogo || row.id_jogo_snapshot || null, foto_url: row.foto_url || null, quedas: 0, abates: 0, dano: 0, assistencias: 0, revives: 0 }
+      const current = players.get(key) || {
+        key,
+        jogador_id: row.jogador_id || null,
+        nick: row.nick || row.nick_snapshot || 'Jogador',
+        id_jogo: row.id_jogo || row.id_jogo_snapshot || null,
+        foto_url: row.foto_url || row.avatar_url || null,
+        avatar_url: row.avatar_url || row.foto_url || null,
+        quedas: 0,
+        abates: 0,
+        dano: 0,
+        assistencias: 0,
+        revives: 0,
+      }
       current.quedas += 1
       current.abates += Number(row.abates || 0)
       current.dano += Number(row.dano || 0)
@@ -40,9 +61,43 @@ export async function GET() {
       players.set(key, current)
     }
 
+    const aggregatedPlayers = [...players.values()]
+    const jogadorIds = [...new Set(aggregatedPlayers.map((item) => item.jogador_id).filter(Boolean))]
+    const gameIds = [...new Set(aggregatedPlayers.map((item) => item.id_jogo).filter(Boolean))]
+
+    const [playersByIdResult, playersByGameIdResult] = await Promise.all([
+      jogadorIds.length
+        ? supabaseAdmin.from('jogadores').select('id,nick,nome,id_jogo,avatar_url,foto_url').in('id', jogadorIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      gameIds.length
+        ? supabaseAdmin.from('jogadores').select('id,nick,nome,id_jogo,avatar_url,foto_url').in('id_jogo', gameIds)
+        : Promise.resolve({ data: [], error: null } as any),
+    ])
+
+    if (playersByIdResult.error && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(playersByIdResult.error.code || '')) {
+      throw playersByIdResult.error
+    }
+    if (playersByGameIdResult.error && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(playersByGameIdResult.error.code || '')) {
+      throw playersByGameIdResult.error
+    }
+
+    const profileById = new Map<string, PlayerProfileRow>((playersByIdResult.data || []).map((item: PlayerProfileRow) => [String(item.id || ''), item]))
+    const profileByGameId = new Map<string, PlayerProfileRow>((playersByGameIdResult.data || []).map((item: PlayerProfileRow) => [String(item.id_jogo || ''), item]))
+
+    for (const player of aggregatedPlayers) {
+      const profile = (
+        profileById.get(String(player.jogador_id || ''))
+        || profileByGameId.get(String(player.id_jogo || ''))
+      ) as PlayerProfileRow | undefined
+      if (!profile) continue
+      player.nick = profile.nick || profile.nome || player.nick
+      player.foto_url = profile.avatar_url || profile.foto_url || player.foto_url || null
+      player.avatar_url = profile.avatar_url || profile.foto_url || player.avatar_url || null
+    }
+
     return NextResponse.json({
       teams: [...teams.values()].sort((a, b) => b.pontos - a.pontos || b.booyahs - a.booyahs || b.abates - a.abates).slice(0, 100).map((item, index) => ({ ...item, rank: index + 1 })),
-      players: [...players.values()].sort((a, b) => b.abates - a.abates || b.dano - a.dano || b.assistencias - a.assistencias).slice(0, 100).map((item, index) => ({ ...item, rank: index + 1 })),
+      players: aggregatedPlayers.sort((a, b) => b.abates - a.abates || b.dano - a.dano || b.assistencias - a.assistencias).slice(0, 100).map((item, index) => ({ ...item, rank: index + 1 })),
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Não foi possível carregar o ranking.' }, { status: 400 })

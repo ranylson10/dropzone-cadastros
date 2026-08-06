@@ -4,7 +4,7 @@ import { AppShell } from '@/components/layout'
 import { LiliRankHub } from '@/components/lili/LiliRankHub'
 
 export default function RankPage() {
-  return <AppShell activeLabel="Rank" loadSession mainClassName="page directory-page">
+  return <AppShell activeLabel="Rank" loadSession mainClassName="page directory-page page-authenticated">
     <main className="directory-shell">
       <section className="directory-rank-hero">
         <div className="directory-rank-hero-inner">
