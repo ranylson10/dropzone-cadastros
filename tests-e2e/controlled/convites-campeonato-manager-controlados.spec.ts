@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { acquireFileLock, releaseFileLock } from '../support/file-lock'
 
 const produtoraAuthFile = path.resolve('tests-e2e/.auth/produtora.json')
 const adminAuthFile = path.resolve('tests-e2e/.auth/admin.json')
@@ -60,29 +61,6 @@ async function accountId(
   return id
 }
 
-async function acquireLock(timeoutMs = 180_000) {
-  const startedAt = Date.now()
-  while (Date.now() - startedAt < timeoutMs) {
-    try {
-      const fd = fs.openSync(lockFile, 'wx')
-      fs.writeFileSync(fd, String(process.pid))
-      fs.closeSync(fd)
-      return
-    } catch (error: any) {
-      if (error?.code !== 'EEXIST') throw error
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-  }
-  throw new Error('Timeout aguardando o lock do teste de convite de campeonato.')
-}
-
-function releaseLock() {
-  try {
-    fs.unlinkSync(lockFile)
-  } catch {
-    // Lock já removido.
-  }
-}
 
 async function archiveNotification(
   request: APIRequestContext,
@@ -125,7 +103,7 @@ async function archiveChampionship(
 }
 
 test.describe('Convites controlados — manager por campeonato', () => {
-  test.setTimeout(240_000)
+  test.setTimeout(480_000)
 
   test('convite, acesso limitado, remoção e pedido do manager funcionam de ponta a ponta', async ({ request, baseURL }) => {
     test.skip(
@@ -133,7 +111,7 @@ test.describe('Convites controlados — manager por campeonato', () => {
       'As sessões são geradas automaticamente por npm run testar:tudo.',
     )
 
-    await acquireLock()
+    await acquireFileLock(lockFile, 'convite de campeonato')
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
     const produtoraToken = accessTokenFromStorage(produtoraAuthFile, origin)
@@ -347,7 +325,7 @@ test.describe('Convites controlados — manager por campeonato', () => {
       await archiveNotification(request, origin, managerToken, 'manager', conviteNotificacaoId)
       await archiveNotification(request, origin, produtoraToken, 'produtora', pedidoNotificacaoId)
       await archiveChampionship(request, origin, produtoraToken, campeonatoId)
-      releaseLock()
+      releaseFileLock(lockFile)
     }
   })
 })

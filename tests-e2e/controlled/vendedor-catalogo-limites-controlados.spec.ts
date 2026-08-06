@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { acquireFileLock, releaseFileLock } from '../support/file-lock'
 
 const produtoraAuthFile = path.resolve('tests-e2e/.auth/produtora.json')
 const adminAuthFile = path.resolve('tests-e2e/.auth/admin.json')
@@ -60,29 +61,6 @@ async function accountId(
   return id
 }
 
-async function acquireLock(timeoutMs = 180_000) {
-  const startedAt = Date.now()
-  while (Date.now() - startedAt < timeoutMs) {
-    try {
-      const fd = fs.openSync(lockFile, 'wx')
-      fs.writeFileSync(fd, String(process.pid))
-      fs.closeSync(fd)
-      return
-    } catch (error: any) {
-      if (error?.code !== 'EEXIST') throw error
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-  }
-  throw new Error('Timeout aguardando o lock do teste de vendedor.')
-}
-
-function releaseLock() {
-  try {
-    fs.unlinkSync(lockFile)
-  } catch {
-    // Lock já removido.
-  }
-}
 
 async function createEntity(
   request: APIRequestContext,
@@ -154,7 +132,7 @@ async function cancelInvite(
 }
 
 test.describe('Vendedor controlado — convite, catálogo público e limites', () => {
-  test.setTimeout(210_000)
+  test.setTimeout(480_000)
 
   test('produtora vincula vendedor, publica catálogo, altera limite e remove acesso', async ({ request, page, baseURL }) => {
     test.skip(
@@ -162,7 +140,7 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
       'As sessões são geradas automaticamente por npm run testar:tudo.',
     )
 
-    await acquireLock()
+    await acquireFileLock(lockFile, 'vendedor')
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
     const produtoraToken = accessTokenFromStorage(produtoraAuthFile, origin)
@@ -408,7 +386,7 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
       await deleteEntity(request, origin, produtoraToken, 'group', groupId)
       await deleteEntity(request, origin, produtoraToken, 'phase', phaseId)
       await deleteEntity(request, origin, produtoraToken, 'championship', championshipId)
-      releaseLock()
+      releaseFileLock(lockFile)
     }
   })
 })

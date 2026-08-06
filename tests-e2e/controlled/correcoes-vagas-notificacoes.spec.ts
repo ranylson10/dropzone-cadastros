@@ -33,12 +33,20 @@ test.describe('Correções operacionais — vagas e notificações', () => {
     const championships = await request.get(`${origin}/api/central-campeonato`, { headers: authorization })
     expect(championships.ok()).toBe(true)
     const list = await championships.json()
-    const firstId = String(list?.items?.[0]?.id || '')
-    if (!firstId) return
+    const ownerChampionship = (Array.isArray(list?.items) ? list.items : [])
+      .find((item: any) => item?.permission?.role === 'owner')
+    const championshipId = String(ownerChampionship?.id || '')
+    if (!championshipId) return
 
-    const summary = await request.get(`${origin}/api/central-campeonato?campeonato_id=${encodeURIComponent(firstId)}`, { headers: authorization })
-    expect(summary.ok()).toBe(true)
-    const body = await summary.json()
+    const summary = await request.get(
+      `${origin}/api/central-campeonato?campeonato_id=${encodeURIComponent(championshipId)}`,
+      { headers: authorization },
+    )
+    const body = await summary.json().catch(() => null)
+    expect(
+      summary.ok(),
+      `A Central deve abrir um campeonato da própria produtora: ${body?.error || summary.status()}`,
+    ).toBe(true)
     expect(body?.cards?.vagas?.fonte).toBe('campeonato_configuracoes.numero_vagas')
     expect(Number(body?.cards?.vagas?.slots_estruturados || 0)).toBeGreaterThanOrEqual(0)
     expect(Number(body?.cards?.vagas?.total || 0)).toBeGreaterThanOrEqual(Number(body?.cards?.vagas?.ocupadas || 0))

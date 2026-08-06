@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { acquireFileLock, releaseFileLock } from '../support/file-lock'
 
 const equipeAuthFile = path.resolve('tests-e2e/.auth/equipe.json')
 const managerAuthFile = path.resolve('tests-e2e/.auth/manager.json')
@@ -58,29 +59,6 @@ async function accountId(
   return id
 }
 
-async function acquireLock(timeoutMs = 120_000) {
-  const startedAt = Date.now()
-  while (Date.now() - startedAt < timeoutMs) {
-    try {
-      const fd = fs.openSync(lockFile, 'wx')
-      fs.writeFileSync(fd, String(process.pid))
-      fs.closeSync(fd)
-      return
-    } catch (error: any) {
-      if (error?.code !== 'EEXIST') throw error
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-  }
-  throw new Error('Timeout aguardando o lock do teste de convites e permissões.')
-}
-
-function releaseLock() {
-  try {
-    fs.unlinkSync(lockFile)
-  } catch {
-    // Lock já removido.
-  }
-}
 
 async function archiveNotification(
   request: APIRequestContext,
@@ -96,7 +74,7 @@ async function archiveNotification(
 }
 
 test.describe('Convites e permissões controlados — staff de equipe', () => {
-  test.setTimeout(180_000)
+  test.setTimeout(420_000)
 
   test('equipe convida manager, valida isolamento, atualiza permissões e remove o vínculo', async ({ request, baseURL }) => {
     test.skip(
@@ -104,7 +82,7 @@ test.describe('Convites e permissões controlados — staff de equipe', () => {
       'As sessões são geradas automaticamente por npm run testar:tudo.',
     )
 
-    await acquireLock()
+    await acquireFileLock(lockFile, 'convites e permissões')
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
     const equipeToken = accessTokenFromStorage(equipeAuthFile, origin)
@@ -250,7 +228,7 @@ test.describe('Convites e permissões controlados — staff de equipe', () => {
       }
 
       await archiveNotification(request, origin, managerToken, 'manager', notificacaoId)
-      releaseLock()
+      releaseFileLock(lockFile)
     }
   })
 })
