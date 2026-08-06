@@ -5670,7 +5670,133 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .home-card-grid{ display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; background: transparent;
 } .urgent-list{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: transparent;
 } .category-grid{ display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; background: transparent;
-} .login-portal{ min-height: 100vh; padding: 0; background: #0c1117;
+}
+/* Home pública — responsividade oficial */
+@media (max-width: 720px){
+  .public-home{ overflow-x: clip;
+  }
+  .public-home-alert{ display: none;
+  }
+  .public-home-header{ width: 100%; height: 58px; padding: 0 14px; gap: 10px;
+  }
+  .public-home-brand{ min-width: 0;
+  }
+  .public-home-brand .system-logo{ width: 34px; height: 34px;
+  }
+  .public-home-brand b{ font-size: 14px;
+  }
+  .public-home-brand small,
+  .public-home-nav{ display: none;
+  }
+  .public-home-access{ min-height: 38px; margin-left: auto; padding: 0 12px; font-size: 10px;
+  }
+  .public-home-hero{ width: 100%; min-height: 0; margin: 0; padding: 46px 18px 42px; display: block;
+  }
+  .public-home-hero-media video{ display: block;
+  }
+  .public-home-hero-overlay{ background: linear-gradient(180deg, rgba(8,13,18,.72), rgba(8,13,18,.93) 68%, #101820 100%);
+  }
+  .public-home-hero-copy{ max-width: none;
+  }
+  .public-home-hero .home-kicker{ font-size: 9px; line-height: 1.35;
+  }
+  .public-home-hero h1{ max-width: 560px; margin: 12px 0 14px; font-size: clamp(42px, 13vw, 58px); line-height: .92;
+  }
+  .public-home-hero-copy > p{ max-width: 520px; margin-bottom: 0; font-size: 13px; line-height: 1.5;
+  }
+  .public-home-search{ width: 100%; margin-top: 20px; padding: 6px; gap: 7px;
+  }
+  .public-home-search > svg{ display: none;
+  }
+  .public-home-search input{ min-height: 42px; padding: 0 8px; font-size: 12px;
+  }
+  .public-home-search button{ min-height: 42px; padding: 0 13px; font-size: 10px;
+  }
+  .public-home-trust{ display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 14px;
+  }
+  .public-home-trust span{ font-size: 10px; line-height: 1.25;
+  }
+  .featured-championship{ display: none;
+  }
+  .home-stat-strip{ width: 100%; margin: 0 0 48px; padding: 18px 10px; grid-template-columns: repeat(3,minmax(0,1fr));
+  }
+  .home-stat-strip div{ min-width: 0; padding: 0 8px; display: grid; justify-items: center; align-content: center; gap: 5px; border-right: 1px solid rgba(255,255,255,.13);
+  }
+  .home-stat-strip b{ font-size: 27px; line-height: 1;
+  }
+  .home-stat-strip span{ max-width: 100%; font-size: 9px; line-height: 1.25; text-align: center; overflow-wrap: anywhere;
+  }
+  .public-home-section{ width: calc(100% - 28px); margin-bottom: 56px;
+  }
+  .public-section-head{ align-items: flex-end; gap: 12px; margin-bottom: 16px;
+  }
+  .public-section-head h2,
+  .home-how h2{ font-size: clamp(30px, 9vw, 40px);
+  }
+  .public-section-head > a{ flex: 0 0 auto; padding-bottom: 4px; font-size: 10px;
+  }
+  .home-filter-row{ gap: 3px; margin-bottom: 16px; padding-bottom: 10px;
+  }
+  .home-filter-row > svg{ flex: 0 0 auto;
+  }
+  .home-filter-row button{ padding: 9px 10px; font-size: 10px;
+  }
+  .home-card-grid{ grid-template-columns: 1fr; gap: 14px;
+  }
+  .home-champ-card{ display: grid; grid-template-columns: minmax(118px, 38%) minmax(0,1fr); min-height: 178px;
+  }
+  .home-champ-media{ width: 100%; height: 100%; min-height: 178px;
+  }
+  .home-champ-content{ min-width: 0; padding: 14px 13px; display: flex; flex-direction: column;
+  }
+  .home-champ-content h3{ margin-bottom: 9px; font-size: 15px;
+  }
+  .home-champ-meta{ display: grid; gap: 6px;
+  }
+  .home-champ-meta span{ margin: 0; font-size: 10px; line-height: 1.25;
+  }
+  .home-vacancy-line{ margin-top: auto; padding-top: 10px;
+  }
+  .home-vacancy-line > span{ font-size: 9px;
+  }
+  .home-champ-content footer{ margin-top: 10px;
+  }
+  .home-champ-content footer strong{ font-size: 13px;
+  }
+  .home-champ-content footer a{ font-size: 9px;
+  }
+  .home-urgent-section,
+  .home-categories{ width: 100%; padding: 52px 14px;
+  }
+  .urgent-list,
+  .category-grid{ grid-template-columns: 1fr; gap: 9px;
+  }
+  .category-grid button{ min-height: 104px;
+  }
+  .home-how{ width: calc(100% - 28px); padding: 24px 18px; grid-template-columns: 1fr; gap: 18px;
+  }
+  .public-home-footer{ width: calc(100% - 28px); align-items: flex-start; gap: 14px; flex-direction: column;
+  }
+}
+@media (max-width: 390px){
+  .public-home-hero{ padding-inline: 14px;
+  }
+  .public-home-hero h1{ font-size: 40px;
+  }
+  .home-stat-strip{ padding-inline: 4px;
+  }
+  .home-stat-strip div{ padding-inline: 5px;
+  }
+  .home-stat-strip b{ font-size: 23px;
+  }
+  .home-stat-strip span{ font-size: 8px;
+  }
+  .public-section-head{ align-items: flex-start; flex-direction: column;
+  }
+  .home-champ-card{ grid-template-columns: 112px minmax(0,1fr);
+  }
+}
+.login-portal{ min-height: 100vh; padding: 0; background: #0c1117;
 } .login-portal-stage{ position: relative; isolation: isolate; min-height: 100vh; overflow: hidden; display: grid; place-items: center; padding: 34px; color: #f7f4ee;
 } .login-portal-media{ position: absolute; inset: 0; z-index: -2; background: linear-gradient(90deg, rgba(9,14,20,.08), rgba(9,14,20,.12)),
     url('/login-dropzone-hero.png') center/cover no-repeat; transform: scale(1.025);
