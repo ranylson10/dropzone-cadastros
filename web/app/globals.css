@@ -15009,3 +15009,219 @@ textarea {
     padding: 8px 10px !important;
   }
 }
+
+
+/* ===== Rodada visual 7 — loader escuro + painéis desktop + produtora operacional ===== */
+.dropzone-loader:not(.compact) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(255,70,85,.18), transparent 22%),
+    radial-gradient(circle at 18% 20%, rgba(43,82,112,.22), transparent 34%),
+    radial-gradient(circle at 84% 78%, rgba(255,84,104,.12), transparent 30%),
+    linear-gradient(135deg, #071018 0%, #101923 48%, #0a1118 100%) !important;
+  color: #f7f4ee !important;
+}
+.dropzone-loader:not(.compact)::before,
+.dropzone-loader:not(.compact)::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: -2;
+  pointer-events: none;
+}
+.dropzone-loader:not(.compact)::before {
+  background:
+    repeating-linear-gradient(115deg, transparent 0 72px, rgba(255,255,255,.018) 73px 74px),
+    repeating-linear-gradient(25deg, transparent 0 110px, rgba(255,70,85,.025) 111px 112px);
+  animation: dz-loader-grid-drift 18s linear infinite;
+}
+.dropzone-loader:not(.compact)::after {
+  inset: auto -10% -42% -10%;
+  height: 68%;
+  background: radial-gradient(ellipse at center, rgba(255,70,85,.16), transparent 62%);
+  filter: blur(24px);
+  animation: dz-loader-glow 5s ease-in-out infinite;
+}
+.dropzone-loader-bg,
+.dropzone-loader-bg i {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.dropzone-loader-bg { z-index: -1; }
+.dropzone-loader-bg i {
+  width: 180px;
+  height: 180px;
+  border: 1px solid rgba(255,255,255,.035);
+  transform: rotate(45deg);
+  animation: dz-loader-float 12s ease-in-out infinite;
+}
+.dropzone-loader-bg i:nth-child(1){left:8%;top:14%;}
+.dropzone-loader-bg i:nth-child(2){left:auto;right:12%;top:20%;width:120px;height:120px;animation-delay:-3s;}
+.dropzone-loader-bg i:nth-child(3){left:18%;top:auto;bottom:8%;width:92px;height:92px;animation-delay:-6s;}
+.dropzone-loader-bg i:nth-child(4){left:auto;right:22%;top:auto;bottom:12%;width:240px;height:240px;animation-delay:-9s;}
+.dropzone-loader:not(.compact) .dropzone-loader-mark {
+  filter: drop-shadow(0 0 26px rgba(255,70,85,.28)) drop-shadow(0 18px 40px rgba(0,0,0,.45));
+}
+.dropzone-loader:not(.compact) .dropzone-loader-ring {
+  border-top-color: rgba(255,106,124,.92);
+  border-right-color: rgba(255,70,85,.24);
+}
+.dropzone-loader:not(.compact) .dropzone-loader-ring-delay {
+  border-top-color: rgba(255,255,255,.34);
+  border-bottom-color: rgba(255,70,85,.28);
+}
+.dropzone-loader:not(.compact) strong {
+  color: #fff !important;
+  font-size: 17px;
+  letter-spacing: .1em;
+}
+.dropzone-loader:not(.compact) .dropzone-loader-wait {
+  color: rgba(255,255,255,.58) !important;
+}
+.dropzone-loader:not(.compact) .dropzone-loader-dots b {
+  background: #ff5468 !important;
+}
+@keyframes dz-loader-grid-drift { to { transform: translate3d(7%, -5%, 0) rotate(.01deg); } }
+@keyframes dz-loader-glow { 0%,100%{opacity:.55;transform:scale(.94)} 50%{opacity:1;transform:scale(1.08)} }
+@keyframes dz-loader-float { 0%,100%{transform:translate3d(0,0,0) rotate(45deg);opacity:.32} 50%{transform:translate3d(24px,-28px,0) rotate(55deg);opacity:.7} }
+
+/* Desktop volta a ter presença visual. A compactação fica restrita ao mobile. */
+@media (min-width: 901px) {
+  .page-authenticated .shell { width: min(1440px, calc(100% - 56px)) !important; }
+  .page-authenticated .section-head h2,
+  .team-panel-ref > .section-head h2,
+  .player-panel-ref > .section-head h2,
+  .manager-panel-ref > .section-head h2,
+  .producer-layout-ref .championship-nav-card > .section-head h2 {
+    font-size: clamp(34px, 3.15vw, 52px) !important;
+    line-height: .94 !important;
+  }
+  .page-authenticated .account-strip strong,
+  .page-authenticated .account-strip h2,
+  .page-authenticated .profile-summary-title,
+  .page-authenticated .panel-title {
+    font-size: clamp(24px, 2vw, 34px) !important;
+  }
+
+  /* Produtora: lista à esquerda e detalhes/ajustes à direita. */
+  .producer-layout-ref {
+    display: grid !important;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) !important;
+    align-items: start;
+    gap: 18px !important;
+  }
+  .producer-layout-ref > .message,
+  .producer-layout-ref > .producer-hub-nav,
+  .producer-layout-ref > .producer-hub-section {
+    grid-column: 1 / -1 !important;
+  }
+  .producer-layout-ref > .producer-command-card {
+    grid-column: 1 !important;
+    position: sticky;
+    top: 82px;
+    align-self: start;
+    max-height: calc(100vh - 100px);
+    overflow: hidden;
+    padding: 18px !important;
+    background: #111922 !important;
+    color: #fff !important;
+  }
+  .producer-layout-ref > .championship-detail-card {
+    grid-column: 2 !important;
+    min-width: 0;
+    background: #ede9e2 !important;
+  }
+  .producer-command-card .section-head,
+  .producer-command-card .section-head h2,
+  .producer-command-card .section-head svg { color:#fff !important; }
+  .producer-command-card .eyebrow { color:#ff6a7c !important; }
+  .producer-layout-ref .championship-list {
+    max-height: calc(100vh - 280px) !important;
+    border: 0 !important;
+    background: #0c131b !important;
+  }
+  .producer-layout-ref .champ-list-item {
+    min-height: 76px !important;
+    padding: 10px 12px !important;
+    border: 0 !important;
+    border-left: 4px solid transparent !important;
+    background: #202a35 !important;
+    color: #fff !important;
+  }
+  .producer-layout-ref .champ-list-item:nth-child(even) { background:#18212b !important; }
+  .producer-layout-ref .champ-list-item:hover { background:#293542 !important; }
+  .producer-layout-ref .champ-list-item.active {
+    border-left-color:#ff5468 !important;
+    background:#313b47 !important;
+    box-shadow:none !important;
+  }
+  .producer-layout-ref .champ-list-item strong { color:#fff !important; font-size:14px !important; }
+  .producer-layout-ref .champ-list-item small { color:rgba(255,255,255,.55) !important; }
+  .producer-layout-ref .champ-thumb { background:rgba(255,255,255,.08) !important; border:0 !important; }
+}
+
+/* Listas internas: zebra real, mais contraste, sem branco estourado. */
+.page-authenticated .list,
+.page-authenticated .ref-list,
+.page-authenticated .championship-list,
+.page-authenticated .producer-simple-list,
+.page-authenticated .lili-rank-list {
+  gap: 2px !important;
+  background: #0f161e !important;
+}
+.page-authenticated .list-item,
+.page-authenticated .compact-row,
+.page-authenticated .champ-list-item,
+.page-authenticated .producer-simple-list > a,
+.page-authenticated .producer-simple-list > button {
+  border: 0 !important;
+  border-left: 4px solid transparent !important;
+  border-radius: 0 !important;
+  background: #202a35 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.page-authenticated .list-item:nth-child(even),
+.page-authenticated .compact-row:nth-child(even),
+.page-authenticated .champ-list-item:nth-child(even),
+.page-authenticated .producer-simple-list > a:nth-child(even),
+.page-authenticated .producer-simple-list > button:nth-child(even) {
+  background: #18212b !important;
+}
+.page-authenticated .list-item:hover,
+.page-authenticated .compact-row:hover,
+.page-authenticated .champ-list-item:hover,
+.page-authenticated .producer-simple-list > a:hover,
+.page-authenticated .producer-simple-list > button:hover {
+  border-left-color:#ff5468 !important;
+  background:#293542 !important;
+}
+.page-authenticated .list-item strong,
+.page-authenticated .compact-row strong,
+.page-authenticated .champ-list-item strong,
+.page-authenticated .producer-simple-list strong { color:#fff !important; }
+.page-authenticated .list-item small,
+.page-authenticated .compact-row small,
+.page-authenticated .champ-list-item small,
+.page-authenticated .producer-simple-list small { color:rgba(255,255,255,.56) !important; }
+
+@media (max-width: 900px) {
+  .producer-layout-ref { display:block !important; }
+  .producer-layout-ref > .producer-command-card {
+    position:static !important;
+    max-height:none !important;
+    overflow:visible !important;
+    padding:12px !important;
+    background:#111922 !important;
+  }
+  .producer-layout-ref > .championship-detail-card { margin-top:10px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropzone-loader:not(.compact)::before,
+  .dropzone-loader:not(.compact)::after,
+  .dropzone-loader-bg i { animation:none !important; }
+}
