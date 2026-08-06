@@ -20,6 +20,6 @@ test('página de login apresenta o fluxo de autenticação', async ({ page }) =>
   await page.goto('/login', { waitUntil: 'domcontentloaded' })
 
   await expect(
-    page.getByRole('status').or(page.getByRole('heading', { name: /entrar no dropzone/i })),
+    page.getByRole('heading', { name: /entre.*escolha seu perfil.*compita/i }),
   ).toBeVisible()
 })
