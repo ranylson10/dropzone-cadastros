@@ -12,7 +12,9 @@ export function DropzoneLoader({ label = 'Carregando', compact = false }: Dropzo
 
   return (
     <div className={`dropzone-loader ${compact ? 'compact' : ''}`} role="status" aria-live="polite">
-      {!compact ? <div className="dropzone-loader-bg" aria-hidden="true"><i /><i /><i /><i /></div> : null}
+      <div className="dropzone-loader-bg" aria-hidden="true" hidden={compact}>
+        <i /><i /><i /><i />
+      </div>
       <div
         className="dropzone-loader-mark"
         style={{ width: size, height: size }}

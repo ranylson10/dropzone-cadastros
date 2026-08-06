@@ -1,7 +1,14 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import './header.css'
 import { LiliGlobalLauncher } from '@/components/lili/LiliGlobalLauncher'
 import { GlobalLanguageRuntime } from '@/features/i18n/GlobalLanguageRuntime'
+
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export const metadata: Metadata = {
   title: 'DropZone Cadastros',

@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Globe2, Loader2, LogOut, Menu, Plus, Wallet, X } from 'lucide-react'
+import { ChevronDown, Globe2, Loader2, LogOut, Menu, Plus, Shield, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { DropZoneRow } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -233,6 +233,30 @@ export function AppHeader({
               </div>
             )
           })}
+          {isAuthenticated ? (
+            <div className="app-mobile-nav-account">
+              {showWallet ? (
+                <a href="/carteira" onClick={() => setMobileOpen(false)}>
+                  <Wallet size={16} />
+                  <span>Carteira</span>
+                  <strong>
+                    {walletSaldo == null
+                      ? 'Abrir'
+                      : new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(walletSaldo / 100)}
+                  </strong>
+                </a>
+              ) : null}
+              {isAdmin || showAdmin ? (
+                <a href="/admin" onClick={() => setMobileOpen(false)}>
+                  <Shield size={16} />
+                  <span>Administração</span>
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </nav>
 
         <div className="app-global-language" data-no-translate aria-label="Language" ref={languageRef}>
@@ -302,18 +326,6 @@ export function AppHeader({
               className="app-profile-trigger"
               onClick={() => setProfileOpen((value) => !value)}
               aria-expanded={profileOpen}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                maxWidth: 240,
-                minWidth: 0,
-                border: 0,
-                padding: '6px 8px',
-                borderRadius: 8,
-                background: 'transparent',
-                cursor: 'pointer',
-              }}
             >
               <LockedAvatar
                 src={profileImage || undefined}
