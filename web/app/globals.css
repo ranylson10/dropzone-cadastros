@@ -16432,3 +16432,38 @@ textarea {
   .producer-layout-ref .detail-hero-ref { padding: 16px !important; }
   .producer-layout-ref .detail-title-ref h2 { font-size: 30px !important; }
 }
+
+/* ===== Hotfix visual 10.1 — contraste dos textos nas listas ===== */
+.directory-list-main > strong {
+  color: #111820 !important;
+  font-weight: 900 !important;
+}
+.directory-list-main > span {
+  color: #3f4953 !important;
+  font-weight: 650 !important;
+}
+.directory-list-main > small {
+  color: #b63d50 !important;
+  font-weight: 950 !important;
+}
+.directory-list-meta small {
+  color: #5f554b !important;
+  font-weight: 900 !important;
+}
+.directory-list-meta b {
+  color: #121922 !important;
+  font-weight: 900 !important;
+}
+.directory-list-arrow {
+  color: #3f4953 !important;
+  opacity: 1 !important;
+}
+.directory-result-count {
+  color: #5f554b !important;
+  font-weight: 900 !important;
+}
+.directory-search input,
+.directory-search input::placeholder {
+  color: #3f4953 !important;
+  opacity: 1 !important;
+}
