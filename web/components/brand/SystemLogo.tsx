@@ -9,6 +9,7 @@ type SystemLogoProps = {
   className?: string
   /** contain preserva o símbolo (padrão); cover só quando o box é a própria marca */
   fit?: 'contain' | 'cover'
+  variant?: 'default' | 'accent' | 'light'
 }
 
 export function SystemLogo({
@@ -16,6 +17,7 @@ export function SystemLogo({
   alt = 'DropZone',
   className = '',
   fit = 'contain',
+  variant = 'default',
 }: SystemLogoProps) {
   // Login/abertura até 96px; header e chrome menores
   const px = Math.max(16, Math.min(120, Number(size) || 44))
@@ -34,11 +36,13 @@ export function SystemLogo({
     ['--system-logo-size' as string]: `${px}px`,
   }
 
+  const source = variant === 'accent' ? '/dropzone-icon-accent.png' : variant === 'light' ? '/dropzone-icon-light.png' : '/dropzone-icon.png'
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       className={`system-logo ${className}`.trim()}
-      src="/dropzone-icon.png"
+      src={source}
       alt={alt}
       width={px}
       height={px}
