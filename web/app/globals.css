@@ -15225,3 +15225,377 @@ textarea {
   .dropzone-loader:not(.compact)::after,
   .dropzone-loader-bg i { animation:none !important; }
 }
+
+/* ===== Rodada visual 8 — faixa central com arte + listas compactas e tons do fundo ===== */
+
+/* Elimina o respiro visual entre o header fixo e a faixa das páginas públicas. */
+.directory-page.page-authenticated,
+.directory-profile-page.page-authenticated {
+  padding-top: 64px !important;
+}
+.directory-page,
+.directory-profile-page,
+.directory-shell {
+  background: var(--dz-paper, #f3f0e9) !important;
+}
+.directory-page-body,
+.directory-page-body-with-banner {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 0 40px !important;
+}
+.directory-page-body-with-banner {
+  gap: 16px !important;
+}
+
+/* Faixa hero central, colada no topo e com arte estilo e-sports. */
+.directory-hero-banner,
+.directory-rank-hero {
+  width: min(1240px, calc(100% - 32px)) !important;
+  min-height: 174px !important;
+  margin: 0 auto 16px !important;
+  border: 0 !important;
+  border-bottom: 3px solid var(--dz-accent, #ff5468) !important;
+  border-radius: 0 0 8px 8px !important;
+  background:
+    linear-gradient(180deg, rgba(6,10,15,.18), rgba(6,10,15,.32)),
+    url('/banners/directory-hero-esports.svg') center center / cover no-repeat !important;
+  box-shadow: 0 16px 38px rgba(10, 15, 20, .12) !important;
+  overflow: hidden;
+}
+.directory-hero-banner::before,
+.directory-rank-hero::before {
+  opacity: .42 !important;
+  background:
+    linear-gradient(90deg, rgba(4,8,12,.14) 0%, rgba(4,8,12,.04) 30%, rgba(4,8,12,.04) 70%, rgba(4,8,12,.18) 100%),
+    linear-gradient(180deg, rgba(255,255,255,.04), transparent 36%) !important;
+}
+.directory-hero-inner,
+.directory-rank-hero-inner {
+  width: min(760px, calc(100% - 56px)) !important;
+  min-height: 172px !important;
+  margin: 0 auto !important;
+  padding: 28px 0 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+.directory-hero.directory-hero-banner small,
+.directory-rank-hero small {
+  align-self: center !important;
+  text-align: center !important;
+}
+.directory-hero.directory-hero-banner h1,
+.directory-rank-hero h1 {
+  margin: 6px 0 8px !important;
+  font-size: clamp(36px, 4.25vw, 60px) !important;
+  line-height: .96 !important;
+  letter-spacing: -.045em !important;
+  color: #fff !important;
+}
+.directory-hero.directory-hero-banner p,
+.directory-rank-hero p {
+  max-width: 620px !important;
+  margin: 0 auto !important;
+  color: rgba(255,255,255,.78) !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+.directory-toolbar,
+.directory-list,
+.directory-empty,
+.directory-rank-content {
+  width: min(1240px, calc(100% - 32px)) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+.directory-toolbar {
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+}
+
+/* Lista pública: mesma base do fundo, levemente mais escura, e bem mais compacta. */
+.directory-search {
+  height: 46px !important;
+  border-color: #d8d2c8 !important;
+  background: rgba(255,255,255,.74) !important;
+}
+.directory-result-count {
+  color: #8a8174 !important;
+  margin: 10px 0 !important;
+}
+.directory-list {
+  display: grid !important;
+  gap: 1px !important;
+  border: 1px solid #d2cbc0 !important;
+  border-radius: 0 !important;
+  background: #d1cabf !important;
+  box-shadow: 0 10px 24px rgba(10, 15, 20, .05) !important;
+}
+.directory-list-row {
+  grid-template-columns: 52px minmax(0, 1.5fr) minmax(250px, auto) 18px !important;
+  min-height: 56px !important;
+  gap: 12px !important;
+  padding: 8px 14px !important;
+  border: 0 !important;
+  border-left: 3px solid transparent !important;
+  background: #e5dfd5 !important;
+  color: #17212b !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.directory-list-row:nth-child(even) {
+  background: #dcd5cb !important;
+}
+.directory-list-row:hover {
+  padding-left: 14px !important;
+  border-left-color: var(--dz-accent, #ff5468) !important;
+  background: #d2cbc1 !important;
+}
+.directory-list-media {
+  width: 46px !important;
+  height: 46px !important;
+  border: 1px solid rgba(23,33,43,.08) !important;
+  border-radius: 0 !important;
+  background: rgba(255,255,255,.32) !important;
+  color: #47515d !important;
+}
+.directory-list-main {
+  gap: 1px !important;
+}
+.directory-list-main > small {
+  font-size: 10px !important;
+  color: #bf5160 !important;
+  letter-spacing: .08em !important;
+}
+.directory-list-main > strong {
+  font-size: 17px !important;
+  color: #15202b !important;
+}
+.directory-list-main > span {
+  margin-top: 1px !important;
+  font-size: 12px !important;
+  color: #5f6974 !important;
+  line-height: 1.25 !important;
+}
+.directory-list-meta {
+  gap: 14px !important;
+  grid-template-columns: repeat(3, minmax(72px, 1fr)) !important;
+}
+.directory-list-meta em {
+  min-width: 0 !important;
+  padding-left: 12px !important;
+  border-left: 1px solid rgba(23,33,43,.08) !important;
+}
+.directory-list-meta small {
+  font-size: 8px !important;
+  color: #8a8174 !important;
+  letter-spacing: .08em !important;
+}
+.directory-list-meta b {
+  margin-top: 2px !important;
+  font-size: 12px !important;
+  color: #24313e !important;
+}
+.directory-list-arrow {
+  color: #6b7480 !important;
+}
+.directory-empty {
+  border-color: #d7d0c6 !important;
+  background: rgba(255,255,255,.56) !important;
+  color: #6d6b67 !important;
+}
+
+/* Ranking unificado com a mesma linguagem. */
+.directory-rank-content {
+  padding-top: 6px !important;
+}
+.lili-rank-hub > nav {
+  width: min(760px, 100%) !important;
+  margin: 0 auto 10px !important;
+  gap: 1px !important;
+  background: #cec8be !important;
+}
+.lili-rank-hub > nav button {
+  min-height: 42px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #ddd7cd !important;
+  color: #596470 !important;
+}
+.lili-rank-hub > nav button.active {
+  background: #e8e3db !important;
+  color: #17212b !important;
+  box-shadow: inset 0 -3px 0 var(--dz-accent, #ff5468) !important;
+}
+.lili-rank-list {
+  width: min(760px, 100%) !important;
+  margin: 0 auto !important;
+  gap: 1px !important;
+  background: #cec8be !important;
+}
+.lili-rank-list article {
+  min-height: 54px !important;
+  padding: 8px 12px !important;
+  border: 0 !important;
+  border-left: 3px solid transparent !important;
+  border-radius: 0 !important;
+  background: #e5dfd5 !important;
+  color: #17212b !important;
+  box-shadow: none !important;
+}
+.lili-rank-list article:nth-child(even) {
+  background: #dcd5cb !important;
+}
+.lili-rank-list article:hover {
+  border-left-color: var(--dz-accent, #ff5468) !important;
+  background: #d2cbc1 !important;
+}
+.lili-rank-list article > b,
+.lili-rank-list article > div strong,
+.lili-rank-list article > em {
+  color: #17212b !important;
+}
+.lili-rank-list article > div small {
+  color: #7c776f !important;
+}
+.lili-rank-avatar {
+  border: 1px solid rgba(23,33,43,.08) !important;
+  background: rgba(255,255,255,.32) !important;
+}
+
+/* Painéis: desktop maior e lista da produtora em coluna esquerda, com tons alternados claros. */
+@media (min-width: 901px) {
+  .page-authenticated .section-head h2,
+  .team-panel-ref > .section-head h2,
+  .player-panel-ref > .section-head h2,
+  .manager-panel-ref > .section-head h2,
+  .producer-layout-ref .championship-nav-card > .section-head h2 {
+    font-size: clamp(36px, 3.25vw, 54px) !important;
+  }
+  .page-authenticated .account-strip strong,
+  .page-authenticated .account-strip h2,
+  .page-authenticated .profile-summary-title,
+  .page-authenticated .panel-title {
+    font-size: clamp(28px, 2.25vw, 38px) !important;
+    line-height: 1 !important;
+  }
+
+  .producer-layout-ref > .producer-command-card {
+    background: #e2dcd3 !important;
+    color: #17212b !important;
+  }
+  .producer-command-card .section-head,
+  .producer-command-card .section-head h2,
+  .producer-command-card .section-head svg,
+  .producer-command-card strong,
+  .producer-command-card p {
+    color: #17212b !important;
+  }
+  .producer-command-card .eyebrow {
+    color: #bf5160 !important;
+  }
+  .producer-layout-ref > .championship-detail-card {
+    background: #f1ede6 !important;
+  }
+  .producer-layout-ref .championship-list,
+  .page-authenticated .list,
+  .page-authenticated .ref-list,
+  .page-authenticated .producer-simple-list {
+    gap: 1px !important;
+    background: #cec8be !important;
+    border: 1px solid #d2cbc0 !important;
+  }
+  .producer-layout-ref .champ-list-item,
+  .page-authenticated .list-item,
+  .page-authenticated .compact-row,
+  .page-authenticated .producer-simple-list > a,
+  .page-authenticated .producer-simple-list > button {
+    min-height: 62px !important;
+    padding: 8px 12px !important;
+    border: 0 !important;
+    border-left: 3px solid transparent !important;
+    border-radius: 0 !important;
+    background: #e5dfd5 !important;
+    color: #17212b !important;
+  }
+  .producer-layout-ref .champ-list-item:nth-child(even),
+  .page-authenticated .list-item:nth-child(even),
+  .page-authenticated .compact-row:nth-child(even),
+  .page-authenticated .producer-simple-list > a:nth-child(even),
+  .page-authenticated .producer-simple-list > button:nth-child(even) {
+    background: #dcd5cb !important;
+  }
+  .producer-layout-ref .champ-list-item:hover,
+  .page-authenticated .list-item:hover,
+  .page-authenticated .compact-row:hover,
+  .page-authenticated .producer-simple-list > a:hover,
+  .page-authenticated .producer-simple-list > button:hover {
+    border-left-color: #ff5468 !important;
+    background: #d2cbc1 !important;
+  }
+  .producer-layout-ref .champ-list-item strong,
+  .page-authenticated .list-item strong,
+  .page-authenticated .compact-row strong,
+  .page-authenticated .producer-simple-list strong {
+    color: #17212b !important;
+  }
+  .producer-layout-ref .champ-list-item small,
+  .page-authenticated .list-item small,
+  .page-authenticated .compact-row small,
+  .page-authenticated .producer-simple-list small {
+    color: #7d776f !important;
+  }
+  .producer-layout-ref .champ-thumb {
+    border: 1px solid rgba(23,33,43,.08) !important;
+    background: rgba(255,255,255,.32) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .directory-page.page-authenticated,
+  .directory-profile-page.page-authenticated {
+    padding-top: 60px !important;
+  }
+  .directory-hero-banner,
+  .directory-rank-hero,
+  .directory-toolbar,
+  .directory-list,
+  .directory-empty,
+  .directory-rank-content {
+    width: calc(100% - 18px) !important;
+  }
+  .directory-hero-banner,
+  .directory-rank-hero {
+    min-height: 136px !important;
+  }
+  .directory-hero-inner,
+  .directory-rank-hero-inner {
+    width: calc(100% - 28px) !important;
+    min-height: 132px !important;
+    padding: 18px 0 16px !important;
+  }
+  .directory-list-row {
+    grid-template-columns: 46px minmax(0, 1fr) 16px !important;
+    min-height: 52px !important;
+    gap: 10px !important;
+    padding: 8px 10px !important;
+  }
+  .directory-list-media {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .directory-list-main > strong {
+    font-size: 14px !important;
+  }
+  .directory-list-main > span {
+    font-size: 11px !important;
+  }
+  .directory-list-meta {
+    display: none !important;
+  }
+}
