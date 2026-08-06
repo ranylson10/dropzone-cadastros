@@ -22,11 +22,7 @@ import { ReportButton } from '@/features/reports/ReportButton'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import { supabase } from '@/lib/supabase-browser'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
-import {
-  DirectoryProfileTabs,
-  StructureTree,
-  renderSectionItems,
-} from './DirectoryProfileTabs'
+import { StructureTree, renderSectionItems } from './DirectoryProfileTabs'
 import '@/app/vagas/vagas.css'
 
 type TabId = 'info' | 'equipes' | 'jogadores' | 'estatisticas'
@@ -366,9 +362,6 @@ export function ChampionshipPublicView({
         ) : null}
       </div>
 
-      <div className="champ-public-desktop-tabs">
-        <DirectoryProfileTabs sections={profile.sections} />
-      </div>
 
       {buyOpen && enrollment ? (
         <BuyVacancyModal

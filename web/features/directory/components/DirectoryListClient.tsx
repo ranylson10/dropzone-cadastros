@@ -5,8 +5,18 @@ import { useMemo, useState } from 'react'
 import type { DirectoryItem } from '../types'
 
 function getMetaLabels(items: DirectoryItem[]) {
-  const firstWithMeta = items.find((item) => item.meta?.length)
-  return (firstWithMeta?.meta || []).slice(0, 3).map((meta) => meta.label)
+  const labels: string[] = []
+  for (const item of items) {
+    for (const meta of item.meta || []) {
+      if (!labels.includes(meta.label)) labels.push(meta.label)
+      if (labels.length === 3) return labels
+    }
+  }
+  return labels
+}
+
+function getMetaValue(item: DirectoryItem, label: string) {
+  return item.meta?.find((meta) => meta.label === label)?.value || '—'
 }
 
 export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
@@ -56,9 +66,9 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
               <span>{item.username ? `@${item.username} · ` : ''}{item.description}</span>
             </span>
             <span className="directory-list-meta">
-              {item.meta.slice(0, 3).map((meta) => (
-                <em key={meta.label} data-label={meta.label}>
-                  <b>{meta.value}</b>
+              {metaLabels.map((label) => (
+                <em key={label} data-label={label}>
+                  <b>{getMetaValue(item, label)}</b>
                 </em>
               ))}
             </span>
