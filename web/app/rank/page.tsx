@@ -4,9 +4,10 @@ import { AppShell } from '@/components/layout'
 import { LiliRankHub } from '@/components/lili/LiliRankHub'
 
 export default function RankPage() {
-  return <AppShell activeLabel="Rank" loadSession mainClassName="page directory-page page-authenticated">
+  return <AppShell activeLabel="Rank" loadSession mainClassName="page directory-page directory-theme-rank page-authenticated">
     <main className="directory-shell">
-      <section className="directory-rank-hero">
+      <div className="directory-page-body directory-page-body-with-banner">
+      <section className="directory-hero directory-hero-banner directory-rank-hero theme-rank" data-theme="rank">
         <div className="directory-rank-hero-inner">
           <small>DIRETÓRIO COMPETITIVO</small>
           <h1>Ranking DropZone</h1>
@@ -15,6 +16,7 @@ export default function RankPage() {
       </section>
       <div className="directory-rank-content">
         <LiliRankHub />
+      </div>
       </div>
     </main>
   </AppShell>
