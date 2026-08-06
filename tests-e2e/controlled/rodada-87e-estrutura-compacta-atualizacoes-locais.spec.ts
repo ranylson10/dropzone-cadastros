@@ -6,7 +6,7 @@ const root = process.cwd()
 const structureFile = path.join(root, 'web/features/campeonatos/fases/components/CampeonatoEstruturaTab.tsx')
 const cssFile = path.join(root, 'web/app/globals.css')
 
-test.describe('Rodada 87E — estrutura compacta e atualizações locais', () => {
+test.describe('Estrutura compacta com identidade LEALT atual', () => {
   test('remove edição individual de letra e mantém sequência na configuração do grupo', () => {
     const source = fs.readFileSync(structureFile, 'utf8')
     expect(source).not.toContain('Editar letra deste slot')
@@ -15,9 +15,9 @@ test.describe('Rodada 87E — estrutura compacta e atualizações locais', () =>
     expect(source).toContain("load({ silent: true })")
   })
 
-  test('aplica padrão cinza, ouro e grafite sem destaque verde nos slots', () => {
+  test('usa o destaque LEALT oficial nos slots e jogos da estrutura', () => {
     const css = fs.readFileSync(cssFile, 'utf8')
-    expect(css).toContain('RODADA 87E — ESTRUTURA COMPACTA E ATUALIZAÇÕES LOCAIS')
+    expect(css).toContain('--producer-gold: var(--dz-accent)')
     expect(css).toContain('.producer-layout-ref .group-folder .championship-vaga-row.status-ocupada')
     expect(css).toContain('border-left-color: var(--producer-gold)')
     expect(css).toContain('.producer-layout-ref .game-card')

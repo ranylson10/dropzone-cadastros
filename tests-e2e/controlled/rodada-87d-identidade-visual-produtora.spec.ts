@@ -8,14 +8,14 @@ function source(file: string) {
   return fs.readFileSync(path.join(root, file), 'utf8')
 }
 
-test.describe('Rodada 87D — identidade visual única da produtora', () => {
-  test('usa cinza médio, ouro e grafite sem sombras no painel operacional', () => {
+test.describe('Identidade LEALT atual da produtora', () => {
+  test('usa a paleta LEALT, superfícies retas e sem sombras no painel operacional', () => {
     const css = source('web/app/globals.css')
-    expect(css).toContain('RODADA 87D — PAINEL DA PRODUTORA')
-    expect(css).toContain('--producer-bg: #c9cdd2')
-    expect(css).toContain('--producer-gold: #c9a227')
-    expect(css).toContain('--producer-ink: #17191d')
+    expect(css).toContain('--producer-bg: #e4e7ea')
+    expect(css).toContain('--producer-gold: var(--dz-accent)')
+    expect(css).toContain('--producer-ink: #1c2026')
     expect(css).toContain('.producer-layout-ref .panel,')
+    expect(css).toContain('border-radius: 0')
     expect(css).toContain('box-shadow: none')
   })
 

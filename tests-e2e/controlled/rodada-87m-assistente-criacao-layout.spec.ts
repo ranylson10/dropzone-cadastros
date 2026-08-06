@@ -25,7 +25,7 @@ test.describe('Rodada 87M — assistente de criação', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
     const css = source('web/app/globals.css')
     expect(form).toContain('championship-source-action')
-    expect(css).toContain('max-height: 340px')
+    expect(css).toContain('max-height: min(360px, 44vh)')
     expect(css).toContain('overflow-y: auto')
   })
 })
