@@ -21,6 +21,7 @@ import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
+import { PublicChampionshipHome } from '@/features/home/PublicChampionshipHome'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
@@ -112,6 +113,7 @@ type PanelSnapshot = {
 
 export function DropZoneHome() {
   const [mode, setMode] = useState<AuthMode>('entrar')
+  const [showAccess, setShowAccess] = useState(false)
   const [profileType, setProfileType] = useState<ProfileType>('produtora')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -544,8 +546,10 @@ export function DropZoneHome() {
             setRows([])
           }
         } else if (!hasRecentLogin) {
-          window.location.replace(`/login?returnTo=${encodeURIComponent(resolvedReturnTo || '/')}`)
-          return
+          setAccount(null)
+          setAccounts([])
+          setRows([])
+          setShowAccess(false)
         }
       } catch (cause: any) {
         setError(cause?.message || 'Falha ao iniciar o acesso.')
@@ -1553,6 +1557,10 @@ export function DropZoneHome() {
 
   if (!queryReady) {
     return <DropzoneLoader label="Carregando acesso" />
+  }
+
+  if (!account && !linkingProfile && !activeAuthType && !showAccess) {
+    return <PublicChampionshipHome onAccess={() => setShowAccess(true)} />
   }
 
   return (
