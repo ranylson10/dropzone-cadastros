@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { supabase } from '@/lib/supabase-browser'
-import '@/app/globals.css'
 
 function money(centavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
