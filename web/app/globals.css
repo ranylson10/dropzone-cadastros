@@ -11628,3 +11628,52 @@ input::placeholder, textarea::placeholder {
 /* Rodada 85 — listas e estatísticas públicas mais enxutas no mobile */
 .champ-list-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.champ-list-filters.single{grid-template-columns:minmax(180px,320px)}.champ-list-filters label{display:grid;gap:3px}.champ-list-filters label>span{font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.champ-list-filters select{width:100%;height:34px;padding:0 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);font-size:10px;font-weight:700}.champ-public-team-list,.champ-public-player-list{display:grid;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}.champ-public-team-row,.champ-public-player-row{display:grid;align-items:center;gap:10px;min-width:0;padding:9px 11px;border-bottom:1px solid var(--line)}.champ-public-team-row:last-child,.champ-public-player-row:last-child{border-bottom:0}.champ-public-team-row{grid-template-columns:36px minmax(0,1fr)}.champ-public-player-row{grid-template-columns:38px minmax(0,1fr) auto}.champ-public-team-avatar,.champ-public-player-avatar{width:36px;height:36px;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line);border-radius:7px;background:var(--surface-soft)}.champ-public-player-avatar{width:38px;height:38px;border-radius:50%}.champ-public-team-avatar img,.champ-public-player-avatar img{width:100%;height:100%;object-fit:contain}.champ-public-player-avatar img{object-fit:cover}.champ-public-team-copy,.champ-public-player-copy{display:grid;min-width:0}.champ-public-team-copy strong,.champ-public-player-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.champ-public-team-copy small,.champ-public-player-copy small{margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:9px}.champ-public-player-kills{display:grid;justify-items:end;min-width:48px;padding-left:8px;border-left:1px solid var(--line)}.champ-public-player-kills small,.mobile-total-label{font-size:7px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}.champ-public-player-kills b{font-size:17px;line-height:1;color:var(--text)}.mobile-stat-meta,.mobile-total-label{display:none}
 @media(max-width:640px){.champ-list-filters,.champ-list-filters.single{grid-template-columns:repeat(2,minmax(0,1fr))}.champ-list-filters.single label{grid-column:1/-1}.champ-stats-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;padding-bottom:0}.champ-stats-filters label{min-width:0}.champ-stats-table-wrap{overflow-x:hidden}.champ-stats-table,.champ-stats-team-table,.champ-stats-mvp-table{min-width:0;width:100%;table-layout:fixed}.champ-stats-table th{display:none}.champ-stats-table tbody{display:grid}.champ-stats-table tr{display:grid;grid-template-columns:34px minmax(0,1fr) 62px;align-items:center;min-width:0;border-bottom:1px solid var(--line)}.champ-stats-table tr:last-child{border-bottom:0}.champ-stats-table td{border:0;padding:9px 7px;min-width:0}.champ-stats-table .pos{width:auto}.champ-stats-table .identity{min-width:0}.champ-stats-table td.identity{display:flex;gap:8px}.champ-stats-table td.identity strong{max-width:none;white-space:nowrap}.champ-stats-table td.identity small{white-space:nowrap}.champ-stats-table .stat-group,.champ-stats-table .stat-secondary{display:none}.champ-stats-table .total{display:grid;justify-items:center;align-self:stretch;align-content:center;padding-inline:4px}.champ-stats-table .total b{font-size:16px}.mobile-stat-meta,.mobile-total-label{display:block}.champ-stats-avatar{width:34px;height:34px;flex-basis:34px}.champ-stats-avatar.player{width:38px;height:38px;flex-basis:38px}.champ-public-player-row{padding:8px 9px}.champ-public-team-row{padding:8px 9px}}
+
+/* Rodada 85 — refinamento mobile da página pública do campeonato */
+.champ-public-info-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.champ-public-info-links .button{min-height:36px}.champ-public-info-agenda{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}.champ-stats-mobile-filterbar,.champ-filter-overlay{display:none}
+@media(max-width:640px){
+  .champ-public-banner .directory-profile-banner-inner{padding:8px 10px 10px}
+  .champ-public-hero.directory-profile-hero.compact.on-banner{display:grid;grid-template-columns:58px minmax(0,1fr);align-items:start;gap:10px;margin:0 0 10px;padding:10px}
+  .champ-public-hero.directory-profile-hero.on-banner .directory-profile-avatar{width:58px;height:58px;margin:0}
+  .champ-public-hero .directory-profile-copy{min-width:0;display:grid;gap:5px}
+  .champ-public-hero .directory-profile-copy h1{margin:0;font-size:22px;line-height:1.02}
+  .champ-public-hero .directory-profile-desc{margin:0;font-size:10px;line-height:1.25}
+  .champ-public-enroll{display:grid;grid-template-columns:1fr;gap:7px;margin-top:3px}
+  .champ-public-enroll-meta{display:flex;flex-wrap:wrap;gap:5px}
+  .champ-public-enroll-meta span{min-height:28px;padding:0 9px;font-size:9px}
+  .champ-public-enroll-btn{width:100%;min-height:40px;margin:0}
+  .champ-public-nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;overflow:visible;padding:0}
+  .champ-public-nav-btn{min-width:0;min-height:66px;padding:7px 4px}
+  .champ-public-nav-label{font-size:9px}
+  .champ-public-panel{padding:12px 10px}
+  .champ-public-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .champ-public-info-card{min-height:70px;padding:10px}
+  .champ-public-info-card small{font-size:8px}
+  .champ-public-info-card strong{font-size:16px;line-height:1.1}
+  .champ-public-info-links{display:grid;grid-template-columns:1fr auto;gap:7px}
+  .champ-public-info-links .button{width:100%;justify-content:center}
+  .champ-public-info-agenda{margin-top:14px;padding-top:12px}
+  .champ-public-info-agenda .agenda-toolbar{display:none}
+  .champ-public-info-agenda .agenda-sheet{margin-top:6px}
+  .champ-stats-tabs{position:relative;top:auto;z-index:1;margin:0 0 7px;padding:3px;border-radius:10px}
+  .champ-stats-tabs button{min-height:38px;font-size:10px}
+  .champ-stats-filters-desktop{display:none!important}
+  .champ-stats-mobile-filterbar{display:flex;align-items:center;gap:6px;min-height:38px;margin:0 0 8px;overflow-x:auto;scrollbar-width:none}
+  .champ-stats-mobile-filterbar::-webkit-scrollbar{display:none}
+  .champ-stats-mobile-filterbar>button{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;min-height:36px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+  .champ-stats-mobile-filterbar>button b{display:grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--brand);color:#fff;font-size:9px}
+  .champ-stats-mobile-filterbar>span{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;min-height:30px;padding:0 8px;border-radius:8px;background:color-mix(in srgb,var(--brand) 9%,var(--surface));color:var(--text);font-size:8px;font-weight:900;text-transform:uppercase}
+  .champ-filter-overlay{position:fixed;inset:0;z-index:10000;display:block}
+  .champ-filter-backdrop{position:absolute;inset:0;width:100%;height:100%;border:0;background:rgba(10,12,18,.62)}
+  .champ-filter-sheet{position:absolute;left:0;right:0;bottom:0;max-height:82vh;overflow:auto;padding:16px 14px calc(16px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;background:var(--surface);box-shadow:0 -14px 40px rgba(0,0,0,.24)}
+  .champ-filter-sheet>header{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .champ-filter-sheet>header strong{font-size:15px;text-transform:uppercase;letter-spacing:.04em}
+  .champ-filter-sheet>header button{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:9px;background:var(--surface-soft);color:var(--text)}
+  .champ-filter-group{padding:12px 0;border-bottom:1px solid var(--line)}
+  .champ-filter-group h4{display:flex;align-items:center;gap:7px;margin:0 0 8px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.07em}
+  .champ-filter-group>div{display:flex;flex-wrap:wrap;gap:6px}
+  .champ-filter-group button{min-height:34px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);font-size:10px;font-weight:800}
+  .champ-filter-group button.active{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,var(--surface));color:var(--brand)}
+  .champ-filter-sheet>footer{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1.4fr;gap:8px;padding-top:12px;background:var(--surface)}
+  .champ-filter-sheet>footer .button{width:100%;justify-content:center;min-height:42px}
+}

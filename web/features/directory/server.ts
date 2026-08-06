@@ -78,6 +78,13 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
         meta: [
           { label: 'Premiação', value: money(config.premiacao) },
           { label: 'Limite de vagas', value: text(config.numero_vagas, 'Sem teto') },
+          { label: 'Vagas por equipe', value: text(config.vagas_por_equipe, '1') },
+          { label: 'Jogadores escalados', value: text(config.jogadores_por_vaga, 'Não informado') },
+          { label: 'Troca de jogadores', value: config.permite_troca_jogadores ? 'Permitida' : 'Não permitida' },
+          ...(config.data_limite_trocas ? [{ label: 'Prazo para trocas', value: new Date(config.data_limite_trocas).toLocaleString('pt-BR') }] : []),
+          ...(config.data_limite_inscricao ? [{ label: 'Inscrições até', value: new Date(config.data_limite_inscricao).toLocaleString('pt-BR') }] : []),
+          ...(config.plataforma ? [{ label: 'Plataforma', value: text(config.plataforma) }] : []),
+          ...(config.servidor ? [{ label: 'Servidor', value: text(config.servidor) }] : []),
           { label: 'Status', value: statusLabel(row.status) },
         ],
         searchText: [name, tipo, config.formato, config.plataforma, config.servidor].join(' ').toLowerCase(),

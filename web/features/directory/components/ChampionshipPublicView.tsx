@@ -6,9 +6,13 @@ import {
   Flag,
   Gamepad2,
   Info,
+  Layers3,
+  MapPinned,
+  SlidersHorizontal,
   Ticket,
   Users,
   UserCircle2,
+  X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AgendaCalendar } from '@/features/agenda'
@@ -25,13 +29,12 @@ import {
 } from './DirectoryProfileTabs'
 import '@/app/vagas/vagas.css'
 
-type TabId = 'info' | 'equipes' | 'jogadores' | 'jogos' | 'estatisticas'
+type TabId = 'info' | 'equipes' | 'jogadores' | 'estatisticas'
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Info }> = [
   { id: 'info', label: 'Informações', icon: Info },
   { id: 'equipes', label: 'Equipes', icon: Users },
   { id: 'jogadores', label: 'Jogadores', icon: UserCircle2 },
-  { id: 'jogos', label: 'Agenda', icon: Gamepad2 },
   { id: 'estatisticas', label: 'Estatísticas', icon: BarChart3 },
 ]
 
@@ -156,14 +159,12 @@ export function ChampionshipPublicView({
     info: profile.details.length,
     equipes: occupiedCount || structure.slots.length,
     jogadores: sectionMap.jogadores?.items.length || 0,
-    jogos: sectionMap.jogos?.items.length || 0,
     estatisticas: sectionMap.estatisticas?.items.length || 0,
   }
   const visibleTabs = TABS.filter(
     (item) =>
       item.id === 'info' ||
       item.id === 'equipes' ||
-      item.id === 'jogos' ||
       counts[item.id] > 0,
   )
 
@@ -274,19 +275,28 @@ export function ChampionshipPublicView({
                 </div>
               ))}
             </div>
-            <div className="champ-public-info-actions">
-              {canEnroll ? (
-                <button
-                  type="button"
-                  className="button champ-public-enroll-btn"
-                  onClick={() => setBuyOpen(true)}
-                >
-                  <PixIcon size={16} />
-                  Garantir vaga
-                </button>
-              ) : null}
+            <div className="champ-public-info-links">
+              <a className="button secondary" href={`/campeonatos/${profile.id}/regulamento`}>
+                <Flag size={15} /> Regulamento
+              </a>
               <ReportButton targetType="campeonato" targetId={profile.id} targetName={profile.name} />
             </div>
+            <section className="champ-public-info-agenda">
+              <header className="champ-public-panel-head">
+                <Gamepad2 size={16} />
+                <div>
+                  <strong>Agenda</strong>
+                  <small>Datas e horários do campeonato</small>
+                </div>
+              </header>
+              <AgendaCalendar
+                title={`CALENDÁRIO ${profile.name}`.toUpperCase()}
+                scope="campeonato"
+                scopeId={profile.id}
+                canCreate={false}
+                compact
+              />
+            </section>
           </div>
         ) : null}
 
@@ -344,25 +354,6 @@ export function ChampionshipPublicView({
             players={sectionMvp(sectionMap.jogadores)}
             teams={sectionTeams(sectionMap.estatisticas)}
           />
-        ) : null}
-
-        {tab === 'jogos' ? (
-          <section className="champ-public-section">
-            <header className="champ-public-panel-head">
-              <Gamepad2 size={16} />
-              <div>
-                <strong>Agenda de jogos</strong>
-                <small>Somente as datas que possuem jogos do campeonato</small>
-              </div>
-            </header>
-            <AgendaCalendar
-              title={`CALENDÁRIO ${profile.name}`.toUpperCase()}
-              scope="campeonato"
-              scopeId={profile.id}
-              canCreate={false}
-              compact
-            />
-          </section>
         ) : null}
 
         {tab === 'estatisticas' ? (
@@ -482,6 +473,7 @@ function StatsDashboard({
   const [teams, setTeams] = useState<TeamStatsRow[]>(() => sectionTeams(teamsSection))
   const [players, setPlayers] = useState<MvpStatsRow[]>(() => sectionMvp(mvpSection))
   const [loading, setLoading] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const availableGroups = useMemo(
     () => (filters?.groups || []).filter((group) => !faseId || group.phaseId === faseId),
@@ -562,23 +554,54 @@ function StatsDashboard({
       </div>
 
       {hasFilters ? (
-        <div className="champ-stats-filters">
-          {filters?.phases.length ? (
-            <label><span>Fase</span><select value={faseId} onChange={(event) => setFaseId(event.target.value)}><option value="">Todas</option>{filters.phases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+        <>
+          <div className="champ-stats-filters champ-stats-filters-desktop">
+            {filters?.phases.length ? (
+              <label><span>Fase</span><select value={faseId} onChange={(event) => setFaseId(event.target.value)}><option value="">Todas</option>{filters.phases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+            {filters?.groups.length ? (
+              <label><span>Grupo</span><select value={grupoId} onChange={(event) => setGrupoId(event.target.value)}><option value="">Todos</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+            {filters?.games.length ? (
+              <label><span>Jogo</span><select value={jogoId} onChange={(event) => setJogoId(event.target.value)}><option value="">Todos</option>{filters.games.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+            {filters?.rounds.length ? (
+              <label><span>Queda</span><select value={partidaId} onChange={(event) => setPartidaId(event.target.value)}><option value="">Todas</option>{availableRounds.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+            {filters?.maps.length ? (
+              <label><span>Mapa</span><select value={mapaCodigo} onChange={(event) => setMapaCodigo(event.target.value)}><option value="">Todos</option>{filters.maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+          </div>
+          <div className="champ-stats-mobile-filterbar">
+            <button type="button" onClick={() => setFiltersOpen(true)} aria-label="Abrir filtros">
+              <SlidersHorizontal size={17} />
+              <span>Filtros</span>
+              {[faseId, grupoId, jogoId, partidaId, mapaCodigo].filter(Boolean).length ? <b>{[faseId, grupoId, jogoId, partidaId, mapaCodigo].filter(Boolean).length}</b> : null}
+            </button>
+            {faseId ? <span><Layers3 size={13} /> Fase</span> : null}
+            {grupoId ? <span><Users size={13} /> Grupo</span> : null}
+            {jogoId ? <span><Gamepad2 size={13} /> Jogo</span> : null}
+            {partidaId ? <span><Flag size={13} /> Queda</span> : null}
+            {mapaCodigo ? <span><MapPinned size={13} /> Mapa</span> : null}
+          </div>
+          {filtersOpen ? (
+            <div className="champ-filter-overlay" role="dialog" aria-modal="true" aria-label="Filtros das estatísticas">
+              <button type="button" className="champ-filter-backdrop" onClick={() => setFiltersOpen(false)} aria-label="Fechar filtros" />
+              <div className="champ-filter-sheet">
+                <header><strong>Filtrar estatísticas</strong><button type="button" onClick={() => setFiltersOpen(false)} aria-label="Fechar"><X size={18} /></button></header>
+                {filters?.phases.length ? <FilterOptionGroup icon={<Layers3 size={15} />} label="Fase" value={faseId} onChange={setFaseId} options={filters.phases} allLabel="Todas" /> : null}
+                {filters?.groups.length ? <FilterOptionGroup icon={<Users size={15} />} label="Grupo" value={grupoId} onChange={setGrupoId} options={availableGroups} allLabel="Todos" /> : null}
+                {filters?.games.length ? <FilterOptionGroup icon={<Gamepad2 size={15} />} label="Jogo" value={jogoId} onChange={setJogoId} options={filters.games} allLabel="Todos" /> : null}
+                {filters?.rounds.length ? <FilterOptionGroup icon={<Flag size={15} />} label="Queda" value={partidaId} onChange={setPartidaId} options={availableRounds} allLabel="Todas" /> : null}
+                {filters?.maps.length ? <FilterOptionGroup icon={<MapPinned size={15} />} label="Mapa" value={mapaCodigo} onChange={setMapaCodigo} options={filters.maps} allLabel="Todos" /> : null}
+                <footer>
+                  <button type="button" className="button secondary" onClick={() => { setFaseId(''); setGrupoId(''); setJogoId(''); setPartidaId(''); setMapaCodigo('') }}>Limpar</button>
+                  <button type="button" className="button" onClick={() => setFiltersOpen(false)}>Aplicar</button>
+                </footer>
+              </div>
+            </div>
           ) : null}
-          {filters?.groups.length ? (
-            <label><span>Grupo</span><select value={grupoId} onChange={(event) => setGrupoId(event.target.value)}><option value="">Todos</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-          ) : null}
-          {filters?.games.length ? (
-            <label><span>Jogo</span><select value={jogoId} onChange={(event) => setJogoId(event.target.value)}><option value="">Todos</option>{filters.games.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-          ) : null}
-          {filters?.rounds.length ? (
-            <label><span>Queda</span><select value={partidaId} onChange={(event) => setPartidaId(event.target.value)}><option value="">Todas</option>{availableRounds.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-          ) : null}
-          {filters?.maps.length ? (
-            <label><span>Mapa</span><select value={mapaCodigo} onChange={(event) => setMapaCodigo(event.target.value)}><option value="">Todos</option>{filters.maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-          ) : null}
-        </div>
+        </>
       ) : null}
 
       <div className="champ-stats-table-wrap">
@@ -595,6 +618,33 @@ function StatsDashboard({
             <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong><small>{row.quedas} quedas · K.D {kdLabel(row)}</small></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{kdLabel(row)}</b></td><td className="total"><small className="mobile-total-label">Kills</small><b>{row.abates}</b></td></tr>)}</tbody>
           </table>
         ) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
+      </div>
+    </section>
+  )
+}
+
+
+function FilterOptionGroup({
+  icon,
+  label,
+  value,
+  onChange,
+  options,
+  allLabel,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ id: string; label: string }>
+  allLabel: string
+}) {
+  return (
+    <section className="champ-filter-group">
+      <h4>{icon}{label}</h4>
+      <div>
+        <button type="button" className={!value ? 'active' : ''} onClick={() => onChange('')}>{allLabel}</button>
+        {options.map((item) => <button key={item.id} type="button" className={value === item.id ? 'active' : ''} onClick={() => onChange(item.id)}>{item.label}</button>)}
       </div>
     </section>
   )
