@@ -14087,3 +14087,238 @@ textarea {
     padding: 12px !important;
   }
 }
+
+/* =========================================================
+   FASE VISUAL 4 — OPERAÇÃO, ADMINISTRAÇÃO E CENTRAIS
+   Admin, Central do Campeonato, carteira, managers e estados.
+   ========================================================= */
+.system-admin-page,
+.championship-central-page,
+.bank-wallet-page {
+  background: var(--dz-paper, #f3f1ec) !important;
+}
+
+.system-admin-header,
+.system-admin-tabs,
+.admin-section,
+.admin-metric-grid article,
+.admin-infra-grid article,
+.admin-publication-grid article,
+.admin-report-list article,
+.bank-wallet-hero,
+.bank-wallet-tabs,
+.championship-central-header,
+.championship-central-grid article,
+.championship-central-alerts,
+.championship-central-logs,
+.championship-choice-panel {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.system-admin-header,
+.championship-central-header,
+.bank-wallet-hero {
+  border: 0 !important;
+  border-left: 5px solid var(--dz-accent, #ff5468) !important;
+  background: #101820 !important;
+  color: white !important;
+}
+
+.system-admin-header h1,
+.system-admin-header p,
+.championship-central-header h1,
+.championship-central-header p,
+.championship-central-header small,
+.bank-wallet-hero h1,
+.bank-wallet-hero small,
+.bank-wallet-eyebrow {
+  color: white !important;
+}
+
+.system-admin-header button,
+.bank-wallet-refresh,
+.championship-central-header select {
+  border-radius: 1px !important;
+  box-shadow: none !important;
+}
+
+.system-admin-tabs,
+.bank-wallet-tabs {
+  gap: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(16,24,32,.16) !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.system-admin-tabs button,
+.bank-wallet-tabs button {
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-bottom: 3px solid transparent !important;
+  background: transparent !important;
+  color: var(--dz-muted, #626873) !important;
+  box-shadow: none !important;
+  letter-spacing: .055em;
+}
+
+.system-admin-tabs button.active,
+.bank-wallet-tabs button.active {
+  border-bottom-color: var(--dz-accent, #ff5468) !important;
+  background: transparent !important;
+  color: var(--dz-ink, #111820) !important;
+}
+
+.admin-metric-grid,
+.admin-infra-grid,
+.admin-publication-grid,
+.admin-report-list,
+.championship-central-grid {
+  gap: 12px !important;
+}
+
+.admin-metric-grid article,
+.admin-infra-grid article,
+.championship-central-grid article {
+  position: relative;
+  overflow: hidden;
+  border: 0 !important;
+  background: #f7f4ee !important;
+}
+
+.admin-metric-grid article::before,
+.admin-infra-grid article::before,
+.championship-central-grid article::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--dz-accent, #ff5468);
+}
+
+.admin-section,
+.admin-publication-grid article,
+.admin-report-list article,
+.championship-central-alerts,
+.championship-central-logs,
+.championship-choice-panel {
+  border: 0 !important;
+  background: #f7f4ee !important;
+}
+
+.admin-section > header,
+.championship-central-alerts-heading,
+.championship-central-logs-heading,
+.championship-choice-heading {
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(16,24,32,.13);
+}
+
+.admin-table-wrap table {
+  background: transparent !important;
+}
+.admin-table-wrap th {
+  background: #101820 !important;
+  color: white !important;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+  font-size: 9px;
+}
+.admin-table-wrap td {
+  background: transparent !important;
+  border-color: rgba(16,24,32,.11) !important;
+}
+.admin-table-wrap tbody tr:hover td {
+  background: rgba(16,24,32,.035) !important;
+}
+
+.admin-row-actions button,
+.championship-central-log-filters button,
+.championship-central-alert-filters button,
+.championship-central-alert-toolbar button,
+.championship-central-alert-history button,
+.smart-alert-actions a,
+.smart-alert-actions button {
+  border-radius: 1px !important;
+  box-shadow: none !important;
+}
+
+.championship-central-shell {
+  width: min(1320px, calc(100% - 32px)) !important;
+}
+.championship-central-title {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(16,24,32,.14);
+}
+.championship-central-grid article,
+.championship-central-alerts .smart-alert,
+.operational-log,
+.championship-choice-current article {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.championship-central-alerts .smart-alert {
+  border: 0 !important;
+  border-left: 4px solid var(--dz-accent, #ff5468) !important;
+  background: #fff !important;
+}
+.championship-central-alerts .smart-alert.warning { border-left-color: #d49412 !important; }
+.championship-central-alerts .smart-alert.info { border-left-color: #3f85b7 !important; }
+.championship-central-alert-counts span,
+.championship-central-log-total,
+.smart-alert-title span,
+.operational-log-copy span,
+.admin-status {
+  border-radius: 1px !important;
+}
+
+.bank-wallet-shell {
+  width: min(1180px, calc(100% - 28px)) !important;
+}
+.bank-wallet-hero {
+  padding: 26px !important;
+}
+.bank-wallet-tabs {
+  margin-top: 14px !important;
+}
+.bank-wallet-shell section,
+.bank-wallet-shell article {
+  box-shadow: none !important;
+}
+
+.admin-feedback,
+.agenda-error,
+.message,
+.teams-feedback,
+.championship-central-state,
+.championship-central-alert-empty,
+.championship-central-log-empty {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 760px) {
+  .system-admin-page { padding: 8px !important; }
+  .system-admin-header,
+  .championship-central-header,
+  .bank-wallet-hero {
+    padding: 16px !important;
+    border-left-width: 4px !important;
+  }
+  .admin-metric-grid,
+  .championship-central-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    gap: 8px !important;
+  }
+  .admin-section,
+  .championship-central-alerts,
+  .championship-central-logs,
+  .championship-choice-panel {
+    padding: 12px !important;
+  }
+  .championship-central-shell,
+  .bank-wallet-shell {
+    width: calc(100% - 16px) !important;
+  }
+}
