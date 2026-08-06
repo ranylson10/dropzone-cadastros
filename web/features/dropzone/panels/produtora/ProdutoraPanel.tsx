@@ -1160,7 +1160,7 @@ ${params.url}`
         </div>
 
         <div className="producer-primary-actions" role="group" aria-label="Ações dos campeonatos">
-          <button type="button" className="producer-action primary" disabled={produtoraAprovacao !== 'aprovado'} title="Novo campeonato" onClick={() => setShowCreateChamp(true)}><Plus size={18} /><span>Novo</span></button>
+          <button type="button" className="producer-action primary" disabled={produtoraAprovacao !== 'aprovado'} title="Novo campeonato" aria-label="Novo campeonato" onClick={() => setShowCreateChamp(true)}><Plus size={18} /><span>Novo</span></button>
           <button className={`producer-action ${showChampFilters ? 'active' : ''}`} type="button" onClick={() => setShowChampFilters((value) => !value)} title="Filtrar campeonatos"><Filter size={18} /><span>Filtrar</span></button>
         </div>
 

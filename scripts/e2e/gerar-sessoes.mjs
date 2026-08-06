@@ -159,6 +159,7 @@ async function writeStorageState(profile, session) {
 await fs.mkdir(authDir, { recursive: true })
 
 const selected = new Map()
+const sessionsByEmail = new Map()
 console.log(`Gerando sessões automáticas para ${origin}...\n`)
 for (const profile of profiles) {
   try {
@@ -176,7 +177,15 @@ for (const profile of profiles) {
     }
 
     const identity = await identityForProfile(profile, excludedUserIds, excludedEmails)
-    const session = await sessionForEmail(identity.email)
+    // Uma mesma conta pode representar mais de um perfil no ambiente E2E.
+    // Gerar outro magic link para o mesmo e-mail pode invalidar a sessão criada
+    // anteriormente enquanto os projetos desktop e mobile rodam em paralelo.
+    // Reutilize a mesma sessão por identidade e varie apenas o perfil ativo.
+    let session = sessionsByEmail.get(identity.email)
+    if (!session) {
+      session = await sessionForEmail(identity.email)
+      sessionsByEmail.set(identity.email, session)
+    }
     await validateSession(profile, session)
     const output = await writeStorageState(profile, session)
     selected.set(profile.name, identity)
