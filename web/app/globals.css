@@ -16467,3 +16467,31 @@ textarea {
   color: #3f4953 !important;
   opacity: 1 !important;
 }
+
+/* ===== Hotfix visual 10.2 — metadados laterais das listas ===== */
+.directory-list .directory-list-row .directory-list-meta em small,
+.directory-list .directory-list-row .directory-list-meta small {
+  color: #665c52 !important;
+  opacity: 1 !important;
+  font-weight: 900 !important;
+}
+.directory-list .directory-list-row .directory-list-meta em b,
+.directory-list .directory-list-row .directory-list-meta b,
+.directory-list .directory-list-row .directory-list-meta em strong,
+.directory-list .directory-list-row .directory-list-meta strong {
+  color: #18212b !important;
+  opacity: 1 !important;
+  font-weight: 950 !important;
+  text-shadow: none !important;
+}
+.directory-list .directory-list-row .directory-list-arrow,
+.directory-list .directory-list-row > svg {
+  color: #35414c !important;
+  stroke: #35414c !important;
+  opacity: 1 !important;
+}
+.directory-list .directory-list-row:hover .directory-list-meta em small,
+.directory-list .directory-list-row:hover .directory-list-meta em b,
+.directory-list .directory-list-row:hover .directory-list-meta b {
+  color: #121922 !important;
+}
