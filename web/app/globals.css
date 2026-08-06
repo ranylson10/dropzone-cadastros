@@ -11674,6 +11674,12 @@ input::placeholder, textarea::placeholder {
   .champ-filter-group>div{display:flex;flex-wrap:wrap;gap:6px}
   .champ-filter-group button{min-height:34px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);font-size:10px;font-weight:800}
   .champ-filter-group button.active{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,var(--surface));color:var(--brand)}
+  .champ-filter-group.champ-filter-mode{padding-top:10px}
+  .champ-filter-hint{margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.4}
+  .champ-filter-empty{padding:12px 0;border-bottom:1px solid var(--line)}
+  .champ-filter-empty.compact{padding:10px 0}
+  .champ-filter-empty strong{display:block;margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .champ-filter-empty p{margin:0;color:var(--muted);font-size:10px;line-height:1.45}
   .champ-filter-sheet>footer{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1.4fr;gap:8px;padding-top:12px;background:var(--surface)}
   .champ-filter-sheet>footer .button{width:100%;justify-content:center;min-height:42px}
 }

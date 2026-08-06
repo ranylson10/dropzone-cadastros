@@ -390,6 +390,7 @@ export function ChampionshipPublicView({
 
 
 type StatsView = 'tabela' | 'mvp'
+type MobileFilterMode = 'general' | 'phase' | 'map'
 
 type TeamStatsRow = {
   campeonato_equipe_id: string
@@ -474,6 +475,31 @@ function StatsDashboard({
   const [players, setPlayers] = useState<MvpStatsRow[]>(() => sectionMvp(mvpSection))
   const [loading, setLoading] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [mobileFilterMode, setMobileFilterMode] = useState<MobileFilterMode>('general')
+
+  const clearAllFilters = () => {
+    setFaseId('')
+    setGrupoId('')
+    setJogoId('')
+    setPartidaId('')
+    setMapaCodigo('')
+  }
+
+  const selectMobileFilterMode = (mode: MobileFilterMode) => {
+    setMobileFilterMode(mode)
+    if (mode === 'general') {
+      clearAllFilters()
+      return
+    }
+    if (mode === 'map') {
+      setFaseId('')
+      setGrupoId('')
+      setJogoId('')
+      setPartidaId('')
+      return
+    }
+    setMapaCodigo('')
+  }
 
   const availableGroups = useMemo(
     () => (filters?.groups || []).filter((group) => !faseId || group.phaseId === faseId),
@@ -532,6 +558,19 @@ function StatsDashboard({
   const hasFilters = Boolean(
     filters?.phases.length || filters?.groups.length || filters?.games.length || filters?.rounds.length || filters?.maps.length,
   )
+  const activeFilterCount = [faseId, grupoId, jogoId, partidaId, mapaCodigo].filter(Boolean).length
+
+  useEffect(() => {
+    if (mapaCodigo) {
+      setMobileFilterMode('map')
+      return
+    }
+    if (faseId || grupoId || jogoId || partidaId) {
+      setMobileFilterMode('phase')
+      return
+    }
+    setMobileFilterMode('general')
+  }, [faseId, grupoId, jogoId, partidaId, mapaCodigo])
 
   return (
     <section className="champ-public-section champ-stats-section">
@@ -576,7 +615,7 @@ function StatsDashboard({
             <button type="button" onClick={() => setFiltersOpen(true)} aria-label="Abrir filtros">
               <SlidersHorizontal size={17} />
               <span>Filtros</span>
-              {[faseId, grupoId, jogoId, partidaId, mapaCodigo].filter(Boolean).length ? <b>{[faseId, grupoId, jogoId, partidaId, mapaCodigo].filter(Boolean).length}</b> : null}
+              {activeFilterCount ? <b>{activeFilterCount}</b> : null}
             </button>
             {faseId ? <span><Layers3 size={13} /> Fase</span> : null}
             {grupoId ? <span><Users size={13} /> Grupo</span> : null}
@@ -589,13 +628,99 @@ function StatsDashboard({
               <button type="button" className="champ-filter-backdrop" onClick={() => setFiltersOpen(false)} aria-label="Fechar filtros" />
               <div className="champ-filter-sheet">
                 <header><strong>Filtrar estatísticas</strong><button type="button" onClick={() => setFiltersOpen(false)} aria-label="Fechar"><X size={18} /></button></header>
-                {filters?.phases.length ? <FilterOptionGroup icon={<Layers3 size={15} />} label="Fase" value={faseId} onChange={setFaseId} options={filters.phases} allLabel="Todas" /> : null}
-                {filters?.groups.length ? <FilterOptionGroup icon={<Users size={15} />} label="Grupo" value={grupoId} onChange={setGrupoId} options={availableGroups} allLabel="Todos" /> : null}
-                {filters?.games.length ? <FilterOptionGroup icon={<Gamepad2 size={15} />} label="Jogo" value={jogoId} onChange={setJogoId} options={filters.games} allLabel="Todos" /> : null}
-                {filters?.rounds.length ? <FilterOptionGroup icon={<Flag size={15} />} label="Queda" value={partidaId} onChange={setPartidaId} options={availableRounds} allLabel="Todas" /> : null}
-                {filters?.maps.length ? <FilterOptionGroup icon={<MapPinned size={15} />} label="Mapa" value={mapaCodigo} onChange={setMapaCodigo} options={filters.maps} allLabel="Todos" /> : null}
+                <section className="champ-filter-group champ-filter-mode">
+                  <h4><SlidersHorizontal size={15} />Modo</h4>
+                  <div>
+                    <button type="button" className={mobileFilterMode === 'general' ? 'active' : ''} onClick={() => selectMobileFilterMode('general')}>Geral</button>
+                    <button type="button" className={mobileFilterMode === 'phase' ? 'active' : ''} onClick={() => selectMobileFilterMode('phase')}>Fase</button>
+                    <button type="button" className={mobileFilterMode === 'map' ? 'active' : ''} onClick={() => selectMobileFilterMode('map')}>Mapa</button>
+                  </div>
+                  <p className="champ-filter-hint">Escolha o tipo de recorte para liberar só as próximas opções necessárias.</p>
+                </section>
+
+                {mobileFilterMode === 'general' ? (
+                  <section className="champ-filter-empty">
+                    <strong>Visão geral</strong>
+                    <p>Mostra todos os resultados do campeonato sem abrir grupos, jogos ou quedas.</p>
+                  </section>
+                ) : null}
+
+                {mobileFilterMode === 'phase' ? (
+                  <>
+                    {filters?.phases.length ? (
+                      <FilterOptionGroup
+                        icon={<Layers3 size={15} />}
+                        label="Fase"
+                        value={faseId}
+                        onChange={(value) => {
+                          setFaseId(value)
+                          setGrupoId('')
+                          setJogoId('')
+                          setPartidaId('')
+                        }}
+                        options={filters.phases}
+                        allLabel="Todas"
+                      />
+                    ) : null}
+                    {faseId ? (
+                      <>
+                        {filters?.groups.length ? (
+                          <FilterOptionGroup
+                            icon={<Users size={15} />}
+                            label="Grupo"
+                            value={grupoId}
+                            onChange={(value) => {
+                              setGrupoId(value)
+                              setJogoId('')
+                              setPartidaId('')
+                            }}
+                            options={availableGroups}
+                            allLabel="Todos"
+                          />
+                        ) : null}
+                        {filters?.games.length ? (
+                          <FilterOptionGroup
+                            icon={<Gamepad2 size={15} />}
+                            label="Jogo"
+                            value={jogoId}
+                            onChange={(value) => {
+                              setJogoId(value)
+                              setPartidaId('')
+                            }}
+                            options={filters.games}
+                            allLabel="Todos"
+                          />
+                        ) : null}
+                        {jogoId && filters?.rounds.length ? (
+                          <FilterOptionGroup
+                            icon={<Flag size={15} />}
+                            label="Queda"
+                            value={partidaId}
+                            onChange={setPartidaId}
+                            options={availableRounds}
+                            allLabel="Todas"
+                          />
+                        ) : null}
+                      </>
+                    ) : (
+                      <section className="champ-filter-empty compact">
+                        <p>Selecione uma fase para liberar grupos, jogos e quedas.</p>
+                      </section>
+                    )}
+                  </>
+                ) : null}
+
+                {mobileFilterMode === 'map' ? (
+                  filters?.maps.length ? (
+                    <FilterOptionGroup icon={<MapPinned size={15} />} label="Mapa" value={mapaCodigo} onChange={setMapaCodigo} options={filters.maps} allLabel="Todos" />
+                  ) : (
+                    <section className="champ-filter-empty compact">
+                      <p>Este campeonato ainda não possui mapas cadastrados para filtrar.</p>
+                    </section>
+                  )
+                ) : null}
                 <footer>
-                  <button type="button" className="button secondary" onClick={() => { setFaseId(''); setGrupoId(''); setJogoId(''); setPartidaId(''); setMapaCodigo('') }}>Limpar</button>
+                  <button type="button" className="button secondary" onClick={() => { clearAllFilters(); setMobileFilterMode('general') }}>Limpar</button>
                   <button type="button" className="button" onClick={() => setFiltersOpen(false)}>Aplicar</button>
                 </footer>
               </div>
