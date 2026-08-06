@@ -185,11 +185,12 @@ export function ChampionshipPublicView({
 
   return (
     <div
-      className="directory-page-body directory-page-body-with-banner champ-public champ-theme"
+      className="directory-page-body directory-page-body-with-banner directory-immersive-shell champ-public champ-theme"
       style={themeStyle}
     >
-      <section className="directory-profile-banner theme-campeonatos is-compact champ-public-banner" data-theme="campeonatos">
-        <div className="directory-profile-banner-inner">
+      <section className="directory-profile-banner directory-immersive-profile-hero theme-campeonatos is-compact champ-public-banner" data-theme="campeonatos">
+        <span className="directory-hero-character" aria-hidden="true" />
+        <div className="directory-profile-banner-inner directory-immersive-profile-content">
           <a className="directory-back on-banner" href={`/${kindLabel}`}>
             <ArrowLeft size={15} /> Voltar para {kindLabel}
           </a>

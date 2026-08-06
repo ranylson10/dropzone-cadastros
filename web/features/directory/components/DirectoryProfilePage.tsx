@@ -40,9 +40,10 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
       loadSession
       mainClassName={`directory-profile-page compact-profile directory-theme-${kind} page page-authenticated`}
     >
-      <div className="directory-page-body directory-page-body-with-banner">
-        <section className={`directory-profile-banner theme-${kind} is-compact`} data-theme={kind}>
-          <div className="directory-profile-banner-inner">
+      <div className="directory-page-body directory-page-body-with-banner directory-immersive-shell">
+        <section className={`directory-profile-banner directory-immersive-profile-hero theme-${kind} is-compact`} data-theme={kind}>
+          <span className="directory-hero-character" aria-hidden="true" />
+          <div className="directory-profile-banner-inner directory-immersive-profile-content">
             <a className="directory-back on-banner" href={`/${kind}`}>
               <ArrowLeft size={15} /> Voltar para {config.title.toLowerCase()}
             </a>

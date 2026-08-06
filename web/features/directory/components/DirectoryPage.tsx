@@ -13,9 +13,10 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
       loadSession
       mainClassName={`directory-page directory-theme-${kind} page page-authenticated`}
     >
-      <div className="directory-page-body directory-page-body-with-banner">
-        <section className={`directory-hero directory-hero-banner theme-${kind}`} data-theme={kind}>
-          <div className="directory-hero-inner">
+      <div className="directory-page-body directory-page-body-with-banner directory-immersive-shell">
+        <section className={`directory-hero directory-hero-banner directory-immersive-hero theme-${kind}`} data-theme={kind}>
+          <span className="directory-hero-character" aria-hidden="true" />
+          <div className="directory-hero-inner directory-immersive-content">
             <small>DIRETÓRIO PÚBLICO</small>
             <h1>{config.title}</h1>
             <p>{config.description}</p>
