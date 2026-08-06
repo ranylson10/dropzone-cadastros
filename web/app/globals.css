@@ -12135,3 +12135,52 @@ input::placeholder, textarea::placeholder {
   .producer-layout-ref .detail-stat strong{font-size:20px}
   .producer-layout-ref .champ-subtabs-ref{margin-top:8px}
 }
+
+/* Rodada 85 — painel da produtora por hierarquia, sem cards informativos */
+.producer-hub-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 12px;padding:4px;border-bottom:1px solid var(--line);background:transparent}
+.producer-hub-nav button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--muted);font-size:11px;font-weight:900;text-transform:uppercase;cursor:pointer}
+.producer-hub-nav button.active{border-bottom-color:var(--brand);color:var(--text)}
+.producer-hub-section{display:grid;gap:14px;padding:8px 0 18px;border-bottom:1px solid var(--line)}
+.producer-hub-section>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 4px}
+.producer-hub-section>header h2{margin:2px 0 0;font-size:24px;text-transform:uppercase}
+.producer-section-copy{margin:0;padding:0 4px;color:var(--muted);font-size:13px}
+.producer-inline-actions{display:flex;flex-wrap:wrap;gap:8px;padding:0 4px}
+.producer-simple-list{display:grid;border-top:1px solid var(--line)}
+.producer-simple-list>a,.producer-simple-list>button{display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;min-height:62px;padding:10px 4px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
+.producer-simple-list>a:hover,.producer-simple-list>button:hover{background:color-mix(in srgb,var(--brand) 5%,transparent)}
+.producer-simple-list>a>span,.producer-simple-list>button>span{display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:var(--surface-soft)}
+.producer-simple-list strong{display:block;font-size:13px}.producer-simple-list small{display:block;margin-top:2px;color:var(--muted);font-size:11px}
+.producer-layout-ref{display:block!important}
+.producer-command-card{padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+.producer-command-card .section-head{padding:4px 4px 10px;border-bottom:1px solid var(--line)}
+.producer-primary-actions{display:flex!important;gap:8px!important;padding:10px 4px!important;border-bottom:1px solid var(--line)}
+.producer-primary-actions .producer-action{display:inline-flex!important;flex:0 0 auto!important;min-width:112px!important;min-height:42px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--surface)!important}
+.producer-primary-actions .producer-action.primary{border-color:var(--brand)!important;background:var(--brand)!important;color:var(--on-brand)!important}
+.producer-championship-list{border-top:0!important;background:transparent!important}
+.producer-championship-list .ref-champ-item{display:grid!important;grid-template-columns:46px minmax(0,1fr)!important;gap:12px!important;min-height:68px!important;padding:9px 4px!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:transparent!important;text-align:left!important}
+.producer-championship-list .ref-champ-item.active{border-left:3px solid var(--brand)!important;padding-left:9px!important;background:color-mix(in srgb,var(--brand) 5%,transparent)!important}
+.producer-championship-list .champ-thumb{width:46px!important;height:46px!important;border-radius:8px!important}
+.producer-championship-list strong{font-size:13px!important}.producer-championship-list small{margin-top:3px!important;color:var(--muted)!important;font-size:10px!important}
+.championship-detail-card{margin-top:14px!important;padding:0!important;border:0!important;border-top:1px solid var(--line)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+
+/* Conta da produtora: nome em primeiro plano e métricas discretas */
+.page-authenticated .account-strip.account-strip-compact{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:8px 14px!important;margin:0!important;padding:12px 4px 10px!important;border:0!important;border-bottom:1px solid var(--line)!important;background:transparent!important;box-shadow:none!important}
+.account-strip-compact .account-strip-head strong{font-size:20px!important}.account-strip-compact .account-strip-head strong span{font-size:9px!important}
+.account-strip-compact .account-strip-metrics{grid-column:1/-1!important;display:flex!important;justify-content:flex-start!important;gap:14px!important;margin:0!important;padding:0!important}
+.account-strip-compact .account-strip-metrics .metric{display:inline-flex!important;align-items:center!important;gap:4px!important;min-width:0!important;min-height:0!important;padding:0!important;border:0!important;background:transparent!important}
+.account-strip-compact .account-strip-metrics .metric svg{width:12px!important;height:12px!important}.account-strip-compact .account-strip-metrics .metric b{font-size:12px!important}.account-strip-compact .account-strip-metrics .metric span{margin:0!important;font-size:8px!important}
+.account-strip-compact .account-strip-action{width:38px!important;height:38px!important;min-height:38px!important}
+
+@media(max-width:640px){
+  .producer-hub-nav{position:sticky;top:64px;z-index:20;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;padding:0 4px;background:var(--surface)}
+  .producer-hub-nav button{min-height:48px;gap:4px;font-size:8px}.producer-hub-nav button svg{width:16px;height:16px}
+  .producer-hub-section{padding:10px 10px 16px}.producer-hub-section>header,.producer-inline-actions,.producer-section-copy{padding-inline:0}
+  .producer-command-card .section-head{padding:10px}
+  .producer-primary-actions{padding:8px 10px!important}.producer-primary-actions .producer-action{min-width:0!important;flex:1!important}
+  .producer-championship-list .ref-champ-item{padding:9px 10px!important}.producer-championship-list .ref-champ-item.active{padding-left:7px!important}
+  .championship-detail-card{margin-top:6px!important}
+  .page-authenticated .account-strip.account-strip-compact{padding:10px 12px 8px!important}
+  .account-strip-compact .account-strip-head strong{font-size:18px!important}
+  .account-strip-compact .account-strip-metrics{gap:10px!important;overflow-x:auto!important;white-space:nowrap!important}
+  .account-strip-compact .account-strip-metrics .metric span{display:none!important}
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Copy, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, MoreHorizontal, Pause, Pencil, Play, Plus, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES } from '@/lib/dropzone-constants'
@@ -20,6 +20,7 @@ import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
+type ProducerSection = 'campeonatos' | 'staff' | 'vendedores' | 'vagas'
 
 export function ProdutoraPanel(props: {
   account?: DropZoneRow | null
@@ -96,7 +97,8 @@ export function ProdutoraPanel(props: {
   const [editingChamp, setEditingChamp] = useState<CampeonatoFormValue>(emptyCampeonatoForm)
   const [typeFilter, setTypeFilter] = useState('todos')
   const [showChampFilters, setShowChampFilters] = useState(false)
-  const [showProducerMore, setShowProducerMore] = useState(false)
+  const [producerSection, setProducerSection] = useState<ProducerSection>('campeonatos')
+  const [championshipDetailOpen, setChampionshipDetailOpen] = useState(false)
   const [tab, setTab] = useState<ProducerTab>('equipes')
   const [payInfo, setPayInfo] = useState<any>(null)
   const [payBusy, setPayBusy] = useState(false)
@@ -699,6 +701,14 @@ export function ProdutoraPanel(props: {
     }
   }, [tab, selectedChamp?.id])
 
+
+  useEffect(() => {
+    if (producerSection === 'vendedores') {
+      setSellerSelected(null)
+      void loadSellers()
+    }
+  }, [producerSection])
+
   useEffect(() => {
     setLinkStatusFilter('todos')
     setOpenLinkIds({})
@@ -1071,7 +1081,57 @@ ${params.url}`
         </div>
       ) : null}
 
-      <aside className="championship-nav-card panel producer-command-card">
+      <nav className="producer-hub-nav" aria-label="Áreas da produtora">
+        <button type="button" className={producerSection === 'campeonatos' ? 'active' : ''} onClick={() => setProducerSection('campeonatos')}><Trophy size={17} /><span>Campeonatos</span></button>
+        <button type="button" className={producerSection === 'staff' ? 'active' : ''} onClick={() => setProducerSection('staff')}><Users size={17} /><span>Staff</span></button>
+        <button type="button" className={producerSection === 'vendedores' ? 'active' : ''} onClick={() => setProducerSection('vendedores')}><BriefcaseBusiness size={17} /><span>Vendedores</span></button>
+        <button type="button" className={producerSection === 'vagas' ? 'active' : ''} onClick={() => setProducerSection('vagas')}><Store size={17} /><span>Vagas</span></button>
+      </nav>
+
+      {producerSection === 'staff' ? (
+        <section className="producer-hub-section">
+          <header><div><p className="eyebrow">Equipe da produtora</p><h2>Staff</h2></div><Users size={22} /></header>
+          <div className="producer-simple-list">
+            <a href="/managers"><span><UserPlus size={18} /></span><div><strong>Líderes e ajudantes</strong><small>Gerencie responsáveis e acessos operacionais.</small></div><ChevronRight size={17} /></a>
+            <button type="button" onClick={() => setProducerSection('vendedores')}><span><BriefcaseBusiness size={18} /></span><div><strong>Vendedores</strong><small>Convites, limites e campeonatos vinculados.</small></div><ChevronRight size={17} /></button>
+          </div>
+        </section>
+      ) : null}
+
+      {producerSection === 'vendedores' ? (
+        <section className="producer-hub-section">
+          <header><div><p className="eyebrow">Comercial</p><h2>Vendedores</h2></div><BriefcaseBusiness size={22} /></header>
+          <div className="producer-inline-actions">
+            <button type="button" className="button" disabled={sellerLoading} onClick={() => void createSellerInvite()}><UserPlus size={15} /> Convidar vendedor</button>
+            {sellerLink ? <button type="button" className="button secondary" onClick={() => void navigator.clipboard.writeText(sellerLink)}><Copy size={15} /> Copiar convite</button> : null}
+          </div>
+          {sellerError ? <div className="message error">{sellerError}</div> : null}
+          <div className="producer-simple-list">
+            {sellerLoading ? <p className="empty">Carregando vendedores...</p> : null}
+            {!sellerLoading && sellerRows.length === 0 ? <p className="empty">Nenhum vendedor vinculado.</p> : null}
+            {sellerRows.map((seller) => (
+              <button type="button" key={String(seller.manager_id || seller.id)} onClick={() => openSellerEditor(seller)}>
+                <span><BriefcaseBusiness size={18} /></span>
+                <div><strong>{String(seller.nome_publico || seller.managers?.nome || seller.managers?.username || 'Vendedor')}</strong><small>{seller.status === 'inativo' ? 'Inativo' : 'Ativo'} · {Array.isArray(seller.campeonatos) ? seller.campeonatos.length : 0} campeonato(s)</small></div>
+                <Pencil size={16} />
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {producerSection === 'vagas' ? (
+        <section className="producer-hub-section">
+          <header><div><p className="eyebrow">Página pública</p><h2>Campeonatos com vagas</h2></div><Store size={22} /></header>
+          <p className="producer-section-copy">Compartilhe uma única página com os campeonatos disponíveis da produtora.</p>
+          <div className="producer-inline-actions">
+            {producerCatalogLink ? <a className="button" href={producerCatalogLink} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Abrir página</a> : null}
+            {producerCatalogLink ? <button type="button" className="button secondary" onClick={() => void copyProducerCatalog()}><Copy size={15} /> {catalogCopied ? 'Copiado' : 'Copiar link'}</button> : null}
+          </div>
+        </section>
+      ) : null}
+
+      {producerSection === 'campeonatos' ? <aside className="championship-nav-card panel producer-command-card">
         <div className="section-head compact-head">
           <div>
             <p className="eyebrow">Produtora</p>
@@ -1080,37 +1140,9 @@ ${params.url}`
           <Trophy />
         </div>
 
-        <div className="producer-primary-actions" role="group" aria-label="Ações principais da produtora">
-          <button
-            type="button"
-            className="producer-action primary"
-            disabled={produtoraAprovacao !== 'aprovado'}
-            title={produtoraAprovacao !== 'aprovado' ? 'Produtora ainda não aprovada' : 'Novo campeonato'}
-            onClick={() => setShowCreateChamp(true)}
-          >
-            <Plus size={18} />
-            <span>Novo</span>
-          </button>
-          {producerCatalogLink ? (
-            <>
-              <a className="producer-action" href={producerCatalogLink} target="_blank" rel="noreferrer" title="Abrir página pública de vagas">
-                <ExternalLink size={18} />
-                <span>Abrir</span>
-              </a>
-              <button className="producer-action" type="button" onClick={() => void copyProducerCatalog()} title="Copiar página pública de vagas">
-                <Copy size={18} />
-                <span>{catalogCopied ? 'Copiado' : 'Copiar'}</span>
-              </button>
-            </>
-          ) : null}
-          <button className={`producer-action ${showChampFilters ? 'active' : ''}`} type="button" onClick={() => setShowChampFilters((value) => !value)} title="Filtrar campeonatos">
-            <Filter size={18} />
-            <span>Filtro</span>
-          </button>
-          <button className={`producer-action ${showProducerMore ? 'active' : ''}`} type="button" onClick={() => setShowProducerMore((value) => !value)} title="Mais opções">
-            <MoreHorizontal size={19} />
-            <span>Mais</span>
-          </button>
+        <div className="producer-primary-actions" role="group" aria-label="Ações dos campeonatos">
+          <button type="button" className="producer-action primary" disabled={produtoraAprovacao !== 'aprovado'} title="Novo campeonato" onClick={() => setShowCreateChamp(true)}><Plus size={18} /><span>Novo</span></button>
+          <button className={`producer-action ${showChampFilters ? 'active' : ''}`} type="button" onClick={() => setShowChampFilters((value) => !value)} title="Filtrar campeonatos"><Filter size={18} /><span>Filtrar</span></button>
         </div>
 
         {showChampFilters ? (
@@ -1120,12 +1152,6 @@ ${params.url}`
           </div>
         ) : null}
 
-        {showProducerMore && producerCatalogLink ? (
-          <div className="producer-more-menu">
-            <a href={producerCatalogLink} target="_blank" rel="noreferrer"><Link2 size={15} /> Página pública de vagas</a>
-            <button type="button" onClick={() => void copyProducerCatalog()}><Copy size={15} /> Copiar link público</button>
-          </div>
-        ) : null}
 
         <div className="championship-list ref-list producer-championship-list">
           {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato neste tipo.</p> : null}
@@ -1139,24 +1165,24 @@ ${params.url}`
                 onClick={() => {
                   props.setSelectedChampId(champ.id)
                   setShowCreateChamp(false)
+                  setChampionshipDetailOpen(true)
+                  setTab('equipes')
                 }}
               >
                 <span className="champ-thumb">{logo ? <img src={logo} alt="" /> : <Trophy size={18} />}</span>
                 <span>
                   <strong>{rowTitle(champ)}</strong>
                   <small>
-                    {ap === 'pendente'
-                      ? 'Aguardando aprovação'
-                      : ap === 'rejeitado'
-                        ? 'Rejeitado pelo admin'
-                        : dataText(champ, 'premiacao') || 'Premiação não informada'}
+                    {CHAMPIONSHIP_TYPE_LABELS[String(dataText(champ, 'tipo') || 'copa') as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Campeonato'}
+                    {' · '}{dataText(champ, 'numero_vagas') || '—'} vagas
+                    {' · '}{ap === 'pendente' ? 'Pendente' : ap === 'rejeitado' ? 'Rejeitado' : 'Ativo'}
                   </small>
                 </span>
               </button>
             )
           })}
         </div>
-      </aside>
+      </aside> : null}
 
       <SystemModal
         open={showCreateChamp}
@@ -1309,7 +1335,7 @@ ${params.url}`
         ) : null}
       </SystemModal>
 
-      <section className="championship-detail-card panel">
+      {producerSection === 'campeonatos' && championshipDetailOpen ? <section className="championship-detail-card panel">
         {selectedChamp ? (
           <>
             <header className="detail-hero-ref">
@@ -2583,7 +2609,7 @@ ${params.url}`
             <p>Ao selecionar, as abas de equipes, jogadores, fases, grupos e jogos aparecem aqui.</p>
           </div>
         )}
-      </section>
+      </section> : null}
     </div>
   )
 }
