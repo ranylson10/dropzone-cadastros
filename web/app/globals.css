@@ -13785,3 +13785,305 @@ textarea {
   .login-profile-card,
   .login-auth-step .social-login-button { transition: none !important; }
 }
+
+/* =========================================================
+   FASE VISUAL 3 — PAINÉIS OPERACIONAIS
+   Equipe, jogador e manager com leitura mais editorial,
+   menos cartões soltos e melhor uso no mobile.
+   ========================================================= */
+.team-dashboard,
+.player-dashboard,
+.manager-dashboard {
+  --panel-accent: var(--dz-accent);
+  width: min(1380px, 100%);
+  margin-inline: auto;
+}
+
+.team-dashboard > .section-head,
+.player-dashboard > .section-head,
+.manager-dashboard > .section-head,
+.manager-hub-header,
+.manager-hub-header-compact {
+  min-height: 74px;
+  padding: 18px 0;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(16,24,32,.15) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.team-dashboard > .section-head h2,
+.player-dashboard > .section-head h2,
+.manager-dashboard > .section-head h2,
+.manager-hub-header h2,
+.manager-hub-header-compact h2 {
+  font-size: clamp(30px, 4vw, 50px) !important;
+  letter-spacing: -.04em !important;
+}
+
+.team-panel-tabs,
+.panel-tabs,
+.producer-tabs,
+.manager-subnav,
+.manager-champ-tabs {
+  display: flex !important;
+  gap: 0 !important;
+  overflow-x: auto;
+  padding: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(16,24,32,.16) !important;
+  background: transparent !important;
+  scrollbar-width: thin;
+}
+
+.team-panel-tabs button,
+.panel-tabs button,
+.producer-tabs button,
+.manager-subnav button,
+.manager-champ-tabs button {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 10px 15px !important;
+  border: 0 !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--dz-muted) !important;
+  box-shadow: none !important;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.team-panel-tabs button.active,
+.panel-tabs button.active,
+.producer-tabs button.active,
+.manager-subnav button.active,
+.manager-champ-tabs button.active {
+  border-bottom-color: var(--dz-accent) !important;
+  color: var(--dz-ink) !important;
+}
+
+.team-championship-list,
+.team-line-grid,
+.team-player-grid,
+.player-summary-grid,
+.manager-profile-grid,
+.manager-vendas-list,
+.manager-context-stack {
+  gap: 12px !important;
+}
+
+.team-championship-card,
+.team-line-card,
+.team-player-card,
+.manager-profile-card,
+.manager-champ-panel,
+.manager-detail-panel,
+.manager-detail-block,
+.manager-vendas-list > *,
+.player-summary-grid > * {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #f7f4ee !important;
+  box-shadow: none !important;
+}
+
+.team-championship-card,
+.manager-champ-panel,
+.manager-detail-panel {
+  border-left: 4px solid transparent !important;
+  transition: background .18s ease, border-color .18s ease;
+}
+
+.team-championship-card:hover,
+.manager-champ-panel:hover,
+.manager-detail-panel:hover {
+  border-left-color: var(--dz-accent) !important;
+  background: #eee9e1 !important;
+}
+
+.team-championship-head,
+.team-section-title,
+.manager-detail-actions,
+.manager-list-actions,
+.manager-champ-summary {
+  border-color: rgba(16,24,32,.12) !important;
+}
+
+.team-championship-status,
+.manager-mode-chip,
+.manager-mode-chip-sm,
+.manager-perm-chip,
+.vaga-status-pill,
+.count-pill {
+  border-radius: 1px !important;
+  box-shadow: none !important;
+  text-transform: uppercase;
+  letter-spacing: .045em;
+}
+
+.team-line-card,
+.team-player-card,
+.manager-profile-card,
+.player-summary-grid > * {
+  position: relative;
+  overflow: hidden;
+}
+
+.team-line-card::before,
+.team-player-card::before,
+.manager-profile-card::before,
+.player-summary-grid > *::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--dz-accent);
+  opacity: .78;
+}
+
+.team-player-card img,
+.team-line-card img,
+.manager-profile-avatar,
+.manager-detail-thumb,
+.manager-champ-logo,
+.vaga-row-avatar {
+  border: 0 !important;
+  border-radius: 2px !important;
+  background: rgba(16,24,32,.06) !important;
+  box-shadow: none !important;
+}
+
+.lineup-token-card,
+.lineup-invite-preview,
+.lineup-invite-result,
+.lineup-token-list,
+.staff-search-results,
+.transfer-team-results,
+.inline-action-panel,
+.subtab-actionbar {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #ece7df !important;
+  box-shadow: none !important;
+}
+
+.compact-row,
+.vaga-row-summary,
+.vaga-row-details,
+.link-invite-main,
+.link-invite-details,
+.game-folder-row,
+.phase-folder-row,
+.folder-row {
+  border-color: rgba(16,24,32,.11) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.compact-row:hover,
+.vaga-row-summary:hover,
+.link-invite-main:hover,
+.game-folder-row:hover,
+.phase-folder-row:hover,
+.folder-row:hover {
+  background: rgba(16,24,32,.035) !important;
+}
+
+.game-folder-card,
+.phase-folder-card,
+.folder-card,
+.link-ref-list-panel,
+.game-editor-panel,
+.game-form-section {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #f7f4ee !important;
+  box-shadow: none !important;
+}
+
+.game-folder-card > summary,
+.phase-folder-card > summary,
+.folder-card > summary,
+.game-form-section-header,
+.link-ref-list-head {
+  border-bottom: 1px solid rgba(16,24,32,.13) !important;
+  background: #ece7df !important;
+}
+
+.manager-flow-strip,
+.manager-flow-steps {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #101820 !important;
+  color: white !important;
+  box-shadow: none !important;
+}
+
+.manager-flow-step-icon,
+.manager-flow-step-copy strong,
+.manager-flow-ok {
+  color: var(--dz-accent) !important;
+}
+
+.manager-flow-step-copy small {
+  color: rgba(255,255,255,.58) !important;
+}
+
+@media (max-width: 760px) {
+  .team-dashboard,
+  .player-dashboard,
+  .manager-dashboard {
+    width: 100%;
+  }
+
+  .team-dashboard > .section-head,
+  .player-dashboard > .section-head,
+  .manager-dashboard > .section-head,
+  .manager-hub-header,
+  .manager-hub-header-compact {
+    min-height: 60px;
+    padding: 12px 0;
+  }
+
+  .team-panel-tabs,
+  .panel-tabs,
+  .producer-tabs,
+  .manager-subnav,
+  .manager-champ-tabs {
+    margin-inline: -10px;
+    padding-inline: 10px !important;
+  }
+
+  .team-panel-tabs button,
+  .panel-tabs button,
+  .producer-tabs button,
+  .manager-subnav button,
+  .manager-champ-tabs button {
+    min-height: 44px;
+    padding-inline: 12px !important;
+    font-size: 9px;
+  }
+
+  .team-championship-list,
+  .team-line-grid,
+  .team-player-grid,
+  .player-summary-grid,
+  .manager-profile-grid,
+  .manager-vendas-list,
+  .manager-context-stack {
+    gap: 9px !important;
+  }
+
+  .team-championship-card,
+  .team-line-card,
+  .team-player-card,
+  .manager-profile-card,
+  .manager-champ-panel,
+  .manager-detail-panel,
+  .player-summary-grid > * {
+    padding: 12px !important;
+  }
+}
