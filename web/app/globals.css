@@ -15964,3 +15964,471 @@ textarea {
     gap: 10px !important;
   }
 }
+
+/* =========================================================
+   RODADA VISUAL 10 — VARREDURA DEFINITIVA DOS PAINÉIS
+   Regra universal: sem branco puro; listas/tabelas usam a
+   cor-base do sistema em tons alternados e mais escuros.
+   ========================================================= */
+:root {
+  --dz-panel-page: #eee9e1;
+  --dz-panel-row-a: #e3ddd4;
+  --dz-panel-row-b: #d8d1c7;
+  --dz-panel-row-hover: #cec6ba;
+  --dz-panel-surface: #e9e3da;
+  --dz-panel-surface-2: #ddd6cc;
+  --dz-panel-line: #c8c0b5;
+  --dz-panel-ink: #151c24;
+  --dz-panel-muted: #68717b;
+  --dz-panel-dark: #111a23;
+  --dz-panel-dark-2: #18232e;
+}
+
+/* Header: todos os controles visíveis e com contraste real. */
+.app-header {
+  height: 74px !important;
+  min-height: 74px !important;
+  background: #091119 !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,.11) !important;
+  overflow: visible !important;
+}
+.app-header-inner {
+  width: min(1500px, calc(100% - 30px)) !important;
+  height: 74px !important;
+  min-height: 74px !important;
+  grid-template-columns: auto minmax(0,1fr) auto auto !important;
+  gap: 14px !important;
+  overflow: visible !important;
+}
+.app-main-nav > a,
+.app-main-nav .app-nav-parent {
+  min-height: 74px !important;
+  color: rgba(255,255,255,.72) !important;
+}
+.app-global-language,
+.app-profile,
+.notif-bell { position: relative !important; overflow: visible !important; }
+.app-global-language-trigger,
+.app-wallet-chip,
+.app-admin-chip,
+.notif-bell-trigger,
+.app-profile-trigger {
+  min-height: 42px !important;
+  height: 42px !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  border-radius: 0 !important;
+  background: #151f29 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.app-global-language-trigger {
+  min-width: 72px !important;
+  padding: 0 12px !important;
+}
+.app-global-language-trigger span,
+.app-global-language-trigger svg,
+.app-wallet-chip span,
+.app-wallet-chip svg,
+.notif-bell-trigger svg,
+.app-profile-trigger svg {
+  color: #fff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.app-wallet-chip { padding: 0 13px !important; }
+.app-admin-chip {
+  padding: 0 15px !important;
+  border-color: #ff5468 !important;
+  background: #ff5468 !important;
+}
+.notif-bell-trigger {
+  display: grid !important;
+  place-items: center !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  padding: 0 !important;
+}
+.notif-bell-trigger:hover,
+.app-global-language-trigger:hover,
+.app-wallet-chip:hover,
+.app-profile-trigger:hover { background: #202d39 !important; }
+.notif-bell-badge {
+  top: -6px !important;
+  right: -6px !important;
+  min-width: 19px !important;
+  height: 19px !important;
+  line-height: 19px !important;
+  border: 2px solid #091119 !important;
+  background: #d3a526 !important;
+  color: #101820 !important;
+  z-index: 3 !important;
+}
+.app-profile-trigger {
+  min-width: 190px !important;
+  max-width: 250px !important;
+  padding: 0 10px !important;
+}
+.app-profile-trigger .app-profile-copy strong { color: #fff !important; font-size: 13px !important; }
+.app-profile-trigger .app-profile-copy small { color: rgba(255,255,255,.58) !important; font-size: 9px !important; }
+.app-global-language-menu,
+.app-profile-menu,
+.notif-inbox-panel {
+  top: calc(100% + 8px) !important;
+  border: 1px solid #303c47 !important;
+  border-top: 3px solid #ff5468 !important;
+  border-radius: 0 !important;
+  background: #f0ebe3 !important;
+  color: #151c24 !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,.34) !important;
+  z-index: 500 !important;
+}
+.app-global-language-menu button {
+  border-color: #d3cbc0 !important;
+  background: #e6dfd5 !important;
+  color: #17212b !important;
+}
+.app-global-language-menu button:nth-child(even) { background: #dbd3c8 !important; }
+.app-global-language-menu button:hover,
+.app-global-language-menu button.active { background: #cfc6ba !important; color: #111820 !important; }
+.notif-inbox-head { background: #111a23 !important; border-color: #303c47 !important; }
+.notif-inbox-head strong { color: #fff !important; }
+.notif-inbox-head small { color: rgba(255,255,255,.58) !important; }
+.notif-inbox-item { background: #e5dfd6 !important; border-color: #d0c8bd !important; }
+.notif-inbox-item:nth-child(even) { background: #dad2c8 !important; }
+
+/* Fundo e largura dos painéis autenticados. */
+.page-authenticated {
+  background: var(--dz-panel-page) !important;
+  color: var(--dz-panel-ink) !important;
+}
+.page-authenticated .shell {
+  width: min(1460px, calc(100% - 36px)) !important;
+}
+
+/* Faixa da conta ativa: escura, legível e maior no PC. */
+.page-authenticated .account-strip.account-strip-compact {
+  width: 100% !important;
+  margin: 0 0 16px !important;
+  padding: 20px 24px !important;
+  border: 0 !important;
+  border-left: 5px solid #ff5468 !important;
+  background: linear-gradient(110deg, #111a23 0%, #1b2732 72%, #121b24 100%) !important;
+  color: #fff !important;
+}
+.page-authenticated .account-strip-compact .eyebrow { color: #e2b83f !important; }
+.page-authenticated .account-strip-compact .account-strip-head strong {
+  color: #fff !important;
+  font-size: clamp(32px, 3vw, 48px) !important;
+  line-height: .95 !important;
+  letter-spacing: -.035em !important;
+}
+.page-authenticated .account-strip-compact .account-strip-head strong span {
+  color: rgba(255,255,255,.64) !important;
+  font-size: 11px !important;
+}
+.page-authenticated .account-strip-compact .account-strip-metrics .metric,
+.page-authenticated .account-strip-compact .account-strip-metrics .metric:first-child {
+  padding: 6px 14px 6px 0 !important;
+  border: 0 !important;
+  border-right: 1px solid rgba(255,255,255,.14) !important;
+  background: transparent !important;
+}
+.page-authenticated .account-strip-compact .account-strip-metrics .metric:last-child { border-right: 0 !important; }
+.page-authenticated .account-strip-compact .account-strip-metrics .metric svg,
+.page-authenticated .account-strip-compact .account-strip-metrics .metric b { color: #e2b83f !important; }
+.page-authenticated .account-strip-compact .account-strip-metrics .metric span { color: rgba(255,255,255,.58) !important; }
+.page-authenticated .account-strip-compact .account-strip-action {
+  border-color: rgba(255,255,255,.18) !important;
+  background: rgba(255,255,255,.08) !important;
+  color: #fff !important;
+}
+
+/* Painéis, formulários e cartões: nunca branco puro. */
+.page-authenticated .panel,
+.page-authenticated .panel-soft,
+.page-authenticated .card,
+.page-authenticated .form-section-card,
+.page-authenticated .game-form-section,
+.page-authenticated .game-form-panel,
+.page-authenticated .game-rules-panel,
+.page-authenticated .inline-action-panel,
+.page-authenticated .subtab-actionbar,
+.page-authenticated .token-card,
+.page-authenticated .player-team-request,
+.page-authenticated .lineup-token-card,
+.page-authenticated .manager-champ-panel,
+.page-authenticated .manager-detail-panel,
+.page-authenticated .manager-detail-block,
+.page-authenticated .team-championship-card,
+.page-authenticated .team-line-card,
+.page-authenticated .team-player-card {
+  border-color: var(--dz-panel-line) !important;
+  border-radius: 0 !important;
+  background: var(--dz-panel-surface) !important;
+  color: var(--dz-panel-ink) !important;
+  box-shadow: none !important;
+}
+.page-authenticated input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),
+.page-authenticated select,
+.page-authenticated textarea {
+  border-color: var(--dz-panel-line) !important;
+  border-radius: 0 !important;
+  background: #e7e0d7 !important;
+  color: var(--dz-panel-ink) !important;
+}
+
+/* Regra universal para TODAS as listas operacionais. */
+.page-authenticated :is(
+  .list,
+  .ref-list,
+  .championship-list,
+  .championship-vagas-list,
+  .team-championship-list,
+  .team-line-grid,
+  .team-player-grid,
+  .lineup-token-list,
+  .producer-simple-list,
+  .manager-vendas-list,
+  .manager-context-stack,
+  .seller-roster-grid,
+  .games-list,
+  .phase-folder-tree,
+  .player-team-request-results,
+  .notif-inbox-list
+) {
+  gap: 1px !important;
+  border-color: var(--dz-panel-line) !important;
+  background: var(--dz-panel-line) !important;
+}
+.page-authenticated :is(
+  .list-item,
+  .compact-row,
+  .champ-list-item,
+  .championship-vaga-row,
+  .team-championship-card,
+  .team-line-card,
+  .team-player-card,
+  .lineup-token-card,
+  .producer-simple-list > a,
+  .producer-simple-list > button,
+  .manager-vendas-list > *,
+  .seller-roster-card,
+  .game-card,
+  .player-team-request-results article
+) {
+  border: 0 !important;
+  border-left: 3px solid transparent !important;
+  border-radius: 0 !important;
+  background: var(--dz-panel-row-a) !important;
+  color: var(--dz-panel-ink) !important;
+  box-shadow: none !important;
+}
+.page-authenticated :is(
+  .list-item,
+  .compact-row,
+  .champ-list-item,
+  .championship-vaga-row,
+  .team-championship-card,
+  .team-line-card,
+  .team-player-card,
+  .lineup-token-card,
+  .producer-simple-list > a,
+  .producer-simple-list > button,
+  .manager-vendas-list > *,
+  .seller-roster-card,
+  .game-card,
+  .player-team-request-results article
+):nth-child(even) { background: var(--dz-panel-row-b) !important; }
+.page-authenticated :is(
+  .list-item,
+  .compact-row,
+  .champ-list-item,
+  .championship-vaga-row,
+  .team-championship-card,
+  .team-line-card,
+  .team-player-card,
+  .lineup-token-card,
+  .producer-simple-list > a,
+  .producer-simple-list > button,
+  .manager-vendas-list > *,
+  .seller-roster-card,
+  .game-card,
+  .player-team-request-results article
+):hover {
+  border-left-color: #ff5468 !important;
+  background: var(--dz-panel-row-hover) !important;
+}
+.page-authenticated .championship-vaga-row.status-livre,
+.page-authenticated .championship-vaga-row.status-reservada,
+.page-authenticated .championship-vaga-row.status-ocupada,
+.page-authenticated .championship-vaga-row.is-open,
+.page-authenticated .seller-roster-card.is-on-champ,
+.page-authenticated .seller-roster-card.is-roster-only {
+  background-image: none !important;
+  background-color: var(--dz-panel-row-a) !important;
+}
+.page-authenticated .championship-vaga-row:nth-child(even),
+.page-authenticated .seller-roster-card:nth-child(even) { background-color: var(--dz-panel-row-b) !important; }
+.page-authenticated .championship-vaga-row.status-livre { border-left-color: #7b8792 !important; }
+.page-authenticated .championship-vaga-row.status-reservada { border-left-color: #d3a526 !important; }
+.page-authenticated .championship-vaga-row.status-ocupada { border-left-color: #ff5468 !important; }
+.page-authenticated .vaga-row-summary { min-height: 52px !important; padding: 6px 12px !important; }
+.page-authenticated .vaga-row-avatar,
+.page-authenticated .vaga-row-avatar.status-livre,
+.page-authenticated .vaga-row-avatar.status-reservada,
+.page-authenticated .vaga-row-avatar.status-ocupada {
+  border-color: #bbb2a6 !important;
+  border-radius: 0 !important;
+  background: rgba(255,255,255,.22) !important;
+  color: #49545f !important;
+}
+.page-authenticated .vaga-status-pill { border-radius: 0 !important; }
+.page-authenticated .vaga-status-pill.status-livre { background: #c7c1b8 !important; color: #3d4650 !important; }
+.page-authenticated .vaga-status-pill.status-reservada { background: #e2c66f !important; color: #433615 !important; }
+.page-authenticated .vaga-status-pill.status-ocupada { background: #d5a8af !important; color: #521d27 !important; }
+.page-authenticated .vaga-row-details { background: #d4ccc1 !important; border-color: #bbb2a6 !important; }
+.page-authenticated .vaga-row-actions button { background: #e8e1d8 !important; border-color: #bfb6aa !important; }
+
+/* Produtora: cabeçalho do campeonato escuro e métricas legíveis. */
+.producer-layout-ref {
+  --producer-bg: var(--dz-panel-page) !important;
+  --producer-surface: var(--dz-panel-surface) !important;
+  --producer-surface-strong: var(--dz-panel-surface-2) !important;
+  --producer-panel: var(--dz-panel-row-a) !important;
+  --producer-line: var(--dz-panel-line) !important;
+  --producer-line-soft: #d1c9be !important;
+  --producer-ink: var(--dz-panel-ink) !important;
+  background: var(--dz-panel-page) !important;
+  border-color: var(--dz-panel-line) !important;
+}
+.producer-layout-ref .championship-detail-card { background: var(--dz-panel-page) !important; }
+.producer-layout-ref .detail-hero-ref {
+  padding: 22px 26px !important;
+  border: 0 !important;
+  border-left: 5px solid #ff5468 !important;
+  border-radius: 0 !important;
+  background: linear-gradient(110deg, #111a23, #1a2631 72%, #121b24) !important;
+  color: #fff !important;
+}
+.producer-layout-ref .detail-title-ref h2 {
+  color: #fff !important;
+  font-size: clamp(34px, 4vw, 56px) !important;
+  line-height: .96 !important;
+}
+.producer-layout-ref .detail-title-ref .eyebrow { color: #ff6a7c !important; }
+.producer-layout-ref .detail-title-ref > p,
+.producer-layout-ref .detail-title-ref > p:not(.eyebrow):first-of-type { color: rgba(255,255,255,.78) !important; }
+.producer-layout-ref .detail-logo-ref { border-color: rgba(255,255,255,.18) !important; background: rgba(255,255,255,.08) !important; }
+.producer-layout-ref .championship-admin-actions .icon-action-button {
+  border-color: rgba(255,255,255,.22) !important;
+  background: rgba(255,255,255,.09) !important;
+  color: #fff !important;
+}
+.producer-layout-ref .detail-stats-ref {
+  margin-top: 12px !important;
+  border-color: rgba(255,255,255,.12) !important;
+  background: rgba(255,255,255,.12) !important;
+}
+.producer-layout-ref .detail-stat {
+  min-height: 64px !important;
+  background: rgba(255,255,255,.08) !important;
+}
+.producer-layout-ref .detail-stat strong { color: #fff !important; font-size: 24px !important; }
+.producer-layout-ref .detail-stat span { color: rgba(255,255,255,.58) !important; }
+.producer-layout-ref .champ-subtabs-ref {
+  margin: 0 0 12px !important;
+  border-color: #273440 !important;
+  background: #111a23 !important;
+}
+.producer-layout-ref .champ-subtabs-ref button { color: rgba(255,255,255,.68) !important; border-color: #2b3844 !important; }
+.producer-layout-ref .champ-subtabs-ref button.active { background: #ff5468 !important; color: #fff !important; }
+
+/* Estatísticas/tabelas: remove LEALT antigo e adota zebra do sistema. */
+.page-authenticated table,
+.producer-layout-ref .statistics-table {
+  border-collapse: collapse !important;
+  background: var(--dz-panel-row-a) !important;
+  color: var(--dz-panel-ink) !important;
+}
+.page-authenticated table thead th,
+.producer-layout-ref .statistics-table thead th {
+  background: #111a23 !important;
+  color: #fff !important;
+  border-color: #2c3945 !important;
+}
+.page-authenticated table tbody tr,
+.producer-layout-ref .statistics-table tbody tr { background: var(--dz-panel-row-a) !important; }
+.page-authenticated table tbody tr:nth-child(even),
+.producer-layout-ref .statistics-table tbody tr:nth-child(even) { background: var(--dz-panel-row-b) !important; }
+.page-authenticated table tbody tr:hover,
+.producer-layout-ref .statistics-table tbody tr:hover { background: var(--dz-panel-row-hover) !important; }
+.page-authenticated table td,
+.page-authenticated table th,
+.producer-layout-ref .statistics-table td,
+.producer-layout-ref .statistics-table th { border-color: #c5bdb2 !important; }
+.producer-layout-ref .statistics-inner-tabs,
+.producer-layout-ref .statistics-filters,
+.producer-layout-ref .statistics-heading,
+.producer-layout-ref .subtab-actionbar {
+  border-radius: 0 !important;
+  border-color: var(--dz-panel-line) !important;
+  background: var(--dz-panel-surface-2) !important;
+}
+.producer-layout-ref .statistics-inner-tabs button { background: var(--dz-panel-row-a) !important; }
+.producer-layout-ref .statistics-inner-tabs button:nth-child(even) { background: var(--dz-panel-row-b) !important; }
+.producer-layout-ref .statistics-inner-tabs button.active { background: #ff5468 !important; color: #fff !important; }
+.producer-layout-ref .statistics-filters select { background: #e6dfd6 !important; border-color: #bfb6aa !important; }
+
+/* Jogos, fases e grupos: elimina qualquer área branca. */
+.producer-layout-ref .phase-folder,
+.producer-layout-ref .group-folder,
+.producer-layout-ref .game-card,
+.producer-layout-ref .game-folder-card,
+.producer-layout-ref .game-editor-panel,
+.producer-layout-ref .game-form-section,
+.producer-layout-ref .game-card-details,
+.producer-layout-ref .game-form-panel,
+.producer-layout-ref .game-rules-panel {
+  border-color: var(--dz-panel-line) !important;
+  border-radius: 0 !important;
+  background: var(--dz-panel-row-a) !important;
+  box-shadow: none !important;
+}
+.producer-layout-ref .phase-folder-content { background: var(--dz-panel-surface-2) !important; }
+.producer-layout-ref .group-folder-row,
+.producer-layout-ref .game-card-summary,
+.producer-layout-ref .game-folder-row,
+.producer-layout-ref .game-form-section-header { background: var(--dz-panel-row-b) !important; }
+.producer-layout-ref .game-card:nth-child(even) .game-card-summary { background: #d0c8bd !important; }
+.producer-layout-ref .game-card.is-open .game-card-summary,
+.producer-layout-ref .game-card:hover .game-card-summary { background: var(--dz-panel-row-hover) !important; }
+.producer-layout-ref .game-card-details > *,
+.producer-layout-ref .game-form-panel > *,
+.producer-layout-ref .game-rules-panel > * { background-color: transparent !important; }
+
+/* Desktop: títulos dos quatro painéis maiores e claros. */
+@media (min-width: 901px) {
+  .page-authenticated .section-head h2,
+  .team-dashboard > .section-head h2,
+  .player-dashboard > .section-head h2,
+  .manager-dashboard > .section-head h2,
+  .producer-layout-ref .championship-nav-card > .section-head h2 {
+    font-size: clamp(38px, 3.4vw, 58px) !important;
+    line-height: .94 !important;
+  }
+  .producer-layout-ref .championship-nav-card > .section-head h2 { font-size: 32px !important; }
+}
+
+@media (max-width: 760px) {
+  .app-header { height: 60px !important; min-height: 60px !important; }
+  .app-header-inner { height: 60px !important; min-height: 60px !important; width: calc(100% - 18px) !important; }
+  .app-global-language-trigger,
+  .notif-bell-trigger { width: 38px !important; min-width: 38px !important; height: 38px !important; min-height: 38px !important; padding: 0 !important; }
+  .app-global-language-trigger span { display: none !important; }
+  .app-profile-trigger { min-width: 42px !important; width: 42px !important; padding: 0 !important; border: 0 !important; background: transparent !important; }
+  .page-authenticated .account-strip.account-strip-compact { padding: 16px !important; }
+  .page-authenticated .account-strip-compact .account-strip-head strong { font-size: 28px !important; }
+  .producer-layout-ref .detail-hero-ref { padding: 16px !important; }
+  .producer-layout-ref .detail-title-ref h2 { font-size: 30px !important; }
+}
