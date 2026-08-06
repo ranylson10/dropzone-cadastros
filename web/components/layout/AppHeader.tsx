@@ -110,13 +110,16 @@ export function AppHeader({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [walletSaldo, setWalletSaldo] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [languageOpen, setLanguageOpen] = useState(false)
   const [globalLocale, changeGlobalLocale] = useGlobalLocale()
   const profileRef = useRef<HTMLDivElement>(null)
+  const languageRef = useRef<HTMLDivElement>(null)
   const isAuthenticated = Boolean(profileName && onSignOut)
 
   useEffect(() => {
     function closeOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false)
+      if (languageRef.current && !languageRef.current.contains(event.target as Node)) setLanguageOpen(false)
     }
     document.addEventListener('mousedown', closeOutside)
     return () => document.removeEventListener('mousedown', closeOutside)
@@ -232,18 +235,38 @@ export function AppHeader({
           })}
         </nav>
 
-        <div className="app-global-language" data-no-translate aria-label="Language">
-          <Globe2 size={14} />
-          {(['pt-BR', 'es', 'en'] as const).map((item) => (
-            <button
-              type="button"
-              key={item}
-              className={globalLocale === item ? 'active' : ''}
-              onClick={() => changeGlobalLocale(item)}
-            >
-              {item === 'pt-BR' ? 'PT' : item.toUpperCase()}
-            </button>
-          ))}
+        <div className="app-global-language" data-no-translate aria-label="Language" ref={languageRef}>
+          <button
+            type="button"
+            className="app-global-language-trigger"
+            aria-expanded={languageOpen}
+            aria-label="Alterar idioma"
+            onClick={() => setLanguageOpen((value) => !value)}
+          >
+            <Globe2 size={14} />
+            <span>{globalLocale === 'pt-BR' ? 'PT' : globalLocale.toUpperCase()}</span>
+            <ChevronDown size={14} className={languageOpen ? 'rotated' : ''} />
+          </button>
+          {languageOpen ? (
+            <div className="app-global-language-menu" role="menu">
+              {(['pt-BR', 'es', 'en'] as const).map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  className={globalLocale === item ? 'active' : ''}
+                  onClick={() => {
+                    changeGlobalLocale(item)
+                    setLanguageOpen(false)
+                  }}
+                >
+                  <span>{item === 'pt-BR' ? 'PT' : item.toUpperCase()}</span>
+                  <small>
+                    {item === 'pt-BR' ? 'Português' : item === 'es' ? 'Español' : 'English'}
+                  </small>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {isAuthenticated ? (
@@ -378,6 +401,32 @@ export function AppHeader({
                     </button>
                   )
                 })}
+                {showWallet ? (
+                  <a
+                    href="/carteira"
+                    onClick={() => {
+                      setProfileOpen(false)
+                      setMobileOpen(false)
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      width: '100%',
+                      borderTop: '1px solid #d5dae3',
+                      padding: '12px 14px',
+                      background: '#fff',
+                      color: '#171a22',
+                      textDecoration: 'none',
+                      fontWeight: 800,
+                    }}
+                  >
+                    <Wallet size={16} />
+                    {walletSaldo == null
+                      ? 'Carteira'
+                      : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(walletSaldo / 100)}
+                  </a>
+                ) : null}
                 {onCreateLinkedProfile ? (
                   <button
                     type="button"
