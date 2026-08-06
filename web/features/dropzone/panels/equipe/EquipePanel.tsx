@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronRight, Copy, ExternalLink, Link2, Pencil, Plus, Shield, Trash2, UserPlus, Users } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronRight, Copy, ExternalLink, Link2, Loader2, Pencil, Plus, Search, Send, Shield, Trash2, UserPlus, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
@@ -887,6 +887,13 @@ function EquipeLinesEditor(props: {
   const [nome, setNome] = useState('')
   const [tag, setTag] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
+  const [transferLine, setTransferLine] = useState<any>(null)
+  const [transferInfo, setTransferInfo] = useState<any>(null)
+  const [transferQuery, setTransferQuery] = useState('')
+  const [transferTeams, setTransferTeams] = useState<any[]>([])
+  const [transferTarget, setTransferTarget] = useState<any>(null)
+  const [transferLoading, setTransferLoading] = useState(false)
+  const [transferSearching, setTransferSearching] = useState(false)
 
   const load = useCallback(async () => {
     if (!teamId) return
@@ -975,6 +982,80 @@ function EquipeLinesEditor(props: {
     }
   }
 
+
+  async function openTransfer(line: any) {
+    setTransferLine(line)
+    setTransferInfo(null)
+    setTransferQuery('')
+    setTransferTeams([])
+    setTransferTarget(null)
+    setTransferLoading(true)
+    setError('')
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) throw new Error('Sessão expirada.')
+      const res = await fetch(`/api/equipes/${teamId}/lines/${line.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || 'Erro ao verificar a transferência.')
+      setTransferInfo(json.transfer || null)
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao verificar a transferência.')
+      setTransferLine(null)
+    } finally {
+      setTransferLoading(false)
+    }
+  }
+
+  async function searchTransferTeams() {
+    const query = transferQuery.trim()
+    if (query.length < 2) return setTransferTeams([])
+    setTransferSearching(true)
+    setError('')
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) throw new Error('Sessão expirada.')
+      const res = await fetch(`/api/equipes/busca-publica?q=${encodeURIComponent(query)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || 'Erro ao buscar equipes.')
+      setTransferTeams((json.items || []).filter((team: any) => String(team.id) !== String(teamId)))
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao buscar equipes.')
+    } finally {
+      setTransferSearching(false)
+    }
+  }
+
+  async function confirmTransfer() {
+    if (!transferLine?.id || !transferTarget?.id) return
+    setBusy(true)
+    setError('')
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) throw new Error('Sessão expirada.')
+      const res = await fetch(`/api/equipes/${teamId}/lines/${transferLine.id}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'transfer_line', equipe_destino_id: transferTarget.id }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || 'Erro ao transferir a line.')
+      setTransferLine(null)
+      setTransferInfo(null)
+      setTransferTarget(null)
+      await load()
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao transferir a line.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (!teamId) return <div className="panel-tab-body"><p className="empty">Nenhuma equipe.</p></div>
 
   return (
@@ -1034,10 +1115,13 @@ function EquipeLinesEditor(props: {
                 </small>
               </span>
               <span className="vaga-row-meta">
-                <button type="button" className="button small secondary" onClick={() => startEdit(line)}>
+                <button type="button" className="button small secondary" title="Editar line" onClick={() => startEdit(line)}>
                   <Pencil size={14} />
                 </button>
-                <button type="button" className="button small secondary" disabled={busy} onClick={() => void remove(line.id)}>
+                <button type="button" className="button small secondary" title="Transferir line para equipe real" disabled={busy || transferLoading} onClick={() => void openTransfer(line)}>
+                  <Send size={14} />
+                </button>
+                <button type="button" className="button small secondary" title="Excluir line" disabled={busy} onClick={() => void remove(line.id)}>
                   <Trash2 size={14} />
                 </button>
               </span>
@@ -1046,6 +1130,45 @@ function EquipeLinesEditor(props: {
           </article>
         ))}
       </div>
+
+      <SystemModal
+        open={Boolean(transferLine)}
+        title="Transferir line para equipe real"
+        description="A mesma line será mantida, incluindo campeonatos, grupos, slots, resultados, estatísticas e MVP."
+        size="medium"
+        onClose={() => { if (!busy) { setTransferLine(null); setTransferTarget(null) } }}
+      >
+        {transferLoading ? <p className="empty"><Loader2 className="spin" size={16} /> Verificando transferência...</p> : transferInfo?.allowed ? (
+          <div className="line-transfer-inline">
+            <div className="message">
+              <strong>{transferLine?.nome}</strong>
+              <span>{transferInfo.championships?.length || 0} campeonato(s) serão preservados.</span>
+              {transferInfo.championships?.length ? <small>{transferInfo.championships.map((item: any) => item.nome).join(' · ')}</small> : null}
+            </div>
+            <Field label="Buscar equipe real">
+              <div className="inline-search-row">
+                <input value={transferQuery} onChange={(event) => setTransferQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchTransferTeams() } }} placeholder="Nome ou tag da equipe" />
+                <button type="button" className="button secondary" disabled={transferSearching || transferQuery.trim().length < 2} onClick={() => void searchTransferTeams()}>
+                  {transferSearching ? <Loader2 className="spin" size={15} /> : <Search size={15} />} Buscar
+                </button>
+              </div>
+            </Field>
+            <div className="transfer-team-results">
+              {transferTeams.map((team: any) => (
+                <button key={team.id} type="button" className={transferTarget?.id === team.id ? 'selected' : ''} onClick={() => setTransferTarget(team)}>
+                  <span>{team.logo_url ? <img src={team.logo_url} alt="" /> : String(team.tag || team.nome || 'E').slice(0, 2)}</span>
+                  <div><strong>{team.nome}</strong><small>{team.tag || 'Sem tag'}</small></div>
+                </button>
+              ))}
+            </div>
+            {transferTarget ? <div className="message"><span>Destino selecionado:</span><strong>{transferTarget.nome} {transferTarget.tag ? `(${transferTarget.tag})` : ''}</strong></div> : null}
+            <div className="button-row">
+              <button type="button" className="button" disabled={busy || !transferTarget} onClick={() => void confirmTransfer()}>{busy ? 'Transferindo...' : 'Confirmar transferência'}</button>
+              <button type="button" className="button secondary" disabled={busy} onClick={() => setTransferLine(null)}>Cancelar</button>
+            </div>
+          </div>
+        ) : <div className="message error">{transferInfo?.reason || 'Esta line não pode ser transferida.'}</div>}
+      </SystemModal>
     </div>
   )
 }

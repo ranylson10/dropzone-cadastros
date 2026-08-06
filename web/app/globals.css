@@ -11539,3 +11539,88 @@ input::placeholder, textarea::placeholder {
 @media(max-width:640px){.champ-stats-section{padding:8px}.champ-stats-tabs{position:sticky;top:68px;z-index:5;margin-inline:-1px}.champ-stats-tabs button{flex:1;padding-inline:8px}.champ-stats-filters{display:flex;overflow-x:auto;gap:6px;padding-bottom:4px;scrollbar-width:thin}.champ-stats-filters label{flex:0 0 128px}.champ-stats-filters select{height:32px}.champ-stats-table-wrap{margin-inline:0}.champ-stats-table{min-width:650px}.champ-stats-mvp-table{min-width:500px}.champ-stats-table th,.champ-stats-table td{padding:8px;font-size:10px}.champ-stats-table .identity{min-width:180px}.champ-stats-table td.identity strong{max-width:160px}.champ-stats-avatar{width:28px;height:28px;flex-basis:28px}.champ-stats-loading{font-size:9px}}
 
 .line-transfer-block{border-color:color-mix(in srgb,var(--primary) 38%,var(--border));background:color-mix(in srgb,var(--primary) 3%,var(--card))}.line-transfer-summary{display:grid;gap:3px;padding:11px 13px;font-size:12px}.line-transfer-summary span{color:var(--muted);line-height:1.45}.line-transfer-modal-backdrop{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:16px;background:rgba(8,12,20,.62);backdrop-filter:blur(4px)}.line-transfer-modal{width:min(560px,100%);max-height:min(760px,calc(100vh - 32px));overflow:auto;border:1px solid var(--border);border-radius:16px;background:var(--card);box-shadow:0 24px 70px rgba(0,0,0,.28);padding:14px;display:grid;gap:12px}.line-transfer-modal>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.line-transfer-modal>header>div{display:grid;gap:3px}.line-transfer-modal>header span{font-size:12px;color:var(--muted)}.line-transfer-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.line-transfer-search input{height:40px;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:0 11px;color:inherit}.line-transfer-search button,.line-transfer-confirm button{border:0;border-radius:10px;background:var(--primary);color:#fff;padding:0 13px;display:flex;align-items:center;justify-content:center;gap:7px;font-weight:700}.line-transfer-results{display:grid;border:1px solid var(--border);border-radius:12px;overflow:hidden}.line-transfer-results>button{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:9px;border:0;border-bottom:1px solid var(--border);background:transparent;padding:9px 10px;text-align:left;color:inherit}.line-transfer-results>button:last-of-type{border-bottom:0}.line-transfer-results>button.selected{background:color-mix(in srgb,var(--primary) 8%,transparent)}.line-transfer-results>button>span{width:36px;height:36px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden;font-size:11px;font-weight:800}.line-transfer-results img{width:100%;height:100%;object-fit:cover}.line-transfer-results>button>div{display:grid;min-width:0}.line-transfer-results small{font-size:11px;color:var(--muted);padding:10px}.line-transfer-confirm{display:grid;gap:8px;border:1px solid color-mix(in srgb,var(--primary) 35%,var(--border));border-radius:12px;background:color-mix(in srgb,var(--primary) 5%,transparent);padding:11px}.line-transfer-confirm p{margin:0;font-size:12px;line-height:1.5;color:var(--muted)}.line-transfer-confirm button{min-height:40px;justify-self:end}.line-transfer-modal button:disabled{opacity:.55;cursor:not-allowed}@media(max-width:640px){.line-transfer-modal-backdrop{padding:8px;place-items:end center}.line-transfer-modal{max-height:88vh;border-radius:16px 16px 10px 10px}.line-transfer-search{grid-template-columns:1fr}.line-transfer-search button{min-height:40px}.line-transfer-confirm button{width:100%;justify-self:stretch}}
+
+/* Transferência de line na aba Lines do painel da equipe */
+.line-transfer-inline {
+  display: grid;
+  gap: 14px;
+}
+
+.line-transfer-inline .message {
+  display: grid;
+  gap: 4px;
+}
+
+.inline-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.transfer-team-results {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.transfer-team-results > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border, #d9dee8);
+  background: var(--surface, #fff);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.transfer-team-results > button:hover,
+.transfer-team-results > button.selected {
+  border-color: var(--primary, #d4a900);
+  box-shadow: inset 3px 0 0 var(--primary, #d4a900);
+}
+
+.transfer-team-results > button > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f3f5f8;
+  font-weight: 800;
+}
+
+.transfer-team-results img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.transfer-team-results div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.transfer-team-results strong,
+.transfer-team-results small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .inline-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .vaga-row-meta {
+    gap: 4px;
+  }
+}
