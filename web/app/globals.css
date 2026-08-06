@@ -13112,20 +13112,82 @@ textarea {
 .directory-hero,
 .directory-profile-banner,
 .directory-rank-hero {
+  position: relative !important;
   width: 100% !important;
+  min-height: 170px !important;
   margin: 0 0 24px !important;
-  border: 0 !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
   border-bottom: 4px solid var(--dz-public-accent) !important;
-  border-radius: var(--dz-public-radius) !important;
+  border-radius: 6px !important;
   overflow: hidden !important;
+  isolation: isolate !important;
+  color: #fff !important;
+  background-color: var(--dz-public-dark) !important;
+  background-image:
+    linear-gradient(90deg, rgba(4,12,20,.96) 0%, rgba(7,16,26,.86) 47%, rgba(7,16,26,.34) 100%),
+    url('/banners/directory-hero-esports.svg') !important;
+  background-position: center !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  box-shadow: 0 16px 38px rgba(12,20,30,.12) !important;
 }
+
+.directory-theme-campeonatos .directory-hero,
+.directory-theme-campeonatos .directory-profile-banner { --dz-public-accent: #ff4562; }
+.directory-theme-equipes .directory-hero,
+.directory-theme-equipes .directory-profile-banner { --dz-public-accent: #4d8dff; }
+.directory-theme-jogadores .directory-hero,
+.directory-theme-jogadores .directory-profile-banner { --dz-public-accent: #28c4aa; }
+.directory-theme-managers .directory-hero,
+.directory-theme-managers .directory-profile-banner { --dz-public-accent: #9b67ff; }
+.directory-theme-produtoras .directory-hero,
+.directory-theme-produtoras .directory-profile-banner { --dz-public-accent: #f59e42; }
 
 .directory-hero-inner,
 .directory-profile-banner-inner,
 .directory-rank-hero-inner {
+  position: relative !important;
+  z-index: 1 !important;
   width: min(100%, var(--dz-public-max)) !important;
+  min-height: inherit !important;
   margin-inline: auto !important;
+  padding: 34px 42px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
   box-sizing: border-box !important;
+}
+
+.directory-hero small,
+.directory-profile-banner small,
+.directory-rank-hero small {
+  color: rgba(255,255,255,.78) !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: .12em !important;
+  text-transform: uppercase !important;
+}
+
+.directory-hero h1,
+.directory-profile-banner h1,
+.directory-rank-hero h1 {
+  margin: 5px 0 7px !important;
+  color: #fff !important;
+  font-size: clamp(30px, 4vw, 52px) !important;
+  line-height: .98 !important;
+  letter-spacing: -.025em !important;
+  text-transform: uppercase !important;
+  text-shadow: 0 2px 12px rgba(0,0,0,.34) !important;
+}
+
+.directory-hero p,
+.directory-profile-banner p,
+.directory-rank-hero p {
+  max-width: 720px !important;
+  margin: 0 !important;
+  color: rgba(255,255,255,.88) !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
 }
 
 /* HEADER E MENU MOBILE */
@@ -13516,13 +13578,138 @@ textarea {
 .champ-stats-table .total b { text-align: center !important; color: var(--dz-public-ink) !important; }
 
 /* RANK */
-.directory-rank-content { padding-top: 0 !important; }
+.directory-rank-content {
+  padding-top: 0 !important;
+}
+
+.directory-rank-content .lili-rank-hub {
+  width: min(760px, 100%) !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+}
+
+.directory-rank-content .lili-rank-hub > header {
+  display: none !important;
+}
+
+.directory-rank-content .lili-rank-hub > nav {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  gap: 0 !important;
+  margin: 0 0 10px !important;
+  border: 1px solid var(--dz-public-border) !important;
+  background: var(--dz-public-row) !important;
+}
+
+.directory-rank-content .lili-rank-hub > nav button {
+  min-height: 48px !important;
+  border: 0 !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--dz-public-muted) !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+}
+
+.directory-rank-content .lili-rank-hub > nav button.active {
+  border-bottom-color: var(--dz-public-accent) !important;
+  background: var(--dz-public-surface) !important;
+  color: var(--dz-public-ink) !important;
+}
+
+.directory-rank-content .lili-rank-list {
+  display: grid !important;
+  gap: 0 !important;
+  border: 1px solid var(--dz-public-border) !important;
+}
+
+.directory-rank-content .lili-rank-list article {
+  display: grid !important;
+  grid-template-columns: 44px 52px minmax(0,1fr) 100px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  min-height: 68px !important;
+  padding: 8px 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--dz-public-border) !important;
+  border-radius: 0 !important;
+  background: var(--dz-public-row) !important;
+  color: var(--dz-public-ink) !important;
+}
+
+.directory-rank-content .lili-rank-list article:nth-child(even) {
+  background: var(--dz-public-row-alt) !important;
+}
+
+.directory-rank-content .lili-rank-list article:last-child {
+  border-bottom: 0 !important;
+}
+
+.directory-rank-content .lili-rank-avatar {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 0 !important;
+  background: var(--dz-public-surface) !important;
+}
+
+.directory-rank-content .lili-rank-list article > b,
+.directory-rank-content .lili-rank-list article > em {
+  text-align: center !important;
+  font-style: normal !important;
+  font-weight: 950 !important;
+  color: var(--dz-public-ink) !important;
+}
+
+.directory-rank-content .lili-rank-list article > div strong {
+  color: var(--dz-public-ink) !important;
+  font-size: 13px !important;
+}
+
+.directory-rank-content .lili-rank-list article > div small {
+  color: var(--dz-public-muted) !important;
+  font-size: 10px !important;
+}
+
 .directory-rank-tabs { display: grid !important; grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
 .directory-rank-tabs button { text-align: center !important; }
 .directory-rank-list > * { color: var(--dz-public-ink) !important; }
 
 /* MOBILE */
 @media (max-width: 760px) {
+  .directory-hero,
+  .directory-profile-banner,
+  .directory-rank-hero {
+    min-height: 126px !important;
+    margin-bottom: 14px !important;
+    border-radius: 0 !important;
+    background-position: 60% center !important;
+  }
+
+  .directory-hero-inner,
+  .directory-profile-banner-inner,
+  .directory-rank-hero-inner {
+    padding: 22px 18px !important;
+  }
+
+  .directory-hero h1,
+  .directory-profile-banner h1,
+  .directory-rank-hero h1 {
+    font-size: 27px !important;
+  }
+
+  .directory-rank-content .lili-rank-list article {
+    grid-template-columns: 28px 42px minmax(0,1fr) 58px !important;
+    min-height: 60px !important;
+    padding: 7px 9px !important;
+  }
+
+  .directory-rank-content .lili-rank-avatar {
+    width: 38px !important;
+    height: 38px !important;
+  }
   .app-header-inner {
     width: 100% !important;
     min-height: 64px !important;
