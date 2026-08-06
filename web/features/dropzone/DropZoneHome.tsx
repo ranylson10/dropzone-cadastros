@@ -1560,7 +1560,7 @@ export function DropZoneHome() {
   }
 
   if (!account && !linkingProfile && !activeAuthType && !showAccess) {
-    return <PublicChampionshipHome onAccess={() => setShowAccess(true)} />
+    return <PublicChampionshipHome onAccess={() => { window.location.href = '/login?returnTo=%2F' }} />
   }
 
   return (
