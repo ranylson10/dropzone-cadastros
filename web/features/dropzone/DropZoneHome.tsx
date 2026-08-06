@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, Send, Users, X } from 'lucide-react'
+import { ClipboardList, Loader2, Pencil, Send, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
@@ -1790,7 +1790,7 @@ export function DropZoneHome() {
           </section>
         ) : (
           <>
-            <section className="account-strip">
+            <section className="account-strip account-strip-compact">
               <div className="account-strip-head">
                 <p className="eyebrow">Conta ativa</p>
                 <strong>
@@ -1802,25 +1802,31 @@ export function DropZoneHome() {
                 </strong>
               </div>
               <div className="account-strip-metrics" role="group" aria-label="Resumo da conta">
-                <div className="metric">
+                <div className="metric" title="Campeonatos">
+                  <Trophy size={16} aria-hidden="true" />
                   <b>{championships.length}</b>
                   <span>Campeonatos</span>
                 </div>
-                <div className="metric">
+                <div className="metric" title="Equipes">
+                  <Users size={16} aria-hidden="true" />
                   <b>{teams.length}</b>
                   <span>Equipes</span>
                 </div>
-                <div className="metric">
+                <div className="metric" title="Inscrições">
+                  <ClipboardList size={16} aria-hidden="true" />
                   <b>{registrations.length}</b>
-                  <span>Inscricoes</span>
+                  <span>Inscrições</span>
                 </div>
               </div>
               <button
                 type="button"
-                className="button secondary small account-strip-action"
+                className="icon-action-button account-strip-action"
                 onClick={() => setShowAccountProfile((v) => !v)}
+                title={showAccountProfile ? 'Fechar edição do perfil' : 'Editar perfil'}
+                aria-label={showAccountProfile ? 'Fechar edição do perfil' : 'Editar perfil'}
               >
-                {showAccountProfile ? 'Fechar perfil' : 'Editar perfil'}
+                <Pencil size={16} />
+                <span>{showAccountProfile ? 'Fechar' : 'Perfil'}</span>
               </button>
             </section>
             {showAccountProfile && account.profile_type ? (

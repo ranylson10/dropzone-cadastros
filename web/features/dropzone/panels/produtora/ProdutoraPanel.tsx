@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Copy, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, MoreHorizontal, Pause, Pencil, Play, Plus, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES } from '@/lib/dropzone-constants'
@@ -95,6 +95,8 @@ export function ProdutoraPanel(props: {
   const [editingChampId, setEditingChampId] = useState('')
   const [editingChamp, setEditingChamp] = useState<CampeonatoFormValue>(emptyCampeonatoForm)
   const [typeFilter, setTypeFilter] = useState('todos')
+  const [showChampFilters, setShowChampFilters] = useState(false)
+  const [showProducerMore, setShowProducerMore] = useState(false)
   const [tab, setTab] = useState<ProducerTab>('equipes')
   const [payInfo, setPayInfo] = useState<any>(null)
   const [payBusy, setPayBusy] = useState(false)
@@ -1069,7 +1071,7 @@ ${params.url}`
         </div>
       ) : null}
 
-      <aside className="championship-nav-card panel">
+      <aside className="championship-nav-card panel producer-command-card">
         <div className="section-head compact-head">
           <div>
             <p className="eyebrow">Produtora</p>
@@ -1078,12 +1080,54 @@ ${params.url}`
           <Trophy />
         </div>
 
-        <div className="championship-type-filter" role="tablist" aria-label="Filtrar campeonatos por tipo">
-          <button className={typeFilter === 'todos' ? 'active' : ''} onClick={() => setTypeFilter('todos')}>Todos</button>
-          {CHAMPIONSHIP_TYPES.map((type) => <button key={type} className={typeFilter === type ? 'active' : ''} onClick={() => setTypeFilter(type)}>{CHAMPIONSHIP_TYPE_LABELS[type]}</button>)}
+        <div className="producer-primary-actions" role="group" aria-label="Ações principais da produtora">
+          <button
+            type="button"
+            className="producer-action primary"
+            disabled={produtoraAprovacao !== 'aprovado'}
+            title={produtoraAprovacao !== 'aprovado' ? 'Produtora ainda não aprovada' : 'Novo campeonato'}
+            onClick={() => setShowCreateChamp(true)}
+          >
+            <Plus size={18} />
+            <span>Novo</span>
+          </button>
+          {producerCatalogLink ? (
+            <>
+              <a className="producer-action" href={producerCatalogLink} target="_blank" rel="noreferrer" title="Abrir página pública de vagas">
+                <ExternalLink size={18} />
+                <span>Abrir</span>
+              </a>
+              <button className="producer-action" type="button" onClick={() => void copyProducerCatalog()} title="Copiar página pública de vagas">
+                <Copy size={18} />
+                <span>{catalogCopied ? 'Copiado' : 'Copiar'}</span>
+              </button>
+            </>
+          ) : null}
+          <button className={`producer-action ${showChampFilters ? 'active' : ''}`} type="button" onClick={() => setShowChampFilters((value) => !value)} title="Filtrar campeonatos">
+            <Filter size={18} />
+            <span>Filtro</span>
+          </button>
+          <button className={`producer-action ${showProducerMore ? 'active' : ''}`} type="button" onClick={() => setShowProducerMore((value) => !value)} title="Mais opções">
+            <MoreHorizontal size={19} />
+            <span>Mais</span>
+          </button>
         </div>
 
-        <div className="championship-list ref-list">
+        {showChampFilters ? (
+          <div className="championship-type-filter producer-filter-popover" role="tablist" aria-label="Filtrar campeonatos por tipo">
+            <button className={typeFilter === 'todos' ? 'active' : ''} onClick={() => setTypeFilter('todos')}>Todos</button>
+            {CHAMPIONSHIP_TYPES.map((type) => <button key={type} className={typeFilter === type ? 'active' : ''} onClick={() => setTypeFilter(type)}>{CHAMPIONSHIP_TYPE_LABELS[type]}</button>)}
+          </div>
+        ) : null}
+
+        {showProducerMore && producerCatalogLink ? (
+          <div className="producer-more-menu">
+            <a href={producerCatalogLink} target="_blank" rel="noreferrer"><Link2 size={15} /> Página pública de vagas</a>
+            <button type="button" onClick={() => void copyProducerCatalog()}><Copy size={15} /> Copiar link público</button>
+          </div>
+        ) : null}
+
+        <div className="championship-list ref-list producer-championship-list">
           {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato neste tipo.</p> : null}
           {filteredChampionships.map((champ) => {
             const logo = dataText(champ, 'logo_url')
@@ -1112,25 +1156,6 @@ ${params.url}`
             )
           })}
         </div>
-
-        <button
-          className="button full"
-          disabled={produtoraAprovacao !== 'aprovado'}
-          title={produtoraAprovacao !== 'aprovado' ? 'Produtora ainda não aprovada' : undefined}
-          onClick={() => setShowCreateChamp(true)}
-        >
-          Novo campeonato
-        </button>
-        {producerCatalogLink ? (
-          <div className="producer-catalog-actions">
-            <button className="button secondary full" type="button" onClick={() => void copyProducerCatalog()}>
-              <Copy size={14} /> {catalogCopied ? 'Link copiado' : 'Copiar página de vagas'}
-            </button>
-            <a className="button secondary full" href={producerCatalogLink} target="_blank" rel="noreferrer">
-              <Link2 size={14} /> Abrir página
-            </a>
-          </div>
-        ) : null}
       </aside>
 
       <SystemModal

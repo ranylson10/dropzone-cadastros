@@ -11683,3 +11683,60 @@ input::placeholder, textarea::placeholder {
   .champ-filter-sheet>footer{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1.4fr;gap:8px;padding-top:12px;background:var(--surface)}
   .champ-filter-sheet>footer .button{width:100%;justify-content:center;min-height:42px}
 }
+
+/* Rodada 85 — painel essencial por perfil (base PC + mobile) */
+.account-strip.account-strip-compact{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:14px 16px}
+.account-strip-compact .account-strip-head{min-width:0}
+.account-strip-compact .account-strip-head strong{display:flex;align-items:baseline;gap:7px;min-width:0;flex-wrap:wrap}
+.account-strip-compact .account-strip-head strong span{font-size:11px;color:var(--muted)}
+.account-strip-compact .account-strip-metrics{display:flex;align-items:stretch;gap:6px;border:0}
+.account-strip-compact .account-strip-metrics .metric{display:grid;grid-template-columns:auto auto;grid-template-areas:"icon value" "label label";align-items:center;justify-content:center;column-gap:6px;min-width:88px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft)}
+.account-strip-compact .account-strip-metrics .metric svg{grid-area:icon;color:var(--brand)}
+.account-strip-compact .account-strip-metrics .metric b{grid-area:value;font-size:18px;line-height:1}
+.account-strip-compact .account-strip-metrics .metric span{grid-area:label;margin-top:4px;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.account-strip-compact .account-strip-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:0 12px;white-space:nowrap}
+
+.producer-command-card{align-self:start}
+.producer-primary-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:0 0 10px}
+.producer-action{display:flex;min-width:0;min-height:58px;padding:8px 4px;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft);color:var(--text);font:inherit;text-decoration:none;cursor:pointer;transition:.18s ease}
+.producer-action:hover,.producer-action.active{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 10%,var(--surface));color:var(--brand)}
+.producer-action.primary{border-color:var(--brand);background:var(--brand);color:#fff}
+.producer-action:disabled{opacity:.45;cursor:not-allowed}
+.producer-action span{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:8px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.producer-filter-popover{margin:0 0 9px;padding:7px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft)}
+.producer-more-menu{display:grid;gap:5px;margin:0 0 9px;padding:7px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft)}
+.producer-more-menu a,.producer-more-menu button{display:flex;align-items:center;gap:8px;min-height:38px;padding:0 10px;border:0;border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}
+.producer-more-menu a:hover,.producer-more-menu button:hover{background:color-mix(in srgb,var(--brand) 8%,var(--surface))}
+.producer-championship-list{margin-top:2px}
+
+@media(max-width:900px){
+  .account-strip.account-strip-compact{grid-template-columns:minmax(0,1fr) auto;gap:10px}
+  .account-strip-compact .account-strip-metrics{grid-column:1/-1;order:3;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}
+  .account-strip-compact .account-strip-metrics .metric{min-width:0}
+}
+
+@media(max-width:640px){
+  .account-strip.account-strip-compact{padding:12px;gap:8px;border-radius:12px}
+  .account-strip-compact .account-strip-head .eyebrow{margin-bottom:4px}
+  .account-strip-compact .account-strip-head strong{display:grid;gap:2px;font-size:17px;line-height:1.05}
+  .account-strip-compact .account-strip-head strong span{font-size:9px}
+  .account-strip-compact .account-strip-action{width:42px;height:42px;min-height:42px;padding:0;border-radius:10px}
+  .account-strip-compact .account-strip-action span{display:none}
+  .account-strip-compact .account-strip-metrics{gap:5px}
+  .account-strip-compact .account-strip-metrics .metric{min-height:54px;padding:6px;border-radius:9px}
+  .account-strip-compact .account-strip-metrics .metric b{font-size:16px}
+  .account-strip-compact .account-strip-metrics .metric span{font-size:7px}
+  .producer-layout-ref{gap:10px}
+  .producer-layout-ref .championship-nav-card{padding:10px}
+  .producer-layout-ref .championship-nav-card>.section-head{margin-bottom:8px}
+  .producer-primary-actions{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin-bottom:8px}
+  .producer-action{min-height:54px;border-radius:9px}
+  .producer-action span{font-size:7px}
+  .producer-filter-popover{display:flex;overflow-x:auto;gap:4px;padding:5px;scrollbar-width:none}
+  .producer-filter-popover::-webkit-scrollbar{display:none}
+  .producer-filter-popover button{flex:0 0 auto;min-width:64px;min-height:34px;padding:0 8px;font-size:8px}
+  .producer-championship-list{max-height:250px;overflow:auto}
+  .producer-layout-ref .champ-list-item{min-height:62px;padding:8px}
+  .producer-layout-ref .champ-list-item small{font-size:8px}
+}
+
