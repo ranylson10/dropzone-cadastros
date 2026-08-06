@@ -120,7 +120,7 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
         id: row.id, kind, name, username: text(row.username), image: first(row.avatar_url, row.foto_url), eyebrow: first(row.funcao, 'Jogador'),
         description: first(location(row), row.bio, 'Perfil competitivo cadastrado na DropZone.'),
         meta: [
-          { label: 'ID de jogo', value: first(row.id_jogo, 'Não informado') },
+          { label: 'Função', value: first(row.funcao, 'Jogador') },
           { label: 'Campeonatos', value: String(playerRegs.length) },
           { label: 'Status', value: statusLabel(row.status) },
         ],

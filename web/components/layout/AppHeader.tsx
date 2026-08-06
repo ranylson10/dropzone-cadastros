@@ -260,9 +260,6 @@ export function AppHeader({
                   }}
                 >
                   <span>{item === 'pt-BR' ? 'PT' : item.toUpperCase()}</span>
-                  <small>
-                    {item === 'pt-BR' ? 'Português' : item === 'es' ? 'Español' : 'English'}
-                  </small>
                 </button>
               ))}
             </div>
