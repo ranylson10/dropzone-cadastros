@@ -128,3 +128,100 @@
   .vacancy-register{min-height:46px;font-size:11px}
   .vacancy-meta span:last-child{display:flex}
 }
+
+/* FASE VISUAL 5 — vitrine e compra de vagas */
+.vacancies-page{
+  background:var(--dz-paper,#f3f0e9);
+}
+.vacancies-hero{
+  border:0;
+  border-radius:0;
+  background:#111922;
+  color:#fff;
+  box-shadow:none;
+  position:relative;
+  overflow:hidden;
+}
+.vacancies-hero:after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:4px;
+  background:var(--dz-accent,#ff5468);
+}
+.vacancies-hero h1,.vacancies-hero .eyebrow,.vacancies-hero-count strong{color:#fff}
+.vacancies-hero p,.vacancies-hero-count span{color:rgba(255,255,255,.62)}
+.vacancies-hero-count svg{color:var(--dz-accent,#ff5468)}
+.vacancies-toolbar{
+  border:0;
+  border-bottom:1px solid var(--dz-line,#d7d2c8);
+  border-radius:0;
+  background:transparent;
+  padding:10px 0 12px;
+}
+.vacancies-filter button{
+  border-radius:0;
+  background:transparent;
+}
+.vacancies-filter button.active{
+  background:transparent;
+  color:var(--dz-ink,#11161f);
+  box-shadow:inset 0 -3px 0 var(--dz-accent,#ff5468);
+}
+.vacancies-toolbar>label{
+  border:0;
+  border-radius:0;
+  background:#fff;
+  box-shadow:inset 0 -2px 0 transparent;
+}
+.vacancies-toolbar>label:focus-within{box-shadow:inset 0 -3px 0 var(--dz-accent,#ff5468)}
+.vacancies-grid{gap:14px}
+.vacancy-card{
+  border:0;
+  border-radius:0;
+  background:#fff;
+  box-shadow:none;
+}
+.vacancy-card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 14px 36px rgba(17,25,34,.08);
+}
+.vacancy-banner{
+  border:0;
+  border-right:1px solid var(--dz-line,#d7d2c8);
+  border-radius:0;
+}
+.vacancy-enrolled,.vacancy-zoom-label,.vacancy-meta span,.vacancy-groups span,.vacancy-register,.continue-guest,.gate-close{
+  border-radius:0;
+  box-shadow:none;
+}
+.vacancy-next-date{
+  background:var(--dz-surface,#e7e3db);
+  box-shadow:inset 3px 0 0 rgba(255,84,104,.35);
+}
+.vacancy-meta span{border:0;background:var(--dz-surface,#e7e3db)}
+.vacancy-groups span{background:#f4f1eb}
+.vacancy-persuasion{
+  border-left-color:var(--dz-accent,#ff5468);
+  background:rgba(255,84,104,.08);
+}
+.vacancy-register{
+  background:var(--dz-accent,#ff5468);
+  color:#fff;
+}
+.vacancy-register:hover{background:#e4475b;color:#fff}
+.vacancies-access-gate>section{
+  border-radius:0;
+  box-shadow:none;
+}
+@media(max-width:700px){
+  .vacancies-page{padding:10px}
+  .vacancies-hero{padding:18px 16px}
+  .vacancies-toolbar{align-items:stretch}
+  .vacancy-card{grid-template-columns:1fr}
+  .vacancy-banner{width:100%;height:210px;border-right:0;border-bottom:1px solid var(--dz-line,#d7d2c8)}
+  .vacancy-card-body{grid-template-columns:1fr;padding:13px}
+  .vacancy-next-date,.vacancy-register{grid-column:1;grid-row:auto}
+}

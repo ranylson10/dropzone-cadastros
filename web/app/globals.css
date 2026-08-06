@@ -14322,3 +14322,377 @@ textarea {
     width: calc(100% - 16px) !important;
   }
 }
+
+/* =========================================================
+ * FASE VISUAL 5 — áreas públicas e competitivas
+ * Campeonatos, ranking, diretórios, estatísticas e escalação
+ * ========================================================= */
+
+.directory-shell,
+.directory-profile-page,
+.directory-page-body,
+.champ-public-panel {
+  color: var(--dz-ink, #11161f);
+}
+
+.directory-shell,
+.directory-profile-page {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.16), transparent 260px),
+    var(--dz-paper, #f3f0e9) !important;
+}
+
+.directory-page-body,
+.directory-page-body-with-banner {
+  width: min(1320px, calc(100% - 40px));
+  margin-inline: auto;
+}
+
+.directory-hero-banner,
+.directory-profile-banner,
+.champ-public-banner {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background:
+    linear-gradient(105deg, rgba(10,15,21,.94), rgba(14,22,31,.82)),
+    var(--directory-banner-image, none) !important;
+  color: #fff;
+}
+
+.directory-profile-banner::after,
+.champ-public-banner::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4px;
+  background: var(--dz-accent, #ff5468);
+}
+
+.directory-profile-hero.on-banner h1,
+.directory-profile-hero.on-banner strong,
+.directory-profile-hero.on-banner p,
+.champ-public-hero h1,
+.champ-public-hero p {
+  color: #fff !important;
+}
+
+.directory-profile-avatar,
+.directory-card-media,
+.champ-public-team-avatar,
+.champ-public-player-avatar,
+.champ-stats-avatar {
+  border-radius: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: #e9e5dd !important;
+}
+
+.directory-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 12px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--dz-line, #d7d2c8);
+}
+
+.directory-search {
+  height: 48px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: inset 0 -2px 0 transparent;
+  transition: box-shadow .18s ease;
+}
+
+.directory-search:focus-within {
+  box-shadow: inset 0 -3px 0 var(--dz-accent, #ff5468);
+}
+
+.directory-result-count {
+  margin: 0 !important;
+  color: var(--dz-muted, #626975) !important;
+  letter-spacing: .08em;
+}
+
+.directory-list,
+.directory-grid,
+.champ-public-team-list,
+.champ-public-player-list {
+  gap: 10px !important;
+}
+
+.directory-list-row,
+.directory-card,
+.champ-public-team-row,
+.champ-public-player-row {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: rgba(255,255,255,.92) !important;
+  box-shadow: none !important;
+  transition: transform .18s ease, background .18s ease;
+}
+
+.directory-list-row:hover,
+.directory-card:hover,
+.champ-public-team-row:hover,
+.champ-public-player-row:hover {
+  transform: translateX(3px) !important;
+  background: #fff !important;
+  box-shadow: inset 4px 0 0 var(--dz-accent, #ff5468) !important;
+}
+
+.directory-list-meta,
+.directory-card-content p,
+.directory-card-content > span,
+.directory-profile-desc {
+  color: var(--dz-muted, #626975) !important;
+}
+
+.directory-empty,
+.home-empty-state,
+.vacancies-empty {
+  border: 1px dashed var(--dz-line, #d7d2c8) !important;
+  border-radius: 0 !important;
+  background: rgba(255,255,255,.56) !important;
+  box-shadow: none !important;
+}
+
+.champ-public-nav,
+.champ-public-desktop-tabs,
+.directory-profile-tabs {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #111922 !important;
+  box-shadow: none !important;
+}
+
+.champ-public-nav-btn,
+.champ-public-desktop-tabs button,
+.directory-profile-tabs button {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: rgba(255,255,255,.64) !important;
+  box-shadow: none !important;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+}
+
+.champ-public-nav-btn.active,
+.champ-public-desktop-tabs button.active,
+.directory-profile-tabs button.active {
+  color: #fff !important;
+  box-shadow: inset 0 -3px 0 var(--dz-accent, #ff5468) !important;
+}
+
+.champ-public-nav-count {
+  border-radius: 0 !important;
+  background: rgba(255,255,255,.08) !important;
+  color: #fff !important;
+}
+
+.champ-public-panel,
+.champ-public-section,
+.champ-public-info,
+.champ-stats-section {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.champ-public-panel {
+  background: transparent !important;
+}
+
+.champ-public-section,
+.champ-public-info {
+  background: rgba(255,255,255,.9) !important;
+}
+
+.champ-public-panel-head {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--dz-line, #d7d2c8);
+}
+
+.champ-public-panel-head h2,
+.champ-public-panel-head h3 {
+  letter-spacing: -.02em;
+}
+
+.champ-public-info-grid {
+  gap: 10px !important;
+}
+
+.champ-public-info-card {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--dz-surface, #e7e3db) !important;
+  box-shadow: inset 3px 0 0 rgba(255,84,104,.35) !important;
+}
+
+.champ-public-enroll,
+.champ-public-info-agenda {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.champ-public-enroll-btn,
+.champ-public-info-links a {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.champ-stats-tabs {
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--dz-line, #d7d2c8) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.champ-stats-tabs button {
+  border-radius: 0 !important;
+  padding-inline: 16px !important;
+}
+
+.champ-stats-tabs button.active {
+  background: transparent !important;
+  color: var(--dz-ink, #11161f) !important;
+  box-shadow: inset 0 -3px 0 var(--dz-accent, #ff5468) !important;
+}
+
+.champ-stats-filters {
+  gap: 9px !important;
+}
+
+.champ-stats-filters select {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--dz-surface, #e7e3db) !important;
+  box-shadow: inset 0 -2px 0 transparent;
+}
+
+.champ-stats-filters select:focus {
+  outline: 0;
+  box-shadow: inset 0 -3px 0 var(--dz-accent, #ff5468);
+}
+
+.champ-stats-table-wrap {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.champ-stats-table th {
+  background: #111922 !important;
+  color: rgba(255,255,255,.78) !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+
+.champ-stats-table td {
+  border-color: var(--dz-line, #d7d2c8) !important;
+}
+
+.champ-stats-table tbody tr:nth-child(even) {
+  background: rgba(17,25,34,.025);
+}
+
+.champ-stats-table tbody tr:hover {
+  background: rgba(255,84,104,.055) !important;
+}
+
+.champ-stats-table .total {
+  background: rgba(255,84,104,.09) !important;
+}
+
+.scale-chat-page,
+.scale-mode-page,
+.scale-normal-page {
+  background:
+    linear-gradient(180deg, rgba(17,25,34,.98), rgba(17,25,34,.86) 240px, transparent 520px),
+    var(--dz-paper, #f3f0e9) !important;
+}
+
+.scale-chat-shell,
+.scale-invite-card,
+.scale-mode-card {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.scale-chat-header {
+  background: #111922 !important;
+  color: #fff !important;
+  border-bottom: 3px solid var(--dz-accent, #ff5468) !important;
+}
+
+.scale-chat-page .invite-chat-bubble,
+.scale-chat-page .invite-chat-option,
+.scale-mode-option {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.scale-chat-page .invite-chat-option.primary,
+.scale-mode-option.assistant,
+.invite-confirm {
+  background: var(--dz-accent, #ff5468) !important;
+  color: #fff !important;
+  border-color: var(--dz-accent, #ff5468) !important;
+}
+
+@media (max-width: 760px) {
+  .directory-page-body,
+  .directory-page-body-with-banner {
+    width: calc(100% - 20px);
+  }
+
+  .directory-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .directory-result-count {
+    justify-self: start;
+  }
+
+  .directory-list-row,
+  .directory-card {
+    padding: 11px !important;
+  }
+
+  .directory-profile-banner-inner,
+  .champ-public-banner .directory-profile-banner-inner {
+    padding-inline: 12px !important;
+  }
+
+  .champ-public-nav {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .champ-public-nav::-webkit-scrollbar { display: none; }
+
+  .champ-public-nav-btn {
+    flex: 0 0 auto;
+    min-width: 112px;
+  }
+
+  .champ-public-section,
+  .champ-public-info,
+  .champ-stats-section {
+    padding: 12px !important;
+  }
+
+  .champ-stats-table tr {
+    background: #fff;
+  }
+
+  .champ-stats-table tr:nth-child(even) {
+    background: rgba(17,25,34,.025);
+  }
+}
