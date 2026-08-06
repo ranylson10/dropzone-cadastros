@@ -20,14 +20,12 @@ import { supabase } from '@/lib/supabase-browser'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 import {
   DirectoryProfileTabs,
-  SlotVagaRow,
   StructureTree,
   renderSectionItems,
 } from './DirectoryProfileTabs'
 import '@/app/vagas/vagas.css'
 
 type TabId = 'info' | 'equipes' | 'jogadores' | 'jogos' | 'estatisticas'
-type EquipesFilterMode = 'geral' | 'fase' | 'grupo'
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Info }> = [
   { id: 'info', label: 'Informações', icon: Info },
@@ -94,7 +92,6 @@ export function ChampionshipPublicView({
   kindLabel?: string
 }) {
   const [tab, setTab] = useState<TabId>('equipes')
-  const [equipesMode, setEquipesMode] = useState<EquipesFilterMode>('geral')
   const [faseId, setFaseId] = useState('')
   const [grupoId, setGrupoId] = useState('')
   const [buyOpen, setBuyOpen] = useState(false)
@@ -135,23 +132,23 @@ export function ChampionshipPublicView({
 
   const structure = useMemo(() => flattenStructure(sectionMap.grupos), [sectionMap.grupos])
 
-  const filteredSlots = useMemo(() => {
-    let list = structure.slots
-    if (equipesMode === 'fase' && faseId) {
-      list = list.filter((slot) => slot.phaseId === faseId)
-    }
-    if (equipesMode === 'grupo' && grupoId) {
-      list = list.filter((slot) => slot.groupId === grupoId)
-    }
-    return list
-  }, [structure.slots, equipesMode, faseId, grupoId])
+  const filteredTeams = useMemo(() => {
+    const occupied = structure.slots.filter((slot) => slot.status === 'ocupada')
+    return occupied.filter((slot) => {
+      if (faseId && slot.phaseId !== faseId) return false
+      if (grupoId && slot.groupId !== grupoId) return false
+      return true
+    })
+  }, [structure.slots, faseId, grupoId])
 
-  const groupsForFase = useMemo(() => {
-    if (equipesMode === 'fase' && faseId) {
-      return structure.groups.filter((group) => group.phaseId === faseId)
-    }
-    return structure.groups
-  }, [structure.groups, equipesMode, faseId])
+  const groupsForFase = useMemo(
+    () => structure.groups.filter((group) => !faseId || group.phaseId === faseId),
+    [structure.groups, faseId],
+  )
+
+  useEffect(() => {
+    if (grupoId && !groupsForFase.some((group) => group.id === grupoId)) setGrupoId('')
+  }, [grupoId, groupsForFase])
 
   const occupiedCount = structure.slots.filter((slot) => slot.status === 'ocupada').length
 
@@ -305,79 +302,37 @@ export function ChampionshipPublicView({
               </div>
             </header>
 
-            {/* Filtros: Geral · Fases · Grupos */}
-            <div className="champ-equipes-filters" role="tablist" aria-label="Filtro de equipes">
-              <button
-                type="button"
-                className={equipesMode === 'geral' ? 'active' : ''}
-                onClick={() => {
-                  setEquipesMode('geral')
-                  setFaseId('')
-                  setGrupoId('')
-                }}
-              >
-                Geral
-              </button>
-              <button
-                type="button"
-                className={equipesMode === 'fase' ? 'active' : ''}
-                onClick={() => {
-                  setEquipesMode('fase')
-                  setGrupoId('')
-                  if (!faseId && structure.phases[0]) setFaseId(structure.phases[0].id)
-                }}
-              >
-                Fases
-              </button>
-              <button
-                type="button"
-                className={equipesMode === 'grupo' ? 'active' : ''}
-                onClick={() => {
-                  setEquipesMode('grupo')
-                  setFaseId('')
-                  if (!grupoId && structure.groups[0]) setGrupoId(structure.groups[0].id)
-                }}
-              >
-                Grupos
-              </button>
+            <div className="champ-list-filters" aria-label="Filtros das equipes">
+              <label>
+                <span>Fase</span>
+                <select value={faseId} onChange={(event) => setFaseId(event.target.value)}>
+                  <option value="">Todas</option>
+                  {structure.phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.title}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Grupo</span>
+                <select value={grupoId} onChange={(event) => setGrupoId(event.target.value)}>
+                  <option value="">Todos</option>
+                  {groupsForFase.map((group) => <option key={group.id} value={group.id}>{group.title}</option>)}
+                </select>
+              </label>
             </div>
 
-            {equipesMode === 'fase' && structure.phases.length > 0 ? (
-              <div className="champ-equipes-chips" aria-label="Escolher fase">
-                {structure.phases.map((phase) => (
-                  <button
-                    key={phase.id}
-                    type="button"
-                    className={faseId === phase.id ? 'active' : ''}
-                    onClick={() => setFaseId(phase.id)}
-                  >
-                    {phase.title}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {equipesMode === 'grupo' && groupsForFase.length > 0 ? (
-              <div className="champ-equipes-chips" aria-label="Escolher grupo">
-                {groupsForFase.map((group) => (
-                  <button
-                    key={group.id}
-                    type="button"
-                    className={grupoId === group.id ? 'active' : ''}
-                    onClick={() => setGrupoId(group.id)}
-                  >
-                    {group.title}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {filteredSlots.length === 0 ? (
-              <div className="directory-empty compact">Nenhum slot neste filtro.</div>
+            {filteredTeams.length === 0 ? (
+              <div className="directory-empty compact">Nenhuma equipe neste filtro.</div>
             ) : (
-              <div className="championship-vagas-list directory-public-slots champ-equipes-list">
-                {filteredSlots.map((slot) => (
-                  <SlotVagaRow key={slot.id} item={slot} />
+              <div className="champ-public-team-list">
+                {filteredTeams.map((team) => (
+                  <article key={team.id} className="champ-public-team-row">
+                    <span className="champ-public-team-avatar">
+                      {team.image ? <img src={team.image} alt="" /> : <Users size={18} />}
+                    </span>
+                    <span className="champ-public-team-copy">
+                      <strong>{team.title}</strong>
+                      <small>{team.groupTitle} · {team.phaseTitle}</small>
+                    </span>
+                  </article>
                 ))}
               </div>
             )}
@@ -385,12 +340,9 @@ export function ChampionshipPublicView({
         ) : null}
 
         {tab === 'jogadores' ? (
-          <SectionPanel
-            title="Jogadores"
-            subtitle="Ranking MVP / destaques"
-            icon={<UserCircle2 size={16} />}
-            empty="Nenhum jogador listado ainda."
-            section={sectionMap.jogadores}
+          <PlayersDirectoryPanel
+            players={sectionMvp(sectionMap.jogadores)}
+            teams={sectionTeams(sectionMap.estatisticas)}
           />
         ) : null}
 
@@ -634,16 +586,42 @@ function StatsDashboard({
           teams.length ? (
             <table className="champ-stats-table champ-stats-team-table">
               <thead><tr><th className="pos">#</th><th className="identity">Equipe</th><th>GP</th><th>QD</th><th>B!</th><th>Kill</th><th className="total">Pts</th></tr></thead>
-              <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></td><td><b>{groupName(row.grupo_id)}</b></td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td className="total"><b>{row.pontos_total}</b></td></tr>)}</tbody>
+              <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong><small className="mobile-stat-meta">{row.quedas} quedas · {row.booyahs} B! · {row.abates} kills</small></span></td><td className="stat-group"><b>{groupName(row.grupo_id)}</b></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary">{row.booyahs}</td><td className="stat-secondary">{row.abates}</td><td className="total"><small className="mobile-total-label">Pontos</small><b>{row.pontos_total}</b></td></tr>)}</tbody>
             </table>
           ) : <div className="directory-empty compact">Tabela ainda sem dados para este filtro.</div>
         ) : players.length ? (
           <table className="champ-stats-table champ-stats-mvp-table">
             <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>QD</th><th>K.D</th><th className="total">Kill</th></tr></thead>
-            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></td><td>{row.quedas}</td><td><b>{kdLabel(row)}</b></td><td className="total"><b>{row.abates}</b></td></tr>)}</tbody>
+            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong><small>{row.quedas} quedas · K.D {kdLabel(row)}</small></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{kdLabel(row)}</b></td><td className="total"><small className="mobile-total-label">Kills</small><b>{row.abates}</b></td></tr>)}</tbody>
           </table>
         ) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
       </div>
+    </section>
+  )
+}
+
+function PlayersDirectoryPanel({ players, teams }: { players: MvpStatsRow[]; teams: TeamStatsRow[] }) {
+  const [teamId, setTeamId] = useState('')
+  const teamMap = useMemo(() => new Map(teams.map((team) => [team.campeonato_equipe_id, team])), [teams])
+  const filtered = useMemo(
+    () => players.filter((player) => !teamId || player.campeonato_equipe_id === teamId),
+    [players, teamId],
+  )
+
+  return (
+    <section className="champ-public-section">
+      <header className="champ-public-panel-head">
+        <UserCircle2 size={16} />
+        <div><strong>Jogadores</strong><small>Elenco e desempenho individual</small></div>
+      </header>
+      <div className="champ-list-filters single">
+        <label><span>Equipe</span><select value={teamId} onChange={(event) => setTeamId(event.target.value)}><option value="">Todas</option>{teams.map((team) => <option key={team.campeonato_equipe_id} value={team.campeonato_equipe_id}>{team.nome}</option>)}</select></label>
+      </div>
+      {filtered.length ? <div className="champ-public-player-list">{filtered.map((player) => {
+        const team = player.campeonato_equipe_id ? teamMap.get(player.campeonato_equipe_id) : null
+        const kd = player.quedas > 0 ? (player.abates / player.quedas).toFixed(2).replace('.', ',') : '0,00'
+        return <article key={player.campeonato_jogador_id} className="champ-public-player-row"><span className="champ-public-player-avatar"><img src={player.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span className="champ-public-player-copy"><strong>{player.nick}</strong><small>{team?.nome || 'Equipe não informada'} · {player.quedas} quedas · K.D {kd}</small></span><span className="champ-public-player-kills"><small>Kills</small><b>{player.abates}</b></span></article>
+      })}</div> : <div className="directory-empty compact">Nenhum jogador neste filtro.</div>}
     </section>
   )
 }
