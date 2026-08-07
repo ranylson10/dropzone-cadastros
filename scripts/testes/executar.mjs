@@ -14,6 +14,9 @@ import { executar as schemaCodigo } from './modulos/10-schema-codigo.mjs';
 import { executar as matrizRls } from './modulos/11-matriz-rls.mjs';
 import { executar as serviceRolePermissoes } from './modulos/12-service-role-permissoes.mjs';
 import { executar as coberturaCrud } from './modulos/13-cobertura-crud.mjs';
+import { executar as cssCascata } from './modulos/14-css-cascata.mjs';
+import { executar as rotasSeguranca } from './modulos/15-rotas-seguranca.mjs';
+import { executar as bancoSeguranca } from './modulos/16-banco-migrations-seguranca.mjs';
 
 const full = process.argv.includes('--full');
 const skipQuality = process.argv.includes('--skip-quality');
@@ -31,6 +34,9 @@ const modules = [
   ['Matriz RLS', matrizRls],
   ['Service Role e permissões', serviceRolePermissoes],
   ['Cobertura CRUD', coberturaCrud],
+  ['CSS e cascata', cssCascata],
+  ['Rotas e segurança', rotasSeguranca],
+  ['Banco e segurança versionada', bancoSeguranca],
   ...(!skipQuality ? [['Qualidade', () => qualidade({ full })]] : []),
 ];
 const results = [];
