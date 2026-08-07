@@ -16,6 +16,9 @@ test.describe('Rodada 88C — diretório de campeonatos em cards', () => {
     expect(component).toContain('ChampionshipCards')
     expect(component).toContain('directory-champ-card-grid')
     expect(component).toContain('directory-champ-card')
+    expect(component).toContain('directory-champ-zoom')
+    expect(component).toContain('directory-banner-preview')
+    expect(component).toContain('Ver banner')
     expect(component).toContain('vagas reais')
     expect(component).toContain('Live')
     expect(component).toContain('Prêmio')
@@ -23,6 +26,8 @@ test.describe('Rodada 88C — diretório de campeonatos em cards', () => {
     expect(css).toContain('.directory-champ-card-grid')
     expect(css).toContain('.directory-champ-cover')
     expect(css).toContain('.directory-champ-metrics')
+    expect(css).toContain('grid-template-columns:minmax(300px,38%) minmax(0,1fr)')
+    expect(css).toContain('.directory-banner-preview')
     expect(css).toContain('@media(max-width:760px)')
 
     expect(types).toContain('commercial?:')
