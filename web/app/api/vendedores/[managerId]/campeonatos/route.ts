@@ -42,7 +42,7 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
     // Fonte principal: vínculos de campeonato
     const { data: vinculos, error: vinculosError } = await supabaseAdmin
       .from('campeonato_vendedores')
-      .select('id,campeonato_id,produtora_id,manager_id,status,limite_vagas,permissoes,whatsapp_url,nome_publico,created_at')
+      .select('id,campeonato_id,produtora_id,manager_id,status,limite_vagas,permissoes,whatsapp_url,nome_publico,comissao_bps,created_at')
       .eq('manager_id', manager.id)
       .order('created_at', { ascending: false })
     if (vinculosError && !missingRelation(vinculosError)) throw vinculosError
@@ -66,6 +66,7 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
         manager_id: t.manager_id,
         status: t.status,
         limite_vagas: 0,
+        comissao_bps: null,
         permissoes: {},
         whatsapp_url: manager.whatsapp_url,
         nome_publico: manager.nome_publico_vendas || manager.nome,
@@ -143,6 +144,7 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
           whatsapp_url: item.whatsapp_url || manager.whatsapp_url || null,
           status: item.status,
           limite_vagas: limite,
+          comissao_bps: item.comissao_bps ?? null,
           vagas_usadas: vagasUsadas,
           vagas_restantes: limite > 0 ? Math.max(0, limite - vagasUsadas) : null,
           permissoes: item.permissoes || {},

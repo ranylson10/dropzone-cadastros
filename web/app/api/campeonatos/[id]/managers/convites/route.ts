@@ -9,6 +9,7 @@ import {
   normalizeChampSellerPerms,
   normalizeValidadeDias,
   requireCampeonatoAdmin,
+  sellerCommissionBps,
   sellerLimit,
 } from '@backend/campeonatos/manager-champ-invites'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         .limit(50),
       supabaseAdmin
         .from('campeonato_vendedores')
-        .select('id,manager_id,status,limite_vagas,permissoes,nome_publico,whatsapp_url,aceito_em,created_at')
+        .select('id,manager_id,status,limite_vagas,permissoes,nome_publico,whatsapp_url,comissao_bps,aceito_em,created_at')
         .eq('campeonato_id', campeonatoId)
         .eq('status', 'ativo'),
     ])
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const mensagem = String(body.mensagem || '').trim().slice(0, 500)
     const validadeDias = normalizeValidadeDias(body.validade_dias)
     const limiteVagas = sellerLimit(body.limite_vagas)
+    const comissaoBps = sellerCommissionBps(body.comissao_percentual ?? body.comissao_bps_percentual ?? body.comissao)
     const perms = normalizeChampSellerPerms(body.permissoes || body)
 
     let manager: any = null
@@ -142,6 +144,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         manager_username: manager.username,
         mensagem: mensagem || null,
         limite_vagas: limiteVagas,
+        comissao_bps: comissaoBps,
         permissoes: perms,
         expira_em: expiraEm,
         status: 'pendente',
@@ -173,6 +176,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         campeonato_logo_url: camp.logo_url || null,
         produtora_nome: produtora?.nome || null,
         limite_vagas: limiteVagas,
+        comissao_bps: comissaoBps,
         permissoes: perms,
         expira_em: expiraEm,
         tipo: 'convite',

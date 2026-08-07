@@ -16,6 +16,14 @@ function sellerLimit(value: unknown) {
   return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0
 }
 
+function sellerCommissionBps(value: unknown) {
+  if (value === undefined || value === null || value === '') return null
+  const percent = Number(value)
+  if (!Number.isFinite(percent) || percent < 0) throw new Error('ComissÃ£o invÃ¡lida.')
+  if (percent > 20) throw new Error('A comissÃ£o do vendedor pode ser no mÃ¡ximo 20%.')
+  return Math.round(percent * 100)
+}
+
 async function requireProdutoraAccount(req: NextRequest) {
   const user = await getBearerUser(req)
   const accounts = await getAccountsForUser(user)
@@ -104,7 +112,7 @@ export async function GET(req: NextRequest) {
       managerIds.length
         ? supabaseAdmin
             .from('campeonato_vendedores')
-            .select('id,campeonato_id,manager_id,manager_auth_user_id,limite_vagas,permissoes,status,nome_publico,whatsapp_url')
+            .select('id,campeonato_id,manager_id,manager_auth_user_id,limite_vagas,permissoes,status,nome_publico,whatsapp_url,comissao_bps')
             .eq('produtora_id', produtora.id)
             .in('manager_id', managerIds)
             .neq('status', 'cancelado')
@@ -192,6 +200,7 @@ export async function GET(req: NextRequest) {
         : null
       const vagasUsadas = usageByAuth.get(`m:${row.manager_id}`) || 0
       const limite = onCurrent?.limite_vagas != null ? Number(onCurrent.limite_vagas) : null
+      const comissaoBps = onCurrent?.comissao_bps != null ? Number(onCurrent.comissao_bps) : null
       return {
         id: row.id || row.manager_id,
         manager_id: row.manager_id,
@@ -210,6 +219,7 @@ export async function GET(req: NextRequest) {
         no_campeonato: Boolean(onCurrent),
         vinculo_atual: onCurrent,
         limite_vagas_atual: limite,
+        comissao_bps_atual: comissaoBps,
         vagas_usadas: vagasUsadas,
         vagas_restantes: limite && limite > 0 ? Math.max(0, limite - vagasUsadas) : null,
         public_url: `/vendedores/${row.manager_id}`,
@@ -268,6 +278,7 @@ export async function POST(req: NextRequest) {
       const managerId = String(body.manager_id || '').trim()
       const campeonatoId = String(body.campeonato_id || '').trim()
       const limiteVagas = sellerLimit(body.limite_vagas)
+      const comissaoBps = sellerCommissionBps(body.comissao_percentual ?? body.comissao_bps_percentual ?? body.comissao)
       const permissoes = body.permissoes ? normalizePerms(body.permissoes) : DEFAULT_PERMS
       if (!managerId || !campeonatoId) throw new Error('Informe o vendedor e o campeonato.')
 
@@ -324,6 +335,7 @@ export async function POST(req: NextRequest) {
             whatsapp_url: manager.whatsapp_url,
             status: 'ativo',
             limite_vagas: limiteVagas,
+            comissao_bps: comissaoBps,
             permissoes,
             aceito_em: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -347,6 +359,7 @@ export async function POST(req: NextRequest) {
           whatsapp_url: manager.whatsapp_url,
           status: 'ativo',
           limite_vagas: limiteVagas,
+          comissao_bps: comissaoBps,
           permissoes,
           criado_por: user.id,
           aceito_em: new Date().toISOString(),

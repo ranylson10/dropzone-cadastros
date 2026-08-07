@@ -9,6 +9,7 @@ type SellerItem = {
   campeonato_id: string
   status: string
   limite_vagas?: number
+  comissao_bps?: number | null
   vagas_usadas?: number
   vagas_restantes?: number | null
   anunciando?: boolean
@@ -45,6 +46,14 @@ function formatUsage(item: SellerItem) {
   const limit = Number(item.limite_vagas || 0)
   if (limit > 0) return `${used}/${limit} vaga(s)`
   return used > 0 ? `${used} preenchida(s)` : 'Sem preenchimento'
+}
+
+function formatCommission(item: SellerItem) {
+  if (item.comissao_bps === null || item.comissao_bps === undefined) return 'Comissão padrão do sistema'
+  const bps = Number(item.comissao_bps || 0)
+  return bps > 0
+    ? `${(bps / 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% de comissão`
+    : 'Sem comissão'
 }
 
 function saleStatusLabel(sale: AssistedSale) {
@@ -303,7 +312,7 @@ export function ManagerVendasView(props: {
                   <strong>{championship.nome || 'Campeonato'}</strong>
                   <span>{producer.nome || 'Evento'}</span>
                   <small>
-                    {active ? 'Liberado' : 'Inativo'} · {formatUsage(item)}
+                    {active ? 'Liberado' : 'Inativo'} · {formatUsage(item)} · {formatCommission(item)}
                     {item.anunciando ? ' · portfólio' : ''}
                   </small>
                 </div>
@@ -404,6 +413,7 @@ export function ManagerVendasView(props: {
 
             <p className="empty" style={{ marginTop: 0 }}>
               O sistema gera o pagamento, registra a venda para este vendedor e libera o link de inscriÃ§Ã£o quando confirmar.
+              {' '}Comissão desta vaga: {formatCommission(saleChamp)}.
             </p>
 
             <div className="manager-detail-actions" style={{ marginBottom: 12 }}>

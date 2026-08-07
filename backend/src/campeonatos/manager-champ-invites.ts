@@ -28,6 +28,14 @@ export function sellerLimit(value: unknown) {
   return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0
 }
 
+export function sellerCommissionBps(value: unknown) {
+  if (value === undefined || value === null || value === '') return null
+  const percent = Number(value)
+  if (!Number.isFinite(percent) || percent < 0) throw new Error('ComissÃ£o invÃ¡lida.')
+  if (percent > 20) throw new Error('A comissÃ£o do vendedor pode ser no mÃ¡ximo 20%.')
+  return Math.round(percent * 100)
+}
+
 export function normalizeChampSellerPerms(raw: unknown): SellerPermissions {
   return normalizeSellerPermissions(raw || DEFAULT_SELLER_PERMISSIONS)
 }
@@ -126,11 +134,13 @@ export async function activateSellerOnChampionship(params: {
   nomePublico?: string | null
   whatsappUrl?: string | null
   limiteVagas?: number
+  comissaoBps?: number | null
   permissoes?: SellerPermissions
   criadoPor?: string | null
 }) {
   const permissoes = normalizeChampSellerPerms(params.permissoes)
   const limiteVagas = sellerLimit(params.limiteVagas)
+  const comissaoBps = params.comissaoBps == null ? null : Math.max(0, Math.min(2000, Math.floor(Number(params.comissaoBps) || 0)))
   const now = new Date().toISOString()
 
   // Garante roster da produtora (quando houver)
@@ -167,6 +177,7 @@ export async function activateSellerOnChampionship(params: {
         nome_publico: params.nomePublico || null,
         whatsapp_url: params.whatsappUrl || null,
         limite_vagas: limiteVagas,
+        comissao_bps: comissaoBps,
         permissoes,
         aceito_em: now,
         updated_at: now,
@@ -191,6 +202,7 @@ export async function activateSellerOnChampionship(params: {
       whatsapp_url: params.whatsappUrl || null,
       status: 'ativo',
       limite_vagas: limiteVagas,
+      comissao_bps: comissaoBps,
       permissoes,
       criado_por: params.criadoPor || null,
       aceito_em: now,

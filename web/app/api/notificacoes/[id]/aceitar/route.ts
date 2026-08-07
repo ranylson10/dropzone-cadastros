@@ -261,6 +261,7 @@ async function acceptChampInviteAsManager(user: any, accounts: any[], notif: any
     nomePublico: managerRow?.nome_publico_vendas || managerRow?.nome || managerRow?.username || manager.name,
     whatsappUrl: managerRow?.whatsapp_url || null,
     limiteVagas: sellerLimit(convite.limite_vagas),
+    comissaoBps: convite.comissao_bps ?? null,
     permissoes: normalizeChampSellerPerms(convite.permissoes),
     criadoPor: convite.criado_por_auth_user_id,
   })
@@ -371,6 +372,7 @@ async function acceptChampPedidoAsAdmin(user: any, notif: any) {
     nomePublico: managerRow.nome_publico_vendas || managerRow.nome || managerRow.username,
     whatsappUrl: managerRow.whatsapp_url || null,
     limiteVagas: sellerLimit(convite.limite_vagas),
+    comissaoBps: convite.comissao_bps ?? null,
     permissoes: normalizeChampSellerPerms(convite.permissoes),
     criadoPor: user.id,
   })

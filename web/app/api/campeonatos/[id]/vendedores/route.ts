@@ -17,6 +17,14 @@ function sellerLimit(value: unknown) {
   return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0
 }
 
+function sellerCommissionBps(value: unknown) {
+  if (value === undefined || value === null || value === '') return null
+  const percent = Number(value)
+  if (!Number.isFinite(percent) || percent < 0) throw new Error('ComissÃ£o invÃ¡lida.')
+  if (percent > 20) throw new Error('A comissÃ£o do vendedor pode ser no mÃ¡ximo 20%.')
+  return Math.round(percent * 100)
+}
+
 function normalizePerms(raw: unknown) {
   const value = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   return {
@@ -81,7 +89,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     if (managerIds.length) {
       const { data: sellerLinks, error: sellerLinksError } = await supabaseAdmin
         .from('campeonato_vendedores')
-        .select('manager_id,limite_vagas,permissoes,status')
+        .select('manager_id,limite_vagas,permissoes,status,comissao_bps')
         .eq('campeonato_id', id)
         .in('manager_id', managerIds)
       if (sellerLinksError && !missingRelation(sellerLinksError)) throw sellerLinksError
@@ -96,6 +104,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         return {
           ...row,
           limite_vagas: sellerLink?.limite_vagas || row.manager_limite_vagas || 0,
+          comissao_bps: sellerLink?.comissao_bps ?? row.manager_comissao_bps ?? null,
           permissoes: sellerLink?.permissoes || row.manager_permissoes || {},
           status: row.manager_id ? 'ativo' : 'pendente',
           nome_publico: contact?.nome || manager?.nome || manager?.username || null,
@@ -118,6 +127,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     const body = await req.json().catch(() => ({}))
     const limiteVagas = sellerLimit(body.limite_vagas)
+    const comissaoBps = sellerCommissionBps(body.comissao_percentual ?? body.comissao_bps_percentual ?? body.comissao)
     const token = novoToken()
     const { data: convite, error } = await supabaseAdmin
       .from('tokens')
@@ -130,6 +140,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         usado: false,
         criado_por: user.id,
         manager_limite_vagas: limiteVagas,
+        manager_comissao_bps: comissaoBps,
         manager_permissoes: {
           vendedor_vagas: true,
           adicionar_equipes: false,
@@ -178,6 +189,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
     const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if ('limite_vagas' in body) update.limite_vagas = sellerLimit(body.limite_vagas)
+    if ('comissao_percentual' in body || 'comissao_bps_percentual' in body || 'comissao' in body) {
+      update.comissao_bps = sellerCommissionBps(body.comissao_percentual ?? body.comissao_bps_percentual ?? body.comissao)
+    }
     if ('permissoes' in body) update.permissoes = normalizePerms(body.permissoes)
     if ('status' in body) {
       const status = String(body.status || '').trim().toLowerCase()

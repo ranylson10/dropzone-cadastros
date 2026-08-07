@@ -122,6 +122,7 @@ async function upsertSellerLink(convite: any, account: any, body: any, whatsappU
     whatsapp_url: whatsappUrl || null,
     status: 'ativo',
     limite_vagas: Number(convite.manager_limite_vagas || 0),
+    comissao_bps: convite.manager_comissao_bps ?? null,
     permissoes: convite.manager_permissoes || {
       vendedor_vagas: true,
       adicionar_equipes: false,

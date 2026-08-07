@@ -139,6 +139,7 @@ export function ProdutoraPanel(props: {
   const [sellerError, setSellerError] = useState('')
   const [sellerSelected, setSellerSelected] = useState<any | null>(null)
   const [sellerLimite, setSellerLimite] = useState('')
+  const [sellerComissao, setSellerComissao] = useState('')
   const [sellerNomePublico, setSellerNomePublico] = useState('')
   const [sellerWhatsapp, setSellerWhatsapp] = useState('')
   const [sellerBusy, setSellerBusy] = useState(false)
@@ -174,6 +175,7 @@ export function ProdutoraPanel(props: {
   const [mgrMessage, setMgrMessage] = useState('')
   const [mgrValidade, setMgrValidade] = useState('7')
   const [mgrLimite, setMgrLimite] = useState('')
+  const [mgrComissao, setMgrComissao] = useState('')
   const [mgrPerms, setMgrPerms] = useState({
     adicionar_equipes: false,
     gerar_convites_equipe: true,
@@ -292,6 +294,8 @@ export function ProdutoraPanel(props: {
           ? String(seller.vinculo_atual.limite_vagas)
           : '',
     )
+    const commissionBps = seller?.comissao_bps_atual ?? seller?.vinculo_atual?.comissao_bps
+    setSellerComissao(commissionBps != null ? String(Number(commissionBps) / 100) : '')
     setSellerPerms({
       adicionar_equipes: perms.adicionar_equipes !== false,
       gerar_convites_equipe: perms.gerar_convites_equipe !== false,
@@ -319,6 +323,7 @@ export function ProdutoraPanel(props: {
           manager_id: managerId,
           campeonato_id: selectedChamp.id,
           limite_vagas: sellerLimite,
+          comissao_percentual: sellerComissao,
           permissoes: sellerPerms,
         }),
       })
@@ -411,6 +416,7 @@ export function ProdutoraPanel(props: {
     setMgrMessage('')
     setMgrValidade('7')
     setMgrLimite('')
+    setMgrComissao('')
     setMgrPerms({
       adicionar_equipes: false,
       gerar_convites_equipe: true,
@@ -472,6 +478,7 @@ export function ProdutoraPanel(props: {
           mensagem: mgrMessage,
           validade_dias: mgrValidade,
           limite_vagas: mgrLimite,
+          comissao_percentual: mgrComissao,
           permissoes: mgrPerms,
         }),
       })
@@ -2163,12 +2170,15 @@ ${params.url}`
                         {activeSellers.map((seller, index) => {
                           const manager = seller.managers || {}
                           const limite = Number(seller.vinculo_atual?.limite_vagas ?? seller.limite_vagas_atual ?? 0)
+                          const comissaoBpsAtual = seller.vinculo_atual?.comissao_bps ?? seller.comissao_bps_atual
+                          const comissao = Number(comissaoBpsAtual ?? 0) / 100
                           const usadas = Number(seller.vagas_usadas || 0)
                           const aberta = sellerSelected?.manager_id === seller.manager_id
                           const nome = seller.nome_publico || manager.nome || manager.username || 'Manager'
                           const detalhe = [
                             manager.username ? `@${manager.username}` : null,
                             limite > 0 ? `${usadas}/${limite} vagas` : `${usadas} vendida(s)`,
+                            comissaoBpsAtual != null ? `${comissao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% comissão` : 'comissão padrão',
                           ].filter(Boolean).join(' · ')
                           return (
                             <article
@@ -2219,6 +2229,10 @@ ${params.url}`
                                       <small>Status</small>
                                       <strong>Ativo neste evento</strong>
                                     </span>
+                                    <span>
+                                      <small>Comissão</small>
+                                      <strong>{comissaoBpsAtual != null ? `${comissao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%` : 'Padrão do sistema'}</strong>
+                                    </span>
                                   </div>
 
                                   <div className="seller-row-edit">
@@ -2229,6 +2243,17 @@ ${params.url}`
                                         value={sellerLimite}
                                         onChange={(e) => setSellerLimite(e.target.value)}
                                         placeholder="0"
+                                      />
+                                    </Field>
+                                    <Field label="Comissão de venda (%) — máximo 20">
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={20}
+                                        step="0.1"
+                                        value={sellerComissao}
+                                        onChange={(e) => setSellerComissao(e.target.value)}
+                                        placeholder="Ex.: 10"
                                       />
                                     </Field>
                                     <div className="mini-grid two">
@@ -2365,6 +2390,17 @@ ${params.url}`
                                         value={sellerLimite}
                                         onChange={(e) => setSellerLimite(e.target.value)}
                                         placeholder="0"
+                                      />
+                                    </Field>
+                                    <Field label="Comissão de venda (%) — máximo 20">
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={20}
+                                        step="0.1"
+                                        value={sellerComissao}
+                                        onChange={(e) => setSellerComissao(e.target.value)}
+                                        placeholder="Ex.: 10"
                                       />
                                     </Field>
                                     <div className="mini-grid two">
@@ -2541,6 +2577,20 @@ ${params.url}`
                               placeholder="0"
                             />
                           </Field>
+                          <Field label="Comissão de venda (%) — máximo 20">
+                            <input
+                              type="number"
+                              min={0}
+                              max={20}
+                              step="0.1"
+                              value={mgrComissao}
+                              onChange={(e) => setMgrComissao(e.target.value)}
+                              placeholder="Ex.: 10"
+                            />
+                          </Field>
+                        </div>
+
+                        <div className="mini-grid two">
                           <Field label="Mensagem (opcional)">
                             <input
                               value={mgrMessage}

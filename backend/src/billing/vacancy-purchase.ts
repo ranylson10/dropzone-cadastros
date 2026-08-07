@@ -293,10 +293,11 @@ export async function createVacancyPurchase(input: {
 
   let vendedorManagerId = input.vendedorManagerId || null
   let vendedorAuthUserId: string | null = null
+  let vendedorCommissionBps: number | null = null
   if (vendedorManagerId) {
     const { data: vend } = await supabaseAdmin
       .from('campeonato_vendedores')
-      .select('manager_id,manager_auth_user_id,status')
+      .select('manager_id,manager_auth_user_id,status,comissao_bps')
       .eq('campeonato_id', input.campeonatoId)
       .eq('manager_id', vendedorManagerId)
       .eq('status', 'ativo')
@@ -304,6 +305,7 @@ export async function createVacancyPurchase(input: {
     if (vend) {
       vendedorManagerId = vend.manager_id
       vendedorAuthUserId = vend.manager_auth_user_id || null
+      vendedorCommissionBps = normalizeSellerCommissionBps(vend.comissao_bps)
     } else {
       // vendedor global da produtora (portfolio) — ainda atribui se manager existir
       const { data: mgr } = await supabaseAdmin
@@ -343,6 +345,8 @@ export async function createVacancyPurchase(input: {
           valor_unitario_centavos: valorUnitarioCentavos,
           vagas_usadas: 0,
           vagas_restantes: quantity,
+          vendedor_bps: vendedorCommissionBps,
+          comissao_vendedor_bps: vendedorCommissionBps,
         },
         updated_at: new Date().toISOString(),
       })
@@ -368,6 +372,8 @@ export async function createVacancyPurchase(input: {
           valor_unitario_centavos: valorUnitarioCentavos,
           vagas_usadas: Math.max(0, Number((compra.meta as any)?.vagas_usadas || 0)),
           vagas_restantes: Math.max(0, quantity - Math.max(0, Number((compra.meta as any)?.vagas_usadas || 0))),
+          vendedor_bps: vendedorCommissionBps,
+          comissao_vendedor_bps: vendedorCommissionBps,
         },
         updated_at: new Date().toISOString(),
       })
@@ -466,6 +472,8 @@ export async function createVacancyPurchase(input: {
     produtora_id: champ.produtora_id || null,
     vendedor_manager_id: vendedorManagerId,
     vendedor_auth_user_id: vendedorAuthUserId,
+    vendedor_bps: vendedorCommissionBps,
+    comissao_vendedor_bps: vendedorCommissionBps,
   }
 
   const row = {
@@ -596,6 +604,13 @@ function expectedVacancyPaymentCents(compra: any) {
   return Math.max(stored, computed)
 }
 
+function normalizeSellerCommissionBps(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  const bps = Number(value)
+  if (!Number.isFinite(bps)) return null
+  return Math.max(0, Math.min(2000, Math.floor(bps)))
+}
+
 function assertVacancyPaymentAmount(compra: any, pagamento?: any | null) {
   if (!pagamento) return
   const expected = expectedVacancyPaymentCents(compra)
@@ -697,6 +712,8 @@ export async function liberarCompraVagaComSplit(pagamento: any) {
     produtora_id: compra.produtora_id,
     vendedor_manager_id: compra.vendedor_manager_id,
     vendedor_auth_user_id: compra.vendedor_auth_user_id,
+    vendedor_bps: compra.meta?.vendedor_bps ?? compra.meta?.comissao_vendedor_bps ?? pagamento.payload_criacao?.dropzone?.vendedor_bps ?? null,
+    comissao_vendedor_bps: compra.meta?.comissao_vendedor_bps ?? compra.meta?.vendedor_bps ?? pagamento.payload_criacao?.dropzone?.comissao_vendedor_bps ?? null,
     compra_vaga_id: compra.id,
   }
 

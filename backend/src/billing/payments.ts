@@ -374,7 +374,16 @@ export async function creditInscriptionSplit(pagamento: any) {
 
   const { vendedorBps, plataformaBps } = await getCommissionBps()
   const hasSeller = Boolean(meta.vendedor_auth_user_id || meta.vendedor_manager_id)
-  const split = splitCommission(bruto, hasSeller ? vendedorBps : 0, plataformaBps)
+  const metaSellerBpsRaw = meta.vendedor_bps ?? meta.comissao_vendedor_bps
+  const metaSellerBps = metaSellerBpsRaw === null || metaSellerBpsRaw === undefined || metaSellerBpsRaw === ''
+    ? Number.NaN
+    : Number(metaSellerBpsRaw)
+  const effectiveSellerBps = hasSeller
+    ? Number.isFinite(metaSellerBps)
+      ? Math.max(0, Math.min(2000, Math.floor(metaSellerBps)))
+      : vendedorBps
+    : 0
+  const split = splitCommission(bruto, effectiveSellerBps, plataformaBps)
 
   await supabaseAdmin.from('sistema_comissoes').insert({
     pagamento_id: pagamento.id,
@@ -385,7 +394,7 @@ export async function creditInscriptionSplit(pagamento: any) {
     comissao_vendedor_centavos: split.vendedor,
     comissao_plataforma_centavos: split.plataforma,
     valor_liquido_produtora_centavos: split.liquido,
-    bps_vendedor: hasSeller ? vendedorBps : 0,
+    bps_vendedor: effectiveSellerBps,
     bps_plataforma: plataformaBps,
     status: 'creditada',
     meta,
