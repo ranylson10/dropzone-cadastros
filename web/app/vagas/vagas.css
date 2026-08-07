@@ -31,7 +31,9 @@
 .vacancy-buy-field input{min-height:46px;padding:0 14px;border:1px solid rgba(50,188,173,.35);background:#fff;font:inherit;font-size:16px;letter-spacing:.04em}
 .vacancy-buy-field input:focus{outline:2px solid rgba(50,188,173,.35);border-color:#32BCAD}
 .vacancy-buy-field small{color:#8a929c;font-size:11px}
-.vacancy-buy-pix-submit{display:inline-flex !important;align-items:center;justify-content:center;gap:8px;min-height:46px;width:100%;border:0;background:linear-gradient(135deg,#32BCAD 0%,#0f766e 100%) !important;color:#fff !important;font-weight:800;box-shadow:0 8px 18px rgba(50,188,173,.28)}
+.vacancy-buy-form .vacancy-buy-pix-submit,
+.vacancy-buy-pix-form .vacancy-buy-pix-submit,
+.vacancy-buy-pix-submit{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;width:100%;border:0;background:linear-gradient(135deg,#32BCAD 0%,#0f766e 100%);color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(50,188,173,.28)}
 .vacancy-buy-pix-submit:hover:not(:disabled){filter:brightness(1.05)}
 .vacancy-buy-pix-submit:disabled{opacity:.65;cursor:not-allowed}
 .vacancy-buy-pix-inline{width:100%;justify-items:center;text-align:center;margin-top:4px}
@@ -66,7 +68,8 @@
 .vacancy-pix-box-brand{border-color:rgba(50,188,173,.45);background:linear-gradient(135deg,#f3fcfb 0%,#eaf9f6 100%)}
 .vacancy-pix-title{display:flex;align-items:center;gap:8px;color:#0f766e;font-size:14px}
 .vacancy-pix-box img{display:block;border:1px solid var(--line);background:#fff}
-.vacancy-wa-cta{display:inline-flex !important;align-items:center;gap:8px;margin-top:12px;background:#25D366 !important;color:#fff !important;border:0 !important;box-shadow:0 8px 18px rgba(37,211,102,.28)}
+.vacancies-page .vacancy-wa-cta,
+.vacancy-wa-cta{display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:#25D366;color:#fff;border:0;box-shadow:0 8px 18px rgba(37,211,102,.28)}
 .vacancy-wa-cta:hover{filter:brightness(1.05)}
 .vacancy-slot-chips{display:flex;flex-wrap:wrap;gap:8px}
 .vacancy-slot-chip{min-width:44px;min-height:40px;padding:0 12px;border:1px solid var(--line);background:var(--surface);font-weight:800;cursor:pointer}

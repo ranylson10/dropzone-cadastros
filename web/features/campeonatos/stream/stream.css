@@ -582,7 +582,7 @@ body.stream-editor-scroll-lock {
 }
 
 .stream-sheet-empty {
-  padding: 28px !important;
+  padding: 28px;
   text-align: center;
   color: var(--muted);
   font-size: 0.9rem;
@@ -2023,10 +2023,10 @@ body.stream-editor-scroll-lock {
   gap: 4px;
 }
 
-.stream-add-layer-row button {
-  width: auto !important;
-  font-size: 9px !important;
-  padding: 4px 6px !important;
+.stream-add-layer-row > button {
+  width: auto;
+  font-size: 9px;
+  padding: 4px 6px;
 }
 
 .stream-canvas-toolbar {
@@ -2438,7 +2438,7 @@ body.stream-editor-scroll-lock {
 }
 
 .stream-check-inline {
-  display: flex !important;
+  display: flex;
   align-items: center;
   gap: 8px;
 }
@@ -2736,7 +2736,7 @@ body.stream-editor-scroll-lock {
 }
 
 .stream-legend-label-row {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(48px, 72px) minmax(0, 1fr) 18px;
   gap: 6px;
   align-items: center;
@@ -2856,8 +2856,8 @@ body.stream-editor-scroll-lock {
   /* container hint — filhos animam conforme classe do bloco */
 }
 
-.col-delta.is-up { color: #7dffa0 !important; }
-.col-delta.is-down { color: #ffb4b4 !important; }
+.stream-data-rank .col-delta.is-up { color: #7dffa0; }
+.stream-data-rank .col-delta.is-down { color: #ffb4b4; }
 
 @keyframes stream-pulse {
   0% { filter: brightness(1); }
@@ -3020,7 +3020,7 @@ body.stream-editor-scroll-lock {
 }
 
 .stream-editor.stream-gt .stream-layer-hit:active {
-  cursor: grabbing !important;
+  cursor: grabbing;
 }
 
 .stream-layer-resize-handle {
