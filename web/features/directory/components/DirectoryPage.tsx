@@ -20,6 +20,9 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
             <small>DIRETÓRIO PÚBLICO</small>
             <h1>{config.title}</h1>
             <p>{config.description}</p>
+            {kind === 'equipes' ? (
+              <a className="directory-context-action" href="/?login=equipe&returnTo=%2F%3Fpainel%3D1">Minha equipe</a>
+            ) : null}
           </div>
         </section>
         <DirectoryListClient items={items} />

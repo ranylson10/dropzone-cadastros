@@ -54,14 +54,13 @@ test.describe('Fluxos funcionais principais — sem alterar dados reais', () => 
   test('produtora abre, percorre o assistente e cancela novo campeonato', async ({ browser }) => {
     const { context, page } = await authenticatedPage(browser, 'produtora')
     try {
-      // O painel da produtora e o botão de criação ficam na página inicial autenticada.
+      // A raiz autenticada agora é um feed. O painel da produtora fica em Minha área.
       await page.goto('/')
       await assertHealthyPage(page)
-
-      const newButton = page.getByRole('button', { name: /^novo campeonato$/i })
-      await expect(newButton).toBeVisible({ timeout: 15_000 })
-      await expect(newButton).toBeEnabled()
-      await newButton.click()
+      await expect(page.getByRole('heading', { name: /o que você quer fazer agora/i })).toBeVisible({ timeout: 15_000 })
+      const createFromHome = page.getByRole('button', { name: /criar campeonato/i })
+      await expect(createFromHome).toBeVisible()
+      await createFromHome.click()
 
       const modal = page.getByRole('dialog').filter({ hasText: /novo campeonato/i }).first()
       await expect(modal).toBeVisible()

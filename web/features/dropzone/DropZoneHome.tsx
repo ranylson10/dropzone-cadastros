@@ -22,6 +22,7 @@ import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { PublicChampionshipHome } from '@/features/home/PublicChampionshipHome'
+import { AuthenticatedHomeFeed } from '@/features/home/AuthenticatedHomeFeed'
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
@@ -153,6 +154,7 @@ export function DropZoneHome() {
   const [inviteReturnTo, setInviteReturnTo] = useState('')
   /** Só true se /api/admin/session confirmar (backend). Nunca confiar só no front. */
   const [isSystemAdmin, setIsSystemAdmin] = useState(false)
+  const [workspaceMode, setWorkspaceMode] = useState<'home' | 'panel'>('home')
 
   const [championship, setChampionship] = useState(emptyChampionship)
   const [team, setTeam] = useState({
@@ -375,6 +377,7 @@ export function DropZoneHome() {
     async function initialize() {
       try {
         const params = new URLSearchParams(window.location.search)
+        setWorkspaceMode(params.get('painel') === '1' ? 'panel' : 'home')
         const convite = String(params.get('convite') || '').trim()
         const escala = String(params.get('escala') || '').trim()
         const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
@@ -798,6 +801,22 @@ export function DropZoneHome() {
     setRows(rowsJson.rows || [])
     savePanelSnapshot(selectedAccount, loadedAccounts, rowsJson.rows || [])
     saveRecentProfiles(loadedAccounts)
+  }
+
+  function setWorkspace(next: 'home' | 'panel') {
+    setWorkspaceMode(next)
+    const url = new URL(window.location.href)
+    if (next === 'panel') url.searchParams.set('painel', '1')
+    else url.searchParams.delete('painel')
+    url.searchParams.delete('login')
+    url.searchParams.delete('cadastro')
+    url.searchParams.delete('returnTo')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+
+  async function openProfilePanel(target?: DropZoneRow) {
+    if (target && target.id !== account?.id) await switchLinkedAccount(target)
+    setWorkspace('panel')
   }
 
   async function switchLinkedAccount(nextAccount: DropZoneRow) {
@@ -1798,6 +1817,20 @@ export function DropZoneHome() {
           </section>
         ) : (
           <>
+            {workspaceMode === 'home' ? (
+              <AuthenticatedHomeFeed
+                account={account}
+                accounts={accounts}
+                championshipsCount={championships.length}
+                teamsCount={teams.length}
+                registrationsCount={registrations.length}
+                onOpenPanel={openProfilePanel}
+              />
+            ) : (
+              <>
+            <section className="panel-workspace-return">
+              <button type="button" onClick={() => setWorkspace('home')}>← Voltar para o início</button>
+            </section>
             <section className="account-strip account-strip-compact">
               <div className="account-strip-head">
                 <p className="eyebrow">Conta ativa</p>
@@ -1977,6 +2010,8 @@ export function DropZoneHome() {
 
             {message ? <div className="message floating">{message}</div> : null}
             {error ? <div className="message error floating">{error}</div> : null}
+              </>
+            )}
           </>
         )}
         </div>

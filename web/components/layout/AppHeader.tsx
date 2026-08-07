@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Globe2, Loader2, LogOut, Menu, Plus, Shield, Wallet, X } from 'lucide-react'
+import { ChevronDown, Globe2, LayoutDashboard, Loader2, LogOut, Menu, Plus, Shield, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { DropZoneRow } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -235,6 +235,10 @@ export function AppHeader({
           })}
           {isAuthenticated ? (
             <div className="app-mobile-nav-account">
+              <a href="/?painel=1" onClick={() => setMobileOpen(false)}>
+                <LayoutDashboard size={16} />
+                <span>Meu painel</span>
+              </a>
               {showWallet ? (
                 <a href="/carteira" onClick={() => setMobileOpen(false)}>
                   <Wallet size={16} />
@@ -410,6 +414,27 @@ export function AppHeader({
                     </button>
                   )
                 })}
+                <a
+                  href="/?painel=1"
+                  onClick={() => {
+                    setProfileOpen(false)
+                    setMobileOpen(false)
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    width: '100%',
+                    borderTop: '1px solid #d5dae3',
+                    padding: '12px 14px',
+                    background: '#fff',
+                    color: '#171a22',
+                    textDecoration: 'none',
+                    fontWeight: 800,
+                  }}
+                >
+                  <LayoutDashboard size={16} /> Meu painel
+                </a>
                 {showWallet ? (
                   <a
                     href="/carteira"

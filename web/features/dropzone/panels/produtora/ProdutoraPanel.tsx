@@ -523,6 +523,15 @@ export function ProdutoraPanel(props: {
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/vagas?produtora=${props.account.id}`
     : ''
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('acao') !== 'criar-campeonato') return
+    params.delete('acao')
+    const cleanSearch = params.toString()
+    window.history.replaceState({}, '', `${window.location.pathname}${cleanSearch ? `?${cleanSearch}` : ''}${window.location.hash}`)
+    if (produtoraAprovacao === 'aprovado') setShowCreateChamp(true)
+  }, [produtoraAprovacao])
+
   async function copyProducerCatalog() {
     if (!producerCatalogLink) return
     await navigator.clipboard.writeText(producerCatalogLink)
