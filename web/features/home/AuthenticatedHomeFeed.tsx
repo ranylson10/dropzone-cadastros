@@ -23,7 +23,10 @@ type Vacancy = {
   nome: string
   tipo?: string
   logo_url?: string | null
+  banner_url?: string | null
   valor_inscricao?: number | string | null
+  premiacao?: number | string | null
+  tem_live?: boolean
   vagas_livres?: number
   total_vagas?: number
   proxima_data?: string | null
@@ -51,6 +54,12 @@ function dateLabel(value?: string | null) {
   const date = new Date(`${value}T12:00:00`)
   if (Number.isNaN(date.getTime())) return 'Data a confirmar'
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(date)
+}
+
+function vacancyRatio(item: Vacancy) {
+  const free = Number(item.vagas_livres || 0)
+  const total = Math.max(1, Number(item.total_vagas || 1))
+  return Math.max(8, Math.min(100, (free / total) * 100))
 }
 
 export function AuthenticatedHomeFeed({
@@ -202,10 +211,23 @@ export function AuthenticatedHomeFeed({
           <div className="authenticated-home-vacancy-grid">
             {vacancies.slice(0, 6).map((item) => (
               <article className="authenticated-home-vacancy-card" key={item.id}>
-                <div className="authenticated-home-vacancy-head">
-                  <span className="authenticated-home-vacancy-logo">{item.logo_url ? <img src={item.logo_url} alt="" /> : <Trophy size={22} />}</span>
-                  <div><small>{item.tipo || 'Campeonato'}</small><strong>{item.nome}</strong></div>
+                <div
+                  className="authenticated-home-vacancy-media"
+                  style={item.banner_url ? { backgroundImage: `linear-gradient(180deg, rgba(8,12,18,.05), rgba(8,12,18,.9)), url(${item.banner_url})` } : undefined}
+                >
+                  <span>{item.tipo || 'Campeonato'}</span>
+                  <div className="authenticated-home-vacancy-badges">
+                    {item.tem_live ? <b>Live</b> : null}
+                    {Number(item.premiacao || 0) > 0 ? <b>Prêmio</b> : null}
+                    {Number(item.vagas_livres || 0) > 0 && Number(item.vagas_livres || 0) <= 3 ? <b className="hot">Últimas</b> : null}
+                  </div>
+                  <i>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Trophy size={24} />}</i>
                 </div>
+                <div className="authenticated-home-vacancy-body">
+                  <div className="authenticated-home-vacancy-head">
+                    <small>{item.tipo || 'Campeonato'}</small>
+                    <strong>{item.nome}</strong>
+                  </div>
                 <div className="authenticated-home-vacancy-meta">
                   <span><CalendarDays size={13} /> {dateLabel(item.proxima_data)}</span>
                   <span>{item.proximo_horario || 'Horário a confirmar'}</span>
@@ -213,6 +235,8 @@ export function AuthenticatedHomeFeed({
                 <div className="authenticated-home-vacancy-status">
                   <span><b>{item.vagas_livres || 0}</b> de {item.total_vagas || 0} vagas livres</span>
                   <strong>{money(item.valor_inscricao)}</strong>
+                </div>
+                <div className="authenticated-home-vacancy-line"><em style={{ width: `${vacancyRatio(item)}%` }} /></div>
                 </div>
                 <footer>
                   <a href={`/campeonatos/${item.id}`}>Ver campeonato</a>
