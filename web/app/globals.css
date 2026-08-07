@@ -6797,3 +6797,89 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   } .directory-champ-zoom{ display:none;
   }
 }
+
+/* /campeonatos: usar o mesmo padrão simples da vitrine mobile */
+.directory-theme-campeonatos .directory-champ-card-grid{
+  width:min(980px,calc(100% - 32px));
+  grid-template-columns:1fr;
+  gap:10px;
+}
+.directory-theme-campeonatos .directory-champ-card{
+  display:grid;
+  grid-template-columns:150px minmax(0,1fr);
+  min-height:172px;
+  background:#fff;
+  box-shadow:none;
+}
+.directory-theme-campeonatos .directory-champ-card:hover{
+  transform:none;
+  box-shadow:none;
+}
+.directory-theme-campeonatos .directory-champ-cover{
+  min-height:172px;
+  height:172px;
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  padding:8px;
+}
+.directory-theme-campeonatos .directory-champ-body{
+  align-content:stretch;
+  gap:8px;
+  padding:12px 14px;
+}
+.directory-theme-campeonatos .directory-champ-title small{
+  font-size:8px;
+}
+.directory-theme-campeonatos .directory-champ-title strong{
+  font-size:18px;
+}
+.directory-theme-campeonatos .directory-champ-metrics{
+  display:none;
+}
+.directory-theme-campeonatos .directory-champ-vacancy{
+  margin-top:auto;
+}
+.directory-theme-campeonatos .directory-champ-footer{
+  align-items:center;
+  flex-direction:row;
+}
+.directory-theme-campeonatos .directory-champ-footer>span{
+  display:none;
+}
+.directory-theme-campeonatos .directory-champ-footer a{
+  margin-left:auto;
+}
+.directory-theme-campeonatos .directory-champ-logo{
+  width:42px;
+  height:42px;
+  margin-bottom:34px;
+}
+.directory-theme-campeonatos .directory-champ-badges{
+  left:7px;
+  right:7px;
+  bottom:7px;
+}
+.directory-theme-campeonatos .directory-champ-badges b{
+  padding:4px 5px;
+  font-size:7px;
+}
+.directory-theme-campeonatos .directory-champ-zoom{
+  display:none;
+}
+@media(max-width:760px){
+  .directory-theme-campeonatos .directory-champ-card-grid{
+    width:calc(100% - 18px);
+  }
+  .directory-theme-campeonatos .directory-champ-card{
+    grid-template-columns:118px minmax(0,1fr);
+    min-height:176px;
+  }
+  .directory-theme-campeonatos .directory-champ-cover{
+    min-height:176px;
+    height:176px;
+  }
+  .directory-theme-campeonatos .directory-champ-title strong{
+    font-size:15px;
+  }
+}
