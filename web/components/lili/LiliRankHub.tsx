@@ -33,7 +33,7 @@ export function LiliRankHub() {
   const rows = mode === 'teams' ? data.teams : data.players
 
   return (
-    <section className="lili-rank-hub directory-rank-table">
+    <section className="directory-rank-table">
       <div className="directory-rank-toolbar">
         <nav aria-label="Tipo de ranking">
           <button type="button" className={mode === 'teams' ? 'active' : ''} onClick={() => setMode('teams')}>
@@ -58,34 +58,40 @@ export function LiliRankHub() {
       ) : null}
 
       {rows.length ? (
-        <div className="directory-rank-head" aria-hidden="true">
-          <span>#</span>
-          <span>{mode === 'teams' ? 'Equipe' : 'Jogador'}</span>
-          <span>{mode === 'teams' ? 'Desempenho' : 'Estatísticas'}</span>
-          <span>{mode === 'teams' ? 'Pontos' : 'Abates'}</span>
+        <div className="directory-list-head" aria-hidden="true">
+          <span className="directory-list-head-main">{mode === 'teams' ? 'Equipe' : 'Jogador'}</span>
+          <span className="directory-list-head-meta">
+            <em>Posição</em>
+            <em>{mode === 'teams' ? 'Booyah' : 'Dano'}</em>
+            <em>{mode === 'teams' ? 'Pontos' : 'Abates'}</em>
+          </span>
         </div>
       ) : null}
 
-      <div className="lili-rank-list">
+      <div className="directory-list directory-rank-list">
         {rows.map((row) => {
           const image = row.logo_url || row.foto_url || row.avatar_url || ''
           const title = mode === 'teams' ? row.nome : row.nick
           const detail = mode === 'teams'
-            ? [row.tag, `${row.booyahs} BOOYAH`, `${row.quedas} quedas`].filter(Boolean).join(' · ')
-            : [`${row.dano} dano`, `${row.assistencias || 0} assist.`, `${row.quedas} quedas`].join(' · ')
-          const score = mode === 'teams' ? `${row.pontos} pts` : `${row.abates} K`
+            ? [row.tag, `${row.quedas} quedas`].filter(Boolean).join(' · ')
+            : [`${row.assistencias || 0} assist.`, `${row.quedas} quedas`].join(' · ')
 
           return (
-            <article key={row.key}>
-              <b className="directory-rank-position">{row.rank}</b>
-              <span className="lili-rank-avatar">
+            <article className="directory-list-row directory-rank-row" key={row.key}>
+              <span className="directory-list-media">
                 {image ? <img src={image} alt="" /> : mode === 'teams' ? <Shield size={18} /> : <Swords size={18} />}
               </span>
-              <div className="directory-rank-identity">
+              <span className="directory-list-main">
+                <small>{mode === 'teams' ? 'Equipe' : 'Jogador'}</small>
                 <strong>{title}</strong>
-                <small>{detail}</small>
-              </div>
-              <em>{score}</em>
+                <span>{detail}</span>
+              </span>
+              <span className="directory-list-meta">
+                <em data-label="Posição"><b className="directory-rank-position">#{row.rank}</b></em>
+                <em data-label={mode === 'teams' ? 'Booyah' : 'Dano'}><b>{mode === 'teams' ? row.booyahs : row.dano}</b></em>
+                <em data-label={mode === 'teams' ? 'Pontos' : 'Abates'}><b className="directory-rank-score">{mode === 'teams' ? `${row.pontos} pts` : `${row.abates} K`}</b></em>
+              </span>
+              <span className="directory-list-arrow" aria-hidden="true" />
             </article>
           )
         })}
