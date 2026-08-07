@@ -490,3 +490,140 @@
     font-size: 11px;
   }
 }
+
+/* Estatísticas públicas no mobile: uma linha compacta, sem rolagem horizontal. */
+@media (max-width: 820px) {
+  .champ-public .champ-stats-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .champ-public .champ-stats-table,
+  .champ-public .champ-stats-team-table,
+  .champ-public .champ-stats-mvp-table {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+
+  .champ-public .champ-stats-table thead {
+    display: none;
+  }
+
+  .champ-public .champ-stats-table tbody {
+    display: grid;
+    width: 100%;
+  }
+
+  .champ-public .champ-stats-table tbody tr {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 56px;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    background: #f7f4ee;
+    border-bottom: 1px solid #cbc3b7;
+  }
+
+  .champ-public .champ-stats-table tbody tr:nth-child(even) {
+    background: #e4ded4;
+  }
+
+  .champ-public .champ-stats-table td {
+    min-width: 0;
+    padding: 8px 5px;
+    border: 0;
+    white-space: normal;
+  }
+
+  .champ-public .champ-stats-table td.pos {
+    width: auto;
+    padding-inline: 3px;
+    text-align: center;
+  }
+
+  .champ-public .champ-stats-table td.pos b {
+    font-size: 12px;
+  }
+
+  .champ-public .champ-stats-table td.identity {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: auto;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .champ-public .champ-stats-table td.identity > span:last-child {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .champ-public .champ-stats-table td.identity strong {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    color: #17212b;
+    font-size: 11px;
+    line-height: 1.08;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .champ-public .champ-stats-table td.identity .mobile-stat-meta {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    color: #65717d;
+    font-size: 8px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .champ-public .champ-stats-table .stat-group,
+  .champ-public .champ-stats-table .stat-secondary {
+    display: none;
+  }
+
+  .champ-public .champ-stats-table td.total {
+    display: grid;
+    align-self: stretch;
+    align-content: center;
+    justify-items: end;
+    width: auto;
+    min-width: 0;
+    padding: 7px 5px;
+    background: transparent;
+    color: #17212b;
+    text-align: right;
+  }
+
+  .champ-public .champ-stats-table td.total .mobile-total-label {
+    display: block;
+    color: #7a7165;
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .07em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .champ-public .champ-stats-table td.total b {
+    color: #17212b;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .champ-public .champ-stats-avatar,
+  .champ-public .champ-stats-avatar.player {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+  }
+}
