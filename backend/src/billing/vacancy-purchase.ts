@@ -1087,10 +1087,11 @@ export async function claimVacancyPurchase(input: {
   // Só o comprador pode consumir
   const { data: full } = await supabaseAdmin
     .from('sistema_compras_vaga')
-    .select('auth_user_id')
+    .select('auth_user_id,meta')
     .eq('id', compra.id)
     .single()
-  if (full?.auth_user_id !== input.authUserId) {
+  const assistedSale = Boolean((full?.meta as any)?.venda_assistida)
+  if (full?.auth_user_id !== input.authUserId && !assistedSale) {
     throw new Error('Esta compra pertence a outra conta.')
   }
 
@@ -1152,6 +1153,11 @@ export async function claimVacancyPurchase(input: {
       grupo_id: grupoId,
       campeonato_equipe_id: participacao.id,
       consumido_em: now,
+      meta: {
+        ...(full?.meta || {}),
+        comprador_auth_user_id: input.authUserId,
+        venda_assistida_consumida_em: assistedSale ? now : (full?.meta as any)?.venda_assistida_consumida_em,
+      },
       updated_at: now,
     })
     .eq('id', compra.id)
@@ -1171,6 +1177,11 @@ export async function claimVacancyPurchase(input: {
         grupo_id: grupoId,
         campeonato_equipe_id: participacao.id,
         consumido_em: now,
+        meta: {
+          ...(full?.meta || {}),
+          comprador_auth_user_id: input.authUserId,
+          venda_assistida_consumida_em: assistedSale ? now : (full?.meta as any)?.venda_assistida_consumida_em,
+        },
         updated_at: now,
       })
       .eq('id', compra.id)

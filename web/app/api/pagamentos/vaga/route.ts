@@ -84,12 +84,14 @@ export async function GET(req: NextRequest) {
 
     const { data: ownership, error: ownershipError } = await supabaseAdmin
       .from('sistema_compras_vaga')
-      .select('auth_user_id')
+      .select('auth_user_id,status,meta')
       .eq('token', token.toUpperCase())
       .maybeSingle()
     if (ownershipError) throw ownershipError
     if (!ownership) throw new Error('Compra não encontrada.')
-    if (ownership.auth_user_id !== user.id) {
+    const assistedSale = Boolean((ownership.meta as any)?.venda_assistida)
+    const assistedReleased = assistedSale && ['pago', 'liberado', 'consumido'].includes(String(ownership.status || ''))
+    if (ownership.auth_user_id !== user.id && !assistedReleased) {
       throw new Error('Esta compra pertence a outra conta.')
     }
 
