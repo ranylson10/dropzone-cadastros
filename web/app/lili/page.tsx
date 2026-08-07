@@ -2,16 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot, Trophy, Users, Gamepad2, Medal } from 'lucide-react'
+import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_RETURN_KEY } from '@/features/auth/SocialLogin'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 import { clientText, normalizeLocale } from '@/features/lili/i18n'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
-import { LiliChampionshipHub } from '@/components/lili/LiliChampionshipHub'
-import { LiliTeamHub } from '@/components/lili/LiliTeamHub'
-import { LiliPlayerHub } from '@/components/lili/LiliPlayerHub'
-import { LiliRankHub } from '@/components/lili/LiliRankHub'
 import type { DropZoneRow } from '@/lib/types'
 import {
   GLOBAL_LOCALE_EVENT,
@@ -48,22 +44,23 @@ function initialMessage(locale: LiliLocale = 'pt-BR'): ChatMessage {
   const copy = locale === 'es'
     ? {
         text: '¡Hola! Soy Lili, tu asistente en DropZone. Puedo ayudarte a encontrar un campeonato, organizar la plantilla, seguir tus inscripciones o revisar tu agenda. ¿Por dónde empezamos?',
-        championships: 'Campeonatos con cupos', teams: 'Gestionar plantilla', players: 'Campeonatos inscritos', organization: 'Mi agenda',
+        championships: 'Campeonatos con cupos', teams: 'Gestionar plantilla', players: 'Campeonatos inscritos', organization: 'Mi agenda', setup: 'Crear perfil o equipo',
       }
     : locale === 'en'
       ? {
           text: 'Hi! I’m Lili, your DropZone assistant. I can help you find a tournament, organize your lineup, follow registrations, or check your schedule. Where should we start?',
-          championships: 'Tournaments with spots', teams: 'Manage lineup', players: 'Registered tournaments', organization: 'My schedule',
+          championships: 'Tournaments with spots', teams: 'Manage lineup', players: 'Registered tournaments', organization: 'My schedule', setup: 'Create profile or team',
         }
       : {
           text: 'Oi! Eu sou a Lili, sua assistente no DropZone. Posso te ajudar a encontrar um campeonato, organizar o elenco, acompanhar suas inscrições ou conferir a agenda. Por onde começamos?',
-          championships: 'Campeonatos com vagas', teams: 'Escalar elenco', players: 'Campeonatos inscritos', organization: 'Minha agenda',
+          championships: 'Campeonatos com vagas', teams: 'Escalar elenco', players: 'Campeonatos inscritos', organization: 'Minha agenda', setup: 'Criar perfil ou equipe',
         }
   return { id: 'welcome', role: 'assistant', text: copy.text, actions: [
     { id: 'open-championships', label: copy.championships, message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos', variant: 'primary', context: { locale } },
     { id: 'manage-lineup', label: copy.teams, message: 'Escalar elenco', intent: 'escalar_elenco', variant: 'primary', context: { locale } },
     { id: 'my-registrations', label: copy.players, message: 'Mostrar campeonatos inscritos', intent: 'listar_minhas_inscricoes', variant: 'primary', context: { locale } },
     { id: 'my-agenda', label: copy.organization, message: 'Abrir minha agenda', intent: 'abrir_central_agenda', variant: 'primary', context: { locale } },
+    { id: 'guided-setup', label: copy.setup, message: 'Me ajuda a cadastrar', intent: 'orientar_cadastro', variant: 'secondary', context: { locale } },
   ] }
 }
 
@@ -109,7 +106,6 @@ export default function LiliPage() {
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [profileOpen, setProfileOpen] = useState(false)
-  const [activeHubTab, setActiveHubTab] = useState<'chat' | 'championships' | 'teams' | 'players' | 'rank'>('chat')
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const busyRef = useRef(false)
   const requestIdRef = useRef(0)
@@ -418,6 +414,8 @@ export default function LiliPage() {
       }
       if (/^https?:\/\/(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)/i.test(action.href)) {
         window.open(action.href, '_blank', 'noopener,noreferrer')
+      } else if (window.parent && window.parent !== window && action.href.startsWith('/')) {
+        window.parent.location.href = action.href
       } else {
         window.location.href = action.href
       }
@@ -439,6 +437,8 @@ export default function LiliPage() {
             ? 'abrir_central_agenda'
             : context.currentFlow === 'lineup'
               ? 'escalar_elenco'
+              : context.currentFlow === 'guided_setup'
+                ? 'orientar_cadastro'
               : 'listar_minhas_equipes'
     try {
       sessionStorage.setItem(PENDING_KEY, JSON.stringify({
@@ -459,7 +459,10 @@ export default function LiliPage() {
         },
       })
       if (error) throw error
-      if (data?.url) window.location.assign(data.url)
+      if (data?.url) {
+        if (window.parent && window.parent !== window) window.parent.location.assign(data.url)
+        else window.location.assign(data.url)
+      }
     } catch (error: any) {
       setMessages((current) => [...current, {
         id: crypto.randomUUID(),
@@ -631,23 +634,6 @@ export default function LiliPage() {
         </div>
       </header>
 
-      <nav className="lili-hub-tabs" aria-label="Áreas da Lili">
-        <button type="button" className={activeHubTab === 'chat' ? 'is-active' : ''} onClick={() => setActiveHubTab('chat')}><Bot size={17} /> Lili</button>
-        <button type="button" className={activeHubTab === 'championships' ? 'is-active' : ''} onClick={() => setActiveHubTab('championships')}><Trophy size={17} /> Camp.</button>
-        <button type="button" className={activeHubTab === 'teams' ? 'is-active' : ''} onClick={() => setActiveHubTab('teams')}><Users size={17} /> Equipes</button>
-        <button type="button" className={activeHubTab === 'players' ? 'is-active' : ''} onClick={() => setActiveHubTab('players')}><Gamepad2 size={17} /> Players</button>
-        <button type="button" className={activeHubTab === 'rank' ? 'is-active' : ''} onClick={() => setActiveHubTab('rank')}><Medal size={17} /> Rank</button>
-      </nav>
-
-      {activeHubTab === 'championships' ? (
-        <div className="lili-hub-panel"><LiliChampionshipHub accessToken={session?.access_token} activeAccount={account} /></div>
-      ) : activeHubTab === 'teams' ? (
-        <div className="lili-hub-panel"><LiliTeamHub accessToken={session?.access_token} /></div>
-      ) : activeHubTab === 'players' ? (
-        <div className="lili-hub-panel"><LiliPlayerHub accessToken={session?.access_token} /></div>
-      ) : activeHubTab === 'rank' ? (
-        <div className="lili-hub-panel"><LiliRankHub /></div>
-      ) : <>
       <section className="lili-hub-feed" aria-live="polite">
         <div className="lili-hub-spacer" />
         {messages.map((message) => {
@@ -697,7 +683,7 @@ export default function LiliPage() {
         <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={ui.placeholder} maxLength={1000} disabled={typing} />
         <button type="submit" disabled={typing || !input.trim()} aria-label={ui.send}><Send size={20} /></button>
       </form>
-      </>}
+
     </main>
   )
 }

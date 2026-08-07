@@ -96,15 +96,16 @@ async function optionalUser(req: NextRequest) {
 
 function menuActions(locale: LiliLocale) {
   const labels = locale === 'es'
-    ? { open: 'Campeonatos con cupos', lineup: 'Gestionar plantilla', registrations: 'Campeonatos inscritos', agenda: 'Mi agenda' }
+    ? { open: 'Campeonatos con cupos', lineup: 'Gestionar plantilla', registrations: 'Campeonatos inscritos', agenda: 'Mi agenda', setup: 'Crear perfil o equipo' }
     : locale === 'en'
-      ? { open: 'Tournaments with spots', lineup: 'Manage lineup', registrations: 'Registered tournaments', agenda: 'My schedule' }
-      : { open: 'Campeonatos com vagas', lineup: 'Escalar elenco', registrations: 'Campeonatos inscritos', agenda: 'Minha agenda' }
+      ? { open: 'Tournaments with spots', lineup: 'Manage lineup', registrations: 'Registered tournaments', agenda: 'My schedule', setup: 'Create profile or team' }
+      : { open: 'Campeonatos com vagas', lineup: 'Escalar elenco', registrations: 'Campeonatos inscritos', agenda: 'Minha agenda', setup: 'Criar perfil ou equipe' }
   return [
     { id: 'menu-open-championships', label: labels.open, message: 'Ver campeonatos com vagas abertas', intent: 'listar_campeonatos_abertos' as LiliIntent, variant: 'primary' as const, context: { locale } },
     { id: 'menu-lineup', label: labels.lineup, message: 'Escalar elenco', intent: 'escalar_elenco' as LiliIntent, variant: 'primary' as const, context: { locale } },
     { id: 'menu-registrations', label: labels.registrations, message: 'Mostrar campeonatos inscritos', intent: 'listar_minhas_inscricoes' as LiliIntent, variant: 'primary' as const, context: { locale } },
     { id: 'menu-agenda', label: labels.agenda, message: 'Abrir minha agenda', intent: 'abrir_central_agenda' as LiliIntent, variant: 'primary' as const, context: { locale } },
+    { id: 'menu-guided-setup', label: labels.setup, message: 'Me ajuda a cadastrar', intent: 'orientar_cadastro' as LiliIntent, variant: 'secondary' as const, context: { locale } },
   ]
 }
 
@@ -523,6 +524,27 @@ export async function POST(req: NextRequest) {
           intent: 'menu', actions: menuActions(locale), context: { locale }, source: match.source,
         }
         break
+
+      case 'orientar_cadastro': {
+        const nextContext = { locale, currentFlow: 'guided_setup' }
+        response = {
+          reply: user
+            ? 'Boa. Me fala qual perfil voc? quer criar agora. Eu abro o cadastro certo e, quando terminar, voc? volta para c? para continuar o fluxo.'
+            : 'Boa. Primeiro eu preciso confirmar sua conta; depois te levo direto para o cadastro certo e volto para continuar daqui.',
+          intent: match.intent,
+          requiresAuth: !user,
+          actions: user ? [
+            { id: 'setup-player', label: 'Criar perfil de jogador', href: `/?cadastro=jogador&vincular=1&returnTo=${encodeURIComponent('/lili')}`, variant: 'primary', context: nextContext },
+            { id: 'setup-team', label: 'Criar perfil de equipe', href: `/?cadastro=equipe&vincular=1&returnTo=${encodeURIComponent('/lili')}`, variant: 'primary', context: nextContext },
+            { id: 'setup-producer', label: 'Criar perfil de produtora', href: `/?cadastro=produtora&vincular=1&returnTo=${encodeURIComponent('/lili')}`, variant: 'secondary', context: nextContext },
+            { id: 'setup-use-token', label: 'Tenho um convite/token', message: 'Tenho um token', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
+            backToMainMenu(locale),
+          ] : [backToMainMenu(locale)],
+          context: nextContext,
+          source: 'system',
+        }
+        break
+      }
 
       case 'explorar_campeonatos': {
         response = {

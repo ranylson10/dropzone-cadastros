@@ -3756,7 +3756,7 @@ textarea::placeholder{ color: color-mix(in srgb, var(--muted) 90%, transparent);
 } .scale-chat-page .invite-chat-option:hover{ transform: translateY(-2px); box-shadow: 0 11px 24px rgba(111,62,232,.2);
 } .scale-chat-page .invite-chat-option:disabled{ opacity: .58; cursor: wait; transform: none;
 } .scale-chat-login{ display: grid; gap: 8px; padding: 12px; border: 1px solid #e2d6f6; border-radius: 17px; background: rgba(255,255,255,.92); box-shadow: 0 10px 26px rgba(71,45,102,.1);
-} .lili-hub-page{ --lh-primary: #6d3ee8; --lh-primary-dark: #4820aa; --lh-bg: #f4efff; --lh-text: #241b33; min-height: 100dvh; height: 100dvh; display: grid; grid-template-rows: auto auto minmax(0,1fr) auto; background: radial-gradient(circle at 12% 0%,#eadfff 0,transparent 34%),linear-gradient(180deg,#f9f7ff,#f0eaff); color: var(--lh-text); overflow: hidden;
+} .lili-hub-page{ --lh-primary: #6d3ee8; --lh-primary-dark: #4820aa; --lh-bg: #f4efff; --lh-text: #241b33; min-height: 100dvh; height: 100dvh; display: grid; grid-template-rows: auto minmax(0,1fr) auto; background: radial-gradient(circle at 12% 0%,#eadfff 0,transparent 34%),linear-gradient(180deg,#f9f7ff,#f0eaff); color: var(--lh-text); overflow: hidden;
 } .lili-hub-header>div:nth-child(2){ display: grid; gap: 2px; min-width: 0;
 } .lili-hub-header strong{ font-size: 15px;
 } .lili-hub-header span{ font-size: 11px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -6622,4 +6622,18 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .champ-public .directory-section{ padding: 14px;
 } .producer-catalog-actions{ display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px;
 } .producer-catalog-actions .button{ min-width: 0; padding-inline: 8px; font-size: 9px; text-align: center;
+}
+
+.lili-floating-chat{ position: fixed; right: 18px; bottom: 76px; z-index: 8999; width: min(420px, calc(100vw - 28px)); height: min(680px, calc(100dvh - 104px)); display: grid; grid-template-rows: auto minmax(0,1fr); overflow: hidden; border: 1px solid rgba(109,62,232,.22); border-radius: 24px; background: #fff; box-shadow: 0 24px 70px rgba(26,18,45,.28);
+} .lili-floating-chat > header{ display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px 10px 16px; background: linear-gradient(135deg,#4820aa,#6d3ee8); color: #fff;
+} .lili-floating-chat > header div{ display: grid; gap: 1px;
+} .lili-floating-chat > header strong{ font-size: 14px; letter-spacing: .02em;
+} .lili-floating-chat > header span{ font-size: 11px; opacity: .78;
+} .lili-floating-chat > header button{ width: 34px; height: 34px; border: 0; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.14); color: #fff; cursor: pointer;
+} .lili-floating-chat iframe{ width: 100%; height: 100%; border: 0; background: #f4efff;
+} .lili-global-launcher{ border: 1px solid #d9c9ee; cursor: pointer;
+}
+@media (max-width: 640px){
+  .lili-floating-chat{ inset: auto 8px calc(68px + env(safe-area-inset-bottom)) 8px; width: auto; height: min(74dvh, 680px); border-radius: 22px;
+  }
 }

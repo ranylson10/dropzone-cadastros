@@ -12,6 +12,14 @@ type IntentMatch = {
 
 const NORMALIZED_RULES: Array<{ intent: LiliIntent; phrases: string[] }> = [
   {
+    intent: 'orientar_cadastro',
+    phrases: [
+      'me ajuda a cadastrar', 'quero cadastrar', 'criar perfil', 'criar equipe', 'criar jogador', 'cadastrar jogador', 'cadastrar equipe', 'abrir conta',
+      'ayudame a registrarme', 'crear perfil', 'crear equipo', 'crear jugador',
+      'help me register', 'create profile', 'create team', 'create player',
+    ],
+  },
+  {
     intent: 'ajuda_contextual',
     phrases: ['ajuda nesta pagina', 'o que posso fazer aqui', 'me ajude aqui', 'ajuda contextual', 'help on this page', 'what can i do here', 'ayuda en esta pagina'],
   },

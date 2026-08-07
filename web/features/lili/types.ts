@@ -3,6 +3,7 @@ export type LiliCurrency = 'BRL' | 'USD' | 'EUR'
 
 export type LiliIntent =
   | 'menu'
+  | 'orientar_cadastro'
   | 'explorar_campeonatos'
   | 'explorar_equipes'
   | 'explorar_jogadores'
