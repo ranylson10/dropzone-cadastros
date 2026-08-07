@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES } from '@/lib/dropzone-constants'
@@ -151,6 +151,13 @@ export function ProdutoraPanel(props: {
     gerenciar_jogos: false,
     pontuar_tabela: false,
   })
+  const [financialReviews, setFinancialReviews] = useState<any[]>([])
+  const [financialHistory, setFinancialHistory] = useState<any[]>([])
+  const [financialLoading, setFinancialLoading] = useState(false)
+  const [financialError, setFinancialError] = useState('')
+  const [financialMsg, setFinancialMsg] = useState('')
+  const [financialNote, setFinancialNote] = useState<Record<string, string>>({})
+  const [financialBusy, setFinancialBusy] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -502,6 +509,45 @@ export function ProdutoraPanel(props: {
 
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
+
+  async function loadFinancialReviews() {
+    setFinancialLoading(true)
+    setFinancialError('')
+    try {
+      const [pending, history] = await Promise.all([
+        sellerRequest('/api/financeiro/reembolsos?mode=pending'),
+        sellerRequest('/api/financeiro/reembolsos?mode=history'),
+      ])
+      setFinancialReviews(Array.isArray(pending.reviews) ? pending.reviews : [])
+      setFinancialHistory(Array.isArray(history.reviews) ? history.reviews : [])
+    } catch (error: any) {
+      setFinancialError(error?.message || 'Erro ao carregar financeiro.')
+    } finally {
+      setFinancialLoading(false)
+    }
+  }
+
+  async function decideFinancialReview(compraId: string, decision: 'manter_inscricao' | 'solicitar_regularizacao' | 'marcar_regularizada') {
+    setFinancialBusy((value) => ({ ...value, [compraId]: true }))
+    setFinancialError('')
+    setFinancialMsg('')
+    try {
+      await sellerRequest('/api/financeiro/reembolsos', {
+        method: 'POST',
+        body: JSON.stringify({
+          compra_id: compraId,
+          decision,
+          note: financialNote[compraId] || '',
+        }),
+      })
+      setFinancialMsg('RevisÃ£o financeira atualizada.')
+      await loadFinancialReviews()
+    } catch (error: any) {
+      setFinancialError(error?.message || 'Erro ao atualizar revisÃ£o.')
+    } finally {
+      setFinancialBusy((value) => ({ ...value, [compraId]: false }))
+    }
+  }
   const filteredChampionships = typeFilter === 'todos'
     ? props.championships
     : props.championships.filter((champ) => String(dataText(champ, 'tipo') || 'copa') === typeFilter)
@@ -727,6 +773,9 @@ export function ProdutoraPanel(props: {
       void loadSellers(selectedChamp?.id)
       void loadChampManagerInvites(selectedChamp?.id)
     }
+    if (tab === 'financeiro') {
+      void loadFinancialReviews()
+    }
   }, [tab, selectedChamp?.id])
 
 
@@ -759,6 +808,10 @@ export function ProdutoraPanel(props: {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return '—'
     return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date)
+  }
+
+  function formatMoneyCentavos(value?: number | string | null) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0) / 100)
   }
 
   function freeSlotsInGroup(grupoId: string) {
@@ -1707,6 +1760,112 @@ ${params.url}`
                   maps={mapCatalog}
                 />
               ) : null}
+
+              {tab === 'financeiro' ? (() => {
+                const pending = financialReviews.filter((item) => item.campeonato_id === selectedChamp.id)
+                const history = financialHistory.filter((item) => item.campeonato_id === selectedChamp.id).slice(0, 10)
+                const allEmpty = !financialLoading && pending.length === 0 && history.length === 0
+                return (
+                  <div className="ref-section-stack">
+                    <div className="subtab-actionbar">
+                      <div>
+                        <p className="eyebrow">Financeiro</p>
+                        <h3>RevisÃµes de reembolso e chargeback</h3>
+                        <span>Quando uma vaga paga sofre estorno, o organizador decide se mantÃ©m a inscriÃ§Ã£o ou pede regularizaÃ§Ã£o.</span>
+                      </div>
+                      <button className="button secondary" type="button" disabled={financialLoading} onClick={() => void loadFinancialReviews()}>
+                        {financialLoading ? 'Atualizando...' : 'Atualizar'}
+                      </button>
+                    </div>
+
+                    {financialError ? <div className="message error">{financialError}</div> : null}
+                    {financialMsg ? <div className="message success">{financialMsg}</div> : null}
+                    {financialLoading ? <p className="empty">Carregando revisÃµes financeiras...</p> : null}
+                    {allEmpty ? <p className="empty">Nenhuma pendÃªncia financeira neste campeonato.</p> : null}
+
+                    {pending.length ? (
+                      <section className="panel">
+                        <div className="section-head compact-head">
+                          <div>
+                            <p className="eyebrow">Pendentes</p>
+                            <h2>{pending.length} caso(s) para decidir</h2>
+                          </div>
+                        </div>
+                        <div className="manager-vendas-list">
+                          {pending.map((item) => {
+                            const waiting = item.revisao_status === 'aguardando_regularizacao'
+                            const busy = Boolean(financialBusy[item.id])
+                            return (
+                              <article key={item.id} className="manager-vendas-row">
+                                <div className="manager-vendas-row-logo">
+                                  {item.equipe?.logo_url ? <img src={item.equipe.logo_url} alt="" /> : <CreditCard size={18} />}
+                                </div>
+                                <div className="manager-vendas-row-copy">
+                                  <strong>{item.equipe?.nome || item.participacao?.nome_exibicao || 'Equipe inscrita'}</strong>
+                                  <span>
+                                    {formatMoneyCentavos(item.valor_centavos)} Â· {waiting ? 'aguardando regularizaÃ§Ã£o' : 'revisÃ£o pendente'}
+                                  </span>
+                                  <small>
+                                    Motivo: {item.revisao_motivo || 'estorno'} Â· iniciado em {formatDateTime(item.revisao_iniciada_em)}
+                                  </small>
+                                  <textarea
+                                    value={financialNote[item.id] || ''}
+                                    onChange={(event) => setFinancialNote((value) => ({ ...value, [item.id]: event.target.value }))}
+                                    placeholder="ObservaÃ§Ã£o interna ou mensagem para a equipe"
+                                    rows={2}
+                                    style={{ marginTop: 8, width: '100%' }}
+                                  />
+                                </div>
+                                <div className="compact-row-actions manager-vendas-row-actions">
+                                  {!waiting ? (
+                                    <>
+                                      <button className="button small" type="button" disabled={busy} onClick={() => void decideFinancialReview(item.id, 'manter_inscricao')}>
+                                        Manter inscriÃ§Ã£o
+                                      </button>
+                                      <button className="button small secondary" type="button" disabled={busy} onClick={() => void decideFinancialReview(item.id, 'solicitar_regularizacao')}>
+                                        Pedir regularizaÃ§Ã£o
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button className="button small" type="button" disabled={busy} onClick={() => void decideFinancialReview(item.id, 'marcar_regularizada')}>
+                                      Marcar regularizada
+                                    </button>
+                                  )}
+                                </div>
+                              </article>
+                            )
+                          })}
+                        </div>
+                      </section>
+                    ) : null}
+
+                    {history.length ? (
+                      <section className="panel">
+                        <div className="section-head compact-head">
+                          <div>
+                            <p className="eyebrow">HistÃ³rico</p>
+                            <h2>Ãšltimas decisÃµes</h2>
+                          </div>
+                        </div>
+                        <div className="manager-vendas-list">
+                          {history.map((item) => (
+                            <article key={item.id} className="manager-vendas-row">
+                              <div className="manager-vendas-row-logo">
+                                {item.equipe?.logo_url ? <img src={item.equipe.logo_url} alt="" /> : <CreditCard size={18} />}
+                              </div>
+                              <div className="manager-vendas-row-copy">
+                                <strong>{item.equipe?.nome || item.participacao?.nome_exibicao || 'Equipe inscrita'}</strong>
+                                <span>{formatMoneyCentavos(item.valor_centavos)} Â· {item.revisao_decisao || item.revisao_status}</span>
+                                <small>Decidido em {formatDateTime(item.revisao_decidida_em)}</small>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
+                    ) : null}
+                  </div>
+                )
+              })() : null}
 
               {tab === 'stream' ? <CampeonatoStreamTab campeonatoId={selectedChamp.id} /> : null}
 

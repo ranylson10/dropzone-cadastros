@@ -41,6 +41,13 @@ function formatUsage(item: SellerItem) {
   return used > 0 ? `${used} preenchida(s)` : 'Sem preenchimento'
 }
 
+function saleStatusLabel(sale: AssistedSale) {
+  if (sale.consumido_em || sale.status === 'consumido') return 'Inscrito no campeonato'
+  if (sale.pago_em || ['pago', 'liberado'].includes(sale.status)) return 'Pago, aguardando inscriÃ§Ã£o'
+  if (sale.status === 'expirado') return 'Pagamento expirado'
+  return 'Aguardando pagamento'
+}
+
 export function ManagerVendasView(props: {
   accountId: string
   sellerItems: SellerItem[]
@@ -351,7 +358,7 @@ export function ManagerVendasView(props: {
                   {sale.comprador_nome || 'Comprador'} {sale.grupo?.nome ? `Â· ${sale.grupo.nome}` : ''}
                 </span>
                 <small>
-                  {sale.status} Â· token {sale.token}
+                  {saleStatusLabel(sale)} Â· token {sale.token}
                   {sale.payment?.status ? ` Â· pagamento ${sale.payment.status}` : ''}
                 </small>
               </div>
