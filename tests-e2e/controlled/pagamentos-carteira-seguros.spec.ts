@@ -152,6 +152,28 @@ test.describe('Pagamentos e carteira — validações seguras sem cobrança real
 
     const walletUnauthenticated = await request.get(`${origin}/api/me/carteira`, { timeout: 30_000 })
     expect(walletUnauthenticated.ok(), 'Carteira sem autenticação deve ser bloqueada.').toBe(false)
+    const refundsUnauthenticated = await request.get(`${origin}/api/financeiro/reembolsos`, { timeout: 30_000 })
+    expect(refundsUnauthenticated.ok(), 'RevisÃµes financeiras sem autenticaÃ§Ã£o devem ser bloqueadas.').toBe(false)
+
+    const refundsResponse = await request.get(`${origin}/api/financeiro/reembolsos?mode=pending`, {
+      headers: headers(produtoraToken, 'produtora'),
+      timeout: 30_000,
+    })
+    const refundsBody = await json(refundsResponse)
+    expect(refundsResponse.ok(), `Falha ao consultar revisÃµes financeiras: ${refundsBody?.error || refundsResponse.status()}`).toBe(true)
+    expect(Array.isArray(refundsBody?.reviews)).toBe(true)
+    expect(refundsBody?.mode).toBe('pending')
+
+    const invalidRefundDecision = await postWithRetry(request, `${origin}/api/financeiro/reembolsos`, {
+      headers: headers(produtoraToken, 'produtora'),
+      data: {
+        compra_id: '00000000-0000-4000-8000-000000000000',
+        decision: 'aprovar_reembolso_direto',
+      },
+    })
+    const invalidRefundBody = await json(invalidRefundDecision)
+    expect(invalidRefundDecision.ok(), 'DecisÃ£o financeira desconhecida deve ser bloqueada.').toBe(false)
+    expect(String(invalidRefundBody?.error || '')).toMatch(/Decis/i)
   })
 
   test('webhooks expõem saúde pública e rejeitam chamadas não autenticadas', async ({ request, baseURL }) => {

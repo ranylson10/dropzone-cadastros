@@ -334,6 +334,43 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
         .find((item: any) => String(item?.id || '') === championshipId)
       expect(sellerAnnouncement).toBeTruthy()
 
+      const unauthenticatedSales = await request.get(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`)
+      expect(unauthenticatedSales.ok(), 'Listagem de venda assistida exige login do vendedor.').toBe(false)
+
+      const wrongSellerSales = await request.get(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
+        headers: headers(equipeToken, 'equipe'),
+      })
+      expect(wrongSellerSales.ok(), 'Outra conta nÃ£o pode ver vendas assistidas do vendedor.').toBe(false)
+
+      const salesBefore = await request.get(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
+        headers: headers(managerToken, 'manager'),
+      })
+      const salesBeforeBody = await json(salesBefore)
+      expect(salesBefore.ok(), `Vendedor deve conseguir listar vendas assistidas: ${salesBeforeBody?.error || salesBefore.status()}`).toBeTruthy()
+      expect(Array.isArray(salesBeforeBody?.sales)).toBe(true)
+
+      const assistedWithoutCpf = await request.post(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
+        headers: headers(managerToken, 'manager'),
+        data: {
+          campeonato_id: championshipId,
+          comprador_nome: '[E2E] Comprador sem CPF',
+          comprador_whatsapp: '5599999999999',
+        },
+      })
+      const assistedWithoutCpfBody = await json(assistedWithoutCpf)
+      expect(assistedWithoutCpf.ok(), 'Venda assistida sem CPF/CNPJ deve ser bloqueada antes de criar cobranÃ§a.').toBe(false)
+      expect(String(assistedWithoutCpfBody?.error || '')).toContain('CPF/CNPJ')
+
+      const assistedWrongAccount = await request.post(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
+        headers: headers(equipeToken, 'equipe'),
+        data: {
+          campeonato_id: championshipId,
+          comprador_nome: '[E2E] Conta errada',
+          cpf_cnpj: '00000000000',
+        },
+      })
+      expect(assistedWrongAccount.ok(), 'Conta que nÃ£o Ã© dona do manager nÃ£o pode gerar venda assistida.').toBe(false)
+
       await page.goto(`/vendedores/${encodeURIComponent(managerId)}`)
       await expect(page.locator('body')).not.toContainText(/Application error|Internal Server Error|This page couldn.t load/i)
       await expect(page.locator('body')).toContainText(championshipName, { timeout: 15_000 })
