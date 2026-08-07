@@ -284,7 +284,7 @@ export function paymentCard(input: {
     expiresAt: terminalStatus ? null : input.expiresAt || null,
     badges: [value, statusLabel],
     details: [
-      ...(isCard ? [{ label: 'Segurança', value: 'Os dados do cartão são informados somente no checkout do Asaas' }] : []),
+      ...(isCard ? [{ label: 'Segurança', value: 'Os dados do cartão são informados somente no checkout seguro' }] : []),
       ...(isCard && Number(input.maxInstallments || 1) > 1 ? [{ label: 'Parcelamento', value: `Disponível em até ${Number(input.maxInstallments)}x, conforme as opções exibidas no checkout` }] : []),
       ...(isCard && normalizedStatus === 'em_analise' ? [{ label: 'Análise', value: 'A operadora ainda está validando o pagamento. Não faça outra cobrança enquanto este status estiver ativo.' }] : []),
       ...(isCard && ['recusado', 'negado'].includes(normalizedStatus) ? [{ label: 'Próximo passo', value: 'Tente novamente com outro cartão ou escolha outro meio de pagamento.' }] : []),
@@ -437,7 +437,7 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
       badges: [statusInfo.badge, formatMoney(item.valor_centavos)],
       details: [
         { label: 'Valor', value: formatMoney(item.valor_centavos) },
-        { label: 'Forma de pagamento', value: String(item.pagamento?.metodo || item.pagamento?.provider || 'Não informada').toUpperCase() },
+        { label: 'Forma de pagamento', value: String(item.pagamento?.metodo || item.pagamento?.provider || 'Não informada').toLowerCase() === 'asaas' ? 'ONLINE' : String(item.pagamento?.metodo || item.pagamento?.provider || 'Não informada').toUpperCase() },
         { label: 'Criada em', value: formatDateTime(item.created_at) },
         ...(item.pago_em ? [{ label: 'Pago em', value: formatDateTime(item.pago_em) }] : []),
         ...(item.consumido_em ? [{ label: 'Utilizada em', value: formatDateTime(item.consumido_em) }] : []),

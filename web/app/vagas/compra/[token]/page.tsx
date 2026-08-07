@@ -203,6 +203,11 @@ export default function CompraVagaPage() {
   const payment = data?.payment
   const liberado = Boolean(data?.liberado)
   const pending = data?.compra?.status === 'pendente'
+  const paymentMethod = String(payment?.metodo || payment?.billing_type || '').toLowerCase()
+  const paymentProvider = String(payment?.provider || '').toLowerCase()
+  const isPixPayment = !paymentMethod || paymentMethod.includes('pix')
+  const isCardPayment = paymentMethod.includes('cartao') || paymentMethod.includes('credit') || paymentMethod.includes('card')
+  const isPaypalPayment = paymentMethod.includes('paypal') || paymentProvider === 'paypal'
 
   const pixSrc = useMemo(() => {
     const raw = payment?.pix_qrcode
@@ -268,14 +273,20 @@ export default function CompraVagaPage() {
       {message ? <div className="admin-feedback">{message}</div> : null}
 
       <section className="vacancy-claim-grid">
-        {/* Pagamento — QR só enquanto pendente; sem redirecionar para ASAAS */}
+        {/* Pagamento — QR só enquanto pendente; sem redirecionar para outro ambiente no PIX */}
         <article className="panel vacancy-claim-card">
           <header className="section-head">
             <div>
               <p className="eyebrow">Pagamento</p>
               <h2>
                 <PixIcon size={18} style={{ display: 'inline', marginRight: 6, color: '#32BCAD' }} />
-                {liberado || data?.consumido ? 'Pago e liberado' : 'Aguardando pagamento PIX'}
+                {liberado || data?.consumido
+                  ? 'Pago e liberado'
+                  : isPaypalPayment
+                    ? 'Aguardando PayPal'
+                    : isCardPayment
+                      ? 'Aguardando cartão'
+                      : 'Aguardando pagamento PIX'}
               </h2>
             </div>
           </header>
@@ -287,7 +298,7 @@ export default function CompraVagaPage() {
             </div>
           ) : (
             <>
-              {pixSrc || payment?.pix_payload ? (
+              {isPixPayment && (pixSrc || payment?.pix_payload) ? (
                 <div className="vacancy-pix-box vacancy-pix-box-brand">
                   <strong className="vacancy-pix-title">
                     <PixIcon size={18} /> Pagar com PIX
@@ -313,14 +324,18 @@ export default function CompraVagaPage() {
                 </div>
               ) : pending ? (
                 <p className="empty">
-                  PIX ainda não carregou. Aguarde alguns segundos ou volte e gere novamente.
+                  {isPaypalPayment
+                    ? 'Aguardando retorno do PayPal.'
+                    : isCardPayment
+                      ? 'Aguardando confirmação do pagamento por cartão.'
+                      : 'PIX ainda não carregou. Aguarde alguns segundos ou volte e gere novamente.'}
                 </p>
               ) : null}
 
               {pending ? (
                 <p className="empty" style={{ marginTop: 10 }}>
                   <Loader2 className="spin" size={14} style={{ display: 'inline', marginRight: 6 }} />
-                  Após pagar, esta página atualiza sozinha e libera o próximo grupo com vaga.
+                  Após confirmar o pagamento, esta página atualiza sozinha e libera o próximo grupo com vaga.
                 </p>
               ) : null}
             </>

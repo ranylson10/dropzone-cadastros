@@ -120,7 +120,7 @@ export async function GET(
         },
         destino: {
           nome: 'DropZone / Organizador',
-          instituicao: 'ASAAS / DropZone',
+          instituicao: 'DropZone Pagamentos',
         },
       },
     })

@@ -238,7 +238,7 @@ export async function createVacancyPurchase(input: {
     throw new Error('Este campeonato não tem valor de inscrição cobrável online (mín. R$ 1,00). Use o WhatsApp.')
   }
   if ((method === 'pix' || method === 'cartao') && valorReais < 5) {
-    throw new Error('PIX e cartão pelo Asaas exigem valor mínimo de R$ 5,00. Escolha PayPal, WhatsApp ou ajuste o valor da vaga.')
+    throw new Error('PIX e cartão exigem valor mínimo de R$ 5,00. Escolha PayPal, WhatsApp ou ajuste o valor da vaga.')
   }
   const valorCentavos = Math.round(valorReais * 100)
 
@@ -432,7 +432,7 @@ export async function createVacancyPurchase(input: {
     description: `Vaga · ${champ.nome || 'Campeonato'}`.slice(0, 500),
     externalReference,
     billingType: method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
-    callbackUrl: method === 'cartao' ? `${appUrl()}/vagas/compra/${encodeURIComponent(compra.token)}?asaas=return` : undefined,
+    callbackUrl: method === 'cartao' ? `${appUrl()}/vagas/compra/${encodeURIComponent(compra.token)}?payment=return` : undefined,
   })
 
   const pix = method === 'pix' ? await fetchPixQrWithRetry(payment.id) : {}

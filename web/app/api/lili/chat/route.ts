@@ -2461,7 +2461,7 @@ export async function POST(req: NextRequest) {
         if (![11, 14].includes(digits.length)) {
           const nextContext = { ...context, selectedPaymentMethod: method, awaitingPaymentDocument: true, currentStep: 'payment_document' }
           response = {
-            reply: 'Digite o CPF ou CNPJ do pagador. O documento será enviado somente ao Asaas para gerar a cobrança segura.',
+            reply: 'Digite o CPF ou CNPJ do pagador. O documento será usado somente para gerar a cobrança segura.',
             intent: match.intent,
             actions: [{ id: 'cancel-payment-document', label: 'Voltar', message: 'Voltar uma etapa', intent: 'voltar_etapa', variant: 'secondary', context: nextContext }],
             context: nextContext,
@@ -2494,7 +2494,7 @@ export async function POST(req: NextRequest) {
         response = {
           reply: method === 'pix'
             ? `Slot reservado até ${new Date(reservation.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Pague pelo QR Code ou PIX copia e cola.`
-            : `Slot reservado até ${new Date(reservation.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Abra o checkout seguro do Asaas para pagar com cartão.`,
+            : `Slot reservado até ${new Date(reservation.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Abra o checkout seguro para pagar com cartão.`,
           intent: match.intent,
           cards: [paymentCard({ token: reservation.codigo, status: payment.status, valueCents: payment.valor_centavos, invoiceUrl: payment.asaas_invoice_url, pixPayload: payment.asaas_pix_payload, pixQrCode: payment.asaas_pix_qrcode })],
           actions: [
@@ -2804,7 +2804,7 @@ export async function POST(req: NextRequest) {
         const cardAvailable = Boolean(item.pagamento_cartao_ativo && asaasMinimumMet)
         const paypalAvailable = Boolean(item.pagamento_paypal_ativo && paypalConfigured())
         const minimumNotice = !asaasMinimumMet && (item.pagamento_pix_ativo || item.pagamento_cartao_ativo)
-          ? ' PIX e cartão não aparecem porque o Asaas exige cobrança mínima de R$ 5,00 para esses meios.'
+          ? ' PIX e cartão não aparecem porque estes meios exigem cobrança mínima de R$ 5,00.'
           : ''
         response = {
           reply: `Escolha como deseja comprar a vaga. Depois que o pagamento for confirmado, a Lili libera a escolha da equipe, line e slot.${minimumNotice}`,
@@ -2834,7 +2834,7 @@ export async function POST(req: NextRequest) {
         const paymentChampionship = await getChampionshipDetails(context.selectedChampionshipId)
         if (Number(paymentChampionship.valor_inscricao || 0) < 5) {
           response = {
-            reply: 'PIX e cartão pelo Asaas exigem valor mínimo de R$ 5,00. Para esta vaga, use PayPal ou WhatsApp quando estiverem disponíveis.',
+            reply: 'PIX e cartão exigem valor mínimo de R$ 5,00. Para esta vaga, use PayPal ou WhatsApp quando estiverem disponíveis.',
             intent: match.intent,
             actions: [
               ...(paymentChampionship.pagamento_paypal_ativo && paypalConfigured() ? [{ id: 'minimum-use-paypal', label: '🅿️ Usar PayPal', message: 'Comprar vaga com PayPal', intent: 'pagar_paypal_compra' as const, variant: 'primary' as const, context: { ...context, selectedPaymentMethod: 'paypal' as const } }] : []),
@@ -2857,7 +2857,7 @@ export async function POST(req: NextRequest) {
         const { compra, payment } = await createVacancyPurchase({ campeonatoId: context.selectedChampionshipId, authUserId: user.id, payerName: name || 'Comprador', payerEmail: email, cpfCnpj: digits, method })
         const nextContext = registrationContext(context, { purchaseToken: compra.token, purchaseId: compra.id, awaitingPaymentDocument: false, currentStep: 'payment_wait' })
         response = {
-          reply: method === 'pix' ? 'Cobrança PIX criada. Pague e depois toque em “Já paguei, verificar”.' : 'Checkout seguro do cartão criado. Abra o Asaas, conclua o pagamento e use o retorno automático para continuar na Lili.',
+          reply: method === 'pix' ? 'Cobrança PIX criada. Pague e depois toque em “Já paguei, verificar”.' : 'Checkout seguro do cartão criado. Conclua o pagamento e use o retorno automático para continuar na Lili.',
           intent: match.intent,
           cards: [paymentCard({ token: compra.token, status: payment?.status || compra.status, valueCents: payment?.valor_centavos || compra.valor_centavos, invoiceUrl: payment?.asaas_invoice_url, pixPayload: payment?.asaas_pix_payload, pixQrCode: payment?.asaas_pix_qrcode, expiresAt: compra.expira_em, method, maxInstallments: paymentChampionship.cartao_max_parcelas })],
           actions: [{ id: 'check-direct-payment', label: 'Já paguei, verificar', message: 'Verificar pagamento', intent: 'verificar_pagamento_inscricao', variant: 'primary', context: nextContext }, { id: 'menu-after-payment', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary' }],
@@ -3330,7 +3330,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(localized)
   } catch (error: any) {
     if (error instanceof AsaasNotConfiguredError || error?.name === 'AsaasNotConfiguredError') {
-      return NextResponse.json({ error: error.message || 'O pagamento online ainda não está configurado.' }, { status: 503 })
+      return NextResponse.json({ error: 'O pagamento online ainda não está disponível.' }, { status: 503 })
     }
     return NextResponse.json({ error: error?.message || 'A Lili não conseguiu concluir esta consulta.' }, { status: 400 })
   }

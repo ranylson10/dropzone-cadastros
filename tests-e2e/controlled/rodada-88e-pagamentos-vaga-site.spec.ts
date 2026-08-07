@@ -12,6 +12,8 @@ test.describe('Rodada 88E — pagamento público de vaga', () => {
     const paypal = read('backend/src/billing/paypal.ts')
     const purchase = read('backend/src/billing/vacancy-purchase.ts')
     const claimPage = read('web/app/vagas/compra/[token]/page.tsx')
+    const liliChat = read('web/app/api/lili/chat/route.ts')
+    const liliTools = read('web/features/lili/tools.ts')
     const css = read('web/app/vagas/vagas.css')
 
     expect(modal).toContain('Pagar com PIX')
@@ -29,10 +31,20 @@ test.describe('Rodada 88E — pagamento público de vaga', () => {
     expect(paypal).toContain('cancelUrl?: string')
     expect(purchase).toContain("billingType: method === 'cartao' ? 'CREDIT_CARD' : 'PIX'")
     expect(purchase).toContain('/vagas/compra/')
+    expect(purchase).not.toContain('?asaas=return')
+    expect(purchase).not.toContain('PIX e cartão pelo Asaas')
 
     expect(claimPage).toContain("'approved'")
     expect(claimPage).toContain('purchaseId')
     expect(claimPage).toContain('/api/paypal/orders/')
+    expect(claimPage).not.toContain('sem redirecionar para ASAAS')
+
+    expect(modal).not.toContain('Checkout seguro Asaas')
+    expect(modal).not.toContain('O Asaas')
+    expect(liliChat).not.toContain('ao Asaas')
+    expect(liliChat).not.toContain('Abra o Asaas')
+    expect(liliChat).not.toContain('pelo Asaas')
+    expect(liliTools).not.toContain('checkout do Asaas')
 
     expect(css).toContain('.vacancy-buy-option-card')
     expect(css).toContain('.vacancy-buy-option-paypal')

@@ -131,6 +131,7 @@ export function BuyVacancyModal({
   const pixAvailable = Boolean(canPayOnline && asaasMinimumMet && championship.pagamento_pix_ativo !== false)
   const cardAvailable = Boolean(canPayOnline && asaasMinimumMet && championship.pagamento_cartao_ativo !== false)
   const paypalAvailable = Boolean(canPayOnline && championship.pagamento_paypal_ativo === true)
+  const selectedPaymentLabel = selectedMethod === 'cartao' ? 'cartão' : selectedMethod === 'paypal' ? 'PayPal' : 'PIX'
   const contacts = championship.pagamento_whatsapp_ativo === false ? [] : championship.contatos_whatsapp || []
   const cpfDigits = useMemo(() => onlyDigits(cpfCnpj), [cpfCnpj])
   const cpfReady = isValidCpfCnpjLength(cpfDigits)
@@ -250,7 +251,7 @@ export function BuyVacancyModal({
       const access = session.session?.access_token
       if (!access) {
         setShowLogin(true)
-        throw new Error('Entre com sua conta para pagar com PIX.')
+        throw new Error(`Entre com sua conta para pagar com ${selectedPaymentLabel}.`)
       }
 
       const res = await fetch('/api/pagamentos/vaga', {
@@ -276,7 +277,7 @@ export function BuyVacancyModal({
       setPayment(json.payment || null)
       if (method === 'cartao') {
         const invoice = String(json.payment?.invoice_url || '').trim()
-        if (!invoice) throw new Error('O Asaas nÃ£o retornou o checkout do cartÃ£o.')
+        if (!invoice) throw new Error('Não foi possível abrir o checkout seguro do cartão.')
         window.location.href = invoice
         return
       }
@@ -296,7 +297,7 @@ export function BuyVacancyModal({
       }
 
       // Se o QR ainda não veio, o poll do step pix-pay completa em instantes.
-      // Nunca redireciona para claim/Asaas enquanto o pagamento estiver pendente.
+      // Nunca redireciona para escolha de slot enquanto o pagamento estiver pendente.
     } catch (e: any) {
       setError(e?.message || 'Erro ao iniciar pagamento.')
     } finally {
@@ -382,7 +383,7 @@ export function BuyVacancyModal({
                   </span>
                   <span>
                     <strong>Pagar com cartÃ£o</strong>
-                    <small>Checkout seguro Asaas{Number(championship.cartao_max_parcelas || 1) > 1 ? ` Â· atÃ© ${championship.cartao_max_parcelas}x` : ''}</small>
+                    <small>Checkout seguro{Number(championship.cartao_max_parcelas || 1) > 1 ? ` · até ${championship.cartao_max_parcelas}x` : ''}</small>
                   </span>
                 </button>
               ) : null}
@@ -422,7 +423,7 @@ export function BuyVacancyModal({
 
             {showLogin || (!authenticated && canPayOnline) ? (
               <div className="vacancy-buy-login">
-                <p>Para pagar com PIX, entre com sua conta (perfil de equipe).</p>
+                <p>Para pagar online, entre com sua conta (perfil de equipe).</p>
                 <SocialLogin returnTo={returnTo} />
               </div>
             ) : null}
@@ -445,8 +446,9 @@ export function BuyVacancyModal({
             </button>
 
             <p className="vacancy-buy-lead">
-              Informe o CPF ou CNPJ do pagador para gerar o PIX. O QR Code e o código aparecem nesta
-              mesma tela — sem redirecionar para outro site.
+              {selectedMethod === 'cartao'
+                ? 'Informe o CPF ou CNPJ do pagador para abrir o checkout seguro do cartão.'
+                : 'Informe o CPF ou CNPJ do pagador para gerar o PIX. O QR Code e o código aparecem nesta mesma tela.'}
             </p>
 
             {error ? <div className="admin-feedback error">{error}</div> : null}
@@ -479,7 +481,11 @@ export function BuyVacancyModal({
               >
                 {busy ? (
                   <>
-                    <Loader2 className="spin" size={18} /> Gerando PIX…
+                    <Loader2 className="spin" size={18} /> Gerando pagamento…
+                  </>
+                ) : selectedMethod === 'cartao' ? (
+                  <>
+                    <CreditCard size={18} /> Abrir checkout do cartão
                   </>
                 ) : (
                   <>

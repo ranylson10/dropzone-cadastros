@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (e: any) {
     if (e instanceof AsaasNotConfiguredError || e?.name === 'AsaasNotConfiguredError') {
-      return NextResponse.json({ error: e.message, asaas_configured: false }, { status: 503 })
+      return NextResponse.json({ error: 'Pagamento online indisponível no momento.', asaas_configured: false }, { status: 503 })
     }
     return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
   }
