@@ -377,6 +377,15 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
       : labels[status] || { badge: status, subtitle: status }
     const title = item.campeonato?.nome || 'Vaga de campeonato'
     const actions: any[] = []
+    const hasPaymentReceipt = Boolean(
+      item.pagamento_id
+      && (
+        item.pago_em
+        || item.liberada
+        || item.consumida
+        || ['pago', 'liberado', 'consumido'].includes(status)
+      ),
+    )
 
     if (item.liberada) {
       actions.push({
@@ -425,6 +434,14 @@ export function vacancyPurchaseCards(items: any[], locale: LiliLocale = 'pt-BR')
       actions.push({ id: `view-registration-${item.id}`, label: financialReview ? 'Ver inscrição preservada' : 'Ver minhas inscrições', message: 'Mostrar minhas inscrições', intent: 'listar_minhas_inscricoes', variant: 'primary' })
     } else if (item.encerrada) {
       actions.push({ id: `buy-again-${item.id}`, label: 'Comprar outra vaga', message: `Comprar vaga em ${title}`, intent: 'comprar_vaga', variant: 'primary', context: { selectedChampionshipId: item.campeonato_id, currentFlow: 'vacancy_purchase' } })
+    }
+    if (hasPaymentReceipt) {
+      actions.push({
+        id: `receipt-purchased-spot-${item.id}`,
+        label: 'Ver comprovante de pagamento',
+        href: `/carteira?comprovante=${encodeURIComponent(String(item.pagamento_id))}&tipo=pagamento`,
+        variant: 'secondary',
+      })
     }
 
     return {

@@ -208,6 +208,20 @@ export default function CompraVagaPage() {
   const isPixPayment = !paymentMethod || paymentMethod.includes('pix')
   const isCardPayment = paymentMethod.includes('cartao') || paymentMethod.includes('credit') || paymentMethod.includes('card')
   const isPaypalPayment = paymentMethod.includes('paypal') || paymentProvider === 'paypal'
+  const compraStatus = String(data?.compra?.status || '').toLowerCase()
+  const paymentStatus = String(payment?.status || '').toLowerCase()
+  const hasPaymentReceipt = Boolean(
+    payment?.id
+    && (
+      liberado
+      || data?.consumido
+      || ['pago', 'liberado', 'consumido', 'recebido', 'confirmado'].includes(compraStatus)
+      || ['pago', 'recebido', 'confirmado', 'liberado'].includes(paymentStatus)
+    ),
+  )
+  const paymentReceiptHref = hasPaymentReceipt
+    ? `/carteira?comprovante=${encodeURIComponent(String(payment.id))}&tipo=pagamento`
+    : ''
 
   const pixSrc = useMemo(() => {
     const raw = payment?.pix_qrcode
@@ -292,9 +306,16 @@ export default function CompraVagaPage() {
           </header>
 
           {liberado || data?.consumido ? (
-            <div className="message" style={{ marginTop: 4 }}>
-              <CheckCircle2 size={16} style={{ display: 'inline', marginRight: 6 }} />
-              Pagamento confirmado. Escolha o slot no grupo liberado ao lado.
+            <div className="invite-auth-box" style={{ alignItems: 'flex-start', marginTop: 4 }}>
+              <div className="message" style={{ marginTop: 0 }}>
+                <CheckCircle2 size={16} style={{ display: 'inline', marginRight: 6 }} />
+                Pagamento confirmado. Escolha o slot no grupo liberado ao lado.
+              </div>
+              {paymentReceiptHref ? (
+                <a className="button secondary" href={paymentReceiptHref}>
+                  Ver comprovante de pagamento
+                </a>
+              ) : null}
             </div>
           ) : (
             <>
@@ -378,6 +399,11 @@ export default function CompraVagaPage() {
               {data?.campeonato?.id ? (
                 <a className="button secondary" href={`/campeonatos/${data.campeonato.id}`}>
                   Abrir campeonato
+                </a>
+              ) : null}
+              {paymentReceiptHref ? (
+                <a className="button secondary" href={paymentReceiptHref}>
+                  Ver comprovante de pagamento
                 </a>
               ) : null}
             </div>

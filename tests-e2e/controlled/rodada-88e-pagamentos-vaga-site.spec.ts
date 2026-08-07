@@ -14,6 +14,7 @@ test.describe('Rodada 88E — pagamento público de vaga', () => {
     const claimPage = read('web/app/vagas/compra/[token]/page.tsx')
     const liliChat = read('web/app/api/lili/chat/route.ts')
     const liliTools = read('web/features/lili/tools.ts')
+    const walletPage = read('web/app/carteira/page.tsx')
     const css = read('web/app/vagas/vagas.css')
 
     expect(modal).toContain('Pagar com PIX')
@@ -38,6 +39,8 @@ test.describe('Rodada 88E — pagamento público de vaga', () => {
     expect(claimPage).toContain('purchaseId')
     expect(claimPage).toContain('/api/paypal/orders/')
     expect(claimPage).not.toContain('sem redirecionar para ASAAS')
+    expect(claimPage).toContain('Ver comprovante de pagamento')
+    expect(claimPage).toContain('/carteira?comprovante=')
 
     expect(modal).not.toContain('Checkout seguro Asaas')
     expect(modal).not.toContain('O Asaas')
@@ -45,6 +48,10 @@ test.describe('Rodada 88E — pagamento público de vaga', () => {
     expect(liliChat).not.toContain('Abra o Asaas')
     expect(liliChat).not.toContain('pelo Asaas')
     expect(liliTools).not.toContain('checkout do Asaas')
+    expect(liliTools).toContain('Ver comprovante de pagamento')
+    expect(liliTools).toContain('/carteira?comprovante=')
+    expect(walletPage).toContain("comprovante.tipo === 'pagamento' ? 'Comprovante de pagamento'")
+    expect(walletPage).toContain("searchParams.get('comprovante')")
 
     expect(css).toContain('.vacancy-buy-option-card')
     expect(css).toContain('.vacancy-buy-option-paypal')

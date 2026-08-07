@@ -52,6 +52,7 @@ export default function CarteiraPage() {
   const [pixTipo, setPixTipo] = useState('aleatoria')
   const [pixTitular, setPixTitular] = useState('')
   const [comprovante, setComprovante] = useState<any>(null)
+  const [openedReceiptKey, setOpenedReceiptKey] = useState('')
 
   async function headers() {
     const { data: sess } = await supabase.auth.getSession()
@@ -190,6 +191,19 @@ export default function CarteiraPage() {
       setBusy(false)
     }
   }
+
+  useEffect(() => {
+    if (loading) return
+    const searchParams = new URLSearchParams(window.location.search)
+    const id = String(searchParams.get('comprovante') || '').trim()
+    const rawTipo = String(searchParams.get('tipo') || 'pagamento')
+    const tipo = rawTipo === 'saque' || rawTipo === 'lancamento' ? rawTipo : 'pagamento'
+    const key = `${tipo}:${id}`
+    if (!id || openedReceiptKey === key) return
+    setOpenedReceiptKey(key)
+    setTab(tipo === 'pagamento' ? 'pagamentos' : tipo === 'saque' ? 'saques' : 'extrato')
+    void abrirComprovante(id, tipo)
+  }, [loading, openedReceiptKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function copiarAuth() {
     if (!comprovante?.autenticacao) return
@@ -460,7 +474,7 @@ export default function CarteiraPage() {
             <div className="pix-receipt" id="pix-receipt-print">
               <header className="pix-receipt-head">
                 <CheckCircle2 size={28} className="pix-ok" />
-                <p>Comprovante de transferência</p>
+                <p>{comprovante.tipo === 'pagamento' ? 'Comprovante de pagamento' : 'Comprovante de transferência'}</p>
                 <strong>{money(comprovante.valor_centavos)}</strong>
                 <span>{fmtDate(comprovante.data_movimento)}</span>
               </header>
