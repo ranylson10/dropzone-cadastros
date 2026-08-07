@@ -31,6 +31,10 @@ const PROFILE_TYPES: ProfileType[] = ['produtora', 'equipe', 'jogador', 'manager
 
 type LoginStage = 'checking' | 'authenticate' | 'profiles'
 
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 function profileImage(profile: DropZoneRow) {
   return String(profile.data?.logo_url || profile.data?.avatar_url || '')
 }
@@ -60,14 +64,25 @@ export default function LoginPage() {
     }, 12000)
 
     async function loadAccounts(currentSession: Session) {
-      const response = await fetch('/api/me', {
-        headers: { Authorization: `Bearer ${currentSession.access_token}` },
-        cache: 'no-store',
-      })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok && response.status !== 404) throw new Error(payload.error || 'Não foi possível carregar seus perfis.')
-      const rows = Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : []
-      return rows as DropZoneRow[]
+      let lastError = 'Não foi possível carregar seus perfis.'
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const response = await fetch('/api/me', {
+          headers: { Authorization: `Bearer ${currentSession.access_token}` },
+          cache: 'no-store',
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (response.ok || response.status === 404) {
+          const rows = Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : []
+          return rows as DropZoneRow[]
+        }
+        if (response.status === 401 && /conta nao encontrada|conta nÃ£o encontrada|conta não encontrada/i.test(String(payload.error || ''))) {
+          return [] as DropZoneRow[]
+        }
+        lastError = payload.error || lastError
+        if (![401, 429, 500, 502, 503, 504].includes(response.status)) break
+        await wait(700 + attempt * 900)
+      }
+      throw new Error(lastError)
     }
 
     async function checkAdmin(currentSession: Session) {
@@ -120,41 +135,48 @@ export default function LoginPage() {
           return
         }
 
-        const { data, error: sessionError } = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('Tempo esgotado ao verificar sessão.')), 8000)),
-        ])
-        if (sessionError) throw sessionError
-        let currentSession = data.session
-
-        if (complete && !currentSession) {
-          currentSession = await new Promise<Session | null>((resolve) => {
-            let settled = false
-            let timer = 0
-            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-              if (!nextSession || settled) return
-              settled = true
-              window.clearTimeout(timer)
-              subscription.unsubscribe()
-              resolve(nextSession)
-            })
-            timer = window.setTimeout(async () => {
-              if (settled) return
-              settled = true
-              subscription.unsubscribe()
-              const current = await supabase.auth.getSession().catch(() => ({ data: { session: null } }))
-              resolve(current.data.session)
-            }, 4000)
-          })
+        async function getSessionOnce(timeoutMs: number) {
+          const { data, error: sessionError } = await Promise.race([
+            supabase.auth.getSession(),
+            new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('Tempo esgotado ao verificar sessão.')), timeoutMs)),
+          ])
+          if (sessionError) throw sessionError
+          return data.session
         }
 
+        async function waitForCompleteSession() {
+          const first = await getSessionOnce(8000)
+          if (first || !complete) return first
+
+          let listenerSession: Session | null = null
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+            if (nextSession) listenerSession = nextSession
+          })
+
+          try {
+            const delays = [250, 500, 900, 1300, 1800, 2400, 3200, 4200]
+            for (const delay of delays) {
+              await wait(delay)
+              if (listenerSession) return listenerSession
+              const current = await supabase.auth.getSession().catch(() => ({ data: { session: null } }))
+              if (current.data.session) return current.data.session
+            }
+            return listenerSession
+          } finally {
+            subscription.unsubscribe()
+          }
+        }
+
+        const currentSession = await waitForCompleteSession()
+
         if (!currentSession) {
+          if (complete) throw new Error('Não consegui confirmar sua sessão após o Google. Toque em entrar novamente e aguarde a página terminar de carregar.')
           if (active) setStage('authenticate')
           return
         }
 
         const [userAccounts, adminAccess] = await Promise.all([
-          loadAccounts(currentSession).catch(() => [] as DropZoneRow[]),
+          loadAccounts(currentSession),
           checkAdmin(currentSession),
         ])
 

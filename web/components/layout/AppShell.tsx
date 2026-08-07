@@ -162,7 +162,8 @@ export function AppShell({
     } finally {
       setSessionAccount(null)
       setSessionAccounts([])
-      window.location.href = '/login?switch=1'
+      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}` || '/'
+      window.location.href = `/login?switch=1&returnTo=${encodeURIComponent(returnTo)}`
     }
   }
 
