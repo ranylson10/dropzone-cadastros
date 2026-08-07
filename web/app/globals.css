@@ -5566,6 +5566,104 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .category-grid{ display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; background: transparent;
 }
 
+/* Equipe: central operacional e ações rápidas */
+.team-command-center{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin:14px 0;
+}
+.team-command-center article{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:13px;
+  border:1px solid rgba(15,23,42,.12);
+  background:linear-gradient(135deg,#fff,#f6f1e8);
+  min-width:0;
+}
+.team-command-center article>span{
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  background:#101820;
+  color:#fff;
+}
+.team-command-center article.needs-action>span{ background:#ff405d; }
+.team-command-center strong{ display:block; font-size:22px; line-height:1; color:#101820; }
+.team-command-center small{ display:block; margin-top:4px; color:#6b7280; text-transform:uppercase; letter-spacing:.045em; font-size:10px; }
+.team-next-game-card{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  padding:14px;
+  margin-bottom:14px;
+  background:#101820;
+  color:#fff;
+  border-left:4px solid #ff405d;
+}
+.team-next-game-card strong{ display:block; font-size:18px; }
+.team-next-game-card span{ display:block; color:rgba(255,255,255,.72); margin-top:4px; }
+.team-next-game-card .eyebrow{ color:#ffcf4a; margin:0 0 4px; }
+.team-championship-quick-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:0 14px 14px 74px;
+}
+.team-championship-quick-actions button,
+.team-championship-quick-actions a{
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid rgba(16,24,32,.14);
+  background:#fff;
+  color:#101820;
+  padding:0 11px;
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+  text-decoration:none;
+}
+.team-championship-quick-actions button:first-child{
+  background:#101820;
+  color:#fff;
+}
+.team-line-inline-detail{
+  border-top:1px solid rgba(16,24,32,.14);
+  padding:14px;
+  background:#f6f1e8;
+}
+.directory-champ-lineup-action{
+  width:100%;
+  min-height:38px;
+  margin-top:10px;
+  border:0;
+  background:#101820;
+  color:#fff;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.045em;
+}
+.directory-champ-lineup-action:hover{ background:#ff405d; }
+
+@media (max-width: 760px){
+  .team-command-center{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .team-next-game-card{ align-items:flex-start; flex-direction:column; }
+  .team-championship-quick-actions{ padding:0 10px 12px; }
+  .team-championship-quick-actions button,
+  .team-championship-quick-actions a{ flex:1 1 calc(50% - 8px); justify-content:center; }
+}
+
 /* Filtros comerciais do diretorio de campeonatos */
 .directory-market-filters{ width:min(1240px,calc(100% - 32px)); margin:-12px auto 22px; display:grid; gap:10px;
 } .directory-market-filter-chips{ display:flex; flex-wrap:wrap; align-items:center; gap:8px;

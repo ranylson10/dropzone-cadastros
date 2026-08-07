@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronRight, Copy, ExternalLink, Link2, Loader2, Pencil, Plus, Search, Send, Shield, Trash2, UserPlus, Users } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronRight, Copy, Link2, Loader2, Medal, Pencil, Plus, Search, Send, Shield, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
@@ -10,6 +10,7 @@ import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { dataText, rowTitle } from '../../utils'
 import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
+import { LineRosterManager } from '@/components/equipes/LineRosterManager'
 
 type Lineup = {
   campeonato_equipe_id: string
@@ -100,6 +101,26 @@ export function EquipePanel(props: {
   const [staffBusy, setStaffBusy] = useState(false)
   const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)), [props.teamLines, props.managedTeams])
   const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id)), [props.playerTeams, props.managedTeams])
+  const showStaffTools = props.accountType !== 'manager'
+  const championshipStats = useMemo(() => {
+    const championshipIds = new Set(lineups.map((lineup) => lineup.campeonato_id).filter(Boolean))
+    const incomplete = lineups.filter((lineup) => Number(lineup.jogadores_confirmados || 0) < Number(lineup.limite_jogadores || 0)).length
+    const activeLinks = lineups.filter((lineup) => Boolean(lineup.link_token)).length
+    const nextGame = [...lineups]
+      .filter((lineup) => lineup.data_jogo)
+      .sort((a, b) => `${a.data_jogo} ${a.horario || ''}`.localeCompare(`${b.data_jogo} ${b.horario || ''}`))[0]
+    const playersInLineups = new Set(
+      lineups.flatMap((lineup) => (lineup.jogadores || []).map((player) => String(player.id || player.jogador_id || player.equipe_jogador_id || player.nick))).filter(Boolean),
+    )
+    return {
+      campeonatos: championshipIds.size,
+      lines: teamLines.length || new Set(lineups.map((lineup) => lineup.line_id).filter(Boolean)).size,
+      jogadores: Math.max(teamPlayers.length, playersInLineups.size),
+      incompletas: incomplete,
+      links: activeLinks,
+      nextGame,
+    }
+  }, [lineups, teamLines.length, teamPlayers.length])
 
   useEffect(() => { void loadLineups() }, [])
 
@@ -117,6 +138,10 @@ export function EquipePanel(props: {
   useEffect(() => {
     if (tab === 'staff' && staffTeamId) void loadStaff()
   }, [tab, staffTeamId])
+
+  useEffect(() => {
+    if (tab === 'staff' && !showStaffTools) setTab('campeonatos')
+  }, [showStaffTools, tab])
 
   async function authToken() {
     const { data } = await supabase.auth.getSession()
@@ -478,12 +503,46 @@ Acesse: ${url}`
           <div><p className="eyebrow">{props.accountType === 'manager' ? 'Manager' : 'Equipe'}</p><h2>Painel da equipe</h2></div>
           <Shield />
         </div>
+        <div className="team-command-center">
+          <article>
+            <span><Trophy size={18} /></span>
+            <div><strong>{championshipStats.campeonatos}</strong><small>campeonato(s)</small></div>
+          </article>
+          <article>
+            <span><Users size={18} /></span>
+            <div><strong>{championshipStats.jogadores}</strong><small>jogadores no elenco</small></div>
+          </article>
+          <article className={championshipStats.incompletas ? 'needs-action' : ''}>
+            <span><Medal size={18} /></span>
+            <div><strong>{championshipStats.incompletas}</strong><small>escalação(ões) incompleta(s)</small></div>
+          </article>
+          <article>
+            <span><Link2 size={18} /></span>
+            <div><strong>{championshipStats.links}</strong><small>link(s) ativo(s)</small></div>
+          </article>
+        </div>
+        <div className="team-next-game-card">
+          <div>
+            <p className="eyebrow">Próximo compromisso</p>
+            <strong>{championshipStats.nextGame?.campeonato_nome || 'Nenhum jogo com data definida'}</strong>
+            <span>
+              {championshipStats.nextGame
+                ? `${championshipStats.nextGame.line_nome} · ${championshipStats.nextGame.grupo_nome || 'grupo a definir'} · ${championshipStats.nextGame.data_jogo ? new Date(`${championshipStats.nextGame.data_jogo}T00:00:00`).toLocaleDateString('pt-BR') : 'data a definir'} ${championshipStats.nextGame.horario ? `às ${String(championshipStats.nextGame.horario).slice(0, 5)}` : ''}`
+                : 'Quando um campeonato tiver jogo marcado, ele aparece aqui com ação rápida.'}
+            </span>
+          </div>
+          {championshipStats.nextGame ? (
+            <button type="button" className="button compact" onClick={() => { setTab('campeonatos'); setExpanded(championshipStats.nextGame?.campeonato_equipe_id || '') }}>
+              Escalar elenco
+            </button>
+          ) : null}
+        </div>
         <div className="tabs panel-tabs team-panel-tabs">
           <button className={`tab ${tab === 'campeonatos' ? 'active' : ''}`} onClick={() => setTab('campeonatos')}>Campeonatos</button>
           <button className={`tab ${tab === 'lines' ? 'active' : ''}`} onClick={() => setTab('lines')}>Lines</button>
           <button className={`tab ${tab === 'jogadores' ? 'active' : ''}`} onClick={() => setTab('jogadores')}>Jogadores</button>
           <button className={`tab ${tab === 'convites' ? 'active' : ''}`} onClick={() => setTab('convites')}>Convites</button>
-          <button className={`tab ${tab === 'staff' ? 'active' : ''}`} onClick={() => setTab('staff')}>Staff</button>
+          {showStaffTools ? <button className={`tab ${tab === 'staff' ? 'active' : ''}`} onClick={() => setTab('staff')}>Staff</button> : null}
           <button className={`tab ${tab === 'config' ? 'active' : ''}`} onClick={() => setTab('config')}>Configurações</button>
         </div>
 
@@ -499,10 +558,6 @@ Acesse: ${url}`
               const slots = Array.from({ length: Number(lineup.limite_jogadores || 0) }, (_, index) => lineup.jogadores.find((player) => Number(player.slot_numero) === index + 1))
               return <article className="team-championship-card" key={lineup.campeonato_equipe_id}>
                 <button className="team-championship-head" onClick={() => {
-                  if (window.matchMedia('(max-width: 760px)').matches) {
-                    window.open(`/campeonatos/${lineup.campeonato_id}`, '_blank', 'noopener,noreferrer')
-                    return
-                  }
                   setExpanded(isOpen ? '' : lineup.campeonato_equipe_id)
                 }}>
                   <img src={lineup.line_logo_url || '/favicon.ico'} alt="" />
@@ -510,6 +565,26 @@ Acesse: ${url}`
                   <div className="team-championship-status"><b>{lineup.jogadores_confirmados}/{lineup.limite_jogadores}</b><span>escalação</span></div>
                   <ChevronDown className={isOpen ? 'rotated' : ''} />
                 </button>
+                <div className="team-championship-quick-actions">
+                  <button type="button" onClick={() => setExpanded(isOpen ? '' : lineup.campeonato_equipe_id)}>
+                    <Users size={14} /> Escalar elenco
+                  </button>
+                  {lineup.link_token ? (
+                    <>
+                      <button type="button" onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}>
+                        <Copy size={14} /> Copiar link
+                      </button>
+                      <button type="button" onClick={() => void copyLink(String(lineup.link_token), `token:${lineup.campeonato_equipe_id}`)}>
+                        <Copy size={14} /> Copiar token
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => void createLineupLink(lineup)} disabled={lineupLoading}>
+                      <Link2 size={14} /> Gerar link
+                    </button>
+                  )}
+                  <a href={`/campeonatos/${lineup.campeonato_id}`}>Ver campeonato <ChevronRight size={14} /></a>
+                </div>
                 {isOpen ? <div className="team-championship-body">
                   <div className="team-game-info">
                     <span><CalendarDays size={16}/>{lineup.data_jogo ? new Date(`${lineup.data_jogo}T00:00:00`).toLocaleDateString('pt-BR') : 'Data ainda não definida'}</span>
@@ -537,6 +612,7 @@ Acesse: ${url}`
           <EquipeLinesEditor
             teams={props.managedTeams}
             uploadPublicFile={props.uploadPublicFile}
+            lineups={lineups}
           />
         ) : null}
 
@@ -881,6 +957,7 @@ Acesse: ${url}`
 function EquipeLinesEditor(props: {
   teams: DropZoneRow[]
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
+  lineups: Lineup[]
 }) {
   const teamId = props.teams[0]?.id || ''
   const teamLogo = dataText(props.teams[0], 'logo_url')
@@ -900,6 +977,8 @@ function EquipeLinesEditor(props: {
   const [transferTarget, setTransferTarget] = useState<any>(null)
   const [transferLoading, setTransferLoading] = useState(false)
   const [transferSearching, setTransferSearching] = useState(false)
+  const [lineDetail, setLineDetail] = useState<any | null>(null)
+  const [lineDetailToken, setLineDetailToken] = useState('')
 
   const load = useCallback(async () => {
     if (!teamId) return
@@ -1015,6 +1094,17 @@ function EquipeLinesEditor(props: {
     }
   }
 
+  async function openLineDetail(line: any) {
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) throw new Error('SessÃ£o expirada.')
+      setLineDetailToken(token)
+      setLineDetail((current: any) => current?.id === line.id ? null : line)
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao abrir jogadores da line.')
+    }
+  }
+
   async function searchTransferTeams() {
     const query = transferQuery.trim()
     if (query.length < 2) return setTransferTeams([])
@@ -1106,8 +1196,11 @@ function EquipeLinesEditor(props: {
       ) : null}
       {loading ? <p className="empty">Carregando...</p> : null}
       <div className="championship-vagas-list">
-        {lines.map((line, index) => (
-          <article key={line.id} className="championship-vaga-row status-ocupada">
+        {lines.map((line, index) => {
+          const lineLineups = props.lineups.filter((lineup) => String(lineup.line_id || '') === String(line.id))
+          const linePlayers = new Set(lineLineups.flatMap((lineup) => (lineup.jogadores || []).map((player) => String(player.id || player.nick))).filter(Boolean))
+          return (
+          <article key={line.id} className={`championship-vaga-row status-ocupada ${lineDetail?.id === line.id ? 'is-open' : ''}`}>
             <div className="vaga-row-summary" style={{ cursor: 'default' }}>
               <span className="vaga-row-number">{String(index + 1).padStart(2, '0')}</span>
               <span className="vaga-row-avatar status-ocupada">
@@ -1119,8 +1212,12 @@ function EquipeLinesEditor(props: {
                 <small>
                   {line.tag || 'Sem tag'} · {(line.campeonatos || []).length} campeonato(s)
                 </small>
+                {linePlayers.size ? <small>{linePlayers.size} jogador(es) escalado(s) nesta line</small> : null}
               </span>
               <span className="vaga-row-meta">
+                <button type="button" className="button small secondary" title="Ver jogadores da line" onClick={() => void openLineDetail(line)}>
+                  <Users size={14} /> Jogadores
+                </button>
                 <button type="button" className="button small secondary" title="Editar line" onClick={() => startEdit(line)}>
                   <Pencil size={14} />
                 </button>
@@ -1133,8 +1230,21 @@ function EquipeLinesEditor(props: {
               </span>
               <span className="vaga-row-chevron" aria-hidden />
             </div>
+            {lineDetail?.id === line.id && lineDetailToken ? (
+              <div className="team-line-inline-detail">
+                <LineRosterManager
+                  accessToken={lineDetailToken}
+                  equipeId={teamId}
+                  line={line}
+                  compact
+                  onBack={() => setLineDetail(null)}
+                  onChanged={() => { void load() }}
+                />
+              </div>
+            ) : null}
           </article>
-        ))}
+          )
+        })}
       </div>
 
       <SystemModal

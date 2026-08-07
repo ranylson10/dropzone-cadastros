@@ -1,7 +1,8 @@
 'use client'
 
 import { ChevronRight, Flame, Gift, Radio, Search, SlidersHorizontal, Ticket, Trophy, Users, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '@/lib/supabase-browser'
 import type { DirectoryItem } from '../types'
 
 function getMetaLabels(items: DirectoryItem[]) {
@@ -52,6 +53,7 @@ type ChampFilters = {
   lastVacancies: boolean
   live: boolean
   withPrize: boolean
+  mine: boolean
   maxPrice: string
   minPrize: string
 }
@@ -62,21 +64,23 @@ const emptyChampFilters: ChampFilters = {
   lastVacancies: false,
   live: false,
   withPrize: false,
+  mine: false,
   maxPrice: '',
   minPrize: '',
 }
 
 function hasChampFilters(filters: ChampFilters) {
-  return filters.today || filters.free || filters.lastVacancies || filters.live || filters.withPrize || filters.maxPrice || filters.minPrize
+  return filters.today || filters.free || filters.lastVacancies || filters.live || filters.withPrize || filters.mine || filters.maxPrice || filters.minPrize
 }
 
-function filterChampionships(items: DirectoryItem[], filters: ChampFilters) {
+function filterChampionships(items: DirectoryItem[], filters: ChampFilters, myChampionshipIds: Set<string>) {
   const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : null
   const minPrize = filters.minPrize ? Number(filters.minPrize) : null
   return items.filter((item) => {
     const price = moneyNumber(item.commercial?.valor_inscricao)
     const prize = moneyNumber(item.commercial?.premiacao)
     const free = Number(item.commercial?.vagas_livres ?? 0)
+    if (filters.mine && !myChampionshipIds.has(item.id)) return false
     if (filters.today && !isToday(item.commercial?.data_jogo || item.commercial?.data_limite_inscricao)) return false
     if (filters.free && price > 0) return false
     if (filters.lastVacancies && !(free > 0 && free <= 3)) return false
@@ -88,12 +92,13 @@ function filterChampionships(items: DirectoryItem[], filters: ChampFilters) {
   })
 }
 
-function ChampionshipCards({ items }: { items: DirectoryItem[] }) {
+function ChampionshipCards({ items, myChampionshipIds }: { items: DirectoryItem[]; myChampionshipIds: Set<string> }) {
   return (
     <div className="directory-champ-card-grid">
       {items.map((item) => {
         const free = Number(item.commercial?.vagas_livres ?? 0)
         const hasPrize = Number(item.commercial?.premiacao || 0) > 0
+        const isMine = myChampionshipIds.has(item.id)
         return (
           <a className="directory-champ-card" href={`/${item.kind}/${item.id}`} key={item.id}>
             <span
@@ -126,6 +131,18 @@ function ChampionshipCards({ items }: { items: DirectoryItem[] }) {
                 <span>{[item.commercial?.plataforma, item.commercial?.servidor].filter(Boolean).join(' · ') || 'Formato competitivo'}</span>
                 <b>Ver campeonato <ChevronRight size={15} /></b>
               </span>
+              {isMine ? (
+                <button
+                  type="button"
+                  className="directory-champ-lineup-action"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    window.location.href = '/?painel=1&section=campeonatos'
+                  }}
+                >
+                  <Users size={14} /> Escalar elenco
+                </button>
+              ) : null}
             </span>
           </a>
         )
@@ -137,15 +154,34 @@ function ChampionshipCards({ items }: { items: DirectoryItem[] }) {
 export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const [query, setQuery] = useState('')
   const [champFilters, setChampFilters] = useState<ChampFilters>(emptyChampFilters)
+  const [myChampionshipIds, setMyChampionshipIds] = useState<Set<string>>(new Set())
   const isChampionshipDirectory = items[0]?.kind === 'campeonatos'
+
+  useEffect(() => {
+    if (!isChampionshipDirectory) return
+    let alive = true
+    void supabase.auth.getSession().then(async ({ data }) => {
+      const accessToken = data.session?.access_token
+      if (!accessToken) return
+      const response = await fetch('/api/equipe/escalacoes', {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }).catch(() => null)
+      const payload = response?.ok ? await response.json().catch(() => ({})) : {}
+      if (!alive) return
+      setMyChampionshipIds(new Set<string>((payload.escalacoes || []).map((row: any) => String(row.campeonato_id || '')).filter(Boolean)))
+    })
+    return () => { alive = false }
+  }, [isChampionshipDirectory])
+
   const filtered = useMemo(() => {
     const clean = query.trim().toLowerCase()
     const queryItems = clean ? items.filter((item) => item.searchText.includes(clean)) : items
-    return isChampionshipDirectory ? filterChampionships(queryItems, champFilters) : queryItems
-  }, [champFilters, isChampionshipDirectory, items, query])
+    return isChampionshipDirectory ? filterChampionships(queryItems, champFilters, myChampionshipIds) : queryItems
+  }, [champFilters, isChampionshipDirectory, items, myChampionshipIds, query])
 
   const metaLabels = useMemo(() => getMetaLabels(items), [items])
-  const toggleChampFilter = (key: keyof Pick<ChampFilters, 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize'>) => {
+  const toggleChampFilter = (key: keyof Pick<ChampFilters, 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine'>) => {
     setChampFilters((current) => ({ ...current, [key]: !current[key] }))
   }
 
@@ -174,6 +210,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
             <button type="button" className={champFilters.lastVacancies ? 'active' : ''} onClick={() => toggleChampFilter('lastVacancies')}>Últimas vagas</button>
             <button type="button" className={champFilters.live ? 'active' : ''} onClick={() => toggleChampFilter('live')}>Com live</button>
             <button type="button" className={champFilters.withPrize ? 'active' : ''} onClick={() => toggleChampFilter('withPrize')}>Com premiação</button>
+            <button type="button" className={champFilters.mine ? 'active' : ''} onClick={() => toggleChampFilter('mine')}>Meus campeonatos</button>
           </div>
           <div className="directory-market-filter-fields">
             <label>
@@ -221,7 +258,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
       ) : null}
 
       {isChampionshipDirectory ? (
-        <ChampionshipCards items={filtered} />
+        <ChampionshipCards items={filtered} myChampionshipIds={myChampionshipIds} />
       ) : (
         <div className={`directory-list directory-list-${items[0]?.kind || 'empty'}`}>
           {filtered.map((item) => (
