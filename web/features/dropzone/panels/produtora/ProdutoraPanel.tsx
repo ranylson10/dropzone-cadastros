@@ -1182,6 +1182,10 @@ ${params.url}`
                 key={champ.id}
                 className={`champ-list-item ref-champ-item ${selectedChamp?.id === champ.id ? 'active' : ''}`}
                 onClick={() => {
+                  if (window.matchMedia('(max-width: 760px)').matches) {
+                    window.open(`/campeonatos/${champ.id}`, '_blank', 'noopener,noreferrer')
+                    return
+                  }
                   props.setSelectedChampId(champ.id)
                   setShowCreateChamp(false)
                   setChampionshipDetailOpen(true)

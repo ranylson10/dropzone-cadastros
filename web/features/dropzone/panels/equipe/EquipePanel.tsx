@@ -498,7 +498,13 @@ Acesse: ${url}`
               const isOpen = expanded === lineup.campeonato_equipe_id
               const slots = Array.from({ length: Number(lineup.limite_jogadores || 0) }, (_, index) => lineup.jogadores.find((player) => Number(player.slot_numero) === index + 1))
               return <article className="team-championship-card" key={lineup.campeonato_equipe_id}>
-                <button className="team-championship-head" onClick={() => setExpanded(isOpen ? '' : lineup.campeonato_equipe_id)}>
+                <button className="team-championship-head" onClick={() => {
+                  if (window.matchMedia('(max-width: 760px)').matches) {
+                    window.open(`/campeonatos/${lineup.campeonato_id}`, '_blank', 'noopener,noreferrer')
+                    return
+                  }
+                  setExpanded(isOpen ? '' : lineup.campeonato_equipe_id)
+                }}>
                   <img src={lineup.line_logo_url || '/favicon.ico'} alt="" />
                   <div><strong>{lineup.campeonato_nome}</strong><span>{lineup.line_nome} · {lineup.fase_nome || 'Sem fase'} · {lineup.grupo_nome || 'Sem grupo'} · Slot {lineup.slot_equipe || '-'}</span></div>
                   <div className="team-championship-status"><b>{lineup.jogadores_confirmados}/{lineup.limite_jogadores}</b><span>escalação</span></div>

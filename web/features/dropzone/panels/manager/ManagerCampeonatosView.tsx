@@ -350,6 +350,10 @@ export function ManagerCampeonatosView(props: {
                 type="button"
                 className={`champ-list-item ref-champ-item ${isActive ? 'active' : ''}`}
                 onClick={() => {
+                  if (window.matchMedia('(max-width: 760px)').matches) {
+                    window.open(`/campeonatos/${item.campeonato_id}`, '_blank', 'noopener,noreferrer')
+                    return
+                  }
                   props.setSelectedChampId(item.campeonato_id)
                   props.setTab('equipes')
                 }}

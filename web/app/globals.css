@@ -6257,60 +6257,88 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 
 
 
-  .page-authenticated{ padding-top: 72px;
+  .page-authenticated{ padding-top: 64px;
   }
-  .page-authenticated .shell{ width: calc(100% - 20px);
+  .page-authenticated .panel-workspace-shell{ width: 100%; max-width: none; margin: 0; padding: 0;
   }
-  .page-authenticated .account-strip.account-strip-compact{ grid-template-columns: minmax(0,1fr) 44px; gap: 10px 12px; padding: 12px 0; margin-bottom: 10px;
+  .page-authenticated .panel-workspace-shell > .account-strip.account-strip-compact{ grid-template-columns: minmax(0,1fr) 44px; gap: 12px; width: 100%; margin: 0 0 8px; padding: 16px 14px 14px; border: 0; border-bottom: 4px solid var(--dz-accent, #ff5468); background: #17212b; color: #fff;
   }
-  .page-authenticated .account-strip-compact .account-strip-head strong{ font-size: 24px; line-height: 1;
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-head .eyebrow{ color: var(--dz-accent, #ff5468);
   }
-  .page-authenticated .account-strip-compact .account-strip-head strong span{ display: block; margin-top: 6px; font-size: 10px;
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-head strong{ color: #fff; font-size: 24px; line-height: 1;
   }
-  .page-authenticated .account-strip-compact .account-strip-action{ width: 44px; height: 44px; min-height: 44px;
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-head strong span{ display: block; margin-top: 6px; color: rgba(255,255,255,.58); font-size: 10px;
   }
-  .page-authenticated .account-strip-compact .account-strip-metrics{ grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0; width: 100%; padding-top: 10px; border-top: 1px solid var(--auth-panel-line);
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-action{ width: 44px; height: 44px; min-height: 44px; border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: #fff;
   }
-  .page-authenticated .account-strip-compact .account-strip-metrics .metric{ display: grid; grid-template-columns: auto auto; justify-content: center; min-height: 38px; padding: 0 8px; border-left: 1px solid var(--auth-panel-line);
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-metrics{ grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0; width: 100%; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.16);
   }
-  .page-authenticated .account-strip-compact .account-strip-metrics .metric:first-child{ border-left: 0;
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-metrics .metric{ display: grid; grid-template-columns: auto auto; justify-content: center; min-height: 38px; padding: 0 8px; border: 0; border-left: 1px solid rgba(255,255,255,.14); background: transparent;
   }
-  .page-authenticated .account-strip-compact .account-strip-metrics .metric span{ display: none;
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-metrics .metric:first-child{ border-left: 0;
   }
-  .team-dashboard,
-  .player-dashboard,
-  .manager-dashboard,
-  .producer-layout-ref{ width: 100%; min-width: 0;
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-metrics .metric svg,
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-metrics .metric b{ color: #fff;
   }
-  .producer-layout-ref{ display: block; padding: 0; background: transparent;
+  .page-authenticated .panel-workspace-shell .account-strip-compact .account-strip-metrics .metric span{ display: none;
   }
-  .producer-layout-ref > .producer-command-card,
-  .producer-layout-ref > .championship-nav-card,
-  .producer-layout-ref > .championship-detail-card{ width: 100%; max-width: 100%; margin: 0; border-left: 0; border-right: 0;
+  .panel-workspace-shell .dashboard{ grid-template-columns: 1fr; gap: 0;
   }
-  .producer-layout-ref > .championship-detail-card{ margin-top: 10px;
+  .panel-workspace-shell .team-dashboard,
+  .panel-workspace-shell .player-dashboard,
+  .panel-workspace-shell .manager-dashboard,
+  .panel-workspace-shell .producer-layout-ref{ width: 100%; min-width: 0; margin: 0; padding: 0;
   }
-  .producer-layout-ref .championship-list{ max-height: none;
+  .panel-workspace-shell .dashboard > .panel,
+  .panel-workspace-shell .dashboard > .panel-soft,
+  .panel-workspace-shell .producer-layout-ref > .producer-command-card,
+  .panel-workspace-shell .producer-layout-ref > .championship-nav-card,
+  .panel-workspace-shell .producer-layout-ref > .championship-detail-card{ width: 100%; max-width: 100%; margin: 0; border-left: 0; border-right: 0; border-radius: 0;
   }
-  .producer-layout-ref .producer-essential-actions,
-  .producer-catalog-actions{ grid-template-columns: 1fr 1fr;
+  .panel-workspace-shell .producer-layout-ref{ display: block; background: transparent;
   }
-  .producer-layout-ref .champ-list-item{ min-height: 66px;
+  .panel-workspace-shell .producer-layout-ref > .championship-detail-card{ margin-top: 8px;
   }
-  .producer-layout-ref .champ-subtabs-ref,
-  .team-dashboard .panel-tabs,
-  .player-dashboard .panel-tabs,
-  .manager-dashboard .panel-tabs{ overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  .panel-workspace-shell .producer-layout-ref .championship-list,
+  .panel-workspace-shell .team-championship-list{ width: 100%; max-height: none; margin: 0; padding: 0; border: 1px solid #c9c0b4; border-radius: 0; background: #cec8be; gap: 1px; overflow: hidden;
   }
-  .producer-layout-ref .champ-subtabs-ref::-webkit-scrollbar,
-  .team-dashboard .panel-tabs::-webkit-scrollbar,
-  .player-dashboard .panel-tabs::-webkit-scrollbar,
-  .manager-dashboard .panel-tabs::-webkit-scrollbar{ display: none;
+  .panel-workspace-shell .producer-layout-ref .champ-list-item,
+  .panel-workspace-shell .team-championship-card{ min-height: 66px; margin: 0; border: 0; border-left: 3px solid transparent; border-radius: 0; background: #e5dfd5; color: #17212b; box-shadow: none;
   }
-  .producer-layout-ref .champ-subtabs-ref > *,
-  .team-dashboard .panel-tabs > *,
-  .player-dashboard .panel-tabs > *,
-  .manager-dashboard .panel-tabs > *{ flex: 0 0 auto;
+  .panel-workspace-shell .producer-layout-ref .champ-list-item:nth-child(even),
+  .panel-workspace-shell .team-championship-card:nth-child(even){ background: #dcd5cb;
+  }
+  .panel-workspace-shell .producer-layout-ref .champ-list-item:hover,
+  .panel-workspace-shell .producer-layout-ref .champ-list-item:focus-visible,
+  .panel-workspace-shell .team-championship-card:hover{ border-left-color: var(--dz-accent, #ff5468); background: #d2cbc1;
+  }
+  .panel-workspace-shell .producer-layout-ref .champ-list-item strong,
+  .panel-workspace-shell .team-championship-card strong{ color: #17212b;
+  }
+  .panel-workspace-shell .producer-layout-ref .champ-list-item small,
+  .panel-workspace-shell .team-championship-card span{ color: #6f6a62;
+  }
+  .panel-workspace-shell .team-championship-head{ min-height: 66px; padding: 9px 10px; border: 0; border-radius: 0; background: transparent;
+  }
+  .panel-workspace-shell .team-championship-body{ border-top: 1px solid rgba(24,34,45,.12); background: #eee9e1;
+  }
+  .panel-workspace-shell .producer-layout-ref .producer-essential-actions,
+  .panel-workspace-shell .producer-catalog-actions{ grid-template-columns: 1fr 1fr;
+  }
+  .panel-workspace-shell .producer-layout-ref .champ-subtabs-ref,
+  .panel-workspace-shell .team-dashboard .panel-tabs,
+  .panel-workspace-shell .player-dashboard .panel-tabs,
+  .panel-workspace-shell .manager-dashboard .panel-tabs{ overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  }
+  .panel-workspace-shell .producer-layout-ref .champ-subtabs-ref::-webkit-scrollbar,
+  .panel-workspace-shell .team-dashboard .panel-tabs::-webkit-scrollbar,
+  .panel-workspace-shell .player-dashboard .panel-tabs::-webkit-scrollbar,
+  .panel-workspace-shell .manager-dashboard .panel-tabs::-webkit-scrollbar{ display: none;
+  }
+  .panel-workspace-shell .producer-layout-ref .champ-subtabs-ref > *,
+  .panel-workspace-shell .team-dashboard .panel-tabs > *,
+  .panel-workspace-shell .player-dashboard .panel-tabs > *,
+  .panel-workspace-shell .manager-dashboard .panel-tabs > *{ flex: 0 0 auto;
   }
 }
 .team-dashboard > .section-head,

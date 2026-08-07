@@ -1579,7 +1579,7 @@ export function DropZoneHome() {
       mainId="painel-inicio"
       withAuthOffset={Boolean(account && !linkingProfile)}
     >
-        <div className="shell">
+        <div className="shell panel-workspace-shell">
         {!account || linkingProfile ? (
           <section className="login-stage login-stage-bg">
             <div className={`phone-shell login-free-shell ${activeAuthType ? 'auth-page' : 'select-page'}`}>
