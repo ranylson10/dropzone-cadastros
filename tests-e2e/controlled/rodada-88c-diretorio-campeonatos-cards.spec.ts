@@ -26,7 +26,9 @@ test.describe('Rodada 88C — diretório de campeonatos em cards', () => {
     expect(css).toContain('.directory-champ-card-grid')
     expect(css).toContain('.directory-champ-cover')
     expect(css).toContain('.directory-champ-metrics')
-    expect(css).toContain('grid-template-columns:minmax(300px,38%) minmax(0,1fr)')
+    expect(css).toContain('repeat(auto-fill,minmax(520px,1fr))')
+    expect(css).toContain('background-size:contain')
+    expect(css).toContain('height:168px')
     expect(css).toContain('.directory-banner-preview')
     expect(css).toContain('@media(max-width:760px)')
 

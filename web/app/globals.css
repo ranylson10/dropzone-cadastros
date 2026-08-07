@@ -6760,3 +6760,40 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   } .directory-champ-zoom{ display:none;
   }
 }
+
+/* Ajuste compacto: banner inteiro à esquerda, sem cortar a arte */
+.directory-champ-card-grid{ grid-template-columns:repeat(auto-fill,minmax(520px,1fr)); gap:10px;
+} .directory-champ-card{ grid-template-columns:190px minmax(0,1fr); min-height:168px; box-shadow:none;
+} .directory-champ-cover{ min-height:168px; height:168px; background-size:contain; background-repeat:no-repeat; background-color:#111827; background-position:center; padding:8px;
+} .directory-champ-cover:after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(8,12,18,0),rgba(8,12,18,.42)); pointer-events:none;
+} .directory-champ-cover>em,.directory-champ-badges,.directory-champ-logo,.directory-champ-zoom{ z-index:1;
+} .directory-champ-logo{ width:38px; height:38px; margin-bottom:26px;
+} .directory-champ-badges{ left:7px; right:7px; bottom:7px;
+} .directory-champ-badges b{ padding:4px 5px; font-size:7px;
+} .directory-champ-zoom{ right:7px; bottom:7px; padding:5px 6px; font-size:7px;
+} .directory-champ-body{ align-content:center; gap:9px; padding:12px 14px;
+} .directory-champ-title small{ font-size:8px;
+} .directory-champ-title strong{ font-size:17px; line-height:1.08;
+} .directory-champ-metrics{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px;
+} .directory-champ-metrics>span{ padding:6px;
+} .directory-champ-metrics b{ font-size:10px;
+} .directory-champ-metrics small{ font-size:7px;
+} .directory-champ-vacancy>span{ font-size:8px;
+} .directory-champ-vacancy b{ font-size:11px;
+} .directory-champ-footer{ padding-top:0;
+} .directory-champ-footer>span,.directory-champ-footer a{ font-size:8px;
+}
+@media(max-width:1120px){
+  .directory-champ-card-grid{ grid-template-columns:1fr;
+  }
+}
+@media(max-width:760px){
+  .directory-champ-card-grid{ width:calc(100% - 18px); grid-template-columns:1fr; gap:10px;
+  } .directory-champ-card{ grid-template-columns:118px minmax(0,1fr); min-height:176px;
+  } .directory-champ-cover{ min-height:176px; height:176px; background-size:cover;
+  } .directory-champ-body{ gap:8px; padding:10px;
+  } .directory-champ-title strong{ font-size:15px;
+  } .directory-champ-metrics{ display:none;
+  } .directory-champ-zoom{ display:none;
+  }
+}
