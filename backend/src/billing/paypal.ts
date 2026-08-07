@@ -71,6 +71,8 @@ export async function createLiliPayPalOrder(input: {
   currency: PayPalCurrency
   returnOrigin: string
   referenceType?: 'lili_reservas_slot' | 'sistema_compras_vaga'
+  returnUrl?: string
+  cancelUrl?: string
 }) {
   if (!paypalConfigured()) throw new Error('PayPal ainda não foi configurado.')
   if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) throw new Error('Valor inválido para o PayPal.')
@@ -89,12 +91,12 @@ export async function createLiliPayPalOrder(input: {
 
   if (existing?.paypal_order_id && existing?.paypal_approval_url) return existing
 
-  const returnUrl = isPurchase
+  const returnUrl = input.returnUrl || (isPurchase
     ? `${input.returnOrigin}/lili?paypal=approved&purchase=${encodeURIComponent(input.reservation.token)}&purchase_id=${encodeURIComponent(input.reservation.id)}`
-    : `${input.returnOrigin}/lili?paypal=approved&reservation=${encodeURIComponent(input.reservation.id)}`
-  const cancelUrl = isPurchase
+    : `${input.returnOrigin}/lili?paypal=approved&reservation=${encodeURIComponent(input.reservation.id)}`)
+  const cancelUrl = input.cancelUrl || (isPurchase
     ? `${input.returnOrigin}/lili?paypal=cancelled&purchase=${encodeURIComponent(input.reservation.token)}&purchase_id=${encodeURIComponent(input.reservation.id)}`
-    : `${input.returnOrigin}/lili?paypal=cancelled&reservation=${encodeURIComponent(input.reservation.id)}`
+    : `${input.returnOrigin}/lili?paypal=cancelled&reservation=${encodeURIComponent(input.reservation.id)}`)
   const order = await paypalRequest('/v2/checkout/orders', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },

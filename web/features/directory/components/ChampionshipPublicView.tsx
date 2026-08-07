@@ -371,6 +371,12 @@ export function ChampionshipPublicView({
             valor_inscricao: enrollment.valor_inscricao,
             contatos_whatsapp: enrollment.contatos_whatsapp || [],
             proximo_grupo: enrollment.proximo_grupo,
+            pagamento_pix_ativo: enrollment.pagamento_pix_ativo,
+            pagamento_cartao_ativo: enrollment.pagamento_cartao_ativo,
+            pagamento_paypal_ativo: enrollment.pagamento_paypal_ativo,
+            pagamento_whatsapp_ativo: enrollment.pagamento_whatsapp_ativo,
+            cartao_max_parcelas: enrollment.cartao_max_parcelas,
+            paypal_moedas: enrollment.paypal_moedas,
           }}
           returnTo={`/campeonatos/${profile.id}`}
           authenticated={authenticated}

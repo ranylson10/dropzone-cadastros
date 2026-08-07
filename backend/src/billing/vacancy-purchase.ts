@@ -432,7 +432,7 @@ export async function createVacancyPurchase(input: {
     description: `Vaga · ${champ.nome || 'Campeonato'}`.slice(0, 500),
     externalReference,
     billingType: method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
-    callbackUrl: method === 'cartao' ? `${appUrl()}/lili?purchase=${encodeURIComponent(compra.token)}` : undefined,
+    callbackUrl: method === 'cartao' ? `${appUrl()}/vagas/compra/${encodeURIComponent(compra.token)}?asaas=return` : undefined,
   })
 
   const pix = method === 'pix' ? await fetchPixQrWithRetry(payment.id) : {}
@@ -861,7 +861,7 @@ export async function getVacancyPurchaseByToken(token: string) {
     const { data: pay } = await supabaseAdmin
       .from('sistema_pagamentos')
       .select(
-        'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
+        'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id,paypal_order_id,paypal_approval_url,paypal_status',
       )
       .eq('id', compra.pagamento_id)
       .maybeSingle()
@@ -890,7 +890,7 @@ export async function getVacancyPurchaseByToken(token: string) {
         const { data: payAgain } = await supabaseAdmin
           .from('sistema_pagamentos')
           .select(
-            'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
+            'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id,paypal_order_id,paypal_approval_url,paypal_status',
           )
           .eq('id', payment.id)
           .maybeSingle()
@@ -927,7 +927,7 @@ export async function getVacancyPurchaseByToken(token: string) {
           })
           .eq('id', payment.id)
           .select(
-            'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id',
+            'id,status,metodo,provider,billing_type,valor_centavos,asaas_invoice_url,asaas_pix_qrcode,asaas_pix_payload,asaas_status,pago_em,created_at,asaas_payment_id,paypal_order_id,paypal_approval_url,paypal_status',
           )
           .single()
         if (withPix) payment = withPix
@@ -1054,6 +1054,9 @@ export async function getVacancyPurchaseByToken(token: string) {
           metodo: payment.metodo || (String(payment.billing_type || '').toUpperCase() === 'CREDIT_CARD' ? 'cartao' : 'pix'),
           provider: payment.provider || 'asaas',
           billing_type: payment.billing_type || null,
+          paypal_order_id: payment.paypal_order_id || null,
+          paypal_approval_url: payment.paypal_approval_url || null,
+          paypal_status: payment.paypal_status || null,
           pago_em: payment.pago_em,
         }
       : null,

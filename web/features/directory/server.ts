@@ -280,6 +280,12 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
       contatos_whatsapp: Array.isArray(cfg.contatos_whatsapp) ? cfg.contatos_whatsapp : [],
       vagas_livres: freeSlots,
       proximo_grupo: null,
+      pagamento_pix_ativo: cfg.pagamento_pix_ativo !== false,
+      pagamento_cartao_ativo: cfg.pagamento_cartao_ativo !== false,
+      pagamento_paypal_ativo: cfg.pagamento_paypal_ativo === true,
+      pagamento_whatsapp_ativo: cfg.pagamento_whatsapp_ativo !== false,
+      cartao_max_parcelas: Math.min(12, Math.max(1, Number.parseInt(String(cfg.cartao_max_parcelas || '1'), 10) || 1)),
+      paypal_moedas: Array.isArray(cfg.paypal_moedas) ? cfg.paypal_moedas.map(String) : ['BRL', 'USD', 'EUR'],
     }
     const teamById = new Map(teams.map((row: any) => [row.id, row]))
     const lineById = new Map(teamLines.map((row: any) => [row.id, row]))

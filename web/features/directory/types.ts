@@ -65,6 +65,12 @@ export type ChampionshipEnrollment = {
   }>
   vagas_livres?: number
   proximo_grupo?: string | null
+  pagamento_pix_ativo?: boolean
+  pagamento_cartao_ativo?: boolean
+  pagamento_paypal_ativo?: boolean
+  pagamento_whatsapp_ativo?: boolean
+  cartao_max_parcelas?: number | null
+  paypal_moedas?: string[]
 }
 
 export type DirectoryProfile = DirectoryItem & {

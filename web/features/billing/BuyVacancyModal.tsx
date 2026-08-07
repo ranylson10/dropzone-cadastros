@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CheckCircle2, ClipboardCopy, Loader2, X } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ClipboardCopy, CreditCard, Loader2, X } from 'lucide-react'
 import { WhatsappContactSelector } from '@/components/forms/campeonato'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { supabase } from '@/lib/supabase-browser'
@@ -26,6 +26,10 @@ type PaymentInfo = {
   pix_qrcode?: string | null
   pix_payload?: string | null
   asaas_status?: string | null
+  paypal_approval_url?: string | null
+  paypal_order_id?: string | null
+  metodo?: 'pix' | 'cartao' | 'paypal' | string
+  provider?: string | null
 }
 
 type Props = {
@@ -35,6 +39,12 @@ type Props = {
     valor_inscricao?: number | null
     contatos_whatsapp?: Contact[]
     proximo_grupo?: string | null
+    pagamento_pix_ativo?: boolean
+    pagamento_cartao_ativo?: boolean
+    pagamento_paypal_ativo?: boolean
+    pagamento_whatsapp_ativo?: boolean
+    cartao_max_parcelas?: number | null
+    paypal_moedas?: string[]
   }
   vendedorManagerId?: string | null
   returnTo?: string
@@ -107,6 +117,7 @@ export function BuyVacancyModal({
   const [showLogin, setShowLogin] = useState(false)
   /** choose → cpf → pix (QR na mesma tela) → paid (redireciona ao claim). */
   const [step, setStep] = useState<'choose' | 'pix-data' | 'pix-pay'>('choose')
+  const [selectedMethod, setSelectedMethod] = useState<'pix' | 'cartao' | 'paypal'>('pix')
   const [cpfCnpj, setCpfCnpj] = useState('')
   const [payment, setPayment] = useState<PaymentInfo | null>(null)
   const [compraToken, setCompraToken] = useState('')
@@ -114,8 +125,13 @@ export function BuyVacancyModal({
   const [paid, setPaid] = useState(false)
 
   const valorLabel = money(championship.valor_inscricao)
-  const canPayOnline = Number(championship.valor_inscricao || 0) >= 1
-  const contacts = championship.contatos_whatsapp || []
+  const price = Number(championship.valor_inscricao || 0)
+  const canPayOnline = price >= 1
+  const asaasMinimumMet = price >= 5
+  const pixAvailable = Boolean(canPayOnline && asaasMinimumMet && championship.pagamento_pix_ativo !== false)
+  const cardAvailable = Boolean(canPayOnline && asaasMinimumMet && championship.pagamento_cartao_ativo !== false)
+  const paypalAvailable = Boolean(canPayOnline && championship.pagamento_paypal_ativo === true)
+  const contacts = championship.pagamento_whatsapp_ativo === false ? [] : championship.contatos_whatsapp || []
   const cpfDigits = useMemo(() => onlyDigits(cpfCnpj), [cpfCnpj])
   const cpfReady = isValidCpfCnpjLength(cpfDigits)
 
@@ -129,12 +145,30 @@ export function BuyVacancyModal({
   function goToPixForm() {
     setError('')
     setMessage('')
+    setSelectedMethod('pix')
     if (!authenticated) {
       setShowLogin(true)
       onRequireLogin?.()
       return
     }
     setStep('pix-data')
+  }
+
+  function goToCardForm() {
+    setError('')
+    setMessage('')
+    setSelectedMethod('cartao')
+    if (!authenticated) {
+      setShowLogin(true)
+      onRequireLogin?.()
+      return
+    }
+    setStep('pix-data')
+  }
+
+  async function goToPaypal() {
+    setSelectedMethod('paypal')
+    await startOnlinePayment('paypal')
   }
 
   const pollPayment = useCallback(async () => {
@@ -196,7 +230,7 @@ export function BuyVacancyModal({
     }
   }, [step, compraToken, paid, pollPayment])
 
-  async function startOnlinePayment() {
+  async function startOnlinePayment(method = selectedMethod) {
     setError('')
     setMessage('')
     if (!authenticated) {
@@ -205,7 +239,7 @@ export function BuyVacancyModal({
       return
     }
 
-    if (!cpfReady) {
+    if ((method === 'pix' || method === 'cartao') && !cpfReady) {
       setError('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.')
       return
     }
@@ -229,6 +263,7 @@ export function BuyVacancyModal({
           campeonato_id: championship.id,
           vendedor_manager_id: vendedorManagerId || undefined,
           cpf_cnpj: cpfDigits,
+          method,
         }),
       })
       const json = await res.json()
@@ -239,6 +274,18 @@ export function BuyVacancyModal({
       setCompraToken(token)
       setClaimUrl(nextClaim)
       setPayment(json.payment || null)
+      if (method === 'cartao') {
+        const invoice = String(json.payment?.invoice_url || '').trim()
+        if (!invoice) throw new Error('O Asaas nÃ£o retornou o checkout do cartÃ£o.')
+        window.location.href = invoice
+        return
+      }
+      if (method === 'paypal') {
+        const approval = String(json.payment?.paypal_approval_url || '').trim()
+        if (!approval) throw new Error('O PayPal nÃ£o retornou o link de aprovaÃ§Ã£o.')
+        window.location.href = approval
+        return
+      }
       setStep('pix-pay')
 
       // Já pago (raro): só aí vai para escolha de slot.
@@ -296,7 +343,7 @@ export function BuyVacancyModal({
             {error ? <div className="admin-feedback error">{error}</div> : null}
 
             <div className="vacancy-buy-options">
-              {canPayOnline ? (
+              {pixAvailable ? (
                 <button
                   className="vacancy-buy-option vacancy-buy-option-pix"
                   type="button"
@@ -322,6 +369,38 @@ export function BuyVacancyModal({
                   </span>
                 </div>
               )}
+
+              {cardAvailable ? (
+                <button
+                  className="vacancy-buy-option vacancy-buy-option-card"
+                  type="button"
+                  disabled={busy}
+                  onClick={goToCardForm}
+                >
+                  <span className="vacancy-buy-brand-icon vacancy-buy-brand-card" aria-hidden>
+                    <CreditCard size={22} />
+                  </span>
+                  <span>
+                    <strong>Pagar com cartÃ£o</strong>
+                    <small>Checkout seguro Asaas{Number(championship.cartao_max_parcelas || 1) > 1 ? ` Â· atÃ© ${championship.cartao_max_parcelas}x` : ''}</small>
+                  </span>
+                </button>
+              ) : null}
+
+              {paypalAvailable ? (
+                <button
+                  className="vacancy-buy-option vacancy-buy-option-paypal"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void goToPaypal()}
+                >
+                  <span className="vacancy-buy-brand-icon vacancy-buy-brand-paypal" aria-hidden>Pay</span>
+                  <span>
+                    <strong>Pagar com PayPal</strong>
+                    <small>Pagamento internacional no ambiente seguro do PayPal</small>
+                  </span>
+                </button>
+              ) : null}
 
               {contacts.length ? (
                 <div className="vacancy-buy-whatsapp">

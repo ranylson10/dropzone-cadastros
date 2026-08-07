@@ -9,7 +9,7 @@ import {
   Ticket,
   Users,
 } from 'lucide-react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/layout'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SocialLogin } from '@/features/auth/SocialLogin'
@@ -30,6 +30,7 @@ function moneyCentavos(centavos: number) {
 
 export default function CompraVagaPage() {
   const params = useParams<{ token: string }>()
+  const searchParams = useSearchParams()
   const token = String(params?.token || '').trim().toUpperCase()
   const returnTo = `/vagas/compra/${encodeURIComponent(token)}`
 
@@ -99,6 +100,39 @@ export default function CompraVagaPage() {
   useEffect(() => {
     if (token) void load()
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const paypalStatus = searchParams.get('paypal')
+    const orderId = searchParams.get('token')
+    const purchaseId = searchParams.get('purchase_id')
+    if (paypalStatus !== 'approved' || !orderId || !purchaseId || !authenticated) return
+    let active = true
+    ;(async () => {
+      try {
+        setBusy(true)
+        setMessage('Confirmando pagamento PayPal...')
+        const { data: session } = await supabase.auth.getSession()
+        const access = session.session?.access_token
+        if (!access) throw new Error('Entre novamente para confirmar o PayPal.')
+        const res = await fetch(`/api/paypal/orders/${encodeURIComponent(orderId)}/capture`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access}` },
+          body: JSON.stringify({ purchaseId }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json.error || 'Não foi possível confirmar o PayPal.')
+        if (!active) return
+        setMessage('Pagamento PayPal confirmado. Escolha sua equipe, line e slot.')
+        await load({ equipeId: equipeId || undefined })
+        window.history.replaceState({}, '', returnTo)
+      } catch (e: any) {
+        if (active) setError(e?.message || 'Erro ao confirmar PayPal.')
+      } finally {
+        if (active) setBusy(false)
+      }
+    })()
+    return () => { active = false }
+  }, [authenticated, equipeId, load, returnTo, searchParams])
 
   // Poll enquanto pendente
   useEffect(() => {

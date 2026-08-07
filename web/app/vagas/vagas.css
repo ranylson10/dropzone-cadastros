@@ -16,6 +16,14 @@
 .vacancy-buy-option-pix:hover:not(:disabled){border-color:#32BCAD;box-shadow:0 10px 22px rgba(50,188,173,.18)}
 .vacancy-buy-option-pix:disabled{opacity:.75;cursor:wait}
 .vacancy-buy-option-pix strong{color:#0f766e}
+.vacancy-buy-brand-card{background:#eef2ff;color:#3730a3}
+.vacancy-buy-brand-paypal{background:#eaf3ff;color:#003087;font-size:11px;font-weight:950}
+.vacancy-buy-option-card{border-color:rgba(79,70,229,.28);background:linear-gradient(135deg,#f8f9ff 0%,#eef2ff 100%)}
+.vacancy-buy-option-card:hover:not(:disabled){border-color:#4f46e5;box-shadow:0 10px 22px rgba(79,70,229,.16)}
+.vacancy-buy-option-card strong{color:#312e81}
+.vacancy-buy-option-paypal{border-color:rgba(0,48,135,.25);background:linear-gradient(135deg,#f8fbff 0%,#eaf3ff 100%)}
+.vacancy-buy-option-paypal:hover:not(:disabled){border-color:#003087;box-shadow:0 10px 22px rgba(0,48,135,.14)}
+.vacancy-buy-option-paypal strong{color:#003087}
 .vacancy-buy-option-disabled{opacity:.72;cursor:not-allowed;background:#f7f8f9}
 .vacancy-buy-whatsapp{padding:12px 14px;border:1px solid rgba(37,211,102,.28);background:linear-gradient(135deg,#f7fdf9 0%,#eefaf3 100%)}
 .vacancy-buy-whatsapp-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#128C7E}

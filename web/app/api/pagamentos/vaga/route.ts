@@ -6,6 +6,7 @@ import {
   getVacancyPurchaseByToken,
   loadClaimContext,
 } from '@backend/billing/vacancy-purchase'
+import { createLiliPayPalOrder } from '@backend/billing/paypal'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 /**
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
     const account = await getActiveAccount(req, user)
     const body = await req.json().catch(() => ({}))
     const campeonatoId = String(body.campeonato_id || '').trim()
+    const method = ['pix', 'cartao', 'paypal'].includes(String(body.method || 'pix'))
+      ? String(body.method || 'pix') as 'pix' | 'cartao' | 'paypal'
+      : 'pix'
     if (!campeonatoId) throw new Error('campeonato_id obrigatório.')
 
     const email = String(user.email || account?.data?.email_contato || '').trim()
@@ -34,7 +38,21 @@ export async function POST(req: NextRequest) {
       payerEmail: email,
       cpfCnpj: body.cpf_cnpj ? String(body.cpf_cnpj) : null,
       vendedorManagerId: body.vendedor_manager_id || null,
+      method,
     })
+    const paypalPayment = method === 'paypal'
+      ? await createLiliPayPalOrder({
+          reservation: compra,
+          campeonatoNome: String(compra.meta?.campeonato_nome || 'Campeonato'),
+          amountMinor: Number(compra.valor_centavos || 0),
+          currency: 'BRL',
+          returnOrigin: req.nextUrl.origin,
+          referenceType: 'sistema_compras_vaga',
+          returnUrl: `${req.nextUrl.origin}/vagas/compra/${encodeURIComponent(compra.token)}?paypal=approved&purchase_id=${encodeURIComponent(compra.id)}`,
+          cancelUrl: `${req.nextUrl.origin}/vagas/compra/${encodeURIComponent(compra.token)}?paypal=cancelled&purchase_id=${encodeURIComponent(compra.id)}`,
+        })
+      : null
+    const resolvedPayment = paypalPayment || payment
 
     return NextResponse.json({
       reused: Boolean(reused),
@@ -46,15 +64,20 @@ export async function POST(req: NextRequest) {
         campeonato_id: compra.campeonato_id,
         grupo_id: compra.grupo_id,
       },
-      payment: payment
+      payment: resolvedPayment
         ? {
-            id: payment.id,
-            status: payment.status,
-            valor_centavos: payment.valor_centavos,
-            invoice_url: payment.asaas_invoice_url,
-            pix_qrcode: payment.asaas_pix_qrcode,
-            pix_payload: payment.asaas_pix_payload,
-            asaas_status: payment.asaas_status,
+            id: resolvedPayment.id,
+            status: resolvedPayment.status,
+            valor_centavos: resolvedPayment.valor_centavos,
+            invoice_url: resolvedPayment.asaas_invoice_url || null,
+            pix_qrcode: resolvedPayment.asaas_pix_qrcode || null,
+            pix_payload: resolvedPayment.asaas_pix_payload || null,
+            asaas_status: resolvedPayment.asaas_status || null,
+            provider: resolvedPayment.provider || (method === 'paypal' ? 'paypal' : 'asaas'),
+            metodo: method,
+            billing_type: resolvedPayment.billing_type || null,
+            paypal_order_id: resolvedPayment.paypal_order_id || null,
+            paypal_approval_url: resolvedPayment.paypal_approval_url || null,
           }
         : null,
       claim_url: `/vagas/compra/${encodeURIComponent(compra.token)}`,
