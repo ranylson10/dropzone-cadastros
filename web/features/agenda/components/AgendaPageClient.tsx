@@ -17,8 +17,13 @@ export function AgendaPageClient() {
   }, [])
 
   return (
-    <AppShell activeLabel="Agenda" loadSession mainClassName="directory-page page page-authenticated">
-      <div className="directory-page-body" style={{ paddingTop: 18 }}>
+    <AppShell
+      activeLabel="Agenda"
+      loadSession
+      withAuthOffset={false}
+      mainClassName="agenda-page page directory-page"
+    >
+      <div className="agenda-page-body">
         {!ready ? (
           <div className="agenda-empty-month">Carregando...</div>
         ) : !loggedIn ? (
