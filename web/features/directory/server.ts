@@ -18,6 +18,13 @@ function directoryMoney(value: unknown) {
   if (!Number.isFinite(number) || number <= 0) return '-'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
 }
+function yesNo(value: unknown) { return value == null ? '-' : value ? 'Sim' : 'Não' }
+function dateLabel(value: unknown) {
+  const raw = text(value)
+  if (!raw) return '-'
+  const date = new Date(raw)
+  return Number.isNaN(date.getTime()) ? raw : date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
 function location(row: any) { return first(row.localidade, [row.cidade, row.estado, row.pais].filter(Boolean).join(' · ')) }
 
 const DIRECTORY_PAGE_SIZE = 1000
@@ -206,7 +213,8 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   let statsFilters: DirectoryProfile['statsFilters'] = undefined
 
   if (kind === 'campeonatos') {
-    const [phases, groups, slots, games, rounds, participations, teams, teamLines, teamStats, mvpStats, configs] = await Promise.all([
+    const [championships, phases, groups, slots, games, rounds, participations, teams, teamLines, championshipPlayers, players, temporaryPlayers, teamStats, mvpStats, configs] = await Promise.all([
+      rows('campeonatos'),
       rows('campeonato_fases'),
       rows('campeonato_grupos'),
       rows('campeonato_slots'),
@@ -215,10 +223,14 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
       rows('campeonato_equipes'),
       rows('equipes'),
       rows('equipe_lines'),
+      rows('campeonato_jogadores'),
+      rows('jogadores'),
+      rows('jogadores_temporarios'),
       listarEstatisticasEquipes(id, {}).catch(() => []),
       listarEstatisticasMvp(id, {}).catch(() => []),
       rows('campeonato_configuracoes'),
     ])
+    const championship: any = championships.find((row: any) => row.id === id) || {}
     const cfg: any = configs.find((row: any) => row.campeonato_id === id) || {}
     theme = {
       cor_principal: cfg.cor_principal || null,
@@ -268,6 +280,31 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     const champGames = games.filter((row: any) => row.campeonato_id === id)
     const champRounds = rounds.filter((row: any) => row.campeonato_id === id)
     const champParts = participations.filter((row: any) => row.campeonato_id === id && String(row.status || 'ativo') === 'ativo')
+    const champPlayerRows = championshipPlayers.filter((row: any) => row.campeonato_id === id && String(row.status || 'ativo') !== 'deletado')
+    const playerById = new Map(players.map((row: any) => [String(row.id), row]))
+    const temporaryPlayerById = new Map(temporaryPlayers.map((row: any) => [String(row.id), row]))
+    const participationById = new Map(champParts.map((row: any) => [String(row.id), row]))
+    const mvpByPlayerId = new Map(mvpStats.map((row: any) => [String(row.campeonato_jogador_id), row]))
+
+    details.length = 0
+    details.push(
+      { label: 'Tipo', value: first(base.eyebrow, '-') },
+      { label: 'Formato', value: first(cfg.formato, '-') },
+      { label: 'Inscrição', value: directoryMoney(cfg.valor_inscricao) },
+      { label: 'Premiação', value: directoryMoney(cfg.premiacao ?? championship.premiacao) },
+      { label: 'Total de vagas', value: officialTotal > 0 ? String(officialTotal) : '-' },
+      { label: 'Vagas livres', value: officialTotal > 0 ? String(freeSlots) : '-' },
+      { label: 'Jogadores por equipe', value: cfg.jogadores_por_vaga != null ? String(cfg.jogadores_por_vaga) : '-' },
+      { label: 'Vagas por equipe', value: cfg.vagas_por_equipe != null ? String(cfg.vagas_por_equipe) : '-' },
+      { label: 'Reservas', value: cfg.qtd_reservas != null ? String(cfg.qtd_reservas) : cfg.permite_reservas != null ? yesNo(cfg.permite_reservas) : '-' },
+      { label: 'Troca de jogadores', value: yesNo(cfg.permite_troca_jogadores) },
+      { label: 'Limite para trocas', value: dateLabel(cfg.data_limite_trocas) },
+      { label: 'Inscrições até', value: dateLabel(cfg.data_limite_inscricao) },
+      { label: 'Plataforma', value: first(cfg.plataforma, '-') },
+      { label: 'Servidor', value: first(cfg.servidor, '-') },
+      { label: 'Transmissão', value: yesNo(cfg.tem_live) },
+      { label: 'Status', value: statusLabel(championship.status || 'ativo') },
+    )
 
     const gameNameById = new Map(champGames.map((row: any) => [String(row.id), first(row.nome, `Jogo ${row.id}`)]))
     const mapCodes = Array.from(new Set(champRounds.map((row: any) => text(row.mapa_codigo)).filter(Boolean)))
@@ -292,6 +329,30 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
 
     // Ações antigas removidas do banner — navegação via ChampionshipPublicView
     actions.length = 0
+    sections.push({
+      title: 'Jogadores participantes',
+      layout: 'list',
+      items: champPlayerRows.map((row: any) => {
+        const registered = row.jogador_id ? playerById.get(String(row.jogador_id)) : null
+        const temporaryId = row.jogador_temporario_id || row.temporario_id || row.jogador_temp_id
+        const temporary = temporaryId ? temporaryPlayerById.get(String(temporaryId)) : null
+        const participation: any = participationById.get(String(row.campeonato_equipe_id || ''))
+        const team: any = participation?.equipe_id ? teamById.get(participation.equipe_id) : null
+        const line: any = participation?.line_id ? lineById.get(participation.line_id) : null
+        const performance: any = mvpByPlayerId.get(String(row.id))
+        return {
+          id: String(row.id),
+          title: first(row.nick, registered?.nick, registered?.nome, temporary?.nick, 'Jogador'),
+          subtitle: first(line?.nome, team?.nome, 'Equipe não informada'),
+          image: first(row.foto_url, registered?.avatar_url, registered?.foto_url, temporary?.foto_url),
+          stats: {
+            campeonato_equipe_id: row.campeonato_equipe_id || null,
+            partidas: Number(performance?.quedas || 0),
+            equipe_nome: first(line?.nome, team?.nome, 'Equipe não informada'),
+          },
+        }
+      }),
+    })
     sections.push({
       title: 'Tabela',
       layout: 'stats',

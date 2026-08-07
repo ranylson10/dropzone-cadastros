@@ -123,7 +123,7 @@ export function ChampionshipPublicView({
   const sectionMap = useMemo(
     () => ({
       equipesList: findSection(profile, 'Equipes participantes'),
-      jogadores: findSection(profile, 'MVP'),
+      jogadores: findSection(profile, 'Jogadores participantes'),
       grupos: findSection(profile, 'Fases e grupos'),
       jogos: findSection(profile, 'Jogos'),
       estatisticas: findSection(profile, 'Tabela'),
@@ -346,7 +346,7 @@ export function ChampionshipPublicView({
 
         {tab === 'jogadores' ? (
           <PlayersDirectoryPanel
-            players={sectionMvp(sectionMap.jogadores)}
+            players={sectionPlayers(sectionMap.jogadores)}
             teams={sectionTeams(sectionMap.estatisticas)}
           />
         ) : null}
@@ -397,6 +397,26 @@ type TeamStatsRow = {
   pontos_posicao: number
   pontos_abates: number
   pontos_total: number
+}
+
+type PublicPlayerRow = {
+  id: string
+  nick: string
+  foto_url?: string | null
+  campeonato_equipe_id?: string | null
+  equipe_nome: string
+  partidas: number
+}
+
+function sectionPlayers(section?: DirectoryProfile['sections'][number]): PublicPlayerRow[] {
+  return (section?.items || []).map((item) => ({
+    id: item.id,
+    nick: item.title,
+    foto_url: item.image || null,
+    campeonato_equipe_id: String(item.stats?.campeonato_equipe_id || '') || null,
+    equipe_nome: String(item.stats?.equipe_nome || item.subtitle || 'Equipe não informada'),
+    partidas: Number(item.stats?.partidas || 0),
+  }))
 }
 
 type MvpStatsRow = {
@@ -537,6 +557,8 @@ function StatsDashboard({
 
     return () => controller.abort()
   }, [championshipId, faseId, grupoId, jogoId, partidaId, mapaCodigo])
+
+  const teamName = (id?: string | null) => teams.find((team) => team.campeonato_equipe_id === id)?.nome || 'Equipe não informada'
 
   const groupName = (id?: string | null) => {
     const label = filters?.groups.find((group) => group.id === id)?.label || ''
@@ -749,7 +771,7 @@ function StatsDashboard({
         ) : players.length ? (
           <table className="champ-stats-table champ-stats-mvp-table">
             <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>QD</th><th>K.D</th><th className="total">Kill</th></tr></thead>
-            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong><small className="mobile-stat-meta">{row.quedas} quedas · K.D {kdLabel(row)} · {row.dano} dano · {row.assistencias} AST · {row.revives} rev</small></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{kdLabel(row)}</b></td><td className="total"><small className="mobile-total-label">Kills</small><b>{row.abates}</b></td></tr>)}</tbody>
+            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong><small className="mobile-stat-meta">{teamName(row.campeonato_equipe_id)} · {row.quedas} quedas · K.D {kdLabel(row)} · {row.dano} dano · {row.assistencias} AST · {row.revives} rev</small></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{kdLabel(row)}</b></td><td className="total"><small className="mobile-total-label">Kills</small><b>{row.abates}</b></td></tr>)}</tbody>
           </table>
         ) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
       </div>
@@ -784,9 +806,16 @@ function FilterOptionGroup({
   )
 }
 
-function PlayersDirectoryPanel({ players, teams }: { players: MvpStatsRow[]; teams: TeamStatsRow[] }) {
+function PlayersDirectoryPanel({ players, teams }: { players: PublicPlayerRow[]; teams: TeamStatsRow[] }) {
   const [teamId, setTeamId] = useState('')
-  const teamMap = useMemo(() => new Map(teams.map((team) => [team.campeonato_equipe_id, team])), [teams])
+  const teamOptions = useMemo(() => {
+    const byId = new Map<string, string>()
+    teams.forEach((team) => byId.set(team.campeonato_equipe_id, team.nome))
+    players.forEach((player) => {
+      if (player.campeonato_equipe_id && !byId.has(player.campeonato_equipe_id)) byId.set(player.campeonato_equipe_id, player.equipe_nome)
+    })
+    return Array.from(byId, ([id, nome]) => ({ id, nome }))
+  }, [players, teams])
   const filtered = useMemo(
     () => players.filter((player) => !teamId || player.campeonato_equipe_id === teamId),
     [players, teamId],
@@ -796,16 +825,18 @@ function PlayersDirectoryPanel({ players, teams }: { players: MvpStatsRow[]; tea
     <section className="champ-public-section">
       <header className="champ-public-panel-head">
         <UserCircle2 size={16} />
-        <div><strong>Jogadores</strong><small>Elenco e desempenho individual</small></div>
+        <div><strong>Jogadores</strong><small>Elenco inscrito no campeonato</small></div>
       </header>
       <div className="champ-list-filters single">
-        <label><span>Equipe</span><select value={teamId} onChange={(event) => setTeamId(event.target.value)}><option value="">Todas</option>{teams.map((team) => <option key={team.campeonato_equipe_id} value={team.campeonato_equipe_id}>{team.nome}</option>)}</select></label>
+        <label><span>Equipe</span><select value={teamId} onChange={(event) => setTeamId(event.target.value)}><option value="">Todas</option>{teamOptions.map((team) => <option key={team.id} value={team.id}>{team.nome}</option>)}</select></label>
       </div>
-      {filtered.length ? <div className="champ-public-player-list">{filtered.map((player) => {
-        const team = player.campeonato_equipe_id ? teamMap.get(player.campeonato_equipe_id) : null
-        const kd = player.quedas > 0 ? (player.abates / player.quedas).toFixed(2).replace('.', ',') : '0,00'
-        return <article key={player.campeonato_jogador_id} className="champ-public-player-row"><span className="champ-public-player-avatar"><img src={player.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span className="champ-public-player-copy"><strong>{player.nick}</strong><small>{team?.nome || 'Equipe não informada'} · {player.quedas} quedas · K.D {kd}</small></span><span className="champ-public-player-kills"><small>Kills</small><b>{player.abates}</b></span></article>
-      })}</div> : <div className="directory-empty compact">Nenhum jogador neste filtro.</div>}
+      {filtered.length ? <div className="champ-public-player-list">{filtered.map((player) => (
+        <article key={player.id} className="champ-public-player-row">
+          <span className="champ-public-player-avatar"><img src={player.foto_url || '/images/jogador-misterioso.png'} alt="" /></span>
+          <span className="champ-public-player-copy"><strong>{player.nick}</strong><small>{player.equipe_nome}</small></span>
+          <span className="champ-public-player-kills"><small>Partidas</small><b>{player.partidas}</b></span>
+        </article>
+      ))}</div> : <div className="directory-empty compact">Nenhum jogador neste filtro.</div>}
     </section>
   )
 }

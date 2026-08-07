@@ -419,3 +419,74 @@
     display: none;
   }
 }
+
+/* Informações públicas do campeonato: tabela compacta, sem mosaico de cards. */
+.champ-public-info .champ-public-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid #cbc3b7;
+  background: #cbc3b7;
+}
+
+.champ-public-info .champ-public-info-card {
+  display: grid;
+  grid-template-columns: minmax(120px, .75fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 0;
+  background: #e5dfd5;
+  box-shadow: none;
+}
+
+.champ-public-info .champ-public-info-card:nth-child(4n + 2),
+.champ-public-info .champ-public-info-card:nth-child(4n + 3) {
+  background: #ddd6cb;
+}
+
+.champ-public-info .champ-public-info-card small {
+  color: #756d62;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.champ-public-info .champ-public-info-card strong {
+  color: #17212b;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 820px) {
+  .champ-public-info .champ-public-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .champ-public-info .champ-public-info-card,
+  .champ-public-info .champ-public-info-card:nth-child(4n + 2),
+  .champ-public-info .champ-public-info-card:nth-child(4n + 3) {
+    grid-template-columns: minmax(108px, .8fr) minmax(0, 1.2fr);
+    min-height: 38px;
+    padding: 7px 9px;
+    background: #e5dfd5;
+    border-bottom: 1px solid #cbc3b7;
+  }
+
+  .champ-public-info .champ-public-info-card:nth-child(even) {
+    background: #ddd6cb;
+  }
+
+  .champ-public-info .champ-public-info-card:last-child {
+    border-bottom: 0;
+  }
+
+  .champ-public-info .champ-public-info-card strong {
+    font-size: 11px;
+  }
+}
