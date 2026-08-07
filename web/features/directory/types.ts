@@ -17,6 +17,8 @@ export type DirectoryItem = {
     total_vagas?: number | null
     plataforma?: string | null
     servidor?: string | null
+    data_jogo?: string | null
+    data_limite_inscricao?: string | null
   }
   meta: Array<{ label: string; value: string }>
   searchText: string

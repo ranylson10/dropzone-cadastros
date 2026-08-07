@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronRight, Flame, Gift, Radio, Search, Ticket, Trophy, Users } from 'lucide-react'
+import { ChevronRight, Flame, Gift, Radio, Search, SlidersHorizontal, Ticket, Trophy, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { DirectoryItem } from '../types'
 
@@ -29,6 +29,63 @@ function vacancyRatio(item: DirectoryItem) {
   const free = Number(item.commercial?.vagas_livres || 0)
   const total = Math.max(1, Number(item.commercial?.total_vagas || 1))
   return Math.max(6, Math.min(100, (free / total) * 100))
+}
+
+function moneyNumber(value: unknown) {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? number : 0
+}
+
+function isToday(value: unknown) {
+  if (!value) return false
+  const date = new Date(String(value))
+  if (Number.isNaN(date.getTime())) return false
+  const now = new Date()
+  return date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate()
+}
+
+type ChampFilters = {
+  today: boolean
+  free: boolean
+  lastVacancies: boolean
+  live: boolean
+  withPrize: boolean
+  maxPrice: string
+  minPrize: string
+}
+
+const emptyChampFilters: ChampFilters = {
+  today: false,
+  free: false,
+  lastVacancies: false,
+  live: false,
+  withPrize: false,
+  maxPrice: '',
+  minPrize: '',
+}
+
+function hasChampFilters(filters: ChampFilters) {
+  return filters.today || filters.free || filters.lastVacancies || filters.live || filters.withPrize || filters.maxPrice || filters.minPrize
+}
+
+function filterChampionships(items: DirectoryItem[], filters: ChampFilters) {
+  const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : null
+  const minPrize = filters.minPrize ? Number(filters.minPrize) : null
+  return items.filter((item) => {
+    const price = moneyNumber(item.commercial?.valor_inscricao)
+    const prize = moneyNumber(item.commercial?.premiacao)
+    const free = Number(item.commercial?.vagas_livres ?? 0)
+    if (filters.today && !isToday(item.commercial?.data_jogo || item.commercial?.data_limite_inscricao)) return false
+    if (filters.free && price > 0) return false
+    if (filters.lastVacancies && !(free > 0 && free <= 3)) return false
+    if (filters.live && !item.commercial?.tem_live) return false
+    if (filters.withPrize && prize <= 0) return false
+    if (maxPrice != null && Number.isFinite(maxPrice) && price > maxPrice) return false
+    if (minPrize != null && Number.isFinite(minPrize) && prize < minPrize) return false
+    return true
+  })
 }
 
 function ChampionshipCards({ items }: { items: DirectoryItem[] }) {
@@ -79,13 +136,18 @@ function ChampionshipCards({ items }: { items: DirectoryItem[] }) {
 
 export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const [query, setQuery] = useState('')
+  const [champFilters, setChampFilters] = useState<ChampFilters>(emptyChampFilters)
+  const isChampionshipDirectory = items[0]?.kind === 'campeonatos'
   const filtered = useMemo(() => {
     const clean = query.trim().toLowerCase()
-    return clean ? items.filter((item) => item.searchText.includes(clean)) : items
-  }, [items, query])
+    const queryItems = clean ? items.filter((item) => item.searchText.includes(clean)) : items
+    return isChampionshipDirectory ? filterChampionships(queryItems, champFilters) : queryItems
+  }, [champFilters, isChampionshipDirectory, items, query])
 
   const metaLabels = useMemo(() => getMetaLabels(items), [items])
-  const isChampionshipDirectory = items[0]?.kind === 'campeonatos'
+  const toggleChampFilter = (key: keyof Pick<ChampFilters, 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize'>) => {
+    setChampFilters((current) => ({ ...current, [key]: !current[key] }))
+  }
 
   return (
     <>
@@ -103,6 +165,49 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
           <span>resultado{filtered.length === 1 ? '' : 's'}</span>
         </div>
       </div>
+
+      {isChampionshipDirectory ? (
+        <div className="directory-market-filters" aria-label="Filtros de campeonatos">
+          <div className="directory-market-filter-chips">
+            <button type="button" className={champFilters.today ? 'active' : ''} onClick={() => toggleChampFilter('today')}>Hoje</button>
+            <button type="button" className={champFilters.free ? 'active' : ''} onClick={() => toggleChampFilter('free')}>Grátis</button>
+            <button type="button" className={champFilters.lastVacancies ? 'active' : ''} onClick={() => toggleChampFilter('lastVacancies')}>Últimas vagas</button>
+            <button type="button" className={champFilters.live ? 'active' : ''} onClick={() => toggleChampFilter('live')}>Com live</button>
+            <button type="button" className={champFilters.withPrize ? 'active' : ''} onClick={() => toggleChampFilter('withPrize')}>Com premiação</button>
+          </div>
+          <div className="directory-market-filter-fields">
+            <label>
+              <SlidersHorizontal size={14} />
+              <span>Até R$</span>
+              <input
+                inputMode="decimal"
+                min="0"
+                type="number"
+                value={champFilters.maxPrice}
+                onChange={(event) => setChampFilters((current) => ({ ...current, maxPrice: event.target.value }))}
+                placeholder="valor da vaga"
+              />
+            </label>
+            <label>
+              <Gift size={14} />
+              <span>Prêmio mín.</span>
+              <input
+                inputMode="decimal"
+                min="0"
+                type="number"
+                value={champFilters.minPrize}
+                onChange={(event) => setChampFilters((current) => ({ ...current, minPrize: event.target.value }))}
+                placeholder="R$"
+              />
+            </label>
+            {hasChampFilters(champFilters) ? (
+              <button type="button" className="directory-market-clear" onClick={() => setChampFilters(emptyChampFilters)}>
+                <X size={14} /> Limpar
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {filtered.length && !isChampionshipDirectory ? (
         <div className="directory-list-head" aria-hidden="true">

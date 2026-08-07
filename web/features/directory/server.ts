@@ -124,6 +124,8 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
           total_vagas: officialTotal || (entrySlots.length || null),
           plataforma: config.plataforma || null,
           servidor: config.servidor || null,
+          data_jogo: config.data_jogo || row.data_jogo || row.data_inicio || null,
+          data_limite_inscricao: config.data_limite_inscricao || row.data_limite_inscricao || null,
         },
         meta: [
           { label: 'Inscrição', value: directoryMoney(config.valor_inscricao) },
