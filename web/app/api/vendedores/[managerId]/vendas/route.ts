@@ -94,6 +94,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
         consumido_em: purchase.consumido_em,
         comprador_nome: purchase.meta?.comprador_nome || null,
         comprador_whatsapp: purchase.meta?.comprador_whatsapp || null,
+        quantidade_vagas: Number(purchase.meta?.quantidade_vagas || 1),
+        vagas_usadas: Number(purchase.meta?.vagas_usadas || 0),
+        vagas_restantes: Number(purchase.meta?.vagas_restantes ?? Math.max(0, Number(purchase.meta?.quantidade_vagas || 1) - Number(purchase.meta?.vagas_usadas || 0))),
         campeonato: championships.get(purchase.campeonato_id) || null,
         grupo: groups.get(purchase.grupo_id) || null,
         payment: payment
@@ -134,22 +137,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
       ? String(body.method || 'pix') as 'pix' | 'cartao' | 'paypal'
       : 'pix'
     const cpfCnpj = String(body.cpf_cnpj || '').replace(/\D/g, '')
-    if (method !== 'paypal' && !cpfCnpj) throw new Error('Informe o CPF/CNPJ do comprador para gerar cobrança online.')
-
-    const buyerName = String(body.comprador_nome || '').trim()
-    const buyerEmail = String(body.comprador_email || '').trim()
-    const buyerWhatsapp = String(body.comprador_whatsapp || '').trim()
-    const payerEmail = buyerEmail || String(user.email || manager.email_contato || '').trim()
-    if (!payerEmail) throw new Error('Informe um e-mail do comprador ou cadastre e-mail no vendedor.')
+    const quantity = Math.max(1, Math.min(20, Math.floor(Number(body.quantidade_vagas || body.quantidade || 1))))
+    const buyerName = String(body.referencia || body.comprador_nome || '').trim()
+    const payerEmail = String(user.email || manager.email_contato || '').trim()
+    if (!payerEmail) throw new Error('Cadastre um e-mail no vendedor para gerar cobranças online.')
 
     const { compra, payment, reused } = await createVacancyPurchase({
       campeonatoId,
       authUserId: user.id,
       payerName: buyerName || manager.nome || manager.username || 'Comprador',
       payerEmail,
-      cpfCnpj,
+      cpfCnpj: cpfCnpj || undefined,
       vendedorManagerId: managerId,
       method,
+      quantity,
+      forceNew: true,
     })
     const paypalPayment = method === 'paypal'
       ? await createLiliPayPalOrder({
@@ -175,8 +177,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
       vendedor_manager_id: managerId,
       vendedor_auth_user_id: user.id,
       comprador_nome: buyerName || null,
-      comprador_email: buyerEmail || null,
-      comprador_whatsapp: buyerWhatsapp || null,
+      comprador_email: null,
+      comprador_whatsapp: null,
+      quantidade_vagas: quantity,
+      vagas_usadas: Math.max(0, Number(compra.meta?.vagas_usadas || 0)),
+      vagas_restantes: Math.max(0, quantity - Math.max(0, Number(compra.meta?.vagas_usadas || 0))),
       checkout_publico: true,
     }
     const { data: updated } = await supabaseAdmin
@@ -200,6 +205,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
         valor_centavos: finalCompra.valor_centavos,
         payment_url: paymentUrl,
         claim_url: claimUrl,
+        quantidade_vagas: quantity,
       },
       payment: resolvedPayment
         ? {
@@ -214,8 +220,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
           }
         : null,
       mensagem: [
-        `Pagamento da vaga: ${paymentUrl}`,
-        `Depois do pagamento, inscreva a equipe por aqui: ${claimUrl}`,
+        `Pagamento de ${quantity} vaga${quantity > 1 ? 's' : ''}: ${paymentUrl}`,
+        `Depois do pagamento, este link libera ${quantity} inscrição${quantity > 1 ? 'ões' : ''}: ${claimUrl}`,
         `Token: ${finalCompra.token}`,
       ].join('\n'),
       asaas_configured: isAsaasConfigured(),

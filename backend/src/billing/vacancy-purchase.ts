@@ -75,18 +75,22 @@ function randomToken() {
 async function countActiveCommercialReservations(campeonatoId: string) {
   const { data, error } = await supabaseAdmin
     .from('sistema_compras_vaga')
-    .select('id,status,expira_em')
+    .select('id,status,expira_em,meta')
     .eq('campeonato_id', campeonatoId)
     .in('status', ['pendente', 'pago', 'liberado'])
   if (error) throw error
 
   const now = Date.now()
-  return (data || []).filter((purchase: any) => {
-    if (purchase.status === 'pendente') {
-      return !purchase.expira_em || new Date(purchase.expira_em).getTime() > now
-    }
-    return purchase.status === 'pago' || purchase.status === 'liberado'
-  }).length
+  return (data || []).reduce((total: number, purchase: any) => {
+    const active = purchase.status === 'pendente'
+      ? !purchase.expira_em || new Date(purchase.expira_em).getTime() > now
+      : purchase.status === 'pago' || purchase.status === 'liberado'
+    if (!active) return total
+    const meta = purchase.meta || {}
+    const quantity = Math.max(1, Number(meta.quantidade_vagas || 1))
+    const used = Math.max(0, Number(meta.vagas_usadas || 0))
+    return total + Math.max(0, quantity - used)
+  }, 0)
 }
 
 /** Próximo grupo com vagas livres (mesma lógica de /api/vagas). */
@@ -194,8 +198,11 @@ export async function createVacancyPurchase(input: {
   cpfCnpj?: string | null
   vendedorManagerId?: string | null
   method?: 'pix' | 'cartao' | 'paypal'
+  quantity?: number
+  forceNew?: boolean
 }) {
   const method = input.method || 'pix'
+  const quantity = Math.max(1, Math.min(20, Math.floor(Number(input.quantity || 1))))
   if (method !== 'paypal' && !isAsaasConfigured()) throw new AsaasNotConfiguredError()
 
   const { data: champ, error: cErr } = await supabaseAdmin
@@ -240,18 +247,22 @@ export async function createVacancyPurchase(input: {
   if ((method === 'pix' || method === 'cartao') && valorReais < 5) {
     throw new Error('PIX e cartão exigem valor mínimo de R$ 5,00. Escolha PayPal, WhatsApp ou ajuste o valor da vaga.')
   }
-  const valorCentavos = Math.round(valorReais * 100)
+  const valorUnitarioCentavos = Math.round(valorReais * 100)
+  const valorCentavos = valorUnitarioCentavos * quantity
+  const valorTotalReais = moneyReais(valorCentavos)
 
   // Reutiliza compra pendente do mesmo usuário no mesmo campeonato antes de reservar nova capacidade.
-  const { data: existingResult } = await supabaseAdmin
-    .from('sistema_compras_vaga')
-    .select('*')
-    .eq('campeonato_id', input.campeonatoId)
-    .eq('auth_user_id', input.authUserId)
-    .in('status', ['pendente', 'pago', 'liberado'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const { data: existingResult } = input.forceNew
+    ? { data: null as any }
+    : await supabaseAdmin
+        .from('sistema_compras_vaga')
+        .select('*')
+        .eq('campeonato_id', input.campeonatoId)
+        .eq('auth_user_id', input.authUserId)
+        .in('status', ['pendente', 'pago', 'liberado'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
   let existingOpen = existingResult
   if (existingOpen && ['pago', 'liberado'].includes(existingOpen.status)) {
@@ -275,7 +286,7 @@ export async function createVacancyPurchase(input: {
   const nextGroup = await findNextOpenGroup(input.campeonatoId)
   if (!nextGroup) throw new Error('Não há grupos com vagas livres neste campeonato.')
   const activeCommercialReservations = await countActiveCommercialReservations(input.campeonatoId)
-  if (nextGroup.vagas_livres - activeCommercialReservations <= 0) {
+  if (nextGroup.vagas_livres - activeCommercialReservations < quantity) {
     throw new Error('As vagas restantes estão temporariamente em processo de compra por outros usuários. Tente novamente em alguns minutos.')
   }
 
@@ -327,6 +338,10 @@ export async function createVacancyPurchase(input: {
         meta: {
           grupo_nome: nextGroup.nome,
           campeonato_nome: champ.nome,
+          quantidade_vagas: quantity,
+          valor_unitario_centavos: valorUnitarioCentavos,
+          vagas_usadas: 0,
+          vagas_restantes: quantity,
         },
         updated_at: new Date().toISOString(),
       })
@@ -348,6 +363,10 @@ export async function createVacancyPurchase(input: {
           ...(compra.meta || {}),
           grupo_nome: nextGroup.nome,
           campeonato_nome: champ.nome,
+          quantidade_vagas: quantity,
+          valor_unitario_centavos: valorUnitarioCentavos,
+          vagas_usadas: Math.max(0, Number((compra.meta as any)?.vagas_usadas || 0)),
+          vagas_restantes: Math.max(0, quantity - Math.max(0, Number((compra.meta as any)?.vagas_usadas || 0))),
         },
         updated_at: new Date().toISOString(),
       })
@@ -412,14 +431,14 @@ export async function createVacancyPurchase(input: {
   }
 
   const cpfDigits = input.cpfCnpj ? String(input.cpfCnpj).replace(/\D/g, '') : ''
-  if (!cpfDigits || (cpfDigits.length !== 11 && cpfDigits.length !== 14)) {
+  if (cpfDigits && cpfDigits.length !== 11 && cpfDigits.length !== 14) {
     throw new Error('Para criar a cobrança é necessário informar o CPF (11 dígitos) ou CNPJ (14 dígitos) do pagador.')
   }
 
   const customer = await findOrCreateCustomer({
     name: input.payerName,
     email: input.payerEmail,
-    cpfCnpj: cpfDigits,
+    cpfCnpj: cpfDigits || null,
     externalReference: `auth:${input.authUserId}`,
   })
 
@@ -427,9 +446,9 @@ export async function createVacancyPurchase(input: {
   // cadastrado em "Minha Conta → Informações", e o fluxo já usa QR na nossa página.
   const payment = await createPaymentLink({
     customerId: customer.id,
-    valueReais: valorReais,
+    valueReais: valorTotalReais,
     dueDate: dueDatePlusDays(3),
-    description: `Vaga · ${champ.nome || 'Campeonato'}`.slice(0, 500),
+    description: `${quantity} vaga${quantity > 1 ? 's' : ''} · ${champ.nome || 'Campeonato'}`.slice(0, 500),
     externalReference,
     billingType: method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
     callbackUrl: method === 'cartao' ? `${appUrl()}/vagas/compra/${encodeURIComponent(compra.token)}?payment=return` : undefined,
@@ -1081,19 +1100,23 @@ export async function claimVacancyPurchase(input: {
   const detail = await getVacancyPurchaseByToken(input.token)
   const compra = detail.compra
 
-  if (compra.status === 'consumido') {
-    throw new Error('Esta compra já foi utilizada. Sua line já está no campeonato.')
-  }
-  if (!['pago', 'liberado'].includes(compra.status)) {
-    throw new Error('Pagamento ainda não confirmado. Conclua o pagamento e aguarde a liberação.')
-  }
-  // Só o comprador pode consumir
   const { data: full } = await supabaseAdmin
     .from('sistema_compras_vaga')
     .select('auth_user_id,meta')
     .eq('id', compra.id)
     .single()
-  const assistedSale = Boolean((full?.meta as any)?.venda_assistida)
+
+  const currentMeta = (full?.meta as any) || {}
+  const totalClaims = Math.max(1, Number(currentMeta.quantidade_vagas || 1))
+  const usedClaims = Math.max(0, Number(currentMeta.vagas_usadas || 0))
+  if (compra.status === 'consumido' || usedClaims >= totalClaims) {
+    throw new Error('Esta compra já foi utilizada. Sua line já está no campeonato.')
+  }
+  if (!['pago', 'liberado'].includes(compra.status)) {
+    throw new Error('Pagamento ainda não confirmado. Conclua o pagamento e aguarde a liberação.')
+  }
+
+  const assistedSale = Boolean(currentMeta.venda_assistida)
   if (full?.auth_user_id !== input.authUserId && !assistedSale) {
     throw new Error('Esta compra pertence a outra conta.')
   }
@@ -1102,7 +1125,6 @@ export async function claimVacancyPurchase(input: {
   const equipe = equipes.find((e) => e.id === input.equipeId)
   if (!equipe) throw new Error('Você não controla esta equipe.')
 
-  // Valida slot livre no grupo liberado (ou reatribui se necessário)
   let grupoId = detail.grupo?.id || compra.grupo_id
   if (!grupoId) {
     const open = await findNextOpenGroup(compra.campeonato_id)
@@ -1120,7 +1142,6 @@ export async function claimVacancyPurchase(input: {
   if (!slot) throw new Error('Slot não encontrado.')
   if (slot.equipe_id || slot.line_id) throw new Error('Este slot já está ocupado. Escolha outro.')
   if (slot.grupo_id !== grupoId) {
-    // permite se o slot for de outro grupo aberto e o original encheu
     const freeInTarget = await listFreeSlotsInGroup(compra.campeonato_id, slot.grupo_id)
     if (!freeInTarget.some((s) => s.id === slot.id)) {
       throw new Error('Slot inválido para o grupo liberado.')
@@ -1146,53 +1167,63 @@ export async function claimVacancyPurchase(input: {
   })
 
   const now = new Date().toISOString()
-  const { data: consumed, error: consErr } = await supabaseAdmin
-    .from('sistema_compras_vaga')
-    .update({
-      status: 'consumido',
-      equipe_id: equipe.id,
-      line_id: resolvedLine.id,
-      slot_id: slot.id,
-      grupo_id: grupoId,
-      campeonato_equipe_id: participacao.id,
-      consumido_em: now,
-      meta: {
-        ...(full?.meta || {}),
-        comprador_auth_user_id: input.authUserId,
-        venda_assistida_consumida_em: assistedSale ? now : (full?.meta as any)?.venda_assistida_consumida_em,
-      },
-      updated_at: now,
-    })
-    .eq('id', compra.id)
-    .eq('status', compra.status) // evita double-claim
-    .select('*')
-    .single()
-
-  if (consErr) {
-    // participação já criada — tenta marcar mesmo assim
-    await supabaseAdmin
-      .from('sistema_compras_vaga')
-      .update({
-        status: 'consumido',
+  const usedAfter = usedClaims + 1
+  const remainingAfter = Math.max(0, totalClaims - usedAfter)
+  const nextStatus = remainingAfter > 0 ? 'liberado' : 'consumido'
+  const nextMeta = {
+    ...currentMeta,
+    comprador_auth_user_id: input.authUserId,
+    comprador_auth_user_ids: Array.from(new Set([...(currentMeta.comprador_auth_user_ids || []), input.authUserId].filter(Boolean))),
+    vagas_usadas: usedAfter,
+    vagas_restantes: remainingAfter,
+    inscricoes: [
+      ...(Array.isArray(currentMeta.inscricoes) ? currentMeta.inscricoes : []),
+      {
+        campeonato_equipe_id: participacao.id,
         equipe_id: equipe.id,
         line_id: resolvedLine.id,
         slot_id: slot.id,
         grupo_id: grupoId,
-        campeonato_equipe_id: participacao.id,
+        auth_user_id: input.authUserId,
         consumido_em: now,
-        meta: {
-          ...(full?.meta || {}),
-          comprador_auth_user_id: input.authUserId,
-          venda_assistida_consumida_em: assistedSale ? now : (full?.meta as any)?.venda_assistida_consumida_em,
-        },
-        updated_at: now,
-      })
+      },
+    ],
+    venda_assistida_consumida_em: assistedSale ? now : currentMeta.venda_assistida_consumida_em,
+  }
+
+  const updatePayload = {
+    status: nextStatus,
+    equipe_id: equipe.id,
+    line_id: resolvedLine.id,
+    slot_id: slot.id,
+    grupo_id: grupoId,
+    campeonato_equipe_id: participacao.id,
+    consumido_em: remainingAfter > 0 ? null : now,
+    meta: nextMeta,
+    updated_at: now,
+  }
+
+  const { data: consumed, error: consErr } = await supabaseAdmin
+    .from('sistema_compras_vaga')
+    .update(updatePayload)
+    .eq('id', compra.id)
+    .eq('status', compra.status)
+    .select('*')
+    .single()
+
+  if (consErr) {
+    await supabaseAdmin
+      .from('sistema_compras_vaga')
+      .update(updatePayload)
       .eq('id', compra.id)
   }
 
+  const slotLabel = slot.slot_letra || slot.slot_numero
+  const baseMessage = 'Line "' + resolvedLine.nome + '" inscrita no slot ' + slotLabel + '.'
+
   return {
     ok: true,
-    compra: consumed || { ...compra, status: 'consumido', campeonato_equipe_id: participacao.id },
+    compra: consumed || { ...compra, status: nextStatus, campeonato_equipe_id: participacao.id, meta: nextMeta },
     participacao,
     campeonato_equipe_id: participacao.id,
     line: { id: resolvedLine.id, nome: resolvedLine.nome, criada_agora: resolvedLine.criada_agora },
@@ -1202,7 +1233,9 @@ export async function claimVacancyPurchase(input: {
       slot_numero: slot.slot_numero,
     },
     grupo_id: grupoId,
-    mensagem: `Line "${resolvedLine.nome}" inscrita no slot ${slot.slot_letra || slot.slot_numero}.`,
+    mensagem: remainingAfter > 0
+      ? baseMessage + ' Restam ' + remainingAfter + ' inscrição(ões) neste link.'
+      : baseMessage,
   }
 }
 

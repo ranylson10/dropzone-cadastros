@@ -45,20 +45,20 @@ export function ManagerFlowStrip(props: {
       onAction: props.ativosCount > 0 && props.anunciandoCount === 0 ? props.onGoVendas : undefined,
     },
     {
-      id: 'preencher',
-      title: '3. Preencher vagas',
+      id: 'vender',
+      title: '3. Gerar vendas',
       detail:
         props.pendentesPreencher > 0
-          ? `${props.pendentesPreencher} evento(s) com vaga livre para você preencher.`
+          ? `${props.pendentesPreencher} evento(s) com vaga livre para vender pelo sistema.`
           : props.ativosCount > 0
-            ? 'Abra o campeonato e adicione as lines que vendeu.'
-            : 'Depois de vender, adicione a equipe/line no slot.',
+            ? 'Gere o pagamento pelo sistema e envie o link ao comprador.'
+            : 'Depois de vender, o link de inscrição só libera após pagamento.',
       done: props.ativosCount > 0 && props.pendentesPreencher === 0,
       actionLabel:
         props.ativosCount > 0
           ? props.pendentesPreencher > 0
-            ? 'Preencher agora'
-            : 'Abrir operação'
+            ? 'Gerar venda'
+            : 'Central de vendas'
           : undefined,
       onAction:
         props.ativosCount > 0
@@ -72,7 +72,7 @@ export function ManagerFlowStrip(props: {
       <div className="section-head">
         <div>
           <p className="eyebrow">Fluxo do vendedor</p>
-          <h2>Vender → anunciar → preencher</h2>
+          <h2>Vender → cobrar → liberar</h2>
           <p className="empty" style={{ marginTop: 6 }}>
             Caminho principal do manager afiliado. Use os atalhos para não perder o passo.
           </p>

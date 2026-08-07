@@ -25,6 +25,9 @@ type AssistedSale = {
   valor_centavos: number
   payment_url?: string
   claim_url?: string
+  quantidade_vagas?: number
+  vagas_usadas?: number
+  vagas_restantes?: number
   comprador_nome?: string | null
   comprador_whatsapp?: string | null
   created_at?: string
@@ -77,9 +80,7 @@ export function ManagerVendasView(props: {
   const [saleFeedback, setSaleFeedback] = useState('')
   const [saleChamp, setSaleChamp] = useState<SellerItem | null>(null)
   const [buyerName, setBuyerName] = useState('')
-  const [buyerWhatsapp, setBuyerWhatsapp] = useState('')
-  const [buyerEmail, setBuyerEmail] = useState('')
-  const [buyerCpf, setBuyerCpf] = useState('')
+  const [saleQuantity, setSaleQuantity] = useState('1')
   const [saleMethod, setSaleMethod] = useState<SaleMethod>('pix')
   const [creatingSale, setCreatingSale] = useState(false)
 
@@ -134,7 +135,7 @@ export function ManagerVendasView(props: {
   function saleMessage(sale: AssistedSale) {
     const champName = sale.campeonato?.nome || 'campeonato'
     return [
-      `Vaga ${champName}`,
+      `${sale.quantidade_vagas || 1} vaga(s) ${champName}`,
       sale.payment_url ? `Pagamento: ${sale.payment_url}` : '',
       sale.claim_url ? `Depois do pagamento, inscriÃ§Ã£o: ${sale.claim_url}` : '',
       `Token: ${sale.token}`,
@@ -156,10 +157,8 @@ export function ManagerVendasView(props: {
         },
         body: JSON.stringify({
           campeonato_id: saleChamp.campeonato_id,
-          comprador_nome: buyerName,
-          comprador_whatsapp: buyerWhatsapp,
-          comprador_email: buyerEmail,
-          cpf_cnpj: buyerCpf,
+          referencia: buyerName,
+          quantidade_vagas: Math.max(1, Math.min(20, Math.floor(Number(saleQuantity || 1)))),
           method: saleMethod,
         }),
       })
@@ -167,9 +166,7 @@ export function ManagerVendasView(props: {
       if (!res.ok) throw new Error(json.error || 'Erro ao gerar venda.')
       setSaleFeedback('Venda gerada. Copie a mensagem e mande para o comprador.')
       setBuyerName('')
-      setBuyerWhatsapp('')
-      setBuyerEmail('')
-      setBuyerCpf('')
+      setSaleQuantity('1')
       setSaleMethod('pix')
       setSaleChamp(null)
       await loadSales()
@@ -293,9 +290,10 @@ export function ManagerVendasView(props: {
             const championship = item.campeonatos || {}
             const producer = item.produtoras || {}
             const active = item.status === 'ativo'
-            const canFill =
+            const canSell =
               active &&
-              (item.permissoes?.gerar_convites_equipe !== false || item.permissoes?.adicionar_equipes === true)
+              item.permissoes?.vender_vagas !== false &&
+              item.permissoes?.gerar_pagamentos !== false
             return (
               <article key={item.id} className={`manager-vendas-row ${active ? '' : 'is-inactive'}`}>
                 <div className="manager-vendas-row-logo">
@@ -319,17 +317,9 @@ export function ManagerVendasView(props: {
                     {item.anunciando ? 'No portfólio' : 'Anunciar'}
                   </button>
                   <button
-                    className="button small"
-                    type="button"
-                    disabled={!canFill}
-                    onClick={() => props.onOpenChampionship(item.campeonato_id)}
-                  >
-                    Preencher
-                  </button>
-                  <button
                     className="button small secondary"
                     type="button"
-                    disabled={!canFill}
+                    disabled={!canSell}
                     onClick={() => setSaleChamp(item)}
                   >
                     Gerar venda
@@ -368,11 +358,11 @@ export function ManagerVendasView(props: {
               <div className="manager-vendas-row-copy">
                 <strong>{sale.campeonato?.nome || 'Venda de vaga'}</strong>
                 <span>
-                  {sale.comprador_nome || 'Comprador'} {sale.grupo?.nome ? `Â· ${sale.grupo.nome}` : ''}
+                  {sale.comprador_nome || 'Referência não informada'} {sale.grupo?.nome ? ` · ${sale.grupo.nome}` : ''}
                 </span>
                 <small>
-                  {saleStatusLabel(sale)} Â· token {sale.token}
-                  {sale.payment?.status ? ` Â· pagamento ${sale.payment.status}` : ''}
+                  {saleStatusLabel(sale)} · {sale.vagas_usadas || 0}/{sale.quantidade_vagas || 1} inscrição(ões) usadas · token {sale.token}
+                  {sale.payment?.status ? ` · pagamento ${sale.payment.status}` : ''}
                 </small>
               </div>
               <div className="compact-row-actions manager-vendas-row-actions">
@@ -448,25 +438,17 @@ export function ManagerVendasView(props: {
 
             <div className="mini-grid two">
               <label className="field">
-                <span>Nome do comprador</span>
-                <input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Nome ou equipe" />
+                <span>Referência da venda</span>
+                <input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Ex.: ALOE, cliente João, vaga 01" />
               </label>
               <label className="field">
-                <span>WhatsApp do comprador</span>
-                <input value={buyerWhatsapp} onChange={(e) => setBuyerWhatsapp(e.target.value)} placeholder="5599999999999" />
-              </label>
-              <label className="field">
-                <span>E-mail</span>
-                <input value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} placeholder="comprador@email.com" />
-              </label>
-              <label className="field">
-                <span>{saleMethod === 'paypal' ? 'CPF/CNPJ (opcional no PayPal)' : 'CPF/CNPJ para cobrança'}</span>
-                <input value={buyerCpf} onChange={(e) => setBuyerCpf(e.target.value)} placeholder="Somente nÃºmeros" />
+                <span>Quantidade de vagas</span>
+                <input type="number" min={1} max={20} value={saleQuantity} onChange={(e) => setSaleQuantity(e.target.value)} />
               </label>
             </div>
 
             <div className="manager-detail-actions" style={{ marginTop: 12 }}>
-              <button className="button" type="button" disabled={creatingSale || (saleMethod !== 'paypal' && !buyerCpf.trim())} onClick={() => void createAssistedSale()}>
+              <button className="button" type="button" disabled={creatingSale} onClick={() => void createAssistedSale()}>
                 {creatingSale ? 'Gerando...' : saleMethod === 'paypal' ? 'Gerar PayPal' : saleMethod === 'cartao' ? 'Gerar cartão' : 'Gerar PIX'}
               </button>
               <button className="button secondary" type="button" onClick={() => setSaleChamp(null)}>
