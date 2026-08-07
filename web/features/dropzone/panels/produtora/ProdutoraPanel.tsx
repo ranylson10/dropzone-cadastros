@@ -1183,7 +1183,7 @@ ${params.url}`
                 className={`champ-list-item ref-champ-item ${selectedChamp?.id === champ.id ? 'active' : ''}`}
                 onClick={() => {
                   if (window.matchMedia('(max-width: 760px)').matches) {
-                    window.open(`/campeonatos/${champ.id}`, '_blank', 'noopener,noreferrer')
+                    window.open(`/?login=produtora&campeonato=${encodeURIComponent(champ.id)}&section=equipes`, '_blank', 'noopener,noreferrer')
                     return
                   }
                   props.setSelectedChampId(champ.id)
