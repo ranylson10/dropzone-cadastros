@@ -615,6 +615,23 @@ function StatsDashboard({
             {partidaId ? <span><Flag size={13} /> Queda</span> : null}
             {mapaCodigo ? <span><MapPinned size={13} /> Mapa</span> : null}
           </div>
+          <div className="champ-stats-filters-mobile">
+            {filters?.phases.length ? (
+              <label><span>Fase</span><select value={faseId} onChange={(event) => { setFaseId(event.target.value); setGrupoId(''); setJogoId(''); setPartidaId('') }}><option value="">Todas</option>{filters.phases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+            {filters?.groups.length ? (
+              <label><span>Grupo</span><select value={grupoId} onChange={(event) => { setGrupoId(event.target.value); setJogoId(''); setPartidaId('') }}><option value="">Todos</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+            {filters?.games.length ? (
+              <label><span>Jogo</span><select value={jogoId} onChange={(event) => { setJogoId(event.target.value); setPartidaId('') }}><option value="">Todos</option>{filters.games.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+            {filters?.rounds.length ? (
+              <label><span>Queda</span><select value={partidaId} onChange={(event) => setPartidaId(event.target.value)}><option value="">Todas</option>{availableRounds.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+            {filters?.maps.length ? (
+              <label><span>Mapa</span><select value={mapaCodigo} onChange={(event) => setMapaCodigo(event.target.value)}><option value="">Todos</option>{filters.maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            ) : null}
+          </div>
           {filtersOpen ? (
             <div className="champ-filter-overlay" role="dialog" aria-modal="true" aria-label="Filtros das estatísticas">
               <button type="button" className="champ-filter-backdrop" onClick={() => setFiltersOpen(false)} aria-label="Fechar filtros" />
@@ -726,13 +743,13 @@ function StatsDashboard({
           teams.length ? (
             <table className="champ-stats-table champ-stats-team-table">
               <thead><tr><th className="pos">#</th><th className="identity">Equipe</th><th>GP</th><th>QD</th><th>B!</th><th>Kill</th><th className="total">Pts</th></tr></thead>
-              <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong><small className="mobile-stat-meta">{row.quedas} quedas · {row.booyahs} B! · {row.abates} kills</small></span></td><td className="stat-group"><b>{groupName(row.grupo_id)}</b></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary">{row.booyahs}</td><td className="stat-secondary">{row.abates}</td><td className="total"><small className="mobile-total-label">Pontos</small><b>{row.pontos_total}</b></td></tr>)}</tbody>
+              <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong><small className="mobile-stat-meta">Grupo {groupName(row.grupo_id)} · {row.quedas} quedas · {row.booyahs} B! · {row.abates} kills</small></span></td><td className="stat-group"><b>{groupName(row.grupo_id)}</b></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary">{row.booyahs}</td><td className="stat-secondary">{row.abates}</td><td className="total"><small className="mobile-total-label">Pontos</small><b>{row.pontos_total}</b></td></tr>)}</tbody>
             </table>
           ) : <div className="directory-empty compact">Tabela ainda sem dados para este filtro.</div>
         ) : players.length ? (
           <table className="champ-stats-table champ-stats-mvp-table">
             <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>QD</th><th>K.D</th><th className="total">Kill</th></tr></thead>
-            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong><small>{row.quedas} quedas · K.D {kdLabel(row)}</small></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{kdLabel(row)}</b></td><td className="total"><small className="mobile-total-label">Kills</small><b>{row.abates}</b></td></tr>)}</tbody>
+            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong><small className="mobile-stat-meta">{row.quedas} quedas · K.D {kdLabel(row)} · {row.dano} dano · {row.assistencias} AST · {row.revives} rev</small></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{kdLabel(row)}</b></td><td className="total"><small className="mobile-total-label">Kills</small><b>{row.abates}</b></td></tr>)}</tbody>
           </table>
         ) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
       </div>

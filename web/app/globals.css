@@ -2117,31 +2117,37 @@ button.invite-slot-button.selected strong{ color: var(--text);
   }
   .champ-stats-table tbody{ display: grid;
   }
-  .champ-stats-table tr{ display: grid; grid-template-columns: 34px minmax(0,1fr) 62px; align-items: center; min-width: 0; border-bottom: 1px solid var(--line);
+  .champ-stats-table tr{ display: grid; grid-template-columns: 30px minmax(0,1fr) 58px; align-items: center; min-width: 0; border-bottom: 1px solid var(--line);
   }
   .champ-stats-table tr:last-child{ border-bottom: 0;
   }
-  .champ-stats-table td{ padding: 9px 7px; font-size: 10px; border: 0; min-width: 0;
+  .champ-stats-table td{ padding: 9px 6px; font-size: 10px; border: 0; min-width: 0;
   }
-  .champ-stats-table .pos{ width: auto;
+  .champ-stats-table .pos{ width: auto; padding-inline: 4px; text-align: center;
+  }
+  .champ-stats-table .pos b{ font-size: 13px;
   }
   .champ-stats-table .identity{ min-width: 0;
   }
-  .champ-stats-table td.identity{ display: flex; gap: 8px;
+  .champ-stats-table td.identity{ display: flex; align-items: center; gap: 8px;
   }
-  .champ-stats-table td.identity strong{ max-width: none; white-space: nowrap;
+  .champ-stats-table td.identity > span:last-child{ display: grid; min-width: 0; gap: 3px;
   }
-  .champ-stats-table td.identity small{ white-space: nowrap;
+  .champ-stats-table td.identity strong{ max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .champ-stats-table td.identity small{ white-space: normal; line-height: 1.22;
   }
   .champ-stats-table .stat-group,
 .champ-stats-table .stat-secondary{ display: none;
   }
-  .champ-stats-table .total{ display: grid; justify-items: center; align-self: stretch; align-content: center; padding-inline: 4px;
+  .champ-stats-table .total{ display: grid; justify-items: end; align-self: stretch; align-content: center; padding-inline: 4px 2px; text-align: right;
   }
-  .champ-stats-table .total b{ font-size: 16px;
+  .champ-stats-table .total b{ font-size: 17px; line-height: 1;
   }
   .mobile-stat-meta,
 .mobile-total-label{ display: block;
+  }
+  .mobile-stat-meta{ font-size: 9px; color: var(--muted);
   }
   .champ-stats-avatar{ width: 34px; height: 34px; flex-basis: 34px;
   }
@@ -2202,7 +2208,15 @@ button.invite-slot-button.selected strong{ color: var(--text);
   }
   .champ-stats-filters-desktop{ display: none;
   }
-  .champ-stats-mobile-filterbar{ display: flex; align-items: center; gap: 6px; min-height: 38px; margin: 0 0 8px; overflow-x: auto; scrollbar-width: none;
+  .champ-stats-filters-mobile{ display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin: 0 0 10px;
+  }
+  .champ-stats-filters-mobile label{ display: grid; gap: 4px; min-width: 0;
+  }
+  .champ-stats-filters-mobile label span{ color: var(--muted); font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em;
+  }
+  .champ-stats-filters-mobile select{ width: 100%; min-width: 0; height: 35px; padding: 0 9px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--text); font-size: 10px; font-weight: 800;
+  }
+  .champ-stats-mobile-filterbar{ display: none; align-items: center; gap: 6px; min-height: 38px; margin: 0 0 8px; overflow-x: auto; scrollbar-width: none;
   }
   .champ-stats-mobile-filterbar::-webkit-scrollbar{ display: none;
   }
@@ -5151,7 +5165,8 @@ textarea::placeholder{ color: color-mix(in srgb, var(--muted) 90%, transparent);
 } .mobile-stat-meta{ display: none;
 } .mobile-total-label{ font-size: 7px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); display: none;
 } .champ-public-info-links .button{ min-height: 36px;
-} .champ-stats-mobile-filterbar,
+} .champ-stats-filters-mobile,
+.champ-stats-mobile-filterbar,
 .champ-filter-overlay{ display: none;
 } .account-strip.account-strip-compact{ display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 18px; margin: 0 0 12px; padding: 16px 0; border: 0; border-bottom: 1px solid #cfd3d8; border-radius: 0; background: transparent; box-shadow: none;
 } .account-strip-compact .account-strip-head{ min-width: 0;
@@ -6216,14 +6231,19 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 .page-authenticated .inline-icon-button.secondary:hover,
 .page-authenticated .icon-action-button.secondary:hover,
 .page-authenticated .button.ghost:hover{ background: #e9e2d7;
-} .page-authenticated .account-strip.account-strip-compact{ display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 14px; margin: 0; padding: 14px 4px 14px; border: 0; border-bottom: 1px solid var(--auth-panel-line); background: transparent; box-shadow: none;
-} .page-authenticated .account-strip-compact .account-strip-head strong{ color: #141821;
+} .page-authenticated .account-strip.account-strip-compact{ display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 14px; margin: 0 0 12px; padding: 18px 20px 16px; border: 0; border-bottom: 4px solid var(--dz-accent, #ff5468); background: #17212b; color: #fff; box-shadow: none;
+} .page-authenticated .account-strip-compact .account-strip-head strong{ color: #fff;
 } .page-authenticated .account-strip-compact .account-strip-head strong span,
-.page-authenticated .account-strip-compact .account-strip-metrics .metric span{ color: #6b6f77;
-} .page-authenticated .account-strip-compact .account-strip-metrics{ grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; margin: 0; padding: 0;
-} .page-authenticated .account-strip-compact .account-strip-metrics .metric{ display: inline-flex; align-items: center; gap: 5px; min-height: 0; min-width: 0; padding: 0; border: 0; background: transparent;
-} .page-authenticated .account-strip-compact .account-strip-metrics .metric b{ color: #9b7a17;
-} .page-authenticated .account-strip-compact .account-strip-action{ width: 42px; height: 42px; min-height: 42px; border: 1px solid var(--auth-panel-line); border-radius: 0; background: var(--auth-panel-bg-soft); color: #171a22;
+.page-authenticated .account-strip-compact .account-strip-metrics .metric span{ color: rgba(255,255,255,.58);
+} .page-authenticated .account-strip-compact .account-strip-metrics{ grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0; margin: 0; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.14);
+} .page-authenticated .account-strip-compact .account-strip-metrics .metric{ display: inline-flex; align-items: center; gap: 5px; min-height: 32px; min-width: 0; padding: 0 16px; border: 0; border-left: 1px solid rgba(255,255,255,.14); background: transparent;
+} .page-authenticated .account-strip-compact .account-strip-metrics .metric:first-child{ padding-left: 0; border-left: 0;
+} .page-authenticated .account-strip-compact .account-strip-metrics .metric b,
+.page-authenticated .account-strip-compact .account-strip-metrics .metric svg{ color: #fff;
+} .page-authenticated .account-strip-compact .account-strip-action{ width: 42px; height: 42px; min-height: 42px; border: 1px solid rgba(255,255,255,.18); border-radius: 0; background: rgba(255,255,255,.08); color: #fff;
+} .page-authenticated .producer-layout-ref .detail-stat{ background: transparent; border-color: rgba(255,255,255,.18); color: #fff;
+} .page-authenticated .producer-layout-ref .detail-stat strong{ color: #fff;
+} .page-authenticated .producer-layout-ref .detail-stat span{ color: rgba(255,255,255,.56);
 }              @media (max-width: 760px){
 
 
