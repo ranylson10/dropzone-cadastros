@@ -200,6 +200,7 @@ export async function createVacancyPurchase(input: {
   method?: 'pix' | 'cartao' | 'paypal'
   quantity?: number
   forceNew?: boolean
+  flexibleCheckout?: boolean
 }) {
   const method = input.method || 'pix'
   const quantity = Math.max(1, Math.min(20, Math.floor(Number(input.quantity || 1))))
@@ -434,6 +435,7 @@ export async function createVacancyPurchase(input: {
   if (cpfDigits && cpfDigits.length !== 11 && cpfDigits.length !== 14) {
     throw new Error('Para criar a cobrança é necessário informar o CPF (11 dígitos) ou CNPJ (14 dígitos) do pagador.')
   }
+  const useFlexibleCheckout = Boolean(input.flexibleCheckout && !cpfDigits)
 
   const customer = await findOrCreateCustomer({
     name: input.payerName,
@@ -450,7 +452,7 @@ export async function createVacancyPurchase(input: {
     dueDate: dueDatePlusDays(3),
     description: `${quantity} vaga${quantity > 1 ? 's' : ''} · ${champ.nome || 'Campeonato'}`.slice(0, 500),
     externalReference,
-    billingType: method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
+    billingType: useFlexibleCheckout ? 'UNDEFINED' : method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
     callbackUrl: method === 'cartao' ? `${appUrl()}/vagas/compra/${encodeURIComponent(compra.token)}?payment=return` : undefined,
   })
 
@@ -585,6 +587,25 @@ export async function cancelPendingVacancyPurchase(input: {
   return { compra: canceled || compra, alreadyClosed: false }
 }
 
+function expectedVacancyPaymentCents(compra: any) {
+  const stored = Math.max(0, Math.floor(Number(compra?.valor_centavos || 0)))
+  const meta = compra?.meta || {}
+  const unit = Math.max(0, Math.floor(Number(meta.valor_unitario_centavos || 0)))
+  const quantity = Math.max(1, Math.floor(Number(meta.quantidade_vagas || 1)))
+  const computed = unit > 0 ? unit * quantity : stored
+  return Math.max(stored, computed)
+}
+
+function assertVacancyPaymentAmount(compra: any, pagamento?: any | null) {
+  if (!pagamento) return
+  const expected = expectedVacancyPaymentCents(compra)
+  const paid = Math.max(0, Math.floor(Number(pagamento.valor_centavos || 0)))
+  if (expected <= 0 || paid === expected) return
+  throw new Error(
+    `Valor pago inconsistente para liberar a vaga. Esperado R$ ${(expected / 100).toFixed(2).replace('.', ',')}; recebido R$ ${(paid / 100).toFixed(2).replace('.', ',')}.`,
+  )
+}
+
 /** Marca compra como paga/liberada e resolve grupo com vaga. */
 export async function markVacancyPurchasePaid(compraId: string, pagamentoId?: string | null) {
   const next = await supabaseAdmin
@@ -597,6 +618,25 @@ export async function markVacancyPurchasePaid(compraId: string, pagamentoId?: st
   if (!compra) return null
   if (['consumido', 'cancelado', 'estornado'].includes(compra.status)) return compra
   if (['pago', 'liberado'].includes(compra.status)) return compra
+
+  let paymentForValidation: any = null
+  const validationPaymentId = pagamentoId || compra.pagamento_id || null
+  if (!validationPaymentId) {
+    throw new Error('Pagamento não localizado para liberar a vaga.')
+  }
+  if (validationPaymentId) {
+    const { data: payment, error: paymentError } = await supabaseAdmin
+      .from('sistema_pagamentos')
+      .select('id,valor_centavos,status,metodo,provider,billing_type')
+      .eq('id', validationPaymentId)
+      .maybeSingle()
+    if (paymentError) throw paymentError
+    paymentForValidation = payment
+  }
+  if (!paymentForValidation) {
+    throw new Error('Pagamento não localizado para liberar a vaga.')
+  }
+  assertVacancyPaymentAmount(compra, paymentForValidation)
 
   let grupoId = compra.grupo_id
   let grupoNome = compra.meta?.grupo_nome || null
@@ -1115,6 +1155,8 @@ export async function claimVacancyPurchase(input: {
   if (!['pago', 'liberado'].includes(compra.status)) {
     throw new Error('Pagamento ainda não confirmado. Conclua o pagamento e aguarde a liberação.')
   }
+
+  assertVacancyPaymentAmount(compra, detail.payment)
 
   const assistedSale = Boolean(currentMeta.venda_assistida)
   if (full?.auth_user_id !== input.authUserId && !assistedSale) {

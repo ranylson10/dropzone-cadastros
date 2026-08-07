@@ -152,6 +152,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
       method,
       quantity,
       forceNew: true,
+      flexibleCheckout: true,
     })
     const paypalPayment = method === 'paypal'
       ? await createLiliPayPalOrder({

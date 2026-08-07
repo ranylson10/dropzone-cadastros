@@ -11,10 +11,12 @@ test.describe('Venda assistida do vendedor — contrato controlado', () => {
     const route = read('web/app/api/vendedores/[managerId]/vendas/route.ts')
     const view = read('web/features/dropzone/panels/manager/ManagerVendasView.tsx')
     const billing = read('backend/src/billing/vacancy-purchase.ts')
+    const claimPage = read('web/app/vagas/compra/[token]/page.tsx')
 
     await test.step('API força uma compra nova e registra quantidade de vagas', async () => {
       expect(route).toContain('quantidade_vagas')
       expect(route).toContain('forceNew: true')
+      expect(route).toContain('flexibleCheckout: true')
       expect(route).toContain('Pagamento de ${quantity} vaga')
       expect(route).toContain('este link libera ${quantity} inscrição')
       expect(route).not.toContain("throw new Error('Informe o CPF/CNPJ do comprador")
@@ -33,11 +35,19 @@ test.describe('Venda assistida do vendedor — contrato controlado', () => {
       expect(view).not.toContain('>Preencher<')
     })
 
+    await test.step('Link interno de compra também oferece saída para o checkout seguro', async () => {
+      expect(claimPage).toContain('externalPaymentUrl')
+      expect(claimPage).toContain('Abrir pagamento seguro')
+    })
+
     await test.step('Backend reserva e consome o link conforme quantidade comprada', async () => {
       expect(billing).toContain('quantity?: number')
       expect(billing).toContain('forceNew?: boolean')
       expect(billing).toContain('vagas_usadas')
       expect(billing).toContain('vagas_restantes')
+      expect(billing).toContain('expectedVacancyPaymentCents')
+      expect(billing).toContain('assertVacancyPaymentAmount')
+      expect(billing).toContain('valor_unitario_centavos')
       expect(billing).toContain("remainingAfter > 0 ? 'liberado' : 'consumido'")
       expect(billing).toContain('nextGroup.vagas_livres - activeCommercialReservations < quantity')
     })

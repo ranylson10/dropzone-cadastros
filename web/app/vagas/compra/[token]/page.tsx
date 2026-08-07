@@ -208,6 +208,7 @@ export default function CompraVagaPage() {
   const isPixPayment = !paymentMethod || paymentMethod.includes('pix')
   const isCardPayment = paymentMethod.includes('cartao') || paymentMethod.includes('credit') || paymentMethod.includes('card')
   const isPaypalPayment = paymentMethod.includes('paypal') || paymentProvider === 'paypal'
+  const externalPaymentUrl = String(payment?.invoice_url || payment?.paypal_approval_url || '').trim()
   const compraStatus = String(data?.compra?.status || '').toLowerCase()
   const paymentStatus = String(payment?.status || '').toLowerCase()
   const hasPaymentReceipt = Boolean(
@@ -358,6 +359,11 @@ export default function CompraVagaPage() {
                   <Loader2 className="spin" size={14} style={{ display: 'inline', marginRight: 6 }} />
                   Após confirmar o pagamento, esta página atualiza sozinha e libera o próximo grupo com vaga.
                 </p>
+              ) : null}
+              {pending && externalPaymentUrl ? (
+                <a className="button vacancy-register" href={externalPaymentUrl} target="_blank" rel="noreferrer">
+                  Abrir pagamento seguro
+                </a>
               ) : null}
             </>
           )}
