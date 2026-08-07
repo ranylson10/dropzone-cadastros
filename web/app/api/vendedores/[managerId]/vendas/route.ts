@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { createVacancyPurchase } from '@backend/billing/vacancy-purchase'
 import { isAsaasConfigured } from '@backend/billing/asaas'
+import { createLiliPayPalOrder, paypalConfigured } from '@backend/billing/paypal'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function absolutize(req: NextRequest, path: string) {
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
         ? supabaseAdmin.from('campeonatos').select('id,nome,logo_url').in('id', championshipIds)
         : Promise.resolve({ data: [], error: null } as any),
       paymentIds.length
-        ? supabaseAdmin.from('sistema_pagamentos').select('id,status,metodo,billing_type,asaas_status,asaas_invoice_url,pago_em,valor_centavos').in('id', paymentIds)
+        ? supabaseAdmin.from('sistema_pagamentos').select('id,status,metodo,provider,billing_type,asaas_status,asaas_invoice_url,paypal_approval_url,pago_em,valor_centavos').in('id', paymentIds)
         : Promise.resolve({ data: [], error: null } as any),
       groupIds.length
         ? supabaseAdmin.from('campeonato_grupos').select('id,nome').in('id', groupIds)
@@ -99,17 +100,21 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
           ? {
               id: payment.id,
               status: payment.status,
+              metodo: payment.metodo,
+              provider: payment.provider,
+              billing_type: payment.billing_type,
               asaas_status: payment.asaas_status,
               invoice_url: payment.asaas_invoice_url,
+              paypal_approval_url: payment.paypal_approval_url,
               valor_centavos: payment.valor_centavos,
             }
           : null,
         claim_url: absolutize(req, claimPath),
-        payment_url: payment?.asaas_invoice_url || absolutize(req, claimPath),
+        payment_url: payment?.paypal_approval_url || payment?.asaas_invoice_url || absolutize(req, claimPath),
       }
     })
 
-    return NextResponse.json({ sales, asaas_configured: isAsaasConfigured() })
+    return NextResponse.json({ sales, asaas_configured: isAsaasConfigured(), paypal_configured: paypalConfigured() })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao listar vendas.' }, { status: 400 })
   }
@@ -125,8 +130,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
     if (!campeonatoId) throw new Error('campeonato_id obrigatÃ³rio.')
     await requireSellerPermission(managerId, campeonatoId)
 
+    const method = ['pix', 'cartao', 'paypal'].includes(String(body.method || 'pix'))
+      ? String(body.method || 'pix') as 'pix' | 'cartao' | 'paypal'
+      : 'pix'
     const cpfCnpj = String(body.cpf_cnpj || '').replace(/\D/g, '')
-    if (!cpfCnpj) throw new Error('Informe o CPF/CNPJ do comprador para gerar cobranÃ§a online.')
+    if (method !== 'paypal' && !cpfCnpj) throw new Error('Informe o CPF/CNPJ do comprador para gerar cobrança online.')
 
     const buyerName = String(body.comprador_nome || '').trim()
     const buyerEmail = String(body.comprador_email || '').trim()
@@ -141,8 +149,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
       payerEmail,
       cpfCnpj,
       vendedorManagerId: managerId,
-      method: 'pix',
+      method,
     })
+    const paypalPayment = method === 'paypal'
+      ? await createLiliPayPalOrder({
+          reservation: compra,
+          campeonatoNome: String(compra.meta?.campeonato_nome || 'Campeonato'),
+          amountMinor: Number(compra.valor_centavos || 0),
+          currency: 'BRL',
+          returnOrigin: req.nextUrl.origin,
+          referenceType: 'sistema_compras_vaga',
+          returnUrl: `${req.nextUrl.origin}/vagas/compra/${encodeURIComponent(compra.token)}?paypal=approved&purchase_id=${encodeURIComponent(compra.id)}`,
+          cancelUrl: `${req.nextUrl.origin}/vagas/compra/${encodeURIComponent(compra.token)}?paypal=cancelled&purchase_id=${encodeURIComponent(compra.id)}`,
+        })
+      : null
+    const resolvedPayment = paypalPayment || payment
 
     const now = new Date().toISOString()
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
@@ -168,7 +189,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
     const finalCompra = updated || { ...compra, meta: assistedMeta }
     const claimPath = `/vagas/compra/${encodeURIComponent(finalCompra.token)}`
     const claimUrl = absolutize(req, claimPath)
-    const paymentUrl = payment?.asaas_invoice_url || claimUrl
+    const paymentUrl = resolvedPayment?.paypal_approval_url || resolvedPayment?.asaas_invoice_url || claimUrl
 
     return NextResponse.json({
       reused: Boolean(reused),
@@ -180,13 +201,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
         payment_url: paymentUrl,
         claim_url: claimUrl,
       },
-      payment: payment
+      payment: resolvedPayment
         ? {
-            id: payment.id,
-            status: payment.status,
-            invoice_url: payment.asaas_invoice_url,
-            pix_qrcode: payment.asaas_pix_qrcode,
-            pix_payload: payment.asaas_pix_payload,
+            id: resolvedPayment.id,
+            status: resolvedPayment.status,
+            metodo: method,
+            provider: resolvedPayment.provider || (method === 'paypal' ? 'paypal' : 'online'),
+            invoice_url: resolvedPayment.asaas_invoice_url || null,
+            paypal_approval_url: resolvedPayment.paypal_approval_url || null,
+            pix_qrcode: resolvedPayment.asaas_pix_qrcode || null,
+            pix_payload: resolvedPayment.asaas_pix_payload || null,
           }
         : null,
       mensagem: [
@@ -195,6 +219,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
         `Token: ${finalCompra.token}`,
       ].join('\n'),
       asaas_configured: isAsaasConfigured(),
+      paypal_configured: paypalConfigured(),
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao gerar venda assistida.' }, { status: 400 })

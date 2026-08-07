@@ -78,7 +78,7 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
     const portfolio = Array.isArray(manager.portfolio_anuncios) ? manager.portfolio_anuncios.map(String) : []
 
     const authUserId = manager.auth_user_id || null
-    const [{ data: campeonatos }, { data: produtoras }, { data: usages }] = await Promise.all([
+    const [{ data: campeonatos }, { data: configs }, { data: produtoras }, { data: usages }] = await Promise.all([
       campeonatoIds.length
         ? supabaseAdmin
             .from('campeonatos')
@@ -86,6 +86,12 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
             .in('id', campeonatoIds)
             .eq('status', 'ativo')
             .eq('aprovacao_status', 'aprovado')
+        : Promise.resolve({ data: [] as any[] }),
+      campeonatoIds.length
+        ? supabaseAdmin
+            .from('campeonato_configuracoes')
+            .select('campeonato_id,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,cartao_max_parcelas')
+            .in('campeonato_id', campeonatoIds)
         : Promise.resolve({ data: [] as any[] }),
       produtoraIds.length
         ? supabaseAdmin.from('produtoras').select('id,nome,logo_url').in('id', produtoraIds)
@@ -102,6 +108,7 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
     ])
 
     const campeonatosById = new Map((campeonatos || []).map((item: any) => [item.id, item]))
+    const configsByCamp = new Map((configs || []).map((item: any) => [item.campeonato_id, item]))
     const produtorasById = new Map((produtoras || []).map((item: any) => [item.id, item]))
     const usageByCamp = new Map<string, number>()
     for (const row of usages || []) {
@@ -128,6 +135,7 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
           && (portfolio.length === 0 || portfolio.includes(String(item.campeonato_id)))
         const limite = Number(item.limite_vagas || 0)
         const vagasUsadas = usageByCamp.get(String(item.campeonato_id)) || 0
+        const config = configsByCamp.get(item.campeonato_id) || {}
         return {
           id: item.id,
           campeonato_id: item.campeonato_id,
@@ -139,6 +147,12 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
           vagas_restantes: limite > 0 ? Math.max(0, limite - vagasUsadas) : null,
           permissoes: item.permissoes || {},
           anunciando,
+          pagamentos: {
+            pix: config.pagamento_pix_ativo !== false,
+            cartao: config.pagamento_cartao_ativo !== false,
+            paypal: config.pagamento_paypal_ativo === true,
+            cartao_max_parcelas: config.cartao_max_parcelas || null,
+          },
           campeonatos: camp,
           produtoras: produtorasById.get(item.produtora_id) || null,
         }

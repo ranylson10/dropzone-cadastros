@@ -96,7 +96,7 @@ export default function VendedorCampeonatosPage() {
             <p className="eyebrow">Portfólio do afiliado</p>
             <h1>{manager?.nome || manager?.username || 'Campeonatos com vagas abertas'}</h1>
             <p>
-              Pague com PIX com comissão deste vendedor, ou fale com ele no WhatsApp.
+              Pague online com comissão deste vendedor, ou fale com ele no WhatsApp.
               {manager?.whatsapp_url ? ' Contato direto disponível abaixo.' : ''}
             </p>
             {manager?.whatsapp_url || sellerContact?.url ? (
@@ -194,7 +194,7 @@ export default function VendedorCampeonatosPage() {
                 </div>
                 <div className="vacancy-persuasion">
                   <strong>Garanta sua vaga</strong>
-                  <span>PIX com comissão deste vendedor, ou WhatsApp dele.</span>
+                  <span>Pagamento online com comissão deste vendedor, ou WhatsApp dele.</span>
                 </div>
                 <button
                   className="button vacancy-register"

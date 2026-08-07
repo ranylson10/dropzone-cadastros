@@ -13,6 +13,7 @@ type SellerItem = {
   vagas_restantes?: number | null
   anunciando?: boolean
   permissoes?: Record<string, boolean>
+  pagamentos?: { pix?: boolean; cartao?: boolean; paypal?: boolean; cartao_max_parcelas?: number | null }
   campeonatos?: { nome?: string; logo_url?: string | null } | null
   produtoras?: { nome?: string } | null
 }
@@ -31,8 +32,10 @@ type AssistedSale = {
   consumido_em?: string | null
   campeonato?: { id: string; nome?: string; logo_url?: string | null } | null
   grupo?: { id: string; nome?: string } | null
-  payment?: { status?: string; invoice_url?: string | null; asaas_status?: string | null } | null
+  payment?: { status?: string; metodo?: string | null; provider?: string | null; invoice_url?: string | null; paypal_approval_url?: string | null; asaas_status?: string | null } | null
 }
+
+type SaleMethod = 'pix' | 'cartao' | 'paypal'
 
 function formatUsage(item: SellerItem) {
   const used = Number(item.vagas_usadas || 0)
@@ -77,6 +80,7 @@ export function ManagerVendasView(props: {
   const [buyerWhatsapp, setBuyerWhatsapp] = useState('')
   const [buyerEmail, setBuyerEmail] = useState('')
   const [buyerCpf, setBuyerCpf] = useState('')
+  const [saleMethod, setSaleMethod] = useState<SaleMethod>('pix')
   const [creatingSale, setCreatingSale] = useState(false)
 
   async function authHeaders() {
@@ -110,6 +114,13 @@ export function ManagerVendasView(props: {
     void loadSales()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.accountId])
+
+  useEffect(() => {
+    if (!saleChamp) return
+    if (saleChamp.pagamentos?.pix !== false) setSaleMethod('pix')
+    else if (saleChamp.pagamentos?.cartao !== false) setSaleMethod('cartao')
+    else if (saleChamp.pagamentos?.paypal) setSaleMethod('paypal')
+  }, [saleChamp])
 
   async function copyText(text: string, message = 'Copiado.') {
     try {
@@ -149,6 +160,7 @@ export function ManagerVendasView(props: {
           comprador_whatsapp: buyerWhatsapp,
           comprador_email: buyerEmail,
           cpf_cnpj: buyerCpf,
+          method: saleMethod,
         }),
       })
       const json = await res.json()
@@ -158,6 +170,7 @@ export function ManagerVendasView(props: {
       setBuyerWhatsapp('')
       setBuyerEmail('')
       setBuyerCpf('')
+      setSaleMethod('pix')
       setSaleChamp(null)
       await loadSales()
       if (json.mensagem) await copyText(json.mensagem, 'Mensagem da venda copiada.')
@@ -403,6 +416,36 @@ export function ManagerVendasView(props: {
               O sistema gera o pagamento, registra a venda para este vendedor e libera o link de inscriÃ§Ã£o quando confirmar.
             </p>
 
+            <div className="manager-detail-actions" style={{ marginBottom: 12 }}>
+              {saleChamp.pagamentos?.pix !== false ? (
+                <button
+                  className={saleMethod === 'pix' ? 'button small' : 'button small secondary'}
+                  type="button"
+                  onClick={() => setSaleMethod('pix')}
+                >
+                  PIX
+                </button>
+              ) : null}
+              {saleChamp.pagamentos?.cartao !== false ? (
+                <button
+                  className={saleMethod === 'cartao' ? 'button small' : 'button small secondary'}
+                  type="button"
+                  onClick={() => setSaleMethod('cartao')}
+                >
+                  Cartão{Number(saleChamp.pagamentos?.cartao_max_parcelas || 1) > 1 ? ' até ' + saleChamp.pagamentos?.cartao_max_parcelas + 'x' : ''}
+                </button>
+              ) : null}
+              {saleChamp.pagamentos?.paypal ? (
+                <button
+                  className={saleMethod === 'paypal' ? 'button small' : 'button small secondary'}
+                  type="button"
+                  onClick={() => setSaleMethod('paypal')}
+                >
+                  PayPal
+                </button>
+              ) : null}
+            </div>
+
             <div className="mini-grid two">
               <label className="field">
                 <span>Nome do comprador</span>
@@ -417,14 +460,14 @@ export function ManagerVendasView(props: {
                 <input value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} placeholder="comprador@email.com" />
               </label>
               <label className="field">
-                <span>CPF/CNPJ para cobranÃ§a</span>
+                <span>{saleMethod === 'paypal' ? 'CPF/CNPJ (opcional no PayPal)' : 'CPF/CNPJ para cobrança'}</span>
                 <input value={buyerCpf} onChange={(e) => setBuyerCpf(e.target.value)} placeholder="Somente nÃºmeros" />
               </label>
             </div>
 
             <div className="manager-detail-actions" style={{ marginTop: 12 }}>
-              <button className="button" type="button" disabled={creatingSale || !buyerCpf.trim()} onClick={() => void createAssistedSale()}>
-                {creatingSale ? 'Gerando...' : 'Gerar pagamento'}
+              <button className="button" type="button" disabled={creatingSale || (saleMethod !== 'paypal' && !buyerCpf.trim())} onClick={() => void createAssistedSale()}>
+                {creatingSale ? 'Gerando...' : saleMethod === 'paypal' ? 'Gerar PayPal' : saleMethod === 'cartao' ? 'Gerar cartão' : 'Gerar PIX'}
               </button>
               <button className="button secondary" type="button" onClick={() => setSaleChamp(null)}>
                 Cancelar
