@@ -274,3 +274,148 @@
     margin-bottom: 8px;
   }
 }
+
+/* Listas mobile compactas: consolida o padrão após as regras legadas de globals.css. */
+.directory-rank-mobile-position,
+.directory-rank-mobile-score {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .directory-list:not(.directory-list-campeonatos) {
+    gap: 1px;
+    border: 1px solid #c9c0b4;
+    background: #c9c0b4;
+    overflow: hidden;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos),
+  .directory-list-row-compact {
+    grid-template-columns: 36px minmax(0, 1fr) 14px;
+    grid-template-rows: 1fr;
+    gap: 8px;
+    min-height: 52px;
+    padding: 6px 8px;
+    border: 0;
+    border-left: 2px solid transparent;
+    background: #e6e0d7;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos):nth-child(even),
+  .directory-list-row-compact:nth-child(even) {
+    background: #ddd6cc;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos):hover,
+  .directory-list-row-compact:hover {
+    padding-left: 8px;
+    border-left-width: 2px;
+    border-left-color: var(--dz-accent, #ff5468);
+    background: #d5cec4;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-media,
+  .directory-list-row-compact .directory-list-media {
+    grid-column: 1;
+    grid-row: 1;
+    width: 34px;
+    height: 34px;
+    align-self: center;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-main,
+  .directory-list-row-compact .directory-list-main {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    gap: 0;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-main > small,
+  .directory-list-row-compact .directory-list-main > small {
+    font-size: 7px;
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-main > strong,
+  .directory-list-row-compact .directory-list-main > strong {
+    font-size: 13px;
+    line-height: 1.05;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-main > span,
+  .directory-list-row-compact .directory-list-main > span {
+    margin-top: 2px;
+    font-size: 8px;
+    line-height: 1.1;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-meta,
+  .directory-list-row-compact .directory-list-meta {
+    display: none;
+  }
+
+  .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-arrow,
+  .directory-list-row-compact .directory-list-arrow {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  /* Campeonatos mantêm o card atual, mas exibem apenas os três dados prioritários. */
+  .directory-list-row-campeonatos .directory-list-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .directory-list-row-campeonatos .directory-list-meta em {
+    min-height: 32px;
+    padding-inline: 4px;
+  }
+
+  .directory-list-row-campeonatos .directory-list-meta em::before {
+    font-size: 6.5px;
+  }
+
+  .directory-list-row-campeonatos .directory-list-meta b {
+    font-size: 9px;
+  }
+
+  /* Ranking segue o exemplo compacto: posição, logo, identidade e pontuação. */
+  .directory-rank-list .directory-rank-row {
+    grid-template-columns: 24px 34px minmax(0, 1fr) auto;
+  }
+
+  .directory-rank-row .directory-rank-mobile-position {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    text-align: center;
+    color: #27323d;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .directory-rank-row .directory-list-media {
+    grid-column: 2;
+  }
+
+  .directory-rank-row .directory-list-main {
+    grid-column: 3;
+  }
+
+  .directory-rank-row .directory-rank-mobile-score {
+    display: block;
+    grid-column: 4;
+    grid-row: 1;
+    align-self: center;
+    color: #27323d;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .directory-rank-row .directory-list-arrow {
+    display: none;
+  }
+}

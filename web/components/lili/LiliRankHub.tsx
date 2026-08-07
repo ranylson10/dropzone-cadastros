@@ -77,7 +77,8 @@ export function LiliRankHub() {
             : [`${row.assistencias || 0} assist.`, `${row.quedas} quedas`].join(' · ')
 
           return (
-            <article className="directory-list-row directory-rank-row" key={row.key}>
+            <article className="directory-list-row directory-list-row-compact directory-rank-row" key={row.key}>
+              <b className="directory-rank-mobile-position">{row.rank}</b>
               <span className="directory-list-media">
                 {image ? <img src={image} alt="" /> : mode === 'teams' ? <Shield size={18} /> : <Swords size={18} />}
               </span>
@@ -91,6 +92,7 @@ export function LiliRankHub() {
                 <em data-label={mode === 'teams' ? 'Booyah' : 'Dano'}><b>{mode === 'teams' ? row.booyahs : row.dano}</b></em>
                 <em data-label={mode === 'teams' ? 'Pontos' : 'Abates'}><b className="directory-rank-score">{mode === 'teams' ? `${row.pontos} pts` : `${row.abates} K`}</b></em>
               </span>
+              <strong className="directory-rank-mobile-score">{mode === 'teams' ? `${row.pontos} pts` : `${row.abates} K`}</strong>
               <span className="directory-list-arrow" aria-hidden="true" />
             </article>
           )

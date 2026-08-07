@@ -56,9 +56,9 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
         </div>
       ) : null}
 
-      <div className="directory-list">
+      <div className={`directory-list directory-list-${items[0]?.kind || 'empty'}`}>
         {filtered.map((item) => (
-          <a className="directory-list-row" href={`/${item.kind}/${item.id}`} key={item.id}>
+          <a className={`directory-list-row directory-list-row-${item.kind}`} href={`/${item.kind}/${item.id}`} key={item.id}>
             <span className="directory-list-media">{item.image ? <img src={item.image} alt="" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}</span>
             <span className="directory-list-main">
               <small>{item.eyebrow}</small>

@@ -13,6 +13,11 @@ function money(value: unknown) {
   if (!Number.isFinite(number) || number <= 0) return 'Sem premiação informada'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
 }
+function directoryMoney(value: unknown) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number <= 0) return '-'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
+}
 function location(row: any) { return first(row.localidade, [row.cidade, row.estado, row.pais].filter(Boolean).join(' · ')) }
 
 const DIRECTORY_PAGE_SIZE = 1000
@@ -66,26 +71,48 @@ async function rows(table: string) {
 
 export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[]> {
   if (kind === 'campeonatos') {
-    const [items, configs] = await Promise.all([rows('campeonatos'), rows('campeonato_configuracoes')])
+    const [items, configs, phases, slots] = await Promise.all([
+      rows('campeonatos'),
+      rows('campeonato_configuracoes'),
+      rows('campeonato_fases'),
+      rows('campeonato_slots'),
+    ])
     const configByChamp = new Map(configs.map((row: any) => [row.campeonato_id, row]))
     return items.map((row: any) => {
       const config: any = configByChamp.get(row.id) || {}
       const name = first(row.nome, 'Campeonato')
       const tipo = statusLabel(row.tipo || config.formato || 'campeonato')
+      const champPhases = phases
+        .filter((phase: any) => phase.campeonato_id === row.id)
+        .sort((a: any, b: any) => Number(a.ordem || 0) - Number(b.ordem || 0))
+      const entryOrder = champPhases.length ? Number(champPhases[0].ordem || 0) : null
+      const entryPhaseIds = new Set(
+        entryOrder == null
+          ? []
+          : champPhases
+              .filter((phase: any) => Number(phase.ordem || 0) === entryOrder)
+              .map((phase: any) => String(phase.id)),
+      )
+      const entrySlots = slots.filter(
+        (slot: any) =>
+          slot.campeonato_id === row.id
+          && normalized(slot.status) !== 'excluido'
+          && (entryPhaseIds.size === 0 || !slot.fase_id || entryPhaseIds.has(String(slot.fase_id))),
+      )
+      const occupiedSlots = entrySlots.filter((slot: any) => Boolean(slot.equipe_id || slot.line_id)).length
+      const officialTotal = Math.max(0, Math.floor(Number(config.numero_vagas || 0)))
+      const freeVacancies = officialTotal > 0
+        ? Math.max(0, officialTotal - occupiedSlots)
+        : entrySlots.length > 0
+          ? Math.max(0, entrySlots.length - occupiedSlots)
+          : null
       return {
         id: row.id, kind, name, image: first(row.logo_url), eyebrow: tipo,
         description: first(config.formato, `${tipo} competitivo`),
         meta: [
-          { label: 'Premiação', value: money(config.premiacao) },
-          { label: 'Limite de vagas', value: text(config.numero_vagas, 'Sem teto') },
-          { label: 'Vagas por equipe', value: text(config.vagas_por_equipe, '1') },
-          { label: 'Jogadores escalados', value: text(config.jogadores_por_vaga, 'Não informado') },
-          { label: 'Troca de jogadores', value: config.permite_troca_jogadores ? 'Permitida' : 'Não permitida' },
-          ...(config.data_limite_trocas ? [{ label: 'Prazo para trocas', value: new Date(config.data_limite_trocas).toLocaleString('pt-BR') }] : []),
-          ...(config.data_limite_inscricao ? [{ label: 'Inscrições até', value: new Date(config.data_limite_inscricao).toLocaleString('pt-BR') }] : []),
-          ...(config.plataforma ? [{ label: 'Plataforma', value: text(config.plataforma) }] : []),
-          ...(config.servidor ? [{ label: 'Servidor', value: text(config.servidor) }] : []),
-          { label: 'Status', value: statusLabel(row.status) },
+          { label: 'Inscrição', value: directoryMoney(config.valor_inscricao) },
+          { label: 'Premiação', value: directoryMoney(config.premiacao) },
+          { label: 'Vagas livres', value: freeVacancies == null ? '-' : String(freeVacancies) },
         ],
         searchText: [name, tipo, config.formato, config.plataforma, config.servidor].join(' ').toLowerCase(),
       }
