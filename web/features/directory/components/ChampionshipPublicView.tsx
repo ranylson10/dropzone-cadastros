@@ -93,7 +93,7 @@ export function ChampionshipPublicView({
   profile: DirectoryProfile
   kindLabel?: string
 }) {
-  const [tab, setTab] = useState<TabId>('equipes')
+  const [tab, setTab] = useState<TabId>('info')
   const [faseId, setFaseId] = useState('')
   const [grupoId, setGrupoId] = useState('')
   const [buyOpen, setBuyOpen] = useState(false)
@@ -160,12 +160,7 @@ export function ChampionshipPublicView({
     jogadores: sectionMap.jogadores?.items.length || 0,
     estatisticas: sectionMap.estatisticas?.items.length || 0,
   }
-  const visibleTabs = TABS.filter(
-    (item) =>
-      item.id === 'info' ||
-      item.id === 'equipes' ||
-      counts[item.id] > 0,
-  )
+  const visibleTabs = TABS
 
   const themeStyle = useMemo(
     () =>
