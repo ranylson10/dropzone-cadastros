@@ -372,8 +372,9 @@ export async function creditInscriptionSplit(pagamento: any) {
   const bruto = Number(pagamento.valor_centavos || 0)
   if (bruto <= 0) return
 
-  const { vendedorBps, plataformaBps } = await getCommissionBps()
+  const { vendedorBps, plataformaBps, vendaDiretaVagaBps } = await getCommissionBps()
   const hasSeller = Boolean(meta.vendedor_auth_user_id || meta.vendedor_manager_id)
+  const isDirectVacancySale = pagamento.finalidade === 'compra_vaga' && !hasSeller
   const metaSellerBpsRaw = meta.vendedor_bps ?? meta.comissao_vendedor_bps
   const metaSellerBps = metaSellerBpsRaw === null || metaSellerBpsRaw === undefined || metaSellerBpsRaw === ''
     ? Number.NaN
@@ -383,9 +384,22 @@ export async function creditInscriptionSplit(pagamento: any) {
       ? Math.max(0, Math.min(2000, Math.floor(metaSellerBps)))
       : vendedorBps
     : 0
-  const split = splitCommission(bruto, effectiveSellerBps, plataformaBps)
+  const effectivePlatformBps = isDirectVacancySale ? Math.max(0, Math.floor(vendaDiretaVagaBps || 500)) : plataformaBps
+  const split = splitCommission(bruto, effectiveSellerBps, effectivePlatformBps)
 
-  await supabaseAdmin.from('sistema_comissoes').insert({
+  const { data: existingCommission, error: existingError } = await supabaseAdmin
+    .from('sistema_comissoes')
+    .select('id,status')
+    .eq('pagamento_id', pagamento.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (existingError) throw existingError
+  if (existingCommission?.status === 'creditada' || existingCommission?.status === 'estornada') {
+    return { skipped: true, commission: existingCommission }
+  }
+
+  const { data: commission, error: commissionError } = await supabaseAdmin.from('sistema_comissoes').insert({
     pagamento_id: pagamento.id,
     campeonato_id: meta.campeonato_id || null,
     vendedor_manager_id: meta.vendedor_manager_id || null,
@@ -395,10 +409,19 @@ export async function creditInscriptionSplit(pagamento: any) {
     comissao_plataforma_centavos: split.plataforma,
     valor_liquido_produtora_centavos: split.liquido,
     bps_vendedor: effectiveSellerBps,
-    bps_plataforma: plataformaBps,
+    bps_plataforma: effectivePlatformBps,
     status: 'creditada',
-    meta,
+    meta: {
+      ...meta,
+      taxa_venda_direta_vaga_bps: isDirectVacancySale ? effectivePlatformBps : undefined,
+    },
   })
+    .select('id,status')
+    .single()
+  if (commissionError) {
+    if (commissionError.code === '23505') return { skipped: true }
+    throw commissionError
+  }
 
   if (split.plataforma > 0) {
     await creditWallet({
@@ -437,6 +460,8 @@ export async function creditInscriptionSplit(pagamento: any) {
       meta,
     })
   }
+
+  return { skipped: false, commission }
 }
 
 
@@ -450,6 +475,8 @@ export async function reverseInscriptionSplit(pagamento: any, motivo = 'estorno'
     .from('sistema_comissoes')
     .select('*')
     .eq('pagamento_id', pagamento.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
   if (error) throw error
   if (!commission || commission.status === 'estornada') return { skipped: true }

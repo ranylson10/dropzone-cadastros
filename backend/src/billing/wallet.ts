@@ -128,11 +128,12 @@ export async function getCommissionBps() {
   const { data } = await supabaseAdmin
     .from('sistema_precos')
     .select('chave,valor_centavos')
-    .in('chave', ['comissao_vendedor_bps', 'comissao_plataforma_bps'])
+    .in('chave', ['comissao_vendedor_bps', 'comissao_plataforma_bps', 'taxa_venda_direta_vaga_bps'])
   const map = new Map((data || []).map((r: any) => [r.chave, Number(r.valor_centavos) || 0]))
   return {
     vendedorBps: map.get('comissao_vendedor_bps') ?? 1000,
     plataformaBps: map.get('comissao_plataforma_bps') ?? 500,
+    vendaDiretaVagaBps: map.get('taxa_venda_direta_vaga_bps') ?? 500,
   }
 }
 
