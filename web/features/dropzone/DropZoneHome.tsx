@@ -48,6 +48,8 @@ const emptyChampionship = {
   divisao_premiacao: '',
   regras_url: '',
   numero_vagas: '',
+  numero_fases: '1',
+  nomes_fases: ['Fase 1'],
   formato: '',
   plataforma: '',
   servidor: '',

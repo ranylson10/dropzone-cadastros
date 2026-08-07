@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
     const [championsResult, configsResult, phasesResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, sellersResult, purchasesResult] = await Promise.all([
       championsQuery,
-      supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,numero_vagas,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').eq('aceita_novas_inscricoes_equipes', true),
+      supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,numero_vagas,valor_inscricao,premiacao,descricao_premiacao,tipo_premiacao,tem_live,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').eq('aceita_novas_inscricoes_equipes', true),
       supabaseAdmin.from('campeonato_fases').select('id,campeonato_id,ordem'),
       supabaseAdmin.from('campeonato_grupos').select('id,campeonato_id,nome,fase_id'),
       supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,fase_id,equipe_id,line_id,status,slot_numero'),
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
 
     if (targetChampionshipIds.length) {
       const [targetConfigs, targetPhases, targetGroups, targetSlots, targetGames, targetPurchases] = await Promise.all([
-        supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,numero_vagas,valor_inscricao,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').in('campeonato_id', targetChampionshipIds).eq('aceita_novas_inscricoes_equipes', true),
+        supabaseAdmin.from('campeonato_configuracoes').select('campeonato_id,numero_vagas,valor_inscricao,premiacao,descricao_premiacao,tipo_premiacao,tem_live,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes,contatos_whatsapp').in('campeonato_id', targetChampionshipIds).eq('aceita_novas_inscricoes_equipes', true),
         supabaseAdmin.from('campeonato_fases').select('id,campeonato_id,ordem').in('campeonato_id', targetChampionshipIds),
         supabaseAdmin.from('campeonato_grupos').select('id,campeonato_id,nome,fase_id').in('campeonato_id', targetChampionshipIds),
         supabaseAdmin.from('campeonato_slots').select('id,campeonato_id,grupo_id,fase_id,equipe_id,line_id,status,slot_numero').in('campeonato_id', targetChampionshipIds),
@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
       const dated = openGroups.filter((group:any) => group.proximo_jogo).sort((a:any,b:any) => `${a.proximo_jogo.data_jogo} ${a.proximo_jogo.horario||''}`.localeCompare(`${b.proximo_jogo.data_jogo} ${b.proximo_jogo.horario||''}`)); const next = dated[0] || openGroups[0]
       const sellers = (sellersByChampionship.get(champ.id) || []).map((seller:any) => ({ id:seller.manager_id, nome:seller.nome_publico || 'Vendedor', contato:{ id:`manager-${seller.manager_id}`, manager_id:seller.manager_id, nome:seller.nome_publico || 'Vendedor', url:seller.whatsapp_url } }))
       const sellerContacts = vendedorId ? sellers.map((seller:any) => seller.contato).filter((contact:any) => contact.url) : config.contatos_whatsapp || []
-      return [{ id:champ.id, nome:champ.nome, tipo:champ.tipo, logo_url:champ.logo_url, banner_url:champ.banner_url, valor_inscricao:config.valor_inscricao, plataforma:config.plataforma, servidor:config.servidor, data_limite_inscricao:config.data_limite_inscricao, contatos_whatsapp:sellerContacts, vendedores:sellers, grupos:openGroups, vagas_livres:officialFree, total_vagas:officialTotal, vagas_estruturadas_livres:openGroups.reduce((sum:number, group:any)=>sum+group.vagas_livres,0), vagas_em_compra:commercialReservations, proxima_data:next.proximo_jogo?.data_jogo || null, proximo_horario:next.proximo_jogo?.horario || null, proximo_grupo:next.nome, ja_tem_vaga:enrolledIds.has(champ.id) }]
+      return [{ id:champ.id, nome:champ.nome, tipo:champ.tipo, logo_url:champ.logo_url, banner_url:champ.banner_url, valor_inscricao:config.valor_inscricao, premiacao:config.premiacao, descricao_premiacao:config.descricao_premiacao, tipo_premiacao:config.tipo_premiacao, tem_live:Boolean(config.tem_live), plataforma:config.plataforma, servidor:config.servidor, data_limite_inscricao:config.data_limite_inscricao, contatos_whatsapp:sellerContacts, vendedores:sellers, grupos:openGroups, vagas_livres:officialFree, total_vagas:officialTotal, vagas_estruturadas_livres:openGroups.reduce((sum:number, group:any)=>sum+group.vagas_livres,0), vagas_em_compra:commercialReservations, proxima_data:next.proximo_jogo?.data_jogo || null, proximo_horario:next.proximo_jogo?.horario || null, proximo_grupo:next.nome, ja_tem_vaga:enrolledIds.has(champ.id) }]
     }).sort((a:any,b:any) => (a.proxima_data ? 0 : 1) - (b.proxima_data ? 0 : 1) || String(a.proxima_data||'9999').localeCompare(String(b.proxima_data||'9999')))
     let scope: any = null
     if (produtoraId) {

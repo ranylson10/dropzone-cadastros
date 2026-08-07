@@ -118,7 +118,7 @@ export function ProdutoraPanel(props: {
   const [showChampFilters, setShowChampFilters] = useState(false)
   const [producerSection, setProducerSection] = useState<ProducerSection>('campeonatos')
   const [championshipDetailOpen, setChampionshipDetailOpen] = useState(false)
-  const [tab, setTab] = useState<ProducerTab>('equipes')
+  const [tab, setTab] = useState<ProducerTab>('visao')
   const [payInfo, setPayInfo] = useState<any>(null)
   const [payBusy, setPayBusy] = useState(false)
   const [payMsg, setPayMsg] = useState('')
@@ -656,6 +656,8 @@ export function ProdutoraPanel(props: {
       descricao_premiacao: String(dataText(champ, 'descricao_premiacao') || ''),
       divisao_premiacao: String(dataText(champ, 'divisao_premiacao') || ''),
       numero_vagas: String(dataText(champ, 'numero_vagas') || ''),
+      numero_fases: String(dataText(champ, 'numero_fases') || champ.data?.numero_fases || '1'),
+      nomes_fases: Array.isArray(champ.data?.nomes_fases) ? champ.data.nomes_fases.map(String) : ['Fase 1'],
       formato: String(dataText(champ, 'formato') || ''),
       plataforma: String(dataText(champ, 'plataforma') || ''),
       servidor: String(dataText(champ, 'servidor') || ''),
@@ -735,6 +737,28 @@ export function ProdutoraPanel(props: {
     if (!response.ok) throw new Error(json.error || 'Não foi possível salvar temporada e edição.')
   }
 
+  async function createInitialPhases(campeonatoId: string, form: CampeonatoFormValue) {
+    const count = Math.max(1, Math.min(12, Number(form.numero_fases) || 1))
+    const names = Array.from({ length: count }, (_, index) =>
+      String((Array.isArray(form.nomes_fases) ? form.nomes_fases[index] : '') || `Fase ${index + 1}`).trim() || `Fase ${index + 1}`,
+    )
+    const uniqueNames = new Set(names.map((name) => name.toLocaleLowerCase('pt-BR')))
+    if (uniqueNames.size !== names.length) throw new Error('As fases iniciais não podem ter nomes repetidos.')
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) throw new Error('Sessão expirada ao criar fases iniciais.')
+    for (const [index, nome] of names.entries()) {
+      const response = await fetch(`/api/campeonatos/${campeonatoId}/estrutura`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_phase', nome, ordem: index + 1 }),
+      })
+      const json = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(json.error || `Não foi possível criar a fase ${index + 1}.`)
+    }
+    await props.reloadStructure?.()
+  }
+
   function startEditChampionship(champ: DropZoneRow) {
     const aprovacao = String(dataText(champ, 'aprovacao_status') || 'aprovado')
     if (aprovacao !== 'aprovado') {
@@ -801,6 +825,24 @@ export function ProdutoraPanel(props: {
 
   function phaseName(id?: string | null) {
     return rowTitle(champPhases.find((row) => row.id === id)) || 'Sem fase'
+  }
+
+  function startCreateGame(options?: { phaseId?: string; groupIds?: string[]; name?: string }) {
+    if (!selectedChamp) return
+    setTab('jogos')
+    setEditingGameId('')
+    props.setGame({
+      nome: options?.name || '',
+      campeonato_id: selectedChamp.id,
+      fase_id: options?.phaseId || '',
+      data_jogo: '',
+      horario: '',
+      numero_partidas: '6',
+      mapas: Array(6).fill(''),
+      grupos_ids: options?.groupIds || [],
+    })
+    setOpenAction('game')
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0)
   }
 
   function formatDateTime(value?: string | null) {
@@ -1148,6 +1190,57 @@ ${params.url}`
     { label: 'Grupos', value: champGroups.length },
     { label: 'Jogos', value: champGames.length },
   ]
+  const mainTabs: ProducerTab[] = ['visao', 'equipes', 'grupos', 'jogos', 'estatisticas']
+  const extraTabs = producerTabs.filter((item) =>
+    !mainTabs.includes(item.id)
+    && (item.id !== 'calls' || String(dataText(props.selectedChamp, 'tipo')).toLowerCase() === 'xtreino')
+  )
+  const nextGame = champGames
+    .slice()
+    .sort((a, b) => {
+      const left = `${dataText(a, 'data_jogo') || '9999-12-31'} ${dataText(a, 'horario') || '99:99'}`
+      const right = `${dataText(b, 'data_jogo') || '9999-12-31'} ${dataText(b, 'horario') || '99:99'}`
+      return left.localeCompare(right)
+    })[0]
+  const approved = String(dataText(props.selectedChamp, 'aprovacao_status') || 'aprovado') === 'aprovado'
+  const operationalChecklist = selectedChamp ? [
+    {
+      done: Boolean(dataText(selectedChamp, 'nome') || selectedChamp.name) && Boolean(dataText(selectedChamp, 'logo_url')),
+      title: 'Dados bÃ¡sicos',
+      detail: 'Nome e logo do campeonato.',
+      action: () => startEditChampionship(selectedChamp),
+    },
+    {
+      done: champPhases.length > 0 && champGroups.length > 0,
+      title: 'Estrutura',
+      detail: champPhases.length > 0 && champGroups.length > 0 ? `${champPhases.length} fase(s) e ${champGroups.length} grupo(s).` : 'Crie fases, grupos e slots.',
+      action: () => setTab('grupos'),
+    },
+    {
+      done: props.selectedChampTeams.length > 0,
+      title: 'Equipes',
+      detail: props.selectedChampTeams.length > 0 ? `${props.selectedChampTeams.length} line(s) inscrita(s).` : 'Adicione equipes ou gere convites.',
+      action: () => setTab('equipes'),
+    },
+    {
+      done: champGames.length > 0,
+      title: 'Jogos',
+      detail: champGames.length > 0 ? `${champGames.length} jogo(s) criado(s).` : 'Crie o primeiro jogo com grupos e mapas.',
+      action: () => startCreateGame(),
+    },
+    {
+      done: champRegistrationLinks.length > 0,
+      title: 'DivulgaÃ§Ã£o',
+      detail: champRegistrationLinks.length > 0 ? `${champRegistrationLinks.length} link(s) gerado(s).` : 'Gere um link de vaga ou convite.',
+      action: () => { setTab('links'); setOpenAction('link') },
+    },
+    {
+      done: approved,
+      title: 'PublicaÃ§Ã£o',
+      detail: approved ? 'Campeonato liberado.' : 'Aguardando aprovaÃ§Ã£o ou pagamento.',
+      action: () => startEditChampionship(selectedChamp),
+    },
+  ] : []
 
   return (
     <div className="producer-layout-ref">
@@ -1164,14 +1257,14 @@ ${params.url}`
 
       <nav className="producer-hub-nav" aria-label="Áreas da produtora">
         <button type="button" className={producerSection === 'campeonatos' ? 'active' : ''} onClick={() => setProducerSection('campeonatos')}><Trophy size={17} /><span>Campeonatos</span></button>
-        <button type="button" className={producerSection === 'staff' ? 'active' : ''} onClick={() => setProducerSection('staff')}><Users size={17} /><span>Staff</span></button>
+        <button type="button" className={producerSection === 'staff' ? 'active' : ''} onClick={() => setProducerSection('staff')}><Users size={17} /><span>Equipe interna</span></button>
         <button type="button" className={producerSection === 'vendedores' ? 'active' : ''} onClick={() => setProducerSection('vendedores')}><BriefcaseBusiness size={17} /><span>Vendedores</span></button>
-        <button type="button" className={producerSection === 'vagas' ? 'active' : ''} onClick={() => setProducerSection('vagas')}><Store size={17} /><span>Vagas</span></button>
+        <button type="button" className={producerSection === 'vagas' ? 'active' : ''} onClick={() => setProducerSection('vagas')}><Store size={17} /><span>PÃ¡gina de vagas</span></button>
       </nav>
 
       {producerSection === 'staff' ? (
         <section className="producer-hub-section">
-          <header><div><p className="eyebrow">Equipe da produtora</p><h2>Staff</h2></div><Users size={22} /></header>
+          <header><div><p className="eyebrow">Equipe da produtora</p><h2>Equipe interna</h2></div><Users size={22} /></header>
           <div className="producer-simple-list">
             <a href="/managers"><span><UserPlus size={18} /></span><div><strong>Líderes e ajudantes</strong><small>Gerencie responsáveis e acessos operacionais.</small></div><ChevronRight size={17} /></a>
             <button type="button" onClick={() => setProducerSection('vendedores')}><span><BriefcaseBusiness size={18} /></span><div><strong>Vendedores</strong><small>Convites, limites e campeonatos vinculados.</small></div><ChevronRight size={17} /></button>
@@ -1244,14 +1337,10 @@ ${params.url}`
                 key={champ.id}
                 className={`champ-list-item ref-champ-item ${selectedChamp?.id === champ.id ? 'active' : ''}`}
                 onClick={() => {
-                  if (window.matchMedia('(max-width: 760px)').matches) {
-                    window.open(`/?login=produtora&campeonato=${encodeURIComponent(champ.id)}&section=equipes`, '_blank', 'noopener,noreferrer')
-                    return
-                  }
                   props.setSelectedChampId(champ.id)
                   setShowCreateChamp(false)
                   setChampionshipDetailOpen(true)
-                  setTab('equipes')
+                  setTab('visao')
                 }}
               >
                 <span className="champ-thumb">{logo ? <img src={logo} alt="" /> : <Trophy size={18} />}</span>
@@ -1287,6 +1376,7 @@ ${params.url}`
               props.setSelectedChampId(created.id)
               try {
                 await saveCreationEdition(created.id, props.championship)
+                await createInitialPhases(created.id, props.championship)
               } catch (error) {
                 setPayMsg(error instanceof Error ? error.message : 'Campeonato criado, mas a temporada não foi salva.')
               }
@@ -1538,13 +1628,119 @@ ${params.url}`
               </div>
             </header>
 
-            <nav className="champ-subtabs-ref" aria-label="Abas do campeonato">
-              {producerTabs.filter((item) => item.id !== 'calls' || String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino').map((item) => (
-                <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
-              ))}
+            <nav className="champ-subtabs-ref champ-subtabs-compact" aria-label="Abas do campeonato">
+              <div className="champ-subtabs-primary">
+                {producerTabs.filter((item) => mainTabs.includes(item.id)).map((item) => (
+                  <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
+                ))}
+              </div>
+              {extraTabs.length ? (
+                <details className="champ-subtabs-more">
+                  <summary>Mais ferramentas</summary>
+                  <div>
+                    {extraTabs.map((item) => (
+                      <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
             </nav>
 
             <div className="champ-tab-body-ref">
+              {tab === 'visao' ? (
+                <div className="champ-overview-panel">
+                  <section className="champ-overview-card is-main">
+                    <div>
+                      <p className="eyebrow">Próximo passo</p>
+                      <h3>Monte e opere o campeonato por etapas.</h3>
+                      <span>Use os atalhos abaixo. As ferramentas avançadas continuam em “Mais ferramentas”.</span>
+                    </div>
+                    <div className="champ-overview-flow">
+                      <button type="button" onClick={() => setTab('grupos')}>
+                        <FolderOpen size={18} />
+                        <strong>Grupos e fases</strong>
+                        <small>{champPhases.length ? `${champPhases.length} fase(s), ${champGroups.length} grupo(s)` : 'Comece criando a estrutura'}</small>
+                      </button>
+                      <button type="button" onClick={() => setTab('equipes')}>
+                        <Users size={18} />
+                        <strong>Adicionar equipes</strong>
+                        <small>{props.selectedChampTeams.length ? `${props.selectedChampTeams.length} line(s) inscrita(s)` : 'Buscar, reservar ou convidar'}</small>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startCreateGame()}
+                      >
+                        <Play size={18} />
+                        <strong>Criar jogo</strong>
+                        <small>{champGames.length ? `${champGames.length} jogo(s) criado(s)` : 'Defina grupos, quedas e mapas'}</small>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!nextGame}
+                        onClick={() => nextGame && window.open(`/campeonatos/${selectedChamp.id}/pontuador/${nextGame.id}`, '_blank', 'noopener,noreferrer')}
+                      >
+                        <Trophy size={18} />
+                        <strong>Abrir pontuador</strong>
+                        <small>{nextGame ? rowTitle(nextGame) : 'Crie um jogo primeiro'}</small>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTab('links')
+                          setOpenAction('link')
+                        }}
+                      >
+                        <Link2 size={18} />
+                        <strong>Gerar link</strong>
+                        <small>Vaga, grupo ou convite de entrada</small>
+                      </button>
+                      <button type="button" onClick={() => setTab('vendedores')}>
+                        <BriefcaseBusiness size={18} />
+                        <strong>Vendas</strong>
+                        <small>Vendedores, limites e permissões</small>
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="champ-overview-card">
+                    <div className="champ-overview-checklist-head">
+                      <div>
+                        <p className="eyebrow">Checklist operacional</p>
+                        <h3>O que falta para rodar?</h3>
+                      </div>
+                      <span>{operationalChecklist.filter((item) => item.done).length}/{operationalChecklist.length} concluÃ­dos</span>
+                    </div>
+                    <div className="champ-overview-checklist">
+                      {operationalChecklist.map((item) => (
+                        <button
+                          type="button"
+                          key={item.title}
+                          className={item.done ? 'is-done' : 'is-pending'}
+                          onClick={item.action}
+                        >
+                          <CheckCircle2 size={17} />
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>{item.detail}</small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="champ-overview-card">
+                    <div className="champ-overview-status">
+                      {stats.map((item) => (
+                        <span key={item.label}>
+                          <strong>{item.value}</strong>
+                          <small>{item.label}</small>
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              ) : null}
+
               {tab === 'equipes' ? <CampeonatoEquipesTab campeonatoId={selectedChamp.id} /> : null}
 
               {tab === 'jogadores' ? <CampeonatoJogadoresTab campeonatoId={selectedChamp.id} /> : null}
@@ -1569,11 +1765,7 @@ ${params.url}`
                     </div>
                     <button
                       className="button"
-                      onClick={() => {
-                        setEditingGameId('')
-                        props.setGame({ nome: '', campeonato_id: selectedChamp.id, fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill(''), grupos_ids: [] })
-                        setOpenAction('game')
-                      }}
+                      onClick={() => startCreateGame()}
                     >
                       Novo jogo
                     </button>
@@ -1675,6 +1867,7 @@ ${params.url}`
                   <div className="folder-structure game-folder-structure">
                     {orderedChampPhases.map((phase) => {
                       const gamesOfPhase = champGames.filter((game) => game.data?.fase_id === phase.id)
+                      const groupsOfPhase = orderedChampGroups.filter((group) => group.data?.fase_id === phase.id)
                       const phaseOpen = openGamePhases[phase.id] !== false
                       return (
                         <section className="folder-card phase-folder-card" key={phase.id}>
@@ -1684,9 +1877,39 @@ ${params.url}`
                               {phaseOpen ? <FolderOpen size={18} /> : <Folder size={18} />}
                               <span><strong>{rowTitle(phase)}</strong><small>{gamesOfPhase.length} jogo(s)</small></span>
                             </button>
+                            <div className="folder-actions">
+                              <button
+                                type="button"
+                                title="Criar jogo nesta fase"
+                                onClick={() => startCreateGame({
+                                  phaseId: phase.id,
+                                  name: `Jogo ${gamesOfPhase.length + 1} - ${rowTitle(phase)}`,
+                                })}
+                              >
+                                <Plus size={15} />
+                              </button>
+                            </div>
                           </header>
                           {phaseOpen ? (
                             <div className="phase-groups-list game-list-in-phase">
+                              {groupsOfPhase.length ? (
+                                <div className="game-quick-group-row">
+                                  <span>Criar jogo rápido:</span>
+                                  {groupsOfPhase.map((group) => (
+                                    <button
+                                      type="button"
+                                      key={group.id}
+                                      onClick={() => startCreateGame({
+                                        phaseId: phase.id,
+                                        groupIds: [group.id],
+                                        name: `${rowTitle(group)} - ${rowTitle(phase)}`,
+                                      })}
+                                    >
+                                      {rowTitle(group)}
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : null}
                               {gamesOfPhase.map((gameRow) => {
                                 const gameOpen = Boolean(openGames[gameRow.id])
                                 const total = Number(gameRow.data?.numero_partidas || 1)
@@ -1702,6 +1925,7 @@ ${params.url}`
                                         <span><strong>{rowTitle(gameRow)}</strong><small>{dataText(gameRow, 'data_jogo') || 'Sem data'} · {total} queda(s)</small></span>
                                       </button>
                                       <div className="folder-actions">
+                                        <button title="Abrir pontuador" onClick={() => window.open(`/campeonatos/${selectedChamp.id}/pontuador/${gameRow.id}`, '_blank', 'noopener,noreferrer')}><Trophy size={15} /></button>
                                         <button title="Editar jogo" onClick={() => {
                                           const normalizedMaps = Array.from({ length: total }, (_, index) => {
                                             const value = rawMaps[index] || ''

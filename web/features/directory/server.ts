@@ -114,8 +114,17 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
           ? Math.max(0, entrySlots.length - occupiedSlots)
           : null
       return {
-        id: row.id, kind, name, image: first(row.logo_url), eyebrow: tipo,
+        id: row.id, kind, name, image: first(row.logo_url), banner: first(row.banner_url), eyebrow: tipo,
         description: first(config.formato, `${tipo} competitivo`),
+        commercial: {
+          valor_inscricao: config.valor_inscricao != null ? Number(config.valor_inscricao) : null,
+          premiacao: config.premiacao != null ? Number(config.premiacao) : null,
+          tem_live: Boolean(config.tem_live),
+          vagas_livres: freeVacancies,
+          total_vagas: officialTotal || (entrySlots.length || null),
+          plataforma: config.plataforma || null,
+          servidor: config.servidor || null,
+        },
         meta: [
           { label: 'Inscrição', value: directoryMoney(config.valor_inscricao) },
           { label: 'Premiação', value: directoryMoney(config.premiacao) },

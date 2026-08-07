@@ -6624,6 +6624,54 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .producer-catalog-actions .button{ min-width: 0; padding-inline: 8px; font-size: 9px; text-align: center;
 }
 
+.producer-layout-ref .champ-subtabs-compact{ display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:10px;
+} .producer-layout-ref .champ-subtabs-primary{ display:flex; min-width:0; overflow-x:auto; scrollbar-width:thin;
+} .producer-layout-ref .champ-subtabs-more{ position:relative; flex:0 0 auto;
+} .producer-layout-ref .champ-subtabs-more summary{ min-height:44px; display:inline-flex; align-items:center; justify-content:center; padding:0 13px; border:1px solid rgba(16,24,32,.18); background:#e8e1d8; color:#17212b; font-size:9px; font-weight:900; text-transform:uppercase; cursor:pointer; list-style:none;
+} .producer-layout-ref .champ-subtabs-more summary::-webkit-details-marker{ display:none;
+} .producer-layout-ref .champ-subtabs-more[open] summary{ background:#d8ad25; border-color:#d8ad25; color:#17212b;
+} .producer-layout-ref .champ-subtabs-more>div{ position:absolute; z-index:10; top:calc(100% + 6px); right:0; display:grid; min-width:210px; padding:8px; border:1px solid rgba(16,24,32,.18); background:#f3ede4; box-shadow:0 18px 40px rgba(16,24,32,.18);
+} .producer-layout-ref .champ-subtabs-more button{ justify-content:flex-start; width:100%; min-height:38px; border-right:0; border-bottom:1px solid rgba(16,24,32,.10); text-align:left;
+} .producer-layout-ref .champ-subtabs-more button:last-child{ border-bottom:0;
+} .champ-overview-panel{ display:grid; gap:12px;
+} .champ-overview-card{ border:1px solid rgba(16,24,32,.14); background:#f6f0e7; padding:16px;
+} .champ-overview-card.is-main{ display:grid; gap:14px;
+} .champ-overview-card h3{ margin:2px 0 4px; font-size:clamp(22px,2.2vw,32px); line-height:1; color:#17212b;
+} .champ-overview-card span{ color:#646b74;
+} .champ-overview-flow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px;
+} .champ-overview-flow button{ min-height:92px; display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-rows:auto auto; align-content:center; gap:4px 10px; padding:13px; border:1px solid rgba(16,24,32,.14); background:#fffaf1; color:#17212b; text-align:left; cursor:pointer;
+} .champ-overview-flow button:hover{ border-color:#d8ad25; background:#fff4cf;
+} .champ-overview-flow button:disabled{ opacity:.55; cursor:not-allowed;
+} .champ-overview-flow button svg{ grid-row:1 / span 2; color:#d83d52;
+} .champ-overview-flow button strong{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; text-transform:uppercase;
+} .champ-overview-flow button small{ color:#646b74;
+} .champ-overview-status{ display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:8px;
+} .champ-overview-status span{ display:grid; gap:2px; padding:10px 12px; background:#ebe4da; color:#17212b;
+} .champ-overview-status strong{ font-size:24px; line-height:1;
+} .champ-overview-status small{ font-size:9px; font-weight:900; text-transform:uppercase; color:#646b74;
+} .game-quick-group-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:8px 0 10px; border-bottom:1px solid rgba(16,24,32,.10); color:#646b74; font-size:10px; font-weight:900; text-transform:uppercase;
+} .game-quick-group-row button{ min-height:30px; padding:0 9px; border:1px solid rgba(16,24,32,.14); background:#fffaf1; color:#17212b; font-size:10px; font-weight:900; cursor:pointer;
+} .game-quick-group-row button:hover{ border-color:#d8ad25; background:#fff4cf;
+} .champ-overview-checklist-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:10px;
+} .champ-overview-checklist-head h3{ margin:2px 0 0; font-size:22px;
+} .champ-overview-checklist-head>span{ flex:0 0 auto; padding:5px 9px; background:#ebe4da; color:#17212b; font-size:10px; font-weight:900; text-transform:uppercase;
+} .champ-overview-checklist{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:7px;
+} .champ-overview-checklist button{ display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:8px; min-height:58px; padding:10px; border:1px solid rgba(16,24,32,.14); background:#fffaf1; color:#17212b; text-align:left; cursor:pointer;
+} .champ-overview-checklist button:hover{ border-color:#d8ad25; background:#fff4cf;
+} .champ-overview-checklist button.is-done svg{ color:#18895b;
+} .champ-overview-checklist button.is-pending svg{ color:#d83d52;
+} .champ-overview-checklist strong{ display:block; font-size:12px; text-transform:uppercase;
+} .champ-overview-checklist small{ display:block; margin-top:2px; color:#646b74; font-size:10px;
+}
+
+@media (max-width: 760px){
+  .producer-layout-ref .champ-subtabs-compact{ grid-template-columns:1fr;
+  } .producer-layout-ref .champ-subtabs-more>div{ position:static; min-width:0; margin-top:6px; box-shadow:none;
+  } .producer-layout-ref .champ-subtabs-more summary{ width:100%;
+  } .champ-overview-flow{ grid-template-columns:1fr;
+  }
+}
+
 .lili-floating-chat{ position: fixed; right: 18px; bottom: 76px; z-index: 8999; width: min(420px, calc(100vw - 28px)); height: min(680px, calc(100dvh - 104px)); display: grid; grid-template-rows: auto minmax(0,1fr); overflow: hidden; border: 1px solid rgba(109,62,232,.22); border-radius: 24px; background: #fff; box-shadow: 0 24px 70px rgba(26,18,45,.28);
 } .lili-floating-chat > header{ display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px 10px 16px; background: linear-gradient(135deg,#4820aa,#6d3ee8); color: #fff;
 } .lili-floating-chat > header div{ display: grid; gap: 1px;
@@ -6635,5 +6683,53 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 }
 @media (max-width: 640px){
   .lili-floating-chat{ inset: auto 8px calc(68px + env(safe-area-inset-bottom)) 8px; width: auto; height: min(74dvh, 680px); border-radius: 22px;
+  }
+}
+
+/* Diretório de campeonatos em formato de cards comerciais */
+.directory-champ-card-grid{ width:min(1240px,calc(100% - 32px)); margin:0 auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(265px,1fr)); gap:16px;
+} .directory-champ-card{ position:relative; display:flex; min-width:0; flex-direction:column; overflow:hidden; background:#fff; color:var(--dz-ink,#11161f); text-decoration:none; box-shadow:0 14px 34px rgba(17,24,39,.08); transition:transform .18s ease,box-shadow .18s ease;
+} .directory-champ-card:before{ content:""; position:absolute; inset:0 0 auto; height:3px; z-index:2; background:linear-gradient(90deg,#ff5468,#f2c94c,#7c3aed);
+} .directory-champ-card:hover{ transform:translateY(-3px); box-shadow:0 18px 42px rgba(17,24,39,.14);
+} .directory-champ-cover{ position:relative; display:flex; align-items:flex-end; min-height:172px; padding:14px; background:linear-gradient(135deg,#202735,#090d13); background-position:center; background-size:cover; color:#fff; overflow:hidden;
+} .directory-champ-cover>em{ position:absolute; left:10px; top:10px; z-index:1; padding:6px 8px; background:var(--dz-accent,#ff5468); color:#fff; font-size:8px; font-style:normal; font-weight:950; letter-spacing:.08em; text-transform:uppercase;
+} .directory-champ-badges{ position:absolute; left:10px; right:10px; bottom:10px; display:flex; flex-wrap:wrap; gap:5px;
+} .directory-champ-badges b{ display:inline-flex; align-items:center; gap:4px; padding:5px 7px; background:rgba(17,24,39,.86); color:#fff; font-size:8px; font-weight:950; text-transform:uppercase;
+} .directory-champ-badges b.hot{ background:linear-gradient(135deg,#ff4058,#f59e0b);
+} .directory-champ-logo{ display:grid; place-items:center; width:54px; height:54px; margin-left:auto; margin-bottom:30px; background:rgba(255,255,255,.9); color:#111827;
+} .directory-champ-logo img{ width:100%; height:100%; object-fit:cover;
+} .directory-champ-body{ display:grid; gap:13px; padding:15px;
+} .directory-champ-title{ display:grid; gap:3px; min-width:0;
+} .directory-champ-title small{ color:#697386; font-size:10px; font-weight:800; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+} .directory-champ-title strong{ color:#101820; font-size:19px; line-height:1.05; text-transform:uppercase;
+} .directory-champ-metrics{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px;
+} .directory-champ-metrics>span{ display:grid; gap:3px; min-width:0; padding:8px; background:#f3f0e9; color:#111827;
+} .directory-champ-metrics svg{ color:var(--dz-accent,#ff5468);
+} .directory-champ-metrics b{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+} .directory-champ-metrics small{ color:#7a7267; font-size:8px; font-weight:900; text-transform:uppercase;
+} .directory-champ-vacancy{ display:grid; gap:6px;
+} .directory-champ-vacancy>span{ color:#56606d; font-size:10px; font-weight:850; text-transform:uppercase;
+} .directory-champ-vacancy b{ color:#111827; font-size:14px;
+} .directory-champ-vacancy i{ display:block; height:5px; overflow:hidden; background:#ece7df;
+} .directory-champ-vacancy em{ display:block; height:100%; background:linear-gradient(90deg,#ff5468,#f2c94c);
+} .directory-champ-footer{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:2px;
+} .directory-champ-footer>span{ min-width:0; color:#697386; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+} .directory-champ-footer>b{ display:inline-flex; align-items:center; gap:4px; flex:0 0 auto; color:var(--dz-accent,#ff5468); font-size:10px; font-weight:950; text-transform:uppercase;
+}
+@media(max-width:760px){
+  .directory-champ-card-grid{ width:calc(100% - 18px); grid-template-columns:1fr; gap:10px;
+  } .directory-champ-card{ display:grid; grid-template-columns:128px minmax(0,1fr); min-height:190px;
+  } .directory-champ-cover{ min-height:190px; height:100%; padding:8px;
+  } .directory-champ-cover>em{ font-size:7px; padding:5px 6px;
+  } .directory-champ-badges{ left:7px; right:7px; bottom:7px;
+  } .directory-champ-badges b{ font-size:7px; padding:4px 5px;
+  } .directory-champ-logo{ width:42px; height:42px; margin-bottom:34px;
+  } .directory-champ-body{ gap:9px; padding:12px;
+  } .directory-champ-title strong{ font-size:16px;
+  } .directory-champ-metrics{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px;
+  } .directory-champ-metrics>span{ padding:6px 4px;
+  } .directory-champ-metrics b{ font-size:10px;
+  } .directory-champ-metrics small{ font-size:7px;
+  } .directory-champ-footer{ align-items:flex-start; flex-direction:column;
   }
 }

@@ -6,8 +6,18 @@ export type DirectoryItem = {
   name: string
   username?: string
   image?: string
+  banner?: string
   eyebrow?: string
   description?: string
+  commercial?: {
+    valor_inscricao?: number | null
+    premiacao?: number | null
+    tem_live?: boolean
+    vagas_livres?: number | null
+    total_vagas?: number | null
+    plataforma?: string | null
+    servidor?: string | null
+  }
   meta: Array<{ label: string; value: string }>
   searchText: string
 }

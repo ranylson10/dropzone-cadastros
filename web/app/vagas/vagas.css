@@ -76,6 +76,30 @@
 .vacancy-slot-chip.active{border-color:var(--brand);background:var(--gold-soft);color:var(--brand)}
 .invite-auth-box{display:grid;justify-items:center;gap:10px;padding:18px 8px;text-align:center}
 .invite-auth-box .button{width:min(280px,100%)}
+
+/* Ajustes comerciais da vitrine de vagas */
+.vacancies-filter{max-width:100%;overflow-x:auto;scrollbar-width:thin}
+.vacancies-filter button{white-space:nowrap}
+.vacancy-type-badge{position:absolute;left:9px;top:9px;z-index:2;padding:6px 8px;background:var(--dz-accent,#ff5468);color:#fff;font-size:8px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+.vacancy-banner-badges{position:absolute;left:9px;right:9px;bottom:36px;z-index:2;display:flex;flex-wrap:wrap;gap:5px;pointer-events:none}
+.vacancy-banner-badges b{display:inline-flex;align-items:center;gap:4px;padding:5px 7px;background:rgba(17,24,39,.86);color:#fff;font-size:8px;font-weight:950;text-transform:uppercase}
+.vacancy-banner-badges b.hot{background:linear-gradient(135deg,#ff4058,#f59e0b)}
+.vacancy-sale-line{display:grid;gap:6px;align-content:start}
+.vacancy-sale-line span{color:#56606d;font-size:10px;font-weight:800;text-transform:uppercase}
+.vacancy-sale-line b{color:#111827;font-size:14px}
+.vacancy-sale-line i{display:block;height:5px;overflow:hidden;background:#ece7df}
+.vacancy-sale-line em{display:block;height:100%;background:linear-gradient(90deg,#ff5468,#f2c94c);box-shadow:0 0 12px rgba(255,84,104,.35)}
+.vacancy-commercial-badges{display:flex;flex-wrap:wrap;gap:6px;align-content:start}
+.vacancy-commercial-badges span{display:inline-flex;align-items:center;gap:5px;padding:6px 8px;background:#111827;color:#fff;font-size:9px;font-weight:850}
+.vacancy-card{position:relative}
+.vacancy-card:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,#ff5468,#f2c94c,#7c3aed);opacity:.9}
+.vacancy-register{font-weight:950;text-transform:uppercase;letter-spacing:.06em}
+@media(max-width:700px){
+  .vacancies-filter{padding-bottom:6px}
+  .vacancies-filter button{min-width:max-content}
+  .vacancy-banner-badges{bottom:34px}
+  .vacancy-sale-line,.vacancy-commercial-badges{grid-column:1;grid-row:auto}
+}
 @keyframes vacancy-spin{to{transform:rotate(360deg)}}
 .spin{animation:vacancy-spin .8s linear infinite}
 

@@ -18,6 +18,8 @@ export type CampeonatoFormValue = {
   descricao_premiacao: string
   divisao_premiacao: string
   numero_vagas: string
+  numero_fases: string
+  nomes_fases: string[]
   formato: string
   plataforma: string
   servidor: string
@@ -97,6 +99,8 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   descricao_premiacao: '',
   divisao_premiacao: '',
   numero_vagas: '',
+  numero_fases: '1',
+  nomes_fases: ['Fase 1'],
   formato: '',
   plataforma: '',
   servidor: '',
@@ -314,6 +318,33 @@ export function CampeonatoForm({
     onChange({ ...value, [key]: next })
   }
 
+  function phaseNameSuggestion(index: number, total: number) {
+    if (total === 1) return 'Fase 1'
+    if (index === 0) return 'Fase 1'
+    return `Fase ${index + 1}`
+  }
+
+  function updateInitialPhaseCount(raw: string) {
+    const count = Math.max(1, Math.min(12, Number(raw) || 1))
+    const current = Array.isArray(value.nomes_fases) ? value.nomes_fases : []
+    onChange({
+      ...value,
+      numero_fases: String(count),
+      nomes_fases: Array.from({ length: count }, (_, index) => current[index] || phaseNameSuggestion(index, count)),
+    })
+  }
+
+  function updateInitialPhaseName(index: number, name: string) {
+    const count = Math.max(1, Math.min(12, Number(value.numero_fases) || 1))
+    const current = Array.isArray(value.nomes_fases) ? value.nomes_fases : []
+    onChange({
+      ...value,
+      nomes_fases: Array.from({ length: count }, (_, itemIndex) =>
+        itemIndex === index ? name : current[itemIndex] || phaseNameSuggestion(itemIndex, count),
+      ),
+    })
+  }
+
   function selectType(type: ChampionshipType) {
     const nextFormat = defaultFormat(type)
     onChange({
@@ -384,7 +415,7 @@ export function CampeonatoForm({
       const copied: CampeonatoFormValue = { ...value }
       const copyKeys: Array<keyof CampeonatoFormValue> = [
         'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
-        'divisao_premiacao', 'numero_vagas', 'formato', 'plataforma', 'servidor', 'tipo_premiacao',
+        'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'formato', 'plataforma', 'servidor', 'tipo_premiacao',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
         'permite_jogador_multiplas_equipes', 'permite_troca_jogadores', 'data_limite_trocas',
         'data_limite_inscricao', 'aceita_novas_inscricoes_equipes', 'contatos_whatsapp',
@@ -766,6 +797,17 @@ export function CampeonatoForm({
             />
           </Field>
 
+          <Field label="Fases iniciais">
+            <input
+              type="number"
+              min="1"
+              max="12"
+              value={value.numero_fases || '1'}
+              onChange={(e) => updateInitialPhaseCount(e.target.value)}
+              placeholder="Ex.: 2"
+            />
+          </Field>
+
           {value.tipo === 'liga' ? (
             <Field label="Modelo da liga">
               <select
@@ -815,6 +857,28 @@ export function CampeonatoForm({
             </select>
           </Field>
           <Field label="Servidor"><input value={value.servidor} onChange={(e) => update('servidor', e.target.value)} placeholder="Ex.: Brasil" /></Field>
+        </div>
+        <div className="form-initial-phases">
+          <div className="form-section-heading">
+            <div>
+              <p className="eyebrow">Sincronização com Grupos e fases</p>
+              <strong>Estas fases serão criadas automaticamente</strong>
+            </div>
+          </div>
+          <p className="form-empty-note">
+            As vagas comerciais contam somente a fase de entrada. Fases posteriores são avanço/classificação e não entram como vagas livres.
+          </p>
+          <div className="mini-grid three">
+            {Array.from({ length: Math.max(1, Math.min(12, Number(value.numero_fases) || 1)) }).map((_, index) => (
+              <Field label={`Nome da fase ${index + 1}`} key={index}>
+                <input
+                  value={(Array.isArray(value.nomes_fases) ? value.nomes_fases[index] : '') || phaseNameSuggestion(index, Number(value.numero_fases) || 1)}
+                  onChange={(event) => updateInitialPhaseName(index, event.target.value)}
+                  placeholder={`Fase ${index + 1}`}
+                />
+              </Field>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -1045,12 +1109,13 @@ export function CampeonatoForm({
             <div><small>Temporada</small><strong>{value.temporada || 'Sem temporada definida'}</strong></div>
             <div><small>Edição</small><strong>{value.numero_edicao || '1'}</strong></div>
             <div><small>Vagas</small><strong>{value.numero_vagas || 'Não definidas'}</strong></div>
+            <div><small>Fases iniciais</small><strong>{Math.max(1, Number(value.numero_fases) || 1)}</strong></div>
             <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
             {value.tipo === 'liga' ? (
               <div><small>Organização</small><strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} ${value.liga_nome_agrupamento || 'divisões'}` : 'Liga simples'}</strong></div>
             ) : null}
           </div>
-          <p className="form-empty-note">Fases, grupos, datas e progressão serão configurados na aba Grupos e fases após a criação do campeonato.</p>
+          <p className="form-empty-note">As fases iniciais serão criadas automaticamente. Depois você ajusta grupos, slots, datas e progressão na aba Grupos e fases.</p>
         </section>
       ) : null}
 
