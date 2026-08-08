@@ -9,6 +9,7 @@ test.describe('Mobile app foundation', () => {
   test('app nasce enxuto, por perfil e compartilhando backend', async () => {
     const readme = read('app/README.md')
     const pkg = read('app/package.json')
+    const entry = read('app/index.ts')
     const env = read('app/src/config/env.ts')
     const api = read('app/src/lib/api.ts')
     const nav = read('app/src/navigation/mobileExperience.ts')
@@ -38,6 +39,9 @@ test.describe('Mobile app foundation', () => {
     expect(readme).toContain('Site web = gestão completa e avançada')
     expect(pkg).toContain('dropzone-mobile')
     expect(pkg).toContain('expo')
+    expect(pkg).toContain('"main": "index.ts"')
+    expect(entry).toContain('registerRootComponent')
+    expect(entry).toContain("./src/App")
     expect(env).toContain('EXPO_PUBLIC_DROPZONE_API_URL')
     expect(env).toContain('EXPO_PUBLIC_AUTH_REDIRECT_URL')
     expect(env).toContain('dropzone://auth/callback')
