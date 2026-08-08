@@ -68,6 +68,21 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
     }
   }
 
+  async function removeItem(item: MobileCommerceItem) {
+    const accessToken = auth.session?.access_token
+    setError(null)
+    if (accessToken && item.itemId) {
+      try {
+        const payload = await mobileApi.removeCommerceCartItem(item.itemId, accessToken)
+        setCart((payload.items || []).map((row: any) => row?.campeonato ? mobileCommerceFromApi(row) : row))
+        return
+      } catch (err: any) {
+        setError(err?.message || 'Não foi possível remover no servidor. Removi apenas do aparelho.')
+      }
+    }
+    setCart(await removeMobileCart(item.id))
+  }
+
   return (
     <ScreenShell
       eyebrow="Compra"
@@ -116,8 +131,8 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
                     : `Pagar com ${paymentMethods.find((method) => method.id === (methodByItem[item.id] || 'pix'))?.label || 'PIX'}`}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondary} onPress={async () => setCart(await removeMobileCart(item.id))}>
-                <Text style={styles.secondaryText}>Remover local</Text>
+              <TouchableOpacity style={styles.secondary} onPress={() => void removeItem(item)}>
+                <Text style={styles.secondaryText}>Remover</Text>
               </TouchableOpacity>
             </View>
           </View>

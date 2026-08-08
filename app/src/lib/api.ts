@@ -57,6 +57,11 @@ export const mobileApi = {
       accessToken,
       body: JSON.stringify(body),
     }),
+  removeCommerceCartItem: (itemId: string, accessToken?: string | null) =>
+    dropzoneFetch<{ cart?: unknown; items: unknown[]; needs_migration?: boolean }>(`/api/me/commerce/cart?item_id=${encodeURIComponent(itemId)}`, {
+      method: 'DELETE',
+      accessToken,
+    }),
   commerceWishlist: (accessToken?: string | null) =>
     dropzoneFetch<{ items: unknown[]; needs_migration?: boolean }>('/api/me/commerce/wishlist', {
       accessToken,
