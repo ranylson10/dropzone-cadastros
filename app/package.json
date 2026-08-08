@@ -1,0 +1,26 @@
+{
+  "name": "dropzone-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/App.tsx",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "latest",
+    "@react-native-async-storage/async-storage": "latest",
+    "@supabase/supabase-js": "2.95.3",
+    "expo": "latest",
+    "expo-secure-store": "latest",
+    "react": "latest",
+    "react-native": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "latest",
+    "typescript": "5.9.3"
+  }
+}

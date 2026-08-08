@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "web"
+    "web",
+    "app"
   ],
   "scripts": {
     "dev": "npm run dev --workspace dropzone-web",
@@ -24,6 +25,10 @@
     "test:e2e:functional": "playwright test tests-e2e/functional",
     "test:e2e:all": "playwright test tests-e2e/public tests-e2e/auth tests-e2e/functional tests-e2e/controlled",
     "test:e2e:controlled": "playwright test tests-e2e/controlled",
+    "mobile:start": "npm run start --workspace dropzone-mobile",
+    "mobile:android": "npm run android --workspace dropzone-mobile",
+    "mobile:ios": "npm run ios --workspace dropzone-mobile",
+    "mobile:typecheck": "npm run typecheck --workspace dropzone-mobile",
     "testar:tudo": "node scripts/testes/testar-tudo.mjs",
     "audit:dropzone:full:orchestrated": "node scripts/testes/executar.mjs --full --skip-quality"
   },

@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "DropZone",
+    "slug": "dropzone-mobile",
+    "scheme": "dropzone",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1420"
+      }
+    },
+    "extra": {
+      "apiUrl": "https://dropzone-cadastros.vercel.app"
+    }
+  }
+}

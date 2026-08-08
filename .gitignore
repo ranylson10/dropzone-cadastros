@@ -5,6 +5,7 @@ node_modules
 tsconfig.tsbuildinfo
 
 .vercel
+app/.expo/
 supabase/.temp
 database/supabase/.temp/
 .env
