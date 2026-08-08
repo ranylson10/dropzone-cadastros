@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { fallbackLineups, lineupDateLabel, LineupSummary, lineupSubtitle } from '@/lib/lineups'
@@ -12,7 +12,8 @@ export function LineupScreen({ onBack, onNavigate }: ScreenProps) {
   const [lineups, setLineups] = useState<LineupSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [createdToken, setCreatedToken] = useState<Record<string, string>>({})
+  const [createdInvite, setCreatedInvite] = useState<Record<string, { token: string; url: string; text?: string }>>({})
+  const [creatingId, setCreatingId] = useState<string | null>(null)
   const accessToken = auth.session?.access_token
 
   useEffect(() => {
@@ -39,11 +40,22 @@ export function LineupScreen({ onBack, onNavigate }: ScreenProps) {
   async function generateInvite(lineup: LineupSummary) {
     const participationId = String(lineup.campeonato_equipe_id || '')
     if (!participationId || participationId.startsWith('demo')) {
-      setCreatedToken((current) => ({ ...current, [participationId || 'demo']: 'exemplo-token' }))
+      setCreatedInvite((current) => ({ ...current, [participationId || 'demo']: { token: 'exemplo-token', url: '' } }))
       return
     }
-    const created = await mobileApi.createLineupInvite(participationId, accessToken)
-    setCreatedToken((current) => ({ ...current, [participationId]: created.token }))
+    setCreatingId(participationId)
+    setError(null)
+    try {
+      const created = await mobileApi.createLineupInvite(participationId, accessToken)
+      setCreatedInvite((current) => ({
+        ...current,
+        [participationId]: { token: created.token, url: created.public_url, text: created.texto },
+      }))
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível gerar o convite de escalação.')
+    } finally {
+      setCreatingId(null)
+    }
   }
 
   return (
@@ -76,7 +88,9 @@ export function LineupScreen({ onBack, onNavigate }: ScreenProps) {
         const limit = Number(lineup.limite_jogadores || 6)
         const confirmed = Number(lineup.jogadores_confirmados || lineup.jogadores?.length || 0)
         const free = Math.max(0, Number(lineup.vagas_disponiveis ?? limit - confirmed))
-        const token = createdToken[id] || lineup.link_token || null
+        const invite = createdInvite[id]
+        const token = invite?.token || lineup.link_token || null
+        const inviteUrl = invite?.url || (lineup.link_token ? `https://dropzone-cadastros.vercel.app/escala/${lineup.link_token}` : '')
         return (
           <View key={id} style={styles.lineupCard}>
             <Text style={styles.title}>{lineup.campeonato_nome || 'Campeonato'}</Text>
@@ -90,11 +104,17 @@ export function LineupScreen({ onBack, onNavigate }: ScreenProps) {
               <View style={styles.tokenBox}>
                 <Text style={styles.tokenLabel}>Token ativo</Text>
                 <Text style={styles.tokenText}>{token}</Text>
+                {inviteUrl ? <Text style={styles.tokenUrl}>{inviteUrl}</Text> : null}
               </View>
             ) : null}
-            <TouchableOpacity style={styles.primary} onPress={() => generateInvite(lineup)}>
-              <Text style={styles.primaryText}>{token ? 'Renovar convite' : 'Gerar convite de escalação'}</Text>
+            <TouchableOpacity style={styles.primary} onPress={() => generateInvite(lineup)} disabled={creatingId === id}>
+              <Text style={styles.primaryText}>{creatingId === id ? 'Gerando...' : token ? 'Renovar convite' : 'Gerar convite de escalação'}</Text>
             </TouchableOpacity>
+            {inviteUrl ? (
+              <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(inviteUrl)}>
+                <Text style={styles.secondaryText}>Abrir link de escalação</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )
       })}
@@ -168,6 +188,11 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '900',
   },
+  tokenUrl: {
+    color: colors.muted,
+    fontSize: typography.caption,
+    fontWeight: '700',
+  },
   primary: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -176,6 +201,18 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     color: colors.surface,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  secondary: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.md,
+  },
+  secondaryText: {
+    color: colors.ink,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
