@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
-import { fallbackRank, kdLabel, RankedPlayer, RankedTeam } from '@/lib/rank'
+import { kdLabel, RankedPlayer, RankedTeam } from '@/lib/rank'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -23,8 +23,8 @@ export function RankScreen({ onBack, onNavigate }: ScreenProps) {
       })
       .catch((err) => {
         if (!mounted) return
-        setTeams(fallbackRank.teams)
-        setPlayers(fallbackRank.players)
+        setTeams([])
+        setPlayers([])
         setError(err?.message || 'Não foi possível carregar o ranking.')
       })
       .finally(() => mounted && setLoading(false))

@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } fr
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { addMobileCart, getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
-import { dateLabel, fallbackVacancies, money, toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
+import { dateLabel, money, toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -37,7 +37,7 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
       })
       .catch((err) => {
         if (!mounted) return
-        setVacancies(fallbackVacancies)
+        setVacancies([])
         setError(err?.message || 'Não foi possível carregar as vagas agora.')
       })
       .finally(() => {
@@ -114,7 +114,7 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
       ) : null}
 
       {error ? (
-        <Text style={styles.warning}>Usei dados de demonstração porque a vitrine não respondeu: {error}</Text>
+        <Text style={styles.warning}>{error}</Text>
       ) : null}
 
       {!loading && visibleVacancies.length === 0 ? (

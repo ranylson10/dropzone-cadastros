@@ -4,7 +4,7 @@ import { mobileApi } from '@/lib/api'
 import { MobileAccount } from '@/lib/auth'
 import { useAuth } from '@/lib/auth'
 import { addMobileCart, getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
-import { fallbackVacancies, toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
+import { toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
 import { actionsForProfile } from '@/navigation/mobileExperience'
 import { ProfileSwitcher } from '@/screens/ProfileSwitcher'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
@@ -17,7 +17,7 @@ const profiles: Array<{ id: ProfileType; label: string }> = [
   { id: 'produtora', label: 'Produtora' },
 ]
 
-const demoTasks: UserTask[] = [
+const quickTasks: UserTask[] = [
   {
     id: 'lineup-today',
     title: 'Escalação pendente',
@@ -52,7 +52,7 @@ export function HomeScreen(props: {
   const { profile, onProfileChange, onNavigate } = props
   const auth = useAuth()
   const actions = useMemo(() => actionsForProfile(profile), [profile])
-  const [vacancies, setVacancies] = useState<ChampionshipCard[]>(fallbackVacancies.map(toChampionshipCard))
+  const [vacancies, setVacancies] = useState<ChampionshipCard[]>([])
   const [cart, setCart] = useState<MobileCommerceItem[]>([])
   const [wishlist, setWishlist] = useState<MobileCommerceItem[]>([])
 
@@ -62,10 +62,10 @@ export function HomeScreen(props: {
       .then((response) => {
         if (!mounted) return
         const cards = ((response.announcements as VacancyApiItem[]) || []).slice(0, 3).map(toChampionshipCard)
-        setVacancies(cards.length ? cards : fallbackVacancies.map(toChampionshipCard))
+        setVacancies(cards)
       })
       .catch(() => {
-        if (mounted) setVacancies(fallbackVacancies.map(toChampionshipCard))
+        if (mounted) setVacancies([])
       })
     return () => {
       mounted = false
@@ -126,7 +126,7 @@ export function HomeScreen(props: {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Próximas ações</Text>
-        {demoTasks.map((task) => (
+        {quickTasks.map((task) => (
           <TouchableOpacity key={task.id} style={[styles.taskCard, task.severity === 'warning' && styles.taskWarning]} onPress={() => onNavigate(routeForAction(task.action))}>
             <View>
               <Text style={styles.cardTitle}>{task.title}</Text>
