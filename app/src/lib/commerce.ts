@@ -55,6 +55,13 @@ export async function removeMobileCart(id: string) {
   return writeList(CART_KEY, next)
 }
 
+export async function setMobileCartQuantity(id: string, quantity: number) {
+  const next = (await getMobileCart()).map((item) =>
+    item.id === id ? { ...item, quantity: Math.max(1, Math.min(Number(item.freeSlots || 99), quantity)) } : item,
+  )
+  return writeList(CART_KEY, next)
+}
+
 export function mobileCommerceFromApi(row: any): MobileCommerceItem {
   const campeonato = Array.isArray(row?.campeonato) ? row.campeonato[0] : row?.campeonato
   const price = Number(row?.preco_unitario_centavos || 0) / 100 || Number(campeonato?.valor_inscricao || 0)

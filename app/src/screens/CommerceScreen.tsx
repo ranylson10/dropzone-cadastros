@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, removeMobileCart } from '@/lib/commerce'
+import { getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, removeMobileCart, setMobileCartQuantity } from '@/lib/commerce'
 import { ActionCard, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -83,6 +83,22 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
     setCart(await removeMobileCart(item.id))
   }
 
+  async function updateQuantity(item: MobileCommerceItem, quantity: number) {
+    const nextQuantity = Math.max(1, Math.min(Number(item.freeSlots || 99), quantity))
+    const accessToken = auth.session?.access_token
+    setError(null)
+    if (accessToken && item.itemId) {
+      try {
+        const payload = await mobileApi.updateCommerceCartItem(item.itemId, nextQuantity, accessToken)
+        setCart((payload.items || []).map((row: any) => row?.campeonato ? mobileCommerceFromApi(row) : row))
+        return
+      } catch (err: any) {
+        setError(err?.message || 'Não foi possível ajustar no servidor. Ajustei apenas no aparelho.')
+      }
+    }
+    setCart(await setMobileCartQuantity(item.id, nextQuantity))
+  }
+
   return (
     <ScreenShell
       eyebrow="Compra"
@@ -109,6 +125,16 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
             {item.bannerUrl ? <Image source={{ uri: item.bannerUrl }} style={styles.banner} /> : null}
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.meta}>{item.quantity || 1} vaga(s) · {item.priceLabel}</Text>
+            <View style={styles.quantityRow}>
+              <TouchableOpacity style={styles.quantityButton} onPress={() => void updateQuantity(item, Number(item.quantity || 1) - 1)}>
+                <Text style={styles.quantityText}>−</Text>
+              </TouchableOpacity>
+              <Text style={styles.quantityValue}>{item.quantity || 1}</Text>
+              <TouchableOpacity style={styles.quantityButton} onPress={() => void updateQuantity(item, Number(item.quantity || 1) + 1)}>
+                <Text style={styles.quantityText}>+</Text>
+              </TouchableOpacity>
+              <Text style={styles.quantityHint}>quantidade de vagas</Text>
+            </View>
             <View style={styles.methodRow}>
               {paymentMethods.map((method) => {
                 const active = (methodByItem[item.id] || 'pix') === method.id
@@ -212,6 +238,37 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.sm,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  quantityButton: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandDark,
+  },
+  quantityText: {
+    color: colors.surface,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  quantityValue: {
+    minWidth: 38,
+    textAlign: 'center',
+    color: colors.ink,
+    fontSize: typography.subtitle,
+    fontWeight: '900',
+  },
+  quantityHint: {
+    color: colors.muted,
+    fontSize: typography.caption,
+    fontWeight: '800',
   },
   methodRow: {
     flexDirection: 'row',
