@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { cents, compactDate, fallbackWallet, movementStatus, movementTitle, WalletMovement, WalletReceipt, WalletSummary } from '@/lib/wallet'
+import { cents, compactDate, movementStatus, movementTitle, WalletMovement, WalletReceipt, WalletSummary } from '@/lib/wallet'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -37,9 +37,9 @@ export function WalletScreen({ onBack }: ScreenProps) {
       })
       .catch((err) => {
         if (!mounted) return
-        setWallet(fallbackWallet.carteira)
-        setMovements(fallbackWallet.lancamentos)
-        setPayments(fallbackWallet.pagamentos)
+        setWallet(null)
+        setMovements([])
+        setPayments([])
         setWithdrawals([])
         setError(err?.message || 'Não foi possível carregar a carteira.')
       })
@@ -91,7 +91,7 @@ export function WalletScreen({ onBack }: ScreenProps) {
         </View>
       ) : null}
 
-      {error ? <Text style={styles.warning}>Mostrando exemplo porque a API não respondeu: {error}</Text> : null}
+      {error ? <Text style={styles.warning}>{error}</Text> : null}
 
       <View style={styles.metrics}>
         <MetricPill label="disponível" value={cents(wallet?.saldo_disponivel_centavos)} />

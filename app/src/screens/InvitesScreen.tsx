@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { fallbackNotifications, isActionableNotification, NotificationItem, notificationDate } from '@/lib/notifications'
+import { isActionableNotification, NotificationItem, notificationDate } from '@/lib/notifications'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -25,8 +25,8 @@ export function InvitesScreen({ onBack }: ScreenProps) {
       setUnread(Number(response.nao_lidas || 0))
       setError(null)
     } catch (err: any) {
-      setItems(fallbackNotifications)
-      setUnread(fallbackNotifications.filter((item) => item.status === 'nao_lida').length)
+      setItems([])
+      setUnread(0)
       setError(err?.message || 'Não foi possível carregar o correio.')
     } finally {
       setLoading(false)
@@ -39,11 +39,7 @@ export function InvitesScreen({ onBack }: ScreenProps) {
 
   async function respond(item: NotificationItem, action: 'aceitar' | 'recusar') {
     const id = String(item.id || '')
-    if (!id || id.startsWith('demo')) {
-      setMessage(action === 'aceitar' ? 'Exemplo aceito.' : 'Exemplo recusado.')
-      setItems((current) => current.map((row) => row.id === item.id ? { ...row, status: 'lida' } : row))
-      return
-    }
+    if (!id) return
     setBusyId(id)
     try {
       const response = await mobileApi.respondNotification(id, action, accessToken)
@@ -58,10 +54,7 @@ export function InvitesScreen({ onBack }: ScreenProps) {
 
   async function markRead(item: NotificationItem) {
     const id = String(item.id || '')
-    if (!id || id.startsWith('demo')) {
-      setItems((current) => current.map((row) => row.id === item.id ? { ...row, status: 'lida' } : row))
-      return
-    }
+    if (!id) return
     setBusyId(id)
     try {
       await mobileApi.updateNotification(id, 'lida', accessToken)
@@ -75,7 +68,7 @@ export function InvitesScreen({ onBack }: ScreenProps) {
     <ScreenShell
       eyebrow="Correio"
       title="Convites e pedidos"
-      description="Aceite ou recuse convites importantes sem procurar a página certa: equipe, jogador, manager e campeonato."
+      description="Aceite ou recuse convites importantes sem procurar a página certa: equipe, jogador, vendedor e campeonato."
       onBack={onBack}
     >
       <View style={styles.metrics}>
@@ -90,7 +83,7 @@ export function InvitesScreen({ onBack }: ScreenProps) {
         </View>
       ) : null}
 
-      {error ? <Text style={styles.warning}>Mostrando exemplo porque a API não respondeu: {error}</Text> : null}
+      {error ? <Text style={styles.warning}>{error}</Text> : null}
       {message ? <Text style={styles.info}>{message}</Text> : null}
 
       {!loading && items.length === 0 ? (
@@ -133,10 +126,7 @@ export function InvitesScreen({ onBack }: ScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  metrics: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
+  metrics: { flexDirection: 'row', gap: spacing.sm },
   loading: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -146,10 +136,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.lg,
   },
-  muted: {
-    color: colors.muted,
-    fontWeight: '700',
-  },
+  muted: { color: colors.muted, fontWeight: '700' },
   warning: {
     borderRadius: radius.md,
     backgroundColor: '#fff7ed',
@@ -172,34 +159,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
   },
-  noticeUnread: {
-    borderColor: colors.brand,
-  },
-  noticeType: {
-    color: colors.brand,
-    fontSize: typography.tiny,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  noticeTitle: {
-    color: colors.ink,
-    fontSize: typography.body,
-    fontWeight: '900',
-  },
-  noticeBody: {
-    color: colors.muted,
-    fontSize: typography.caption,
-    lineHeight: 18,
-  },
-  noticeDate: {
-    color: colors.muted,
-    fontSize: typography.tiny,
-    fontWeight: '800',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
+  noticeUnread: { borderColor: colors.brand },
+  noticeType: { color: colors.brand, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  noticeTitle: { color: colors.ink, fontSize: typography.body, fontWeight: '900' },
+  noticeBody: { color: colors.muted, fontSize: typography.caption, lineHeight: 18 },
+  noticeDate: { color: colors.muted, fontSize: typography.tiny, fontWeight: '800' },
+  actions: { flexDirection: 'row', gap: spacing.sm },
   acceptButton: {
     flex: 1,
     alignItems: 'center',
@@ -207,10 +172,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
     padding: spacing.md,
   },
-  acceptText: {
-    color: colors.surface,
-    fontWeight: '900',
-  },
+  acceptText: { color: colors.surface, fontWeight: '900' },
   refuseButton: {
     flex: 1,
     alignItems: 'center',
@@ -219,10 +181,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: spacing.md,
   },
-  refuseText: {
-    color: colors.ink,
-    fontWeight: '900',
-  },
+  refuseText: { color: colors.ink, fontWeight: '900' },
   readButton: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -230,8 +189,5 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: spacing.md,
   },
-  readText: {
-    color: colors.ink,
-    fontWeight: '900',
-  },
+  readText: { color: colors.ink, fontWeight: '900' },
 })
