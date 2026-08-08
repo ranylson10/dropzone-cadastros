@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text } from 'react-native'
+import { ActivityIndicator, Linking, StyleSheet, Text } from 'react-native'
+import { apiUrl } from '@/config/env'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { cents, compactDate } from '@/lib/wallet'
@@ -53,6 +54,12 @@ export function SellerSalesScreen({ onBack, onNavigate }: ScreenProps) {
     value: sales.reduce((sum, sale) => sum + Number(sale.valor_centavos || 0), 0),
   }), [sales])
 
+  function openSale(sale: Sale) {
+    const target = sale.vagas_restantes ? sale.claim_url : sale.payment_url || sale.claim_url
+    if (!target) return
+    void Linking.openURL(target.startsWith('http') ? target : apiUrl(target))
+  }
+
   return (
     <ScreenShell
       eyebrow="Vendedor"
@@ -74,6 +81,7 @@ export function SellerSalesScreen({ onBack, onNavigate }: ScreenProps) {
           description={`${cents(sale.valor_centavos)} · ${Number(sale.quantidade_vagas || 1)} vaga(s) · ${sale.status || 'registrada'} · ${compactDate(sale.created_at)}`}
           cta={sale.vagas_restantes ? 'Link de inscrição liberado' : 'Ver venda'}
           tone={String(sale.status) === 'pago' || String(sale.status) === 'liberado' ? 'success' : 'default'}
+          onPress={() => openSale(sale)}
         />
       ))}
       {!loading && !sales.length ? (
@@ -98,4 +106,3 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
 })
-

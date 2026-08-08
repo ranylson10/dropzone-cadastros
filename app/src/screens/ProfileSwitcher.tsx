@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { apiUrl } from '@/config/env'
 import { MobileAccount } from '@/lib/auth'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 
@@ -12,6 +13,9 @@ export function ProfileSwitcher(props: {
     return (
       <View style={styles.empty}>
         <Text style={styles.emptyText}>Nenhum perfil encontrado. Crie um perfil no site para continuar.</Text>
+        <TouchableOpacity style={styles.createProfile} onPress={() => Linking.openURL(apiUrl('/login'))}>
+          <Text style={styles.createProfileText}>Criar perfil no site</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={props.onSignOut}>
           <Text style={styles.signOut}>Sair</Text>
         </TouchableOpacity>
@@ -100,5 +104,16 @@ const styles = StyleSheet.create({
   signOut: {
     color: colors.brand,
     fontWeight: '900',
+  },
+  createProfile: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.brand,
+    padding: spacing.md,
+  },
+  createProfileText: {
+    color: colors.surface,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
 })
