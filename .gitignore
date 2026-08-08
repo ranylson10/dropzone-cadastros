@@ -6,6 +6,10 @@ tsconfig.tsbuildinfo
 
 .vercel
 app/.expo/
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/.kotlin/
 supabase/.temp
 database/supabase/.temp/
 .env
