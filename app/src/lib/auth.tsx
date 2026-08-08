@@ -207,6 +207,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           options: {
             redirectTo: env.authRedirectUrl,
             skipBrowserRedirect: true,
+            queryParams: {
+              prompt: 'select_account',
+              access_type: 'offline',
+            },
           },
         })
         if (error) throw error
