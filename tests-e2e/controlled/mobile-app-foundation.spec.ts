@@ -37,8 +37,8 @@ test.describe('Mobile app foundation', () => {
     const rank = read('app/src/screens/RankScreen.tsx')
     const screens = read('app/src/screens/README.md')
 
-    expect(readme).toContain('App = ações rápidas do dia a dia')
-    expect(readme).toContain('Site web = gestão completa e avançada')
+    expect(readme).toContain('mesmo backend, banco, login e regras')
+    expect(readme).toContain('O que continua no site')
     expect(pkg).toContain('dropzone-mobile')
     expect(pkg).toContain('expo')
     expect(pkg).toContain('"main": "index.ts"')
