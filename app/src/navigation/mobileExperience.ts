@@ -65,6 +65,13 @@ export const mobileQuickActions: MobileQuickAction[] = [
     priority: 90,
   },
   {
+    id: 'commerce',
+    title: 'Carrinho e favoritos',
+    description: 'Retomar vagas salvas, revisar quantidades e iniciar pagamento.',
+    profileTypes: ['jogador', 'equipe', 'manager'],
+    priority: 95,
+  },
+  {
     id: 'lili',
     title: 'Falar com a Lili',
     description: 'Resolver dúvidas e abrir o lugar certo sem procurar menu.',

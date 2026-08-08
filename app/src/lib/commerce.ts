@@ -6,6 +6,7 @@ const WISHLIST_KEY = 'dropzone:mobile:wishlist:v1'
 
 export type MobileCommerceItem = ChampionshipCard & {
   quantity: number
+  itemId?: string | null
 }
 
 async function readList(key: string): Promise<MobileCommerceItem[]> {
@@ -59,6 +60,7 @@ export function mobileCommerceFromApi(row: any): MobileCommerceItem {
   const price = Number(row?.preco_unitario_centavos || 0) / 100 || Number(campeonato?.valor_inscricao || 0)
   return {
     id: String(row?.campeonato_id || campeonato?.id || row?.id || 'campeonato'),
+    itemId: row?.id || null,
     name: String(campeonato?.nome || 'Campeonato'),
     mode: 'competitivo',
     logoUrl: campeonato?.logo_url || null,

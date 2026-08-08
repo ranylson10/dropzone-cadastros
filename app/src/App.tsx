@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ActivityIndicator, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { AgendaScreen } from '@/screens/AgendaScreen'
+import { CommerceScreen } from '@/screens/CommerceScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
 import { InvitesScreen } from '@/screens/InvitesScreen'
 import { LiliScreen } from '@/screens/LiliScreen'
@@ -71,6 +72,7 @@ function DropZoneMobileApp() {
     if (route === 'lineup') return <LineupScreen {...screenProps} />
     if (route === 'agenda') return <AgendaScreen {...screenProps} />
     if (route === 'wallet') return <WalletScreen {...screenProps} />
+    if (route === 'commerce') return <CommerceScreen {...screenProps} />
     if (route === 'invites') return <InvitesScreen {...screenProps} />
     if (route === 'team_roster') return <TeamRosterScreen {...screenProps} />
     if (route === 'seller_sales') return <SellerSalesScreen {...screenProps} />
