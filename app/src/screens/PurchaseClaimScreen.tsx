@@ -1,10 +1,36 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useState } from 'react'
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { mobileApi } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { PaymentMethod, paymentMethodLabel, VacancyPaymentResult } from '@/lib/payments'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
 export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship, profileType }: ScreenProps) {
+  const auth = useAuth()
   const championship = selectedChampionship
+  const [method, setMethod] = useState<PaymentMethod>('pix')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [payment, setPayment] = useState<VacancyPaymentResult | null>(null)
+
+  async function startPayment() {
+    if (!championship) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await mobileApi.createVacancyPayment({
+        campeonato_id: championship.id,
+        method,
+      }, auth.session?.access_token)
+      setPayment(response)
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível criar o pagamento.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <ScreenShell
@@ -34,16 +60,52 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship, 
 
       {championship ? (
         <>
+          <View style={styles.methodBox}>
+            <Text style={styles.methodTitle}>Como quer pagar?</Text>
+            <View style={styles.methodRow}>
+              {(['pix', 'cartao', 'paypal'] as PaymentMethod[]).map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.methodButton, method === item && styles.methodButtonActive]}
+                  onPress={() => setMethod(item)}
+                >
+                  <Text style={[styles.methodText, method === item && styles.methodTextActive]}>{paymentMethodLabel[item]}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {error ? <Text style={styles.warning}>{error}</Text> : null}
+
+          {payment ? (
+            <View style={styles.paymentBox}>
+              <Text style={styles.paymentEyebrow}>Pagamento criado</Text>
+              <Text style={styles.paymentTitle}>Token {payment.compra.token}</Text>
+              <Text style={styles.paymentLine}>Status: {payment.compra.status}</Text>
+              <Text style={styles.paymentLine}>Método: {payment.payment?.metodo || method}</Text>
+              {payment.payment?.pix_payload ? <Text style={styles.paymentCode}>{payment.payment.pix_payload}</Text> : null}
+              {payment.payment?.invoice_url || payment.payment?.paypal_approval_url ? (
+                <Text style={styles.paymentLine}>Checkout: {payment.payment.paypal_approval_url || payment.payment.invoice_url}</Text>
+              ) : null}
+              <Text style={styles.paymentLine}>Depois de confirmar, a inscrição continua em {payment.claim_url}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.steps}>
-            <Step index="1" title="Pagamento seguro" description="O app deve abrir o checkout oficial e só liberar inscrição quando o pagamento confirmar." active />
+            <Step index="1" title="Pagamento seguro" description="O app cria a cobrança oficial e só libera inscrição quando o pagamento confirmar." active />
             <Step index="2" title={profileType === 'equipe' ? 'Confirmar equipe' : 'Criar ou vincular equipe'} description="Se a conta ainda não tiver perfil/equipe válida, o app guia o cadastro antes da inscrição." />
             <Step index="3" title="Escolher grupo e slot" description="Só mostra grupos com vaga livre real e respeita reservas/pagamentos pendentes." />
             <Step index="4" title="Escalar elenco" description="Depois da vaga, leva direto para line, jogadores e prazo de escalação por jogo." />
           </View>
 
-          <TouchableOpacity style={styles.primary} onPress={() => onNavigate('wallet')}>
-            <Text style={styles.primaryText}>Continuar compra</Text>
+          <TouchableOpacity style={styles.primary} disabled={loading} onPress={startPayment}>
+            {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryText}>{payment ? 'Atualizar pagamento' : 'Continuar compra'}</Text>}
           </TouchableOpacity>
+          {payment ? (
+            <TouchableOpacity style={styles.secondary} onPress={() => onNavigate('wallet')}>
+              <Text style={styles.secondaryText}>Ver carteira e comprovantes</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity style={styles.secondary} onPress={() => onNavigate('lineup')}>
             <Text style={styles.secondaryText}>Já tenho vaga, ir para escalação</Text>
           </TouchableOpacity>
@@ -93,6 +155,78 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: typography.body,
     fontWeight: '900',
+  },
+  methodBox: {
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  methodTitle: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  methodRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  methodButton: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.md,
+  },
+  methodButtonActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  methodText: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  methodTextActive: {
+    color: colors.surface,
+  },
+  warning: {
+    borderRadius: radius.md,
+    backgroundColor: '#fff7ed',
+    color: '#9a3412',
+    fontWeight: '800',
+    padding: spacing.md,
+  },
+  paymentBox: {
+    borderRadius: radius.lg,
+    backgroundColor: colors.brandDark,
+    gap: spacing.sm,
+    padding: spacing.lg,
+  },
+  paymentEyebrow: {
+    color: colors.gold,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  paymentTitle: {
+    color: colors.surface,
+    fontSize: typography.subtitle,
+    fontWeight: '900',
+  },
+  paymentLine: {
+    color: '#d6dae2',
+    fontWeight: '700',
+  },
+  paymentCode: {
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+    fontSize: typography.caption,
+    fontWeight: '800',
+    padding: spacing.md,
   },
   steps: {
     gap: spacing.sm,

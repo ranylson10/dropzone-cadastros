@@ -41,6 +41,7 @@ A base mobile possui:
 O app já consome endpoints reais do sistema web:
 
 - `/api/vagas`
+- `/api/pagamentos/vaga`
 - `/api/agenda`
 - `/api/equipe/escalacoes`
 - `/api/me/carteira`

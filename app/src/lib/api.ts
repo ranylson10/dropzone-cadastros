@@ -23,6 +23,29 @@ export async function dropzoneFetch<T>(path: string, options: RequestOptions = {
 
 export const mobileApi = {
   vacancies: () => dropzoneFetch<{ announcements: unknown[]; authenticated: boolean; hasTeam: boolean }>('/api/vagas'),
+  createVacancyPayment: (body: { campeonato_id: string; method: 'pix' | 'cartao' | 'paypal'; vendedor_manager_id?: string | null; cpf_cnpj?: string | null }, accessToken?: string | null) =>
+    dropzoneFetch<{
+      reused: boolean
+      compra: { id: string; token: string; status: string; valor_centavos: number; campeonato_id: string; grupo_id?: string | null }
+      payment: null | {
+        id: string
+        status: string
+        valor_centavos: number
+        invoice_url?: string | null
+        pix_qrcode?: string | null
+        pix_payload?: string | null
+        provider?: string | null
+        metodo?: string | null
+        billing_type?: string | null
+        paypal_approval_url?: string | null
+      }
+      claim_url: string
+      asaas_configured: boolean
+    }>('/api/pagamentos/vaga', {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify(body),
+    }),
   agenda: (accessToken?: string | null) =>
     dropzoneFetch<{ items: unknown[]; setup_required?: boolean }>('/api/agenda?scope=me', {
       accessToken,
