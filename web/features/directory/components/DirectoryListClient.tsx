@@ -220,6 +220,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const [cartItems, setCartItems] = useState<LocalCommerceItem[]>([])
   const [wishlistItems, setWishlistItems] = useState<LocalCommerceItem[]>([])
   const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [cartPaymentMethod, setCartPaymentMethod] = useState<'pix' | 'cartao' | 'paypal'>('pix')
   const isChampionshipDirectory = items[0]?.kind === 'campeonatos'
 
   useEffect(() => {
@@ -341,6 +342,21 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
     }
     setCartItems(removeFromCart(item.id))
   }
+  const handleCartCheckout = async (item: LocalCommerceItem) => {
+    if (!accessToken || !item.itemId) {
+      window.location.href = item.href
+      return
+    }
+    const response = await fetch('/api/me/commerce/cart/checkout', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: item.itemId, method: cartPaymentMethod }),
+    }).catch(() => null)
+    const payload = response?.ok ? await response.json().catch(() => null) : null
+    const checkoutUrl = payload?.payment?.paypal_approval_url || payload?.payment?.invoice_url || payload?.claim_url
+    if (checkoutUrl) window.location.href = checkoutUrl
+    else window.location.href = item.href
+  }
 
   return (
     <>
@@ -417,6 +433,14 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
             <details className="directory-cart-preview">
               <summary>Ver carrinho</summary>
               <div>
+                <label className="directory-cart-method">
+                  <span>Pagamento</span>
+                  <select value={cartPaymentMethod} onChange={(event) => setCartPaymentMethod(event.target.value as 'pix' | 'cartao' | 'paypal')}>
+                    <option value="pix">PIX</option>
+                    <option value="cartao">Cartão</option>
+                    <option value="paypal">PayPal</option>
+                  </select>
+                </label>
                 {cartItems.map((item) => (
                   <article key={item.id}>
                     <span>{item.image ? <img src={item.image} alt="" /> : <Ticket size={16} />}</span>
@@ -432,7 +456,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
                       value={Number(item.quantity || 1)}
                       onChange={(event) => void handleCartQuantity(item, Number(event.target.value || 1))}
                     />
-                    <a href={item.href}>Comprar</a>
+                    <button type="button" onClick={() => void handleCartCheckout(item)}>Comprar</button>
                     <button type="button" onClick={() => void handleCartRemove(item)}>Remover</button>
                   </article>
                 ))}

@@ -6851,6 +6851,9 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .directory-cart-preview summary,.directory-wishlist-preview summary{ list-style:none; padding:13px 14px; color:#111827; cursor:pointer; font-size:11px; font-weight:950; text-transform:uppercase;
 } .directory-cart-preview summary::-webkit-details-marker,.directory-wishlist-preview summary::-webkit-details-marker{ display:none;
 } .directory-cart-preview>div,.directory-wishlist-preview>div{ display:grid; gap:8px; padding:0 12px 12px;
+} .directory-cart-method{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px; background:#111827; color:#fff;
+} .directory-cart-method span{ color:#fff; font-size:10px; font-weight:950; text-transform:uppercase;
+} .directory-cart-method select{ min-height:32px; border:1px solid rgba(255,255,255,.18); background:#fff; color:#111827; font-weight:900; padding:0 8px;
 } .directory-cart-preview article{ display:grid; grid-template-columns:34px minmax(0,1fr) 58px auto auto; align-items:center; gap:8px; padding:8px; background:#f6f3ed;
 } .directory-cart-preview img{ width:34px; height:34px; object-fit:cover;
 } .directory-cart-preview article div{ display:grid; min-width:0;

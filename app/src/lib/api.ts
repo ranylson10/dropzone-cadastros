@@ -34,6 +34,29 @@ export const mobileApi = {
       accessToken,
       body: JSON.stringify({ campeonato_id: campeonatoId, quantidade, origem: 'app' }),
     }),
+  checkoutCommerceCartItem: (body: { item_id: string; method: 'pix' | 'cartao' | 'paypal'; cpf_cnpj?: string | null }, accessToken?: string | null) =>
+    dropzoneFetch<{
+      item_id: string
+      quantity: number
+      compra: { id: string; token: string; status: string; valor_centavos: number; campeonato_id: string; quantidade_vagas: number; valor_unitario_centavos: number }
+      payment: null | {
+        id: string
+        status: string
+        valor_centavos: number
+        invoice_url?: string | null
+        pix_qrcode?: string | null
+        pix_payload?: string | null
+        provider?: string | null
+        metodo?: string | null
+        billing_type?: string | null
+        paypal_approval_url?: string | null
+      }
+      claim_url: string
+    }>('/api/me/commerce/cart/checkout', {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify(body),
+    }),
   commerceWishlist: (accessToken?: string | null) =>
     dropzoneFetch<{ items: unknown[]; needs_migration?: boolean }>('/api/me/commerce/wishlist', {
       accessToken,
