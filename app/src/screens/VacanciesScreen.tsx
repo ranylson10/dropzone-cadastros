@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
+import { addMobileCart, getMobileCart, getMobileWishlist, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
 import { dateLabel, fallbackVacancies, money, toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
@@ -19,6 +20,8 @@ type FilterId = typeof filters[number]['id']
 export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
   const [activeFilter, setActiveFilter] = useState<FilterId>('all')
   const [vacancies, setVacancies] = useState<VacancyApiItem[]>([])
+  const [cart, setCart] = useState<MobileCommerceItem[]>([])
+  const [wishlist, setWishlist] = useState<MobileCommerceItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,6 +46,18 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
     }
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+    Promise.all([getMobileCart(), getMobileWishlist()]).then(([cartItems, wishlistItems]) => {
+      if (!mounted) return
+      setCart(cartItems)
+      setWishlist(wishlistItems)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   const visibleVacancies = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
     return vacancies.filter((item) => {
@@ -53,6 +68,9 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
       return true
     })
   }, [activeFilter, vacancies])
+
+  const wishlistIds = useMemo(() => new Set(wishlist.map((item) => item.id)), [wishlist])
+  const cartQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
 
   return (
     <ScreenShell
@@ -71,6 +89,13 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
             <Text style={[styles.filterText, activeFilter === filter.id && styles.filterTextActive]}>{filter.label}</Text>
           </TouchableOpacity>
         ))}
+      </View>
+
+      <View style={styles.commerceSummary}>
+        <Text style={styles.commerceTitle}>Carrinho</Text>
+        <Text style={styles.commerceText}>{cartQuantity} vaga(s) separada(s) para comprar</Text>
+        <Text style={styles.commerceTitle}>Favoritos</Text>
+        <Text style={styles.commerceText}>{wishlist.length} campeonato(s) salvo(s)</Text>
       </View>
 
       {loading ? (
@@ -93,11 +118,20 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
         />
       ) : null}
 
-      {visibleVacancies.map((item) => (
-        <TouchableOpacity key={item.id} style={styles.card} onPress={() => onSelectChampionship?.(toChampionshipCard(item))}>
+      {visibleVacancies.map((item) => {
+        const championship = toChampionshipCard(item)
+        const isFavorite = wishlistIds.has(championship.id)
+        return (
+        <TouchableOpacity key={item.id} style={styles.card} onPress={() => onSelectChampionship?.(championship)}>
           <View style={styles.banner}>
             {item.banner_url ? <Image source={{ uri: item.banner_url }} style={styles.bannerImage} /> : null}
             <Text style={styles.badge}>{item.tem_live ? 'LIVE' : String(item.tipo || 'VAGA').toUpperCase()}</Text>
+            <TouchableOpacity
+              style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
+              onPress={async () => setWishlist(await toggleMobileWishlist(championship))}
+            >
+              <Text style={styles.favoriteText}>{isFavorite ? '♥' : '♡'}</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.body}>
             <Text style={styles.name}>{item.nome || 'Campeonato'}</Text>
@@ -107,10 +141,16 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
             </View>
             <Text style={styles.meta}>{Number(item.vagas_livres || 0)} de {Number(item.total_vagas || 0)} vagas livres · {dateLabel(item)}</Text>
             <Text style={styles.meta}>{[item.plataforma, item.servidor].filter(Boolean).join(' · ') || 'Formato competitivo'}</Text>
-            <Text style={styles.cta}>Garantir vaga</Text>
+            <View style={styles.cardActions}>
+              <TouchableOpacity style={styles.secondaryAction} onPress={async () => setCart(await addMobileCart(championship, 1))}>
+                <Text style={styles.secondaryActionText}>Adicionar ao carrinho</Text>
+              </TouchableOpacity>
+              <Text style={styles.cta}>Garantir vaga</Text>
+            </View>
           </View>
         </TouchableOpacity>
-      ))}
+        )
+      })}
 
       <ActionCard
         title="Compra guiada"
@@ -163,6 +203,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     padding: spacing.md,
   },
+  commerceSummary: {
+    borderRadius: radius.lg,
+    backgroundColor: colors.brandDark,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  commerceTitle: {
+    color: colors.gold,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  commerceText: {
+    color: colors.surface,
+    fontWeight: '800',
+  },
   card: {
     overflow: 'hidden',
     borderRadius: radius.lg,
@@ -190,6 +246,25 @@ const styles = StyleSheet.create({
     fontSize: typography.tiny,
     fontWeight: '900',
   },
+  favoriteButton: {
+    position: 'absolute',
+    right: spacing.md,
+    top: spacing.md,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(17,24,39,.72)',
+  },
+  favoriteButtonActive: {
+    backgroundColor: colors.brand,
+  },
+  favoriteText: {
+    color: colors.surface,
+    fontSize: 22,
+    fontWeight: '900',
+  },
   body: {
     padding: spacing.md,
     gap: spacing.sm,
@@ -209,6 +284,22 @@ const styles = StyleSheet.create({
   },
   cta: {
     color: colors.brand,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  cardActions: {
+    gap: spacing.sm,
+  },
+  secondaryAction: {
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: spacing.sm,
+  },
+  secondaryActionText: {
+    color: colors.ink,
+    fontSize: typography.caption,
     fontWeight: '900',
     textTransform: 'uppercase',
   },

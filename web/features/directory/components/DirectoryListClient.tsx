@@ -1,7 +1,8 @@
 'use client'
 
-import { ChevronRight, Flame, Gift, Radio, Search, SlidersHorizontal, Ticket, Trophy, Users, X } from 'lucide-react'
+import { ChevronRight, Flame, Gift, Heart, Radio, Search, ShoppingCart, SlidersHorizontal, Ticket, Trophy, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { addToCart, getCartItems, getWishlistItems, removeFromCart, setCartQuantity, toggleWishlist, type LocalCommerceItem } from '@/features/commerce/local-commerce'
 import { supabase } from '@/lib/supabase-browser'
 import type { DirectoryItem } from '../types'
 
@@ -35,6 +36,18 @@ function vacancyRatio(item: DirectoryItem) {
 function moneyNumber(value: unknown) {
   const number = Number(value)
   return Number.isFinite(number) && number > 0 ? number : 0
+}
+
+function commerceItemFromDirectory(item: DirectoryItem): LocalCommerceItem {
+  return {
+    id: item.id,
+    name: item.name,
+    href: `/${item.kind}/${item.id}`,
+    image: item.image,
+    banner: item.banner,
+    price: moneyNumber(item.commercial?.valor_inscricao),
+    freeSlots: Number(item.commercial?.vagas_livres ?? 0),
+  }
 }
 
 function isToday(value: unknown) {
@@ -92,7 +105,19 @@ function filterChampionships(items: DirectoryItem[], filters: ChampFilters, myCh
   })
 }
 
-function ChampionshipCards({ items, myChampionshipIds }: { items: DirectoryItem[]; myChampionshipIds: Set<string> }) {
+function ChampionshipCards({
+  items,
+  myChampionshipIds,
+  wishlistIds,
+  onCartAdd,
+  onWishlistToggle,
+}: {
+  items: DirectoryItem[]
+  myChampionshipIds: Set<string>
+  wishlistIds: Set<string>
+  onCartAdd: (item: DirectoryItem) => void
+  onWishlistToggle: (item: DirectoryItem) => void
+}) {
   return (
     <div className="directory-champ-card-grid">
       {items.map((item) => {
@@ -112,6 +137,17 @@ function ChampionshipCards({ items, myChampionshipIds }: { items: DirectoryItem[
                 {free > 0 && free <= 3 ? <b className="hot"><Flame size={12} /> Últimas</b> : null}
               </span>
               <span className="directory-champ-logo">{item.image ? <img src={item.image} alt="" /> : <Trophy size={24} />}</span>
+              <button
+                type="button"
+                className={`directory-champ-wish ${wishlistIds.has(item.id) ? 'active' : ''}`}
+                aria-label={wishlistIds.has(item.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                onClick={(event) => {
+                  event.preventDefault()
+                  onWishlistToggle(item)
+                }}
+              >
+                <Heart size={16} />
+              </button>
             </span>
             <span className="directory-champ-body">
               <span className="directory-champ-title">
@@ -131,6 +167,17 @@ function ChampionshipCards({ items, myChampionshipIds }: { items: DirectoryItem[
                 <span>{[item.commercial?.plataforma, item.commercial?.servidor].filter(Boolean).join(' · ') || 'Formato competitivo'}</span>
                 <b>Ver campeonato <ChevronRight size={15} /></b>
               </span>
+              <button
+                type="button"
+                className="directory-champ-cart-action"
+                disabled={free <= 0}
+                onClick={(event) => {
+                  event.preventDefault()
+                  onCartAdd(item)
+                }}
+              >
+                <ShoppingCart size={14} /> {free > 0 ? 'Adicionar ao carrinho' : 'Sem vagas'}
+              </button>
               {isMine ? (
                 <button
                   type="button"
@@ -155,7 +202,24 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const [query, setQuery] = useState('')
   const [champFilters, setChampFilters] = useState<ChampFilters>(emptyChampFilters)
   const [myChampionshipIds, setMyChampionshipIds] = useState<Set<string>>(new Set())
+  const [cartItems, setCartItems] = useState<LocalCommerceItem[]>([])
+  const [wishlistItems, setWishlistItems] = useState<LocalCommerceItem[]>([])
   const isChampionshipDirectory = items[0]?.kind === 'campeonatos'
+
+  useEffect(() => {
+    if (!isChampionshipDirectory) return
+    const refresh = () => {
+      setCartItems(getCartItems())
+      setWishlistItems(getWishlistItems())
+    }
+    refresh()
+    window.addEventListener('storage', refresh)
+    window.addEventListener('dropzone:commerce-updated', refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      window.removeEventListener('dropzone:commerce-updated', refresh)
+    }
+  }, [isChampionshipDirectory])
 
   useEffect(() => {
     if (!isChampionshipDirectory) return
@@ -181,9 +245,14 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   }, [champFilters, isChampionshipDirectory, items, myChampionshipIds, query])
 
   const metaLabels = useMemo(() => getMetaLabels(items), [items])
+  const wishlistIds = useMemo(() => new Set(wishlistItems.map((item) => item.id)), [wishlistItems])
+  const cartQuantity = cartItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
+  const cartTotal = cartItems.reduce((sum, item) => sum + moneyNumber(item.price) * Number(item.quantity || 1), 0)
   const toggleChampFilter = (key: keyof Pick<ChampFilters, 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine'>) => {
     setChampFilters((current) => ({ ...current, [key]: !current[key] }))
   }
+  const handleCartAdd = (item: DirectoryItem) => setCartItems(addToCart(commerceItemFromDirectory(item), 1))
+  const handleWishlistToggle = (item: DirectoryItem) => setWishlistItems(toggleWishlist(commerceItemFromDirectory(item)))
 
   return (
     <>
@@ -246,6 +315,56 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
         </div>
       ) : null}
 
+      {isChampionshipDirectory ? (
+        <div className="directory-commerce-strip" aria-label="Carrinho e favoritos">
+          <div>
+            <strong><ShoppingCart size={15} /> Carrinho</strong>
+            <span>{cartQuantity} vaga(s) · {money(cartTotal)}</span>
+          </div>
+          <div>
+            <strong><Heart size={15} /> Favoritos</strong>
+            <span>{wishlistItems.length} campeonato(s) salvo(s)</span>
+          </div>
+          {cartItems.length ? (
+            <details className="directory-cart-preview">
+              <summary>Ver carrinho</summary>
+              <div>
+                {cartItems.map((item) => (
+                  <article key={item.id}>
+                    <span>{item.image ? <img src={item.image} alt="" /> : <Ticket size={16} />}</span>
+                    <div>
+                      <strong>{item.name}</strong>
+                      <small>{money(item.price)} por vaga</small>
+                    </div>
+                    <input
+                      aria-label={`Quantidade para ${item.name}`}
+                      min={1}
+                      max={Math.max(1, Number(item.freeSlots || 1))}
+                      type="number"
+                      value={Number(item.quantity || 1)}
+                      onChange={(event) => setCartItems(setCartQuantity(item.id, Number(event.target.value || 1)))}
+                    />
+                    <a href={item.href}>Comprar</a>
+                    <button type="button" onClick={() => setCartItems(removeFromCart(item.id))}>Remover</button>
+                  </article>
+                ))}
+                <p>Checkout multi-itens fica preparado aqui; por segurança, cada compra ainda usa o pagamento oficial do campeonato.</p>
+              </div>
+            </details>
+          ) : null}
+          {wishlistItems.length ? (
+            <details className="directory-wishlist-preview">
+              <summary>Ver favoritos</summary>
+              <div>
+                {wishlistItems.slice(0, 6).map((item) => (
+                  <a href={item.href} key={item.id}>{item.name}</a>
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
+
       {filtered.length && !isChampionshipDirectory ? (
         <div className="directory-list-head" aria-hidden="true">
           <span className="directory-list-head-main">Perfil</span>
@@ -258,7 +377,13 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
       ) : null}
 
       {isChampionshipDirectory ? (
-        <ChampionshipCards items={filtered} myChampionshipIds={myChampionshipIds} />
+        <ChampionshipCards
+          items={filtered}
+          myChampionshipIds={myChampionshipIds}
+          wishlistIds={wishlistIds}
+          onCartAdd={handleCartAdd}
+          onWishlistToggle={handleWishlistToggle}
+        />
       ) : (
         <div className={`directory-list directory-list-${items[0]?.kind || 'empty'}`}>
           {filtered.map((item) => (

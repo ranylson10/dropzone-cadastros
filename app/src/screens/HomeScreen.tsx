@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { MobileAccount } from '@/lib/auth'
+import { addMobileCart, getMobileCart, getMobileWishlist, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
 import { fallbackVacancies, toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
 import { actionsForProfile } from '@/navigation/mobileExperience'
 import { ProfileSwitcher } from '@/screens/ProfileSwitcher'
@@ -50,6 +51,8 @@ export function HomeScreen(props: {
   const { profile, onProfileChange, onNavigate } = props
   const actions = useMemo(() => actionsForProfile(profile), [profile])
   const [vacancies, setVacancies] = useState<ChampionshipCard[]>(fallbackVacancies.map(toChampionshipCard))
+  const [cart, setCart] = useState<MobileCommerceItem[]>([])
+  const [wishlist, setWishlist] = useState<MobileCommerceItem[]>([])
 
   useEffect(() => {
     let mounted = true
@@ -66,6 +69,21 @@ export function HomeScreen(props: {
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    let mounted = true
+    Promise.all([getMobileCart(), getMobileWishlist()]).then(([cartItems, wishlistItems]) => {
+      if (!mounted) return
+      setCart(cartItems)
+      setWishlist(wishlistItems)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const wishlistIds = useMemo(() => new Set(wishlist.map((item) => item.id)), [wishlist])
+  const cartQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -125,6 +143,10 @@ export function HomeScreen(props: {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Campeonatos com vagas</Text>
+        <View style={styles.commerceSummary}>
+          <Text style={styles.commerceText}>Carrinho: {cartQuantity} vaga(s)</Text>
+          <Text style={styles.commerceText}>Favoritos: {wishlist.length} salvo(s)</Text>
+        </View>
         {vacancies.map((championship) => (
           <TouchableOpacity
             key={championship.id}
@@ -141,6 +163,14 @@ export function HomeScreen(props: {
               <Text style={styles.vacancyMeta}>
                 {championship.priceLabel} · {championship.freeSlots} vagas · {championship.nextMatchLabel}
               </Text>
+              <View style={styles.inlineActions}>
+                <TouchableOpacity style={styles.inlineButton} onPress={async () => setCart(await addMobileCart(championship, 1))}>
+                  <Text style={styles.inlineButtonText}>Carrinho</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.inlineButton} onPress={async () => setWishlist(await toggleMobileWishlist(championship))}>
+                  <Text style={styles.inlineButtonText}>{wishlistIds.has(championship.id) ? 'Salvo' : 'Favoritar'}</Text>
+                </TouchableOpacity>
+              </View>
               <Text style={styles.cardCta}>Garantir vaga</Text>
             </View>
           </TouchableOpacity>
@@ -215,6 +245,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.ink,
     fontSize: typography.subtitle,
+    fontWeight: '900',
+  },
+  commerceSummary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandDark,
+    padding: spacing.md,
+  },
+  commerceText: {
+    color: colors.surface,
+    fontSize: typography.caption,
     fontWeight: '900',
   },
   taskCard: {
@@ -303,6 +346,24 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: typography.caption,
     fontWeight: '800',
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  inlineButton: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  inlineButtonText: {
+    color: colors.ink,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   moreButton: {
     alignItems: 'center',
