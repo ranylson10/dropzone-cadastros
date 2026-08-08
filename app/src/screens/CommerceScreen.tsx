@@ -22,6 +22,7 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
   const [loading, setLoading] = useState(true)
   const [checkoutId, setCheckoutId] = useState<string | null>(null)
   const [methodByItem, setMethodByItem] = useState<Record<string, CartPaymentMethod>>({})
+  const [checkoutByItem, setCheckoutByItem] = useState<Record<string, { checkoutUrl: string; claimUrl: string }>>({})
   const [error, setError] = useState<string | null>(null)
 
   async function loadCommerce() {
@@ -59,8 +60,9 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
       const method = methodByItem[item.id] || 'pix'
       const payload = await mobileApi.checkoutCommerceCartItem({ item_id: item.itemId, method }, accessToken)
       const url = payload.payment?.paypal_approval_url || payload.payment?.invoice_url
+      setCheckoutByItem((current) => ({ ...current, [item.id]: { checkoutUrl: url || '', claimUrl: payload.claim_url } }))
       if (url) await Linking.openURL(url)
-      else onNavigate('purchase_claim')
+      else setError('Pagamento criado. Use o botão de inscrição liberada abaixo quando o pagamento confirmar.')
     } catch (err: any) {
       setError(err?.message || 'Não foi possível gerar o pagamento.')
     } finally {
@@ -157,6 +159,16 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
                     : `Pagar com ${paymentMethods.find((method) => method.id === (methodByItem[item.id] || 'pix'))?.label || 'PIX'}`}
                 </Text>
               </TouchableOpacity>
+              {checkoutByItem[item.id]?.checkoutUrl ? (
+                <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(checkoutByItem[item.id].checkoutUrl)}>
+                  <Text style={styles.secondaryText}>Abrir checkout</Text>
+                </TouchableOpacity>
+              ) : null}
+              {checkoutByItem[item.id]?.claimUrl ? (
+                <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(checkoutByItem[item.id].claimUrl)}>
+                  <Text style={styles.secondaryText}>Abrir inscrição liberada</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity style={styles.secondary} onPress={() => void removeItem(item)}>
                 <Text style={styles.secondaryText}>Remover</Text>
               </TouchableOpacity>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { PaymentMethod, paymentMethodLabel, VacancyPaymentResult } from '@/lib/payments'
@@ -14,6 +14,7 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship, 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [payment, setPayment] = useState<VacancyPaymentResult | null>(null)
+  const checkoutUrl = payment?.payment?.paypal_approval_url || payment?.payment?.invoice_url || ''
 
   async function startPayment() {
     if (!championship) return
@@ -25,6 +26,8 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship, 
         method,
       }, auth.session?.access_token)
       setPayment(response)
+      const url = response.payment?.paypal_approval_url || response.payment?.invoice_url
+      if (url) await Linking.openURL(url)
     } catch (err: any) {
       setError(err?.message || 'Não foi possível criar o pagamento.')
     } finally {
@@ -101,6 +104,16 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship, 
           <TouchableOpacity style={styles.primary} disabled={loading} onPress={startPayment}>
             {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryText}>{payment ? 'Atualizar pagamento' : 'Continuar compra'}</Text>}
           </TouchableOpacity>
+          {payment ? (
+            <TouchableOpacity style={styles.secondary} onPress={() => checkoutUrl ? Linking.openURL(checkoutUrl) : undefined} disabled={!checkoutUrl}>
+              <Text style={styles.secondaryText}>{checkoutUrl ? 'Abrir checkout novamente' : 'Aguardando checkout do provedor'}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {payment ? (
+            <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(payment.claim_url)}>
+              <Text style={styles.secondaryText}>Abrir inscrição da vaga</Text>
+            </TouchableOpacity>
+          ) : null}
           {payment ? (
             <TouchableOpacity style={styles.secondary} onPress={() => onNavigate('wallet')}>
               <Text style={styles.secondaryText}>Ver carteira e comprovantes</Text>
