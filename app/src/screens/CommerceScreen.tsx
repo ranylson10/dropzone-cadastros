@@ -7,12 +7,21 @@ import { ActionCard, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
+type CartPaymentMethod = 'pix' | 'cartao' | 'paypal'
+
+const paymentMethods: Array<{ id: CartPaymentMethod; label: string }> = [
+  { id: 'pix', label: 'PIX' },
+  { id: 'cartao', label: 'Cartão' },
+  { id: 'paypal', label: 'PayPal' },
+]
+
 export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
   const auth = useAuth()
   const [cart, setCart] = useState<MobileCommerceItem[]>([])
   const [wishlist, setWishlist] = useState<MobileCommerceItem[]>([])
   const [loading, setLoading] = useState(true)
   const [checkoutId, setCheckoutId] = useState<string | null>(null)
+  const [methodByItem, setMethodByItem] = useState<Record<string, CartPaymentMethod>>({})
   const [error, setError] = useState<string | null>(null)
 
   async function loadCommerce() {
@@ -47,7 +56,8 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
     setCheckoutId(item.id)
     setError(null)
     try {
-      const payload = await mobileApi.checkoutCommerceCartItem({ item_id: item.itemId, method: 'pix' }, accessToken)
+      const method = methodByItem[item.id] || 'pix'
+      const payload = await mobileApi.checkoutCommerceCartItem({ item_id: item.itemId, method }, accessToken)
       const url = payload.payment?.paypal_approval_url || payload.payment?.invoice_url
       if (url) await Linking.openURL(url)
       else onNavigate('purchase_claim')
@@ -84,9 +94,27 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
             {item.bannerUrl ? <Image source={{ uri: item.bannerUrl }} style={styles.banner} /> : null}
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.meta}>{item.quantity || 1} vaga(s) · {item.priceLabel}</Text>
+            <View style={styles.methodRow}>
+              {paymentMethods.map((method) => {
+                const active = (methodByItem[item.id] || 'pix') === method.id
+                return (
+                  <TouchableOpacity
+                    key={method.id}
+                    style={[styles.methodButton, active && styles.methodButtonActive]}
+                    onPress={() => setMethodByItem((current) => ({ ...current, [item.id]: method.id }))}
+                  >
+                    <Text style={[styles.methodText, active && styles.methodTextActive]}>{method.label}</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
             <View style={styles.actions}>
               <TouchableOpacity style={styles.primary} onPress={() => checkout(item)} disabled={checkoutId === item.id}>
-                <Text style={styles.primaryText}>{checkoutId === item.id ? 'Gerando...' : 'Pagar com PIX'}</Text>
+                <Text style={styles.primaryText}>
+                  {checkoutId === item.id
+                    ? 'Gerando...'
+                    : `Pagar com ${paymentMethods.find((method) => method.id === (methodByItem[item.id] || 'pix'))?.label || 'PIX'}`}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondary} onPress={async () => setCart(await removeMobileCart(item.id))}>
                 <Text style={styles.secondaryText}>Remover local</Text>
@@ -169,6 +197,31 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.sm,
+  },
+  methodRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  methodButton: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  methodButtonActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  methodText: {
+    color: colors.ink,
+    fontSize: typography.caption,
+    fontWeight: '900',
+  },
+  methodTextActive: {
+    color: colors.surface,
   },
   primary: {
     alignItems: 'center',
