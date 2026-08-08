@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { apiUrl } from '@/config/env'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { PaymentMethod, paymentMethodLabel, VacancyPaymentResult } from '@/lib/payments'
@@ -15,6 +16,7 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship, 
   const [error, setError] = useState<string | null>(null)
   const [payment, setPayment] = useState<VacancyPaymentResult | null>(null)
   const checkoutUrl = payment?.payment?.paypal_approval_url || payment?.payment?.invoice_url || ''
+  const claimUrl = payment?.claim_url ? apiUrl(payment.claim_url) : ''
 
   async function startPayment() {
     if (!championship) return
@@ -110,7 +112,7 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship, 
             </TouchableOpacity>
           ) : null}
           {payment ? (
-            <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(payment.claim_url)}>
+            <TouchableOpacity style={styles.secondary} onPress={() => claimUrl ? Linking.openURL(claimUrl) : undefined} disabled={!claimUrl}>
               <Text style={styles.secondaryText}>Abrir inscrição da vaga</Text>
             </TouchableOpacity>
           ) : null}
