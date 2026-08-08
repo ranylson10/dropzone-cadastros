@@ -2,6 +2,7 @@
 
 export type LocalCommerceItem = {
   id: string
+  itemId?: string | null
   name: string
   href: string
   image?: string | null

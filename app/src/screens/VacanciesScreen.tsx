@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
-import { addMobileCart, getMobileCart, getMobileWishlist, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
+import { useAuth } from '@/lib/auth'
+import { addMobileCart, getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
 import { dateLabel, fallbackVacancies, money, toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
@@ -18,6 +19,7 @@ const filters = [
 type FilterId = typeof filters[number]['id']
 
 export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
+  const auth = useAuth()
   const [activeFilter, setActiveFilter] = useState<FilterId>('all')
   const [vacancies, setVacancies] = useState<VacancyApiItem[]>([])
   const [cart, setCart] = useState<MobileCommerceItem[]>([])
@@ -48,7 +50,13 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
 
   useEffect(() => {
     let mounted = true
-    Promise.all([getMobileCart(), getMobileWishlist()]).then(([cartItems, wishlistItems]) => {
+    const accessToken = auth.session?.access_token
+    const cartPromise = accessToken ? mobileApi.commerceCart(accessToken).then((payload) => payload.items.map(mobileCommerceFromApi)) : getMobileCart()
+    const wishlistPromise = accessToken ? mobileApi.commerceWishlist(accessToken).then((payload) => payload.items.map(mobileCommerceFromApi)) : getMobileWishlist()
+    Promise.all([
+      cartPromise.catch(() => getMobileCart()),
+      wishlistPromise.catch(() => getMobileWishlist()),
+    ]).then(([cartItems, wishlistItems]) => {
       if (!mounted) return
       setCart(cartItems)
       setWishlist(wishlistItems)
@@ -56,7 +64,7 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [auth.session?.access_token])
 
   const visibleVacancies = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
@@ -128,7 +136,17 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
             <Text style={styles.badge}>{item.tem_live ? 'LIVE' : String(item.tipo || 'VAGA').toUpperCase()}</Text>
             <TouchableOpacity
               style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
-              onPress={async () => setWishlist(await toggleMobileWishlist(championship))}
+              onPress={async () => {
+                const accessToken = auth.session?.access_token
+                if (accessToken) {
+                  try {
+                    const payload = await mobileApi.toggleCommerceWishlist(championship.id, accessToken)
+                    setWishlist(payload.items.map(mobileCommerceFromApi))
+                    return
+                  } catch {}
+                }
+                setWishlist(await toggleMobileWishlist(championship))
+              }}
             >
               <Text style={styles.favoriteText}>{isFavorite ? '♥' : '♡'}</Text>
             </TouchableOpacity>
@@ -142,7 +160,20 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
             <Text style={styles.meta}>{Number(item.vagas_livres || 0)} de {Number(item.total_vagas || 0)} vagas livres · {dateLabel(item)}</Text>
             <Text style={styles.meta}>{[item.plataforma, item.servidor].filter(Boolean).join(' · ') || 'Formato competitivo'}</Text>
             <View style={styles.cardActions}>
-              <TouchableOpacity style={styles.secondaryAction} onPress={async () => setCart(await addMobileCart(championship, 1))}>
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={async () => {
+                  const accessToken = auth.session?.access_token
+                  if (accessToken) {
+                    try {
+                      const payload = await mobileApi.addCommerceCart(championship.id, 1, accessToken)
+                      setCart(payload.items.map(mobileCommerceFromApi))
+                      return
+                    } catch {}
+                  }
+                  setCart(await addMobileCart(championship, 1))
+                }}
+              >
                 <Text style={styles.secondaryActionText}>Adicionar ao carrinho</Text>
               </TouchableOpacity>
               <Text style={styles.cta}>Garantir vaga</Text>

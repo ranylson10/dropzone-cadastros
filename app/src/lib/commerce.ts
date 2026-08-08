@@ -53,3 +53,18 @@ export async function removeMobileCart(id: string) {
   const next = (await getMobileCart()).filter((item) => item.id !== id)
   return writeList(CART_KEY, next)
 }
+
+export function mobileCommerceFromApi(row: any): MobileCommerceItem {
+  const campeonato = Array.isArray(row?.campeonato) ? row.campeonato[0] : row?.campeonato
+  const price = Number(row?.preco_unitario_centavos || 0) / 100 || Number(campeonato?.valor_inscricao || 0)
+  return {
+    id: String(row?.campeonato_id || campeonato?.id || row?.id || 'campeonato'),
+    name: String(campeonato?.nome || 'Campeonato'),
+    mode: 'competitivo',
+    logoUrl: campeonato?.logo_url || null,
+    bannerUrl: campeonato?.banner_url || null,
+    priceLabel: price ? price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Grátis',
+    freeSlots: Number(campeonato?.vagas_livres || 0),
+    quantity: Number(row?.quantidade || 1),
+  }
+}

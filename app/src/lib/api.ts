@@ -23,6 +23,28 @@ export async function dropzoneFetch<T>(path: string, options: RequestOptions = {
 
 export const mobileApi = {
   vacancies: () => dropzoneFetch<{ announcements: unknown[]; authenticated: boolean; hasTeam: boolean }>('/api/vagas'),
+  commerceCart: (accessToken?: string | null) =>
+    dropzoneFetch<{ cart?: unknown; items: unknown[]; needs_migration?: boolean }>('/api/me/commerce/cart', {
+      accessToken,
+      cache: 'no-store',
+    }),
+  addCommerceCart: (campeonatoId: string, quantidade = 1, accessToken?: string | null) =>
+    dropzoneFetch<{ cart?: unknown; items: unknown[]; needs_migration?: boolean }>('/api/me/commerce/cart', {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify({ campeonato_id: campeonatoId, quantidade, origem: 'app' }),
+    }),
+  commerceWishlist: (accessToken?: string | null) =>
+    dropzoneFetch<{ items: unknown[]; needs_migration?: boolean }>('/api/me/commerce/wishlist', {
+      accessToken,
+      cache: 'no-store',
+    }),
+  toggleCommerceWishlist: (campeonatoId: string, accessToken?: string | null) =>
+    dropzoneFetch<{ items: unknown[]; needs_migration?: boolean }>('/api/me/commerce/wishlist', {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify({ campeonato_id: campeonatoId, origem: 'app' }),
+    }),
   createVacancyPayment: (body: { campeonato_id: string; method: 'pix' | 'cartao' | 'paypal'; vendedor_manager_id?: string | null; cpf_cnpj?: string | null }, accessToken?: string | null) =>
     dropzoneFetch<{
       reused: boolean

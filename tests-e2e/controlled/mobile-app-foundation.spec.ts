@@ -39,6 +39,8 @@ test.describe('Mobile app foundation', () => {
     expect(pkg).toContain('expo')
     expect(env).toContain('EXPO_PUBLIC_DROPZONE_API_URL')
     expect(api).toContain('/api/vagas')
+    expect(api).toContain('/api/me/commerce/cart')
+    expect(api).toContain('/api/me/commerce/wishlist')
     expect(api).toContain('/api/pagamentos/vaga')
     expect(api).toContain('announcements')
     expect(api).toContain('/api/agenda?scope=me')

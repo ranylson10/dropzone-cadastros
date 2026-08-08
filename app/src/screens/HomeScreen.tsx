@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { MobileAccount } from '@/lib/auth'
-import { addMobileCart, getMobileCart, getMobileWishlist, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
+import { useAuth } from '@/lib/auth'
+import { addMobileCart, getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
 import { fallbackVacancies, toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
 import { actionsForProfile } from '@/navigation/mobileExperience'
 import { ProfileSwitcher } from '@/screens/ProfileSwitcher'
@@ -49,6 +50,7 @@ export function HomeScreen(props: {
   onSelectChampionship?: (championship: ChampionshipCard) => void
 }) {
   const { profile, onProfileChange, onNavigate } = props
+  const auth = useAuth()
   const actions = useMemo(() => actionsForProfile(profile), [profile])
   const [vacancies, setVacancies] = useState<ChampionshipCard[]>(fallbackVacancies.map(toChampionshipCard))
   const [cart, setCart] = useState<MobileCommerceItem[]>([])
@@ -72,7 +74,13 @@ export function HomeScreen(props: {
 
   useEffect(() => {
     let mounted = true
-    Promise.all([getMobileCart(), getMobileWishlist()]).then(([cartItems, wishlistItems]) => {
+    const accessToken = auth.session?.access_token
+    const cartPromise = accessToken ? mobileApi.commerceCart(accessToken).then((payload) => payload.items.map(mobileCommerceFromApi)) : getMobileCart()
+    const wishlistPromise = accessToken ? mobileApi.commerceWishlist(accessToken).then((payload) => payload.items.map(mobileCommerceFromApi)) : getMobileWishlist()
+    Promise.all([
+      cartPromise.catch(() => getMobileCart()),
+      wishlistPromise.catch(() => getMobileWishlist()),
+    ]).then(([cartItems, wishlistItems]) => {
       if (!mounted) return
       setCart(cartItems)
       setWishlist(wishlistItems)
@@ -80,7 +88,7 @@ export function HomeScreen(props: {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [auth.session?.access_token])
 
   const wishlistIds = useMemo(() => new Set(wishlist.map((item) => item.id)), [wishlist])
   const cartQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
@@ -164,10 +172,36 @@ export function HomeScreen(props: {
                 {championship.priceLabel} · {championship.freeSlots} vagas · {championship.nextMatchLabel}
               </Text>
               <View style={styles.inlineActions}>
-                <TouchableOpacity style={styles.inlineButton} onPress={async () => setCart(await addMobileCart(championship, 1))}>
+                <TouchableOpacity
+                  style={styles.inlineButton}
+                  onPress={async () => {
+                    const accessToken = auth.session?.access_token
+                    if (accessToken) {
+                      try {
+                        const payload = await mobileApi.addCommerceCart(championship.id, 1, accessToken)
+                        setCart(payload.items.map(mobileCommerceFromApi))
+                        return
+                      } catch {}
+                    }
+                    setCart(await addMobileCart(championship, 1))
+                  }}
+                >
                   <Text style={styles.inlineButtonText}>Carrinho</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.inlineButton} onPress={async () => setWishlist(await toggleMobileWishlist(championship))}>
+                <TouchableOpacity
+                  style={styles.inlineButton}
+                  onPress={async () => {
+                    const accessToken = auth.session?.access_token
+                    if (accessToken) {
+                      try {
+                        const payload = await mobileApi.toggleCommerceWishlist(championship.id, accessToken)
+                        setWishlist(payload.items.map(mobileCommerceFromApi))
+                        return
+                      } catch {}
+                    }
+                    setWishlist(await toggleMobileWishlist(championship))
+                  }}
+                >
                   <Text style={styles.inlineButtonText}>{wishlistIds.has(championship.id) ? 'Salvo' : 'Favoritar'}</Text>
                 </TouchableOpacity>
               </View>

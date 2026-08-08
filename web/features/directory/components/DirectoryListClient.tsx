@@ -50,6 +50,21 @@ function commerceItemFromDirectory(item: DirectoryItem): LocalCommerceItem {
   }
 }
 
+function commerceItemFromApi(row: any): LocalCommerceItem {
+  const campeonato = Array.isArray(row?.campeonato) ? row.campeonato[0] : row?.campeonato
+  return {
+    id: String(row?.campeonato_id || campeonato?.id || row?.id || ''),
+    name: String(campeonato?.nome || row?.name || 'Campeonato'),
+    href: `/campeonatos/${row?.campeonato_id || campeonato?.id || ''}`,
+    image: campeonato?.logo_url || null,
+    banner: campeonato?.banner_url || null,
+    price: Number(row?.preco_unitario_centavos || 0) / 100 || Number(campeonato?.valor_inscricao || 0),
+    freeSlots: Number(campeonato?.vagas_livres || 0),
+    quantity: Number(row?.quantidade || 1),
+    itemId: row?.id,
+  } as LocalCommerceItem & { itemId?: string }
+}
+
 function isToday(value: unknown) {
   if (!value) return false
   const date = new Date(String(value))
@@ -204,6 +219,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const [myChampionshipIds, setMyChampionshipIds] = useState<Set<string>>(new Set())
   const [cartItems, setCartItems] = useState<LocalCommerceItem[]>([])
   const [wishlistItems, setWishlistItems] = useState<LocalCommerceItem[]>([])
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const isChampionshipDirectory = items[0]?.kind === 'campeonatos'
 
   useEffect(() => {
@@ -227,6 +243,21 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
     void supabase.auth.getSession().then(async ({ data }) => {
       const accessToken = data.session?.access_token
       if (!accessToken) return
+      setAccessToken(accessToken)
+      const [cartResponse, wishlistResponse] = await Promise.all([
+        fetch('/api/me/commerce/cart', {
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).catch(() => null),
+        fetch('/api/me/commerce/wishlist', {
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).catch(() => null),
+      ])
+      const cartPayload = cartResponse?.ok ? await cartResponse.json().catch(() => null) : null
+      const wishlistPayload = wishlistResponse?.ok ? await wishlistResponse.json().catch(() => null) : null
+      if (cartPayload?.items && alive) setCartItems(cartPayload.items.map(commerceItemFromApi).filter((item: LocalCommerceItem) => item.id))
+      if (wishlistPayload?.items && alive) setWishlistItems(wishlistPayload.items.map(commerceItemFromApi).filter((item: LocalCommerceItem) => item.id))
       const response = await fetch('/api/equipe/escalacoes', {
         cache: 'no-store',
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -251,8 +282,65 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const toggleChampFilter = (key: keyof Pick<ChampFilters, 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine'>) => {
     setChampFilters((current) => ({ ...current, [key]: !current[key] }))
   }
-  const handleCartAdd = (item: DirectoryItem) => setCartItems(addToCart(commerceItemFromDirectory(item), 1))
-  const handleWishlistToggle = (item: DirectoryItem) => setWishlistItems(toggleWishlist(commerceItemFromDirectory(item)))
+  const handleCartAdd = async (item: DirectoryItem) => {
+    if (accessToken) {
+      const response = await fetch('/api/me/commerce/cart', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campeonato_id: item.id, quantidade: 1, origem: 'direto' }),
+      }).catch(() => null)
+      const payload = response?.ok ? await response.json().catch(() => null) : null
+      if (payload?.items) {
+        setCartItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
+        return
+      }
+    }
+    setCartItems(addToCart(commerceItemFromDirectory(item), 1))
+  }
+  const handleWishlistToggle = async (item: DirectoryItem) => {
+    if (accessToken) {
+      const response = await fetch('/api/me/commerce/wishlist', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campeonato_id: item.id, origem: 'direto' }),
+      }).catch(() => null)
+      const payload = response?.ok ? await response.json().catch(() => null) : null
+      if (payload?.items) {
+        setWishlistItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
+        return
+      }
+    }
+    setWishlistItems(toggleWishlist(commerceItemFromDirectory(item)))
+  }
+  const handleCartQuantity = async (item: LocalCommerceItem, quantity: number) => {
+    if (accessToken && item.itemId) {
+      const response = await fetch('/api/me/commerce/cart', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: item.itemId, quantidade: quantity }),
+      }).catch(() => null)
+      const payload = response?.ok ? await response.json().catch(() => null) : null
+      if (payload?.items) {
+        setCartItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
+        return
+      }
+    }
+    setCartItems(setCartQuantity(item.id, quantity))
+  }
+  const handleCartRemove = async (item: LocalCommerceItem) => {
+    if (accessToken && item.itemId) {
+      const response = await fetch(`/api/me/commerce/cart?item_id=${encodeURIComponent(item.itemId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }).catch(() => null)
+      const payload = response?.ok ? await response.json().catch(() => null) : null
+      if (payload?.items) {
+        setCartItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
+        return
+      }
+    }
+    setCartItems(removeFromCart(item.id))
+  }
 
   return (
     <>
@@ -342,10 +430,10 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
                       max={Math.max(1, Number(item.freeSlots || 1))}
                       type="number"
                       value={Number(item.quantity || 1)}
-                      onChange={(event) => setCartItems(setCartQuantity(item.id, Number(event.target.value || 1)))}
+                      onChange={(event) => void handleCartQuantity(item, Number(event.target.value || 1))}
                     />
                     <a href={item.href}>Comprar</a>
-                    <button type="button" onClick={() => setCartItems(removeFromCart(item.id))}>Remover</button>
+                    <button type="button" onClick={() => void handleCartRemove(item)}>Remover</button>
                   </article>
                 ))}
                 <p>Checkout multi-itens fica preparado aqui; por segurança, cada compra ainda usa o pagamento oficial do campeonato.</p>
