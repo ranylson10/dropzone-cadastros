@@ -73,3 +73,28 @@ O app já consome endpoints reais do sistema web:
 ## Stack
 
 Expo + React Native + TypeScript.
+
+## Configuração do login Google no app
+
+Crie `app/.env` (ou forneça as mesmas variáveis no ambiente de build) com:
+
+```env
+EXPO_PUBLIC_DROPZONE_API_URL=https://dropzone-cadastros.vercel.app
+EXPO_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=SUA_CHAVE_PUBLICA_ANON
+EXPO_PUBLIC_AUTH_REDIRECT_URL=dropzone://auth/callback
+```
+
+No Supabase Dashboard, em **Authentication > URL Configuration > Redirect URLs**, adicione exatamente:
+
+```text
+dropzone://auth/callback
+```
+
+O `scheme` do Expo já é `dropzone`, definido em `app/app.json`. O fluxo mobile usa PKCE, troca o `code` recebido no deep link por uma sessão Supabase, persiste a sessão em SecureStore e mantém o refresh automático ativo enquanto o app está em primeiro plano.
+
+Para validar a configuração local antes de abrir o app:
+
+```bat
+npm run mobile:typecheck
+```

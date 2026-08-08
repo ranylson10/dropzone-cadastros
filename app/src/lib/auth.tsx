@@ -1,5 +1,7 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { AppState, Linking } from 'react-native'
 import { Session, User } from '@supabase/supabase-js'
+import { env, isValidMobileAuthRedirect } from '@/config/env'
 import { dropzoneFetch } from '@/lib/api'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { ProfileType } from '@/types/dropzone'
@@ -14,7 +16,10 @@ export type MobileAccount = {
 
 type AuthState = {
   configured: boolean
+  redirectConfigured: boolean
   loading: boolean
+  authenticating: boolean
+  authError: string
   session: Session | null
   user: User | null
   accounts: MobileAccount[]
@@ -24,6 +29,7 @@ type AuthState = {
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   refreshAccounts: () => Promise<void>
+  clearAuthError: () => void
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -44,9 +50,34 @@ function mapAccount(row: any): MobileAccount {
   }
 }
 
+function oauthParamsFromUrl(url: string) {
+  const questionIndex = url.indexOf('?')
+  const hashIndex = url.indexOf('#')
+  const queryText = questionIndex >= 0
+    ? url.slice(questionIndex + 1, hashIndex >= 0 ? hashIndex : undefined)
+    : ''
+  const hashText = hashIndex >= 0 ? url.slice(hashIndex + 1) : ''
+  const query = new URLSearchParams(queryText)
+  const hash = new URLSearchParams(hashText)
+  return {
+    code: query.get('code') || hash.get('code'),
+    error: query.get('error_description') || hash.get('error_description') || query.get('error') || hash.get('error'),
+  }
+}
+
+function isAuthCallbackUrl(url: string) {
+  const base = env.authRedirectUrl.replace(/\/+$/, '')
+  return url === base || url.startsWith(`${base}?`) || url.startsWith(`${base}#`)
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const configured = isSupabaseConfigured()
+  const redirectConfigured = isValidMobileAuthRedirect()
+  const mountedRef = useRef(true)
+  const oauthHandlingRef = useRef(false)
   const [loading, setLoading] = useState(true)
+  const [authenticating, setAuthenticating] = useState(false)
+  const [authError, setAuthError] = useState('')
   const [session, setSession] = useState<Session | null>(null)
   const [accounts, setAccounts] = useState<MobileAccount[]>([])
   const [activeAccountId, setActiveAccountId] = useState('')
@@ -67,29 +98,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setActiveAccountId((current) => current || mapped[0]?.id || '')
   }, [session?.access_token])
 
+  const handleOAuthUrl = useCallback(async (url: string | null) => {
+    if (!url || !isAuthCallbackUrl(url) || oauthHandlingRef.current) return
+    oauthHandlingRef.current = true
+    setAuthenticating(true)
+    setAuthError('')
+    try {
+      const params = oauthParamsFromUrl(url)
+      if (params.error) throw new Error(params.error)
+      if (!params.code) throw new Error('O retorno do Google não trouxe um código de autenticação válido.')
+
+      const { data, error } = await supabase.auth.exchangeCodeForSession(params.code)
+      if (error) throw error
+      if (!data.session) throw new Error('A sessão não foi criada após o retorno do Google.')
+      if (mountedRef.current) setSession(data.session)
+    } catch (error: any) {
+      if (mountedRef.current) {
+        setAuthError(error?.message || 'Não foi possível concluir o login com Google.')
+      }
+    } finally {
+      oauthHandlingRef.current = false
+      if (mountedRef.current) setAuthenticating(false)
+    }
+  }, [])
+
   useEffect(() => {
+    mountedRef.current = true
     if (!configured) {
       setLoading(false)
-      return
+      return () => {
+        mountedRef.current = false
+      }
     }
-    let alive = true
-    supabase.auth.getSession().then(({ data }) => {
-      if (!alive) return
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mountedRef.current) return
+      if (error) setAuthError(error.message)
       setSession(data.session)
       setLoading(false)
     })
+
+    Linking.getInitialURL().then((url) => void handleOAuthUrl(url)).catch(() => null)
+    const linkListener = Linking.addEventListener('url', (event) => {
+      void handleOAuthUrl(event.url)
+    })
+    const appStateListener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') supabase.auth.startAutoRefresh()
+      else supabase.auth.stopAutoRefresh()
+    })
+    supabase.auth.startAutoRefresh()
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mountedRef.current) return
       setSession(nextSession)
+      setAuthenticating(false)
       if (!nextSession) {
         setAccounts([])
         setActiveAccountId('')
       }
     })
+
     return () => {
-      alive = false
+      mountedRef.current = false
+      supabase.auth.stopAutoRefresh()
+      linkListener.remove()
+      appStateListener.remove()
       listener.subscription.unsubscribe()
     }
-  }, [configured])
+  }, [configured, handleOAuthUrl])
 
   useEffect(() => {
     if (session?.access_token) void refreshAccounts().catch(() => setAccounts([]))
@@ -100,7 +176,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthState>(() => ({
     configured,
+    redirectConfigured,
     loading,
+    authenticating,
+    authError,
     session,
     user: session?.user || null,
     accounts,
@@ -108,23 +187,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     activeProfileType,
     setActiveAccountId,
     refreshAccounts,
+    clearAuthError: () => setAuthError(''),
     async signInWithGoogle() {
       if (!configured) throw new Error('Supabase não configurado no app.')
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'dropzone://auth/callback',
-        },
-      })
-      if (error) throw error
+      if (!redirectConfigured) throw new Error('O redirect mobile precisa ser dropzone://auth/callback.')
+      setAuthenticating(true)
+      setAuthError('')
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: env.authRedirectUrl,
+            skipBrowserRedirect: true,
+          },
+        })
+        if (error) throw error
+        if (!data.url) throw new Error('O Supabase não retornou a URL de autenticação do Google.')
+        const supported = await Linking.canOpenURL(data.url)
+        if (!supported) throw new Error('Não foi possível abrir o navegador para autenticação.')
+        await Linking.openURL(data.url)
+      } catch (error) {
+        setAuthenticating(false)
+        throw error
+      }
     },
     async signOut() {
       if (!configured) return
+      setAuthError('')
       await supabase.auth.signOut()
       setAccounts([])
       setActiveAccountId('')
     },
-  }), [accounts, activeAccount, activeProfileType, configured, loading, refreshAccounts, session])
+  }), [accounts, activeAccount, activeProfileType, authError, authenticating, configured, loading, redirectConfigured, refreshAccounts, session])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
