@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Platform, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { AgendaScreen } from '@/screens/AgendaScreen'
 import { AppErrorBoundary } from '@/screens/AppErrorBoundary'
@@ -107,6 +107,8 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
+    paddingBottom: Platform.OS === 'android' ? 16 : 0,
   },
   loader: {
     flex: 1,

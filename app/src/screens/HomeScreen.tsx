@@ -1,10 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { mobileApi } from '@/lib/api'
-import { MobileAccount, useAuth } from '@/lib/auth'
-import { getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem } from '@/lib/commerce'
-import { toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
-import { actionsForProfile } from '@/navigation/mobileExperience'
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { apiUrl } from '@/config/env'
+import { MobileAccount } from '@/lib/auth'
 import { ProfileSwitcher } from '@/screens/ProfileSwitcher'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ChampionshipCard, MobileRoute, ProfileType } from '@/types/dropzone'
@@ -16,18 +12,12 @@ const fallbackProfiles: Array<{ id: ProfileType; label: string }> = [
   { id: 'produtora', label: 'Produtora' },
 ]
 
-const priorityActionsByProfile: Record<ProfileType, string[]> = {
-  equipe: ['my_championships', 'lineup', 'team_roster', 'agenda'],
-  jogador: ['my_championships', 'browse_vacancies', 'agenda', 'invites'],
-  manager: ['seller_sales', 'browse_vacancies', 'my_championships', 'wallet'],
-  produtora: ['producer_overview', 'my_championships', 'agenda', 'wallet'],
-  broadcast: ['my_championships', 'agenda', 'lili', 'rank'],
-}
-
-function routeForAction(action: string): MobileRoute {
-  if (action === 'browse_vacancies' || action === 'buy_slot') return 'vacancies'
-  return action as MobileRoute
-}
+const siteRoutes: Array<{ title: string; description: string; path: string }> = [
+  { title: 'Campeonatos', description: 'Lista, venda de vagas e detalhes.', path: '/campeonatos' },
+  { title: 'Minha área', description: 'Resumo da conta e acessos rápidos.', path: '/' },
+  { title: 'Agenda', description: 'Jogos, prazos e compromissos.', path: '/agenda' },
+  { title: 'Carteira', description: 'Saldo, comprovantes e pagamentos.', path: '/carteira' },
+]
 
 export function HomeScreen(props: {
   profile: ProfileType
@@ -40,61 +30,22 @@ export function HomeScreen(props: {
   onSelectChampionship?: (championship: ChampionshipCard) => void
 }) {
   const { profile, onProfileChange, onNavigate } = props
-  const auth = useAuth()
-  const allActions = useMemo(() => actionsForProfile(profile), [profile])
-  const mainActions = useMemo(() => {
-    const order = priorityActionsByProfile[profile] || []
-    return order
-      .map((id) => allActions.find((action) => action.id === id))
-      .filter(Boolean)
-      .slice(0, 4) as typeof allActions
-  }, [allActions, profile])
-  const secondaryActions = useMemo(() => allActions.filter((action) => !mainActions.some((main) => main.id === action.id)).slice(0, 5), [allActions, mainActions])
-  const [vacancies, setVacancies] = useState<ChampionshipCard[]>([])
-  const [cart, setCart] = useState<MobileCommerceItem[]>([])
-  const [wishlist, setWishlist] = useState<MobileCommerceItem[]>([])
 
-  useEffect(() => {
-    let mounted = true
-    mobileApi.vacancies()
-      .then((response) => {
-        if (!mounted) return
-        setVacancies(((response.announcements as VacancyApiItem[]) || []).slice(0, 2).map(toChampionshipCard))
-      })
-      .catch(() => mounted && setVacancies([]))
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  useEffect(() => {
-    let mounted = true
-    const accessToken = auth.session?.access_token
-    const cartPromise = accessToken ? mobileApi.commerceCart(accessToken).then((payload) => payload.items.map(mobileCommerceFromApi)) : getMobileCart()
-    const wishlistPromise = accessToken ? mobileApi.commerceWishlist(accessToken).then((payload) => payload.items.map(mobileCommerceFromApi)) : getMobileWishlist()
-    Promise.all([cartPromise.catch(() => getMobileCart()), wishlistPromise.catch(() => getMobileWishlist())]).then(([cartItems, wishlistItems]) => {
-      if (!mounted) return
-      setCart(cartItems)
-      setWishlist(wishlistItems)
-    })
-    return () => {
-      mounted = false
-    }
-  }, [auth.session?.access_token])
-
-  const cartQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
+  function openSite(path = '/') {
+    void Linking.openURL(apiUrl(path))
+  }
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.hero}>
-        <View style={styles.heroTop}>
-          <Text style={styles.eyebrow}>DropZone</Text>
-          <TouchableOpacity style={styles.liliButton} onPress={() => onNavigate('lili')}>
-            <Text style={styles.liliText}>Lili</Text>
-          </TouchableOpacity>
+      <View style={styles.header}>
+        <View style={styles.logoMark} />
+        <View style={styles.headerText}>
+          <Text style={styles.brand}>DROPZONE</Text>
+          <Text style={styles.brandSub}>use o fluxo mobile do site</Text>
         </View>
-        <Text style={styles.title}>Resolva rápido</Text>
-        <Text style={styles.subtitle}>Campeonatos, escalação, agenda e vagas em poucos toques.</Text>
+        <TouchableOpacity style={styles.liliButton} onPress={() => onNavigate('lili')}>
+          <Text style={styles.liliText}>Lili</Text>
+        </TouchableOpacity>
       </View>
 
       {props.accounts?.length && props.onSelectAccount && props.onSignOut ? (
@@ -118,72 +69,45 @@ export function HomeScreen(props: {
         </View>
       )}
 
+      <View style={styles.siteCard}>
+        <Text style={styles.eyebrow}>Principal</Text>
+        <Text style={styles.title}>Abrir site mobile</Text>
+        <Text style={styles.subtitle}>
+          O app vai usar a navegação que já está pronta e organizada no site. As funções nativas ficam como atalhos.
+        </Text>
+        <TouchableOpacity style={styles.primaryButton} onPress={() => openSite('/')}>
+          <Text style={styles.primaryButtonText}>Continuar no site</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Principais</Text>
-        <View style={styles.primaryGrid}>
-          {mainActions.map((action) => (
-            <TouchableOpacity key={action.id} style={styles.primaryCard} onPress={() => onNavigate(routeForAction(action.id))}>
-              <Text style={styles.primaryTitle}>{action.title}</Text>
-              <Text style={styles.primaryText} numberOfLines={2}>{action.description}</Text>
+        <Text style={styles.sectionTitle}>Atalhos do site</Text>
+        <View style={styles.list}>
+          {siteRoutes.map((item) => (
+            <TouchableOpacity key={item.path} style={styles.listItem} onPress={() => openSite(item.path)}>
+              <View style={styles.listText}>
+                <Text style={styles.listTitle}>{item.title}</Text>
+                <Text style={styles.listDescription}>{item.description}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      <View style={styles.statusRow}>
-        <TouchableOpacity style={styles.statusCard} onPress={() => onNavigate('commerce')}>
-          <Text style={styles.statusNumber}>{cartQuantity}</Text>
-          <Text style={styles.statusLabel}>no carrinho</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.statusCard} onPress={() => onNavigate('commerce')}>
-          <Text style={styles.statusNumber}>{wishlist.length}</Text>
-          <Text style={styles.statusLabel}>favoritos</Text>
-        </TouchableOpacity>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Atalhos do app</Text>
+        <View style={styles.nativeGrid}>
+          <TouchableOpacity style={styles.nativeCard} onPress={() => onNavigate('lili')}>
+            <Text style={styles.nativeTitle}>Lili</Text>
+            <Text style={styles.nativeText}>Assistente rápida.</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.nativeCard} onPress={() => onNavigate('vacancies')}>
+            <Text style={styles.nativeTitle}>Vagas</Text>
+            <Text style={styles.nativeText}>Campeonatos abertos.</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      {vacancies.length ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Vagas em destaque</Text>
-            <TouchableOpacity onPress={() => onNavigate('vacancies')}>
-              <Text style={styles.sectionLink}>Ver todas</Text>
-            </TouchableOpacity>
-          </View>
-          {vacancies.map((championship) => (
-            <TouchableOpacity
-              key={championship.id}
-              style={styles.vacancyCard}
-              onPress={() => props.onSelectChampionship ? props.onSelectChampionship(championship) : onNavigate('vacancies')}
-            >
-              <View style={styles.vacancyBanner}>
-                {championship.bannerUrl ? <Image source={{ uri: championship.bannerUrl }} style={styles.bannerImage} /> : null}
-              </View>
-              <View style={styles.vacancyInfo}>
-                <Text style={styles.vacancyTitle} numberOfLines={1}>{championship.name}</Text>
-                <Text style={styles.vacancyMeta} numberOfLines={1}>{championship.priceLabel} · {championship.freeSlots} vagas</Text>
-                <Text style={styles.vacancyCta}>Garantir vaga</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ) : null}
-
-      {secondaryActions.length ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mais opções</Text>
-          <View style={styles.list}>
-            {secondaryActions.map((action) => (
-              <TouchableOpacity key={action.id} style={styles.listItem} onPress={() => onNavigate(routeForAction(action.id))}>
-                <View style={styles.listText}>
-                  <Text style={styles.listTitle}>{action.title}</Text>
-                  <Text style={styles.listDescription} numberOfLines={1}>{action.description}</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      ) : null}
     </ScrollView>
   )
 }
@@ -194,26 +118,41 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
     gap: spacing.md,
-    paddingBottom: spacing.xl,
   },
-  hero: {
-    borderRadius: 22,
-    backgroundColor: colors.brandDark,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  heroTop: {
+  header: {
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    borderRadius: radius.lg,
+    backgroundColor: colors.brandDark,
+    padding: spacing.md,
+    gap: spacing.md,
   },
-  eyebrow: {
-    color: colors.gold,
-    fontSize: typography.tiny,
+  logoMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: colors.gold,
+    transform: [{ rotate: '45deg' }],
+  },
+  headerText: {
+    flex: 1,
+  },
+  brand: {
+    color: colors.surface,
+    fontSize: typography.body,
     fontWeight: '900',
     letterSpacing: 2,
+  },
+  brandSub: {
+    marginTop: 2,
+    color: '#cbd5e1',
+    fontSize: typography.tiny,
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
   liliButton: {
@@ -226,17 +165,6 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontWeight: '900',
     fontSize: typography.caption,
-  },
-  title: {
-    color: colors.surface,
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 33,
-  },
-  subtitle: {
-    color: '#d6dae2',
-    fontSize: typography.body,
-    lineHeight: 21,
   },
   profileGrid: {
     flexDirection: 'row',
@@ -264,118 +192,62 @@ const styles = StyleSheet.create({
   profileTextActive: {
     color: colors.surface,
   },
-  section: {
+  siteCard: {
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.lg,
     gap: spacing.sm,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  eyebrow: {
+    color: colors.brand,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: colors.ink,
+    fontSize: 28,
+    lineHeight: 31,
+    fontWeight: '900',
+  },
+  subtitle: {
+    color: colors.muted,
+    fontSize: typography.body,
+    lineHeight: 22,
+  },
+  primaryButton: {
+    marginTop: spacing.sm,
+    minHeight: 54,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.brand,
+  },
+  primaryButtonText: {
+    color: colors.surface,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  section: {
+    gap: spacing.sm,
   },
   sectionTitle: {
     color: colors.ink,
     fontSize: typography.subtitle,
     fontWeight: '900',
   },
-  sectionLink: {
-    color: colors.brand,
-    fontWeight: '900',
-    fontSize: typography.caption,
-  },
-  primaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  primaryCard: {
-    width: '48.5%',
-    minHeight: 92,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  primaryTitle: {
-    color: colors.ink,
-    fontSize: typography.body,
-    fontWeight: '900',
-  },
-  primaryText: {
-    color: colors.muted,
-    fontSize: typography.caption,
-    lineHeight: 17,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  statusCard: {
-    flex: 1,
-    borderRadius: radius.md,
-    backgroundColor: colors.brandDark,
-    padding: spacing.md,
-  },
-  statusNumber: {
-    color: colors.gold,
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  statusLabel: {
-    color: colors.surface,
-    fontSize: typography.caption,
-    fontWeight: '800',
-  },
-  vacancyCard: {
-    flexDirection: 'row',
-    overflow: 'hidden',
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  vacancyBanner: {
-    width: 104,
-    minHeight: 104,
-    backgroundColor: colors.brandDark,
-  },
-  bannerImage: {
-    ...StyleSheet.absoluteFill,
-    resizeMode: 'cover',
-  },
-  vacancyInfo: {
-    flex: 1,
-    padding: spacing.md,
-    gap: spacing.xs,
-    justifyContent: 'center',
-  },
-  vacancyTitle: {
-    color: colors.ink,
-    fontWeight: '900',
-    fontSize: typography.body,
-  },
-  vacancyMeta: {
-    color: colors.muted,
-    fontSize: typography.caption,
-    fontWeight: '800',
-  },
-  vacancyCta: {
-    marginTop: spacing.xs,
-    color: colors.brand,
-    fontSize: typography.caption,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
   list: {
     overflow: 'hidden',
     borderRadius: radius.md,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.surface,
   },
   listItem: {
-    minHeight: 62,
+    minHeight: 66,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -389,6 +261,7 @@ const styles = StyleSheet.create({
   },
   listTitle: {
     color: colors.ink,
+    fontSize: typography.body,
     fontWeight: '900',
   },
   listDescription: {
@@ -400,5 +273,27 @@ const styles = StyleSheet.create({
     color: colors.brand,
     fontSize: 28,
     fontWeight: '900',
+  },
+  nativeGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  nativeCard: {
+    flex: 1,
+    minHeight: 82,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandDark,
+    padding: spacing.md,
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  nativeTitle: {
+    color: colors.surface,
+    fontWeight: '900',
+    fontSize: typography.body,
+  },
+  nativeText: {
+    color: '#cbd5e1',
+    fontSize: typography.caption,
   },
 })
