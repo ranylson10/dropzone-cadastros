@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { fallbackLineups, lineupDateLabel, LineupSummary, lineupSubtitle } from '@/lib/lineups'
+import { lineupDateLabel, LineupSummary, lineupSubtitle } from '@/lib/lineups'
 import { ActionCard, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -23,7 +23,7 @@ export function MyChampionshipsScreen({ onBack, onNavigate, profileType }: Scree
       })
       .catch((err) => {
         if (!mounted) return
-        setLineups(fallbackLineups)
+        setLineups([])
         setError(err?.message || 'Não foi possível carregar seus campeonatos.')
       })
       .finally(() => {
@@ -47,7 +47,7 @@ export function MyChampionshipsScreen({ onBack, onNavigate, profileType }: Scree
     <ScreenShell
       eyebrow="Minha jornada"
       title="Meus campeonatos"
-      description="Campeonatos onde seu perfil tem ação: ver agenda, consultar line, gerar escalação e abrir detalhes quando precisar."
+      description="Campeonatos onde seu perfil tem ação: agenda, line, escalação e próximos passos."
       onBack={onBack}
     >
       {loading ? (
@@ -57,7 +57,7 @@ export function MyChampionshipsScreen({ onBack, onNavigate, profileType }: Scree
         </View>
       ) : null}
 
-      {error ? <Text style={styles.warning}>Mostrando exemplo porque a API não respondeu: {error}</Text> : null}
+      {error ? <Text style={styles.warning}>{error}</Text> : null}
 
       {!loading && grouped.length === 0 ? (
         <ActionCard
@@ -104,10 +104,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.lg,
   },
-  muted: {
-    color: colors.muted,
-    fontWeight: '700',
-  },
+  muted: { color: colors.muted, fontWeight: '700' },
   warning: {
     borderRadius: radius.md,
     backgroundColor: '#fff7ed',

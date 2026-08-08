@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { fallbackLineups, lineupDateLabel, LineupSummary, lineupSubtitle } from '@/lib/lineups'
+import { lineupDateLabel, LineupSummary, lineupSubtitle } from '@/lib/lineups'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -26,7 +26,7 @@ export function LineupScreen({ onBack, onNavigate }: ScreenProps) {
       })
       .catch((err) => {
         if (!mounted) return
-        setLineups(fallbackLineups)
+        setLineups([])
         setError(err?.message || 'Não foi possível carregar as escalações.')
       })
       .finally(() => {
@@ -39,10 +39,7 @@ export function LineupScreen({ onBack, onNavigate }: ScreenProps) {
 
   async function generateInvite(lineup: LineupSummary) {
     const participationId = String(lineup.campeonato_equipe_id || '')
-    if (!participationId || participationId.startsWith('demo')) {
-      setCreatedInvite((current) => ({ ...current, [participationId || 'demo']: { token: 'exemplo-token', url: '' } }))
-      return
-    }
+    if (!participationId) return
     setCreatingId(participationId)
     setError(null)
     try {
@@ -62,7 +59,7 @@ export function LineupScreen({ onBack, onNavigate }: ScreenProps) {
     <ScreenShell
       eyebrow="Escalação"
       title="Escalar jogadores"
-      description="Completar elenco, gerar convite e acompanhar prazo por jogo sem precisar procurar a tela certa no site."
+      description="Complete elenco, gere convite e acompanhe prazo por jogo sem procurar a tela certa no site."
       onBack={onBack}
     >
       {loading ? (
@@ -72,7 +69,7 @@ export function LineupScreen({ onBack, onNavigate }: ScreenProps) {
         </View>
       ) : null}
 
-      {error ? <Text style={styles.warning}>Mostrando exemplo porque a API não respondeu: {error}</Text> : null}
+      {error ? <Text style={styles.warning}>{error}</Text> : null}
 
       {!loading && lineups.length === 0 ? (
         <ActionCard
@@ -138,10 +135,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.lg,
   },
-  muted: {
-    color: colors.muted,
-    fontWeight: '700',
-  },
+  muted: { color: colors.muted, fontWeight: '700' },
   warning: {
     borderRadius: radius.md,
     backgroundColor: '#fff7ed',
@@ -157,19 +151,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
   },
-  title: {
-    color: colors.ink,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
-  },
-  subtitle: {
-    color: colors.muted,
-    fontWeight: '700',
-  },
-  metrics: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
+  title: { color: colors.ink, fontSize: typography.subtitle, fontWeight: '900' },
+  subtitle: { color: colors.muted, fontWeight: '700' },
+  metrics: { flexDirection: 'row', gap: spacing.sm },
   tokenBox: {
     borderRadius: radius.md,
     backgroundColor: colors.background,
@@ -178,32 +162,16 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.xs,
   },
-  tokenLabel: {
-    color: colors.muted,
-    fontSize: typography.tiny,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  tokenText: {
-    color: colors.ink,
-    fontWeight: '900',
-  },
-  tokenUrl: {
-    color: colors.muted,
-    fontSize: typography.caption,
-    fontWeight: '700',
-  },
+  tokenLabel: { color: colors.muted, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  tokenText: { color: colors.ink, fontWeight: '900' },
+  tokenUrl: { color: colors.muted, fontSize: typography.caption, fontWeight: '700' },
   primary: {
     alignItems: 'center',
     borderRadius: radius.md,
     backgroundColor: colors.brand,
     padding: spacing.md,
   },
-  primaryText: {
-    color: colors.surface,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
+  primaryText: { color: colors.surface, fontWeight: '900', textTransform: 'uppercase' },
   secondary: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -211,9 +179,5 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: spacing.md,
   },
-  secondaryText: {
-    color: colors.ink,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
+  secondaryText: { color: colors.ink, fontWeight: '900', textTransform: 'uppercase' },
 })

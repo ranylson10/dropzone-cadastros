@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { fallbackLineups, lineupSubtitle, LineupSummary } from '@/lib/lineups'
+import { lineupSubtitle, LineupSummary } from '@/lib/lineups'
 import { ActionCard, MetricPill, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -23,7 +23,7 @@ export function TeamRosterScreen({ onBack, onNavigate }: ScreenProps) {
       })
       .catch((err) => {
         if (!mounted) return
-        setLineups(fallbackLineups)
+        setLineups([])
         setError(err?.message || 'Não foi possível carregar equipe e lines.')
       })
       .finally(() => mounted && setLoading(false))
@@ -46,7 +46,7 @@ export function TeamRosterScreen({ onBack, onNavigate }: ScreenProps) {
       </View>
 
       {loading ? <ActivityIndicator color={colors.brand} /> : null}
-      {error ? <Text style={styles.warning}>Mostrando exemplo porque a API não respondeu: {error}</Text> : null}
+      {error ? <Text style={styles.warning}>{error}</Text> : null}
 
       {lineups.map((lineup) => (
         <ActionCard
@@ -81,4 +81,3 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
 })
-

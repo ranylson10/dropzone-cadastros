@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
-import { agendaDateLabel, agendaDescription, AgendaItem, agendaTitle, fallbackAgenda } from '@/lib/agenda'
+import { agendaDateLabel, agendaDescription, AgendaItem, agendaTitle } from '@/lib/agenda'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { ActionCard, ScreenShell } from '@/screens/components'
@@ -23,7 +23,7 @@ export function AgendaScreen({ onBack, profileType, onNavigate }: ScreenProps) {
       })
       .catch((err) => {
         if (!mounted) return
-        setItems(fallbackAgenda)
+        setItems([])
         setError(err?.message || 'Não foi possível carregar a agenda.')
       })
       .finally(() => {
@@ -48,7 +48,7 @@ export function AgendaScreen({ onBack, profileType, onNavigate }: ScreenProps) {
         </View>
       ) : null}
 
-      {error ? <Text style={styles.warning}>Mostrando exemplo porque a API não respondeu: {error}</Text> : null}
+      {error ? <Text style={styles.warning}>{error}</Text> : null}
 
       {!loading && items.length === 0 ? (
         <ActionCard
