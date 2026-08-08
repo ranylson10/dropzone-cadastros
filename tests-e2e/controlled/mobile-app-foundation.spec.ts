@@ -70,6 +70,7 @@ test.describe('Mobile app foundation', () => {
     expect(app).toContain("useState<MobileRoute>('home')")
     expect(app).toContain('AuthProvider')
     expect(app).toContain('LoginScreen')
+    expect(app).toContain('onSelectChampionship={screenProps.onSelectChampionship}')
     expect(app).toContain('VacanciesScreen')
     expect(app).toContain('PurchaseClaimScreen')
     expect(app).toContain('LineupScreen')

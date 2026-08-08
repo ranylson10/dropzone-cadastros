@@ -63,6 +63,7 @@ function DropZoneMobileApp() {
           activeAccount={auth.activeAccount}
           onSelectAccount={auth.setActiveAccountId}
           onSignOut={auth.signOut}
+          onSelectChampionship={screenProps.onSelectChampionship}
         />
       )
     }
