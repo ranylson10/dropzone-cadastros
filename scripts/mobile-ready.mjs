@@ -49,8 +49,9 @@ check('Redirect mobile correto', appEnv.EXPO_PUBLIC_AUTH_REDIRECT_URL === 'dropz
 check('API de produção configurada', appEnv.EXPO_PUBLIC_DROPZONE_API_URL === 'https://dropzone-cadastros.vercel.app')
 check('Auth mobile usa PKCE', read('app/src/lib/supabase.ts').includes("flowType: 'pkce'"))
 check('Login troca deep link por sessão', read('app/src/lib/auth.tsx').includes('exchangeCodeForSession'))
-check('Carrinho abre inscrição com URL absoluta', read('app/src/screens/CommerceScreen.tsx').includes('apiUrl(payload.claim_url)'))
-check('Compra direta abre inscrição com URL absoluta', read('app/src/screens/PurchaseClaimScreen.tsx').includes('apiUrl(payment.claim_url)'))
+check('Helper aceita URL relativa ou absoluta', read('app/src/config/env.ts').includes('externalUrl'))
+check('Carrinho abre inscrição com URL segura', read('app/src/screens/CommerceScreen.tsx').includes('externalUrl(payload.claim_url)'))
+check('Compra direta abre inscrição com URL segura', read('app/src/screens/PurchaseClaimScreen.tsx').includes('externalUrl(payment.claim_url)'))
 check('Lili mobile chama API real', read('app/src/screens/LiliScreen.tsx').includes('mobileApi.lili'))
 check('Escalação abre link público', read('app/src/screens/LineupScreen.tsx').includes('Abrir link de escalação'))
 

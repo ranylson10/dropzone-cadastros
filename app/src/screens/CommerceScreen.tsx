@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { apiUrl } from '@/config/env'
+import { externalUrl } from '@/config/env'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, removeMobileCart, setMobileCartQuantity } from '@/lib/commerce'
@@ -61,7 +61,7 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
       const method = methodByItem[item.id] || 'pix'
       const payload = await mobileApi.checkoutCommerceCartItem({ item_id: item.itemId, method }, accessToken)
       const url = payload.payment?.paypal_approval_url || payload.payment?.invoice_url
-      setCheckoutByItem((current) => ({ ...current, [item.id]: { checkoutUrl: url || '', claimUrl: apiUrl(payload.claim_url) } }))
+      setCheckoutByItem((current) => ({ ...current, [item.id]: { checkoutUrl: url || '', claimUrl: externalUrl(payload.claim_url) } }))
       if (url) await Linking.openURL(url)
       else setError('Pagamento criado. Use o botão de inscrição liberada abaixo quando o pagamento confirmar.')
     } catch (err: any) {

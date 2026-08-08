@@ -14,6 +14,12 @@ export function apiUrl(path: string) {
   return `${cleanBase}${cleanPath}`
 }
 
+export function externalUrl(pathOrUrl: string) {
+  const value = String(pathOrUrl || '').trim()
+  if (/^https?:\/\//i.test(value)) return value
+  return apiUrl(value)
+}
+
 export function isValidMobileAuthRedirect(url = env.authRedirectUrl) {
   try {
     const parsed = new URL(url)
