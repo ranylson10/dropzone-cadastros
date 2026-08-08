@@ -49,6 +49,8 @@ test.describe('Mobile app foundation', () => {
     expect(env).toContain('dropzone://auth/callback')
     expect(env).toContain('externalUrl')
     expect(api).toContain('/api/vagas')
+    expect(api).toContain('DEFAULT_TIMEOUT_MS')
+    expect(api).toContain('AbortController')
     expect(api).toContain('/api/me/commerce/cart')
     expect(api).toContain('/api/me/commerce/wishlist')
     expect(api).toContain('removeCommerceCartItem')

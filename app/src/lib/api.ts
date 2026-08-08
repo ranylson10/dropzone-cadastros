@@ -2,7 +2,10 @@ import { apiUrl } from '@/config/env'
 
 type RequestOptions = RequestInit & {
   accessToken?: string | null
+  timeoutMs?: number
 }
+
+const DEFAULT_TIMEOUT_MS = 25000
 
 export async function dropzoneFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers)
@@ -10,10 +13,21 @@ export async function dropzoneFetch<T>(path: string, options: RequestOptions = {
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   if (options.accessToken) headers.set('Authorization', `Bearer ${options.accessToken}`)
 
-  const response = await fetch(apiUrl(path), {
-    ...options,
-    headers,
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs || DEFAULT_TIMEOUT_MS)
+  let response: Response
+  try {
+    response = await fetch(apiUrl(path), {
+      ...options,
+      signal: options.signal || controller.signal,
+      headers,
+    })
+  } catch (error: any) {
+    if (error?.name === 'AbortError') throw new Error('Tempo esgotado ao conectar com o DropZone. Verifique sua internet e tente novamente.')
+    throw new Error(error?.message || 'Não foi possível conectar com o DropZone.')
+  } finally {
+    clearTimeout(timeout)
+  }
   const json = await response.json().catch(() => null)
   if (!response.ok) {
     throw new Error(json?.error || json?.message || 'Não foi possível concluir a ação.')

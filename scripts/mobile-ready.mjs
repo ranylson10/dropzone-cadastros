@@ -47,6 +47,7 @@ check('Supabase URL preenchida', Boolean(appEnv.EXPO_PUBLIC_SUPABASE_URL && !app
 check('Supabase anon key preenchida', Boolean(appEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY && !appEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY.includes('SUA_CHAVE')), 'preencha app/.env')
 check('Redirect mobile correto', appEnv.EXPO_PUBLIC_AUTH_REDIRECT_URL === 'dropzone://auth/callback')
 check('API de produção configurada', appEnv.EXPO_PUBLIC_DROPZONE_API_URL === 'https://dropzone-cadastros.vercel.app')
+check('API mobile tem timeout contra rede travada', read('app/src/lib/api.ts').includes('DEFAULT_TIMEOUT_MS') && read('app/src/lib/api.ts').includes('AbortController'))
 check('Auth mobile usa PKCE', read('app/src/lib/supabase.ts').includes("flowType: 'pkce'"))
 check('Login troca deep link por sessão', read('app/src/lib/auth.tsx').includes('exchangeCodeForSession'))
 check('App protege contra tela branca', read('app/src/App.tsx').includes('AppErrorBoundary'))
