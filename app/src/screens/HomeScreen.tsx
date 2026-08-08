@@ -1,38 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
-import { MobileAccount } from '@/lib/auth'
-import { useAuth } from '@/lib/auth'
-import { addMobileCart, getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, toggleMobileWishlist } from '@/lib/commerce'
+import { MobileAccount, useAuth } from '@/lib/auth'
+import { getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem } from '@/lib/commerce'
 import { toChampionshipCard, VacancyApiItem } from '@/lib/vacancies'
 import { actionsForProfile } from '@/navigation/mobileExperience'
 import { ProfileSwitcher } from '@/screens/ProfileSwitcher'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
-import { ChampionshipCard, MobileRoute, ProfileType, UserTask } from '@/types/dropzone'
+import { ChampionshipCard, MobileRoute, ProfileType } from '@/types/dropzone'
 
-const profiles: Array<{ id: ProfileType; label: string }> = [
+const fallbackProfiles: Array<{ id: ProfileType; label: string }> = [
   { id: 'equipe', label: 'Equipe' },
   { id: 'jogador', label: 'Jogador' },
   { id: 'manager', label: 'Vendedor' },
   { id: 'produtora', label: 'Produtora' },
 ]
 
-const quickTasks: UserTask[] = [
-  {
-    id: 'lineup-today',
-    title: 'Escalação pendente',
-    description: 'Complete o elenco antes do prazo do próximo jogo.',
-    action: 'lineup',
-    severity: 'warning',
-  },
-  {
-    id: 'invite-open',
-    title: 'Convite aguardando resposta',
-    description: 'Veja pedidos de jogadores, equipes ou campeonatos em aberto.',
-    action: 'invites',
-    severity: 'info',
-  },
-]
+const priorityActionsByProfile: Record<ProfileType, string[]> = {
+  equipe: ['my_championships', 'lineup', 'team_roster', 'agenda'],
+  jogador: ['my_championships', 'browse_vacancies', 'agenda', 'invites'],
+  manager: ['seller_sales', 'browse_vacancies', 'my_championships', 'wallet'],
+  produtora: ['producer_overview', 'my_championships', 'agenda', 'wallet'],
+  broadcast: ['my_championships', 'agenda', 'lili', 'rank'],
+}
 
 function routeForAction(action: string): MobileRoute {
   if (action === 'browse_vacancies' || action === 'buy_slot') return 'vacancies'
@@ -51,7 +41,15 @@ export function HomeScreen(props: {
 }) {
   const { profile, onProfileChange, onNavigate } = props
   const auth = useAuth()
-  const actions = useMemo(() => actionsForProfile(profile), [profile])
+  const allActions = useMemo(() => actionsForProfile(profile), [profile])
+  const mainActions = useMemo(() => {
+    const order = priorityActionsByProfile[profile] || []
+    return order
+      .map((id) => allActions.find((action) => action.id === id))
+      .filter(Boolean)
+      .slice(0, 4) as typeof allActions
+  }, [allActions, profile])
+  const secondaryActions = useMemo(() => allActions.filter((action) => !mainActions.some((main) => main.id === action.id)).slice(0, 5), [allActions, mainActions])
   const [vacancies, setVacancies] = useState<ChampionshipCard[]>([])
   const [cart, setCart] = useState<MobileCommerceItem[]>([])
   const [wishlist, setWishlist] = useState<MobileCommerceItem[]>([])
@@ -61,12 +59,9 @@ export function HomeScreen(props: {
     mobileApi.vacancies()
       .then((response) => {
         if (!mounted) return
-        const cards = ((response.announcements as VacancyApiItem[]) || []).slice(0, 3).map(toChampionshipCard)
-        setVacancies(cards)
+        setVacancies(((response.announcements as VacancyApiItem[]) || []).slice(0, 2).map(toChampionshipCard))
       })
-      .catch(() => {
-        if (mounted) setVacancies([])
-      })
+      .catch(() => mounted && setVacancies([]))
     return () => {
       mounted = false
     }
@@ -77,10 +72,7 @@ export function HomeScreen(props: {
     const accessToken = auth.session?.access_token
     const cartPromise = accessToken ? mobileApi.commerceCart(accessToken).then((payload) => payload.items.map(mobileCommerceFromApi)) : getMobileCart()
     const wishlistPromise = accessToken ? mobileApi.commerceWishlist(accessToken).then((payload) => payload.items.map(mobileCommerceFromApi)) : getMobileWishlist()
-    Promise.all([
-      cartPromise.catch(() => getMobileCart()),
-      wishlistPromise.catch(() => getMobileWishlist()),
-    ]).then(([cartItems, wishlistItems]) => {
+    Promise.all([cartPromise.catch(() => getMobileCart()), wishlistPromise.catch(() => getMobileWishlist())]).then(([cartItems, wishlistItems]) => {
       if (!mounted) return
       setCart(cartItems)
       setWishlist(wishlistItems)
@@ -90,17 +82,19 @@ export function HomeScreen(props: {
     }
   }, [auth.session?.access_token])
 
-  const wishlistIds = useMemo(() => new Set(wishlist.map((item) => item.id)), [wishlist])
   const cartQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.page} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>DropZone Mobile</Text>
-        <Text style={styles.title}>O que você precisa resolver agora?</Text>
-        <Text style={styles.subtitle}>
-          Atalhos para comprar vaga, entrar no campeonato, escalar jogadores e acompanhar jogos sem caçar menu.
-        </Text>
+        <View style={styles.heroTop}>
+          <Text style={styles.eyebrow}>DropZone</Text>
+          <TouchableOpacity style={styles.liliButton} onPress={() => onNavigate('lili')}>
+            <Text style={styles.liliText}>Lili</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.title}>Resolva rápido</Text>
+        <Text style={styles.subtitle}>Campeonatos, escalação, agenda e vagas em poucos toques.</Text>
       </View>
 
       {props.accounts?.length && props.onSelectAccount && props.onSignOut ? (
@@ -111,8 +105,8 @@ export function HomeScreen(props: {
           onSignOut={props.onSignOut}
         />
       ) : (
-        <View style={styles.profileRow}>
-          {profiles.map((item) => (
+        <View style={styles.profileGrid}>
+          {fallbackProfiles.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={[styles.profileButton, profile === item.id && styles.profileButtonActive]}
@@ -125,94 +119,71 @@ export function HomeScreen(props: {
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Próximas ações</Text>
-        {quickTasks.map((task) => (
-          <TouchableOpacity key={task.id} style={[styles.taskCard, task.severity === 'warning' && styles.taskWarning]} onPress={() => onNavigate(routeForAction(task.action))}>
-            <View>
-              <Text style={styles.cardTitle}>{task.title}</Text>
-              <Text style={styles.cardText}>{task.description}</Text>
-            </View>
-            <Text style={styles.cardCta}>Abrir</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Acesso rápido</Text>
-        <View style={styles.actionGrid}>
-          {actions.map((action) => (
-            <TouchableOpacity key={action.id} style={styles.actionCard} onPress={() => onNavigate(routeForAction(action.id))}>
-              <Text style={styles.actionTitle}>{action.title}</Text>
-              <Text style={styles.actionDescription}>{action.description}</Text>
+        <Text style={styles.sectionTitle}>Principais</Text>
+        <View style={styles.primaryGrid}>
+          {mainActions.map((action) => (
+            <TouchableOpacity key={action.id} style={styles.primaryCard} onPress={() => onNavigate(routeForAction(action.id))}>
+              <Text style={styles.primaryTitle}>{action.title}</Text>
+              <Text style={styles.primaryText} numberOfLines={2}>{action.description}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Campeonatos com vagas</Text>
-        <View style={styles.commerceSummary}>
-          <Text style={styles.commerceText}>Carrinho: {cartQuantity} vaga(s)</Text>
-          <Text style={styles.commerceText}>Favoritos: {wishlist.length} salvo(s)</Text>
-        </View>
-        {vacancies.map((championship) => (
-          <TouchableOpacity
-            key={championship.id}
-            style={styles.vacancyCard}
-            onPress={() => props.onSelectChampionship ? props.onSelectChampionship(championship) : onNavigate('vacancies')}
-          >
-            <View style={styles.bannerMock}>
-              {championship.bannerUrl ? <Image source={{ uri: championship.bannerUrl }} style={styles.bannerImage} /> : null}
-              <Text style={styles.bannerBadge}>{championship.hasLive ? 'LIVE' : 'VAGA'}</Text>
-            </View>
-            <View style={styles.vacancyBody}>
-              <Text style={styles.cardTitle}>{championship.name}</Text>
-              <Text style={styles.cardText}>{championship.mode}</Text>
-              <Text style={styles.vacancyMeta}>
-                {championship.priceLabel} · {championship.freeSlots} vagas · {championship.nextMatchLabel}
-              </Text>
-              <View style={styles.inlineActions}>
-                <TouchableOpacity
-                  style={styles.inlineButton}
-                  onPress={async () => {
-                    const accessToken = auth.session?.access_token
-                    if (accessToken) {
-                      try {
-                        const payload = await mobileApi.addCommerceCart(championship.id, 1, accessToken)
-                        setCart(payload.items.map(mobileCommerceFromApi))
-                        return
-                      } catch {}
-                    }
-                    setCart(await addMobileCart(championship, 1))
-                  }}
-                >
-                  <Text style={styles.inlineButtonText}>Carrinho</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.inlineButton}
-                  onPress={async () => {
-                    const accessToken = auth.session?.access_token
-                    if (accessToken) {
-                      try {
-                        const payload = await mobileApi.toggleCommerceWishlist(championship.id, accessToken)
-                        setWishlist(payload.items.map(mobileCommerceFromApi))
-                        return
-                      } catch {}
-                    }
-                    setWishlist(await toggleMobileWishlist(championship))
-                  }}
-                >
-                  <Text style={styles.inlineButtonText}>{wishlistIds.has(championship.id) ? 'Salvo' : 'Favoritar'}</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.cardCta}>Garantir vaga</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-        <TouchableOpacity style={styles.moreButton} onPress={() => onNavigate('vacancies')}>
-          <Text style={styles.moreButtonText}>Ver todas as vagas</Text>
+      <View style={styles.statusRow}>
+        <TouchableOpacity style={styles.statusCard} onPress={() => onNavigate('commerce')}>
+          <Text style={styles.statusNumber}>{cartQuantity}</Text>
+          <Text style={styles.statusLabel}>no carrinho</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.statusCard} onPress={() => onNavigate('commerce')}>
+          <Text style={styles.statusNumber}>{wishlist.length}</Text>
+          <Text style={styles.statusLabel}>favoritos</Text>
         </TouchableOpacity>
       </View>
+
+      {vacancies.length ? (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Vagas em destaque</Text>
+            <TouchableOpacity onPress={() => onNavigate('vacancies')}>
+              <Text style={styles.sectionLink}>Ver todas</Text>
+            </TouchableOpacity>
+          </View>
+          {vacancies.map((championship) => (
+            <TouchableOpacity
+              key={championship.id}
+              style={styles.vacancyCard}
+              onPress={() => props.onSelectChampionship ? props.onSelectChampionship(championship) : onNavigate('vacancies')}
+            >
+              <View style={styles.vacancyBanner}>
+                {championship.bannerUrl ? <Image source={{ uri: championship.bannerUrl }} style={styles.bannerImage} /> : null}
+              </View>
+              <View style={styles.vacancyInfo}>
+                <Text style={styles.vacancyTitle} numberOfLines={1}>{championship.name}</Text>
+                <Text style={styles.vacancyMeta} numberOfLines={1}>{championship.priceLabel} · {championship.freeSlots} vagas</Text>
+                <Text style={styles.vacancyCta}>Garantir vaga</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
+
+      {secondaryActions.length ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Mais opções</Text>
+          <View style={styles.list}>
+            {secondaryActions.map((action) => (
+              <TouchableOpacity key={action.id} style={styles.listItem} onPress={() => onNavigate(routeForAction(action.id))}>
+                <View style={styles.listText}>
+                  <Text style={styles.listTitle}>{action.title}</Text>
+                  <Text style={styles.listDescription} numberOfLines={1}>{action.description}</Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ) : null}
     </ScrollView>
   )
 }
@@ -223,14 +194,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
   },
   hero: {
-    borderRadius: radius.lg,
+    borderRadius: 22,
     backgroundColor: colors.brandDark,
-    padding: spacing.xl,
+    padding: spacing.lg,
     gap: spacing.sm,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   eyebrow: {
     color: colors.gold,
@@ -239,36 +216,50 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
+  liliButton: {
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  liliText: {
+    color: colors.surface,
+    fontWeight: '900',
+    fontSize: typography.caption,
+  },
   title: {
     color: colors.surface,
-    fontSize: typography.title,
+    fontSize: 30,
     fontWeight: '900',
+    lineHeight: 33,
   },
   subtitle: {
     color: '#d6dae2',
     fontSize: typography.body,
     lineHeight: 21,
   },
-  profileRow: {
+  profileGrid: {
     flexDirection: 'row',
-    gap: spacing.sm,
     flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   profileButton: {
+    flexGrow: 1,
+    minWidth: '46%',
+    alignItems: 'center',
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
   },
   profileButtonActive: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.brandDark,
+    borderColor: colors.brandDark,
   },
   profileText: {
     color: colors.ink,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   profileTextActive: {
     color: colors.surface,
@@ -276,139 +267,138 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.sm,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   sectionTitle: {
     color: colors.ink,
     fontSize: typography.subtitle,
     fontWeight: '900',
   },
-  commerceSummary: {
+  sectionLink: {
+    color: colors.brand,
+    fontWeight: '900',
+    fontSize: typography.caption,
+  },
+  primaryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.brandDark,
-    padding: spacing.md,
   },
-  commerceText: {
-    color: colors.surface,
-    fontSize: typography.caption,
-    fontWeight: '900',
-  },
-  taskCard: {
+  primaryCard: {
+    width: '48.5%',
+    minHeight: 92,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     padding: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  taskWarning: {
-    borderColor: colors.warning,
-  },
-  cardTitle: {
+  primaryTitle: {
     color: colors.ink,
     fontSize: typography.body,
     fontWeight: '900',
   },
-  cardText: {
+  primaryText: {
     color: colors.muted,
     fontSize: typography.caption,
-    lineHeight: 18,
+    lineHeight: 17,
   },
-  cardCta: {
+  statusRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  statusCard: {
+    flex: 1,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandDark,
+    padding: spacing.md,
+  },
+  statusNumber: {
+    color: colors.gold,
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  statusLabel: {
+    color: colors.surface,
+    fontSize: typography.caption,
+    fontWeight: '800',
+  },
+  vacancyCard: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  vacancyBanner: {
+    width: 104,
+    minHeight: 104,
+    backgroundColor: colors.brandDark,
+  },
+  bannerImage: {
+    ...StyleSheet.absoluteFill,
+    resizeMode: 'cover',
+  },
+  vacancyInfo: {
+    flex: 1,
+    padding: spacing.md,
+    gap: spacing.xs,
+    justifyContent: 'center',
+  },
+  vacancyTitle: {
+    color: colors.ink,
+    fontWeight: '900',
+    fontSize: typography.body,
+  },
+  vacancyMeta: {
+    color: colors.muted,
+    fontSize: typography.caption,
+    fontWeight: '800',
+  },
+  vacancyCta: {
+    marginTop: spacing.xs,
     color: colors.brand,
     fontSize: typography.caption,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  actionCard: {
-    width: '48%',
-    minHeight: 116,
+  list: {
+    overflow: 'hidden',
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing.md,
-    gap: spacing.sm,
+    backgroundColor: colors.surface,
   },
-  actionTitle: {
+  listItem: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  listText: {
+    flex: 1,
+    paddingRight: spacing.md,
+  },
+  listTitle: {
     color: colors.ink,
     fontWeight: '900',
   },
-  actionDescription: {
+  listDescription: {
+    marginTop: 2,
     color: colors.muted,
     fontSize: typography.caption,
-    lineHeight: 17,
   },
-  vacancyCard: {
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  bannerMock: {
-    height: 136,
-    backgroundColor: colors.brandDark,
-    padding: spacing.md,
-  },
-  bannerImage: {
-    ...StyleSheet.absoluteFill,
-    height: undefined,
-    width: undefined,
-    resizeMode: 'cover',
-  },
-  bannerBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.brand,
-    color: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    fontSize: typography.tiny,
-    fontWeight: '900',
-  },
-  vacancyBody: {
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  vacancyMeta: {
-    color: colors.ink,
-    fontSize: typography.caption,
-    fontWeight: '800',
-  },
-  inlineActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  inlineButton: {
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  inlineButtonText: {
-    color: colors.ink,
-    fontSize: typography.tiny,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  moreButton: {
-    alignItems: 'center',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-  },
-  moreButtonText: {
-    color: colors.ink,
+  chevron: {
+    color: colors.brand,
+    fontSize: 28,
     fontWeight: '900',
   },
 })
