@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ActivityIndicator, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { AgendaScreen } from '@/screens/AgendaScreen'
+import { AppErrorBoundary } from '@/screens/AppErrorBoundary'
 import { CommerceScreen } from '@/screens/CommerceScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
 import { InvitesScreen } from '@/screens/InvitesScreen'
@@ -95,7 +96,9 @@ function DropZoneMobileApp() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.brandDark} />
-      {renderScreen()}
+      <AppErrorBoundary onReset={() => setRoute('home')}>
+        {renderScreen()}
+      </AppErrorBoundary>
     </SafeAreaView>
   )
 }
