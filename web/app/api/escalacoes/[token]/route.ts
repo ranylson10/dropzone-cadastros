@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
+import { assertLineupWindowOpen, assertPlayerNotInAnotherTeam, resolveLineupWindow } from '@backend/campeonatos/lineup-window'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function tokenFrom(ctx: any) {
@@ -66,6 +67,8 @@ export async function GET(req: NextRequest, ctx: any) {
       ? (players || []).find((player: any) => player.jogador_id === playerProfile.id) || null
       : null
 
+    const window = await resolveLineupWindow(summary.campeonato_id, summary.grupo_id)
+
     return NextResponse.json({
       ...summary,
       autenticado: auth.autenticado,
@@ -79,6 +82,7 @@ export async function GET(req: NextRequest, ctx: any) {
         limite_jogadores: link.limite_jogadores,
         expira_em: link.expira_em,
       },
+      prazo_escalacao: window,
       jogadores: players || [],
     })
   } catch (error: any) {
@@ -118,15 +122,17 @@ export async function POST(req: NextRequest, ctx: any) {
     const body = await req.json().catch(() => ({}))
     const { data: participation, error: participationError } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('id,campeonato_id,equipe_id,line_id')
+      .select('id,campeonato_id,equipe_id,line_id,grupo_id')
       .eq('id', link.campeonato_equipe_id)
       .single()
     if (participationError) throw participationError
+    await assertLineupWindowOpen(participation.campeonato_id, participation.grupo_id)
 
     const nick = String(body.nick || account.nome || account.username || '').trim()
     const idJogo = String(body.id_jogo || account.id_jogo || '').trim()
     const funcao = String(body.funcao || account.funcao || 'support')
     if (!nick || !idJogo) throw new Error('Complete nick e ID de jogo no perfil do jogador.')
+    await assertPlayerNotInAnotherTeam(participation.campeonato_id, { jogadorId: account.id, idJogo }, participation.id)
 
     const { data: inserted, error } = await supabaseAdmin
       .from('campeonato_jogadores')

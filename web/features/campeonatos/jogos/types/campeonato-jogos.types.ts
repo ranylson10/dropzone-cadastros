@@ -17,6 +17,8 @@ export type CampeonatoJogoForm = {
   permite_troca_jogadores: boolean
   prazo_troca_minutos: string
   prazo_escalacao_minutos: string
+  escalacao_abre_horas_antes: string
+  escalacao_fecha_horas_antes: string
   minimo_partidas_jogadas_jogador: string
 }
 

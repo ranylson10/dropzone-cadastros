@@ -34,6 +34,8 @@ export type JogoInput = {
   permite_troca_jogadores?: boolean
   limite_troca_minutos?: number | null
   limite_escalacao_minutos?: number | null
+  escalacao_abre_horas_antes?: number | null
+  escalacao_fecha_horas_antes?: number | null
   minimo_quedas_jogadas_jogador?: number
   status?: string
 }
@@ -196,6 +198,7 @@ async function assertGruposDaFase(campeonatoId: string, faseId: string, grupoIds
 }
 
 async function sanitizeJogoInput(input: Partial<JogoInput>, existing?: any): Promise<JogoInput> {
+  const raw = input as any
   const numeroPartidas = positiveInt(input.numero_partidas ?? existing?.numero_partidas, 'Número de quedas') as number
   const mapas = await normalizeQuedasMapas(
     numeroPartidas,
@@ -210,8 +213,13 @@ async function sanitizeJogoInput(input: Partial<JogoInput>, existing?: any): Pro
 
   const permiteTroca = Boolean(input.permite_troca_jogadores ?? existing?.permite_troca_jogadores ?? true)
   const limiteTroca = permiteTroca
-    ? positiveInt(input.limite_troca_minutos ?? existing?.limite_troca_minutos, 'Prazo de troca', { allowZero: true, nullable: true })
+    ? positiveInt(input.limite_troca_minutos ?? raw.prazo_troca_minutos ?? existing?.limite_troca_minutos, 'Prazo de troca', { allowZero: true, nullable: true })
     : null
+  const abreHoras = positiveInt(input.escalacao_abre_horas_antes ?? existing?.escalacao_abre_horas_antes, 'Abertura da escalação', { allowZero: true, nullable: true })
+  const fechaHoras = positiveInt(input.escalacao_fecha_horas_antes ?? existing?.escalacao_fecha_horas_antes, 'Encerramento da escalação', { allowZero: true, nullable: true })
+  if (abreHoras != null && fechaHoras != null && abreHoras < fechaHoras) {
+    throw new Error('A escalação precisa abrir antes de fechar. Ex.: abre 24h antes e fecha 2h antes.')
+  }
 
   return {
     fase_id: nonEmpty(input.fase_id ?? existing?.fase_id, 'Fase'),
@@ -229,7 +237,9 @@ async function sanitizeJogoInput(input: Partial<JogoInput>, existing?: any): Pro
     multiplicador_abates_ultima_queda: numeric(input.multiplicador_abates_ultima_queda ?? existing?.multiplicador_abates_ultima_queda ?? 1, 'Multiplicador de abates', { min: 1 }) as number,
     permite_troca_jogadores: permiteTroca,
     limite_troca_minutos: limiteTroca,
-    limite_escalacao_minutos: positiveInt(input.limite_escalacao_minutos ?? existing?.limite_escalacao_minutos, 'Prazo de escalação', { allowZero: true, nullable: true }),
+    limite_escalacao_minutos: positiveInt(input.limite_escalacao_minutos ?? raw.prazo_escalacao_minutos ?? existing?.limite_escalacao_minutos, 'Prazo de escalação', { allowZero: true, nullable: true }),
+    escalacao_abre_horas_antes: abreHoras,
+    escalacao_fecha_horas_antes: fechaHoras,
     minimo_quedas_jogadas_jogador: positiveInt(input.minimo_quedas_jogadas_jogador ?? existing?.minimo_quedas_jogadas_jogador ?? 0, 'Mínimo de quedas jogadas', { allowZero: true }) as number,
     status: String(input.status ?? existing?.status ?? 'ativo').trim() || 'ativo',
   }

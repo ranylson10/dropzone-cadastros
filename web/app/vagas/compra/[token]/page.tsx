@@ -6,6 +6,7 @@ import {
   ClipboardCopy,
   Loader2,
   Shield,
+  Sparkles,
   Ticket,
   Users,
 } from 'lucide-react'
@@ -26,6 +27,12 @@ function moneyCentavos(centavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
     Number(centavos || 0) / 100,
   )
+}
+
+function optionLabel(count: number, singular: string, plural: string) {
+  if (count === 0) return `nenhum ${singular}`
+  if (count === 1) return `1 ${singular}`
+  return `${count} ${plural}`
 }
 
 export default function CompraVagaPage() {
@@ -77,6 +84,7 @@ export default function CompraVagaPage() {
 
         const lines: LineOpt[] = json.lines || []
         if (!lineId && lines[0]?.id) setLineId(lines[0].id)
+        if (!lineId && !lines.length) setLineId('__create__')
 
         const slots: SlotOpt[] = json.slots_livres || []
         if (!slotId && slots[0]?.id) setSlotId(slots[0].id)
@@ -142,6 +150,17 @@ export default function CompraVagaPage() {
     return () => clearInterval(t)
   }, [data?.compra?.status, data?.liberado, data?.consumido, equipeId, load])
 
+  useEffect(() => {
+    if (!data?.liberado || success?.ok || success?.already) return
+    const equipesAuto: EquipeOpt[] = data?.equipes || []
+    const linesAuto: LineOpt[] = data?.lines || []
+    const slotsAuto: SlotOpt[] = data?.slots_livres || []
+    if (!equipeId && equipesAuto.length === 1) setEquipeId(equipesAuto[0].id)
+    if (!lineId && linesAuto.length === 1) setLineId(linesAuto[0].id)
+    if (!lineId && linesAuto.length === 0) setLineId('__create__')
+    if (!slotId && slotsAuto.length === 1) setSlotId(slotsAuto[0].id)
+  }, [data, equipeId, lineId, slotId, success?.already, success?.ok])
+
   async function onChangeEquipe(id: string) {
     setEquipeId(id)
     setLineId('')
@@ -200,6 +219,9 @@ export default function CompraVagaPage() {
   const equipes: EquipeOpt[] = data?.equipes || []
   const lines: LineOpt[] = data?.lines || []
   const slots: SlotOpt[] = data?.slots_livres || []
+  const selectedEquipe = equipes.find((item) => item.id === equipeId) || null
+  const selectedLine = lines.find((item) => item.id === lineId) || null
+  const selectedSlot = slots.find((item) => item.id === slotId) || null
   const payment = data?.payment
   const liberado = Boolean(data?.liberado)
   const pending = data?.compra?.status === 'pendente'
@@ -223,6 +245,11 @@ export default function CompraVagaPage() {
   const paymentReceiptHref = hasPaymentReceipt
     ? `/carteira?comprovante=${encodeURIComponent(String(payment.id))}&tipo=pagamento`
     : ''
+  const needsNewLine = lineId === '__create__' || (!lines.length && !selectedLine)
+  const canConfirmEntry = Boolean(liberado && equipeId && slotId && (!needsNewLine || nomeNovaLine.trim()))
+  const lineupHref = success?.campeonato_equipe_id
+    ? `/painel?tab=equipe&campeonato_equipe_id=${encodeURIComponent(String(success.campeonato_equipe_id))}&acao=escalar`
+    : '/painel?tab=equipe&acao=escalar'
 
   const pixSrc = useMemo(() => {
     const raw = payment?.pix_qrcode
@@ -274,14 +301,20 @@ export default function CompraVagaPage() {
           <p>
             {data?.compra
               ? `${moneyCentavos(data.compra.valor_centavos)} · status: ${data.compra.status}`
-              : 'Acompanhe o pagamento e escolha o slot.'}
+              : 'Acompanhe o pagamento e coloque sua equipe no campeonato.'}
           </p>
         </div>
         <div className="vacancies-hero-count">
           <Ticket />
           <strong>{slots.length}</strong>
-          <span>slots livres no grupo</span>
+          <span>vagas livres no grupo</span>
         </div>
+      </section>
+
+      <section className="vacancy-claim-steps" aria-label="Etapas da entrada no campeonato">
+        <span className={payment ? 'done' : 'active'}><CheckCircle2 size={14} /> Pagamento</span>
+        <span className={liberado ? 'active' : ''}><Users size={14} /> Escolher equipe</span>
+        <span className={success?.ok || success?.already || data?.consumido ? 'done' : ''}><Ticket size={14} /> Entrar no campeonato</span>
       </section>
 
       {error ? <div className="admin-feedback error">{error}</div> : null}
@@ -310,7 +343,7 @@ export default function CompraVagaPage() {
             <div className="invite-auth-box" style={{ alignItems: 'flex-start', marginTop: 4 }}>
               <div className="message" style={{ marginTop: 0 }}>
                 <CheckCircle2 size={16} style={{ display: 'inline', marginRight: 6 }} />
-                Pagamento confirmado. Escolha o slot no grupo liberado ao lado.
+                Pagamento confirmado. Agora falta só colocar sua equipe na vaga liberada.
               </div>
               {paymentReceiptHref ? (
                 <a className="button secondary" href={paymentReceiptHref}>
@@ -380,7 +413,7 @@ export default function CompraVagaPage() {
               </h2>
               <span>
                 {liberado
-                  ? 'Selecione equipe, line e slot livre'
+                  ? 'Vou te guiar: equipe, elenco e vaga no grupo'
                   : 'Disponível após confirmação do pagamento'}
               </span>
             </div>
@@ -389,18 +422,19 @@ export default function CompraVagaPage() {
           {success?.ok || success?.already || data?.consumido ? (
             <div className="invite-auth-box">
               <CheckCircle2 size={40} />
+              <p className="eyebrow">Tudo certo</p>
               <p>
-                <strong>{success?.line?.nome || 'Line'}</strong>
+                <strong>{success?.line?.nome || 'Elenco'}</strong>
                 {success?.slot?.slot_letra ? (
                   <>
                     {' '}
-                    no slot <strong>{success.slot.slot_letra}</strong>
+                    na vaga <strong>{success.slot.slot_letra}</strong>
                   </>
                 ) : null}
               </p>
-              <p>{success?.mensagem || 'Vaga confirmada no campeonato.'}</p>
-              <a className="button" href="/vagas">
-                Ver vagas
+              <p>{success?.mensagem || 'Sua equipe entrou no campeonato.'}</p>
+              <a className="button" href={lineupHref}>
+                Escalar jogadores
               </a>
               {data?.campeonato?.id ? (
                 <a className="button secondary" href={`/campeonatos/${data.campeonato.id}`}>
@@ -424,8 +458,22 @@ export default function CompraVagaPage() {
             </div>
           ) : (
             <div className="vacancy-claim-form">
+              <div className="vacancy-guided-summary">
+                <Sparkles size={17} />
+                <div>
+                  <strong>
+                    {equipes.length === 1 && lines.length <= 1 && slots.length === 1
+                      ? 'Deixei quase tudo pronto pra você.'
+                      : 'Escolha só o que precisa para entrar.'}
+                  </strong>
+                  <span>
+                    Encontrei {optionLabel(equipes.length, 'equipe', 'equipes')}, {optionLabel(lines.length, 'elenco livre', 'elencos livres')} e {optionLabel(slots.length, 'vaga livre', 'vagas livres')} neste grupo.
+                  </span>
+                </div>
+              </div>
+
               <label className="field">
-                <span>Equipe</span>
+                <span>Equipe que vai jogar</span>
                 <select value={equipeId} onChange={(e) => void onChangeEquipe(e.target.value)}>
                   {equipes.map((eq) => (
                     <option key={eq.id} value={eq.id}>
@@ -436,7 +484,7 @@ export default function CompraVagaPage() {
               </label>
 
               <label className="field">
-                <span>Line</span>
+                <span>Elenco / line</span>
                 <select
                   value={lineId || (lines.length ? '' : '__create__')}
                   onChange={(e) => setLineId(e.target.value)}
@@ -446,13 +494,13 @@ export default function CompraVagaPage() {
                       {line.nome}
                     </option>
                   ))}
-                  <option value="__create__">+ Criar nova line</option>
+                  <option value="__create__">+ Criar novo elenco</option>
                 </select>
               </label>
 
-              {lineId === '__create__' || (!lines.length && !lineId) ? (
+              {needsNewLine ? (
                 <label className="field">
-                  <span>Nome da nova line</span>
+                  <span>Nome do novo elenco</span>
                   <input
                     value={nomeNovaLine}
                     onChange={(e) => setNomeNovaLine(e.target.value)}
@@ -462,14 +510,14 @@ export default function CompraVagaPage() {
               ) : null}
 
               <label className="field">
-                <span>Slot livre</span>
+                <span>Vaga no grupo</span>
                 <select value={slotId} onChange={(e) => setSlotId(e.target.value)}>
                   {slots.length === 0 ? (
-                    <option value="">Nenhum slot livre</option>
+                    <option value="">Nenhuma vaga livre</option>
                   ) : (
                     slots.map((s) => (
                       <option key={s.id} value={s.id}>
-                        Slot {s.slot_letra || s.slot_numero}
+                        Vaga {s.slot_letra || s.slot_numero}
                       </option>
                     ))
                   )}
@@ -489,10 +537,17 @@ export default function CompraVagaPage() {
                 ))}
               </div>
 
+              <div className="vacancy-entry-review">
+                <strong>Resumo da entrada</strong>
+                <span>Equipe: {selectedEquipe?.nome || 'selecione uma equipe'}</span>
+                <span>Elenco: {needsNewLine ? (nomeNovaLine.trim() || 'informe o nome do elenco') : selectedLine?.nome || 'selecione um elenco'}</span>
+                <span>Vaga: {selectedSlot ? `Grupo ${data?.grupo?.nome || data?.compra?.meta?.grupo_nome || ''} · ${selectedSlot.slot_letra || selectedSlot.slot_numero}` : 'selecione uma vaga'}</span>
+              </div>
+
               <button
                 className="button vacancy-register"
                 type="button"
-                disabled={busy || !slotId || (!lineId && !nomeNovaLine.trim())}
+                disabled={busy || !canConfirmEntry}
                 onClick={() => void claim()}
               >
                 {busy ? 'Confirmando…' : 'Confirmar e entrar no campeonato'}

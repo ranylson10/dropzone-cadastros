@@ -82,6 +82,18 @@
 .vacancy-slot-chips{display:flex;flex-wrap:wrap;gap:8px}
 .vacancy-slot-chip{min-width:44px;min-height:40px;padding:0 12px;border:1px solid var(--line);background:var(--surface);font-weight:800;cursor:pointer}
 .vacancy-slot-chip.active{border-color:var(--brand);background:var(--gold-soft);color:var(--brand)}
+.vacancy-claim-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:min(1120px,100%);margin:0 auto 12px}
+.vacancy-claim-steps span{display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;border:1px solid var(--line);background:var(--surface);color:#7a828c;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.vacancy-claim-steps span.active{border-color:rgba(201,162,39,.55);background:var(--gold-soft);color:var(--brand)}
+.vacancy-claim-steps span.done{border-color:rgba(39,128,82,.28);background:#edf9f2;color:#197549}
+.vacancy-guided-summary{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid rgba(201,162,39,.35);background:linear-gradient(135deg,#fffaf0 0%,#fff 100%)}
+.vacancy-guided-summary svg{flex-shrink:0;color:var(--brand)}
+.vacancy-guided-summary div{display:grid;gap:3px}
+.vacancy-guided-summary strong{font-size:13px}
+.vacancy-guided-summary span{color:#68707a;font-size:11px;line-height:1.45}
+.vacancy-entry-review{display:grid;gap:5px;padding:12px;border:1px dashed rgba(17,24,39,.18);background:#f7f8f9}
+.vacancy-entry-review strong{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#111827}
+.vacancy-entry-review span{color:#68707a;font-size:12px}
 .invite-auth-box{display:grid;justify-items:center;gap:10px;padding:18px 8px;text-align:center}
 .invite-auth-box .button{width:min(280px,100%)}
 
@@ -115,6 +127,7 @@
 .vacancy-claim-grid{grid-template-columns:1fr}
 .vacancies-page{padding:10px}.vacancies-hero{align-items:flex-start;flex-direction:column;padding:18px}.vacancies-hero h1{font-size:26px}.vacancies-toolbar{align-items:stretch;flex-direction:column}.vacancies-toolbar>label{width:100%;max-width:none}.vacancy-card{grid-template-columns:150px minmax(0,1fr)}.vacancy-banner{width:150px;height:210px}.vacancy-card-body{grid-template-columns:1fr;grid-template-rows:auto auto auto auto auto;padding:12px}.vacancy-next-date,.vacancy-register{grid-column:1;grid-row:auto}.vacancy-groups{display:none}.vacancy-persuasion{display:none}}
 @media(max-width:480px){.vacancies-page{padding:8px}.vacancies-hero{padding:15px}.vacancies-hero-count{margin-top:5px}.vacancies-filter>svg{display:none}.vacancies-filter button{flex:1;padding:0 7px}.vacancy-card{grid-template-columns:118px minmax(0,1fr);min-height:176px}.vacancy-banner{width:118px;height:176px}.vacancy-card-body{gap:7px;padding:9px}.vacancy-card-body>header img{width:34px;height:34px}.vacancy-card-body h2{font-size:16px}.vacancy-next-date{padding:8px}.vacancy-next-date strong{font-size:11px}.vacancy-meta span{padding:4px 5px;font-size:8px}.vacancy-meta span:last-child{display:none}.vacancy-register{min-height:38px;font-size:9px}.vacancy-zoom-label{inset:auto 5px 5px 5px;justify-content:center}.vacancy-enrolled{font-size:7px}.vacancy-enrolled svg{display:none}}
+@media(max-width:560px){.vacancy-claim-steps{grid-template-columns:1fr}.vacancy-claim-steps span{justify-content:flex-start;padding:0 12px}.vacancy-guided-summary{padding:10px}.vacancy-entry-review{padding:10px}}
 
 /* Catálogo comercial para links de bio */
 .vacancies-page{padding-top:90px;background:radial-gradient(circle at 50% 0,#fff8d8 0,transparent 330px)}

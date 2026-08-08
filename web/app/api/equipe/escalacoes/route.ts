@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsByUserId, getBearerUser } from '@backend/auth/server-auth'
+import { resolveLineupWindow } from '@backend/campeonatos/lineup-window'
 import {
   listControllableEquipes,
   requireEquipeAccess,
@@ -148,7 +149,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     const token = novoToken()
-    const expiresAt = validFutureDate(body.expira_em) || validFutureDate(rule?.encerra_em) || defaultExpiration()
+    const window = await resolveLineupWindow(participation.campeonato_id, participation.grupo_id)
+    const expiresAt = validFutureDate(body.expira_em) || validFutureDate(window.closeAt) || validFutureDate(rule?.encerra_em) || defaultExpiration()
     const { data, error } = await supabaseAdmin
       .from('campeonato_links_inscricao')
       .insert({

@@ -180,6 +180,8 @@ create table if not exists public.campeonato_jogos (
   mapas text[] not null default '{}',
   grupos_ids uuid[] not null default '{}',
   status text not null default 'ativo',
+  escalacao_abre_horas_antes integer,
+  escalacao_fecha_horas_antes integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   fase_id uuid references public.campeonato_fases(id) on delete set null

@@ -168,7 +168,27 @@ export function DropZoneHome() {
   const [phase, setPhase] = useState({ nome: '', campeonato_id: '', ordem: '1' })
   const [group, setGroup] = useState({ nome: 'Grupo A', campeonato_id: '', fase_id: '', slots: '12', whatsapp_url: '' })
   const [slotAssignment, setSlotAssignment] = useState({ slot_id: '', fase_id: '', grupo_id: '', equipe_id: '', line_id: '', campeonato_equipe_id: '', slot_numero: '1' })
-  const [game, setGame] = useState({ nome: '', campeonato_id: '', fase_id: '', data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill('') as string[], grupos_ids: [] as string[] })
+  const [game, setGame] = useState({
+    nome: '',
+    campeonato_id: '',
+    fase_id: '',
+    data_jogo: '',
+    horario: '',
+    numero_partidas: '6',
+    mapas: Array(6).fill('') as string[],
+    grupos_ids: [] as string[],
+    permite_troca_jogadores: true,
+    prazo_troca_minutos: '60',
+    prazo_escalacao_minutos: '120',
+    escalacao_abre_horas_antes: '24',
+    escalacao_fecha_horas_antes: '2',
+    minimo_partidas_jogadas_jogador: '0',
+    status: 'agendado',
+    rodada: '',
+    intervalo_minutos: '25',
+    classificam_quantidade: '',
+    define_campeao: false,
+  })
   const [registrationLink, setRegistrationLink] = useState({
     grupo_id: '',
     /** Nome interno para o admin identificar o link. */
@@ -1320,14 +1340,28 @@ export function DropZoneHome() {
           numero_partidas: totalQuedas,
           grupos_ids: game.grupos_ids,
           quedas: mapas.map((mapa_codigo, index) => ({ numero: index + 1, mapa_codigo })),
-          intervalo_quedas_minutos: 25,
+          intervalo_quedas_minutos: Number(game.intervalo_minutos || 25),
+          permite_troca_jogadores: game.permite_troca_jogadores,
+          limite_troca_minutos: game.permite_troca_jogadores ? Number(game.prazo_troca_minutos || 0) : null,
+          limite_escalacao_minutos: Number(game.prazo_escalacao_minutos || 0),
+          escalacao_abre_horas_antes: Number(game.escalacao_abre_horas_antes || 0),
+          escalacao_fecha_horas_antes: Number(game.escalacao_fecha_horas_antes || 0),
+          minimo_quedas_jogadas_jogador: Number(game.minimo_partidas_jogadas_jogador || 0),
+          status: game.status || 'agendado',
           multiplicador_abates_ultima_queda: 1,
         }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao criar jogo.')
       await loadMeAndRows(token)
-      setGame({ nome: '', campeonato_id: champ.id, fase_id: game.fase_id, data_jogo: '', horario: '', numero_partidas: '6', mapas: Array(6).fill(''), grupos_ids: [] })
+      setGame({
+        nome: '', campeonato_id: champ.id, fase_id: game.fase_id, data_jogo: '', horario: '',
+        numero_partidas: '6', mapas: Array(6).fill(''), grupos_ids: [],
+        permite_troca_jogadores: true, prazo_troca_minutos: '60', prazo_escalacao_minutos: '120',
+        escalacao_abre_horas_antes: '24', escalacao_fecha_horas_antes: '2',
+        minimo_partidas_jogadas_jogador: '0', status: 'agendado', rodada: '',
+        intervalo_minutos: '25', classificam_quantidade: '', define_campeao: false,
+      })
       setMessage('Jogo criado com sucesso.')
       return true
     } catch (err: any) {
@@ -1370,7 +1404,14 @@ export function DropZoneHome() {
           numero_partidas: totalQuedas,
           grupos_ids: game.grupos_ids,
           quedas: mapas.map((mapa_codigo, index) => ({ numero: index + 1, mapa_codigo })),
-          intervalo_quedas_minutos: 25,
+          intervalo_quedas_minutos: Number(game.intervalo_minutos || 25),
+          permite_troca_jogadores: game.permite_troca_jogadores,
+          limite_troca_minutos: game.permite_troca_jogadores ? Number(game.prazo_troca_minutos || 0) : null,
+          limite_escalacao_minutos: Number(game.prazo_escalacao_minutos || 0),
+          escalacao_abre_horas_antes: Number(game.escalacao_abre_horas_antes || 0),
+          escalacao_fecha_horas_antes: Number(game.escalacao_fecha_horas_antes || 0),
+          minimo_quedas_jogadas_jogador: Number(game.minimo_partidas_jogadas_jogador || 0),
+          status: game.status || 'agendado',
         }),
       })
       const json = await res.json().catch(() => ({}))

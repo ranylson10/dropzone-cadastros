@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
+import { assertLineupWindowOpen, assertPlayerNotInAnotherTeam } from '@backend/campeonatos/lineup-window'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { saveTeamPlayer } from '@backend/equipes/player-roster'
 
@@ -16,7 +17,7 @@ async function convite(token: string) {
     .maybeSingle()
   if (error) throw error
   if (!data || data.status !== 'ativo' || data.usado || (data.expira_em && new Date(data.expira_em).getTime() < Date.now())) {
-    throw new Error('Convite inválido, usado ou expirado.')
+    throw new Error('Convite invÃ¡lido, usado ou expirado.')
   }
   return data as any
 }
@@ -51,7 +52,7 @@ async function tryAddFormation(item: any, equipeJogador: any, jogador: any, user
 
   const championship = participation.campeonato || {}
   if (!activeStatus(championship.status) || !activeStatus(participation.status)) {
-    return { added: false, reason: 'A formação do campeonato está encerrada.' }
+    return { added: false, reason: 'A formaÃ§Ã£o do campeonato estÃ¡ encerrada.' }
   }
 
   const { data: rules, error: rulesError } = await supabaseAdmin
@@ -62,9 +63,10 @@ async function tryAddFormation(item: any, equipeJogador: any, jogador: any, user
   const rule = (rules || []).find((row: any) => row.grupo_id && row.grupo_id === participation.grupo_id)
     || (rules || []).find((row: any) => !row.grupo_id)
     || null
-  const deadline = rule?.encerra_em || rule?.substituicao_encerra_em || null
-  if (deadline && new Date(deadline).getTime() <= Date.now()) {
-    return { added: false, reason: 'O prazo de alteração da formação encerrou.' }
+  try {
+    await assertLineupWindowOpen(participation.campeonato_id, participation.grupo_id)
+  } catch (error: any) {
+    return { added: false, reason: error?.message || 'Escalação fora do prazo.' }
   }
 
   const maxPlayers = Math.max(1, Number(rule?.vagas_por_equipe || championship.jogadores_por_equipe || 4) + Number(championship.reservas || 0))
@@ -76,7 +78,12 @@ async function tryAddFormation(item: any, equipeJogador: any, jogador: any, user
     .order('ordem_formacao')
   if (existingError) throw existingError
   if ((existing || []).some((row: any) => row.equipe_jogador_id === equipeJogador.id)) return { added: true, reason: null }
-  if ((existing || []).length >= maxPlayers) return { added: false, reason: `A formação já atingiu o limite de ${maxPlayers} jogadores.` }
+  if ((existing || []).length >= maxPlayers) return { added: false, reason: `A formaÃ§Ã£o jÃ¡ atingiu o limite de ${maxPlayers} jogadores.` }
+  try {
+    await assertPlayerNotInAnotherTeam(participation.campeonato_id, { jogadorId: jogador.id, idJogo: equipeJogador.id_jogo || jogador.id_jogo || null }, item.campeonato_equipe_id)
+  } catch (error: any) {
+    return { added: false, reason: error?.message || 'Jogador já inscrito em outra equipe.' }
+  }
 
   const payload = {
     campeonato_id: participation.campeonato_id,
@@ -123,7 +130,7 @@ export async function GET(_: NextRequest, context: { params: Promise<{ token: st
       destino: item.participacao ? 'formacao' : item.line ? 'line' : 'elenco',
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Convite inválido.' }, { status: 404 })
+    return NextResponse.json({ error: error?.message || 'Convite invÃ¡lido.' }, { status: 404 })
   }
 }
 
