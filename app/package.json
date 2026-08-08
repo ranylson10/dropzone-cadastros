@@ -16,6 +16,7 @@
     "@supabase/supabase-js": "2.95.3",
     "expo": "latest",
     "expo-secure-store": "latest",
+    "expo-web-browser": "^57.0.2",
     "react": "latest",
     "react-native": "latest",
     "react-native-webview": "^14.0.1"

@@ -1,4 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import * as WebBrowser from 'expo-web-browser'
 import { AppState, Linking } from 'react-native'
 import { Session, User } from '@supabase/supabase-js'
 import { env, isValidMobileAuthRedirect, MOBILE_DEEP_LINK_AUTH_CALLBACK } from '@/config/env'
@@ -207,17 +208,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           options: {
             redirectTo: env.authRedirectUrl,
             skipBrowserRedirect: true,
-            queryParams: {
-              prompt: 'select_account',
-              access_type: 'offline',
-            },
           },
         })
         if (error) throw error
         if (!data.url) throw new Error('O Supabase não retornou a URL de autenticação do Google.')
-        const supported = await Linking.canOpenURL(data.url)
-        if (!supported) throw new Error('Não foi possível abrir o navegador para autenticação.')
-        await Linking.openURL(data.url)
+        const result = await WebBrowser.openAuthSessionAsync(data.url, MOBILE_DEEP_LINK_AUTH_CALLBACK)
+        if (result.type === 'success') await handleOAuthUrl(result.url)
+        if (result.type === 'cancel') setAuthenticating(false)
       } catch (error) {
         setAuthenticating(false)
         throw error
