@@ -69,6 +69,10 @@ export const mobileApi = {
       accessToken,
       cache: 'no-store',
     }),
+  rank: () =>
+    dropzoneFetch<{ teams: unknown[]; players: unknown[] }>('/api/rank', {
+      cache: 'no-store',
+    }),
   updateNotification: (id: string, status: 'lida' | 'nao_lida' | 'arquivada', accessToken?: string | null) =>
     dropzoneFetch<{ ok: boolean }>(
       '/api/notificacoes',

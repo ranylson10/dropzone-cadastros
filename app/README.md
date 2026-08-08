@@ -59,7 +59,6 @@ O app já consome endpoints reais do sistema web:
 - Exportações.
 - Financeiro avançado.
 - Configuração completa de vendedores/produtora.
-- Ranking global consolidado até existir uma API única para app e site.
 
 ## Estrutura
 

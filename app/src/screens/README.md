@@ -15,7 +15,7 @@
 - `WalletScreen`: carteira e comprovantes.
 - `SellerSalesScreen`: vendas assistidas do vendedor.
 - `ProducerOverviewScreen`: painel rápido da produtora.
-- `RankScreen`: rank inicial e contrato para futura API consolidada.
+- `RankScreen`: ranking global de equipes e jogadores.
 - `LiliScreen`: assistente conversacional.
 
 ## Regra de experiência
