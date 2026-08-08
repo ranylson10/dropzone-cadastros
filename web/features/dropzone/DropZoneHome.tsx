@@ -17,6 +17,7 @@ import { AppShell, APP_NAV } from '@/components/layout'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
 import { safeInternalPath } from '@/features/auth/auth-return'
 import { getSessionWithTimeout, signOutEverywhere } from '@/lib/auth-client-state'
+import { syncMobileSessionFromStorage } from '@/lib/mobile-session-bridge'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SystemLogo } from '@/components/brand/SystemLogo'
@@ -398,6 +399,7 @@ export function DropZoneHome() {
 
     async function initialize() {
       try {
+        await syncMobileSessionFromStorage()
         const params = new URLSearchParams(window.location.search)
         setWorkspaceMode(params.get('painel') === '1' ? 'panel' : 'home')
         const convite = String(params.get('convite') || '').trim()
