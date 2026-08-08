@@ -35,7 +35,7 @@ const content = [
   'EXPO_PUBLIC_DROPZONE_API_URL=https://dropzone-cadastros.vercel.app',
   `EXPO_PUBLIC_SUPABASE_URL=${supabaseUrl}`,
   `EXPO_PUBLIC_SUPABASE_ANON_KEY=${supabaseAnonKey}`,
-  'EXPO_PUBLIC_AUTH_REDIRECT_URL=dropzone://auth/callback',
+  'EXPO_PUBLIC_AUTH_REDIRECT_URL=https://dropzone-cadastros.vercel.app/auth/mobile-callback',
   '',
 ].join('\n')
 

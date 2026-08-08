@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useAuth } from '@/lib/auth'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 
@@ -20,13 +20,38 @@ export function LoginScreen() {
   }
 
   return (
-    <View style={styles.page}>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>DropZone Mobile</Text>
-        <Text style={styles.title}>Entre para continuar</Text>
+    <SafeAreaView style={styles.page}>
+      <View style={styles.logoRow}>
+        <View style={styles.logoMark}>
+          <View style={styles.logoBlockLight} />
+          <View style={styles.logoBlockGold} />
+        </View>
+        <View>
+          <Text style={styles.brand}>DROPZONE</Text>
+          <Text style={styles.brandSub}>Competitive System</Text>
+        </View>
+      </View>
+
+      <View style={styles.hero}>
+        <View style={styles.glowPrimary} />
+        <View style={styles.glowGold} />
+        <Text style={styles.eyebrow}>App oficial</Text>
+        <Text style={styles.title}>Sua central de campeonatos</Text>
         <Text style={styles.description}>
-          Use a mesma conta do site para acessar campeonatos, equipe, escalação, carteira e Lili.
+          Vagas, equipe, escalação, carteira e Lili em um acesso rápido.
         </Text>
+        <View style={styles.badgeRow}>
+          <Text style={styles.badge}>Vagas abertas</Text>
+          <Text style={styles.badge}>Escalação</Text>
+          <Text style={styles.badge}>Lili</Text>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Entrar na conta</Text>
+          <Text style={styles.cardText}>Use a mesma conta Google do site.</Text>
+        </View>
 
         {!auth.configured ? (
           <View style={styles.warning}>
@@ -41,7 +66,7 @@ export function LoginScreen() {
           <View style={styles.warning}>
             <Text style={styles.warningTitle}>Redirect mobile inválido</Text>
             <Text style={styles.warningText}>
-              EXPO_PUBLIC_AUTH_REDIRECT_URL precisa ser dropzone://auth/callback e essa URL deve estar liberada no Supabase Auth.
+              EXPO_PUBLIC_AUTH_REDIRECT_URL precisa apontar para /auth/mobile-callback ou dropzone://auth/callback.
             </Text>
           </View>
         ) : null}
@@ -71,42 +96,146 @@ export function LoginScreen() {
         </TouchableOpacity>
 
         {busy ? (
-          <Text style={styles.helper}>Conclua o login no navegador. O DropZone abrirá novamente automaticamente.</Text>
+          <Text style={styles.helper}>Finalize no navegador. Depois o app volta sozinho para sua conta.</Text>
         ) : null}
       </View>
-    </View>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    justifyContent: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.background,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    backgroundColor: '#0f1420',
   },
-  card: {
-    borderRadius: radius.lg,
-    backgroundColor: colors.brandDark,
-    padding: spacing.xl,
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
+  },
+  logoMark: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '45deg' }],
+  },
+  logoBlockLight: {
+    width: 23,
+    height: 10,
+    backgroundColor: '#fff',
+    opacity: 0.95,
+  },
+  logoBlockGold: {
+    width: 23,
+    height: 10,
+    marginTop: 4,
+    backgroundColor: colors.gold,
+  },
+  brand: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 3,
+  },
+  brandSub: {
+    marginTop: 2,
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  hero: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  glowPrimary: {
+    position: 'absolute',
+    right: -95,
+    top: 60,
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: colors.brand,
+    opacity: 0.22,
+  },
+  glowGold: {
+    position: 'absolute',
+    left: -80,
+    bottom: 70,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: colors.gold,
+    opacity: 0.14,
   },
   eyebrow: {
     color: colors.gold,
     fontSize: typography.tiny,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 3,
     textTransform: 'uppercase',
   },
   title: {
-    color: colors.surface,
-    fontSize: typography.title,
+    color: '#fff',
+    fontSize: 42,
     fontWeight: '900',
+    lineHeight: 45,
+    maxWidth: 350,
   },
   description: {
-    color: '#d6dae2',
-    fontSize: typography.body,
-    lineHeight: 22,
+    color: '#cbd5e1',
+    fontSize: 17,
+    lineHeight: 25,
+    maxWidth: 340,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  badge: {
+    overflow: 'hidden',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    color: '#e5e7eb',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.caption,
+    fontWeight: '900',
+  },
+  card: {
+    borderRadius: 30,
+    backgroundColor: '#f8f5ec',
+    padding: spacing.xl,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.38,
+    shadowOffset: { width: 0, height: 18 },
+    shadowRadius: 30,
+    elevation: 12,
+  },
+  cardHeader: {
+    gap: spacing.xs,
+  },
+  cardTitle: {
+    color: colors.ink,
+    fontSize: typography.subtitle,
+    fontWeight: '900',
+  },
+  cardText: {
+    color: colors.muted,
+    fontWeight: '700',
   },
   warning: {
     borderRadius: radius.md,
@@ -126,31 +255,31 @@ const styles = StyleSheet.create({
   errorBox: {
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#7f1d1d',
-    backgroundColor: '#451a1a',
+    borderColor: '#fecaca',
+    backgroundColor: '#fff1f2',
     padding: spacing.md,
     gap: spacing.xs,
   },
   error: {
-    color: '#fecaca',
+    color: '#9f1239',
     fontWeight: '800',
     lineHeight: 19,
   },
   dismissError: {
-    color: '#fff',
+    color: colors.ink,
     fontSize: typography.caption,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   button: {
-    minHeight: 50,
-    borderRadius: radius.md,
+    minHeight: 58,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.brand,
   },
   buttonDisabled: {
-    opacity: 0.55,
+    opacity: 0.65,
   },
   buttonBusy: {
     flexDirection: 'row',
@@ -162,9 +291,10 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontWeight: '900',
     textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   helper: {
-    color: '#aeb6c5',
+    color: colors.muted,
     fontSize: typography.caption,
     lineHeight: 18,
     textAlign: 'center',

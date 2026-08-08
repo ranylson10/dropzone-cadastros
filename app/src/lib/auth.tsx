@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Linking } from 'react-native'
 import { Session, User } from '@supabase/supabase-js'
-import { env, isValidMobileAuthRedirect } from '@/config/env'
+import { env, isValidMobileAuthRedirect, MOBILE_DEEP_LINK_AUTH_CALLBACK } from '@/config/env'
 import { dropzoneFetch } from '@/lib/api'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { ProfileType } from '@/types/dropzone'
@@ -67,7 +67,15 @@ function oauthParamsFromUrl(url: string) {
 
 function isAuthCallbackUrl(url: string) {
   const base = env.authRedirectUrl.replace(/\/+$/, '')
-  return url === base || url.startsWith(`${base}?`) || url.startsWith(`${base}#`)
+  const deepLinkBase = MOBILE_DEEP_LINK_AUTH_CALLBACK
+  return (
+    url === base ||
+    url.startsWith(`${base}?`) ||
+    url.startsWith(`${base}#`) ||
+    url === deepLinkBase ||
+    url.startsWith(`${deepLinkBase}?`) ||
+    url.startsWith(`${deepLinkBase}#`)
+  )
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

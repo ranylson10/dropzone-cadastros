@@ -1,5 +1,6 @@
 const DEFAULT_API_URL = 'https://dropzone-cadastros.vercel.app'
-const DEFAULT_AUTH_REDIRECT_URL = 'dropzone://auth/callback'
+const DEFAULT_AUTH_REDIRECT_URL = `${DEFAULT_API_URL}/auth/mobile-callback`
+export const MOBILE_DEEP_LINK_AUTH_CALLBACK = 'dropzone://auth/callback'
 
 export const env = {
   apiUrl: process.env.EXPO_PUBLIC_DROPZONE_API_URL || DEFAULT_API_URL,
@@ -23,7 +24,8 @@ export function externalUrl(pathOrUrl: string) {
 export function isValidMobileAuthRedirect(url = env.authRedirectUrl) {
   try {
     const parsed = new URL(url)
-    return parsed.protocol === 'dropzone:' && parsed.hostname === 'auth' && parsed.pathname === '/callback'
+    if (parsed.protocol === 'dropzone:' && parsed.hostname === 'auth' && parsed.pathname === '/callback') return true
+    return parsed.protocol === 'https:' && parsed.hostname === 'dropzone-cadastros.vercel.app' && parsed.pathname === '/auth/mobile-callback'
   } catch {
     return false
   }

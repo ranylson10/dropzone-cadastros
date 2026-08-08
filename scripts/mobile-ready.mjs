@@ -45,7 +45,7 @@ check('iOS bundleIdentifier configurado', appJson.expo?.ios?.bundleIdentifier ==
 check('EAS build configurado', exists('app/eas.json') && read('app/eas.json').includes('"buildType": "apk"'))
 check('Supabase URL preenchida', Boolean(appEnv.EXPO_PUBLIC_SUPABASE_URL && !appEnv.EXPO_PUBLIC_SUPABASE_URL.includes('SEU-PROJETO')), 'preencha app/.env')
 check('Supabase anon key preenchida', Boolean(appEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY && !appEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY.includes('SUA_CHAVE')), 'preencha app/.env')
-check('Redirect mobile correto', appEnv.EXPO_PUBLIC_AUTH_REDIRECT_URL === 'dropzone://auth/callback')
+check('Redirect mobile correto', appEnv.EXPO_PUBLIC_AUTH_REDIRECT_URL === 'https://dropzone-cadastros.vercel.app/auth/mobile-callback')
 check('API de produção configurada', appEnv.EXPO_PUBLIC_DROPZONE_API_URL === 'https://dropzone-cadastros.vercel.app')
 check('API mobile tem timeout contra rede travada', read('app/src/lib/api.ts').includes('DEFAULT_TIMEOUT_MS') && read('app/src/lib/api.ts').includes('AbortController'))
 check('Auth mobile usa PKCE', read('app/src/lib/supabase.ts').includes("flowType: 'pkce'"))
