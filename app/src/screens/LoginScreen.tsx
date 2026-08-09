@@ -1,13 +1,28 @@
-import { useState } from 'react'
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, Animated, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useAuth } from '@/lib/auth'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 
 export function LoginScreen() {
   const auth = useAuth()
+  const pulse = useRef(new Animated.Value(0)).current
   const [localError, setLocalError] = useState('')
   const busy = auth.authenticating
   const error = localError || auth.authError
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 2200, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 2200, useNativeDriver: true }),
+      ]),
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [pulse])
+
+  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] })
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.28] })
 
   async function signIn() {
     setLocalError('')
@@ -33,10 +48,10 @@ export function LoginScreen() {
       </View>
 
       <View style={styles.hero}>
-        <View style={styles.glowPrimary} />
-        <View style={styles.glowGold} />
+        <Animated.View style={[styles.glowPrimary, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
+        <Animated.View style={[styles.glowGold, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
         <Text style={styles.eyebrow}>App oficial</Text>
-        <Text style={styles.title}>Sua central de campeonatos</Text>
+        <Text style={styles.title}>Entre no cenário DropZone</Text>
         <Text style={styles.description}>
           Vagas, equipe, escalação, carteira e Lili em um acesso rápido.
         </Text>
@@ -50,7 +65,7 @@ export function LoginScreen() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>Entrar na conta</Text>
-          <Text style={styles.cardText}>Use a mesma conta Google do site.</Text>
+          <Text style={styles.cardText}>Use sua conta Google para acessar seus perfis.</Text>
         </View>
 
         {!auth.configured ? (
@@ -110,7 +125,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
-    backgroundColor: '#0f1420',
+    backgroundColor: '#080c18',
   },
   logoRow: {
     flexDirection: 'row',
@@ -163,8 +178,7 @@ const styles = StyleSheet.create({
     width: 230,
     height: 230,
     borderRadius: 115,
-    backgroundColor: colors.brand,
-    opacity: 0.22,
+    backgroundColor: '#6d3df5',
   },
   glowGold: {
     position: 'absolute',
@@ -173,11 +187,10 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: 85,
-    backgroundColor: colors.gold,
-    opacity: 0.14,
+    backgroundColor: '#1d9bf0',
   },
   eyebrow: {
-    color: colors.gold,
+    color: '#8bd3ff',
     fontSize: typography.tiny,
     fontWeight: '900',
     letterSpacing: 3,
@@ -216,7 +229,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 30,
-    backgroundColor: '#f8f5ec',
+    backgroundColor: '#f6f7fb',
     padding: spacing.xl,
     gap: spacing.md,
     shadowColor: '#000',
@@ -276,7 +289,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brand,
+    backgroundColor: '#6d3df5',
   },
   buttonDisabled: {
     opacity: 0.65,

@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, SafeAreaView, StatusBar, StyleSheet, View 
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { AgendaScreen } from '@/screens/AgendaScreen'
 import { AppErrorBoundary } from '@/screens/AppErrorBoundary'
+import { AppShell } from '@/screens/AppShell'
 import { CommerceScreen } from '@/screens/CommerceScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
 import { InvitesScreen } from '@/screens/InvitesScreen'
@@ -97,7 +98,11 @@ function DropZoneMobileApp() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.brandDark} />
       <AppErrorBoundary onReset={() => setRoute('home')}>
-        {renderScreen()}
+        {auth.session ? (
+          <AppShell route={route} activeAccount={auth.activeAccount} onNavigate={setRoute}>
+            {renderScreen()}
+          </AppShell>
+        ) : renderScreen()}
       </AppErrorBoundary>
     </SafeAreaView>
   )

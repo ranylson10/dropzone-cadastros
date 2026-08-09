@@ -18,7 +18,7 @@ const filters = [
 
 type FilterId = typeof filters[number]['id']
 
-export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
+export function VacanciesScreen({ onBack, onNavigate, onSelectChampionship, profileType }: ScreenProps) {
   const auth = useAuth()
   const [activeFilter, setActiveFilter] = useState<FilterId>('all')
   const [vacancies, setVacancies] = useState<VacancyApiItem[]>([])
@@ -78,6 +78,20 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
 
   return (
     <ScreenShell eyebrow="Vitrine" title="Vagas abertas" onBack={onBack}>
+      <View style={styles.areaActions}>
+        <TouchableOpacity style={[styles.areaButton, styles.areaButtonActive]} onPress={() => setActiveFilter('all')}>
+          <Text style={[styles.areaButtonText, styles.areaButtonTextActive]}>Vagas</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.areaButton} onPress={() => onNavigate('my_championships')}>
+          <Text style={styles.areaButtonText}>Meus</Text>
+        </TouchableOpacity>
+        {profileType === 'produtora' ? (
+          <TouchableOpacity style={styles.areaButton} onPress={() => onNavigate('producer_overview')}>
+            <Text style={styles.areaButtonText}>Criar</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
       <View style={styles.summary}>
         <View style={styles.summaryItem}><Text style={styles.summaryNumber}>{visibleVacancies.length}</Text><Text style={styles.summaryLabel}>resultados</Text></View>
         <View style={styles.summaryItem}><Text style={styles.summaryNumber}>{cartQuantity}</Text><Text style={styles.summaryLabel}>carrinho</Text></View>
@@ -169,6 +183,11 @@ export function VacanciesScreen({ onBack, onSelectChampionship }: ScreenProps) {
 }
 
 const styles = StyleSheet.create({
+  areaActions: { flexDirection: 'row', gap: spacing.sm },
+  areaButton: { flex: 1, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  areaButtonActive: { backgroundColor: colors.brandDark, borderColor: colors.brandDark },
+  areaButtonText: { color: colors.ink, fontSize: typography.caption, fontWeight: '900', textTransform: 'uppercase' },
+  areaButtonTextActive: { color: colors.surface },
   summary: {
     flexDirection: 'row',
     backgroundColor: colors.brandDark,
