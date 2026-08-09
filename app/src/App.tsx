@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, StatusBar, StyleSheet, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { AgendaScreen } from '@/screens/AgendaScreen'
@@ -33,7 +33,9 @@ import { TeamRosterScreen } from '@/screens/TeamRosterScreen'
 import { PurchaseClaimScreen } from '@/screens/PurchaseClaimScreen'
 import { WalletScreen } from '@/screens/WalletScreen'
 import { TokenActionScreen } from '@/screens/TokenActionScreen'
-import { QuickTokenResult } from '@/lib/api'
+import { QuickTokenResult, resolveQuickToken } from '@/lib/api'
+import { parseMobileDeepLink } from '@/lib/deepLinks'
+import { loadNavigationState, saveNavigationState } from '@/lib/navigationState'
 import { colors } from '@/theme/tokens'
 import { ChampionshipCard, MobileRoute } from '@/types/dropzone'
 import { LineupSummary } from '@/lib/lineups'
@@ -74,7 +76,89 @@ function DropZoneMobileApp() {
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [selectedTokenAction, setSelectedTokenAction] = useState<QuickTokenResult | null>(null)
+  const routeHistoryRef = useRef<MobileRoute[]>([])
+  const navigationRestoredRef = useRef(false)
   const profileType = auth.activeProfileType
+
+  const lastDeepLinkRef = useRef('')
+
+  useEffect(() => {
+    if(auth.loading||navigationRestoredRef.current)return
+    navigationRestoredRef.current=true
+    void loadNavigationState().then(saved=>{
+      if(!saved)return
+      if(saved.championship)setSelectedChampionship(saved.championship)
+      if(saved.teamId)setSelectedTeamId(saved.teamId)
+      if(saved.playerId)setSelectedPlayerId(saved.playerId)
+      setRoute(saved.route)
+    })
+  },[auth.loading])
+
+  useEffect(() => {
+    if(auth.loading||!navigationRestoredRef.current)return
+    void saveNavigationState({
+      route,
+      championship:selectedChampionship,
+      teamId:selectedTeamId,
+      playerId:selectedPlayerId,
+    })
+  },[auth.loading,route,selectedChampionship,selectedPlayerId,selectedTeamId])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function handleDeepLink(url:string|null){
+      if(!url||lastDeepLinkRef.current===url)return
+      const target=parseMobileDeepLink(url)
+      if(target.kind==='ignore')return
+      lastDeepLinkRef.current=url
+
+      if(target.kind==='route'){
+        navigate(target.route)
+        return
+      }
+      if(target.kind==='championship'){
+        setSelectedChampionship({
+          id:target.id,
+          name:'Campeonato',
+          mode:'competitivo',
+          priceLabel:'Ver campeonato',
+          freeSlots:0,
+        })
+        setRouteWithHistory('championship_public')
+        return
+      }
+      if(target.kind==='team'){
+        setSelectedTeamId(target.id)
+        setRouteWithHistory('team_public')
+        return
+      }
+      if(target.kind==='player'){
+        setSelectedPlayerId(target.id)
+        setRouteWithHistory('player_public')
+        return
+      }
+      if(target.kind==='token'){
+        try{
+          const result=await resolveQuickToken(target.token,auth.session?.access_token)
+          if(!mounted)return
+          setSelectedTokenAction(result)
+          setRouteWithHistory('token_action')
+        }catch{
+          if(!mounted)return
+          setRoute('home')
+        }
+      }
+    }
+
+    Linking.getInitialURL().then(handleDeepLink).catch(()=>null)
+    const subscription=Linking.addEventListener('url',event=>{void handleDeepLink(event.url)})
+    return()=>{
+      mounted=false
+      subscription.remove()
+    }
+  }, [auth.session?.access_token])
+
 
   useEffect(() => {
     if (!auth.session || !loginOpen) return
@@ -99,19 +183,42 @@ function DropZoneMobileApp() {
     return false
   }
 
+  function setRouteWithHistory(nextRoute:MobileRoute,replace=false){
+    if(nextRoute===route)return
+    if(!replace){
+      const history=routeHistoryRef.current
+      if(history[history.length-1]!==route)history.push(route)
+      if(history.length>20)history.shift()
+    }
+    setRoute(nextRoute)
+  }
+
+  function goBack(){
+    const previous=routeHistoryRef.current.pop()
+    if(previous){
+      setLoginOpen(false)
+      setRoute(previous)
+      return
+    }
+    if(route!=='home'){
+      setRoute('home')
+      return
+    }
+  }
+
   function navigate(nextRoute: MobileRoute) {
     if (!auth.session && !PUBLIC_ROUTES.has(nextRoute)) {
       requireLogin(nextRoute)
       return
     }
     setLoginOpen(false)
-    setRoute(nextRoute)
+    setRouteWithHistory(nextRoute)
   }
 
   const screenProps = {
     profileType,
     onNavigate: navigate,
-    onBack: () => navigate('home'),
+    onBack: goBack,
     selectedChampionship,
     selectedAdminChampionshipId,
     selectedLineup,
@@ -179,7 +286,7 @@ function DropZoneMobileApp() {
           accounts={auth.accounts}
           onSelectChampionship={screenProps.onSelectChampionship}
           accessToken={auth.session?.access_token}
-          onTokenResolved={(result) => { setSelectedTokenAction(result); setRoute('token_action') }}
+          onTokenResolved={(result) => { setSelectedTokenAction(result); setRouteWithHistory('token_action') }}
         />
       )
     }
@@ -208,14 +315,22 @@ function DropZoneMobileApp() {
     if (route === 'producer_overview') return <ProducerOverviewScreen {...screenProps} />
     if (route === 'rank') return <RankScreen {...screenProps} />
     if (route === 'lili') return <LiliScreen {...screenProps} />
-    if (route === 'token_action') return <TokenActionScreen result={selectedTokenAction} onBack={() => setRoute('home')} />
+    if (route === 'token_action') return <TokenActionScreen
+      result={selectedTokenAction}
+      onBack={goBack}
+      accessToken={auth.session?.access_token}
+      requireLogin={() => { requireLogin('token_action') }}
+      onCompleted={(result)=>{
+        if(result.kind==='team_roster_invite') void auth.refreshAccounts()
+      }}
+    />
     return (
       <HomeScreen
         onNavigate={navigate}
         accounts={auth.accounts}
         accessToken={auth.session?.access_token}
         onSelectChampionship={screenProps.onSelectChampionship}
-        onTokenResolved={(result) => { setSelectedTokenAction(result); setRoute('token_action') }}
+        onTokenResolved={(result) => { setSelectedTokenAction(result); setRouteWithHistory('token_action') }}
       />
     )
   }
@@ -226,6 +341,7 @@ function DropZoneMobileApp() {
       <AppErrorBoundary
         onReset={() => {
           setLoginOpen(false)
+          routeHistoryRef.current=[]
           setRoute('home')
         }}
       >

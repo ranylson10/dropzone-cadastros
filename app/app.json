@@ -6,7 +6,9 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dropzone.mobile"
@@ -15,7 +17,59 @@
       "package": "com.dropzone.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#0f1420"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "dropzone-cadastros.vercel.app",
+              "pathPrefix": "/campeonatos"
+            },
+            {
+              "scheme": "https",
+              "host": "dropzone-cadastros.vercel.app",
+              "pathPrefix": "/equipes"
+            },
+            {
+              "scheme": "https",
+              "host": "dropzone-cadastros.vercel.app",
+              "pathPrefix": "/jogadores"
+            },
+            {
+              "scheme": "https",
+              "host": "dropzone-cadastros.vercel.app",
+              "pathPrefix": "/convite"
+            },
+            {
+              "scheme": "https",
+              "host": "dropzone-cadastros.vercel.app",
+              "pathPrefix": "/escala"
+            },
+            {
+              "scheme": "https",
+              "host": "dropzone-cadastros.vercel.app",
+              "pathPrefix": "/equipe/entrar"
+            },
+            {
+              "scheme": "https",
+              "host": "dropzone-cadastros.vercel.app",
+              "pathPrefix": "/vendedor"
+            },
+            {
+              "scheme": "https",
+              "host": "dropzone-cadastros.vercel.app",
+              "pathPrefix": "/i/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "extra": {
       "apiUrl": "https://dropzone-cadastros.vercel.app"

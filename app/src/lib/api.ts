@@ -389,6 +389,59 @@ function normalizeQuickToken(value: string) {
   }
 }
 
+
+export async function executeQuickTokenAction(result:QuickTokenResult, accessToken:string){
+  const token=encodeURIComponent(result.token)
+  if(result.kind==='lineup'){
+    return dropzoneFetch<any>(`/api/escalacoes/${token}`, {method:'POST',accessToken,body:JSON.stringify({})})
+  }
+  if(result.kind==='team_roster_invite'){
+    return dropzoneFetch<any>(`/api/equipes/convites-elenco/${token}`, {method:'POST',accessToken,body:JSON.stringify({})})
+  }
+  if(result.kind==='seller_invite'){
+    return dropzoneFetch<any>(`/api/vendedores/convite/${token}`, {method:'POST',accessToken,body:JSON.stringify({})})
+  }
+  throw new Error('Este token exige informações adicionais e ainda precisa do fluxo detalhado.')
+}
+
+export function supportsNativeQuickTokenAction(kind:QuickTokenKind){
+  return kind==='lineup'||kind==='team_roster_invite'||kind==='seller_invite'
+}
+
+
+export function supportsDetailedQuickTokenAction(kind:QuickTokenKind){
+  return kind==='team_championship_invite'||kind==='group_registration'||kind==='player_registration'
+}
+
+function quickTokenApiPath(result:QuickTokenResult){
+  const token=encodeURIComponent(result.token)
+  if(result.kind==='team_championship_invite') return `/api/convites/equipe/${token}`
+  if(result.kind==='group_registration') return `/api/convites/grupo/${token}`
+  if(result.kind==='player_registration') return `/api/dropzone/public/inscricao/${token}`
+  if(result.kind==='lineup') return `/api/escalacoes/${token}`
+  if(result.kind==='team_roster_invite') return `/api/equipes/convites-elenco/${token}`
+  return `/api/vendedores/convite/${token}`
+}
+
+export async function reloadQuickTokenPayload(result:QuickTokenResult, accessToken?:string|null, equipeId?:string|null){
+  const base=quickTokenApiPath(result)
+  const suffix=equipeId?`${base}?equipe_id=${encodeURIComponent(equipeId)}`:base
+  return dropzoneFetch<any>(suffix,{accessToken,cache:'no-store'})
+}
+
+export async function executeDetailedQuickTokenAction(
+  result:QuickTokenResult,
+  body:Record<string,unknown>,
+  accessToken:string,
+){
+  if(!supportsDetailedQuickTokenAction(result.kind)) throw new Error('Este token não usa o formulário detalhado.')
+  return dropzoneFetch<any>(quickTokenApiPath(result),{
+    method:'POST',
+    accessToken,
+    body:JSON.stringify(body),
+  })
+}
+
 export async function resolveQuickToken(value: string, accessToken?: string | null): Promise<QuickTokenResult> {
   const token = normalizeQuickToken(value)
   if (!token || token.length < 3) throw new Error('Digite um token válido ou cole o link completo.')
