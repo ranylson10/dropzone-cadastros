@@ -25,7 +25,7 @@ export function WalletScreen({ onBack }: ScreenProps) {
 
   useEffect(() => {
     let mounted = true
-    mobileApi.wallet(accessToken)
+    mobileApi.wallet(accessToken, auth.activeProfileType)
       .then((response) => {
         if (!mounted) return
         setWallet((response.carteira as WalletSummary) || null)
@@ -44,7 +44,7 @@ export function WalletScreen({ onBack }: ScreenProps) {
       })
       .finally(() => { if (mounted) setLoading(false) })
     return () => { mounted = false }
-  }, [accessToken])
+  }, [accessToken, auth.activeProfileType])
 
   const allItems = useMemo(() => {
     const typedPayments = payments.map((item) => ({ ...item, receiptTipo: 'pagamento' as const }))

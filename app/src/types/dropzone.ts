@@ -5,7 +5,12 @@ export type MobileActionId =
   | 'buy_slot'
   | 'my_championships'
   | 'lineup'
+  | 'team_directory'
+  | 'team_public'
   | 'team_roster'
+  | 'team_create'
+  | 'player_directory'
+  | 'player_public'
   | 'agenda'
   | 'invites'
   | 'wallet'
@@ -14,15 +19,27 @@ export type MobileActionId =
   | 'lili'
   | 'seller_sales'
   | 'producer_overview'
+  | 'token_action'
+  | 'dashboard'
+  | 'profile_management'
+  | 'line_management'
+  | 'player_dashboard'
+  | 'championship_management'
 
 export type MobileRoute =
   | 'home'
   | 'vacancies'
   | 'purchase_claim'
   | 'championship_actions'
+  | 'championship_public'
   | 'my_championships'
   | 'lineup'
+  | 'team_directory'
+  | 'team_public'
   | 'team_roster'
+  | 'team_create'
+  | 'player_directory'
+  | 'player_public'
   | 'agenda'
   | 'invites'
   | 'wallet'
@@ -31,6 +48,12 @@ export type MobileRoute =
   | 'lili'
   | 'seller_sales'
   | 'producer_overview'
+  | 'token_action'
+  | 'dashboard'
+  | 'profile_management'
+  | 'line_management'
+  | 'player_dashboard'
+  | 'championship_management'
 
 export type MobileQuickAction = {
   id: MobileActionId
@@ -66,6 +89,7 @@ export type ScreenProps = {
   onBack?: () => void
   profileType: ProfileType
   selectedChampionship?: ChampionshipCard | null
+  selectedAdminChampionshipId?: string | null
   selectedLineup?: {
     campeonato_equipe_id?: string
     campeonato_nome?: string
@@ -84,5 +108,14 @@ export type ScreenProps = {
     jogadores?: unknown[]
   } | null
   onSelectChampionship?: (championship: ChampionshipCard) => void
+  onManageChampionship?: (championshipId?: string | null) => void
   onSelectLineup?: (lineup: ScreenProps['selectedLineup']) => void
+  selectedTeamId?: string | null
+  selectedLineId?: string | null
+  selectedPlayerId?: string | null
+  onSelectTeam?: (teamId: string) => void
+  onManageTeam?: (teamId: string) => void
+  onManageLine?: (teamId: string, lineId: string) => void
+  onSelectPlayer?: (playerId: string) => void
+  requireAuth?: (action?: () => void) => boolean
 }

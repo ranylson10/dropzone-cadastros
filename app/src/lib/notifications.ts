@@ -14,6 +14,7 @@ export const actionableNotificationTypes = new Set([
   'pedido_manager_campeonato',
   'convite_jogador_equipe_direto',
   'pedido_jogador_equipe',
+  'convite_escalacao_jogador',
 ])
 
 export const fallbackNotifications: NotificationItem[] = [

@@ -12,6 +12,7 @@ export type MobileAccount = {
   name: string
   username?: string | null
   profile_type: ProfileType
+  image_url?: string | null
   data?: Record<string, unknown> | null
 }
 
@@ -42,12 +43,28 @@ function normalizeProfileType(value: unknown): ProfileType {
 }
 
 function mapAccount(row: any): MobileAccount {
+  const data = row.data && typeof row.data === 'object' ? row.data : null
+  const imageUrl = String(
+    row.image_url
+    || row.logo_url
+    || row.avatar_url
+    || row.foto_url
+    || row.foto_perfil_url
+    || data?.logo_url
+    || data?.avatar_url
+    || data?.foto_url
+    || data?.foto_perfil_url
+    || data?.imagem_url
+    || '',
+  ).trim() || null
+
   return {
     id: String(row.id || row.profile_id || ''),
     name: String(row.name || row.nome || row.username || 'Perfil'),
     username: row.username || null,
     profile_type: normalizeProfileType(row.profile_type || row.tipo || row.type),
-    data: row.data || null,
+    image_url: imageUrl,
+    data,
   }
 }
 
@@ -152,8 +169,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void handleOAuthUrl(event.url)
     })
     const appStateListener = AppState.addEventListener('change', (state) => {
-      if (state === 'active') supabase.auth.startAutoRefresh()
-      else supabase.auth.stopAutoRefresh()
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh()
+        void refreshAccounts().catch(() => null)
+      } else {
+        supabase.auth.stopAutoRefresh()
+      }
     })
     supabase.auth.startAutoRefresh()
 
@@ -174,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       appStateListener.remove()
       listener.subscription.unsubscribe()
     }
-  }, [configured, handleOAuthUrl])
+  }, [configured, handleOAuthUrl, refreshAccounts])
 
   useEffect(() => {
     if (session?.access_token) void refreshAccounts().catch(() => setAccounts([]))

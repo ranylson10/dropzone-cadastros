@@ -7,6 +7,7 @@ const TABLES: Record<string, { table: string; logoField: string; nameField: stri
   manager: { table: 'managers', logoField: 'avatar_url', nameField: 'nome' },
   jogador: { table: 'jogadores', logoField: 'avatar_url', nameField: 'nome' },
   produtora: { table: 'produtoras', logoField: 'logo_url', nameField: 'nome' },
+  broadcast: { table: 'broadcasts', logoField: 'avatar_url', nameField: 'nome' },
 }
 
 export async function PATCH(req: NextRequest) {
@@ -33,6 +34,14 @@ export async function PATCH(req: NextRequest) {
     if (body.bio !== undefined) {
       patch.bio = String(body.bio || '').trim().slice(0, 280) || null
     }
+    if (body.username !== undefined) {
+      const username = String(body.username || '').trim().replace(/^@/, '').toLowerCase()
+      if (!/^[a-z0-9._-]{3,30}$/.test(username)) throw new Error('Usuário deve ter de 3 a 30 caracteres: letras, números, ponto, traço ou underline.')
+      patch.username = username
+    }
+    for (const field of ['pais', 'estado', 'cidade', 'localidade'] as const) {
+      if (body[field] !== undefined) patch[field] = String(body[field] || '').trim().slice(0, 100) || null
+    }
     if (body.logo_url !== undefined || body.avatar_url !== undefined) {
       const url = String(body.logo_url ?? body.avatar_url ?? '').trim() || null
       patch[meta.logoField] = url
@@ -51,6 +60,19 @@ export async function PATCH(req: NextRequest) {
     }
     if (profileType === 'jogador' && body.funcao !== undefined) {
       patch.funcao = String(body.funcao || '').trim() || null
+    }
+    if (profileType === 'jogador' && body.disponivel_recrutamento !== undefined) {
+      patch.disponivel_recrutamento = Boolean(body.disponivel_recrutamento)
+    }
+    if (profileType === 'broadcast' && body.papel !== undefined) {
+      const papel = String(body.papel || '').trim().toLowerCase()
+      if (!['stream', 'narrador', 'comentarista', 'apresentador'].includes(papel)) throw new Error('Papel de transmissão inválido.')
+      patch.papel = papel
+    }
+    if (body.status !== undefined) {
+      const status = String(body.status || '').trim().toLowerCase()
+      if (!['ativo', 'inativo'].includes(status)) throw new Error('Status de perfil inválido.')
+      patch.status = status
     }
 
     const { data, error } = await supabaseAdmin

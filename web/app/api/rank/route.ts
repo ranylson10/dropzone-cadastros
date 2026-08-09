@@ -64,13 +64,20 @@ export async function GET() {
     const aggregatedPlayers = [...players.values()]
     const jogadorIds = [...new Set(aggregatedPlayers.map((item) => item.jogador_id).filter(Boolean))]
     const gameIds = [...new Set(aggregatedPlayers.map((item) => item.id_jogo).filter(Boolean))]
+    const participationIds = [...new Set(aggregatedPlayers.map((item) => item.campeonato_equipe_id).filter(Boolean))]
 
-    const [playersByIdResult, playersByGameIdResult] = await Promise.all([
+    const [playersByIdResult, playersByGameIdResult, participationsResult] = await Promise.all([
       jogadorIds.length
         ? supabaseAdmin.from('jogadores').select('id,nick,nome,id_jogo,avatar_url,foto_url').in('id', jogadorIds)
         : Promise.resolve({ data: [], error: null } as any),
       gameIds.length
         ? supabaseAdmin.from('jogadores').select('id,nick,nome,id_jogo,avatar_url,foto_url').in('id_jogo', gameIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      participationIds.length
+        ? supabaseAdmin
+            .from('campeonato_equipes')
+            .select('id,equipe_id,line_id,nome_exibicao,equipes:equipe_id(id,nome,tag,logo_url),equipe_lines:line_id(id,nome,tag,logo_url)')
+            .in('id', participationIds)
         : Promise.resolve({ data: [], error: null } as any),
     ])
 
@@ -80,7 +87,11 @@ export async function GET() {
     if (playersByGameIdResult.error && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(playersByGameIdResult.error.code || '')) {
       throw playersByGameIdResult.error
     }
+    if (participationsResult.error && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(participationsResult.error.code || '')) {
+      throw participationsResult.error
+    }
 
+    const participationById = new Map((participationsResult.data || []).map((item: any) => [String(item.id || ''), item]))
     const profileById = new Map<string, PlayerProfileRow>((playersByIdResult.data || []).map((item: PlayerProfileRow) => [String(item.id || ''), item]))
     const profileByGameId = new Map<string, PlayerProfileRow>((playersByGameIdResult.data || []).map((item: PlayerProfileRow) => [String(item.id_jogo || ''), item]))
 
@@ -93,6 +104,15 @@ export async function GET() {
       player.nick = profile.nick || profile.nome || player.nick
       player.foto_url = profile.avatar_url || profile.foto_url || player.foto_url || null
       player.avatar_url = profile.avatar_url || profile.foto_url || player.avatar_url || null
+    }
+
+    for (const player of aggregatedPlayers) {
+      const participation: any = participationById.get(String(player.campeonato_equipe_id || ''))
+      const line = participation?.equipe_lines || null
+      const team = participation?.equipes || null
+      player.equipe_nome = participation?.nome_exibicao || line?.nome || team?.nome || null
+      player.equipe_tag = line?.tag || team?.tag || null
+      player.equipe_logo_url = line?.logo_url || team?.logo_url || null
     }
 
     return NextResponse.json({

@@ -3,14 +3,22 @@ import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { requireEquipeAccess } from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
-export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getBearerUser(req)
-    const accounts = await getAccountsForUser(user)
     const { id: equipeId } = await context.params
-    await requireEquipeAccess(user.id, accounts, equipeId, 'ver')
-
-    const [{ data: lines, error }, { data: parts, error: partsError }] = await Promise.all([
+    const [
+      { data: team, error: teamError },
+      { data: lines, error: linesError },
+      { data: memberships, error: membershipsError },
+      { data: roster, error: rosterError },
+      { data: parts, error: partsError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from('equipes')
+        .select('id,nome,username,logo_url,tag,public_id,status,localidade,cidade,estado,pais')
+        .eq('id', equipeId)
+        .eq('status', 'ativo')
+        .maybeSingle(),
       supabaseAdmin
         .from('equipe_lines')
         .select('id,equipe_id,nome,tag,logo_url,status,created_at,updated_at')
@@ -18,48 +26,87 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         .neq('status', 'inativo')
         .order('created_at', { ascending: true }),
       supabaseAdmin
+        .from('equipe_line_jogadores')
+        .select('line_id,equipe_jogador_id,status')
+        .eq('equipe_id', equipeId)
+        .eq('status', 'ativo'),
+      supabaseAdmin
+        .from('equipe_jogadores')
+        .select('id,equipe_id,nick,id_jogo,funcao,foto_url,localidade,status,jogador_auth_user_id')
+        .eq('equipe_id', equipeId)
+        .eq('status', 'ativo')
+        .order('nick'),
+      supabaseAdmin
         .from('campeonato_equipes')
         .select('id,line_id,campeonato_id,status,nome_exibicao')
         .eq('equipe_id', equipeId)
         .eq('status', 'ativo'),
     ])
-    if (error) throw error
+    if (teamError) throw teamError
+    if (!team) throw new Error('Equipe não encontrada.')
+    if (linesError) throw linesError
+    if (membershipsError) throw membershipsError
+    if (rosterError) throw rosterError
     if (partsError) throw partsError
 
     const campIds = [...new Set((parts || []).map((p) => p.campeonato_id).filter(Boolean))]
-    const { data: camps } = campIds.length
-      ? await supabaseAdmin.from('campeonatos').select('id,nome,logo_url,status').in('id', campIds)
-      : { data: [] as any[] }
+    const playerAuthIds = [...new Set((roster || []).map((p:any) => p.jogador_auth_user_id).filter(Boolean))]
+    const { data: camps, error: campsError } = campIds.length
+      ? await supabaseAdmin
+          .from('campeonatos')
+          .select('id,nome,logo_url,status,aprovacao_status')
+          .in('id', campIds)
+          .eq('aprovacao_status', 'aprovado')
+          .is('deleted_at', null)
+      : { data: [] as any[], error: null }
+    if (campsError) throw campsError
+
+    const { data: playerProfiles, error: playerProfilesError } = playerAuthIds.length
+      ? await supabaseAdmin.from('jogadores').select('id,auth_user_id').in('auth_user_id', playerAuthIds).eq('status', 'ativo')
+      : { data: [] as any[], error: null }
+    if (playerProfilesError) throw playerProfilesError
+    const profileByAuth = new Map((playerProfiles || []).map((profile:any) => [profile.auth_user_id, profile.id]))
+
     const campMap = new Map((camps || []).map((c) => [c.id, c]))
+    const rosterMap = new Map((roster || []).map((player:any) => {
+      const { jogador_auth_user_id: authId, ...publicPlayer } = player
+      return [player.id, { ...publicPlayer, jogador_id: authId ? profileByAuth.get(authId) || null : null }]
+    }))
+    const membersByLine = new Map<string, any[]>()
+    for (const membership of memberships || []) {
+      const player = rosterMap.get(membership.equipe_jogador_id)
+      if (!player) continue
+      const list = membersByLine.get(membership.line_id) || []
+      list.push(player)
+      membersByLine.set(membership.line_id, list)
+    }
 
     const partsByLine = new Map<string, any[]>()
-    for (const p of parts || []) {
-      if (!p.line_id) continue
-      const list = partsByLine.get(p.line_id) || []
-      list.push(p)
-      partsByLine.set(p.line_id, list)
+    for (const participation of parts || []) {
+      if (!participation.line_id) continue
+      const championship = campMap.get(participation.campeonato_id)
+      if (!championship) continue
+      const list = partsByLine.get(participation.line_id) || []
+      list.push({
+        participacao_id: participation.id,
+        campeonato_id: participation.campeonato_id,
+        nome: championship.nome || participation.nome_exibicao || 'Campeonato',
+        logo_url: championship.logo_url || null,
+        status: championship.status || participation.status,
+      })
+      partsByLine.set(participation.line_id, list)
     }
 
     return NextResponse.json({
+      team,
       lines: (lines || []).map((line) => ({
         ...line,
-        campeonatos: (partsByLine.get(line.id) || []).map((p) => {
-          const c = campMap.get(p.campeonato_id)
-          return {
-            participacao_id: p.id,
-            campeonato_id: p.campeonato_id,
-            nome: c?.nome || p.nome_exibicao || 'Campeonato',
-            logo_url: c?.logo_url || null,
-            status: c?.status || p.status,
-          }
-        }),
+        jogadores: membersByLine.get(line.id) || [],
+        campeonatos: partsByLine.get(line.id) || [],
       })),
-      participacoes: (parts || []).map((p) => {
-        const c = campMap.get(p.campeonato_id)
-        return {
-          ...p,
-          campeonato: c || null,
-        }
+      participacoes: (parts || []).flatMap((participation) => {
+        const championship = campMap.get(participation.campeonato_id)
+        return championship ? [{ ...participation, campeonato: championship }] : []
       }),
     })
   } catch (error: any) {

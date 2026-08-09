@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     if (rosterError) throw rosterError
 
     const activeRoster = (rosterRows || []).filter((row: any) => isActive(row.status))
-    const teamIds = [...new Set(activeRoster.map((row: any) => row.equipe_id).filter(Boolean))]
+    const teamIds = [...new Set((rosterRows || []).map((row: any) => row.equipe_id).filter(Boolean))]
     const rosterIds = activeRoster.map((row: any) => row.id)
 
     const [{ data: teams, error: teamsError }, { data: lineMemberships, error: lineMembershipError }] = await Promise.all([
@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
     const groupMap = new Map((groups || []).map((row: any) => [row.id, row]))
 
     const memberships = activeRoster.map((row: any) => ({ ...row, equipe: teamMap.get(row.equipe_id) || null }))
+    const teamHistory = (rosterRows || []).map((row: any) => ({ ...row, equipe: teamMap.get(row.equipe_id) || null }))
     const playerLines = (lineMemberships || []).map((membership: any) => ({
       ...membership,
       line: lineMap.get(membership.line_id) || null,
@@ -111,6 +112,105 @@ export async function GET(req: NextRequest) {
       }
     })
 
+    const { data: statRows, error: statsError } = await supabaseAdmin
+      .from('campeonato_estatisticas_mvp_detalhe')
+      .select('*')
+      .eq('jogador_id', account.id)
+      .limit(10000)
+    if (statsError && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(statsError.code || '')) throw statsError
+
+    const playerStatRows = statRows || []
+    const statChampionshipIds = [...new Set(playerStatRows.map((row: any) => row.campeonato_id).filter(Boolean))]
+    const missingChampionshipIds = statChampionshipIds.filter((id: any) => !championshipMap.has(id))
+    if (missingChampionshipIds.length) {
+      const { data: historicalChampionships, error: historicalChampionshipError } = await supabaseAdmin
+        .from('campeonatos')
+        .select('id,nome,tipo,logo_url,banner_url,status')
+        .in('id', missingChampionshipIds)
+      if (historicalChampionshipError) throw historicalChampionshipError
+      for (const championship of historicalChampionships || []) championshipMap.set(championship.id, championship)
+    }
+
+    const statsParticipationIds = [...new Set(playerStatRows.map((row: any) => row.campeonato_equipe_id).filter(Boolean))]
+    const { data: teamStatRows, error: teamStatsError } = statsParticipationIds.length
+      ? await supabaseAdmin
+          .from('campeonato_estatisticas_equipes_detalhe')
+          .select('*')
+          .in('campeonato_equipe_id', statsParticipationIds)
+          .limit(10000)
+      : { data: [] as any[], error: null }
+    if (teamStatsError && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(teamStatsError.code || '')) throw teamStatsError
+
+    const teamResultMap = new Map<string, any>()
+    for (const row of teamStatRows || []) {
+      const key = `${row.campeonato_equipe_id || ''}:${row.partida_id || row.numero_partida || ''}`
+      teamResultMap.set(key, row)
+    }
+
+    const statisticsByChampionshipMap = new Map<string, any>()
+    const matchHistory = playerStatRows.map((row: any) => {
+      const championship: any = championshipMap.get(row.campeonato_id) || null
+      const teamResult = teamResultMap.get(`${row.campeonato_equipe_id || ''}:${row.partida_id || row.numero_partida || ''}`) || null
+      const current = statisticsByChampionshipMap.get(String(row.campeonato_id)) || {
+        campeonato_id: row.campeonato_id,
+        campeonato: championship,
+        partidas: 0,
+        abates: 0,
+        dano: 0,
+        assistencias: 0,
+        revives: 0,
+        booyahs: 0,
+        melhor_posicao: null,
+      }
+      current.partidas += 1
+      current.abates += Number(row.abates || 0)
+      current.dano += Number(row.dano || 0)
+      current.assistencias += Number(row.assistencias || 0)
+      current.revives += Number(row.revives || 0)
+      if (teamResult?.booyah || Number(teamResult?.posicao || 0) === 1) current.booyahs += 1
+      const position = Number(teamResult?.posicao || 0)
+      if (position > 0) current.melhor_posicao = current.melhor_posicao === null ? position : Math.min(current.melhor_posicao, position)
+      statisticsByChampionshipMap.set(String(row.campeonato_id), current)
+      return {
+        resultado_id: row.resultado_id || null,
+        campeonato_id: row.campeonato_id,
+        campeonato: championship,
+        jogo_id: row.jogo_id || null,
+        partida_id: row.partida_id || null,
+        numero_partida: row.numero_partida || null,
+        mapa_codigo: row.mapa_codigo || null,
+        mapa_nome: row.mapa_nome || null,
+        mapa_imagem_url: row.mapa_imagem_url || null,
+        equipe_id: row.equipe_id || null,
+        line_id: row.line_id || null,
+        abates: Number(row.abates || 0),
+        dano: Number(row.dano || 0),
+        assistencias: Number(row.assistencias || 0),
+        revives: Number(row.revives || 0),
+        posicao: position || null,
+        booyah: Boolean(teamResult?.booyah || position === 1),
+        updated_at: row.updated_at || null,
+      }
+    }).sort((a: any, b: any) => {
+      const aDate = a.updated_at ? new Date(a.updated_at).getTime() : 0
+      const bDate = b.updated_at ? new Date(b.updated_at).getTime() : 0
+      if (bDate !== aDate) return bDate - aDate
+      return Number(b.numero_partida || 0) - Number(a.numero_partida || 0)
+    })
+
+    const statisticsByChampionship = [...statisticsByChampionshipMap.values()]
+      .map((row: any) => ({ ...row, kd: row.partidas ? row.abates / row.partidas : 0 }))
+      .sort((a: any, b: any) => b.partidas - a.partidas || b.abates - a.abates)
+
+    const statistics = statisticsByChampionship.reduce((total: any, row: any) => ({
+      partidas: total.partidas + row.partidas,
+      abates: total.abates + row.abates,
+      dano: total.dano + row.dano,
+      assistencias: total.assistencias + row.assistencias,
+      revives: total.revives + row.revives,
+      booyahs: total.booyahs + row.booyahs,
+    }), { partidas: 0, abates: 0, dano: 0, assistencias: 0, revives: 0, booyahs: 0 })
+
     return NextResponse.json({
       player: {
         id: account.id,
@@ -126,9 +226,13 @@ export async function GET(req: NextRequest) {
       },
       overview: {
         teams: memberships,
+        teamHistory,
         lines: playerLines,
         formations: playerFormations,
         activeChampionships: playerFormations.filter((row: any) => isActive(row.campeonato?.status)),
+        statistics,
+        statisticsByChampionship,
+        matchHistory,
       },
     })
   } catch (error: any) {

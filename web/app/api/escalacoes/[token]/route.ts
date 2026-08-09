@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
-import { assertLineupWindowOpen, assertPlayerNotInAnotherTeam, resolveLineupWindow } from '@backend/campeonatos/lineup-window'
+import { resolveLineupWindow } from '@backend/campeonatos/lineup-window'
+import { joinLineupByToken, loadActiveLineupLink } from '@backend/campeonatos/player-lineup-invites'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function tokenFrom(ctx: any) {
@@ -8,19 +9,8 @@ async function tokenFrom(ctx: any) {
   return String(params?.token || '').trim()
 }
 
-async function loadLink(token: string) {
-  const { data, error } = await supabaseAdmin
-    .from('campeonato_links_inscricao')
-    .select('*')
-    .eq('token', token)
-    .eq('tipo', 'escalacao_line')
-    .eq('ativo', true)
-    .maybeSingle()
-  if (error) throw error
-  if (!data) throw new Error('Link de escalação inválido ou inativo.')
-  if (data.expira_em && new Date(data.expira_em).getTime() < Date.now()) throw new Error('Este link expirou.')
-  return data
-}
+const loadLink = loadActiveLineupLink
+
 
 function mapJogadorProfile(account: any) {
   if (!account) return null
@@ -93,68 +83,14 @@ export async function GET(req: NextRequest, ctx: any) {
 export async function POST(req: NextRequest, ctx: any) {
   try {
     const user = await getBearerUser(req)
-    const link = await loadLink(await tokenFrom(ctx))
     const accounts = await getAccountsForUser(user)
-    const profile = accounts.find((item) => item.profile_type === 'jogador')
-    const account = profile?.data || null
-    if (!account) throw new Error('Seu login ainda não possui um perfil de jogador.')
-
-    const { data: existing, error: existingError } = await supabaseAdmin
-      .from('campeonato_jogadores')
-      .select('id')
-      .eq('campeonato_equipe_id', link.campeonato_equipe_id)
-      .eq('jogador_id', account.id)
-      .eq('status', 'ativo')
-      .maybeSingle()
-    if (existingError) throw existingError
-    if (existing) return NextResponse.json({ already_registered: true, id: existing.id })
-
-    const { count: activePlayers, error: countError } = await supabaseAdmin
-      .from('campeonato_jogadores')
-      .select('id', { count: 'exact', head: true })
-      .eq('campeonato_equipe_id', link.campeonato_equipe_id)
-      .eq('status', 'ativo')
-    if (countError) throw countError
-    if (Number(activePlayers || 0) >= Number(link.limite_jogadores || 0)) {
-      throw new Error('Esta escalação já atingiu o limite de jogadores.')
-    }
-
     const body = await req.json().catch(() => ({}))
-    const { data: participation, error: participationError } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id,campeonato_id,equipe_id,line_id,grupo_id')
-      .eq('id', link.campeonato_equipe_id)
-      .single()
-    if (participationError) throw participationError
-    await assertLineupWindowOpen(participation.campeonato_id, participation.grupo_id)
-
-    const nick = String(body.nick || account.nome || account.username || '').trim()
-    const idJogo = String(body.id_jogo || account.id_jogo || '').trim()
-    const funcao = String(body.funcao || account.funcao || 'support')
-    if (!nick || !idJogo) throw new Error('Complete nick e ID de jogo no perfil do jogador.')
-    await assertPlayerNotInAnotherTeam(participation.campeonato_id, { jogadorId: account.id, idJogo }, participation.id)
-
-    const { data: inserted, error } = await supabaseAdmin
-      .from('campeonato_jogadores')
-      .insert({
-        campeonato_id: participation.campeonato_id,
-        equipe_id: participation.equipe_id,
-        jogador_id: account.id,
-        nick,
-        foto_url: account.avatar_url || null,
-        id_jogo: idJogo,
-        funcao,
-        localidade: account.localidade || null,
-        campeonato_equipe_id: participation.id,
-        line_id: participation.line_id,
-        origem: 'link',
-        link_inscricao_id: link.id,
-        status: 'ativo',
-      })
-      .select('*')
-      .single()
-    if (error) throw error
-    return NextResponse.json({ inscricao: inserted })
+    const result = await joinLineupByToken({
+      token: await tokenFrom(ctx),
+      accounts,
+      body,
+    })
+    return NextResponse.json(result)
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao entrar na escalação.' }, { status: 400 })
   }

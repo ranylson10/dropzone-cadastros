@@ -12,6 +12,7 @@ import {
   requireCampeonatoAdmin,
   sellerLimit,
 } from '@backend/campeonatos/manager-champ-invites'
+import { joinLineupByToken } from '@backend/campeonatos/player-lineup-invites'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { saveTeamPlayer } from '@backend/equipes/player-roster'
 
@@ -50,11 +51,61 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (notif.tipo === 'convite_jogador_equipe_direto' || notif.tipo === 'pedido_jogador_equipe') {
       return await acceptPlayerTeamRelationship(user, accounts, notif)
     }
+    if (notif.tipo === 'convite_escalacao_jogador') {
+      return await acceptPlayerLineup(user, accounts, notif)
+    }
 
     throw new Error('Esta notificação não aceita resposta de aceite.')
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao aceitar convite.' }, { status: 400 })
   }
+}
+
+
+async function acceptPlayerLineup(user: any, accounts: any[], notif: any) {
+  if (notif.status !== 'nao_lida') throw new Error('Esta escalação já foi respondida.')
+  const token = String(notif.payload?.token || '').trim()
+  if (!token) throw new Error('Token da escalação não encontrado nesta notificação.')
+
+  const result: any = await joinLineupByToken({ token, accounts, body: {} })
+  const playerAccount = accounts.find((item) => item.profile_type === 'jogador')
+  const player = playerAccount?.data || result?.jogador || null
+  const now = new Date().toISOString()
+  await supabaseAdmin.from('notificacoes').update({ status: 'lida', read_at: now }).eq('id', notif.id)
+
+  if (notif.remetente_auth_user_id) {
+    try {
+      await createNotificacao({
+        destinatarioAuthUserId: notif.remetente_auth_user_id,
+        remetenteAuthUserId: user.id,
+        remetenteProfileType: 'jogador',
+        remetenteProfileId: player?.id || null,
+        tipo: 'escalacao_jogador_resposta',
+        titulo: 'Escalação confirmada',
+        corpo: `${player?.nome || player?.username || 'Jogador'} confirmou participação em ${notif.payload?.campeonato_nome || 'um campeonato'}.`,
+        payload: {
+          resposta: 'aceito',
+          jogador_id: player?.id || null,
+          token,
+          link_id: notif.payload?.link_id || null,
+          campeonato_id: notif.payload?.campeonato_id || null,
+          campeonato_equipe_id: notif.payload?.campeonato_equipe_id || null,
+          equipe_id: notif.payload?.equipe_id || null,
+          line_id: notif.payload?.line_id || null,
+        },
+        referenciaTipo: 'campeonato_link_escalacao',
+        referenciaId: notif.referencia_id || notif.payload?.link_id || null,
+      })
+    } catch {
+      // resposta é informativa; a confirmação principal já foi persistida em campeonato_jogadores
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    mensagem: result?.already_registered ? 'Você já estava confirmado nesta escalação.' : 'Escalação confirmada.',
+    inscricao: result?.inscricao || null,
+  })
 }
 
 async function acceptPlayerTeamRelationship(user: any, accounts: any[], notif: any) {

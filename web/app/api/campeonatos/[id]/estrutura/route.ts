@@ -196,29 +196,38 @@ async function loadStructure(campeonatoId: string) {
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
-    const user = await getBearerUser(req)
-    const permission = await getCampeonatoPermission(user.id, id)
-    const registrations = canManageStructure(permission) ? [] : await listUserRegistrations(user)
-    const isParticipant = registrations.some((item: any) => String(item.campeonato_id || item.campeonato?.id || '') === id)
     const structure = await loadStructure(id)
     const isPublic = String(structure.campeonato?.status || '') === 'ativo'
       && structure.campeonato?.aprovacao_status === 'aprovado'
-    if (!canManageStructure(permission) && !isParticipant && !isPublic) {
+
+    let permission: Awaited<ReturnType<typeof getCampeonatoPermission>> | null = null
+    let isParticipant = false
+    try {
+      const user = await getBearerUser(req)
+      permission = await getCampeonatoPermission(user.id, id)
+      const registrations = canManageStructure(permission) ? [] : await listUserRegistrations(user)
+      isParticipant = registrations.some((item: any) => String(item.campeonato_id || item.campeonato?.id || '') === id)
+    } catch {
+      permission = null
+    }
+
+    const canManage = permission ? canManageStructure(permission) : false
+    if (!canManage && !isParticipant && !isPublic) {
       throw new Error('Você não tem permissão para ver a estrutura deste campeonato.')
     }
 
-    const spectator = !canManageStructure(permission)
+    const spectator = !canManage
     return NextResponse.json({
       ...structure,
       permission: {
         canView: true,
-        canManage: spectator ? false : permission.canManage,
-        canRemove: spectator ? false : permission.canRemove,
-        canGenerateToken: spectator ? false : permission.canGenerateToken,
-        canOrganizeGroups: spectator ? false : permission.canOrganizeGroups,
-        canManageGames: spectator ? false : permission.canManageGames,
-        canScore: spectator ? false : permission.canScore,
-        role: spectator ? 'viewer' : permission.role,
+        canManage: spectator ? false : Boolean(permission?.canManage),
+        canRemove: spectator ? false : Boolean(permission?.canRemove),
+        canGenerateToken: spectator ? false : Boolean(permission?.canGenerateToken),
+        canOrganizeGroups: spectator ? false : Boolean(permission?.canOrganizeGroups),
+        canManageGames: spectator ? false : Boolean(permission?.canManageGames),
+        canScore: spectator ? false : Boolean(permission?.canScore),
+        role: spectator ? 'viewer' : permission?.role || 'viewer',
       },
     })
   } catch (error: any) {

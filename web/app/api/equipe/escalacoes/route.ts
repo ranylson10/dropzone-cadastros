@@ -6,6 +6,7 @@ import {
   listControllableEquipes,
   requireEquipeAccess,
 } from '@backend/equipes/manager-team-access'
+import { createNotificacao } from '@backend/equipes/manager-invites'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function novoToken() {
@@ -52,6 +53,80 @@ async function requireManagedParticipation(id: string, userId: string) {
   // reutiliza helper já usado em lines/staff — dono e staff com permissão
   await requireEquipeAccess(userId, accounts, data.equipe_id, 'escalar')
   return data
+}
+
+
+async function notifyLinePlayers(params: {
+  lineId: string | null
+  link: any
+  summary: any
+  equipe: any
+  senderAuthUserId: string
+  publicUrl: string
+}) {
+  if (!params.lineId) return 0
+
+  const { data: memberships, error: membershipsError } = await supabaseAdmin
+    .from('equipe_line_jogadores')
+    .select('equipe_jogador_id')
+    .eq('line_id', params.lineId)
+    .eq('status', 'ativo')
+  if (membershipsError) throw membershipsError
+
+  const rosterIds = [...new Set((memberships || []).map((row: any) => String(row.equipe_jogador_id || '')).filter(Boolean))]
+  if (!rosterIds.length) return 0
+
+  const { data: roster, error: rosterError } = await supabaseAdmin
+    .from('equipe_jogadores')
+    .select('id,jogador_auth_user_id,nick')
+    .in('id', rosterIds)
+    .eq('status', 'ativo')
+  if (rosterError) throw rosterError
+
+  const authIds = [...new Set((roster || []).map((row: any) => String(row.jogador_auth_user_id || '')).filter(Boolean))]
+  if (!authIds.length) return 0
+
+  const { data: profiles, error: profileError } = await supabaseAdmin
+    .from('jogadores')
+    .select('id,auth_user_id,nome,username')
+    .in('auth_user_id', authIds)
+    .eq('status', 'ativo')
+  if (profileError) throw profileError
+  const profileByAuth = new Map((profiles || []).map((row: any) => [String(row.auth_user_id), row]))
+
+  const title = `Escalação: ${params.summary?.campeonato_nome || 'campeonato'}`
+  const body = `${params.equipe?.nome || 'Equipe'} · ${params.summary?.line_nome || 'Line'}${params.summary?.data_jogo ? ` · ${new Date(`${params.summary.data_jogo}T00:00:00`).toLocaleDateString('pt-BR')}` : ''}`
+  const jobs = authIds.map((authId) => {
+    const profile: any = profileByAuth.get(authId)
+    return createNotificacao({
+      destinatarioAuthUserId: authId,
+      destinatarioProfileType: 'jogador',
+      destinatarioProfileId: profile?.id || null,
+      remetenteAuthUserId: params.senderAuthUserId,
+      tipo: 'convite_escalacao_jogador',
+      titulo: title,
+      corpo: body,
+      payload: {
+        token: params.link.token,
+        link_id: params.link.id,
+        campeonato_id: params.link.campeonato_id,
+        campeonato_equipe_id: params.link.campeonato_equipe_id,
+        equipe_id: params.equipe?.id || null,
+        equipe_nome: params.equipe?.nome || null,
+        line_id: params.lineId,
+        line_nome: params.summary?.line_nome || null,
+        campeonato_nome: params.summary?.campeonato_nome || null,
+        data_jogo: params.summary?.data_jogo || null,
+        horario: params.summary?.horario || null,
+        expira_em: params.link.expira_em || null,
+        public_url: params.publicUrl,
+      },
+      referenciaTipo: 'campeonato_link_escalacao',
+      referenciaId: params.link.id,
+    })
+  })
+  const settled = await Promise.allSettled(jobs)
+  return settled.filter((result) => result.status === 'fulfilled').length
 }
 
 export async function GET(req: NextRequest) {
@@ -132,12 +207,29 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const participation = await requireManagedParticipation(String(body.campeonato_equipe_id || ''), user.id)
 
+    const { data: oldLinks } = await supabaseAdmin
+      .from('campeonato_links_inscricao')
+      .select('id')
+      .eq('campeonato_equipe_id', participation.id)
+      .eq('tipo', 'escalacao_line')
+      .eq('ativo', true)
+
     await supabaseAdmin
       .from('campeonato_links_inscricao')
       .update({ ativo: false, encerrado_em: new Date().toISOString() })
       .eq('campeonato_equipe_id', participation.id)
       .eq('tipo', 'escalacao_line')
       .eq('ativo', true)
+
+    const oldLinkIds = (oldLinks || []).map((row: any) => String(row.id || '')).filter(Boolean)
+    if (oldLinkIds.length) {
+      await supabaseAdmin
+        .from('notificacoes')
+        .update({ status: 'arquivada', archived_at: new Date().toISOString() })
+        .eq('tipo', 'convite_escalacao_jogador')
+        .in('referencia_id', oldLinkIds)
+        .eq('status', 'nao_lida')
+    }
 
     const { data: rule } = await supabaseAdmin
       .from('campeonato_regras_escalacao')
@@ -180,7 +272,7 @@ export async function POST(req: NextRequest) {
         .maybeSingle(),
       supabaseAdmin
         .from('equipes')
-        .select('nome')
+        .select('id,nome')
         .eq('id', participation.equipe_id)
         .maybeSingle(),
     ])
@@ -210,8 +302,17 @@ Este mesmo link pode ser usado por todos os jogadores até o limite de vagas.
 
 Acesse: ${publicUrl}`
 
+    const notificacoesEnviadas = await notifyLinePlayers({
+      lineId: participation.line_id,
+      link: data,
+      summary,
+      equipe,
+      senderAuthUserId: user.id,
+      publicUrl,
+    })
+
     return NextResponse.json(
-      { link: data, token, public_url: publicUrl, texto },
+      { link: data, token, public_url: publicUrl, texto, notificacoes_enviadas: notificacoesEnviadas },
       { status: 201 },
     )
   } catch (error: any) {

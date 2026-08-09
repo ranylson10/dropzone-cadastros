@@ -19,6 +19,9 @@ export type RankedPlayer = {
   assistencias?: number
   revives?: number
   quedas?: number
+  equipe_nome?: string | null
+  equipe_tag?: string | null
+  equipe_logo_url?: string | null
 }
 
 export const fallbackRank = {

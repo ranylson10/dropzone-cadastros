@@ -34,11 +34,57 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (notif.tipo === 'convite_jogador_equipe_direto' || notif.tipo === 'pedido_jogador_equipe') {
       return await refusePlayerTeamRelationship(user, accounts, notif)
     }
+    if (notif.tipo === 'convite_escalacao_jogador') {
+      return await refusePlayerLineup(user, accounts, notif)
+    }
 
     throw new Error('Esta notificação não aceita recusa.')
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao recusar convite.' }, { status: 400 })
   }
+}
+
+
+async function refusePlayerLineup(user: any, accounts: any[], notif: any) {
+  if (notif.status !== 'nao_lida') throw new Error('Esta escalação já foi respondida.')
+  const playerAccount = accounts.find((item) => item.profile_type === 'jogador')
+  const player = playerAccount?.data || null
+  if (!player) throw new Error('Este login não possui perfil de jogador.')
+
+  await supabaseAdmin
+    .from('notificacoes')
+    .update({ status: 'lida', read_at: new Date().toISOString() })
+    .eq('id', notif.id)
+
+  if (notif.remetente_auth_user_id) {
+    try {
+      await createNotificacao({
+        destinatarioAuthUserId: notif.remetente_auth_user_id,
+        remetenteAuthUserId: user.id,
+        remetenteProfileType: 'jogador',
+        remetenteProfileId: player.id || null,
+        tipo: 'escalacao_jogador_resposta',
+        titulo: 'Escalação recusada',
+        corpo: `${player.nome || player.username || 'Jogador'} recusou a escalação de ${notif.payload?.campeonato_nome || 'um campeonato'}.`,
+        payload: {
+          resposta: 'recusado',
+          jogador_id: player.id || null,
+          token: notif.payload?.token || null,
+          link_id: notif.payload?.link_id || null,
+          campeonato_id: notif.payload?.campeonato_id || null,
+          campeonato_equipe_id: notif.payload?.campeonato_equipe_id || null,
+          equipe_id: notif.payload?.equipe_id || null,
+          line_id: notif.payload?.line_id || null,
+        },
+        referenciaTipo: 'campeonato_link_escalacao',
+        referenciaId: notif.referencia_id || notif.payload?.link_id || null,
+      })
+    } catch {
+      // resposta é informativa; a recusa já foi registrada no correio do jogador
+    }
+  }
+
+  return NextResponse.json({ ok: true, mensagem: 'Escalação recusada.' })
 }
 
 async function refusePlayerTeamRelationship(user: any, accounts: any[], notif: any) {

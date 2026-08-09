@@ -10,7 +10,7 @@ function buildAppUrl() {
 }
 
 export default function MobileAuthCallbackPage() {
-  const appUrl = useMemo(buildAppUrl, [])
+  const appUrl = useMemo(() => buildAppUrl(), [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

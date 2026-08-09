@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { assertLineupSwapAllowed, assertLineupWindowOpen, assertPlayerNotInAnotherTeam, resolveLineupWindow } from '@backend/campeonatos/lineup-window'
 import { requireEquipeAccess } from '@backend/equipes/manager-team-access'
@@ -25,14 +25,16 @@ function activeStatus(value: unknown) {
 }
 
 async function loadLine(equipeId: string, lineId: string) {
-  const [{ data: roster, error: rosterError }, { data: memberships, error: membershipsError }, { data: participations, error: participationsError }] = await Promise.all([
+  const [{ data: roster, error: rosterError }, { data: memberships, error: membershipsError }, { data: participations, error: participationsError }, { data: teamLines, error: teamLinesError }] = await Promise.all([
     supabaseAdmin.from('equipe_jogadores').select('*').eq('equipe_id', equipeId).eq('status', 'ativo').order('nick'),
     supabaseAdmin.from('equipe_line_jogadores').select('*').eq('line_id', lineId).eq('status', 'ativo').order('created_at'),
     supabaseAdmin.from('campeonato_equipes').select('*').eq('equipe_id', equipeId).eq('line_id', lineId).eq('status', 'ativo'),
+    supabaseAdmin.from('equipe_lines').select('id,equipe_id,nome,tag,logo_url,status').eq('equipe_id', equipeId).eq('status', 'ativo').order('nome'),
   ])
   if (rosterError) throw rosterError
   if (membershipsError) throw membershipsError
   if (participationsError) throw participationsError
+  if (teamLinesError) throw teamLinesError
 
   const participationIds = (participations || []).map((row: any) => row.id)
   const championshipIds = [...new Set((participations || []).map((row: any) => row.campeonato_id).filter(Boolean))]
@@ -111,6 +113,7 @@ async function loadLine(equipeId: string, lineId: string) {
     roster: (roster || []).map((player: any) => ({ ...player, na_line: memberIds.has(player.id) })),
     members: (roster || []).filter((player: any) => memberIds.has(player.id)),
     memberships: memberships || [],
+    team_lines: teamLines || [],
     events,
   }
 }
@@ -196,6 +199,63 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       })
       if (transferError) throw transferError
       return NextResponse.json({ ok: true, transferred: true, destination, result, championships: transfer.championships })
+    } else if (action === 'transfer_member') {
+      const playerId = String(body.equipe_jogador_id || '').trim()
+      const destinationLineId = String(body.line_destino_id || '').trim()
+      if (!playerId) throw new Error('Selecione o jogador que será transferido.')
+      if (!destinationLineId) throw new Error('Selecione a line de destino.')
+      if (destinationLineId === lineId) throw new Error('O jogador já está nesta line.')
+
+      const current = await loadLine(equipeId, lineId)
+      if (!current.members.some((row: any) => String(row.id) === playerId)) throw new Error('O jogador não pertence à line de origem.')
+      const activeFormation = current.events.find((event: any) => (event.formacao || []).some((row: any) => String(row.equipe_jogador_id) === playerId))
+      if (activeFormation) throw new Error(`Remova o jogador da formação de ${activeFormation.campeonato?.nome || 'campeonato ativo'} antes de transferi-lo.`)
+
+      const { data: destinationLine, error: destinationLineError } = await supabaseAdmin
+        .from('equipe_lines')
+        .select('id,equipe_id,nome,tag,status')
+        .eq('id', destinationLineId)
+        .eq('equipe_id', equipeId)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      if (destinationLineError) throw destinationLineError
+      if (!destinationLine) throw new Error('Line de destino não encontrada nesta equipe.')
+
+      const { data: existingDestination, error: destinationMembershipError } = await supabaseAdmin
+        .from('equipe_line_jogadores')
+        .select('id,status')
+        .eq('line_id', destinationLineId)
+        .eq('equipe_jogador_id', playerId)
+        .maybeSingle()
+      if (destinationMembershipError) throw destinationMembershipError
+
+      const membershipPayload = {
+        equipe_id: equipeId,
+        line_id: destinationLineId,
+        equipe_jogador_id: playerId,
+        status: 'ativo',
+        adicionado_por: user.id,
+        removido_por: null,
+        removido_em: null,
+        updated_at: new Date().toISOString(),
+      }
+      const destinationWrite = existingDestination
+        ? await supabaseAdmin.from('equipe_line_jogadores').update(membershipPayload).eq('id', existingDestination.id)
+        : await supabaseAdmin.from('equipe_line_jogadores').insert(membershipPayload)
+      if (destinationWrite.error) throw destinationWrite.error
+
+      const { error: sourceWriteError } = await supabaseAdmin
+        .from('equipe_line_jogadores')
+        .update({ status: 'inativo', removido_por: user.id, removido_em: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('line_id', lineId)
+        .eq('equipe_jogador_id', playerId)
+        .eq('status', 'ativo')
+      if (sourceWriteError) throw sourceWriteError
+
+      await writeHistory({ equipe_id: equipeId, line_id: lineId, equipe_jogador_id: playerId, acao: 'removido_line', detalhes: { motivo: 'transferencia_line', line_destino_id: destinationLineId }, realizado_por: user.id })
+      await writeHistory({ equipe_id: equipeId, line_id: destinationLineId, equipe_jogador_id: playerId, acao: 'adicionado_line', detalhes: { motivo: 'transferencia_line', line_origem_id: lineId }, realizado_por: user.id })
+
+      return NextResponse.json({ ok: true, transferred_member: true, destination_line: destinationLine, ...(await loadLine(equipeId, lineId)) })
     } else if (action === 'add_member') {
       const playerId = String(body.equipe_jogador_id || '')
       const { data: player, error } = await supabaseAdmin.from('equipe_jogadores').select('id,equipe_id').eq('id', playerId).eq('equipe_id', equipeId).eq('status', 'ativo').maybeSingle()
@@ -226,6 +286,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     } else if (action === 'save_formation') {
       const participationId = String(body.campeonato_equipe_id || '')
       const requested = Array.isArray(body.players) ? body.players : []
+      const captainIds = requested.filter((row: any) => Boolean(row?.capitao)).map((row: any) => String(row.equipe_jogador_id || row.id || '')).filter(Boolean)
+      if (captainIds.length > 1) throw new Error('Selecione apenas um capitão por formação.')
       const current = await loadLine(equipeId, lineId)
       const event: any = current.events.find((item: any) => String(item.id) === participationId)
       if (!event) throw new Error('ParticipaÃ§Ã£o da line nÃ£o encontrada.')
@@ -274,6 +336,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           line_id: lineId,
           equipe_jogador_id: playerId,
           tipo_formacao: requestedRow.tipo_formacao === 'reserva' ? 'reserva' : 'titular',
+          capitao: Boolean(requestedRow.capitao),
           ordem_formacao: index + 1,
           status: 'ativo',
           updated_at: new Date().toISOString(),

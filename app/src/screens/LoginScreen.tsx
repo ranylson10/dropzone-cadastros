@@ -1,28 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Animated, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useState } from 'react'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useAuth } from '@/lib/auth'
-import { colors, radius, spacing, typography } from '@/theme/tokens'
+import { colors, spacing, typography } from '@/theme/tokens'
 
-export function LoginScreen() {
+export function LoginScreen(props: { onCancel?: () => void }) {
   const auth = useAuth()
-  const pulse = useRef(new Animated.Value(0)).current
   const [localError, setLocalError] = useState('')
   const busy = auth.authenticating
   const error = localError || auth.authError
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 2200, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 2200, useNativeDriver: true }),
-      ]),
-    )
-    loop.start()
-    return () => loop.stop()
-  }, [pulse])
-
-  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] })
-  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.28] })
 
   async function signIn() {
     setLocalError('')
@@ -36,53 +22,41 @@ export function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.page}>
-      <View style={styles.logoRow}>
-        <View style={styles.logoMark}>
-          <View style={styles.logoBlockLight} />
-          <View style={styles.logoBlockGold} />
-        </View>
-        <View>
-          <Text style={styles.brand}>DROPZONE</Text>
-          <Text style={styles.brandSub}>Competitive System</Text>
-        </View>
+      <View style={styles.topLine}>
+        <TouchableOpacity
+          accessibilityLabel="Voltar"
+          style={styles.iconButton}
+          onPress={props.onCancel}
+          disabled={!props.onCancel || busy}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.surface} />
+        </TouchableOpacity>
+        <Image source={require('../../assets/dropzone-icon-accent.png')} style={styles.logo} resizeMode="contain" />
+        <View style={styles.iconSpacer} />
       </View>
 
       <View style={styles.hero}>
-        <Animated.View style={[styles.glowPrimary, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
-        <Animated.View style={[styles.glowGold, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
-        <Text style={styles.eyebrow}>App oficial</Text>
-        <Text style={styles.title}>Entre no cenário DropZone</Text>
+        <Text style={styles.eyebrow}>ACESSO DROPZONE</Text>
+        <Text style={styles.title}>ENTRAR</Text>
         <Text style={styles.description}>
-          Vagas, equipe, escalação, carteira e Lili em um acesso rápido.
+          Faça login somente para ações pessoais, compras e gerenciamento.
         </Text>
-        <View style={styles.badgeRow}>
-          <Text style={styles.badge}>Vagas abertas</Text>
-          <Text style={styles.badge}>Escalação</Text>
-          <Text style={styles.badge}>Lili</Text>
-        </View>
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Entrar na conta</Text>
-          <Text style={styles.cardText}>Use sua conta Google para acessar seus perfis.</Text>
-        </View>
+      <View style={styles.panel}>
+        <View style={styles.rule} />
 
         {!auth.configured ? (
-          <View style={styles.warning}>
-            <Text style={styles.warningTitle}>Configuração pendente</Text>
-            <Text style={styles.warningText}>
-              Preencha EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY no app para ativar o login.
-            </Text>
+          <View style={styles.notice}>
+            <Text style={styles.noticeTitle}>CONFIGURAÇÃO PENDENTE</Text>
+            <Text style={styles.noticeText}>As variáveis do Supabase ainda não estão configuradas neste app.</Text>
           </View>
         ) : null}
 
         {auth.configured && !auth.redirectConfigured ? (
-          <View style={styles.warning}>
-            <Text style={styles.warningTitle}>Redirect mobile inválido</Text>
-            <Text style={styles.warningText}>
-              EXPO_PUBLIC_AUTH_REDIRECT_URL precisa apontar para /auth/mobile-callback ou dropzone://auth/callback.
-            </Text>
+          <View style={styles.notice}>
+            <Text style={styles.noticeTitle}>RETORNO DO LOGIN PENDENTE</Text>
+            <Text style={styles.noticeText}>O callback mobile precisa estar configurado antes de usar o Google.</Text>
           </View>
         ) : null}
 
@@ -90,29 +64,29 @@ export function LoginScreen() {
           <View style={styles.errorBox}>
             <Text style={styles.error}>{error}</Text>
             <TouchableOpacity onPress={() => { setLocalError(''); auth.clearAuthError() }}>
-              <Text style={styles.dismissError}>Tentar novamente</Text>
+              <Text style={styles.retry}>TENTAR NOVAMENTE</Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
         <TouchableOpacity
-          style={[styles.button, (!auth.configured || !auth.redirectConfigured || busy) && styles.buttonDisabled]}
+          style={[styles.googleButton, (!auth.configured || !auth.redirectConfigured || busy) && styles.disabled]}
           onPress={signIn}
           disabled={busy || !auth.configured || !auth.redirectConfigured}
         >
-          {busy ? (
-            <View style={styles.buttonBusy}>
-              <ActivityIndicator color="#fff" />
-              <Text style={styles.buttonText}>Aguardando Google...</Text>
-            </View>
-          ) : (
-            <Text style={styles.buttonText}>Entrar com Google</Text>
-          )}
+          {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="logo-google" size={21} color="#fff" />}
+          <Text style={styles.googleText}>{busy ? 'AGUARDANDO GOOGLE...' : 'ENTRAR COM GOOGLE'}</Text>
         </TouchableOpacity>
 
-        {busy ? (
-          <Text style={styles.helper}>Finalize no navegador. Depois o app volta sozinho para sua conta.</Text>
+        {props.onCancel && !busy ? (
+          <TouchableOpacity style={styles.guestButton} onPress={props.onCancel}>
+            <Text style={styles.guestText}>CONTINUAR SEM LOGIN</Text>
+          </TouchableOpacity>
         ) : null}
+
+        <Text style={styles.helper}>
+          Você pode navegar pelo conteúdo público sem conta. O login será solicitado apenas quando necessário.
+        </Text>
       </View>
     </SafeAreaView>
   )
@@ -121,195 +95,138 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    backgroundColor: colors.brandDark,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.lg,
-    backgroundColor: '#080c18',
   },
-  logoRow: {
+  topLine: {
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,.14)',
   },
-  logoMark: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    backgroundColor: colors.brand,
+  iconButton: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    transform: [{ rotate: '45deg' }],
   },
-  logoBlockLight: {
-    width: 23,
-    height: 10,
-    backgroundColor: '#fff',
-    opacity: 0.95,
-  },
-  logoBlockGold: {
-    width: 23,
-    height: 10,
-    marginTop: 4,
-    backgroundColor: colors.gold,
-  },
-  brand: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 3,
-  },
-  brandSub: {
-    marginTop: 2,
-    color: '#94a3b8',
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
+  iconSpacer: { width: 44 },
+  logo: { width: 42, height: 42 },
   hero: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  glowPrimary: {
-    position: 'absolute',
-    right: -95,
-    top: 60,
-    width: 230,
-    height: 230,
-    borderRadius: 115,
-    backgroundColor: '#6d3df5',
-  },
-  glowGold: {
-    position: 'absolute',
-    left: -80,
-    bottom: 70,
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: '#1d9bf0',
+    paddingTop: 54,
+    paddingHorizontal: 8,
+    paddingBottom: 34,
   },
   eyebrow: {
-    color: '#8bd3ff',
+    color: '#b7bec8',
     fontSize: typography.tiny,
     fontWeight: '900',
     letterSpacing: 3,
-    textTransform: 'uppercase',
   },
   title: {
+    marginTop: 8,
     color: '#fff',
-    fontSize: 42,
+    fontSize: 44,
+    lineHeight: 46,
     fontWeight: '900',
-    lineHeight: 45,
-    maxWidth: 350,
+    letterSpacing: .3,
   },
   description: {
-    color: '#cbd5e1',
-    fontSize: 17,
-    lineHeight: 25,
-    maxWidth: 340,
+    marginTop: 12,
+    maxWidth: 330,
+    color: '#b9c0ca',
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '600',
   },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+  panel: {
+    marginTop: 'auto',
+    backgroundColor: '#eeeae2',
+    padding: spacing.lg,
+    gap: 12,
+    borderTopWidth: 4,
+    borderTopColor: colors.brand,
   },
-  badge: {
-    overflow: 'hidden',
-    borderRadius: 999,
+  rule: {
+    width: 48,
+    height: 3,
+    backgroundColor: colors.brand,
+    marginBottom: 2,
+  },
+  notice: {
+    padding: 11,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    color: '#e5e7eb',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: typography.caption,
+    borderColor: '#d7c9a7',
+    backgroundColor: '#f8f0dc',
+  },
+  noticeTitle: {
+    color: '#7c5d12',
+    fontSize: 10,
     fontWeight: '900',
+    letterSpacing: .8,
   },
-  card: {
-    borderRadius: 30,
-    backgroundColor: '#f6f7fb',
-    padding: spacing.xl,
-    gap: spacing.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.38,
-    shadowOffset: { width: 0, height: 18 },
-    shadowRadius: 30,
-    elevation: 12,
-  },
-  cardHeader: {
-    gap: spacing.xs,
-  },
-  cardTitle: {
-    color: colors.ink,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
-  },
-  cardText: {
-    color: colors.muted,
+  noticeText: {
+    marginTop: 4,
+    color: '#715f38',
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '700',
   },
-  warning: {
-    borderRadius: radius.md,
-    backgroundColor: '#fff7ed',
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  warningTitle: {
-    color: '#9a3412',
-    fontWeight: '900',
-  },
-  warningText: {
-    color: '#9a3412',
-    fontSize: typography.caption,
-    lineHeight: 18,
-  },
   errorBox: {
-    borderRadius: radius.md,
+    padding: 11,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e8b7bd',
     backgroundColor: '#fff1f2',
-    padding: spacing.md,
-    gap: spacing.xs,
   },
   error: {
     color: '#9f1239',
+    fontSize: 11,
+    lineHeight: 17,
     fontWeight: '800',
-    lineHeight: 19,
   },
-  dismissError: {
+  retry: {
+    marginTop: 7,
     color: colors.ink,
-    fontSize: typography.caption,
+    fontSize: 10,
     fontWeight: '900',
-    textTransform: 'uppercase',
   },
-  button: {
-    minHeight: 58,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6d3df5',
-  },
-  buttonDisabled: {
-    opacity: 0.65,
-  },
-  buttonBusy: {
+  googleButton: {
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: 10,
+    backgroundColor: colors.brand,
   },
-  buttonText: {
-    color: colors.surface,
+  disabled: { opacity: .58 },
+  googleText: {
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: .5,
+  },
+  guestButton: {
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#bdb6ab',
+    backgroundColor: '#e3ded5',
+  },
+  guestText: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: .4,
   },
   helper: {
-    color: colors.muted,
-    fontSize: typography.caption,
-    lineHeight: 18,
+    color: '#746f68',
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: '700',
     textAlign: 'center',
   },
 })

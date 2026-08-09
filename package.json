@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "web",
-    "app"
+    "web"
   ],
   "scripts": {
     "dev": "npm run dev --workspace dropzone-web",
@@ -25,14 +24,16 @@
     "test:e2e:functional": "playwright test tests-e2e/functional",
     "test:e2e:all": "playwright test tests-e2e/public tests-e2e/auth tests-e2e/functional tests-e2e/controlled",
     "test:e2e:controlled": "playwright test tests-e2e/controlled",
-    "mobile:start": "npm run start --workspace dropzone-mobile",
-    "mobile:android": "npm run android --workspace dropzone-mobile",
-    "mobile:ios": "npm run ios --workspace dropzone-mobile",
-    "mobile:typecheck": "npm run typecheck --workspace dropzone-mobile",
+    "mobile:start": "npm --prefix app run start",
+    "mobile:android": "npm --prefix app run android",
+    "mobile:ios": "npm --prefix app run ios",
+    "mobile:typecheck": "npm --prefix app run typecheck",
     "mobile:env:sync": "node scripts/sync-mobile-env.mjs",
     "mobile:ready": "node scripts/mobile-ready.mjs",
     "testar:tudo": "node scripts/testes/testar-tudo.mjs",
-    "audit:dropzone:full:orchestrated": "node scripts/testes/executar.mjs --full --skip-quality"
+    "audit:dropzone:full:orchestrated": "node scripts/testes/executar.mjs --full --skip-quality",
+    "mobile:go": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1",
+    "mobile:go:tunnel": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1 -Tunnel"
   },
   "devDependencies": {
     "depcheck": "^1.4.7",

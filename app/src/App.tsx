@@ -1,56 +1,150 @@
-import { useState } from 'react'
-import { ActivityIndicator, Platform, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native'
+import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { AgendaScreen } from '@/screens/AgendaScreen'
 import { AppErrorBoundary } from '@/screens/AppErrorBoundary'
 import { AppShell } from '@/screens/AppShell'
 import { ChampionshipActionsScreen } from '@/screens/ChampionshipActionsScreen'
+import { ChampionshipDirectoryScreen } from '@/screens/ChampionshipDirectoryScreen'
+import { ChampionshipPublicScreen } from '@/screens/ChampionshipPublicScreen'
+import { ChampionshipManagementScreen } from '@/screens/ChampionshipManagementScreen'
 import { CommerceScreen } from '@/screens/CommerceScreen'
+import { ControlPanelScreen } from '@/screens/ControlPanelScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
 import { InvitesScreen } from '@/screens/InvitesScreen'
 import { LiliScreen } from '@/screens/LiliScreen'
 import { LineupScreen } from '@/screens/LineupScreen'
+import { LineManagementScreen } from '@/screens/LineManagementScreen'
 import { LoginScreen } from '@/screens/LoginScreen'
 import { MyChampionshipsScreen } from '@/screens/MyChampionshipsScreen'
 import { ProducerOverviewScreen } from '@/screens/ProducerOverviewScreen'
+import { ProfileManagementScreen } from '@/screens/ProfileManagementScreen'
+import { PlayerDirectoryScreen } from '@/screens/PlayerDirectoryScreen'
+import { PlayerDashboardScreen } from '@/screens/PlayerDashboardScreen'
+import { PlayerPublicScreen } from '@/screens/PlayerPublicScreen'
 import { RankScreen } from '@/screens/RankScreen'
 import { SellerSalesScreen } from '@/screens/SellerSalesScreen'
+import { TeamDirectoryScreen } from '@/screens/TeamDirectoryScreen'
+import { TeamPublicScreen } from '@/screens/TeamPublicScreen'
+import { TeamCreateScreen } from '@/screens/TeamCreateScreen'
 import { TeamRosterScreen } from '@/screens/TeamRosterScreen'
 import { PurchaseClaimScreen } from '@/screens/PurchaseClaimScreen'
-import { VacanciesScreen } from '@/screens/VacanciesScreen'
 import { WalletScreen } from '@/screens/WalletScreen'
+import { TokenActionScreen } from '@/screens/TokenActionScreen'
+import { QuickTokenResult } from '@/lib/api'
 import { colors } from '@/theme/tokens'
-import { ChampionshipCard, MobileRoute, ProfileType } from '@/types/dropzone'
+import { ChampionshipCard, MobileRoute } from '@/types/dropzone'
 import { LineupSummary } from '@/lib/lineups'
+
+const PUBLIC_ROUTES = new Set<MobileRoute>([
+  'home',
+  'vacancies',
+  'championship_public',
+  'team_directory',
+  'team_public',
+  'player_directory',
+  'player_public',
+  'rank',
+  'token_action',
+])
 
 export default function App() {
   return (
-    <AuthProvider>
-      <DropZoneMobileApp />
-    </AuthProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <AuthProvider>
+        <DropZoneMobileApp />
+      </AuthProvider>
+    </SafeAreaProvider>
   )
 }
 
 function DropZoneMobileApp() {
   const auth = useAuth()
   const [route, setRoute] = useState<MobileRoute>('home')
-  const [demoProfileType, setDemoProfileType] = useState<ProfileType>('equipe')
+  const [loginOpen, setLoginOpen] = useState(false)
+  const [pendingRoute, setPendingRoute] = useState<MobileRoute | null>(null)
+  const pendingActionRef = useRef<(() => void) | null>(null)
   const [selectedChampionship, setSelectedChampionship] = useState<ChampionshipCard | null>(null)
+  const [selectedAdminChampionshipId, setSelectedAdminChampionshipId] = useState<string | null>(null)
   const [selectedLineup, setSelectedLineup] = useState<LineupSummary | null>(null)
-  const profileType = auth.session ? auth.activeProfileType : demoProfileType
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
+  const [selectedTokenAction, setSelectedTokenAction] = useState<QuickTokenResult | null>(null)
+  const profileType = auth.activeProfileType
+
+  useEffect(() => {
+    if (!auth.session || !loginOpen) return
+    setLoginOpen(false)
+    const nextRoute = pendingRoute
+    const action = pendingActionRef.current
+    setPendingRoute(null)
+    pendingActionRef.current = null
+    if (nextRoute) setRoute(nextRoute)
+    action?.()
+  }, [auth.session, loginOpen, pendingRoute])
+
+  function requireLogin(nextRoute?: MobileRoute, action?: () => void) {
+    if (auth.session) {
+      if (nextRoute) setRoute(nextRoute)
+      action?.()
+      return true
+    }
+    setPendingRoute(nextRoute || null)
+    pendingActionRef.current = action || null
+    setLoginOpen(true)
+    return false
+  }
+
+  function navigate(nextRoute: MobileRoute) {
+    if (!auth.session && !PUBLIC_ROUTES.has(nextRoute)) {
+      requireLogin(nextRoute)
+      return
+    }
+    setLoginOpen(false)
+    setRoute(nextRoute)
+  }
+
   const screenProps = {
     profileType,
-    onNavigate: setRoute,
-    onBack: () => setRoute('home'),
+    onNavigate: navigate,
+    onBack: () => navigate('home'),
     selectedChampionship,
+    selectedAdminChampionshipId,
     selectedLineup,
+    selectedTeamId,
+    selectedLineId,
+    selectedPlayerId,
+    requireAuth: (action?: () => void) => requireLogin(undefined, action),
     onSelectChampionship: (championship: ChampionshipCard) => {
       setSelectedChampionship(championship)
-      setRoute('purchase_claim')
+      setRoute('championship_public')
+    },
+    onManageChampionship: (championshipId?: string | null) => {
+      setSelectedAdminChampionshipId(championshipId || null)
+      requireLogin('championship_management')
     },
     onSelectLineup: (lineup?: LineupSummary | null) => {
       setSelectedLineup(lineup || null)
-      setRoute('championship_actions')
+      requireLogin('championship_actions')
+    },
+    onSelectTeam: (teamId: string) => {
+      setSelectedTeamId(teamId)
+      setRoute('team_public')
+    },
+    onManageTeam: (teamId: string) => {
+      setSelectedTeamId(teamId)
+      requireLogin('team_roster')
+    },
+    onManageLine: (teamId: string, lineId: string) => {
+      setSelectedTeamId(teamId)
+      setSelectedLineId(lineId)
+      requireLogin('line_management')
+    },
+    onSelectPlayer: (playerId: string) => {
+      setSelectedPlayerId(playerId)
+      setRoute('player_public')
     },
   }
 
@@ -62,62 +156,88 @@ function DropZoneMobileApp() {
         </View>
       )
     }
-    if (!auth.session) return <LoginScreen />
-    if (route === 'home') {
+
+    if (loginOpen && !auth.session) {
       return (
-        <HomeScreen
-          profile={profileType}
-          onProfileChange={setDemoProfileType}
-          onNavigate={setRoute}
-          accounts={auth.accounts}
-          activeAccount={auth.activeAccount}
-          onSelectAccount={auth.setActiveAccountId}
-          onSignOut={auth.signOut}
-          onSelectChampionship={screenProps.onSelectChampionship}
+        <LoginScreen
+          onCancel={() => {
+            setLoginOpen(false)
+            setPendingRoute(null)
+            pendingActionRef.current = null
+          }}
         />
       )
     }
-    if (route === 'vacancies') return <VacanciesScreen {...screenProps} />
+
+    if (route === 'home') {
+      return (
+        <HomeScreen
+          onNavigate={navigate}
+          accounts={auth.accounts}
+          onSelectChampionship={screenProps.onSelectChampionship}
+          accessToken={auth.session?.access_token}
+          onTokenResolved={(result) => { setSelectedTokenAction(result); setRoute('token_action') }}
+        />
+      )
+    }
+    if (route === 'vacancies') return <ChampionshipDirectoryScreen {...screenProps} />
+    if (route === 'championship_public') return <ChampionshipPublicScreen {...screenProps} />
+    if (route === 'championship_management') return <ChampionshipManagementScreen {...screenProps} />
     if (route === 'purchase_claim') return <PurchaseClaimScreen {...screenProps} />
     if (route === 'championship_actions') return <ChampionshipActionsScreen {...screenProps} />
     if (route === 'my_championships') return <MyChampionshipsScreen {...screenProps} />
     if (route === 'lineup') return <LineupScreen {...screenProps} />
+    if (route === 'line_management') return <LineManagementScreen {...screenProps} />
     if (route === 'agenda') return <AgendaScreen {...screenProps} />
     if (route === 'wallet') return <WalletScreen {...screenProps} />
     if (route === 'commerce') return <CommerceScreen {...screenProps} />
+    if (route === 'dashboard') return <ControlPanelScreen {...screenProps} />
+    if (route === 'profile_management') return <ProfileManagementScreen {...screenProps} />
     if (route === 'invites') return <InvitesScreen {...screenProps} />
+    if (route === 'team_directory') return <TeamDirectoryScreen {...screenProps} />
+    if (route === 'team_public') return <TeamPublicScreen {...screenProps} />
+    if (route === 'team_create') return <TeamCreateScreen {...screenProps} />
     if (route === 'team_roster') return <TeamRosterScreen {...screenProps} />
+    if (route === 'player_directory') return <PlayerDirectoryScreen {...screenProps} />
+    if (route === 'player_dashboard') return <PlayerDashboardScreen {...screenProps} />
+    if (route === 'player_public') return <PlayerPublicScreen {...screenProps} />
     if (route === 'seller_sales') return <SellerSalesScreen {...screenProps} />
     if (route === 'producer_overview') return <ProducerOverviewScreen {...screenProps} />
     if (route === 'rank') return <RankScreen {...screenProps} />
     if (route === 'lili') return <LiliScreen {...screenProps} />
-    return <HomeScreen
-      profile={profileType}
-      onProfileChange={setDemoProfileType}
-      onNavigate={setRoute}
-      accounts={auth.accounts}
-      activeAccount={auth.activeAccount}
-      onSelectAccount={auth.setActiveAccountId}
-      onSignOut={auth.signOut}
-      onSelectChampionship={screenProps.onSelectChampionship}
-    />
+    if (route === 'token_action') return <TokenActionScreen result={selectedTokenAction} onBack={() => setRoute('home')} />
+    return (
+      <HomeScreen
+        onNavigate={navigate}
+        accounts={auth.accounts}
+        accessToken={auth.session?.access_token}
+        onSelectChampionship={screenProps.onSelectChampionship}
+        onTokenResolved={(result) => { setSelectedTokenAction(result); setRoute('token_action') }}
+      />
+    )
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={colors.brandDark} />
-      <AppErrorBoundary onReset={() => setRoute('home')}>
-        {auth.session ? (
-          <AppShell
-            route={route}
-            activeAccount={auth.activeAccount}
-            accounts={auth.accounts}
-            onSelectAccount={auth.setActiveAccountId}
-            onNavigate={setRoute}
-          >
-            {renderScreen()}
-          </AppShell>
-        ) : renderScreen()}
+      <AppErrorBoundary
+        onReset={() => {
+          setLoginOpen(false)
+          setRoute('home')
+        }}
+      >
+        <AppShell
+          route={route}
+          activeAccount={auth.activeAccount}
+          accounts={auth.accounts}
+          isAuthenticated={Boolean(auth.session)}
+          onRequestLogin={() => requireLogin()}
+          onSelectAccount={auth.setActiveAccountId}
+          onSignOut={auth.signOut}
+          onNavigate={navigate}
+        >
+          {renderScreen()}
+        </AppShell>
       </AppErrorBoundary>
     </SafeAreaView>
   )
@@ -127,7 +247,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.brandDark,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   loader: {
     flex: 1,

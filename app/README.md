@@ -30,6 +30,36 @@ Aplicativo mobile do DropZone. Ele usa o mesmo backend, banco, login e regras do
 - Financeiro avançado.
 - Configuração completa de vendedores e produtora.
 
+## Teste no Expo Go em celular físico
+
+Durante a transição atual do Expo, o Expo Go disponível nas lojas usa o SDK 54 para testes em aparelho físico. Por isso este workspace mobile fica temporariamente alinhado ao SDK 54 enquanto validamos o app no celular.
+
+Depois de substituir os arquivos desta rodada, a partir da raiz do projeto:
+
+```bat
+npm install
+npm run mobile:typecheck
+cd app
+npx expo-doctor
+cd ..
+npm run mobile:go
+```
+
+No celular:
+
+1. Instale/atualize o **Expo Go** pela loja.
+2. Computador e celular devem estar na mesma rede Wi-Fi.
+3. Abra o Expo Go e leia o QR Code exibido pelo terminal.
+4. Se o modo LAN não localizar o computador, encerre o Metro e use:
+
+```bat
+npm run mobile:go:tunnel
+```
+
+A primeira meta desta rodada é o bundle abrir no Expo Go sem erro de versão do React Native/Expo. O login Google por deep link será validado na rodada seguinte, porque o callback de um development build (`dropzone://...`) e o callback temporário do Expo Go (`exp://...`) são ambientes diferentes.
+
+Não use `npm run mobile:android` para este teste. Esse comando compila o projeto Android nativo; para Expo Go use `npm run mobile:go`.
+
 ## Configuração obrigatória
 
 Crie `app/.env` com:

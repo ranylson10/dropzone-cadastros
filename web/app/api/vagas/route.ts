@@ -8,6 +8,93 @@ export async function GET(req: NextRequest) {
     const vendedorId = String(req.nextUrl.searchParams.get('vendedor') || '').trim()
     const debugCampeonatoId = String(req.nextUrl.searchParams.get('debug_campeonato') || '').trim()
     const diagnostics: Record<string, unknown>[] = []
+    const directoryMode = String(req.nextUrl.searchParams.get('diretorio') || '').trim() === '1'
+
+    if (directoryMode) {
+      const [championsResult, configsResult, participationsResult, purchasesResult, gamesResult] = await Promise.all([
+        supabaseAdmin
+          .from('campeonatos')
+          .select('id,nome,tipo,logo_url,banner_url,status,aprovacao_status,produtora_id,created_at')
+          .eq('status', 'ativo')
+          .eq('aprovacao_status', 'aprovado')
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(500),
+        supabaseAdmin
+          .from('campeonato_configuracoes')
+          .select('campeonato_id,numero_vagas,valor_inscricao,premiacao,descricao_premiacao,tipo_premiacao,tem_live,plataforma,servidor,data_limite_inscricao,aceita_novas_inscricoes_equipes'),
+        supabaseAdmin
+          .from('campeonato_equipes')
+          .select('campeonato_id,id')
+          .eq('status', 'ativo'),
+        supabaseAdmin
+          .from('sistema_compras_vaga')
+          .select('campeonato_id,status,expira_em')
+          .in('status', ['pendente', 'pago', 'liberado']),
+        supabaseAdmin
+          .from('campeonato_jogos')
+          .select('id,campeonato_id,data_jogo,horario,status')
+          .eq('status', 'ativo'),
+      ])
+      for (const result of [championsResult, configsResult, participationsResult, purchasesResult, gamesResult]) {
+        if (result.error) throw result.error
+      }
+
+      const configByChamp = new Map((configsResult.data || []).map((row:any) => [String(row.campeonato_id), row]))
+      const occupiedByChamp = new Map<string, number>()
+      for (const row of participationsResult.data || []) {
+        const key = String(row.campeonato_id || '')
+        occupiedByChamp.set(key, (occupiedByChamp.get(key) || 0) + 1)
+      }
+      const now = Date.now()
+      const reservedByChamp = new Map<string, number>()
+      for (const row of purchasesResult.data || []) {
+        if (row.status === 'pendente' && row.expira_em && new Date(row.expira_em).getTime() <= now) continue
+        const key = String(row.campeonato_id || '')
+        reservedByChamp.set(key, (reservedByChamp.get(key) || 0) + 1)
+      }
+      const gamesByChamp = new Map<string, any[]>()
+      for (const row of gamesResult.data || []) {
+        const key = String(row.campeonato_id || '')
+        const list = gamesByChamp.get(key) || []
+        list.push(row)
+        gamesByChamp.set(key, list)
+      }
+
+      const today = new Date().toISOString().slice(0, 10)
+      const announcements = (championsResult.data || []).map((champ:any) => {
+        const config:any = configByChamp.get(String(champ.id)) || {}
+        const total = Math.max(0, Number(config.numero_vagas || 0))
+        const occupied = occupiedByChamp.get(String(champ.id)) || 0
+        const reserved = reservedByChamp.get(String(champ.id)) || 0
+        const next = (gamesByChamp.get(String(champ.id)) || [])
+          .filter((game:any) => !game.data_jogo || game.data_jogo >= today)
+          .sort((a:any,b:any) => `${a.data_jogo || '9999'} ${a.horario || ''}`.localeCompare(`${b.data_jogo || '9999'} ${b.horario || ''}`))[0] || null
+        return {
+          id: champ.id,
+          nome: champ.nome,
+          tipo: champ.tipo,
+          logo_url: champ.logo_url,
+          banner_url: champ.banner_url,
+          valor_inscricao: config.valor_inscricao ?? null,
+          premiacao: config.premiacao ?? null,
+          descricao_premiacao: config.descricao_premiacao ?? null,
+          tipo_premiacao: config.tipo_premiacao ?? null,
+          tem_live: Boolean(config.tem_live),
+          plataforma: config.plataforma ?? null,
+          servidor: config.servidor ?? null,
+          data_limite_inscricao: config.data_limite_inscricao ?? null,
+          aceita_novas_inscricoes_equipes: config.aceita_novas_inscricoes_equipes !== false,
+          total_vagas: total,
+          vagas_livres: total ? Math.max(0, total - occupied - reserved) : 0,
+          proxima_data: next?.data_jogo || null,
+          proximo_horario: next?.horario || null,
+        }
+      })
+
+      return NextResponse.json({ announcements, authenticated: false, hasTeam: false, directory: true })
+    }
+
     if (debugCampeonatoId) await requireSystemAdmin(req)
     if (produtoraId && vendedorId) throw new Error('Use somente um catálogo por vez.')
     let sellerProfile: any = null
