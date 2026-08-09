@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '@/lib/auth'
 import { AgendaScreen } from '@/screens/AgendaScreen'
 import { AppErrorBoundary } from '@/screens/AppErrorBoundary'
 import { AppShell } from '@/screens/AppShell'
+import { ChampionshipActionsScreen } from '@/screens/ChampionshipActionsScreen'
 import { CommerceScreen } from '@/screens/CommerceScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
 import { InvitesScreen } from '@/screens/InvitesScreen'
@@ -20,6 +21,7 @@ import { VacanciesScreen } from '@/screens/VacanciesScreen'
 import { WalletScreen } from '@/screens/WalletScreen'
 import { colors } from '@/theme/tokens'
 import { ChampionshipCard, MobileRoute, ProfileType } from '@/types/dropzone'
+import { LineupSummary } from '@/lib/lineups'
 
 export default function App() {
   return (
@@ -34,15 +36,21 @@ function DropZoneMobileApp() {
   const [route, setRoute] = useState<MobileRoute>('home')
   const [demoProfileType, setDemoProfileType] = useState<ProfileType>('equipe')
   const [selectedChampionship, setSelectedChampionship] = useState<ChampionshipCard | null>(null)
+  const [selectedLineup, setSelectedLineup] = useState<LineupSummary | null>(null)
   const profileType = auth.session ? auth.activeProfileType : demoProfileType
   const screenProps = {
     profileType,
     onNavigate: setRoute,
     onBack: () => setRoute('home'),
     selectedChampionship,
+    selectedLineup,
     onSelectChampionship: (championship: ChampionshipCard) => {
       setSelectedChampionship(championship)
       setRoute('purchase_claim')
+    },
+    onSelectLineup: (lineup?: LineupSummary | null) => {
+      setSelectedLineup(lineup || null)
+      setRoute('championship_actions')
     },
   }
 
@@ -71,6 +79,7 @@ function DropZoneMobileApp() {
     }
     if (route === 'vacancies') return <VacanciesScreen {...screenProps} />
     if (route === 'purchase_claim') return <PurchaseClaimScreen {...screenProps} />
+    if (route === 'championship_actions') return <ChampionshipActionsScreen {...screenProps} />
     if (route === 'my_championships') return <MyChampionshipsScreen {...screenProps} />
     if (route === 'lineup') return <LineupScreen {...screenProps} />
     if (route === 'agenda') return <AgendaScreen {...screenProps} />

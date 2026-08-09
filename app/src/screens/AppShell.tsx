@@ -18,6 +18,7 @@ const tabByRoute: Partial<Record<MobileRoute, TabId>> = {
   home: 'home',
   vacancies: 'camp',
   purchase_claim: 'camp',
+  championship_actions: 'camp',
   my_championships: 'camp',
   producer_overview: 'camp',
   team_roster: 'teams',

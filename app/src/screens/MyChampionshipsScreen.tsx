@@ -7,7 +7,7 @@ import { ActionCard, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
-export function MyChampionshipsScreen({ onBack, onNavigate, profileType }: ScreenProps) {
+export function MyChampionshipsScreen({ onBack, onNavigate, profileType, onSelectLineup }: ScreenProps) {
   const auth = useAuth()
   const [lineups, setLineups] = useState<LineupSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,7 +79,7 @@ export function MyChampionshipsScreen({ onBack, onNavigate, profileType }: Scree
             description={`${items.length} line${items.length === 1 ? '' : 's'} · ${lineupSubtitle(first)} · ${confirmed}/${limit} jogadores · ${lineupDateLabel(first)}`}
             cta="Ações do campeonato"
             tone={confirmed < limit ? 'warning' : 'success'}
-            onPress={() => onNavigate('lineup')}
+            onPress={() => onSelectLineup?.(first)}
           />
         )
       })}

@@ -4,7 +4,7 @@ import { mobileApi } from '@/lib/api'
 import { MobileAccount } from '@/lib/auth'
 import { money, VacancyApiItem } from '@/lib/vacancies'
 import { ProfileSwitcher } from '@/screens/ProfileSwitcher'
-import { colors, radius, spacing, typography } from '@/theme/tokens'
+import { colors, spacing, typography } from '@/theme/tokens'
 import { ChampionshipCard, MobileRoute, ProfileType } from '@/types/dropzone'
 
 const fallbackProfiles: Array<{ id: ProfileType; label: string }> = [
@@ -52,7 +52,7 @@ export function HomeScreen(props: {
   const accounts = props.accounts || []
   const producer = accounts.find((item) => item.profile_type === 'produtora')
   const team = accounts.find((item) => item.profile_type === 'equipe')
-  const activeName = props.activeAccount?.name || fallbackProfiles.find((item) => item.id === profile)?.label || 'Perfil'
+  const seller = accounts.find((item) => item.profile_type === 'manager')
 
   useEffect(() => {
     let mounted = true
@@ -84,21 +84,23 @@ export function HomeScreen(props: {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.intro}>
-        <View style={styles.logoMark} />
+        <View style={styles.logoMark}>
+          <View style={[styles.logoPiece, styles.logoPieceLeft]} />
+          <View style={[styles.logoPiece, styles.logoPieceRight]} />
+          <View style={[styles.logoPiece, styles.logoPieceBottom]} />
+        </View>
         <Text style={styles.kicker}>DROPZONE COMPETITIVE</Text>
-        <Text style={styles.title}>O que você quer fazer agora?</Text>
-        <Text style={styles.subtitle}>Encontre campeonatos, garanta vagas ou continue a gestão do seu perfil sem procurar menu.</Text>
+        <Text style={styles.title}>Resolva rápido</Text>
+        <Text style={styles.subtitle}>Vagas, campeonatos, escalação e carteira no caminho mais curto.</Text>
         <View style={styles.primaryActions}>
           <TouchableOpacity
             style={[styles.introAction, styles.introActionPrimary]}
             onPress={() => onNavigate(producer ? 'producer_overview' : 'vacancies')}
           >
-            <Text style={styles.introActionTitle}>{producer ? 'Criar campeonato' : 'Encontrar vaga'}</Text>
-            <Text style={styles.introActionText}>{producer ? 'Publique e venda vagas' : 'Inscrições abertas'}</Text>
+            <Text style={styles.introActionTitle}>{producer ? 'Criar campeonato' : 'Garantir vaga'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.introAction} onPress={() => onNavigate('vacancies')}>
-            <Text style={styles.introActionTitle}>Encontrar vaga</Text>
-            <Text style={styles.introActionText}>Campeonatos abertos</Text>
+          <TouchableOpacity style={styles.introAction} onPress={() => onNavigate(team ? 'lineup' : 'my_championships')}>
+            <Text style={styles.introActionTitle}>{team ? 'Escalar elenco' : 'Meus campeonatos'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -125,9 +127,9 @@ export function HomeScreen(props: {
       )}
 
       <View style={styles.overview}>
-        <View style={styles.overviewItem}><Text style={styles.overviewNumber}>{vacancies.length}</Text><Text style={styles.overviewText}>campeonatos com vagas</Text></View>
-        <View style={styles.overviewItem}><Text style={styles.overviewNumber}>{accounts.length}</Text><Text style={styles.overviewText}>perfis na conta</Text></View>
-        <View style={styles.overviewItem}><Text style={styles.overviewNumber}>{availableVacancies}</Text><Text style={styles.overviewText}>vagas disponíveis</Text></View>
+        <View style={styles.overviewItem}><Text style={styles.overviewNumber}>{vacancies.length}</Text><Text style={styles.overviewText}>campeonatos</Text></View>
+        <View style={styles.overviewItem}><Text style={styles.overviewNumber}>{accounts.length}</Text><Text style={styles.overviewText}>perfis</Text></View>
+        <View style={styles.overviewItem}><Text style={styles.overviewNumber}>{availableVacancies}</Text><Text style={styles.overviewText}>vagas</Text></View>
       </View>
 
       <View style={styles.section}>
@@ -142,12 +144,12 @@ export function HomeScreen(props: {
         </View>
 
         <View style={styles.accessList}>
-          <AccessItem title="Minha equipe" text={team ? 'Elenco, lines e campeonatos' : 'Crie ou acesse sua equipe'} onPress={() => onNavigate(team ? 'team_roster' : 'vacancies')} />
-          <AccessItem title="Meus campeonatos" text={producer ? 'Criação, vendas e administração' : 'Campeonatos inscritos e acompanhados'} onPress={() => onNavigate(producer ? 'producer_overview' : 'my_championships')} />
-          <AccessItem title="Agenda" text="Jogos, prazos e compromissos" onPress={() => onNavigate('agenda')} />
-          <AccessItem title="Carteira" text="Saldo, pagamentos e comprovantes" onPress={() => onNavigate('wallet')} />
-          <AccessItem title="Escalação" text="Elenco e token de escalação" onPress={() => onNavigate('lineup')} />
-          <AccessItem title="Rank" text="Equipes, jogadores e estatísticas" onPress={() => onNavigate('rank')} />
+          <AccessItem title="Campeonatos" text="Vagas, inscritos e ações" onPress={() => onNavigate('vacancies')} />
+          <AccessItem title="Minha equipe" text={team ? 'Lines e elenco' : 'Buscar vagas abertas'} onPress={() => onNavigate(team ? 'team_roster' : 'vacancies')} />
+          <AccessItem title="Escalação" text="Tokens e jogadores" onPress={() => onNavigate('lineup')} />
+          <AccessItem title="Agenda" text="Jogos e prazos" onPress={() => onNavigate('agenda')} />
+          <AccessItem title="Carteira" text="Saldo e comprovantes" onPress={() => onNavigate('wallet')} />
+          <AccessItem title={seller ? 'Vendas' : 'Rank'} text={seller ? 'Painel do vendedor' : 'Equipes e jogadores'} onPress={() => onNavigate(seller ? 'seller_sales' : 'rank')} />
         </View>
       </View>
 
@@ -155,7 +157,7 @@ export function HomeScreen(props: {
         <View style={styles.sectionHead}>
           <View>
             <Text style={styles.sectionKicker}>OPORTUNIDADES</Text>
-            <Text style={styles.sectionTitle}>Campeonatos com vagas</Text>
+            <Text style={styles.sectionTitle}>Vagas em destaque</Text>
           </View>
           <TouchableOpacity onPress={() => onNavigate('vacancies')}>
             <Text style={styles.sectionLink}>Ver todas ›</Text>
@@ -220,15 +222,18 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.sm,
   },
-  logoMark: { width: 36, height: 36, borderRadius: 9, backgroundColor: colors.brand, transform: [{ rotate: '45deg' }] },
+  logoMark: { width: 42, height: 36, position: 'relative' },
+  logoPiece: { position: 'absolute', width: 18, height: 22, borderRadius: 2, backgroundColor: colors.brand, transform: [{ skewY: '-24deg' }] },
+  logoPieceLeft: { left: 0, top: 0 },
+  logoPieceRight: { right: 0, top: 0 },
+  logoPieceBottom: { left: 12, bottom: 0, transform: [{ skewY: '24deg' }] },
   kicker: { color: '#aeb6c0', fontSize: typography.tiny, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase' },
   title: { color: colors.surface, fontSize: 31, lineHeight: 34, fontWeight: '900', textTransform: 'uppercase' },
   subtitle: { color: '#bdc4cc', fontSize: typography.caption, lineHeight: 19 },
   primaryActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  introAction: { flex: 1, minHeight: 66, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.06)', padding: spacing.sm, justifyContent: 'center' },
+  introAction: { flex: 1, minHeight: 58, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.06)', padding: spacing.sm, justifyContent: 'center' },
   introActionPrimary: { backgroundColor: colors.brand, borderColor: colors.brand },
-  introActionTitle: { color: colors.surface, fontSize: typography.caption, fontWeight: '900', textTransform: 'uppercase' },
-  introActionText: { color: 'rgba(255,255,255,0.78)', fontSize: typography.tiny, fontWeight: '700', marginTop: 2 },
+  introActionTitle: { color: colors.surface, fontSize: typography.caption, fontWeight: '900', textTransform: 'uppercase', textAlign: 'center' },
   profileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.sm },
   profileButton: { flexGrow: 1, minWidth: '46%', alignItems: 'center', borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, paddingVertical: spacing.sm },
   profileButtonActive: { backgroundColor: colors.brandDark, borderColor: colors.brandDark },

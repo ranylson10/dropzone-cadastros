@@ -19,6 +19,7 @@ export type MobileRoute =
   | 'home'
   | 'vacancies'
   | 'purchase_claim'
+  | 'championship_actions'
   | 'my_championships'
   | 'lineup'
   | 'team_roster'
@@ -65,5 +66,23 @@ export type ScreenProps = {
   onBack?: () => void
   profileType: ProfileType
   selectedChampionship?: ChampionshipCard | null
+  selectedLineup?: {
+    campeonato_equipe_id?: string
+    campeonato_nome?: string
+    equipe_nome?: string
+    line_nome?: string
+    fase_nome?: string
+    grupo_nome?: string
+    data_jogo?: string | null
+    horario?: string | null
+    jogadores_confirmados?: number
+    limite_jogadores?: number
+    vagas_disponiveis?: number
+    link_token?: string | null
+    link_ativo?: boolean
+    link_expira_em?: string | null
+    jogadores?: unknown[]
+  } | null
   onSelectChampionship?: (championship: ChampionshipCard) => void
+  onSelectLineup?: (lineup: ScreenProps['selectedLineup']) => void
 }

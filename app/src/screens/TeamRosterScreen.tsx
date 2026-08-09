@@ -7,7 +7,7 @@ import { ActionCard, ScreenShell } from '@/screens/components'
 import { colors, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
-export function TeamRosterScreen({ onBack, onNavigate }: ScreenProps) {
+export function TeamRosterScreen({ onBack, onNavigate, onSelectLineup }: ScreenProps) {
   const auth = useAuth()
   const [lineups, setLineups] = useState<LineupSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +59,7 @@ export function TeamRosterScreen({ onBack, onNavigate }: ScreenProps) {
         const confirmed = Number(lineup.jogadores_confirmados || lineup.jogadores?.length || 0)
         const limit = Number(lineup.limite_jogadores || 6)
         return (
-          <TouchableOpacity key={String(lineup.campeonato_equipe_id || lineup.campeonato_nome)} style={styles.lineCard} onPress={() => onNavigate('lineup')}>
+          <TouchableOpacity key={String(lineup.campeonato_equipe_id || lineup.campeonato_nome)} style={styles.lineCard} onPress={() => onSelectLineup?.(lineup)}>
             <View style={styles.lineBadge}><Text style={styles.lineBadgeValue}>{confirmed}</Text><Text style={styles.lineBadgeLabel}>/{limit}</Text></View>
             <View style={styles.lineText}>
               <Text style={styles.lineTitle} numberOfLines={1}>{lineup.line_nome || lineup.equipe_nome || 'Line da equipe'}</Text>
