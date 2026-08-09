@@ -44,6 +44,10 @@ export const mobileApi = {
     dropzoneFetch<{ announcements: unknown[] }>('/api/vagas?diretorio=1', {
       cache: 'no-store',
     }),
+  publicChampionshipRulebook: (championshipId: string) =>
+    dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/rulebook?public=1`, {
+      cache: 'no-store',
+    }),
   championshipStructure: (championshipId: string) =>
     dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/estrutura`, {
       cache: 'no-store',
@@ -148,6 +152,20 @@ export const mobileApi = {
       claim_url: string
       asaas_configured: boolean
     }>('/api/pagamentos/vaga', {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify(body),
+    }),
+  vacancyClaimContext: (token: string, equipeId?: string | null, accessToken?: string | null) =>
+    dropzoneFetch<any>(
+      `/api/pagamentos/vaga/claim?token=${encodeURIComponent(token)}${equipeId ? `&equipe_id=${encodeURIComponent(equipeId)}` : ''}`,
+      { accessToken, cache: 'no-store' },
+    ),
+  claimVacancyPurchase: (
+    body: { token: string; equipe_id: string; slot_id: string; line_id?: string | null; nome_line?: string | null },
+    accessToken?: string | null,
+  ) =>
+    dropzoneFetch<any>('/api/pagamentos/vaga/claim', {
       method: 'POST',
       accessToken,
       body: JSON.stringify(body),
@@ -269,6 +287,17 @@ export const mobileApi = {
     dropzoneFetch<any>(`/api/equipes/${encodeURIComponent(teamId)}/lines?line_id=${encodeURIComponent(lineId)}`, { method: 'DELETE', accessToken }),
   performTeamLineAction: (teamId: string, lineId: string, body: Record<string, unknown>, accessToken?: string | null) =>
     dropzoneFetch<any>(`/api/equipes/${encodeURIComponent(teamId)}/lines/${encodeURIComponent(lineId)}`, { method: 'POST', accessToken, body: JSON.stringify(body) }),
+  removeLineupPlayer: (jogadorInscricaoId: string, accessToken?: string | null) =>
+    dropzoneFetch<{ success: boolean; id: string }>('/api/equipe/escalacoes', {
+      method: 'PATCH',
+      accessToken,
+      body: JSON.stringify({ jogador_inscricao_id: jogadorInscricaoId }),
+    }),
+  revokeLineupInvite: (linkId: string, accessToken?: string | null) =>
+    dropzoneFetch<{ success: boolean; id: string }>(`/api/equipe/escalacoes?link_id=${encodeURIComponent(linkId)}`, {
+      method: 'DELETE',
+      accessToken,
+    }),
   createLineupInvite: (campeonatoEquipeId: string, accessToken?: string | null) =>
     dropzoneFetch<{ token: string; public_url: string; texto: string }>('/api/equipe/escalacoes', {
       method: 'POST',

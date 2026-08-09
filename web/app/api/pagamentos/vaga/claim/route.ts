@@ -1,6 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
-import { claimVacancyPurchase } from '@backend/billing/vacancy-purchase'
+import { claimVacancyPurchase, loadClaimContext } from '@backend/billing/vacancy-purchase'
+
+/**
+ * GET — contexto nativo da compra: pagamento, equipes controláveis, lines livres e slots.
+ * query: ?token=...&equipe_id=...
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const accounts = await getAccountsForUser(user)
+    const token = String(req.nextUrl.searchParams.get('token') || '').trim()
+    const equipeId = String(req.nextUrl.searchParams.get('equipe_id') || '').trim() || null
+    if (!token) throw new Error('token obrigatório.')
+
+    const result = await loadClaimContext({
+      token,
+      authUserId: user.id,
+      accounts,
+      equipeId,
+    })
+
+    return NextResponse.json(result)
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Erro ao carregar a inscrição.' }, { status: 400 })
+  }
+}
 
 /**
  * POST — consome compra liberada: escolhe line + slot e entra no campeonato.

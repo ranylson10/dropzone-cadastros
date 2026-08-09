@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { externalUrl } from '@/config/env'
 import { mobileApi } from '@/lib/api'
 import { kdLabel } from '@/lib/rank'
@@ -8,7 +8,7 @@ import { DirectoryHero } from '@/screens/DirectoryHero'
 import { colors, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
-type TabId = 'info' | 'teams' | 'players' | 'agenda' | 'table'
+type TabId = 'info' | 'teams' | 'players' | 'agenda' | 'table' | 'rulebook'
 
 export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, requireAuth }: ScreenProps) {
   const championship = selectedChampionship
@@ -18,33 +18,59 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
   const [playersPayload, setPlayersPayload] = useState<any>(null)
   const [teamStats, setTeamStats] = useState<any[]>([])
   const [mvpStats, setMvpStats] = useState<any[]>([])
+  const [rulebook, setRulebook] = useState<any>(null)
+  const [rulebookLoading, setRulebookLoading] = useState(false)
+  const [rulebookError, setRulebookError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null)
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  const loadChampionship = useCallback(async (refresh = false) => {
     if (!championship?.id) return
-    let mounted = true
-    setLoading(true)
-    Promise.all([
-      mobileApi.championshipStructure(championship.id),
-      mobileApi.championshipTeams(championship.id),
-      mobileApi.championshipPlayers(championship.id),
-      mobileApi.championshipTeamStats(championship.id),
-      mobileApi.championshipMvpStats(championship.id),
-    ])
-      .then(([structureResult, teamsResult, playersResult, teamStatsResult, mvpResult]) => {
-        if (!mounted) return
-        setStructure(structureResult)
-        setTeamsPayload(teamsResult)
-        setPlayersPayload(playersResult)
-        setTeamStats(teamStatsResult?.equipes || [])
-        setMvpStats(mvpResult?.jogadores || [])
-        setError('')
-      })
-      .catch((err) => mounted && setError(err?.message || 'Não foi possível carregar o campeonato.'))
-      .finally(() => mounted && setLoading(false))
-    return () => { mounted = false }
+    refresh ? setRefreshing(true) : setLoading(true)
+    try {
+      const [structureResult, teamsResult, playersResult, teamStatsResult, mvpResult] = await Promise.all([
+        mobileApi.championshipStructure(championship.id),
+        mobileApi.championshipTeams(championship.id),
+        mobileApi.championshipPlayers(championship.id),
+        mobileApi.championshipTeamStats(championship.id),
+        mobileApi.championshipMvpStats(championship.id),
+      ])
+      setStructure(structureResult)
+      setTeamsPayload(teamsResult)
+      setPlayersPayload(playersResult)
+      setTeamStats(teamStatsResult?.equipes || [])
+      setMvpStats(mvpResult?.jogadores || [])
+      setLastUpdatedAt(new Date())
+      setError('')
+    } catch (err:any) {
+      setError(err?.message || 'Não foi possível carregar o campeonato.')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }, [championship?.id])
+
+  useEffect(() => {
+    void loadChampionship()
+    const timer = setInterval(() => { void loadChampionship(true) }, 30000)
+    return () => clearInterval(timer)
+  }, [loadChampionship])
+
+  async function loadRulebook() {
+    if (!championship?.id || rulebook || rulebookLoading) return
+    setRulebookLoading(true)
+    setRulebookError('')
+    try {
+      const result = await mobileApi.publicChampionshipRulebook(championship.id)
+      setRulebook(result)
+    } catch (err:any) {
+      setRulebookError(err?.message || 'O regulamento ainda não foi publicado.')
+    } finally {
+      setRulebookLoading(false)
+    }
+  }
 
   const publicTeams = useMemo(() => {
     const rows = Array.isArray(teamsPayload?.vagas) ? teamsPayload.vagas : []
@@ -74,7 +100,11 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
   }
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadChampionship(true)} tintColor={colors.brand} />}
+    >
       <DirectoryHero
         image={heroImage}
         eyebrow={championship.mode}
@@ -86,19 +116,33 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
         compact
       />
 
-      <View style={styles.tabs}>
+      <View style={styles.liveStrip}>
+        <View style={styles.liveDot} />
+        <Text style={styles.liveText}>ATUALIZAÇÃO AUTOMÁTICA · 30S</Text>
+        <Text style={styles.liveTime}>{lastUpdatedAt ? `Atualizado ${lastUpdatedAt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}` : 'Sincronizando'}</Text>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
         {([
           ['info', 'Info'],
           ['teams', 'Equipes'],
           ['players', 'Jogadores'],
           ['agenda', 'Agenda'],
           ['table', 'Tabela'],
+          ['rulebook', 'Regulamento'],
         ] as Array<[TabId, string]>).map(([id, label]) => (
-          <TouchableOpacity key={id} style={[styles.tab, tab === id && styles.tabActive]} onPress={() => setTab(id)}>
+          <TouchableOpacity
+            key={id}
+            style={[styles.tab, tab === id && styles.tabActive]}
+            onPress={() => {
+              setTab(id)
+              if (id === 'rulebook') void loadRulebook()
+            }}
+          >
             <Text style={[styles.tabText, tab === id && styles.tabTextActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={colors.brand} /><Text style={styles.loadingText}>Carregando...</Text></View> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -150,22 +194,33 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
 
       {!loading && tab === 'agenda' ? (
         <View style={styles.list}>
-          {(structure?.jogos || []).map((game:any, index:number) => (
-            <View key={String(game.id || index)} style={styles.row}>
-              <View style={[styles.logo, styles.logoFallback]}><Ionicons name="calendar-outline" size={18} color={colors.brand} /></View>
-              <View style={styles.copy}>
-                <Text style={styles.name}>{game.nome || `Jogo ${index + 1}`}</Text>
-                <Text style={styles.meta}>{[game.data_jogo, game.horario, game.numero_partidas ? `${game.numero_partidas} partidas` : '', Array.isArray(game.mapas) ? game.mapas.join(', ') : ''].filter(Boolean).join(' · ')}</Text>
+          {(structure?.jogos || []).map((game:any, index:number) => {
+            const gameStatus = String(game.status || '').toLowerCase()
+            const live = ['ao_vivo','em_andamento','iniciado'].includes(gameStatus)
+            const finished = ['finalizado','encerrado','concluido'].includes(gameStatus)
+            const label = live ? 'AO VIVO' : finished ? 'FINALIZADO' : 'AGENDADO'
+            const falls = Array.isArray(game.quedas) ? game.quedas : []
+            return <View key={String(game.id || index)} style={styles.gameCard}>
+              <View style={styles.row}>
+                <View style={[styles.logo, styles.logoFallback]}><Ionicons name={live ? 'radio-outline' : finished ? 'checkmark-circle-outline' : 'calendar-outline'} size={18} color={colors.brand} /></View>
+                <View style={styles.copy}>
+                  <View style={styles.gameTitleRow}>
+                    <Text style={styles.name}>{game.nome || `Jogo ${index + 1}`}</Text>
+                    <Text style={[styles.statusBadge, live && styles.statusLive, finished && styles.statusFinished]}>{label}</Text>
+                  </View>
+                  <Text style={styles.meta}>{[game.data_jogo, game.horario, game.numero_partidas ? `${game.numero_partidas} partidas` : '', Array.isArray(game.mapas) ? game.mapas.join(', ') : ''].filter(Boolean).join(' · ')}</Text>
+                </View>
               </View>
+              {falls.length ? <View style={styles.fallsRow}>{falls.map((fall:any,fallIndex:number)=><View key={String(fall.id || fallIndex)} style={styles.fallChip}><Text style={styles.fallChipText}>{fall.mapa || fall.nome_mapa || `Queda ${fall.numero || fallIndex + 1}`}</Text></View>)}</View> : null}
             </View>
-          ))}
+          })}
           {!(structure?.jogos || []).length ? <Text style={styles.empty}>Nenhum jogo agendado ainda.</Text> : null}
         </View>
       ) : null}
 
       {!loading && tab === 'table' ? (
         <View style={styles.tableBlock}>
-          <Text style={styles.sectionTitle}>CLASSIFICAÇÃO</Text>
+          <View style={styles.sectionHeadingRow}><Text style={styles.sectionTitle}>CLASSIFICAÇÃO</Text><Text style={styles.sectionUpdated}>ATUAL</Text></View>
           <View style={styles.list}>
             {teamStats.map((team:any, index:number) => (
               <View key={String(team.campeonato_equipe_id || index)} style={styles.row}>
@@ -179,7 +234,7 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
             ))}
           </View>
 
-          <Text style={[styles.sectionTitle, styles.mvpTitle]}>MVP</Text>
+          <View style={[styles.sectionHeadingRow, styles.mvpTitle]}><Text style={styles.sectionTitle}>MVP</Text><Text style={styles.sectionUpdated}>ATUAL</Text></View>
           <View style={styles.list}>
             {mvpStats.slice(0, 20).map((player:any, index:number) => (
               <View key={String(player.campeonato_jogador_id || index)} style={styles.row}>
@@ -195,6 +250,33 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
               </View>
             ))}
           </View>
+        </View>
+      ) : null}
+
+      {!loading && tab === 'rulebook' ? (
+        <View style={styles.rulebookBlock}>
+          <View style={styles.rulebookHeader}>
+            <View style={styles.rulebookIcon}><Ionicons name="document-text-outline" size={20} color={colors.brand} /></View>
+            <View style={styles.copy}>
+              <Text style={styles.sectionTitleInline}>REGULAMENTO OFICIAL</Text>
+              <Text style={styles.meta}>Versão publicada pela organização do campeonato.</Text>
+            </View>
+          </View>
+
+          {rulebookLoading ? <View style={styles.loading}><ActivityIndicator color={colors.brand} /><Text style={styles.loadingText}>Carregando regulamento...</Text></View> : null}
+          {rulebookError ? <View style={styles.rulebookNotice}><Ionicons name="information-circle-outline" size={18} color={colors.brand}/><Text style={styles.rulebookNoticeText}>{rulebookError}</Text></View> : null}
+
+          {!rulebookLoading && rulebook ? (
+            <View style={styles.rulebookContent}>
+              <Text style={styles.rulebookTitle}>{rulebook.titulo || rulebook.documento?.titulo || championship.name}</Text>
+              {rulebook.publicado_em ? <Text style={styles.rulebookPublished}>Publicado em {new Date(rulebook.publicado_em).toLocaleDateString('pt-BR')}</Text> : null}
+              {String(rulebook.conteudo_markdown || rulebook.documento?.conteudo_markdown || rulebook.conteudo || '').trim() ? (
+                <Text style={styles.rulebookText}>{String(rulebook.conteudo_markdown || rulebook.documento?.conteudo_markdown || rulebook.conteudo || '').trim()}</Text>
+              ) : (
+                <Text style={styles.empty}>O regulamento publicado não possui texto disponível para exibição nativa.</Text>
+              )}
+            </View>
+          ) : null}
         </View>
       ) : null}
     </ScrollView>
@@ -214,8 +296,8 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: spacing.lg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  tabs: { margin: spacing.md, marginBottom: 8, flexDirection: 'row', backgroundColor: '#cfc8be', gap: 1 },
-  tab: { flex: 1, minHeight: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e7e1d8' },
+  tabs: { margin: spacing.md, marginBottom: 8, paddingRight: spacing.md, flexDirection: 'row', backgroundColor: '#cfc8be', gap: 1 },
+  tab: { minWidth: 86, minHeight: 36, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e7e1d8' },
   tabActive: { backgroundColor: colors.brandDark },
   tabText: { color: colors.ink, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   tabTextActive: { color: colors.surface },
@@ -234,6 +316,30 @@ const styles = StyleSheet.create({
   name: { color: colors.ink, fontSize: 11.5, fontWeight: '900', textTransform: 'uppercase' },
   meta: { marginTop: 3, color: '#706b64', fontSize: 8.5, fontWeight: '700' },
   empty: { padding: 16, color: colors.muted, textAlign: 'center', fontSize: 11, fontWeight: '800', backgroundColor: '#e7e1d8' },
+  rulebookBlock: { marginHorizontal: spacing.md, gap: 9 },
+  rulebookHeader: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, backgroundColor: '#e8e2d8', borderWidth: 1, borderColor: '#cfc8be' },
+  rulebookIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff0f2' },
+  rulebookNotice: { flexDirection: 'row', gap: 8, padding: 10, backgroundColor: '#eff6ff' },
+  rulebookNoticeText: { flex: 1, color: colors.ink, fontSize: 9, lineHeight: 14, fontWeight: '700' },
+  rulebookContent: { padding: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  rulebookTitle: { color: colors.ink, fontSize: 16, fontWeight: '900', textTransform: 'uppercase' },
+  rulebookPublished: { marginTop: 4, color: colors.muted, fontSize: 8, fontWeight: '800', textTransform: 'uppercase' },
+  rulebookText: { marginTop: 12, color: colors.ink, fontSize: 11, lineHeight: 18, fontWeight: '600' },
+  sectionTitleInline: { color: colors.ink, fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  liveStrip: { marginHorizontal: spacing.md, marginTop: spacing.sm, minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, backgroundColor: '#e8e2d8', borderWidth: 1, borderColor: '#cfc8be' },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand },
+  liveText: { color: colors.ink, fontSize: 8, fontWeight: '900', letterSpacing: .8 },
+  liveTime: { marginLeft: 'auto', color: colors.muted, fontSize: 8, fontWeight: '800' },
+  gameCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  gameTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  statusBadge: { marginLeft: 'auto', paddingHorizontal: 6, paddingVertical: 3, backgroundColor: '#e7e1d8', color: colors.muted, fontSize: 7, fontWeight: '900' },
+  statusLive: { backgroundColor: '#fff0f2', color: colors.brand },
+  statusFinished: { backgroundColor: '#effaf3', color: '#166534' },
+  fallsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingHorizontal: 8, paddingBottom: 8 },
+  fallChip: { paddingHorizontal: 7, paddingVertical: 4, backgroundColor: '#eee9e1', borderWidth: 1, borderColor: colors.line },
+  fallChipText: { color: colors.ink, fontSize: 7, fontWeight: '900', textTransform: 'uppercase' },
+  sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionUpdated: { color: colors.brand, fontSize: 7, fontWeight: '900', letterSpacing: 1 },
   tableBlock: { gap: 8 },
   sectionTitle: { marginHorizontal: spacing.md, color: colors.ink, fontSize: 11, fontWeight: '900', letterSpacing: 1 },
   mvpTitle: { marginTop: 8 },
