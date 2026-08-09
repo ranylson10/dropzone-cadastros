@@ -1,9 +1,9 @@
-import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { apiUrl } from '@/config/env'
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { MobileAccount } from '@/lib/auth'
+import { actionsForProfile } from '@/navigation/mobileExperience'
 import { ProfileSwitcher } from '@/screens/ProfileSwitcher'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
-import { ChampionshipCard, MobileRoute, ProfileType } from '@/types/dropzone'
+import { ChampionshipCard, MobileActionId, MobileRoute, ProfileType } from '@/types/dropzone'
 
 const fallbackProfiles: Array<{ id: ProfileType; label: string }> = [
   { id: 'equipe', label: 'Equipe' },
@@ -12,12 +12,23 @@ const fallbackProfiles: Array<{ id: ProfileType; label: string }> = [
   { id: 'produtora', label: 'Produtora' },
 ]
 
-const siteRoutes: Array<{ title: string; description: string; path: string }> = [
-  { title: 'Campeonatos', description: 'Lista, venda de vagas e detalhes.', path: '/campeonatos' },
-  { title: 'Minha área', description: 'Resumo da conta e acessos rápidos.', path: '/' },
-  { title: 'Agenda', description: 'Jogos, prazos e compromissos.', path: '/agenda' },
-  { title: 'Carteira', description: 'Saldo, comprovantes e pagamentos.', path: '/carteira' },
-]
+const routeByAction: Partial<Record<MobileActionId, MobileRoute>> = {
+  browse_vacancies: 'vacancies',
+  buy_slot: 'vacancies',
+  my_championships: 'my_championships',
+  lineup: 'lineup',
+  team_roster: 'team_roster',
+  agenda: 'agenda',
+  invites: 'invites',
+  wallet: 'wallet',
+  commerce: 'commerce',
+  rank: 'rank',
+  lili: 'lili',
+  seller_sales: 'seller_sales',
+  producer_overview: 'producer_overview',
+}
+
+const primaryActions: MobileActionId[] = ['browse_vacancies', 'my_championships', 'lineup', 'agenda']
 
 export function HomeScreen(props: {
   profile: ProfileType
@@ -30,22 +41,28 @@ export function HomeScreen(props: {
   onSelectChampionship?: (championship: ChampionshipCard) => void
 }) {
   const { profile, onProfileChange, onNavigate } = props
+  const actions = actionsForProfile(profile)
+  const featured = actions.filter((action) => primaryActions.includes(action.id)).slice(0, 4)
+  const secondary = actions.filter((action) => !primaryActions.includes(action.id)).slice(0, 8)
+  const activeName = props.activeAccount?.name || fallbackProfiles.find((item) => item.id === profile)?.label || 'Perfil'
 
-  function openSite(path = '/') {
-    void Linking.openURL(apiUrl(path))
+  function go(actionId: MobileActionId) {
+    const route = routeByAction[actionId]
+    if (route) onNavigate(route)
   }
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <View style={styles.logoMark} />
-        <View style={styles.headerText}>
-          <Text style={styles.brand}>DROPZONE</Text>
-          <Text style={styles.brandSub}>use o fluxo mobile do site</Text>
+      <View style={styles.hero}>
+        <View style={styles.heroTop}>
+          <View style={styles.logoMark} />
+          <TouchableOpacity style={styles.liliButton} onPress={() => onNavigate('lili')}>
+            <Text style={styles.liliText}>Lili</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.liliButton} onPress={() => onNavigate('lili')}>
-          <Text style={styles.liliText}>Lili</Text>
-        </TouchableOpacity>
+        <Text style={styles.kicker}>DROPZONE MOBILE</Text>
+        <Text style={styles.heroTitle}>O que você quer resolver?</Text>
+        <Text style={styles.heroText}>Entre em vaga, acompanhe campeonato, escale elenco e veja pagamentos em poucos toques.</Text>
       </View>
 
       {props.accounts?.length && props.onSelectAccount && props.onSignOut ? (
@@ -69,43 +86,37 @@ export function HomeScreen(props: {
         </View>
       )}
 
-      <View style={styles.siteCard}>
-        <Text style={styles.eyebrow}>Principal</Text>
-        <Text style={styles.title}>Abrir site mobile</Text>
-        <Text style={styles.subtitle}>
-          O app vai usar a navegação que já está pronta e organizada no site. As funções nativas ficam como atalhos.
-        </Text>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => openSite('/')}>
-          <Text style={styles.primaryButtonText}>Continuar no site</Text>
-        </TouchableOpacity>
+      <View style={styles.activeStrip}>
+        <View>
+          <Text style={styles.activeLabel}>{profile}</Text>
+          <Text style={styles.activeName} numberOfLines={1}>{activeName}</Text>
+        </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Atalhos do site</Text>
-        <View style={styles.list}>
-          {siteRoutes.map((item) => (
-            <TouchableOpacity key={item.path} style={styles.listItem} onPress={() => openSite(item.path)}>
-              <View style={styles.listText}>
-                <Text style={styles.listTitle}>{item.title}</Text>
-                <Text style={styles.listDescription}>{item.description}</Text>
-              </View>
-              <Text style={styles.chevron}>›</Text>
+        <Text style={styles.sectionTitle}>Principais</Text>
+        <View style={styles.grid}>
+          {featured.map((action) => (
+            <TouchableOpacity key={action.id} style={styles.primaryCard} onPress={() => go(action.id)}>
+              <Text style={styles.primaryTitle}>{action.title}</Text>
+              <Text style={styles.primaryDescription} numberOfLines={2}>{action.description}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Atalhos do app</Text>
-        <View style={styles.nativeGrid}>
-          <TouchableOpacity style={styles.nativeCard} onPress={() => onNavigate('lili')}>
-            <Text style={styles.nativeTitle}>Lili</Text>
-            <Text style={styles.nativeText}>Assistente rápida.</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.nativeCard} onPress={() => onNavigate('vacancies')}>
-            <Text style={styles.nativeTitle}>Vagas</Text>
-            <Text style={styles.nativeText}>Campeonatos abertos.</Text>
-          </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Mais ações</Text>
+        <View style={styles.list}>
+          {secondary.map((action) => (
+            <TouchableOpacity key={action.id} style={styles.listItem} onPress={() => go(action.id)}>
+              <View style={styles.listText}>
+                <Text style={styles.listTitle}>{action.title}</Text>
+                <Text style={styles.listDescription} numberOfLines={1}>{action.description}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     </ScrollView>
@@ -123,37 +134,24 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
-  header: {
-    minHeight: 64,
+  hero: {
+    borderRadius: 28,
+    backgroundColor: colors.brandDark,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.lg,
-    backgroundColor: colors.brandDark,
-    padding: spacing.md,
-    gap: spacing.md,
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
   logoMark: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.brand,
     transform: [{ rotate: '45deg' }],
-  },
-  headerText: {
-    flex: 1,
-  },
-  brand: {
-    color: colors.surface,
-    fontSize: typography.body,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  brandSub: {
-    marginTop: 2,
-    color: '#cbd5e1',
-    fontSize: typography.tiny,
-    fontWeight: '800',
-    textTransform: 'uppercase',
   },
   liliButton: {
     borderRadius: 999,
@@ -164,7 +162,23 @@ const styles = StyleSheet.create({
   liliText: {
     color: colors.surface,
     fontWeight: '900',
-    fontSize: typography.caption,
+  },
+  kicker: {
+    color: colors.gold,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    letterSpacing: 3,
+  },
+  heroTitle: {
+    color: colors.surface,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: '900',
+  },
+  heroText: {
+    color: '#d6dae2',
+    fontSize: typography.body,
+    lineHeight: 22,
   },
   profileGrid: {
     flexDirection: 'row',
@@ -175,61 +189,43 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minWidth: '46%',
     alignItems: 'center',
-    borderRadius: radius.md,
+    borderRadius: 999,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   profileButtonActive: {
     backgroundColor: colors.brandDark,
     borderColor: colors.brandDark,
   },
   profileText: {
-    color: colors.ink,
+    color: colors.muted,
     fontWeight: '900',
   },
   profileTextActive: {
     color: colors.surface,
   },
-  siteCard: {
+  activeStrip: {
+    minHeight: 72,
+    justifyContent: 'center',
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing.lg,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  eyebrow: {
+  activeLabel: {
     color: colors.brand,
     fontSize: typography.tiny,
     fontWeight: '900',
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  title: {
+  activeName: {
     color: colors.ink,
-    fontSize: 28,
-    lineHeight: 31,
+    fontSize: typography.subtitle,
     fontWeight: '900',
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: typography.body,
-    lineHeight: 22,
-  },
-  primaryButton: {
-    marginTop: spacing.sm,
-    minHeight: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.brand,
-  },
-  primaryButtonText: {
-    color: colors.surface,
-    fontWeight: '900',
-    textTransform: 'uppercase',
   },
   section: {
     gap: spacing.sm,
@@ -239,15 +235,40 @@ const styles = StyleSheet.create({
     fontSize: typography.subtitle,
     fontWeight: '900',
   },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  primaryCard: {
+    width: '48%',
+    minHeight: 132,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.md,
+    justifyContent: 'space-between',
+  },
+  primaryTitle: {
+    color: colors.ink,
+    fontSize: typography.body,
+    fontWeight: '900',
+  },
+  primaryDescription: {
+    color: colors.muted,
+    fontSize: typography.caption,
+    lineHeight: 18,
+  },
   list: {
     overflow: 'hidden',
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
   },
   listItem: {
-    minHeight: 66,
+    minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -257,7 +278,7 @@ const styles = StyleSheet.create({
   },
   listText: {
     flex: 1,
-    paddingRight: spacing.md,
+    paddingRight: spacing.sm,
   },
   listTitle: {
     color: colors.ink,
@@ -265,35 +286,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   listDescription: {
-    marginTop: 2,
     color: colors.muted,
     fontSize: typography.caption,
   },
   chevron: {
     color: colors.brand,
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
-  },
-  nativeGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  nativeCard: {
-    flex: 1,
-    minHeight: 82,
-    borderRadius: radius.md,
-    backgroundColor: colors.brandDark,
-    padding: spacing.md,
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  nativeTitle: {
-    color: colors.surface,
-    fontWeight: '900',
-    fontSize: typography.body,
-  },
-  nativeText: {
-    color: '#cbd5e1',
-    fontSize: typography.caption,
   },
 })

@@ -18,8 +18,7 @@
     "expo-secure-store": "latest",
     "expo-web-browser": "^57.0.2",
     "react": "latest",
-    "react-native": "latest",
-    "react-native-webview": "^14.0.1"
+    "react-native": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",
