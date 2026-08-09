@@ -1,0 +1,31 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { expect, test } from '@playwright/test'
+const root=process.cwd(); const read=(file:string)=>fs.readFileSync(path.join(root,file),'utf8')
+test.describe('Mobile campeonato — pontuador e classificação',()=>{
+  test('integra o pontuador nativo aos contratos oficiais',async()=>{
+    const panel=read('app/src/screens/ChampionshipScorerPanel.tsx')
+    const api=read('app/src/lib/api.ts')
+    const service=read('backend/src/campeonatos/estatisticas/estatisticas.service.ts')
+    const scorer=read('backend/src/campeonatos/pontuador/pontuador.service.ts')
+    expect(panel).toContain('saveChampionshipManualScore')
+    expect(panel).toContain('markChampionshipFallAbsence')
+    expect(panel).toContain('setChampionshipCurrentFall')
+    expect(panel).toContain('finalizeChampionshipFall')
+    expect(panel).toContain('reopenChampionshipFall')
+    expect(panel).toContain('classificacao_jogo')
+    expect(panel).toContain('mvp_jogo')
+    expect(panel).toContain('dano')
+    expect(panel).toContain('assistencias')
+    expect(panel).toContain('revives')
+    expect(api).toContain('/sumula/manual')
+    expect(api).toContain('/pontuador/${encodeURIComponent(gameId)}')
+    expect(api).toContain('/finalizar')
+    expect(api).toContain('/reabrir')
+    expect(service).toContain("upsert(teamRows, { onConflict: 'partida_id,campeonato_equipe_id' })")
+    expect(service).toContain("upsert(playerRows, { onConflict: 'partida_id,campeonato_jogador_id' })")
+    expect(service).toContain("if (partida.status === 'finalizada') throw new Error('A queda já foi finalizada.')")
+    expect(scorer).toContain("classificacao_jogo: classificacaoOrdenada")
+    expect(scorer).toContain('mvp_jogo: mvpJogo')
+  })
+})

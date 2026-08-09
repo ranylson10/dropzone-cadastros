@@ -504,6 +504,68 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         descricao: nullableText(body?.description, 500),
       })
       if (error) throw error
+    } else if (action === 'publish_final') {
+      const { data: edition, error: editionError } = await supabaseAdmin
+        .from('campeonato_edicoes')
+        .select('id,status,metadados')
+        .eq('campeonato_id', campeonatoId)
+        .maybeSingle()
+      if (editionError) throw editionError
+      if (!edition) throw new Error('Cadastre a edição do campeonato antes de publicar o resultado final.')
+
+      const [{ count: totalFalls, error: totalFallsError }, { count: pendingFalls, error: pendingFallsError }] = await Promise.all([
+        supabaseAdmin.from('campeonato_partidas').select('id', { count: 'exact', head: true }).eq('campeonato_id', campeonatoId),
+        supabaseAdmin.from('campeonato_partidas').select('id', { count: 'exact', head: true }).eq('campeonato_id', campeonatoId).neq('status', 'finalizada'),
+      ])
+      if (totalFallsError) throw totalFallsError
+      if (pendingFallsError) throw pendingFallsError
+      if (!totalFalls) throw new Error('O campeonato ainda não possui quedas para encerrar.')
+      if (pendingFalls) throw new Error(`Existem ${pendingFalls} queda(s) ainda não finalizada(s). Finalize todas antes de publicar o resultado final.`)
+
+      const finalRanking = await listarEstatisticasEquipes(campeonatoId, {})
+      if (!finalRanking.length) throw new Error('Não há classificação calculada para publicar.')
+
+      const publishedAt = new Date().toISOString()
+      const metadata = {
+        ...(edition.metadados && typeof edition.metadados === 'object' ? edition.metadados : {}),
+        final_publicado_em: publishedAt,
+        final_publicado_por: user.id,
+        final_total_equipes: finalRanking.length,
+        final_campeao_campeonato_equipe_id: finalRanking[0]?.campeonato_equipe_id || null,
+      }
+      const [{ error: stageError }, { error: divisionError }, { error: editionUpdateError }] = await Promise.all([
+        supabaseAdmin.from('campeonato_etapas').update({ status: 'encerrada', updated_at: publishedAt }).eq('edicao_id', edition.id).neq('status', 'cancelada'),
+        supabaseAdmin.from('campeonato_divisoes').update({ status: 'encerrada', updated_at: publishedAt }).eq('edicao_id', edition.id).neq('status', 'cancelada'),
+        supabaseAdmin.from('campeonato_edicoes').update({ status: 'encerrada', data_fim: publishedAt.slice(0, 10), metadados: metadata, updated_at: publishedAt }).eq('id', edition.id),
+      ])
+      if (stageError) throw stageError
+      if (divisionError) throw divisionError
+      if (editionUpdateError) throw editionUpdateError
+    } else if (action === 'reopen_final') {
+      const { data: edition, error: editionError } = await supabaseAdmin
+        .from('campeonato_edicoes')
+        .select('id,status,metadados')
+        .eq('campeonato_id', campeonatoId)
+        .maybeSingle()
+      if (editionError) throw editionError
+      if (!edition) throw new Error('Edição não encontrada.')
+      if (edition.status !== 'encerrada') throw new Error('A edição não está encerrada.')
+      const reopenedAt = new Date().toISOString()
+      const metadata = {
+        ...(edition.metadados && typeof edition.metadados === 'object' ? edition.metadados : {}),
+        final_publicado_em: null,
+        final_publicado_por: null,
+        final_reaberto_em: reopenedAt,
+        final_reaberto_por: user.id,
+      }
+      const [{ error: stageError }, { error: divisionError }, { error: editionUpdateError }] = await Promise.all([
+        supabaseAdmin.from('campeonato_etapas').update({ status: 'ativa', updated_at: reopenedAt }).eq('edicao_id', edition.id).eq('status', 'encerrada'),
+        supabaseAdmin.from('campeonato_divisoes').update({ status: 'ativa', updated_at: reopenedAt }).eq('edicao_id', edition.id).eq('status', 'encerrada'),
+        supabaseAdmin.from('campeonato_edicoes').update({ status: 'ativa', data_fim: null, metadados: metadata, updated_at: reopenedAt }).eq('id', edition.id),
+      ])
+      if (stageError) throw stageError
+      if (divisionError) throw divisionError
+      if (editionUpdateError) throw editionUpdateError
     } else if (action === 'save_group_choice_config') {
       const phaseId = text(body?.phase_id)
       if (!phaseId) throw new Error('Fase não informada.')

@@ -147,6 +147,10 @@ create table if not exists public.campeonato_equipes (
   origem_entrada text not null default 'organizador',
   criado_por uuid references auth.users(id) on delete set null,
   status text not null default 'ativo',
+  solicitado_em timestamptz,
+  revisado_em timestamptz,
+  revisado_por uuid references auth.users(id) on delete set null,
+  motivo_rejeicao text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint campeonato_equipes_unique unique (campeonato_id, equipe_id)
@@ -156,6 +160,11 @@ alter table public.campeonato_equipes drop constraint if exists campeonato_equip
 create unique index if not exists campeonato_equipes_line_unique
   on public.campeonato_equipes (campeonato_id, line_id)
   where line_id is not null and status = 'ativo';
+create unique index if not exists campeonato_equipes_line_pendente_unique
+  on public.campeonato_equipes (campeonato_id, line_id)
+  where line_id is not null and status = 'pendente';
+create index if not exists campeonato_equipes_revisao_idx
+  on public.campeonato_equipes (campeonato_id, status, solicitado_em desc);
 
 create table if not exists public.campeonato_slots (
   id uuid primary key default gen_random_uuid(),

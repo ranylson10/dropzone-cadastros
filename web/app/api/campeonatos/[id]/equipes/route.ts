@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser } from '@backend/auth/server-auth'
+import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import {
   getCampeonatoPermission,
   permissionPublicPayload,
@@ -91,6 +91,35 @@ async function liberarExpirados(campeonatoId: string) {
   }
 }
 
+
+async function loadSolicitacoes(campeonatoId: string) {
+  const { data: rows, error } = await supabaseAdmin
+    .from('campeonato_equipes')
+    .select('id,campeonato_id,equipe_id,line_id,status,nome_exibicao,origem_entrada,solicitado_em,revisado_em,revisado_por,motivo_rejeicao,created_at,updated_at')
+    .eq('campeonato_id', campeonatoId)
+    .in('status', ['pendente', 'rejeitado'])
+    .order('solicitado_em', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+  if (error) {
+    if (['42703', 'PGRST204'].includes(error.code || '')) return []
+    throw error
+  }
+
+  const equipeIds = [...new Set((rows || []).map((row: any) => row.equipe_id).filter(Boolean))]
+  const lineIds = [...new Set((rows || []).map((row: any) => row.line_id).filter(Boolean))]
+  const [{ data: equipes }, { data: lines }] = await Promise.all([
+    equipeIds.length ? supabaseAdmin.from('equipes').select('id,nome,tag,logo_url').in('id', equipeIds) : Promise.resolve({ data: [] as any[] }),
+    lineIds.length ? supabaseAdmin.from('equipe_lines').select('id,nome,tag,logo_url').in('id', lineIds) : Promise.resolve({ data: [] as any[] }),
+  ])
+  const equipeMap = new Map((equipes || []).map((row: any) => [row.id, row]))
+  const lineMap = new Map((lines || []).map((row: any) => [row.id, row]))
+  return (rows || []).map((row: any) => ({
+    ...row,
+    equipe: equipeMap.get(row.equipe_id) || null,
+    line: row.line_id ? lineMap.get(row.line_id) || null : null,
+  }))
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
@@ -115,7 +144,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const includeInviteToken = Boolean(permission.canGenerateToken)
 
     // liberarExpirados em paralelo com a leitura (não serializa a tela)
-    const [, { data: campeonato, error: campError }, viewResult, convitesRes, capacidade] = await Promise.all([
+    const [, { data: campeonato, error: campError }, viewResult, convitesRes, capacidade, solicitacoes] = await Promise.all([
       liberarExpirados(id),
       supabaseAdmin.from('campeonatos').select('id, nome, logo_url').eq('id', id).is('deleted_at', null).single(),
       listSlotsLinesView(id),
@@ -128,6 +157,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         .eq('usado', false)
         .order('created_at', { ascending: false }),
       getCampeonatoCapacidade(id).catch(() => null),
+      permission.canManage ? loadSolicitacoes(id) : Promise.resolve([]),
     ])
     if (campError) throw campError
 
@@ -237,6 +267,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         campeonato,
         permission: permissionPublicPayload(permission),
         capacidade,
+        solicitacoes,
         vagas,
         convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item, null, { includeToken: includeInviteToken })),
         modelo: {
@@ -394,6 +425,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       campeonato,
       permission: permissionPublicPayload(permission),
       capacidade,
+      solicitacoes,
       vagas: [...slotsWithParticipations, ...orphanParticipations],
       convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item, null, { includeToken: includeInviteToken })),
       modelo: {
@@ -413,6 +445,68 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
+    const body = await req.json().catch(() => ({}))
+
+    if (body.mode === 'request') {
+      const accounts = await getAccountsForUser(user)
+      const equipeId = String(body.equipe_id || '')
+      const lineId = String(body.line_id || '')
+      if (!equipeId || !lineId) throw new Error('Selecione sua equipe e a line que será inscrita.')
+      const equipeAccount = accounts.find((item: any) => item.profile_type === 'equipe' && String(item.id) === equipeId)
+      if (!equipeAccount) throw new Error('A equipe informada não pertence ao seu perfil.')
+
+      const { data: config } = await supabaseAdmin
+        .from('campeonato_configuracoes')
+        .select('aceita_novas_inscricoes_equipes,data_limite_inscricao')
+        .eq('campeonato_id', id)
+        .maybeSingle()
+      if (config && config.aceita_novas_inscricoes_equipes === false) throw new Error('As inscrições de equipes estão fechadas.')
+      if (config?.data_limite_inscricao && new Date(config.data_limite_inscricao).getTime() < Date.now()) throw new Error('O prazo de inscrição deste campeonato terminou.')
+
+      const { data: line, error: lineError } = await supabaseAdmin
+        .from('equipe_lines')
+        .select('id,equipe_id,nome,status')
+        .eq('id', lineId)
+        .eq('equipe_id', equipeId)
+        .maybeSingle()
+      if (lineError) throw lineError
+      if (!line || String(line.status || '').toLowerCase() === 'inativo') throw new Error('A line selecionada não está disponível para inscrição.')
+
+      const { data: existing, error: existingError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id,status')
+        .eq('campeonato_id', id)
+        .eq('line_id', lineId)
+        .in('status', ['ativo', 'pendente'])
+        .maybeSingle()
+      if (existingError) throw existingError
+      if (existing?.status === 'ativo') throw new Error('Esta line já está inscrita neste campeonato.')
+      if (existing?.status === 'pendente') return NextResponse.json({ ok: true, solicitacao: existing, mensagem: 'Esta line já possui uma inscrição pendente.' })
+
+      const now = new Date().toISOString()
+      const { data: previousRejected } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id')
+        .eq('campeonato_id', id)
+        .eq('line_id', lineId)
+        .eq('status', 'rejeitado')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const requestPayload = {
+        campeonato_id: id, equipe_id: equipeId, line_id: lineId, nome_exibicao: line.nome,
+        origem_entrada: 'inscricao', status: 'pendente', criado_por: user.id, solicitado_em: now,
+        revisado_em: null, revisado_por: null, motivo_rejeicao: null, slot_id: null, grupo_id: null, slot_numero: null, updated_at: now,
+      }
+      const requestQuery = previousRejected?.id
+        ? supabaseAdmin.from('campeonato_equipes').update(requestPayload).eq('id', previousRejected.id)
+        : supabaseAdmin.from('campeonato_equipes').insert(requestPayload)
+      const { data: solicitacao, error: requestError } = await requestQuery.select('*').single()
+      if (requestError) throw requestError
+      return NextResponse.json({ ok: true, solicitacao, mensagem: 'Inscrição enviada para análise.' }, { status: previousRejected?.id ? 200 : 201 })
+    }
+
     const permission = await getCampeonatoPermission(user.id, id)
     if (!permission.canManage) {
       throw new Error('Você não tem permissão para adicionar equipes. Use o link de convite gerado pelo admin/vendedor.')
@@ -447,7 +541,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         }
       }
     }
-    const body = await req.json()
     // UI pode enviar slot_id (canônico) ou vaga_id como alias do id do slot.
     const slotId = String(body.slot_id || body.vaga_id || '')
     const equipeId = String(body.equipe_id || '')
@@ -509,6 +602,68 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     if (!permission.canManage) throw new Error('Você não tem permissão para mover equipes entre slots.')
 
     const body = await req.json()
+
+    if (body.mode === 'review_request') {
+      const participationId = String(body.participacao_id || body.request_id || '')
+      const action = String(body.action || '')
+      if (!participationId) throw new Error('Solicitação não informada.')
+      if (!['approve', 'reject'].includes(action)) throw new Error('Ação de revisão inválida.')
+
+      const { data: requestRow, error: requestError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id,campeonato_id,equipe_id,line_id,status')
+        .eq('id', participationId)
+        .eq('campeonato_id', id)
+        .maybeSingle()
+      if (requestError) throw requestError
+      if (!requestRow) throw new Error('Solicitação de inscrição não encontrada.')
+      if (!['pendente', 'rejeitado'].includes(String(requestRow.status))) throw new Error('Esta inscrição não está aguardando revisão.')
+
+      const now = new Date().toISOString()
+      if (action === 'reject') {
+        const motivo = String(body.motivo || '').trim()
+        const { data: rejected, error: rejectError } = await supabaseAdmin
+          .from('campeonato_equipes')
+          .update({ status: 'rejeitado', motivo_rejeicao: motivo || null, revisado_em: now, revisado_por: user.id, slot_id: null, grupo_id: null, slot_numero: null, updated_at: now })
+          .eq('id', participationId)
+          .select('*')
+          .single()
+        if (rejectError) throw rejectError
+        return NextResponse.json({ ok: true, solicitacao: rejected, mensagem: 'Inscrição rejeitada.' })
+      }
+
+      const slotId = String(body.slot_id || '')
+      if (!slotId) throw new Error('Escolha manualmente o slot antes de aprovar a inscrição.')
+      const { data: slot, error: slotError } = await supabaseAdmin
+        .from('campeonato_slots')
+        .select('id,grupo_id,slot_numero,slot_letra,equipe_id,line_id')
+        .eq('id', slotId)
+        .eq('campeonato_id', id)
+        .maybeSingle()
+      if (slotError) throw slotError
+      if (!slot) throw new Error('Slot não encontrado.')
+      if (slot.equipe_id || slot.line_id) throw new Error('Este slot já está ocupado.')
+
+      const { data: activeLine, error: activeLineError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id')
+        .eq('campeonato_id', id)
+        .eq('line_id', requestRow.line_id)
+        .eq('status', 'ativo')
+        .neq('id', participationId)
+        .maybeSingle()
+      if (activeLineError) throw activeLineError
+      if (activeLine) throw new Error('Esta line já possui uma inscrição ativa neste campeonato.')
+
+      const { data: approved, error: approveError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .update({ status: 'ativo', slot_id: slot.id, grupo_id: slot.grupo_id, slot_numero: slot.slot_numero, revisado_em: now, revisado_por: user.id, motivo_rejeicao: null, updated_at: now })
+        .eq('id', participationId)
+        .select('*')
+        .single()
+      if (approveError) throw approveError
+      return NextResponse.json({ ok: true, participacao: approved, mensagem: `Inscrição aprovada no slot ${slot.slot_letra || slot.slot_numero}.` })
+    }
 
     if (body.mode === 'distribute_phase') {
       const phaseId = String(body.phase_id || '')
