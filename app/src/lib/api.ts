@@ -200,6 +200,61 @@ export const mobileApi = {
       accessToken,
       cache: 'no-store',
     }),
+  teamRosterInvites: (teamId: string, lineId?: string | null, accessToken?: string | null) =>
+    dropzoneFetch<{ invites: any[] }>(
+      `/api/equipes/convites-elenco?equipe_id=${encodeURIComponent(teamId)}${lineId ? `&line_id=${encodeURIComponent(lineId)}` : ''}`,
+      { accessToken, cache: 'no-store' },
+    ),
+  createTeamRosterInvite: (
+    body: { equipe_id: string; line_id?: string | null; campeonato_equipe_id?: string | null },
+    accessToken?: string | null,
+  ) =>
+    dropzoneFetch<{ token: string; url: string; texto: string; expires_at: string }>('/api/equipes/convites-elenco', {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify(body),
+    }),
+  renewTeamRosterInvite: (equipeId: string, tokenId: string, accessToken?: string | null) =>
+    dropzoneFetch<{ success: boolean; expires_at: string }>('/api/equipes/convites-elenco', {
+      method: 'PATCH',
+      accessToken,
+      body: JSON.stringify({ equipe_id: equipeId, token_id: tokenId }),
+    }),
+  cancelTeamRosterInvite: (equipeId: string, tokenId: string, accessToken?: string | null) =>
+    dropzoneFetch<{ success: boolean }>('/api/equipes/convites-elenco', {
+      method: 'DELETE',
+      accessToken,
+      body: JSON.stringify({ equipe_id: equipeId, token_id: tokenId }),
+    }),
+  teamStaff: (teamId: string, accessToken?: string | null) =>
+    dropzoneFetch<{ staff: any[]; convites: any[] }>(`/api/equipes/${encodeURIComponent(teamId)}/staff`, {
+      accessToken,
+      cache: 'no-store',
+    }),
+  inviteTeamStaff: (teamId: string, body: Record<string, unknown>, accessToken?: string | null) =>
+    dropzoneFetch<any>(`/api/equipes/${encodeURIComponent(teamId)}/staff/convites`, {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify(body),
+    }),
+  updateTeamStaff: (teamId: string, body: Record<string, unknown>, accessToken?: string | null) =>
+    dropzoneFetch<any>(`/api/equipes/${encodeURIComponent(teamId)}/staff`, {
+      method: 'PATCH',
+      accessToken,
+      body: JSON.stringify(body),
+    }),
+  removeTeamStaff: (teamId: string, managerId: string, accessToken?: string | null) =>
+    dropzoneFetch<any>(`/api/equipes/${encodeURIComponent(teamId)}/staff`, {
+      method: 'DELETE',
+      accessToken,
+      body: JSON.stringify({ manager_id: managerId }),
+    }),
+  cancelTeamStaffInvite: (teamId: string, inviteId: string, accessToken?: string | null) =>
+    dropzoneFetch<any>(`/api/equipes/${encodeURIComponent(teamId)}/staff/convites`, {
+      method: 'DELETE',
+      accessToken,
+      body: JSON.stringify({ convite_id: inviteId }),
+    }),
   createTeamLine: (teamId: string, name: string, accessToken?: string | null) =>
     dropzoneFetch<{ line?: unknown }>(`/api/equipes/${encodeURIComponent(teamId)}/lines`, {
       method: 'POST',

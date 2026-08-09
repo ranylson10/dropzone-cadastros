@@ -6,6 +6,8 @@ import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { colors, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
+import { TeamStaffPanel } from '@/screens/TeamStaffPanel'
+import { TeamPlayersPanel } from '@/screens/TeamPlayersPanel'
 
 type TeamItem = {
   id: string
@@ -223,7 +225,14 @@ export function TeamRosterScreen({ onNavigate, selectedTeamId, onManageLine }: S
         </>
       ) : null}
 
-      {!loading && detail && section === 'elenco' ? <EntityList empty="O elenco desta equipe está vazio." items={overview.players || []} kind="player" /> : null}
+      {!loading && detail && section === 'elenco' && selected ? <TeamPlayersPanel
+        teamId={selected.id}
+        players={overview.players || []}
+        lines={overview.lines || []}
+        registrations={overview.activeRegistrations || []}
+        accessToken={token}
+        canInvite={selected.papel === 'dono' || Boolean(selected.permissoes?.pode_gerar_token)}
+      /> : null}
 
       {!loading && detail && section === 'lines' ? (
         <View style={styles.sectionContent}>
@@ -243,7 +252,7 @@ export function TeamRosterScreen({ onNavigate, selectedTeamId, onManageLine }: S
         </View>
       ) : null}
 
-      {!loading && detail && section === 'staff' ? <EntityList empty="Nenhum membro adicional na staff." items={overview.staff || []} kind="staff" /> : null}
+      {!loading && detail && section === 'staff' && selected ? <TeamStaffPanel teamId={selected.id} accessToken={token} isOwner={selected.papel === 'dono'} /> : null}
       {!loading && detail && section === 'eventos' ? <EntityList empty="A equipe não está em campeonatos ativos." items={overview.activeRegistrations || []} kind="event" /> : null}
     </ScrollView>
   )

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { assertLineupSwapAllowed, assertLineupWindowOpen, assertPlayerNotInAnotherTeam, resolveLineupWindow } from '@backend/campeonatos/lineup-window'
 import { requireEquipeAccess } from '@backend/equipes/manager-team-access'
@@ -46,22 +46,6 @@ async function loadLine(equipeId: string, lineId: string) {
     groupIds.length ? supabaseAdmin.from('campeonato_jogos_grupos').select('jogo_id,grupo_id').in('grupo_id', groupIds) : Promise.resolve({ data: [] as any[] }),
     championshipIds.length ? supabaseAdmin.from('campeonato_jogos').select('id,nome,campeonato_id,data_jogo,horario,status,limite_escalacao_minutos,escalacao_abre_horas_antes,escalacao_fecha_horas_antes').in('campeonato_id', championshipIds) : Promise.resolve({ data: [] as any[] }),
   ])
-
-  const playerAuthIds = [...new Set((roster || []).map((player: any) => player.jogador_auth_user_id).filter(Boolean))]
-  const { data: playerProfiles, error: playerProfilesError } = playerAuthIds.length
-    ? await supabaseAdmin
-        .from('jogadores')
-        .select('id,auth_user_id')
-        .in('auth_user_id', playerAuthIds)
-        .eq('status', 'ativo')
-    : { data: [] as any[], error: null }
-  if (playerProfilesError) throw playerProfilesError
-
-  const profileByAuth = new Map((playerProfiles || []).map((profile: any) => [profile.auth_user_id, profile.id]))
-  const publicRoster = (roster || []).map((player: any) => ({
-    ...player,
-    jogador_id: player.jogador_auth_user_id ? profileByAuth.get(player.jogador_auth_user_id) || null : null,
-  }))
 
   const memberIds = new Set((memberships || []).map((row: any) => row.equipe_jogador_id))
   const champMap = new Map((championships || []).map((row: any) => [row.id, row]))
@@ -124,8 +108,8 @@ async function loadLine(equipeId: string, lineId: string) {
   }))
 
   return {
-    roster: publicRoster.map((player: any) => ({ ...player, na_line: memberIds.has(player.id) })),
-    members: publicRoster.filter((player: any) => memberIds.has(player.id)),
+    roster: (roster || []).map((player: any) => ({ ...player, na_line: memberIds.has(player.id) })),
+    members: (roster || []).filter((player: any) => memberIds.has(player.id)),
     memberships: memberships || [],
     events,
   }
@@ -212,6 +196,63 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       })
       if (transferError) throw transferError
       return NextResponse.json({ ok: true, transferred: true, destination, result, championships: transfer.championships })
+    } else if (action === 'transfer_member') {
+      const playerId = String(body.equipe_jogador_id || '').trim()
+      const destinationLineId = String(body.line_destino_id || '').trim()
+      if (!playerId) throw new Error('Selecione o jogador que será transferido.')
+      if (!destinationLineId) throw new Error('Selecione a line de destino.')
+      if (destinationLineId === lineId) throw new Error('O jogador já está nesta line.')
+
+      const current = await loadLine(equipeId, lineId)
+      if (!current.members.some((row: any) => String(row.id) === playerId)) throw new Error('O jogador não pertence à line de origem.')
+      const activeFormation = current.events.find((event: any) => (event.formacao || []).some((row: any) => String(row.equipe_jogador_id) === playerId))
+      if (activeFormation) throw new Error(`Remova o jogador da formação de ${activeFormation.campeonato?.nome || 'campeonato ativo'} antes de transferi-lo.`)
+
+      const { data: destinationLine, error: destinationLineError } = await supabaseAdmin
+        .from('equipe_lines')
+        .select('id,equipe_id,nome,tag,status')
+        .eq('id', destinationLineId)
+        .eq('equipe_id', equipeId)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      if (destinationLineError) throw destinationLineError
+      if (!destinationLine) throw new Error('Line de destino não encontrada nesta equipe.')
+
+      const { data: existingDestination, error: destinationMembershipError } = await supabaseAdmin
+        .from('equipe_line_jogadores')
+        .select('id,status')
+        .eq('line_id', destinationLineId)
+        .eq('equipe_jogador_id', playerId)
+        .maybeSingle()
+      if (destinationMembershipError) throw destinationMembershipError
+
+      const membershipPayload = {
+        equipe_id: equipeId,
+        line_id: destinationLineId,
+        equipe_jogador_id: playerId,
+        status: 'ativo',
+        adicionado_por: user.id,
+        removido_por: null,
+        removido_em: null,
+        updated_at: new Date().toISOString(),
+      }
+      const destinationWrite = existingDestination
+        ? await supabaseAdmin.from('equipe_line_jogadores').update(membershipPayload).eq('id', existingDestination.id)
+        : await supabaseAdmin.from('equipe_line_jogadores').insert(membershipPayload)
+      if (destinationWrite.error) throw destinationWrite.error
+
+      const { error: sourceWriteError } = await supabaseAdmin
+        .from('equipe_line_jogadores')
+        .update({ status: 'inativo', removido_por: user.id, removido_em: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('line_id', lineId)
+        .eq('equipe_jogador_id', playerId)
+        .eq('status', 'ativo')
+      if (sourceWriteError) throw sourceWriteError
+
+      await writeHistory({ equipe_id: equipeId, line_id: lineId, equipe_jogador_id: playerId, acao: 'removido_line', detalhes: { motivo: 'transferencia_line', line_destino_id: destinationLineId }, realizado_por: user.id })
+      await writeHistory({ equipe_id: equipeId, line_id: destinationLineId, equipe_jogador_id: playerId, acao: 'adicionado_line', detalhes: { motivo: 'transferencia_line', line_origem_id: lineId }, realizado_por: user.id })
+
+      return NextResponse.json({ ok: true, transferred_member: true, destination_line: destinationLine, ...(await loadLine(equipeId, lineId)) })
     } else if (action === 'add_member') {
       const playerId = String(body.equipe_jogador_id || '')
       const { data: player, error } = await supabaseAdmin.from('equipe_jogadores').select('id,equipe_id').eq('id', playerId).eq('equipe_id', equipeId).eq('status', 'ativo').maybeSingle()
@@ -290,6 +331,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           line_id: lineId,
           equipe_jogador_id: playerId,
           tipo_formacao: requestedRow.tipo_formacao === 'reserva' ? 'reserva' : 'titular',
+          capitao: Boolean(requestedRow.capitao),
           ordem_formacao: index + 1,
           status: 'ativo',
           updated_at: new Date().toISOString(),
