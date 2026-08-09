@@ -99,7 +99,13 @@ function DropZoneMobileApp() {
       <StatusBar barStyle="light-content" backgroundColor={colors.brandDark} />
       <AppErrorBoundary onReset={() => setRoute('home')}>
         {auth.session ? (
-          <AppShell route={route} activeAccount={auth.activeAccount} onNavigate={setRoute}>
+          <AppShell
+            route={route}
+            activeAccount={auth.activeAccount}
+            accounts={auth.accounts}
+            onSelectAccount={auth.setActiveAccountId}
+            onNavigate={setRoute}
+          >
             {renderScreen()}
           </AppShell>
         ) : renderScreen()}
@@ -111,9 +117,8 @@ function DropZoneMobileApp() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.brandDark,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-    paddingBottom: Platform.OS === 'android' ? 16 : 0,
   },
   loader: {
     flex: 1,
