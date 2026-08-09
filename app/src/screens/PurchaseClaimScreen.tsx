@@ -1,17 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { PaymentMethod, paymentMethodLabel, VacancyPaymentResult } from '@/lib/payments'
+import { clearPendingVacancyPurchase, getPendingVacancyPurchase } from '@/lib/purchase-flow'
 import { ActionCard, ScreenShell } from '@/screens/components'
 import { colors, radius, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
 export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship }: ScreenProps) {
   const auth = useAuth()
-  const championship = selectedChampionship
   const token = auth.session?.access_token
+  const [championship, setChampionship] = useState(selectedChampionship || null)
   const [method, setMethod] = useState<PaymentMethod>('pix')
   const [loading, setLoading] = useState(false)
   const [claimLoading, setClaimLoading] = useState(false)
@@ -24,7 +25,26 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship }
   const [newLineName, setNewLineName] = useState('')
   const [slotId, setSlotId] = useState('')
   const [claimResult, setClaimResult] = useState<any>(null)
+  const [restoringPurchase, setRestoringPurchase] = useState(!selectedChampionship)
   const checkoutUrl = payment?.payment?.paypal_approval_url || payment?.payment?.invoice_url || ''
+
+  useEffect(() => {
+    let mounted = true
+    void getPendingVacancyPurchase().then((pending) => {
+      if (!mounted) return
+      if (pending) {
+        setChampionship(pending.championship)
+        setPayment(pending.payment)
+        setFeedback('Compra recuperada do carrinho. Verifique o pagamento para concluir a inscrição no app.')
+      }
+      setRestoringPurchase(false)
+    })
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    if (selectedChampionship) setChampionship(selectedChampionship)
+  }, [selectedChampionship])
 
   async function startPayment() {
     if (!championship) return
@@ -93,12 +113,21 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship }
       }, token)
       setClaimResult(result)
       setFeedback(result?.mensagem || 'Vaga confirmada no campeonato.')
+      await clearPendingVacancyPurchase()
       await refreshClaimContext(teamId)
     } catch (err:any) {
       setError(err?.message || 'Não foi possível concluir a inscrição.')
     } finally {
       setClaimLoading(false)
     }
+  }
+
+  if (restoringPurchase) {
+    return (
+      <ScreenShell eyebrow="Compra" title="Recuperando compra" onBack={onBack}>
+        <View style={styles.restoreBox}><ActivityIndicator color={colors.brand}/><Text style={styles.restoreText}>Sincronizando checkout...</Text></View>
+      </ScreenShell>
+    )
   }
 
   if (!championship) {
@@ -231,6 +260,8 @@ function Step(props: { number: string; text: string; active?: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  restoreBox:{minHeight:120,alignItems:'center',justifyContent:'center',gap:9,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},
+  restoreText:{color:colors.muted,fontSize:9,fontWeight:'800'},
   hero: { minHeight: 230, backgroundColor: colors.brandDark, overflow: 'hidden' },
   heroImage: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: undefined, height: undefined },
   heroOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(8,12,18,.58)' },

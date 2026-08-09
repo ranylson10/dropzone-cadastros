@@ -1,334 +1,318 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { externalUrl } from '@/config/env'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { getMobileCart, getMobileWishlist, mobileCommerceFromApi, MobileCommerceItem, removeMobileCart, setMobileCartQuantity } from '@/lib/commerce'
+import { mobileCommerceFromApi, MobileCommerceItem } from '@/lib/commerce'
+import { VacancyPaymentResult } from '@/lib/payments'
+import { savePendingVacancyPurchase } from '@/lib/purchase-flow'
+import { cents } from '@/lib/wallet'
 import { ActionCard, ScreenShell } from '@/screens/components'
-import { colors, radius, spacing, typography } from '@/theme/tokens'
-import { ScreenProps } from '@/types/dropzone'
+import { colors, spacing } from '@/theme/tokens'
+import { ChampionshipCard, ScreenProps } from '@/types/dropzone'
 
 type CartPaymentMethod = 'pix' | 'cartao' | 'paypal'
 
-const paymentMethods: Array<{ id: CartPaymentMethod; label: string }> = [
-  { id: 'pix', label: 'PIX' },
-  { id: 'cartao', label: 'Cartão' },
-  { id: 'paypal', label: 'PayPal' },
+const paymentMethods: Array<{ id: CartPaymentMethod; label: string; icon: any }> = [
+  { id: 'pix', label: 'PIX', icon:'qr-code-outline' },
+  { id: 'cartao', label: 'Cartão', icon:'card-outline' },
+  { id: 'paypal', label: 'PayPal', icon:'globe-outline' },
 ]
+
+function priceCents(item: MobileCommerceItem) {
+  const raw = String(item.priceLabel || '').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.')
+  const value = Number(raw)
+  return Number.isFinite(value) ? Math.round(value * 100) : 0
+}
+
+function asChampionship(item:MobileCommerceItem):ChampionshipCard {
+  return {
+    id:item.id,
+    name:item.name,
+    mode:item.mode,
+    logoUrl:item.logoUrl,
+    bannerUrl:item.bannerUrl,
+    priceLabel:item.priceLabel,
+    freeSlots:item.freeSlots,
+  }
+}
 
 export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
   const auth = useAuth()
+  const accessToken = auth.session?.access_token
   const [cart, setCart] = useState<MobileCommerceItem[]>([])
   const [wishlist, setWishlist] = useState<MobileCommerceItem[]>([])
+  const [walletBalance, setWalletBalance] = useState(0)
   const [loading, setLoading] = useState(true)
   const [checkoutId, setCheckoutId] = useState<string | null>(null)
   const [methodByItem, setMethodByItem] = useState<Record<string, CartPaymentMethod>>({})
-  const [checkoutByItem, setCheckoutByItem] = useState<Record<string, { checkoutUrl: string; claimUrl: string }>>({})
+  const [paymentByItem, setPaymentByItem] = useState<Record<string, VacancyPaymentResult>>({})
   const [error, setError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState('')
 
-  async function loadCommerce() {
-    const accessToken = auth.session?.access_token
+  const loadCommerce = useCallback(async () => {
+    if (!accessToken) {
+      setCart([])
+      setWishlist([])
+      setWalletBalance(0)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const [cartPayload, wishlistPayload] = accessToken
-        ? await Promise.all([mobileApi.commerceCart(accessToken), mobileApi.commerceWishlist(accessToken)])
-        : await Promise.all([{ items: await getMobileCart() }, { items: await getMobileWishlist() }])
-      setCart((cartPayload.items || []).map((item: any) => item?.campeonato ? mobileCommerceFromApi(item) : item))
-      setWishlist((wishlistPayload.items || []).map((item: any) => item?.campeonato ? mobileCommerceFromApi(item) : item))
-    } catch (err: any) {
-      setCart(await getMobileCart())
-      setWishlist(await getMobileWishlist())
-      setError(err?.message || 'Não foi possível sincronizar com o servidor agora.')
+      const [cartPayload,wishlistPayload,walletPayload] = await Promise.all([
+        mobileApi.commerceCart(accessToken),
+        mobileApi.commerceWishlist(accessToken),
+        mobileApi.wallet(accessToken, auth.activeProfileType).catch(() => null),
+      ])
+      setCart((cartPayload.items || []).map((item:any)=>mobileCommerceFromApi(item)))
+      setWishlist((wishlistPayload.items || []).map((item:any)=>mobileCommerceFromApi(item)))
+      setWalletBalance(Number((walletPayload as any)?.carteira?.saldo_disponivel_centavos || 0))
+    } catch (err:any) {
+      setError(err?.message || 'Não foi possível sincronizar suas compras.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [accessToken,auth.activeProfileType])
 
-  useEffect(() => {
-    void loadCommerce()
-  }, [auth.session?.access_token])
+  useEffect(()=>{ void loadCommerce() },[loadCommerce])
 
-  async function checkout(item: MobileCommerceItem) {
-    const accessToken = auth.session?.access_token
-    if (!accessToken || !item.itemId) {
-      onNavigate('vacancies')
-      return
-    }
-    setCheckoutId(item.id)
+  const totalCents = useMemo(() => cart.reduce((sum,item)=>sum + priceCents(item) * Math.max(1,Number(item.quantity || 1)),0),[cart])
+  const cartQuantity = useMemo(() => cart.reduce((sum,item)=>sum + Math.max(1,Number(item.quantity || 1)),0),[cart])
+
+  async function updateQuantity(item:MobileCommerceItem,quantity:number) {
+    if (!accessToken || !item.itemId) return
+    const next = Math.max(1,Math.min(Number(item.freeSlots || 99),quantity))
     setError(null)
     try {
+      const payload = await mobileApi.updateCommerceCartItem(item.itemId,next,accessToken)
+      setCart((payload.items || []).map((row:any)=>mobileCommerceFromApi(row)))
+    } catch (err:any) {
+      setError(err?.message || 'Não foi possível atualizar a quantidade.')
+    }
+  }
+
+  async function removeItem(item:MobileCommerceItem) {
+    if (!accessToken || !item.itemId) return
+    setError(null)
+    try {
+      const payload = await mobileApi.removeCommerceCartItem(item.itemId,accessToken)
+      setCart((payload.items || []).map((row:any)=>mobileCommerceFromApi(row)))
+      setFeedback('Item removido do carrinho.')
+    } catch (err:any) {
+      setError(err?.message || 'Não foi possível remover o item.')
+    }
+  }
+
+  async function checkout(item:MobileCommerceItem) {
+    if (!accessToken || !item.itemId) return
+    setCheckoutId(item.id)
+    setError(null)
+    setFeedback('')
+    try {
       const method = methodByItem[item.id] || 'pix'
-      const payload = await mobileApi.checkoutCommerceCartItem({ item_id: item.itemId, method }, accessToken)
+      const payload = await mobileApi.checkoutCommerceCartItem({item_id:item.itemId,method},accessToken)
+      const payment:VacancyPaymentResult = {
+        reused:false,
+        compra:payload.compra,
+        payment:payload.payment,
+        claim_url:payload.claim_url,
+        asaas_configured:true,
+      }
+      setPaymentByItem((current)=>({...current,[item.id]:payment}))
+      await savePendingVacancyPurchase(asChampionship(item),payment)
       const url = payload.payment?.paypal_approval_url || payload.payment?.invoice_url
-      setCheckoutByItem((current) => ({ ...current, [item.id]: { checkoutUrl: url || '', claimUrl: externalUrl(payload.claim_url) } }))
       if (url) await Linking.openURL(url)
-      else setError('Pagamento criado. Use o botão de inscrição liberada abaixo quando o pagamento confirmar.')
-    } catch (err: any) {
+      setFeedback('Pagamento criado. Depois da confirmação, conclua a inscrição dentro do app.')
+    } catch (err:any) {
       setError(err?.message || 'Não foi possível gerar o pagamento.')
     } finally {
       setCheckoutId(null)
     }
   }
 
-  async function removeItem(item: MobileCommerceItem) {
-    const accessToken = auth.session?.access_token
-    setError(null)
-    if (accessToken && item.itemId) {
-      try {
-        const payload = await mobileApi.removeCommerceCartItem(item.itemId, accessToken)
-        setCart((payload.items || []).map((row: any) => row?.campeonato ? mobileCommerceFromApi(row) : row))
-        return
-      } catch (err: any) {
-        setError(err?.message || 'Não foi possível remover no servidor. Removi apenas do aparelho.')
-      }
-    }
-    setCart(await removeMobileCart(item.id))
-  }
-
-  async function updateQuantity(item: MobileCommerceItem, quantity: number) {
-    const nextQuantity = Math.max(1, Math.min(Number(item.freeSlots || 99), quantity))
-    const accessToken = auth.session?.access_token
-    setError(null)
-    if (accessToken && item.itemId) {
-      try {
-        const payload = await mobileApi.updateCommerceCartItem(item.itemId, nextQuantity, accessToken)
-        setCart((payload.items || []).map((row: any) => row?.campeonato ? mobileCommerceFromApi(row) : row))
-        return
-      } catch (err: any) {
-        setError(err?.message || 'Não foi possível ajustar no servidor. Ajustei apenas no aparelho.')
-      }
-    }
-    setCart(await setMobileCartQuantity(item.id, nextQuantity))
+  async function continueNative(item:MobileCommerceItem) {
+    const payment = paymentByItem[item.id]
+    if (!payment) return
+    await savePendingVacancyPurchase(asChampionship(item),payment)
+    onNavigate('purchase_claim')
   }
 
   return (
-    <ScreenShell
-      eyebrow="Compra"
-      title="Carrinho e favoritos"
-      description="Revise vagas salvas, retome campeonatos favoritos e inicie o pagamento quando estiver pronto."
-      onBack={onBack}
-    >
-      {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={colors.brand} />
-          <Text style={styles.meta}>Sincronizando carrinho...</Text>
-        </View>
-      ) : null}
-
-      {error ? <Text style={styles.warning}>{error}</Text> : null}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Carrinho</Text>
-        {!loading && cart.length === 0 ? (
-          <ActionCard title="Carrinho vazio" description="Adicione vagas pela vitrine de campeonatos para comprar depois." cta="Ver vagas" onPress={() => onNavigate('vacancies')} />
-        ) : null}
-        {cart.map((item) => (
-          <View key={item.id} style={styles.card}>
-            {item.bannerUrl ? <Image source={{ uri: item.bannerUrl }} style={styles.banner} /> : null}
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.meta}>{item.quantity || 1} vaga(s) · {item.priceLabel}</Text>
-            <View style={styles.quantityRow}>
-              <TouchableOpacity style={styles.quantityButton} onPress={() => void updateQuantity(item, Number(item.quantity || 1) - 1)}>
-                <Text style={styles.quantityText}>−</Text>
-              </TouchableOpacity>
-              <Text style={styles.quantityValue}>{item.quantity || 1}</Text>
-              <TouchableOpacity style={styles.quantityButton} onPress={() => void updateQuantity(item, Number(item.quantity || 1) + 1)}>
-                <Text style={styles.quantityText}>+</Text>
-              </TouchableOpacity>
-              <Text style={styles.quantityHint}>quantidade de vagas</Text>
-            </View>
-            <View style={styles.methodRow}>
-              {paymentMethods.map((method) => {
-                const active = (methodByItem[item.id] || 'pix') === method.id
-                return (
-                  <TouchableOpacity
-                    key={method.id}
-                    style={[styles.methodButton, active && styles.methodButtonActive]}
-                    onPress={() => setMethodByItem((current) => ({ ...current, [item.id]: method.id }))}
-                  >
-                    <Text style={[styles.methodText, active && styles.methodTextActive]}>{method.label}</Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-            <View style={styles.actions}>
-              <TouchableOpacity style={styles.primary} onPress={() => checkout(item)} disabled={checkoutId === item.id}>
-                <Text style={styles.primaryText}>
-                  {checkoutId === item.id
-                    ? 'Gerando...'
-                    : `Pagar com ${paymentMethods.find((method) => method.id === (methodByItem[item.id] || 'pix'))?.label || 'PIX'}`}
-                </Text>
-              </TouchableOpacity>
-              {checkoutByItem[item.id]?.checkoutUrl ? (
-                <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(checkoutByItem[item.id].checkoutUrl)}>
-                  <Text style={styles.secondaryText}>Abrir checkout</Text>
-                </TouchableOpacity>
-              ) : null}
-              {checkoutByItem[item.id]?.claimUrl ? (
-                <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(checkoutByItem[item.id].claimUrl)}>
-                  <Text style={styles.secondaryText}>Abrir inscrição liberada</Text>
-                </TouchableOpacity>
-              ) : null}
-              <TouchableOpacity style={styles.secondary} onPress={() => void removeItem(item)}>
-                <Text style={styles.secondaryText}>Remover</Text>
-              </TouchableOpacity>
-            </View>
+    <ScreenShell eyebrow="Dropzone Pay" title="Compras" description="Vagas, checkout e inscrições conectados à sua conta." onBack={onBack}>
+      <View style={styles.summary}>
+        <View style={styles.summaryTop}>
+          <View>
+            <Text style={styles.summaryKicker}>DROPZONE PAY · RESUMO DO PEDIDO</Text>
+            <Text style={styles.summaryValue}>{cents(totalCents)}</Text>
           </View>
-        ))}
+          <View style={styles.bag}><Ionicons name="bag-check-outline" size={23} color={colors.surface}/></View>
+        </View>
+        <View style={styles.summaryDivider}/>
+        <View style={styles.summaryMetaRow}>
+          <SummaryMeta label="VAGAS" value={String(cartQuantity)}/>
+          <SummaryMeta label="ITENS" value={String(cart.length)}/>
+          <SummaryMeta label="SALDO" value={cents(walletBalance)}/>
+        </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Favoritos</Text>
-        {!loading && wishlist.length === 0 ? (
-          <Text style={styles.meta}>Nenhum campeonato salvo ainda.</Text>
-        ) : null}
-        {wishlist.map((item) => (
-          <TouchableOpacity key={item.id} style={styles.favorite} onPress={() => onNavigate('vacancies')}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.meta}>{item.freeSlots} vagas disponíveis · tocar para abrir vitrine</Text>
+      <View style={styles.walletStrip}>
+        <Ionicons name="wallet-outline" size={19} color={colors.ink}/>
+        <View style={styles.walletStripCopy}>
+          <Text style={styles.walletStripTitle}>CARTEIRA INTEGRADA</Text>
+          <Text style={styles.walletStripText}>Acompanhe saldo, PIX, saques e comprovantes no mesmo ambiente.</Text>
+        </View>
+        <TouchableOpacity style={styles.walletButton} onPress={()=>onNavigate('wallet')}><Text style={styles.walletButtonText}>Abrir</Text></TouchableOpacity>
+      </View>
+
+      {loading ? <View style={styles.loading}><ActivityIndicator color={colors.brand}/><Text style={styles.muted}>Sincronizando carrinho...</Text></View> : null}
+      {error ? <Text style={styles.warning}>{error}</Text> : null}
+      {feedback ? <Text style={styles.success}>{feedback}</Text> : null}
+
+      <View style={styles.sectionHead}>
+        <View><Text style={styles.sectionKicker}>CHECKOUT</Text><Text style={styles.sectionTitle}>Carrinho</Text></View>
+        <Text style={styles.sectionCount}>{cart.length}</Text>
+      </View>
+
+      {!loading && cart.length===0 ? <ActionCard title="Carrinho vazio" description="Adicione vagas na vitrine de campeonatos." cta="Ver vagas" onPress={()=>onNavigate('vacancies')}/> : null}
+
+      {cart.map((item)=>{
+        const method = methodByItem[item.id] || 'pix'
+        const unit = priceCents(item)
+        const itemTotal = unit * Math.max(1,Number(item.quantity || 1))
+        const payment = paymentByItem[item.id]
+        return <View key={item.id} style={styles.card}>
+          <View style={styles.cardHead}>
+            {item.logoUrl ? <Image source={{uri:item.logoUrl}} style={styles.logo}/> : <View style={styles.logoFallback}><Ionicons name="trophy-outline" size={20} color={colors.surface}/></View>}
+            <View style={styles.cardCopy}>
+              <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.cardMeta}>{item.freeSlots} vaga(s) disponíveis · {item.priceLabel} cada</Text>
+            </View>
+            <TouchableOpacity style={styles.remove} onPress={()=>void removeItem(item)}><Ionicons name="trash-outline" size={17} color="#9a3412"/></TouchableOpacity>
+          </View>
+
+          <View style={styles.quantityBar}>
+            <Text style={styles.quantityLabel}>QUANTIDADE</Text>
+            <View style={styles.quantityControls}>
+              <TouchableOpacity style={styles.quantityButton} onPress={()=>void updateQuantity(item,Number(item.quantity || 1)-1)}><Text style={styles.quantityText}>−</Text></TouchableOpacity>
+              <Text style={styles.quantityValue}>{item.quantity || 1}</Text>
+              <TouchableOpacity style={styles.quantityButton} onPress={()=>void updateQuantity(item,Number(item.quantity || 1)+1)}><Text style={styles.quantityText}>+</Text></TouchableOpacity>
+            </View>
+            <Text style={styles.itemTotal}>{cents(itemTotal)}</Text>
+          </View>
+
+          <Text style={styles.fieldLabel}>FORMA DE PAGAMENTO</Text>
+          <View style={styles.methods}>
+            {paymentMethods.map((option)=>{
+              const active=method===option.id
+              return <TouchableOpacity key={option.id} style={[styles.method,active&&styles.methodActive]} onPress={()=>setMethodByItem((current)=>({...current,[item.id]:option.id}))}>
+                <Ionicons name={option.icon} size={17} color={active?colors.surface:colors.ink}/>
+                <Text style={[styles.methodText,active&&styles.methodTextActive]}>{option.label}</Text>
+              </TouchableOpacity>
+            })}
+          </View>
+
+          {payment ? <View style={styles.paymentStatus}>
+            <View style={styles.paymentStatusIcon}><Ionicons name="time-outline" size={18} color={colors.brand}/></View>
+            <View style={styles.paymentStatusCopy}>
+              <Text style={styles.paymentStatusTitle}>PAGAMENTO CRIADO</Text>
+              <Text style={styles.paymentStatusText}>Status {payment.compra.status} · token {payment.compra.token.slice(0,8).toUpperCase()}</Text>
+            </View>
+          </View> : null}
+
+          <TouchableOpacity style={styles.primary} disabled={checkoutId===item.id} onPress={()=>void checkout(item)}>
+            {checkoutId===item.id ? <ActivityIndicator color={colors.surface}/> : <Text style={styles.primaryText}>{payment ? 'Gerar nova cobrança' : `Pagar ${cents(itemTotal)}`}</Text>}
           </TouchableOpacity>
-        ))}
+
+          {payment ? <TouchableOpacity style={styles.nativeButton} onPress={()=>void continueNative(item)}>
+            <Ionicons name="phone-portrait-outline" size={17} color={colors.ink}/>
+            <Text style={styles.nativeButtonText}>Concluir inscrição no app</Text>
+          </TouchableOpacity> : null}
+        </View>
+      })}
+
+      <View style={styles.sectionHead}>
+        <View><Text style={styles.sectionKicker}>SALVOS</Text><Text style={styles.sectionTitle}>Favoritos</Text></View>
+        <Text style={styles.sectionCount}>{wishlist.length}</Text>
+      </View>
+      {!loading && !wishlist.length ? <Text style={styles.empty}>Nenhum campeonato salvo.</Text> : null}
+      {wishlist.slice(0,8).map((item)=><TouchableOpacity key={item.id} style={styles.favorite} onPress={()=>onNavigate('vacancies')}>
+        <View><Text style={styles.favoriteName}>{item.name}</Text><Text style={styles.cardMeta}>{item.freeSlots} vagas disponíveis</Text></View>
+        <Ionicons name="chevron-forward" size={16} color={colors.muted}/>
+      </TouchableOpacity>)}
+
+      <View style={styles.security}>
+        <Ionicons name="shield-checkmark-outline" size={20} color="#166534"/>
+        <View style={{flex:1}}><Text style={styles.securityTitle}>CHECKOUT PROTEGIDO</Text><Text style={styles.securityText}>O provedor processa o pagamento e a confirmação da vaga continua nativamente no Dropzone.</Text></View>
       </View>
     </ScreenShell>
   )
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    alignItems: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  warning: {
-    borderRadius: radius.md,
-    backgroundColor: '#fff7ed',
-    color: '#9a3412',
-    fontWeight: '800',
-    padding: spacing.md,
-  },
-  section: {
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
-  },
-  card: {
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  banner: {
-    height: 120,
-    borderRadius: radius.md,
-  },
-  favorite: {
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  name: {
-    color: colors.ink,
-    fontSize: typography.body,
-    fontWeight: '900',
-  },
-  meta: {
-    color: colors.muted,
-    fontWeight: '700',
-  },
-  actions: {
-    gap: spacing.sm,
-  },
-  quantityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  quantityButton: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brandDark,
-  },
-  quantityText: {
-    color: colors.surface,
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  quantityValue: {
-    minWidth: 38,
-    textAlign: 'center',
-    color: colors.ink,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
-  },
-  quantityHint: {
-    color: colors.muted,
-    fontSize: typography.caption,
-    fontWeight: '800',
-  },
-  methodRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  methodButton: {
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  methodButtonActive: {
-    borderColor: colors.brand,
-    backgroundColor: colors.brand,
-  },
-  methodText: {
-    color: colors.ink,
-    fontSize: typography.caption,
-    fontWeight: '900',
-  },
-  methodTextActive: {
-    color: colors.surface,
-  },
-  primary: {
-    alignItems: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.brand,
-    padding: spacing.md,
-  },
-  primaryText: {
-    color: colors.surface,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  secondary: {
-    alignItems: 'center',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.md,
-  },
-  secondaryText: {
-    color: colors.ink,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
+function SummaryMeta({label,value}:{label:string;value:string}) {
+  return <View style={styles.summaryMeta}><Text style={styles.summaryMetaLabel}>{label}</Text><Text style={styles.summaryMetaValue} numberOfLines={1}>{value}</Text></View>
+}
+
+const styles=StyleSheet.create({
+  summary:{backgroundColor:'#0b1320',padding:spacing.lg,gap:spacing.md,borderBottomWidth:3,borderBottomColor:colors.brand},
+  summaryTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+  summaryKicker:{color:colors.gold,fontSize:8,fontWeight:'900',letterSpacing:1.2},
+  summaryValue:{marginTop:5,color:colors.surface,fontSize:31,fontWeight:'900'},
+  bag:{width:44,height:44,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand},
+  summaryDivider:{height:1,backgroundColor:'#273244'},
+  summaryMetaRow:{flexDirection:'row',gap:8},
+  summaryMeta:{flex:1,minWidth:0},
+  summaryMetaLabel:{color:'#7f8a99',fontSize:7,fontWeight:'900'},
+  summaryMetaValue:{marginTop:3,color:colors.surface,fontSize:10,fontWeight:'900'},
+  walletStrip:{flexDirection:'row',alignItems:'center',gap:9,padding:11,backgroundColor:'#eee9e1',borderWidth:1,borderColor:colors.line},
+  walletStripCopy:{flex:1},
+  walletStripTitle:{color:colors.ink,fontSize:8,fontWeight:'900',letterSpacing:.7},
+  walletStripText:{marginTop:2,color:colors.muted,fontSize:8,fontWeight:'700'},
+  walletButton:{paddingHorizontal:10,paddingVertical:8,backgroundColor:'#0b1320'},
+  walletButtonText:{color:colors.surface,fontSize:8,fontWeight:'900',textTransform:'uppercase'},
+  loading:{alignItems:'center',gap:7,padding:14,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},
+  muted:{color:colors.muted,fontSize:9,fontWeight:'700'},
+  warning:{backgroundColor:'#fff7ed',color:'#9a3412',fontWeight:'800',padding:spacing.md},
+  success:{backgroundColor:'#effaf3',color:'#166534',fontWeight:'800',padding:spacing.md},
+  sectionHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+  sectionKicker:{color:colors.brand,fontSize:8,fontWeight:'900',letterSpacing:1},
+  sectionTitle:{marginTop:2,color:colors.ink,fontSize:18,fontWeight:'900'},
+  sectionCount:{minWidth:30,textAlign:'center',paddingVertical:5,backgroundColor:'#0b1320',color:colors.surface,fontSize:8,fontWeight:'900'},
+  card:{gap:10,padding:12,backgroundColor:colors.surface,borderTopWidth:3,borderTopColor:colors.brand},
+  cardHead:{flexDirection:'row',alignItems:'center',gap:9},
+  logo:{width:44,height:44,backgroundColor:'#f3efe8'},
+  logoFallback:{width:44,height:44,alignItems:'center',justifyContent:'center',backgroundColor:'#0b1320'},
+  cardCopy:{flex:1,minWidth:0},
+  cardName:{color:colors.ink,fontSize:12,fontWeight:'900',textTransform:'uppercase'},
+  cardMeta:{marginTop:3,color:colors.muted,fontSize:8,fontWeight:'700'},
+  remove:{width:34,height:34,alignItems:'center',justifyContent:'center',backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'},
+  quantityBar:{minHeight:48,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:9,backgroundColor:'#eee9e1'},
+  quantityLabel:{color:colors.muted,fontSize:7,fontWeight:'900'},
+  quantityControls:{flexDirection:'row',alignItems:'center',gap:1},
+  quantityButton:{width:31,height:31,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface},
+  quantityText:{color:colors.ink,fontSize:16,fontWeight:'900'},
+  quantityValue:{minWidth:31,textAlign:'center',color:colors.ink,fontSize:11,fontWeight:'900'},
+  itemTotal:{marginLeft:'auto',color:colors.ink,fontSize:12,fontWeight:'900'},
+  fieldLabel:{color:colors.ink,fontSize:8,fontWeight:'900',letterSpacing:.7},
+  methods:{flexDirection:'row',gap:5},
+  method:{flex:1,minHeight:42,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,backgroundColor:'#eee9e1',borderWidth:1,borderColor:colors.line},
+  methodActive:{backgroundColor:'#0b1320',borderColor:'#0b1320'},
+  methodText:{color:colors.ink,fontSize:8,fontWeight:'900'},
+  methodTextActive:{color:colors.surface},
+  paymentStatus:{flexDirection:'row',alignItems:'center',gap:8,padding:9,backgroundColor:'#fff6e7',borderWidth:1,borderColor:'#ead1a2'},
+  paymentStatusIcon:{width:34,height:34,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface},
+  paymentStatusCopy:{flex:1},
+  paymentStatusTitle:{color:colors.brand,fontSize:8,fontWeight:'900',letterSpacing:.8},
+  paymentStatusText:{marginTop:2,color:colors.ink,fontSize:8,fontWeight:'700'},
+  primary:{minHeight:48,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand},
+  primaryText:{color:colors.surface,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
+  nativeButton:{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:7,backgroundColor:'#eee9e1',borderWidth:1,borderColor:colors.line},
+  nativeButtonText:{color:colors.ink,fontSize:8,fontWeight:'900',textTransform:'uppercase'},
+  favorite:{minHeight:55,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8,padding:10,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},
+  favoriteName:{color:colors.ink,fontSize:10,fontWeight:'900'},
+  empty:{padding:14,textAlign:'center',backgroundColor:'#eee9e1',color:colors.muted,fontSize:9,fontWeight:'800'},
+  security:{flexDirection:'row',gap:9,padding:12,backgroundColor:'#effaf3',borderWidth:1,borderColor:'#b7d8c0'},
+  securityTitle:{color:'#166534',fontSize:8,fontWeight:'900',letterSpacing:.9},
+  securityText:{marginTop:3,color:colors.ink,fontSize:8,lineHeight:13,fontWeight:'700'},
 })

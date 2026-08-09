@@ -310,6 +310,34 @@ export const mobileApi = {
       headers: profileType ? { 'X-Profile-Type': profileType } : undefined,
       cache: 'no-store',
     }),
+  updateWalletPix: (
+    body: { pix_chave: string; pix_tipo: 'cpf' | 'cnpj' | 'email' | 'telefone' | 'aleatoria'; pix_titular?: string | null },
+    accessToken?: string | null,
+    profileType?: string | null,
+  ) =>
+    dropzoneFetch<{ carteira: any }>('/api/me/carteira', {
+      method: 'PATCH',
+      accessToken,
+      headers: profileType ? { 'X-Profile-Type': profileType } : undefined,
+      body: JSON.stringify(body),
+    }),
+  removeWalletPix: (accessToken?: string | null, profileType?: string | null) =>
+    dropzoneFetch<{ carteira: any; removed: boolean }>('/api/me/carteira', {
+      method: 'DELETE',
+      accessToken,
+      headers: profileType ? { 'X-Profile-Type': profileType } : undefined,
+    }),
+  requestWithdrawal: (
+    body: { valor_centavos: number; pix_chave?: string | null; pix_tipo?: string | null; titular_nome?: string | null },
+    accessToken?: string | null,
+    profileType?: string | null,
+  ) =>
+    dropzoneFetch<{ saque: any }>('/api/me/carteira/saque', {
+      method: 'POST',
+      accessToken,
+      headers: profileType ? { 'X-Profile-Type': profileType } : undefined,
+      body: JSON.stringify(body),
+    }),
   receipt: (id: string, tipo: 'pagamento' | 'saque' | 'lancamento', accessToken?: string | null) =>
     dropzoneFetch<{ comprovante: unknown }>(`/api/me/carteira/comprovante/${encodeURIComponent(id)}?tipo=${tipo}`, {
       accessToken,
