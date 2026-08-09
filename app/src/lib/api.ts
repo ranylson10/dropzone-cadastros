@@ -153,10 +153,26 @@ export const mobileApi = {
       body: JSON.stringify(body),
     }),
   agenda: (accessToken?: string | null) =>
-    dropzoneFetch<{ items: unknown[]; setup_required?: boolean }>('/api/agenda?scope=me', {
+    dropzoneFetch<{ items: unknown[]; setup_required?: boolean; range?: any }>('/api/agenda?scope=me', {
       accessToken,
       cache: 'no-store',
     }),
+  agendaScoped: (params:{scope:'me'|'campeonato'|'equipe';scopeId?:string|null;year?:number;month?:number;from?:string;to?:string}, accessToken?:string|null) => {
+    const query = new URLSearchParams()
+    query.set('scope', params.scope)
+    if (params.scopeId) query.set('id', params.scopeId)
+    if (params.year) query.set('year', String(params.year))
+    if (params.month) query.set('month', String(params.month))
+    if (params.from) query.set('from', params.from)
+    if (params.to) query.set('to', params.to)
+    return dropzoneFetch<{items:unknown[];setup_required?:boolean;range?:any;scope:string;scope_id?:string|null}>(`/api/agenda?${query.toString()}`, {accessToken,cache:'no-store'})
+  },
+  createAgendaEvent: (body:Record<string,unknown>, accessToken?:string|null) =>
+    dropzoneFetch<any>('/api/agenda', {method:'POST',accessToken,body:JSON.stringify(body)}),
+  updateAgendaEvent: (id:string, body:Record<string,unknown>, accessToken?:string|null) =>
+    dropzoneFetch<any>('/api/agenda', {method:'PATCH',accessToken,body:JSON.stringify({id,...body})}),
+  deleteAgendaEvent: (id:string, accessToken?:string|null) =>
+    dropzoneFetch<any>(`/api/agenda?id=${encodeURIComponent(id)}`, {method:'DELETE',accessToken}),
   lineups: (accessToken?: string | null) =>
     dropzoneFetch<{ escalacoes: unknown[] }>('/api/equipe/escalacoes', {
       accessToken,
@@ -276,6 +292,12 @@ export const mobileApi = {
   deleteChampionshipStreamOverlay: (id:string, overlayId:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/stream/overlays/${encodeURIComponent(overlayId)}`, {method:'DELETE',accessToken}),
   championshipStreamData: (id:string, sheet:string='context', accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/stream/data?sheet=${encodeURIComponent(sheet)}`, {accessToken,cache:'no-store'}),
   broadcastMe: (accessToken?:string|null) => dropzoneFetch<any>('/api/broadcast/me', {accessToken,cache:'no-store'}),
+  championshipCalls: (id:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls`, {accessToken,cache:'no-store'}),
+  createChampionshipCall: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls`, {method:'POST',accessToken,body:JSON.stringify({action:'create_call',...body})}),
+  assignChampionshipCall: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls`, {method:'POST',accessToken,body:JSON.stringify({action:'assign',...body})}),
+  updateChampionshipCall: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls`, {method:'PATCH',accessToken,body:JSON.stringify(body)}),
+  deleteChampionshipCall: (id:string, callId:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls?call_id=${encodeURIComponent(callId)}`, {method:'DELETE',accessToken}),
+  deleteChampionshipCallAssignment: (id:string, vinculoId:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls?vinculo_id=${encodeURIComponent(vinculoId)}`, {method:'DELETE',accessToken}),
   uploadChampionshipImage: (body:{file_name:string;data_url:string},accessToken?:string|null) => dropzoneFetch<{url:string}>('/api/upload',{method:'POST',accessToken,timeoutMs:60000,body:JSON.stringify({bucket:'campeonato',upload_intent:'create_campeonato',...body})}),
   sellerSales: (managerId: string, accessToken?: string | null) =>
     dropzoneFetch<{ sales: unknown[]; asaas_configured?: boolean; paypal_configured?: boolean }>(`/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
@@ -310,6 +332,22 @@ export const mobileApi = {
   respondNotification: (id: string, action: 'aceitar' | 'recusar', accessToken?: string | null) =>
     dropzoneFetch<{ ok: boolean; mensagem?: string }>(`/api/notificacoes/${encodeURIComponent(id)}/${action}`, {
       method: 'POST',
+      accessToken,
+    }),
+  markAllNotificationsRead: (includeActionable=false, accessToken?:string|null) =>
+    dropzoneFetch<{ok:boolean;setup_required?:boolean}>('/api/notificacoes', {
+      method:'PATCH',
+      body:JSON.stringify({mark_all_read:true,include_actionable:includeActionable}),
+      accessToken,
+    }),
+  archiveNotification: (id:string, accessToken?:string|null) =>
+    dropzoneFetch<{ok:boolean}>(`/api/notificacoes?id=${encodeURIComponent(id)}`, {
+      method:'DELETE',
+      accessToken,
+    }),
+  archiveAllReadNotifications: (accessToken?:string|null) =>
+    dropzoneFetch<{ok:boolean;setup_required?:boolean}>('/api/notificacoes?all_read=1', {
+      method:'DELETE',
       accessToken,
     }),
   lili: (message: string, accessToken?: string | null) =>

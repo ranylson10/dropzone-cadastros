@@ -14,7 +14,6 @@ export const actionableNotificationTypes = new Set([
   'pedido_manager_campeonato',
   'convite_jogador_equipe_direto',
   'pedido_jogador_equipe',
-  'convite_escalacao_jogador',
 ])
 
 export const fallbackNotifications: NotificationItem[] = [
@@ -37,3 +36,23 @@ export const notificationDate = (value?: string) => {
 export const isActionableNotification = (item: NotificationItem) =>
   actionableNotificationTypes.has(String(item.tipo || '')) && String(item.status || '') === 'nao_lida'
 
+
+
+export type NotificationFilter = 'todas' | 'nao_lidas' | 'acoes' | 'lidas'
+
+export const notificationCategory = (item:NotificationItem) => {
+  const type=String(item.tipo||'')
+  if(type.includes('convite')) return 'Convite'
+  if(type.includes('pedido')) return 'Pedido'
+  if(type.includes('escalacao')) return 'Escalação'
+  if(type.includes('campeonato')) return 'Campeonato'
+  if(type.includes('equipe')) return 'Equipe'
+  return 'Aviso'
+}
+
+export const notificationMatchesFilter = (item:NotificationItem, filter:NotificationFilter) => {
+  if(filter==='nao_lidas') return String(item.status)==='nao_lida'
+  if(filter==='lidas') return String(item.status)==='lida'
+  if(filter==='acoes') return isActionableNotification(item)
+  return true
+}

@@ -25,6 +25,7 @@ import { PlayerDashboardScreen } from '@/screens/PlayerDashboardScreen'
 import { PlayerPublicScreen } from '@/screens/PlayerPublicScreen'
 import { RankScreen } from '@/screens/RankScreen'
 import { SellerSalesScreen } from '@/screens/SellerSalesScreen'
+import { GlobalSearchScreen } from '@/screens/GlobalSearchScreen'
 import { TeamDirectoryScreen } from '@/screens/TeamDirectoryScreen'
 import { TeamPublicScreen } from '@/screens/TeamPublicScreen'
 import { TeamCreateScreen } from '@/screens/TeamCreateScreen'
@@ -39,6 +40,7 @@ import { LineupSummary } from '@/lib/lineups'
 
 const PUBLIC_ROUTES = new Set<MobileRoute>([
   'home',
+  'search',
   'vacancies',
   'championship_public',
   'team_directory',
@@ -169,6 +171,7 @@ function DropZoneMobileApp() {
       )
     }
 
+    if (route === 'search') return <GlobalSearchScreen {...screenProps} />
     if (route === 'home') {
       return (
         <HomeScreen

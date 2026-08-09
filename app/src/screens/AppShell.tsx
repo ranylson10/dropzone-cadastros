@@ -1,4 +1,4 @@
-﻿import { ComponentProps, ReactNode, useEffect, useRef, useState } from 'react'
+import { ComponentProps, ReactNode, useEffect, useRef, useState } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Animated, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -20,6 +20,7 @@ const tabs: Array<{ id: TabId; label: string; icon: IconName; iconActive: IconNa
 
 const tabByRoute: Partial<Record<MobileRoute, TabId>> = {
   home: 'home',
+  search: 'home',
   dashboard: 'home',
   profile_management: 'home',
   vacancies: 'championships',
@@ -77,6 +78,15 @@ export function AppShell(props: {
         </TouchableOpacity>
 
         <View style={styles.topActions}>
+          <TouchableOpacity
+            accessibilityLabel="Busca global"
+            hitSlop={8}
+            style={[styles.topActionButton, props.route === 'search' && styles.topActionButtonActive]}
+            onPress={() => props.onNavigate('search')}
+          >
+            <Ionicons name={props.route === 'search' ? 'search' : 'search-outline'} size={24} color={props.route === 'search' ? colors.brand : colors.surface} />
+          </TouchableOpacity>
+
           {props.isAuthenticated ? (
             <TouchableOpacity
               accessibilityLabel="Carteira"

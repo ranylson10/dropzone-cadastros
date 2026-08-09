@@ -28,6 +28,7 @@ export type MobileActionId =
 
 export type MobileRoute =
   | 'home'
+  | 'search'
   | 'vacancies'
   | 'purchase_claim'
   | 'championship_actions'
