@@ -119,16 +119,17 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
     return String(payload.url)
   }
 
-  async function createChampionship() {
+  async function createChampionship(resolvedDraft?: CampeonatoFormValue) {
+    const draft = resolvedDraft || championshipDraft
     if (activeAccount?.profile_type !== 'produtora') {
       setError('Selecione um perfil de produtora para criar campeonatos.')
       return
     }
-    if (!championshipDraft.nome.trim()) {
+    if (!draft.nome.trim()) {
       setError('Informe o nome do campeonato.')
       return
     }
-    if (!championshipDraft.logo_url.trim()) {
+    if (!draft.logo_url.trim()) {
       setError('Envie a logo do campeonato.')
       return
     }
@@ -140,8 +141,8 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
         method: 'POST',
         body: JSON.stringify({
           entity_type: 'championship',
-          name: championshipDraft.nome.trim(),
-          data: championshipDraft,
+          name: draft.nome.trim(),
+          data: draft,
         }),
       })
       setChampionshipDraft({ ...emptyCampeonatoForm })
@@ -552,7 +553,7 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
         </button>
       })}</div>
       <SystemModal open={showCreateChampionship} title="Novo campeonato pela Lili" description="Preencha todas as configurações. Esta opção está disponível somente no perfil de produtora." onClose={() => setShowCreateChampionship(false)} size="wide">
-        <CampeonatoForm value={championshipDraft} onChange={setChampionshipDraft} onSubmit={() => void createChampionship()} onCancel={() => setShowCreateChampionship(false)} loading={creatingChampionship} uploadPublicFile={uploadChampionshipFile} />
+        <CampeonatoForm value={championshipDraft} onChange={setChampionshipDraft} onSubmit={(resolvedDraft) => void createChampionship(resolvedDraft)} onCancel={() => setShowCreateChampionship(false)} loading={creatingChampionship} uploadPublicFile={uploadChampionshipFile} />
       </SystemModal>
     </section>
   )

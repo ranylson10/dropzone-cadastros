@@ -25,9 +25,9 @@ export function ProfileManagementScreen({onNavigate,onSelectPlayer,onSelectTeam}
     try{
       const converted=await ImageManipulator.manipulateAsync(asset.uri,[{resize:{width:800}}],{compress:.86,format:ImageManipulator.SaveFormat.PNG,base64:true})
       if(!converted.base64)throw new Error('Não foi possível preparar a imagem.')
-      const uploaded=await mobileApi.uploadProfileImage({bucket:type,entity_id:account.id,file_name:`${type}-${account.id}.png`,data_url:`data:image/png;base64,${converted.base64}`},auth.session?.access_token)
-      set('imagem')(uploaded.url);setFeedback('Imagem enviada. Toque em salvar para aplicar ao perfil.')
-    }catch(err:any){setError(err?.message||'Não foi possível enviar a imagem.')}finally{setUploading(false)}
+      set('imagem')(`data:image/png;base64,${converted.base64}`)
+      setFeedback('Imagem pronta. Ela será enviada somente ao salvar o perfil.')
+    }catch(err:any){setError(err?.message||'Não foi possível preparar a imagem.')}finally{setUploading(false)}
   }
 
   async function chooseFromGallery(){
@@ -62,8 +62,16 @@ export function ProfileManagementScreen({onNavigate,onSelectPlayer,onSelectTeam}
     if(form.estado.trim()&&form.estado.trim().length>2){setError('Use a sigla do estado com 2 letras.');return}
     if(type==='jogador'&&form.id_jogo.trim()&&!/^\d+$/.test(form.id_jogo.trim())){setError('O ID no jogo deve conter apenas números.');return}
     setSaving(true);setError('');setFeedback('')
+    let imageUrl=form.imagem
+    try{
+      if(imageUrl.startsWith('data:image/')){
+        const uploaded=await mobileApi.uploadProfileImage({bucket:type,entity_id:account.id,file_name:`${type}-${account.id}.png`,data_url:imageUrl},auth.session?.access_token)
+        imageUrl=uploaded.url
+        setForm(current=>({...current,imagem:imageUrl}))
+      }
+    }catch(err:any){setSaving(false);setError(err?.message||'Não foi possível enviar a imagem.');return}
     const body:any={profile_type:type,profile_id:account.id,nome:form.nome,username:form.username,bio:form.bio,pais:form.pais,estado:form.estado,cidade:form.cidade,localidade:form.localidade}
-    body[type==='equipe'||type==='produtora'?'logo_url':'avatar_url']=form.imagem
+    body[type==='equipe'||type==='produtora'?'logo_url':'avatar_url']=imageUrl
     if(type==='equipe')body.tag=form.tag
     if(type==='jogador'){body.id_jogo=form.id_jogo;body.funcao=form.funcao;body.disponivel_recrutamento=form.disponivel_recrutamento}
     if(type==='manager'){body.whatsapp_url=form.whatsapp_url;body.nome_publico_vendas=form.nome_publico_vendas}
@@ -81,7 +89,7 @@ export function ProfileManagementScreen({onNavigate,onSelectPlayer,onSelectTeam}
   }
 
   function openPublic(){if(!account)return;if(type==='jogador')onSelectPlayer?.(account.id);else if(type==='equipe')onSelectTeam?.(account.id)}
-  const image=externalUrl(form.imagem)
+  const image=form.imagem.startsWith('data:image/')?form.imagem:externalUrl(form.imagem)
   return <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS==='ios'?'padding':undefined}><ScrollView style={styles.page} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <View style={styles.header}><TouchableOpacity style={styles.back} onPress={()=>onNavigate('dashboard')}><Ionicons name="arrow-back" size={20} color={colors.surface}/></TouchableOpacity><View><Text style={styles.eyebrow}>GESTÃO DE PERFIL</Text><Text style={styles.title}>{labels[type]}</Text></View></View>
     <View style={styles.photoCard}>{image?<Image source={{uri:image}} style={styles.photo}/>:<View style={[styles.photo,styles.photoFallback]}><Ionicons name={type==='equipe'||type==='produtora'?'shield-outline':'person-outline'} size={34} color={colors.brand}/></View>}<View style={styles.photoCopy}><Text style={styles.blockTitle}>{type==='equipe'||type==='produtora'?'Logo do perfil':'Foto do perfil'}</Text><Text style={styles.hint}>PNG quadrado, até 5 MB.</Text><TouchableOpacity style={styles.imageButton} onPress={chooseImage} disabled={uploading}>{uploading?<ActivityIndicator size="small" color={colors.surface}/>:<><Ionicons name="camera-outline" size={16} color={colors.surface}/><Text style={styles.imageButtonText}>Câmera ou galeria</Text></>}</TouchableOpacity></View></View>

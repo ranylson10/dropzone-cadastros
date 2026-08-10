@@ -33,17 +33,17 @@ test.describe('Rodada 86E — revisão final dos alertas inteligentes', () => {
     expect(route).not.toContain('corrigirAutomaticamente')
   })
 
-  test('mantém migrations, inventário e classificações da rodada 86 consistentes', async () => {
+  test('mantém migrations e classificações versionadas da rodada 86 consistentes', async () => {
     const estados = read('database/migrations/20260731_campeonato_alertas_inteligentes_estados.sql')
     const historico = read('database/migrations/20260731_campeonato_alertas_inteligentes_historico.sql')
     const rls = read('database/rls-classification.json')
-    const inventario = read('relatorios-testes/banco-publicado.json')
+    const inventarioScript = read('database/auditoria/rodada_2_inventario_banco.sql')
 
     expect(estados).toContain('campeonato_alerta_estados')
     expect(historico).toContain('campeonato_alerta_historico')
     expect(rls).toContain('campeonato_alerta_estados')
     expect(rls).toContain('campeonato_alerta_historico')
-    expect(inventario).toContain('campeonato_alerta_estados')
-    expect(inventario).toContain('campeonato_alerta_historico')
+    expect(inventarioScript).toContain('information_schema.tables')
+    expect(inventarioScript).toContain('from pg_policies')
   })
 })

@@ -27,6 +27,7 @@ test.describe('Prazo de escalação por jogo', () => {
     const helper = await readFile(path.join(process.cwd(), 'backend/src/campeonatos/lineup-window.ts'), 'utf8')
     const lineApi = await readFile(path.join(process.cwd(), 'web/app/api/equipes/[id]/lines/[lineId]/route.ts'), 'utf8')
     const tokenApi = await readFile(path.join(process.cwd(), 'web/app/api/escalacoes/[token]/route.ts'), 'utf8')
+    const inviteService = await readFile(path.join(process.cwd(), 'backend/src/campeonatos/player-lineup-invites.ts'), 'utf8')
 
     expect(helper).toContain('resolveLineupWindow')
     expect(helper).toContain('assertPlayerNotInAnotherTeam')
@@ -35,6 +36,8 @@ test.describe('Prazo de escalação por jogo', () => {
     expect(lineApi).toContain('assertLineupWindowOpen')
     expect(lineApi).toContain('assertLineupSwapAllowed')
     expect(tokenApi).toContain('prazo_escalacao')
-    expect(tokenApi).toContain('assertPlayerNotInAnotherTeam')
+    expect(tokenApi).toContain('joinLineupByToken')
+    expect(inviteService).toContain('assertPlayerNotInAnotherTeam')
+    expect(inviteService).toContain('await assertPlayerNotInAnotherTeam')
   })
 })

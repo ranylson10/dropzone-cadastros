@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Field, UploadField } from '@/features/dropzone/components/form-fields'
+import { Field, UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
 
@@ -68,12 +68,15 @@ export function ProfileEditForm(props: {
       const token = data.session?.access_token
       if (!token) throw new Error('Sessão expirada.')
 
+      const resolvedLogo = await resolvePendingImageUpload(logo)
+      if (resolvedLogo !== logo) setLogo(resolvedLogo)
+
       const body: Record<string, unknown> = {
         profile_type: props.profileType,
         profile_id: props.profileId,
         nome: nome.trim(),
         bio: bio.trim(),
-        [logoField]: logo.trim() || null,
+        [logoField]: resolvedLogo.trim() || null,
       }
       if (props.profileType === 'equipe') body.tag = tag.trim() || null
       if (props.profileType === 'manager') {

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
-import { Field, UploadField } from '../../components/form-fields'
+import { Field, UploadField, resolvePendingImageUpload } from '../../components/form-fields'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 
@@ -397,6 +397,8 @@ function EquipeManagerDetail(props: {
     setError('')
     try {
       const headers = await authHeaders()
+      const resolvedLogoUrl = await resolvePendingImageUpload(logoUrl)
+      if (resolvedLogoUrl !== logoUrl) setLogoUrl(resolvedLogoUrl)
       const res = await fetch(`/api/equipes/${encodeURIComponent(props.equipeId)}/lines`, {
         headers,
         cache: 'no-store',
@@ -446,13 +448,15 @@ function EquipeManagerDetail(props: {
     setError('')
     try {
       const headers = await authHeaders()
+      const resolvedLogoUrl = await resolvePendingImageUpload(logoUrl)
+      if (resolvedLogoUrl !== logoUrl) setLogoUrl(resolvedLogoUrl)
       const res = await fetch(`/api/equipes/${encodeURIComponent(props.equipeId)}/lines`, {
         method: editingId ? 'PATCH' : 'POST',
         headers,
         body: JSON.stringify(
           editingId
-            ? { line_id: editingId, nome: nome.trim(), tag: tag.trim() || null, logo_url: logoUrl.trim() || null }
-            : { nome: nome.trim(), tag: tag.trim() || null, logo_url: logoUrl.trim() || props.media || null },
+            ? { line_id: editingId, nome: nome.trim(), tag: tag.trim() || null, logo_url: resolvedLogoUrl.trim() || null }
+            : { nome: nome.trim(), tag: tag.trim() || null, logo_url: resolvedLogoUrl.trim() || props.media || null },
         ),
       })
       const json = await res.json()

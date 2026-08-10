@@ -13,6 +13,8 @@ export type CampeonatoJogoForm = {
   grupos_ids: string[]
   status: string
   classificam_quantidade: string
+  tipo_jogo: 'normal' | 'final'
+  dia_final: string
   define_campeao: boolean
   permite_troca_jogadores: boolean
   prazo_troca_minutos: string

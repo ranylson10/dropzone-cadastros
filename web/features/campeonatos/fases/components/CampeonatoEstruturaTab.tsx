@@ -21,7 +21,7 @@ import { GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { campeonatoEquipesService } from '@/features/campeonatos/equipes/services/campeonato-equipes.service'
 import type { CampeonatoVaga, EquipeBusca } from '@/features/campeonatos/equipes/types/campeonato-equipes.types'
 
-type Fase = { id: string; nome: string; ordem?: number }
+type Fase = { id: string; nome: string; ordem?: number; tipo?: 'normal' | 'grande_final' }
 type Grupo = {
   id: string
   nome: string
@@ -65,6 +65,7 @@ type BulkPhaseDraft = {
   key: string
   nome: string
   ordem: string
+  grandeFinal: boolean
   groupCount: string
   defaultSlots: string
   customizeSlots: boolean
@@ -120,6 +121,7 @@ function createEmptyBulkPhase(ordem: number): BulkPhaseDraft {
     key: newDraftKey(),
     nome: ordem === 1 ? 'Fase de grupos' : `Fase ${ordem}`,
     ordem: String(ordem),
+    grandeFinal: false,
     groupCount: '4',
     defaultSlots,
     customizeSlots: false,
@@ -146,7 +148,7 @@ export function CampeonatoEstruturaTab({
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [openAction, setOpenAction] = useState<'phase' | 'group' | 'bulk' | ''>('')
-  const [phaseForm, setPhaseForm] = useState({ nome: '', ordem: '1' })
+  const [phaseForm, setPhaseForm] = useState({ nome: '', ordem: '1', grandeFinal: false, finalSlots: '12' })
   const [groupForm, setGroupForm] = useState({ nome: 'Grupo A', fase_id: '', slots: '12', whatsapp_url: '' })
   const [bulkPhases, setBulkPhases] = useState<BulkPhaseDraft[]>(() => [createEmptyBulkPhase(1)])
   const [editingPhase, setEditingPhase] = useState<{ id: string; nome: string; ordem: string } | null>(null)
@@ -266,7 +268,16 @@ export function CampeonatoEstruturaTab({
       list.map((phase) => {
         if (phase.key !== key) return phase
         const next = { ...phase, ...patch }
-        if (patch.groupCount != null || patch.defaultSlots != null) {
+        if (patch.grandeFinal === true) {
+          next.nome = next.nome.trim() && next.nome !== 'Fase de grupos' ? next.nome : 'Grande Final'
+          next.groupCount = '1'
+          next.customizeSlots = false
+          next.grupos = [{ key: next.grupos[0]?.key || newDraftKey(), letter: 'FINAL', slots: next.defaultSlots || '12' }]
+        } else if (patch.grandeFinal === false && phase.grandeFinal) {
+          next.groupCount = '4'
+          next.grupos = buildGroupsFromCount(4, next.defaultSlots || '12')
+        }
+        if (!next.grandeFinal && (patch.groupCount != null || patch.defaultSlots != null)) {
           const count = Number(patch.groupCount ?? next.groupCount)
           const slots = String(patch.defaultSlots ?? next.defaultSlots)
           // Ao mudar o padrão sem personalizar, propaga slots para todos os grupos.
@@ -317,9 +328,15 @@ export function CampeonatoEstruturaTab({
           if (!nome) throw new Error(`Informe o nome da fase ${index + 1}.`)
           if (!phase.grupos.length) throw new Error(`A fase "${nome}" precisa de grupos.`)
           return {
-            nome,
+            nome: phase.grandeFinal ? (nome || 'Grande Final') : nome,
             ordem: Number(phase.ordem || index + 1),
-            grupos: phase.grupos.map((g) => ({
+            tipo: phase.grandeFinal ? 'grande_final' : 'normal',
+            grande_final: phase.grandeFinal,
+            final_slots: phase.grandeFinal ? Math.max(1, Math.min(52, Number(phase.defaultSlots || 12))) : undefined,
+            grupos: phase.grandeFinal ? [{
+              nome: 'Grupo da Final',
+              slots: Math.max(1, Math.min(52, Number(phase.defaultSlots || 12))),
+            }] : phase.grupos.map((g) => ({
               nome: `Grupo ${g.letter}`,
               slots: Math.max(1, Math.min(52, Number(g.slots || phase.defaultSlots || 12))),
             })),
@@ -497,7 +514,7 @@ export function CampeonatoEstruturaTab({
               <button
                 type="button"
                 onClick={() => {
-                  setPhaseForm({ nome: '', ordem: String((fasesOrdenadas.at(-1)?.ordem || 0) + 1) })
+                  setPhaseForm({ nome: '', ordem: String((fasesOrdenadas.at(-1)?.ordem || 0) + 1), grandeFinal: false, finalSlots: '12' })
                   setOpenAction('phase')
                   setCreateMenuOpen(false)
                 }}
@@ -582,16 +599,26 @@ export function CampeonatoEstruturaTab({
                       onChange={(e) => updateBulkPhase(phase.key, { ordem: e.target.value })}
                     />
                   </Field>
-                  <Field label="Nº de grupos (A…Z)">
+                  <label className="structure-bulk-customize">
+                    <input
+                      type="checkbox"
+                      checked={phase.grandeFinal}
+                      disabled={bulkPhases.some((item) => item.key !== phase.key && item.grandeFinal)}
+                      onChange={(e) => updateBulkPhase(phase.key, { grandeFinal: e.target.checked })}
+                    />
+                    <span>Grande Final</span>
+                  </label>
+                  <Field label={phase.grandeFinal ? 'Grupo da final' : 'Nº de grupos (A…Z)'}>
                     <input
                       type="number"
                       min={1}
                       max={26}
-                      value={phase.groupCount}
+                      disabled={phase.grandeFinal}
+                      value={phase.grandeFinal ? '1' : phase.groupCount}
                       onChange={(e) => updateBulkPhase(phase.key, { groupCount: e.target.value })}
                     />
                   </Field>
-                  <Field label="Slots por grupo">
+                  <Field label={phase.grandeFinal ? 'Slots da final' : 'Slots por grupo'}>
                     <input
                       type="number"
                       min={1}
@@ -604,6 +631,7 @@ export function CampeonatoEstruturaTab({
                     <input
                       type="checkbox"
                       checked={phase.customizeSlots}
+                      disabled={phase.grandeFinal}
                       onChange={(e) => updateBulkPhase(phase.key, { customizeSlots: e.target.checked })}
                     />
                     <span>Personalizar slots de cada grupo</span>
@@ -612,8 +640,8 @@ export function CampeonatoEstruturaTab({
 
                 <div className="structure-bulk-groups-preview">
                   <small>
-                    Grupos: {phase.grupos.map((g) => g.letter).join(', ')}
-                    {!phase.customizeSlots
+                    {phase.grandeFinal ? 'Grupo da Final' : `Grupos: ${phase.grupos.map((g) => g.letter).join(', ')}`}
+                    {!phase.grandeFinal && !phase.customizeSlots
                       ? ` · ${phase.defaultSlots || 12} slots cada`
                       : null}
                   </small>
@@ -678,6 +706,24 @@ export function CampeonatoEstruturaTab({
               onChange={(e) => setPhaseForm((p) => ({ ...p, ordem: e.target.value }))}
             />
           </Field>
+          <Field label="Tipo da fase">
+            <select
+              value={phaseForm.grandeFinal ? 'grande_final' : 'normal'}
+              onChange={(e) => setPhaseForm((p) => ({
+                ...p,
+                grandeFinal: e.target.value === 'grande_final',
+                nome: e.target.value === 'grande_final' && !p.nome.trim() ? 'Grande Final' : p.nome,
+              }))}
+            >
+              <option value="normal">Fase normal</option>
+              <option value="grande_final" disabled={fases.some((fase) => fase.tipo === 'grande_final')}>Grande Final</option>
+            </select>
+          </Field>
+          {phaseForm.grandeFinal ? (
+            <Field label="Slots do Grupo da Final">
+              <input type="number" min={1} max={52} value={phaseForm.finalSlots} onChange={(e) => setPhaseForm((p) => ({ ...p, finalSlots: e.target.value }))} />
+            </Field>
+          ) : null}
           <div className="button-row">
             <button
               className="button"
@@ -686,8 +732,10 @@ export function CampeonatoEstruturaTab({
               onClick={async () => {
                 const ok = await mutate('POST', {
                   action: 'create_phase',
-                  nome: phaseForm.nome.trim(),
+                  nome: phaseForm.nome.trim() || (phaseForm.grandeFinal ? 'Grande Final' : ''),
                   ordem: Number(phaseForm.ordem || 1),
+                  grande_final: phaseForm.grandeFinal,
+                  final_slots: Number(phaseForm.finalSlots || 12),
                 })
                 if (ok) setOpenAction('')
               }}
@@ -713,7 +761,7 @@ export function CampeonatoEstruturaTab({
               className="button secondary"
               type="button"
               onClick={() => {
-                setPhaseForm({ nome: '', ordem: '1' })
+                setPhaseForm({ nome: '', ordem: '1', grandeFinal: false, finalSlots: '12' })
                 setOpenAction('phase')
               }}
             >
@@ -747,15 +795,16 @@ export function CampeonatoEstruturaTab({
                   {phaseOpen ? <FolderOpen size={20} /> : <Folder size={20} />}
                   <span>
                     <strong>{phase.nome}</strong>
-                    <small>{groupsOfPhase.length} grupos</small>
+                    <small>{phase.tipo === 'grande_final' ? 'Grande Final · Grupo da Final' : `${groupsOfPhase.length} grupos`}</small>
                   </span>
                 </button>
                 {canEdit && phase.id !== 'sem-fase' ? (
                   <div className="folder-actions">
                     <button
                       type="button"
-                      title="Adicionar grupo"
+                      title={phase.tipo === 'grande_final' ? 'A Grande Final usa somente o Grupo da Final' : 'Adicionar grupo'}
                       className="phase-add-group"
+                      disabled={phase.tipo === 'grande_final'}
                       onClick={() => {
                         setEditingGroup(null)
                         setGroupForm({
@@ -830,6 +879,7 @@ export function CampeonatoEstruturaTab({
                               id: phase.id,
                               nome: editingPhase.nome.trim(),
                               ordem: Number(editingPhase.ordem || 1),
+                              grande_final: phase.tipo === 'grande_final',
                             })
                             if (ok) setEditingPhase(null)
                           }}

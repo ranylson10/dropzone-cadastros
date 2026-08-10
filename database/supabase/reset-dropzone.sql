@@ -113,10 +113,15 @@ create table if not exists public.campeonato_fases (
   campeonato_id uuid not null references public.campeonatos(id) on delete cascade,
   nome text not null,
   ordem integer not null default 1,
+  tipo text not null default 'normal' check (tipo in ('normal', 'grande_final')),
   status text not null default 'ativo',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create unique index if not exists campeonato_fases_grande_final_unique
+  on public.campeonato_fases (campeonato_id)
+  where tipo = 'grande_final';
 
 create table if not exists public.campeonato_grupos (
   id uuid primary key default gen_random_uuid(),
@@ -188,6 +193,9 @@ create table if not exists public.campeonato_jogos (
   numero_partidas integer not null default 1,
   mapas text[] not null default '{}',
   grupos_ids uuid[] not null default '{}',
+  tipo_jogo text not null default 'normal' check (tipo_jogo in ('normal', 'final')),
+  dia_final integer check (dia_final is null or dia_final > 0),
+  define_campeao boolean not null default false,
   status text not null default 'ativo',
   escalacao_abre_horas_antes integer,
   escalacao_fecha_horas_antes integer,

@@ -297,19 +297,19 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           <div className="mini-grid four">
             <label><span>Série</span><select value={stage.division_id} onChange={(e) => setStage({ ...stage, division_id: e.target.value })}><option value="">Sem série</option>{data.divisions.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label>
             <label><span>Nome</span><input value={stage.name} onChange={(e) => setStage({ ...stage, name: e.target.value })} placeholder="Qualificatória" /></label>
-            <label><span>Tipo</span><select value={stage.type} onChange={(e) => setStage({ ...stage, type: e.target.value })}><option value="qualificatoria">Qualificatória</option><option value="pontos_corridos">Pontos corridos</option><option value="mata_mata">Mata-mata</option><option value="final">Final</option><option value="outra">Outra</option></select></label>
+            <label><span>Tipo</span><select value={stage.type} onChange={(e) => setStage({ ...stage, type: e.target.value })}><option value="qualificatoria">Qualificatória</option><option value="pontos_corridos">Pontos corridos</option><option value="mata_mata">Mata-mata</option><option value="final">Grande Final</option><option value="outra">Outra</option></select></label>
             <label><span>Formato</span><select value={stage.format} onChange={(e) => setStage({ ...stage, format: e.target.value })}><option value="mata_mata">Mata-mata</option><option value="pontos_corridos">Pontos corridos</option><option value="jogo_unico">Jogo único</option><option value="misto">Misto</option><option value="outro">Outro</option></select></label>
             <label><span>Capacidade</span><input type="number" min="1" value={stage.capacity} onChange={(e) => setStage({ ...stage, capacity: e.target.value })} /></label>
             <label><span>Vagas vendidas</span><input type="number" min="0" value={stage.direct_sales} onChange={(e) => setStage({ ...stage, direct_sales: e.target.value })} /></label>
             <label><span>Valor por vaga</span><input type="number" min="0" step="0.01" value={stage.vacancy_value} onChange={(e) => setStage({ ...stage, vacancy_value: e.target.value })} /></label>
-            <label><span>Classificam</span><input type="number" min="0" value={stage.qualifiers} onChange={(e) => setStage({ ...stage, qualifiers: e.target.value })} /></label>
+            <label><span>{stage.type === 'final' ? 'Destino' : 'Classificam'}</span><input type="number" min="0" disabled={stage.type === 'final'} value={stage.type === 'final' ? '' : stage.qualifiers} onChange={(e) => setStage({ ...stage, qualifiers: e.target.value })} placeholder={stage.type === 'final' ? 'Campeão' : undefined} /></label>
           </div>
           <label className="checkbox-row"><input type="checkbox" checked={stage.awards_mvp} onChange={(e) => setStage({ ...stage, awards_mvp: e.target.checked })} /> Premia MVP nesta etapa</label>
-          <button className="button" disabled={!canManage || busy || !stage.name.trim()} onClick={() => void act({ action: 'create_stage', edition_id: data.edition?.id, ...stage })}><Plus size={15} /> Adicionar etapa</button>
+          <button className="button" disabled={!canManage || busy || !stage.name.trim()} onClick={() => void act({ action: 'create_stage', edition_id: data.edition?.id, ...stage, qualifiers: stage.type === 'final' ? '' : stage.qualifiers })}><Plus size={15} /> Adicionar etapa</button>
           <div className="advanced-stage-list">{data.divisions.concat([{ id: 'geral', nome: 'Sem série' }]).map((divisionRow) => {
             const rows = stagesByDivision.get(String(divisionRow.id)) || []
             if (!rows.length) return null
-            return <div key={divisionRow.id}><strong>{divisionRow.nome}</strong>{rows.map((row) => <article key={row.id}><div><b>{row.nome}</b><small>{row.tipo} · {row.formato} · {row.capacidade_total || 0} vagas · {row.vagas_venda_direta || 0} vendidas</small></div><button className="icon-action-button danger" onClick={() => void act({ action: 'delete', table: 'campeonato_etapas', row_id: row.id })}><Trash2 size={14} /></button></article>)}</div>
+            return <div key={divisionRow.id}><strong>{divisionRow.nome}</strong>{rows.map((row) => <article key={row.id}><div><b>{row.nome}</b><small>{row.tipo === 'final' ? 'Grande Final' : row.tipo} · {row.formato} · {row.capacidade_total || 0} vagas · {row.vagas_venda_direta || 0} vendidas</small></div><button className="icon-action-button danger" onClick={() => void act({ action: 'delete', table: 'campeonato_etapas', row_id: row.id })}><Trash2 size={14} /></button></article>)}</div>
           })}</div>
         </section>
 

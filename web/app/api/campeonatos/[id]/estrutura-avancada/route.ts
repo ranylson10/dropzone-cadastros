@@ -96,7 +96,7 @@ async function loadStructure(campeonatoId: string) {
     supabaseAdmin.from('campeonato_etapas').select('*').eq('edicao_id', edition.id).order('ordem'),
     supabaseAdmin.from('campeonato_diario_horarios').select('*').eq('campeonato_id', campeonatoId).order('horario'),
     supabaseAdmin.from('campeonato_equipes').select('id,nome_exibicao,equipe_id,line_id,status,equipes(nome,tag,logo_url),equipe_lines(nome,tag,logo_url)').eq('campeonato_id', campeonatoId).eq('status', 'ativo').order('created_at'),
-    supabaseAdmin.from('campeonato_fases').select('id,nome,ordem,status,etapa_id').eq('campeonato_id', campeonatoId).order('ordem'),
+    supabaseAdmin.from('campeonato_fases').select('id,nome,ordem,tipo,status,etapa_id').eq('campeonato_id', campeonatoId).order('ordem'),
     supabaseAdmin.from('campeonato_grupos').select('id,nome,fase_id,slots,diario_horario_id').eq('campeonato_id', campeonatoId).order('nome'),
     supabaseAdmin.from('campeonato_slots').select('id,fase_id,grupo_id,slot_numero,slot_letra,status,equipe_id,line_id').eq('campeonato_id', campeonatoId).order('slot_numero'),
     supabaseAdmin.from('campeonato_grupo_escolha_configuracoes').select('*').eq('campeonato_id', campeonatoId),
@@ -453,18 +453,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } else if (action === 'create_stage') {
       const editionId = text(body?.edition_id)
       const name = text(body?.name)
+      const stageType = text(body?.type || 'outra', 30)
       if (!editionId || !name) throw new Error('Edição e nome da etapa são obrigatórios.')
+      if (stageType === 'final') {
+        const { data: existingFinal, error: existingFinalError } = await supabaseAdmin
+          .from('campeonato_etapas')
+          .select('id,nome')
+          .eq('edicao_id', editionId)
+          .eq('tipo', 'final')
+          .maybeSingle()
+        if (existingFinalError) throw existingFinalError
+        if (existingFinal) throw new Error(`Esta edição já possui a Grande Final "${existingFinal.nome}".`)
+      }
       const { error } = await supabaseAdmin.from('campeonato_etapas').insert({
         edicao_id: editionId,
         divisao_id: nullableText(body?.division_id, 50),
         nome: name,
         ordem: positiveInt(body?.order, false) || 1,
-        tipo: text(body?.type || 'outra', 30),
+        tipo: stageType,
         formato: text(body?.format || 'outro', 30),
         capacidade_total: positiveInt(body?.capacity),
         vagas_venda_direta: positiveInt(body?.direct_sales, false),
         valor_vaga: money(body?.vacancy_value),
-        classificam_quantidade: positiveInt(body?.qualifiers),
+        classificam_quantidade: stageType === 'final' ? null : positiveInt(body?.qualifiers),
         premiacao_descricao: nullableText(body?.prize_description, 500),
         premiacao_valor: money(body?.prize_value),
         premia_mvp: Boolean(body?.awards_mvp),

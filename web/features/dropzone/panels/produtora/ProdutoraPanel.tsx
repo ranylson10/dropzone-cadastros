@@ -68,7 +68,7 @@ export function ProdutoraPanel(props: {
   setSlotAssignment: (value: any) => void
   game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string[]; grupos_ids: string[] }
   setGame: (value: any) => void
-  createChampionship: () => Promise<boolean | DropZoneRow>
+  createChampionship: (data?: CampeonatoFormValue) => Promise<boolean | DropZoneRow>
   updateChampionship: (id: string, data: CampeonatoFormValue) => Promise<DropZoneRow | undefined>
   deleteChampionship: (id: string) => Promise<void>
   updateStructure: (entityType: 'phase' | 'group' | 'group_slot' | 'registration_link', id: string, data: Record<string, unknown>) => Promise<void>
@@ -1377,13 +1377,13 @@ ${params.url}`
         <CampeonatoForm
           value={props.championship}
           onChange={props.setChampionship}
-          onSubmit={async () => {
-            const created = await props.createChampionship()
+          onSubmit={async (resolvedChampionship) => {
+            const created = await props.createChampionship(resolvedChampionship)
             if (created && typeof created !== 'boolean') {
               props.setSelectedChampId(created.id)
               try {
-                await saveCreationEdition(created.id, props.championship)
-                await createInitialPhases(created.id, props.championship)
+                await saveCreationEdition(created.id, resolvedChampionship)
+                await createInitialPhases(created.id, resolvedChampionship)
               } catch (error) {
                 setPayMsg(error instanceof Error ? error.message : 'Campeonato criado, mas a temporada não foi salva.')
               }
@@ -1461,8 +1461,8 @@ ${params.url}`
           mode="edit"
           value={editingChamp}
           onChange={setEditingChamp}
-          onSubmit={async () => {
-            const updated = await props.updateChampionship(editingChampId, editingChamp)
+          onSubmit={async (resolvedChampionship) => {
+            const updated = await props.updateChampionship(editingChampId, resolvedChampionship)
             if (updated) setEditingChampId('')
           }}
           onCancel={() => setEditingChampId('')}

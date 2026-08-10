@@ -49,6 +49,40 @@ function normalizeSlotLetter(value: unknown) {
   return label
 }
 
+async function criarGrupoDaFinal(campeonatoId: string, faseId: string, slotsCount: number) {
+  const slotsFinal = Math.max(1, Math.min(52, Number(slotsCount || 12)))
+  const { data: grupo, error: groupError } = await supabaseAdmin
+    .from('campeonato_grupos')
+    .insert({
+      campeonato_id: campeonatoId,
+      fase_id: faseId,
+      nome: 'Grupo da Final',
+      slots: slotsFinal,
+      whatsapp_url: null,
+    })
+    .select('*')
+    .single()
+  if (groupError) throw groupError
+
+  const additions = Array.from({ length: slotsFinal }, (_, offset) => {
+    const number = offset + 1
+    return {
+      campeonato_id: campeonatoId,
+      fase_id: faseId,
+      grupo_id: grupo.id,
+      slot_numero: number,
+      slot_letra: slotLetterFromNumber(number),
+      status: 'livre',
+    }
+  })
+  const { error: slotsError } = await supabaseAdmin.from('campeonato_slots').insert(additions)
+  if (slotsError) {
+    await supabaseAdmin.from('campeonato_grupos').delete().eq('id', grupo.id)
+    throw slotsError
+  }
+  return grupo
+}
+
 async function loadStructure(campeonatoId: string) {
   const [
     { data: campeonato, error: campError },
@@ -66,7 +100,7 @@ async function loadStructure(campeonatoId: string) {
       .maybeSingle(),
     supabaseAdmin
       .from('campeonato_fases')
-      .select('id,nome,ordem,status,created_at')
+      .select('id,nome,ordem,tipo,status,created_at')
       .eq('campeonato_id', campeonatoId)
       .order('ordem', { ascending: true }),
     supabaseAdmin
@@ -81,7 +115,7 @@ async function loadStructure(campeonatoId: string) {
       .order('slot_numero', { ascending: true }),
     supabaseAdmin
       .from('campeonato_jogos')
-      .select('id,nome,fase_id,rodada_id,data_jogo,horario,numero_partidas,mapas,grupos_ids,status,created_at')
+      .select('id,nome,fase_id,rodada_id,data_jogo,horario,numero_partidas,mapas,grupos_ids,tipo_jogo,dia_final,define_campeao,status,created_at')
       .eq('campeonato_id', campeonatoId)
       .order('created_at', { ascending: true }),
     supabaseAdmin
@@ -250,22 +284,43 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const action = String(body.action || '')
 
     if (action === 'create_phase') {
-      const nome = String(body.nome || '').trim()
+      const grandeFinal = Boolean(body.grande_final || body.tipo === 'grande_final')
+      const nomeInformado = String(body.nome || '').trim()
+      const nome = grandeFinal ? (nomeInformado || 'Grande Final') : nomeInformado
       const ordem = Number(body.ordem || 1)
       if (!nome) throw new Error('Informe o nome da fase.')
+      if (grandeFinal) {
+        const { data: existente, error: finalError } = await supabaseAdmin
+          .from('campeonato_fases')
+          .select('id,nome')
+          .eq('campeonato_id', campeonatoId)
+          .eq('tipo', 'grande_final')
+          .maybeSingle()
+        if (finalError) throw finalError
+        if (existente) throw new Error(`Este campeonato já possui a Grande Final "${existente.nome}".`)
+      }
       const { data, error } = await supabaseAdmin
         .from('campeonato_fases')
         .insert({
           campeonato_id: campeonatoId,
           nome,
           ordem: Number.isFinite(ordem) ? ordem : 1,
+          tipo: grandeFinal ? 'grande_final' : 'normal',
           status: 'ativo',
         })
         .select('*')
         .single()
-      if (error?.code === '23505') throw new Error('Já existe uma fase com esse nome neste campeonato.')
+      if (error?.code === '23505') throw new Error(grandeFinal ? 'Este campeonato já possui uma Grande Final.' : 'Já existe uma fase com esse nome neste campeonato.')
       if (error) throw error
-      return NextResponse.json({ ok: true, fase: data })
+      if (!grandeFinal) return NextResponse.json({ ok: true, fase: data })
+
+      try {
+        const grupo = await criarGrupoDaFinal(campeonatoId, data.id, Number(body.final_slots || 12))
+        return NextResponse.json({ ok: true, fase: data, grupo })
+      } catch (groupError) {
+        await supabaseAdmin.from('campeonato_fases').delete().eq('id', data.id)
+        throw groupError
+      }
     }
 
     if (action === 'create_group') {
@@ -278,11 +333,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
       const { data: fase } = await supabaseAdmin
         .from('campeonato_fases')
-        .select('id')
+        .select('id,tipo')
         .eq('id', faseId)
         .eq('campeonato_id', campeonatoId)
         .maybeSingle()
       if (!fase) throw new Error('Fase não encontrada neste campeonato.')
+      if (String((fase as any).tipo || 'normal') === 'grande_final') {
+        throw new Error('A Grande Final usa somente o "Grupo da Final", criado automaticamente com a fase.')
+      }
 
       await assertPodeCriarSlots(campeonatoId, slotsCount, { faseId })
 
@@ -327,14 +385,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       if (!rawFases.length) throw new Error('Informe ao menos uma fase.')
 
       type BulkGrupo = { nome: string; slots: number; whatsapp_url: string | null }
-      type BulkFase = { nome: string; ordem: number; grupos: BulkGrupo[] }
+      type BulkFase = { nome: string; ordem: number; tipo: 'normal' | 'grande_final'; grupos: BulkGrupo[] }
 
       const fasesPlan: BulkFase[] = rawFases.map((raw: any, phaseIndex: number) => {
-        const nome = String(raw?.nome || '').trim()
+        const grandeFinal = Boolean(raw?.grande_final || raw?.tipo === 'grande_final')
+        const nomeInformado = String(raw?.nome || '').trim()
+        const nome = grandeFinal ? (nomeInformado || 'Grande Final') : nomeInformado
         if (!nome) throw new Error(`Informe o nome da fase ${phaseIndex + 1}.`)
         const ordemRaw = Number(raw?.ordem)
         const ordem = Number.isFinite(ordemRaw) ? ordemRaw : phaseIndex + 1
-        const rawGrupos = Array.isArray(raw?.grupos) ? raw.grupos : []
+        const rawGrupos = grandeFinal
+          ? [{ nome: 'Grupo da Final', slots: raw?.final_slots || raw?.grupos?.[0]?.slots || 12 }]
+          : (Array.isArray(raw?.grupos) ? raw.grupos : [])
         if (!rawGrupos.length) {
           throw new Error(`A fase "${nome}" precisa de ao menos um grupo.`)
         }
@@ -344,10 +406,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
         const grupos: BulkGrupo[] = rawGrupos.map((g: any, groupIndex: number) => {
           const letter = String.fromCharCode(65 + groupIndex)
-          const groupName = String(g?.nome || `Grupo ${letter}`).trim()
+          const groupName = grandeFinal ? 'Grupo da Final' : String(g?.nome || `Grupo ${letter}`).trim()
           if (!groupName) throw new Error(`Informe o nome do grupo ${groupIndex + 1} da fase "${nome}".`)
           const slots = Math.max(1, Math.min(52, Number(g?.slots || 12)))
-          const whatsapp = String(g?.whatsapp_url || '').trim() || null
+          const whatsapp = grandeFinal ? null : (String(g?.whatsapp_url || '').trim() || null)
           return { nome: groupName, slots, whatsapp_url: whatsapp }
         })
 
@@ -356,21 +418,27 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           throw new Error(`Há nomes de grupo repetidos na fase "${nome}".`)
         }
 
-        return { nome, ordem, grupos }
+        return { nome, ordem, tipo: grandeFinal ? 'grande_final' : 'normal', grupos }
       })
 
       const phaseNames = fasesPlan.map((f) => f.nome.toLowerCase())
       if (new Set(phaseNames).size !== phaseNames.length) {
         throw new Error('Há nomes de fase repetidos no formulário.')
       }
+      if (fasesPlan.filter((fase) => fase.tipo === 'grande_final').length > 1) {
+        throw new Error('O campeonato pode ter somente uma Grande Final.')
+      }
 
       // Conflito com fases já existentes
       const { data: existingPhases, error: existingError } = await supabaseAdmin
         .from('campeonato_fases')
-        .select('id,nome,ordem')
+        .select('id,nome,ordem,tipo')
         .eq('campeonato_id', campeonatoId)
       if (existingError) throw existingError
       const existingNames = new Set((existingPhases || []).map((p) => String(p.nome || '').toLowerCase()))
+      if ((existingPhases || []).some((fase: any) => fase.tipo === 'grande_final') && fasesPlan.some((fase) => fase.tipo === 'grande_final')) {
+        throw new Error('Este campeonato já possui uma Grande Final.')
+      }
       for (const fase of fasesPlan) {
         if (existingNames.has(fase.nome.toLowerCase())) {
           throw new Error(`Já existe uma fase chamada "${fase.nome}" neste campeonato.`)
@@ -408,6 +476,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
               campeonato_id: campeonatoId,
               nome: fasePlan.nome,
               ordem: fasePlan.ordem,
+              tipo: fasePlan.tipo,
               status: 'ativo',
             })
             .select('*')
@@ -505,12 +574,32 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     if (entity === 'phase') {
       const nome = String(body.nome || '').trim()
       const ordem = Number(body.ordem || 1)
+      const grandeFinal = Boolean(body.grande_final || body.tipo === 'grande_final')
       if (!nome) throw new Error('Informe o nome da fase.')
+      if (grandeFinal) {
+        const { data: outraFinal, error: finalError } = await supabaseAdmin
+          .from('campeonato_fases')
+          .select('id')
+          .eq('campeonato_id', campeonatoId)
+          .eq('tipo', 'grande_final')
+          .neq('id', entityId)
+          .maybeSingle()
+        if (finalError) throw finalError
+        if (outraFinal) throw new Error('Este campeonato já possui uma Grande Final.')
+        const { count, error: groupCountError } = await supabaseAdmin
+          .from('campeonato_grupos')
+          .select('id', { count: 'exact', head: true })
+          .eq('campeonato_id', campeonatoId)
+          .eq('fase_id', entityId)
+        if (groupCountError) throw groupCountError
+        if ((count || 0) > 1) throw new Error('Para transformar esta fase em Grande Final, deixe somente um grupo nela.')
+      }
       const { data, error } = await supabaseAdmin
         .from('campeonato_fases')
         .update({
           nome,
           ordem: Number.isFinite(ordem) ? ordem : 1,
+          tipo: grandeFinal ? 'grande_final' : 'normal',
           updated_at: new Date().toISOString(),
         })
         .eq('id', entityId)

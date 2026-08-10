@@ -5,7 +5,7 @@ import { ClipboardList, Loader2, Pencil, Send, Trophy, Users, X } from 'lucide-r
 import { supabase } from '@/lib/supabase-browser'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
-import { Field, LocationSearch, UploadField } from './components/form-fields'
+import { Field, LocationSearch, UploadField, resolvePendingImageUpload } from './components/form-fields'
 import { adminProfileIcon, profileIcons } from './components/profile-icons'
 import { EquipePanel } from './panels/equipe/EquipePanel'
 import { JogadorPanel } from './panels/jogador/JogadorPanel'
@@ -188,6 +188,8 @@ export function DropZoneHome() {
     rodada: '',
     intervalo_minutos: '25',
     classificam_quantidade: '',
+    tipo_jogo: 'normal' as 'normal' | 'final',
+    dia_final: '1',
     define_campeao: false,
   })
   const [registrationLink, setRegistrationLink] = useState({
@@ -946,6 +948,8 @@ export function DropZoneHome() {
 
       const endpoint = mode === 'criar' ? '/api/auth/register' : '/api/auth/login'
       const token = linkingProfile ? await getToken() : ''
+      const resolvedMediaUrl = mode === 'criar' ? await resolvePendingImageUpload(mediaUrl) : mediaUrl
+      if (resolvedMediaUrl !== mediaUrl) setMediaUrl(resolvedMediaUrl)
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? authHeaders(token, profileType) : {}) },
@@ -955,7 +959,7 @@ export function DropZoneHome() {
           login: clean,
           name,
           email,
-          media_url: mediaUrl,
+          media_url: resolvedMediaUrl,
           password,
           confirm_password: confirmPassword,
           verification_code: verificationCode,
@@ -1105,17 +1109,18 @@ export function DropZoneHome() {
     setMessage(`Token copiado: ${value}`)
   }
 
-  async function createChampionship() {
-    if (!championship.nome.trim()) {
+  async function createChampionship(resolvedDraft?: CampeonatoFormValue) {
+    const draft = resolvedDraft || championship
+    if (!draft.nome.trim()) {
       setError('Informe o nome do campeonato.')
       return false
     }
-    if (!championship.logo_url.trim()) {
+    if (!draft.logo_url.trim()) {
       setError('Envie a logo do campeonato.')
       return false
     }
     const created = await createRow(
-      { entity_type: 'championship', name: championship.nome, data: championship },
+      { entity_type: 'championship', name: draft.nome, data: draft },
       'Campeonato criado. Escolha pagar online com PIX ou aguardar liberaÃ§Ã£o do admin.',
     )
     if (!created) return false
@@ -1349,6 +1354,9 @@ export function DropZoneHome() {
           escalacao_abre_horas_antes: Number(game.escalacao_abre_horas_antes || 0),
           escalacao_fecha_horas_antes: Number(game.escalacao_fecha_horas_antes || 0),
           minimo_quedas_jogadas_jogador: Number(game.minimo_partidas_jogadas_jogador || 0),
+          tipo_jogo: game.tipo_jogo,
+          dia_final: game.tipo_jogo === 'final' ? Number(game.dia_final || 1) : null,
+          define_campeao: game.tipo_jogo === 'final' ? Boolean(game.define_campeao) : false,
           status: game.status || 'agendado',
           multiplicador_abates_ultima_queda: 1,
         }),
@@ -1362,7 +1370,7 @@ export function DropZoneHome() {
         permite_troca_jogadores: true, prazo_troca_minutos: '60', prazo_escalacao_minutos: '120',
         escalacao_abre_horas_antes: '24', escalacao_fecha_horas_antes: '2',
         minimo_partidas_jogadas_jogador: '0', status: 'agendado', rodada: '',
-        intervalo_minutos: '25', classificam_quantidade: '', define_campeao: false,
+        intervalo_minutos: '25', classificam_quantidade: '', tipo_jogo: 'normal', dia_final: '1', define_campeao: false,
       })
       setMessage('Jogo criado com sucesso.')
       return true
@@ -1413,6 +1421,9 @@ export function DropZoneHome() {
           escalacao_abre_horas_antes: Number(game.escalacao_abre_horas_antes || 0),
           escalacao_fecha_horas_antes: Number(game.escalacao_fecha_horas_antes || 0),
           minimo_quedas_jogadas_jogador: Number(game.minimo_partidas_jogadas_jogador || 0),
+          tipo_jogo: game.tipo_jogo,
+          dia_final: game.tipo_jogo === 'final' ? Number(game.dia_final || 1) : null,
+          define_campeao: game.tipo_jogo === 'final' ? Boolean(game.define_campeao) : false,
           status: game.status || 'agendado',
         }),
       })

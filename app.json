@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "44f26990-0387-478a-ac96-a241bb5472ee"
+      }
+    },
+    "android": {
+      "package": "com.ranilson.dropzoneplatform"
+    }
+  }
+}

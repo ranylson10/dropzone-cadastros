@@ -18,6 +18,35 @@ function uploadTargetFor(bucket: string) {
   return uploadTargets[bucket as keyof typeof uploadTargets] || { width: 500, height: 500, kindLabel: 'imagem' }
 }
 
+
+type PendingImageUpload = {
+  file: File
+  bucket: string
+  upload: (file: File, bucket: string) => Promise<string>
+}
+
+const pendingImageUploads = new Map<string, PendingImageUpload>()
+
+export function isPendingImageUpload(value: string) {
+  return pendingImageUploads.has(value)
+}
+
+export function discardPendingImageUpload(value: string) {
+  if (!pendingImageUploads.has(value)) return
+  pendingImageUploads.delete(value)
+  URL.revokeObjectURL(value)
+}
+
+export async function resolvePendingImageUpload(value: string) {
+  const pending = pendingImageUploads.get(value)
+  if (!pending) return value
+  const url = await pending.upload(pending.file, pending.bucket)
+  if (!url) throw new Error('Upload não retornou URL da imagem.')
+  pendingImageUploads.delete(value)
+  URL.revokeObjectURL(value)
+  return url
+}
+
 const BRAZIL_LOCATIONS = [
   { cidade: 'Belém', estado: 'PA', pais: 'Brasil' },
   { cidade: 'Ananindeua', estado: 'PA', pais: 'Brasil' },
@@ -245,13 +274,14 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
       if (!blob) throw new Error('Nao foi possivel gerar o PNG final.')
       const croppedFile = new File([blob], `${bucket}-${Date.now()}.png`, { type: 'image/png' })
-      const url = await onUpload(croppedFile, bucket)
-      if (!url) throw new Error('Upload não retornou URL da imagem.')
-      onChange(url)
+      if (isPendingImageUpload(value)) discardPendingImageUpload(value)
+      const previewUrl = URL.createObjectURL(croppedFile)
+      pendingImageUploads.set(previewUrl, { file: croppedFile, bucket, upload: onUpload })
+      onChange(previewUrl)
       closeCropper()
     } catch (error: any) {
       console.error(error)
-      setCropError(error?.message || 'Erro ao salvar a imagem. Tente novamente.')
+      setCropError(error?.message || 'Erro ao preparar a imagem. Tente novamente.')
     } finally {
       setUploading(false)
     }
@@ -272,7 +302,7 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
         </label>
         <div className="upload-hint-row">
           <small>{target.kindLabel.toUpperCase()} · PNG · {target.width}x{target.height}</small>
-          {value ? <button type="button" className="inline-icon-button" onClick={() => onChange('')}><Trash2 size={15} /> Remover</button> : null}
+          {value ? <button type="button" className="inline-icon-button" onClick={() => { discardPendingImageUpload(value); onChange('') }}><Trash2 size={15} /> Remover</button> : null}
         </div>
 
         {cropOpen && typeof document !== 'undefined' ? createPortal(
@@ -309,7 +339,7 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
               {cropError ? <p className="message error" style={{ margin: '0 0 10px' }}>{cropError}</p> : null}
               <div className="button-row cropper-actions">
                 <button type="button" className="button secondary" onClick={closeCropper} disabled={uploading}>Cancelar</button>
-                <button type="button" className="button" onClick={() => void handleSaveCrop()} disabled={uploading}><Check size={16} /> {uploading ? 'Salvando...' : 'Usar imagem'}</button>
+                <button type="button" className="button" onClick={() => void handleSaveCrop()} disabled={uploading}><Check size={16} /> {uploading ? 'Preparando...' : 'Usar imagem'}</button>
               </div>
             </div>
           </div>, document.body

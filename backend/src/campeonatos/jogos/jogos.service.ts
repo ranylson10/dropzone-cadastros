@@ -37,6 +37,9 @@ export type JogoInput = {
   escalacao_abre_horas_antes?: number | null
   escalacao_fecha_horas_antes?: number | null
   minimo_quedas_jogadas_jogador?: number
+  tipo_jogo?: 'normal' | 'final'
+  dia_final?: number | null
+  define_campeao?: boolean
   status?: string
 }
 
@@ -157,7 +160,7 @@ async function normalizeQuedasMapas(
 async function assertCampeonatoFase(campeonatoId: string, faseId: string) {
   const { data, error } = await supabaseAdmin
     .from('campeonato_fases')
-    .select('id, campeonato_id, nome')
+    .select('id, campeonato_id, nome, tipo')
     .eq('id', faseId)
     .eq('campeonato_id', campeonatoId)
     .maybeSingle()
@@ -241,6 +244,9 @@ async function sanitizeJogoInput(input: Partial<JogoInput>, existing?: any): Pro
     escalacao_abre_horas_antes: abreHoras,
     escalacao_fecha_horas_antes: fechaHoras,
     minimo_quedas_jogadas_jogador: positiveInt(input.minimo_quedas_jogadas_jogador ?? existing?.minimo_quedas_jogadas_jogador ?? 0, 'Mínimo de quedas jogadas', { allowZero: true }) as number,
+    tipo_jogo: (input.tipo_jogo ?? existing?.tipo_jogo ?? 'normal') as JogoInput['tipo_jogo'],
+    dia_final: positiveInt(input.dia_final ?? existing?.dia_final, 'Dia da final', { nullable: true }),
+    define_campeao: Boolean(input.define_campeao ?? existing?.define_campeao ?? false),
     status: String(input.status ?? existing?.status ?? 'ativo').trim() || 'ativo',
   }
 }
@@ -328,7 +334,13 @@ export async function obterJogo(campeonatoId: string, jogoId: string) {
 
 export async function criarJogo(campeonatoId: string, input: Partial<JogoInput>) {
   const payload = await sanitizeJogoInput(input)
-  await assertCampeonatoFase(campeonatoId, payload.fase_id)
+  const fase = await assertCampeonatoFase(campeonatoId, payload.fase_id)
+  if (String((fase as any).tipo || 'normal') === 'grande_final') payload.tipo_jogo = 'final'
+  if (payload.tipo_jogo === 'final' && String((fase as any).tipo || 'normal') !== 'grande_final') {
+    throw new Error('Jogos de final precisam estar vinculados à fase Grande Final.')
+  }
+  if (payload.tipo_jogo === 'final') payload.dia_final = payload.dia_final || 1
+  else { payload.dia_final = null; payload.define_campeao = false }
   await assertRodadaContexto(campeonatoId, payload.fase_id, payload.rodada_id)
   await assertGruposDaFase(campeonatoId, payload.fase_id, payload.grupos_ids)
 
@@ -371,7 +383,13 @@ export async function atualizarJogo(campeonatoId: string, jogoId: string, input:
     ...atual,
     grupos_ids: (relacoes || []).map((item) => item.grupo_id),
   })
-  await assertCampeonatoFase(campeonatoId, payload.fase_id)
+  const fase = await assertCampeonatoFase(campeonatoId, payload.fase_id)
+  if (String((fase as any).tipo || 'normal') === 'grande_final') payload.tipo_jogo = 'final'
+  if (payload.tipo_jogo === 'final' && String((fase as any).tipo || 'normal') !== 'grande_final') {
+    throw new Error('Jogos de final precisam estar vinculados à fase Grande Final.')
+  }
+  if (payload.tipo_jogo === 'final') payload.dia_final = payload.dia_final || 1
+  else { payload.dia_final = null; payload.define_campeao = false }
   await assertRodadaContexto(campeonatoId, payload.fase_id, payload.rodada_id)
   await assertGruposDaFase(campeonatoId, payload.fase_id, payload.grupos_ids)
 

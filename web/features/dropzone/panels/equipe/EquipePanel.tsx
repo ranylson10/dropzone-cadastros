@@ -5,7 +5,7 @@ import { CalendarDays, ChevronDown, ChevronRight, Copy, Link2, Loader2, Medal, P
 import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
-import { Field, UploadField } from '../../components/form-fields'
+import { Field, UploadField, resolvePendingImageUpload } from '../../components/form-fields'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { dataText, rowTitle } from '../../utils'
@@ -987,6 +987,8 @@ function EquipeLinesEditor(props: {
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
       if (!token) throw new Error('Sessão expirada.')
+      const resolvedLogoUrl = await resolvePendingImageUpload(logoUrl)
+      if (resolvedLogoUrl !== logoUrl) setLogoUrl(resolvedLogoUrl)
       const res = await fetch(`/api/equipes/${teamId}/lines`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
@@ -1027,13 +1029,15 @@ function EquipeLinesEditor(props: {
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
       if (!token) throw new Error('Sessão expirada.')
+      const resolvedLogoUrl = await resolvePendingImageUpload(logoUrl)
+      if (resolvedLogoUrl !== logoUrl) setLogoUrl(resolvedLogoUrl)
       const res = await fetch(`/api/equipes/${teamId}/lines`, {
         method: editingId ? 'PATCH' : 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(
           editingId
-            ? { line_id: editingId, nome: nome.trim(), tag: tag.trim() || null, logo_url: logoUrl.trim() || null }
-            : { nome: nome.trim(), tag: tag.trim() || null, logo_url: logoUrl.trim() || teamLogo || null },
+            ? { line_id: editingId, nome: nome.trim(), tag: tag.trim() || null, logo_url: resolvedLogoUrl.trim() || null }
+            : { nome: nome.trim(), tag: tag.trim() || null, logo_url: resolvedLogoUrl.trim() || teamLogo || null },
         ),
       })
       const json = await res.json()

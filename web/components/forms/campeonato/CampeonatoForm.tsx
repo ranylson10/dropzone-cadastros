@@ -5,7 +5,7 @@ import { ArrowLeft, CalendarDays, CreditCard, Dumbbell, Medal, MessageCircle, Pl
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
 import type { DropZoneRow } from '@/lib/types'
 import { championshipThemeStyle } from '@/lib/championship-theme'
-import { Field, UploadField } from '@/features/dropzone/components/form-fields'
+import { Field, UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
 import { PremiacaoDivisaoEditor } from './PremiacaoDivisaoEditor'
 
 export type CampeonatoFormValue = {
@@ -227,7 +227,7 @@ export function CampeonatoForm({
 }: {
   value: CampeonatoFormValue
   onChange: (value: CampeonatoFormValue) => void
-  onSubmit: () => void
+  onSubmit: (resolvedValue: CampeonatoFormValue) => void | Promise<void>
   onCancel?: () => void
   loading: boolean
   mode?: 'create' | 'edit'
@@ -497,6 +497,17 @@ export function CampeonatoForm({
 
   function removeLeagueDivision(id: string) {
     update('liga_divisoes', value.liga_divisoes.filter((division) => division.id !== id).map((division, index) => ({ ...division, ordem: index + 1 })))
+  }
+
+  async function submitWithImages() {
+    const resolvedValue: CampeonatoFormValue = {
+      ...value,
+      logo_url: await resolvePendingImageUpload(value.logo_url),
+      banner_url: await resolvePendingImageUpload(value.banner_url),
+      bg_image_url: await resolvePendingImageUpload(value.bg_image_url),
+    }
+    onChange(resolvedValue)
+    await onSubmit(resolvedValue)
   }
 
   if (step === 'type') {
@@ -1183,7 +1194,7 @@ export function CampeonatoForm({
         {mode === 'create' && formPage !== 'review' ? (
           <button className="button" type="button" onClick={goNext} disabled={loading || (formPage === 'origin' && value.origem_criacao !== 'novo' && !value.campeonato_origem_id) || (formPage === 'identity' && (!value.nome.trim() || !value.logo_url))}>Continuar</button>
         ) : (
-          <button className="button" type="button" onClick={onSubmit} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
+          <button className="button" type="button" onClick={() => void submitWithImages()} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
         )}
         {onCancel ? <button className="button secondary" type="button" onClick={onCancel} disabled={loading}>Cancelar</button> : null}
       </div>
