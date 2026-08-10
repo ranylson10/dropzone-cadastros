@@ -4,7 +4,7 @@ import { Animated, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { externalUrl } from '@/config/env'
 import { MobileAccount } from '@/lib/auth'
-import { colors, spacing, typography } from '@/theme/tokens'
+import { colors } from '@/theme/tokens'
 import { MobileRoute } from '@/types/dropzone'
 
 type TabId = 'home' | 'championships' | 'teams' | 'agenda' | 'rank'
@@ -76,6 +76,7 @@ export function AppShell(props: {
       <View style={styles.topbar}>
         <TouchableOpacity style={styles.brandSide} activeOpacity={0.8} onPress={() => props.onNavigate('home')}>
           <Image source={require('../../assets/dropzone-icon-accent.png')} style={styles.systemLogo} resizeMode="contain" />
+          <Text style={styles.brandName}>DROPZONE</Text>
         </TouchableOpacity>
 
         <View style={styles.topActions}>
@@ -85,27 +86,12 @@ export function AppShell(props: {
             style={[styles.topActionButton, props.route === 'search' && styles.topActionButtonActive]}
             onPress={() => props.onNavigate('search')}
           >
-            <Ionicons name={props.route === 'search' ? 'search' : 'search-outline'} size={24} color={props.route === 'search' ? colors.brand : colors.surface} />
-          </TouchableOpacity>
-
-          {props.isAuthenticated ? (
-            <TouchableOpacity
-              accessibilityLabel="Carteira"
-              hitSlop={8}
-              style={[styles.topActionButton, props.route === 'wallet' && styles.topActionButtonActive]}
-              onPress={() => props.onNavigate('wallet')}
-            >
-              <Ionicons name={props.route === 'wallet' ? 'wallet' : 'wallet-outline'} size={25} color={props.route === 'wallet' ? colors.brand : colors.surface} />
-            </TouchableOpacity>
-          ) : null}
-
-          <TouchableOpacity accessibilityLabel="Selecionar idioma" hitSlop={8} style={styles.languageButton} onPress={() => setLanguageOpen(true)}>
-            <Ionicons name="language-outline" size={23} color={colors.surface} />
+            <Ionicons name={props.route === 'search' ? 'search' : 'search-outline'} size={20} color={props.route === 'search' ? colors.brand : colors.surface} />
           </TouchableOpacity>
 
           {props.isAuthenticated ? (
             <TouchableOpacity accessibilityLabel="Trocar perfil" hitSlop={6} style={styles.profileAvatar} onPress={() => setProfileOpen(true)}>
-              <AccountAvatar account={props.activeAccount} size={38} />
+              <AccountAvatar account={props.activeAccount} size={32} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity accessibilityLabel="Entrar" hitSlop={8} style={styles.loginButton} onPress={props.onRequestLogin}>
@@ -136,7 +122,8 @@ export function AppShell(props: {
               style={[styles.tab, active && styles.tabActive]}
               onPress={() => props.onNavigate(tab.route)}
             >
-              <Ionicons name={active ? tab.iconActive : tab.icon} size={29} color={active ? colors.brand : '#aab3bf'} />
+              <Ionicons name={active ? tab.iconActive : tab.icon} size={21} color={active ? colors.brand : '#9ba6b4'} />
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
             </TouchableOpacity>
           )
         })}
@@ -191,6 +178,29 @@ export function AppShell(props: {
               <Ionicons name="create-outline" size={19} color={colors.ink} />
               <Text style={[styles.signOutButtonText, { color: colors.ink }]}>Editar perfil</Text>
             </TouchableOpacity>
+
+            <View style={styles.menuUtilityRow}>
+              <TouchableOpacity
+                style={styles.menuUtilityButton}
+                onPress={() => {
+                  setProfileOpen(false)
+                  props.onNavigate('wallet')
+                }}
+              >
+                <Ionicons name="wallet-outline" size={17} color={colors.ink} />
+                <Text style={styles.menuUtilityText}>Carteira</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuUtilityButton}
+                onPress={() => {
+                  setProfileOpen(false)
+                  setLanguageOpen(true)
+                }}
+              >
+                <Ionicons name="language-outline" size={17} color={colors.ink} />
+                <Text style={styles.menuUtilityText}>Idioma</Text>
+              </TouchableOpacity>
+            </View>
 
             {props.onSignOut ? (
               <TouchableOpacity
@@ -293,288 +303,52 @@ function getInitial(name?: string | null) {
 }
 
 const styles = StyleSheet.create({
-  shell: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  topbar: {
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    backgroundColor: '#090f16',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  brandSide: {
-    width: 40,
-    height: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  systemLogo: {
-    width: 36,
-    height: 36,
-  },
-  topActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  loginButton: {
-    height: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 11,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  loginButtonText: {
-    color: colors.surface,
-    fontSize: 10,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  topActionButton: {
-    width: 38,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  topActionButtonActive: {
-    borderColor: 'rgba(255,64,88,0.55)',
-    backgroundColor: 'rgba(255,64,88,0.09)',
-  },
-  languageButton: {
-    width: 38,
-    height: 38,
-    paddingHorizontal: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  profileAvatar: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    overflow: 'hidden',
-  },
-  accountImage: {
-    backgroundColor: '#202735',
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#202735',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-  },
-  profileInitial: {
-    color: colors.surface,
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  profileInitialDark: {
-    color: colors.surface,
-  },
-  content: {
-    flex: 1,
-  },
-  liliFab: {
-    position: 'absolute',
-    right: spacing.md,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.purple,
-    shadowColor: colors.purple,
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  liliText: {
-    color: colors.surface,
-    fontWeight: '900',
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    paddingHorizontal: 6,
-    paddingTop: 4,
-    backgroundColor: '#090f16',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.10)',
-  },
-  tab: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderTopWidth: 2,
-    borderTopColor: 'transparent',
-  },
-  tabActive: {
-    borderTopColor: colors.brand,
-    backgroundColor: 'rgba(255,255,255,0.035)',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-    alignItems: 'flex-end',
-    paddingTop: 76,
-    paddingRight: spacing.md,
-  },
-  profileMenu: {
-    width: 286,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    shadowColor: '#000',
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  profileTextBlock: {
-    flex: 1,
-  },
-  menuName: {
-    color: colors.ink,
-    fontSize: typography.body,
-    fontWeight: '900',
-  },
-  menuType: {
-    color: colors.brand,
-    fontSize: typography.tiny,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  accountOption: {
-    minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  accountOptionActive: {
-    borderColor: colors.brand,
-    backgroundColor: '#fff2f4',
-  },
-  accountCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  accountName: {
-    color: colors.ink,
-    fontWeight: '900',
-  },
-  accountType: {
-    color: colors.muted,
-    fontSize: typography.tiny,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  panelButton: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brandDark,
-  },
-  panelButtonText: {
-    color: colors.surface,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  signOutButton: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  signOutButtonText: {
-    color: colors.muted,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  languageMenu: {
-    width: 274,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.md,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  languageTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  languageOption: {
-    minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  languageOptionActive: {
-    borderColor: colors.brand,
-    backgroundColor: '#fff2f4',
-  },
-  languageOptionDisabled: {
-    opacity: 0.55,
-  },
-  languageName: {
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  languageHint: {
-    marginTop: 2,
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  shell:{flex:1,backgroundColor:colors.background},
+  topbar:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:10,backgroundColor:'#0d141e',borderBottomWidth:1,borderBottomColor:'rgba(255,255,255,.07)'},
+  brandSide:{height:38,flexDirection:'row',alignItems:'center',gap:7,paddingHorizontal:2},
+  systemLogo:{width:28,height:28},
+  brandName:{color:colors.surface,fontSize:11,fontWeight:'900',letterSpacing:1.4},
+  topActions:{flexDirection:'row',alignItems:'center',gap:5},
+  loginButton:{height:34,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,paddingHorizontal:10,borderRadius:8,backgroundColor:'rgba(255,255,255,.07)'},
+  loginButtonText:{color:colors.surface,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
+  topActionButton:{width:34,height:34,alignItems:'center',justifyContent:'center',borderRadius:8,backgroundColor:'rgba(255,255,255,.055)'},
+  topActionButtonActive:{backgroundColor:'rgba(255,64,88,.12)'},
+  profileAvatar:{width:34,height:34,alignItems:'center',justifyContent:'center',borderRadius:9,backgroundColor:'rgba(255,255,255,.06)',overflow:'hidden'},
+  accountImage:{backgroundColor:'#202735'},
+  avatarFallback:{alignItems:'center',justifyContent:'center',backgroundColor:'#202735'},
+  profileInitial:{color:colors.surface,fontSize:14,fontWeight:'900'},
+  profileInitialDark:{color:colors.surface},
+  content:{flex:1},
+  liliFab:{position:'absolute',right:12,width:46,height:46,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:colors.purple,shadowColor:'#000',shadowOpacity:.16,shadowOffset:{width:0,height:5},shadowRadius:9,elevation:5},
+  liliText:{color:colors.surface,fontSize:10,fontWeight:'900'},
+  bottomBar:{flexDirection:'row',alignItems:'stretch',paddingHorizontal:4,paddingTop:3,backgroundColor:'#0d141e',borderTopWidth:1,borderTopColor:'rgba(255,255,255,.08)'},
+  tab:{flex:1,minWidth:0,minHeight:48,alignItems:'center',justifyContent:'center',gap:1,borderTopWidth:2,borderTopColor:'transparent'},
+  tabActive:{borderTopColor:colors.brand,backgroundColor:'rgba(255,255,255,.025)'},
+  tabLabel:{color:'#8f9aaa',fontSize:7,fontWeight:'800'},
+  tabLabelActive:{color:colors.surface,fontWeight:'900'},
+  modalBackdrop:{flex:1,backgroundColor:'rgba(0,0,0,.42)',alignItems:'flex-end',paddingTop:64,paddingRight:10},
+  profileMenu:{width:278,backgroundColor:colors.surface,padding:12,gap:7,borderRadius:10,borderWidth:1,borderColor:colors.line,shadowColor:'#000',shadowOpacity:.18,shadowRadius:14,elevation:7},
+  profileHeader:{flexDirection:'row',alignItems:'center',gap:10,paddingBottom:8,borderBottomWidth:1,borderBottomColor:colors.line},
+  profileTextBlock:{flex:1},
+  menuName:{color:colors.ink,fontSize:13,fontWeight:'900'},
+  menuType:{color:colors.brand,fontSize:8,fontWeight:'900',textTransform:'uppercase'},
+  accountOption:{minHeight:50,flexDirection:'row',alignItems:'center',gap:9,borderRadius:8,borderWidth:1,borderColor:colors.line,paddingHorizontal:9,paddingVertical:6},
+  accountOptionActive:{borderColor:'rgba(255,64,88,.42)',backgroundColor:'#fff6f7'},
+  accountCopy:{flex:1,minWidth:0},
+  accountName:{color:colors.ink,fontSize:11,fontWeight:'900'},
+  accountType:{color:colors.muted,fontSize:8,fontWeight:'800',textTransform:'uppercase'},
+  panelButton:{minHeight:40,alignItems:'center',justifyContent:'center',borderRadius:8,backgroundColor:colors.brandDark},
+  panelButtonText:{color:colors.surface,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
+  signOutButton:{minHeight:40,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,borderRadius:8,borderWidth:1,borderColor:colors.line},
+  signOutButtonText:{color:colors.muted,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
+  menuUtilityRow:{flexDirection:'row',gap:6},
+  menuUtilityButton:{flex:1,minHeight:38,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,borderRadius:8,backgroundColor:'#f2eee7'},
+  menuUtilityText:{color:colors.ink,fontSize:8,fontWeight:'900',textTransform:'uppercase'},
+  languageMenu:{width:270,backgroundColor:colors.surface,borderRadius:10,borderWidth:1,borderColor:colors.line,padding:12,gap:7,shadowColor:'#000',shadowOpacity:.18,shadowRadius:14,elevation:7},
+  languageTitle:{color:colors.ink,fontSize:14,fontWeight:'900',textTransform:'uppercase',marginBottom:2},
+  languageOption:{minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:10,paddingVertical:7,borderRadius:8,borderWidth:1,borderColor:colors.line},
+  languageOptionActive:{borderColor:'rgba(255,64,88,.42)',backgroundColor:'#fff6f7'},
+  languageOptionDisabled:{opacity:.55},
+  languageName:{color:colors.ink,fontSize:11,fontWeight:'900'},
+  languageHint:{marginTop:1,color:colors.muted,fontSize:8,fontWeight:'700'},
 })
