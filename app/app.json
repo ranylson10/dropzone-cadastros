@@ -18,7 +18,7 @@
       "package": "com.dropzone.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/dropzone-launcher-foreground.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F4F1EB"
       },
       "intentFilters": [
         {
@@ -85,7 +85,12 @@
         {
           "image": "./assets/dropzone-icon-accent.png",
           "resizeMode": "contain",
-          "backgroundColor": "#0f1420"
+          "backgroundColor": "#F4F1EB",
+          "imageWidth": 180,
+          "dark": {
+            "image": "./assets/dropzone-icon-accent.png",
+            "backgroundColor": "#F4F1EB"
+          }
         }
       ]
     ]

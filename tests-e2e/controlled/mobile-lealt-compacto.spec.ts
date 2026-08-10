@@ -114,4 +114,26 @@ test.describe('Mobile — LEALT compacto', () => {
     }
   })
 
+
+  test('mantém splash e ícone nativos alinhados ao LEALT e dentro da zona segura', async () => {
+    const appConfig = JSON.parse(read('app/app.json'))
+    const expo = appConfig.expo
+    const splashPlugin = expo.plugins.find((item: any) => Array.isArray(item) && item[0] === 'expo-splash-screen')
+
+    expect(expo.icon).toBe('./assets/dropzone-launcher-icon.png')
+    expect(expo.android.adaptiveIcon.foregroundImage).toBe('./assets/dropzone-launcher-foreground.png')
+    expect(expo.android.adaptiveIcon.backgroundColor).toBe('#F4F1EB')
+    expect(splashPlugin?.[1]?.image).toBe('./assets/dropzone-icon-accent.png')
+    expect(splashPlugin?.[1]?.imageWidth).toBe(180)
+    expect(splashPlugin?.[1]?.backgroundColor).toBe('#F4F1EB')
+    expect(splashPlugin?.[1]?.backgroundColor).not.toBe('#0f1420')
+
+    for (const asset of [
+      'app/assets/dropzone-launcher-icon.png',
+      'app/assets/dropzone-launcher-foreground.png',
+      'app/assets/dropzone-icon-accent.png',
+    ]) expect(fs.existsSync(path.join(root, asset))).toBeTruthy()
+  })
+
+
 })
