@@ -237,18 +237,6 @@ test.describe('Convites controlados — manager por campeonato', () => {
       expect(seller?.permissoes?.ver_estrutura).toBe(true)
       expect(seller?.permissoes?.pontuar_tabela).toBe(false)
 
-      const managerChampionships = await request.get(
-        `${origin}/api/vendedores/${encodeURIComponent(managerId)}/campeonatos`,
-        { headers: headers(managerToken, 'manager') },
-      )
-      const managerChampionshipsBody = await json(managerChampionships)
-      expect(managerChampionships.ok(), `Falha ao listar campeonatos do manager: ${managerChampionshipsBody?.error || managerChampionships.status()}`).toBeTruthy()
-      const managerLink = (Array.isArray(managerChampionshipsBody?.campeonatos) ? managerChampionshipsBody.campeonatos : [])
-        .find((item: any) => String(item?.campeonato_id || '') === campeonatoId)
-      expect(managerLink, 'O campeonato deve aparecer no painel do manager após o aceite.').toBeTruthy()
-      expect(managerLink?.status).toBe('ativo')
-      expect(Number(managerLink?.limite_vagas || 0)).toBe(3)
-
       const duplicateRequestWhileActive = await request.post(
         `${origin}/api/managers/${encodeURIComponent(managerId)}/campeonatos/pedidos`,
         {

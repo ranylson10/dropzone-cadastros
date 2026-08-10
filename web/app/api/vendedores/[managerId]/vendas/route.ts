@@ -137,6 +137,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
       ? String(body.method || 'pix') as 'pix' | 'cartao' | 'paypal'
       : 'pix'
     const cpfCnpj = String(body.cpf_cnpj || '').replace(/\D/g, '')
+    if (!cpfCnpj) throw new Error('Informe CPF/CNPJ do comprador para gerar a cobrança.')
     const quantity = Math.max(1, Math.min(20, Math.floor(Number(body.quantidade_vagas || body.quantidade || 1))))
     const buyerName = String(body.referencia || body.comprador_nome || '').trim()
     const payerEmail = String(user.email || manager.email_contato || '').trim()

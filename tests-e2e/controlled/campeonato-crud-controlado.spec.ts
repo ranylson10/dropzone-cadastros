@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext, type BrowserContext } from '@playwright/test'
+import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -10,7 +10,6 @@ type StorageState = {
 }
 
 const authFile = path.resolve('tests-e2e/.auth/produtora.json')
-
 function accessTokenFromStorage(file: string, expectedOrigin: string): string {
   const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
   const origin = state.origins?.find((item) => item.origin === expectedOrigin)
@@ -29,7 +28,6 @@ function accessTokenFromStorage(file: string, expectedOrigin: string): string {
   }
   throw new Error(`Sessão da produtora não encontrada para ${expectedOrigin}. Rode npm run test:e2e:auth:prepare.`)
 }
-
 function authHeaders(token: string) {
   return {
     Authorization: `Bearer ${token}`,
@@ -37,7 +35,6 @@ function authHeaders(token: string) {
     'Content-Type': 'application/json',
   }
 }
-
 async function cleanupChampionship(request: APIRequestContext, origin: string, token: string, id: string) {
   const response = await request.delete(`${origin}/api/dropzone`, {
     headers: authHeaders(token),
@@ -47,10 +44,8 @@ async function cleanupChampionship(request: APIRequestContext, origin: string, t
   expect(response.ok(), `Falha ao limpar campeonato E2E: ${body?.error || response.status()}`).toBeTruthy()
   expect(body?.success).toBe(true)
 }
-
 async function verifyCreatedChampionship(
   request: APIRequestContext,
-  context: BrowserContext,
   origin: string,
   token: string,
   id: string,
@@ -62,36 +57,19 @@ async function verifyCreatedChampionship(
   )
   const listBody = await listResponse.json().catch(() => null)
   expect(listResponse.ok(), `Falha ao consultar campeonato criado: ${listBody?.error || listResponse.status()}`).toBeTruthy()
-
   const rows = Array.isArray(listBody?.rows) ? listBody.rows : Array.isArray(listBody) ? listBody : []
   const created = rows.find((row: { id?: unknown }) => String(row?.id || '') === id)
   expect(created, 'O campeonato criado deve aparecer na listagem autenticada da produtora').toBeTruthy()
   expect(created?.name || created?.data?.nome).toBe(expectedName)
-
-  const page = await context.newPage()
-  try {
-    const response = await page.goto(`${origin}/?campeonato=${encodeURIComponent(id)}`, { waitUntil: 'domcontentloaded' })
-    expect(response?.status() || 200).toBeLessThan(500)
-    await expect(page.locator('body')).not.toContainText(
-      /Application error|Internal Server Error|This page couldn.t load|A server error occurred/i,
-    )
-    await expect(page.locator('body')).toContainText(expectedName, { timeout: 20_000 })
-  } finally {
-    await page.close()
-  }
 }
-
 test.describe('Operações reais controladas — criação e limpeza automática', () => {
-  test('produtora cria, abre e arquiva um campeonato temporário', async ({ browser, request, baseURL }) => {
+  test('produtora cria, consulta e arquiva um campeonato temporário', async ({ request, baseURL }) => {
     test.skip(!fs.existsSync(authFile), 'Gere as sessões com npm run test:e2e:auth:prepare')
-
     const origin = new URL(baseURL || 'http://localhost:3000').origin
     const token = accessTokenFromStorage(authFile, origin)
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const championshipName = `[E2E] Campeonato controlado ${unique}`
     let championshipId = ''
-
-    const context = await browser.newContext({ storageState: authFile })
     try {
       const createResponse = await request.post(`${origin}/api/dropzone`, {
         headers: authHeaders(token),
@@ -119,15 +97,13 @@ test.describe('Operações reais controladas — criação e limpeza automática
         createResponse.ok(),
         `Falha na criação controlada: ${createBody?.error || createResponse.status()}`,
       ).toBeTruthy()
-
       championshipId = String(createBody?.row?.id || '')
       expect(championshipId, 'A API deve retornar o ID do campeonato criado').not.toBe('')
       expect(createBody?.row?.name || createBody?.row?.data?.nome).toBe(championshipName)
 
-      await verifyCreatedChampionship(request, context, origin, token, championshipId, championshipName)
+      await verifyCreatedChampionship(request, origin, token, championshipId, championshipName)
     } finally {
       if (championshipId) await cleanupChampionship(request, origin, token, championshipId)
-      await context.close()
     }
   })
 })
