@@ -1121,7 +1121,7 @@ export function DropZoneHome() {
     }
     const created = await createRow(
       { entity_type: 'championship', name: draft.nome, data: draft },
-      'Campeonato criado. Escolha pagar online com PIX ou aguardar liberaÃ§Ã£o do admin.',
+      'Campeonato criado. Escolha pagar online com PIX ou aguardar liberação do admin.',
     )
     if (!created) return false
     setChampionship({ ...emptyChampionship })

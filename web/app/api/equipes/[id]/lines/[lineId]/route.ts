@@ -16,7 +16,7 @@ async function contextData(req: NextRequest, context: { params: Promise<{ id: st
     .eq('equipe_id', equipeId)
     .maybeSingle()
   if (error) throw error
-  if (!line) throw new Error('Line nÃ£o encontrada nesta equipe.')
+  if (!line) throw new Error('Line não encontrada nesta equipe.')
   return { user, accounts, equipeId, lineId, line, access }
 }
 
@@ -100,7 +100,7 @@ async function loadLine(equipeId: string, lineId: string) {
       bloqueio_motivo: !activeStatus(championship.status)
         ? 'Campeonato encerrado.'
         : deadlinePassed
-          ? 'Prazo de alteraÃ§Ã£o encerrado.'
+          ? 'Prazo de alteração encerrado.'
           : window.allowed ? null : window.reason,
       prazo_escalacao: window,
       formacao: formationByParticipation.get(participation.id) || [],
@@ -130,9 +130,9 @@ async function transferContext(accounts: Array<{ id: string; profile_type?: stri
   return {
     allowed,
     reason: championships.length === 0
-      ? 'A transferÃªncia fica disponÃ­vel quando a line participa de campeonato da sua produtora.'
+      ? 'A transferência fica disponível quando a line participa de campeonato da sua produtora.'
       : foreign.length > 0
-        ? 'Esta line participa de campeonato que nÃ£o pertence Ã  sua produtora.'
+        ? 'Esta line participa de campeonato que não pertence à sua produtora.'
         : null,
     championships,
   }
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const [loaded, transfer] = await Promise.all([loadLine(equipeId, lineId), transferContext(accounts, equipeId, lineId)])
     return NextResponse.json({ line, permissions: access.permissoes, transfer, ...loaded })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'NÃ£o foi possÃ­vel carregar a line.' }, { status: 400 })
+    return NextResponse.json({ error: error?.message || 'Não foi possível carregar a line.' }, { status: 400 })
   }
 }
 
@@ -162,11 +162,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     if (action === 'transfer_line') {
       const destinationId = String(body.equipe_destino_id || '').trim()
-      if (!destinationId) throw new Error('Selecione a equipe real que receberÃ¡ a line.')
-      if (destinationId === equipeId) throw new Error('A line jÃ¡ pertence a esta equipe.')
+      if (!destinationId) throw new Error('Selecione a equipe real que receberá a line.')
+      if (destinationId === equipeId) throw new Error('A line já pertence a esta equipe.')
 
       const transfer = await transferContext(accounts, equipeId, lineId)
-      if (!transfer.allowed) throw new Error(transfer.reason || 'Esta line nÃ£o pode ser transferida.')
+      if (!transfer.allowed) throw new Error(transfer.reason || 'Esta line não pode ser transferida.')
 
       const { data: destination, error: destinationError } = await supabaseAdmin
         .from('equipes')
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         .eq('status', 'ativo')
         .maybeSingle()
       if (destinationError) throw destinationError
-      if (!destination) throw new Error('Equipe de destino nÃ£o encontrada ou inativa.')
+      if (!destination) throw new Error('Equipe de destino não encontrada ou inativa.')
 
       const { data: conflict, error: conflictError } = await supabaseAdmin
         .from('equipe_lines')
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         .neq('id', lineId)
         .maybeSingle()
       if (conflictError) throw conflictError
-      if (conflict) throw new Error(`A equipe de destino jÃ¡ possui uma line chamada ${conflict.nome}.`)
+      if (conflict) throw new Error(`A equipe de destino já possui uma line chamada ${conflict.nome}.`)
 
       const { data: result, error: transferError } = await supabaseAdmin.rpc('fn_transferir_line_equipe', {
         p_line_id: lineId,
@@ -257,7 +257,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       const playerId = String(body.equipe_jogador_id || '')
       const { data: player, error } = await supabaseAdmin.from('equipe_jogadores').select('id,equipe_id').eq('id', playerId).eq('equipe_id', equipeId).eq('status', 'ativo').maybeSingle()
       if (error) throw error
-      if (!player) throw new Error('Jogador nÃ£o pertence ao elenco desta equipe.')
+      if (!player) throw new Error('Jogador não pertence ao elenco desta equipe.')
       const { data: existingMembership, error: membershipReadError } = await supabaseAdmin.from('equipe_line_jogadores').select('id').eq('line_id', lineId).eq('equipe_jogador_id', playerId).maybeSingle()
       if (membershipReadError) throw membershipReadError
       const membershipPayload = { equipe_id: equipeId, line_id: lineId, equipe_jogador_id: playerId, status: 'ativo', adicionado_por: user.id, removido_por: null, removido_em: null, updated_at: new Date().toISOString() }
@@ -271,7 +271,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       const current = await loadLine(equipeId, lineId)
       const affected = current.events.filter((event: any) => event.formacao.some((row: any) => row.equipe_jogador_id === playerId))
       const locked = affected.filter((event: any) => !event.pode_alterar)
-      if (locked.length) throw new Error(`NÃ£o Ã© possÃ­vel remover: jogador estÃ¡ escalado em ${locked.map((event: any) => event.campeonato?.nome || 'campeonato bloqueado').join(', ')}.`)
+      if (locked.length) throw new Error(`Não é possível remover: jogador está escalado em ${locked.map((event: any) => event.campeonato?.nome || 'campeonato bloqueado').join(', ')}.`)
       const formationIds = affected.flatMap((event: any) => event.formacao.filter((row: any) => row.equipe_jogador_id === playerId).map((row: any) => row.id))
       if (formationIds.length) {
         const { error } = await supabaseAdmin.from('campeonato_jogadores').update({ status: 'deletado', removido_por: user.id, removido_em: new Date().toISOString(), updated_at: new Date().toISOString() }).in('id', formationIds)
@@ -285,13 +285,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       const requested = Array.isArray(body.players) ? body.players : []
       const current = await loadLine(equipeId, lineId)
       const event: any = current.events.find((item: any) => String(item.id) === participationId)
-      if (!event) throw new Error('ParticipaÃ§Ã£o da line nÃ£o encontrada.')
-      if (!event.pode_alterar) throw new Error(event.bloqueio_motivo || 'Esta formaÃ§Ã£o nÃ£o pode mais ser alterada.')
-      if (requested.length > event.limite_jogadores) throw new Error(`Este campeonato permite no mÃ¡ximo ${event.limite_jogadores} jogadores nesta formaÃ§Ã£o.`)
+      if (!event) throw new Error('Participação da line não encontrada.')
+      if (!event.pode_alterar) throw new Error(event.bloqueio_motivo || 'Esta formação não pode mais ser alterada.')
+      if (requested.length > event.limite_jogadores) throw new Error(`Este campeonato permite no máximo ${event.limite_jogadores} jogadores nesta formação.`)
       const lineupWindow = await assertLineupWindowOpen(event.campeonato_id, event.grupo_id)
       const memberIds = new Set(current.members.map((row: any) => String(row.id)))
       const uniqueIds: string[] = [...new Set<string>(requested.map((row: any) => String(row.equipe_jogador_id || row.id || '')).filter(Boolean))]
-      if (uniqueIds.some((id) => !memberIds.has(id))) throw new Error('A formaÃ§Ã£o sÃ³ pode usar jogadores desta line.')
+      if (uniqueIds.some((id) => !memberIds.has(id))) throw new Error('A formação só pode usar jogadores desta line.')
       const rosterMap = new Map(current.roster.map((row: any) => [String(row.id), row]))
       const authIds = uniqueIds.map((id) => rosterMap.get(id)?.jogador_auth_user_id).filter(Boolean)
       const { data: playerProfiles } = authIds.length ? await supabaseAdmin.from('jogadores').select('id,auth_user_id').in('auth_user_id', authIds) : { data: [] as any[] }
@@ -346,11 +346,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         }
       }
     } else {
-      throw new Error('AÃ§Ã£o invÃ¡lida.')
+      throw new Error('Ação inválida.')
     }
 
     return NextResponse.json({ ok: true, ...(await loadLine(equipeId, lineId)) })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'NÃ£o foi possÃ­vel atualizar a line.' }, { status: 400 })
+    return NextResponse.json({ error: error?.message || 'Não foi possível atualizar a line.' }, { status: 400 })
   }
 }

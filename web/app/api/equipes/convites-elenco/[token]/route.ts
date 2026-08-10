@@ -17,7 +17,7 @@ async function convite(token: string) {
     .maybeSingle()
   if (error) throw error
   if (!data || data.status !== 'ativo' || data.usado || (data.expira_em && new Date(data.expira_em).getTime() < Date.now())) {
-    throw new Error('Convite invÃ¡lido, usado ou expirado.')
+    throw new Error('Convite inválido, usado ou expirado.')
   }
   return data as any
 }
@@ -52,7 +52,7 @@ async function tryAddFormation(item: any, equipeJogador: any, jogador: any, user
 
   const championship = participation.campeonato || {}
   if (!activeStatus(championship.status) || !activeStatus(participation.status)) {
-    return { added: false, reason: 'A formaÃ§Ã£o do campeonato estÃ¡ encerrada.' }
+    return { added: false, reason: 'A formação do campeonato está encerrada.' }
   }
 
   const { data: rules, error: rulesError } = await supabaseAdmin
@@ -78,7 +78,7 @@ async function tryAddFormation(item: any, equipeJogador: any, jogador: any, user
     .order('ordem_formacao')
   if (existingError) throw existingError
   if ((existing || []).some((row: any) => row.equipe_jogador_id === equipeJogador.id)) return { added: true, reason: null }
-  if ((existing || []).length >= maxPlayers) return { added: false, reason: `A formaÃ§Ã£o jÃ¡ atingiu o limite de ${maxPlayers} jogadores.` }
+  if ((existing || []).length >= maxPlayers) return { added: false, reason: `A formação já atingiu o limite de ${maxPlayers} jogadores.` }
   try {
     await assertPlayerNotInAnotherTeam(participation.campeonato_id, { jogadorId: jogador.id, idJogo: equipeJogador.id_jogo || jogador.id_jogo || null }, item.campeonato_equipe_id)
   } catch (error: any) {
@@ -130,7 +130,7 @@ export async function GET(_: NextRequest, context: { params: Promise<{ token: st
       destino: item.participacao ? 'formacao' : item.line ? 'line' : 'elenco',
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Convite invÃ¡lido.' }, { status: 404 })
+    return NextResponse.json({ error: error?.message || 'Convite inválido.' }, { status: 404 })
   }
 }
 

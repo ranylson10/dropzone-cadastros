@@ -68,7 +68,7 @@ function formatNextDate(item: SellerItem) {
 
 function saleStatusLabel(sale: AssistedSale) {
   if (sale.consumido_em || sale.status === 'consumido') return 'Inscrito no campeonato'
-  if (sale.pago_em || ['pago', 'liberado'].includes(sale.status)) return 'Pago, aguardando inscriÃ§Ã£o'
+  if (sale.pago_em || ['pago', 'liberado'].includes(sale.status)) return 'Pago, aguardando inscrição'
   if (sale.status === 'expirado') return 'Pagamento expirado'
   return 'Aguardando pagamento'
 }
@@ -106,7 +106,7 @@ export function ManagerVendasView(props: {
   async function authHeaders() {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
-    if (!token) throw new Error('SessÃ£o ausente. Entre novamente.')
+    if (!token) throw new Error('Sessão ausente. Entre novamente.')
     return { Authorization: `Bearer ${token}` }
   }
 
@@ -147,7 +147,7 @@ export function ManagerVendasView(props: {
       await navigator.clipboard.writeText(text)
       setSaleFeedback(message)
     } catch {
-      setSaleFeedback('NÃ£o foi possÃ­vel copiar.')
+      setSaleFeedback('Não foi possível copiar.')
     }
   }
 
@@ -156,7 +156,7 @@ export function ManagerVendasView(props: {
     return [
       `${sale.quantidade_vagas || 1} vaga(s) ${champName}`,
       sale.payment_url ? `Pagamento: ${sale.payment_url}` : '',
-      sale.claim_url ? `Depois do pagamento, inscriÃ§Ã£o: ${sale.claim_url}` : '',
+      sale.claim_url ? `Depois do pagamento, inscrição: ${sale.claim_url}` : '',
       `Token: ${sale.token}`,
     ].filter(Boolean).join('\n')
   }
@@ -355,7 +355,7 @@ export function ManagerVendasView(props: {
         <div className="section-head compact-head">
           <div>
             <p className="eyebrow">Venda assistida</p>
-            <h2>CobranÃ§as geradas pelo vendedor</h2>
+            <h2>Cobranças geradas pelo vendedor</h2>
           </div>
           <button className="button secondary small" type="button" onClick={() => void loadSales()} disabled={salesLoading}>
             <RefreshCw size={14} /> Atualizar
@@ -423,7 +423,7 @@ export function ManagerVendasView(props: {
             </div>
 
             <p className="empty" style={{ marginTop: 0 }}>
-              O sistema gera o pagamento, registra a venda para este vendedor e libera o link de inscriÃ§Ã£o quando confirmar.
+              O sistema gera o pagamento, registra a venda para este vendedor e libera o link de inscrição quando confirmar.
               {' '}Comissão desta vaga: {formatCommission(saleChamp)}.
             </p>
 

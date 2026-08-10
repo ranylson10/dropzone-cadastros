@@ -11,7 +11,7 @@ type TabId = 'home' | 'championships' | 'teams' | 'agenda' | 'rank'
 type IconName = ComponentProps<typeof Ionicons>['name']
 
 const tabs: Array<{ id: TabId; label: string; icon: IconName; iconActive: IconName; route: MobileRoute }> = [
-  { id: 'home', label: 'InÃ­cio', icon: 'home-outline', iconActive: 'home', route: 'home' },
+  { id: 'home', label: 'Início', icon: 'home-outline', iconActive: 'home', route: 'home' },
   { id: 'championships', label: 'Camp.', icon: 'trophy-outline', iconActive: 'trophy', route: 'vacancies' },
   { id: 'teams', label: 'Equipes', icon: 'people-outline', iconActive: 'people', route: 'team_directory' },
   { id: 'agenda', label: 'Agenda', icon: 'calendar-outline', iconActive: 'calendar', route: 'agenda' },
@@ -213,7 +213,7 @@ export function AppShell(props: {
             <Text style={styles.languageTitle}>Idioma do app</Text>
             <TouchableOpacity style={[styles.languageOption, styles.languageOptionActive]} onPress={() => setLanguageOpen(false)}>
               <View>
-                <Text style={styles.languageName}>PortuguÃªs (Brasil)</Text>
+                <Text style={styles.languageName}>Português (Brasil)</Text>
                 <Text style={styles.languageHint}>Idioma atual</Text>
               </View>
               <Ionicons name="checkmark-circle" size={22} color={colors.brand} />
@@ -282,7 +282,7 @@ function profileLabel(value?: string | null) {
   if (value === 'equipe') return 'Equipe'
   if (value === 'jogador') return 'Jogador'
   if (value === 'manager') return 'Vendedor'
-  if (value === 'broadcast') return 'TransmissÃ£o'
+  if (value === 'broadcast') return 'Transmissão'
   return 'Conta'
 }
 

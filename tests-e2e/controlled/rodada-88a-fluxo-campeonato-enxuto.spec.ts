@@ -57,6 +57,6 @@ test.describe('Rodada 88A — fluxo enxuto do campeonato', () => {
     expect(panel).not.toContain("window.matchMedia('(max-width: 760px)'")
     expect(panel).toContain('setTab(\'visao\')')
     expect(panel).toContain('Equipe interna')
-    expect(panel).toContain('PÃ¡gina de vagas')
+    expect(panel).toContain('Página de vagas')
   })
 })

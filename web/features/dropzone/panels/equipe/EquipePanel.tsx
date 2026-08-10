@@ -1101,7 +1101,7 @@ function EquipeLinesEditor(props: {
   async function openLineDetail(line: any) {
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      if (!token) throw new Error('SessÃ£o expirada.')
+      if (!token) throw new Error('Sessão expirada.')
       setLineDetailToken(token)
       setLineDetail((current: any) => current?.id === line.id ? null : line)
     } catch (err: any) {

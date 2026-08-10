@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const reviews = await listVacancyFinancialReviews(user.id, mode)
     return NextResponse.json({ reviews, mode })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erro ao carregar revisÃµes financeiras.' }, { status: 400 })
+    return NextResponse.json({ error: error?.message || 'Erro ao carregar revisões financeiras.' }, { status: 400 })
   }
 }
 
@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
     const decision = String(body.decision || '') as FinancialReviewDecision
     const note = body.note == null ? null : String(body.note)
 
-    if (!compraId) throw new Error('compra_id obrigatÃ³rio.')
+    if (!compraId) throw new Error('compra_id obrigatório.')
     if (!DECISIONS.has(decision)) {
-      throw new Error('DecisÃ£o invÃ¡lida para revisÃ£o financeira.')
+      throw new Error('Decisão inválida para revisão financeira.')
     }
 
     const result = await resolveVacancyFinancialReview({
@@ -45,6 +45,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result)
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erro ao resolver revisÃ£o financeira.' }, { status: 400 })
+    return NextResponse.json({ error: error?.message || 'Erro ao resolver revisão financeira.' }, { status: 400 })
   }
 }

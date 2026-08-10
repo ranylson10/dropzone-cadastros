@@ -248,7 +248,7 @@ function normalizeChampionshipType(value: unknown): ChampionshipType {
 function nullablePositiveInteger(value: unknown) {
   if (value === '' || value === null || value === undefined) return null
   const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error('Os campos numÃ©ricos devem ser maiores que zero.')
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error('Os campos numéricos devem ser maiores que zero.')
   return parsed
 }
 
@@ -262,7 +262,7 @@ function nullableMoney(value: unknown) {
 function nullableDate(value: unknown) {
   if (!value) return null
   const date = new Date(String(value))
-  if (Number.isNaN(date.getTime())) throw new Error('Data invÃ¡lida.')
+  if (Number.isNaN(date.getTime())) throw new Error('Data inválida.')
   return date.toISOString()
 }
 
@@ -1152,7 +1152,7 @@ export async function POST(req: NextRequest) {
             .eq('id', data.line_id)
             .eq('equipe_id', data.equipe_id)
             .single()
-          if (lineError || !selectedLine) throw new Error('A line selecionada nÃ£o pertence Ã  equipe.')
+          if (lineError || !selectedLine) throw new Error('A line selecionada não pertence à equipe.')
           participationPatch.line_id = selectedLine.id
           participationPatch.nome_exibicao = selectedLine.nome
         }
@@ -1185,7 +1185,7 @@ export async function POST(req: NextRequest) {
         ? supabaseAdmin.from('campeonato_slots').update(slotPayload).eq('id', existing.id)
         : supabaseAdmin.from('campeonato_slots').insert(slotPayload)
       const { data: inserted, error } = await query.select('*').single()
-      if (error?.code === '23505') throw new Error('Esta line jÃ¡ estÃ¡ em outro grupo desta fase.')
+      if (error?.code === '23505') throw new Error('Esta line já está em outro grupo desta fase.')
       if (error) throw error
       row = baseRow(inserted, entityType)
     } else if (entityType === 'game') {
@@ -1461,7 +1461,7 @@ export async function PATCH(req: NextRequest) {
         .maybeSingle()
       if (currentChampError) throw currentChampError
       if (currentChamp?.aprovacao_status && currentChamp.aprovacao_status !== 'aprovado') {
-        throw new Error('Campeonato aguardando liberaÃ§Ã£o. Pague via PIX ou aguarde o admin liberar para editar.')
+        throw new Error('Campeonato aguardando liberação. Pague via PIX ou aguarde o admin liberar para editar.')
       }
       const nome = String(data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
@@ -1500,7 +1500,7 @@ export async function PATCH(req: NextRequest) {
       await requireChampionshipOwner(current.campeonato_id, user.id, account.id)
       const requestedSlots = Number(data.slots || current.slots)
       const { count: occupied } = await supabaseAdmin.from('campeonato_slots').select('id', { count: 'exact', head: true }).eq('grupo_id', id).not('equipe_id', 'is', null).gt('slot_numero', requestedSlots)
-      if ((occupied || 0) > 0) throw new Error('NÃ£o Ã© possÃ­vel remover slots ocupados.')
+      if ((occupied || 0) > 0) throw new Error('Não é possível remover slots ocupados.')
       const { data: updated, error } = await supabaseAdmin.from('campeonato_grupos').update({ nome: String(data.nome || current.nome).trim(), slots: requestedSlots, whatsapp_url: String(data.whatsapp_url || '').trim() || null, updated_at: new Date().toISOString() }).eq('id', id).select('*').single()
       if (error?.code === '23505') throw new Error('Ja existe um grupo com esse nome nesta fase.')
       if (error) throw error

@@ -340,7 +340,7 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
       const wrongSellerSales = await request.get(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
         headers: headers(equipeToken, 'equipe'),
       })
-      expect(wrongSellerSales.ok(), 'Outra conta nÃ£o pode ver vendas assistidas do vendedor.').toBe(false)
+      expect(wrongSellerSales.ok(), 'Outra conta não pode ver vendas assistidas do vendedor.').toBe(false)
 
       const salesBefore = await request.get(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
         headers: headers(managerToken, 'manager'),
@@ -358,7 +358,7 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
         },
       })
       const assistedWithoutCpfBody = await json(assistedWithoutCpf)
-      expect(assistedWithoutCpf.ok(), 'Venda assistida sem CPF/CNPJ deve ser bloqueada antes de criar cobranÃ§a.').toBe(false)
+      expect(assistedWithoutCpf.ok(), 'Venda assistida sem CPF/CNPJ deve ser bloqueada antes de criar cobrança.').toBe(false)
       expect(String(assistedWithoutCpfBody?.error || '')).toContain('CPF/CNPJ')
 
       const assistedWrongAccount = await request.post(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
@@ -369,7 +369,7 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
           cpf_cnpj: '00000000000',
         },
       })
-      expect(assistedWrongAccount.ok(), 'Conta que nÃ£o Ã© dona do manager nÃ£o pode gerar venda assistida.').toBe(false)
+      expect(assistedWrongAccount.ok(), 'Conta que não é dona do manager não pode gerar venda assistida.').toBe(false)
 
       await page.goto(`/vendedores/${encodeURIComponent(managerId)}`)
       await expect(page.locator('body')).not.toContainText(/Application error|Internal Server Error|This page couldn.t load/i)

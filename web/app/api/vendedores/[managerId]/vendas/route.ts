@@ -17,10 +17,10 @@ async function requireOwnManager(managerId: string, authUserId: string) {
     .maybeSingle()
   if (error) throw error
   if (!manager || manager.auth_user_id !== authUserId) {
-    throw new Error('Vendedor nÃ£o encontrado para esta conta.')
+    throw new Error('Vendedor não encontrado para esta conta.')
   }
   if (['suspenso', 'banido', 'excluido'].includes(String(manager.status || 'ativo'))) {
-    throw new Error('Este vendedor nÃ£o pode gerar vendas agora.')
+    throw new Error('Este vendedor não pode gerar vendas agora.')
   }
   return manager
 }
@@ -34,10 +34,10 @@ async function requireSellerPermission(managerId: string, campeonatoId: string) 
     .eq('status', 'ativo')
     .maybeSingle()
   if (error) throw error
-  if (!seller) throw new Error('Este campeonato nÃ£o estÃ¡ liberado para este vendedor.')
+  if (!seller) throw new Error('Este campeonato não está liberado para este vendedor.')
   const permissions = (seller.permissoes || {}) as Record<string, any>
   if (permissions.vender_vagas === false || permissions.gerar_pagamentos === false) {
-    throw new Error('Este vendedor nÃ£o tem permissÃ£o para gerar cobranÃ§as deste campeonato.')
+    throw new Error('Este vendedor não tem permissão para gerar cobranças deste campeonato.')
   }
   return seller
 }
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
     const manager = await requireOwnManager(managerId, user.id)
     const body = await req.json().catch(() => ({}))
     const campeonatoId = String(body.campeonato_id || '').trim()
-    if (!campeonatoId) throw new Error('campeonato_id obrigatÃ³rio.')
+    if (!campeonatoId) throw new Error('campeonato_id obrigatório.')
     await requireSellerPermission(managerId, campeonatoId)
 
     const method = ['pix', 'cartao', 'paypal'].includes(String(body.method || 'pix'))

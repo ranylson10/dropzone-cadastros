@@ -426,7 +426,7 @@ function ConviteEquipeContent() {
             <div className="invite-section invite-chat-shell" style={{ marginTop: 14 }}>
               <BotBubble><ConversationMessages /></BotBubble>
               <p className="invite-section-copy" style={{ textAlign: 'center' }}>
-                Escolha como deseja continuar. Se for inscrever sua equipe, o sistema guia vocÃª passo a passo.
+                Escolha como deseja continuar. Se for inscrever sua equipe, o sistema guia você passo a passo.
               </p>
               <div className="invite-auth-box" style={{ marginTop: 12 }}>
                 <button className="button invite-confirm" type="button" onClick={startInscricao} style={{ width: '100%' }}>
@@ -437,7 +437,7 @@ function ConviteEquipeContent() {
                   liliConversation.recordAction({ id: 'acompanhar', label: 'Acompanhar grupo' })
                   setStep('acompanhar')
                 }} style={{ width: '100%' }}>
-                  Apenas acompanhar inscriÃ§Ã£o
+                  Apenas acompanhar inscrição
                 </button>
               </div>
             </div>
@@ -541,7 +541,7 @@ function ConviteEquipeContent() {
                       <b>{vaga.slot_letra}</b>
                       <div>
                         <strong>Slot {vaga.slot_letra}</strong>
-                        <span>DisponÃ­vel</span>
+                        <span>Disponível</span>
                       </div>
                     </button>
                   ))}
@@ -634,7 +634,7 @@ function ConviteEquipeContent() {
             <div className="invite-auth-box invite-chat-shell" style={{ marginTop: 16 }}>
               <BotBubble><ConversationMessages /></BotBubble>
               <div className="invite-current-team" style={{ width: '100%' }}>
-                <small>Comprovante de inscriÃ§Ã£o</small>
+                <small>Comprovante de inscrição</small>
                 <strong>{data.campeonato?.nome || 'Campeonato'}</strong>
                 <span>Equipe: {data.equipe?.nome || '-'}</span>
                 <span>Line: {sucesso.line}</span>

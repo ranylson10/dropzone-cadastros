@@ -25,7 +25,7 @@ test.describe('Comissão de venda de vagas — contrato controlado', () => {
 
     await test.step('Produtora envia e salva percentual da comissão', async () => {
       expect(producerApi).toContain('sellerCommissionBps')
-      expect(producerApi).toContain('pode ser no mÃ¡ximo 20%')
+      expect(producerApi).toContain('pode ser no máximo 20%')
       expect(producerApi).toContain('comissao_percentual')
       expect(producerApi).toContain('comissao_bps: comissaoBps')
       expect(producerPanel).toContain('sellerComissao')

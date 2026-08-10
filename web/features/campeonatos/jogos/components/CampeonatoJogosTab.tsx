@@ -6,14 +6,14 @@ import { Field } from '@/features/dropzone/components/form-fields'
 import { dataText, rowTitle } from '@/features/dropzone/utils'
 import type { CampeonatoJogoForm, CampeonatoJogosTabProps } from '../types/campeonato-jogos.types'
 
-const MAPAS = ['Bermuda', 'PurgatÃ³rio', 'Kalahari', 'Alpine', 'NexTerra', 'Solara']
+const MAPAS = ['Bermuda', 'Purgatório', 'Kalahari', 'Alpine', 'NexTerra', 'Solara']
 
 function phaseName(fases: CampeonatoJogosTabProps['fases'], id: unknown) {
   return rowTitle(fases.find((fase) => fase.id === id)) || 'Sem fase'
 }
 
 function formatDate(value: unknown) {
-  if (!value) return 'Data nÃ£o definida'
+  if (!value) return 'Data não definida'
   const [year, month, day] = String(value).slice(0, 10).split('-')
   return year && month && day ? `${day}/${month}/${year}` : String(value)
 }
@@ -110,7 +110,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
   return (
     <section className="games-tab">
       <div className="games-toolbar">
-        <div><p className="eyebrow">Jogos</p><h3>CalendÃ¡rio, grupos e quedas</h3><small>Os grupos disponÃ­veis sÃ£o sempre limitados Ã  fase selecionada.</small></div>
+        <div><p className="eyebrow">Jogos</p><h3>Calendário, grupos e quedas</h3><small>Os grupos disponíveis são sempre limitados à fase selecionada.</small></div>
         <div className="games-toolbar-actions">
           <select value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)} aria-label="Filtrar por fase">
             <option value="">Todas as fases</option>
@@ -124,17 +124,17 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
 
       {showForm && canManageGames ? (
         <div className="game-form-panel">
-          <div className="game-form-heading"><div><p className="eyebrow">{editingId ? 'Editar jogo' : 'Novo jogo'}</p><h4>{editingId ? props.value.nome : 'ConfiguraÃ§Ã£o do jogo'}</h4></div><button className="button secondary" onClick={() => { setShowForm(false); reset(false) }}>Fechar</button></div>
+          <div className="game-form-heading"><div><p className="eyebrow">{editingId ? 'Editar jogo' : 'Novo jogo'}</p><h4>{editingId ? props.value.nome : 'Configuração do jogo'}</h4></div><button className="button secondary" onClick={() => { setShowForm(false); reset(false) }}>Fechar</button></div>
           <div className="mini-grid three">
             <Field label="Fase"><select value={props.value.fase_id} onChange={(e) => { const next = props.fases.find((fase) => fase.id === e.target.value); const final = String(next?.data?.tipo || (next as any)?.tipo || '') === 'grande_final'; patch({ fase_id: e.target.value, grupos_ids: [], tipo_jogo: final ? 'final' : 'normal', dia_final: final ? (props.value.dia_final || '1') : '1', define_campeao: final ? props.value.define_campeao : false }) }}><option value="">Selecione a fase</option>{props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}{String(fase.data?.tipo || (fase as any)?.tipo || '') === 'grande_final' ? ' · Grande Final' : ''}</option>)}</select></Field>
             <Field label="Rodada"><input type="number" min="1" value={props.value.rodada} onChange={(e) => patch({ rodada: e.target.value })} placeholder="Ex.: 1" /></Field>
-            <Field label="Nome do jogo"><input value={props.value.nome} onChange={(e) => patch({ nome: e.target.value })} placeholder="Ex.: Jogo 1 â€” A x B" /></Field>
+            <Field label="Nome do jogo"><input value={props.value.nome} onChange={(e) => patch({ nome: e.target.value })} placeholder="Ex.: Jogo 1 — A x B" /></Field>
           </div>
 
           <div className="game-groups-field">
             <span>Grupos participantes</span>
             {!props.value.fase_id ? <p className="empty compact">Selecione uma fase para liberar os grupos.</p> : null}
-            {props.value.fase_id && phaseGroups.length === 0 ? <p className="empty compact">Essa fase ainda nÃ£o possui grupos.</p> : null}
+            {props.value.fase_id && phaseGroups.length === 0 ? <p className="empty compact">Essa fase ainda não possui grupos.</p> : null}
             <div className="game-group-options">
               {phaseGroups.map((grupo) => {
                 const checked = props.value.grupos_ids.includes(grupo.id)
@@ -145,16 +145,16 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
 
           <div className="mini-grid three">
             <Field label="Data"><input type="date" value={props.value.data_jogo} onChange={(e) => patch({ data_jogo: e.target.value })} /></Field>
-            <Field label="HorÃ¡rio inicial"><input type="time" value={props.value.horario} onChange={(e) => patch({ horario: e.target.value })} /></Field>
-            <Field label="Status"><select value={props.value.status} onChange={(e) => patch({ status: e.target.value })}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="escalacao_aberta">EscalaÃ§Ã£o aberta</option><option value="escalacao_encerrada">EscalaÃ§Ã£o encerrada</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select></Field>
+            <Field label="Horário inicial"><input type="time" value={props.value.horario} onChange={(e) => patch({ horario: e.target.value })} /></Field>
+            <Field label="Status"><select value={props.value.status} onChange={(e) => patch({ status: e.target.value })}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="escalacao_aberta">Escalação aberta</option><option value="escalacao_encerrada">Escalação encerrada</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select></Field>
           </div>
 
           <div className="mini-grid three">
-            <Field label="NÃºmero de quedas"><input type="number" min="1" max="20" value={props.value.numero_partidas} onChange={(e) => patch({ numero_partidas: e.target.value })} /></Field>
+            <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.value.numero_partidas} onChange={(e) => patch({ numero_partidas: e.target.value })} /></Field>
             <Field label="Intervalo estimado (min)"><input type="number" min="1" value={props.value.intervalo_minutos} onChange={(e) => patch({ intervalo_minutos: e.target.value })} /></Field>
             {effectiveGameType === 'final'
               ? <Field label="Dia da Grande Final"><input type="number" min="1" value={props.value.dia_final} onChange={(e) => patch({ dia_final: e.target.value })} /></Field>
-              : <Field label="Equipes que avanÃ§am"><input type="number" min="0" value={props.value.classificam_quantidade} onChange={(e) => patch({ classificam_quantidade: e.target.value })} placeholder="Opcional" /></Field>}
+              : <Field label="Equipes que avançam"><input type="number" min="0" value={props.value.classificam_quantidade} onChange={(e) => patch({ classificam_quantidade: e.target.value })} placeholder="Opcional" /></Field>}
           </div>
           <div className="mini-grid three">
             <Field label="Tipo do jogo"><select value={effectiveGameType} disabled={isFinalPhase} onChange={(e) => patch({ tipo_jogo: e.target.value === 'final' ? 'final' : 'normal', dia_final: e.target.value === 'final' ? (props.value.dia_final || '1') : '1', define_campeao: e.target.value === 'final' ? props.value.define_campeao : false })}><option value="normal">Jogo da fase</option><option value="final" disabled={!isFinalPhase}>Jogo de final</option></select></Field>
@@ -167,7 +167,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
           </div>
 
           <div className="game-rules-panel">
-            <h4>Controle de escalaÃ§Ã£o</h4>
+            <h4>Controle de escalação</h4>
             <div className="mini-grid three">
               <Field label="Trocas de jogadores"><select value={props.value.permite_troca_jogadores ? 'sim' : 'nao'} onChange={(e) => patch({ permite_troca_jogadores: e.target.value === 'sim' })}><option value="sim">Permitidas</option><option value="nao">Bloqueadas</option></select></Field>
               <Field label="Abre escalação (h antes)"><input type="number" min="0" value={props.value.escalacao_abre_horas_antes} onChange={(e) => patch({ escalacao_abre_horas_antes: e.target.value })} /></Field>
@@ -175,11 +175,11 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
             </div>
             <div className="mini-grid three">
               <Field label="Limite para troca (min antes)"><input type="number" min="0" disabled={!props.value.permite_troca_jogadores} value={props.value.prazo_troca_minutos} onChange={(e) => patch({ prazo_troca_minutos: e.target.value })} /></Field>
-              <Field label="MÃ­nimo de quedas anteriores do jogador"><input type="number" min="0" value={props.value.minimo_partidas_jogadas_jogador} onChange={(e) => patch({ minimo_partidas_jogadas_jogador: e.target.value })} /></Field>
+              <Field label="Mínimo de quedas anteriores do jogador"><input type="number" min="0" value={props.value.minimo_partidas_jogadas_jogador} onChange={(e) => patch({ minimo_partidas_jogadas_jogador: e.target.value })} /></Field>
               <Field label="Etapa competitiva"><input value={effectiveGameType === 'final' ? `Grande Final · Dia ${props.value.dia_final || 1}` : 'Classificação da fase'} disabled /></Field>
             </div>
           </div>
-          <button className="button" disabled={props.loading} onClick={save}>{props.loading ? 'Salvando...' : editingId ? 'Salvar alteraÃ§Ãµes' : 'Criar jogo e quedas'}</button>
+          <button className="button" disabled={props.loading} onClick={save}>{props.loading ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Criar jogo e quedas'}</button>
         </div>
       ) : null}
 
@@ -190,12 +190,12 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
           return <article className="game-card" key={game.id}>
             <button className="game-card-summary" onClick={() => setOpenId(open ? null : game.id)}>
               <span className="game-card-chevron">{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</span>
-              <span className="game-card-main"><strong>{rowTitle(game)}</strong><small>{phaseName(props.fases, game.data?.fase_id)}{game.data?.rodada ? ` Â· Rodada ${game.data.rodada}` : ''}</small></span>
+              <span className="game-card-main"><strong>{rowTitle(game)}</strong><small>{phaseName(props.fases, game.data?.fase_id)}{game.data?.rodada ? ` · Rodada ${game.data.rodada}` : ''}</small></span>
               <span className="game-card-meta"><span><CalendarDays size={14} />{formatDate(game.data?.data_jogo)}</span><span><Clock3 size={14} />{String(game.data?.horario || '--:--').slice(0, 5)}</span></span>
               <span className={`game-status ${String(game.data?.status || game.status || 'agendado')}`}>{String(game.data?.status || game.status || 'agendado').replaceAll('_', ' ')}</span>
             </button>
             {open ? <div className="game-card-details">
-              <div className="game-detail-grid"><div><span>Grupos</span><strong>{groupNames.join(' Ã— ') || 'NÃ£o definidos'}</strong></div><div><span>Quedas</span><strong>{game.data?.numero_partidas || 1}</strong></div><div><span>Mapas</span><strong>{mapsArray(game.data?.mapas).join(', ') || 'NÃ£o definidos'}</strong></div><div><span>Etapa</span><strong>{game.data?.tipo_jogo === 'final' ? `Grande Final · Dia ${game.data?.dia_final || 1}${game.data?.define_campeao ? ' · decisivo' : ''}` : game.data?.classificam_quantidade ? `${game.data.classificam_quantidade} avançam` : 'Regra da fase'}</strong></div></div>
+              <div className="game-detail-grid"><div><span>Grupos</span><strong>{groupNames.join(' × ') || 'Não definidos'}</strong></div><div><span>Quedas</span><strong>{game.data?.numero_partidas || 1}</strong></div><div><span>Mapas</span><strong>{mapsArray(game.data?.mapas).join(', ') || 'Não definidos'}</strong></div><div><span>Etapa</span><strong>{game.data?.tipo_jogo === 'final' ? `Grande Final · Dia ${game.data?.dia_final || 1}${game.data?.define_campeao ? ' · decisivo' : ''}` : game.data?.classificam_quantidade ? `${game.data.classificam_quantidade} avançam` : 'Regra da fase'}</strong></div></div>
               <div className="game-card-actions">
                 {canManageGames ? (
                   <>
@@ -203,7 +203,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
                     <button className="button secondary danger" onClick={() => props.deleteGame(game.id)}><Trash2 size={15} /> Excluir</button>
                   </>
                 ) : null}
-                <button className="button secondary" disabled><Trophy size={15} /> SÃºmula</button>
+                <button className="button secondary" disabled><Trophy size={15} /> Súmula</button>
               </div>
             </div> : null}
           </article>

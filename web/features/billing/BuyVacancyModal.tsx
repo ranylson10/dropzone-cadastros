@@ -283,7 +283,7 @@ export function BuyVacancyModal({
       }
       if (method === 'paypal') {
         const approval = String(json.payment?.paypal_approval_url || '').trim()
-        if (!approval) throw new Error('O PayPal nÃ£o retornou o link de aprovaÃ§Ã£o.')
+        if (!approval) throw new Error('O PayPal não retornou o link de aprovação.')
         window.location.href = approval
         return
       }
@@ -382,7 +382,7 @@ export function BuyVacancyModal({
                     <CreditCard size={22} />
                   </span>
                   <span>
-                    <strong>Pagar com cartÃ£o</strong>
+                    <strong>Pagar com cartão</strong>
                     <small>Checkout seguro{Number(championship.cartao_max_parcelas || 1) > 1 ? ` · até ${championship.cartao_max_parcelas}x` : ''}</small>
                   </span>
                 </button>

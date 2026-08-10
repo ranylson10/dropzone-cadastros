@@ -31,8 +31,8 @@ export function sellerLimit(value: unknown) {
 export function sellerCommissionBps(value: unknown) {
   if (value === undefined || value === null || value === '') return null
   const percent = Number(value)
-  if (!Number.isFinite(percent) || percent < 0) throw new Error('ComissÃ£o invÃ¡lida.')
-  if (percent > 20) throw new Error('A comissÃ£o do vendedor pode ser no mÃ¡ximo 20%.')
+  if (!Number.isFinite(percent) || percent < 0) throw new Error('Comissão inválida.')
+  if (percent > 20) throw new Error('A comissão do vendedor pode ser no máximo 20%.')
   return Math.round(percent * 100)
 }
 

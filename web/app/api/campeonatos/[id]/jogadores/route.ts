@@ -23,7 +23,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     if (campeonatoError) throw campeonatoError
     if (campeonato?.aprovacao_status && campeonato.aprovacao_status !== 'aprovado') {
-      throw new Error('Campeonato aguardando liberaÃ§Ã£o para ir ao ar.')
+      throw new Error('Campeonato aguardando liberação para ir ao ar.')
     }
     if (participacoesError) throw participacoesError
 

@@ -75,7 +75,7 @@ export default function LoginPage() {
           const rows = Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : []
           return rows as DropZoneRow[]
         }
-        if (response.status === 401 && /conta nao encontrada|conta nÃ£o encontrada|conta não encontrada/i.test(String(payload.error || ''))) {
+        if (response.status === 401 && /conta nao encontrada|conta não encontrada|conta não encontrada/i.test(String(payload.error || ''))) {
           return [] as DropZoneRow[]
         }
         lastError = payload.error || lastError
