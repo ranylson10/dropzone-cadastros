@@ -65,7 +65,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
         ? supabaseAdmin.from('campeonatos').select('id,nome,logo_url').in('id', championshipIds)
         : Promise.resolve({ data: [], error: null } as any),
       paymentIds.length
-        ? supabaseAdmin.from('sistema_pagamentos').select('id,status,metodo,provider,billing_type,asaas_status,asaas_invoice_url,paypal_approval_url,pago_em,valor_centavos').in('id', paymentIds)
+        ? supabaseAdmin.from('sistema_pagamentos').select('id,status,provider,billing_type,asaas_status,asaas_invoice_url,paypal_approval_url,pago_em,valor_centavos').in('id', paymentIds)
         : Promise.resolve({ data: [], error: null } as any),
       groupIds.length
         ? supabaseAdmin.from('campeonato_grupos').select('id,nome').in('id', groupIds)
@@ -103,7 +103,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
           ? {
               id: payment.id,
               status: payment.status,
-              metodo: payment.metodo,
+              metodo:
+                payment.provider === 'paypal'
+                  ? 'paypal'
+                  : String(payment.billing_type || '').toUpperCase() === 'CREDIT_CARD'
+                    ? 'cartao'
+                    : 'pix',
               provider: payment.provider,
               billing_type: payment.billing_type,
               asaas_status: payment.asaas_status,
