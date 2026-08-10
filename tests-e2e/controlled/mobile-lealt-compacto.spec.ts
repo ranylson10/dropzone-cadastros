@@ -29,4 +29,23 @@ test.describe('Mobile — LEALT compacto', () => {
     expect(card).toContain("cart:{width:42")
     expect(card).toContain('Lista de desejos')
   })
+
+  test('propaga densidade compacta para perfis, token e painel interno', async () => {
+    const create = read('app/src/screens/ProfileCreateScreen.tsx')
+    const profile = read('app/src/screens/ProfileManagementScreen.tsx')
+    const team = read('app/src/screens/TeamCreateScreen.tsx')
+    const token = read('app/src/screens/TokenActionScreen.tsx')
+    const control = read('app/src/screens/ControlPanelScreen.tsx')
+
+    expect(team).toContain('ProfileCreateScreen')
+    expect(create).toContain("header:{minHeight:70")
+    expect(create).toContain("borderRadius:10")
+    expect(create).toContain("input:{minHeight:42")
+    expect(profile).toContain("header:{minHeight:68")
+    expect(profile).toContain("inputWrap:{minHeight:42")
+    expect(token).toContain("title:{color:'#fff',fontSize:20")
+    expect(token).toContain("primaryButton:{marginHorizontal:12,minHeight:46")
+    expect(control).toContain("card:{width:'48.8%',minHeight:132")
+    expect(control).toContain("borderRadius:10")
+  })
 })
