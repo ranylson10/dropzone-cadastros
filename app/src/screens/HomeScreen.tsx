@@ -34,6 +34,7 @@ export function HomeScreen(props: {
   accounts?: MobileAccount[]
   accessToken?: string | null
   onSelectChampionship?: (championship: ChampionshipCard) => void
+  onCreateChampionship?: () => void
   onTokenResolved?: (result: QuickTokenResult) => void
 }) {
   const { onNavigate } = props
@@ -108,7 +109,7 @@ export function HomeScreen(props: {
             </View>
             <Ionicons name="arrow-forward" size={19} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.heroActionSecondary} onPress={() => onNavigate('producer_overview')} activeOpacity={0.82}>
+          <TouchableOpacity style={styles.heroActionSecondary} onPress={() => props.onCreateChampionship?.()} activeOpacity={0.82}>
             <Ionicons name="add-circle-outline" size={23} color="#dce2e8" />
             <Text style={styles.heroActionSecondaryText}>Criar campeonato</Text>
           </TouchableOpacity>

@@ -9,10 +9,14 @@ import { colors, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
 type TabId = 'info' | 'teams' | 'players' | 'agenda' | 'table' | 'rulebook'
+type StatisticsView = 'table' | 'mvp'
 
 export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, requireAuth }: ScreenProps) {
   const championship = selectedChampionship
   const [tab, setTab] = useState<TabId>('info')
+  const [statisticsView, setStatisticsView] = useState<StatisticsView>('table')
+  const [statisticsGameId, setStatisticsGameId] = useState('')
+  const [statisticsFallId, setStatisticsFallId] = useState('')
   const [structure, setStructure] = useState<any>(null)
   const [teamsPayload, setTeamsPayload] = useState<any>(null)
   const [playersPayload, setPlayersPayload] = useState<any>(null)
@@ -34,8 +38,8 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
         mobileApi.championshipStructure(championship.id),
         mobileApi.championshipTeams(championship.id),
         mobileApi.championshipPlayers(championship.id),
-        mobileApi.championshipTeamStats(championship.id),
-        mobileApi.championshipMvpStats(championship.id),
+        mobileApi.championshipTeamStats(championship.id, { jogoId: statisticsGameId, partidaId: statisticsFallId }),
+        mobileApi.championshipMvpStats(championship.id, { jogoId: statisticsGameId, partidaId: statisticsFallId }),
       ])
       setStructure(structureResult)
       setTeamsPayload(teamsResult)
@@ -50,7 +54,7 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
       setLoading(false)
       setRefreshing(false)
     }
-  }, [championship?.id])
+  }, [championship?.id, statisticsGameId, statisticsFallId])
 
   useEffect(() => {
     void loadChampionship()
@@ -86,6 +90,11 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
       })),
     )
   }, [playersPayload])
+  const statisticGames = useMemo(() => Array.isArray(structure?.jogos) ? structure.jogos : [], [structure])
+  const statisticFalls = useMemo(() => {
+    const game = statisticGames.find((item:any) => String(item.id) === statisticsGameId)
+    return statisticsGameId && Array.isArray(game?.quedas) ? game.quedas : []
+  }, [statisticGames, statisticsGameId])
 
   if (!championship) {
     return <View style={styles.center}><Text style={styles.empty}>Campeonato não selecionado.</Text></View>
@@ -220,6 +229,16 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
 
       {!loading && tab === 'table' ? (
         <View style={styles.tableBlock}>
+          <View style={styles.statisticsControls}>
+            <TouchableOpacity style={[styles.statisticsTab,statisticsView==='table'&&styles.statisticsTabActive]} onPress={()=>setStatisticsView('table')}><Text style={[styles.statisticsTabText,statisticsView==='table'&&styles.statisticsTabTextActive]}>Tabela</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.statisticsTab,statisticsView==='mvp'&&styles.statisticsTabActive]} onPress={()=>setStatisticsView('mvp')}><Text style={[styles.statisticsTabText,statisticsView==='mvp'&&styles.statisticsTabTextActive]}>MVP</Text></TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            <TouchableOpacity style={[styles.filterChip,!statisticsGameId&&styles.filterChipActive]} onPress={()=>{setStatisticsGameId('');setStatisticsFallId('')}}><Text style={[styles.filterChipText,!statisticsGameId&&styles.filterChipTextActive]}>Geral</Text></TouchableOpacity>
+            {statisticGames.map((game:any,index:number)=><TouchableOpacity key={String(game.id||index)} style={[styles.filterChip,statisticsGameId===String(game.id)&&styles.filterChipActive]} onPress={()=>{setStatisticsGameId(String(game.id));setStatisticsFallId('')}}><Text style={[styles.filterChipText,statisticsGameId===String(game.id)&&styles.filterChipTextActive]}>{game.nome||`Jogo ${index+1}`}</Text></TouchableOpacity>)}
+          </ScrollView>
+          {statisticsGameId&&statisticFalls.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}><TouchableOpacity style={[styles.filterChip,!statisticsFallId&&styles.filterChipActive]} onPress={()=>setStatisticsFallId('')}><Text style={[styles.filterChipText,!statisticsFallId&&styles.filterChipTextActive]}>Todas quedas</Text></TouchableOpacity>{statisticFalls.map((fall:any,index:number)=><TouchableOpacity key={String(fall.id||index)} style={[styles.filterChip,statisticsFallId===String(fall.id)&&styles.filterChipActive]} onPress={()=>setStatisticsFallId(String(fall.id))}><Text style={[styles.filterChipText,statisticsFallId===String(fall.id)&&styles.filterChipTextActive]}>{`Queda ${fall.numero_partida||fall.numero||index+1}`}</Text></TouchableOpacity>)}</ScrollView>:null}
+          {statisticsView==='table'?<>
           <View style={styles.sectionHeadingRow}><Text style={styles.sectionTitle}>CLASSIFICAÇÃO</Text><Text style={styles.sectionUpdated}>ATUAL</Text></View>
           <View style={styles.list}>
             {teamStats.map((team:any, index:number) => (
@@ -234,7 +253,9 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
             ))}
           </View>
 
-          <View style={[styles.sectionHeadingRow, styles.mvpTitle]}><Text style={styles.sectionTitle}>MVP</Text><Text style={styles.sectionUpdated}>ATUAL</Text></View>
+          </>:null}
+          {statisticsView==='mvp'?<>
+          <View style={styles.sectionHeadingRow}><Text style={styles.sectionTitle}>MVP</Text><Text style={styles.sectionUpdated}>ATUAL</Text></View>
           <View style={styles.list}>
             {mvpStats.slice(0, 20).map((player:any, index:number) => (
               <View key={String(player.campeonato_jogador_id || index)} style={styles.row}>
@@ -250,6 +271,7 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
               </View>
             ))}
           </View>
+          </>:null}
         </View>
       ) : null}
 
@@ -296,8 +318,8 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: spacing.lg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  tabs: { margin: spacing.md, marginBottom: 8, paddingRight: spacing.md, flexDirection: 'row', backgroundColor: '#cfc8be', gap: 1 },
-  tab: { minWidth: 86, minHeight: 36, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e7e1d8' },
+  tabs: { margin: spacing.md, marginBottom: 8, paddingRight: spacing.md, flexDirection: 'row', gap: 7 },
+  tab: { minWidth: 86, minHeight: 36, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e7e1d8', borderRadius: 18 },
   tabActive: { backgroundColor: colors.brandDark },
   tabText: { color: colors.ink, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   tabTextActive: { color: colors.surface },
@@ -305,12 +327,12 @@ const styles = StyleSheet.create({
   loadingText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   error: { marginHorizontal: spacing.md, marginBottom: 8, padding: 10, backgroundColor: '#fff7ed', color: '#9a3412', fontSize: 11, fontWeight: '800' },
   infoGrid: { marginHorizontal: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: 1, backgroundColor: '#cfc8be' },
-  info: { width: '49.8%', minHeight: 62, padding: 10, backgroundColor: '#e8e2d8' },
+  info: { width: '49.8%', minHeight: 62, padding: 10, backgroundColor: '#e8e2d8', borderRadius: 14 },
   infoLabel: { color: colors.brand, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   infoValue: { marginTop: 4, color: colors.ink, fontSize: 12, fontWeight: '900' },
   list: { marginHorizontal: spacing.md, gap: 1, backgroundColor: '#cfc8be' },
-  row: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 9, paddingVertical: 7, backgroundColor: '#e8e2d8' },
-  logo: { width: 40, height: 40, backgroundColor: '#f7f3ec' },
+  row: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 9, paddingVertical: 7, backgroundColor: '#e8e2d8', borderRadius: 14 },
+  logo: { width: 40, height: 40, backgroundColor: '#f7f3ec', borderRadius: 12 },
   logoFallback: { alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, minWidth: 0 },
   name: { color: colors.ink, fontSize: 11.5, fontWeight: '900', textTransform: 'uppercase' },
@@ -341,6 +363,16 @@ const styles = StyleSheet.create({
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionUpdated: { color: colors.brand, fontSize: 7, fontWeight: '900', letterSpacing: 1 },
   tableBlock: { gap: 8 },
+  statisticsControls:{flexDirection:'row',gap:7,marginHorizontal:spacing.md},
+  statisticsTab:{flex:1,minHeight:42,alignItems:'center',justifyContent:'center',borderRadius:14,backgroundColor:'#e8e2d8'},
+  statisticsTabActive:{backgroundColor:colors.brandDark},
+  statisticsTabText:{color:colors.ink,fontSize:10,fontWeight:'900',textTransform:'uppercase'},
+  statisticsTabTextActive:{color:colors.surface},
+  filterRow:{gap:6,paddingHorizontal:spacing.md,paddingVertical:2},
+  filterChip:{minHeight:32,justifyContent:'center',paddingHorizontal:11,borderRadius:16,backgroundColor:'#e8e2d8'},
+  filterChipActive:{backgroundColor:colors.brand},
+  filterChipText:{color:colors.ink,fontSize:8,fontWeight:'900',textTransform:'uppercase'},
+  filterChipTextActive:{color:colors.surface},
   sectionTitle: { marginHorizontal: spacing.md, color: colors.ink, fontSize: 11, fontWeight: '900', letterSpacing: 1 },
   mvpTitle: { marginTop: 8 },
   position: { width: 25, color: colors.ink, fontSize: 15, fontWeight: '900', textAlign: 'center' },

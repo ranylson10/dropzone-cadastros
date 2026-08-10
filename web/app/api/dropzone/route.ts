@@ -299,7 +299,13 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     divisao_premiacao: String(data.divisao_premiacao || '').trim() || null,
     numero_vagas: nullablePositiveInteger(data.numero_vagas),
     formato: String(data.formato || '').trim() || null,
-    plataforma: String(data.plataforma || '').trim() || null,
+    plataforma: (() => {
+      const value = String(data.plataforma || '').trim().toLowerCase()
+      if (!value) return null
+      if (['mobile', 'emulador', 'misto'].includes(value)) return value
+      if (['ambos', 'both'].includes(value)) return 'misto'
+      throw new Error('Plataforma inválida. Escolha Mobile, Emulador ou Misto.')
+    })(),
     servidor: String(data.servidor || '').trim() || null,
     tipo_premiacao: String(data.tipo_premiacao || '').trim() || null,
     tem_trofeu: Boolean(data.tem_trofeu),
@@ -1735,4 +1741,3 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Erro ao excluir.' }, { status: 400 })
   }
 }
-

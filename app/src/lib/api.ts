@@ -48,8 +48,9 @@ export const mobileApi = {
     dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/rulebook?public=1`, {
       cache: 'no-store',
     }),
-  championshipStructure: (championshipId: string) =>
+  championshipStructure: (championshipId: string, accessToken?: string | null) =>
     dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/estrutura`, {
+      accessToken,
       cache: 'no-store',
     }),
   championshipTeams: (championshipId: string) =>
@@ -60,12 +61,12 @@ export const mobileApi = {
     dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/jogadores`, {
       cache: 'no-store',
     }),
-  championshipTeamStats: (championshipId: string) =>
-    dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/estatisticas/equipes`, {
+  championshipTeamStats: (championshipId: string, filters: { jogoId?: string; partidaId?: string } = {}) =>
+    dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/estatisticas/equipes?${new URLSearchParams({ ...(filters.jogoId ? { jogo_id: filters.jogoId } : {}), ...(filters.partidaId ? { partida_id: filters.partidaId } : {}) }).toString()}`, {
       cache: 'no-store',
     }),
-  championshipMvpStats: (championshipId: string) =>
-    dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/estatisticas/mvp`, {
+  championshipMvpStats: (championshipId: string, filters: { jogoId?: string; partidaId?: string } = {}) =>
+    dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/estatisticas/mvp?${new URLSearchParams({ ...(filters.jogoId ? { jogo_id: filters.jogoId } : {}), ...(filters.partidaId ? { partida_id: filters.partidaId } : {}) }).toString()}`, {
       cache: 'no-store',
     }),
   publicTeam: (teamId: string) =>

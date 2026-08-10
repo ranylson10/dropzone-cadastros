@@ -234,6 +234,10 @@ function DropZoneMobileApp() {
       setSelectedAdminChampionshipId(championshipId || null)
       requireLogin('championship_management')
     },
+    onCreateChampionship: () => {
+      setSelectedAdminChampionshipId('__create__')
+      requireLogin('championship_management')
+    },
     onSelectLineup: (lineup?: LineupSummary | null) => {
       setSelectedLineup(lineup || null)
       requireLogin('championship_actions')
@@ -286,6 +290,7 @@ function DropZoneMobileApp() {
           accounts={auth.accounts}
           onSelectChampionship={screenProps.onSelectChampionship}
           accessToken={auth.session?.access_token}
+          onCreateChampionship={screenProps.onCreateChampionship}
           onTokenResolved={(result) => { setSelectedTokenAction(result); setRouteWithHistory('token_action') }}
         />
       )
@@ -329,6 +334,7 @@ function DropZoneMobileApp() {
         onNavigate={navigate}
         accounts={auth.accounts}
         accessToken={auth.session?.access_token}
+        onCreateChampionship={screenProps.onCreateChampionship}
         onSelectChampionship={screenProps.onSelectChampionship}
         onTokenResolved={(result) => { setSelectedTokenAction(result); setRouteWithHistory('token_action') }}
       />
