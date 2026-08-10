@@ -74,4 +74,44 @@ test.describe('Mobile — LEALT compacto', () => {
     expect(wallet).toContain("input:{minHeight:42")
   })
 
+
+  test('fecha a varredura visual nas telas restantes do app', async () => {
+    const calls = read('app/src/screens/ChampionshipCallsPanel.tsx')
+    const finalization = read('app/src/screens/ChampionshipFinalizationPanel.tsx')
+    const rulebook = read('app/src/screens/ChampionshipRulebookPanel.tsx')
+    const scorer = read('app/src/screens/ChampionshipScorerPanel.tsx')
+    const settings = read('app/src/screens/ChampionshipSettingsPanel.tsx')
+    const stream = read('app/src/screens/ChampionshipStreamPanel.tsx')
+    const search = read('app/src/screens/GlobalSearchScreen.tsx')
+    const invites = read('app/src/screens/InvitesScreen.tsx')
+    const lineup = read('app/src/screens/LineupScreen.tsx')
+    const players = read('app/src/screens/TeamPlayersPanel.tsx')
+    const staff = read('app/src/screens/TeamStaffPanel.tsx')
+    const commerce = read('app/src/screens/CommerceScreen.tsx')
+    const seller = read('app/src/screens/SellerSalesScreen.tsx')
+    const broadcast = read('app/src/screens/BroadcastDeskPanel.tsx')
+    const purchase = read('app/src/screens/PurchaseClaimScreen.tsx')
+
+    expect(calls).toContain("card:{gap:7,padding:9")
+    expect(finalization).toContain("statusCard:{flexDirection:'row',alignItems:'center',gap:8,padding:10")
+    expect(rulebook).toContain("longInput:{minHeight:78")
+    expect(scorer).toContain("loading:{minHeight:64")
+    expect(settings).toContain("input:{minHeight:40")
+    expect(stream).toContain("borderRadius:9")
+    expect(search).toContain("heroTitle:{marginTop:3,color:colors.surface,fontSize:19")
+    expect(invites).toContain("header:{minHeight:84")
+    expect(lineup).toContain("heroTitle:{color:colors.surface,fontSize:24")
+    expect(players).toContain("card:{padding:10,gap:8")
+    expect(staff).toContain("loading:{minHeight:72")
+    expect(commerce).toContain("summaryValue:{marginTop:4,color:colors.surface,fontSize:24")
+    expect(seller).toContain("balanceValue:{marginTop:4,color:colors.surface,fontSize:22")
+    expect(broadcast).toContain("loading:{minHeight:72")
+    expect(purchase).toContain("restoreBox:{minHeight:76")
+
+    for (const source of [calls, finalization, rulebook, scorer, settings, stream, invites, lineup, staff, broadcast, purchase]) {
+      expect(source).not.toContain('minHeight:120')
+      expect(source).not.toContain('minHeight:100')
+    }
+  })
+
 })

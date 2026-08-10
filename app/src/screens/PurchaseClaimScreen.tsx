@@ -261,7 +261,7 @@ function Step(props: { number: string; text: string; active?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  restoreBox:{minHeight:120,alignItems:'center',justifyContent:'center',gap:9,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},
+  restoreBox:{minHeight:76,alignItems:'center',justifyContent:'center',gap:7,padding:10,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,borderRadius:10},
   restoreText:{color:colors.muted,fontSize:9,fontWeight:'800'},
   hero: { minHeight: 230, backgroundColor: colors.brandDark, overflow: 'hidden' },
   heroImage: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: undefined, height: undefined },
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   choiceActive:{backgroundColor:colors.brandDark,borderColor:colors.brandDark},
   choiceText:{color:colors.ink,fontSize:8,fontWeight:'900',textTransform:'uppercase'},
   choiceTextActive:{color:colors.surface},
-  input:{minHeight:45,paddingHorizontal:11,color:colors.ink,backgroundColor:'#f2eee7',borderWidth:1,borderColor:colors.line,fontSize:11,fontWeight:'700'},
+  input:{minHeight:40,paddingHorizontal:9,borderRadius:7,color:colors.ink,backgroundColor:'#f2eee7',borderWidth:1,borderColor:colors.line,fontSize:11,fontWeight:'700'},
   completed:{gap:9,padding:13,backgroundColor:'#effaf3',borderWidth:1,borderColor:'#9bc7aa'},
   completedCopy:{gap:3},
   completedTitle:{color:'#166534',fontSize:11,fontWeight:'900',letterSpacing:1},

@@ -9,7 +9,7 @@ import { ActionCard, ScreenShell } from '@/screens/components'
 import { colors, spacing, typography } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
-export function LineupScreen({ onBack, onNavigate, selectedLineup }: ScreenProps) {
+export function LineupScreen({ onBack, onNavigate, onOpenToken, selectedLineup }: ScreenProps) {
   const auth = useAuth()
   const accessToken = auth.session?.access_token
   const [lineups, setLineups] = useState<LineupSummary[]>([])
@@ -78,6 +78,15 @@ export function LineupScreen({ onBack, onNavigate, selectedLineup }: ScreenProps
       `Acesse: ${url}`,
     ].filter(Boolean).join('\n')
     await Share.share({ message:text, url })
+  }
+
+  async function openInvite(lineup:any) {
+    if (!lineup.link_token || !onOpenToken) return
+    try {
+      await onOpenToken(String(lineup.link_token))
+    } catch (err:any) {
+      setError(err?.message || 'Não foi possível abrir o convite no app.')
+    }
   }
 
   function revokeInvite(lineup:any) {
@@ -179,6 +188,7 @@ export function LineupScreen({ onBack, onNavigate, selectedLineup }: ScreenProps
                 <Text style={styles.tokenMeta}>{lineup.link_expira_em ? `Validade: ${new Date(lineup.link_expira_em).toLocaleString('pt-BR')}` : 'Validade definida pelas regras do campeonato'}</Text>
               </View>
               <TouchableOpacity style={styles.iconButton} onPress={()=>void shareInvite(lineup)}><Ionicons name="share-social-outline" size={18} color={colors.ink}/></TouchableOpacity>
+              <TouchableOpacity accessibilityLabel="Abrir link de escalação" style={styles.iconButton} onPress={()=>void openInvite(lineup)}><Ionicons name="open-outline" size={18} color={colors.ink}/></TouchableOpacity>
               <TouchableOpacity style={styles.iconDanger} disabled={busyId===String(lineup.link_id)} onPress={()=>revokeInvite(lineup)}><Ionicons name="close-circle-outline" size={18} color="#9a3412"/></TouchableOpacity>
             </View> : null}
 
@@ -198,17 +208,17 @@ function Info({label,value}:{label:string;value:string}) {
 }
 
 const styles=StyleSheet.create({
-  hero:{backgroundColor:colors.brandDark,borderBottomWidth:3,borderBottomColor:colors.brand,padding:spacing.lg,gap:spacing.xs},
+  hero:{backgroundColor:colors.brandDark,borderBottomWidth:2,borderBottomColor:colors.brand,padding:spacing.md,borderBottomLeftRadius:10,borderBottomRightRadius:10,gap:spacing.xs},
   heroKicker:{color:colors.gold,fontSize:typography.tiny,fontWeight:'900',letterSpacing:2,textTransform:'uppercase'},
-  heroTitle:{color:colors.surface,fontSize:42,fontWeight:'900'},
+  heroTitle:{color:colors.surface,fontSize:24,fontWeight:'900'},
   heroText:{color:'#cbd5e1',fontSize:typography.caption,fontWeight:'700'},
-  loading:{alignItems:'center',backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,gap:spacing.sm,padding:spacing.lg},
+  loading:{alignItems:'center',backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,borderRadius:9,gap:spacing.sm,padding:12},
   muted:{color:colors.muted,fontSize:typography.caption,fontWeight:'700'},
   warning:{backgroundColor:'#fff7ed',color:'#9a3412',fontWeight:'800',padding:spacing.md},
   success:{backgroundColor:'#effaf3',color:'#166534',fontWeight:'800',padding:spacing.md},
-  card:{backgroundColor:colors.surface,borderTopWidth:3,borderTopColor:colors.brand,padding:spacing.md,gap:spacing.sm},
+  card:{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,borderRadius:10,padding:10,gap:spacing.sm},
   cardHead:{flexDirection:'row',alignItems:'center',gap:spacing.sm},
-  slotBox:{width:54,height:54,alignItems:'center',justifyContent:'center',backgroundColor:colors.brandDark},
+  slotBox:{width:46,height:46,borderRadius:8,alignItems:'center',justifyContent:'center',backgroundColor:colors.brandDark},
   slotValue:{color:colors.surface,fontSize:20,fontWeight:'900'},
   slotLabel:{color:'#cbd5e1',fontSize:9,fontWeight:'900'},
   cardTitleWrap:{flex:1},
@@ -239,7 +249,7 @@ const styles=StyleSheet.create({
   tokenMeta:{marginTop:2,color:colors.muted,fontSize:8},
   iconButton:{width:34,height:34,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},
   iconDanger:{width:34,height:34,alignItems:'center',justifyContent:'center',backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'},
-  primary:{minHeight:47,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand},
+  primary:{minHeight:42,borderRadius:8,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand},
   primaryText:{color:colors.surface,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
   complete:{color:colors.muted,fontSize:8,fontWeight:'700',textAlign:'center'},
 })

@@ -121,4 +121,5 @@ export type ScreenProps = {
   onManageLine?: (teamId: string, lineId: string) => void
   onSelectPlayer?: (playerId: string) => void
   requireAuth?: (action?: () => void) => boolean
+  onOpenToken?: (token: string) => void | Promise<void>
 }

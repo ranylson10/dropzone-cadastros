@@ -283,7 +283,7 @@ export function ChampionshipCallsPanel({championshipId,token}:Props){
 }
 
 const styles=StyleSheet.create({
-  root:{marginHorizontal:spacing.md,gap:8},loading:{minHeight:100,alignItems:'center',justifyContent:'center'},
+  root:{marginHorizontal:spacing.md,gap:8},loading:{minHeight:64,alignItems:'center',justifyContent:'center'},
   message:{padding:10,color:'#166534',backgroundColor:'#effaf3',fontWeight:'800'},error:{color:'#9a3412',backgroundColor:'#fff7ed'},
   title:{marginTop:8,color:colors.ink,fontSize:10,fontWeight:'900',letterSpacing:1},
   chips:{flexDirection:'row',flexWrap:'wrap',gap:5},chip:{paddingHorizontal:10,paddingVertical:8,backgroundColor:'#eee9e1'},chipActive:{backgroundColor:colors.brandDark},
@@ -294,10 +294,10 @@ const styles=StyleSheet.create({
   editPoint:{position:'absolute',width:22,height:22,marginLeft:-11,marginTop:-11,borderRadius:11,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand,borderWidth:2,borderColor:colors.surface},
   editPointText:{color:colors.surface,fontSize:7,fontWeight:'900'},callLabel:{position:'absolute',maxWidth:105,marginLeft:-5,marginTop:-11,paddingHorizontal:5,paddingVertical:3},
   callLabelText:{color:colors.surface,fontSize:6,fontWeight:'900',textTransform:'uppercase'},labelPin:{position:'absolute',marginLeft:-11,marginTop:-22},
-  card:{gap:8,padding:10,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},segment:{flexDirection:'row',gap:1,backgroundColor:colors.line},
+  card:{gap:7,padding:9,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,borderRadius:9},segment:{flexDirection:'row',gap:1,backgroundColor:colors.line},
   segmentItem:{flex:1,minHeight:36,alignItems:'center',justifyContent:'center',backgroundColor:'#eee9e1'},segmentActive:{backgroundColor:colors.brandDark},
   segmentText:{color:colors.ink,fontSize:7,fontWeight:'900',textTransform:'uppercase'},segmentTextActive:{color:colors.surface},help:{color:colors.muted,fontSize:8,lineHeight:12},
-  input:{minHeight:42,paddingHorizontal:9,color:colors.ink,backgroundColor:'#f2eee7',borderWidth:1,borderColor:colors.line,fontWeight:'800'},textarea:{minHeight:70,textAlignVertical:'top',paddingTop:10},
+  input:{minHeight:40,paddingHorizontal:9,borderRadius:7,color:colors.ink,backgroundColor:'#f2eee7',borderWidth:1,borderColor:colors.line,fontWeight:'800'},textarea:{minHeight:70,textAlignVertical:'top',paddingTop:10},
   actions:{flexDirection:'row',flexWrap:'wrap',gap:5},primary:{flexGrow:1,minHeight:42,paddingHorizontal:14,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand},disabled:{opacity:.45},
   primaryText:{color:colors.surface,fontSize:8,fontWeight:'900',textTransform:'uppercase'},secondary:{minHeight:36,paddingHorizontal:9,alignItems:'center',justifyContent:'center',backgroundColor:'#eee9e1'},
   secondaryText:{color:colors.ink,fontSize:7,fontWeight:'900',textTransform:'uppercase'},validation:{padding:8,color:'#9a3412',fontSize:8,fontWeight:'800',backgroundColor:'#fff7ed'},

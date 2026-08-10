@@ -229,6 +229,12 @@ function DropZoneMobileApp() {
     selectedLineId,
     selectedPlayerId,
     requireAuth: (action?: () => void) => requireLogin(undefined, action),
+    onOpenToken: async (token: string) => {
+      const result = await resolveQuickToken(token, auth.session?.access_token)
+      setSelectedTokenAction(result)
+      if (auth.session) setRouteWithHistory('token_action')
+      else requireLogin('token_action')
+    },
     onSelectChampionship: (championship: ChampionshipCard) => {
       setSelectedChampionship(championship)
       setRoute('championship_public')

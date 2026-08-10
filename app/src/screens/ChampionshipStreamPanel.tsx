@@ -182,12 +182,12 @@ function Nav({label,active,onPress}:{label:string;active:boolean;onPress:()=>voi
 function Metric({label,value}:{label:string;value:any}){return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.metricValue}>{value}</Text></View>}
 
 const styles=StyleSheet.create({
-  root:{marginHorizontal:spacing.md,gap:8},loading:{minHeight:100,alignItems:'center',justifyContent:'center'},
+  root:{marginHorizontal:spacing.md,gap:8},loading:{minHeight:64,alignItems:'center',justifyContent:'center'},
   message:{padding:10,color:'#166534',backgroundColor:'#effaf3',fontWeight:'800'},error:{color:'#9a3412',backgroundColor:'#fff7ed'},
   nav:{flexDirection:'row',gap:1,backgroundColor:colors.line},navItem:{flex:1,minHeight:38,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface},navActive:{backgroundColor:colors.brandDark},
   navText:{color:colors.muted,fontSize:8,fontWeight:'900',textTransform:'uppercase'},navTextActive:{color:colors.surface},
-  title:{marginTop:8,color:colors.ink,fontSize:10,fontWeight:'900',letterSpacing:1},card:{gap:8,padding:10,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},
-  meta:{color:colors.muted,fontSize:8,lineHeight:12,fontWeight:'700'},input:{minHeight:42,paddingHorizontal:9,color:colors.ink,backgroundColor:'#f2eee7',borderWidth:1,borderColor:colors.line,fontWeight:'800'},
+  title:{marginTop:8,color:colors.ink,fontSize:10,fontWeight:'900',letterSpacing:1},card:{gap:7,padding:9,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,borderRadius:9},
+  meta:{color:colors.muted,fontSize:8,lineHeight:12,fontWeight:'700'},input:{minHeight:40,paddingHorizontal:9,borderRadius:7,color:colors.ink,backgroundColor:'#f2eee7',borderWidth:1,borderColor:colors.line,fontWeight:'800'},
   tokenBox:{padding:10,backgroundColor:colors.brandDark},token:{color:colors.surface,fontSize:11,fontWeight:'900',letterSpacing:.8},actions:{flexDirection:'row',flexWrap:'wrap',gap:5},
   secondary:{minHeight:34,paddingHorizontal:9,alignItems:'center',justifyContent:'center',backgroundColor:'#eee9e1'},secondaryWide:{minHeight:40,alignItems:'center',justifyContent:'center',backgroundColor:'#eee9e1'},
   secondaryText:{color:colors.ink,fontSize:7,fontWeight:'900',textTransform:'uppercase'},warning:{minHeight:34,paddingHorizontal:9,alignItems:'center',justifyContent:'center',backgroundColor:'#fff7ed'},

@@ -174,7 +174,7 @@ function Metric({label,value}:{label:string;value:number}){return <View style={s
 
 const styles=StyleSheet.create({
   page:{flex:1,backgroundColor:colors.background},content:{paddingBottom:spacing.xl},
-  header:{minHeight:128,flexDirection:'row',gap:10,padding:spacing.md,backgroundColor:colors.brandDark},
+  header:{minHeight:84,flexDirection:'row',gap:10,padding:12,backgroundColor:colors.brandDark,borderBottomLeftRadius:10,borderBottomRightRadius:10},
   back:{width:38,height:38,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.08)'},headerCopy:{flex:1},
   eyebrow:{color:colors.brand,fontSize:8,fontWeight:'900',letterSpacing:1.6},headerTitle:{marginTop:2,color:colors.surface,fontSize:22,fontWeight:'900',letterSpacing:.4},headerText:{marginTop:5,color:'#c9ced6',fontSize:9,lineHeight:13,fontWeight:'700'},
   metrics:{marginHorizontal:spacing.md,marginTop:-22,flexDirection:'row',gap:1,backgroundColor:colors.line},
@@ -184,7 +184,7 @@ const styles=StyleSheet.create({
   bulk:{marginHorizontal:spacing.md,flexDirection:'row',gap:5},bulkButton:{flex:1,minHeight:38,flexDirection:'row',gap:5,alignItems:'center',justifyContent:'center',backgroundColor:'#e8e2d8'},bulkText:{color:colors.ink,fontSize:7,fontWeight:'900',textTransform:'uppercase'},disabled:{opacity:.4},
   loading:{minHeight:64,flexDirection:'row',gap:8,alignItems:'center',justifyContent:'center'},muted:{color:colors.muted,fontSize:9,fontWeight:'700'},
   warning:{margin:spacing.md,padding:10,color:'#9a3412',backgroundColor:'#fff7ed',fontSize:9,fontWeight:'800'},info:{marginHorizontal:spacing.md,marginTop:7,padding:10,color:'#166534',backgroundColor:'#effaf3',fontSize:9,fontWeight:'800'},
-  empty:{margin:spacing.md,padding:20,alignItems:'center',gap:6,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},emptyTitle:{color:colors.ink,fontSize:12,fontWeight:'900',textTransform:'uppercase'},
+  empty:{margin:spacing.md,padding:12,borderRadius:10,alignItems:'center',gap:6,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},emptyTitle:{color:colors.ink,fontSize:12,fontWeight:'900',textTransform:'uppercase'},
   list:{margin:spacing.md,marginTop:8,gap:6},notice:{padding:10,gap:8,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},noticeUnread:{borderLeftWidth:4,borderLeftColor:colors.brand},
   noticeHead:{flexDirection:'row',gap:8},iconBox:{width:34,height:34,alignItems:'center',justifyContent:'center',backgroundColor:'#eee9e1'},iconUnread:{backgroundColor:colors.brand},copy:{flex:1},
   categoryRow:{flexDirection:'row',alignItems:'center',gap:5},category:{color:colors.brand,fontSize:6.5,fontWeight:'900',textTransform:'uppercase'},unreadDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.brand},

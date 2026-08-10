@@ -147,11 +147,11 @@ function Fallback({icon,round=false}:{icon:any;round?:boolean}){
 
 const styles=StyleSheet.create({
   page:{flex:1,backgroundColor:colors.background},content:{paddingBottom:spacing.xl},
-  hero:{padding:spacing.md,paddingTop:22,paddingBottom:18,backgroundColor:colors.brandDark},
+  hero:{padding:spacing.md,paddingTop:16,paddingBottom:14,backgroundColor:colors.brandDark},
   eyebrow:{color:colors.brand,fontSize:8,fontWeight:'900',letterSpacing:1.6},
-  heroTitle:{marginTop:3,color:colors.surface,fontSize:23,fontWeight:'900',letterSpacing:.5},
+  heroTitle:{marginTop:3,color:colors.surface,fontSize:19,fontWeight:'900',letterSpacing:.5},
   heroText:{marginTop:5,color:'#c8ced7',fontSize:9,lineHeight:14,fontWeight:'700'},
-  searchBox:{margin:spacing.md,marginBottom:7,height:48,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,backgroundColor:'#ebe6dd',borderWidth:1,borderColor:'#d2cbc1'},
+  searchBox:{margin:spacing.md,marginBottom:7,height:42,borderRadius:9,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,backgroundColor:'#ebe6dd',borderWidth:1,borderColor:'#d2cbc1'},
   input:{flex:1,color:colors.ink,fontSize:12,fontWeight:'800',paddingVertical:0},
   filters:{paddingHorizontal:spacing.md,paddingBottom:9,gap:5},
   filter:{minHeight:32,paddingHorizontal:10,alignItems:'center',justifyContent:'center',backgroundColor:'#e5dfd5'},
@@ -163,7 +163,7 @@ const styles=StyleSheet.create({
   section:{marginHorizontal:spacing.md,marginTop:8},sectionHead:{minHeight:31,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:9,backgroundColor:colors.brandDark},
   sectionTitle:{color:colors.surface,fontSize:8,fontWeight:'900',letterSpacing:1},sectionCount:{color:colors.brand,fontSize:8,fontWeight:'900'},
   list:{gap:1,backgroundColor:colors.line},row:{minHeight:64,flexDirection:'row',alignItems:'center',gap:9,padding:8,backgroundColor:'#e8e2d8'},
-  logo:{width:44,height:44,backgroundColor:'#f7f3ec',borderWidth:1,borderColor:'rgba(17,24,39,.08)'},avatar:{borderRadius:22},fallback:{alignItems:'center',justifyContent:'center'},
+  logo:{width:40,height:40,borderRadius:9,backgroundColor:'#f7f3ec',borderWidth:1,borderColor:'rgba(17,24,39,.08)'},avatar:{borderRadius:22},fallback:{alignItems:'center',justifyContent:'center'},
   copy:{flex:1,minWidth:0},kicker:{color:colors.brand,fontSize:6.5,fontWeight:'900',textTransform:'uppercase'},title:{marginTop:2,color:colors.ink,fontSize:11.5,fontWeight:'900',textTransform:'uppercase'},
   meta:{marginTop:3,color:'#706b64',fontSize:8.5,fontWeight:'700'},
 })
