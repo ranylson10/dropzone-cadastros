@@ -4,11 +4,20 @@ import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { lineupDateLabel, LineupSummary, lineupSubtitle } from '@/lib/lineups'
 import { ActionCard, ScreenShell } from '@/screens/components'
+import { BroadcastDeskPanel } from '@/screens/BroadcastDeskPanel'
 import { colors, radius, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
 export function MyChampionshipsScreen({ onBack, onNavigate, profileType, onSelectLineup }: ScreenProps) {
   const auth = useAuth()
+
+  if (profileType === 'broadcast') {
+    return (
+      <ScreenShell eyebrow="Transmissão" title="Minha mesa" description="Campeonatos autorizados, controlador e OBS em um único painel privado." onBack={onBack}>
+        <BroadcastDeskPanel />
+      </ScreenShell>
+    )
+  }
   const [lineups, setLineups] = useState<LineupSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

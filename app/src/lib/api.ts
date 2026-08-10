@@ -404,6 +404,19 @@ export const mobileApi = {
   deleteChampionshipStreamOverlay: (id:string, overlayId:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/stream/overlays/${encodeURIComponent(overlayId)}`, {method:'DELETE',accessToken}),
   championshipStreamData: (id:string, sheet:string='context', accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/stream/data?sheet=${encodeURIComponent(sheet)}`, {accessToken,cache:'no-store'}),
   broadcastMe: (accessToken?:string|null) => dropzoneFetch<any>('/api/broadcast/me', {accessToken,cache:'no-store'}),
+  broadcastRedeemKey: (body:{key_token:string;display_name:string}, accessToken?:string|null) =>
+    dropzoneFetch<any>('/api/broadcast/links', {method:'POST',accessToken,body:JSON.stringify(body)}),
+  broadcastRenameLink: (linkId:string, displayName:string, accessToken?:string|null) =>
+    dropzoneFetch<any>(`/api/broadcast/links/${encodeURIComponent(linkId)}`, {method:'PATCH',accessToken,body:JSON.stringify({display_name:displayName})}),
+  broadcastRemoveLink: (linkId:string, accessToken?:string|null) =>
+    dropzoneFetch<any>(`/api/broadcast/links/${encodeURIComponent(linkId)}`, {method:'DELETE',accessToken}),
+  broadcastEnsureDesk: (championshipId?:string|null, accessToken?:string|null) =>
+    dropzoneFetch<any>('/api/broadcast/sessions', {method:'POST',accessToken,body:JSON.stringify({campeonato_id:championshipId||null})}),
+  broadcastUpdateDesk: (body:Record<string,unknown>, accessToken?:string|null) =>
+    dropzoneFetch<any>('/api/broadcast/sessions', {method:'PATCH',accessToken,body:JSON.stringify(body)}),
+  broadcastCloseDesk: (accessToken?:string|null) =>
+    dropzoneFetch<any>('/api/broadcast/sessions', {method:'DELETE',accessToken}),
+
   championshipCalls: (id:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls`, {accessToken,cache:'no-store'}),
   createChampionshipCall: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls`, {method:'POST',accessToken,body:JSON.stringify({action:'create_call',...body})}),
   assignChampionshipCall: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/calls`, {method:'POST',accessToken,body:JSON.stringify({action:'assign',...body})}),
@@ -426,6 +439,18 @@ export const mobileApi = {
       cache: 'no-store',
     }),
   createProducerSellerInvite: (body: Record<string, unknown>, accessToken?: string | null) => dropzoneFetch<any>('/api/produtora/vendedores',{method:'POST',accessToken,body:JSON.stringify({action:'invite',...body})}),
+  attachProducerSellerToChampionship: (managerId:string,championshipId:string,accessToken?:string|null) =>
+    dropzoneFetch<any>('/api/produtora/vendedores',{
+      method:'POST',
+      accessToken,
+      body:JSON.stringify({action:'attach',manager_id:managerId,campeonato_id:championshipId}),
+    }),
+  detachProducerSellerFromChampionship: (managerId:string,championshipId:string,accessToken?:string|null) =>
+    dropzoneFetch<any>('/api/produtora/vendedores',{
+      method:'POST',
+      accessToken,
+      body:JSON.stringify({action:'detach',manager_id:managerId,campeonato_id:championshipId}),
+    }),
   updateProducerSeller: (managerId:string,body:Record<string,unknown>,accessToken?:string|null) => dropzoneFetch<any>('/api/produtora/vendedores',{method:'PATCH',accessToken,body:JSON.stringify({manager_id:managerId,...body})}),
   removeProducerSeller: (managerId:string,accessToken?:string|null) => dropzoneFetch<any>('/api/produtora/vendedores',{method:'DELETE',accessToken,body:JSON.stringify({manager_id:managerId})}),
   rank: () =>

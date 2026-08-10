@@ -34,7 +34,8 @@ export function ProducerOverviewScreen({
     [refreshing, setRefreshing] = useState(false),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
-    [feedback, setFeedback] = useState("");
+    [feedback, setFeedback] = useState(""),
+    [expandedSellerId, setExpandedSellerId] = useState<string | null>(null);
   const load = useCallback(
     async (refresh = false) => {
       refresh ? setRefreshing(true) : setLoading(true);
@@ -125,6 +126,48 @@ export function ProducerOverviewScreen({
       setBusy("");
     }
   }
+  async function toggleSellerChampionship(seller: any, championship: any) {
+    const sellerId = String(seller.manager_id || "");
+    const championshipId = String(championship.id || "");
+    if (!sellerId || !championshipId) return;
+    const assigned = (seller.campeonatos || []).some(
+      (link: any) =>
+        String(link.campeonato_id) === championshipId &&
+        !["cancelado", "inativo"].includes(String(link.status)),
+    );
+    const busyKey = `seller-champ:${sellerId}:${championshipId}`;
+    setBusy(busyKey);
+    setError("");
+    setFeedback("");
+    try {
+      const result = assigned
+        ? await mobileApi.detachProducerSellerFromChampionship(
+            sellerId,
+            championshipId,
+            token,
+          )
+        : await mobileApi.attachProducerSellerToChampionship(
+            sellerId,
+            championshipId,
+            token,
+          );
+      setFeedback(
+        result.mensagem ||
+          (assigned
+            ? "Vendedor removido do campeonato."
+            : "Vendedor liberado no campeonato."),
+      );
+      await load(true);
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Não foi possível atualizar o campeonato deste vendedor.",
+      );
+    } finally {
+      setBusy("");
+    }
+  }
+
   function removeSeller(seller: any) {
     Alert.alert(
       "Remover vendedor?",
@@ -407,6 +450,103 @@ export function ProducerOverviewScreen({
                       : "padrão"}
                   </Text>
                 </View>
+                <TouchableOpacity
+                  style={styles.assignmentToggle}
+                  onPress={() =>
+                    setExpandedSellerId((current) =>
+                      current === String(seller.manager_id)
+                        ? null
+                        : String(seller.manager_id),
+                    )
+                  }
+                >
+                  <Text style={styles.assignmentToggleText}>
+                    {expandedSellerId === String(seller.manager_id)
+                      ? "Ocultar campeonatos"
+                      : "Gerenciar campeonatos"}
+                  </Text>
+                  <Ionicons
+                    name={
+                      expandedSellerId === String(seller.manager_id)
+                        ? "chevron-up"
+                        : "chevron-down"
+                    }
+                    size={16}
+                    color={colors.ink}
+                  />
+                </TouchableOpacity>
+                {expandedSellerId === String(seller.manager_id) ? (
+                  <View style={styles.assignmentList}>
+                    {championships.map((championship: any, championshipIndex: number) => {
+                      const championshipId = String(
+                        championship.id || championshipIndex,
+                      );
+                      const assigned = (seller.campeonatos || []).some(
+                        (link: any) =>
+                          String(link.campeonato_id) ===
+                            String(championship.id) &&
+                          !["cancelado", "inativo"].includes(
+                            String(link.status),
+                          ),
+                      );
+                      const busyKey = `seller-champ:${String(
+                        seller.manager_id,
+                      )}:${String(championship.id)}`;
+                      return (
+                        <View
+                          key={championshipId}
+                          style={styles.assignmentRow}
+                        >
+                          <View style={styles.copy}>
+                            <Text style={styles.assignmentName} numberOfLines={1}>
+                              {championship.nome || "Campeonato"}
+                            </Text>
+                            <Text style={styles.meta}>
+                              {assigned
+                                ? "Vendedor liberado"
+                                : "Sem acesso comercial"}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={[
+                              styles.assignmentButton,
+                              assigned && styles.assignmentButtonDanger,
+                            ]}
+                            disabled={busy === busyKey}
+                            onPress={() =>
+                              void toggleSellerChampionship(
+                                seller,
+                                championship,
+                              )
+                            }
+                          >
+                            {busy === busyKey ? (
+                              <ActivityIndicator
+                                size="small"
+                                color={
+                                  assigned ? "#9a3412" : colors.surface
+                                }
+                              />
+                            ) : (
+                              <Text
+                                style={[
+                                  styles.assignmentButtonText,
+                                  assigned &&
+                                    styles.assignmentButtonTextDanger,
+                                ]}
+                              >
+                                {assigned ? "Remover" : "Liberar"}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                    {!championships.length ? (
+                      <Empty text="Nenhum campeonato disponível para vincular." />
+                    ) : null}
+                  </View>
+                ) : null}
                 <View style={styles.actions}>
                   <TouchableOpacity
                     style={styles.action}
@@ -721,6 +861,65 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: "#f2eee7",
   },
+  assignmentToggle: {
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    backgroundColor: "#eee9e1",
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  assignmentToggleText: {
+    color: colors.ink,
+    fontSize: 8,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  assignmentList: {
+    gap: 5,
+    padding: 8,
+    backgroundColor: "#f6f2eb",
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  assignmentRow: {
+    minHeight: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  assignmentName: {
+    color: colors.ink,
+    fontSize: 9,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  assignmentButton: {
+    minWidth: 74,
+    minHeight: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 9,
+    backgroundColor: colors.brand,
+  },
+  assignmentButtonDanger: {
+    backgroundColor: "#fff7ed",
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+  },
+  assignmentButtonText: {
+    color: colors.surface,
+    fontSize: 8,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  assignmentButtonTextDanger: { color: "#9a3412" },
   actions: { flexDirection: "row", gap: 7 },
   action: {
     flex: 1,
