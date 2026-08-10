@@ -43,6 +43,16 @@ function headers(token: string, profileType?: string) {
   }
 }
 
+function authUserIdFromToken(token: string): string {
+  const payload = token.split('.')[1] || ''
+  const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+  const body = JSON.parse(Buffer.from(padded, 'base64').toString('utf8')) as { sub?: unknown }
+  const id = typeof body?.sub === 'string' ? body.sub : ''
+  expect(id, 'A sessão do jogador deve possuir sub (auth user id).').not.toBe('')
+  return id
+}
+
 async function json(response: Awaited<ReturnType<APIRequestContext['get']>>) {
   return response.json().catch(() => null)
 }
@@ -247,7 +257,7 @@ async function addPlayerToLine(
   equipeToken: string,
   equipeId: string,
   lineId: string,
-  jogadorId: string,
+  jogadorAuthUserId: string,
 ) {
   const detailResponse = await request.get(
     `${origin}/api/equipes/${encodeURIComponent(equipeId)}/lines/${encodeURIComponent(lineId)}`,
@@ -256,7 +266,7 @@ async function addPlayerToLine(
   const detailBody = await json(detailResponse)
   expect(detailResponse.ok(), `Falha ao carregar roster da line: ${detailBody?.error || detailResponse.status()}`).toBeTruthy()
   const rosterPlayer = (Array.isArray(detailBody?.roster) ? detailBody.roster : [])
-    .find((item: any) => String(item?.jogador_id || '') === jogadorId)
+    .find((item: any) => String(item?.jogador_auth_user_id || '') === jogadorAuthUserId)
   expect(rosterPlayer, 'O jogador E2E deve estar no elenco geral da equipe.').toBeTruthy()
 
   const rosterId = String(rosterPlayer?.id || '')
@@ -327,6 +337,7 @@ test.describe('Escalação do jogador por notificação — fluxo controlado', (
     const adminToken = accessTokenFromStorage(adminAuthFile, origin)
     const equipeToken = accessTokenFromStorage(equipeAuthFile, origin)
     const jogadorToken = accessTokenFromStorage(jogadorAuthFile, origin)
+    const jogadorAuthUserId = authUserIdFromToken(jogadorToken)
     const equipeId = await accountId(request, origin, equipeToken, 'equipe')
     const jogadorId = await accountId(request, origin, jogadorToken, 'jogador')
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -349,7 +360,7 @@ test.describe('Escalação do jogador por notificação — fluxo controlado', (
     try {
       await ensurePlayerOnTeam(request, origin, equipeToken, jogadorToken, equipeId, jogadorId)
       lineId = await createLine(request, origin, equipeToken, equipeId, unique)
-      rosterId = await addPlayerToLine(request, origin, equipeToken, equipeId, lineId, jogadorId)
+      rosterId = await addPlayerToLine(request, origin, equipeToken, equipeId, lineId, jogadorAuthUserId)
 
       const championshipName = `[E2E] Escalação por notificação ${unique}`
       const championship = await createEntity(request, origin, produtoraToken, 'produtora', {
