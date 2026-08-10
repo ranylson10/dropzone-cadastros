@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { externalUrl } from '@/config/env'
 import { mobileCommerceFromApi, MobileCommerceItem } from '@/lib/commerce'
 import { VacancyPaymentResult } from '@/lib/payments'
 import { savePendingVacancyPurchase } from '@/lib/purchase-flow'
@@ -123,7 +124,7 @@ export function CommerceScreen({ onBack, onNavigate }: ScreenProps) {
       setPaymentByItem((current)=>({...current,[item.id]:payment}))
       await savePendingVacancyPurchase(asChampionship(item),payment)
       const url = payload.payment?.paypal_approval_url || payload.payment?.invoice_url
-      if (url) await Linking.openURL(url)
+      if (url) await Linking.openURL(externalUrl(url))
       setFeedback('Pagamento criado. Depois da confirmação, conclua a inscrição dentro do app.')
     } catch (err:any) {
       setError(err?.message || 'Não foi possível gerar o pagamento.')

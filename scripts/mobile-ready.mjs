@@ -52,8 +52,8 @@ check('Auth mobile usa PKCE', read('app/src/lib/supabase.ts').includes("flowType
 check('Login troca deep link por sessão', read('app/src/lib/auth.tsx').includes('exchangeCodeForSession'))
 check('App protege contra tela branca', read('app/src/App.tsx').includes('AppErrorBoundary'))
 check('Helper aceita URL relativa ou absoluta', read('app/src/config/env.ts').includes('externalUrl'))
-check('Carrinho abre inscrição com URL segura', read('app/src/screens/CommerceScreen.tsx').includes('externalUrl(payload.claim_url)'))
-check('Compra direta abre inscrição com URL segura', read('app/src/screens/PurchaseClaimScreen.tsx').includes('externalUrl(payment.claim_url)'))
+check('Carrinho abre pagamento com URL segura', read('app/src/screens/CommerceScreen.tsx').includes('Linking.openURL(externalUrl(url))'))
+check('Compra direta abre pagamento com URL segura', read('app/src/screens/PurchaseClaimScreen.tsx').includes('Linking.openURL(externalUrl(checkoutUrl))'))
 check('Lili mobile chama API real', read('app/src/screens/LiliScreen.tsx').includes('mobileApi.lili'))
 check('Escalação abre link público', read('app/src/screens/LineupScreen.tsx').includes('Abrir link de escalação'))
 

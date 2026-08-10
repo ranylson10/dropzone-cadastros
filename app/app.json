@@ -1,9 +1,10 @@
 {
   "expo": {
     "name": "DropZone",
-    "slug": "dropzone-mobile",
+    "slug": "dropzone-platform",
     "scheme": "dropzone",
     "version": "0.1.0",
+    "icon": "./assets/dropzone-icon-accent.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
@@ -16,6 +17,7 @@
     "android": {
       "package": "com.dropzone.mobile",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/dropzone-icon-accent.png",
         "backgroundColor": "#0f1420"
       },
       "intentFilters": [
@@ -72,7 +74,20 @@
       ]
     },
     "extra": {
-      "apiUrl": "https://dropzone-cadastros.vercel.app"
-    }
+      "apiUrl": "https://dropzone-cadastros.vercel.app",
+      "eas": {
+        "projectId": "44f26990-0387-478a-ac96-a241bb5472ee"
+      }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/dropzone-icon-accent.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0f1420"
+        }
+      ]
+    ]
   }
 }

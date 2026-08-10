@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { countActiveCommercialReservations, findNextOpenGroup } from '@backend/billing/vacancy-purchase'
 
 function missingRelation(error: any) {
   return ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code || '')
@@ -91,7 +92,7 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
       campeonatoIds.length
         ? supabaseAdmin
             .from('campeonato_configuracoes')
-            .select('campeonato_id,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,cartao_max_parcelas')
+            .select('campeonato_id,pagamento_pix_ativo,pagamento_cartao_ativo,pagamento_paypal_ativo,cartao_max_parcelas,aceita_novas_inscricoes_equipes,data_limite_inscricao')
             .in('campeonato_id', campeonatoIds)
         : Promise.resolve({ data: [] as any[] }),
       produtoraIds.length
@@ -118,6 +119,26 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
       usageByCamp.set(campId, (usageByCamp.get(campId) || 0) + 1)
     }
 
+    const availableRows = (rows || []).filter((item: any) => {
+      const camp = campeonatosById.get(item.campeonato_id)
+      const config = configsByCamp.get(item.campeonato_id)
+      if (!camp || item.status !== 'ativo' || !config?.aceita_novas_inscricoes_equipes) return false
+      const deadline = String(config.data_limite_inscricao || '').slice(0, 10)
+      return !deadline || deadline >= new Date().toISOString().slice(0, 10)
+    })
+
+    const commercial = await Promise.all(availableRows.map(async (item: any) => {
+      const [nextGroup, reservations] = await Promise.all([
+        findNextOpenGroup(item.campeonato_id),
+        countActiveCommercialReservations(item.campeonato_id),
+      ])
+      const sellerLimit = Number(item.limite_vagas || 0)
+      const used = usageByCamp.get(String(item.campeonato_id)) || 0
+      const capacity = Math.max(0, Number(nextGroup?.vagas_livres || 0) - reservations)
+      const sellerRemaining = sellerLimit > 0 ? Math.max(0, sellerLimit - used) : capacity
+      return { item, nextGroup, used, available: Math.min(capacity, sellerRemaining) }
+    }))
+
     return NextResponse.json({
       manager: {
         id: manager.id,
@@ -129,13 +150,14 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
         portfolio_anuncios: portfolio,
       },
       public_url: `/vendedores/${manager.id}`,
-      campeonatos: rows.map((item: any) => {
+      campeonatos: commercial
+        .filter(({ available }) => available > 0)
+        .map(({ item, nextGroup, used: vagasUsadas, available }) => {
         const camp = campeonatosById.get(item.campeonato_id) || null
         const anunciando =
           item.status === 'ativo'
           && (portfolio.length === 0 || portfolio.includes(String(item.campeonato_id)))
         const limite = Number(item.limite_vagas || 0)
-        const vagasUsadas = usageByCamp.get(String(item.campeonato_id)) || 0
         const config = configsByCamp.get(item.campeonato_id) || {}
         return {
           id: item.id,
@@ -147,6 +169,11 @@ export async function GET(_req: Request, context: { params: Promise<{ managerId:
           comissao_bps: item.comissao_bps ?? null,
           vagas_usadas: vagasUsadas,
           vagas_restantes: limite > 0 ? Math.max(0, limite - vagasUsadas) : null,
+          vagas_disponiveis_venda: available,
+          vagas_estruturais_livres: Math.max(0, Number(nextGroup?.vagas_livres || 0)),
+          proxima_data: nextGroup?.proximo_jogo?.data_jogo || null,
+          proximo_horario: nextGroup?.proximo_jogo?.horario || null,
+          proximo_grupo: nextGroup?.nome || null,
           permissoes: item.permissoes || {},
           anunciando,
           pagamentos: {

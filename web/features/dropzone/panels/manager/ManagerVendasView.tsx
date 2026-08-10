@@ -12,6 +12,10 @@ type SellerItem = {
   comissao_bps?: number | null
   vagas_usadas?: number
   vagas_restantes?: number | null
+  vagas_disponiveis_venda?: number
+  vagas_estruturais_livres?: number
+  proxima_data?: string | null
+  proximo_horario?: string | null
   anunciando?: boolean
   permissoes?: Record<string, boolean>
   pagamentos?: { pix?: boolean; cartao?: boolean; paypal?: boolean; cartao_max_parcelas?: number | null }
@@ -56,6 +60,12 @@ function formatCommission(item: SellerItem) {
     : 'Sem comissão'
 }
 
+function formatNextDate(item: SellerItem) {
+  if (!item.proxima_data) return 'Próxima data a confirmar'
+  const date = new Date(`${item.proxima_data}T${item.proximo_horario || '12:00'}`)
+  return `Próxima: ${date.toLocaleDateString('pt-BR')}${item.proximo_horario ? ` · ${item.proximo_horario.slice(0, 5)}` : ''}`
+}
+
 function saleStatusLabel(sale: AssistedSale) {
   if (sale.consumido_em || sale.status === 'consumido') return 'Inscrito no campeonato'
   if (sale.pago_em || ['pago', 'liberado'].includes(sale.status)) return 'Pago, aguardando inscriÃ§Ã£o'
@@ -80,7 +90,7 @@ export function ManagerVendasView(props: {
   onCopyPublicLink: () => void
   onOpenChampionship: (campeonatoId: string) => void
 }) {
-  const ativos = props.sellerItems.filter((item) => item.status === 'ativo')
+  const ativos = props.sellerItems.filter((item) => item.status === 'ativo' && Number(item.vagas_disponiveis_venda || 0) > 0)
   const anunciando = props.sellerItems.filter((item) => item.anunciando)
   const hasWhatsapp = Boolean(props.whatsapp.trim())
   const [sales, setSales] = useState<AssistedSale[]>([])
@@ -295,7 +305,7 @@ export function ManagerVendasView(props: {
         ) : null}
 
         <div className="manager-vendas-list">
-          {props.sellerItems.map((item) => {
+          {ativos.map((item) => {
             const championship = item.campeonatos || {}
             const producer = item.produtoras || {}
             const active = item.status === 'ativo'
@@ -312,9 +322,10 @@ export function ManagerVendasView(props: {
                   <strong>{championship.nome || 'Campeonato'}</strong>
                   <span>{producer.nome || 'Evento'}</span>
                   <small>
-                    {active ? 'Liberado' : 'Inativo'} · {formatUsage(item)} · {formatCommission(item)}
+                    {item.vagas_disponiveis_venda || 0} vaga(s) para vender · {formatCommission(item)}
                     {item.anunciando ? ' · portfólio' : ''}
                   </small>
+                  <small>{formatNextDate(item)}</small>
                 </div>
                 <div className="compact-row-actions manager-vendas-row-actions">
                   <button

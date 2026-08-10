@@ -72,7 +72,8 @@ function randomToken() {
 }
 
 
-async function countActiveCommercialReservations(campeonatoId: string) {
+/** Reservas pendentes que ainda disputam uma vaga comercial. */
+export async function countActiveCommercialReservations(campeonatoId: string) {
   const { data, error } = await supabaseAdmin
     .from('sistema_compras_vaga')
     .select('id,status,expira_em,meta')

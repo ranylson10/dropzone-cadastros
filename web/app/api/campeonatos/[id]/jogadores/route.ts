@@ -42,7 +42,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       participacaoIds.length
         ? supabaseAdmin
             .from('campeonato_jogadores')
-            .select('id, campeonato_equipe_id, jogador_id, nick, foto_url, id_jogo, funcao, localidade, status')
+            .select('id, campeonato_equipe_id, equipe_id, line_id, jogador_id, jogador_temporario_id, nick, foto_url, id_jogo, funcao, localidade, status, origem')
             .in('campeonato_equipe_id', participacaoIds)
         : Promise.resolve({ data: [] as any[] }),
       participacaoIds.length
@@ -74,7 +74,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         const unidos = [
           ...(jogadores || [])
             .filter((item) => item.campeonato_equipe_id === participacao.id)
-            .map((item) => ({ ...item, origem: 'campeonato_jogadores' as const })),
+            .map((item) => ({ ...item, origem: item.origem || 'campeonato_jogadores' as const })),
           ...(inscricoes || [])
             .filter((item) => item.campeonato_equipe_id === participacao.id)
             .map((item) => ({ ...item, status: 'inscrito', origem: 'inscricoes_jogadores' as const })),

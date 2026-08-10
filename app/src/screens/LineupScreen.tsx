@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { ActivityIndicator, Alert, Image, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, Linking, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { externalUrl } from '@/config/env'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
@@ -78,6 +78,11 @@ export function LineupScreen({ onBack, onNavigate, selectedLineup }: ScreenProps
       `Acesse: ${url}`,
     ].filter(Boolean).join('\n')
     await Share.share({ message:text, url })
+  }
+
+  async function openInvite(lineup:any) {
+    if (!lineup.link_token) return
+    await Linking.openURL(externalUrl(`/escala/${lineup.link_token}`))
   }
 
   function revokeInvite(lineup:any) {
@@ -179,6 +184,7 @@ export function LineupScreen({ onBack, onNavigate, selectedLineup }: ScreenProps
                 <Text style={styles.tokenMeta}>{lineup.link_expira_em ? `Validade: ${new Date(lineup.link_expira_em).toLocaleString('pt-BR')}` : 'Validade definida pelas regras do campeonato'}</Text>
               </View>
               <TouchableOpacity style={styles.iconButton} onPress={()=>void shareInvite(lineup)}><Ionicons name="share-social-outline" size={18} color={colors.ink}/></TouchableOpacity>
+              <TouchableOpacity accessibilityLabel="Abrir link de escalação" style={styles.iconButton} onPress={()=>void openInvite(lineup)}><Ionicons name="open-outline" size={18} color={colors.ink}/></TouchableOpacity>
               <TouchableOpacity style={styles.iconDanger} disabled={busyId===String(lineup.link_id)} onPress={()=>revokeInvite(lineup)}><Ionicons name="close-circle-outline" size={18} color="#9a3412"/></TouchableOpacity>
             </View> : null}
 

@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { externalUrl } from '@/config/env'
 import { PaymentMethod, paymentMethodLabel, VacancyPaymentResult } from '@/lib/payments'
 import { clearPendingVacancyPurchase, getPendingVacancyPurchase } from '@/lib/purchase-flow'
 import { ActionCard, ScreenShell } from '@/screens/components'
@@ -57,7 +58,7 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship }
       setClaimContext(null)
       setClaimResult(null)
       const url = response.payment?.paypal_approval_url || response.payment?.invoice_url
-      if (url) await Linking.openURL(url)
+      if (url) await Linking.openURL(externalUrl(url))
     } catch (err: any) {
       setError(err?.message || 'Não foi possível criar o pagamento.')
     } finally {
@@ -186,7 +187,7 @@ export function PurchaseClaimScreen({ onBack, onNavigate, selectedChampionship }
           <Text style={styles.resultLine}>Valor: {(payment.compra.valor_centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Text>
           {payment.payment?.pix_payload ? <Text style={styles.copyBox} selectable>{payment.payment.pix_payload}</Text> : null}
           <View style={styles.resultActions}>
-            {checkoutUrl ? <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(checkoutUrl)}><Text style={styles.secondaryText}>Abrir pagamento</Text></TouchableOpacity> : null}
+            {checkoutUrl ? <TouchableOpacity style={styles.secondary} onPress={() => Linking.openURL(externalUrl(checkoutUrl))}><Text style={styles.secondaryText}>Abrir pagamento</Text></TouchableOpacity> : null}
             <TouchableOpacity style={styles.secondaryDark} disabled={claimLoading} onPress={() => void refreshClaimContext()}>
               {claimLoading ? <ActivityIndicator color={colors.surface}/> : <Text style={styles.secondaryDarkText}>Verificar pagamento</Text>}
             </TouchableOpacity>
