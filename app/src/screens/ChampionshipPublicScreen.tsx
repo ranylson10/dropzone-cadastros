@@ -9,12 +9,12 @@ import { colors, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
 type TabId = 'info' | 'teams' | 'players' | 'agenda' | 'table' | 'rulebook'
-type StatisticsView = 'table' | 'mvp'
+type StatisticsView = 'champion' | 'table' | 'mvp'
 
 export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, requireAuth }: ScreenProps) {
   const championship = selectedChampionship
   const [tab, setTab] = useState<TabId>('info')
-  const [statisticsView, setStatisticsView] = useState<StatisticsView>('table')
+  const [statisticsView, setStatisticsView] = useState<StatisticsView>('champion')
   const [statisticsGameId, setStatisticsGameId] = useState('')
   const [statisticsFallId, setStatisticsFallId] = useState('')
   const [structure, setStructure] = useState<any>(null)
@@ -22,6 +22,7 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
   const [playersPayload, setPlayersPayload] = useState<any>(null)
   const [teamStats, setTeamStats] = useState<any[]>([])
   const [mvpStats, setMvpStats] = useState<any[]>([])
+  const [championSummary, setChampionSummary] = useState<any>(null)
   const [rulebook, setRulebook] = useState<any>(null)
   const [rulebookLoading, setRulebookLoading] = useState(false)
   const [rulebookError, setRulebookError] = useState('')
@@ -34,18 +35,21 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
     if (!championship?.id) return
     refresh ? setRefreshing(true) : setLoading(true)
     try {
-      const [structureResult, teamsResult, playersResult, teamStatsResult, mvpResult] = await Promise.all([
+      const [structureResult, teamsResult, playersResult, teamStatsResult, mvpResult, championResult] = await Promise.all([
         mobileApi.championshipStructure(championship.id),
         mobileApi.championshipTeams(championship.id),
         mobileApi.championshipPlayers(championship.id),
         mobileApi.championshipTeamStats(championship.id, { jogoId: statisticsGameId, partidaId: statisticsFallId }),
         mobileApi.championshipMvpStats(championship.id, { jogoId: statisticsGameId, partidaId: statisticsFallId }),
+        mobileApi.championshipChampionSummary(championship.id),
       ])
       setStructure(structureResult)
       setTeamsPayload(teamsResult)
       setPlayersPayload(playersResult)
       setTeamStats(teamStatsResult?.equipes || [])
       setMvpStats(mvpResult?.jogadores || [])
+      setChampionSummary(championResult)
+      if (!championResult?.final_concluida || !championResult?.campeao) setStatisticsView((current) => current === 'champion' ? 'table' : current)
       setLastUpdatedAt(new Date())
       setError('')
     } catch (err:any) {
@@ -230,14 +234,16 @@ export function ChampionshipPublicScreen({ selectedChampionship, onNavigate, req
       {!loading && tab === 'table' ? (
         <View style={styles.tableBlock}>
           <View style={styles.statisticsControls}>
+            {championSummary?.final_concluida&&championSummary?.campeao?<TouchableOpacity style={[styles.statisticsTab,statisticsView==='champion'&&styles.statisticsTabActive]} onPress={()=>setStatisticsView('champion')}><Text style={[styles.statisticsTabText,statisticsView==='champion'&&styles.statisticsTabTextActive]}>Campeão</Text></TouchableOpacity>:null}
             <TouchableOpacity style={[styles.statisticsTab,statisticsView==='table'&&styles.statisticsTabActive]} onPress={()=>setStatisticsView('table')}><Text style={[styles.statisticsTabText,statisticsView==='table'&&styles.statisticsTabTextActive]}>Tabela</Text></TouchableOpacity>
             <TouchableOpacity style={[styles.statisticsTab,statisticsView==='mvp'&&styles.statisticsTabActive]} onPress={()=>setStatisticsView('mvp')}><Text style={[styles.statisticsTabText,statisticsView==='mvp'&&styles.statisticsTabTextActive]}>MVP</Text></TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {statisticsView!=='champion'?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
             <TouchableOpacity style={[styles.filterChip,!statisticsGameId&&styles.filterChipActive]} onPress={()=>{setStatisticsGameId('');setStatisticsFallId('')}}><Text style={[styles.filterChipText,!statisticsGameId&&styles.filterChipTextActive]}>Geral</Text></TouchableOpacity>
             {statisticGames.map((game:any,index:number)=><TouchableOpacity key={String(game.id||index)} style={[styles.filterChip,statisticsGameId===String(game.id)&&styles.filterChipActive]} onPress={()=>{setStatisticsGameId(String(game.id));setStatisticsFallId('')}}><Text style={[styles.filterChipText,statisticsGameId===String(game.id)&&styles.filterChipTextActive]}>{game.nome||`Jogo ${index+1}`}</Text></TouchableOpacity>)}
-          </ScrollView>
-          {statisticsGameId&&statisticFalls.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}><TouchableOpacity style={[styles.filterChip,!statisticsFallId&&styles.filterChipActive]} onPress={()=>setStatisticsFallId('')}><Text style={[styles.filterChipText,!statisticsFallId&&styles.filterChipTextActive]}>Todas quedas</Text></TouchableOpacity>{statisticFalls.map((fall:any,index:number)=><TouchableOpacity key={String(fall.id||index)} style={[styles.filterChip,statisticsFallId===String(fall.id)&&styles.filterChipActive]} onPress={()=>setStatisticsFallId(String(fall.id))}><Text style={[styles.filterChipText,statisticsFallId===String(fall.id)&&styles.filterChipTextActive]}>{`Queda ${fall.numero_partida||fall.numero||index+1}`}</Text></TouchableOpacity>)}</ScrollView>:null}
+          </ScrollView>:null}
+          {statisticsView!=='champion'&&statisticsGameId&&statisticFalls.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}><TouchableOpacity style={[styles.filterChip,!statisticsFallId&&styles.filterChipActive]} onPress={()=>setStatisticsFallId('')}><Text style={[styles.filterChipText,!statisticsFallId&&styles.filterChipTextActive]}>Todas quedas</Text></TouchableOpacity>{statisticFalls.map((fall:any,index:number)=><TouchableOpacity key={String(fall.id||index)} style={[styles.filterChip,statisticsFallId===String(fall.id)&&styles.filterChipActive]} onPress={()=>setStatisticsFallId(String(fall.id))}><Text style={[styles.filterChipText,statisticsFallId===String(fall.id)&&styles.filterChipTextActive]}>{`Queda ${fall.numero_partida||fall.numero||index+1}`}</Text></TouchableOpacity>)}</ScrollView>:null}
+          {statisticsView==='champion'&&championSummary?.campeao?<View style={styles.championCard}><Text style={styles.championEyebrow}>CAMPEÃO DA GRANDE FINAL</Text><View style={styles.championMain}>{championSummary.campeao.logo_url?<Image source={{uri:externalUrl(championSummary.campeao.logo_url)}} style={styles.championLogo} resizeMode="contain"/>:<View style={[styles.championLogo,styles.logoFallback]}><Ionicons name="trophy-outline" size={28} color={colors.brand}/></View>}<View style={styles.copy}><Text style={styles.championName}>{championSummary.campeao.nome}</Text><Text style={styles.meta}>{championSummary.campeao.pontos_total} PTS · {championSummary.campeao.booyahs} BOOYAH · {championSummary.campeao.abates} KILLS · {championSummary.resumo?.quedas||championSummary.campeao.quedas} QUEDAS</Text></View></View><Text style={styles.sectionTitle}>LINE CAMPEÃ</Text><View style={styles.championPlayers}>{(championSummary.jogadores||[]).map((player:any)=><View key={String(player.campeonato_jogador_id)} style={styles.championPlayer}>{player.foto_url?<Image source={{uri:externalUrl(player.foto_url)}} style={styles.championPlayerAvatar}/>:<View style={[styles.championPlayerAvatar,styles.logoFallback]}><Ionicons name="person-outline" size={14} color={colors.brand}/></View>}<Text style={styles.championPlayerName} numberOfLines={1}>{player.nick}</Text><Text style={styles.meta}>{player.abates} K</Text></View>)}</View><View style={styles.championActions}><TouchableOpacity style={styles.statisticsTabActiveButton} onPress={()=>setStatisticsView('mvp')}><Text style={styles.statisticsTabTextActive}>Ver MVP</Text></TouchableOpacity><TouchableOpacity style={styles.statisticsTabOutlineButton} onPress={()=>setStatisticsView('table')}><Text style={styles.statisticsTabText}>Estatísticas do campeonato</Text></TouchableOpacity></View></View>:null}
           {statisticsView==='table'?<>
           <View style={styles.sectionHeadingRow}><Text style={styles.sectionTitle}>CLASSIFICAÇÃO</Text><Text style={styles.sectionUpdated}>ATUAL</Text></View>
           <View style={styles.list}>
@@ -380,4 +386,4 @@ const styles = StyleSheet.create({
   killMetric: { minWidth: 48, alignItems: 'flex-end', paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: colors.brand },
   killValue: { color: colors.brand, fontSize: 18, fontWeight: '900' },
   killLabel: { color: colors.brand, fontSize: 7, fontWeight: '900' },
-})
+  championCard:{gap:10,padding:12,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},championEyebrow:{color:colors.brand,fontSize:8,fontWeight:'900',letterSpacing:1.2},championMain:{flexDirection:'row',alignItems:'center',gap:10},championLogo:{width:72,height:72,backgroundColor:'#eee9e1'},championName:{color:colors.ink,fontSize:20,fontWeight:'900',textTransform:'uppercase'},championPlayers:{flexDirection:'row',flexWrap:'wrap',gap:6},championPlayer:{width:'31%',alignItems:'center',gap:3,padding:7,backgroundColor:'#f2eee7'},championPlayerAvatar:{width:40,height:40,borderRadius:20,backgroundColor:'#eee9e1'},championPlayerName:{maxWidth:'100%',color:colors.ink,fontSize:8,fontWeight:'900',textTransform:'uppercase'},championActions:{flexDirection:'row',gap:6},statisticsTabActiveButton:{flex:1,minHeight:40,alignItems:'center',justifyContent:'center',backgroundColor:colors.brandDark},statisticsTabOutlineButton:{flex:1,minHeight:40,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:colors.line,backgroundColor:colors.surface}})

@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase-browser'
 import type { DropZoneRow } from '@/lib/types'
 import { ResultadoWhatsappCard } from './ResultadoWhatsappCard'
 
-type InnerTab = 'geral' | 'mvp' | 'pontuador'
+type InnerTab = 'campeao' | 'geral' | 'mvp' | 'pontuador'
 type ScoringMode = 'manual' | 'matchresult'
 
 type TeamStat = {
@@ -35,6 +35,16 @@ type MvpStat = {
   quedas: number
   abates: number
   variacao?: number
+}
+
+
+type ChampionSummary = {
+  final_concluida: boolean
+  campeao: TeamStat | null
+  jogadores: MvpStat[]
+  mvp_final: MvpStat | null
+  configuracao?: Record<string, any> | null
+  resumo?: { dias: number; jogos: number; quedas: number; quedas_finalizadas: number; jogo_decisivo?: Record<string, any> | null } | null
 }
 
 type SumulaTeam = Record<string, any>
@@ -133,10 +143,11 @@ export function CampeonatoEstatisticasTab(props: {
   games: DropZoneRow[]
   maps: Array<{ codigo: string; nome: string }>
 }) {
-  const [tab, setTab] = useState<InnerTab>('geral')
+  const [tab, setTab] = useState<InnerTab>('campeao')
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [teamStats, setTeamStats] = useState<TeamStat[]>([])
   const [mvpStats, setMvpStats] = useState<MvpStat[]>([])
+  const [championSummary, setChampionSummary] = useState<ChampionSummary | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
   const [error, setError] = useState('')
   const previousTeamPositions = useRef(new Map<string, number>())
@@ -172,9 +183,10 @@ export function CampeonatoEstatisticasTab(props: {
     try {
       const query = queryString(filters)
       const suffix = query ? `?${query}` : ''
-      const [teamsResult, mvpResult] = await Promise.all([
+      const [teamsResult, mvpResult, championResult] = await Promise.all([
         request<{ equipes: TeamStat[] }>(`/api/campeonatos/${props.campeonatoId}/estatisticas/equipes${suffix}`),
         request<{ jogadores: MvpStat[] }>(`/api/campeonatos/${props.campeonatoId}/estatisticas/mvp${suffix}`),
+        request<ChampionSummary>(`/api/campeonatos/${props.campeonatoId}/estatisticas/campeao`),
       ])
       const nextTeams = (teamsResult.equipes || []).map((row) => ({
         ...row,
@@ -192,6 +204,8 @@ export function CampeonatoEstatisticasTab(props: {
       previousMvpPositions.current = new Map(nextMvp.map((row) => [row.campeonato_jogador_id, row.colocacao]))
       setTeamStats(nextTeams)
       setMvpStats(nextMvp)
+      setChampionSummary(championResult)
+      if (!championResult.final_concluida || !championResult.campeao) setTab((current) => current === 'campeao' ? 'geral' : current)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erro ao carregar estatísticas.')
     } finally {
@@ -335,12 +349,13 @@ export function CampeonatoEstatisticasTab(props: {
       </div>
 
       <nav className="statistics-inner-tabs">
+        {championSummary?.final_concluida && championSummary.campeao ? <button className={tab === 'campeao' ? 'active' : ''} onClick={() => setTab('campeao')}><Trophy size={16} /> Campeão</button> : null}
         <button className={tab === 'geral' ? 'active' : ''} onClick={() => setTab('geral')}><Trophy size={16} /> Tabela geral</button>
         <button className={tab === 'mvp' ? 'active' : ''} onClick={() => setTab('mvp')}><Medal size={16} /> MVP</button>
         <button className={tab === 'pontuador' ? 'active' : ''} onClick={() => setTab('pontuador')}><Save size={16} /> Pontuador</button>
       </nav>
 
-      {tab !== 'pontuador' ? (
+      {tab !== 'pontuador' && tab !== 'campeao' ? (
         <div className="statistics-filters">
           <select value={filters.fase_id} onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, rodada_id: '', jogo_id: '', partida_id: '', grupo_id: '' })}>
             <option value="">Todas as fases</option>{props.phases.map((phase) => <option key={phase.id} value={phase.id}>{String(phase.data?.nome || phase.name || 'Fase')}</option>)}
@@ -366,6 +381,19 @@ export function CampeonatoEstatisticasTab(props: {
       {error ? <div className="statistics-message error">{error}</div> : null}
       {notice ? <div className="statistics-message success">{notice}</div> : null}
       {loadingStats && tab !== 'pontuador' ? <div className="statistics-loading"><Loader2 className="button-spinner" /> Carregando estatísticas...</div> : null}
+
+      {tab === 'campeao' && !loadingStats && championSummary?.campeao ? (
+        <section className="champion-spotlight">
+          <div className="champion-spotlight-crown">CAMPEÃO</div>
+          <div className="champion-spotlight-main">
+            <div className="champion-spotlight-logo">{championSummary.campeao.logo_url ? <img src={championSummary.campeao.logo_url} alt="" /> : <span>{championSummary.campeao.nome.slice(0, 2).toUpperCase()}</span>}</div>
+            <div className="champion-spotlight-copy"><p>Grande Final concluída</p><h2>{championSummary.campeao.nome}</h2>{championSummary.campeao.tag ? <strong>{championSummary.campeao.tag}</strong> : null}</div>
+          </div>
+          <div className="champion-spotlight-metrics"><div><strong>{championSummary.campeao.pontos_total}</strong><span>Pontos</span></div><div><strong>{championSummary.campeao.booyahs}</strong><span>Booyahs</span></div><div><strong>{championSummary.campeao.abates}</strong><span>Kills</span></div><div><strong>{championSummary.resumo?.quedas || championSummary.campeao.quedas}</strong><span>Quedas</span></div></div>
+          <div className="champion-lineup"><div className="champion-lineup-head"><div><p className="eyebrow">Line campeã</p><h4>Jogadores da Grande Final</h4></div>{championSummary.mvp_final ? <small>MVP da final: <b>{championSummary.mvp_final.nick}</b></small> : null}</div><div className="champion-lineup-grid">{championSummary.jogadores.map((player) => <article key={player.campeonato_jogador_id}>{player.foto_url ? <img src={player.foto_url} alt="" /> : <span className="statistics-avatar-fallback">{player.nick.slice(0,1)}</span>}<div><strong>{player.nick}</strong><small>{player.abates} kills · {player.quedas} quedas</small></div></article>)}</div>{championSummary.jogadores.length === 0 ? <p className="empty compact">Nenhum jogador com estatística registrada na Grande Final.</p> : null}</div>
+          <div className="champion-spotlight-actions"><button className="button" onClick={() => setTab('mvp')}><Medal size={15}/> Ver MVP</button><button className="button secondary" onClick={() => setTab('geral')}><Trophy size={15}/> Estatísticas do campeonato</button></div>
+        </section>
+      ) : null}
 
       {tab === 'geral' && !loadingStats ? (
         <ResultadoWhatsappCard

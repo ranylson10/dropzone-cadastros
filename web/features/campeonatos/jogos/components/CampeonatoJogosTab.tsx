@@ -1,8 +1,9 @@
-﻿'use client'
+'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronDown, ChevronRight, Clock3, Pencil, Plus, Trash2, Trophy, Users } from 'lucide-react'
 import { Field } from '@/features/dropzone/components/form-fields'
+import { supabase } from '@/lib/supabase-browser'
 import { dataText, rowTitle } from '@/features/dropzone/utils'
 import type { CampeonatoJogoForm, CampeonatoJogosTabProps } from '../types/campeonato-jogos.types'
 
@@ -41,6 +42,14 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
   const [openId, setOpenId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [phaseFilter, setPhaseFilter] = useState('')
+  const [finalConfigLoading, setFinalConfigLoading] = useState(false)
+  const [finalConfigError, setFinalConfigError] = useState('')
+  const [finalDecisionMode, setFinalDecisionMode] = useState<'pontuacao_normal' | 'booyah_ouro'>('pontuacao_normal')
+  const [finalPointsLimit, setFinalPointsLimit] = useState('')
+  const [finalAccumulationMode, setFinalAccumulationMode] = useState<'acumulado' | 'bonus_por_ranking'>('acumulado')
+  const [finalDecisiveGameId, setFinalDecisiveGameId] = useState('')
+  const [finalBonusRanking, setFinalBonusRanking] = useState<Array<{ posicao: number; pontos_bonus: string }>>([{ posicao: 1, pontos_bonus: '' }])
+  const [finalBonusMessage, setFinalBonusMessage] = useState('')
 
   const phaseGroups = useMemo(
     () => props.grupos.filter((grupo) => grupo.data?.fase_id === props.value.fase_id).sort(sortGroups),
@@ -52,6 +61,87 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
   const selectedPhase = props.fases.find((fase) => fase.id === props.value.fase_id)
   const isFinalPhase = String(selectedPhase?.data?.tipo || (selectedPhase as any)?.tipo || '') === 'grande_final'
   const effectiveGameType: 'normal' | 'final' = isFinalPhase ? 'final' : props.value.tipo_jogo
+
+  useEffect(() => {
+    if (!isFinalPhase || !selectedPhase?.id) return
+    const controller = new AbortController()
+    setFinalConfigLoading(true)
+    setFinalConfigError('')
+    void supabase.auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token
+      if (!token) throw new Error('Sessão expirada. Entre novamente.')
+      const response = await fetch(`/api/campeonatos/${props.campeonato.id}/fases/${selectedPhase.id}/configuracao-jogos`, {
+        signal: controller.signal,
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar a configuração da Grande Final.')
+      const config = payload.configuracao || {}
+      setFinalDecisionMode(config.modo_decisao === 'booyah_ouro' ? 'booyah_ouro' : 'pontuacao_normal')
+      setFinalPointsLimit(config.booyah_ouro_pontos_limite == null ? '' : String(config.booyah_ouro_pontos_limite))
+      setFinalAccumulationMode(config.modo_acumulacao === 'bonus_por_ranking' ? 'bonus_por_ranking' : 'acumulado')
+      setFinalDecisiveGameId(String(config.jogo_decisivo_id || ''))
+      setFinalBonusRanking(Array.isArray(config.bonus_ranking) && config.bonus_ranking.length
+        ? config.bonus_ranking.map((item: any) => ({ posicao: Number(item.posicao), pontos_bonus: String(item.pontos_bonus ?? '') }))
+        : [{ posicao: 1, pontos_bonus: '' }])
+    }).catch((cause) => {
+      if (cause?.name !== 'AbortError') setFinalConfigError(cause instanceof Error ? cause.message : 'Erro ao carregar configuração da final.')
+    }).finally(() => {
+      if (!controller.signal.aborted) setFinalConfigLoading(false)
+    })
+    return () => controller.abort()
+  }, [isFinalPhase, selectedPhase?.id, props.campeonato.id])
+
+  async function saveFinalConfig() {
+    if (!isFinalPhase || !selectedPhase?.id) return
+    if (finalDecisionMode === 'booyah_ouro' && (!Number(finalPointsLimit) || Number(finalPointsLimit) <= 0)) {
+      throw new Error('Informe a pontuação mínima para ativar o Champion Point.')
+    }
+    if (finalAccumulationMode === 'bonus_por_ranking' && !finalDecisiveGameId) {
+      throw new Error('Selecione o jogo decisivo do Point Rush.')
+    }
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) throw new Error('Sessão expirada. Entre novamente.')
+    const response = await fetch(`/api/campeonatos/${props.campeonato.id}/fases/${selectedPhase.id}/configuracao-jogos`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        modo_decisao: finalDecisionMode,
+        modo_acumulacao: finalAccumulationMode,
+        booyah_ouro_pontos_limite: finalDecisionMode === 'booyah_ouro' ? Number(finalPointsLimit) : null,
+        booyah_ouro_queda_minima: null,
+        booyah_ouro_desempate_final: 'maior_pontuacao',
+        jogo_decisivo_id: finalAccumulationMode === 'bonus_por_ranking' ? finalDecisiveGameId : null,
+        bonus_ranking: finalAccumulationMode === 'bonus_por_ranking'
+          ? finalBonusRanking.filter((item) => Number(item.pontos_bonus) >= 0 && item.pontos_bonus !== '').map((item) => ({ posicao: item.posicao, pontos_bonus: Number(item.pontos_bonus) }))
+          : [],
+      }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(payload.error || 'Não foi possível salvar a configuração da Grande Final.')
+  }
+
+  async function applyPointRushBonus() {
+    if (!isFinalPhase || !selectedPhase?.id || finalAccumulationMode !== 'bonus_por_ranking') return
+    setFinalConfigError('')
+    setFinalBonusMessage('')
+    try {
+      await saveFinalConfig()
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error('Sessão expirada. Entre novamente.')
+      const response = await fetch(`/api/campeonatos/${props.campeonato.id}/fases/${selectedPhase.id}/configuracao-jogos/aplicar-bonus`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error || 'Não foi possível aplicar os bônus do Point Rush.')
+      setFinalBonusMessage(`Bônus do Point Rush aplicado a ${Number(payload.total || 0)} equipe(s).`)
+    } catch (cause) {
+      setFinalConfigError(cause instanceof Error ? cause.message : 'Não foi possível aplicar os bônus do Point Rush.')
+    }
+  }
 
   function patch(patchValue: Partial<CampeonatoJogoForm>) {
     props.setValue({ ...props.value, ...patchValue })
@@ -98,13 +188,19 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
   }
 
   async function save() {
-    if (editingId) {
-      await props.updateGame(editingId, props.value)
-      reset()
-      setShowForm(false)
-      return
+    setFinalConfigError('')
+    try {
+      if (isFinalPhase) await saveFinalConfig()
+      if (editingId) {
+        await props.updateGame(editingId, props.value)
+        reset()
+        setShowForm(false)
+        return
+      }
+      props.createGame()
+    } catch (cause) {
+      setFinalConfigError(cause instanceof Error ? cause.message : 'Não foi possível salvar a configuração da final.')
     }
-    props.createGame()
   }
 
   return (
@@ -158,9 +254,39 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
           </div>
           <div className="mini-grid three">
             <Field label="Tipo do jogo"><select value={effectiveGameType} disabled={isFinalPhase} onChange={(e) => patch({ tipo_jogo: e.target.value === 'final' ? 'final' : 'normal', dia_final: e.target.value === 'final' ? (props.value.dia_final || '1') : '1', define_campeao: e.target.value === 'final' ? props.value.define_campeao : false })}><option value="normal">Jogo da fase</option><option value="final" disabled={!isFinalPhase}>Jogo de final</option></select></Field>
-            {effectiveGameType === 'final' ? <Field label="Decisão do título"><select value={props.value.define_campeao ? 'sim' : 'nao'} onChange={(e) => patch({ define_campeao: e.target.value === 'sim' })}><option value="nao">Acumula na Grande Final</option><option value="sim">Jogo decisivo do título</option></select></Field> : null}
-            {effectiveGameType === 'final' ? <Field label="Formato"><input value={isFinalPhase ? 'Grande Final · multi-dia compatível' : 'Final'} disabled /></Field> : null}
+            {effectiveGameType === 'final' ? <Field label="Formato"><input value={finalAccumulationMode === 'bonus_por_ranking' ? 'Point Rush' : 'Pontuação acumulada'} disabled /></Field> : null}
+            {effectiveGameType === 'final' ? <Field label="Critério"><input value={finalDecisionMode === 'booyah_ouro' ? 'Champion Point' : 'Maior pontuação'} disabled /></Field> : null}
           </div>
+
+          {effectiveGameType === 'final' ? (
+            <div className="game-rules-panel final-settings-panel">
+              <div className="final-settings-heading">
+                <div><p className="eyebrow">Configurações adicionais</p><h4>Regra da Grande Final</h4></div>
+                <small>{finalConfigLoading ? 'Carregando configuração…' : 'A regra vale para toda a Grande Final, mesmo quando ela acontece em vários dias.'}</small>
+              </div>
+              <div className="mini-grid three">
+                <Field label="Formato multi-dia"><select value={finalAccumulationMode} onChange={(e) => setFinalAccumulationMode(e.target.value === 'bonus_por_ranking' ? 'bonus_por_ranking' : 'acumulado')}><option value="acumulado">Pontuação acumulada em todos os dias</option><option value="bonus_por_ranking">Point Rush · dias anteriores viram bônus</option></select></Field>
+                <Field label="Critério do campeão"><select value={finalDecisionMode} onChange={(e) => setFinalDecisionMode(e.target.value === 'booyah_ouro' ? 'booyah_ouro' : 'pontuacao_normal')}><option value="pontuacao_normal">Maior pontuação</option><option value="booyah_ouro">Champion Point / Booyah de Ouro</option></select></Field>
+                {finalDecisionMode === 'booyah_ouro' ? <Field label="Pontuação mínima para ativar"><input type="number" min="0.01" step="0.01" value={finalPointsLimit} onChange={(e) => setFinalPointsLimit(e.target.value)} placeholder="Ex.: 160" /></Field> : <Field label="Título"><input value="Definido pela classificação final" disabled /></Field>}
+              </div>
+              {finalDecisionMode === 'booyah_ouro' ? <p className="statistics-message">Ao atingir a pontuação mínima, a equipe fica elegível. Se uma equipe elegível fizer BOOYAH em uma queda seguinte, é campeã. Se ninguém fechar até a última queda, vence quem terminar com mais pontos.</p> : null}
+              {finalAccumulationMode === 'bonus_por_ranking' ? (
+                <>
+                  <div className="mini-grid three">
+                    <Field label="Jogo decisivo do Point Rush"><select value={finalDecisiveGameId} onChange={(e) => setFinalDecisiveGameId(e.target.value)}><option value="">Selecione o jogo do último dia</option>{props.jogos.filter((game) => game.data?.fase_id === selectedPhase?.id).map((game) => <option key={game.id} value={game.id}>{rowTitle(game)} · Dia {game.data?.dia_final || 1}</option>)}</select></Field>
+                    <Field label="Dias anteriores"><input value="Classificam para o bônus por colocação" disabled /></Field>
+                    <Field label="Dia decisivo"><input value="Começa com o bônus + pontos do jogo" disabled /></Field>
+                  </div>
+                  <div className="final-bonus-grid">
+                    {finalBonusRanking.map((item, index) => <div className="final-bonus-row" key={`${item.posicao}-${index}`}><strong>TOP {item.posicao}</strong><input type="number" min="0" step="0.01" value={item.pontos_bonus} onChange={(e) => setFinalBonusRanking((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, pontos_bonus: e.target.value } : row))} placeholder="Bônus" /><button type="button" className="button secondary" onClick={() => setFinalBonusRanking((current) => current.filter((_, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, posicao: rowIndex + 1 })))}>Remover</button></div>)}
+                  </div>
+                  <div className="games-toolbar-actions"><button type="button" className="button secondary" onClick={() => setFinalBonusRanking((current) => [...current, { posicao: current.length + 1, pontos_bonus: '' }])}>Adicionar colocação</button><button type="button" className="button" onClick={() => void applyPointRushBonus()}>Aplicar bônus do Point Rush</button></div>
+                  {finalBonusMessage ? <p className="statistics-message">{finalBonusMessage}</p> : null}
+                </>
+              ) : <p className="statistics-message">Na final acumulada, todos os pontos de todos os dias contam normalmente até a última queda.</p>}
+              {finalConfigError ? <p className="statistics-message error">{finalConfigError}</p> : null}
+            </div>
+          ) : null}
 
           <div className="game-map-grid">
             {Array.from({ length: count }, (_, index) => <Field key={index} label={`Queda ${index + 1}`}><select value={mapList[index] || ''} onChange={(e) => setMap(index, e.target.value)}><option value="">Selecione o mapa</option>{MAPAS.map((mapa) => <option key={mapa} value={mapa}>{mapa}</option>)}</select></Field>)}

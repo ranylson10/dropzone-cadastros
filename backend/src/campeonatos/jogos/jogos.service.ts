@@ -619,6 +619,19 @@ export async function obterConfiguracaoFase(campeonatoId: string, faseId: string
 export async function atualizarConfiguracaoFase(campeonatoId: string, faseId: string, input: FaseConfiguracaoInput) {
   await assertCampeonatoFase(campeonatoId, faseId)
 
+  if (input.modo_acumulacao === 'bonus_por_ranking') {
+    if (!input.jogo_decisivo_id) throw new Error('Selecione o jogo decisivo do Point Rush.')
+    const { data: decisivo, error: decisivoError } = await supabaseAdmin
+      .from('campeonato_jogos')
+      .select('id')
+      .eq('id', input.jogo_decisivo_id)
+      .eq('campeonato_id', campeonatoId)
+      .eq('fase_id', faseId)
+      .maybeSingle()
+    if (decisivoError) throw decisivoError
+    if (!decisivo) throw new Error('O jogo decisivo precisa pertencer à Grande Final selecionada.')
+  }
+
   const payload: Record<string, unknown> = {}
   if ('quantidade_classificados' in input) payload.quantidade_classificados = positiveInt(input.quantidade_classificados, 'Quantidade de classificados', { nullable: true })
   if (input.criterio_classificacao) payload.criterio_classificacao = input.criterio_classificacao
@@ -665,6 +678,40 @@ export async function atualizarConfiguracaoFase(campeonatoId: string, faseId: st
     }
   }
 
+  if (Array.isArray(input.bonus_ranking) || input.modo_acumulacao === 'acumulado') {
+    const { error: appliedBonusError } = await supabaseAdmin
+      .from('campeonato_fases_bonus_equipes')
+      .delete()
+      .eq('campeonato_id', campeonatoId)
+      .eq('fase_id', faseId)
+    if (appliedBonusError) throw appliedBonusError
+  }
+
+  if (input.modo_acumulacao === 'bonus_por_ranking' && input.jogo_decisivo_id) {
+    const { error: classificatoriosError } = await supabaseAdmin
+      .from('campeonato_jogos')
+      .update({ papel_na_fase: 'classificatorio_bonus', define_campeao: false })
+      .eq('campeonato_id', campeonatoId)
+      .eq('fase_id', faseId)
+      .neq('id', input.jogo_decisivo_id)
+    if (classificatoriosError) throw classificatoriosError
+
+    const { error: decisivoError } = await supabaseAdmin
+      .from('campeonato_jogos')
+      .update({ papel_na_fase: 'decisivo', define_campeao: true })
+      .eq('id', input.jogo_decisivo_id)
+      .eq('campeonato_id', campeonatoId)
+      .eq('fase_id', faseId)
+    if (decisivoError) throw decisivoError
+  } else if (input.modo_acumulacao === 'acumulado') {
+    const { error: acumuladoError } = await supabaseAdmin
+      .from('campeonato_jogos')
+      .update({ papel_na_fase: 'normal' })
+      .eq('campeonato_id', campeonatoId)
+      .eq('fase_id', faseId)
+    if (acumuladoError) throw acumuladoError
+  }
+
   return obterConfiguracaoFase(campeonatoId, faseId)
 }
 
@@ -676,6 +723,20 @@ export async function restaurarConfiguracaoFase(campeonatoId: string, faseId: st
     .delete()
     .eq('fase_id', faseId)
   if (bonusError) throw bonusError
+
+  const { error: appliedBonusError } = await supabaseAdmin
+    .from('campeonato_fases_bonus_equipes')
+    .delete()
+    .eq('campeonato_id', campeonatoId)
+    .eq('fase_id', faseId)
+  if (appliedBonusError) throw appliedBonusError
+
+  const { error: jogosError } = await supabaseAdmin
+    .from('campeonato_jogos')
+    .update({ papel_na_fase: 'normal' })
+    .eq('campeonato_id', campeonatoId)
+    .eq('fase_id', faseId)
+  if (jogosError) throw jogosError
 
   const { data, error } = await supabaseAdmin
     .from('campeonato_fases_configuracoes')

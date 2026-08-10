@@ -109,6 +109,157 @@ export async function listarEstatisticasMvp(campeonatoId: string, filters: Filte
     .map((row, index) => ({ ...row, colocacao: index + 1 }))
 }
 
+
+export async function carregarResumoCampeao(campeonatoId: string) {
+  const { data: faseFinal, error: faseError } = await supabaseAdmin
+    .from('campeonato_fases')
+    .select('id,nome,tipo')
+    .eq('campeonato_id', campeonatoId)
+    .eq('tipo', 'grande_final')
+    .maybeSingle()
+  if (faseError) throw faseError
+  if (!faseFinal) {
+    return { final_concluida: false, fase: null, configuracao: null, campeao: null, jogadores: [], mvp_final: null, resumo: null }
+  }
+
+  const [{ data: jogos, error: jogosError }, { data: partidas, error: partidasError }, { data: configuracao, error: configError }] = await Promise.all([
+    supabaseAdmin
+      .from('campeonato_jogos')
+      .select('id,nome,dia_final,define_campeao,papel_na_fase,data_jogo,horario,numero_partidas,status')
+      .eq('campeonato_id', campeonatoId)
+      .eq('fase_id', faseFinal.id)
+      .order('dia_final', { ascending: true })
+      .order('data_jogo', { ascending: true }),
+    supabaseAdmin
+      .from('campeonato_partidas')
+      .select('id,jogo_id,numero_partida,status')
+      .eq('campeonato_id', campeonatoId)
+      .eq('fase_id', faseFinal.id),
+    supabaseAdmin
+      .from('campeonato_fases_configuracoes')
+      .select('modo_decisao,modo_acumulacao,booyah_ouro_pontos_limite,jogo_decisivo_id')
+      .eq('campeonato_id', campeonatoId)
+      .eq('fase_id', faseFinal.id)
+      .maybeSingle(),
+  ])
+  if (jogosError) throw jogosError
+  if (partidasError) throw partidasError
+  if (configError) throw configError
+
+  const finalConcluida = Boolean(partidas?.length) && (partidas || []).every((row: any) => String(row.status || '') === 'finalizada')
+  const modoAcumulacao = String(configuracao?.modo_acumulacao || 'acumulado')
+  const jogoDecisivoId = String(configuracao?.jogo_decisivo_id || '')
+  const pointRush = modoAcumulacao === 'bonus_por_ranking' && Boolean(jogoDecisivoId)
+
+  const [{ data: bonusEquipes, error: bonusError }, rankingBase, mvp] = await Promise.all([
+    pointRush
+      ? supabaseAdmin
+          .from('campeonato_fases_bonus_equipes')
+          .select('campeonato_equipe_id,posicao_origem,pontos_bonus')
+          .eq('campeonato_id', campeonatoId)
+          .eq('fase_id', faseFinal.id)
+      : Promise.resolve({ data: [], error: null }),
+    listarEstatisticasEquipes(campeonatoId, pointRush ? { jogoId: jogoDecisivoId } : { faseId: faseFinal.id }),
+    listarEstatisticasMvp(campeonatoId, pointRush ? { jogoId: jogoDecisivoId } : { faseId: faseFinal.id }),
+  ])
+  if (bonusError) throw bonusError
+
+  const bonusPorEquipe = new Map<string, number>()
+  for (const item of bonusEquipes || []) {
+    bonusPorEquipe.set(String(item.campeonato_equipe_id || ''), Number(item.pontos_bonus || 0))
+  }
+
+  const ranking = rankingBase
+    .map((row: any) => {
+      const pontosBonus = Number(bonusPorEquipe.get(String(row.campeonato_equipe_id || '')) || 0)
+      return { ...row, pontos_bonus_final: pontosBonus, pontos_total: Number(row.pontos_total || 0) + pontosBonus }
+    })
+    .sort((a: any, b: any) => b.pontos_total - a.pontos_total || b.booyahs - a.booyahs || b.abates - a.abates)
+    .map((row: any, index: number) => ({ ...row, colocacao: index + 1 }))
+
+  const modoDecisao = String(configuracao?.modo_decisao || 'pontuacao_normal')
+  let campeao: any = finalConcluida ? ranking[0] || null : null
+  let championPoint: { atingido: boolean; partida_id?: string; queda_global?: number } | null = null
+
+  if (finalConcluida && modoDecisao === 'booyah_ouro') {
+    const limite = Number(configuracao?.booyah_ouro_pontos_limite || 0)
+    if (limite > 0) {
+      const jogosValidos = pointRush ? (jogos || []).filter((game: any) => String(game.id) === jogoDecisivoId) : (jogos || [])
+      const idsJogosValidos = new Set(jogosValidos.map((game: any) => String(game.id)))
+      const gameOrder = new Map<string, number>()
+      jogosValidos.forEach((game: any, index: number) => gameOrder.set(String(game.id), index))
+      const orderedPartidas = (partidas || [])
+        .filter((partida: any) => idsJogosValidos.has(String(partida.jogo_id)))
+        .sort((a: any, b: any) => {
+          const gameDiff = (gameOrder.get(String(a.jogo_id)) ?? 9999) - (gameOrder.get(String(b.jogo_id)) ?? 9999)
+          return gameDiff || Number(a.numero_partida || 0) - Number(b.numero_partida || 0)
+        })
+      const { data: detalhes, error: detalhesError } = await supabaseAdmin
+        .from('campeonato_estatisticas_equipes_detalhe')
+        .select('campeonato_equipe_id,partida_id,jogo_id,pontos_total,booyah')
+        .eq('campeonato_id', campeonatoId)
+        .eq('fase_id', faseFinal.id)
+      if (detalhesError) throw detalhesError
+      const porPartida = new Map<string, any[]>()
+      for (const row of detalhes || []) {
+        if (!idsJogosValidos.has(String(row.jogo_id || ''))) continue
+        const key = String(row.partida_id || '')
+        porPartida.set(key, [...(porPartida.get(key) || []), row])
+      }
+
+      const acumulado = new Map<string, number>(pointRush ? bonusPorEquipe : [])
+      let vencedorId = ''
+      let winnerPartidaId = ''
+      let winnerFall = 0
+      for (let index = 0; index < orderedPartidas.length && !vencedorId; index += 1) {
+        const partida = orderedPartidas[index]
+        const rows = porPartida.get(String(partida.id)) || []
+        const winner = rows.find((row: any) => Boolean(row.booyah) && Number(acumulado.get(String(row.campeonato_equipe_id)) || 0) >= limite)
+        if (winner) {
+          vencedorId = String(winner.campeonato_equipe_id || '')
+          winnerPartidaId = String(partida.id)
+          winnerFall = index + 1
+        }
+        for (const row of rows) {
+          const teamId = String(row.campeonato_equipe_id || '')
+          acumulado.set(teamId, Number(acumulado.get(teamId) || 0) + Number(row.pontos_total || 0))
+        }
+      }
+      if (vencedorId) {
+        campeao = ranking.find((row: any) => String(row.campeonato_equipe_id) === vencedorId) || null
+        championPoint = { atingido: true, partida_id: winnerPartidaId, queda_global: winnerFall }
+      } else {
+        championPoint = { atingido: false }
+        campeao = ranking[0] || null
+      }
+    }
+  }
+
+  const jogadores = campeao
+    ? mvp.filter((row: any) => String(row.campeonato_equipe_id || '') === String(campeao.campeonato_equipe_id || ''))
+    : []
+  const dias = Array.from(new Set<number>((jogos || []).map((row: any) => Number(row.dia_final || 1)).filter((value: number) => value > 0))).sort((a, b) => a - b)
+
+  return {
+    final_concluida: finalConcluida,
+    fase: faseFinal,
+    configuracao: configuracao || null,
+    campeao,
+    jogadores,
+    mvp_final: finalConcluida ? mvp[0] || null : null,
+    champion_point: championPoint,
+    aguardando_desempate: false,
+    resumo: {
+      dias: dias.length || ((jogos || []).length ? 1 : 0),
+      jogos: (jogos || []).length,
+      quedas: (partidas || []).length,
+      quedas_finalizadas: (partidas || []).filter((row: any) => String(row.status || '') === 'finalizada').length,
+      modo_final: pointRush ? 'point_rush' : 'acumulado',
+      jogo_decisivo: pointRush ? (jogos || []).find((row: any) => String(row.id) === jogoDecisivoId) || null : null,
+    },
+  }
+}
+
 export async function carregarSumula(campeonatoId: string, partidaId?: string | null) {
   let partidasQuery = supabaseAdmin
     .from('campeonato_partidas_com_mapa')

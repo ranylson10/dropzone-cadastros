@@ -40,6 +40,11 @@ export function ChampionshipGamesPanel({ championshipId, phases, groups, token, 
   const [gameType, setGameType] = useState<'normal' | 'final'>('normal')
   const [finalDay, setFinalDay] = useState('1')
   const [definesChampion, setDefinesChampion] = useState(false)
+  const [finalDecisionMode, setFinalDecisionMode] = useState<'pontuacao_normal'|'booyah_ouro'>('pontuacao_normal')
+  const [finalPointsLimit, setFinalPointsLimit] = useState('')
+  const [finalAccumulationMode, setFinalAccumulationMode] = useState<'acumulado'|'bonus_por_ranking'>('acumulado')
+  const [finalDecisiveGameId, setFinalDecisiveGameId] = useState('')
+  const [finalBonusRanking, setFinalBonusRanking] = useState<Array<{posicao:number;pontos_bonus:string}>>([{posicao:1,pontos_bonus:''}])
   const [editingGameId, setEditingGameId] = useState('')
   const [expandedGameId, setExpandedGameId] = useState('')
 
@@ -80,6 +85,21 @@ export function ChampionshipGamesPanel({ championshipId, phases, groups, token, 
     setGameType(finalPhase ? 'final' : 'normal')
     if (!finalPhase) { setFinalDay('1'); setDefinesChampion(false) }
   }, [phaseId, phaseRounds, phaseGroups, phases])
+
+  useEffect(() => {
+    if (!isFinalPhase || !phaseId) return
+    let active = true
+    void mobileApi.championshipPhaseGameConfig(championshipId, phaseId, token).then((result:any) => {
+      if (!active) return
+      const config = result?.configuracao || {}
+      setFinalDecisionMode(config.modo_decisao === 'booyah_ouro' ? 'booyah_ouro' : 'pontuacao_normal')
+      setFinalPointsLimit(config.booyah_ouro_pontos_limite == null ? '' : String(config.booyah_ouro_pontos_limite))
+      setFinalAccumulationMode(config.modo_acumulacao === 'bonus_por_ranking' ? 'bonus_por_ranking' : 'acumulado')
+      setFinalDecisiveGameId(String(config.jogo_decisivo_id || ''))
+      setFinalBonusRanking(Array.isArray(config.bonus_ranking) && config.bonus_ranking.length ? config.bonus_ranking.map((item:any)=>({posicao:Number(item.posicao),pontos_bonus:String(item.pontos_bonus??'')})) : [{posicao:1,pontos_bonus:''}])
+    }).catch((err:any) => { if (active) setError(err?.message || 'Não foi possível carregar a regra da Grande Final.') })
+    return () => { active = false }
+  }, [championshipId, isFinalPhase, phaseId, token])
 
   useEffect(() => {
     const amount = Math.max(1, Number(gameMatches || 1))
@@ -149,13 +169,41 @@ export function ChampionshipGamesPanel({ championshipId, phases, groups, token, 
 
   async function saveGame() {
     if (!phaseId || !gameName.trim() || !gameGroupIds.length || gameMapCodes.some((code) => !code)) { setError('Informe nome, fase, grupo e um mapa para cada queda.'); return }
+    if (isFinalPhase && finalDecisionMode === 'booyah_ouro' && (!Number(finalPointsLimit) || Number(finalPointsLimit) <= 0)) { setError('Informe a pontuação mínima para ativar o Champion Point.'); return }
+    if (isFinalPhase && finalAccumulationMode === 'bonus_por_ranking' && !finalDecisiveGameId) { setError('Selecione o jogo decisivo do Point Rush.'); return }
     setBusy(true); setError(''); setFeedback('')
     try {
+      if (isFinalPhase) await mobileApi.updateChampionshipPhaseGameConfig(championshipId, phaseId, {
+        modo_decisao: finalDecisionMode,
+        modo_acumulacao: finalAccumulationMode,
+        booyah_ouro_pontos_limite: finalDecisionMode === 'booyah_ouro' ? Number(finalPointsLimit) : null,
+        booyah_ouro_queda_minima: null,
+        booyah_ouro_desempate_final: 'maior_pontuacao',
+        jogo_decisivo_id: finalAccumulationMode === 'bonus_por_ranking' ? finalDecisiveGameId : null,
+        bonus_ranking: finalAccumulationMode === 'bonus_por_ranking' ? finalBonusRanking.filter((item)=>item.pontos_bonus!=='').map((item)=>({posicao:item.posicao,pontos_bonus:Number(item.pontos_bonus)})) : [],
+      }, token)
       if (editingGameId) await mobileApi.updateChampionshipGame(championshipId, editingGameId, buildGameBody(), token)
       else await mobileApi.createChampionshipGame(championshipId, buildGameBody(), token)
       resetGameForm()
       await refresh(editingGameId ? 'Jogo atualizado.' : 'Jogo criado com quedas e mapas.')
     } catch (err:any) { setError(err?.message || 'Não foi possível salvar o jogo.') }
+    finally { setBusy(false) }
+  }
+
+  async function applyPointRushBonus() {
+    if (!phaseId || finalAccumulationMode !== 'bonus_por_ranking' || !finalDecisiveGameId) { setError('Configure e selecione o jogo decisivo do Point Rush.'); return }
+    setBusy(true); setError(''); setFeedback('')
+    try {
+      await mobileApi.updateChampionshipPhaseGameConfig(championshipId, phaseId, {
+        modo_decisao: finalDecisionMode, modo_acumulacao: finalAccumulationMode,
+        booyah_ouro_pontos_limite: finalDecisionMode === 'booyah_ouro' ? Number(finalPointsLimit) : null,
+        booyah_ouro_queda_minima: null, booyah_ouro_desempate_final: 'maior_pontuacao', jogo_decisivo_id: finalDecisiveGameId,
+        bonus_ranking: finalBonusRanking.filter((item)=>item.pontos_bonus!=='').map((item)=>({posicao:item.posicao,pontos_bonus:Number(item.pontos_bonus)})),
+      }, token)
+      const result = await mobileApi.applyChampionshipPointRushBonus(championshipId, phaseId, token)
+      setFeedback(`Bônus do Point Rush aplicado a ${Number(result?.total || 0)} equipe(s).`)
+      await load()
+    } catch (err:any) { setError(err?.message || 'Não foi possível aplicar os bônus do Point Rush.') }
     finally { setBusy(false) }
   }
 
@@ -210,7 +258,14 @@ export function ChampionshipGamesPanel({ championshipId, phases, groups, token, 
       <Field label="Nome" value={gameName} onChangeText={setGameName}/>
       <View style={styles.columns}><Field label="Data (AAAA-MM-DD)" value={gameDate} onChangeText={setGameDate}/><Field label="Horário" value={gameTime} onChangeText={setGameTime}/></View>
       <Field label="Quantidade de quedas" value={gameMatches} onChangeText={setGameMatches}/>
-      {isFinalPhase?<View style={styles.finalPanel}><Text style={styles.finalPanelTitle}>GRANDE FINAL</Text><Text style={styles.meta}>Todos os jogos desta fase são jogos de final. Você pode distribuir a decisão em vários dias.</Text><View style={styles.columns}><Field label="Dia da final" value={finalDay} onChangeText={setFinalDay}/><View style={{flex:1}}><Text style={styles.label}>DECISÃO DO TÍTULO</Text><View style={styles.chips}><TouchableOpacity style={[styles.chip,!definesChampion&&styles.chipActive]} onPress={()=>setDefinesChampion(false)}><Text style={[styles.chipText,!definesChampion&&styles.chipTextActive]}>Acumula</Text></TouchableOpacity><TouchableOpacity style={[styles.chip,definesChampion&&styles.chipActive]} onPress={()=>setDefinesChampion(true)}><Text style={[styles.chipText,definesChampion&&styles.chipTextActive]}>Decisivo</Text></TouchableOpacity></View></View></View></View>:null}
+      {isFinalPhase?<View style={styles.finalPanel}>
+        <Text style={styles.finalPanelTitle}>GRANDE FINAL</Text>
+        <Text style={styles.meta}>A final pode somar todos os dias ou usar Point Rush, em que os dias anteriores geram bônus por colocação para o jogo decisivo.</Text>
+        <View style={styles.columns}><Field label="Dia da final" value={finalDay} onChangeText={setFinalDay}/><View style={{flex:1}}><Text style={styles.label}>FORMATO MULTI-DIA</Text><View style={styles.chips}><TouchableOpacity style={[styles.chip,finalAccumulationMode==='acumulado'&&styles.chipActive]} onPress={()=>setFinalAccumulationMode('acumulado')}><Text style={[styles.chipText,finalAccumulationMode==='acumulado'&&styles.chipTextActive]}>Acumulada</Text></TouchableOpacity><TouchableOpacity style={[styles.chip,finalAccumulationMode==='bonus_por_ranking'&&styles.chipActive]} onPress={()=>setFinalAccumulationMode('bonus_por_ranking')}><Text style={[styles.chipText,finalAccumulationMode==='bonus_por_ranking'&&styles.chipTextActive]}>Point Rush</Text></TouchableOpacity></View></View></View>
+        <Text style={styles.label}>CRITÉRIO DO CAMPEÃO</Text><View style={styles.chips}><TouchableOpacity style={[styles.chip,finalDecisionMode==='pontuacao_normal'&&styles.chipActive]} onPress={()=>setFinalDecisionMode('pontuacao_normal')}><Text style={[styles.chipText,finalDecisionMode==='pontuacao_normal'&&styles.chipTextActive]}>Pontuação</Text></TouchableOpacity><TouchableOpacity style={[styles.chip,finalDecisionMode==='booyah_ouro'&&styles.chipActive]} onPress={()=>setFinalDecisionMode('booyah_ouro')}><Text style={[styles.chipText,finalDecisionMode==='booyah_ouro'&&styles.chipTextActive]}>Champion Point</Text></TouchableOpacity></View>
+        {finalDecisionMode==='booyah_ouro'?<><Field label="Pontuação mínima para ativar" value={finalPointsLimit} onChangeText={setFinalPointsLimit}/><Text style={styles.meta}>Ao atingir a meta, a equipe fica elegível. BOOYAH posterior fecha o título; se ninguém fechar até a última queda, vence a maior pontuação.</Text></>:null}
+        {finalAccumulationMode==='bonus_por_ranking'?<><Text style={styles.label}>JOGO DECISIVO</Text><View style={styles.chips}>{games.filter((item:any)=>String(item.fase_id||'')===phaseId).map((item:any)=><TouchableOpacity key={item.id} style={[styles.chip,finalDecisiveGameId===String(item.id)&&styles.chipActive]} onPress={()=>setFinalDecisiveGameId(String(item.id))}><Text style={[styles.chipText,finalDecisiveGameId===String(item.id)&&styles.chipTextActive]}>{item.nome} · D{item.dia_final||1}</Text></TouchableOpacity>)}</View><Text style={styles.label}>BÔNUS POR COLOCAÇÃO</Text>{finalBonusRanking.map((item,index)=><View key={`${item.posicao}-${index}`} style={styles.columns}><View style={{flex:1}}><Text style={styles.label}>TOP {item.posicao}</Text><TextInput style={styles.input} value={item.pontos_bonus} onChangeText={(value)=>setFinalBonusRanking((current)=>current.map((row,rowIndex)=>rowIndex===index?{...row,pontos_bonus:value}:row))} placeholder="Pontos" placeholderTextColor="#8a857e" keyboardType="numeric"/></View><TouchableOpacity style={styles.secondary} onPress={()=>setFinalBonusRanking((current)=>current.filter((_,rowIndex)=>rowIndex!==index).map((row,rowIndex)=>({...row,posicao:rowIndex+1})))}><Text style={styles.secondaryText}>Remover</Text></TouchableOpacity></View>)}<View style={styles.actions}><TouchableOpacity style={styles.secondary} onPress={()=>setFinalBonusRanking((current)=>[...current,{posicao:current.length+1,pontos_bonus:''}])}><Text style={styles.secondaryText}>Adicionar top</Text></TouchableOpacity><TouchableOpacity disabled={busy} style={styles.primary} onPress={()=>void applyPointRushBonus()}><Text style={styles.primaryText}>Aplicar bônus</Text></TouchableOpacity></View></>:null}
+      </View>:null}
       <Text style={styles.label}>RODADA</Text><View style={styles.chips}><TouchableOpacity style={[styles.chip,!gameRoundId&&styles.chipActive]} onPress={()=>setGameRoundId('')}><Text style={[styles.chipText,!gameRoundId&&styles.chipTextActive]}>Sem rodada</Text></TouchableOpacity>{phaseRounds.map((round:any)=><TouchableOpacity key={round.id} style={[styles.chip,gameRoundId===String(round.id)&&styles.chipActive]} onPress={()=>setGameRoundId(String(round.id))}><Text style={[styles.chipText,gameRoundId===String(round.id)&&styles.chipTextActive]}>{round.nome||`R${round.numero}`}</Text></TouchableOpacity>)}</View>
       <Text style={styles.label}>GRUPOS PARTICIPANTES</Text><View style={styles.chips}>{phaseGroups.map((group:any)=>{const active=gameGroupIds.includes(String(group.id));return <TouchableOpacity key={group.id} style={[styles.chip,active&&styles.chipActive]} onPress={()=>toggleGroup(String(group.id))}><Text style={[styles.chipText,active&&styles.chipTextActive]}>{group.nome}</Text></TouchableOpacity>})}</View>
       <Text style={styles.label}>MAPA POR QUEDA</Text>{gameMapCodes.map((code,index)=><View key={index} style={styles.mapRow}><View style={styles.fallBadge}><Text style={styles.fallText}>Q{index+1}</Text></View><View style={styles.mapChips}>{maps.map((map:any)=>{const active=code===String(map.codigo);return <TouchableOpacity key={map.id||map.codigo} style={[styles.mapChip,active&&styles.mapChipActive]} onPress={()=>setMap(index,String(map.codigo))}><Text style={[styles.mapText,active&&styles.mapTextActive]}>{map.nome}</Text></TouchableOpacity>})}</View></View>)}
@@ -219,7 +274,7 @@ export function ChampionshipGamesPanel({ championshipId, phases, groups, token, 
 
     <Text style={styles.title}>JOGOS E QUEDAS</Text>
     <View style={styles.list}>{games.map((game:any)=>{const expanded=expandedGameId===String(game.id);return <View key={game.id} style={styles.card}><TouchableOpacity style={styles.cardHead} onPress={()=>setExpandedGameId(expanded?'':String(game.id))}><View style={styles.copy}><Text style={styles.rowTitle}>{game.nome}</Text><Text style={styles.meta}>{[game.tipo_jogo==='final'?`Grande Final · Dia ${game.dia_final||1}${game.define_campeao?' · decisivo':''}`:null,game.data_jogo,game.horario,`${game.numero_partidas||game.quedas?.length||0} quedas`,game.status].filter(Boolean).join(' · ')}</Text></View><Ionicons name={expanded?'chevron-up':'chevron-down'} size={17} color={colors.muted}/></TouchableOpacity><View style={styles.actionsSmall}><TouchableOpacity style={styles.smallButton} onPress={()=>editGame(game)}><Text style={styles.smallText}>Editar</Text></TouchableOpacity><TouchableOpacity style={[styles.smallButton,styles.dangerButton]} onPress={()=>deleteGame(game)}><Text style={[styles.smallText,styles.dangerText]}>Excluir</Text></TouchableOpacity></View>{expanded?<View style={styles.falls}>{(game.quedas||[]).map((fall:any)=><View key={fall.id} style={styles.fallRow}><View style={styles.fallBadge}><Text style={styles.fallText}>Q{fall.numero_partida}</Text></View><View style={styles.copy}><Text style={styles.rowTitle}>{fall.mapa_nome||fall.mapa_codigo||'Mapa'}</Text><Text style={styles.meta}>{fall.status||'agendada'}{fall.finalizada_em?' · finalizada':''}</Text></View>{!fall.finalizada_em&&fall.status!=='finalizada'?<View style={styles.inlineMaps}>{maps.map((map:any)=>String(map.codigo)===String(fall.mapa_codigo)?null:<TouchableOpacity key={map.id||map.codigo} style={styles.tinyMap} onPress={()=>void updateFallMap(game,fall,String(map.codigo))}><Text style={styles.tinyMapText}>{map.nome}</Text></TouchableOpacity>)}</View>:null}</View>)}</View>:null}</View>})}</View>
-    <Text style={styles.note}>Rodadas, jogos, grupos e mapas usam as APIs oficiais do campeonato. A Grande Final pode ter jogos em vários dias; o Grupo da Final é único e o jogo decisivo é opcional para formatos acumulados/Champion Point. Cada queda precisa de um mapa válido do catálogo.</Text>
+    <Text style={styles.note}>Rodadas, jogos, grupos e mapas usam as APIs oficiais do campeonato. A Grande Final pode somar todos os dias ou usar Point Rush com bônus por colocação; Champion Point funciona nos dois formatos. Cada queda precisa de um mapa válido do catálogo.</Text>
   </View>
 }
 

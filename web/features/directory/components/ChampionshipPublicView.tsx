@@ -388,7 +388,7 @@ export function ChampionshipPublicView({
 }
 
 
-type StatsView = 'tabela' | 'mvp'
+type StatsView = 'campeao' | 'tabela' | 'mvp'
 type MobileFilterMode = 'general' | 'phase' | 'map'
 
 type TeamStatsRow = {
@@ -484,7 +484,7 @@ function StatsDashboard({
   teamsSection?: DirectoryProfile['sections'][number]
   mvpSection?: DirectoryProfile['sections'][number]
 }) {
-  const [view, setView] = useState<StatsView>('tabela')
+  const [view, setView] = useState<StatsView>('campeao')
   const [faseId, setFaseId] = useState('')
   const [grupoId, setGrupoId] = useState('')
   const [jogoId, setJogoId] = useState('')
@@ -493,6 +493,7 @@ function StatsDashboard({
   const [teams, setTeams] = useState<TeamStatsRow[]>(() => sectionTeams(teamsSection))
   const [players, setPlayers] = useState<MvpStatsRow[]>(() => sectionMvp(mvpSection))
   const [loading, setLoading] = useState(false)
+  const [championSummary, setChampionSummary] = useState<any>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [mobileFilterMode, setMobileFilterMode] = useState<MobileFilterMode>('general')
 
@@ -550,10 +551,13 @@ function StatsDashboard({
     Promise.all([
       fetch(`/api/campeonatos/${championshipId}/estatisticas/equipes?${params}`, { signal: controller.signal }).then((res) => res.json()),
       fetch(`/api/campeonatos/${championshipId}/estatisticas/mvp?${params}`, { signal: controller.signal }).then((res) => res.json()),
+      fetch(`/api/campeonatos/${championshipId}/estatisticas/campeao`, { signal: controller.signal }).then((res) => res.json()),
     ])
-      .then(([teamData, playerData]) => {
+      .then(([teamData, playerData, championData]) => {
         if (Array.isArray(teamData.equipes)) setTeams(teamData.equipes)
         if (Array.isArray(playerData.jogadores)) setPlayers(playerData.jogadores)
+        setChampionSummary(championData)
+        if (!championData?.final_concluida || !championData?.campeao) setView((current) => current === 'campeao' ? 'tabela' : current)
       })
       .catch((error) => {
         if (error?.name !== 'AbortError') console.error(error)
@@ -605,6 +609,7 @@ function StatsDashboard({
       </header>
 
       <div className="champ-stats-tabs" role="tablist" aria-label="Tipo de estatística">
+        {championSummary?.final_concluida && championSummary?.campeao ? <button type="button" className={view === 'campeao' ? 'active' : ''} onClick={() => setView('campeao')}><Flag size={14} /> Campeão</button> : null}
         <button type="button" className={view === 'tabela' ? 'active' : ''} onClick={() => setView('tabela')}>
           <BarChart3 size={14} /> Tabela
         </button>
@@ -613,7 +618,7 @@ function StatsDashboard({
         </button>
       </div>
 
-      {hasFilters ? (
+      {hasFilters && view !== 'campeao' ? (
         <>
           <div className="champ-stats-filters champ-stats-filters-desktop">
             {filters?.phases.length ? (
@@ -767,7 +772,9 @@ function StatsDashboard({
         </>
       ) : null}
 
-      <div className="champ-stats-table-wrap champ-stats-desktop-table">
+      {view === 'campeao' && championSummary?.campeao ? <section className="champion-public-spotlight"><div className="champion-public-badge">CAMPEÃO</div><div className="champion-public-main"><span className="champion-public-logo">{championSummary.campeao.logo_url ? <img src={championSummary.campeao.logo_url} alt="" /> : championSummary.campeao.nome.slice(0,2).toUpperCase()}</span><div><small>Grande Final concluída</small><h2>{championSummary.campeao.nome}</h2><p>{championSummary.campeao.pontos_total} PTS · {championSummary.campeao.booyahs} BOOYAH · {championSummary.campeao.abates} KILLS · {championSummary.resumo?.quedas || championSummary.campeao.quedas} QUEDAS</p></div></div><div className="champion-public-lineup"><strong>LINE CAMPEÃ</strong><div>{(championSummary.jogadores || []).map((player:any)=><article key={player.campeonato_jogador_id}>{player.foto_url?<img src={player.foto_url} alt=""/>:<span>{String(player.nick||'?').slice(0,1)}</span>}<b>{player.nick}</b><small>{player.abates} kills</small></article>)}</div></div><footer><button type="button" onClick={()=>setView('mvp')}><Flag size={14}/> Ver MVP</button><button type="button" onClick={()=>setView('tabela')}><BarChart3 size={14}/> Estatísticas do campeonato</button></footer></section> : null}
+
+      {view !== 'campeao' ? <div className="champ-stats-table-wrap champ-stats-desktop-table">
         {view === 'tabela' ? (
           teams.length ? (
             <table className="champ-stats-table champ-stats-team-table">
@@ -781,9 +788,9 @@ function StatsDashboard({
             <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{kdLabel(row)}</b></td><td className="total"><b>{row.abates}</b></td></tr>)}</tbody>
           </table>
         ) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
-      </div>
+      </div> : null}
 
-      <div className="champ-stats-mobile-list">
+      {view !== 'campeao' ? <div className="champ-stats-mobile-list">
         {view === 'tabela' ? (
           teams.length ? teams.map((row) => (
             <article key={row.campeonato_equipe_id} className="champ-stats-mobile-row">
@@ -807,7 +814,7 @@ function StatsDashboard({
             <span className="champ-stats-mobile-primary"><small>Kills</small><b>{row.abates}</b></span>
           </article>
         )) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
-      </div>
+      </div> : null}
     </section>
   )
 }
