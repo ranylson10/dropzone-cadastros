@@ -36,9 +36,11 @@ export async function dropzoneFetch<T>(path: string, options: RequestOptions = {
 }
 
 export const mobileApi = {
+  createLinkedProfile: (body: Record<string, unknown>, accessToken?: string | null) =>
+    dropzoneFetch<{ account?: any; linked?: boolean }>('/api/auth/register', { method: 'POST', accessToken, body: JSON.stringify({ ...body, link_existing: true }) }),
   updateProfile: (body: Record<string, unknown>, accessToken?: string | null) =>
     dropzoneFetch<{ ok: boolean; profile: any; warning?: string }>('/api/me/perfil', { method: 'PATCH', accessToken, body: JSON.stringify(body) }),
-  uploadProfileImage: (body: { bucket: string; entity_id: string; file_name: string; data_url: string }, accessToken?: string | null) =>
+  uploadProfileImage: (body: { bucket: string; entity_id?: string; file_name: string; data_url: string; upload_intent?: 'create_profile' | 'create_campeonato' }, accessToken?: string | null) =>
     dropzoneFetch<{ url: string; path: string }>('/api/upload', { method: 'POST', accessToken, timeoutMs: 60000, body: JSON.stringify(body) }),
   championshipsPublic: () =>
     dropzoneFetch<{ announcements: unknown[] }>('/api/vagas?diretorio=1', {

@@ -23,6 +23,7 @@ const tabByRoute: Partial<Record<MobileRoute, TabId>> = {
   search: 'home',
   dashboard: 'home',
   profile_management: 'home',
+  profile_create: 'home',
   vacancies: 'championships',
   championship_public: 'championships',
   purchase_claim: 'championships',

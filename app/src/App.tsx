@@ -20,6 +20,7 @@ import { LoginScreen } from '@/screens/LoginScreen'
 import { MyChampionshipsScreen } from '@/screens/MyChampionshipsScreen'
 import { ProducerOverviewScreen } from '@/screens/ProducerOverviewScreen'
 import { ProfileManagementScreen } from '@/screens/ProfileManagementScreen'
+import { ProfileCreateScreen } from '@/screens/ProfileCreateScreen'
 import { PlayerDirectoryScreen } from '@/screens/PlayerDirectoryScreen'
 import { PlayerDashboardScreen } from '@/screens/PlayerDashboardScreen'
 import { PlayerPublicScreen } from '@/screens/PlayerPublicScreen'
@@ -37,7 +38,7 @@ import { QuickTokenResult, resolveQuickToken } from '@/lib/api'
 import { parseMobileDeepLink } from '@/lib/deepLinks'
 import { loadNavigationState, saveNavigationState } from '@/lib/navigationState'
 import { colors } from '@/theme/tokens'
-import { ChampionshipCard, MobileRoute } from '@/types/dropzone'
+import { ChampionshipCard, MobileRoute, ProfileType } from '@/types/dropzone'
 import { LineupSummary } from '@/lib/lineups'
 
 const PUBLIC_ROUTES = new Set<MobileRoute>([
@@ -76,6 +77,7 @@ function DropZoneMobileApp() {
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [selectedTokenAction, setSelectedTokenAction] = useState<QuickTokenResult | null>(null)
+  const [profileCreationType, setProfileCreationType] = useState<ProfileType>('equipe')
   const routeHistoryRef = useRef<MobileRoute[]>([])
   const navigationRestoredRef = useRef(false)
   const profileType = auth.activeProfileType
@@ -143,7 +145,8 @@ function DropZoneMobileApp() {
           const result=await resolveQuickToken(target.token,auth.session?.access_token)
           if(!mounted)return
           setSelectedTokenAction(result)
-          setRouteWithHistory('token_action')
+          if(auth.session)setRouteWithHistory('token_action')
+          else requireLogin('token_action')
         }catch{
           if(!mounted)return
           setRoute('home')
@@ -291,7 +294,8 @@ function DropZoneMobileApp() {
           onSelectChampionship={screenProps.onSelectChampionship}
           accessToken={auth.session?.access_token}
           onCreateChampionship={screenProps.onCreateChampionship}
-          onTokenResolved={(result) => { setSelectedTokenAction(result); setRouteWithHistory('token_action') }}
+          onTokenResolved={(result) => { setSelectedTokenAction(result); if(auth.session)setRouteWithHistory('token_action'); else requireLogin('token_action') }}
+          requireAuth={(action) => requireLogin(undefined, action)}
         />
       )
     }
@@ -308,6 +312,7 @@ function DropZoneMobileApp() {
     if (route === 'commerce') return <CommerceScreen {...screenProps} />
     if (route === 'dashboard') return <ControlPanelScreen {...screenProps} />
     if (route === 'profile_management') return <ProfileManagementScreen {...screenProps} />
+    if (route === 'profile_create') return <ProfileCreateScreen profileType={profileCreationType} onCancel={goBack} onCreated={async (profileId) => { await auth.refreshAccounts(); if (profileId) auth.setActiveAccountId(profileId); setRouteWithHistory(selectedTokenAction ? 'token_action' : 'dashboard', true) }} />
     if (route === 'invites') return <InvitesScreen {...screenProps} />
     if (route === 'team_directory') return <TeamDirectoryScreen {...screenProps} />
     if (route === 'team_public') return <TeamPublicScreen {...screenProps} />
@@ -325,6 +330,8 @@ function DropZoneMobileApp() {
       onBack={goBack}
       accessToken={auth.session?.access_token}
       requireLogin={() => { requireLogin('token_action') }}
+      accounts={auth.accounts}
+      onCreateProfile={(type) => { setProfileCreationType(type); setRouteWithHistory('profile_create') }}
       onCompleted={(result)=>{
         if(result.kind==='team_roster_invite') void auth.refreshAccounts()
       }}
@@ -336,7 +343,8 @@ function DropZoneMobileApp() {
         accessToken={auth.session?.access_token}
         onCreateChampionship={screenProps.onCreateChampionship}
         onSelectChampionship={screenProps.onSelectChampionship}
-        onTokenResolved={(result) => { setSelectedTokenAction(result); setRouteWithHistory('token_action') }}
+        onTokenResolved={(result) => { setSelectedTokenAction(result); if(auth.session)setRouteWithHistory('token_action'); else requireLogin('token_action') }}
+          requireAuth={(action) => requireLogin(undefined, action)}
       />
     )
   }
