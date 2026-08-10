@@ -4,7 +4,7 @@
     "slug": "dropzone-platform",
     "scheme": "dropzone",
     "version": "0.1.0",
-    "icon": "./assets/dropzone-icon-accent.png",
+    "icon": "./assets/dropzone-launcher-icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
@@ -17,8 +17,8 @@
     "android": {
       "package": "com.dropzone.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/dropzone-icon-accent.png",
-        "backgroundColor": "#0f1420"
+        "foregroundImage": "./assets/dropzone-launcher-foreground.png",
+        "backgroundColor": "#ffffff"
       },
       "intentFilters": [
         {
