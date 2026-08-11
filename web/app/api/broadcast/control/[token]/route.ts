@@ -1,60 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
-
-function asIdList(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return []
-  return raw.map((x) => String(x || '').trim()).filter(Boolean)
-}
+import {
+  asStreamConfigObject,
+  asStreamOverlayTypeList,
+  normalizeStreamOverlayPackage,
+} from '@/features/campeonatos/stream/services/stream-package-config'
+import {
+  STREAM_SYSTEM_OVERLAY_META,
+  STREAM_SYSTEM_OVERLAYS,
+  type StreamSystemOverlayType,
+} from '@/features/campeonatos/stream/types/stream-package.types'
 
 async function loadPackOverlays(campeonatoId: string | null) {
-  if (!campeonatoId) {
-    return { pack: null as any, overlays: [] as any[] }
-  }
+  if (!campeonatoId) return { pack: null as any, overlays: [] as any[] }
 
-  const [{ data: pack }, { data: allOverlays }] = await Promise.all([
-    supabaseAdmin
-      .from('campeonato_stream_pack')
-      .select('selected_overlay_ids,bg_type,bg_url,updated_at')
-      .eq('campeonato_id', campeonatoId)
-      .maybeSingle(),
-    supabaseAdmin
-      .from('campeonato_stream_overlays')
-      .select('id,nome,template,share_token,updated_at,ativo')
-      .eq('campeonato_id', campeonatoId)
-      .eq('ativo', true)
-      .order('updated_at', { ascending: false }),
-  ])
+  const { data: pack, error } = await supabaseAdmin
+    .from('campeonato_stream_pack')
+    .select('enabled_overlay_types,overlay_configs,bg_type,bg_url,updated_at,schema_version')
+    .eq('campeonato_id', campeonatoId)
+    .maybeSingle()
 
-  const all = allOverlays || []
-  const byId = new Map(all.map((o) => [o.id, o]))
-  const selectedIds = asIdList(pack?.selected_overlay_ids)
+  if (error) throw error
+  if (!pack) return { pack: null as any, overlays: [] as any[] }
 
-  // Se o admin ainda não configurou o pack, não mostra nada (força composição).
-  // Se pack existe com lista, só as selecionadas na ordem.
-  let ordered = selectedIds.map((id) => byId.get(id)).filter(Boolean) as typeof all
-
-  // fallback legado: pack vazio mas table inexistente / nunca salva → todas
-  // (pack null = SQL/pack ainda não usado; lista vazia = escolha consciente de zero)
-  if (!pack) {
-    ordered = all
-  }
+  const normalized = normalizeStreamOverlayPackage(campeonatoId, pack)
+  const enabled = normalized.enabled_overlay_types
+  const configs = normalized.overlay_configs
+  const overlays = enabled.map((type) => {
+    const config = asStreamConfigObject(configs[type])
+    return {
+      id: type,
+      type,
+      name: String(config.title || STREAM_SYSTEM_OVERLAY_META[type].name),
+      structure: STREAM_SYSTEM_OVERLAY_META[type].structure,
+    }
+  })
 
   return {
-    pack: pack
-      ? {
-          selected_overlay_ids: selectedIds,
-          bg_type: pack.bg_type || 'none',
-          bg_url: pack.bg_url || null,
-          updated_at: pack.updated_at,
-        }
-      : null,
-    overlays: ordered.map((o) => ({
-      id: o.id,
-      name: o.nome,
-      template: o.template,
-      share_token: o.share_token,
-      updated_at: o.updated_at,
-    })),
+    pack: {
+      ...normalized,
+      bg_type: pack.bg_type || 'none',
+      bg_url: pack.bg_url || null,
+    },
+    overlays,
   }
 }
 
@@ -65,7 +53,7 @@ async function loadLives(broadcastId: string) {
     .eq('broadcast_id', broadcastId)
     .order('created_at', { ascending: false })
 
-  const champIds = (links || []).map((l) => l.campeonato_id)
+  const champIds = (links || []).map((link) => link.campeonato_id)
   let champs: any[] = []
   if (champIds.length) {
     const { data } = await supabaseAdmin
@@ -74,32 +62,30 @@ async function loadLives(broadcastId: string) {
       .in('id', champIds)
     champs = data || []
   }
-  const byId = new Map(champs.map((c) => [c.id, c]))
+  const byId = new Map(champs.map((champ) => [champ.id, champ]))
 
-  return (links || []).map((l) => ({
-    id: l.id,
-    campeonato_id: l.campeonato_id,
-    display_name: l.display_name,
-    campeonato: byId.get(l.campeonato_id) || null,
+  return (links || []).map((link) => ({
+    id: link.id,
+    campeonato_id: link.campeonato_id,
+    display_name: link.display_name,
+    campeonato: byId.get(link.campeonato_id) || null,
   }))
 }
 
 /**
- * Controlador de live (token público único do Stream).
- * GET — lives da lista + cenas do campeonato selecionado
- * POST — { campeonato_id } troca a live | { active_overlay_id } troca a cena
+ * Controlador público da mesa Stream.
+ * GET — lives + overlays oficiais habilitadas no pacote selecionado.
+ * POST — { campeonato_id } troca a live | { active_overlay_type } troca a cena.
  */
 export async function GET(_req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params
     const clean = String(token || '').trim()
-    if (!clean || clean.length < 16) {
-      return NextResponse.json({ error: 'Token inválido.' }, { status: 400 })
-    }
+    if (!clean || clean.length < 16) return NextResponse.json({ error: 'Token inválido.' }, { status: 400 })
 
     const { data: session, error } = await supabaseAdmin
       .from('broadcast_live_sessions')
-      .select('id,broadcast_id,nome,campeonato_id,active_overlay_id,controller_token,obs_token,ativo,updated_at')
+      .select('id,broadcast_id,nome,campeonato_id,active_overlay_type,controller_token,obs_token,ativo,updated_at')
       .eq('controller_token', clean)
       .eq('ativo', true)
       .maybeSingle()
@@ -107,6 +93,9 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
     if (error) {
       if (['42P01', 'PGRST205'].includes(error.code || '')) {
         return NextResponse.json({ error: 'Broadcast não configurado no banco.' }, { status: 503 })
+      }
+      if (error.code === '42703') {
+        return NextResponse.json({ error: 'Rode a migration 20260810_stream_package_broadcast_runtime.sql.' }, { status: 503 })
       }
       throw error
     }
@@ -116,12 +105,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
       loadLives(session.broadcast_id),
       loadPackOverlays(session.campeonato_id),
       session.campeonato_id
-        ? supabaseAdmin
-            .from('campeonatos')
-            .select('id,nome,logo_url')
-            .eq('id', session.campeonato_id)
-            .maybeSingle()
-            .then((r) => r.data)
+        ? supabaseAdmin.from('campeonatos').select('id,nome,logo_url').eq('id', session.campeonato_id).maybeSingle().then((result) => result.data)
         : Promise.resolve(null),
     ])
 
@@ -130,7 +114,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
         id: session.id,
         nome: session.nome,
         campeonato_id: session.campeonato_id,
-        active_overlay_id: session.active_overlay_id,
+        active_overlay_type: session.active_overlay_type,
         obs_token: session.obs_token,
         updated_at: session.updated_at,
       },
@@ -139,8 +123,8 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
       pack: packData.pack,
       overlays: packData.overlays,
     })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro' }, { status: 400 })
   }
 }
 
@@ -148,30 +132,25 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
   try {
     const { token } = await context.params
     const clean = String(token || '').trim()
-    if (!clean || clean.length < 16) {
-      return NextResponse.json({ error: 'Token inválido.' }, { status: 400 })
-    }
+    if (!clean || clean.length < 16) return NextResponse.json({ error: 'Token inválido.' }, { status: 400 })
 
     const body = await req.json().catch(() => ({}))
-
-    const { data: session, error: sErr } = await supabaseAdmin
+    const { data: session, error: sessionError } = await supabaseAdmin
       .from('broadcast_live_sessions')
       .select('id,broadcast_id,campeonato_id')
       .eq('controller_token', clean)
       .eq('ativo', true)
       .maybeSingle()
 
-    if (sErr) throw sErr
+    if (sessionError) throw sessionError
     if (!session) return NextResponse.json({ error: 'Sessão não encontrada.' }, { status: 404 })
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
-    // Trocar live (campeonato)
     if (Object.prototype.hasOwnProperty.call(body, 'campeonato_id')) {
-      const nextChamp =
-        body.campeonato_id === null || body.campeonato_id === ''
-          ? null
-          : String(body.campeonato_id || '').trim() || null
+      const nextChamp = body.campeonato_id === null || body.campeonato_id === ''
+        ? null
+        : String(body.campeonato_id || '').trim() || null
 
       if (nextChamp) {
         const { data: link } = await supabaseAdmin
@@ -180,86 +159,57 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
           .eq('broadcast_id', session.broadcast_id)
           .eq('campeonato_id', nextChamp)
           .maybeSingle()
-        if (!link) {
-          return NextResponse.json({ error: 'Campeonato não está na lista deste Stream.' }, { status: 403 })
-        }
+        if (!link) return NextResponse.json({ error: 'Campeonato não está na lista deste Stream.' }, { status: 403 })
       }
 
       patch.campeonato_id = nextChamp
-      // ao trocar a live, limpa a overlay no ar (OBS fica em espera até escolher cena)
-      patch.active_overlay_id = null
+      patch.active_overlay_type = null
     }
 
-    // Trocar overlay/cena no ar
-    if (Object.prototype.hasOwnProperty.call(body, 'active_overlay_id')) {
-      const overlayId =
-        body.active_overlay_id === null || body.active_overlay_id === ''
-          ? null
-          : String(body.active_overlay_id || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'active_overlay_type')) {
+      const overlayType = body.active_overlay_type === null || body.active_overlay_type === ''
+        ? null
+        : String(body.active_overlay_type || '').trim() || null
 
       const champId = (patch.campeonato_id as string | null | undefined) !== undefined
-        ? (patch.campeonato_id as string | null)
+        ? patch.campeonato_id as string | null
         : session.campeonato_id
 
-      if (overlayId) {
-        if (!champId) {
-          return NextResponse.json({ error: 'Selecione uma live (campeonato) antes da cena.' }, { status: 400 })
+      if (overlayType) {
+        if (!champId) return NextResponse.json({ error: 'Selecione uma live antes da cena.' }, { status: 400 })
+        if (!STREAM_SYSTEM_OVERLAYS.includes(overlayType as StreamSystemOverlayType)) {
+          return NextResponse.json({ error: 'Tipo de overlay inválido.' }, { status: 400 })
         }
 
-        const { data: ov } = await supabaseAdmin
-          .from('campeonato_stream_overlays')
-          .select('id')
-          .eq('id', overlayId)
-          .eq('campeonato_id', champId)
-          .eq('ativo', true)
-          .maybeSingle()
-        if (!ov) {
-          return NextResponse.json({ error: 'Overlay não pertence a este campeonato.' }, { status: 400 })
-        }
-
-        // se pack existe, só permite overlays selecionadas
         const { data: pack } = await supabaseAdmin
           .from('campeonato_stream_pack')
-          .select('selected_overlay_ids')
+          .select('enabled_overlay_types')
           .eq('campeonato_id', champId)
           .maybeSingle()
-
-        if (pack) {
-          const allowed = asIdList(pack.selected_overlay_ids)
-          if (allowed.length > 0 && !allowed.includes(overlayId)) {
-            return NextResponse.json(
-              { error: 'Esta overlay não está na composição da live do campeonato.' },
-              { status: 400 },
-            )
-          }
+        const enabled = asStreamOverlayTypeList(pack?.enabled_overlay_types)
+        if (!enabled.includes(overlayType as StreamSystemOverlayType)) {
+          return NextResponse.json({ error: 'Esta overlay não está habilitada no pacote do campeonato.' }, { status: 400 })
         }
       }
 
-      patch.active_overlay_id = overlayId
+      patch.active_overlay_type = overlayType
     }
 
     if (Object.keys(patch).length <= 1) {
-      return NextResponse.json({ error: 'Nada para atualizar. Envie campeonato_id ou active_overlay_id.' }, { status: 400 })
+      return NextResponse.json({ error: 'Nada para atualizar. Envie campeonato_id ou active_overlay_type.' }, { status: 400 })
     }
 
     const { data: updated, error } = await supabaseAdmin
       .from('broadcast_live_sessions')
       .update(patch)
       .eq('id', session.id)
-      .select('id,campeonato_id,active_overlay_id,updated_at,nome')
+      .select('id,campeonato_id,active_overlay_type,updated_at,nome')
       .single()
-
     if (error) throw error
 
     const packData = await loadPackOverlays(updated.campeonato_id)
     const champ = updated.campeonato_id
-      ? (
-          await supabaseAdmin
-            .from('campeonatos')
-            .select('id,nome,logo_url')
-            .eq('id', updated.campeonato_id)
-            .maybeSingle()
-        ).data
+      ? (await supabaseAdmin.from('campeonatos').select('id,nome,logo_url').eq('id', updated.campeonato_id).maybeSingle()).data
       : null
 
     return NextResponse.json({
@@ -268,7 +218,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       pack: packData.pack,
       overlays: packData.overlays,
     })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro' }, { status: 400 })
   }
 }

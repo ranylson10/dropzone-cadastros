@@ -1,14 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, Copy, ExternalLink, KeyRound, Pencil, Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ExternalLink, KeyRound, Pencil, RefreshCw, Save, Trash2 } from 'lucide-react'
 import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
-import {
-  deleteOverlayRemote,
-  listOverlays,
-} from '../services/stream-data.service'
-import { TEMPLATE_LABEL } from '../templates/stream-templates'
-import type { StreamOverlay } from '../types/stream.types'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicMedia } from '@/lib/upload-public'
 import '../stream.css'
@@ -45,22 +39,9 @@ async function authFetch(url: string, options?: RequestInit) {
   return payload
 }
 
-function openInNewTab(path: string) {
-  window.open(path, '_blank', 'noopener,noreferrer')
-}
-
-/**
- * Aba Stream do campeonato:
- * · overlays (editor)
- * · composição da live (quais cenas o Stream vê + BG)
- * · chave Stream
- */
 export function CampeonatoStreamTab(props: { campeonatoId: string }) {
   const workspaceUrl = `/campeonatos/${props.campeonatoId}/stream`
-  const base = workspaceUrl
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [overlays, setOverlays] = useState<StreamOverlay[]>([])
-  const [loading, setLoading] = useState(true)
   const [keyToken, setKeyToken] = useState<string | null>(null)
   const [keyLabel, setKeyLabel] = useState('Chave Stream')
   const [editingKeyLabel, setEditingKeyLabel] = useState(false)
@@ -69,42 +50,20 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
   const [missingBroadcastSql, setMissingBroadcastSql] = useState(false)
   const [missingPackSql, setMissingPackSql] = useState(false)
 
-  // pack / composição
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bgType, setBgType] = useState<'none' | 'image' | 'video'>('none')
   const [bgUrl, setBgUrl] = useState('')
-  /** '' = auto (detecta jogo); uuid = manual */
   const [activeJogoId, setActiveJogoId] = useState('')
-  const [jogos, setJogos] = useState<
-    Array<{
-      id: string
-      nome: string
-      status?: string
-      data_jogo?: string | null
-      horario?: string | null
-      numero_partidas?: number
-    }>
-  >([])
-  const [needsActiveJogoSql, setNeedsActiveJogoSql] = useState(false)
+  const [jogos, setJogos] = useState<Array<{
+    id: string
+    nome: string
+    status?: string
+    data_jogo?: string | null
+    horario?: string | null
+    numero_partidas?: number
+  }>>([])
   const [packBusy, setPackBusy] = useState(false)
   const [packDirty, setPackDirty] = useState(false)
   const [bgUploading, setBgUploading] = useState(false)
-
-  const overlayById = useMemo(() => {
-    const m = new Map<string, StreamOverlay>()
-    for (const o of overlays) m.set(o.id, o)
-    return m
-  }, [overlays])
-
-  const reloadOverlays = useCallback(async () => {
-    setLoading(true)
-    try {
-      const result = await listOverlays(props.campeonatoId)
-      setOverlays(result.overlays)
-    } finally {
-      setLoading(false)
-    }
-  }, [props.campeonatoId])
 
   const reloadKey = useCallback(async () => {
     try {
@@ -113,44 +72,39 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
       setKeyLabel(res.key?.label || 'Chave Stream')
       setEditingKeyLabel(false)
       setMissingBroadcastSql(false)
-    } catch (e: any) {
-      if (String(e?.message || '').includes('broadcast') || String(e?.message || '').includes('SQL')) {
-        setMissingBroadcastSql(true)
-      }
+    } catch (error: any) {
+      const message = String(error?.message || '')
+      if (message.includes('broadcast') || message.includes('SQL')) setMissingBroadcastSql(true)
     }
   }, [props.campeonatoId])
 
   const reloadPack = useCallback(async () => {
     try {
       const res = await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`)
-      setSelectedIds(Array.isArray(res.pack?.selected_overlay_ids) ? res.pack.selected_overlay_ids : [])
-      setBgType((res.pack?.bg_type as any) || 'none')
+      setBgType((res.pack?.bg_type as 'none' | 'image' | 'video') || 'none')
       setBgUrl(res.pack?.bg_url || '')
       setActiveJogoId(res.pack?.active_jogo_id ? String(res.pack.active_jogo_id) : '')
       setJogos(Array.isArray(res.jogos) ? res.jogos : [])
-      setNeedsActiveJogoSql(Boolean(res.needs_active_jogo_sql))
       setPackDirty(false)
-      setMissingPackSql(false)
-    } catch (e: any) {
-      const msg = String(e?.message || '')
-      if (msg.includes('20260719') || msg.includes('pack') || msg.includes('SQL')) {
+      setMissingPackSql(Boolean(res.needs_package_sql))
+    } catch (error: any) {
+      const message = String(error?.message || '')
+      if (message.includes('pack') || message.includes('SQL') || message.includes('20260810')) {
         setMissingPackSql(true)
       }
     }
   }, [props.campeonatoId])
 
   useEffect(() => {
-    void reloadOverlays()
     void reloadKey()
     void reloadPack()
     const onFocus = () => {
-      void reloadOverlays()
       void reloadKey()
       void reloadPack()
     }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [reloadOverlays, reloadKey, reloadPack])
+  }, [reloadKey, reloadPack])
 
   async function ensureKey(regenerate = false) {
     setKeyLoading(true)
@@ -165,14 +119,13 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
       setEditingKeyLabel(false)
       setFeedback(regenerate ? 'Nova chave gerada. Streams já vinculados permanecem.' : 'Chave pronta para copiar.')
       setMissingBroadcastSql(false)
-    } catch (e: any) {
-      setFeedback(e?.message || 'Erro ao gerar chave')
-      if (String(e?.message || '').includes('SQL')) setMissingBroadcastSql(true)
+    } catch (error: any) {
+      setFeedback(error?.message || 'Erro ao gerar chave')
+      if (String(error?.message || '').includes('SQL')) setMissingBroadcastSql(true)
     } finally {
       setKeyLoading(false)
     }
   }
-
 
   async function saveKeyLabel() {
     const label = keyLabel.trim()
@@ -190,8 +143,8 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
       setKeyLabel(res.key?.label || label)
       setEditingKeyLabel(false)
       setFeedback('Nome da chave atualizado.')
-    } catch (e: any) {
-      setFeedback(e?.message || 'Erro ao atualizar a chave')
+    } catch (error: any) {
+      setFeedback(error?.message || 'Erro ao atualizar a chave')
     } finally {
       setKeyLoading(false)
     }
@@ -208,8 +161,8 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
       setKeyLabel('Chave Stream')
       setEditingKeyLabel(false)
       setFeedback('Chave revogada. Gere uma nova quando precisar.')
-    } catch (e: any) {
-      setFeedback(e?.message || 'Erro ao revogar a chave')
+    } catch (error: any) {
+      setFeedback(error?.message || 'Erro ao revogar a chave')
     } finally {
       setKeyLoading(false)
     }
@@ -226,37 +179,7 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     )
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!window.confirm(`Excluir overlay "${name}"?`)) return
-    await deleteOverlayRemote(props.campeonatoId, id)
-    setSelectedIds((prev) => prev.filter((x) => x !== id))
-    setPackDirty(true)
-    await reloadOverlays()
-  }
-
-  function toggleSelected(id: string) {
-    setSelectedIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id)
-      return [...prev, id]
-    })
-    setPackDirty(true)
-  }
-
-  function moveSelected(id: string, dir: -1 | 1) {
-    setSelectedIds((prev) => {
-      const i = prev.indexOf(id)
-      if (i < 0) return prev
-      const j = i + dir
-      if (j < 0 || j >= prev.length) return prev
-      const next = [...prev]
-      ;[next[i], next[j]] = [next[j], next[i]]
-      return next
-    })
-    setPackDirty(true)
-  }
-
-  async function savePack(next?: {
-    selected_overlay_ids?: string[]
+  async function saveRuntime(next?: {
     bg_type?: 'none' | 'image' | 'video'
     bg_url?: string | null
     active_jogo_id?: string | null
@@ -264,40 +187,24 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     setPackBusy(true)
     setFeedback('')
     try {
-      const jogoVal =
-        next && Object.prototype.hasOwnProperty.call(next, 'active_jogo_id')
-          ? next.active_jogo_id
-          : (activeJogoId || null)
-      const body = {
-        selected_overlay_ids: next?.selected_overlay_ids ?? selectedIds,
-        bg_type: next?.bg_type ?? bgType,
-        bg_url:
-          (next?.bg_type ?? bgType) === 'none'
-            ? null
-            : (next?.bg_url !== undefined ? next.bg_url : bgUrl.trim() || null),
-        active_jogo_id: jogoVal,
-      }
-      const res = await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`, {
+      const nextBgType = next?.bg_type ?? bgType
+      const jogoVal = Object.prototype.hasOwnProperty.call(next || {}, 'active_jogo_id')
+        ? next?.active_jogo_id ?? null
+        : activeJogoId || null
+      await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`, {
         method: 'PUT',
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          bg_type: nextBgType,
+          bg_url: nextBgType === 'none' ? null : (next?.bg_url !== undefined ? next.bg_url : bgUrl.trim() || null),
+          active_jogo_id: jogoVal,
+        }),
       })
       setPackDirty(false)
       setMissingPackSql(false)
-      if (res.needs_active_jogo_sql) setNeedsActiveJogoSql(true)
-      else setNeedsActiveJogoSql(false)
-      const jogoNome = jogoVal
-        ? (jogos.find((j) => j.id === jogoVal)?.nome || 'selecionado')
-        : 'automático'
-      setFeedback(
-        (body.selected_overlay_ids?.length || 0)
-          ? `Composição salva: ${body.selected_overlay_ids.length} cena(s) · jogo: ${jogoNome}.`
-          : `Composição salva · jogo: ${jogoNome}. Marque overlays para o controlador.`,
-      )
-    } catch (e: any) {
-      setFeedback(e?.message || 'Erro ao salvar composição')
-      if (String(e?.message || '').includes('SQL') || String(e?.message || '').includes('20260719')) {
-        setMissingPackSql(true)
-      }
+      setFeedback('Configuração da transmissão salva.')
+    } catch (error: any) {
+      setFeedback(error?.message || 'Erro ao salvar configuração da transmissão.')
+      if (String(error?.message || '').includes('SQL')) setMissingPackSql(true)
     } finally {
       setPackBusy(false)
     }
@@ -308,52 +215,30 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     setBgUploading(true)
     setFeedback('')
     try {
-      const name = String(file.name || '').toLowerCase()
-      const isVideo =
-        /^video\//i.test(file.type)
-        || /\.(mp4|webm|mov)$/i.test(name)
-
       let uploadedUrl = ''
       let nextType: 'image' | 'video' = 'image'
-
-      if (isVideo) {
+      const name = file.name || ''
+      if (/^video\//i.test(file.type) || /\.(mp4|webm|mov)$/i.test(name)) {
         if (!/\.(mp4|webm|mov)$/i.test(name) && !/mp4|webm|quicktime/i.test(file.type)) {
           throw new Error('Use vídeo MP4 ou WebM (até 40 MB).')
         }
-        if (file.size > 40 * 1024 * 1024) {
-          throw new Error('Vídeo muito pesado. Limite: 40 MB.')
-        }
-        // upload assinado direto no Storage (vídeo não passa pelo body da API)
+        if (file.size > 40 * 1024 * 1024) throw new Error('Vídeo muito pesado. Limite: 40 MB.')
         const res = await uploadPublicMedia(file, 'campeonato', 'produtora')
         uploadedUrl = res.url
         nextType = 'video'
       } else {
-        if (file.size > 8 * 1024 * 1024) {
-          throw new Error('Imagem muito pesada. Use até ~5–8 MB.')
-        }
+        if (file.size > 8 * 1024 * 1024) throw new Error('Imagem muito pesada. Use até ~5–8 MB.')
         const png = await fileToPngFile(file)
         const res = await uploadPublicMedia(png, 'campeonato', 'produtora')
         uploadedUrl = res.url
-        nextType = 'image'
       }
-
       if (!uploadedUrl) throw new Error('Upload concluído sem URL pública.')
-
       setBgType(nextType)
       setBgUrl(uploadedUrl)
       setPackDirty(true)
-      await savePack({
-        selected_overlay_ids: selectedIds,
-        bg_type: nextType,
-        bg_url: uploadedUrl,
-      })
-      setFeedback(
-        nextType === 'video'
-          ? 'Vídeo de fundo enviado e salvo na live (aparece no preview e no OBS).'
-          : 'Imagem de fundo enviada e salva na live (aparece no preview e no OBS).',
-      )
-    } catch (e: any) {
-      setFeedback(e?.message || 'Falha no upload do fundo.')
+      await saveRuntime({ bg_type: nextType, bg_url: uploadedUrl })
+    } catch (error: any) {
+      setFeedback(error?.message || 'Falha no upload do fundo.')
     } finally {
       setBgUploading(false)
     }
@@ -363,14 +248,8 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
     setBgType('none')
     setBgUrl('')
     setPackDirty(true)
-    void savePack({ selected_overlay_ids: selectedIds, bg_type: 'none', bg_url: null })
+    void saveRuntime({ bg_type: 'none', bg_url: null })
   }
-
-  const orderedSelected = selectedIds
-    .map((id) => overlayById.get(id))
-    .filter(Boolean) as StreamOverlay[]
-
-  const unselected = overlays.filter((o) => !selectedIds.includes(o.id))
 
   return (
     <div className="stream-tab">
@@ -379,8 +258,7 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
           <p className="eyebrow">Produção · transmissão</p>
           <h3>Stream</h3>
           <p>
-            Crie overlays no editor, monte a <strong>composição da live</strong> (quais cenas o Stream usa) e envie a
-            chave para o perfil Broadcast operar no OBS com um único link.
+            O pacote de overlays é a única origem visual da transmissão. Configure o pacote no workspace e use uma única fonte no OBS.
           </p>
         </div>
         <div className="stream-panel-actions">
@@ -392,8 +270,8 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
             showTrigger
             triggerLabel="Planilha"
           />
-          <a className="stream-secondary-btn" href={workspaceUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink size={15} /> Workspace
+          <a className="stream-primary-btn" href={workspaceUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={15} /> Abrir pacote
           </a>
         </div>
       </header>
@@ -401,163 +279,69 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
       {feedback ? <p className="stream-hint">{feedback}</p> : null}
       {missingBroadcastSql ? (
         <div className="stream-error">
-          Para chaves e painel Broadcast, rode:{' '}
-          <code>database/migrations/20260718_broadcast_stream.sql</code>
+          Para chaves e painel Broadcast, rode <code>database/migrations/20260718_broadcast_stream.sql</code>.
         </div>
       ) : null}
       {missingPackSql ? (
         <div className="stream-error">
-          Para composição da live, rode:{' '}
-          <code>database/migrations/20260719_broadcast_desk_e_pack.sql</code>
-          {' '}(também em Downloads do PC).
-        </div>
-      ) : null}
-      {needsActiveJogoSql ? (
-        <div className="stream-error">
-          Para gravar o <strong>jogo da live</strong> (mapas do dia), rode no Supabase:{' '}
-          <code>database/migrations/20260719_stream_active_jogo.sql</code>
-          {' '}ou <code>Downloads/DOWNLOAD_stream_active_jogo.sql</code>.
+          Atualize o banco com as migrations do pacote de overlays iniciadas em <code>20260810_stream_overlay_package_model.sql</code>.
         </div>
       ) : null}
 
-      {/* Composição da live */}
-      <section className="stream-panel" aria-label="Composição da live">
+      <section className="stream-panel" aria-label="Configuração da transmissão">
         <div className="stream-panel-title">
           <div>
-            <h4>Composição da live</h4>
+            <h4>Transmissão</h4>
             <p className="stream-hint">
-              Defina o <strong>jogo da live</strong> (mapas do dia), marque as overlays do controlador e o fundo.
-              Sem jogo manual, o sistema usa: queda em andamento → data de hoje → último jogo.
+              Escolha o jogo usado pelos dados ao vivo e, se quiser, um fundo geral atrás das overlays. A seleção de cenas fica somente no editor do pacote.
             </p>
           </div>
-          <div className="stream-panel-actions">
-            <button
-              type="button"
-              className="stream-primary-btn"
-              disabled={packBusy || !packDirty}
-              onClick={() => void savePack()}
-            >
-              <Save size={15} /> {packBusy ? 'Salvando…' : packDirty ? 'Salvar composição' : 'Salvo'}
-            </button>
-          </div>
+          <button
+            type="button"
+            className="stream-primary-btn"
+            disabled={packBusy || !packDirty}
+            onClick={() => void saveRuntime()}
+          >
+            <Save size={15} /> {packBusy ? 'Salvando…' : packDirty ? 'Salvar transmissão' : 'Salvo'}
+          </button>
         </div>
 
-        <div className="broadcast-row" style={{ marginBottom: 14 }}>
+        <div className="broadcast-row" style={{ alignItems: 'start' }}>
           <label className="broadcast-field" style={{ flex: '1 1 320px' }}>
             <span>Jogo da live · mapas do dia</span>
             <select
               value={activeJogoId}
               disabled={packBusy}
-              onChange={(e) => {
-                setActiveJogoId(e.target.value)
+              onChange={(event) => {
+                setActiveJogoId(event.target.value)
                 setPackDirty(true)
               }}
             >
               <option value="">Automático (detectar jogo ativo)</option>
-              {jogos.map((j) => {
-                const data = j.data_jogo ? String(j.data_jogo).slice(0, 10) : ''
-                const n = j.numero_partidas ? ` · ${j.numero_partidas} queda(s)` : ''
-                const st = j.status ? ` · ${j.status}` : ''
+              {jogos.map((jogo) => {
+                const data = jogo.data_jogo ? String(jogo.data_jogo).slice(0, 10) : ''
+                const quedas = jogo.numero_partidas ? ` · ${jogo.numero_partidas} queda(s)` : ''
+                const status = jogo.status ? ` · ${jogo.status}` : ''
                 return (
-                  <option key={j.id} value={j.id}>
-                    {(j.nome || 'Jogo') + (data ? ` · ${data}` : '') + n + st}
+                  <option key={jogo.id} value={jogo.id}>
+                    {(jogo.nome || 'Jogo') + (data ? ` · ${data}` : '') + quedas + status}
                   </option>
                 )
               })}
             </select>
-            <small className="stream-hint" style={{ display: 'block', marginTop: 6 }}>
-              {jogos.length
-                ? 'As overlays de mapas usam só as quedas deste jogo. No pontuador, marque a queda atual (em andamento) para “partida atual”.'
-                : 'Nenhum jogo cadastrado neste campeonato. Crie jogos/quedas no pontuador para alimentar as overlays.'}
-            </small>
           </label>
-        </div>
 
-        <div className="broadcast-row" style={{ alignItems: 'start' }}>
-          <div style={{ flex: '1 1 280px', display: 'grid', gap: 10 }}>
-            <p className="stream-hint" style={{ margin: 0 }}>
-              Na live ({selectedIds.length} selecionada{selectedIds.length === 1 ? '' : 's'})
-            </p>
-            {!orderedSelected.length ? (
-              <p className="stream-hint">Nenhuma cena marcada. Clique nas overlays abaixo para adicionar.</p>
-            ) : (
-              <ul className="stream-pack-list">
-                {orderedSelected.map((ov, index) => (
-                  <li key={ov.id} className="stream-pack-item is-on">
-                    <input
-                      type="checkbox"
-                      checked
-                      onChange={() => toggleSelected(ov.id)}
-                      aria-label={`Remover ${ov.name}`}
-                    />
-                    <label>
-                      <strong>
-                        {index + 1}. {ov.name}
-                      </strong>
-                      <small>{TEMPLATE_LABEL[ov.template] || ov.template}</small>
-                    </label>
-                    <div className="stream-pack-order">
-                      <button
-                        type="button"
-                        className="stream-secondary-btn"
-                        disabled={index === 0}
-                        title="Subir"
-                        onClick={() => moveSelected(ov.id, -1)}
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="stream-secondary-btn"
-                        disabled={index === orderedSelected.length - 1}
-                        title="Descer"
-                        onClick={() => moveSelected(ov.id, 1)}
-                      >
-                        <ChevronDown size={14} />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {unselected.length ? (
-              <>
-                <p className="stream-hint" style={{ margin: '8px 0 0' }}>
-                  Disponíveis no editor (não vão pro controlador até marcar)
-                </p>
-                <ul className="stream-pack-list">
-                  {unselected.map((ov) => (
-                    <li key={ov.id} className="stream-pack-item">
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => toggleSelected(ov.id)}
-                        aria-label={`Incluir ${ov.name}`}
-                      />
-                      <label onClick={() => toggleSelected(ov.id)}>
-                        <strong>{ov.name}</strong>
-                        <small>{TEMPLATE_LABEL[ov.template] || ov.template}</small>
-                      </label>
-                      <span />
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-          </div>
-
-          <div style={{ flex: '1 1 260px', display: 'grid', gap: 10 }}>
+          <div style={{ flex: '1 1 300px', display: 'grid', gap: 10 }}>
             <label className="broadcast-field">
-              <span>Fundo de pré-visualização (upload)</span>
+              <span>Fundo geral da transmissão</span>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/jpg,video/mp4,video/webm"
                 disabled={bgUploading || packBusy}
-                onChange={(e) => {
-                  const f = e.target.files?.[0] || null
-                  e.target.value = ''
-                  void onPickBg(f)
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null
+                  event.target.value = ''
+                  void onPickBg(file)
                 }}
               />
             </label>
@@ -569,50 +353,26 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
               ) : null}
               {bgUploading ? <span className="stream-hint">Enviando fundo…</span> : null}
             </div>
-
             <div className="stream-pack-preview" aria-label="Pré-visualização do fundo">
-              {bgType === 'image' && bgUrl.trim() ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={bgUrl} src={bgUrl.trim()} alt="Fundo" />
-              ) : null}
+              {bgType === 'image' && bgUrl.trim() ? <img key={bgUrl} src={bgUrl.trim()} alt="Fundo" /> : null}
               {bgType === 'video' && bgUrl.trim() ? (
-                <video
-                  key={bgUrl}
-                  src={bgUrl.trim()}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  controls={false}
-                  onError={() => setFeedback('Não foi possível reproduzir o vídeo no preview. Confira se o arquivo é MP4/WebM e se o upload concluiu.')}
-                />
+                <video key={bgUrl} src={bgUrl.trim()} autoPlay muted loop playsInline controls={false} />
               ) : null}
               {(bgType === 'none' || !bgUrl.trim()) ? (
-                <div className="stream-pack-preview-empty">
-                  Sem fundo. Envie PNG/JPG ou vídeo MP4/WebM — ele aparece no preview e no OBS da live.
-                </div>
+                <div className="stream-pack-preview-empty">Sem fundo geral.</div>
               ) : null}
-              <span className="stream-pack-preview-badge">
-                {selectedIds.length} cena{selectedIds.length === 1 ? '' : 's'} · 16:9
-                {bgType !== 'none' && bgUrl ? ` · ${bgType}` : ''}
-              </span>
+              <span className="stream-pack-preview-badge">16:9{bgType !== 'none' && bgUrl ? ` · ${bgType}` : ''}</span>
             </div>
-            <p className="stream-hint" style={{ margin: 0 }}>
-              Este fundo vai para o <strong>OBS do Stream</strong> (atrás das overlays), não só no preview.
-              Imagem até ~5 MB · vídeo até 40 MB (upload direto).
-            </p>
           </div>
         </div>
       </section>
 
-      {/* Acesso Stream */}
       <section className="stream-panel" aria-label="Chave Stream">
         <div className="stream-panel-title">
           <div>
             <h4>Acesso Stream</h4>
             <p className="stream-hint">
-              Gere uma chave e envie ao perfil <strong>Broadcast → Stream</strong>. Ele adiciona o campeonato na
-              lista; o controlador e o link OBS são únicos dele e servem para todos os campeonatos.
+              Gere uma chave e envie ao perfil <strong>Broadcast → Stream</strong>. O controlador e o link OBS permanecem únicos para o perfil Broadcast.
             </p>
           </div>
         </div>
@@ -646,19 +406,7 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
           </div>
         ) : null}
         <div className="stream-panel-actions" style={{ flexWrap: 'wrap' }}>
-          <code
-            style={{
-              flex: '1 1 200px',
-              minHeight: 36,
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0 12px',
-              border: '1px solid var(--line)',
-              background: 'var(--surface-soft)',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-            }}
-          >
+          <code style={{ flex: '1 1 200px', minHeight: 36, display: 'flex', alignItems: 'center', padding: '0 12px', border: '1px solid var(--line)', background: 'var(--surface-soft)', fontWeight: 700, letterSpacing: '0.04em' }}>
             {keyToken || '— nenhuma chave ainda —'}
           </code>
           <button type="button" className="stream-primary-btn" disabled={keyLoading} onClick={() => void (keyToken ? copyKey() : ensureKey(false))}>
@@ -675,108 +423,6 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
             </>
           ) : null}
         </div>
-      </section>
-
-      {/* Overlays / editor */}
-      <section className="stream-panel" aria-label="Overlays do campeonato">
-        <div className="stream-panel-title">
-          <div>
-            <h4>Overlays · editor</h4>
-            <p className="stream-hint">
-              Crie e edite no workspace. Depois marque na composição quais entram na live do Stream.
-            </p>
-          </div>
-          <div className="stream-panel-actions">
-            <button
-              type="button"
-              className="stream-primary-btn"
-              onClick={() => openInNewTab(`${base}/overlays/novo`)}
-            >
-              <Plus size={15} /> Nova overlay
-            </button>
-          </div>
-        </div>
-
-        {loading && !overlays.length ? <p className="stream-hint">Carregando…</p> : null}
-        {!loading && !overlays.length ? (
-          <div className="stream-empty-list">
-            <strong>Nenhuma overlay</strong>
-            <p>Crie a partir do catálogo ou em branco no workspace.</p>
-          </div>
-        ) : null}
-
-        {overlays.length > 0 ? (
-          <div className="stream-overlay-table-wrap">
-            <table className="stream-overlay-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Modelo</th>
-                  <th>Na live</th>
-                  <th>Blocos</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {overlays.map((ov) => {
-                  const onLive = selectedIds.includes(ov.id)
-                  return (
-                    <tr key={ov.id}>
-                      <td>
-                        <strong>{ov.name}</strong>
-                      </td>
-                      <td>{TEMPLATE_LABEL[ov.template] || ov.template}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className={onLive ? 'stream-primary-btn' : 'stream-secondary-btn'}
-                          onClick={() => toggleSelected(ov.id)}
-                          title={onLive ? 'Remover da composição' : 'Incluir na composição'}
-                        >
-                          {onLive ? 'Sim' : 'Não'}
-                        </button>
-                      </td>
-                      <td>{ov.blocks?.length ?? 0}</td>
-                      <td>
-                        <div className="stream-panel-actions">
-                          <button
-                            type="button"
-                            className="stream-secondary-btn"
-                            title="Editar"
-                            onClick={() => openInNewTab(`${base}/overlays/${ov.id}`)}
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          {ov.share_token ? (
-                            <button
-                              type="button"
-                              className="stream-secondary-btn"
-                              title="Copiar link live direto"
-                              onClick={() => {
-                                const url = `${window.location.origin}/stream/live/${ov.share_token}`
-                                void navigator.clipboard.writeText(url).then(() => setFeedback('Link live copiado.'))
-                              }}
-                            >
-                              <Copy size={14} />
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="stream-secondary-btn"
-                            title="Excluir"
-                            onClick={() => void handleDelete(ov.id, ov.name)}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
       </section>
     </div>
   )

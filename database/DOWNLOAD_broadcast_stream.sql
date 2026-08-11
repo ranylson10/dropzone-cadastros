@@ -71,7 +71,7 @@ create table if not exists public.broadcast_live_sessions (
   nome text not null default 'Live',
   controller_token text not null default encode(gen_random_bytes(18), 'hex'),
   obs_token text not null default encode(gen_random_bytes(18), 'hex'),
-  active_overlay_id uuid null references public.campeonato_stream_overlays(id) on delete set null,
+  active_overlay_type text null,
   ativo boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

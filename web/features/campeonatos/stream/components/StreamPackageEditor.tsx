@@ -1,0 +1,807 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { Check, ImagePlus, Loader2, RefreshCw, Save } from 'lucide-react'
+import { StreamPackageStage } from './StreamPackageStage'
+import type { StreamPackageRenderData } from '../types/stream-package.types'
+import { loadStreamPackageRenderData } from '../services/stream-package-data.service'
+import {
+  normalizeStreamOverlayPackage,
+  resolveStreamCardConfig,
+  resolveStreamLayoutConfig,
+  resolveStreamLooseImageConfig,
+  resolveStreamLooseTextConfig,
+  resolveStreamOverlayConfig,
+  resolveStreamTableConfig,
+} from '../services/stream-package-config'
+import { supabase } from '@/lib/supabase-browser'
+import { uploadPublicFile } from '@/lib/upload-public'
+import {
+  DEFAULT_STREAM_OVERLAY_CONFIGS,
+  STREAM_CARD_PRESETS,
+  STREAM_OVERLAY_COLUMN_META,
+  STREAM_SYSTEM_OVERLAY_META,
+  STREAM_SYSTEM_OVERLAYS,
+  STREAM_TABLE_PRESETS,
+  type StreamOverlayPackage,
+  type StreamPackageAssetKey,
+  type StreamPackageOverlayConfig,
+  type StreamSystemOverlayType,
+} from '../types/stream-package.types'
+
+type EditorPanel = 'scene' | 'identity' | 'layout' | 'assets' | 'tables' | 'cards' | 'animation'
+
+const EDITOR_PANELS: Array<{ id: EditorPanel; label: string; description: string }> = [
+  { id: 'scene', label: 'Cena atual', description: 'Ajustes exclusivos da overlay selecionada.' },
+  { id: 'identity', label: 'Identidade', description: 'Logo, título, cores e tipografia usadas pelo pacote inteiro.' },
+  { id: 'layout', label: 'Layout', description: 'Posição e escala do bloco principal, compartilhadas por todos os perfis.' },
+  { id: 'assets', label: 'Kit visual', description: 'Arquivos compartilhados do pacote e onde cada um é reutilizado.' },
+  { id: 'tables', label: 'Tabelas', description: 'Uma configuração visual para todas as tabelas.' },
+  { id: 'cards', label: 'Cards', description: 'Uma configuração visual para todos os cards.' },
+  { id: 'animation', label: 'Animação', description: 'Entrada e ritmo compartilhados pelo pacote.' },
+]
+
+type StreamPackageAssetUsage = 'all' | 'table' | 'cards'
+
+type StreamPackageAssetDefinition = {
+  key: StreamPackageAssetKey
+  label: string
+  description: string
+  group: 'Identidade' | 'Tabelas' | 'Cards'
+  usage: StreamPackageAssetUsage
+}
+
+const PACKAGE_ASSETS: StreamPackageAssetDefinition[] = [
+  { key: 'event_logo', label: 'Logo do campeonato', description: 'Marca principal exibida como imagem solta do pacote.', group: 'Identidade', usage: 'all' },
+  { key: 'top_art', label: 'Arte superior', description: 'Moldura ou acabamento visual sobre a composição completa.', group: 'Identidade', usage: 'all' },
+  { key: 'table_row_bg', label: 'Fundo da linha', description: 'Base compartilhada de cada linha de tabela.', group: 'Tabelas', usage: 'table' },
+  { key: 'table_rank_bg', label: 'Fundo da posição', description: 'Fundo da célula de ranking/posição.', group: 'Tabelas', usage: 'table' },
+  { key: 'table_logo_bg', label: 'Fundo da logo', description: 'Fundo da célula que recebe a logo da equipe.', group: 'Tabelas', usage: 'table' },
+  { key: 'table_name_bg', label: 'Fundo do nome', description: 'Fundo do nome da equipe ou jogador.', group: 'Tabelas', usage: 'table' },
+  { key: 'table_stat_bg', label: 'Fundo de estatística', description: 'Base única para abates, quedas, booyahs e demais stats.', group: 'Tabelas', usage: 'table' },
+  { key: 'table_points_bg', label: 'Fundo de pontos', description: 'Destaque visual compartilhado da pontuação.', group: 'Tabelas', usage: 'table' },
+  { key: 'card_bg', label: 'Fundo do card', description: 'Base visual comum dos cards do pacote.', group: 'Cards', usage: 'cards' },
+  { key: 'card_stats_bg', label: 'Fundo da área de stats', description: 'Área compartilhada para os números e textos do card.', group: 'Cards', usage: 'cards' },
+]
+
+function assetUsageOverlays(asset: StreamPackageAssetDefinition): StreamSystemOverlayType[] {
+  if (asset.usage === 'all') return [...STREAM_SYSTEM_OVERLAYS]
+  return STREAM_SYSTEM_OVERLAYS.filter((type) => STREAM_SYSTEM_OVERLAY_META[type].structure === asset.usage)
+}
+
+async function authFetch(url: string, options?: RequestInit) {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  const res = await fetch(url, {
+    cache: 'no-store',
+    ...options,
+    headers: {
+      ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers || {}),
+    },
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.error || 'Falha ao salvar pacote de overlays.')
+  return json
+}
+
+export function StreamPackageEditor(props: { campeonatoId: string }) {
+  const [pack, setPack] = useState<StreamOverlayPackage>(() => normalizeStreamOverlayPackage(props.campeonatoId, {}))
+  const [activeType, setActiveType] = useState<StreamSystemOverlayType>('standings_general')
+  const [activePanel, setActivePanel] = useState<EditorPanel>('scene')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState<StreamPackageAssetKey | null>(null)
+  const [feedback, setFeedback] = useState('')
+  const [needsSql, setNeedsSql] = useState(false)
+  const [renderData, setRenderData] = useState<StreamPackageRenderData>({ items: [] })
+  const [renderDataLoading, setRenderDataLoading] = useState(false)
+  const [renderDataError, setRenderDataError] = useState('')
+  const [renderDataVersion, setRenderDataVersion] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      setLoading(true)
+      try {
+        const json = await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`)
+        if (!mounted) return
+        setPack(normalizeStreamOverlayPackage(props.campeonatoId, json.pack || {}))
+        setNeedsSql(Boolean(json.needs_package_sql))
+      } catch (error: any) {
+        if (mounted) setFeedback(error?.message || 'Erro ao carregar pacote.')
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [props.campeonatoId])
+
+  const activeConfig = useMemo(
+    () => resolveStreamOverlayConfig(pack, activeType),
+    [activeType, pack.overlay_configs],
+  )
+  const activeMeta = STREAM_SYSTEM_OVERLAY_META[activeType]
+  const activeStructure = activeConfig.structureOverrides || {}
+  const activeLoose = activeConfig.looseOverrides || {}
+  const activeLooseImage = resolveStreamLooseImageConfig(pack, activeType)
+  const activeLooseText = resolveStreamLooseTextConfig(pack, activeType)
+  const looseOverrideCount = Object.values(activeLoose).reduce((total, section) => total + Object.keys(section || {}).length, 0)
+  const activeLayout = resolveStreamLayoutConfig(pack, activeType)
+  const activeTable = resolveStreamTableConfig(pack, activeType)
+  const activeCard = resolveStreamCardConfig(pack, activeType)
+  const structureOverrideCount = Object.values(activeStructure).reduce((total, section) => total + Object.keys(section || {}).length, 0)
+  const activeEnabled = pack.enabled_overlay_types.includes(activeType)
+  const enabledCount = pack.enabled_overlay_types.length
+
+  useEffect(() => {
+    let mounted = true
+    setRenderDataLoading(true)
+    setRenderDataError('')
+    ;(async () => {
+      try {
+        const data = await loadStreamPackageRenderData(props.campeonatoId, activeType)
+        if (mounted) setRenderData(data)
+      } catch (error: any) {
+        if (!mounted) return
+        setRenderData({ items: [], emptyMessage: 'Não foi possível carregar os dados reais desta overlay.' })
+        setRenderDataError(error?.message || 'Falha ao carregar dados reais da overlay.')
+      } finally {
+        if (mounted) setRenderDataLoading(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [props.campeonatoId, activeType, renderDataVersion])
+
+  function setOverlayEnabled(type: StreamSystemOverlayType, enabled: boolean) {
+    setPack((prev) => ({
+      ...prev,
+      enabled_overlay_types: enabled
+        ? Array.from(new Set([...prev.enabled_overlay_types, type]))
+        : prev.enabled_overlay_types.filter((item) => item !== type),
+    }))
+  }
+
+  function chooseOverlay(type: StreamSystemOverlayType) {
+    setActiveType(type)
+    setActivePanel('scene')
+  }
+
+  function patchActiveConfig(patch: Partial<StreamPackageOverlayConfig>) {
+    setPack((prev) => ({
+      ...prev,
+      overlay_configs: {
+        ...prev.overlay_configs,
+        [activeType]: { ...resolveStreamOverlayConfig(prev, activeType), ...patch },
+      },
+    }))
+  }
+
+  function patchActiveStructure<K extends 'layout' | 'table' | 'card'>(
+    section: K,
+    patch: Partial<StreamOverlayPackage['shared_config'][K]>,
+  ) {
+    const current = activeConfig.structureOverrides || {}
+    patchActiveConfig({
+      structureOverrides: {
+        ...current,
+        [section]: { ...(current[section] || {}), ...patch },
+      },
+    })
+  }
+
+  function clearActiveStructure(section?: 'layout' | 'table' | 'card') {
+    if (!section) {
+      patchActiveConfig({ structureOverrides: undefined })
+      return
+    }
+    const next = { ...(activeConfig.structureOverrides || {}) }
+    delete next[section]
+    patchActiveConfig({ structureOverrides: Object.keys(next).length ? next : undefined })
+  }
+
+  function patchActiveLoose<K extends 'image' | 'text'>(
+    section: K,
+    patch: Partial<K extends 'image' ? StreamOverlayPackage['shared_config']['looseImage'] : StreamOverlayPackage['shared_config']['looseText']>,
+  ) {
+    const current = activeConfig.looseOverrides || {}
+    patchActiveConfig({
+      looseOverrides: {
+        ...current,
+        [section]: { ...(current[section] || {}), ...patch },
+      },
+    })
+  }
+
+  function clearActiveLoose(section?: 'image' | 'text') {
+    if (!section) {
+      patchActiveConfig({ looseOverrides: undefined })
+      return
+    }
+    const next = { ...(activeConfig.looseOverrides || {}) }
+    delete next[section]
+    patchActiveConfig({ looseOverrides: Object.keys(next).length ? next : undefined })
+  }
+
+  function restoreActiveSceneDefaults() {
+    setPack((prev) => ({
+      ...prev,
+      overlay_configs: { ...prev.overlay_configs, [activeType]: structuredClone(DEFAULT_STREAM_OVERLAY_CONFIGS[activeType]) },
+    }))
+  }
+
+  function patchIdentity(patch: Partial<StreamOverlayPackage['shared_config']['identity']>) {
+    setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, identity: { ...prev.shared_config.identity, ...patch } } }))
+  }
+
+  function patchLooseImage(patch: Partial<StreamOverlayPackage['shared_config']['looseImage']>) {
+    setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, looseImage: { ...prev.shared_config.looseImage, ...patch } } }))
+  }
+
+  function patchLooseText(patch: Partial<StreamOverlayPackage['shared_config']['looseText']>) {
+    setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, looseText: { ...prev.shared_config.looseText, ...patch } } }))
+  }
+
+  function patchLayout(patch: Partial<StreamOverlayPackage['shared_config']['layout']>) {
+    setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, layout: { ...prev.shared_config.layout, ...patch } } }))
+  }
+
+  function patchTable(patch: Partial<StreamOverlayPackage['shared_config']['table']>) {
+    setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, table: { ...prev.shared_config.table, ...patch } } }))
+  }
+
+  function patchCard(patch: Partial<StreamOverlayPackage['shared_config']['card']>) {
+    setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, card: { ...prev.shared_config.card, ...patch } } }))
+  }
+
+  function patchAnimation(patch: Partial<StreamOverlayPackage['shared_config']['animation']>) {
+    setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, animation: { ...prev.shared_config.animation, ...patch } } }))
+  }
+
+  function applyTablePreset(preset: (typeof STREAM_TABLE_PRESETS)[number]) {
+    setPack((prev) => ({
+      ...prev,
+      shared_config: { ...prev.shared_config, table: structuredClone(preset.values) },
+    }))
+  }
+
+  function applyCardPreset(preset: (typeof STREAM_CARD_PRESETS)[number]) {
+    setPack((prev) => ({
+      ...prev,
+      shared_config: { ...prev.shared_config, card: structuredClone(preset.values) },
+    }))
+  }
+
+  async function uploadAsset(key: StreamPackageAssetKey, file?: File | null) {
+    if (!file) return
+    setUploading(key)
+    setFeedback('')
+    try {
+      const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId: props.campeonatoId })
+      setPack((prev) => ({ ...prev, assets: { ...prev.assets, [key]: url } }))
+    } catch (error: any) {
+      setFeedback(error?.message || 'Erro ao enviar imagem.')
+    } finally {
+      setUploading(null)
+    }
+  }
+
+  function removeAsset(key: StreamPackageAssetKey) {
+    setPack((prev) => {
+      const assets = { ...prev.assets }
+      delete assets[key]
+      return { ...prev, assets }
+    })
+  }
+
+  async function uploadSceneAsset(key: StreamPackageAssetKey, file?: File | null) {
+    if (!file) return
+    setUploading(key)
+    setFeedback('')
+    try {
+      const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId: props.campeonatoId })
+      patchActiveConfig({
+        assetOverrides: { ...(activeConfig.assetOverrides || {}), [key]: url },
+      })
+    } catch (error: any) {
+      setFeedback(error?.message || 'Erro ao enviar exceção visual.')
+    } finally {
+      setUploading(null)
+    }
+  }
+
+  function removeSceneAssetOverride(key: StreamPackageAssetKey) {
+    const next = { ...(activeConfig.assetOverrides || {}) }
+    delete next[key]
+    patchActiveConfig({ assetOverrides: next })
+  }
+
+  const activeSceneAssets = PACKAGE_ASSETS.filter((asset) =>
+    asset.usage === 'all' || asset.usage === activeMeta.structure,
+  )
+
+  async function savePackage() {
+    setSaving(true)
+    setFeedback('')
+    try {
+      const json = await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          enabled_overlay_types: pack.enabled_overlay_types,
+          assets: pack.assets,
+          shared_config: pack.shared_config,
+          overlay_configs: pack.overlay_configs,
+          schema_version: 2,
+        }),
+      })
+      setPack((prev) => ({ ...prev, updated_at: json.pack?.updated_at || prev.updated_at }))
+      setNeedsSql(Boolean(json.needs_package_sql))
+      setFeedback('Pacote salvo. As configurações compartilhadas já valem para todas as overlays selecionadas.')
+    } catch (error: any) {
+      setFeedback(error?.message || 'Erro ao salvar pacote.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return <section className="stream-panel stream-package-loading"><Loader2 className="spin" size={22} /> Carregando pacote…</section>
+  }
+
+  return (
+    <section className="stream-package-editor stream-package-editor-v2" aria-label="Editor do pacote de overlays">
+      <div className="stream-package-topbar">
+        <div>
+          <p className="eyebrow">Pacote visual do campeonato</p>
+          <h2>Editor de transmissão</h2>
+          <p className="stream-hint">Escolha as overlays do pacote e edite os elementos compartilhados uma única vez.</p>
+        </div>
+        <div className="stream-package-topbar-actions">
+          <span className="stream-package-count"><b>{enabledCount}</b> de {STREAM_SYSTEM_OVERLAYS.length} overlays ativas</span>
+          <button type="button" className="stream-primary-btn" onClick={() => void savePackage()} disabled={saving || needsSql}>
+            {saving ? <Loader2 className="spin" size={15} /> : <Save size={15} />} Salvar pacote
+          </button>
+        </div>
+      </div>
+
+      {needsSql ? <div className="stream-error">Rode <code>database/migrations/20260810_stream_overlay_package_model.sql</code> antes de salvar o novo pacote.</div> : null}
+      {feedback ? <p className="stream-hint stream-package-feedback">{feedback}</p> : null}
+
+      <div className="stream-package-workbench">
+        <aside className="stream-package-scenes">
+          <div className="stream-package-scenes-head">
+            <strong>Overlays do pacote</strong>
+            <small>Marque as que serão usadas na transmissão.</small>
+          </div>
+          <div className="stream-package-overlay-list">
+            {STREAM_SYSTEM_OVERLAYS.map((type) => {
+              const meta = STREAM_SYSTEM_OVERLAY_META[type]
+              const enabled = pack.enabled_overlay_types.includes(type)
+              return (
+                <div key={type} className={`stream-package-overlay-item${activeType === type ? ' active' : ''}${enabled ? ' enabled' : ''}`}>
+                  <button type="button" className="stream-package-overlay-main" onClick={() => chooseOverlay(type)}>
+                    <span><b>{meta.name}</b><small>{meta.description}</small></span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`stream-package-scene-toggle${enabled ? ' checked' : ''}`}
+                    aria-label={`${enabled ? 'Desativar' : 'Ativar'} ${meta.name}`}
+                    aria-pressed={enabled}
+                    onClick={() => setOverlayEnabled(type, !enabled)}
+                  >
+                    {enabled ? <Check size={13} /> : null}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </aside>
+
+        <main className="stream-package-main">
+          <nav className="stream-package-panel-tabs" aria-label="Configurações do pacote">
+            {EDITOR_PANELS.map((panel) => (
+              <button
+                type="button"
+                key={panel.id}
+                className={activePanel === panel.id ? 'active' : ''}
+                onClick={() => setActivePanel(panel.id)}
+                title={panel.description}
+              >
+                {panel.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="stream-package-editor-grid">
+            <div className="stream-package-controls">
+              {activePanel === 'scene' ? (
+                <section className="stream-package-section stream-package-control-card">
+                  <div className="stream-package-section-title">
+                    <div>
+                      <small>Configuração individual</small>
+                      <h3>{activeMeta.name}</h3>
+                      <p>Somente regras que realmente mudam nesta cena. Visual, fontes e fundos continuam herdados do pacote.</p>
+                    </div>
+                    <button type="button" className="stream-secondary-btn" onClick={restoreActiveSceneDefaults}>Restaurar padrão</button>
+                  </div>
+
+                  <label className="stream-package-switch-row">
+                    <span><b>Usar esta overlay</b><small>{activeEnabled ? 'Disponível no controlador da transmissão.' : 'Fora do pacote e indisponível no controlador.'}</small></span>
+                    <input type="checkbox" checked={activeEnabled} onChange={(e) => setOverlayEnabled(activeType, e.target.checked)} />
+                  </label>
+
+                  <label>Título desta overlay
+                    <input value={activeConfig.title || ''} onChange={(e) => patchActiveConfig({ title: e.target.value })} />
+                  </label>
+                  <label>Máximo de itens
+                    <input type="number" min={1} max={48} value={activeConfig.maxItems || 1} onChange={(e) => patchActiveConfig({ maxItems: Number(e.target.value) || 1 })} />
+                  </label>
+
+                  {activeMeta.structure === 'table' ? (
+                    <label>Distribuição desta tabela
+                      <select value={activeConfig.tableMode || pack.shared_config.table.mode} onChange={(e) => patchActiveConfig({ tableMode: e.target.value as 'single' | 'double' })}>
+                        <option value="single">1 coluna</option>
+                        <option value="double">2 colunas</option>
+                      </select>
+                    </label>
+                  ) : null}
+
+                  {DEFAULT_STREAM_OVERLAY_CONFIGS[activeType].columns?.length ? (
+                    <div className="stream-package-fields-block">
+                      <b>Campos exibidos</b>
+                      <small>O template define quais campos existem; você apenas liga ou desliga o que quer mostrar.</small>
+                      <div className="stream-package-column-options">
+                        {DEFAULT_STREAM_OVERLAY_CONFIGS[activeType].columns?.map((column) => {
+                          const selected = activeConfig.columns?.includes(column) ?? false
+                          return (
+                            <label key={column} className={`stream-package-column-option${selected ? ' is-on' : ''}`}>
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => {
+                                  const current = activeConfig.columns || []
+                                  patchActiveConfig({ columns: selected ? current.filter((item) => item !== column) : [...current, column] })
+                                }}
+                              />
+                              <span>{STREAM_OVERLAY_COLUMN_META[column]?.label || column}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="stream-package-scene-structure">
+                    <div className="stream-package-scene-assets-head">
+                      <div><b>Imagem e título soltos</b><small>Logo e título herdam posição e estilo do pacote. Abra exceção apenas para esta cena quando necessário.</small></div>
+                      <span>{looseOverrideCount} ajustes</span>
+                    </div>
+
+                    <div className="stream-package-subsection">
+                      <div className="stream-package-subsection-head"><strong>Imagem solta</strong>{activeLoose.image ? <button type="button" className="stream-package-link-btn" onClick={() => clearActiveLoose('image')}>Herdar imagem</button> : null}</div>
+                      <label className="stream-package-switch-row"><span><b>Exibir nesta cena</b></span><input type="checkbox" checked={activeLooseImage.show} onChange={(e) => patchActiveLoose('image', { show: e.target.checked })} /></label>
+                      <div className="stream-package-quad-grid">
+                        <label>X<input type="number" value={activeLooseImage.x} onChange={(e) => patchActiveLoose('image', { x: Number(e.target.value) || 0 })} /></label>
+                        <label>Y<input type="number" value={activeLooseImage.y} onChange={(e) => patchActiveLoose('image', { y: Number(e.target.value) || 0 })} /></label>
+                        <label>Largura<input type="number" min={1} value={activeLooseImage.width} onChange={(e) => patchActiveLoose('image', { width: Number(e.target.value) || pack.shared_config.looseImage.width })} /></label>
+                        <label>Altura<input type="number" min={1} value={activeLooseImage.height} onChange={(e) => patchActiveLoose('image', { height: Number(e.target.value) || pack.shared_config.looseImage.height })} /></label>
+                      </div>
+                    </div>
+
+                    <div className="stream-package-subsection">
+                      <div className="stream-package-subsection-head"><strong>Título solto</strong>{activeLoose.text ? <button type="button" className="stream-package-link-btn" onClick={() => clearActiveLoose('text')}>Herdar título</button> : null}</div>
+                      <label className="stream-package-switch-row"><span><b>Exibir nesta cena</b></span><input type="checkbox" checked={activeLooseText.show} onChange={(e) => patchActiveLoose('text', { show: e.target.checked })} /></label>
+                      <div className="stream-package-quad-grid">
+                        <label>X<input type="number" value={activeLooseText.x} onChange={(e) => patchActiveLoose('text', { x: Number(e.target.value) || 0 })} /></label>
+                        <label>Y<input type="number" value={activeLooseText.y} onChange={(e) => patchActiveLoose('text', { y: Number(e.target.value) || 0 })} /></label>
+                        <label>Largura<input type="number" min={1} value={activeLooseText.width} onChange={(e) => patchActiveLoose('text', { width: Number(e.target.value) || pack.shared_config.looseText.width })} /></label>
+                        <label>Fonte<input type="number" min={8} max={240} value={activeLooseText.fontSize} onChange={(e) => patchActiveLoose('text', { fontSize: Number(e.target.value) || pack.shared_config.looseText.fontSize })} /></label>
+                      </div>
+                      <div className="stream-package-color-grid">
+                        <label>Cor<input type="color" value={activeLooseText.color} onChange={(e) => patchActiveLoose('text', { color: e.target.value })} /></label>
+                        <label>Alinhamento<select value={activeLooseText.align} onChange={(e) => patchActiveLoose('text', { align: e.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="stream-package-scene-structure">
+                    <div className="stream-package-scene-assets-head">
+                      <div><b>Exceções estruturais</b><small>Posição, tabela e cards herdam o pacote. Altere somente o campo que esta overlay realmente precisa.</small></div>
+                      <span>{structureOverrideCount} ajustes</span>
+                    </div>
+
+                    <div className="stream-package-subsection">
+                      <div className="stream-package-subsection-head"><strong>Bloco principal</strong>{activeStructure.layout ? <button type="button" className="stream-package-link-btn" onClick={() => clearActiveStructure('layout')}>Herdar layout</button> : null}</div>
+                      <div className="stream-package-quad-grid">
+                        <label>X<input type="number" value={activeLayout.offsetX} onChange={(e) => patchActiveStructure('layout', { offsetX: Number(e.target.value) || 0 })} /></label>
+                        <label>Y<input type="number" value={activeLayout.offsetY} onChange={(e) => patchActiveStructure('layout', { offsetY: Number(e.target.value) || 0 })} /></label>
+                        <label>Largura %<input type="number" min={50} max={150} value={Math.round(activeLayout.widthScale * 100)} onChange={(e) => patchActiveStructure('layout', { widthScale: Math.max(.5, Math.min(1.5, (Number(e.target.value) || 100) / 100)) })} /></label>
+                        <label>Altura %<input type="number" min={50} max={150} value={Math.round(activeLayout.heightScale * 100)} onChange={(e) => patchActiveStructure('layout', { heightScale: Math.max(.5, Math.min(1.5, (Number(e.target.value) || 100) / 100)) })} /></label>
+                      </div>
+                    </div>
+
+                    {activeMeta.structure === 'table' ? (
+                      <div className="stream-package-subsection">
+                        <div className="stream-package-subsection-head"><strong>Tabela desta cena</strong>{activeStructure.table ? <button type="button" className="stream-package-link-btn" onClick={() => clearActiveStructure('table')}>Herdar tabela</button> : null}</div>
+                        <div className="stream-package-quad-grid">
+                          <label>Altura linha<input type="number" min={30} max={180} value={activeTable.rowHeight} onChange={(e) => patchActiveStructure('table', { rowHeight: Number(e.target.value) || pack.shared_config.table.rowHeight })} /></label>
+                          <label>Cabeçalho<input type="number" min={24} max={100} value={activeTable.headerHeight} onChange={(e) => patchActiveStructure('table', { headerHeight: Number(e.target.value) || pack.shared_config.table.headerHeight })} /></label>
+                          <label>Logo<input type="number" min={50} max={220} value={activeTable.logoWidth} onChange={(e) => patchActiveStructure('table', { logoWidth: Number(e.target.value) || pack.shared_config.table.logoWidth })} /></label>
+                          <label>Gap linhas<input type="number" min={0} max={80} value={activeTable.rowGap} onChange={(e) => patchActiveStructure('table', { rowGap: Number(e.target.value) || 0 })} /></label>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {activeMeta.structure === 'cards' ? (
+                      <div className="stream-package-subsection">
+                        <div className="stream-package-subsection-head"><strong>Cards desta cena</strong>{activeStructure.card ? <button type="button" className="stream-package-link-btn" onClick={() => clearActiveStructure('card')}>Herdar cards</button> : null}</div>
+                        <div className="stream-package-quad-grid">
+                          <label>Largura<input type="number" min={180} max={700} value={activeCard.width} onChange={(e) => patchActiveStructure('card', { width: Number(e.target.value) || pack.shared_config.card.width })} /></label>
+                          <label>Altura<input type="number" min={180} max={800} value={activeCard.height} onChange={(e) => patchActiveStructure('card', { height: Number(e.target.value) || pack.shared_config.card.height })} /></label>
+                          <label>Colunas<input type="number" min={1} max={8} value={activeCard.columns} onChange={(e) => patchActiveStructure('card', { columns: Math.max(1, Math.min(8, Number(e.target.value) || 1)) })} /></label>
+                          <label>Gap<input type="number" min={0} max={80} value={activeCard.gap} onChange={(e) => patchActiveStructure('card', { gap: Number(e.target.value) || 0 })} /></label>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="stream-package-scene-assets">
+                    <div className="stream-package-scene-assets-head">
+                      <div><b>Exceções do kit visual</b><small>Por padrão esta overlay herda os mesmos arquivos do pacote. Crie exceção somente quando esta cena realmente precisar de uma arte diferente.</small></div>
+                      <span>{Object.keys(activeConfig.assetOverrides || {}).length} exceções</span>
+                    </div>
+                    <div className="stream-package-scene-asset-list">
+                      {activeSceneAssets.map((asset) => {
+                        const overrideUrl = activeConfig.assetOverrides?.[asset.key]
+                        const inheritedUrl = pack.assets[asset.key]
+                        return (
+                          <article key={asset.key} className={`stream-package-scene-asset${overrideUrl ? ' is-override' : ''}`}>
+                            <div>
+                              <b>{asset.label}</b>
+                              <small>{overrideUrl ? 'Exceção desta overlay' : inheritedUrl ? 'Herdando do kit visual' : 'Sem arte no kit visual'}</small>
+                            </div>
+                            <div className="stream-package-scene-asset-actions">
+                              <label className="stream-secondary-btn">
+                                {uploading === asset.key ? <Loader2 className="spin" size={13} /> : <ImagePlus size={13} />}
+                                {overrideUrl ? 'Trocar exceção' : 'Usar arte própria'}
+                                <input type="file" accept="image/*" hidden onChange={(event) => void uploadSceneAsset(asset.key, event.target.files?.[0])} />
+                              </label>
+                              {overrideUrl ? <button type="button" className="stream-package-link-btn" onClick={() => removeSceneAssetOverride(asset.key)}>Voltar ao padrão</button> : null}
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {activePanel === 'identity' ? (
+                <section className="stream-package-section stream-package-control-card">
+                  <div className="stream-package-section-title"><div><strong>Identidade compartilhada</strong><p>Estas definições aparecem em todas as overlays do pacote.</p></div></div>
+                  <label>Nome do evento
+                    <input value={pack.shared_config.identity.eventName} onChange={(e) => patchIdentity({ eventName: e.target.value })} />
+                  </label>
+                  <label>Fonte principal
+                    <input value={pack.shared_config.identity.fontFamily} onChange={(e) => patchIdentity({ fontFamily: e.target.value })} />
+                  </label>
+                  <div className="stream-package-color-grid">
+                    <label>Cor principal<input type="color" value={pack.shared_config.identity.primaryColor} onChange={(e) => patchIdentity({ primaryColor: e.target.value })} /></label>
+                    <label>Cor secundária<input type="color" value={pack.shared_config.identity.secondaryColor} onChange={(e) => patchIdentity({ secondaryColor: e.target.value })} /></label>
+                  </div>
+
+                  <div className="stream-package-subsection">
+                    <strong>Logo / imagem solta</strong>
+                    <p>Usa o asset “Logo do campeonato” em todas as cenas.</p>
+                    <label className="stream-package-switch-row"><span><b>Exibir logo</b></span><input type="checkbox" checked={pack.shared_config.looseImage.show} onChange={(e) => patchLooseImage({ show: e.target.checked })} /></label>
+                    <div className="stream-package-quad-grid">
+                      <label>X<input type="number" value={pack.shared_config.looseImage.x} onChange={(e) => patchLooseImage({ x: Number(e.target.value) || 0 })} /></label>
+                      <label>Y<input type="number" value={pack.shared_config.looseImage.y} onChange={(e) => patchLooseImage({ y: Number(e.target.value) || 0 })} /></label>
+                      <label>Largura<input type="number" min={1} value={pack.shared_config.looseImage.width} onChange={(e) => patchLooseImage({ width: Number(e.target.value) || 1 })} /></label>
+                      <label>Altura<input type="number" min={1} value={pack.shared_config.looseImage.height} onChange={(e) => patchLooseImage({ height: Number(e.target.value) || 1 })} /></label>
+                    </div>
+                  </div>
+
+                  <div className="stream-package-subsection">
+                    <strong>Título solto</strong>
+                    <p>A posição e o estilo são globais; o texto vem da cena selecionada.</p>
+                    <label className="stream-package-switch-row"><span><b>Exibir título</b></span><input type="checkbox" checked={pack.shared_config.looseText.show} onChange={(e) => patchLooseText({ show: e.target.checked })} /></label>
+                    <div className="stream-package-quad-grid">
+                      <label>X<input type="number" value={pack.shared_config.looseText.x} onChange={(e) => patchLooseText({ x: Number(e.target.value) || 0 })} /></label>
+                      <label>Y<input type="number" value={pack.shared_config.looseText.y} onChange={(e) => patchLooseText({ y: Number(e.target.value) || 0 })} /></label>
+                      <label>Largura<input type="number" min={1} value={pack.shared_config.looseText.width} onChange={(e) => patchLooseText({ width: Number(e.target.value) || 1 })} /></label>
+                      <label>Fonte<input type="number" min={8} max={240} value={pack.shared_config.looseText.fontSize} onChange={(e) => patchLooseText({ fontSize: Number(e.target.value) || 8 })} /></label>
+                    </div>
+                    <label>Cor do título<input type="color" value={pack.shared_config.looseText.color} onChange={(e) => patchLooseText({ color: e.target.value })} /></label>
+                  </div>
+                </section>
+              ) : null}
+
+              {activePanel === 'layout' ? (
+                <section className="stream-package-section stream-package-control-card">
+                  <div className="stream-package-section-title"><div><strong>Bloco principal compartilhado</strong><p>O template continua definindo a posição-base de cada tipo. Estes valores apenas deslocam ou escalam o bloco sem quebrar o perfil estrutural.</p></div></div>
+                  <div className="stream-package-quad-grid">
+                    <label>Deslocamento X<input type="number" min={-900} max={900} value={pack.shared_config.layout.offsetX} onChange={(e) => patchLayout({ offsetX: Number(e.target.value) || 0 })} /></label>
+                    <label>Deslocamento Y<input type="number" min={-500} max={500} value={pack.shared_config.layout.offsetY} onChange={(e) => patchLayout({ offsetY: Number(e.target.value) || 0 })} /></label>
+                    <label>Largura (%)<input type="number" min={50} max={140} value={Math.round(pack.shared_config.layout.widthScale * 100)} onChange={(e) => patchLayout({ widthScale: Math.max(.5, Math.min(1.4, (Number(e.target.value) || 100) / 100)) })} /></label>
+                    <label>Altura (%)<input type="number" min={50} max={140} value={Math.round(pack.shared_config.layout.heightScale * 100)} onChange={(e) => patchLayout({ heightScale: Math.max(.5, Math.min(1.4, (Number(e.target.value) || 100) / 100)) })} /></label>
+                  </div>
+                  <div className="stream-package-shared-note">Cada overlay mantém seu perfil de sistema (tabela, ranking, cards ou hero). Aqui você faz somente o ajuste global do bloco principal do pacote.</div>
+                </section>
+              ) : null}
+
+              {activePanel === 'assets' ? (
+                <section className="stream-package-section stream-package-control-card">
+                  <div className="stream-package-section-title"><div><strong>Kit visual compartilhado</strong><p>Envie cada arte uma única vez. O pacote mostra exatamente quais overlays reutilizam o mesmo arquivo.</p></div></div>
+                  <div className="stream-package-asset-summary">
+                    <span><b>{PACKAGE_ASSETS.filter((asset) => Boolean(pack.assets[asset.key])).length}</b> de {PACKAGE_ASSETS.length} papéis com arte</span>
+                    <span><b>{enabledCount}</b> overlays ativas reutilizando o kit</span>
+                  </div>
+                  {(['Identidade', 'Tabelas', 'Cards'] as const).map((group) => (
+                    <div className="stream-package-asset-group" key={group}>
+                      <div className="stream-package-asset-group-head">
+                        <h4>{group}</h4>
+                        <small>{group === 'Identidade' ? 'Compartilhado pelo pacote inteiro.' : group === 'Tabelas' ? 'Um conjunto de fundos para todas as tabelas.' : 'Um conjunto de fundos para todas as cenas de cards.'}</small>
+                      </div>
+                      <div className="stream-package-assets stream-package-assets-kit">
+                        {PACKAGE_ASSETS.filter((asset) => asset.group === group).map((asset) => {
+                          const usedBy = assetUsageOverlays(asset)
+                          const activeUsedBy = usedBy.filter((type) => pack.enabled_overlay_types.includes(type))
+                          return (
+                            <article className="stream-package-asset stream-package-asset-kit" key={asset.key}>
+                              <div className="stream-package-asset-preview">
+                                {pack.assets[asset.key] ? <img src={pack.assets[asset.key]} alt="" /> : <span className="stream-package-asset-empty">Sem imagem</span>}
+                              </div>
+                              <div className="stream-package-asset-copy">
+                                <div><b>{asset.label}</b><p>{asset.description}</p></div>
+                                <div className="stream-package-asset-usage">
+                                  <small>Usado por {usedBy.length} overlays · {activeUsedBy.length} ativas</small>
+                                  <div className="stream-package-asset-usage-list">
+                                    {usedBy.map((type) => (
+                                      <button
+                                        type="button"
+                                        key={type}
+                                        className={pack.enabled_overlay_types.includes(type) ? 'is-active' : ''}
+                                        onClick={() => chooseOverlay(type)}
+                                        title={`Abrir ${STREAM_SYSTEM_OVERLAY_META[type].name}`}
+                                      >
+                                        {STREAM_SYSTEM_OVERLAY_META[type].name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="stream-package-asset-actions">
+                                <label className="stream-secondary-btn stream-package-upload-btn">
+                                  {uploading === asset.key ? <Loader2 className="spin" size={14} /> : <ImagePlus size={14} />} {pack.assets[asset.key] ? 'Trocar arte' : 'Enviar arte'}
+                                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void uploadAsset(asset.key, event.target.files?.[0])} />
+                                </label>
+                                {pack.assets[asset.key] ? <button type="button" className="stream-package-link-btn" onClick={() => removeAsset(asset.key)}>Remover</button> : null}
+                              </div>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="stream-package-shared-note">Trocar um asset aqui atualiza todas as overlays que usam esse papel. Nenhuma overlay cria cópia própria do arquivo.</div>
+                </section>
+              ) : null}
+
+              {activePanel === 'tables' ? (
+                <section className="stream-package-section stream-package-control-card">
+                  <div className="stream-package-section-title"><div><strong>Tabelas compartilhadas</strong><p>Altura, espaçamentos e cabeçalho são definidos uma vez para toda overlay com estrutura de tabela.</p></div></div>
+                  <div className="stream-package-presets" aria-label="Presets de tabela">
+                    <div className="stream-package-presets-head"><strong>Presets estruturais</strong><small>Escolha uma base pronta e ajuste somente se precisar.</small></div>
+                    <div className="stream-package-preset-grid">
+                      {STREAM_TABLE_PRESETS.map((preset) => (
+                        <button type="button" key={preset.key} className="stream-package-preset-card" onClick={() => applyTablePreset(preset)}>
+                          <b>{preset.name}</b><span>{preset.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label>Layout padrão
+                    <select value={pack.shared_config.table.mode} onChange={(e) => patchTable({ mode: e.target.value as 'single' | 'double' })}>
+                      <option value="single">1 coluna</option><option value="double">2 colunas</option>
+                    </select>
+                  </label>
+                  <label className="stream-package-switch-row"><span><b>Exibir cabeçalhos</b></span><input type="checkbox" checked={pack.shared_config.table.showHeaders} onChange={(e) => patchTable({ showHeaders: e.target.checked })} /></label>
+                  <label>Altura da linha<input type="number" min={30} max={180} value={pack.shared_config.table.rowHeight} onChange={(e) => patchTable({ rowHeight: Number(e.target.value) || 76 })} /></label>
+                  <label>Espaço entre linhas<input type="number" min={0} max={80} value={pack.shared_config.table.rowGap} onChange={(e) => patchTable({ rowGap: Number(e.target.value) || 0 })} /></label>
+                  <label>Espaço entre células<input type="number" min={0} max={80} value={pack.shared_config.table.cellGap} onChange={(e) => patchTable({ cellGap: Number(e.target.value) || 0 })} /></label>
+                  <label>Gap entre painéis<input type="number" min={0} max={300} value={pack.shared_config.table.panelGap} onChange={(e) => patchTable({ panelGap: Number(e.target.value) || 0 })} /></label>
+                  <div className="stream-package-subsection">
+                    <strong>Proporções das células</strong>
+                    <p>Estas larguras são reutilizadas em todas as tabelas. O campo de nome ocupa automaticamente o espaço restante.</p>
+                    <div className="stream-package-quad-grid">
+                      <label>Logo<input type="number" min={50} max={220} value={pack.shared_config.table.logoWidth} onChange={(e) => patchTable({ logoWidth: Number(e.target.value) || 90 })} /></label>
+                      <label>Estatística<input type="number" min={60} max={240} value={pack.shared_config.table.statWidth} onChange={(e) => patchTable({ statWidth: Number(e.target.value) || 108 })} /></label>
+                      <label>Pontos<input type="number" min={60} max={260} value={pack.shared_config.table.pointsWidth} onChange={(e) => patchTable({ pointsWidth: Number(e.target.value) || 118 })} /></label>
+                      <label>Cabeçalho<input type="number" min={24} max={100} value={pack.shared_config.table.headerHeight} onChange={(e) => patchTable({ headerHeight: Number(e.target.value) || 38 })} /></label>
+                    </div>
+                    <label>Alinhamento do nome
+                      <select value={pack.shared_config.table.nameAlign} onChange={(e) => patchTable({ nameAlign: e.target.value as 'left' | 'center' | 'right' })}>
+                        <option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="stream-package-shared-note">Fundos de linha, posição, logo, nome, estatísticas e pontos ficam em <button type="button" onClick={() => setActivePanel('assets')}>Kit visual</button> e são reutilizados por todas as tabelas.</div>
+                </section>
+              ) : null}
+
+              {activePanel === 'cards' ? (
+                <section className="stream-package-section stream-package-control-card">
+                  <div className="stream-package-section-title"><div><strong>Cards compartilhados</strong><p>Tamanho e composição base valem para MVP, booyahs e outras overlays de cards.</p></div></div>
+                  <div className="stream-package-presets" aria-label="Presets de cards">
+                    <div className="stream-package-presets-head"><strong>Presets estruturais</strong><small>Um clique aplica tamanho, distribuição e proporções do card.</small></div>
+                    <div className="stream-package-preset-grid">
+                      {STREAM_CARD_PRESETS.map((preset) => (
+                        <button type="button" key={preset.key} className="stream-package-preset-card" onClick={() => applyCardPreset(preset)}>
+                          <b>{preset.name}</b><span>{preset.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label>Largura do card<input type="number" min={120} max={900} value={pack.shared_config.card.width} onChange={(e) => patchCard({ width: Number(e.target.value) || 360 })} /></label>
+                  <label>Altura do card<input type="number" min={120} max={1000} value={pack.shared_config.card.height} onChange={(e) => patchCard({ height: Number(e.target.value) || 470 })} /></label>
+                  <label>Altura da imagem<input type="number" min={40} max={700} value={pack.shared_config.card.imageHeight} onChange={(e) => patchCard({ imageHeight: Number(e.target.value) || 220 })} /></label>
+                  <label>Gap entre cards<input type="number" min={0} max={100} value={pack.shared_config.card.gap} onChange={(e) => patchCard({ gap: Number(e.target.value) || 0 })} /></label>
+                  <label>Raio dos cantos<input type="number" min={0} max={100} value={pack.shared_config.card.radius} onChange={(e) => patchCard({ radius: Number(e.target.value) || 0 })} /></label>
+                  <label>Máximo de cards por linha<input type="number" min={1} max={8} value={pack.shared_config.card.columns} onChange={(e) => patchCard({ columns: Math.max(1, Math.min(8, Number(e.target.value) || 1)) })} /></label>
+                  <label>Alinhamento dos cards
+                    <select value={pack.shared_config.card.align} onChange={(e) => patchCard({ align: e.target.value as 'start' | 'center' | 'end' })}>
+                      <option value="start">Esquerda</option><option value="center">Centro</option><option value="end">Direita</option>
+                    </select>
+                  </label>
+                  <label>Escala da logo (%)<input type="number" min={40} max={150} value={Math.round(pack.shared_config.card.logoScale * 100)} onChange={(e) => patchCard({ logoScale: Math.max(.4, Math.min(1.5, (Number(e.target.value) || 100) / 100)) })} /></label>
+                  <div className="stream-package-shared-note">Fundo do card e fundo da área de stats ficam em <button type="button" onClick={() => setActivePanel('assets')}>Kit visual</button> e são enviados apenas uma vez.</div>
+                </section>
+              ) : null}
+
+              {activePanel === 'animation' ? (
+                <section className="stream-package-section stream-package-control-card">
+                  <div className="stream-package-section-title"><div><strong>Animação compartilhada</strong><p>Um único comportamento de entrada mantém o pacote visualmente consistente.</p></div></div>
+                  <label>Entrada
+                    <select value={pack.shared_config.animation.enter} onChange={(e) => patchAnimation({ enter: e.target.value as 'none' | 'fade' | 'slide' })}>
+                      <option value="none">Sem animação</option><option value="fade">Fade</option><option value="slide">Slide</option>
+                    </select>
+                  </label>
+                  <label>Duração (ms)<input type="number" min={0} max={5000} value={pack.shared_config.animation.durationMs} onChange={(e) => patchAnimation({ durationMs: Number(e.target.value) || 0 })} /></label>
+                  <label>Distância do slide<input type="number" min={0} max={1000} value={pack.shared_config.animation.distancePx} onChange={(e) => patchAnimation({ distancePx: Number(e.target.value) || 0 })} /></label>
+                  <label>Atraso entre itens (ms)<input type="number" min={0} max={1000} value={pack.shared_config.animation.staggerMs} onChange={(e) => patchAnimation({ staggerMs: Number(e.target.value) || 0 })} /></label>
+                </section>
+              ) : null}
+            </div>
+
+            <aside className="stream-package-preview-column">
+              <section className="stream-package-section stream-package-preview-section">
+                <div className="stream-package-section-title">
+                  <div>
+                    <small>Preview ao vivo do editor</small>
+                    <strong>{activeMeta.name}</strong>
+                    <p>Dados reais do campeonato. Alterações visuais aparecem aqui antes de salvar.</p>
+                    {renderData.source ? <small>Fonte: {renderData.source}</small> : null}
+                    {renderDataError ? <small className="stream-error">{renderDataError}</small> : null}
+                  </div>
+                  <button type="button" className="stream-secondary-btn" onClick={() => setRenderDataVersion((value) => value + 1)} disabled={renderDataLoading}>
+                    {renderDataLoading ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />} Atualizar dados
+                  </button>
+                </div>
+                <div className="stream-package-preview-frame">
+                  <StreamPackageStage pack={pack} type={activeType} data={renderData} preview />
+                </div>
+                <div className="stream-package-preview-footer">
+                  <span className={`stream-package-status-dot${activeEnabled ? ' on' : ''}`} />
+                  <span>{activeEnabled ? 'Ativa no pacote' : 'Prévia apenas — overlay desativada'}</span>
+                  <span>16:9 · 1920 × 1080</span>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </main>
+      </div>
+    </section>
+  )
+}

@@ -49,7 +49,7 @@ create unique index if not exists idx_broadcast_sessions_one_active_per_broadcas
   where (ativo = true);
 
 comment on table public.broadcast_live_sessions is
-  'Mesa do Stream: 1 por broadcast. controller_token + obs_token fixos; campeonato_id = live selecionada; active_overlay_id = cena no ar.';
+  'Mesa do Stream: 1 por broadcast. controller_token + obs_token fixos; campeonato_id = live selecionada; active_overlay_type = cena oficial do pacote no ar.';
 
 comment on column public.broadcast_live_sessions.campeonato_id is
   'Campeonato (live) atualmente selecionado no controlador. Null = nenhuma live ativa.';
@@ -57,8 +57,12 @@ comment on column public.broadcast_live_sessions.campeonato_id is
 -- Composição da live do campeonato (quais overlays o Stream vê no controlador)
 create table if not exists public.campeonato_stream_pack (
   campeonato_id uuid primary key references public.campeonatos(id) on delete cascade,
-  -- ordem dos botões no controlador (subset das overlays criadas no editor)
-  selected_overlay_ids jsonb not null default '[]'::jsonb,
+  -- tipos oficiais habilitados no pacote visual
+  enabled_overlay_types jsonb not null default '[]'::jsonb,
+  assets jsonb not null default '{}'::jsonb,
+  shared_config jsonb not null default '{}'::jsonb,
+  overlay_configs jsonb not null default '{}'::jsonb,
+  schema_version integer not null default 2,
   -- fundo de pré-visualização / ambientação (image PNG ou video URL)
   bg_type text not null default 'none'
     check (bg_type in ('none', 'image', 'video')),

@@ -1,31 +1,86 @@
 {
   "version": 1,
-  "updated_at": "2026-07-29",
+  "updated_at": "2026-08-10",
   "routes": {
-    "api/admin/aprovacoes": {"decision":"system-admin","reason":"Todas as operações chamam requireSystemAdmin."},
-    "api/admin/moderation": {"decision":"system-admin","reason":"A escrita chama requireSystemAdmin."},
-    "api/admin/overview": {"decision":"system-admin","reason":"A leitura chama requireSystemAdmin."},
-    "api/admin/precos": {"decision":"system-admin","reason":"GET, POST, PUT e DELETE exigem requireSystemAdmin."},
-    "api/admin/reports": {"decision":"system-admin","reason":"A escrita chama requireSystemAdmin."},
-    "api/admin/saques": {"decision":"system-admin","reason":"Leitura e decisão de saque exigem requireSystemAdmin."},
-    "api/auth/login": {"decision":"public-auth-flow","reason":"Endpoint público de autenticação; valida credenciais e retorna sessão do Supabase."},
-    "api/auth/verification/request": {"decision":"public-auth-flow","reason":"Endpoint público de cadastro/recuperação com validação de dados e código de verificação."},
-    "api/broadcast/control/[token]": {"decision":"token-protected","reason":"Controlador público restrito por controller_token único e ativo."},
-    "api/broadcast/links/[linkId]": {"decision":"owner-scoped","reason":"Exige bearer e restringe o link ao broadcast pertencente ao usuário."},
-    "api/broadcast/links": {"decision":"owner-scoped","reason":"Exige bearer, resolve o perfil Broadcast do usuário e grava somente em seu broadcast_id."},
-    "api/broadcast/sessions": {"decision":"owner-scoped","reason":"Exige bearer e todas as operações usam o broadcast_id pertencente ao usuário."},
-    "api/campeonatos/[id]/jogadores": {"decision":"public-read","reason":"Leitura pública intencional do elenco de campeonato; não possui escrita."},
-    "api/debug/manager/[id]": {"decision":"debug-admin","reason":"Bloqueada em produção e protegida por requireSystemAdmin."},
-    "api/debug/manager-tokens/[managerId]": {"decision":"debug-admin","reason":"Bloqueada em produção e protegida por requireSystemAdmin."},
-    "api/debug/managers": {"decision":"debug-admin","reason":"Bloqueada em produção e protegida por requireSystemAdmin."},
-    "api/equipes/convites-elenco/[token]": {"decision":"token-and-user","reason":"GET consulta token; POST exige bearer, valida jogador e consome o token."},
-    "api/notificacoes": {"decision":"user-scoped","reason":"Todas as operações exigem bearer e filtram por auth_user_id do usuário."},
-    "api/paypal/orders": {"decision":"user-scoped","reason":"Exige bearer e cria/consulta pedidos vinculados ao usuário autenticado."},
-    "api/rank": {"decision":"public-read","reason":"Ranking público somente leitura."},
-    "api/stream/catalog/[id]/codes": {"decision":"owner-scoped","reason":"Exige bearer e valida owner_user_id antes de listar ou gerar códigos."},
-    "api/stream/catalog/[id]": {"decision":"owner-scoped","reason":"Exige bearer e valida owner_user_id antes de editar ou excluir."},
-    "api/stream/catalog": {"decision":"user-scoped","reason":"Exige bearer; criação e itens privados ficam vinculados ao owner_user_id."},
-    "api/stream/live/[token]": {"decision":"token-protected","reason":"Feed público somente leitura restrito por share_token e campeonato no ar."},
-    "api/vendedores/[managerId]/vagas": {"decision":"public-read","reason":"Leitura pública das vagas e links ativos do vendedor; não possui escrita."}
+    "api/admin/aprovacoes": {
+      "decision": "system-admin",
+      "reason": "Todas as operações chamam requireSystemAdmin."
+    },
+    "api/admin/moderation": {
+      "decision": "system-admin",
+      "reason": "A escrita chama requireSystemAdmin."
+    },
+    "api/admin/overview": {
+      "decision": "system-admin",
+      "reason": "A leitura chama requireSystemAdmin."
+    },
+    "api/admin/precos": {
+      "decision": "system-admin",
+      "reason": "GET, POST, PUT e DELETE exigem requireSystemAdmin."
+    },
+    "api/admin/reports": {
+      "decision": "system-admin",
+      "reason": "A escrita chama requireSystemAdmin."
+    },
+    "api/admin/saques": {
+      "decision": "system-admin",
+      "reason": "Leitura e decisão de saque exigem requireSystemAdmin."
+    },
+    "api/auth/login": {
+      "decision": "public-auth-flow",
+      "reason": "Endpoint público de autenticação; valida credenciais e retorna sessão do Supabase."
+    },
+    "api/auth/verification/request": {
+      "decision": "public-auth-flow",
+      "reason": "Endpoint público de cadastro/recuperação com validação de dados e código de verificação."
+    },
+    "api/broadcast/control/[token]": {
+      "decision": "token-protected",
+      "reason": "Controlador público restrito por controller_token único e ativo."
+    },
+    "api/broadcast/links/[linkId]": {
+      "decision": "owner-scoped",
+      "reason": "Exige bearer e restringe o link ao broadcast pertencente ao usuário."
+    },
+    "api/broadcast/links": {
+      "decision": "owner-scoped",
+      "reason": "Exige bearer, resolve o perfil Broadcast do usuário e grava somente em seu broadcast_id."
+    },
+    "api/campeonatos/[id]/jogadores": {
+      "decision": "public-read",
+      "reason": "Leitura pública intencional do elenco de campeonato; não possui escrita."
+    },
+    "api/debug/manager/[id]": {
+      "decision": "debug-admin",
+      "reason": "Bloqueada em produção e protegida por requireSystemAdmin."
+    },
+    "api/debug/manager-tokens/[managerId]": {
+      "decision": "debug-admin",
+      "reason": "Bloqueada em produção e protegida por requireSystemAdmin."
+    },
+    "api/debug/managers": {
+      "decision": "debug-admin",
+      "reason": "Bloqueada em produção e protegida por requireSystemAdmin."
+    },
+    "api/equipes/convites-elenco/[token]": {
+      "decision": "token-and-user",
+      "reason": "GET consulta token; POST exige bearer, valida jogador e consome o token."
+    },
+    "api/notificacoes": {
+      "decision": "user-scoped",
+      "reason": "Todas as operações exigem bearer e filtram por auth_user_id do usuário."
+    },
+    "api/paypal/orders": {
+      "decision": "user-scoped",
+      "reason": "Exige bearer e cria/consulta pedidos vinculados ao usuário autenticado."
+    },
+    "api/rank": {
+      "decision": "public-read",
+      "reason": "Ranking público somente leitura."
+    },
+    "api/vendedores/[managerId]/vagas": {
+      "decision": "public-read",
+      "reason": "Leitura pública das vagas e links ativos do vendedor; não possui escrita."
+    }
   }
 }

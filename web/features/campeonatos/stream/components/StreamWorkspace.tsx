@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Layers, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
-import { StreamOverlaysHub } from './StreamOverlaysHub'
+import { StreamPackageEditor } from './StreamPackageEditor'
 import { StreamSpreadsheetPanel } from './StreamSpreadsheetPanel'
 import '../stream.css'
 
@@ -63,18 +63,11 @@ export function StreamWorkspace(props: { campeonatoId: string }) {
             showTrigger
             triggerLabel="Planilha de dados"
           />
-          <button
-            type="button"
-            className="stream-secondary-btn"
-            onClick={() => window.open(`/campeonatos/${props.campeonatoId}/stream/overlays/novo`, '_blank', 'noopener,noreferrer')}
-          >
-            <Layers size={15} /> Nova overlay
-          </button>
         </div>
       </header>
 
       <main className="stream-workspace-main">
-        <StreamOverlaysHub campeonatoId={props.campeonatoId} />
+        <StreamPackageEditor campeonatoId={props.campeonatoId} />
       </main>
     </div>
   )

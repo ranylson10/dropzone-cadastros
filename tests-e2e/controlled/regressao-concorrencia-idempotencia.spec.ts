@@ -68,7 +68,6 @@ test.describe('Regressão final — concorrência, estabilidade e idempotência 
       '/api/me/carteira',
       '/api/notificacoes?limit=5',
       '/api/lili/campeonatos',
-      '/api/stream/catalog?scope=mine',
     ]
 
     const publicResponses = await Promise.all(
@@ -122,12 +121,6 @@ test.describe('Regressão final — concorrência, estabilidade e idempotência 
         request.post(`${origin}/api/paypal/orders/${fakeId}/capture`, {
           headers: headers(token),
           data: {},
-          timeout: 30_000,
-        }),
-      () =>
-        request.post(`${origin}/api/stream/catalog/redeem`, {
-          headers: headers(token),
-          data: { code: 'CODIGO-E2E-INEXISTENTE-77' },
           timeout: 30_000,
         }),
       () =>

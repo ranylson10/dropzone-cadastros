@@ -14,14 +14,6 @@
       "classification": "legacy_manual_copy",
       "official_migration": "database/migrations/20260719_limite_vagas_somente_fase_entrada.sql"
     },
-    "database/DOWNLOAD_stream_overlay_catalog.sql": {
-      "classification": "legacy_manual_copy",
-      "official_migration": "database/migrations/20260718_stream_overlay_catalog.sql"
-    },
-    "database/DOWNLOAD_stream_overlays.sql": {
-      "classification": "legacy_manual_copy",
-      "official_migration": "database/migrations/20260718_campeonato_stream_overlays.sql"
-    },
     "database/migrations/DOWNLOAD_bio_e_cores_campeonato.sql": {
       "classification": "legacy_manual_copy",
       "official_migrations": [

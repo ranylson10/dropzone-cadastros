@@ -1,12 +1,10 @@
 import { supabase } from '@/lib/supabase-browser'
 import type {
-  StreamOverlay,
   StreamSheetFilters,
   StreamSheetId,
   StreamSheetRow,
 } from '../types/stream.types'
 import { resolveSheetId } from '../types/stream.types'
-import { migrateOverlay } from '../utils/migrate-overlay'
 
 async function authFetch(url: string, options?: RequestInit) {
   const { data } = await supabase.auth.getSession()
@@ -726,134 +724,4 @@ export async function loadStreamSheet(
   }
 
   return []
-}
-
-const OVERLAY_KEY = (campeonatoId: string) => `dropzone_stream_overlays_${campeonatoId}`
-
-export function listLocalOverlays(campeonatoId: string): StreamOverlay[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(OVERLAY_KEY(campeonatoId))
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed.map(migrateOverlay).filter(Boolean) as StreamOverlay[]
-  } catch {
-    return []
-  }
-}
-
-export function saveLocalOverlays(campeonatoId: string, overlays: StreamOverlay[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(OVERLAY_KEY(campeonatoId), JSON.stringify(overlays))
-}
-
-export function getLocalOverlay(campeonatoId: string, overlayId: string) {
-  return listLocalOverlays(campeonatoId).find((item) => item.id === overlayId) || null
-}
-
-export function upsertLocalOverlay(campeonatoId: string, overlay: StreamOverlay) {
-  const list = listLocalOverlays(campeonatoId)
-  const index = list.findIndex((item) => item.id === overlay.id)
-  if (index >= 0) list[index] = overlay
-  else list.unshift(overlay)
-  saveLocalOverlays(campeonatoId, list)
-  return overlay
-}
-
-export function removeLocalOverlay(campeonatoId: string, overlayId: string) {
-  const list = listLocalOverlays(campeonatoId).filter((item) => item.id !== overlayId)
-  saveLocalOverlays(campeonatoId, list)
-}
-
-export type OverlayListResult = {
-  overlays: StreamOverlay[]
-  source: 'api' | 'local'
-  missing_table?: boolean
-}
-
-export async function listOverlays(campeonatoId: string): Promise<OverlayListResult> {
-  try {
-    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/stream/overlays`)
-    if (payload.missing_table) {
-      return { overlays: listLocalOverlays(campeonatoId), source: 'local', missing_table: true }
-    }
-    const overlays = (Array.isArray(payload.overlays) ? payload.overlays : [])
-      .map(migrateOverlay)
-      .filter(Boolean) as StreamOverlay[]
-    saveLocalOverlays(campeonatoId, overlays)
-    return { overlays, source: 'api', missing_table: false }
-  } catch {
-    return { overlays: listLocalOverlays(campeonatoId), source: 'local' }
-  }
-}
-
-export async function fetchOverlay(campeonatoId: string, overlayId: string): Promise<StreamOverlay | null> {
-  try {
-    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/stream/overlays/${overlayId}`)
-    if (payload.overlay) {
-      const migrated = migrateOverlay(payload.overlay)
-      if (migrated) upsertLocalOverlay(campeonatoId, migrated)
-      return migrated
-    }
-  } catch {
-    // fallback local
-  }
-  return getLocalOverlay(campeonatoId, overlayId)
-}
-
-export async function saveOverlayRemote(
-  campeonatoId: string,
-  overlay: StreamOverlay,
-  options?: { isNew?: boolean },
-): Promise<{ overlay: StreamOverlay; source: 'api' | 'local'; missing_table?: boolean; warning?: string }> {
-  const body = {
-    name: overlay.name,
-    template: overlay.template,
-    blocks: overlay.blocks,
-    frameW: overlay.frameW,
-    frameH: overlay.frameH,
-  }
-
-  try {
-    if (options?.isNew || !overlay.id || overlay.id.startsWith('ov-')) {
-      const payload = await authFetch(`/api/campeonatos/${campeonatoId}/stream/overlays`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (payload.missing_table) {
-        const local = upsertLocalOverlay(campeonatoId, overlay)
-        return { overlay: local, source: 'local', missing_table: true, warning: 'Salvo só neste navegador (rode o SQL de stream no Supabase).' }
-      }
-      const saved = migrateOverlay(payload.overlay) || overlay
-      upsertLocalOverlay(campeonatoId, saved)
-      return { overlay: saved, source: 'api' }
-    }
-
-    const payload = await authFetch(`/api/campeonatos/${campeonatoId}/stream/overlays/${overlay.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    if (payload.missing_table) {
-      const local = upsertLocalOverlay(campeonatoId, overlay)
-      return { overlay: local, source: 'local', missing_table: true, warning: 'Salvo só neste navegador (rode o SQL de stream no Supabase).' }
-    }
-    const saved = migrateOverlay(payload.overlay) || overlay
-    upsertLocalOverlay(campeonatoId, saved)
-    return { overlay: saved, source: 'api' }
-  } catch {
-    const local = upsertLocalOverlay(campeonatoId, overlay)
-    return { overlay: local, source: 'local', warning: 'Sem conexão com API — salvo localmente.' }
-  }
-}
-
-export async function deleteOverlayRemote(campeonatoId: string, overlayId: string) {
-  try {
-    await authFetch(`/api/campeonatos/${campeonatoId}/stream/overlays/${overlayId}`, { method: 'DELETE' })
-  } catch {
-    // local still
-  }
-  removeLocalOverlay(campeonatoId, overlayId)
 }

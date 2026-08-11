@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Copy, ExternalLink, Pencil, Plus, Trash2, MonitorPlay, X } from 'lucide-react'
+import { Check, CircleAlert, Copy, ExternalLink, Pencil, Plus, Trash2, MonitorPlay, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import '../broadcast.css'
 import '@/features/campeonatos/stream/stream.css'
@@ -20,7 +20,7 @@ type Desk = {
   nome: string
   controller_token: string
   obs_token: string
-  active_overlay_id?: string | null
+  active_overlay_type?: string | null
 }
 
 async function authFetch(url: string, options?: RequestInit) {
@@ -57,7 +57,7 @@ export function StreamDashboard(props: { profileName?: string }) {
     try {
       const me = await authFetch('/api/broadcast/me')
       setLinks(me.links || [])
-      setDesk(me.desk || me.sessions?.[0] || null)
+      setDesk(me.desk || null)
       setMissingTable(false)
     } catch (e: any) {
       const msg = String(e?.message || '')
@@ -155,6 +155,22 @@ export function StreamDashboard(props: { profileName?: string }) {
   const activeLive = desk?.campeonato_id
     ? links.find((l) => l.campeonato_id === desk.campeonato_id)
     : null
+  const activeScenesCount = activeLive?.scenes_count ?? 0
+  const preflightItems = [
+    { label: 'Mesa criada', ready: Boolean(desk), detail: desk ? 'Links fixos disponíveis.' : 'Aguardando criação da mesa.' },
+    { label: 'Browser Source', ready: Boolean(obsUrl), detail: obsUrl ? 'URL fixa pronta para o OBS.' : 'URL ainda indisponível.' },
+    { label: 'Live selecionada', ready: Boolean(activeLive), detail: activeLive?.display_name || activeLive?.campeonato?.nome || 'Escolha no controlador.' },
+    {
+      label: 'Cenas do pacote',
+      ready: Boolean(activeLive && activeScenesCount > 0),
+      detail: activeLive
+        ? activeScenesCount > 0
+          ? `${activeScenesCount} cena${activeScenesCount === 1 ? '' : 's'} habilitada${activeScenesCount === 1 ? '' : 's'}.`
+          : 'Pacote sem cenas habilitadas.'
+        : 'Selecione uma live primeiro.',
+    },
+  ]
+  const readyCount = preflightItems.filter((item) => item.ready).length
 
   return (
     <div className="broadcast-page">
@@ -168,6 +184,37 @@ export function StreamDashboard(props: { profileName?: string }) {
           campeonatos; na mesa você troca a live e as cenas configuradas por cada adm.
         </p>
       </header>
+
+      <section className="broadcast-operation-flow" aria-label="Fluxo de transmissão">
+        <div><span>1</span><strong>Adicione a live</strong><small>Resgate a Chave Stream do campeonato.</small></div>
+        <div><span>2</span><strong>Configure o OBS uma vez</strong><small>Use o Browser Source fixo da sua mesa.</small></div>
+        <div><span>3</span><strong>Opere no controlador</strong><small>Troque live e cena sem abrir o editor.</small></div>
+      </section>
+
+      <section className="broadcast-preflight" aria-label="Checklist da mesa">
+        <div className="broadcast-preflight-head">
+          <div>
+            <p className="broadcast-preflight-kicker">CHECKLIST DA MESA</p>
+            <strong>{readyCount}/4 itens prontos</strong>
+          </div>
+          <span className={`broadcast-preflight-state${readyCount === preflightItems.length ? ' is-ready' : ''}`}>
+            {readyCount === preflightItems.length ? 'Pronta para operar' : 'Configuração incompleta'}
+          </span>
+        </div>
+        <div className="broadcast-preflight-grid">
+          {preflightItems.map((item) => (
+            <div key={item.label} className={`broadcast-preflight-item${item.ready ? ' is-ready' : ''}`}>
+              <span className="broadcast-preflight-icon" aria-hidden>
+                {item.ready ? <Check size={14} /> : <CircleAlert size={14} />}
+              </span>
+              <div>
+                <strong>{item.label}</strong>
+                <small>{item.detail}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {missingTable ? (
         <div className="broadcast-card" style={{ borderColor: 'var(--danger, #c44)' }}>

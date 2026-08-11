@@ -30,14 +30,21 @@ async function getBroadcastProfile(authUserId: string) {
 async function ensureDesk(broadcastId: string) {
   const { data: existing, error } = await supabaseAdmin
     .from('broadcast_live_sessions')
-    .select('id,campeonato_id,nome,controller_token,obs_token,active_overlay_id,ativo,created_at,updated_at')
+    .select('id,campeonato_id,nome,controller_token,obs_token,active_overlay_type,ativo,created_at,updated_at')
     .eq('broadcast_id', broadcastId)
     .eq('ativo', true)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  if (error) throw error
+  if (error) {
+    if (error.code === '42703') {
+      const err: any = new Error('Rode a migration 20260810_stream_package_broadcast_runtime.sql.')
+      err.needs_broadcast_runtime_sql = true
+      throw err
+    }
+    throw error
+  }
 
   if (existing) {
     await supabaseAdmin
@@ -57,17 +64,17 @@ async function ensureDesk(broadcastId: string) {
       nome: 'Mesa Stream',
       controller_token: tok(),
       obs_token: tok(),
-      active_overlay_id: null,
+      active_overlay_type: null,
       ativo: true,
     })
-    .select('id,campeonato_id,nome,controller_token,obs_token,active_overlay_id,ativo,created_at,updated_at')
+    .select('id,campeonato_id,nome,controller_token,obs_token,active_overlay_type,ativo,created_at,updated_at')
     .single()
 
   if (insErr) {
     if (insErr.code === '23505') {
       const { data: again } = await supabaseAdmin
         .from('broadcast_live_sessions')
-        .select('id,campeonato_id,nome,controller_token,obs_token,active_overlay_id,ativo,created_at,updated_at')
+        .select('id,campeonato_id,nome,controller_token,obs_token,active_overlay_type,ativo,created_at,updated_at')
         .eq('broadcast_id', broadcastId)
         .eq('ativo', true)
         .order('updated_at', { ascending: false })
@@ -112,10 +119,10 @@ export async function GET(req: NextRequest) {
     if (champIds.length) {
       const { data: packs } = await supabaseAdmin
         .from('campeonato_stream_pack')
-        .select('campeonato_id,selected_overlay_ids')
+        .select('campeonato_id,enabled_overlay_types')
         .in('campeonato_id', champIds)
       for (const p of packs || []) {
-        const n = Array.isArray(p.selected_overlay_ids) ? p.selected_overlay_ids.length : 0
+        const n = Array.isArray(p.enabled_overlay_types) ? p.enabled_overlay_types.length : 0
         packsByChamp.set(p.campeonato_id, n)
       }
     }
@@ -137,8 +144,6 @@ export async function GET(req: NextRequest) {
         avatar_url: profile.avatar_url,
       },
       desk,
-      // compat
-      sessions: desk ? [desk] : [],
       links: (links || []).map((l) => ({
         ...l,
         campeonato: byId.get(l.campeonato_id) || null,
@@ -146,7 +151,7 @@ export async function GET(req: NextRequest) {
       })),
     })
   } catch (e: any) {
-    const status = e?.missing_table ? 503 : 400
+    const status = e?.missing_table || e?.needs_broadcast_runtime_sql ? 503 : 400
     return NextResponse.json({ error: e?.message || 'Erro', missing_table: e?.missing_table }, { status })
   }
 }

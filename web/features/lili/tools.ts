@@ -1715,7 +1715,7 @@ export async function getCompetitiveOperationsOverview(authUserId: string, champ
   if (broadcastProfile?.id) {
     const [linksResult, sessionsResult] = await Promise.all([
       supabaseAdmin.from('broadcast_campeonato_links').select('id,display_name,created_at,stream_key_id').eq('broadcast_id', broadcastProfile.id).eq('campeonato_id', championshipId),
-      supabaseAdmin.from('broadcast_live_sessions').select('id,nome,controller_token,obs_token,active_overlay_id,ativo,created_at,updated_at').eq('broadcast_id', broadcastProfile.id).eq('campeonato_id', championshipId).order('updated_at', { ascending: false }),
+      supabaseAdmin.from('broadcast_live_sessions').select('id,nome,controller_token,obs_token,active_overlay_type,ativo,created_at,updated_at').eq('broadcast_id', broadcastProfile.id).eq('campeonato_id', championshipId).order('updated_at', { ascending: false }),
     ])
     if (linksResult.error && !optionalRelationError(linksResult.error)) throw linksResult.error
     if (sessionsResult.error && !optionalRelationError(sessionsResult.error)) throw sessionsResult.error
@@ -1854,7 +1854,7 @@ export function broadcastOperationsCards(overview: CompetitiveOperationsOverview
       kind: 'broadcast',
       title: session.nome || 'Mesa de transmissão',
       subtitle: session.ativo ? 'Sessão ativa' : 'Sessão encerrada',
-      badges: [session.ativo ? 'Ao vivo / pronta' : 'Inativa', session.active_overlay_id ? 'Overlay selecionado' : 'Sem overlay'],
+      badges: [session.ativo ? 'Ao vivo / pronta' : 'Inativa', session.active_overlay_type ? 'Overlay selecionado' : 'Sem overlay'],
       details: [
         { label: 'Controle', value: session.controller_token ? 'Link disponível' : 'Não gerado' },
         { label: 'OBS', value: session.obs_token ? 'Browser Source disponível' : 'Não gerado' },
