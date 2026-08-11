@@ -59,12 +59,12 @@ async function cloneWithComputedStyles(source: HTMLElement) {
 
 async function waitForExportAreas(root: HTMLElement) {
   const startedAt = Date.now()
-  while (Date.now() - startedAt < 8000) {
+  while (Date.now() - startedAt < 30000) {
     const areas = Array.from(root.querySelectorAll<HTMLElement>('[data-stream-export-area]'))
     if (areas.every((area) => area.dataset.ready === 'true')) return
     await sleep(80)
   }
-  throw new Error('Os dados das overlays ainda não terminaram de carregar para a exportação.')
+  throw new Error('A prancha ainda está carregando todas as áreas. Aguarde alguns segundos e tente novamente.')
 }
 
 function svgFromHtml(html: string, width: number, height: number) {
@@ -96,6 +96,8 @@ export async function renderStreamOutputElement(root: HTMLElement, width: number
     canvas.height = height
     const context = canvas.getContext('2d')
     if (!context) throw new Error('Canvas indisponível para exportação.')
+    context.imageSmoothingEnabled = true
+    context.imageSmoothingQuality = 'high'
     context.drawImage(image, 0, 0, width, height)
     return canvas
   } finally {

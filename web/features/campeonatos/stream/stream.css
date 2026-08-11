@@ -3186,6 +3186,9 @@ body.stream-editor-scroll-lock {
 .stream-package-status-dot{width:7px;height:7px;border-radius:50%;background:#a7adb6}
 .stream-package-status-dot.on{background:#1f9d62}
 
+/* Editor compacto: palco e camadas têm prioridade sobre textos auxiliares. */
+.stream-package-workbench{gap:8px}.stream-package-scenes{width:236px;padding:9px}.stream-package-scenes-head small,.stream-package-overlay-main small,.stream-package-section-title p,.stream-package-elements-head small{display:none}.stream-package-overlay-list{gap:3px;margin-top:7px}.stream-package-overlay-main{padding:7px}.stream-package-overlay-main b{font-size:11px}.stream-package-editor-grid{grid-template-columns:280px minmax(0,1fr) 205px;gap:8px}.stream-package-section{padding:11px}.stream-package-control-card>.stream-package-section-title{margin-bottom:9px}.stream-package-control-card>label:not(.stream-package-switch-row),.stream-package-subsection>label:not(.stream-package-switch-row){grid-template-columns:minmax(100px,1fr) 132px;gap:7px;margin-top:7px;font-size:11px}.stream-package-control-card input,.stream-package-control-card select{min-height:29px;padding:4px 6px}.stream-package-property-group{gap:7px;margin-top:9px;padding:9px}.stream-package-elements-head{padding:9px}.stream-package-element-list{gap:6px;padding:7px}.stream-package-element-list button{min-height:32px;padding:5px 6px}.stream-package-element-remove{min-height:32px!important}.stream-package-item-row>.stream-package-element-remove{height:32px}.stream-package-preview-section{padding:5px}.stream-package-preview-workspace{height:min(82vh,900px);min-height:520px;margin-top:4px}.stream-package-preview-toolbar{padding:4px 5px}
+
 
 /* Presets estruturais do pacote — atalhos para a configuração compartilhada existente. */
 .stream-package-presets{display:grid;gap:8px;padding:10px;border:1px solid var(--line);background:var(--surface-soft)}
