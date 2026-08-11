@@ -5,11 +5,11 @@ import { ArrowDownToLine, ArrowUpToLine, Copy, Download, ImagePlus, Loader2, Plu
 import JSZip from 'jszip'
 import { StreamPackageStage } from './StreamPackageStage'
 import { loadStreamPackageRenderData } from '../services/stream-package-data.service'
+import { renderStreamOutputCanvas } from '../services/stream-output-canvas-renderer'
 import { uploadPublicFile } from '@/lib/upload-public'
 import {
   cropStreamOutputCanvas,
   downloadStreamOutputBlob,
-  renderStreamOutputElement,
   sanitizeStreamOutputFilename,
   streamOutputCanvasToBlob,
 } from '../services/stream-output-export'
@@ -389,7 +389,8 @@ export function StreamOutputLayoutsEditor(props: {
 
   async function renderFinalBoard() {
     if (!activeLayout || !exportBoardRef.current) throw new Error('Prancha de exportação indisponível.')
-    return renderStreamOutputElement(exportBoardRef.current, activeLayout.width, activeLayout.height)
+    const entries = await Promise.all(activeLayout.areas.filter((area) => area.visible).map(async (area) => ({ area, data: await loadStreamPackageRenderData(props.campeonatoId, area.overlayType) })))
+    return renderStreamOutputCanvas(activeLayout, props.pack, entries)
   }
 
   async function exportBoard() {
