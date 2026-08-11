@@ -55,6 +55,7 @@ export function StreamWorkspace(props: { campeonatoId: string }) {
           </div>
         </div>
         <div className="stream-panel-actions">
+          <div id="stream-package-header-slot" className="stream-package-header-slot" />
           <StreamSpreadsheetPanel
             campeonatoId={props.campeonatoId}
             asModal

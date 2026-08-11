@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { Check, Grid3X3, ImagePlus, Loader2, Maximize2, Move, RefreshCw, Save, ZoomIn, ZoomOut } from 'lucide-react'
 import { StreamPackageStage } from './StreamPackageStage'
@@ -226,6 +227,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
     ? selectedInspectorItem.slice(7) as StreamTableColumnStyleKey
     : null
   const selectedColumnStyle = selectedColumnStyleKey ? pack.shared_config.table.columnStyles[selectedColumnStyleKey] : null
+  const headerSlot = typeof document === 'undefined' ? null : document.getElementById('stream-package-header-slot')
 
   useEffect(() => {
     let mounted = true
@@ -506,27 +508,15 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
 
   return (
     <section className="stream-package-editor stream-package-editor-v2" aria-label="Editor do pacote de overlays">
-      <div className="stream-package-topbar">
-        <div>
-          <p className="eyebrow">Pacote visual do campeonato</p>
-          <h2>Editor de transmissão</h2>
-          <p className="stream-hint">Escolha as overlays do pacote e edite os elementos compartilhados uma única vez.</p>
-        </div>
-        <div className="stream-package-topbar-actions">
-          <span className="stream-package-count"><b>{enabledCount}</b> de {STREAM_SYSTEM_OVERLAYS.length} overlays ativas</span>
-          <button type="button" className="stream-primary-btn" onClick={() => void savePackage()} disabled={saving || needsSql}>
-            {saving ? <Loader2 className="spin" size={15} /> : <Save size={15} />} Salvar pacote
-          </button>
-        </div>
-      </div>
+      {headerSlot ? createPortal(<div className="stream-package-header-controls">
+        <div className="stream-package-header-tabs"><button type="button" className={workspaceMode === 'overlays' ? 'active' : ''} onClick={() => setWorkspaceMode('overlays')}>Overlays</button><button type="button" className={workspaceMode === 'outputs' ? 'active' : ''} onClick={() => setWorkspaceMode('outputs')}>Postagens</button></div>
+        {workspaceMode === 'overlays' ? <div className="stream-package-header-tabs stream-package-header-panels">{EDITOR_PANELS.map((panel) => <button type="button" key={panel.id} className={activePanel === panel.id ? 'active' : ''} onClick={() => setActivePanel(panel.id)} title={panel.description}>{panel.label}</button>)}</div> : null}
+        <span className="stream-package-count"><b>{enabledCount}</b>/{STREAM_SYSTEM_OVERLAYS.length}</span>
+        <button type="button" className="stream-primary-btn" onClick={() => void savePackage()} disabled={saving || needsSql}>{saving ? <Loader2 className="spin" size={15} /> : <Save size={15} />} Salvar</button>
+      </div>, headerSlot) : null}
 
       {needsSql ? <div className="stream-error">Rode as migrations pendentes do pacote antes de salvar. Para saídas/postagens: <code>database/migrations/20260811_stream_output_layouts.sql</code>.</div> : null}
       {feedback ? <p className="stream-hint stream-package-feedback">{feedback}</p> : null}
-
-      <div className="stream-package-mode-tabs" role="tablist" aria-label="Área de trabalho do pacote">
-        <button type="button" className={workspaceMode === 'overlays' ? 'active' : ''} onClick={() => setWorkspaceMode('overlays')}>Overlays / Live</button>
-        <button type="button" className={workspaceMode === 'outputs' ? 'active' : ''} onClick={() => setWorkspaceMode('outputs')}>Saídas / Postagens</button>
-      </div>
 
       {workspaceMode === 'outputs' ? (
         <StreamOutputLayoutsEditor
@@ -567,20 +557,6 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
         </aside>
 
         <main className="stream-package-main">
-          <nav className="stream-package-panel-tabs" aria-label="Configurações do pacote">
-            {EDITOR_PANELS.map((panel) => (
-              <button
-                type="button"
-                key={panel.id}
-                className={activePanel === panel.id ? 'active' : ''}
-                onClick={() => setActivePanel(panel.id)}
-                title={panel.description}
-              >
-                {panel.label}
-              </button>
-            ))}
-          </nav>
-
           <div className="stream-package-editor-grid">
             <div className="stream-package-controls">
               {activePanel === 'scene' ? (
@@ -849,7 +825,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                     <>
                       <div className="stream-package-section-title"><div><small>Estilo reutilizável de coluna</small><strong>{selectedColumnStyleKey === 'rank' ? 'Posição' : selectedColumnStyleKey === 'logo' ? 'Logo' : selectedColumnStyleKey === 'name' ? 'Nome' : selectedColumnStyleKey === 'stat' ? 'Estatística' : 'Pontos'}</strong></div></div>
                       <div className="stream-package-property-group"><b>Texto</b><label>Fonte<input value={selectedColumnStyle.fontFamily} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { fontFamily: e.target.value })} /></label><div className="stream-package-quad-grid"><label>Tamanho<input type="number" min={8} max={160} value={selectedColumnStyle.fontSize} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { fontSize: Number(e.target.value) || 8 })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={selectedColumnStyle.fontWeight} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { fontWeight: Number(e.target.value) || 400 })} /></label><label>Cor<input type="color" value={selectedColumnStyle.color} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { color: e.target.value })} /></label><label>Inclinação<select value={selectedColumnStyle.fontStyle} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { fontStyle: e.target.value as 'normal' | 'italic' })}><option value="normal">Reta</option><option value="italic">Itálica</option></select></label></div></div>
-                      <div className="stream-package-property-group"><b>Célula</b><label>Largura (vazio = automática)<input type="number" min={20} value={selectedColumnStyle.width || ''} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { width: e.target.value ? Number(e.target.value) : null })} /></label><label>Preenchimento<select value={selectedColumnStyle.backgroundType} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundType: e.target.value as 'solid' | 'gradient' | 'image' })}><option value="solid">Cor sólida</option><option value="gradient">Degradê</option><option value="image">Imagem</option></select></label>{selectedColumnStyle.backgroundType === 'solid' ? <label>Cor<input type="color" value={selectedColumnStyle.backgroundColor} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundColor: e.target.value })} /></label> : null}{selectedColumnStyle.backgroundType === 'gradient' ? <label>Degradê CSS<input value={selectedColumnStyle.backgroundGradient} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundGradient: e.target.value })} /></label> : null}{selectedColumnStyle.backgroundType === 'image' ? <><div className="stream-package-asset-gallery">{PACKAGE_ASSETS.filter((asset) => asset.group === 'Tabelas').map((asset) => <button type="button" key={asset.key} className={selectedColumnStyle.assetKey === asset.key ? 'active' : ''} onClick={() => patchColumnStyle(selectedColumnStyleKey, { assetKey: asset.key })}>{pack.assets[asset.key] ? <img src={pack.assets[asset.key]} alt="" /> : <span>+</span>}<small>{asset.label}</small></button>)}</div>{selectedColumnStyle.assetKey ? <label className="stream-secondary-btn stream-package-inspector-upload">{uploading === selectedColumnStyle.assetKey ? <Loader2 className="spin" size={14} /> : <ImagePlus size={14} />} Trocar imagem selecionada<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void uploadAsset(selectedColumnStyle.assetKey!, e.target.files?.[0])} /></label> : null}</> : null}<div className="stream-package-quad-grid"><label>Cor da borda<input type="color" value={selectedColumnStyle.borderColor} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderColor: e.target.value })} /></label><label>Espessura<input type="number" min={0} max={30} value={selectedColumnStyle.borderWidth} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderWidth: Number(e.target.value) || 0 })} /></label><label>Canto<input type="number" min={0} max={100} value={selectedColumnStyle.borderRadius} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderRadius: Number(e.target.value) || 0 })} /></label><label>Alinhamento<select value={selectedColumnStyle.align} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { align: e.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div></div>
+                      <div className="stream-package-property-group"><b>Célula</b><label>Largura (vazio = automática)<input type="number" min={20} value={selectedColumnStyle.width || ''} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { width: e.target.value ? Number(e.target.value) : null })} /></label><label>Preenchimento<select value={selectedColumnStyle.backgroundType} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundType: e.target.value as 'solid' | 'gradient' | 'image' })}><option value="solid">Cor sólida</option><option value="gradient">Degradê</option><option value="image">Imagem</option></select></label>{selectedColumnStyle.backgroundType === 'solid' ? <label>Cor<input type="color" value={selectedColumnStyle.backgroundColor} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundColor: e.target.value })} /></label> : null}{selectedColumnStyle.backgroundType === 'gradient' ? <label>Degradê CSS<input value={selectedColumnStyle.backgroundGradient} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundGradient: e.target.value })} /></label> : null}{selectedColumnStyle.backgroundType === 'image' && selectedColumnStyle.assetKey ? <><div className="stream-package-selected-asset">{pack.assets[selectedColumnStyle.assetKey] ? <img src={pack.assets[selectedColumnStyle.assetKey]} alt="" /> : <span>Sem imagem</span>}<div><b>{PACKAGE_ASSETS.find((asset) => asset.key === selectedColumnStyle.assetKey)?.label || 'Fundo da coluna'}</b><small>Este é o único fundo usado por esta coluna.</small></div></div><label className="stream-secondary-btn stream-package-inspector-upload">{uploading === selectedColumnStyle.assetKey ? <Loader2 className="spin" size={14} /> : <ImagePlus size={14} />} Trocar imagem desta coluna<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void uploadAsset(selectedColumnStyle.assetKey!, e.target.files?.[0])} /></label></> : null}<div className="stream-package-quad-grid"><label>Cor da borda<input type="color" value={selectedColumnStyle.borderColor} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderColor: e.target.value })} /></label><label>Espessura<input type="number" min={0} max={30} value={selectedColumnStyle.borderWidth} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderWidth: Number(e.target.value) || 0 })} /></label><label>Canto<input type="number" min={0} max={100} value={selectedColumnStyle.borderRadius} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderRadius: Number(e.target.value) || 0 })} /></label><label>Alinhamento<select value={selectedColumnStyle.align} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { align: e.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div></div>
                     </>
                   ) : selectedAsset ? (
                     <>
@@ -1100,15 +1076,6 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
               <div className="stream-package-element-list">
                 <button type="button" className={selectedInspectorItem === 'event_title' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('event_title'); setActivePanel('assets') }}><span>Texto</span><b>Título do campeonato</b></button>
                 {activeMeta.structure === 'table' ? <div className="stream-package-element-group"><small>Colunas de {activeMeta.name}</small>{Array.from(new Set((activeConfig.columns || []).map((column) => column === 'rank' ? 'rank' : column === 'logo' || column === 'map' ? 'logo' : column === 'name' || column === 'nick' ? 'name' : column === 'points' ? 'points' : 'stat'))).map((styleKey) => <button type="button" key={styleKey} className={selectedInspectorItem === `column_${styleKey}` ? 'active' : ''} onClick={() => { setSelectedInspectorItem(`column_${styleKey}` as PackageInspectorItem); setActivePanel('assets') }}><span>Coluna</span><b>{styleKey === 'rank' ? 'Posição' : styleKey === 'logo' ? 'Logo' : styleKey === 'name' ? 'Nome' : styleKey === 'stat' ? 'Estatística' : 'Pontos'}</b></button>)}</div> : null}
-                {(['Identidade', 'Tabelas', 'Cards'] as const).map((group) => (
-                  <div className="stream-package-element-group" key={group}>
-                    <small>{group}</small>
-                    {PACKAGE_ASSETS.filter((asset) => asset.group === group).map((asset) => (
-                      <button type="button" key={asset.key} className={selectedInspectorItem === asset.key ? 'active' : ''} onClick={() => { setSelectedInspectorItem(asset.key); setActivePanel('assets') }}><span>Imagem</span><b>{asset.label}</b></button>
-                    ))}
-                  </div>
-                ))}
-                <div className="stream-package-element-group"><small>Blocos</small><button type="button" className={selectedInspectorItem === 'table_block' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('table_block'); setActivePanel('assets') }}><span>Layout</span><b>Tabela</b></button><button type="button" className={selectedInspectorItem === 'card_block' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('card_block'); setActivePanel('assets') }}><span>Layout</span><b>Cards</b></button></div>
               </div>
             </aside>
           </div>
