@@ -57,15 +57,43 @@ function newLayout(index: number): StreamOutputLayout {
   }
 }
 
+function fitLegacyFullBoardAreasIntoSlice(layout: StreamOutputLayout) {
+  if (layout.sliceCount <= 1) return layout
+
+  const fullBoardDefaultWidth = Math.max(240, layout.width - 120)
+  const fullBoardDefaultHeight = Math.max(180, Math.min(720, layout.height - 160))
+  const sliceDefaultWidth = Math.max(240, layout.sliceWidth - 120)
+  const sliceDefaultHeight = Math.max(180, Math.min(720, layout.sliceHeight - 160))
+  let changed = false
+  const areas = layout.areas.map((area) => {
+    const isLegacyFullBoardArea = area.x === 60
+      && area.y === 80
+      && area.width === fullBoardDefaultWidth
+      && area.height === fullBoardDefaultHeight
+    if (!isLegacyFullBoardArea) return area
+    changed = true
+    return { ...area, width: sliceDefaultWidth, height: sliceDefaultHeight }
+  })
+
+  return changed ? { ...layout, areas } : layout
+}
+
 function newArea(layout: StreamOutputLayout, index: number): StreamOutputArea {
+  const sliceIndex = index % Math.max(1, layout.sliceCount)
+  const x = layout.sliceDirection === 'horizontal'
+    ? sliceIndex * layout.sliceWidth + 60
+    : 60
+  const y = layout.sliceDirection === 'vertical'
+    ? sliceIndex * layout.sliceHeight + 80
+    : 80
   return {
     id: uid('area'),
     overlayType: 'standings_general',
     profileId: 'live-hd',
-    x: 60,
-    y: 80 + index * 40,
-    width: Math.max(240, layout.width - 120),
-    height: Math.max(180, Math.min(720, layout.height - 160)),
+    x,
+    y,
+    width: Math.max(240, layout.sliceWidth - 120),
+    height: Math.max(180, Math.min(720, layout.sliceHeight - 160)),
     zIndex: index,
     dataStart: 1,
     dataEnd: 12,
@@ -181,6 +209,11 @@ export function StreamOutputLayoutsEditor(props: {
   const interactionRef = useRef<AreaInteraction | null>(null)
 
   useEffect(() => {
+    const nextLayouts = props.layouts.map(fitLegacyFullBoardAreasIntoSlice)
+    if (nextLayouts.some((layout, index) => layout !== props.layouts[index])) props.onChange(nextLayouts)
+  }, [props.layouts, props.onChange])
+
+  useEffect(() => {
     if (activeLayoutId && props.layouts.some((layout) => layout.id === activeLayoutId)) return
     setActiveLayoutId(props.layouts[0]?.id || '')
   }, [activeLayoutId, props.layouts])
@@ -284,6 +317,13 @@ export function StreamOutputLayoutsEditor(props: {
     const sliceDirection = patch.sliceDirection ?? activeLayout.sliceDirection
     const sliceWidth = Math.max(240, Math.min(7680, Number(patch.sliceWidth ?? activeLayout.sliceWidth) || 1080))
     const sliceHeight = Math.max(240, Math.min(7680, Number(patch.sliceHeight ?? activeLayout.sliceHeight) || 1350))
+    const width = sliceDirection === 'horizontal' ? Math.min(16384, sliceWidth * sliceCount) : sliceWidth
+    const height = sliceDirection === 'vertical' ? Math.min(16384, sliceHeight * sliceCount) : sliceHeight
+    const oldDefaultWidth = Math.max(240, activeLayout.width - 120)
+    const oldDefaultHeight = Math.max(180, Math.min(720, activeLayout.height - 160))
+    const newDefaultWidth = Math.max(240, sliceWidth - 120)
+    const newDefaultHeight = Math.max(180, Math.min(720, sliceHeight - 160))
+
     replaceLayout({
       ...activeLayout,
       ...patch,
@@ -291,8 +331,17 @@ export function StreamOutputLayoutsEditor(props: {
       sliceDirection,
       sliceWidth,
       sliceHeight,
-      width: sliceDirection === 'horizontal' ? Math.min(16384, sliceWidth * sliceCount) : sliceWidth,
-      height: sliceDirection === 'vertical' ? Math.min(16384, sliceHeight * sliceCount) : sliceHeight,
+      width,
+      height,
+      areas: activeLayout.areas.map((area) => {
+        const isOriginalFullBoardArea = area.x === 60
+          && area.y === 80
+          && area.width === oldDefaultWidth
+          && area.height === oldDefaultHeight
+        return isOriginalFullBoardArea
+          ? { ...area, width: newDefaultWidth, height: newDefaultHeight }
+          : area
+      }),
     })
     setActiveSliceIndex((current) => current == null ? null : Math.min(current, sliceCount - 1))
   }
@@ -507,8 +556,8 @@ export function StreamOutputLayoutsEditor(props: {
       <aside className="stream-output-preview-column">
         <div className="stream-output-preview-head"><div><small>Prévia da prancha</small><strong>{activeLayout.width} × {activeLayout.height}</strong><em>{activeLayout.sliceCount} fatia(s) · {activeLayout.sliceWidth} × {activeLayout.sliceHeight}</em></div><span>{activeLayout.outputFormat.toUpperCase()}</span></div>
         <div className="stream-output-export-actions">
-          <button type="button" className="stream-primary-btn" disabled={Boolean(exporting)} onClick={() => void exportBoard()}>{exporting === 'board' ? <Loader2 size={13} className="spin" /> : <Download size={13} />} Baixar prancha</button>
-          <button type="button" className="stream-secondary-btn" disabled={Boolean(exporting)} onClick={() => void exportSlices()}>{exporting === 'slices' ? <Loader2 size={13} className="spin" /> : <Download size={13} />} {activeLayout.sliceCount > 1 ? 'Baixar fatias (.zip)' : 'Baixar imagem'}</button>
+          {activeLayout.sliceCount === 1 ? <button type="button" className="stream-primary-btn" disabled={Boolean(exporting)} onClick={() => void exportBoard()}>{exporting === 'board' ? <Loader2 size={13} className="spin" /> : <Download size={13} />} Baixar imagem</button> : <button type="button" className="stream-primary-btn" disabled={Boolean(exporting)} onClick={() => void exportSlices()}>{exporting === 'slices' ? <Loader2 size={13} className="spin" /> : <Download size={13} />} Baixar {activeLayout.sliceCount} imagens (.zip)</button>}
+          {activeLayout.sliceCount > 1 ? <button type="button" className="stream-secondary-btn" disabled={Boolean(exporting)} onClick={() => void exportBoard()}>{exporting === 'board' ? <Loader2 size={13} className="spin" /> : <Download size={13} />} Prévia completa</button> : null}
         </div>
         {exportError ? <p className="stream-output-export-error">{exportError}</p> : null}
         <div className="stream-output-preview-tools">
