@@ -43,6 +43,14 @@ function cellClass(column: string) {
   return 'is-stat'
 }
 
+function cellStyleKey(column: string): 'rank' | 'logo' | 'name' | 'stat' | 'points' {
+  if (column === 'rank') return 'rank'
+  if (column === 'logo' || column === 'map') return 'logo'
+  if (column === 'name' || column === 'nick') return 'name'
+  if (column === 'points') return 'points'
+  return 'stat'
+}
+
 function renderCellValue(column: string, value: CellValue) {
   if (column === 'logo' || column === 'map') {
     const src = String(value || '').trim()
@@ -104,20 +112,20 @@ function TableRenderer(props: {
                 }}
               >
                 {columns.map((column) => {
-                  const roleAsset = column === 'rank'
-                    ? 'table_rank_bg'
-                    : column === 'logo'
-                      ? 'table_logo_bg'
-                      : column === 'name' || column === 'nick'
-                        ? 'table_name_bg'
-                        : column === 'points'
-                          ? 'table_points_bg'
-                          : 'table_stat_bg'
+                  const style = shared.columnStyles[cellStyleKey(column)]
                   return (
                     <div
                       className={`stream-package-render-cell ${cellClass(column)}`}
                       key={column}
-                      style={{ backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, roleAsset, props.outputProfileId)) }}
+                      style={{
+                        backgroundImage: style.assetKey ? cssBackground(resolveStreamAsset(props.pack, props.type, style.assetKey, props.outputProfileId)) : undefined,
+                        color: style.color,
+                        fontFamily: style.fontFamily,
+                        fontSize: style.fontSize,
+                        fontWeight: style.fontWeight,
+                        justifyContent: style.align === 'left' ? 'flex-start' : style.align === 'right' ? 'flex-end' : 'center',
+                        textAlign: style.align,
+                      }}
                     >
                       {renderCellValue(column, item[column])}
                     </div>

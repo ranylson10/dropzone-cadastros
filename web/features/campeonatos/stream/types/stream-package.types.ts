@@ -135,6 +135,18 @@ export type StreamSharedTableConfig = {
   statWidth: number
   pointsWidth: number
   nameAlign: 'left' | 'center' | 'right'
+  columnStyles: Record<StreamTableColumnStyleKey, StreamTableColumnStyle>
+}
+
+export type StreamTableColumnStyleKey = 'rank' | 'logo' | 'name' | 'stat' | 'points'
+
+export type StreamTableColumnStyle = {
+  assetKey: StreamPackageAssetKey | null
+  fontFamily: string
+  fontSize: number
+  fontWeight: number
+  color: string
+  align: 'left' | 'center' | 'right'
 }
 
 export type StreamSharedCardConfig = {
@@ -170,19 +182,19 @@ export const STREAM_TABLE_PRESETS: StreamTablePreset[] = [
     key: 'compact',
     name: 'Compacta',
     description: 'Mais linhas na tela, ideal para rankings longos.',
-    values: { mode: 'single', rowHeight: 58, rowGap: 4, cellGap: 0, panelGap: 48, showHeaders: true, headerHeight: 32, logoWidth: 70, statWidth: 88, pointsWidth: 96, nameAlign: 'left' },
+    values: { mode: 'single', rowHeight: 58, rowGap: 4, cellGap: 0, panelGap: 48, showHeaders: true, headerHeight: 32, logoWidth: 70, statWidth: 88, pointsWidth: 96, nameAlign: 'left', columnStyles: {} as Record<StreamTableColumnStyleKey, StreamTableColumnStyle> },
   },
   {
     key: 'broadcast',
     name: 'Broadcast',
     description: 'Leitura confortável e proporção equilibrada para transmissão.',
-    values: { mode: 'single', rowHeight: 76, rowGap: 6, cellGap: 0, panelGap: 70, showHeaders: true, headerHeight: 38, logoWidth: 90, statWidth: 108, pointsWidth: 118, nameAlign: 'left' },
+    values: { mode: 'single', rowHeight: 76, rowGap: 6, cellGap: 0, panelGap: 70, showHeaders: true, headerHeight: 38, logoWidth: 90, statWidth: 108, pointsWidth: 118, nameAlign: 'left', columnStyles: {} as Record<StreamTableColumnStyleKey, StreamTableColumnStyle> },
   },
   {
     key: 'double',
     name: 'Duas colunas',
     description: 'Distribuição pronta para tabelas com muitas equipes.',
-    values: { mode: 'double', rowHeight: 68, rowGap: 5, cellGap: 0, panelGap: 56, showHeaders: true, headerHeight: 34, logoWidth: 76, statWidth: 92, pointsWidth: 104, nameAlign: 'left' },
+    values: { mode: 'double', rowHeight: 68, rowGap: 5, cellGap: 0, panelGap: 56, showHeaders: true, headerHeight: 34, logoWidth: 76, statWidth: 92, pointsWidth: 104, nameAlign: 'left', columnStyles: {} as Record<StreamTableColumnStyleKey, StreamTableColumnStyle> },
   },
 ]
 
@@ -318,6 +330,13 @@ export const DEFAULT_STREAM_PACKAGE_SHARED_CONFIG: StreamPackageSharedConfig = {
     statWidth: 108,
     pointsWidth: 118,
     nameAlign: 'left',
+    columnStyles: {
+      rank: { assetKey: 'table_rank_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'center' },
+      logo: { assetKey: 'table_logo_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'center' },
+      name: { assetKey: 'table_name_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'left' },
+      stat: { assetKey: 'table_stat_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'center' },
+      points: { assetKey: 'table_points_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'center' },
+    },
   },
   card: {
     width: 360,

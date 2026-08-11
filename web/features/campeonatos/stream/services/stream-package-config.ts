@@ -280,6 +280,12 @@ export function normalizeStreamOverlayPackage(
       table: {
         ...DEFAULT_STREAM_PACKAGE_SHARED_CONFIG.table,
         ...asStreamConfigObject(rawShared.table),
+        columnStyles: Object.fromEntries(
+          Object.entries(DEFAULT_STREAM_PACKAGE_SHARED_CONFIG.table.columnStyles).map(([key, defaults]) => [
+            key,
+            { ...defaults, ...asStreamConfigObject(asStreamConfigObject(rawShared.table).columnStyles)[key] },
+          ]),
+        ) as StreamOverlayPackage['shared_config']['table']['columnStyles'],
       },
       card: {
         ...DEFAULT_STREAM_PACKAGE_SHARED_CONFIG.card,

@@ -31,6 +31,7 @@ import {
   type StreamPackageAssetKey,
   type StreamPackageOutputVariantConfig,
   type StreamSystemOverlayType,
+  type StreamTableColumnStyleKey,
 } from '../types/stream-package.types'
 
 type PreviewBackground = 'transparent' | 'dark' | 'light'
@@ -48,7 +49,7 @@ const EDITOR_PANELS: Array<{ id: EditorPanel; label: string; description: string
 ]
 
 type StreamPackageAssetUsage = 'all' | 'table' | 'cards'
-type PackageInspectorItem = StreamPackageAssetKey | 'event_title' | 'table_block' | 'card_block'
+type PackageInspectorItem = StreamPackageAssetKey | `column_${StreamTableColumnStyleKey}` | 'event_title' | 'table_block' | 'card_block'
 
 type StreamPackageAssetDefinition = {
   key: StreamPackageAssetKey
@@ -221,6 +222,10 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   const activeEnabled = pack.enabled_overlay_types.includes(activeType)
   const enabledCount = pack.enabled_overlay_types.length
   const selectedAsset = PACKAGE_ASSETS.find((asset) => asset.key === selectedInspectorItem)
+  const selectedColumnStyleKey = typeof selectedInspectorItem === 'string' && selectedInspectorItem.startsWith('column_')
+    ? selectedInspectorItem.slice(7) as StreamTableColumnStyleKey
+    : null
+  const selectedColumnStyle = selectedColumnStyleKey ? pack.shared_config.table.columnStyles[selectedColumnStyleKey] : null
 
   useEffect(() => {
     let mounted = true
@@ -835,7 +840,14 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
 
               {activePanel === 'assets' ? (
                 <section className="stream-package-section stream-package-control-card stream-package-properties-card">
-                  {selectedAsset ? (
+                  {selectedColumnStyle && selectedColumnStyleKey ? (
+                    <>
+                      <div className="stream-package-section-title"><div><small>Estilo reutilizável de coluna</small><strong>{selectedColumnStyleKey === 'rank' ? 'Posição' : selectedColumnStyleKey === 'logo' ? 'Logo' : selectedColumnStyleKey === 'name' ? 'Nome' : selectedColumnStyleKey === 'stat' ? 'Estatística' : 'Pontos'}</strong><p>Qualquer overlay que usar este estilo será atualizada.</p></div></div>
+                      <label>Fundo<select value={selectedColumnStyle.assetKey || ''} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, assetKey: (e.target.value || null) as StreamPackageAssetKey | null } } })}><option value="">Sem fundo</option>{PACKAGE_ASSETS.filter((asset) => asset.group === 'Tabelas').map((asset) => <option key={asset.key} value={asset.key}>{asset.label}</option>)}</select></label>
+                      <label>Fonte<input value={selectedColumnStyle.fontFamily} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, fontFamily: e.target.value } } })} /></label>
+                      <div className="stream-package-quad-grid"><label>Tamanho<input type="number" min={8} max={160} value={selectedColumnStyle.fontSize} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, fontSize: Number(e.target.value) || 8 } } })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={selectedColumnStyle.fontWeight} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, fontWeight: Number(e.target.value) || 400 } } })} /></label><label>Cor<input type="color" value={selectedColumnStyle.color} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, color: e.target.value } } })} /></label><label>Alinhamento<select value={selectedColumnStyle.align} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, align: e.target.value as 'left' | 'center' | 'right' } } })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div>
+                    </>
+                  ) : selectedAsset ? (
                     <>
                       <div className="stream-package-section-title"><div><small>Imagem compartilhada</small><strong>{selectedAsset.label}</strong><p>{selectedAsset.description}</p></div></div>
                       <div className="stream-package-inspector-media">{pack.assets[selectedAsset.key] ? <img src={pack.assets[selectedAsset.key]} alt="" /> : <span>Sem imagem</span>}</div>
@@ -1096,6 +1108,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
               <div className="stream-package-elements-head"><strong>Elementos da cena</strong><small>Selecione um bloco para editar.</small></div>
               <div className="stream-package-element-list">
                 <button type="button" className={selectedInspectorItem === 'event_title' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('event_title'); setActivePanel('assets') }}><span>Texto</span><b>Título do campeonato</b></button>
+                {activeMeta.structure === 'table' ? <div className="stream-package-element-group"><small>Colunas de {activeMeta.name}</small>{Array.from(new Set((activeConfig.columns || []).map((column) => column === 'rank' ? 'rank' : column === 'logo' || column === 'map' ? 'logo' : column === 'name' || column === 'nick' ? 'name' : column === 'points' ? 'points' : 'stat'))).map((styleKey) => <button type="button" key={styleKey} className={selectedInspectorItem === `column_${styleKey}` ? 'active' : ''} onClick={() => { setSelectedInspectorItem(`column_${styleKey}` as PackageInspectorItem); setActivePanel('assets') }}><span>Coluna</span><b>{styleKey === 'rank' ? 'Posição' : styleKey === 'logo' ? 'Logo' : styleKey === 'name' ? 'Nome' : styleKey === 'stat' ? 'Estatística' : 'Pontos'}</b></button>)}</div> : null}
                 {(['Identidade', 'Tabelas', 'Cards'] as const).map((group) => (
                   <div className="stream-package-element-group" key={group}>
                     <small>{group}</small>
