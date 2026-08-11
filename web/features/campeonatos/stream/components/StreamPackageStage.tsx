@@ -310,6 +310,7 @@ export function StreamPackageStage(props: {
   contentOnly?: boolean
   animationTest?: 'enter' | 'exit'
   onSceneItemMove?: (id: string, x: number, y: number) => void
+  onLooseMove?: (kind: 'image' | 'text', x: number, y: number) => void
 }) {
   const meta = STREAM_SYSTEM_OVERLAY_META[props.type]
   const layout = STREAM_SYSTEM_OVERLAY_LAYOUTS[props.type]
@@ -324,6 +325,16 @@ export function StreamPackageStage(props: {
   const canvasWidth = Math.max(1, Number(props.canvasWidth || 1920))
   const canvasHeight = Math.max(1, Number(props.canvasHeight || 1080))
   const designScale = Math.min(canvasWidth / 1920, canvasHeight / 1080)
+  const beginLooseDrag = (event: ReactPointerEvent<HTMLElement>, kind: 'image' | 'text', x: number, y: number) => {
+    if (!props.onLooseMove) return
+    event.preventDefault()
+    const root = event.currentTarget.closest('.stream-package-render-root') as HTMLElement | null
+    const scale = root ? 1920 / Math.max(1, root.getBoundingClientRect().width) : 1
+    const startX = event.clientX; const startY = event.clientY
+    const move = (moveEvent: PointerEvent) => props.onLooseMove?.(kind, Math.round(x + (moveEvent.clientX - startX) * scale), Math.round(y + (moveEvent.clientY - startY) * scale))
+    const end = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', end)
+  }
 
   return (
     <div
@@ -356,6 +367,7 @@ export function StreamPackageStage(props: {
             height: looseImage.height,
             objectFit: looseImage.fit,
           }}
+          onPointerDown={(event) => beginLooseDrag(event, 'image', looseImage.x, looseImage.y)}
         />
       ) : null}
       {!props.contentOnly && looseText.show ? (
@@ -371,6 +383,7 @@ export function StreamPackageStage(props: {
             color: looseText.color,
             textAlign: looseText.align,
           }}
+          onPointerDown={(event) => beginLooseDrag(event, 'text', looseText.x, looseText.y)}
         >
           {config.title || meta.name}
         </div>

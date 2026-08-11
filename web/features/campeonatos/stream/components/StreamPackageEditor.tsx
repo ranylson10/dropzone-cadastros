@@ -926,7 +926,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
               {activePanel === 'assets' ? <section className="stream-package-section stream-package-control-card stream-package-gallery-launch"><div className="stream-package-section-title"><div><strong>Artes do projeto</strong><p>Visualize e troque as imagens em um único lugar.</p></div></div><button type="button" className="stream-primary-btn" onClick={() => setShowGallery(true)}>Abrir galeria</button></section> : null}
 
               {activePanel === 'assets' && showGallery ? (
-                <section className="stream-package-section stream-package-control-card">
+                <section className="stream-package-section stream-package-control-card stream-package-gallery-window">
                   <div className="stream-package-section-title"><div><strong>Kit visual compartilhado</strong><p>Envie cada arte uma única vez. O pacote mostra exatamente quais overlays reutilizam o mesmo arquivo.</p></div></div>
                   <div className="stream-package-asset-summary">
                     <span><b>{PACKAGE_ASSETS.filter((asset) => Boolean(pack.assets[asset.key])).length}</b> de {PACKAGE_ASSETS.length} papéis com arte</span>
@@ -943,7 +943,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                           const usedBy = assetUsageOverlays(asset)
                           const activeUsedBy = usedBy.filter((type) => pack.enabled_overlay_types.includes(type))
                           return (
-                            <article className="stream-package-asset stream-package-asset-kit" key={asset.key}>
+                            <article className="stream-package-asset stream-package-asset-kit" key={asset.key} onClick={() => { setSelectedInspectorItem(asset.key); setShowGallery(false) }}>
                               <div className="stream-package-asset-preview">
                                 {pack.assets[asset.key] ? <img src={pack.assets[asset.key]} alt="" /> : <span className="stream-package-asset-empty">Sem imagem</span>}
                               </div>
@@ -1136,6 +1136,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                       outputProfileId={canvasProfileId}
                       animationTest={animationTest}
                       onSceneItemMove={(id, x, y) => patchSceneItem(id, { x, y })}
+                      onLooseMove={(kind, x, y) => kind === 'image' ? patchLooseImage({ x, y }) : patchLooseText({ x, y })}
                     />
                     {showSafeArea ? <div className="stream-package-preview-safe-area" aria-hidden /> : null}
                   </div>
@@ -1146,8 +1147,10 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
               <div className="stream-package-elements-head"><strong>Elementos da cena</strong><small>Selecione um bloco para editar.</small></div>
               <div className="stream-package-element-list">
                 <button type="button" className={selectedInspectorItem === 'event_logo' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('event_logo'); setActivePanel('assets') }}><span>Imagem</span><b>Logo do campeonato</b></button>
+                <button type="button" className="stream-package-element-remove" onClick={() => patchLooseImage({ show: false })}>Remover logo da cena</button>
                 <button type="button" className={selectedInspectorItem === 'event_title' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('event_title'); setActivePanel('assets') }}><span>Texto</span><b>Texto livre</b></button>
-                <div className="stream-package-element-group"><small>Itens adicionados</small><div className="stream-package-add-items"><button type="button" onClick={() => addSceneItem('text')}>+ Texto</button><button type="button" onClick={() => addSceneItem('image')}>+ Imagem</button><button type="button" onClick={() => addSceneItem('timer')}>+ Cronômetro</button><button type="button" onClick={() => addSceneItem('round_counter')}>+ Quedas</button></div>{(activeConfig.sceneItems || []).map((item) => <button type="button" key={item.id} className={selectedInspectorItem === `scene_${item.id}` ? 'active' : ''} onClick={() => { setSelectedInspectorItem(`scene_${item.id}`); setActivePanel('assets') }}><span>{item.type === 'image' ? 'Imagem' : item.type === 'round_counter' ? 'Quedas' : item.type === 'timer' ? 'Timer' : 'Texto'}</span><b>{item.type === 'text' || item.type === 'timer' ? (item.text || 'Texto livre') : item.type === 'image' ? 'Imagem livre' : 'Contador de quedas'}</b></button>)}</div>
+                <button type="button" className="stream-package-element-remove" onClick={() => patchLooseText({ show: false })}>Remover texto da cena</button>
+                <div className="stream-package-element-group"><small>Itens adicionados</small><div className="stream-package-add-items"><button type="button" onClick={() => addSceneItem('text')}>+ Texto</button><button type="button" onClick={() => addSceneItem('image')}>+ Imagem</button><button type="button" onClick={() => addSceneItem('timer')}>+ Cronômetro</button><button type="button" onClick={() => addSceneItem('round_counter')}>+ Quedas</button></div>{(activeConfig.sceneItems || []).map((item) => <div className="stream-package-item-row" key={item.id}><button type="button" className={selectedInspectorItem === `scene_${item.id}` ? 'active' : ''} onClick={() => { setSelectedInspectorItem(`scene_${item.id}`); setActivePanel('assets') }}><span>{item.type === 'image' ? 'Imagem' : item.type === 'round_counter' ? 'Quedas' : item.type === 'timer' ? 'Timer' : 'Texto'}</span><b>{item.type === 'text' || item.type === 'timer' ? (item.text || 'Texto livre') : item.type === 'image' ? 'Imagem livre' : 'Contador de quedas'}</b></button><button type="button" className="stream-package-element-remove" onClick={() => removeSceneItem(item.id)}>×</button></div>)}</div>
                 {activeMeta.structure === 'table' ? <div className="stream-package-element-group"><small>Tabela</small><button type="button" className={selectedInspectorItem === 'table_block' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('table_block'); setActivePanel('assets') }}><span>Bloco</span><b>Posição da tabela</b></button><button type="button" className={selectedInspectorItem === 'table_row' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('table_row'); setActivePanel('assets') }}><span>Linha</span><b>Linha</b></button><button type="button" className={selectedInspectorItem === 'table_header' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('table_header'); setActivePanel('assets') }}><span>Legenda</span><b>Legenda da tabela</b></button><small>Colunas de {activeMeta.name}</small>{(activeConfig.columns || []).map((styleKey) => <button type="button" key={styleKey} className={selectedInspectorItem === `column_${styleKey}` ? 'active' : ''} onClick={() => { setSelectedInspectorItem(`column_${styleKey}` as PackageInspectorItem); setActivePanel('assets') }}><span>Coluna</span><b>{STREAM_OVERLAY_COLUMN_META[styleKey]?.label || styleKey}</b></button>)}</div> : null}
               </div>
             </aside>
