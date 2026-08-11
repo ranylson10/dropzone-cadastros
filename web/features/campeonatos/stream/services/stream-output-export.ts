@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase-browser'
+
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -12,8 +14,14 @@ async function blobToDataUrl(blob: Blob) {
 }
 
 async function fetchAsDataUrl(url: string) {
-  if (!url || url.startsWith('data:') || url.startsWith('blob:')) return url
-  const response = await fetch(url, { mode: 'cors', credentials: 'omit' })
+  if (!url || url.startsWith('data:')) return url
+  if (url.startsWith('blob:')) return blobToDataUrl(await (await fetch(url)).blob())
+  const { data } = await supabase.auth.getSession()
+  const response = await fetch('/api/stream/image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}) },
+    body: JSON.stringify({ url }),
+  })
   if (!response.ok) throw new Error(`Não foi possível carregar um recurso visual (${response.status}).`)
   return blobToDataUrl(await response.blob())
 }
@@ -57,6 +65,20 @@ async function cloneWithComputedStyles(source: HTMLElement) {
   return clone
 }
 
+async function embedRemainingImageUrls(html: string) {
+  const urls = Array.from(new Set(html.match(/https?:\/\/[^\s"')<>]+/g) || []))
+  let output = html
+  for (const url of urls) {
+    if (url.includes('www.w3.org/')) continue
+    try {
+      output = output.split(url).join(await fetchAsDataUrl(url))
+    } catch {
+      throw new Error('Uma imagem da prancha não pôde ser preparada para exportação. Verifique a arte e tente novamente.')
+    }
+  }
+  return output
+}
+
 async function waitForExportAreas(root: HTMLElement) {
   const startedAt = Date.now()
   while (Date.now() - startedAt < 30000) {
@@ -80,7 +102,8 @@ export async function renderStreamOutputElement(root: HTMLElement, width: number
   await sleep(60)
 
   const clone = await cloneWithComputedStyles(root)
-  const svg = svgFromHtml(new XMLSerializer().serializeToString(clone), width, height)
+  const serializedClone = await embedRemainingImageUrls(new XMLSerializer().serializeToString(clone))
+  const svg = svgFromHtml(serializedClone, width, height)
   const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
   const url = URL.createObjectURL(svgBlob)
 
