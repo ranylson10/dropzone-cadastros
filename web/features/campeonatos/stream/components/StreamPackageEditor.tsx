@@ -48,6 +48,7 @@ const EDITOR_PANELS: Array<{ id: EditorPanel; label: string; description: string
 ]
 
 type StreamPackageAssetUsage = 'all' | 'table' | 'cards'
+type PackageInspectorItem = StreamPackageAssetKey | 'event_title' | 'table_block' | 'card_block'
 
 type StreamPackageAssetDefinition = {
   key: StreamPackageAssetKey
@@ -96,7 +97,8 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   const [pack, setPack] = useState<StreamOverlayPackage>(() => normalizeStreamOverlayPackage(props.campeonatoId, {}))
   const [activeType, setActiveType] = useState<StreamSystemOverlayType>('standings_general')
   const [workspaceMode, setWorkspaceMode] = useState<'overlays' | 'outputs'>('overlays')
-  const [activePanel, setActivePanel] = useState<EditorPanel>('scene')
+  const [activePanel, setActivePanel] = useState<EditorPanel>('assets')
+  const [selectedInspectorItem, setSelectedInspectorItem] = useState<PackageInspectorItem>('event_logo')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState<StreamPackageAssetKey | null>(null)
@@ -218,6 +220,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   const structureOverrideCount = Object.values(activeStructure as Record<string, object | undefined>).reduce<number>((total, section) => total + Object.keys(section || {}).length, 0)
   const activeEnabled = pack.enabled_overlay_types.includes(activeType)
   const enabledCount = pack.enabled_overlay_types.length
+  const selectedAsset = PACKAGE_ASSETS.find((asset) => asset.key === selectedInspectorItem)
 
   useEffect(() => {
     let mounted = true
@@ -831,6 +834,41 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
               ) : null}
 
               {activePanel === 'assets' ? (
+                <section className="stream-package-section stream-package-control-card stream-package-properties-card">
+                  {selectedAsset ? (
+                    <>
+                      <div className="stream-package-section-title"><div><small>Imagem compartilhada</small><strong>{selectedAsset.label}</strong><p>{selectedAsset.description}</p></div></div>
+                      <div className="stream-package-inspector-media">{pack.assets[selectedAsset.key] ? <img src={pack.assets[selectedAsset.key]} alt="" /> : <span>Sem imagem</span>}</div>
+                      <label className="stream-primary-btn stream-package-inspector-upload">
+                        {uploading === selectedAsset.key ? <Loader2 className="spin" size={15} /> : <ImagePlus size={15} />}
+                        {pack.assets[selectedAsset.key] ? 'Trocar imagem' : 'Adicionar imagem'}
+                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void uploadAsset(selectedAsset.key, event.target.files?.[0])} />
+                      </label>
+                      {pack.assets[selectedAsset.key] ? <button type="button" className="stream-package-link-btn" onClick={() => removeAsset(selectedAsset.key)}>Remover imagem</button> : null}
+                      <div className="stream-package-shared-note">Esta arte é compartilhada por {assetUsageOverlays(selectedAsset).length} overlays.</div>
+                    </>
+                  ) : selectedInspectorItem === 'event_title' ? (
+                    <>
+                      <div className="stream-package-section-title"><div><small>Texto compartilhado</small><strong>Título do campeonato</strong><p>Fonte, cor, tamanho e posição.</p></div></div>
+                      <label>Nome do evento<input value={pack.shared_config.identity.eventName} onChange={(e) => patchIdentity({ eventName: e.target.value })} /></label>
+                      <label>Fonte<input value={pack.shared_config.identity.fontFamily} onChange={(e) => patchIdentity({ fontFamily: e.target.value })} /></label>
+                      <div className="stream-package-quad-grid"><label>Posição X<input type="number" value={pack.shared_config.looseText.x} onChange={(e) => patchLooseText({ x: Number(e.target.value) || 0 })} /></label><label>Posição Y<input type="number" value={pack.shared_config.looseText.y} onChange={(e) => patchLooseText({ y: Number(e.target.value) || 0 })} /></label><label>Tamanho<input type="number" min={8} max={240} value={pack.shared_config.looseText.fontSize} onChange={(e) => patchLooseText({ fontSize: Number(e.target.value) || 8 })} /></label><label>Cor<input type="color" value={pack.shared_config.looseText.color} onChange={(e) => patchLooseText({ color: e.target.value })} /></label></div>
+                    </>
+                  ) : selectedInspectorItem === 'table_block' ? (
+                    <>
+                      <div className="stream-package-section-title"><div><small>Bloco compartilhado</small><strong>Tabela</strong><p>Medidas principais das linhas e colunas.</p></div></div>
+                      <div className="stream-package-quad-grid"><label>Altura da linha<input type="number" min={30} max={180} value={pack.shared_config.table.rowHeight} onChange={(e) => patchTable({ rowHeight: Number(e.target.value) || 76 })} /></label><label>Gap das linhas<input type="number" min={0} max={80} value={pack.shared_config.table.rowGap} onChange={(e) => patchTable({ rowGap: Number(e.target.value) || 0 })} /></label><label>Largura da logo<input type="number" min={50} max={220} value={pack.shared_config.table.logoWidth} onChange={(e) => patchTable({ logoWidth: Number(e.target.value) || 90 })} /></label><label>Coluna de pontos<input type="number" min={60} max={260} value={pack.shared_config.table.pointsWidth} onChange={(e) => patchTable({ pointsWidth: Number(e.target.value) || 118 })} /></label></div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="stream-package-section-title"><div><small>Bloco compartilhado</small><strong>Cards</strong><p>Medidas e distribuição dos cards.</p></div></div>
+                      <div className="stream-package-quad-grid"><label>Largura<input type="number" min={120} max={900} value={pack.shared_config.card.width} onChange={(e) => patchCard({ width: Number(e.target.value) || 360 })} /></label><label>Altura<input type="number" min={120} max={1000} value={pack.shared_config.card.height} onChange={(e) => patchCard({ height: Number(e.target.value) || 470 })} /></label><label>Colunas<input type="number" min={1} max={8} value={pack.shared_config.card.columns} onChange={(e) => patchCard({ columns: Math.max(1, Math.min(8, Number(e.target.value) || 1)) })} /></label><label>Espaço<input type="number" min={0} max={100} value={pack.shared_config.card.gap} onChange={(e) => patchCard({ gap: Number(e.target.value) || 0 })} /></label></div>
+                    </>
+                  )}
+                </section>
+              ) : null}
+
+              {false ? (
                 <section className="stream-package-section stream-package-control-card">
                   <div className="stream-package-section-title"><div><strong>Kit visual compartilhado</strong><p>Envie cada arte uma única vez. O pacote mostra exatamente quais overlays reutilizam o mesmo arquivo.</p></div></div>
                   <div className="stream-package-asset-summary">
@@ -1053,6 +1091,21 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                   <span>{canvasProfile.width} × {canvasProfile.height} · {canvasProfile.kind === 'stream' ? 'Stream' : canvasProfile.kind === 'social' ? 'Social' : 'PNG transparente'}</span>
                 </div>
               </section>
+            </aside>
+            <aside className="stream-package-elements">
+              <div className="stream-package-elements-head"><strong>Elementos da cena</strong><small>Selecione um bloco para editar.</small></div>
+              <div className="stream-package-element-list">
+                <button type="button" className={selectedInspectorItem === 'event_title' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('event_title'); setActivePanel('assets') }}><span>Texto</span><b>Título do campeonato</b></button>
+                {(['Identidade', 'Tabelas', 'Cards'] as const).map((group) => (
+                  <div className="stream-package-element-group" key={group}>
+                    <small>{group}</small>
+                    {PACKAGE_ASSETS.filter((asset) => asset.group === group).map((asset) => (
+                      <button type="button" key={asset.key} className={selectedInspectorItem === asset.key ? 'active' : ''} onClick={() => { setSelectedInspectorItem(asset.key); setActivePanel('assets') }}><span>Imagem</span><b>{asset.label}</b></button>
+                    ))}
+                  </div>
+                ))}
+                <div className="stream-package-element-group"><small>Blocos</small><button type="button" className={selectedInspectorItem === 'table_block' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('table_block'); setActivePanel('assets') }}><span>Layout</span><b>Tabela</b></button><button type="button" className={selectedInspectorItem === 'card_block' ? 'active' : ''} onClick={() => { setSelectedInspectorItem('card_block'); setActivePanel('assets') }}><span>Layout</span><b>Cards</b></button></div>
+              </div>
             </aside>
           </div>
         </main>
