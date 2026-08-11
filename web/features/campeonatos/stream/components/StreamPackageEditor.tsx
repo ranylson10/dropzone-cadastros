@@ -38,10 +38,10 @@ type PreviewBackground = 'transparent' | 'dark' | 'light'
 type EditorPanel = 'scene' | 'identity' | 'layout' | 'assets' | 'tables' | 'cards' | 'animation'
 
 const EDITOR_PANELS: Array<{ id: EditorPanel; label: string; description: string }> = [
-  { id: 'scene', label: 'Cena atual', description: 'Ajustes exclusivos da overlay selecionada.' },
+  { id: 'assets', label: 'Artes do pacote', description: 'Envie as artes que o pacote reutiliza nas overlays.' },
+  { id: 'scene', label: 'Cena selecionada', description: 'Conteúdo e exceções apenas desta overlay.' },
   { id: 'identity', label: 'Identidade', description: 'Logo, título, cores e tipografia usadas pelo pacote inteiro.' },
   { id: 'layout', label: 'Layout', description: 'Posição e escala do bloco principal, compartilhadas por todos os perfis.' },
-  { id: 'assets', label: 'Kit visual', description: 'Arquivos compartilhados do pacote e onde cada um é reutilizado.' },
   { id: 'tables', label: 'Tabelas', description: 'Uma configuração visual para todas as tabelas.' },
   { id: 'cards', label: 'Cards', description: 'Uma configuração visual para todos os cards.' },
   { id: 'animation', label: 'Animação', description: 'Entrada e ritmo compartilhados pelo pacote.' },
@@ -645,7 +645,20 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                     </div>
                   ) : null}
 
-                  <div className="stream-package-scene-structure">
+                  <div className="stream-package-kit-callout">
+                    <div>
+                      <b>Artes e fundos são compartilhados</b>
+                      <small>Logo do campeonato, fundos de linha e cards são enviados uma vez e reaproveitados automaticamente.</small>
+                    </div>
+                    <button type="button" className="stream-secondary-btn" onClick={() => setActivePanel('assets')}>Abrir artes do pacote</button>
+                  </div>
+
+                  <details className="stream-package-advanced-section stream-package-scene-structure">
+                    <summary>
+                      <span><b>Imagem e título desta cena</b><small>Logo e título herdam o padrão do pacote. Abra apenas se precisar de uma exceção.</small></span>
+                      <em>{looseOverrideCount ? `${looseOverrideCount} ajustes ativos` : 'Opcional'}</em>
+                    </summary>
+                    <div className="stream-package-advanced-section-body">
                     <div className="stream-package-scene-assets-head">
                       <div><b>Imagem e título soltos</b><small>Logo e título herdam posição e estilo do pacote. Abra exceção apenas para esta cena quando necessário.</small></div>
                       <span>{looseOverrideCount} ajustes</span>
@@ -676,9 +689,15 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                         <label>Alinhamento<select value={activeLooseText.align} onChange={(e) => patchActiveLoose('text', { align: e.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label>
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </details>
 
-                  <div className="stream-package-scene-structure">
+                  <details className="stream-package-advanced-section stream-package-scene-structure">
+                    <summary>
+                      <span><b>Ajustes de layout desta cena</b><small>Use apenas se esta overlay precisar fugir do padrão do pacote.</small></span>
+                      <em>{structureOverrideCount ? `${structureOverrideCount} ajustes ativos` : 'Opcional'}</em>
+                    </summary>
+                    <div className="stream-package-advanced-section-body">
                     <div className="stream-package-scene-assets-head">
                       <div><b>Exceções estruturais</b><small>Posição, tabela e cards herdam o pacote. Altere somente o campo que esta overlay realmente precisa.</small></div>
                       <span>{structureOverrideCount} ajustes</span>
@@ -717,9 +736,15 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                         </div>
                       </div>
                     ) : null}
-                  </div>
+                    </div>
+                  </details>
 
-                  <div className="stream-package-scene-assets">
+                  <details className="stream-package-advanced-section stream-package-scene-assets">
+                    <summary>
+                      <span><b>Usar uma arte diferente nesta cena</b><small>Por padrão, todas as artes vêm do kit visual compartilhado.</small></span>
+                      <em>{Object.keys(activeAssetOverrides).length ? `${Object.keys(activeAssetOverrides).length} exceções ativas` : 'Opcional'}</em>
+                    </summary>
+                    <div className="stream-package-advanced-section-body">
                     <div className="stream-package-scene-assets-head">
                       <div><b>Exceções do kit visual</b><small>Por padrão esta overlay herda os mesmos arquivos do pacote. Crie exceção somente quando esta cena realmente precisar de uma arte diferente.</small></div>
                       <span>{Object.keys(activeAssetOverrides).length} exceções</span>
@@ -746,7 +771,8 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                         )
                       })}
                     </div>
-                  </div>
+                    </div>
+                  </details>
                 </section>
               ) : null}
 
