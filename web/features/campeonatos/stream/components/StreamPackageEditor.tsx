@@ -110,6 +110,8 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   const [renderDataLoading, setRenderDataLoading] = useState(false)
   const [renderDataError, setRenderDataError] = useState('')
   const [renderDataVersion, setRenderDataVersion] = useState(0)
+  const [animationTest, setAnimationTest] = useState<'enter' | 'exit' | undefined>()
+  const [packageToken, setPackageToken] = useState('')
   const [canvasProfileId, setCanvasProfileId] = useState<StreamOutputProfileId>('live-hd')
   const [previewBackground, setPreviewBackground] = useState<PreviewBackground>('transparent')
   const [showGrid, setShowGrid] = useState(false)
@@ -439,6 +441,24 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
 
   function patchAnimation(patch: Partial<StreamOverlayPackage['shared_config']['animation']>) {
     setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, animation: { ...prev.shared_config.animation, ...patch } } }))
+  }
+
+  function generatePackageToken() {
+    const payload = { version: 1, pack: { ...pack, campeonato_id: undefined, updated_at: undefined } }
+    const token = `DZOP1.${btoa(unescape(encodeURIComponent(JSON.stringify(payload))))}`
+    setPackageToken(token)
+    void navigator.clipboard?.writeText(token)
+    setFeedback('Chave do pacote copiada. Cole-a na nova live para criar uma cópia independente.')
+  }
+
+  function importPackageToken() {
+    try {
+      const encoded = packageToken.trim().replace(/^DZOP1\./, '')
+      const parsed = JSON.parse(decodeURIComponent(escape(atob(encoded))))
+      if (!parsed?.pack) throw new Error('Chave inválida.')
+      setPack(normalizeStreamOverlayPackage(props.campeonatoId, { ...parsed.pack, campeonato_id: props.campeonatoId }))
+      setFeedback('Pacote importado como cópia independente. Salve para aplicar nesta live.')
+    } catch { setFeedback('Não foi possível ler essa chave de pacote.') }
   }
 
   function applyTablePreset(preset: (typeof STREAM_TABLE_PRESETS)[number]) {
@@ -894,7 +914,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                 </section>
               ) : null}
 
-              {false ? (
+              {activePanel === 'assets' ? (
                 <section className="stream-package-section stream-package-control-card">
                   <div className="stream-package-section-title"><div><strong>Kit visual compartilhado</strong><p>Envie cada arte uma única vez. O pacote mostra exatamente quais overlays reutilizam o mesmo arquivo.</p></div></div>
                   <div className="stream-package-asset-summary">
@@ -1027,13 +1047,17 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                 <section className="stream-package-section stream-package-control-card">
                   <div className="stream-package-section-title"><div><strong>Animação compartilhada</strong><p>Um único comportamento de entrada mantém o pacote visualmente consistente.</p></div></div>
                   <label>Entrada
-                    <select value={pack.shared_config.animation.enter} onChange={(e) => patchAnimation({ enter: e.target.value as 'none' | 'fade' | 'slide' })}>
-                      <option value="none">Sem animação</option><option value="fade">Fade</option><option value="slide">Slide</option>
+                    <select value={pack.shared_config.animation.enter} onChange={(e) => patchAnimation({ enter: e.target.value as StreamOverlayPackage['shared_config']['animation']['enter'] })}>
+                      <option value="none">Sem animação</option><option value="fade">Fade</option><option value="slide">Slide</option><option value="slide-left">Slide esquerda</option><option value="slide-right">Slide direita</option><option value="rise">Subir</option><option value="drop">Descer</option><option value="zoom">Zoom</option><option value="bounce">Bounce</option><option value="flip">Flip</option><option value="blur">Desfoque</option>
                     </select>
                   </label>
+                  <label>Saída<select value={pack.shared_config.animation.exit || 'fade'} onChange={(e) => patchAnimation({ exit: e.target.value as StreamOverlayPackage['shared_config']['animation']['enter'] })}><option value="none">Sem animação</option><option value="fade">Fade</option><option value="slide">Slide</option><option value="slide-left">Slide esquerda</option><option value="slide-right">Slide direita</option><option value="rise">Subir</option><option value="drop">Descer</option><option value="zoom">Zoom</option><option value="bounce">Bounce</option><option value="flip">Flip</option><option value="blur">Desfoque</option></select></label>
                   <label>Duração (ms)<input type="number" min={0} max={5000} value={pack.shared_config.animation.durationMs} onChange={(e) => patchAnimation({ durationMs: Number(e.target.value) || 0 })} /></label>
+                  <label>Delay (ms)<input type="number" min={0} max={5000} value={pack.shared_config.animation.delayMs || 0} onChange={(e) => patchAnimation({ delayMs: Number(e.target.value) || 0 })} /></label>
                   <label>Distância do slide<input type="number" min={0} max={1000} value={pack.shared_config.animation.distancePx} onChange={(e) => patchAnimation({ distancePx: Number(e.target.value) || 0 })} /></label>
                   <label>Atraso entre itens (ms)<input type="number" min={0} max={1000} value={pack.shared_config.animation.staggerMs} onChange={(e) => patchAnimation({ staggerMs: Number(e.target.value) || 0 })} /></label>
+                  <div className="stream-package-preview-toolgroup"><button type="button" onClick={() => { setAnimationTest('enter'); setTimeout(() => setAnimationTest(undefined), (pack.shared_config.animation.durationMs || 0) + (pack.shared_config.animation.delayMs || 0) + 80) }}>Testar entrada</button><button type="button" onClick={() => { setAnimationTest('exit'); setTimeout(() => setAnimationTest(undefined), (pack.shared_config.animation.durationMs || 0) + (pack.shared_config.animation.delayMs || 0) + 80) }}>Testar saída</button></div>
+                  <div className="stream-package-property-group"><b>Chave do pacote</b><p>Copie a configuração para outra live sem criar vínculo com a origem.</p><button type="button" className="stream-secondary-btn" onClick={generatePackageToken}>Gerar e copiar chave</button><label>Importar chave<textarea value={packageToken} onChange={(e) => setPackageToken(e.target.value)} rows={3} /></label><button type="button" className="stream-primary-btn" onClick={importPackageToken}>Importar pacote</button></div>
                 </section>
               ) : null}
             </div>
@@ -1099,6 +1123,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                       canvasWidth={canvasProfile.width}
                       canvasHeight={canvasProfile.height}
                       outputProfileId={canvasProfileId}
+                      animationTest={animationTest}
                     />
                     {showSafeArea ? <div className="stream-package-preview-safe-area" aria-hidden /> : null}
                   </div>

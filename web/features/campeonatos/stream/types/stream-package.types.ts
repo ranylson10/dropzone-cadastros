@@ -236,9 +236,13 @@ export const STREAM_CARD_PRESETS: StreamCardPreset[] = [
   },
 ]
 
+export type StreamAnimationKind = 'none' | 'fade' | 'slide' | 'slide-left' | 'slide-right' | 'rise' | 'drop' | 'zoom' | 'bounce' | 'flip' | 'blur'
+
 export type StreamSharedAnimationConfig = {
-  enter: 'none' | 'fade' | 'slide'
+  enter: StreamAnimationKind
+  exit?: StreamAnimationKind
   durationMs: number
+  delayMs?: number
   distancePx: number
   staggerMs: number
 }
@@ -407,7 +411,9 @@ export const DEFAULT_STREAM_PACKAGE_SHARED_CONFIG: StreamPackageSharedConfig = {
   },
   animation: {
     enter: 'slide',
+    exit: 'fade',
     durationMs: 650,
+    delayMs: 0,
     distancePx: 160,
     staggerMs: 70,
   },

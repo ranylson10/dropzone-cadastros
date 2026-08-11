@@ -62,13 +62,14 @@ function TableRenderer(props: {
   data: StreamPackageRenderData
   outputProfileId?: StreamOutputProfileId
   contentOnly?: boolean
+  animationTest?: 'enter' | 'exit'
 }) {
   const config = resolveStreamOverlayConfig(props.pack, props.type, props.outputProfileId)
   const columns = (config.columns || []).filter((column) => STREAM_OVERLAY_COLUMN_META[column])
   const maxItems = Math.max(1, Number(config.maxItems || props.data.items.length || 1))
   const items = props.data.items.slice(0, maxItems)
   const shared = resolveStreamTableConfig(props.pack, props.type, props.outputProfileId)
-  const mode = config.tableMode || shared.mode
+  const mode = props.contentOnly ? 'single' : (config.tableMode || shared.mode)
   const panels = splitItems(items, mode)
 
   return (
@@ -297,6 +298,7 @@ export function StreamPackageStage(props: {
   canvasHeight?: number
   outputProfileId?: StreamOutputProfileId
   contentOnly?: boolean
+  animationTest?: 'enter' | 'exit'
 }) {
   const meta = STREAM_SYSTEM_OVERLAY_META[props.type]
   const layout = STREAM_SYSTEM_OVERLAY_LAYOUTS[props.type]
@@ -314,7 +316,7 @@ export function StreamPackageStage(props: {
 
   return (
     <div
-      className={`stream-package-render-root overlay-${props.type} fx-${animation.enter}${props.preview ? ' is-preview' : ''}`}
+      className={`stream-package-render-root overlay-${props.type} fx-${props.animationTest === 'exit' ? (animation.exit || 'fade') : animation.enter}${props.preview ? ' is-preview' : ''}`}
       style={{
         width: canvasWidth,
         height: canvasHeight,
@@ -322,6 +324,7 @@ export function StreamPackageStage(props: {
         '--stream-package-secondary': props.pack.shared_config.identity.secondaryColor,
         '--stream-package-font': props.pack.shared_config.identity.fontFamily,
         '--stream-package-enter-ms': `${animation.durationMs}ms`,
+        '--stream-package-enter-delay': `${animation.delayMs || 0}ms`,
         '--stream-package-enter-px': `${animation.distancePx}px`,
       } as CSSProperties}
     >
@@ -364,19 +367,19 @@ export function StreamPackageStage(props: {
       {!props.contentOnly ? <SceneItemsRenderer items={config.sceneItems} /> : null}
 
       <div
-        className={`stream-package-render-content structure-${meta.structure} variant-${layout.variant}`}
+        className={`stream-package-render-content structure-${meta.structure} variant-${layout.variant}${props.contentOnly ? ' is-content-only' : ''}`}
         style={{
-          left: layout.content.x + sharedLayout.offsetX,
-          top: layout.content.y + sharedLayout.offsetY,
-          width: layout.content.width * sharedLayout.widthScale,
-          height: layout.content.height * sharedLayout.heightScale,
+          left: props.contentOnly ? 0 : layout.content.x + sharedLayout.offsetX,
+          top: props.contentOnly ? 0 : layout.content.y + sharedLayout.offsetY,
+          width: props.contentOnly ? 1920 : layout.content.width * sharedLayout.widthScale,
+          height: props.contentOnly ? 1080 : layout.content.height * sharedLayout.heightScale,
         }}
       >
         {!props.data.items.length ? (
           <div className="stream-package-render-empty">{props.data.emptyMessage || 'Sem dados disponíveis para esta overlay.'}</div>
         ) : null}
         {props.data.items.length && props.type === 'mvp_general' ? <MvpGeneralRenderer pack={props.pack} data={props.data} outputProfileId={outputProfileId} /> : null}
-        {props.data.items.length && meta.structure === 'table' && props.type !== 'mvp_general' ? <TableRenderer pack={props.pack} type={props.type} data={props.data} outputProfileId={outputProfileId} /> : null}
+        {props.data.items.length && meta.structure === 'table' && props.type !== 'mvp_general' ? <TableRenderer pack={props.pack} type={props.type} data={props.data} outputProfileId={outputProfileId} contentOnly={props.contentOnly} /> : null}
         {props.data.items.length && meta.structure === 'cards' ? <CardRenderer pack={props.pack} type={props.type} data={props.data} outputProfileId={outputProfileId} /> : null}
         {props.data.items.length && meta.structure === 'hero' ? <HeroRenderer pack={props.pack} type={props.type} data={props.data} /> : null}
       </div>
