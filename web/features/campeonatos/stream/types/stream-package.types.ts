@@ -164,6 +164,10 @@ export type StreamTableColumnStyle = {
   borderRadius: number
   paddingX?: number
   paddingY?: number
+  opacity?: number
+  verticalAlign?: 'top' | 'center' | 'bottom'
+  offsetX?: number
+  offsetY?: number
 }
 
 export type StreamSharedCardConfig = {
