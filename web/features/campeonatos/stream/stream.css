@@ -3408,6 +3408,17 @@ body.stream-editor-scroll-lock {
 .stream-output-slice-label.is-active{background:#0891b2;box-shadow:0 0 0 2px rgba(34,211,238,.3)}
 @media (max-width:860px){.stream-output-preview-tools label{margin-left:0}.stream-output-preview-tools{flex-wrap:nowrap}}
 
+/* 89H — ferramentas locais da postagem, sem tocar no pacote de live */
+.stream-output-local-editor{display:grid;gap:10px;padding-top:10px;border-top:1px solid #d8d1c6}
+.stream-output-local-editor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.stream-output-local-editor-head>div{display:grid;gap:2px}.stream-output-local-editor-head strong{font-size:11px;text-transform:uppercase}.stream-output-local-editor-head small{font-size:9px;color:#667085}
+.stream-output-local-editor-head>button{border:0;background:transparent;padding:2px 0;color:#667085;text-decoration:underline;font-size:9px;cursor:pointer}
+.stream-output-inspector-list{display:flex;flex-wrap:wrap;gap:5px}.stream-output-inspector-list button,.stream-output-add-elements button{min-height:27px;border:1px solid #d8d1c6;background:#fff;padding:4px 7px;color:#334155;font-size:9px;font-weight:800;cursor:pointer}
+.stream-output-inspector-list button.active{background:#1f252e;border-color:#1f252e;color:#fff}
+.stream-output-add-elements{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:6px;border:1px dashed #d0c7bb}
+.stream-output-scene-item-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.stream-output-scene-item-head button{display:grid;place-items:center;width:27px;height:27px;border:1px solid #fca5a5;background:#fff;color:#b91c1c;cursor:pointer}
+.stream-output-column-toggles{display:flex;flex-wrap:wrap;gap:5px}.stream-output-column-toggles label{display:flex!important;align-items:center;gap:4px;border:1px solid #d8d1c6;background:#fff;padding:4px 6px;font-size:9px!important;color:#334155!important}.stream-output-column-toggles input{min-height:0!important;width:13px;height:13px;padding:0!important}
+
 /* 89G — exportação final em resolução real da prancha e das fatias */
 .stream-output-export-actions{display:flex;gap:7px;flex-wrap:wrap}
 .stream-output-export-actions button{justify-content:center;min-height:34px}

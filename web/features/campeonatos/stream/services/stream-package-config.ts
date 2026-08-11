@@ -96,6 +96,7 @@ export function normalizeStreamOutputLayouts(raw: unknown): StreamOutputLayout[]
         const profileIdRaw = String(row.profileId || 'live-hd')
         const dataStart = Math.max(1, Math.min(999, Math.round(Number(row.dataStart) || 1)))
         const dataEnd = Math.max(dataStart, Math.min(999, Math.round(Number(row.dataEnd) || dataStart)))
+        const overrides = normalizeVariantConfig(row.overrides)
         return {
           id: String(row.id || `area-${areaIndex + 1}`).slice(0, 120),
           overlayType: (allowedTypes.has(overlayTypeRaw) ? overlayTypeRaw : 'standings_general') as StreamOutputLayout['areas'][number]['overlayType'],
@@ -110,6 +111,7 @@ export function normalizeStreamOutputLayouts(raw: unknown): StreamOutputLayout[]
           visible: row.visible !== false,
           contentMode: row.contentMode === 'clean' ? 'clean' : 'full',
           lockAspect: row.lockAspect === true,
+          ...(Object.keys(overrides).length ? { overrides } : {}),
         }
       }),
     }
@@ -152,7 +154,7 @@ function normalizeVariantConfig(raw: unknown): StreamPackageOutputVariantConfig 
     ...(title !== undefined ? { title } : {}),
     ...(Object.keys(columnLabels).length ? { columnLabels } : {}),
     ...(hiddenHeaders?.length ? { hiddenHeaders } : {}),
-    ...(sceneItems?.length ? { sceneItems } : {}),
+    ...(sceneItems ? { sceneItems } : {}),
     ...(Object.keys(assetOverrides).length ? { assetOverrides } : {}),
     ...(Object.keys(structureOverrides).length ? {
       structureOverrides: {

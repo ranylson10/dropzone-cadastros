@@ -47,6 +47,8 @@ export type StreamOutputArea = {
   visible: boolean
   contentMode: StreamOutputAreaContentMode
   lockAspect: boolean
+  /** Ajustes exclusivos desta área de postagem. Nunca alteram a overlay da live. */
+  overrides?: StreamPackageOutputVariantConfig
 }
 
 export type StreamOutputLayout = {

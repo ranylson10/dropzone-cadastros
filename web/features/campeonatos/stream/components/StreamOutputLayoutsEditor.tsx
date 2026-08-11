@@ -6,6 +6,7 @@ import JSZip from 'jszip'
 import { StreamPackageStage } from './StreamPackageStage'
 import { loadStreamPackageRenderData } from '../services/stream-package-data.service'
 import { renderStreamOutputCanvas } from '../services/stream-output-canvas-renderer'
+import { resolveStreamLooseImageConfig, resolveStreamLooseTextConfig, resolveStreamOverlayConfig, resolveStreamTableConfig } from '../services/stream-package-config'
 import { uploadPublicFile } from '@/lib/upload-public'
 import {
   cropStreamOutputCanvas,
@@ -15,12 +16,17 @@ import {
 } from '../services/stream-output-export'
 import {
   STREAM_OUTPUT_PROFILES,
+  STREAM_OVERLAY_COLUMN_META,
   STREAM_SYSTEM_OVERLAY_META,
   STREAM_SYSTEM_OVERLAYS,
   type StreamOutputArea,
   type StreamOutputLayout,
   type StreamOverlayPackage,
+  type StreamPackageAssetKey,
+  type StreamPackageOutputVariantConfig,
   type StreamPackageRenderData,
+  type StreamSceneItem,
+  type StreamTableColumnStyleKey,
 } from '../types/stream-package.types'
 
 const SIZE_PRESETS = [
@@ -31,12 +37,68 @@ const SIZE_PRESETS = [
   { label: '4K 16:9', width: 3840, height: 2160 },
 ] as const
 
+const FONT_OPTIONS = ['Rajdhani', 'Arial', 'Arial Black', 'Bebas Neue', 'Barlow Condensed', 'Chakra Petch', 'DM Sans', 'Exo 2', 'Inter', 'League Spartan', 'Montserrat', 'Oswald', 'Poppins', 'Roboto', 'Space Grotesk', 'Saira Condensed', 'Teko', 'Titillium Web']
+
+const ASSET_OPTIONS: Array<{ key: StreamPackageAssetKey; label: string }> = [
+  { key: 'event_logo', label: 'Logo do campeonato' },
+  { key: 'top_art', label: 'Arte superior' },
+  { key: 'table_row_bg', label: 'Fundo da linha' },
+  { key: 'table_rank_bg', label: 'Fundo da posição' },
+  { key: 'table_logo_bg', label: 'Fundo do logo' },
+  { key: 'table_name_bg', label: 'Fundo do nome' },
+  { key: 'table_stat_bg', label: 'Fundo de estatística' },
+  { key: 'table_points_bg', label: 'Fundo de pontos' },
+  { key: 'card_bg', label: 'Fundo do card' },
+  { key: 'card_stats_bg', label: 'Fundo das estatísticas' },
+]
+
+type OutputInspectorItem = 'area' | 'table' | 'header' | 'loose_image' | 'loose_text' | `column_${StreamTableColumnStyleKey}` | `scene_${string}`
+
 function uid(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
+}
+
+function mergeOutputOverrides(base: StreamPackageOutputVariantConfig, patch: StreamPackageOutputVariantConfig): StreamPackageOutputVariantConfig {
+  const assetOverrides = { ...(base.assetOverrides || {}), ...(patch.assetOverrides || {}) }
+  const baseStructure = base.structureOverrides || {}
+  const patchStructure = patch.structureOverrides || {}
+  const structureOverrides = {
+    ...baseStructure,
+    ...patchStructure,
+    layout: { ...(baseStructure.layout || {}), ...(patchStructure.layout || {}) },
+    table: { ...(baseStructure.table || {}), ...(patchStructure.table || {}) },
+    card: { ...(baseStructure.card || {}), ...(patchStructure.card || {}) },
+  }
+  const baseLoose = base.looseOverrides || {}
+  const patchLoose = patch.looseOverrides || {}
+  const looseOverrides = {
+    ...baseLoose,
+    ...patchLoose,
+    image: { ...(baseLoose.image || {}), ...(patchLoose.image || {}) },
+    text: { ...(baseLoose.text || {}), ...(patchLoose.text || {}) },
+  }
+  return {
+    ...base,
+    ...patch,
+    ...(Object.keys(assetOverrides).length ? { assetOverrides } : {}),
+    ...(Object.keys(structureOverrides.layout || {}).length || Object.keys(structureOverrides.table || {}).length || Object.keys(structureOverrides.card || {}).length ? { structureOverrides } : {}),
+    ...(Object.keys(looseOverrides.image || {}).length || Object.keys(looseOverrides.text || {}).length ? { looseOverrides } : {}),
+  }
+}
+
+function packForOutputArea(pack: StreamOverlayPackage, area: StreamOutputArea) {
+  if (!area.overrides || !Object.keys(area.overrides).length) return pack
+  const stored = pack.overlay_configs[area.overlayType] || {}
+  if (area.profileId === 'live-hd') {
+    return { ...pack, overlay_configs: { ...pack.overlay_configs, [area.overlayType]: mergeOutputOverrides(stored, area.overrides) } }
+  }
+  const variants = { ...(stored.outputVariants || {}) }
+  variants[area.profileId] = mergeOutputOverrides(variants[area.profileId] || {}, area.overrides)
+  return { ...pack, overlay_configs: { ...pack.overlay_configs, [area.overlayType]: { ...stored, outputVariants: variants } } }
 }
 
 function newLayout(index: number): StreamOutputLayout {
@@ -134,6 +196,7 @@ function OutputAreaPreview(props: {
   }, [props.area.dataEnd, props.area.dataStart, props.area.overlayType, props.campeonatoId])
 
   const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === props.area.profileId) || STREAM_OUTPUT_PROFILES[0]
+  const areaPack = useMemo(() => packForOutputArea(props.pack, props.area), [props.area, props.pack])
   const displayWidth = props.area.width * props.scale
   const displayHeight = props.area.height * props.scale
   const innerScale = Math.min(displayWidth / profile.width, displayHeight / profile.height)
@@ -157,7 +220,7 @@ function OutputAreaPreview(props: {
     >
       <div className="stream-output-area-stage" style={{ width: profile.width, height: profile.height, transform: `scale(${innerScale})` }}>
         <StreamPackageStage
-          pack={props.pack}
+          pack={areaPack}
           type={props.area.overlayType}
           data={data}
           preview
@@ -205,6 +268,8 @@ export function StreamOutputLayoutsEditor(props: {
   const [activeSliceIndex, setActiveSliceIndex] = useState<number | null>(null)
   const [exporting, setExporting] = useState<'board' | 'slices' | null>(null)
   const [exportError, setExportError] = useState('')
+  const [outputInspectorItem, setOutputInspectorItem] = useState<OutputInspectorItem>('area')
+  const [uploadingOutputAsset, setUploadingOutputAsset] = useState(false)
   const exportBoardRef = useRef<HTMLDivElement | null>(null)
   const interactionRef = useRef<AreaInteraction | null>(null)
 
@@ -218,8 +283,22 @@ export function StreamOutputLayoutsEditor(props: {
     setActiveLayoutId(props.layouts[0]?.id || '')
   }, [activeLayoutId, props.layouts])
 
+  useEffect(() => {
+    setOutputInspectorItem('area')
+  }, [activeAreaId])
+
   const activeLayout = props.layouts.find((layout) => layout.id === activeLayoutId) || null
   const activeArea = activeLayout?.areas.find((area) => area.id === activeAreaId) || null
+  const activeAreaPack = useMemo(() => activeArea ? packForOutputArea(props.pack, activeArea) : props.pack, [activeArea, props.pack])
+  const activeAreaConfig = useMemo(() => activeArea ? resolveStreamOverlayConfig(activeAreaPack, activeArea.overlayType, activeArea.profileId) : null, [activeArea, activeAreaPack])
+  const activeAreaTable = useMemo(() => activeArea ? resolveStreamTableConfig(activeAreaPack, activeArea.overlayType, activeArea.profileId) : null, [activeArea, activeAreaPack])
+  const activeAreaLooseImage = useMemo(() => activeArea ? resolveStreamLooseImageConfig(activeAreaPack, activeArea.overlayType, activeArea.profileId) : null, [activeArea, activeAreaPack])
+  const activeAreaLooseText = useMemo(() => activeArea ? resolveStreamLooseTextConfig(activeAreaPack, activeArea.overlayType, activeArea.profileId) : null, [activeArea, activeAreaPack])
+  const activeAreaColumns = useMemo(() => (activeAreaConfig?.columns || []).filter((column) => STREAM_OVERLAY_COLUMN_META[column]), [activeAreaConfig])
+  const availableAreaColumns = useMemo(() => activeArea ? resolveStreamOverlayConfig(props.pack, activeArea.overlayType, activeArea.profileId).columns?.filter((column) => STREAM_OVERLAY_COLUMN_META[column]) || [] : [], [activeArea, props.pack])
+  const selectedOutputColumnKey = outputInspectorItem.startsWith('column_') ? outputInspectorItem.slice(7) as StreamTableColumnStyleKey : null
+  const selectedOutputColumn = selectedOutputColumnKey && activeAreaTable ? activeAreaTable.columnStyles[selectedOutputColumnKey] : null
+  const selectedOutputSceneItem = outputInspectorItem.startsWith('scene_') ? activeAreaConfig?.sceneItems?.find((item) => item.id === outputInspectorItem.slice(6)) : null
   const viewWidth = activeLayout ? (activeSliceIndex == null ? activeLayout.width : activeLayout.sliceWidth) : 1
   const viewHeight = activeLayout ? (activeSliceIndex == null ? activeLayout.height : activeLayout.sliceHeight) : 1
   const previewScale = activeLayout ? Math.min(1, 720 / viewWidth, 720 / viewHeight) : 1
@@ -241,6 +320,89 @@ export function StreamOutputLayoutsEditor(props: {
       ...activeLayout,
       areas: activeLayout.areas.map((area) => area.id === areaId ? { ...area, ...patch } : area),
     })
+  }
+
+  function patchAreaOverrides(patch: StreamPackageOutputVariantConfig) {
+    if (!activeArea) return
+    patchArea(activeArea.id, { overrides: mergeOutputOverrides(activeArea.overrides || {}, patch) })
+  }
+
+  function patchAreaTable(patch: NonNullable<StreamPackageOutputVariantConfig['structureOverrides']>['table']) {
+    patchAreaOverrides({ structureOverrides: { table: patch } })
+  }
+
+  function patchAreaColumn(key: StreamTableColumnStyleKey, patch: Record<string, unknown>) {
+    if (!activeAreaTable) return
+    const current = activeAreaTable.columnStyles[key]
+    patchAreaTable({ columnStyles: { ...activeAreaTable.columnStyles, [key]: { ...current, ...patch } } })
+  }
+
+  function patchAreaLoose(section: 'image' | 'text', patch: Record<string, unknown>) {
+    if (!activeArea) return
+    patchArea(activeArea.id, {
+      overrides: mergeOutputOverrides(activeArea.overrides || {}, { looseOverrides: { [section]: patch } }),
+      ...(patch.show === true ? { contentMode: 'full' } : {}),
+    })
+  }
+
+  function patchAreaSceneItems(items: StreamSceneItem[]) {
+    if (!activeArea) return
+    patchArea(activeArea.id, { overrides: mergeOutputOverrides(activeArea.overrides || {}, { sceneItems: items }), contentMode: 'full' })
+  }
+
+  function addOutputSceneItem(type: StreamSceneItem['type']) {
+    if (!activeAreaConfig) return
+    const id = `${type}-${Date.now()}`
+    const item: StreamSceneItem = {
+      id,
+      type,
+      show: true,
+      x: 120,
+      y: 120,
+      width: type === 'round_counter' ? 620 : 300,
+      height: type === 'round_counter' ? 90 : 90,
+      text: type === 'text' ? 'Texto livre' : type === 'timer' ? '00:00' : '',
+      color: '#ffffff',
+      fontSize: 38,
+      fontWeight: 800,
+      currentRound: 1,
+      totalRounds: 12,
+    }
+    patchAreaSceneItems([...(activeAreaConfig.sceneItems || []), item])
+    setOutputInspectorItem(`scene_${id}`)
+  }
+
+  function patchOutputSceneItem(id: string, patch: Partial<StreamSceneItem>) {
+    if (!activeAreaConfig) return
+    patchAreaSceneItems((activeAreaConfig.sceneItems || []).map((item) => item.id === id ? { ...item, ...patch } : item))
+  }
+
+  function removeOutputSceneItem(id: string) {
+    if (!activeAreaConfig) return
+    patchAreaSceneItems((activeAreaConfig.sceneItems || []).filter((item) => item.id !== id))
+    setOutputInspectorItem('area')
+  }
+
+  async function uploadOutputAsset(key: StreamPackageAssetKey, file?: File | null, sceneItemId?: string) {
+    if (!file) return
+    setUploadingOutputAsset(true)
+    try {
+      const objectUrl = URL.createObjectURL(file)
+      const size = await new Promise<{ width: number; height: number }>((resolve) => {
+        const image = new Image()
+        image.onload = () => resolve({ width: image.naturalWidth || 300, height: image.naturalHeight || 90 })
+        image.onerror = () => resolve({ width: 300, height: 90 })
+        image.src = objectUrl
+      })
+      URL.revokeObjectURL(objectUrl)
+      const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId: props.campeonatoId })
+      if (sceneItemId) patchOutputSceneItem(sceneItemId, { imageUrl: url, ...size })
+      else patchAreaOverrides({ assetOverrides: { [key]: url } })
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : 'Não foi possível enviar a imagem desta postagem.')
+    } finally {
+      setUploadingOutputAsset(false)
+    }
   }
 
   function addLayout() {
@@ -438,8 +600,12 @@ export function StreamOutputLayoutsEditor(props: {
 
   async function renderFinalBoard() {
     if (!activeLayout || !exportBoardRef.current) throw new Error('Prancha de exportação indisponível.')
-    const entries = await Promise.all(activeLayout.areas.filter((area) => area.visible).map(async (area) => ({ area, data: await loadStreamPackageRenderData(props.campeonatoId, area.overlayType) })))
-    return renderStreamOutputCanvas(activeLayout, props.pack, entries)
+    const entries = await Promise.all(activeLayout.areas.filter((area) => area.visible).map(async (area) => ({
+      area,
+      pack: packForOutputArea(props.pack, area),
+      data: await loadStreamPackageRenderData(props.campeonatoId, area.overlayType),
+    })))
+    return renderStreamOutputCanvas(activeLayout, entries)
   }
 
   async function exportBoard() {
@@ -549,6 +715,31 @@ export function StreamOutputLayoutsEditor(props: {
             <div className="stream-package-quad-grid"><label>X<input type="number" value={activeArea.x} onChange={(event) => patchArea(activeArea.id, { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeArea.y} onChange={(event) => patchArea(activeArea.id, { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={80} value={activeArea.width} onChange={(event) => patchArea(activeArea.id, { width: Math.max(80, Number(event.target.value) || 80) })} /></label><label>Altura<input type="number" min={80} value={activeArea.height} onChange={(event) => patchArea(activeArea.id, { height: Math.max(80, Number(event.target.value) || 80) })} /></label></div>
             <label className="stream-package-switch-row"><span><b>Manter proporção ao redimensionar</b></span><input type="checkbox" checked={activeArea.lockAspect} onChange={(event) => patchArea(activeArea.id, { lockAspect: event.target.checked })} /></label>
             <small className="stream-output-shortcuts">Arraste a área no palco. Use o canto inferior direito para redimensionar. Setas movem 1 px; Shift + seta move 10 px; Ctrl/Cmd + D duplica.</small>
+
+            {activeAreaConfig && activeAreaTable && activeAreaLooseImage && activeAreaLooseText ? <div className="stream-output-local-editor">
+              <div className="stream-output-local-editor-head"><div><strong>Editor desta postagem</strong><small>Não altera a overlay da live.</small></div>{activeArea.overrides ? <button type="button" title="Usar o padrão da overlay" onClick={() => patchArea(activeArea.id, { overrides: undefined })}>Restaurar</button> : null}</div>
+              <div className="stream-output-inspector-list">
+                <button type="button" className={outputInspectorItem === 'table' ? 'active' : ''} onClick={() => setOutputInspectorItem('table')}>Tabela</button>
+                <button type="button" className={outputInspectorItem === 'header' ? 'active' : ''} onClick={() => setOutputInspectorItem('header')}>Legenda</button>
+                <button type="button" className={outputInspectorItem === 'loose_image' ? 'active' : ''} onClick={() => setOutputInspectorItem('loose_image')}>Logo</button>
+                <button type="button" className={outputInspectorItem === 'loose_text' ? 'active' : ''} onClick={() => setOutputInspectorItem('loose_text')}>Título</button>
+                {activeAreaColumns.map((column) => <button type="button" key={column} className={outputInspectorItem === `column_${column}` ? 'active' : ''} onClick={() => setOutputInspectorItem(`column_${column}` as OutputInspectorItem)}>{STREAM_OVERLAY_COLUMN_META[column].label}</button>)}
+                {(activeAreaConfig.sceneItems || []).map((item) => <button type="button" key={item.id} className={outputInspectorItem === `scene_${item.id}` ? 'active' : ''} onClick={() => setOutputInspectorItem(`scene_${item.id}`)}>{item.type === 'image' ? 'Imagem' : item.type === 'timer' ? 'Cronômetro' : item.type === 'round_counter' ? 'Quedas' : item.text || 'Texto'}</button>)}
+              </div>
+              <div className="stream-output-add-elements"><button type="button" title="Adicionar texto" onClick={() => addOutputSceneItem('text')}>+ Texto</button><button type="button" title="Adicionar imagem" onClick={() => addOutputSceneItem('image')}>+ Imagem</button><button type="button" title="Adicionar cronômetro" onClick={() => addOutputSceneItem('timer')}>+ Cronômetro</button><button type="button" title="Adicionar contador de quedas" onClick={() => addOutputSceneItem('round_counter')}>+ Quedas</button></div>
+
+              {outputInspectorItem === 'table' ? <div className="stream-package-property-group"><b>Tabela</b><div className="stream-package-quad-grid"><label>Altura da linha<input type="number" min={20} value={activeAreaTable.rowHeight} onChange={(event) => patchAreaTable({ rowHeight: Math.max(20, Number(event.target.value) || 20) })} /></label><label>Espaço entre linhas<input type="number" min={0} value={activeAreaTable.rowGap} onChange={(event) => patchAreaTable({ rowGap: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Gap das células<input type="number" min={0} value={activeAreaTable.cellGap} onChange={(event) => patchAreaTable({ cellGap: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Espaço entre blocos<input type="number" min={0} value={activeAreaTable.panelGap} onChange={(event) => patchAreaTable({ panelGap: Math.max(0, Number(event.target.value) || 0) })} /></label></div><label>Blocos<select value={activeAreaConfig.tableMode || activeAreaTable.mode} onChange={(event) => patchAreaOverrides({ tableMode: event.target.value as 'single' | 'double' })}><option value="single">Uma coluna</option><option value="double">Duas colunas</option></select></label><div className="stream-output-column-toggles">{availableAreaColumns.map((column) => <label key={column}><input type="checkbox" checked={activeAreaColumns.includes(column)} onChange={(event) => { const columns = event.target.checked ? [...activeAreaColumns, column] : activeAreaColumns.filter((item) => item !== column); patchAreaOverrides({ columns }) }} />{STREAM_OVERLAY_COLUMN_META[column].label}</label>)}</div></div> : null}
+
+              {outputInspectorItem === 'header' ? <div className="stream-package-property-group"><b>Legenda</b><label className="stream-package-switch-row"><span><b>Exibir legenda</b></span><input type="checkbox" checked={activeAreaTable.showHeaders} onChange={(event) => patchAreaTable({ showHeaders: event.target.checked })} /></label><label>Altura<input type="number" min={16} value={activeAreaTable.headerHeight} onChange={(event) => patchAreaTable({ headerHeight: Math.max(16, Number(event.target.value) || 16) })} /></label><div className="stream-package-quad-grid"><label>Fonte<select value={activeAreaTable.headerFontFamily || 'Rajdhani'} onChange={(event) => patchAreaTable({ headerFontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><label>Tamanho<input type="number" min={8} value={activeAreaTable.headerFontSize || 16} onChange={(event) => patchAreaTable({ headerFontSize: Math.max(8, Number(event.target.value) || 8) })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={activeAreaTable.headerFontWeight || 700} onChange={(event) => patchAreaTable({ headerFontWeight: Math.max(100, Number(event.target.value) || 100) })} /></label><label>Cor<input type="color" value={activeAreaTable.headerColor || '#ffffff'} onChange={(event) => patchAreaTable({ headerColor: event.target.value })} /></label></div></div> : null}
+
+              {outputInspectorItem === 'loose_image' ? <div className="stream-package-property-group"><b>Imagem</b><label className="stream-package-switch-row"><span><b>Exibir logo</b></span><input type="checkbox" checked={activeAreaLooseImage.show} onChange={(event) => patchAreaLoose('image', { show: event.target.checked })} /></label><label>Imagem<select value={activeAreaLooseImage.assetKey || 'event_logo'} onChange={(event) => patchAreaLoose('image', { assetKey: event.target.value as StreamPackageAssetKey })}>{ASSET_OPTIONS.map((asset) => <option key={asset.key} value={asset.key}>{asset.label}</option>)}</select></label><label className="stream-secondary-btn stream-package-inspector-upload">{uploadingOutputAsset ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} Trocar imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadOutputAsset(activeAreaLooseImage.assetKey || 'event_logo', event.target.files?.[0])} /></label><div className="stream-package-quad-grid"><label>X<input type="number" value={activeAreaLooseImage.x} onChange={(event) => patchAreaLoose('image', { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeAreaLooseImage.y} onChange={(event) => patchAreaLoose('image', { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={20} value={activeAreaLooseImage.width} onChange={(event) => patchAreaLoose('image', { width: Math.max(20, Number(event.target.value) || 20) })} /></label><label>Altura<input type="number" min={20} value={activeAreaLooseImage.height} onChange={(event) => patchAreaLoose('image', { height: Math.max(20, Number(event.target.value) || 20) })} /></label></div></div> : null}
+
+              {outputInspectorItem === 'loose_text' ? <div className="stream-package-property-group"><b>Texto</b><label>Conteúdo<input value={activeAreaConfig.title || ''} placeholder="Título da postagem" onChange={(event) => patchAreaOverrides({ title: event.target.value })} /></label><label className="stream-package-switch-row"><span><b>Exibir título</b></span><input type="checkbox" checked={activeAreaLooseText.show} onChange={(event) => patchAreaLoose('text', { show: event.target.checked })} /></label><label>Fonte<select value={activeAreaLooseText.fontFamily} onChange={(event) => patchAreaLoose('text', { fontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><div className="stream-package-quad-grid"><label>X<input type="number" value={activeAreaLooseText.x} onChange={(event) => patchAreaLoose('text', { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeAreaLooseText.y} onChange={(event) => patchAreaLoose('text', { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={20} value={activeAreaLooseText.width} onChange={(event) => patchAreaLoose('text', { width: Math.max(20, Number(event.target.value) || 20) })} /></label><label>Tamanho<input type="number" min={8} value={activeAreaLooseText.fontSize} onChange={(event) => patchAreaLoose('text', { fontSize: Math.max(8, Number(event.target.value) || 8) })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={activeAreaLooseText.fontWeight} onChange={(event) => patchAreaLoose('text', { fontWeight: Math.max(100, Number(event.target.value) || 100) })} /></label><label>Cor<input type="color" value={activeAreaLooseText.color} onChange={(event) => patchAreaLoose('text', { color: event.target.value })} /></label></div></div> : null}
+
+              {selectedOutputColumn && selectedOutputColumnKey ? <div className="stream-package-property-group"><b>{STREAM_OVERLAY_COLUMN_META[selectedOutputColumnKey]?.kind === 'image' ? 'Imagem e célula' : 'Texto e célula'}</b>{STREAM_OVERLAY_COLUMN_META[selectedOutputColumnKey]?.kind !== 'image' ? <div className="stream-package-quad-grid"><label>Fonte<select value={selectedOutputColumn.fontFamily} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><label>Tamanho<input type="number" min={8} value={selectedOutputColumn.fontSize} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontSize: Math.max(8, Number(event.target.value) || 8) })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={selectedOutputColumn.fontWeight} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontWeight: Math.max(100, Number(event.target.value) || 100) })} /></label><label>Cor<input type="color" value={selectedOutputColumn.color} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { color: event.target.value })} /></label><label>Inclinação<select value={selectedOutputColumn.fontStyle} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontStyle: event.target.value as 'normal' | 'italic' })}><option value="normal">Reta</option><option value="italic">Itálica</option></select></label><label>Alinhar<select value={selectedOutputColumn.align} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}<label>Largura da coluna<input type="number" min={20} value={selectedOutputColumn.width || ''} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { width: event.target.value ? Math.max(20, Number(event.target.value)) : null })} /></label><label>Preenchimento<select value={selectedOutputColumn.backgroundType} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundType: event.target.value as 'solid' | 'gradient' | 'image' })}><option value="solid">Sólido</option><option value="gradient">Degradê</option><option value="image">Imagem</option></select></label>{selectedOutputColumn.backgroundType === 'solid' ? <label>Cor<input type="color" value={selectedOutputColumn.backgroundColor} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundColor: event.target.value })} /></label> : null}{selectedOutputColumn.backgroundType === 'gradient' ? <label>Degradê<input value={selectedOutputColumn.backgroundGradient} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundGradient: event.target.value })} /></label> : null}{selectedOutputColumn.backgroundType === 'image' && selectedOutputColumn.assetKey ? <label className="stream-secondary-btn stream-package-inspector-upload">{uploadingOutputAsset ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} Trocar fundo<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadOutputAsset(selectedOutputColumn.assetKey!, event.target.files?.[0])} /></label> : null}<div className="stream-package-quad-grid"><label>Margem X<input type="number" min={0} value={selectedOutputColumn.paddingX || 0} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { paddingX: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Margem Y<input type="number" min={0} value={selectedOutputColumn.paddingY || 0} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { paddingY: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Borda<input type="color" value={selectedOutputColumn.borderColor} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { borderColor: event.target.value })} /></label><label>Espessura<input type="number" min={0} value={selectedOutputColumn.borderWidth} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { borderWidth: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Canto<input type="number" min={0} value={selectedOutputColumn.borderRadius} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { borderRadius: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Opacidade<input type="number" min={0} max={100} value={Math.round((selectedOutputColumn.opacity ?? 1) * 100)} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { opacity: Math.max(0, Math.min(1, (Number(event.target.value) || 0) / 100)) })} /></label></div></div> : null}
+
+              {selectedOutputSceneItem ? <div className="stream-package-property-group"><div className="stream-output-scene-item-head"><b>{selectedOutputSceneItem.type === 'image' ? 'Imagem livre' : selectedOutputSceneItem.type === 'timer' ? 'Cronômetro' : selectedOutputSceneItem.type === 'round_counter' ? 'Contador de quedas' : 'Texto livre'}</b><button type="button" title="Excluir item" onClick={() => removeOutputSceneItem(selectedOutputSceneItem.id)}><Trash2 size={13} /></button></div><label className="stream-package-switch-row"><span><b>Exibir</b></span><input type="checkbox" checked={selectedOutputSceneItem.show} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { show: event.target.checked })} /></label>{selectedOutputSceneItem.type === 'image' ? <label className="stream-secondary-btn stream-package-inspector-upload">{uploadingOutputAsset ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} Enviar imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadOutputAsset('event_logo', event.target.files?.[0], selectedOutputSceneItem.id)} /></label> : <label>Texto<input value={selectedOutputSceneItem.text || ''} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { text: event.target.value })} /></label>}<div className="stream-package-quad-grid"><label>X<input type="number" value={selectedOutputSceneItem.x} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={selectedOutputSceneItem.y} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={20} value={selectedOutputSceneItem.width} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { width: Math.max(20, Number(event.target.value) || 20) })} /></label><label>Altura<input type="number" min={20} value={selectedOutputSceneItem.height} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { height: Math.max(20, Number(event.target.value) || 20) })} /></label>{selectedOutputSceneItem.type !== 'image' ? <><label>Tamanho<input type="number" min={8} value={selectedOutputSceneItem.fontSize || 20} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { fontSize: Math.max(8, Number(event.target.value) || 8) })} /></label><label>Cor<input type="color" value={selectedOutputSceneItem.color || '#ffffff'} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { color: event.target.value })} /></label></> : null}</div></div> : null}
+            </div> : null}
           </div>
         ) : null}
       </section>
