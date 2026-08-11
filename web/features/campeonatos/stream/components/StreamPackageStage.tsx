@@ -43,14 +43,6 @@ function cellClass(column: string) {
   return 'is-stat'
 }
 
-function cellStyleKey(column: string): 'rank' | 'logo' | 'name' | 'stat' | 'points' {
-  if (column === 'rank') return 'rank'
-  if (column === 'logo' || column === 'map') return 'logo'
-  if (column === 'name' || column === 'nick') return 'name'
-  if (column === 'points') return 'points'
-  return 'stat'
-}
-
 function renderCellValue(column: string, value: CellValue) {
   if (column === 'logo' || column === 'map') {
     const src = String(value || '').trim()
@@ -112,7 +104,7 @@ function TableRenderer(props: {
                 }}
               >
                 {columns.map((column) => {
-                  const style = shared.columnStyles[cellStyleKey(column)]
+                  const style = shared.columnStyles[column as keyof typeof shared.columnStyles]
                   const backgroundImage = style.backgroundType === 'image'
                     ? (style.assetKey ? cssBackground(resolveStreamAsset(props.pack, props.type, style.assetKey, props.outputProfileId)) : undefined)
                     : style.backgroundType === 'gradient' ? style.backgroundGradient : undefined
