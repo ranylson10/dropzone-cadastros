@@ -999,10 +999,14 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                   <div className="stream-package-preview-pan-hint"><Move size={13} /> Scroll: zoom · botão do meio ou Alt + arrastar: mover</div>
                   <div
                     className="stream-package-preview-canvas"
+                    aria-label={`Quadro de sa\u00edda ${canvasProfile.width} por ${canvasProfile.height}`}
                     style={{
                       width: canvasProfile.width,
                       height: canvasProfile.height,
-                      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                      // O ponto de ancoragem do palco é o centro da área de preview.
+                      // Sem este deslocamento, o canto superior esquerdo do canvas fica no
+                      // centro e apenas uma parte da saída aparece, parecendo esticada.
+                      transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                     }}
                   >
                     <StreamPackageStage
