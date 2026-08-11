@@ -1,10 +1,14 @@
 import {
   DEFAULT_STREAM_OVERLAY_CONFIGS,
   DEFAULT_STREAM_PACKAGE_SHARED_CONFIG,
+  STREAM_OUTPUT_PROFILES,
   STREAM_SYSTEM_OVERLAYS,
   type StreamOverlayPackage,
   type StreamPackageAssetKey,
+  type StreamOutputProfileId,
+  type StreamPackageOutputVariantConfig,
   type StreamPackageOverlayConfig,
+  type StreamOutputLayout,
   type StreamSystemOverlayType,
 } from '../types/stream-package.types'
 
@@ -52,29 +56,83 @@ function normalizeAssetMap(raw: unknown): Partial<Record<StreamPackageAssetKey, 
   return out
 }
 
-function normalizeOverlayConfig(type: StreamSystemOverlayType, raw: unknown): StreamPackageOverlayConfig {
+
+export function normalizeStreamOutputLayouts(raw: unknown): StreamOutputLayout[] {
+  if (!Array.isArray(raw)) return []
+  const allowedTypes = new Set<string>(STREAM_SYSTEM_OVERLAYS)
+  const allowedProfiles = new Set<string>(STREAM_OUTPUT_PROFILES.map((profile) => profile.id))
+  return raw.slice(0, 40).map((item: unknown, layoutIndex: number) => {
+    const source = asStreamConfigObject(item)
+    const sliceCount = Math.max(1, Math.min(8, Math.round(Number(source.sliceCount) || 1)))
+    const sliceDirection = source.sliceDirection === 'vertical' ? 'vertical' : 'horizontal'
+    const legacyWidth = Math.max(240, Math.min(7680, Math.round(Number(source.width) || 1080)))
+    const legacyHeight = Math.max(240, Math.min(7680, Math.round(Number(source.height) || 1350)))
+    const sliceWidth = Math.max(240, Math.min(7680, Math.round(Number(source.sliceWidth) || (sliceDirection === 'horizontal' ? Math.round(legacyWidth / sliceCount) : legacyWidth) || 1080)))
+    const sliceHeight = Math.max(240, Math.min(7680, Math.round(Number(source.sliceHeight) || (sliceDirection === 'vertical' ? Math.round(legacyHeight / sliceCount) : legacyHeight) || 1350)))
+    const width = sliceDirection === 'horizontal' ? Math.min(16384, sliceWidth * sliceCount) : sliceWidth
+    const height = sliceDirection === 'vertical' ? Math.min(16384, sliceHeight * sliceCount) : sliceHeight
+    const backgroundType = ['transparent', 'color', 'image'].includes(String(source.backgroundType))
+      ? source.backgroundType as StreamOutputLayout['backgroundType']
+      : 'transparent'
+    const outputFormat = source.outputFormat === 'jpg' ? 'jpg' : 'png'
+    const areas = Array.isArray(source.areas) ? source.areas : []
+    return {
+      id: String(source.id || `layout-${layoutIndex + 1}`).slice(0, 120),
+      name: String(source.name || `Saída ${layoutIndex + 1}`).slice(0, 120),
+      width,
+      height,
+      backgroundType,
+      backgroundColor: String(source.backgroundColor || '#101218').slice(0, 32),
+      backgroundUrl: String(source.backgroundUrl || '').slice(0, 2000),
+      outputFormat,
+      sliceCount,
+      sliceDirection,
+      sliceWidth,
+      sliceHeight,
+      areas: areas.slice(0, 30).map((area: unknown, areaIndex: number) => {
+        const row = asStreamConfigObject(area)
+        const overlayTypeRaw = String(row.overlayType || 'standings_general')
+        const profileIdRaw = String(row.profileId || 'live-hd')
+        const dataStart = Math.max(1, Math.min(999, Math.round(Number(row.dataStart) || 1)))
+        const dataEnd = Math.max(dataStart, Math.min(999, Math.round(Number(row.dataEnd) || dataStart)))
+        return {
+          id: String(row.id || `area-${areaIndex + 1}`).slice(0, 120),
+          overlayType: (allowedTypes.has(overlayTypeRaw) ? overlayTypeRaw : 'standings_general') as StreamOutputLayout['areas'][number]['overlayType'],
+          profileId: (allowedProfiles.has(profileIdRaw) ? profileIdRaw : 'live-hd') as StreamOutputLayout['areas'][number]['profileId'],
+          x: Math.max(-16384, Math.min(16384, Math.round(Number(row.x) || 0))),
+          y: Math.max(-16384, Math.min(16384, Math.round(Number(row.y) || 0))),
+          width: Math.max(80, Math.min(7680, Math.round(Number(row.width) || width))),
+          height: Math.max(80, Math.min(7680, Math.round(Number(row.height) || Math.min(height, 900)))),
+          zIndex: Math.max(0, Math.min(999, Math.round(Number(row.zIndex) || areaIndex))),
+          dataStart,
+          dataEnd,
+          visible: row.visible !== false,
+          contentMode: row.contentMode === 'clean' ? 'clean' : 'full',
+          lockAspect: row.lockAspect === true,
+        }
+      }),
+    }
+  })
+}
+
+function normalizeVariantConfig(raw: unknown): StreamPackageOutputVariantConfig {
   const source = asStreamConfigObject(raw)
-  const defaultConfig = DEFAULT_STREAM_OVERLAY_CONFIGS[type]
   const assetOverrides = normalizeAssetMap(source.assetOverrides)
   const structureOverrides = asStreamConfigObject(source.structureOverrides)
   const looseOverrides = asStreamConfigObject(source.looseOverrides)
-  const tableMode = source.tableMode === 'single' || source.tableMode === 'double'
-    ? source.tableMode
-    : defaultConfig.tableMode
+  const tableMode = source.tableMode === 'single' || source.tableMode === 'double' ? source.tableMode : undefined
   const columns = Array.isArray(source.columns)
     ? source.columns.map((item: unknown) => String(item || '').trim()).filter(Boolean)
-    : defaultConfig.columns
+    : undefined
   const maxItemsNumber = Number(source.maxItems)
-  const maxItems = Number.isFinite(maxItemsNumber) && maxItemsNumber > 0
-    ? Math.round(maxItemsNumber)
-    : defaultConfig.maxItems
-  const title = typeof source.title === 'string' ? source.title : defaultConfig.title
+  const maxItems = Number.isFinite(maxItemsNumber) && maxItemsNumber > 0 ? Math.round(maxItemsNumber) : undefined
+  const title = typeof source.title === 'string' ? source.title : undefined
 
   return {
-    maxItems,
-    tableMode,
-    columns,
-    title,
+    ...(maxItems ? { maxItems } : {}),
+    ...(tableMode ? { tableMode } : {}),
+    ...(columns ? { columns } : {}),
+    ...(title !== undefined ? { title } : {}),
     ...(Object.keys(assetOverrides).length ? { assetOverrides } : {}),
     ...(Object.keys(structureOverrides).length ? {
       structureOverrides: {
@@ -92,13 +150,66 @@ function normalizeOverlayConfig(type: StreamSystemOverlayType, raw: unknown): St
   }
 }
 
+function normalizeOverlayConfig(type: StreamSystemOverlayType, raw: unknown): StreamPackageOverlayConfig {
+  const source = asStreamConfigObject(raw)
+  const defaultConfig = DEFAULT_STREAM_OVERLAY_CONFIGS[type]
+  const base = normalizeVariantConfig(source)
+  const rawVariants = asStreamConfigObject(source.outputVariants)
+  const allowedProfiles = new Set<string>(STREAM_OUTPUT_PROFILES.map((profile) => profile.id))
+  const outputVariants = Object.fromEntries(
+    Object.entries(rawVariants)
+      .filter(([profileId]) => profileId !== 'live-hd' && allowedProfiles.has(profileId))
+      .map(([profileId, value]) => [profileId, normalizeVariantConfig(value)])
+      .filter(([, value]) => Object.keys(value as Record<string, unknown>).length),
+  ) as StreamPackageOverlayConfig['outputVariants']
+
+  return {
+    maxItems: base.maxItems ?? defaultConfig.maxItems,
+    tableMode: base.tableMode ?? defaultConfig.tableMode,
+    columns: base.columns ?? defaultConfig.columns,
+    title: base.title ?? defaultConfig.title,
+    ...(base.assetOverrides ? { assetOverrides: base.assetOverrides } : {}),
+    ...(base.structureOverrides ? { structureOverrides: base.structureOverrides } : {}),
+    ...(base.looseOverrides ? { looseOverrides: base.looseOverrides } : {}),
+    ...(outputVariants && Object.keys(outputVariants).length ? { outputVariants } : {}),
+  }
+}
+
 export function resolveStreamOverlayConfig(
   pack: StreamOverlayPackage,
   type: StreamSystemOverlayType,
+  outputProfileId: StreamOutputProfileId = 'live-hd',
 ): StreamPackageOverlayConfig {
-  return {
+  const stored = pack.overlay_configs[type] || {}
+  const base: StreamPackageOverlayConfig = {
     ...DEFAULT_STREAM_OVERLAY_CONFIGS[type],
-    ...(pack.overlay_configs[type] || {}),
+    ...stored,
+  }
+  if (outputProfileId === 'live-hd') return base
+  const variant = stored.outputVariants?.[outputProfileId]
+  if (!variant) return base
+  const assetOverrides = { ...(base.assetOverrides || {}), ...(variant.assetOverrides || {}) }
+  const layout = { ...(base.structureOverrides?.layout || {}), ...(variant.structureOverrides?.layout || {}) }
+  const table = { ...(base.structureOverrides?.table || {}), ...(variant.structureOverrides?.table || {}) }
+  const card = { ...(base.structureOverrides?.card || {}), ...(variant.structureOverrides?.card || {}) }
+  const structureOverrides = {
+    ...(Object.keys(layout).length ? { layout } : {}),
+    ...(Object.keys(table).length ? { table } : {}),
+    ...(Object.keys(card).length ? { card } : {}),
+  }
+  const image = { ...(base.looseOverrides?.image || {}), ...(variant.looseOverrides?.image || {}) }
+  const text = { ...(base.looseOverrides?.text || {}), ...(variant.looseOverrides?.text || {}) }
+  const looseOverrides = {
+    ...(Object.keys(image).length ? { image } : {}),
+    ...(Object.keys(text).length ? { text } : {}),
+  }
+  return {
+    ...base,
+    ...variant,
+    ...(Object.keys(assetOverrides).length ? { assetOverrides } : { assetOverrides: undefined }),
+    ...(Object.keys(structureOverrides).length ? { structureOverrides } : { structureOverrides: undefined }),
+    ...(Object.keys(looseOverrides).length ? { looseOverrides } : { looseOverrides: undefined }),
+    outputVariants: stored.outputVariants,
   }
 }
 
@@ -106,29 +217,30 @@ export function resolveStreamAsset(
   pack: StreamOverlayPackage,
   type: StreamSystemOverlayType,
   key: StreamPackageAssetKey,
+  outputProfileId: StreamOutputProfileId = 'live-hd',
 ): string {
-  const override = resolveStreamOverlayConfig(pack, type).assetOverrides?.[key]
+  const override = resolveStreamOverlayConfig(pack, type, outputProfileId).assetOverrides?.[key]
   return String(override || pack.assets[key] || '').trim()
 }
 
-export function resolveStreamLayoutConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType) {
-  return { ...pack.shared_config.layout, ...(resolveStreamOverlayConfig(pack, type).structureOverrides?.layout || {}) }
+export function resolveStreamLayoutConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType, outputProfileId: StreamOutputProfileId = 'live-hd') {
+  return { ...pack.shared_config.layout, ...(resolveStreamOverlayConfig(pack, type, outputProfileId).structureOverrides?.layout || {}) }
 }
 
-export function resolveStreamTableConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType) {
-  return { ...pack.shared_config.table, ...(resolveStreamOverlayConfig(pack, type).structureOverrides?.table || {}) }
+export function resolveStreamTableConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType, outputProfileId: StreamOutputProfileId = 'live-hd') {
+  return { ...pack.shared_config.table, ...(resolveStreamOverlayConfig(pack, type, outputProfileId).structureOverrides?.table || {}) }
 }
 
-export function resolveStreamCardConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType) {
-  return { ...pack.shared_config.card, ...(resolveStreamOverlayConfig(pack, type).structureOverrides?.card || {}) }
+export function resolveStreamCardConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType, outputProfileId: StreamOutputProfileId = 'live-hd') {
+  return { ...pack.shared_config.card, ...(resolveStreamOverlayConfig(pack, type, outputProfileId).structureOverrides?.card || {}) }
 }
 
-export function resolveStreamLooseImageConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType) {
-  return { ...pack.shared_config.looseImage, ...(resolveStreamOverlayConfig(pack, type).looseOverrides?.image || {}) }
+export function resolveStreamLooseImageConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType, outputProfileId: StreamOutputProfileId = 'live-hd') {
+  return { ...pack.shared_config.looseImage, ...(resolveStreamOverlayConfig(pack, type, outputProfileId).looseOverrides?.image || {}) }
 }
 
-export function resolveStreamLooseTextConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType) {
-  return { ...pack.shared_config.looseText, ...(resolveStreamOverlayConfig(pack, type).looseOverrides?.text || {}) }
+export function resolveStreamLooseTextConfig(pack: StreamOverlayPackage, type: StreamSystemOverlayType, outputProfileId: StreamOutputProfileId = 'live-hd') {
+  return { ...pack.shared_config.looseText, ...(resolveStreamOverlayConfig(pack, type, outputProfileId).looseOverrides?.text || {}) }
 }
 
 
@@ -179,7 +291,8 @@ export function normalizeStreamOverlayPackage(
       },
     },
     overlay_configs: overlayConfigs,
-    schema_version: Math.max(2, Number(pack?.schema_version) || 2),
+    output_layouts: normalizeStreamOutputLayouts(pack?.output_layouts),
+    schema_version: Math.max(3, Number(pack?.schema_version) || 3),
     updated_at: pack?.updated_at || null,
   }
 }

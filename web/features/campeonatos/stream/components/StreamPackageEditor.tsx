@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Check, ImagePlus, Loader2, RefreshCw, Save } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
+import { Check, Grid3X3, ImagePlus, Loader2, Maximize2, Move, RefreshCw, Save, ZoomIn, ZoomOut } from 'lucide-react'
 import { StreamPackageStage } from './StreamPackageStage'
+import { StreamOutputLayoutsEditor } from './StreamOutputLayoutsEditor'
 import type { StreamPackageRenderData } from '../types/stream-package.types'
 import { loadStreamPackageRenderData } from '../services/stream-package-data.service'
 import {
@@ -18,16 +20,20 @@ import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
 import {
   DEFAULT_STREAM_OVERLAY_CONFIGS,
+  STREAM_OUTPUT_PROFILES,
   STREAM_CARD_PRESETS,
   STREAM_OVERLAY_COLUMN_META,
   STREAM_SYSTEM_OVERLAY_META,
   STREAM_SYSTEM_OVERLAYS,
   STREAM_TABLE_PRESETS,
+  type StreamOutputProfileId,
   type StreamOverlayPackage,
   type StreamPackageAssetKey,
-  type StreamPackageOverlayConfig,
+  type StreamPackageOutputVariantConfig,
   type StreamSystemOverlayType,
 } from '../types/stream-package.types'
+
+type PreviewBackground = 'transparent' | 'dark' | 'light'
 
 type EditorPanel = 'scene' | 'identity' | 'layout' | 'assets' | 'tables' | 'cards' | 'animation'
 
@@ -89,6 +95,7 @@ async function authFetch(url: string, options?: RequestInit) {
 export function StreamPackageEditor(props: { campeonatoId: string }) {
   const [pack, setPack] = useState<StreamOverlayPackage>(() => normalizeStreamOverlayPackage(props.campeonatoId, {}))
   const [activeType, setActiveType] = useState<StreamSystemOverlayType>('standings_general')
+  const [workspaceMode, setWorkspaceMode] = useState<'overlays' | 'outputs'>('overlays')
   const [activePanel, setActivePanel] = useState<EditorPanel>('scene')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -99,6 +106,78 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   const [renderDataLoading, setRenderDataLoading] = useState(false)
   const [renderDataError, setRenderDataError] = useState('')
   const [renderDataVersion, setRenderDataVersion] = useState(0)
+  const [canvasProfileId, setCanvasProfileId] = useState<StreamOutputProfileId>('live-hd')
+  const [previewBackground, setPreviewBackground] = useState<PreviewBackground>('transparent')
+  const [showGrid, setShowGrid] = useState(false)
+  const [showSafeArea, setShowSafeArea] = useState(false)
+  const [zoom, setZoom] = useState(.5)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const workspaceRef = useRef<HTMLDivElement | null>(null)
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; panX: number; panY: number } | null>(null)
+  const canvasProfile = useMemo(
+    () => STREAM_OUTPUT_PROFILES.find((profile) => profile.id === canvasProfileId) || STREAM_OUTPUT_PROFILES[0],
+    [canvasProfileId],
+  )
+
+  const fitPreview = useCallback(() => {
+    const workspace = workspaceRef.current
+    if (!workspace) return
+    const availableWidth = Math.max(160, workspace.clientWidth - 64)
+    const availableHeight = Math.max(160, workspace.clientHeight - 64)
+    const next = Math.min(1, availableWidth / canvasProfile.width, availableHeight / canvasProfile.height)
+    setZoom(Math.max(.05, Math.min(4, next)))
+    setPan({ x: 0, y: 0 })
+  }, [canvasProfile.height, canvasProfile.width])
+
+  useEffect(() => {
+    fitPreview()
+    const workspace = workspaceRef.current
+    if (!workspace || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => fitPreview())
+    observer.observe(workspace)
+    return () => observer.disconnect()
+  }, [fitPreview])
+
+  function clampZoom(value: number) {
+    return Math.max(.05, Math.min(4, value))
+  }
+
+  function handleWorkspaceWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    event.preventDefault()
+    const workspace = workspaceRef.current
+    if (!workspace) return
+    const rect = workspace.getBoundingClientRect()
+    const pointerX = event.clientX - rect.left - rect.width / 2
+    const pointerY = event.clientY - rect.top - rect.height / 2
+    const previous = zoom
+    const next = clampZoom(previous * (event.deltaY < 0 ? 1.1 : .9))
+    if (next === previous) return
+    const ratio = next / previous
+    setPan((current) => ({
+      x: pointerX - (pointerX - current.x) * ratio,
+      y: pointerY - (pointerY - current.y) * ratio,
+    }))
+    setZoom(next)
+  }
+
+  function startWorkspacePan(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 1 && !(event.button === 0 && event.altKey)) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y }
+  }
+
+  function moveWorkspacePan(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    setPan({ x: drag.panX + event.clientX - drag.x, y: drag.panY + event.clientY - drag.y })
+  }
+
+  function stopWorkspacePan(event: ReactPointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return
+    dragRef.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+  }
 
   useEffect(() => {
     let mounted = true
@@ -119,19 +198,24 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   }, [props.campeonatoId])
 
   const activeConfig = useMemo(
-    () => resolveStreamOverlayConfig(pack, activeType),
-    [activeType, pack.overlay_configs],
+    () => resolveStreamOverlayConfig(pack, activeType, canvasProfileId),
+    [activeType, canvasProfileId, pack.overlay_configs],
   )
+  const activeOutputVariant = canvasProfileId === 'live-hd'
+    ? undefined
+    : pack.overlay_configs[activeType]?.outputVariants?.[canvasProfileId]
+  const editingOutputVariant = canvasProfileId !== 'live-hd'
   const activeMeta = STREAM_SYSTEM_OVERLAY_META[activeType]
-  const activeStructure = activeConfig.structureOverrides || {}
-  const activeLoose = activeConfig.looseOverrides || {}
-  const activeLooseImage = resolveStreamLooseImageConfig(pack, activeType)
-  const activeLooseText = resolveStreamLooseTextConfig(pack, activeType)
-  const looseOverrideCount = Object.values(activeLoose).reduce((total, section) => total + Object.keys(section || {}).length, 0)
-  const activeLayout = resolveStreamLayoutConfig(pack, activeType)
-  const activeTable = resolveStreamTableConfig(pack, activeType)
-  const activeCard = resolveStreamCardConfig(pack, activeType)
-  const structureOverrideCount = Object.values(activeStructure).reduce((total, section) => total + Object.keys(section || {}).length, 0)
+  const activeStructure = (editingOutputVariant ? activeOutputVariant?.structureOverrides : activeConfig.structureOverrides) || {}
+  const activeLoose = (editingOutputVariant ? activeOutputVariant?.looseOverrides : activeConfig.looseOverrides) || {}
+  const activeAssetOverrides = (editingOutputVariant ? activeOutputVariant?.assetOverrides : activeConfig.assetOverrides) || {}
+  const activeLooseImage = resolveStreamLooseImageConfig(pack, activeType, canvasProfileId)
+  const activeLooseText = resolveStreamLooseTextConfig(pack, activeType, canvasProfileId)
+  const looseOverrideCount = Object.values(activeLoose as Record<string, object | undefined>).reduce<number>((total, section) => total + Object.keys(section || {}).length, 0)
+  const activeLayout = resolveStreamLayoutConfig(pack, activeType, canvasProfileId)
+  const activeTable = resolveStreamTableConfig(pack, activeType, canvasProfileId)
+  const activeCard = resolveStreamCardConfig(pack, activeType, canvasProfileId)
+  const structureOverrideCount = Object.values(activeStructure as Record<string, object | undefined>).reduce<number>((total, section) => total + Object.keys(section || {}).length, 0)
   const activeEnabled = pack.enabled_overlay_types.includes(activeType)
   const enabledCount = pack.enabled_overlay_types.length
 
@@ -168,21 +252,68 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
     setActivePanel('scene')
   }
 
-  function patchActiveConfig(patch: Partial<StreamPackageOverlayConfig>) {
-    setPack((prev) => ({
-      ...prev,
-      overlay_configs: {
-        ...prev.overlay_configs,
-        [activeType]: { ...resolveStreamOverlayConfig(prev, activeType), ...patch },
-      },
-    }))
+  function patchActiveConfig(patch: Partial<StreamPackageOutputVariantConfig>) {
+    setPack((prev) => {
+      const stored = prev.overlay_configs[activeType] || structuredClone(DEFAULT_STREAM_OVERLAY_CONFIGS[activeType])
+      if (canvasProfileId === 'live-hd') {
+        return {
+          ...prev,
+          overlay_configs: {
+            ...prev.overlay_configs,
+            [activeType]: { ...stored, ...patch },
+          },
+        }
+      }
+      const variants = { ...(stored.outputVariants || {}) }
+      variants[canvasProfileId] = { ...(variants[canvasProfileId] || {}), ...patch }
+      return {
+        ...prev,
+        overlay_configs: {
+          ...prev.overlay_configs,
+          [activeType]: { ...stored, outputVariants: variants },
+        },
+      }
+    })
+  }
+
+  function createActiveOutputVariant() {
+    if (canvasProfileId === 'live-hd' || activeOutputVariant) return
+    setPack((prev) => {
+      const stored = prev.overlay_configs[activeType] || structuredClone(DEFAULT_STREAM_OVERLAY_CONFIGS[activeType])
+      return {
+        ...prev,
+        overlay_configs: {
+          ...prev.overlay_configs,
+          [activeType]: {
+            ...stored,
+            outputVariants: { ...(stored.outputVariants || {}), [canvasProfileId]: {} },
+          },
+        },
+      }
+    })
+  }
+
+  function clearActiveOutputVariant() {
+    if (canvasProfileId === 'live-hd') return
+    setPack((prev) => {
+      const stored = prev.overlay_configs[activeType] || structuredClone(DEFAULT_STREAM_OVERLAY_CONFIGS[activeType])
+      const variants = { ...(stored.outputVariants || {}) }
+      delete variants[canvasProfileId]
+      return {
+        ...prev,
+        overlay_configs: {
+          ...prev.overlay_configs,
+          [activeType]: { ...stored, outputVariants: Object.keys(variants).length ? variants : undefined },
+        },
+      }
+    })
   }
 
   function patchActiveStructure<K extends 'layout' | 'table' | 'card'>(
     section: K,
     patch: Partial<StreamOverlayPackage['shared_config'][K]>,
   ) {
-    const current = activeConfig.structureOverrides || {}
+    const current = (editingOutputVariant ? activeOutputVariant?.structureOverrides : activeConfig.structureOverrides) || {}
     patchActiveConfig({
       structureOverrides: {
         ...current,
@@ -196,7 +327,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
       patchActiveConfig({ structureOverrides: undefined })
       return
     }
-    const next = { ...(activeConfig.structureOverrides || {}) }
+    const next = { ...((editingOutputVariant ? activeOutputVariant?.structureOverrides : activeConfig.structureOverrides) || {}) }
     delete next[section]
     patchActiveConfig({ structureOverrides: Object.keys(next).length ? next : undefined })
   }
@@ -205,7 +336,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
     section: K,
     patch: Partial<K extends 'image' ? StreamOverlayPackage['shared_config']['looseImage'] : StreamOverlayPackage['shared_config']['looseText']>,
   ) {
-    const current = activeConfig.looseOverrides || {}
+    const current = (editingOutputVariant ? activeOutputVariant?.looseOverrides : activeConfig.looseOverrides) || {}
     patchActiveConfig({
       looseOverrides: {
         ...current,
@@ -219,15 +350,25 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
       patchActiveConfig({ looseOverrides: undefined })
       return
     }
-    const next = { ...(activeConfig.looseOverrides || {}) }
+    const next = { ...((editingOutputVariant ? activeOutputVariant?.looseOverrides : activeConfig.looseOverrides) || {}) }
     delete next[section]
     patchActiveConfig({ looseOverrides: Object.keys(next).length ? next : undefined })
   }
 
   function restoreActiveSceneDefaults() {
+    if (canvasProfileId !== 'live-hd') {
+      clearActiveOutputVariant()
+      return
+    }
     setPack((prev) => ({
       ...prev,
-      overlay_configs: { ...prev.overlay_configs, [activeType]: structuredClone(DEFAULT_STREAM_OVERLAY_CONFIGS[activeType]) },
+      overlay_configs: {
+        ...prev.overlay_configs,
+        [activeType]: {
+          ...structuredClone(DEFAULT_STREAM_OVERLAY_CONFIGS[activeType]),
+          outputVariants: prev.overlay_configs[activeType]?.outputVariants,
+        },
+      },
     }))
   }
 
@@ -302,7 +443,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
     try {
       const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId: props.campeonatoId })
       patchActiveConfig({
-        assetOverrides: { ...(activeConfig.assetOverrides || {}), [key]: url },
+        assetOverrides: { ...((editingOutputVariant ? activeOutputVariant?.assetOverrides : activeConfig.assetOverrides) || {}), [key]: url },
       })
     } catch (error: any) {
       setFeedback(error?.message || 'Erro ao enviar exceção visual.')
@@ -312,7 +453,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   }
 
   function removeSceneAssetOverride(key: StreamPackageAssetKey) {
-    const next = { ...(activeConfig.assetOverrides || {}) }
+    const next = { ...((editingOutputVariant ? activeOutputVariant?.assetOverrides : activeConfig.assetOverrides) || {}) }
     delete next[key]
     patchActiveConfig({ assetOverrides: next })
   }
@@ -332,12 +473,13 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
           assets: pack.assets,
           shared_config: pack.shared_config,
           overlay_configs: pack.overlay_configs,
-          schema_version: 2,
+          output_layouts: pack.output_layouts,
+          schema_version: 3,
         }),
       })
       setPack((prev) => ({ ...prev, updated_at: json.pack?.updated_at || prev.updated_at }))
       setNeedsSql(Boolean(json.needs_package_sql))
-      setFeedback('Pacote salvo. As configurações compartilhadas já valem para todas as overlays selecionadas.')
+      setFeedback('Pacote salvo. Overlays, variantes e saídas para postagem foram atualizadas.')
     } catch (error: any) {
       setFeedback(error?.message || 'Erro ao salvar pacote.')
     } finally {
@@ -365,9 +507,22 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
         </div>
       </div>
 
-      {needsSql ? <div className="stream-error">Rode <code>database/migrations/20260810_stream_overlay_package_model.sql</code> antes de salvar o novo pacote.</div> : null}
+      {needsSql ? <div className="stream-error">Rode as migrations pendentes do pacote antes de salvar. Para saídas/postagens: <code>database/migrations/20260811_stream_output_layouts.sql</code>.</div> : null}
       {feedback ? <p className="stream-hint stream-package-feedback">{feedback}</p> : null}
 
+      <div className="stream-package-mode-tabs" role="tablist" aria-label="Área de trabalho do pacote">
+        <button type="button" className={workspaceMode === 'overlays' ? 'active' : ''} onClick={() => setWorkspaceMode('overlays')}>Overlays / Live</button>
+        <button type="button" className={workspaceMode === 'outputs' ? 'active' : ''} onClick={() => setWorkspaceMode('outputs')}>Saídas / Postagens</button>
+      </div>
+
+      {workspaceMode === 'outputs' ? (
+        <StreamOutputLayoutsEditor
+          campeonatoId={props.campeonatoId}
+          pack={pack}
+          layouts={pack.output_layouts}
+          onChange={(outputLayouts) => setPack((current) => ({ ...current, output_layouts: outputLayouts }))}
+        />
+      ) : (
       <div className="stream-package-workbench">
         <aside className="stream-package-scenes">
           <div className="stream-package-scenes-head">
@@ -423,8 +578,26 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                       <h3>{activeMeta.name}</h3>
                       <p>Somente regras que realmente mudam nesta cena. Visual, fontes e fundos continuam herdados do pacote.</p>
                     </div>
-                    <button type="button" className="stream-secondary-btn" onClick={restoreActiveSceneDefaults}>Restaurar padrão</button>
+                    <button type="button" className="stream-secondary-btn" onClick={restoreActiveSceneDefaults}>{editingOutputVariant ? 'Herdar cena base' : 'Restaurar padrão'}</button>
                   </div>
+
+                  {editingOutputVariant ? (
+                    <div className={`stream-package-output-variant${activeOutputVariant ? ' is-custom' : ''}`}>
+                      <div>
+                        <strong>{canvasProfile.label}</strong>
+                        <small>{activeOutputVariant
+                          ? 'Variante própria desta cena. Só os campos alterados aqui deixam de herdar a base da live.'
+                          : 'Herdando a cena base da live. Ao alterar um campo, o sistema cria somente a exceção deste formato.'}</small>
+                      </div>
+                      {activeOutputVariant
+                        ? <button type="button" className="stream-package-link-btn" onClick={clearActiveOutputVariant}>Remover variante</button>
+                        : <button type="button" className="stream-package-link-btn" onClick={createActiveOutputVariant}>Criar variante</button>}
+                    </div>
+                  ) : (
+                    <div className="stream-package-output-variant is-base">
+                      <div><strong>Base da live</strong><small>Esta é a configuração principal herdada pelos demais formatos quando não existe uma variante.</small></div>
+                    </div>
+                  )}
 
                   <label className="stream-package-switch-row">
                     <span><b>Usar esta overlay</b><small>{activeEnabled ? 'Disponível no controlador da transmissão.' : 'Fora do pacote e indisponível no controlador.'}</small></span>
@@ -549,11 +722,11 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                   <div className="stream-package-scene-assets">
                     <div className="stream-package-scene-assets-head">
                       <div><b>Exceções do kit visual</b><small>Por padrão esta overlay herda os mesmos arquivos do pacote. Crie exceção somente quando esta cena realmente precisar de uma arte diferente.</small></div>
-                      <span>{Object.keys(activeConfig.assetOverrides || {}).length} exceções</span>
+                      <span>{Object.keys(activeAssetOverrides).length} exceções</span>
                     </div>
                     <div className="stream-package-scene-asset-list">
                       {activeSceneAssets.map((asset) => {
-                        const overrideUrl = activeConfig.assetOverrides?.[asset.key]
+                        const overrideUrl = activeAssetOverrides[asset.key]
                         const inheritedUrl = pack.assets[asset.key]
                         return (
                           <article key={asset.key} className={`stream-package-scene-asset${overrideUrl ? ' is-override' : ''}`}>
@@ -789,19 +962,72 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                     {renderDataLoading ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />} Atualizar dados
                   </button>
                 </div>
-                <div className="stream-package-preview-frame">
-                  <StreamPackageStage pack={pack} type={activeType} data={renderData} preview />
+                <div className="stream-package-preview-toolbar" aria-label="Ferramentas do palco">
+                  <label>Formato
+                    <select value={canvasProfileId} onChange={(event) => setCanvasProfileId(event.target.value as StreamOutputProfileId)}>
+                      {STREAM_OUTPUT_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+                    </select>
+                  </label>
+                  <div className="stream-package-preview-toolgroup">
+                    <button type="button" title="Diminuir zoom" onClick={() => setZoom((value) => clampZoom(value / 1.2))}><ZoomOut size={14} /></button>
+                    <button type="button" className="is-zoom" title="Zoom atual" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
+                    <button type="button" title="Aumentar zoom" onClick={() => setZoom((value) => clampZoom(value * 1.2))}><ZoomIn size={14} /></button>
+                    <button type="button" title="Ajustar palco à área" onClick={fitPreview}><Maximize2 size={14} /> Ajustar</button>
+                  </div>
+                  <div className="stream-package-preview-toolgroup">
+                    <button type="button" className={showGrid ? 'active' : ''} onClick={() => setShowGrid((value) => !value)} title="Mostrar grid"><Grid3X3 size={14} /> Grid</button>
+                    <button type="button" className={showSafeArea ? 'active' : ''} onClick={() => setShowSafeArea((value) => !value)} title="Mostrar área segura">Safe</button>
+                  </div>
+                  <label>Fundo
+                    <select value={previewBackground} onChange={(event) => setPreviewBackground(event.target.value as PreviewBackground)}>
+                      <option value="transparent">Transparente</option>
+                      <option value="dark">Escuro</option>
+                      <option value="light">Claro</option>
+                    </select>
+                  </label>
+                </div>
+                <div
+                  ref={workspaceRef}
+                  className={`stream-package-preview-workspace bg-${previewBackground}${showGrid ? ' show-grid' : ''}`}
+                  onWheel={handleWorkspaceWheel}
+                  onPointerDown={startWorkspacePan}
+                  onPointerMove={moveWorkspacePan}
+                  onPointerUp={stopWorkspacePan}
+                  onPointerCancel={stopWorkspacePan}
+                  onContextMenu={(event) => event.preventDefault()}
+                >
+                  <div className="stream-package-preview-pan-hint"><Move size={13} /> Scroll: zoom · botão do meio ou Alt + arrastar: mover</div>
+                  <div
+                    className="stream-package-preview-canvas"
+                    style={{
+                      width: canvasProfile.width,
+                      height: canvasProfile.height,
+                      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    }}
+                  >
+                    <StreamPackageStage
+                      pack={pack}
+                      type={activeType}
+                      data={renderData}
+                      preview
+                      canvasWidth={canvasProfile.width}
+                      canvasHeight={canvasProfile.height}
+                      outputProfileId={canvasProfileId}
+                    />
+                    {showSafeArea ? <div className="stream-package-preview-safe-area" aria-hidden /> : null}
+                  </div>
                 </div>
                 <div className="stream-package-preview-footer">
                   <span className={`stream-package-status-dot${activeEnabled ? ' on' : ''}`} />
                   <span>{activeEnabled ? 'Ativa no pacote' : 'Prévia apenas — overlay desativada'}</span>
-                  <span>16:9 · 1920 × 1080</span>
+                  <span>{canvasProfile.width} × {canvasProfile.height} · {canvasProfile.kind === 'stream' ? 'Stream' : canvasProfile.kind === 'social' ? 'Social' : 'PNG transparente'}</span>
                 </div>
               </section>
             </aside>
           </div>
         </main>
       </div>
+      )}
     </section>
   )
 }

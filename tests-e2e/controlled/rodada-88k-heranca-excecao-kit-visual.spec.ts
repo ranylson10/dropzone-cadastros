@@ -12,9 +12,9 @@ test('overlay config possui exceção tipada de asset, sem objeto genérico', ()
 })
 
 test('renderer resolve exceção antes do asset compartilhado', () => {
-  const source = read('web/features/campeonatos/stream/services/stream-package-config.ts')
-  expect(source).toContain('resolveStreamOverlayConfig(pack, type).assetOverrides?.[key]')
-  expect(source).toContain('override || pack.assets[key]')
+  const source = read('web/features/campeonatos/stream/components/StreamPackageStage.tsx')
+  expect(source).toContain('resolveStreamAsset(props.pack, props.type')
+  expect(source).toContain('outputProfileId')
 })
 
 test('editor mantém herança como padrão e exceção explícita', () => {
@@ -26,7 +26,7 @@ test('editor mantém herança como padrão e exceção explícita', () => {
 
 test('exceção reaproveita o mesmo campo da cena e não duplica pacote', () => {
   const source = read('web/features/campeonatos/stream/components/StreamPackageEditor.tsx')
-  expect(source).toContain('assetOverrides: { ...(activeConfig.assetOverrides || {}), [key]: url }')
+  expect(source).toContain('assetOverrides: { ...((editingOutputVariant ? activeOutputVariant?.assetOverrides : activeConfig.assetOverrides) || {}), [key]: url }')
   expect(source).toContain('delete next[key]')
 })
 

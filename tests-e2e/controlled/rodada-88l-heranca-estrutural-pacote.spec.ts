@@ -14,10 +14,10 @@ test('overlay config possui exceções estruturais tipadas e pontuais', () => {
 })
 
 test('renderer mescla pacote com exceção da cena sem duplicar configuração', () => {
-  const source = read('web/features/campeonatos/stream/services/stream-package-config.ts')
-  expect(source).toContain('...pack.shared_config.table, ...(resolveStreamOverlayConfig(pack, type).structureOverrides?.table || {})')
-  expect(source).toContain('...pack.shared_config.card, ...(resolveStreamOverlayConfig(pack, type).structureOverrides?.card || {})')
-  expect(source).toContain('...pack.shared_config.layout, ...(resolveStreamOverlayConfig(pack, type).structureOverrides?.layout || {})')
+  const source = read('web/features/campeonatos/stream/components/StreamPackageStage.tsx')
+  expect(source).toContain('resolveStreamTableConfig(props.pack, props.type, props.outputProfileId)')
+  expect(source).toContain('resolveStreamCardConfig(props.pack, props.type, props.outputProfileId)')
+  expect(source).toContain('resolveStreamLayoutConfig(props.pack, props.type, outputProfileId)')
 })
 
 test('editor apresenta herança estrutural como regra padrão', () => {

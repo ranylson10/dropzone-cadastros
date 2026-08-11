@@ -10,11 +10,19 @@ type StorageState = {
 
 function token(file: string, origin: string) {
   const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
-  for (const item of state.origins?.find((entry) => entry.origin === origin)?.localStorage || []) {
-    if (!item.name?.includes('auth-token') || !item.value) continue
-    const parsed = JSON.parse(item.value) as { access_token?: string; currentSession?: { access_token?: string } }
-    const accessToken = parsed.access_token || parsed.currentSession?.access_token
-    if (accessToken) return accessToken
+  const exact = state.origins?.find((entry) => entry.origin === origin)
+  const candidates = exact ? [exact, ...(state.origins || []).filter((entry) => entry !== exact)] : (state.origins || [])
+  for (const candidate of candidates) {
+    for (const item of candidate.localStorage || []) {
+      if (!item.name?.includes('auth-token') || !item.value) continue
+      try {
+        const parsed = JSON.parse(item.value) as { access_token?: string; currentSession?: { access_token?: string } }
+        const accessToken = parsed.access_token || parsed.currentSession?.access_token
+        if (accessToken && accessToken.length > 20) return accessToken
+      } catch {
+        // Ignora entradas locais que não sejam uma sessão Supabase válida.
+      }
+    }
   }
   throw new Error('Sessão da produtora não encontrada.')
 }

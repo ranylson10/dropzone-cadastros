@@ -14,6 +14,57 @@ export const STREAM_SYSTEM_OVERLAYS = [
 export type StreamSystemOverlayType = (typeof STREAM_SYSTEM_OVERLAYS)[number]
 
 
+export const STREAM_OUTPUT_PROFILES = [
+  { id: 'live-hd', label: 'Live HD · 16:9', width: 1920, height: 1080, kind: 'stream' },
+  { id: 'live-4k', label: 'Live 4K · 16:9', width: 3840, height: 2160, kind: 'stream' },
+  { id: 'square', label: 'Quadrado · 1:1', width: 1080, height: 1080, kind: 'social' },
+  { id: 'portrait', label: 'Post vertical · 4:5', width: 1080, height: 1350, kind: 'social' },
+  { id: 'story', label: 'Story/Reels · 9:16', width: 1080, height: 1920, kind: 'social' },
+  { id: 'png-4k', label: 'PNG 4K · transparente', width: 3840, height: 2160, kind: 'png' },
+] as const
+
+export type StreamOutputProfileId = (typeof STREAM_OUTPUT_PROFILES)[number]['id']
+export type StreamOutputKind = (typeof STREAM_OUTPUT_PROFILES)[number]['kind']
+
+
+
+export type StreamOutputBackgroundType = 'transparent' | 'color' | 'image'
+export type StreamOutputFormat = 'png' | 'jpg'
+export type StreamOutputSliceDirection = 'horizontal' | 'vertical'
+export type StreamOutputAreaContentMode = 'full' | 'clean'
+
+export type StreamOutputArea = {
+  id: string
+  overlayType: StreamSystemOverlayType
+  profileId: StreamOutputProfileId
+  x: number
+  y: number
+  width: number
+  height: number
+  zIndex: number
+  dataStart: number
+  dataEnd: number
+  visible: boolean
+  contentMode: StreamOutputAreaContentMode
+  lockAspect: boolean
+}
+
+export type StreamOutputLayout = {
+  id: string
+  name: string
+  width: number
+  height: number
+  backgroundType: StreamOutputBackgroundType
+  backgroundColor: string
+  backgroundUrl: string
+  outputFormat: StreamOutputFormat
+  sliceCount: number
+  sliceDirection: StreamOutputSliceDirection
+  sliceWidth: number
+  sliceHeight: number
+  areas: StreamOutputArea[]
+}
+
 export const STREAM_OVERLAY_COLUMN_META: Record<string, { label: string; kind: 'text' | 'number' | 'image' }> = {
   rank: { label: 'RK', kind: 'number' },
   logo: { label: 'Logo', kind: 'image' },
@@ -197,7 +248,7 @@ export type StreamPackageRenderData = {
   emptyMessage?: string
 }
 
-export type StreamPackageOverlayConfig = {
+export type StreamPackageOutputVariantConfig = {
   maxItems?: number
   tableMode?: 'single' | 'double'
   columns?: string[]
@@ -207,12 +258,17 @@ export type StreamPackageOverlayConfig = {
   looseOverrides?: StreamPackageLooseOverrides
 }
 
+export type StreamPackageOverlayConfig = StreamPackageOutputVariantConfig & {
+  outputVariants?: Partial<Record<StreamOutputProfileId, StreamPackageOutputVariantConfig>>
+}
+
 export type StreamOverlayPackage = {
   campeonato_id: string
   enabled_overlay_types: StreamSystemOverlayType[]
   assets: Partial<Record<StreamPackageAssetKey, string>>
   shared_config: StreamPackageSharedConfig
   overlay_configs: Partial<Record<StreamSystemOverlayType, StreamPackageOverlayConfig>>
+  output_layouts: StreamOutputLayout[]
   schema_version: number
   updated_at?: string | null
 }

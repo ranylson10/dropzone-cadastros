@@ -27,20 +27,20 @@ test('88N centraliza resolução de herança e exceções', async () => {
 
 test('88N renderer não mantém resolvers concorrentes locais', async () => {
   expect(stage).toContain('resolveStreamAsset(props.pack, props.type')
-  expect(stage).toContain('resolveStreamTableConfig(props.pack, props.type)')
-  expect(stage).toContain('resolveStreamCardConfig(props.pack, props.type)')
+  expect(stage).toContain('resolveStreamTableConfig(props.pack, props.type, props.outputProfileId)')
+  expect(stage).toContain('resolveStreamCardConfig(props.pack, props.type, props.outputProfileId)')
   expect(stage).not.toContain('function resolveTableConfig(')
   expect(stage).not.toContain('function resolveCardConfig(')
   expect(stage).not.toContain('function asset(')
 })
 
 test('88N editor usa os mesmos resolvers do renderer', async () => {
-  expect(editor).toContain('resolveStreamOverlayConfig(pack, activeType)')
-  expect(editor).toContain('resolveStreamLooseImageConfig(pack, activeType)')
-  expect(editor).toContain('resolveStreamLooseTextConfig(pack, activeType)')
-  expect(editor).toContain('resolveStreamLayoutConfig(pack, activeType)')
-  expect(editor).toContain('resolveStreamTableConfig(pack, activeType)')
-  expect(editor).toContain('resolveStreamCardConfig(pack, activeType)')
+  expect(editor).toContain('resolveStreamOverlayConfig(pack, activeType, canvasProfileId)')
+  expect(editor).toContain('resolveStreamLooseImageConfig(pack, activeType, canvasProfileId)')
+  expect(editor).toContain('resolveStreamLooseTextConfig(pack, activeType, canvasProfileId)')
+  expect(editor).toContain('resolveStreamLayoutConfig(pack, activeType, canvasProfileId)')
+  expect(editor).toContain('resolveStreamTableConfig(pack, activeType, canvasProfileId)')
+  expect(editor).toContain('resolveStreamCardConfig(pack, activeType, canvasProfileId)')
 })
 
 test('88N normalização elimina chaves de asset e cenas fora do modelo oficial', async () => {

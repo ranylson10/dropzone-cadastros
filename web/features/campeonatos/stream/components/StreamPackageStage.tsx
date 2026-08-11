@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from 'react'
 import type {
+  StreamOutputProfileId,
   StreamOverlayPackage,
   StreamPackageRenderData,
   StreamPackageRenderItem,
@@ -54,12 +55,14 @@ function TableRenderer(props: {
   pack: StreamOverlayPackage
   type: StreamSystemOverlayType
   data: StreamPackageRenderData
+  outputProfileId?: StreamOutputProfileId
+  contentOnly?: boolean
 }) {
-  const config = resolveStreamOverlayConfig(props.pack, props.type)
+  const config = resolveStreamOverlayConfig(props.pack, props.type, props.outputProfileId)
   const columns = (config.columns || []).filter((column) => STREAM_OVERLAY_COLUMN_META[column])
   const maxItems = Math.max(1, Number(config.maxItems || props.data.items.length || 1))
   const items = props.data.items.slice(0, maxItems)
-  const shared = resolveStreamTableConfig(props.pack, props.type)
+  const shared = resolveStreamTableConfig(props.pack, props.type, props.outputProfileId)
   const mode = config.tableMode || shared.mode
   const panels = splitItems(items, mode)
 
@@ -96,7 +99,7 @@ function TableRenderer(props: {
                 className="stream-package-render-table-row"
                 key={`${panelIndex}-${index}`}
                 style={{
-                  backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, 'table_row_bg')),
+                  backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, 'table_row_bg', props.outputProfileId)),
                   animationDelay: `${index * props.pack.shared_config.animation.staggerMs}ms`,
                 }}
               >
@@ -114,7 +117,7 @@ function TableRenderer(props: {
                     <div
                       className={`stream-package-render-cell ${cellClass(column)}`}
                       key={column}
-                      style={{ backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, roleAsset)) }}
+                      style={{ backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, roleAsset, props.outputProfileId)) }}
                     >
                       {renderCellValue(column, item[column])}
                     </div>
@@ -138,11 +141,13 @@ function CardRenderer(props: {
   pack: StreamOverlayPackage
   type: StreamSystemOverlayType
   data: StreamPackageRenderData
+  outputProfileId?: StreamOutputProfileId
+  contentOnly?: boolean
 }) {
-  const config = resolveStreamOverlayConfig(props.pack, props.type)
+  const config = resolveStreamOverlayConfig(props.pack, props.type, props.outputProfileId)
   const maxItems = Math.max(1, Number(config.maxItems || props.data.items.length || 1))
   const items = props.data.items.slice(0, maxItems)
-  const card = resolveStreamCardConfig(props.pack, props.type)
+  const card = resolveStreamCardConfig(props.pack, props.type, props.outputProfileId)
   const layout = STREAM_SYSTEM_OVERLAY_LAYOUTS[props.type]
   const cardWidth = layout.variant === 'map-card' ? Math.max(card.width, 500) : card.width
   const cardHeight = layout.variant === 'logo-card' ? Math.min(card.height, 300) : card.height
@@ -169,7 +174,7 @@ function CardRenderer(props: {
             width: cardWidth,
             height: cardHeight,
             borderRadius: card.radius,
-            backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, 'card_bg')),
+            backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, 'card_bg', props.outputProfileId)),
             animationDelay: `${index * props.pack.shared_config.animation.staggerMs}ms`,
           }}
         >
@@ -180,7 +185,7 @@ function CardRenderer(props: {
           </div>
           <div
             className="stream-package-render-card-content"
-            style={{ backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, 'card_stats_bg')) }}
+            style={{ backgroundImage: cssBackground(resolveStreamAsset(props.pack, props.type, 'card_stats_bg', props.outputProfileId)) }}
           >
             <strong>{cardTitle(props.type, item)}</strong>
             <div className="stream-package-render-card-stats">
@@ -225,21 +230,31 @@ export function StreamPackageStage(props: {
   type: StreamSystemOverlayType
   data: StreamPackageRenderData
   preview?: boolean
+  canvasWidth?: number
+  canvasHeight?: number
+  outputProfileId?: StreamOutputProfileId
+  contentOnly?: boolean
 }) {
   const meta = STREAM_SYSTEM_OVERLAY_META[props.type]
   const layout = STREAM_SYSTEM_OVERLAY_LAYOUTS[props.type]
-  const config = resolveStreamOverlayConfig(props.pack, props.type)
-  const looseImage = resolveStreamLooseImageConfig(props.pack, props.type)
-  const looseText = resolveStreamLooseTextConfig(props.pack, props.type)
-  const eventLogo = looseImage.assetKey ? resolveStreamAsset(props.pack, props.type, looseImage.assetKey) : ''
-  const topArt = resolveStreamAsset(props.pack, props.type, 'top_art')
+  const outputProfileId = props.outputProfileId || 'live-hd'
+  const config = resolveStreamOverlayConfig(props.pack, props.type, outputProfileId)
+  const looseImage = resolveStreamLooseImageConfig(props.pack, props.type, outputProfileId)
+  const looseText = resolveStreamLooseTextConfig(props.pack, props.type, outputProfileId)
+  const eventLogo = looseImage.assetKey ? resolveStreamAsset(props.pack, props.type, looseImage.assetKey, outputProfileId) : ''
+  const topArt = resolveStreamAsset(props.pack, props.type, 'top_art', outputProfileId)
   const animation = props.pack.shared_config.animation
-  const sharedLayout = resolveStreamLayoutConfig(props.pack, props.type)
+  const sharedLayout = resolveStreamLayoutConfig(props.pack, props.type, outputProfileId)
+  const canvasWidth = Math.max(1, Number(props.canvasWidth || 1920))
+  const canvasHeight = Math.max(1, Number(props.canvasHeight || 1080))
+  const designScale = Math.min(canvasWidth / 1920, canvasHeight / 1080)
 
   return (
     <div
       className={`stream-package-render-root overlay-${props.type} fx-${animation.enter}${props.preview ? ' is-preview' : ''}`}
       style={{
+        width: canvasWidth,
+        height: canvasHeight,
         '--stream-package-primary': props.pack.shared_config.identity.primaryColor,
         '--stream-package-secondary': props.pack.shared_config.identity.secondaryColor,
         '--stream-package-font': props.pack.shared_config.identity.fontFamily,
@@ -247,8 +262,12 @@ export function StreamPackageStage(props: {
         '--stream-package-enter-px': `${animation.distancePx}px`,
       } as CSSProperties}
     >
-      {topArt ? <img className="stream-package-render-top-art" src={topArt} alt="" /> : null}
-      {looseImage.show && eventLogo ? (
+      <div
+        className="stream-package-render-design"
+        style={{ transform: `translate(-50%, -50%) scale(${designScale})` }}
+      >
+        {!props.contentOnly && topArt ? <img className="stream-package-render-top-art" src={topArt} alt="" /> : null}
+      {!props.contentOnly && looseImage.show && eventLogo ? (
         <img
           className="stream-package-render-loose-image"
           src={eventLogo}
@@ -262,7 +281,7 @@ export function StreamPackageStage(props: {
           }}
         />
       ) : null}
-      {looseText.show ? (
+      {!props.contentOnly && looseText.show ? (
         <div
           className="stream-package-render-loose-text"
           style={{
@@ -292,9 +311,10 @@ export function StreamPackageStage(props: {
         {!props.data.items.length ? (
           <div className="stream-package-render-empty">{props.data.emptyMessage || 'Sem dados disponíveis para esta overlay.'}</div>
         ) : null}
-        {props.data.items.length && meta.structure === 'table' ? <TableRenderer pack={props.pack} type={props.type} data={props.data} /> : null}
-        {props.data.items.length && meta.structure === 'cards' ? <CardRenderer pack={props.pack} type={props.type} data={props.data} /> : null}
+        {props.data.items.length && meta.structure === 'table' ? <TableRenderer pack={props.pack} type={props.type} data={props.data} outputProfileId={outputProfileId} /> : null}
+        {props.data.items.length && meta.structure === 'cards' ? <CardRenderer pack={props.pack} type={props.type} data={props.data} outputProfileId={outputProfileId} /> : null}
         {props.data.items.length && meta.structure === 'hero' ? <HeroRenderer pack={props.pack} type={props.type} data={props.data} /> : null}
+      </div>
       </div>
     </div>
   )

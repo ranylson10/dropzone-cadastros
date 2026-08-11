@@ -6,6 +6,7 @@ import {
   asStreamConfigObject,
   asStreamOverlayTypeList,
   normalizeStreamOverlayPackage,
+  normalizeStreamOutputLayouts,
 } from '@/features/campeonatos/stream/services/stream-package-config'
 
 function canStream(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
@@ -23,6 +24,12 @@ function missingTable(error: any) {
   return ['42P01', 'PGRST205'].includes(error?.code || '')
 }
 
+
+function missingOutputLayouts(error: any) {
+  const message = String(error?.message || '')
+  return error?.code === '42703' && message.includes('output_layouts')
+}
+
 function missingPackageColumns(error: any) {
   const message = String(error?.message || '')
   return error?.code === '42703' || [
@@ -31,10 +38,11 @@ function missingPackageColumns(error: any) {
     'shared_config',
     'overlay_configs',
     'schema_version',
+    'output_layouts',
   ].some((column) => message.includes(column))
 }
 
-const PACK_SELECT = 'bg_type,bg_url,active_jogo_id,enabled_overlay_types,assets,shared_config,overlay_configs,schema_version,updated_at'
+const PACK_SELECT = 'bg_type,bg_url,active_jogo_id,enabled_overlay_types,assets,shared_config,overlay_configs,output_layouts,schema_version,updated_at'
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -62,6 +70,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         return NextResponse.json({
           error: 'Rode o SQL: database/migrations/20260719_broadcast_desk_e_pack.sql',
           missing_table: true,
+        }, { status: 503 })
+      }
+      if (missingOutputLayouts(error)) {
+        return NextResponse.json({
+          error: 'Rode o SQL: database/migrations/20260811_stream_output_layouts.sql',
+          needs_package_sql: true,
+          needs_output_layouts_sql: true,
         }, { status: 503 })
       }
       if (missingPackageColumns(error)) {
@@ -114,6 +129,7 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     const hasSharedConfig = Object.prototype.hasOwnProperty.call(body, 'shared_config')
     const hasOverlayConfigs = Object.prototype.hasOwnProperty.call(body, 'overlay_configs')
     const hasSchemaVersion = Object.prototype.hasOwnProperty.call(body, 'schema_version')
+    const hasOutputLayouts = Object.prototype.hasOwnProperty.call(body, 'output_layouts')
     const hasBgType = Object.prototype.hasOwnProperty.call(body, 'bg_type')
     const hasBgUrl = Object.prototype.hasOwnProperty.call(body, 'bg_url')
     const bgTypeRaw = String(body.bg_type || 'none').toLowerCase()
@@ -158,7 +174,8 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     if (hasAssets) row.assets = asStreamConfigObject(body.assets)
     if (hasSharedConfig) row.shared_config = asStreamConfigObject(body.shared_config)
     if (hasOverlayConfigs) row.overlay_configs = asStreamConfigObject(body.overlay_configs)
-    if (hasSchemaVersion) row.schema_version = Math.max(2, Number(body.schema_version) || 2)
+    if (hasOutputLayouts) row.output_layouts = normalizeStreamOutputLayouts(body.output_layouts)
+    if (hasSchemaVersion) row.schema_version = Math.max(3, Number(body.schema_version) || 3)
 
     const { data, error } = await supabaseAdmin
       .from('campeonato_stream_pack')
@@ -171,6 +188,13 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
         return NextResponse.json({
           error: 'Rode o SQL: database/migrations/20260719_broadcast_desk_e_pack.sql',
           missing_table: true,
+        }, { status: 503 })
+      }
+      if (missingOutputLayouts(error)) {
+        return NextResponse.json({
+          error: 'Rode o SQL: database/migrations/20260811_stream_output_layouts.sql',
+          needs_package_sql: true,
+          needs_output_layouts_sql: true,
         }, { status: 503 })
       }
       if (missingPackageColumns(error)) {

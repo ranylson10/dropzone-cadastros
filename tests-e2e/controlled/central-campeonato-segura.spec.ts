@@ -9,11 +9,19 @@ const jogadorAuthFile = path.resolve('tests-e2e/.auth/jogador.json')
 type StorageState = { origins?: Array<{ origin?: string; localStorage?: Array<{ name?: string; value?: string }> }> }
 function token(file: string, origin: string) {
   const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
-  for (const entry of state.origins?.find((item) => item.origin === origin)?.localStorage || []) {
-    if (!entry.name?.includes('auth-token') || !entry.value) continue
-    const parsed = JSON.parse(entry.value)
-    const value = parsed.access_token || parsed.currentSession?.access_token
-    if (typeof value === 'string') return value
+  const exact = state.origins?.find((item) => item.origin === origin)
+  const candidates = exact ? [exact, ...(state.origins || []).filter((item) => item !== exact)] : (state.origins || [])
+  for (const candidate of candidates) {
+    for (const entry of candidate.localStorage || []) {
+      if (!entry.name?.includes('auth-token') || !entry.value) continue
+      try {
+        const parsed = JSON.parse(entry.value)
+        const value = parsed.access_token || parsed.currentSession?.access_token
+        if (typeof value === 'string' && value.length > 20) return value
+      } catch {
+        // Ignora entradas locais que não sejam uma sessão Supabase válida.
+      }
+    }
   }
   throw new Error(`Sessão ausente em ${file}.`)
 }

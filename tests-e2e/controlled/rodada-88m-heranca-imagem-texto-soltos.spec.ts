@@ -8,7 +8,6 @@ const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 const types = read('web/features/campeonatos/stream/types/stream-package.types.ts')
 const editor = read('web/features/campeonatos/stream/components/StreamPackageEditor.tsx')
 const stage = read('web/features/campeonatos/stream/components/StreamPackageStage.tsx')
-const config = read('web/features/campeonatos/stream/services/stream-package-config.ts')
 
 test('88M tipa exceções pontuais de imagem e texto soltos sem criar configuração paralela', async () => {
   expect(types).toContain('export type StreamPackageLooseOverrides')
@@ -18,8 +17,8 @@ test('88M tipa exceções pontuais de imagem e texto soltos sem criar configura�
 })
 
 test('88M renderer resolve herança do pacote antes da exceção da cena', async () => {
-  expect(config).toContain('...pack.shared_config.looseImage, ...(resolveStreamOverlayConfig(pack, type).looseOverrides?.image || {})')
-  expect(config).toContain('...pack.shared_config.looseText, ...(resolveStreamOverlayConfig(pack, type).looseOverrides?.text || {})')
+  expect(stage).toContain('resolveStreamLooseImageConfig(props.pack, props.type, outputProfileId)')
+  expect(stage).toContain('resolveStreamLooseTextConfig(props.pack, props.type, outputProfileId)')
   expect(stage).toContain('looseImage.show && eventLogo')
   expect(stage).toContain('looseText.show')
 })
