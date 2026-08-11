@@ -8,6 +8,7 @@ import {
   type StreamOutputProfileId,
   type StreamPackageOutputVariantConfig,
   type StreamPackageOverlayConfig,
+  type StreamSceneItem,
   type StreamOutputLayout,
   type StreamSystemOverlayType,
 } from '../types/stream-package.types'
@@ -127,12 +128,31 @@ function normalizeVariantConfig(raw: unknown): StreamPackageOutputVariantConfig 
   const maxItemsNumber = Number(source.maxItems)
   const maxItems = Number.isFinite(maxItemsNumber) && maxItemsNumber > 0 ? Math.round(maxItemsNumber) : undefined
   const title = typeof source.title === 'string' ? source.title : undefined
+  const columnLabels = asStreamConfigObject(source.columnLabels) as Record<string, string>
+  const hiddenHeaders = Array.isArray(source.hiddenHeaders) ? source.hiddenHeaders.map((item) => String(item || '').trim()).filter(Boolean) : undefined
+  const sceneItems = Array.isArray(source.sceneItems) ? source.sceneItems.slice(0, 12).map((rawItem, index) => {
+    const item = asStreamConfigObject(rawItem)
+    const type = ['text', 'image', 'timer', 'round_counter'].includes(String(item.type)) ? item.type as StreamSceneItem['type'] : 'text'
+    return {
+      id: String(item.id || `item-${index + 1}`).slice(0, 80), type, show: item.show !== false,
+      x: Math.max(-1920, Math.min(1920, Number(item.x) || 0)), y: Math.max(-1080, Math.min(1080, Number(item.y) || 0)),
+      width: Math.max(40, Math.min(1920, Number(item.width) || 240)), height: Math.max(24, Math.min(1080, Number(item.height) || 80)),
+      text: String(item.text || '').slice(0, 160), color: String(item.color || '#ffffff').slice(0, 24),
+      fontSize: Math.max(8, Math.min(240, Number(item.fontSize) || 36)), fontWeight: Math.max(100, Math.min(900, Number(item.fontWeight) || 700)),
+      imageUrl: String(item.imageUrl || '').slice(0, 2000), backgroundUrl: String(item.backgroundUrl || '').slice(0, 2000),
+      pastUrl: String(item.pastUrl || '').slice(0, 2000), currentUrl: String(item.currentUrl || '').slice(0, 2000), nextUrl: String(item.nextUrl || '').slice(0, 2000),
+      currentRound: Math.max(1, Math.min(99, Number(item.currentRound) || 1)), totalRounds: Math.max(1, Math.min(99, Number(item.totalRounds) || 12)),
+    }
+  }) as StreamSceneItem[] : undefined
 
   return {
     ...(maxItems ? { maxItems } : {}),
     ...(tableMode ? { tableMode } : {}),
     ...(columns ? { columns } : {}),
     ...(title !== undefined ? { title } : {}),
+    ...(Object.keys(columnLabels).length ? { columnLabels } : {}),
+    ...(hiddenHeaders?.length ? { hiddenHeaders } : {}),
+    ...(sceneItems?.length ? { sceneItems } : {}),
     ...(Object.keys(assetOverrides).length ? { assetOverrides } : {}),
     ...(Object.keys(structureOverrides).length ? {
       structureOverrides: {
@@ -168,9 +188,12 @@ function normalizeOverlayConfig(type: StreamSystemOverlayType, raw: unknown): St
     tableMode: base.tableMode ?? defaultConfig.tableMode,
     columns: base.columns ?? defaultConfig.columns,
     title: base.title ?? defaultConfig.title,
+    ...(base.columnLabels ? { columnLabels: base.columnLabels } : {}),
+    ...(base.hiddenHeaders ? { hiddenHeaders: base.hiddenHeaders } : {}),
     ...(base.assetOverrides ? { assetOverrides: base.assetOverrides } : {}),
     ...(base.structureOverrides ? { structureOverrides: base.structureOverrides } : {}),
     ...(base.looseOverrides ? { looseOverrides: base.looseOverrides } : {}),
+    ...(base.sceneItems ? { sceneItems: base.sceneItems } : {}),
     ...(outputVariants && Object.keys(outputVariants).length ? { outputVariants } : {}),
   }
 }

@@ -92,8 +92,8 @@ function TableRenderer(props: {
           {shared.showHeaders ? (
             <div className="stream-package-render-table-row is-header">
               {columns.map((column) => (
-                <div className={`stream-package-render-cell ${cellClass(column)}`} key={column}>
-                  {STREAM_OVERLAY_COLUMN_META[column].label}
+                <div className={`stream-package-render-cell ${cellClass(column)}`} key={column} style={{ display: config.hiddenHeaders?.includes(column) ? 'none' : undefined, color: shared.headerColor || undefined, fontFamily: shared.headerFontFamily || undefined, fontSize: shared.headerFontSize || undefined, fontWeight: shared.headerFontWeight || undefined, fontStyle: shared.headerFontStyle || undefined, textAlign: shared.headerAlign, justifyContent: shared.headerAlign === 'left' ? 'flex-start' : shared.headerAlign === 'right' ? 'flex-end' : 'center' }}>
+                  {config.columnLabels?.[column] ?? STREAM_OVERLAY_COLUMN_META[column].label}
                 </div>
               ))}
             </div>
@@ -215,6 +215,42 @@ function CardRenderer(props: {
   )
 }
 
+function MvpGeneralRenderer(props: {
+  pack: StreamOverlayPackage
+  data: StreamPackageRenderData
+  outputProfileId?: StreamOutputProfileId
+}) {
+  const config = resolveStreamOverlayConfig(props.pack, 'mvp_general', props.outputProfileId)
+  const maxItems = Math.max(1, Number(config.maxItems || props.data.items.length || 1))
+  const items = props.data.items.slice(0, maxItems)
+  const leader = items[0]
+
+  if (!leader) return null
+
+  return (
+    <div className="stream-package-mvp-general">
+      <article
+        className="stream-package-mvp-general-leader"
+        style={{ backgroundImage: cssBackground(resolveStreamAsset(props.pack, 'mvp_general', 'card_bg', props.outputProfileId)) }}
+      >
+        <small>TOP 1 · MVP GERAL</small>
+        <div className="stream-package-mvp-general-media">
+          {leader.logo ? <img src={String(leader.logo)} alt="" /> : <span className="stream-package-render-placeholder">—</span>}
+        </div>
+        <strong>{String(leader.nick || leader.name || '—')}</strong>
+        <div className="stream-package-mvp-general-stats" style={{ backgroundImage: cssBackground(resolveStreamAsset(props.pack, 'mvp_general', 'card_stats_bg', props.outputProfileId)) }}>
+          {leader.kills !== undefined ? <span><b>{String(leader.kills)}</b><small>ABT</small></span> : null}
+          {leader.kd !== undefined ? <span><b>{String(leader.kd)}</b><small>K.D</small></span> : null}
+          {leader.drops !== undefined ? <span><b>{String(leader.drops)}</b><small>QD</small></span> : null}
+        </div>
+      </article>
+      <div className="stream-package-mvp-general-ranking">
+        {items.length > 1 ? <TableRenderer pack={props.pack} type="mvp_general" data={{ ...props.data, items: items.slice(1) }} outputProfileId={props.outputProfileId} /> : null}
+      </div>
+    </div>
+  )
+}
+
 function HeroRenderer(props: {
   pack: StreamOverlayPackage
   type: StreamSystemOverlayType
@@ -237,6 +273,19 @@ function HeroRenderer(props: {
       </div>
     </div>
   )
+}
+
+function SceneItemsRenderer({ items }: { items: ReturnType<typeof resolveStreamOverlayConfig>['sceneItems'] }) {
+  return <>{(items || []).filter((item) => item.show).map((item) => {
+    const style = { left: item.x, top: item.y, width: item.width, height: item.height, color: item.color, fontSize: item.fontSize, fontWeight: item.fontWeight, backgroundImage: cssBackground(item.backgroundUrl || ''), backgroundSize: '100% 100%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } as CSSProperties
+    if (item.type === 'image') return <img className="stream-package-scene-item is-image" key={item.id} src={item.imageUrl || ''} alt="" style={{ ...style, objectFit: 'contain' }} />
+    if (item.type === 'timer') return <div className="stream-package-scene-item is-timer" key={item.id} style={style}>{item.text || '00:00'}</div>
+    if (item.type === 'round_counter') {
+      const total = Math.max(1, item.totalRounds || 1); const current = Math.min(total, item.currentRound || 1)
+      return <div className="stream-package-scene-item is-round-counter" key={item.id} style={style}><b>QUEDA</b><div>{Array.from({ length: total }, (_, index) => <img key={index} src={index + 1 < current ? item.pastUrl : index + 1 === current ? item.currentUrl : item.nextUrl} alt="" />)}</div><strong>{current}/{total}</strong></div>
+    }
+    return <div className="stream-package-scene-item is-text" key={item.id} style={style}>{item.text || 'Texto livre'}</div>
+  })}</>
 }
 
 export function StreamPackageStage(props: {
@@ -312,6 +361,7 @@ export function StreamPackageStage(props: {
           {config.title || meta.name}
         </div>
       ) : null}
+      {!props.contentOnly ? <SceneItemsRenderer items={config.sceneItems} /> : null}
 
       <div
         className={`stream-package-render-content structure-${meta.structure} variant-${layout.variant}`}
@@ -325,7 +375,8 @@ export function StreamPackageStage(props: {
         {!props.data.items.length ? (
           <div className="stream-package-render-empty">{props.data.emptyMessage || 'Sem dados disponíveis para esta overlay.'}</div>
         ) : null}
-        {props.data.items.length && meta.structure === 'table' ? <TableRenderer pack={props.pack} type={props.type} data={props.data} outputProfileId={outputProfileId} /> : null}
+        {props.data.items.length && props.type === 'mvp_general' ? <MvpGeneralRenderer pack={props.pack} data={props.data} outputProfileId={outputProfileId} /> : null}
+        {props.data.items.length && meta.structure === 'table' && props.type !== 'mvp_general' ? <TableRenderer pack={props.pack} type={props.type} data={props.data} outputProfileId={outputProfileId} /> : null}
         {props.data.items.length && meta.structure === 'cards' ? <CardRenderer pack={props.pack} type={props.type} data={props.data} outputProfileId={outputProfileId} /> : null}
         {props.data.items.length && meta.structure === 'hero' ? <HeroRenderer pack={props.pack} type={props.type} data={props.data} /> : null}
       </div>

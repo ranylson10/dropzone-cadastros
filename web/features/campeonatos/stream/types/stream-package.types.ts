@@ -132,6 +132,12 @@ export type StreamSharedTableConfig = {
   panelGap: number
   showHeaders: boolean
   headerHeight: number
+  headerFontFamily?: string
+  headerFontSize?: number
+  headerFontWeight?: number
+  headerFontStyle?: 'normal' | 'italic'
+  headerColor?: string
+  headerAlign?: 'left' | 'center' | 'right'
   logoWidth: number
   statWidth: number
   pointsWidth: number
@@ -271,10 +277,34 @@ export type StreamPackageRenderData = {
   emptyMessage?: string
 }
 
+export type StreamSceneItem = {
+  id: string
+  type: 'text' | 'image' | 'timer' | 'round_counter'
+  show: boolean
+  x: number
+  y: number
+  width: number
+  height: number
+  text?: string
+  color?: string
+  fontSize?: number
+  fontWeight?: number
+  imageUrl?: string
+  backgroundUrl?: string
+  pastUrl?: string
+  currentUrl?: string
+  nextUrl?: string
+  currentRound?: number
+  totalRounds?: number
+}
+
 export type StreamPackageOutputVariantConfig = {
   maxItems?: number
   tableMode?: 'single' | 'double'
   columns?: string[]
+  columnLabels?: Record<string, string>
+  hiddenHeaders?: string[]
+  sceneItems?: StreamSceneItem[]
   title?: string
   assetOverrides?: Partial<Record<StreamPackageAssetKey, string>>
   structureOverrides?: StreamPackageStructureOverrides
@@ -337,6 +367,12 @@ export const DEFAULT_STREAM_PACKAGE_SHARED_CONFIG: StreamPackageSharedConfig = {
     panelGap: 70,
     showHeaders: true,
     headerHeight: 38,
+    headerFontFamily: 'Rajdhani',
+    headerFontSize: 16,
+    headerFontWeight: 800,
+    headerFontStyle: 'normal',
+    headerColor: '#ffffff',
+    headerAlign: 'center',
     logoWidth: 90,
     statWidth: 108,
     pointsWidth: 118,
@@ -448,7 +484,7 @@ export const STREAM_SYSTEM_OVERLAY_LAYOUTS: Record<StreamSystemOverlayType, Stre
   round_players: { content: { x: 120, y: 350, width: 1680, height: 660 }, variant: 'table' },
   mvp_general: { content: { x: 180, y: 370, width: 1560, height: 610 }, variant: 'ranking' },
   mvp_day: { content: { x: 240, y: 390, width: 1440, height: 560 }, variant: 'ranking' },
-  mvp_round: { content: { x: 120, y: 390, width: 1680, height: 570 }, variant: 'player-card' },
+  mvp_round: { content: { x: 120, y: 390, width: 1680, height: 570 }, variant: 'table' },
   booyahs_day: { content: { x: 100, y: 360, width: 1720, height: 610 }, variant: 'map-card' },
   qualified_teams: { content: { x: 100, y: 350, width: 1720, height: 620 }, variant: 'logo-card' },
   next_round: { content: { x: 120, y: 360, width: 1680, height: 590 }, variant: 'next-round' },
@@ -465,7 +501,7 @@ export const STREAM_SYSTEM_OVERLAY_META: Record<StreamSystemOverlayType, {
   round_players: { name: 'Jogadores da queda', description: 'Ranking individual da queda selecionada.', structure: 'table' },
   mvp_general: { name: 'MVP geral', description: 'Líderes individuais no acumulado.', structure: 'table' },
   mvp_day: { name: 'MVP do dia', description: 'Líderes individuais no dia/jogo.', structure: 'table' },
-  mvp_round: { name: 'MVP da queda', description: 'Destaques da queda atual.', structure: 'cards' },
+  mvp_round: { name: 'MVP da queda', description: 'Ranking individual da queda atual.', structure: 'table' },
   booyahs_day: { name: 'Booyahs do dia', description: 'Cards das equipes vencedoras por mapa.', structure: 'cards' },
   qualified_teams: { name: 'Equipes classificadas', description: 'Cards por categoria de classificação.', structure: 'cards' },
   next_round: { name: 'Próxima queda', description: 'Mapa e identificação da próxima queda.', structure: 'hero' },
