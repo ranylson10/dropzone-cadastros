@@ -145,8 +145,16 @@ export type StreamTableColumnStyle = {
   fontFamily: string
   fontSize: number
   fontWeight: number
+  fontStyle: 'normal' | 'italic'
   color: string
   align: 'left' | 'center' | 'right'
+  width: number | null
+  backgroundType: 'solid' | 'gradient' | 'image'
+  backgroundColor: string
+  backgroundGradient: string
+  borderColor: string
+  borderWidth: number
+  borderRadius: number
 }
 
 export type StreamSharedCardConfig = {
@@ -331,11 +339,11 @@ export const DEFAULT_STREAM_PACKAGE_SHARED_CONFIG: StreamPackageSharedConfig = {
     pointsWidth: 118,
     nameAlign: 'left',
     columnStyles: {
-      rank: { assetKey: 'table_rank_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'center' },
-      logo: { assetKey: 'table_logo_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'center' },
-      name: { assetKey: 'table_name_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'left' },
-      stat: { assetKey: 'table_stat_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'center' },
-      points: { assetKey: 'table_points_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, color: '#ffffff', align: 'center' },
+      rank: { assetKey: 'table_rank_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'center', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
+      logo: { assetKey: 'table_logo_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'center', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
+      name: { assetKey: 'table_name_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'left', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
+      stat: { assetKey: 'table_stat_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'center', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
+      points: { assetKey: 'table_points_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'center', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
     },
   },
   card: {

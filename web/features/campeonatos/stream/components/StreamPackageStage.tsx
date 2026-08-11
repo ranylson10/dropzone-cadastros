@@ -113,16 +113,24 @@ function TableRenderer(props: {
               >
                 {columns.map((column) => {
                   const style = shared.columnStyles[cellStyleKey(column)]
+                  const backgroundImage = style.backgroundType === 'image'
+                    ? (style.assetKey ? cssBackground(resolveStreamAsset(props.pack, props.type, style.assetKey, props.outputProfileId)) : undefined)
+                    : style.backgroundType === 'gradient' ? style.backgroundGradient : undefined
                   return (
                     <div
                       className={`stream-package-render-cell ${cellClass(column)}`}
                       key={column}
                       style={{
-                        backgroundImage: style.assetKey ? cssBackground(resolveStreamAsset(props.pack, props.type, style.assetKey, props.outputProfileId)) : undefined,
+                        backgroundImage,
+                        backgroundColor: style.backgroundType === 'solid' ? style.backgroundColor : undefined,
                         color: style.color,
                         fontFamily: style.fontFamily,
                         fontSize: style.fontSize,
                         fontWeight: style.fontWeight,
+                        fontStyle: style.fontStyle,
+                        border: style.borderWidth ? `${style.borderWidth}px solid ${style.borderColor}` : undefined,
+                        borderRadius: style.borderRadius,
+                        ...(style.width ? { flex: `0 0 ${style.width}px`, minWidth: style.width } : {}),
                         justifyContent: style.align === 'left' ? 'flex-start' : style.align === 'right' ? 'flex-end' : 'center',
                         textAlign: style.align,
                       }}

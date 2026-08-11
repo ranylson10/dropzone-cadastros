@@ -400,6 +400,11 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
     setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, table: { ...prev.shared_config.table, ...patch } } }))
   }
 
+  function patchColumnStyle(key: StreamTableColumnStyleKey, patch: Partial<StreamOverlayPackage['shared_config']['table']['columnStyles'][StreamTableColumnStyleKey]>) {
+    const current = pack.shared_config.table.columnStyles[key]
+    patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [key]: { ...current, ...patch } } })
+  }
+
   function patchCard(patch: Partial<StreamOverlayPackage['shared_config']['card']>) {
     setPack((prev) => ({ ...prev, shared_config: { ...prev.shared_config, card: { ...prev.shared_config.card, ...patch } } }))
   }
@@ -411,7 +416,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   function applyTablePreset(preset: (typeof STREAM_TABLE_PRESETS)[number]) {
     setPack((prev) => ({
       ...prev,
-      shared_config: { ...prev.shared_config, table: structuredClone(preset.values) },
+      shared_config: { ...prev.shared_config, table: { ...structuredClone(preset.values), columnStyles: prev.shared_config.table.columnStyles } },
     }))
   }
 
@@ -842,10 +847,9 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                 <section className="stream-package-section stream-package-control-card stream-package-properties-card">
                   {selectedColumnStyle && selectedColumnStyleKey ? (
                     <>
-                      <div className="stream-package-section-title"><div><small>Estilo reutilizável de coluna</small><strong>{selectedColumnStyleKey === 'rank' ? 'Posição' : selectedColumnStyleKey === 'logo' ? 'Logo' : selectedColumnStyleKey === 'name' ? 'Nome' : selectedColumnStyleKey === 'stat' ? 'Estatística' : 'Pontos'}</strong><p>Qualquer overlay que usar este estilo será atualizada.</p></div></div>
-                      <label>Fundo<select value={selectedColumnStyle.assetKey || ''} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, assetKey: (e.target.value || null) as StreamPackageAssetKey | null } } })}><option value="">Sem fundo</option>{PACKAGE_ASSETS.filter((asset) => asset.group === 'Tabelas').map((asset) => <option key={asset.key} value={asset.key}>{asset.label}</option>)}</select></label>
-                      <label>Fonte<input value={selectedColumnStyle.fontFamily} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, fontFamily: e.target.value } } })} /></label>
-                      <div className="stream-package-quad-grid"><label>Tamanho<input type="number" min={8} max={160} value={selectedColumnStyle.fontSize} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, fontSize: Number(e.target.value) || 8 } } })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={selectedColumnStyle.fontWeight} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, fontWeight: Number(e.target.value) || 400 } } })} /></label><label>Cor<input type="color" value={selectedColumnStyle.color} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, color: e.target.value } } })} /></label><label>Alinhamento<select value={selectedColumnStyle.align} onChange={(e) => patchTable({ columnStyles: { ...pack.shared_config.table.columnStyles, [selectedColumnStyleKey]: { ...selectedColumnStyle, align: e.target.value as 'left' | 'center' | 'right' } } })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div>
+                      <div className="stream-package-section-title"><div><small>Estilo reutilizável de coluna</small><strong>{selectedColumnStyleKey === 'rank' ? 'Posição' : selectedColumnStyleKey === 'logo' ? 'Logo' : selectedColumnStyleKey === 'name' ? 'Nome' : selectedColumnStyleKey === 'stat' ? 'Estatística' : 'Pontos'}</strong></div></div>
+                      <div className="stream-package-property-group"><b>Texto</b><label>Fonte<input value={selectedColumnStyle.fontFamily} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { fontFamily: e.target.value })} /></label><div className="stream-package-quad-grid"><label>Tamanho<input type="number" min={8} max={160} value={selectedColumnStyle.fontSize} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { fontSize: Number(e.target.value) || 8 })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={selectedColumnStyle.fontWeight} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { fontWeight: Number(e.target.value) || 400 })} /></label><label>Cor<input type="color" value={selectedColumnStyle.color} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { color: e.target.value })} /></label><label>Inclinação<select value={selectedColumnStyle.fontStyle} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { fontStyle: e.target.value as 'normal' | 'italic' })}><option value="normal">Reta</option><option value="italic">Itálica</option></select></label></div></div>
+                      <div className="stream-package-property-group"><b>Célula</b><label>Largura (vazio = automática)<input type="number" min={20} value={selectedColumnStyle.width || ''} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { width: e.target.value ? Number(e.target.value) : null })} /></label><label>Preenchimento<select value={selectedColumnStyle.backgroundType} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundType: e.target.value as 'solid' | 'gradient' | 'image' })}><option value="solid">Cor sólida</option><option value="gradient">Degradê</option><option value="image">Imagem</option></select></label>{selectedColumnStyle.backgroundType === 'solid' ? <label>Cor<input type="color" value={selectedColumnStyle.backgroundColor} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundColor: e.target.value })} /></label> : null}{selectedColumnStyle.backgroundType === 'gradient' ? <label>Degradê CSS<input value={selectedColumnStyle.backgroundGradient} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { backgroundGradient: e.target.value })} /></label> : null}{selectedColumnStyle.backgroundType === 'image' ? <><div className="stream-package-asset-gallery">{PACKAGE_ASSETS.filter((asset) => asset.group === 'Tabelas').map((asset) => <button type="button" key={asset.key} className={selectedColumnStyle.assetKey === asset.key ? 'active' : ''} onClick={() => patchColumnStyle(selectedColumnStyleKey, { assetKey: asset.key })}>{pack.assets[asset.key] ? <img src={pack.assets[asset.key]} alt="" /> : <span>+</span>}<small>{asset.label}</small></button>)}</div>{selectedColumnStyle.assetKey ? <label className="stream-secondary-btn stream-package-inspector-upload">{uploading === selectedColumnStyle.assetKey ? <Loader2 className="spin" size={14} /> : <ImagePlus size={14} />} Trocar imagem selecionada<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void uploadAsset(selectedColumnStyle.assetKey!, e.target.files?.[0])} /></label> : null}</> : null}<div className="stream-package-quad-grid"><label>Cor da borda<input type="color" value={selectedColumnStyle.borderColor} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderColor: e.target.value })} /></label><label>Espessura<input type="number" min={0} max={30} value={selectedColumnStyle.borderWidth} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderWidth: Number(e.target.value) || 0 })} /></label><label>Canto<input type="number" min={0} max={100} value={selectedColumnStyle.borderRadius} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { borderRadius: Number(e.target.value) || 0 })} /></label><label>Alinhamento<select value={selectedColumnStyle.align} onChange={(e) => patchColumnStyle(selectedColumnStyleKey, { align: e.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div></div>
                     </>
                   ) : selectedAsset ? (
                     <>
@@ -1026,19 +1030,8 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
 
             <aside className="stream-package-preview-column">
               <section className="stream-package-section stream-package-preview-section">
-                <div className="stream-package-section-title">
-                  <div>
-                    <small>Preview ao vivo do editor</small>
-                    <strong>{activeMeta.name}</strong>
-                    <p>Dados reais do campeonato. Alterações visuais aparecem aqui antes de salvar.</p>
-                    {renderData.source ? <small>Fonte: {renderData.source}</small> : null}
-                    {renderDataError ? <small className="stream-error">{renderDataError}</small> : null}
-                  </div>
-                  <button type="button" className="stream-secondary-btn" onClick={() => setRenderDataVersion((value) => value + 1)} disabled={renderDataLoading}>
-                    {renderDataLoading ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />} Atualizar dados
-                  </button>
-                </div>
                 <div className="stream-package-preview-toolbar" aria-label="Ferramentas do palco">
+                  <div className="stream-package-preview-title"><span className={`stream-package-status-dot${activeEnabled ? ' on' : ''}`} /><strong>{activeMeta.name}</strong>{renderDataError ? <small className="stream-error">Falha ao atualizar dados</small> : null}</div>
                   <label>Formato
                     <select value={canvasProfileId} onChange={(event) => setCanvasProfileId(event.target.value as StreamOutputProfileId)}>
                       {STREAM_OUTPUT_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
@@ -1061,6 +1054,9 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                       <option value="light">Claro</option>
                     </select>
                   </label>
+                  <button type="button" className="stream-package-refresh-btn" title="Atualizar dados da prévia" onClick={() => setRenderDataVersion((value) => value + 1)} disabled={renderDataLoading}>
+                    {renderDataLoading ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />} Dados
+                  </button>
                 </div>
                 <div
                   ref={workspaceRef}
@@ -1096,11 +1092,6 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                     />
                     {showSafeArea ? <div className="stream-package-preview-safe-area" aria-hidden /> : null}
                   </div>
-                </div>
-                <div className="stream-package-preview-footer">
-                  <span className={`stream-package-status-dot${activeEnabled ? ' on' : ''}`} />
-                  <span>{activeEnabled ? 'Ativa no pacote' : 'Prévia apenas — overlay desativada'}</span>
-                  <span>{canvasProfile.width} × {canvasProfile.height} · {canvasProfile.kind === 'stream' ? 'Stream' : canvasProfile.kind === 'social' ? 'Social' : 'PNG transparente'}</span>
                 </div>
               </section>
             </aside>
