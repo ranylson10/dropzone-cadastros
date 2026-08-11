@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type {
   StreamOutputProfileId,
   StreamOverlayPackage,
@@ -276,16 +276,26 @@ function HeroRenderer(props: {
   )
 }
 
-function SceneItemsRenderer({ items }: { items: ReturnType<typeof resolveStreamOverlayConfig>['sceneItems'] }) {
+function SceneItemsRenderer({ items, onMove }: { items: ReturnType<typeof resolveStreamOverlayConfig>['sceneItems']; onMove?: (id: string, x: number, y: number) => void }) {
   return <>{(items || []).filter((item) => item.show).map((item) => {
     const style = { left: item.x, top: item.y, width: item.width, height: item.height, color: item.color, fontSize: item.fontSize, fontWeight: item.fontWeight, backgroundImage: cssBackground(item.backgroundUrl || ''), backgroundSize: '100% 100%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } as CSSProperties
-    if (item.type === 'image') return <img className="stream-package-scene-item is-image" key={item.id} src={item.imageUrl || ''} alt="" style={{ ...style, objectFit: 'contain' }} />
+    const drag = (event: ReactPointerEvent<HTMLElement>) => {
+      if (!onMove) return
+      event.preventDefault()
+      const root = event.currentTarget.closest('.stream-package-render-root') as HTMLElement | null
+      const scale = root ? 1920 / Math.max(1, root.getBoundingClientRect().width) : 1
+      const startX = event.clientX; const startY = event.clientY; const x = item.x; const y = item.y
+      const move = (moveEvent: PointerEvent) => onMove(item.id, Math.round(x + (moveEvent.clientX - startX) * scale), Math.round(y + (moveEvent.clientY - startY) * scale))
+      const end = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', end)
+    }
+    if (item.type === 'image') return <img className="stream-package-scene-item is-image" key={item.id} src={item.imageUrl || ''} alt="" style={{ ...style, objectFit: 'contain' }} onPointerDown={drag} />
     if (item.type === 'timer') return <div className="stream-package-scene-item is-timer" key={item.id} style={style}>{item.text || '00:00'}</div>
     if (item.type === 'round_counter') {
       const total = Math.max(1, item.totalRounds || 1); const current = Math.min(total, item.currentRound || 1)
-      return <div className="stream-package-scene-item is-round-counter" key={item.id} style={style}><b>QUEDA</b><div>{Array.from({ length: total }, (_, index) => <img key={index} src={index + 1 < current ? item.pastUrl : index + 1 === current ? item.currentUrl : item.nextUrl} alt="" />)}</div><strong>{current}/{total}</strong></div>
+      return <div className="stream-package-scene-item is-round-counter" key={item.id} style={style} onPointerDown={drag}><b>QUEDA</b><div>{Array.from({ length: total }, (_, index) => <img key={index} src={index + 1 < current ? item.pastUrl : index + 1 === current ? item.currentUrl : item.nextUrl} alt="" />)}</div><strong>{current}/{total}</strong></div>
     }
-    return <div className="stream-package-scene-item is-text" key={item.id} style={style}>{item.text || 'Texto livre'}</div>
+    return <div className="stream-package-scene-item is-text" key={item.id} style={style} onPointerDown={drag}>{item.text || 'Texto livre'}</div>
   })}</>
 }
 
@@ -299,6 +309,7 @@ export function StreamPackageStage(props: {
   outputProfileId?: StreamOutputProfileId
   contentOnly?: boolean
   animationTest?: 'enter' | 'exit'
+  onSceneItemMove?: (id: string, x: number, y: number) => void
 }) {
   const meta = STREAM_SYSTEM_OVERLAY_META[props.type]
   const layout = STREAM_SYSTEM_OVERLAY_LAYOUTS[props.type]
@@ -364,7 +375,7 @@ export function StreamPackageStage(props: {
           {config.title || meta.name}
         </div>
       ) : null}
-      {!props.contentOnly ? <SceneItemsRenderer items={config.sceneItems} /> : null}
+      {!props.contentOnly ? <SceneItemsRenderer items={config.sceneItems} onMove={props.onSceneItemMove} /> : null}
 
       <div
         className={`stream-package-render-content structure-${meta.structure} variant-${layout.variant}${props.contentOnly ? ' is-content-only' : ''}`}

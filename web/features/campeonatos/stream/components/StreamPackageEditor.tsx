@@ -112,6 +112,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   const [renderDataVersion, setRenderDataVersion] = useState(0)
   const [animationTest, setAnimationTest] = useState<'enter' | 'exit' | undefined>()
   const [packageToken, setPackageToken] = useState('')
+  const [showGallery, setShowGallery] = useState(false)
   const [canvasProfileId, setCanvasProfileId] = useState<StreamOutputProfileId>('live-hd')
   const [previewBackground, setPreviewBackground] = useState<PreviewBackground>('transparent')
   const [showGrid, setShowGrid] = useState(false)
@@ -308,9 +309,15 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
     setSelectedInspectorItem('event_logo')
   }
 
+  async function imageSize(file: File) {
+    const objectUrl = URL.createObjectURL(file)
+    try { return await new Promise<{ width: number; height: number }>((resolve) => { const image = new Image(); image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight }); image.onerror = () => resolve({ width: 300, height: 90 }); image.src = objectUrl }) }
+    finally { URL.revokeObjectURL(objectUrl) }
+  }
+
   async function uploadSceneItemImage(id: string, field: 'imageUrl' | 'backgroundUrl' | 'pastUrl' | 'currentUrl' | 'nextUrl', file?: File | null) {
     if (!file) return
-    try { patchSceneItem(id, { [field]: await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId: props.campeonatoId }) }) }
+    try { const size = await imageSize(file); patchSceneItem(id, { [field]: await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId: props.campeonatoId }), ...(field === 'imageUrl' ? size : {}) }) }
     catch (error: any) { setFeedback(error?.message || 'Erro ao enviar imagem.') }
   }
 
@@ -889,12 +896,14 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                         <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void uploadAsset(selectedAsset.key, event.target.files?.[0])} />
                       </label>
                       {pack.assets[selectedAsset.key] ? <button type="button" className="stream-package-link-btn" onClick={() => removeAsset(selectedAsset.key)}>Remover imagem</button> : null}
+                      {selectedAsset.key === 'event_logo' ? <button type="button" className="stream-package-link-btn" onClick={() => patchLooseImage({ show: false })}>Remover logo desta cena</button> : null}
                       {selectedAsset.key === 'event_logo' ? <div className="stream-package-property-group"><b>Posição do logo</b><label className="stream-package-switch-row"><span><b>Exibir logo</b></span><input type="checkbox" checked={pack.shared_config.looseImage.show} onChange={(e) => patchLooseImage({ show: e.target.checked })} /></label><div className="stream-package-quad-grid"><label>X<input type="number" value={pack.shared_config.looseImage.x} onChange={(e) => patchLooseImage({ x: Number(e.target.value) || 0 })} /></label><label>Y<input type="number" value={pack.shared_config.looseImage.y} onChange={(e) => patchLooseImage({ y: Number(e.target.value) || 0 })} /></label><label>Largura<input type="number" min={1} value={pack.shared_config.looseImage.width} onChange={(e) => patchLooseImage({ width: Number(e.target.value) || 1 })} /></label><label>Altura<input type="number" min={1} value={pack.shared_config.looseImage.height} onChange={(e) => patchLooseImage({ height: Number(e.target.value) || 1 })} /></label></div></div> : null}
                       <div className="stream-package-shared-note">Esta arte é compartilhada por {assetUsageOverlays(selectedAsset).length} overlays.</div>
                     </>
                   ) : selectedInspectorItem === 'event_title' ? (
                     <>
                       <div className="stream-package-section-title"><div><small>Texto compartilhado</small><strong>Título do campeonato</strong><p>Fonte, cor, tamanho e posição.</p></div></div>
+                      <label className="stream-package-switch-row"><span><b>Exibir texto</b></span><input type="checkbox" checked={pack.shared_config.looseText.show} onChange={(e) => patchLooseText({ show: e.target.checked })} /></label>
                       <label>Nome do evento<input value={pack.shared_config.identity.eventName} onChange={(e) => patchIdentity({ eventName: e.target.value })} /></label>
                       <label>Fonte<input value={pack.shared_config.identity.fontFamily} onChange={(e) => patchIdentity({ fontFamily: e.target.value })} /></label>
                       <div className="stream-package-quad-grid"><label>Posição X<input type="number" value={pack.shared_config.looseText.x} onChange={(e) => patchLooseText({ x: Number(e.target.value) || 0 })} /></label><label>Posição Y<input type="number" value={pack.shared_config.looseText.y} onChange={(e) => patchLooseText({ y: Number(e.target.value) || 0 })} /></label><label>Tamanho<input type="number" min={8} max={240} value={pack.shared_config.looseText.fontSize} onChange={(e) => patchLooseText({ fontSize: Number(e.target.value) || 8 })} /></label><label>Cor<input type="color" value={pack.shared_config.looseText.color} onChange={(e) => patchLooseText({ color: e.target.value })} /></label></div>
@@ -914,7 +923,9 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                 </section>
               ) : null}
 
-              {activePanel === 'assets' ? (
+              {activePanel === 'assets' ? <section className="stream-package-section stream-package-control-card stream-package-gallery-launch"><div className="stream-package-section-title"><div><strong>Artes do projeto</strong><p>Visualize e troque as imagens em um único lugar.</p></div></div><button type="button" className="stream-primary-btn" onClick={() => setShowGallery(true)}>Abrir galeria</button></section> : null}
+
+              {activePanel === 'assets' && showGallery ? (
                 <section className="stream-package-section stream-package-control-card">
                   <div className="stream-package-section-title"><div><strong>Kit visual compartilhado</strong><p>Envie cada arte uma única vez. O pacote mostra exatamente quais overlays reutilizam o mesmo arquivo.</p></div></div>
                   <div className="stream-package-asset-summary">
@@ -1124,6 +1135,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
                       canvasHeight={canvasProfile.height}
                       outputProfileId={canvasProfileId}
                       animationTest={animationTest}
+                      onSceneItemMove={(id, x, y) => patchSceneItem(id, { x, y })}
                     />
                     {showSafeArea ? <div className="stream-package-preview-safe-area" aria-hidden /> : null}
                   </div>
