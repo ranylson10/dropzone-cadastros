@@ -44,6 +44,11 @@ function cellClass(column: string) {
 }
 
 function renderCellValue(column: string, value: CellValue) {
+  if (column === 'movement') {
+    const amount = Number(String(value ?? '0').replace('+', '')) || 0
+    const direction = amount > 0 ? 'up' : amount < 0 ? 'down' : 'same'
+    return <span className={`stream-package-rank-movement is-${direction}`}><i aria-hidden>{amount > 0 ? '▲' : amount < 0 ? '▼' : '—'}</i>{amount > 0 ? `+${amount}` : amount < 0 ? String(amount) : '0'}</span>
+  }
   if (column === 'logo' || column === 'map') {
     const src = String(value || '').trim()
     return src ? <img src={src} alt="" /> : <span className="stream-package-render-placeholder">—</span>
@@ -122,6 +127,7 @@ function TableRenderer(props: {
                         fontStyle: style.fontStyle,
                         border: style.borderWidth ? `${style.borderWidth}px solid ${style.borderColor}` : undefined,
                         borderRadius: style.borderRadius,
+                        padding: `${style.paddingY ?? 6}px ${style.paddingX ?? 12}px`,
                         ...(style.width ? { flex: `0 0 ${style.width}px`, minWidth: style.width } : {}),
                         justifyContent: style.align === 'left' ? 'flex-start' : style.align === 'right' ? 'flex-end' : 'center',
                         textAlign: style.align,

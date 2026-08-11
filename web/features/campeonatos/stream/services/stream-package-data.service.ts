@@ -23,6 +23,7 @@ function value(row: StreamSheetRow, key: string) {
 function teamItem(row: StreamSheetRow): StreamPackageRenderItem {
   return {
     rank: value(row, 'pos'),
+    movement: value(row, 'delta') || '0',
     logo: value(row, 'logo'),
     name: value(row, 'nome'),
     group: value(row, 'grupo'),

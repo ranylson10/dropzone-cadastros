@@ -67,6 +67,7 @@ export type StreamOutputLayout = {
 
 export const STREAM_OVERLAY_COLUMN_META: Record<string, { label: string; kind: 'text' | 'number' | 'image' }> = {
   rank: { label: 'RK', kind: 'number' },
+  movement: { label: 'VAR', kind: 'number' },
   logo: { label: 'Logo', kind: 'image' },
   name: { label: 'Equipe', kind: 'text' },
   nick: { label: 'Jogador', kind: 'text' },
@@ -138,7 +139,7 @@ export type StreamSharedTableConfig = {
   columnStyles: Record<StreamTableColumnStyleKey, StreamTableColumnStyle>
 }
 
-export type StreamTableColumnStyleKey = 'rank' | 'logo' | 'name' | 'nick' | 'group' | 'drops' | 'booyah' | 'position' | 'kills' | 'points' | 'kd' | 'map' | 'category' | 'round'
+export type StreamTableColumnStyleKey = 'rank' | 'movement' | 'logo' | 'name' | 'nick' | 'group' | 'drops' | 'booyah' | 'position' | 'kills' | 'points' | 'kd' | 'map' | 'category' | 'round'
 
 export type StreamTableColumnStyle = {
   assetKey: StreamPackageAssetKey | null
@@ -155,6 +156,8 @@ export type StreamTableColumnStyle = {
   borderColor: string
   borderWidth: number
   borderRadius: number
+  paddingX?: number
+  paddingY?: number
 }
 
 export type StreamSharedCardConfig = {
@@ -339,7 +342,8 @@ export const DEFAULT_STREAM_PACKAGE_SHARED_CONFIG: StreamPackageSharedConfig = {
     pointsWidth: 118,
     nameAlign: 'left',
     columnStyles: {
-      rank: { assetKey: 'table_rank_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'center', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
+      rank: { assetKey: 'table_rank_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'center', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0, paddingX: 12, paddingY: 6 },
+      movement: { assetKey: 'table_stat_bg', fontFamily: 'Rajdhani', fontSize: 24, fontWeight: 800, fontStyle: 'normal', color: '#ffffff', align: 'center', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
       logo: { assetKey: 'table_logo_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'center', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
       name: { assetKey: 'table_name_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'left', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
       nick: { assetKey: 'table_name_bg', fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, fontStyle: 'normal', color: '#ffffff', align: 'left', width: null, backgroundType: 'image', backgroundColor: '#101218', backgroundGradient: 'linear-gradient(135deg, #101218, #2a3140)', borderColor: '#ffffff', borderWidth: 0, borderRadius: 0 },
@@ -377,7 +381,7 @@ export const DEFAULT_STREAM_OVERLAY_CONFIGS: Record<StreamSystemOverlayType, Str
   standings_general: {
     maxItems: 12,
     tableMode: 'double',
-    columns: ['rank', 'logo', 'name', 'drops', 'booyah', 'kills', 'points'],
+    columns: ['rank', 'movement', 'logo', 'name', 'group', 'drops', 'booyah', 'kills', 'points'],
     title: 'Classificação geral',
   },
   round_teams: {
