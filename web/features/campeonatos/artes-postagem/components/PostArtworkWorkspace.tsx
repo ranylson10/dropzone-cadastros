@@ -462,7 +462,7 @@ function downloadBlob(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtworkId }: { campeonatoId: string; mode?: 'edit' | 'generate'; initialArtworkId?: string }) {
+export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtworkId }: { campeonatoId: string; mode?: 'edit' | 'generate' | 'manage'; initialArtworkId?: string }) {
   const [items, setItems] = useState<PostArtworkProject[]>([])
   const [activeId, setActiveId] = useState('')
   const [draft, setDraft] = useState<PostArtworkProject | null>(null)
@@ -471,6 +471,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const [games, setGames] = useState<GameOption[]>([])
   const [generationPhaseId, setGenerationPhaseId] = useState('')
   const [generationGameId, setGenerationGameId] = useState('')
+  const [artworkSearch, setArtworkSearch] = useState('')
+  const [artworkFilter, setArtworkFilter] = useState<'all' | 'tables' | 'mvp' | 'qualified' | 'other'>('all')
   const [quickPreviewUrl, setQuickPreviewUrl] = useState('')
   const [quickPreviewLoading, setQuickPreviewLoading] = useState(false)
   const [dayStandings, setDayStandings] = useState<Record<string, PostArtworkTeamRow[]>>({})
@@ -621,6 +623,63 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       .then((entries) => { if (active) setMvpDay(Object.fromEntries(entries)) })
     return () => { active = false }
   }, [campeonatoId, mvpGameKey])
+
+  function artworkKind(item: PostArtworkProject) {
+    const types = new Set(item.blocks.map((block) => block.type))
+    if (types.has('qualified_teams')) return 'qualified' as const
+    if (types.has('mvp_general') || types.has('mvp_day') || types.has('kills_leaders')) return 'mvp' as const
+    if (types.has('table_general') || types.has('table_day') || types.has('booyahs_day')) return 'tables' as const
+    return 'other' as const
+  }
+
+  const managedItems = useMemo(() => {
+    const search = artworkSearch.trim().toLocaleLowerCase('pt-BR')
+    return items.filter((item) => {
+      if (artworkFilter !== 'all' && artworkKind(item) !== artworkFilter) return false
+      return !search || item.name.toLocaleLowerCase('pt-BR').includes(search)
+    })
+  }, [items, artworkFilter, artworkSearch])
+
+  async function renameProject(item: PostArtworkProject) {
+    const name = window.prompt('Novo nome da arte', item.name)?.trim()
+    if (!name || name === item.name) return
+    setSaving(true); setError(''); setFeedback('')
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/${encodeURIComponent(item.id)}`, { method: 'PUT', body: JSON.stringify({ ...item, name }) })
+      if (body.item) {
+        setItems((current) => current.map((currentItem) => currentItem.id === item.id ? body.item! : currentItem))
+        if (draft?.id === item.id) setDraft(cloneDraft(body.item))
+        setFeedback('Arte renomeada.')
+      }
+    } catch (e: any) { setError(e?.message || 'Erro ao renomear arte.') } finally { setSaving(false) }
+  }
+
+  async function duplicateProject(item: PostArtworkProject) {
+    setSaving(true); setError(''); setFeedback('')
+    try {
+      const created = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem`, { method: 'POST', body: JSON.stringify({ name: `${item.name} cópia` }) })
+      if (!created.item) return
+      const copied = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/${encodeURIComponent(created.item.id)}`, { method: 'PUT', body: JSON.stringify({ ...item, id: created.item.id, name: `${item.name} cópia` }) })
+      await reload(copied.item?.id || created.item.id)
+      setFeedback('Arte duplicada. O layout foi copiado sem alterar a original.')
+    } catch (e: any) { setError(e?.message || 'Erro ao duplicar arte.') } finally { setSaving(false) }
+  }
+
+  async function deleteManagedProject(item: PostArtworkProject) {
+    if (!window.confirm(`Excluir a arte “${item.name}”?`)) return
+    setSaving(true); setError(''); setFeedback('')
+    try {
+      await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/${encodeURIComponent(item.id)}`, { method: 'DELETE' })
+      const next = items.filter((current) => current.id !== item.id)
+      setItems(next)
+      if (activeId === item.id) {
+        const first = next[0] || null
+        setActiveId(first?.id || '')
+        setDraft(first ? cloneDraft(first) : null)
+      }
+      setFeedback('Arte excluída.')
+    } catch (e: any) { setError(e?.message || 'Erro ao excluir arte.') } finally { setSaving(false) }
+  }
 
   function selectItem(id: string) {
     setActiveId(id)
@@ -871,7 +930,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   }
 
   useEffect(() => {
-    if (mode !== 'generate' || !renderDraft) { setQuickPreviewUrl(''); return }
+    if (mode === 'edit' || !renderDraft) { setQuickPreviewUrl(''); return }
     let active = true
     let objectUrl = ''
     setQuickPreviewLoading(true)
@@ -961,6 +1020,55 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
 
   if (loading) return <div className="post-artworks-state"><Loader2 className="spin" /> Carregando artes…</div>
 
+  if (mode === 'manage') {
+    return (
+      <div className="post-artworks-page post-artworks-manage-page">
+        <header className="post-artworks-header post-artworks-generate-header">
+          <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={15} /> Voltar ao campeonato</a><small>ARTES SALVAS</small><h1>{campeonatoNome}</h1><p>Organize os templates do campeonato sem entrar no editor. Crie, encontre, visualize, renomeie, duplique ou exclua uma arte.</p></div>
+          <div className="post-artworks-header-actions"><a className="post-artworks-secondary" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
+        </header>
+
+        <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><button type="button" onClick={() => openAssetLibrary('project')}>Biblioteca de imagens</button></nav>
+
+        {error ? <div className="post-artworks-alert error">{error}</div> : null}
+        {feedback ? <div className="post-artworks-alert success">{feedback}</div> : null}
+
+        <section className="post-artworks-manage-toolbar">
+          <label className="post-artworks-manage-search"><span>Buscar arte</span><input value={artworkSearch} onChange={(event) => setArtworkSearch(event.target.value)} placeholder="Ex.: tabela geral, MVP, classificados" /></label>
+          <div className="post-artworks-manage-filters" aria-label="Filtrar artes">
+            <button type="button" className={artworkFilter === 'all' ? 'active' : ''} onClick={() => setArtworkFilter('all')}>Todas <small>{items.length}</small></button>
+            <button type="button" className={artworkFilter === 'tables' ? 'active' : ''} onClick={() => setArtworkFilter('tables')}>Tabelas</button>
+            <button type="button" className={artworkFilter === 'mvp' ? 'active' : ''} onClick={() => setArtworkFilter('mvp')}>MVP / destaques</button>
+            <button type="button" className={artworkFilter === 'qualified' ? 'active' : ''} onClick={() => setArtworkFilter('qualified')}>Classificados</button>
+            <button type="button" className={artworkFilter === 'other' ? 'active' : ''} onClick={() => setArtworkFilter('other')}>Outras</button>
+          </div>
+        </section>
+
+        <section className="post-artworks-manage-content">
+          <div className="post-artworks-manage-list">
+            <div className="post-artworks-generate-section-head"><div><strong>Templates do campeonato</strong><small>{managedItems.length} de {items.length} arte(s)</small></div><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
+            <div className="post-artworks-manage-cards">
+              {managedItems.map((item) => <article key={item.id} className={item.id === activeId ? 'active' : ''}>
+                <button type="button" className="post-artworks-manage-card-preview" onClick={() => selectItem(item.id)} style={{ backgroundColor: item.background_color, backgroundImage: item.background_url ? `url(${JSON.stringify(item.background_url)})` : undefined }} aria-label={`Visualizar ${item.name}`} />
+                <div className="post-artworks-manage-card-copy"><b>{item.name}</b><span>{item.slice_width} × {item.slice_height}{item.slice_count > 1 ? ` · ${item.slice_count} fatias` : ''}</span><small>{item.output_format.toUpperCase()} · {item.blocks.length} bloco(s)</small></div>
+                <div className="post-artworks-manage-card-actions"><button type="button" onClick={() => selectItem(item.id)}>Visualizar</button><button type="button" onClick={() => openEditor(item.id)}>Editar</button><button type="button" onClick={() => void renameProject(item)} disabled={saving}>Renomear</button><button type="button" onClick={() => void duplicateProject(item)} disabled={saving}><Copy size={13} /> Duplicar</button><button type="button" className="danger" onClick={() => void deleteManagedProject(item)} disabled={saving}><Trash2 size={13} /> Excluir</button></div>
+              </article>)}
+              {!managedItems.length ? <div className="post-artworks-empty"><strong>{items.length ? 'Nenhuma arte encontrada' : 'Nenhuma arte criada'}</strong><span>{items.length ? 'Limpe a busca ou escolha outro filtro.' : 'Crie a primeira arte para começar a montar os templates deste campeonato.'}</span></div> : null}
+            </div>
+          </div>
+
+          <aside className="post-artworks-generate-preview-panel post-artworks-manage-preview-panel">
+            <div className="post-artworks-generate-section-head"><div><strong>{draft?.name || 'Pré-visualização'}</strong><small>{draft ? `${draft.slice_count} ${draft.slice_count === 1 ? 'imagem' : 'imagens'} · ${draft.output_format.toUpperCase()}` : 'Selecione um template'}</small></div>{draft ? <button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button> : null}</div>
+            <div className="post-artworks-generate-preview">{quickPreviewLoading ? <div className="post-artworks-state"><Loader2 className="spin" /> Gerando prévia…</div> : quickPreviewUrl ? <img src={quickPreviewUrl} alt={`Prévia de ${draft?.name || 'arte'}`} /> : <div className="post-artworks-empty"><strong>Selecione uma arte</strong><span>Confira o template antes de abrir o editor.</span></div>}</div>
+            {draft ? <div className="post-artworks-manage-preview-actions"><a className="post-artworks-primary" href={`/campeonatos/${campeonatoId}/artes-postagem?artwork=${encodeURIComponent(draft.id)}`}>Gerar com dados</a><button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button><button type="button" className="post-artworks-secondary" onClick={() => void duplicateProject(draft)} disabled={saving}><Copy size={14} /> Duplicar</button></div> : null}
+          </aside>
+        </section>
+
+        {libraryOpen ? <div className="post-artworks-library-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setLibraryOpen(false) }}><section className="post-artworks-library"><header><div><small>BIBLIOTECA DO CAMPEONATO</small><strong>Imagens reutilizáveis</strong><span>Consulte os assets usados nos templates sem abrir o editor.</span></div><button type="button" onClick={() => setLibraryOpen(false)} aria-label="Fechar biblioteca"><X size={18} /></button></header>{libraryError ? <div className="post-artworks-library-error">{libraryError}</div> : null}<div className="post-artworks-library-grid">{assets.map((asset) => <article key={asset.id}><div className="post-artworks-library-pick"><span className="post-artworks-library-thumb" style={{ backgroundImage: `url(${JSON.stringify(asset.url)})` }} /><b>{asset.name}</b><small>{asset.kind === 'background' ? 'Fundo de arte' : asset.kind === 'cell' ? 'Fundo de célula' : asset.kind === 'card' ? 'Fundo de card' : 'Imagem'}</small></div></article>)}{!assets.length ? <div className="post-artworks-library-empty"><Images size={28} /><strong>Nenhuma imagem salva ainda</strong><span>Os uploads usados nas artes aparecem aqui.</span></div> : null}</div></section></div> : null}
+      </div>
+    )
+  }
+
   if (mode === 'generate') {
     return (
       <div className="post-artworks-page post-artworks-generate-page">
@@ -969,7 +1077,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
           <div className="post-artworks-header-actions"><button type="button" className="post-artworks-secondary" onClick={() => openAssetLibrary('project')}><Images size={15} /> Biblioteca de imagens</button><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
         </header>
 
-        <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a href="#artes-salvas">Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><button type="button" onClick={() => openAssetLibrary('project')}>Biblioteca de imagens</button></nav>
+        <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><button type="button" onClick={() => openAssetLibrary('project')}>Biblioteca de imagens</button></nav>
 
         {error ? <div className="post-artworks-alert error">{error}</div> : null}
         <section className="post-artworks-generate-filter">
