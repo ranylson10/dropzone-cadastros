@@ -21,7 +21,9 @@ import type {
 } from '../types/artwork.types'
 import '../post-artworks.css'
 
-type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; jogos?: Array<any>; fases?: Array<any>; updated_artworks?: number; updated_references?: number; error?: string }
+type PostArtworkColorUsage = { artworkId: string; artworkName: string; count: number }
+type PostArtworkColorInventory = { color: string; references: number; artworks: number; uses: PostArtworkColorUsage[] }
+type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; colors?: PostArtworkColorInventory[]; jogos?: Array<any>; fases?: Array<any>; updated_artworks?: number; updated_references?: number; error?: string }
 type GameOption = { id: string; nome: string; faseId: string; faseNome: string; grupoNome: string; numeroPartidas: number; status: string; mataMata: boolean; classificamQuantidade: number | null }
 type AssetTarget = 'project' | 'column' | 'header' | 'mvp'
 
@@ -527,6 +529,11 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const [usageAssetId, setUsageAssetId] = useState('')
   const [replacingAssetId, setReplacingAssetId] = useState('')
   const [uploadingLibrary, setUploadingLibrary] = useState(false)
+  const [librarySection, setLibrarySection] = useState<'images' | 'colors'>('images')
+  const [colorInventory, setColorInventory] = useState<PostArtworkColorInventory[]>([])
+  const [colorDrafts, setColorDrafts] = useState<Record<string, string>>({})
+  const [usageColor, setUsageColor] = useState('')
+  const [replacingColor, setReplacingColor] = useState('')
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [previewZoom, setPreviewZoom] = useState(100)
@@ -543,6 +550,33 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       setAssets([])
       setLibraryError(e?.message || 'Não foi possível carregar a biblioteca de imagens.')
     }
+  }
+
+  async function reloadColors() {
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/colors`)
+      const colors = body.colors || []
+      setColorInventory(colors)
+      setColorDrafts((current) => Object.fromEntries(colors.map((entry) => [entry.color, current[entry.color] || entry.color])))
+    } catch (e: any) {
+      setLibraryError(e?.message || 'Não foi possível carregar as cores usadas nas artes.')
+    }
+  }
+
+  async function replaceLibraryColor(color: PostArtworkColorInventory) {
+    const nextColor = String(colorDrafts[color.color] || color.color).trim().toUpperCase()
+    if (!/^#[0-9A-F]{6}$/.test(nextColor)) { setLibraryError('Escolha uma cor válida no formato #RRGGBB.'); return }
+    if (nextColor === color.color.toUpperCase()) return
+    if (!window.confirm(`Substituir ${color.color} por ${nextColor} em ${color.references} uso(s) de ${color.artworks} arte(s)?`)) return
+    setReplacingColor(color.color); setLibraryError(''); setFeedback('')
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/colors`, { method: 'PUT', body: JSON.stringify({ from: color.color, to: nextColor }) })
+      await reload(activeId)
+      await reloadColors()
+      setUsageColor('')
+      setFeedback(`Cor substituída em ${body.updated_references || 0} uso(s) de ${body.updated_artworks || 0} arte(s).`)
+    } catch (e: any) { setLibraryError(e?.message || 'Não foi possível substituir esta cor.') }
+    finally { setReplacingColor('') }
   }
 
   async function rememberAsset(url: string, name: string, kind: PostArtworkAssetKind) {
@@ -647,7 +681,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { void reload(initialArtworkId); void reloadAssets() }, [campeonatoId, initialArtworkId])
+  useEffect(() => { void reload(initialArtworkId); void reloadAssets(); void reloadColors() }, [campeonatoId, initialArtworkId])
 
   const generationPhases = useMemo(() => {
     const seen = new Map<string, string>()
@@ -719,6 +753,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const filteredAssets = useMemo(() => assets.filter((asset) => libraryKindFilter === 'all' || asset.kind === libraryKindFilter), [assets, libraryKindFilter])
   const selectedUsageAsset = useMemo(() => assets.find((asset) => asset.id === usageAssetId) || null, [assets, usageAssetId])
   const selectedAssetUsages = useMemo(() => selectedUsageAsset ? collectAssetUsages(items, selectedUsageAsset.url) : [], [items, selectedUsageAsset])
+  const selectedUsageColor = useMemo(() => colorInventory.find((entry) => entry.color === usageColor) || null, [colorInventory, usageColor])
 
   async function renameProject(item: PostArtworkProject) {
     const name = window.prompt('Novo nome da arte', item.name)?.trim()
@@ -1103,30 +1138,45 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   if (mode === 'library') {
     return <div className="post-artworks-page post-artworks-generate-page post-artworks-library-page">
       <header className="post-artworks-header post-artworks-generate-header">
-        <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={14} /> Voltar ao campeonato</a><small>ARTES · {campeonatoNome}</small><h1>Biblioteca de imagens</h1><p>Baixe os arquivos, veja exatamente onde cada imagem é usada e substitua todos os usos de uma vez.</p></div>
-        <div className="post-artworks-header-actions"><label className="post-artworks-primary post-artworks-library-upload-main">{uploadingLibrary ? <Loader2 className="spin" size={15} /> : <ImagePlus size={15} />} Adicionar imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadLibraryAsset(event.target.files?.[0])} /></label></div>
+        <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={14} /> Voltar ao campeonato</a><small>ARTES · {campeonatoNome}</small><h1>Biblioteca visual</h1><p>Gerencie imagens e as cores usadas nos templates. Uma substituição pode atualizar todas as artes do campeonato sem abrir o editor.</p></div>
+        <div className="post-artworks-header-actions">{librarySection === 'images' ? <label className="post-artworks-primary post-artworks-library-upload-main">{uploadingLibrary ? <Loader2 className="spin" size={15} /> : <ImagePlus size={15} />} Adicionar imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadLibraryAsset(event.target.files?.[0])} /></label> : null}</div>
       </header>
       <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem/biblioteca`}>Biblioteca de imagens</a></nav>
       {error ? <div className="post-artworks-alert error">{error}</div> : null}
       {libraryError ? <div className="post-artworks-alert error">{libraryError}</div> : null}
       {feedback ? <div className="post-artworks-alert success">{feedback}</div> : null}
-      <section className="post-artworks-library-toolbar">
-        <div className="post-artworks-library-filter"><strong>Mostrar</strong>{([['all','Todas'],['background','Fundos'],['cell','Células'],['card','Cards'],['other','Outras']] as const).map(([key,label]) => <button type="button" key={key} className={libraryKindFilter === key ? 'active' : ''} onClick={() => setLibraryKindFilter(key)}>{label}</button>)}</div>
-        <label><span>Tipo do próximo upload</span><select value={libraryUploadKind} onChange={(event) => setLibraryUploadKind(event.target.value as PostArtworkAssetKind)}><option value="background">Fundo de arte</option><option value="cell">Fundo de célula</option><option value="card">Fundo de card</option><option value="other">Outra imagem</option></select></label>
-      </section>
-      <section className="post-artworks-smart-library-grid">
-        {filteredAssets.map((asset) => {
-          const uses = collectAssetUsages(items, asset.url)
-          const artworkCount = new Set(uses.map((use) => use.artworkId)).size
-          return <article key={asset.id}>
-            <div className="post-artworks-smart-library-thumb" style={{ backgroundImage: `url(${JSON.stringify(asset.url)})` }} />
-            <div className="post-artworks-smart-library-copy"><b>{asset.name}</b><span>{asset.kind === 'background' ? 'Fundo de arte' : asset.kind === 'cell' ? 'Fundo de célula' : asset.kind === 'card' ? 'Fundo de card' : 'Imagem'}</span><small>{uses.length ? `${uses.length} uso(s) em ${artworkCount} arte(s)` : 'Ainda não usada nas artes'}</small></div>
-            <div className="post-artworks-smart-library-actions"><button type="button" onClick={() => void downloadLibraryAsset(asset)}><Download size={13} /> Baixar</button><button type="button" onClick={() => setUsageAssetId(asset.id)}>Ver usos</button><label>{replacingAssetId === asset.id ? <Loader2 className="spin" size={13} /> : <ImagePlus size={13} />} Substituir em todas<input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={Boolean(replacingAssetId)} onChange={(event) => void replaceLibraryAsset(asset, event.target.files?.[0])} /></label>{!uses.length ? <button type="button" className="danger" onClick={() => void deleteLibraryAsset(asset.id)}><Trash2 size={13} /> Remover</button> : null}</div>
-          </article>
-        })}
-        {!filteredAssets.length ? <div className="post-artworks-empty"><Images size={30} /><strong>Nenhuma imagem nesta categoria</strong><span>Adicione um arquivo aqui ou faça upload pelo editor. Tudo fica disponível para reutilização no campeonato.</span></div> : null}
-      </section>
+      <div className="post-artworks-library-sections" aria-label="Biblioteca visual"><button type="button" className={librarySection === 'images' ? 'active' : ''} onClick={() => setLibrarySection('images')}>Imagens <small>{assets.length}</small></button><button type="button" className={librarySection === 'colors' ? 'active' : ''} onClick={() => setLibrarySection('colors')}>Cores <small>{colorInventory.length}</small></button></div>
+      {librarySection === 'images' ? <>
+        <section className="post-artworks-library-toolbar">
+          <div className="post-artworks-library-filter"><strong>Mostrar</strong>{([['all','Todas'],['background','Fundos'],['cell','Células'],['card','Cards'],['other','Outras']] as const).map(([key,label]) => <button type="button" key={key} className={libraryKindFilter === key ? 'active' : ''} onClick={() => setLibraryKindFilter(key)}>{label}</button>)}</div>
+          <label><span>Tipo do próximo upload</span><select value={libraryUploadKind} onChange={(event) => setLibraryUploadKind(event.target.value as PostArtworkAssetKind)}><option value="background">Fundo de arte</option><option value="cell">Fundo de célula</option><option value="card">Fundo de card</option><option value="other">Outra imagem</option></select></label>
+        </section>
+        <section className="post-artworks-smart-library-grid">
+          {filteredAssets.map((asset) => {
+            const uses = collectAssetUsages(items, asset.url)
+            const artworkCount = new Set(uses.map((use) => use.artworkId)).size
+            return <article key={asset.id}>
+              <div className="post-artworks-smart-library-thumb" style={{ backgroundImage: `url(${JSON.stringify(asset.url)})` }} />
+              <div className="post-artworks-smart-library-copy"><b>{asset.name}</b><span>{asset.kind === 'background' ? 'Fundo de arte' : asset.kind === 'cell' ? 'Fundo de célula' : asset.kind === 'card' ? 'Fundo de card' : 'Imagem'}</span><small>{uses.length ? `${uses.length} uso(s) em ${artworkCount} arte(s)` : 'Ainda não usada nas artes'}</small></div>
+              <div className="post-artworks-smart-library-actions"><button type="button" onClick={() => void downloadLibraryAsset(asset)}><Download size={13} /> Baixar</button><button type="button" onClick={() => setUsageAssetId(asset.id)}>Ver usos</button><label>{replacingAssetId === asset.id ? <Loader2 className="spin" size={13} /> : <ImagePlus size={13} />} Substituir em todas<input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={Boolean(replacingAssetId)} onChange={(event) => void replaceLibraryAsset(asset, event.target.files?.[0])} /></label>{!uses.length ? <button type="button" className="danger" onClick={() => void deleteLibraryAsset(asset.id)}><Trash2 size={13} /> Remover</button> : null}</div>
+            </article>
+          })}
+          {!filteredAssets.length ? <div className="post-artworks-empty"><Images size={30} /><strong>Nenhuma imagem nesta categoria</strong><span>Adicione um arquivo aqui ou faça upload pelo editor. Tudo fica disponível para reutilização no campeonato.</span></div> : null}
+        </section>
+      </> : <>
+        <section className="post-artworks-colors-intro"><div><strong>Cores usadas nas artes</strong><span>O sistema detecta automaticamente as cores configuradas nos templates. Troque uma cor aqui e todos os usos dela são atualizados de uma vez.</span></div><button type="button" onClick={() => void reloadColors()}>Atualizar cores</button></section>
+        <section className="post-artworks-color-grid">
+          {colorInventory.map((entry) => <article key={entry.color}>
+            <div className="post-artworks-color-swatch" style={{ backgroundColor: entry.color }}><span>{entry.color}</span></div>
+            <div className="post-artworks-color-copy"><b>{entry.color}</b><span>{entry.references} uso(s) em {entry.artworks} arte(s)</span></div>
+            <label className="post-artworks-color-picker"><span>Nova cor</span><div><input type="color" value={colorDrafts[entry.color] || entry.color} onChange={(event) => setColorDrafts((current) => ({ ...current, [entry.color]: event.target.value.toUpperCase() }))} /><input value={colorDrafts[entry.color] || entry.color} maxLength={7} onChange={(event) => setColorDrafts((current) => ({ ...current, [entry.color]: event.target.value.toUpperCase() }))} /></div></label>
+            <div className="post-artworks-color-actions"><button type="button" onClick={() => setUsageColor(entry.color)}>Ver usos</button><button type="button" className="primary" disabled={replacingColor === entry.color || (colorDrafts[entry.color] || entry.color).toUpperCase() === entry.color.toUpperCase()} onClick={() => void replaceLibraryColor(entry)}>{replacingColor === entry.color ? <Loader2 className="spin" size={13} /> : null} Substituir em todas</button></div>
+          </article>)}
+          {!colorInventory.length ? <div className="post-artworks-empty"><strong>Nenhuma cor detectada</strong><span>As cores configuradas no fundo, legendas, colunas e cards das artes aparecerão aqui automaticamente.</span></div> : null}
+        </section>
+      </>}
       {selectedUsageAsset ? <div className="post-artworks-library-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setUsageAssetId('') }}><section className="post-artworks-library post-artworks-usage-modal"><header><div><small>ONDE ESTA IMAGEM É USADA</small><strong>{selectedUsageAsset.name}</strong><span>{selectedAssetUsages.length} referência(s) encontrada(s).</span></div><button type="button" onClick={() => setUsageAssetId('')} aria-label="Fechar usos"><X size={18} /></button></header><div className="post-artworks-usage-list">{selectedAssetUsages.map((use, index) => <article key={`${use.artworkId}-${use.location}-${index}`}><div><b>{use.artworkName}</b><span>{use.location}</span></div><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor?artwork=${encodeURIComponent(use.artworkId)}`}>Editar arte</a></article>)}{!selectedAssetUsages.length ? <div className="post-artworks-library-empty"><strong>Sem usos</strong><span>Esta imagem está guardada na biblioteca, mas nenhum template atual aponta para ela.</span></div> : null}</div></section></div> : null}
+      {selectedUsageColor ? <div className="post-artworks-library-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setUsageColor('') }}><section className="post-artworks-library post-artworks-usage-modal"><header><div><small>ONDE ESTA COR É USADA</small><strong>{selectedUsageColor.color}</strong><span>{selectedUsageColor.references} referência(s) em {selectedUsageColor.artworks} arte(s).</span></div><button type="button" onClick={() => setUsageColor('')} aria-label="Fechar usos da cor"><X size={18} /></button></header><div className="post-artworks-usage-list">{selectedUsageColor.uses.map((use) => <article key={use.artworkId}><div><b>{use.artworkName}</b><span>{use.count} uso(s) desta cor</span></div><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor?artwork=${encodeURIComponent(use.artworkId)}`}>Editar arte</a></article>)}</div></section></div> : null}
     </div>
   }
 
