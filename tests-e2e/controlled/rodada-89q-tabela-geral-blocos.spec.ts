@@ -42,7 +42,8 @@ test('89Q tabela tem colunas próprias com largura, visibilidade e fundo por cé
   expect(types).toContain('backgroundUrl: string | null')
   expect(workspace).toContain('Largura')
   expect(workspace).toContain('Exibir coluna')
-  expect(workspace).toContain('Enviar fundo das células')
+  expect(workspace).toContain('Upload do fundo')
+  expect(workspace).toContain("openAssetLibrary('column')")
 })
 
 test('89Q permite altura das linhas, gaps e legenda sem duas colunas automáticas', async () => {

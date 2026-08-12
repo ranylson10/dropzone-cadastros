@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Copy, Download, ImagePlus, Images, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import JSZip from 'jszip'
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { loadPostArtworkDayBooyahs, loadPostArtworkDayMvp, loadPostArtworkDayStandings, loadPostArtworkGeneralMvp, loadPostArtworkGeneralStandings, loadPostArtworkKillLeaders } from '../services/post-artwork-data.service'
@@ -59,21 +59,63 @@ function uid(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function EditableNumberInput(props: { value: number; min?: number; max?: number; onCommit: (value: number) => void }) {
+function EditableNumberInput(props: { value: number; min?: number; max?: number; step?: number; bigStep?: number; onCommit: (value: number) => void }) {
   const [text, setText] = useState(String(props.value))
+  const holdRef = useRef<number | null>(null)
+  const repeatRef = useRef<number | null>(null)
   useEffect(() => setText(String(props.value)), [props.value])
+
+  function clearHold() {
+    if (holdRef.current !== null) window.clearTimeout(holdRef.current)
+    if (repeatRef.current !== null) window.clearInterval(repeatRef.current)
+    holdRef.current = null
+    repeatRef.current = null
+  }
+
+  useEffect(() => clearHold, [])
+
+  function clamp(value: number) {
+    let next = Math.round(value)
+    if (props.min !== undefined) next = Math.max(props.min, next)
+    if (props.max !== undefined) next = Math.min(props.max, next)
+    return next
+  }
+
+  function commitValue(value: number) {
+    const next = clamp(value)
+    props.onCommit(next)
+    setText(String(next))
+  }
+
   function commit() {
     const normalized = text.trim().replace(',', '.')
     if (!normalized || normalized === '-' || normalized === '.') { setText(String(props.value)); return }
     const parsed = Number(normalized)
     if (!Number.isFinite(parsed)) { setText(String(props.value)); return }
-    let next = Math.round(parsed)
-    if (props.min !== undefined) next = Math.max(props.min, next)
-    if (props.max !== undefined) next = Math.min(props.max, next)
-    props.onCommit(next)
-    setText(String(next))
+    commitValue(parsed)
   }
-  return <input inputMode="numeric" value={text} onChange={(event) => setText(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur() } if (event.key === 'Escape') { setText(String(props.value)); event.currentTarget.blur() } }} />
+
+  function nudge(direction: -1 | 1, big = false) {
+    const normalized = text.trim().replace(',', '.')
+    const base = Number.isFinite(Number(normalized)) ? Number(normalized) : props.value
+    const step = big ? (props.bigStep ?? 10) : (props.step ?? 1)
+    commitValue(base + direction * step)
+  }
+
+  function startHold(direction: -1 | 1, big: boolean) {
+    nudge(direction, big)
+    clearHold()
+    holdRef.current = window.setTimeout(() => {
+      repeatRef.current = window.setInterval(() => nudge(direction, big), 110)
+    }, 320)
+  }
+
+  return <div className="post-artworks-number-input"><input inputMode="numeric" value={text} onChange={(event) => setText(event.target.value)} onBlur={commit} onKeyDown={(event) => {
+    if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur() }
+    if (event.key === 'Escape') { setText(String(props.value)); event.currentTarget.blur() }
+    if (event.key === 'ArrowUp') { event.preventDefault(); nudge(1, event.shiftKey) }
+    if (event.key === 'ArrowDown') { event.preventDefault(); nudge(-1, event.shiftKey) }
+  }} /><div className="post-artworks-number-stepper"><button type="button" aria-label="Aumentar valor" onMouseDown={(event) => startHold(1, event.shiftKey)} onMouseUp={clearHold} onMouseLeave={clearHold} onTouchStart={() => startHold(1, false)} onTouchEnd={clearHold}>▲</button><button type="button" aria-label="Diminuir valor" onMouseDown={(event) => startHold(-1, event.shiftKey)} onMouseUp={clearHold} onMouseLeave={clearHold} onTouchStart={() => startHold(-1, false)} onTouchEnd={clearHold}>▼</button></div></div>
 }
 
 function defaultColumn(key: PostArtworkTableColumnKey): PostArtworkTableColumnStyle {
@@ -388,6 +430,7 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   const [libraryError, setLibraryError] = useState('')
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [previewZoom, setPreviewZoom] = useState(100)
   const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number; x: number; y: number } | null>(null)
 
   async function reloadAssets() {
@@ -730,7 +773,16 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     finally { setExporting(false) }
   }
 
-  const previewScale = useMemo(() => draft ? Math.min(1, 820 / draft.width, 620 / draft.height) : 1, [draft])
+  const fitPreviewScale = useMemo(() => draft ? Math.min(1, 820 / draft.width, 620 / draft.height) : 1, [draft])
+  const previewScale = useMemo(() => fitPreviewScale * (previewZoom / 100), [fitPreviewScale, previewZoom])
+
+
+  function changePreviewZoom(next: number) { setPreviewZoom(Math.max(25, Math.min(400, Math.round(next)))) }
+
+  function handlePreviewWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    event.preventDefault()
+    changePreviewZoom(previewZoom + (event.deltaY < 0 ? 10 : -10))
+  }
 
   function beginDrag(event: ReactPointerEvent<HTMLDivElement>, block: PostArtworkBlock) {
     event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId)
@@ -787,8 +839,8 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
           </section>
 
           <main className="post-artworks-preview-panel">
-            <div className="post-artworks-panel-title"><strong>Área de trabalho</strong><small>Arraste os blocos. As linhas vêm das estatísticas atuais do campeonato.</small></div>
-            <div className="post-artworks-preview-shell">
+            <div className="post-artworks-panel-title post-artworks-preview-toolbar"><div><strong>Área de trabalho</strong><small>Arraste os blocos. Use o scroll do mouse para aproximar ou afastar.</small></div><div className="post-artworks-zoom-actions"><button type="button" onClick={() => changePreviewZoom(100)}>100%</button><button type="button" onClick={() => changePreviewZoom(previewZoom - 10)}>-</button><b>{previewZoom}%</b><button type="button" onClick={() => changePreviewZoom(previewZoom + 10)}>+</button><button type="button" onClick={() => changePreviewZoom(Math.round((1 / fitPreviewScale) * 100))}>Ajustar</button></div></div>
+            <div className="post-artworks-preview-shell" onWheel={handlePreviewWheel}>
               <div className="post-artworks-preview" style={{ width: draft.width * previewScale, height: draft.height * previewScale, backgroundColor: draft.background_color, backgroundImage: draft.background_url ? `url(${JSON.stringify(draft.background_url)})` : undefined }}>
                 {Array.from({ length: Math.max(0, draft.slice_count - 1) }, (_, index) => <span key={index} className={`post-artworks-slice-line ${draft.slice_direction}`} style={draft.slice_direction === 'horizontal' ? { left: draft.slice_width * (index + 1) * previewScale } : { top: draft.slice_height * (index + 1) * previewScale }} />)}
                 {draft.blocks.filter((block) => block.visible && (block.type === 'table_general' || block.type === 'table_day' || block.type === 'qualified_teams' || block.type === 'booyahs_day')).map((block) => {
@@ -817,8 +869,8 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
             <div className="post-artworks-panel-title"><strong>Blocos da arte</strong><small>Independentes da transmissão</small></div>
             <div className="post-artworks-add-blocks"><button type="button" className="post-artworks-add-block" onClick={addGeneralTable}><Plus size={14} /> Tabela Geral</button><button type="button" className="post-artworks-add-block" onClick={addDayTable}><Plus size={14} /> Tabela do Dia</button><button type="button" className="post-artworks-add-block" onClick={addQualifiedTeams}><Plus size={14} /> Classificados</button><button type="button" className="post-artworks-add-block" onClick={addBooyahsDay}><Plus size={14} /> Booyahs do Dia</button><button type="button" className="post-artworks-add-block" onClick={addMvpGeneral}><Plus size={14} /> MVP Geral</button><button type="button" className="post-artworks-add-block" onClick={addMvpDay}><Plus size={14} /> MVP do Dia</button><button type="button" className="post-artworks-add-block" onClick={addKillLeaders}><Plus size={14} /> Líderes de Abates</button></div>
             <div className="post-artworks-block-list">{draft.blocks.map((block) => <article key={block.id} className={block.id === selectedBlockId ? 'active' : ''}><button type="button" className="post-artworks-block-select" onClick={() => setSelectedBlockId(block.id)}><small>{block.type === 'table_day' ? 'TABELA DO DIA' : block.type === 'qualified_teams' ? 'CLASSIFICADOS' : block.type === 'booyahs_day' ? 'BOOYAHS DO DIA' : block.type === 'mvp_day' ? 'MVP DO DIA' : block.type === 'kills_leaders' ? 'LÍDERES DE ABATES' : block.type === 'mvp_general' ? 'MVP GERAL' : 'TABELA GERAL'}</small><strong>{block.name}</strong><span>{(block.type === 'table_day' || block.type === 'booyahs_day' || block.type === 'mvp_day') ? `${block.source?.rodadaName || 'Rodada não selecionada'} · ` : ''}{block.type === 'mvp_general' || block.type === 'mvp_day' || block.type === 'kills_leaders' ? `Top ${block.dataStart || 1}` : `Top ${block.dataStart || 1}–${block.dataEnd || 12}`}</span></button><div><button type="button" title="Duplicar e avançar a faixa" onClick={() => duplicateBlock(block)}><Copy size={13} /></button><button type="button" title="Excluir bloco" onClick={() => deleteBlock(block.id)}><Trash2 size={13} /></button></div></article>)}</div>
-            {selectedBlock && selectedMvpStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>{selectedBlock.type === 'kills_leaders' ? 'Visual do líder de abates' : 'Visual do MVP'}</strong><small>Fundo, foto e textos do card.</small></div><label>Fundo<select value={selectedMvpStyle.backgroundType} onChange={(event) => patchMvpStyle({ backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedMvpStyle.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedMvpStyle.backgroundColor} onChange={(event) => patchMvpStyle({ backgroundColor: event.target.value })} /></label> : <label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedMvpStyle.backgroundUrl ? 'Trocar fundo do card' : 'Enviar fundo do card'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadMvpBackground(event.target.files?.[0])} /></label>}<button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('mvp')}><Images size={13} /> Biblioteca</button><div className="post-artworks-grid2"><label>Nome<EditableNumberInput value={selectedMvpStyle.nameFontSize} min={8} max={160} onCommit={(value) => patchMvpStyle({ nameFontSize: value })} /></label><label>Equipe<EditableNumberInput value={selectedMvpStyle.teamFontSize} min={8} max={120} onCommit={(value) => patchMvpStyle({ teamFontSize: value })} /></label><label>Estatísticas<EditableNumberInput value={selectedMvpStyle.statsFontSize} min={8} max={140} onCommit={(value) => patchMvpStyle({ statsFontSize: value })} /></label><label>Raio da foto<EditableNumberInput value={selectedMvpStyle.imageRadius} min={0} max={500} onCommit={(value) => patchMvpStyle({ imageRadius: value })} /></label></div><div className="post-artworks-grid2"><label>Cor do nome<input type="color" value={selectedMvpStyle.nameColor} onChange={(event) => patchMvpStyle({ nameColor: event.target.value })} /></label><label>Cor da equipe<input type="color" value={selectedMvpStyle.teamColor} onChange={(event) => patchMvpStyle({ teamColor: event.target.value })} /></label><label>Cor dos números<input type="color" value={selectedMvpStyle.statsColor} onChange={(event) => patchMvpStyle({ statsColor: event.target.value })} /></label></div></div> : null}
-            {selectedBlock && selectedTableStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Colunas</strong><small>Ative, dimensione e aplique fundo por célula.</small></div><div className="post-artworks-column-tabs">{selectedTableStyle.columns.map((column) => <button type="button" key={column.key} className={selectedColumnKey === column.key ? 'active' : ''} onClick={() => setSelectedColumnKey(column.key)}>{TABLE_COLUMN_META[column.key].label || 'LOGO'}</button>)}</div>{selectedColumn ? <><label className="post-artworks-check"><input type="checkbox" checked={selectedColumn.enabled} onChange={(event) => patchColumn(selectedColumn.key, { enabled: event.target.checked })} /> Exibir coluna</label><label>Largura<EditableNumberInput value={selectedColumn.width} min={30} max={1000} onCommit={(value) => patchColumn(selectedColumn.key, { width: value })} /></label><label>Legenda<input value={selectedColumn.label} onChange={(event) => patchColumn(selectedColumn.key, { label: event.target.value })} /></label><label>Fundo<select value={selectedColumn.backgroundType} onChange={(event) => patchColumn(selectedColumn.key, { backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedColumn.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedColumn.backgroundColor} onChange={(event) => patchColumn(selectedColumn.key, { backgroundColor: event.target.value })} /></label> : <label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedColumn.backgroundUrl ? 'Trocar fundo das células' : 'Enviar fundo das células'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadColumnBackground(selectedColumn.key, event.target.files?.[0])} /></label>}<button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('column')}><Images size={13} /> Biblioteca</button>{selectedColumn.key !== 'logo' ? <div className="post-artworks-grid2"><label>Tamanho do texto<EditableNumberInput value={selectedColumn.fontSize} min={8} max={120} onCommit={(value) => patchColumn(selectedColumn.key, { fontSize: value })} /></label><label>Peso<EditableNumberInput value={selectedColumn.fontWeight} min={100} max={900} onCommit={(value) => patchColumn(selectedColumn.key, { fontWeight: value })} /></label><label>Cor do texto<input type="color" value={selectedColumn.color} onChange={(event) => patchColumn(selectedColumn.key, { color: event.target.value })} /></label><label>Alinhamento<select value={selectedColumn.align} onChange={(event) => patchColumn(selectedColumn.key, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}</> : null}</div> : null}
+            {selectedBlock && selectedMvpStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>{selectedBlock.type === 'kills_leaders' ? 'Visual do líder de abates' : 'Visual do MVP'}</strong><small>Fundo, foto e textos do card.</small></div><label>Fundo<select value={selectedMvpStyle.backgroundType} onChange={(event) => patchMvpStyle({ backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedMvpStyle.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedMvpStyle.backgroundColor} onChange={(event) => patchMvpStyle({ backgroundColor: event.target.value })} /></label> : null}<div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedMvpStyle.backgroundUrl ? 'Trocar fundo do card' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadMvpBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('mvp')}><Images size={13} /> Biblioteca</button></div><div className="post-artworks-grid2"><label>Nome<EditableNumberInput value={selectedMvpStyle.nameFontSize} min={8} max={160} onCommit={(value) => patchMvpStyle({ nameFontSize: value })} /></label><label>Equipe<EditableNumberInput value={selectedMvpStyle.teamFontSize} min={8} max={120} onCommit={(value) => patchMvpStyle({ teamFontSize: value })} /></label><label>Estatísticas<EditableNumberInput value={selectedMvpStyle.statsFontSize} min={8} max={140} onCommit={(value) => patchMvpStyle({ statsFontSize: value })} /></label><label>Raio da foto<EditableNumberInput value={selectedMvpStyle.imageRadius} min={0} max={500} onCommit={(value) => patchMvpStyle({ imageRadius: value })} /></label></div><div className="post-artworks-grid2"><label>Cor do nome<input type="color" value={selectedMvpStyle.nameColor} onChange={(event) => patchMvpStyle({ nameColor: event.target.value })} /></label><label>Cor da equipe<input type="color" value={selectedMvpStyle.teamColor} onChange={(event) => patchMvpStyle({ teamColor: event.target.value })} /></label><label>Cor dos números<input type="color" value={selectedMvpStyle.statsColor} onChange={(event) => patchMvpStyle({ statsColor: event.target.value })} /></label></div></div> : null}
+            {selectedBlock && selectedTableStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Colunas</strong><small>Ative, dimensione e aplique fundo por célula.</small></div><div className="post-artworks-column-tabs">{selectedTableStyle.columns.map((column) => <button type="button" key={column.key} className={selectedColumnKey === column.key ? 'active' : ''} onClick={() => setSelectedColumnKey(column.key)}>{TABLE_COLUMN_META[column.key].label || 'LOGO'}</button>)}</div>{selectedColumn ? <><label className="post-artworks-check"><input type="checkbox" checked={selectedColumn.enabled} onChange={(event) => patchColumn(selectedColumn.key, { enabled: event.target.checked })} /> Exibir coluna</label><label>Largura<EditableNumberInput value={selectedColumn.width} min={30} max={1000} onCommit={(value) => patchColumn(selectedColumn.key, { width: value })} /></label><label>Legenda<input value={selectedColumn.label} onChange={(event) => patchColumn(selectedColumn.key, { label: event.target.value })} /></label><label>Fundo<select value={selectedColumn.backgroundType} onChange={(event) => patchColumn(selectedColumn.key, { backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedColumn.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedColumn.backgroundColor} onChange={(event) => patchColumn(selectedColumn.key, { backgroundColor: event.target.value })} /></label> : null}<div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedColumn.backgroundUrl ? 'Trocar fundo das células' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadColumnBackground(selectedColumn.key, event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('column')}><Images size={13} /> Biblioteca</button></div>{selectedColumn.key !== 'logo' ? <div className="post-artworks-grid2"><label>Tamanho do texto<EditableNumberInput value={selectedColumn.fontSize} min={8} max={120} onCommit={(value) => patchColumn(selectedColumn.key, { fontSize: value })} /></label><label>Peso<EditableNumberInput value={selectedColumn.fontWeight} min={100} max={900} onCommit={(value) => patchColumn(selectedColumn.key, { fontWeight: value })} /></label><label>Cor do texto<input type="color" value={selectedColumn.color} onChange={(event) => patchColumn(selectedColumn.key, { color: event.target.value })} /></label><label>Alinhamento<select value={selectedColumn.align} onChange={(event) => patchColumn(selectedColumn.key, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}</> : null}</div> : null}
           </aside>
         </> : <section className="post-artworks-welcome"><strong>Crie ou selecione uma arte</strong><span>O editor de redes sociais é independente da transmissão.</span></section>}
       </div>
