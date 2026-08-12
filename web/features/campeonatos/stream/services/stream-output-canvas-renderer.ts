@@ -2,6 +2,7 @@
 
 import { supabase } from '@/lib/supabase-browser'
 import { resolveStreamAsset, resolveStreamLayoutConfig, resolveStreamLooseImageConfig, resolveStreamLooseTextConfig, resolveStreamOverlayConfig, resolveStreamTableConfig } from './stream-package-config'
+import { streamOutputArtworkBounds, streamOutputArtworkScale } from './stream-output-artwork-geometry'
 import { STREAM_OUTPUT_PROFILES, STREAM_OVERLAY_COLUMN_META, STREAM_SYSTEM_OVERLAY_LAYOUTS, STREAM_SYSTEM_OVERLAY_META } from '../types/stream-package.types'
 import type { StreamOutputArea, StreamOutputLayout, StreamOverlayPackage, StreamPackageRenderData } from '../types/stream-package.types'
 
@@ -40,27 +41,36 @@ function fillCellGradient(context: CanvasRenderingContext2D, css: string, x: num
   return true
 }
 
+function renderItemCount(entry: RenderArea) {
+  const start = Math.max(0, entry.area.dataStart - 1)
+  const end = Math.max(start + 1, entry.area.dataEnd)
+  return Math.max(1, entry.data.items.slice(start, end).length)
+}
+
 function scaledBox(entry: RenderArea, x: number, y: number, width: number, height: number) {
-  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === entry.area.profileId) || STREAM_OUTPUT_PROFILES[0]
+  const bounds = streamOutputArtworkBounds(entry.pack, entry.area, renderItemCount(entry))
+  const scale = streamOutputArtworkScale(entry.pack, entry.area, renderItemCount(entry))
   return {
-    x: entry.area.x + x * (entry.area.width / profile.width),
-    y: entry.area.y + y * (entry.area.height / profile.height),
-    width: width * (entry.area.width / profile.width),
-    height: height * (entry.area.height / profile.height),
+    x: entry.area.x + (x - bounds.x) * scale,
+    y: entry.area.y + (y - bounds.y) * scale,
+    width: width * scale,
+    height: height * scale,
   }
 }
 
 function contentArea(entry: RenderArea) {
   if (entry.area.contentMode === 'clean') return entry.area
-  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === entry.area.profileId) || STREAM_OUTPUT_PROFILES[0]
   const frame = STREAM_SYSTEM_OVERLAY_LAYOUTS[entry.area.overlayType].content
-  const layout = resolveStreamLayoutConfig(entry.pack, entry.area.overlayType, entry.area.profileId)
+  const layout = resolveStreamLayoutConfig(entry.pack, entry.area.overlayType, 'png-4k')
+  const bounds = streamOutputArtworkBounds(entry.pack, entry.area, renderItemCount(entry))
+  const scale = streamOutputArtworkScale(entry.pack, entry.area, renderItemCount(entry))
   return {
     ...entry.area,
-    x: entry.area.x + (frame.x + layout.offsetX) * (entry.area.width / profile.width),
-    y: entry.area.y + (frame.y + layout.offsetY) * (entry.area.height / profile.height),
-    width: frame.width * layout.widthScale * (entry.area.width / profile.width),
-    height: frame.height * layout.heightScale * (entry.area.height / profile.height),
+    profileId: 'png-4k' as const,
+    x: entry.area.x + ((frame.x + layout.offsetX) - bounds.x) * scale,
+    y: entry.area.y + ((frame.y + layout.offsetY) - bounds.y) * scale,
+    width: frame.width * layout.widthScale * scale,
+    height: frame.height * layout.heightScale * scale,
   }
 }
 
@@ -82,12 +92,21 @@ function effectiveCleanArea(entry: RenderArea) {
 
 async function drawAreaDecorations(context: CanvasRenderingContext2D, entry: RenderArea) {
   if (entry.area.contentMode === 'clean') return
-  const config = resolveStreamOverlayConfig(entry.pack, entry.area.overlayType, entry.area.profileId)
-  const looseImage = resolveStreamLooseImageConfig(entry.pack, entry.area.overlayType, entry.area.profileId)
-  const looseText = resolveStreamLooseTextConfig(entry.pack, entry.area.overlayType, entry.area.profileId)
+  const config = resolveStreamOverlayConfig(entry.pack, entry.area.overlayType, 'png-4k')
+  const looseImage = resolveStreamLooseImageConfig(entry.pack, entry.area.overlayType, 'png-4k')
+  const looseText = resolveStreamLooseTextConfig(entry.pack, entry.area.overlayType, 'png-4k')
+  const topArt = resolveStreamAsset(entry.pack, entry.area.overlayType, 'top_art', 'png-4k')
+
+  if (topArt) {
+    const image = await imageSource(topArt).catch(() => null)
+    if (image) {
+      const box = scaledBox(entry, 0, 0, 1920, 1080)
+      drawContain(context, image, box.x, box.y, box.width, box.height)
+    }
+  }
 
   if (looseImage.show && looseImage.assetKey) {
-    const image = await imageSource(resolveStreamAsset(entry.pack, entry.area.overlayType, looseImage.assetKey, entry.area.profileId)).catch(() => null)
+    const image = await imageSource(resolveStreamAsset(entry.pack, entry.area.overlayType, looseImage.assetKey, 'png-4k')).catch(() => null)
     if (image) {
       const box = scaledBox(entry, looseImage.x, looseImage.y, looseImage.width, looseImage.height)
       if (looseImage.fit === 'cover') context.drawImage(image, box.x, box.y, box.width, box.height)
@@ -99,7 +118,7 @@ async function drawAreaDecorations(context: CanvasRenderingContext2D, entry: Ren
     const box = scaledBox(entry, looseText.x, looseText.y, looseText.width, looseText.fontSize * 1.3)
     context.save()
     context.fillStyle = looseText.color
-    context.font = `${looseText.fontWeight} ${Math.max(8, looseText.fontSize * (entry.area.height / (STREAM_OUTPUT_PROFILES.find((item) => item.id === entry.area.profileId)?.height || 1080)))}px ${looseText.fontFamily || 'Arial'}`
+    context.font = `${looseText.fontWeight} ${Math.max(8, looseText.fontSize * streamOutputArtworkScale(entry.pack, entry.area, renderItemCount(entry)))}px ${looseText.fontFamily || 'Arial'}`
     context.textBaseline = 'top'
     context.textAlign = looseText.align === 'left' ? 'left' : looseText.align === 'right' ? 'right' : 'center'
     const x = looseText.align === 'left' ? box.x : looseText.align === 'right' ? box.x + box.width : box.x + box.width / 2
@@ -117,7 +136,7 @@ async function drawAreaDecorations(context: CanvasRenderingContext2D, entry: Ren
     }
     context.save()
     context.fillStyle = item.color || '#ffffff'
-    context.font = `${item.fontWeight || 700} ${Math.max(8, (item.fontSize || 32) * (entry.area.height / (STREAM_OUTPUT_PROFILES.find((profile) => profile.id === entry.area.profileId)?.height || 1080)))}px Arial`
+    context.font = `${item.fontWeight || 700} ${Math.max(8, (item.fontSize || 32) * streamOutputArtworkScale(entry.pack, entry.area, renderItemCount(entry)))}px Arial`
     context.textBaseline = 'middle'
     context.textAlign = 'left'
     const text = item.type === 'round_counter' ? `${item.currentRound || 1}/${item.totalRounds || 12}` : item.text || ''
@@ -135,8 +154,7 @@ async function drawTable(context: CanvasRenderingContext2D, pack: StreamOverlayP
   const frame = STREAM_SYSTEM_OVERLAY_LAYOUTS[area.overlayType].content
   const resolvedLayout = resolveStreamLayoutConfig(pack, area.overlayType, area.profileId)
   const baseWidth = area.contentMode === 'clean' ? Math.max(80, frame.width * resolvedLayout.widthScale) : area.width
-  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === area.profileId) || STREAM_OUTPUT_PROFILES[0]
-  const visualScale = area.contentMode === 'clean' ? area.width / baseWidth : entry.area.width / profile.width
+  const visualScale = area.contentMode === 'clean' ? area.width / baseWidth : streamOutputArtworkScale(entry.pack, entry.area, renderItemCount(entry))
   const header = table.showHeaders ? table.headerHeight * visualScale : 0
   const gap = table.rowGap * visualScale
   const rowHeight = table.rowHeight * visualScale
@@ -153,10 +171,10 @@ async function drawTable(context: CanvasRenderingContext2D, pack: StreamOverlayP
   context.save()
   if (header) { let x = area.x; context.textBaseline = 'middle'; context.textAlign = 'center'; for (let index = 0; index < columns.length; index += 1) { const column = columns[index]; context.fillStyle = table.headerColor || '#ffffff'; context.font = `${table.headerFontWeight || 800} ${Math.max(10, header * .38)}px ${table.headerFontFamily || 'Arial'}`; context.fillText(config.columnLabels?.[column] || STREAM_OVERLAY_COLUMN_META[column].label, x + scaled[index] / 2, area.y + header / 2); x += scaled[index] } }
   for (let row = 0; row < items.length; row += 1) { const y = area.y + header + row * (rowHeight + gap); if (rowBackground) context.drawImage(rowBackground, area.x, y, area.width, rowHeight); else { context.fillStyle = 'rgba(20,30,42,.88)'; context.fillRect(area.x, y, area.width, rowHeight) }
-    let x = area.x; for (let index = 0; index < columns.length; index += 1) { const column = columns[index]; const style = table.columnStyles[column as keyof typeof table.columnStyles]; const width = scaled[index]; const paddingX = style.paddingX ?? 8; const paddingY = style.paddingY ?? 4; context.save(); context.globalAlpha = style.opacity ?? 1; if (style.backgroundType === 'solid') { context.fillStyle = style.backgroundColor; context.fillRect(x, y, width, rowHeight) } else if (style.backgroundType === 'gradient') fillCellGradient(context, style.backgroundGradient, x, y, width, rowHeight); else { const background = cellBackgrounds.get(column); if (background) context.drawImage(background, x, y, width, rowHeight) }
-      if (style.borderWidth) { context.strokeStyle = style.borderColor; context.lineWidth = style.borderWidth; if (style.borderRadius && 'roundRect' in context) { context.beginPath(); context.roundRect(x + style.borderWidth / 2, y + style.borderWidth / 2, Math.max(1, width - style.borderWidth), Math.max(1, rowHeight - style.borderWidth), style.borderRadius); context.stroke() } else context.strokeRect(x + style.borderWidth / 2, y + style.borderWidth / 2, Math.max(1, width - style.borderWidth), Math.max(1, rowHeight - style.borderWidth)) }
-      context.fillStyle = style.color; context.font = `${style.fontStyle || 'normal'} ${style.fontWeight || 700} ${Math.max(10, Math.min(style.fontSize || 18, rowHeight * .54))}px ${style.fontFamily || 'Arial'}`; context.textBaseline = 'middle'; context.textAlign = style.align === 'left' ? 'left' : style.align === 'right' ? 'right' : 'center'; const tx = style.align === 'left' ? x + paddingX : style.align === 'right' ? x + width - paddingX : x + width / 2; const ty = (style.verticalAlign === 'top' ? y + paddingY + (style.fontSize || 18) * .5 : style.verticalAlign === 'bottom' ? y + rowHeight - paddingY - (style.fontSize || 18) * .5 : y + rowHeight / 2) + (style.offsetY || 0)
-      if ((column === 'logo' || column === 'map') && String(items[row][column] || '')) { const cellImage = await imageSource(String(items[row][column])).catch(() => null); if (cellImage) drawContain(context, cellImage, x + paddingX, y + paddingY, Math.max(1, width - paddingX * 2), Math.max(1, rowHeight - paddingY * 2)) } else context.fillText(value(items[row], column), tx + (style.offsetX || 0), ty, Math.max(8, width - paddingX * 2)); context.restore(); x += width }
+    let x = area.x; for (let index = 0; index < columns.length; index += 1) { const column = columns[index]; const style = table.columnStyles[column as keyof typeof table.columnStyles]; const width = scaled[index]; const paddingX = (style.paddingX ?? 8) * visualScale; const paddingY = (style.paddingY ?? 4) * visualScale; const borderWidth = (style.borderWidth || 0) * visualScale; const borderRadius = (style.borderRadius || 0) * visualScale; const fontSize = Math.max(8, Math.min((style.fontSize || 18) * visualScale, rowHeight * .54)); context.save(); context.globalAlpha = style.opacity ?? 1; if (style.backgroundType === 'solid') { context.fillStyle = style.backgroundColor; context.fillRect(x, y, width, rowHeight) } else if (style.backgroundType === 'gradient') fillCellGradient(context, style.backgroundGradient, x, y, width, rowHeight); else { const background = cellBackgrounds.get(column); if (background) context.drawImage(background, x, y, width, rowHeight) }
+      if (borderWidth) { context.strokeStyle = style.borderColor; context.lineWidth = borderWidth; if (borderRadius && 'roundRect' in context) { context.beginPath(); context.roundRect(x + borderWidth / 2, y + borderWidth / 2, Math.max(1, width - borderWidth), Math.max(1, rowHeight - borderWidth), borderRadius); context.stroke() } else context.strokeRect(x + borderWidth / 2, y + borderWidth / 2, Math.max(1, width - borderWidth), Math.max(1, rowHeight - borderWidth)) }
+      context.fillStyle = style.color; context.font = `${style.fontStyle || 'normal'} ${style.fontWeight || 700} ${fontSize}px ${style.fontFamily || 'Arial'}`; context.textBaseline = 'middle'; context.textAlign = style.align === 'left' ? 'left' : style.align === 'right' ? 'right' : 'center'; const tx = style.align === 'left' ? x + paddingX : style.align === 'right' ? x + width - paddingX : x + width / 2; const ty = (style.verticalAlign === 'top' ? y + paddingY + fontSize * .5 : style.verticalAlign === 'bottom' ? y + rowHeight - paddingY - fontSize * .5 : y + rowHeight / 2) + ((style.offsetY || 0) * visualScale)
+      if ((column === 'logo' || column === 'map') && String(items[row][column] || '')) { const cellImage = await imageSource(String(items[row][column])).catch(() => null); if (cellImage) drawContain(context, cellImage, x + paddingX, y + paddingY, Math.max(1, width - paddingX * 2), Math.max(1, rowHeight - paddingY * 2)) } else context.fillText(value(items[row], column), tx + ((style.offsetX || 0) * visualScale), ty, Math.max(8, width - paddingX * 2)); context.restore(); x += width }
   }
   context.restore()
 }

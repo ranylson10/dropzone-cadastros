@@ -3469,3 +3469,14 @@ body.stream-editor-scroll-lock {
 .stream-output-artwork-mode{display:grid;gap:3px;padding:9px 10px;border:1px solid var(--line);background:var(--surface-soft)}
 .stream-output-artwork-mode strong{font-size:10px;text-transform:uppercase;letter-spacing:.04em}
 .stream-output-artwork-mode small{font-size:9px;line-height:1.35;color:var(--muted)}
+
+/* 89M — transformação da overlay como elemento real da arte */
+.stream-output-transform-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stream-output-number-field{display:grid;gap:5px;font-size:10px;font-weight:800;text-transform:uppercase;color:#4b5563}
+.stream-output-number-field input{min-height:40px;border:1px solid #cfc8bc;background:#fff;padding:8px 10px;color:#111827;font-size:14px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.stream-output-number-field.is-prominent input{min-height:44px;border:2px solid #17202b;font-size:17px;font-weight:900;letter-spacing:.01em}
+.stream-output-number-field input:focus{outline:2px solid rgba(34,211,238,.28);outline-offset:1px;border-color:#0891b2}
+.stream-output-scale-hint{display:block;font-size:9px;line-height:1.5;color:#667085}
+@media (max-width:860px){.stream-output-transform-grid{grid-template-columns:1fr 1fr}}
+.stream-package-render-root.is-artwork-output{overflow:visible}
+.stream-package-render-root.is-artwork-output .stream-package-render-content{overflow:visible}

@@ -12,7 +12,7 @@ const css = read('web/features/campeonatos/stream/stream.css')
 test.describe('Rodada 89K/89L — escala proporcional sem recorte artificial', () => {
   test('mantém largura geral como escala proporcional da overlay', () => {
     expect(outputs).toContain('Largura geral da overlay')
-    expect(outputs).toContain('largura geral funciona como escala proporcional')
+    expect(outputs).toContain('A largura escala a overlay inteira; a altura acompanha automaticamente.')
     expect(outputs).not.toContain('<label>Altura<input type="number" min={80} value={activeArea.height}')
     expect(outputs).not.toContain('aria-label="Redimensionar área"')
   })

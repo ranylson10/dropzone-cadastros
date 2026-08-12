@@ -62,6 +62,7 @@ function TableRenderer(props: {
   data: StreamPackageRenderData
   outputProfileId?: StreamOutputProfileId
   contentOnly?: boolean
+  artworkMode?: boolean
   animationTest?: 'enter' | 'exit'
 }) {
   const config = resolveStreamOverlayConfig(props.pack, props.type, props.outputProfileId)
@@ -311,6 +312,7 @@ export function StreamPackageStage(props: {
   canvasHeight?: number
   outputProfileId?: StreamOutputProfileId
   contentOnly?: boolean
+  artworkMode?: boolean
   animationTest?: 'enter' | 'exit'
   onSceneItemMove?: (id: string, x: number, y: number) => void
   onLooseMove?: (kind: 'image' | 'text', x: number, y: number) => void
@@ -341,7 +343,7 @@ export function StreamPackageStage(props: {
 
   return (
     <div
-      className={`stream-package-render-root overlay-${props.type} fx-${props.animationTest === 'exit' ? (animation.exit || 'fade') : animation.enter}${props.preview ? ' is-preview' : ''}`}
+      className={`stream-package-render-root overlay-${props.type} fx-${props.animationTest === 'exit' ? (animation.exit || 'fade') : animation.enter}${props.preview ? ' is-preview' : ''}${props.artworkMode ? ' is-artwork-output' : ''}`}
       style={{
         width: canvasWidth,
         height: canvasHeight,

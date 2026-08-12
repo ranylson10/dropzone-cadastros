@@ -6,6 +6,13 @@ import JSZip from 'jszip'
 import { StreamPackageStage } from './StreamPackageStage'
 import { loadStreamPackageRenderData } from '../services/stream-package-data.service'
 import { renderStreamOutputCanvas } from '../services/stream-output-canvas-renderer'
+import {
+  STREAM_ARTWORK_DESIGN_HEIGHT,
+  STREAM_ARTWORK_DESIGN_WIDTH,
+  streamOutputArtworkArea,
+  streamOutputArtworkBounds,
+  streamOutputArtworkEffectiveSize,
+} from '../services/stream-output-artwork-geometry'
 import { resolveStreamAsset, resolveStreamCardConfig, resolveStreamLayoutConfig, resolveStreamLooseImageConfig, resolveStreamLooseTextConfig, resolveStreamOverlayConfig, resolveStreamTableConfig } from '../services/stream-package-config'
 import { uploadPublicFile } from '@/lib/upload-public'
 import {
@@ -16,7 +23,6 @@ import {
 } from '../services/stream-output-export'
 import {
   DEFAULT_STREAM_PACKAGE_SHARED_CONFIG,
-  STREAM_OUTPUT_PROFILES,
   STREAM_OVERLAY_COLUMN_META,
   STREAM_SYSTEM_OVERLAY_META,
   STREAM_SYSTEM_OVERLAYS,
@@ -59,9 +65,6 @@ function uid(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
-}
 
 function mergeOutputOverrides(base: StreamPackageOutputVariantConfig, patch: StreamPackageOutputVariantConfig): StreamPackageOutputVariantConfig {
   const assetOverrides = { ...(base.assetOverrides || {}), ...(patch.assetOverrides || {}) }
@@ -115,14 +118,84 @@ function packForOutputArea(pack: StreamOverlayPackage, area: StreamOutputArea) {
 }
 
 
-function artworkArea(area: StreamOutputArea): StreamOutputArea {
-  return { ...area, profileId: 'png-4k', contentMode: 'full', lockAspect: true }
+function DraftNumberInput(props: {
+  label: string
+  value: number
+  onCommit: (value: number) => void
+  min?: number
+  max?: number
+  integer?: boolean
+  prominent?: boolean
+}) {
+  const [draft, setDraft] = useState(String(props.value))
+
+  useEffect(() => { setDraft(String(props.value)) }, [props.value])
+
+  function commit() {
+    const normalized = draft.trim().replace(',', '.')
+    if (!normalized || normalized === '-' || normalized === '.' || normalized === '-.') {
+      setDraft(String(props.value))
+      return
+    }
+    const parsed = Number(normalized)
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(props.value))
+      return
+    }
+    let next = props.integer === false ? parsed : Math.round(parsed)
+    if (props.min !== undefined) next = Math.max(props.min, next)
+    if (props.max !== undefined) next = Math.min(props.max, next)
+    props.onCommit(next)
+    setDraft(String(next))
+  }
+
+  return (
+    <label className={`stream-output-number-field${props.prominent ? ' is-prominent' : ''}`}>
+      {props.label}
+      <input
+        type="text"
+        inputMode="decimal"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') { event.currentTarget.blur() }
+          if (event.key === 'Escape') { setDraft(String(props.value)); event.currentTarget.blur() }
+        }}
+      />
+    </label>
+  )
 }
 
-function outputAreaEffectiveSize(_pack: StreamOverlayPackage, area: StreamOutputArea, _itemCount?: number) {
-  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === 'png-4k')!
-  const width = Math.max(80, area.width)
-  return { width, height: Math.max(45, Math.round(width * (profile.height / profile.width))) }
+function DraftOptionalNumberInput(props: {
+  label: string
+  value: number | null
+  onCommit: (value: number | null) => void
+  min?: number
+  max?: number
+}) {
+  const [draft, setDraft] = useState(props.value == null ? '' : String(props.value))
+
+  useEffect(() => { setDraft(props.value == null ? '' : String(props.value)) }, [props.value])
+
+  function commit() {
+    const normalized = draft.trim().replace(',', '.')
+    if (!normalized) { props.onCommit(null); setDraft(''); return }
+    const parsed = Number(normalized)
+    if (!Number.isFinite(parsed)) { setDraft(props.value == null ? '' : String(props.value)); return }
+    let next = Math.round(parsed)
+    if (props.min !== undefined) next = Math.max(props.min, next)
+    if (props.max !== undefined) next = Math.min(props.max, next)
+    props.onCommit(next)
+    setDraft(String(next))
+  }
+
+  return (
+    <label className="stream-output-number-field">
+      {props.label}
+      <input type="text" inputMode="decimal" value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { setDraft(props.value == null ? '' : String(props.value)); event.currentTarget.blur() } }} />
+    </label>
+  )
 }
 
 
@@ -221,13 +294,13 @@ function OutputAreaPreview(props: {
     return () => { active = false }
   }, [props.area.dataEnd, props.area.dataStart, props.area.overlayType, props.campeonatoId])
 
-  const artArea = artworkArea(props.area)
-  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === 'png-4k')!
+  const artArea = streamOutputArtworkArea(props.area)
   const areaPack = useMemo(() => packForOutputArea(props.pack, artArea), [props.area, props.pack])
-  const effectiveSize = outputAreaEffectiveSize(areaPack, artArea, data.items.length || undefined)
+  const artworkBounds = streamOutputArtworkBounds(areaPack, artArea, data.items.length || undefined)
+  const effectiveSize = streamOutputArtworkEffectiveSize(areaPack, artArea, data.items.length || undefined)
   const displayWidth = effectiveSize.width * props.scale
   const displayHeight = effectiveSize.height * props.scale
-  const innerScale = displayWidth / profile.width
+  const innerScale = displayWidth / artworkBounds.width
 
   return (
     <div
@@ -246,16 +319,26 @@ function OutputAreaPreview(props: {
       onPointerUp={interactive ? props.onPointerUp : undefined}
       onPointerCancel={interactive ? props.onPointerUp : undefined}
     >
-      <div className="stream-output-area-stage" style={{ width: profile.width, height: profile.height, transform: `scale(${innerScale})` }}>
+      <div
+        className="stream-output-area-stage"
+        style={{
+          left: -artworkBounds.x * innerScale,
+          top: -artworkBounds.y * innerScale,
+          width: STREAM_ARTWORK_DESIGN_WIDTH,
+          height: STREAM_ARTWORK_DESIGN_HEIGHT,
+          transform: `scale(${innerScale})`,
+        }}
+      >
         <StreamPackageStage
           pack={areaPack}
           type={props.area.overlayType}
           data={data}
           preview
-          canvasWidth={profile.width}
-          canvasHeight={profile.height}
+          canvasWidth={STREAM_ARTWORK_DESIGN_WIDTH}
+          canvasHeight={STREAM_ARTWORK_DESIGN_HEIGHT}
           outputProfileId="png-4k"
           contentOnly={false}
+          artworkMode
         />
       </div>
     </div>
@@ -302,7 +385,7 @@ export function StreamOutputLayoutsEditor(props: {
       const areas = layout.areas.map((area) => {
         if (area.profileId === 'png-4k' && area.contentMode === 'full' && area.lockAspect === true) return area
         changed = true
-        return artworkArea(area)
+        return streamOutputArtworkArea(area)
       })
       return changed ? { ...layout, areas } : layout
     })
@@ -473,8 +556,8 @@ export function StreamOutputLayoutsEditor(props: {
     const area: StreamOutputArea = {
       ...source,
       id: uid('area'),
-      x: clamp(source.x + 24, 0, Math.max(0, activeLayout.width - source.width)),
-      y: clamp(source.y + 24, 0, Math.max(0, activeLayout.height - source.height)),
+      x: source.x + 24,
+      y: source.y + 24,
       zIndex: maxZ + 1,
     }
     replaceLayout({ ...activeLayout, areas: [...activeLayout.areas, area] })
@@ -574,13 +657,13 @@ export function StreamOutputLayoutsEditor(props: {
     const dy = (event.clientY - interaction.startClientY) / previewScale
     const original = interaction.original
     if (interaction.mode === 'move') {
-      const effective = outputAreaEffectiveSize(packForOutputArea(props.pack, original), original)
-      let x = clamp(original.x + dx, 0, Math.max(0, activeLayout.width - effective.width))
-      let y = clamp(original.y + dy, 0, Math.max(0, activeLayout.height - effective.height))
+      const effective = streamOutputArtworkEffectiveSize(packForOutputArea(props.pack, streamOutputArtworkArea(original)), streamOutputArtworkArea(original))
+      let x = original.x + dx
+      let y = original.y + dy
       const snappedLeft = snapCoordinate(x, 'x')
-      const snappedRight = snapCoordinate(x + original.width, 'x') - original.width
+      const snappedRight = snapCoordinate(x + effective.width, 'x') - effective.width
       const snappedTop = snapCoordinate(y, 'y')
-      const snappedBottom = snapCoordinate(y + original.height, 'y') - original.height
+      const snappedBottom = snapCoordinate(y + effective.height, 'y') - effective.height
       if (snapEnabled) {
         x = Math.abs(snappedLeft - x) <= Math.abs(snappedRight - x) ? snappedLeft : snappedRight
         y = Math.abs(snappedTop - y) <= Math.abs(snappedBottom - y) ? snappedTop : snappedBottom
@@ -589,10 +672,10 @@ export function StreamOutputLayoutsEditor(props: {
       return
     }
 
-    let width = clamp(original.width + dx, 80, Math.max(80, activeLayout.width - original.x))
+    let width = Math.max(80, original.width + dx)
     if (snapEnabled) width = snapCoordinate(original.x + width, 'x') - original.x
     const next = { ...original, width: Math.max(80, Math.round(width)) }
-    const effective = outputAreaEffectiveSize(packForOutputArea(props.pack, next), next)
+    const effective = streamOutputArtworkEffectiveSize(packForOutputArea(props.pack, next), next)
     patchArea(interaction.areaId, { width: next.width, height: effective.height, lockAspect: true })
   }
 
@@ -617,8 +700,8 @@ export function StreamOutputLayoutsEditor(props: {
       const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0
       const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0
       patchArea(activeArea.id, {
-        x: clamp(activeArea.x + dx, 0, Math.max(0, activeLayout.width - outputAreaEffectiveSize(activeAreaPack, activeArea).width)),
-        y: clamp(activeArea.y + dy, 0, Math.max(0, activeLayout.height - outputAreaEffectiveSize(activeAreaPack, activeArea).height)),
+        x: activeArea.x + dx,
+        y: activeArea.y + dy,
       })
     }
     window.addEventListener('keydown', onKeyDown)
@@ -629,11 +712,14 @@ export function StreamOutputLayoutsEditor(props: {
 
   async function renderFinalBoard() {
     if (!activeLayout || !exportBoardRef.current) throw new Error('Prancha de exportação indisponível.')
-    const entries = await Promise.all(activeLayout.areas.filter((area) => area.visible).map(async (area) => ({
-      area,
-      pack: packForOutputArea(props.pack, area),
-      data: await loadStreamPackageRenderData(props.campeonatoId, area.overlayType),
-    })))
+    const entries = await Promise.all(activeLayout.areas.filter((area) => area.visible).map(async (area) => {
+      const artArea = streamOutputArtworkArea(area)
+      return {
+        area: artArea,
+        pack: packForOutputArea(props.pack, artArea),
+        data: await loadStreamPackageRenderData(props.campeonatoId, artArea.overlayType),
+      }
+    }))
     return renderStreamOutputCanvas(activeLayout, entries)
   }
 
@@ -718,9 +804,9 @@ export function StreamOutputLayoutsEditor(props: {
           if (preset) patchSlices({ sliceWidth: preset.width, sliceHeight: preset.height })
         }}><option value={`${activeLayout.sliceWidth}x${activeLayout.sliceHeight}`}>Atual / personalizado</option>{SIZE_PRESETS.map((preset) => <option key={preset.label} value={`${preset.width}x${preset.height}`}>{preset.label}</option>)}</select></label>
         <div className="stream-package-quad-grid">
-          <label>Largura da fatia<input type="number" min={240} max={7680} value={activeLayout.sliceWidth} onChange={(event) => patchSlices({ sliceWidth: Math.max(240, Number(event.target.value) || 1080) })} /></label>
-          <label>Altura da fatia<input type="number" min={240} max={7680} value={activeLayout.sliceHeight} onChange={(event) => patchSlices({ sliceHeight: Math.max(240, Number(event.target.value) || 1350) })} /></label>
-          <label>Quantidade<input type="number" min={1} max={8} value={activeLayout.sliceCount} onChange={(event) => patchSlices({ sliceCount: Math.max(1, Math.min(8, Number(event.target.value) || 1)) })} /></label>
+          <DraftNumberInput label="Largura da fatia" value={activeLayout.sliceWidth} min={240} max={7680} onCommit={(value) => patchSlices({ sliceWidth: value })} />
+          <DraftNumberInput label="Altura da fatia" value={activeLayout.sliceHeight} min={240} max={7680} onCommit={(value) => patchSlices({ sliceHeight: value })} />
+          <DraftNumberInput label="Quantidade" value={activeLayout.sliceCount} min={1} max={8} onCommit={(value) => patchSlices({ sliceCount: value })} />
           <label>Direção<select value={activeLayout.sliceDirection} onChange={(event) => patchSlices({ sliceDirection: event.target.value as StreamOutputLayout['sliceDirection'] })}><option value="horizontal">Carrossel horizontal</option><option value="vertical">Fatiamento vertical</option></select></label>
         </div>
         <div className="stream-output-board-summary"><span>Prancha total</span><strong>{activeLayout.width} × {activeLayout.height}</strong><small>{activeLayout.sliceCount} fatia(s) de {activeLayout.sliceWidth} × {activeLayout.sliceHeight}</small></div>
@@ -753,9 +839,28 @@ export function StreamOutputLayoutsEditor(props: {
                 : <button type="button" className="stream-secondary-btn" onClick={inheritAreaFromLive}>Voltar a herdar da live</button>}
             </div>
             <div className="stream-output-artwork-mode"><strong>Overlay 4K completa</strong><small>A postagem sempre usa a composição completa em 3840 × 2160. Não existe variante nem caixa de recorte da overlay.</small></div>
-            <div className="stream-package-quad-grid"><label>Do item<input type="number" min={1} value={activeArea.dataStart} onChange={(event) => patchArea(activeArea.id, { dataStart: Math.max(1, Number(event.target.value) || 1) })} /></label><label>Até<input type="number" min={activeArea.dataStart} value={activeArea.dataEnd} onChange={(event) => patchArea(activeArea.id, { dataEnd: Math.max(activeArea.dataStart, Number(event.target.value) || activeArea.dataStart) })} /></label></div>
-            <div className="stream-package-quad-grid"><label>X<input type="number" value={activeArea.x} onChange={(event) => patchArea(activeArea.id, { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeArea.y} onChange={(event) => patchArea(activeArea.id, { y: Number(event.target.value) || 0 })} /></label></div><label>Largura geral da overlay<input type="number" min={80} value={activeArea.width} onChange={(event) => { const width = Math.max(80, Number(event.target.value) || 80); const next = { ...activeArea, width }; const effective = outputAreaEffectiveSize(activeAreaPack, next); patchArea(activeArea.id, { width, height: effective.height, lockAspect: true }) }} /><small className="stream-output-scale-hint">Escala proporcional: largura e altura crescem juntas sem esticar a arte. Altura útil atual: {outputAreaEffectiveSize(activeAreaPack, activeArea).height}px.</small></label>
-            <small className="stream-output-shortcuts">Arraste a overlay livremente sobre a arte. A largura geral funciona como escala proporcional; não existe caixa de recorte. Setas movem 1 px; Shift + seta move 10 px; Ctrl/Cmd + D duplica.</small>
+            <div className="stream-package-quad-grid">
+              <DraftNumberInput label="Do item" value={activeArea.dataStart} min={1} onCommit={(value) => patchArea(activeArea.id, { dataStart: value, dataEnd: Math.max(value, activeArea.dataEnd) })} />
+              <DraftNumberInput label="Até" value={activeArea.dataEnd} min={activeArea.dataStart} onCommit={(value) => patchArea(activeArea.id, { dataEnd: value })} />
+            </div>
+            <div className="stream-output-transform-grid">
+              <DraftNumberInput label="X" value={activeArea.x} prominent onCommit={(value) => patchArea(activeArea.id, { x: value })} />
+              <DraftNumberInput label="Y" value={activeArea.y} prominent onCommit={(value) => patchArea(activeArea.id, { y: value })} />
+            </div>
+            <DraftNumberInput
+              label="Largura geral da overlay"
+              value={activeArea.width}
+              min={80}
+              max={12000}
+              prominent
+              onCommit={(width) => {
+                const next = streamOutputArtworkArea({ ...activeArea, width })
+                const effective = streamOutputArtworkEffectiveSize(packForOutputArea(props.pack, next), next)
+                patchArea(activeArea.id, { width, height: effective.height, lockAspect: true })
+              }}
+            />
+            <small className="stream-output-scale-hint">X = 0 encosta o conteúdo visual da overlay na borda esquerda. A largura escala a overlay inteira; a altura acompanha automaticamente.</small>
+            <small className="stream-output-shortcuts">A overlay é um elemento livre da arte: pode usar X/Y negativos e ultrapassar a prancha. Só a borda final da imagem faz o corte. Setas movem 1 px; Shift + seta move 10 px; Ctrl/Cmd + D duplica.</small>
           </div>
         ) : <div className="stream-output-tab-empty">Selecione uma área da composição para configurar.</div>}
         </> : null}
@@ -766,16 +871,42 @@ export function StreamOutputLayoutsEditor(props: {
               <div className="stream-output-local-editor-head"><div><strong>Editor desta postagem</strong><small>{activeArea.inheritFromLive !== false ? 'Ajustes locais sobre a base herdada da live.' : 'Edição própria desta postagem, independente da live.'}</small></div>{activeArea.overrides ? <button type="button" title={activeArea.inheritFromLive !== false ? 'Limpar ajustes locais e usar a live' : 'Limpar ajustes próprios'} onClick={() => patchArea(activeArea.id, { overrides: undefined })}>Restaurar</button> : null}</div>
               <div className="stream-output-selection-hint">Selecione o elemento no painel da direita. As ferramentas aparecem aqui.</div>
 
-              {outputInspectorItem === 'table' ? <div className="stream-package-property-group"><b>Tabela</b><div className="stream-package-quad-grid"><label>Altura da linha<input type="number" min={20} value={activeAreaTable.rowHeight} onChange={(event) => patchAreaTable({ rowHeight: Math.max(20, Number(event.target.value) || 20) })} /></label><label>Espaço entre linhas<input type="number" min={0} value={activeAreaTable.rowGap} onChange={(event) => patchAreaTable({ rowGap: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Gap das células<input type="number" min={0} value={activeAreaTable.cellGap} onChange={(event) => patchAreaTable({ cellGap: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Espaço entre blocos<input type="number" min={0} value={activeAreaTable.panelGap} onChange={(event) => patchAreaTable({ panelGap: Math.max(0, Number(event.target.value) || 0) })} /></label></div><label>Blocos<select value={activeAreaConfig.tableMode || activeAreaTable.mode} onChange={(event) => patchAreaOverrides({ tableMode: event.target.value as 'single' | 'double' })}><option value="single">Uma coluna</option><option value="double">Duas colunas</option></select></label><div className="stream-output-column-toggles">{availableAreaColumns.map((column) => <label key={column}><input type="checkbox" checked={activeAreaColumns.includes(column)} onChange={(event) => { const columns = event.target.checked ? [...activeAreaColumns, column] : activeAreaColumns.filter((item) => item !== column); patchAreaOverrides({ columns }) }} />{STREAM_OVERLAY_COLUMN_META[column].label}</label>)}</div></div> : null}
+              {outputInspectorItem === 'table' ? <div className="stream-package-property-group"><b>Tabela</b><div className="stream-package-quad-grid"><DraftNumberInput label="Altura da linha" value={activeAreaTable.rowHeight} min={20} onCommit={(value) => patchAreaTable({ rowHeight: value })} /><DraftNumberInput label="Espaço entre linhas" value={activeAreaTable.rowGap} min={0} onCommit={(value) => patchAreaTable({ rowGap: value })} /><DraftNumberInput label="Gap das células" value={activeAreaTable.cellGap} min={0} onCommit={(value) => patchAreaTable({ cellGap: value })} /><DraftNumberInput label="Espaço entre blocos" value={activeAreaTable.panelGap} min={0} onCommit={(value) => patchAreaTable({ panelGap: value })} /></div><label>Blocos<select value={activeAreaConfig.tableMode || activeAreaTable.mode} onChange={(event) => patchAreaOverrides({ tableMode: event.target.value as 'single' | 'double' })}><option value="single">Uma coluna</option><option value="double">Duas colunas</option></select></label><div className="stream-output-column-toggles">{availableAreaColumns.map((column) => <label key={column}><input type="checkbox" checked={activeAreaColumns.includes(column)} onChange={(event) => { const columns = event.target.checked ? [...activeAreaColumns, column] : activeAreaColumns.filter((item) => item !== column); patchAreaOverrides({ columns }) }} />{STREAM_OVERLAY_COLUMN_META[column].label}</label>)}</div></div> : null}
 
-              {outputInspectorItem === 'header' ? <div className="stream-package-property-group"><b>Legenda</b><label className="stream-package-switch-row"><span><b>Exibir legenda</b></span><input type="checkbox" checked={activeAreaTable.showHeaders} onChange={(event) => patchAreaTable({ showHeaders: event.target.checked })} /></label><label>Altura<input type="number" min={16} value={activeAreaTable.headerHeight} onChange={(event) => patchAreaTable({ headerHeight: Math.max(16, Number(event.target.value) || 16) })} /></label><div className="stream-package-quad-grid"><label>Fonte<select value={activeAreaTable.headerFontFamily || 'Rajdhani'} onChange={(event) => patchAreaTable({ headerFontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><label>Tamanho<input type="number" min={8} value={activeAreaTable.headerFontSize || 16} onChange={(event) => patchAreaTable({ headerFontSize: Math.max(8, Number(event.target.value) || 8) })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={activeAreaTable.headerFontWeight || 700} onChange={(event) => patchAreaTable({ headerFontWeight: Math.max(100, Number(event.target.value) || 100) })} /></label><label>Cor<input type="color" value={activeAreaTable.headerColor || '#ffffff'} onChange={(event) => patchAreaTable({ headerColor: event.target.value })} /></label></div></div> : null}
+              {outputInspectorItem === 'header' ? <div className="stream-package-property-group"><b>Legenda</b><label className="stream-package-switch-row"><span><b>Exibir legenda</b></span><input type="checkbox" checked={activeAreaTable.showHeaders} onChange={(event) => patchAreaTable({ showHeaders: event.target.checked })} /></label><DraftNumberInput label="Altura" value={activeAreaTable.headerHeight} min={16} onCommit={(value) => patchAreaTable({ headerHeight: value })} /><div className="stream-package-quad-grid"><label>Fonte<select value={activeAreaTable.headerFontFamily || 'Rajdhani'} onChange={(event) => patchAreaTable({ headerFontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><DraftNumberInput label="Tamanho" value={activeAreaTable.headerFontSize || 16} min={8} onCommit={(value) => patchAreaTable({ headerFontSize: value })} /><DraftNumberInput label="Peso" value={activeAreaTable.headerFontWeight || 700} min={100} max={900} onCommit={(value) => patchAreaTable({ headerFontWeight: value })} /><label>Cor<input type="color" value={activeAreaTable.headerColor || '#ffffff'} onChange={(event) => patchAreaTable({ headerColor: event.target.value })} /></label></div></div> : null}
 
-              {outputInspectorItem === 'loose_image' ? <div className="stream-package-property-group"><b>Imagem</b><label className="stream-package-switch-row"><span><b>Exibir logo</b></span><input type="checkbox" checked={activeAreaLooseImage.show} onChange={(event) => patchAreaLoose('image', { show: event.target.checked })} /></label><label>Imagem<select value={activeAreaLooseImage.assetKey || 'event_logo'} onChange={(event) => patchAreaLoose('image', { assetKey: event.target.value as StreamPackageAssetKey })}>{ASSET_OPTIONS.map((asset) => <option key={asset.key} value={asset.key}>{asset.label}</option>)}</select></label><label className="stream-secondary-btn stream-package-inspector-upload">{uploadingOutputAsset ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} Trocar imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadOutputAsset(activeAreaLooseImage.assetKey || 'event_logo', event.target.files?.[0])} /></label><div className="stream-package-quad-grid"><label>X<input type="number" value={activeAreaLooseImage.x} onChange={(event) => patchAreaLoose('image', { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeAreaLooseImage.y} onChange={(event) => patchAreaLoose('image', { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={20} value={activeAreaLooseImage.width} onChange={(event) => patchAreaLoose('image', { width: Math.max(20, Number(event.target.value) || 20) })} /></label><label>Altura<input type="number" min={20} value={activeAreaLooseImage.height} onChange={(event) => patchAreaLoose('image', { height: Math.max(20, Number(event.target.value) || 20) })} /></label></div></div> : null}
+              {outputInspectorItem === 'loose_image' ? <div className="stream-package-property-group"><b>Imagem</b><label className="stream-package-switch-row"><span><b>Exibir logo</b></span><input type="checkbox" checked={activeAreaLooseImage.show} onChange={(event) => patchAreaLoose('image', { show: event.target.checked })} /></label><label>Imagem<select value={activeAreaLooseImage.assetKey || 'event_logo'} onChange={(event) => patchAreaLoose('image', { assetKey: event.target.value as StreamPackageAssetKey })}>{ASSET_OPTIONS.map((asset) => <option key={asset.key} value={asset.key}>{asset.label}</option>)}</select></label><label className="stream-secondary-btn stream-package-inspector-upload">{uploadingOutputAsset ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} Trocar imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadOutputAsset(activeAreaLooseImage.assetKey || 'event_logo', event.target.files?.[0])} /></label><div className="stream-package-quad-grid"><DraftNumberInput label="X" value={activeAreaLooseImage.x} onCommit={(value) => patchAreaLoose('image', { x: value })} /><DraftNumberInput label="Y" value={activeAreaLooseImage.y} onCommit={(value) => patchAreaLoose('image', { y: value })} /><DraftNumberInput label="Largura" value={activeAreaLooseImage.width} min={20} onCommit={(value) => patchAreaLoose('image', { width: value })} /><DraftNumberInput label="Altura" value={activeAreaLooseImage.height} min={20} onCommit={(value) => patchAreaLoose('image', { height: value })} /></div></div> : null}
 
-              {outputInspectorItem === 'loose_text' ? <div className="stream-package-property-group"><b>Texto</b><label>Conteúdo<input value={activeAreaConfig.title || ''} placeholder="Título da postagem" onChange={(event) => patchAreaOverrides({ title: event.target.value })} /></label><label className="stream-package-switch-row"><span><b>Exibir título</b></span><input type="checkbox" checked={activeAreaLooseText.show} onChange={(event) => patchAreaLoose('text', { show: event.target.checked })} /></label><label>Fonte<select value={activeAreaLooseText.fontFamily} onChange={(event) => patchAreaLoose('text', { fontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><div className="stream-package-quad-grid"><label>X<input type="number" value={activeAreaLooseText.x} onChange={(event) => patchAreaLoose('text', { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeAreaLooseText.y} onChange={(event) => patchAreaLoose('text', { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={20} value={activeAreaLooseText.width} onChange={(event) => patchAreaLoose('text', { width: Math.max(20, Number(event.target.value) || 20) })} /></label><label>Tamanho<input type="number" min={8} value={activeAreaLooseText.fontSize} onChange={(event) => patchAreaLoose('text', { fontSize: Math.max(8, Number(event.target.value) || 8) })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={activeAreaLooseText.fontWeight} onChange={(event) => patchAreaLoose('text', { fontWeight: Math.max(100, Number(event.target.value) || 100) })} /></label><label>Cor<input type="color" value={activeAreaLooseText.color} onChange={(event) => patchAreaLoose('text', { color: event.target.value })} /></label></div></div> : null}
+              {outputInspectorItem === 'loose_text' ? <div className="stream-package-property-group"><b>Texto</b><label>Conteúdo<input value={activeAreaConfig.title || ''} placeholder="Título da postagem" onChange={(event) => patchAreaOverrides({ title: event.target.value })} /></label><label className="stream-package-switch-row"><span><b>Exibir título</b></span><input type="checkbox" checked={activeAreaLooseText.show} onChange={(event) => patchAreaLoose('text', { show: event.target.checked })} /></label><label>Fonte<select value={activeAreaLooseText.fontFamily} onChange={(event) => patchAreaLoose('text', { fontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><div className="stream-package-quad-grid"><DraftNumberInput label="X" value={activeAreaLooseText.x} onCommit={(value) => patchAreaLoose('text', { x: value })} /><DraftNumberInput label="Y" value={activeAreaLooseText.y} onCommit={(value) => patchAreaLoose('text', { y: value })} /><DraftNumberInput label="Largura" value={activeAreaLooseText.width} min={20} onCommit={(value) => patchAreaLoose('text', { width: value })} /><DraftNumberInput label="Tamanho" value={activeAreaLooseText.fontSize} min={8} onCommit={(value) => patchAreaLoose('text', { fontSize: value })} /><DraftNumberInput label="Peso" value={activeAreaLooseText.fontWeight} min={100} max={900} onCommit={(value) => patchAreaLoose('text', { fontWeight: value })} /><label>Cor<input type="color" value={activeAreaLooseText.color} onChange={(event) => patchAreaLoose('text', { color: event.target.value })} /></label></div></div> : null}
 
-              {selectedOutputColumn && selectedOutputColumnKey ? <div className="stream-package-property-group"><b>{STREAM_OVERLAY_COLUMN_META[selectedOutputColumnKey]?.kind === 'image' ? 'Imagem e célula' : 'Texto e célula'}</b>{STREAM_OVERLAY_COLUMN_META[selectedOutputColumnKey]?.kind !== 'image' ? <div className="stream-package-quad-grid"><label>Fonte<select value={selectedOutputColumn.fontFamily} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><label>Tamanho<input type="number" min={8} value={selectedOutputColumn.fontSize} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontSize: Math.max(8, Number(event.target.value) || 8) })} /></label><label>Peso<input type="number" min={100} max={900} step={100} value={selectedOutputColumn.fontWeight} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontWeight: Math.max(100, Number(event.target.value) || 100) })} /></label><label>Cor<input type="color" value={selectedOutputColumn.color} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { color: event.target.value })} /></label><label>Inclinação<select value={selectedOutputColumn.fontStyle} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontStyle: event.target.value as 'normal' | 'italic' })}><option value="normal">Reta</option><option value="italic">Itálica</option></select></label><label>Alinhar<select value={selectedOutputColumn.align} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}<label>Largura da coluna<input type="number" min={20} value={selectedOutputColumn.width || ''} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { width: event.target.value ? Math.max(20, Number(event.target.value)) : null })} /></label><label>Preenchimento<select value={selectedOutputColumn.backgroundType} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundType: event.target.value as 'solid' | 'gradient' | 'image' })}><option value="solid">Sólido</option><option value="gradient">Degradê</option><option value="image">Imagem</option></select></label>{selectedOutputColumn.backgroundType === 'solid' ? <label>Cor<input type="color" value={selectedOutputColumn.backgroundColor} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundColor: event.target.value })} /></label> : null}{selectedOutputColumn.backgroundType === 'gradient' ? <label>Degradê<input value={selectedOutputColumn.backgroundGradient} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundGradient: event.target.value })} /></label> : null}{selectedOutputColumn.backgroundType === 'image' && selectedOutputColumn.assetKey ? <label className="stream-secondary-btn stream-package-inspector-upload">{uploadingOutputAsset ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} Trocar fundo<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadOutputAsset(selectedOutputColumn.assetKey!, event.target.files?.[0])} /></label> : null}<div className="stream-package-quad-grid"><label>Margem X<input type="number" min={0} value={selectedOutputColumn.paddingX || 0} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { paddingX: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Margem Y<input type="number" min={0} value={selectedOutputColumn.paddingY || 0} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { paddingY: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Borda<input type="color" value={selectedOutputColumn.borderColor} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { borderColor: event.target.value })} /></label><label>Espessura<input type="number" min={0} value={selectedOutputColumn.borderWidth} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { borderWidth: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Canto<input type="number" min={0} value={selectedOutputColumn.borderRadius} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { borderRadius: Math.max(0, Number(event.target.value) || 0) })} /></label><label>Opacidade<input type="number" min={0} max={100} value={Math.round((selectedOutputColumn.opacity ?? 1) * 100)} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { opacity: Math.max(0, Math.min(1, (Number(event.target.value) || 0) / 100)) })} /></label></div></div> : null}
-
+              {selectedOutputColumn && selectedOutputColumnKey ? (
+                <div className="stream-package-property-group">
+                  <b>{STREAM_OVERLAY_COLUMN_META[selectedOutputColumnKey]?.kind === 'image' ? 'Imagem e célula' : 'Texto e célula'}</b>
+                  {STREAM_OVERLAY_COLUMN_META[selectedOutputColumnKey]?.kind !== 'image' ? (
+                    <div className="stream-package-quad-grid">
+                      <label>Fonte<select value={selectedOutputColumn.fontFamily} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontFamily: event.target.value })}>{FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label>
+                      <DraftNumberInput label="Tamanho" value={selectedOutputColumn.fontSize} min={8} onCommit={(value) => patchAreaColumn(selectedOutputColumnKey, { fontSize: value })} />
+                      <DraftNumberInput label="Peso" value={selectedOutputColumn.fontWeight} min={100} max={900} onCommit={(value) => patchAreaColumn(selectedOutputColumnKey, { fontWeight: value })} />
+                      <label>Cor<input type="color" value={selectedOutputColumn.color} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { color: event.target.value })} /></label>
+                      <label>Inclinação<select value={selectedOutputColumn.fontStyle} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { fontStyle: event.target.value as 'normal' | 'italic' })}><option value="normal">Reta</option><option value="italic">Itálica</option></select></label>
+                      <label>Alinhar<select value={selectedOutputColumn.align} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label>
+                    </div>
+                  ) : null}
+                  <DraftOptionalNumberInput label="Largura da coluna" value={selectedOutputColumn.width} min={20} onCommit={(value) => patchAreaColumn(selectedOutputColumnKey, { width: value })} />
+                  <label>Preenchimento<select value={selectedOutputColumn.backgroundType} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundType: event.target.value as 'solid' | 'gradient' | 'image' })}><option value="solid">Sólido</option><option value="gradient">Degradê</option><option value="image">Imagem</option></select></label>
+                  {selectedOutputColumn.backgroundType === 'solid' ? <label>Cor<input type="color" value={selectedOutputColumn.backgroundColor} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundColor: event.target.value })} /></label> : null}
+                  {selectedOutputColumn.backgroundType === 'gradient' ? <label>Degradê<input value={selectedOutputColumn.backgroundGradient} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { backgroundGradient: event.target.value })} /></label> : null}
+                  {selectedOutputColumn.backgroundType === 'image' && selectedOutputColumn.assetKey ? <label className="stream-secondary-btn stream-package-inspector-upload">{uploadingOutputAsset ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} Trocar fundo<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadOutputAsset(selectedOutputColumn.assetKey!, event.target.files?.[0])} /></label> : null}
+                  <div className="stream-package-quad-grid">
+                    <DraftNumberInput label="Margem X" value={selectedOutputColumn.paddingX || 0} min={0} onCommit={(value) => patchAreaColumn(selectedOutputColumnKey, { paddingX: value })} />
+                    <DraftNumberInput label="Margem Y" value={selectedOutputColumn.paddingY || 0} min={0} onCommit={(value) => patchAreaColumn(selectedOutputColumnKey, { paddingY: value })} />
+                    <label>Borda<input type="color" value={selectedOutputColumn.borderColor} onChange={(event) => patchAreaColumn(selectedOutputColumnKey, { borderColor: event.target.value })} /></label>
+                    <DraftNumberInput label="Espessura" value={selectedOutputColumn.borderWidth} min={0} onCommit={(value) => patchAreaColumn(selectedOutputColumnKey, { borderWidth: value })} />
+                    <DraftNumberInput label="Canto" value={selectedOutputColumn.borderRadius} min={0} onCommit={(value) => patchAreaColumn(selectedOutputColumnKey, { borderRadius: value })} />
+                    <DraftNumberInput label="Opacidade" value={Math.round((selectedOutputColumn.opacity ?? 1) * 100)} min={0} max={100} onCommit={(value) => patchAreaColumn(selectedOutputColumnKey, { opacity: value / 100 })} />
+                  </div>
+                </div>
+              ) : null}
             </div> : null}
           </div>
         ) : <div className="stream-output-tab-empty">Selecione uma área e abra a aba Edição.</div>) : null}
