@@ -6885,3 +6885,10 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   } .directory-cart-preview article a,.directory-cart-preview article button{ grid-column:auto / span 1;
   }
 }
+
+.champ-public-info-links .champ-artworks-cta{background:linear-gradient(135deg,#6d4aff,#8d63ff);border:1px solid rgba(255,255,255,.18);color:#fff;font-weight:900;box-shadow:0 10px 24px rgba(87,60,210,.28);transform:translateZ(0)}
+.champ-public-info-links .champ-artworks-cta:hover{filter:brightness(1.08);transform:translateY(-1px)}
+
+.champ-artworks-hero-cta{display:inline-flex;align-items:center;gap:10px;width:max-content;max-width:100%;margin-top:12px;padding:11px 15px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:linear-gradient(135deg,#6d4aff,#8d63ff);color:#fff;text-decoration:none;box-shadow:0 12px 28px rgba(74,45,190,.34)}
+.champ-artworks-hero-cta span{display:grid;gap:1px}.champ-artworks-hero-cta strong{font-size:14px;line-height:1.1}.champ-artworks-hero-cta small{font-size:11px;color:rgba(255,255,255,.82)}
+.champ-artworks-hero-cta:hover{filter:brightness(1.08);transform:translateY(-1px)}

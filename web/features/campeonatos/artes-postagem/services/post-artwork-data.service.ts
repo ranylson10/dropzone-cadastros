@@ -1,4 +1,4 @@
-import type { PostArtworkTeamRow } from '../types/artwork.types'
+import type { PostArtworkPlayerRow, PostArtworkTeamRow } from '../types/artwork.types'
 
 function number(value: unknown) {
   const parsed = Number(value)
@@ -28,4 +28,37 @@ export function loadPostArtworkGeneralStandings(campeonatoId: string) {
 
 export function loadPostArtworkDayStandings(campeonatoId: string, rodadaId: string) {
   return loadPostArtworkTeamStandings(campeonatoId, rodadaId)
+}
+
+
+async function loadPostArtworkMvp(campeonatoId: string, rodadaId?: string): Promise<PostArtworkPlayerRow[]> {
+  const query = rodadaId ? `?rodada_id=${encodeURIComponent(rodadaId)}` : ''
+  const [mvpResponse, teamsResponse] = await Promise.all([
+    fetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/estatisticas/mvp${query}`, { cache: 'no-store' }),
+    fetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/estatisticas/equipes${query}`, { cache: 'no-store' }),
+  ])
+  const [payload, teamsPayload] = await Promise.all([mvpResponse.json().catch(() => ({})), teamsResponse.json().catch(() => ({}))])
+  if (!mvpResponse.ok) throw new Error(payload?.error || 'Não foi possível carregar o ranking MVP.')
+  const teamByChampionshipId = new Map((Array.isArray(teamsPayload?.equipes) ? teamsPayload.equipes : []).map((row: any) => [String(row.campeonato_equipe_id || ''), String(row.nome || row.tag || '')]))
+  const jogadores = Array.isArray(payload?.jogadores) ? payload.jogadores : []
+  return jogadores.map((row: any, index: number) => ({
+    rank: number(row.colocacao) || index + 1,
+    id: String(row.campeonato_jogador_id || row.jogador_id || index),
+    nick: String(row.nick || 'Jogador'),
+    gameId: String(row.id_jogo || ''),
+    photo: String(row.foto_url || ''),
+    team: teamByChampionshipId.get(String(row.campeonato_equipe_id || '')) || '',
+    drops: number(row.quedas),
+    kills: number(row.abates),
+    damage: number(row.dano),
+    assists: number(row.assistencias),
+  }))
+}
+
+export function loadPostArtworkGeneralMvp(campeonatoId: string) {
+  return loadPostArtworkMvp(campeonatoId)
+}
+
+export function loadPostArtworkDayMvp(campeonatoId: string, rodadaId: string) {
+  return loadPostArtworkMvp(campeonatoId, rodadaId)
 }

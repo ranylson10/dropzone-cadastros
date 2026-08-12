@@ -63,7 +63,7 @@ test('89Q bloco é livre para X/Y e pode ser arrastado na área de trabalho', as
 
 test('89Q exporta imagem única ou carrossel usando os dados mais recentes', async () => {
   expect(workspace).toContain('async function exportArtwork')
-  expect(workspace).toContain('const latestRows = await loadPostArtworkGeneralStandings(campeonatoId)')
+  expect(workspace).toContain('loadPostArtworkGeneralStandings(campeonatoId), loadPostArtworkGeneralMvp(campeonatoId)')
   expect(workspace).toContain("new JSZip()")
   expect(workspace).toContain('Baixar carrossel')
   expect(workspace).toContain('Baixar imagem')

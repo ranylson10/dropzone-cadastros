@@ -75,3 +75,39 @@ export type PostArtworkTeamRow = {
   kills: number
   points: number
 }
+
+
+export type PostArtworkMvpStyle = {
+  cardWidth: number
+  cardHeight: number
+  backgroundType: PostArtworkCellBackgroundType
+  backgroundColor: string
+  backgroundUrl: string | null
+  imageSize: number
+  imageRadius: number
+  nameColor: string
+  nameFontSize: number
+  nameFontWeight: number
+  teamColor: string
+  teamFontSize: number
+  statsColor: string
+  statsFontSize: number
+  showPhoto: boolean
+  showTeam: boolean
+  showDrops: boolean
+  showKills: boolean
+  gap: number
+}
+
+export type PostArtworkPlayerRow = {
+  rank: number
+  id: string
+  nick: string
+  gameId: string
+  photo: string
+  team: string
+  drops: number
+  kills: number
+  damage: number
+  assists: number
+}

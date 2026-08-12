@@ -33,12 +33,12 @@ test('89R busca classificação filtrada por rodada sem depender da transmissão
 test('89R prévia e exportação resolvem dados gerais e do dia separadamente', () => {
   expect(workspace).toContain('rowsForBlock(block, standings, dayStandings)')
   expect(workspace).toContain('latestDayRows')
-  expect(workspace).toContain('renderArtworkCanvas(draft, latestRows, latestDayRows)')
+  expect(workspace).toContain('renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows)')
   expect(workspace).toContain("if (block.type === 'table_day') return dayRows")
 })
 
 test('89R duplicar Tabela do Dia mantém rodada e avança apenas a faixa', () => {
-  expect(workspace).toContain("uid(block.type === 'table_day' ? 'table-day' : 'table-general')")
+  expect(workspace).toContain("uid(block.type === 'table_day' ? 'table-day' : block.type === 'mvp_day' ? 'mvp-day'")
   expect(workspace).toContain('dataStart: nextStart')
   expect(workspace).toContain('dataEnd: nextStart + count - 1')
   expect(workspace).toContain('...structuredClone(block)')
