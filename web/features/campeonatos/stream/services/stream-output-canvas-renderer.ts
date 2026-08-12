@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase-browser'
 import { resolveStreamAsset, resolveStreamLayoutConfig, resolveStreamLooseImageConfig, resolveStreamLooseTextConfig, resolveStreamOverlayConfig, resolveStreamTableConfig } from './stream-package-config'
-import { STREAM_OUTPUT_PROFILES, STREAM_OVERLAY_COLUMN_META, STREAM_SYSTEM_OVERLAY_LAYOUTS } from '../types/stream-package.types'
+import { STREAM_OUTPUT_PROFILES, STREAM_OVERLAY_COLUMN_META, STREAM_SYSTEM_OVERLAY_LAYOUTS, STREAM_SYSTEM_OVERLAY_META } from '../types/stream-package.types'
 import type { StreamOutputArea, StreamOutputLayout, StreamOverlayPackage, StreamPackageRenderData } from '../types/stream-package.types'
 
 type RenderArea = { area: StreamOutputArea; data: StreamPackageRenderData; pack: StreamOverlayPackage }
@@ -64,6 +64,22 @@ function contentArea(entry: RenderArea) {
   }
 }
 
+
+function effectiveCleanArea(entry: RenderArea) {
+  if (entry.area.contentMode !== 'clean') return entry.area
+  const meta = STREAM_SYSTEM_OVERLAY_META[entry.area.overlayType]
+  if (meta.structure !== 'table') return entry.area
+  const frame = STREAM_SYSTEM_OVERLAY_LAYOUTS[entry.area.overlayType].content
+  const layout = resolveStreamLayoutConfig(entry.pack, entry.area.overlayType, entry.area.profileId)
+  const table = resolveStreamTableConfig(entry.pack, entry.area.overlayType, entry.area.profileId)
+  const availableCount = Math.max(0, Math.min(entry.data.items.length, entry.area.dataEnd) - Math.max(0, entry.area.dataStart - 1))
+  const count = Math.max(1, availableCount)
+  const baseWidth = Math.max(80, frame.width * layout.widthScale)
+  const scale = entry.area.width / baseWidth
+  const baseHeight = (table.showHeaders ? table.headerHeight : 0) + (count * table.rowHeight) + (Math.max(0, count - 1) * table.rowGap)
+  return { ...entry.area, height: Math.max(40, baseHeight * scale) }
+}
+
 async function drawAreaDecorations(context: CanvasRenderingContext2D, entry: RenderArea) {
   if (entry.area.contentMode === 'clean') return
   const config = resolveStreamOverlayConfig(entry.pack, entry.area.overlayType, entry.area.profileId)
@@ -111,13 +127,18 @@ async function drawAreaDecorations(context: CanvasRenderingContext2D, entry: Ren
 }
 
 async function drawTable(context: CanvasRenderingContext2D, pack: StreamOverlayPackage, entry: RenderArea) {
-  const { data } = entry; const area = contentArea(entry); const config = resolveStreamOverlayConfig(pack, area.overlayType, area.profileId)
+  const { data } = entry; const area = entry.area.contentMode === 'clean' ? effectiveCleanArea(entry) : contentArea(entry); const config = resolveStreamOverlayConfig(pack, area.overlayType, area.profileId)
   const table = resolveStreamTableConfig(pack, area.overlayType, area.profileId)
   const columns = (config.columns || []).filter((column) => STREAM_OVERLAY_COLUMN_META[column])
   const items = data.items.slice(Math.max(0, area.dataStart - 1), area.dataEnd)
   if (!columns.length || !items.length) return
-  const header = table.showHeaders ? Math.min(42, Math.max(22, area.height * .08)) : 0
-  const gap = Math.min(8, table.rowGap); const rowHeight = Math.max(22, Math.min(86, (area.height - header - (items.length - 1) * gap) / items.length))
+  const frame = STREAM_SYSTEM_OVERLAY_LAYOUTS[area.overlayType].content
+  const resolvedLayout = resolveStreamLayoutConfig(pack, area.overlayType, area.profileId)
+  const baseWidth = area.contentMode === 'clean' ? Math.max(80, frame.width * resolvedLayout.widthScale) : area.width
+  const visualScale = area.contentMode === 'clean' ? area.width / baseWidth : 1
+  const header = table.showHeaders ? table.headerHeight * visualScale : 0
+  const gap = table.rowGap * visualScale
+  const rowHeight = table.rowHeight * visualScale
   const widths = columns.map((column) => table.columnStyles[column as keyof typeof table.columnStyles]?.width || (column === 'rank' ? Math.max(34, area.width * .065) : column === 'logo' ? Math.max(46, area.width * .10) : column === 'name' || column === 'nick' ? area.width * .32 : column === 'points' ? area.width * .11 : area.width * .10))
   const total = widths.reduce((sum, width) => sum + width, 0); const scale = area.width / total
   const scaled = widths.map((width) => width * scale)

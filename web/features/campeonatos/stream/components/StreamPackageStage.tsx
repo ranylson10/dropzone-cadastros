@@ -398,7 +398,7 @@ export function StreamPackageStage(props: {
         style={{
           left: props.contentOnly ? 0 : layout.content.x + sharedLayout.offsetX,
           top: props.contentOnly ? 0 : layout.content.y + sharedLayout.offsetY,
-          width: props.contentOnly ? 1920 : layout.content.width * sharedLayout.widthScale,
+          width: props.contentOnly ? layout.content.width * sharedLayout.widthScale : layout.content.width * sharedLayout.widthScale,
           height: props.contentOnly ? 1080 : layout.content.height * sharedLayout.heightScale,
         }}
       >

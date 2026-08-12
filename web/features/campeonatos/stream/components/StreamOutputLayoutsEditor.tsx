@@ -18,6 +18,7 @@ import {
   DEFAULT_STREAM_PACKAGE_SHARED_CONFIG,
   STREAM_OUTPUT_PROFILES,
   STREAM_OVERLAY_COLUMN_META,
+  STREAM_SYSTEM_OVERLAY_LAYOUTS,
   STREAM_SYSTEM_OVERLAY_META,
   STREAM_SYSTEM_OVERLAYS,
   type StreamOutputArea,
@@ -112,6 +113,33 @@ function packForOutputArea(pack: StreamOverlayPackage, area: StreamOutputArea) {
     shared_config: DEFAULT_STREAM_PACKAGE_SHARED_CONFIG,
     overlay_configs: { ...pack.overlay_configs, [area.overlayType]: overrides },
   }
+}
+
+
+function outputAreaContentBaseSize(pack: StreamOverlayPackage, area: StreamOutputArea, itemCount?: number) {
+  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === area.profileId) || STREAM_OUTPUT_PROFILES[0]
+  if (area.contentMode !== 'clean') return { width: profile.width, height: profile.height }
+
+  const meta = STREAM_SYSTEM_OVERLAY_META[area.overlayType]
+  const frame = STREAM_SYSTEM_OVERLAY_LAYOUTS[area.overlayType].content
+  const layout = resolveStreamLayoutConfig(pack, area.overlayType, area.profileId)
+  const width = Math.max(80, frame.width * layout.widthScale)
+
+  if (meta.structure === 'table') {
+    const table = resolveStreamTableConfig(pack, area.overlayType, area.profileId)
+    const count = Math.max(1, itemCount ?? (area.dataEnd - area.dataStart + 1))
+    const header = table.showHeaders ? table.headerHeight : 0
+    const rows = (count * table.rowHeight) + (Math.max(0, count - 1) * table.rowGap)
+    return { width, height: Math.max(40, header + rows) }
+  }
+
+  return { width, height: Math.max(80, frame.height * layout.heightScale) }
+}
+
+function outputAreaEffectiveSize(pack: StreamOverlayPackage, area: StreamOutputArea, itemCount?: number) {
+  const base = outputAreaContentBaseSize(pack, area, itemCount)
+  const scale = area.width / Math.max(1, base.width)
+  return { width: area.width, height: Math.max(40, Math.round(base.height * scale)) }
 }
 
 
@@ -212,9 +240,13 @@ function OutputAreaPreview(props: {
 
   const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === props.area.profileId) || STREAM_OUTPUT_PROFILES[0]
   const areaPack = useMemo(() => packForOutputArea(props.pack, props.area), [props.area, props.pack])
-  const displayWidth = props.area.width * props.scale
-  const displayHeight = props.area.height * props.scale
-  const innerScale = Math.min(displayWidth / profile.width, displayHeight / profile.height)
+  const baseContentSize = outputAreaContentBaseSize(areaPack, props.area, data.items.length || undefined)
+  const effectiveSize = outputAreaEffectiveSize(areaPack, props.area, data.items.length || undefined)
+  const displayWidth = effectiveSize.width * props.scale
+  const displayHeight = effectiveSize.height * props.scale
+  const innerScale = props.area.contentMode === 'clean'
+    ? displayWidth / Math.max(1, baseContentSize.width)
+    : Math.min(displayWidth / profile.width, displayHeight / profile.height)
 
   return (
     <div
@@ -246,17 +278,6 @@ function OutputAreaPreview(props: {
         />
       </div>
       {interactive ? <span className="stream-output-area-badge">{props.area.dataStart}–{props.area.dataEnd}</span> : null}
-      {interactive && props.selected ? (
-        <button
-          type="button"
-          className="stream-output-area-resize-handle"
-          aria-label="Redimensionar área"
-          onPointerDown={(event) => { event.stopPropagation(); props.onPointerDown(event, 'resize') }}
-          onPointerMove={props.onPointerMove}
-          onPointerUp={props.onPointerUp}
-          onPointerCancel={props.onPointerUp}
-        />
-      ) : null}
     </div>
   )
 }
@@ -561,8 +582,9 @@ export function StreamOutputLayoutsEditor(props: {
     const dy = (event.clientY - interaction.startClientY) / previewScale
     const original = interaction.original
     if (interaction.mode === 'move') {
-      let x = clamp(original.x + dx, 0, Math.max(0, activeLayout.width - original.width))
-      let y = clamp(original.y + dy, 0, Math.max(0, activeLayout.height - original.height))
+      const effective = outputAreaEffectiveSize(packForOutputArea(props.pack, original), original)
+      let x = clamp(original.x + dx, 0, Math.max(0, activeLayout.width - effective.width))
+      let y = clamp(original.y + dy, 0, Math.max(0, activeLayout.height - effective.height))
       const snappedLeft = snapCoordinate(x, 'x')
       const snappedRight = snapCoordinate(x + original.width, 'x') - original.width
       const snappedTop = snapCoordinate(y, 'y')
@@ -576,19 +598,10 @@ export function StreamOutputLayoutsEditor(props: {
     }
 
     let width = clamp(original.width + dx, 80, Math.max(80, activeLayout.width - original.x))
-    let height = clamp(original.height + dy, 80, Math.max(80, activeLayout.height - original.y))
-    if (original.lockAspect) {
-      const ratio = original.width / Math.max(1, original.height)
-      if (Math.abs(dx) >= Math.abs(dy)) height = width / ratio
-      else width = height * ratio
-      width = clamp(width, 80, Math.max(80, activeLayout.width - original.x))
-      height = clamp(height, 80, Math.max(80, activeLayout.height - original.y))
-    }
-    if (snapEnabled) {
-      width = snapCoordinate(original.x + width, 'x') - original.x
-      height = snapCoordinate(original.y + height, 'y') - original.y
-    }
-    patchArea(interaction.areaId, { width: Math.max(80, Math.round(width)), height: Math.max(80, Math.round(height)) })
+    if (snapEnabled) width = snapCoordinate(original.x + width, 'x') - original.x
+    const next = { ...original, width: Math.max(80, Math.round(width)) }
+    const effective = outputAreaEffectiveSize(packForOutputArea(props.pack, next), next)
+    patchArea(interaction.areaId, { width: next.width, height: effective.height, lockAspect: true })
   }
 
   function endAreaInteraction(event: ReactPointerEvent<HTMLElement>) {
@@ -612,8 +625,8 @@ export function StreamOutputLayoutsEditor(props: {
       const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0
       const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0
       patchArea(activeArea.id, {
-        x: clamp(activeArea.x + dx, 0, Math.max(0, activeLayout.width - activeArea.width)),
-        y: clamp(activeArea.y + dy, 0, Math.max(0, activeLayout.height - activeArea.height)),
+        x: clamp(activeArea.x + dx, 0, Math.max(0, activeLayout.width - outputAreaEffectiveSize(activeAreaPack, activeArea).width)),
+        y: clamp(activeArea.y + dy, 0, Math.max(0, activeLayout.height - outputAreaEffectiveSize(activeAreaPack, activeArea).height)),
       })
     }
     window.addEventListener('keydown', onKeyDown)
@@ -750,8 +763,7 @@ export function StreamOutputLayoutsEditor(props: {
             <label>Variante visual<select value={activeArea.profileId} onChange={(event) => patchArea(activeArea.id, { profileId: event.target.value as StreamOutputArea['profileId'] })}>{STREAM_OUTPUT_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
             <label>Conteúdo da área<select value={activeArea.contentMode} onChange={(event) => patchArea(activeArea.id, { contentMode: event.target.value as StreamOutputArea['contentMode'] })}><option value="clean">Limpo · só conteúdo dinâmico</option><option value="full">Completo · inclui título/logo da cena</option></select></label>
             <div className="stream-package-quad-grid"><label>Do item<input type="number" min={1} value={activeArea.dataStart} onChange={(event) => patchArea(activeArea.id, { dataStart: Math.max(1, Number(event.target.value) || 1) })} /></label><label>Até<input type="number" min={activeArea.dataStart} value={activeArea.dataEnd} onChange={(event) => patchArea(activeArea.id, { dataEnd: Math.max(activeArea.dataStart, Number(event.target.value) || activeArea.dataStart) })} /></label></div>
-            <div className="stream-package-quad-grid"><label>X<input type="number" value={activeArea.x} onChange={(event) => patchArea(activeArea.id, { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeArea.y} onChange={(event) => patchArea(activeArea.id, { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={80} value={activeArea.width} onChange={(event) => patchArea(activeArea.id, { width: Math.max(80, Number(event.target.value) || 80) })} /></label><label>Altura<input type="number" min={80} value={activeArea.height} onChange={(event) => patchArea(activeArea.id, { height: Math.max(80, Number(event.target.value) || 80) })} /></label></div>
-            <label className="stream-package-switch-row"><span><b>Manter proporção ao redimensionar</b></span><input type="checkbox" checked={activeArea.lockAspect} onChange={(event) => patchArea(activeArea.id, { lockAspect: event.target.checked })} /></label>
+            <div className="stream-package-quad-grid"><label>X<input type="number" value={activeArea.x} onChange={(event) => patchArea(activeArea.id, { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeArea.y} onChange={(event) => patchArea(activeArea.id, { y: Number(event.target.value) || 0 })} /></label></div><label>Largura geral da overlay<input type="number" min={80} value={activeArea.width} onChange={(event) => { const width = Math.max(80, Number(event.target.value) || 80); const next = { ...activeArea, width }; const effective = outputAreaEffectiveSize(activeAreaPack, next); patchArea(activeArea.id, { width, height: effective.height, lockAspect: true }) }} /><small className="stream-output-scale-hint">Escala proporcional: largura e altura crescem juntas sem esticar a arte. Altura útil atual: {outputAreaEffectiveSize(activeAreaPack, activeArea).height}px.</small></label>
             <small className="stream-output-shortcuts">Arraste a área no palco. Use o canto inferior direito para redimensionar. Setas movem 1 px; Shift + seta move 10 px; Ctrl/Cmd + D duplica.</small>
           </div>
         ) : <div className="stream-output-tab-empty">Selecione uma área da composição para configurar.</div>}

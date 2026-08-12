@@ -10,19 +10,20 @@ const types = read('web/features/campeonatos/stream/types/stream-package.types.t
 const config = read('web/features/campeonatos/stream/services/stream-package-config.ts')
 const css = read('web/features/campeonatos/stream/stream.css')
 
-test('89F permite selecionar mover e redimensionar área direto na prancha', () => {
+test('89F permite selecionar e mover a área direto na prancha', () => {
   expect(outputs).toContain("mode: 'move' | 'resize'")
   expect(outputs).toContain('beginAreaInteraction')
   expect(outputs).toContain('moveAreaInteraction')
-  expect(outputs).toContain('stream-output-area-resize-handle')
+  expect(outputs).not.toContain('aria-label="Redimensionar área"')
   expect(css).toContain('.stream-output-area-preview.is-selected')
 })
 
-test('89F mantém proporção opcional persistida por área', () => {
+test('89F mantém compatibilidade do lockAspect e 89K força escala proporcional', () => {
   expect(types).toContain('lockAspect: boolean')
   expect(config).toContain('lockAspect: row.lockAspect === true')
-  expect(outputs).toContain('Manter proporção ao redimensionar')
-  expect(outputs).toContain('if (original.lockAspect)')
+  expect(outputs).toContain('Largura geral da overlay')
+  expect(outputs).toContain('lockAspect: true')
+  expect(outputs).not.toContain('Manter proporção ao redimensionar')
 })
 
 test('89F oferece snap nas bordas e guias de fatia sem criar grade paralela', () => {
