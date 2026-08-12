@@ -1,12 +1,14 @@
 'use client'
 
-import { ArrowLeft, Copy, Download, ImagePlus, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, Download, ImagePlus, Images, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import JSZip from 'jszip'
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { loadPostArtworkDayMvp, loadPostArtworkDayStandings, loadPostArtworkGeneralMvp, loadPostArtworkGeneralStandings } from '../services/post-artwork-data.service'
 import type {
+  PostArtworkAsset,
+  PostArtworkAssetKind,
   PostArtworkBlock,
   PostArtworkMvpStyle,
   PostArtworkPlayerRow,
@@ -19,8 +21,9 @@ import type {
 } from '../types/artwork.types'
 import '../post-artworks.css'
 
-type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; partidas?: Array<{ rodada_id?: string | null; rodada_nome?: string | null }>; error?: string }
+type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; partidas?: Array<{ rodada_id?: string | null; rodada_nome?: string | null }>; error?: string }
 type RoundOption = { id: string; nome: string }
+type AssetTarget = 'project' | 'column' | 'mvp'
 
 const TABLE_COLUMN_META: Record<PostArtworkTableColumnKey, { label: string; defaultWidth: number; align: 'left' | 'center' | 'right' }> = {
   rank: { label: 'RK', defaultWidth: 74, align: 'center' },
@@ -360,9 +363,53 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   const [exporting, setExporting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadingCell, setUploadingCell] = useState(false)
+  const [assets, setAssets] = useState<PostArtworkAsset[]>([])
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [assetTarget, setAssetTarget] = useState<AssetTarget>('project')
+  const [libraryError, setLibraryError] = useState('')
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number; x: number; y: number } | null>(null)
+
+  async function reloadAssets() {
+    setLibraryError('')
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/assets`)
+      setAssets(body.assets || [])
+    } catch (e: any) {
+      setAssets([])
+      setLibraryError(e?.message || 'Não foi possível carregar a biblioteca de imagens.')
+    }
+  }
+
+  async function rememberAsset(url: string, name: string, kind: PostArtworkAssetKind) {
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/assets`, { method: 'POST', body: JSON.stringify({ url, name, kind }) })
+      if (body.asset) setAssets((current) => [body.asset!, ...current.filter((item) => item.id !== body.asset!.id)])
+    } catch (e: any) {
+      setLibraryError(e?.message || 'Imagem enviada, mas não foi possível salvá-la na biblioteca.')
+    }
+  }
+
+  function openAssetLibrary(target: AssetTarget) {
+    setAssetTarget(target)
+    setLibraryOpen(true)
+    if (!assets.length) void reloadAssets()
+  }
+
+  function applyLibraryAsset(asset: PostArtworkAsset) {
+    if (assetTarget === 'project' && draft) setDraft({ ...draft, background_url: asset.url })
+    if (assetTarget === 'column' && selectedColumn) patchColumn(selectedColumn.key, { backgroundType: 'image', backgroundUrl: asset.url })
+    if (assetTarget === 'mvp' && selectedMvpStyle) patchMvpStyle({ backgroundType: 'image', backgroundUrl: asset.url })
+    setLibraryOpen(false)
+  }
+
+  async function deleteLibraryAsset(assetId: string) {
+    try {
+      await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/assets/${encodeURIComponent(assetId)}`, { method: 'DELETE' })
+      setAssets((current) => current.filter((item) => item.id !== assetId))
+    } catch (e: any) { setLibraryError(e?.message || 'Não foi possível remover a imagem da biblioteca.') }
+  }
 
   async function reload(preferredId?: string) {
     setLoading(true)
@@ -390,7 +437,7 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { void reload() }, [campeonatoId])
+  useEffect(() => { void reload(); void reloadAssets() }, [campeonatoId])
 
   const dayRoundKey = useMemo(() => {
     if (!draft) return ''
@@ -466,7 +513,11 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   async function uploadBackground(file?: File | null) {
     if (!file || !draft) return
     setUploading(true); setError('')
-    try { setDraft({ ...draft, background_url: await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId }) }) }
+    try {
+      const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId })
+      setDraft({ ...draft, background_url: url })
+      void rememberAsset(url, file.name || 'Fundo da arte', 'background')
+    }
     catch (e: any) { setError(e?.message || 'Não foi possível enviar o fundo.') }
     finally { setUploading(false) }
   }
@@ -557,7 +608,11 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   async function uploadMvpBackground(file?: File | null) {
     if (!file || !selectedBlock || !selectedMvpStyle) return
     setUploadingCell(true); setError('')
-    try { patchMvpStyle({ backgroundType: 'image', backgroundUrl: await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId }) }) }
+    try {
+      const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId })
+      patchMvpStyle({ backgroundType: 'image', backgroundUrl: url })
+      void rememberAsset(url, file.name || 'Fundo de MVP', 'card')
+    }
     catch (e: any) { setError(e?.message || 'Não foi possível enviar o fundo do card MVP.') }
     finally { setUploadingCell(false) }
   }
@@ -568,6 +623,7 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     try {
       const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId })
       patchColumn(key, { backgroundType: 'image', backgroundUrl: url })
+      void rememberAsset(url, file.name || `Fundo ${TABLE_COLUMN_META[key].label || 'logo'}`, 'cell')
     } catch (e: any) { setError(e?.message || 'Não foi possível enviar o fundo da célula.') }
     finally { setUploadingCell(false) }
   }
@@ -631,11 +687,12 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     <div className="post-artworks-page">
       <header className="post-artworks-header">
         <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={15} /> Voltar ao campeonato</a><small>ARTES PARA POSTAR</small><h1>{campeonatoNome}</h1><p>Templates de redes sociais independentes da transmissão. O layout fica salvo; os dados são atualizados na hora de baixar.</p></div>
-        <button type="button" className="post-artworks-primary" onClick={() => void createProject()} disabled={saving}><Plus size={15} /> Nova arte</button>
+        <div className="post-artworks-header-actions"><button type="button" className="post-artworks-secondary" onClick={() => openAssetLibrary('project')}><Images size={15} /> Biblioteca de imagens</button><button type="button" className="post-artworks-primary" onClick={() => void createProject()} disabled={saving}><Plus size={15} /> Nova arte</button></div>
       </header>
 
       {error ? <div className="post-artworks-alert error">{error}</div> : null}
       {feedback ? <div className="post-artworks-alert success">{feedback}</div> : null}
+      {libraryError ? <div className="post-artworks-alert error">Biblioteca: {libraryError}</div> : null}
 
       <div className="post-artworks-workspace">
         <aside className="post-artworks-list-panel">
@@ -652,7 +709,7 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
               <div className="post-artworks-summary"><span>Área total</span><strong>{draft.width} × {draft.height}</strong><small>{draft.slice_count} fatia(s) de {draft.slice_width} × {draft.slice_height}</small></div>
               <label>Formato<select value={draft.output_format} onChange={(event) => patchDraft({ output_format: event.target.value as PostArtworkProject['output_format'] })}><option value="png">PNG</option><option value="jpg">JPG</option></select></label>
               <label>Cor base<input type="color" value={draft.background_color} onChange={(event) => patchDraft({ background_color: event.target.value })} /></label>
-              <label className="post-artworks-upload">{uploading ? <Loader2 size={14} className="spin" /> : <ImagePlus size={14} />} {draft.background_url ? 'Trocar fundo da arte' : 'Enviar fundo da arte'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadBackground(event.target.files?.[0])} /></label>
+              <label className="post-artworks-upload">{uploading ? <Loader2 size={14} className="spin" /> : <ImagePlus size={14} />} {draft.background_url ? 'Trocar fundo da arte' : 'Enviar fundo da arte'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('project')}><Images size={14} /> Escolher da biblioteca</button>
               {draft.background_url ? <button type="button" className="post-artworks-secondary" onClick={() => patchDraft({ background_url: null })}>Remover fundo</button> : null}
             </> : <>
               <label>Nome do bloco<input value={selectedBlock.name} onChange={(event) => patchBlock(selectedBlock.id, { name: event.target.value })} /></label>
@@ -695,11 +752,12 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
             <div className="post-artworks-panel-title"><strong>Blocos da arte</strong><small>Independentes da transmissão</small></div>
             <div className="post-artworks-add-blocks"><button type="button" className="post-artworks-add-block" onClick={addGeneralTable}><Plus size={14} /> Tabela Geral</button><button type="button" className="post-artworks-add-block" onClick={addDayTable}><Plus size={14} /> Tabela do Dia</button><button type="button" className="post-artworks-add-block" onClick={addMvpGeneral}><Plus size={14} /> MVP Geral</button><button type="button" className="post-artworks-add-block" onClick={addMvpDay}><Plus size={14} /> MVP do Dia</button></div>
             <div className="post-artworks-block-list">{draft.blocks.map((block) => <article key={block.id} className={block.id === selectedBlockId ? 'active' : ''}><button type="button" className="post-artworks-block-select" onClick={() => setSelectedBlockId(block.id)}><small>{block.type === 'table_day' ? 'TABELA DO DIA' : block.type === 'mvp_day' ? 'MVP DO DIA' : block.type === 'mvp_general' ? 'MVP GERAL' : 'TABELA GERAL'}</small><strong>{block.name}</strong><span>{(block.type === 'table_day' || block.type === 'mvp_day') ? `${block.source?.rodadaName || 'Rodada não selecionada'} · ` : ''}{block.type === 'mvp_general' || block.type === 'mvp_day' ? `Top ${block.dataStart || 1}` : `Top ${block.dataStart || 1}–${block.dataEnd || 12}`}</span></button><div><button type="button" title="Duplicar e avançar a faixa" onClick={() => duplicateBlock(block)}><Copy size={13} /></button><button type="button" title="Excluir bloco" onClick={() => deleteBlock(block.id)}><Trash2 size={13} /></button></div></article>)}</div>
-            {selectedBlock && selectedMvpStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Visual do MVP</strong><small>Fundo, foto e textos do card.</small></div><label>Fundo<select value={selectedMvpStyle.backgroundType} onChange={(event) => patchMvpStyle({ backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedMvpStyle.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedMvpStyle.backgroundColor} onChange={(event) => patchMvpStyle({ backgroundColor: event.target.value })} /></label> : <label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedMvpStyle.backgroundUrl ? 'Trocar fundo do card' : 'Enviar fundo do card'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadMvpBackground(event.target.files?.[0])} /></label>}<div className="post-artworks-grid2"><label>Nome<EditableNumberInput value={selectedMvpStyle.nameFontSize} min={8} max={160} onCommit={(value) => patchMvpStyle({ nameFontSize: value })} /></label><label>Equipe<EditableNumberInput value={selectedMvpStyle.teamFontSize} min={8} max={120} onCommit={(value) => patchMvpStyle({ teamFontSize: value })} /></label><label>Estatísticas<EditableNumberInput value={selectedMvpStyle.statsFontSize} min={8} max={140} onCommit={(value) => patchMvpStyle({ statsFontSize: value })} /></label><label>Raio da foto<EditableNumberInput value={selectedMvpStyle.imageRadius} min={0} max={500} onCommit={(value) => patchMvpStyle({ imageRadius: value })} /></label></div><div className="post-artworks-grid2"><label>Cor do nome<input type="color" value={selectedMvpStyle.nameColor} onChange={(event) => patchMvpStyle({ nameColor: event.target.value })} /></label><label>Cor da equipe<input type="color" value={selectedMvpStyle.teamColor} onChange={(event) => patchMvpStyle({ teamColor: event.target.value })} /></label><label>Cor dos números<input type="color" value={selectedMvpStyle.statsColor} onChange={(event) => patchMvpStyle({ statsColor: event.target.value })} /></label></div></div> : null}
-            {selectedBlock && selectedTableStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Colunas</strong><small>Ative, dimensione e aplique fundo por célula.</small></div><div className="post-artworks-column-tabs">{selectedTableStyle.columns.map((column) => <button type="button" key={column.key} className={selectedColumnKey === column.key ? 'active' : ''} onClick={() => setSelectedColumnKey(column.key)}>{TABLE_COLUMN_META[column.key].label || 'LOGO'}</button>)}</div>{selectedColumn ? <><label className="post-artworks-check"><input type="checkbox" checked={selectedColumn.enabled} onChange={(event) => patchColumn(selectedColumn.key, { enabled: event.target.checked })} /> Exibir coluna</label><label>Largura<EditableNumberInput value={selectedColumn.width} min={30} max={1000} onCommit={(value) => patchColumn(selectedColumn.key, { width: value })} /></label><label>Legenda<input value={selectedColumn.label} onChange={(event) => patchColumn(selectedColumn.key, { label: event.target.value })} /></label><label>Fundo<select value={selectedColumn.backgroundType} onChange={(event) => patchColumn(selectedColumn.key, { backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedColumn.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedColumn.backgroundColor} onChange={(event) => patchColumn(selectedColumn.key, { backgroundColor: event.target.value })} /></label> : <label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedColumn.backgroundUrl ? 'Trocar fundo das células' : 'Enviar fundo das células'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadColumnBackground(selectedColumn.key, event.target.files?.[0])} /></label>}{selectedColumn.key !== 'logo' ? <div className="post-artworks-grid2"><label>Tamanho do texto<EditableNumberInput value={selectedColumn.fontSize} min={8} max={120} onCommit={(value) => patchColumn(selectedColumn.key, { fontSize: value })} /></label><label>Peso<EditableNumberInput value={selectedColumn.fontWeight} min={100} max={900} onCommit={(value) => patchColumn(selectedColumn.key, { fontWeight: value })} /></label><label>Cor do texto<input type="color" value={selectedColumn.color} onChange={(event) => patchColumn(selectedColumn.key, { color: event.target.value })} /></label><label>Alinhamento<select value={selectedColumn.align} onChange={(event) => patchColumn(selectedColumn.key, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}</> : null}</div> : null}
+            {selectedBlock && selectedMvpStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Visual do MVP</strong><small>Fundo, foto e textos do card.</small></div><label>Fundo<select value={selectedMvpStyle.backgroundType} onChange={(event) => patchMvpStyle({ backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedMvpStyle.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedMvpStyle.backgroundColor} onChange={(event) => patchMvpStyle({ backgroundColor: event.target.value })} /></label> : <label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedMvpStyle.backgroundUrl ? 'Trocar fundo do card' : 'Enviar fundo do card'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadMvpBackground(event.target.files?.[0])} /></label>}<button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('mvp')}><Images size={13} /> Biblioteca</button><div className="post-artworks-grid2"><label>Nome<EditableNumberInput value={selectedMvpStyle.nameFontSize} min={8} max={160} onCommit={(value) => patchMvpStyle({ nameFontSize: value })} /></label><label>Equipe<EditableNumberInput value={selectedMvpStyle.teamFontSize} min={8} max={120} onCommit={(value) => patchMvpStyle({ teamFontSize: value })} /></label><label>Estatísticas<EditableNumberInput value={selectedMvpStyle.statsFontSize} min={8} max={140} onCommit={(value) => patchMvpStyle({ statsFontSize: value })} /></label><label>Raio da foto<EditableNumberInput value={selectedMvpStyle.imageRadius} min={0} max={500} onCommit={(value) => patchMvpStyle({ imageRadius: value })} /></label></div><div className="post-artworks-grid2"><label>Cor do nome<input type="color" value={selectedMvpStyle.nameColor} onChange={(event) => patchMvpStyle({ nameColor: event.target.value })} /></label><label>Cor da equipe<input type="color" value={selectedMvpStyle.teamColor} onChange={(event) => patchMvpStyle({ teamColor: event.target.value })} /></label><label>Cor dos números<input type="color" value={selectedMvpStyle.statsColor} onChange={(event) => patchMvpStyle({ statsColor: event.target.value })} /></label></div></div> : null}
+            {selectedBlock && selectedTableStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Colunas</strong><small>Ative, dimensione e aplique fundo por célula.</small></div><div className="post-artworks-column-tabs">{selectedTableStyle.columns.map((column) => <button type="button" key={column.key} className={selectedColumnKey === column.key ? 'active' : ''} onClick={() => setSelectedColumnKey(column.key)}>{TABLE_COLUMN_META[column.key].label || 'LOGO'}</button>)}</div>{selectedColumn ? <><label className="post-artworks-check"><input type="checkbox" checked={selectedColumn.enabled} onChange={(event) => patchColumn(selectedColumn.key, { enabled: event.target.checked })} /> Exibir coluna</label><label>Largura<EditableNumberInput value={selectedColumn.width} min={30} max={1000} onCommit={(value) => patchColumn(selectedColumn.key, { width: value })} /></label><label>Legenda<input value={selectedColumn.label} onChange={(event) => patchColumn(selectedColumn.key, { label: event.target.value })} /></label><label>Fundo<select value={selectedColumn.backgroundType} onChange={(event) => patchColumn(selectedColumn.key, { backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedColumn.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedColumn.backgroundColor} onChange={(event) => patchColumn(selectedColumn.key, { backgroundColor: event.target.value })} /></label> : <label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedColumn.backgroundUrl ? 'Trocar fundo das células' : 'Enviar fundo das células'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadColumnBackground(selectedColumn.key, event.target.files?.[0])} /></label>}<button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('column')}><Images size={13} /> Biblioteca</button>{selectedColumn.key !== 'logo' ? <div className="post-artworks-grid2"><label>Tamanho do texto<EditableNumberInput value={selectedColumn.fontSize} min={8} max={120} onCommit={(value) => patchColumn(selectedColumn.key, { fontSize: value })} /></label><label>Peso<EditableNumberInput value={selectedColumn.fontWeight} min={100} max={900} onCommit={(value) => patchColumn(selectedColumn.key, { fontWeight: value })} /></label><label>Cor do texto<input type="color" value={selectedColumn.color} onChange={(event) => patchColumn(selectedColumn.key, { color: event.target.value })} /></label><label>Alinhamento<select value={selectedColumn.align} onChange={(event) => patchColumn(selectedColumn.key, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}</> : null}</div> : null}
           </aside>
         </> : <section className="post-artworks-welcome"><strong>Crie ou selecione uma arte</strong><span>O editor de redes sociais é independente da transmissão.</span></section>}
       </div>
+      {libraryOpen ? <div className="post-artworks-library-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setLibraryOpen(false) }}><section className="post-artworks-library"><header><div><small>BIBLIOTECA DO CAMPEONATO</small><strong>Imagens reutilizáveis</strong><span>Uploads de fundo, células e cards ficam disponíveis aqui para outras artes.</span></div><button type="button" onClick={() => setLibraryOpen(false)} aria-label="Fechar biblioteca"><X size={18} /></button></header>{libraryError ? <div className="post-artworks-library-error">{libraryError}</div> : null}<div className="post-artworks-library-grid">{assets.map((asset) => <article key={asset.id}><button type="button" className="post-artworks-library-pick" onClick={() => applyLibraryAsset(asset)}><span className="post-artworks-library-thumb" style={{ backgroundImage: `url(${JSON.stringify(asset.url)})` }} /><b>{asset.name}</b><small>{asset.kind === 'background' ? 'Fundo de arte' : asset.kind === 'cell' ? 'Fundo de célula' : asset.kind === 'card' ? 'Fundo de card' : 'Imagem'}</small></button><button type="button" className="post-artworks-library-delete" title="Remover da biblioteca" onClick={() => void deleteLibraryAsset(asset.id)}><Trash2 size={13} /></button></article>)}{!assets.length ? <div className="post-artworks-library-empty"><Images size={28} /><strong>Nenhuma imagem salva ainda</strong><span>Envie um fundo na arte, numa coluna ou num card MVP. O arquivo entra automaticamente na biblioteca.</span></div> : null}</div></section></div> : null}
     </div>
   )
 }

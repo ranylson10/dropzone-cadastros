@@ -111,3 +111,14 @@ export type PostArtworkPlayerRow = {
   damage: number
   assists: number
 }
+
+export type PostArtworkAssetKind = 'background' | 'cell' | 'card' | 'other'
+
+export type PostArtworkAsset = {
+  id: string
+  campeonato_id: string
+  name: string
+  url: string
+  kind: PostArtworkAssetKind
+  created_at: string
+}
