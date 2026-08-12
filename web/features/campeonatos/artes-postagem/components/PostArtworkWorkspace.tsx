@@ -23,7 +23,15 @@ import '../post-artworks.css'
 
 type PostArtworkColorUsage = { artworkId: string; artworkName: string; count: number }
 type PostArtworkColorInventory = { color: string; references: number; artworks: number; uses: PostArtworkColorUsage[] }
-type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; colors?: PostArtworkColorInventory[]; jogos?: Array<any>; fases?: Array<any>; updated_artworks?: number; updated_references?: number; error?: string }
+type PostArtworkSharePreview = {
+  token: string
+  name: string
+  source_name: string
+  artworks: Array<{ name: string; width: number; height: number; slices: number }>
+  assets: Array<{ name: string; url: string; kind: string }>
+  colors: Array<{ color: string; references: number }>
+}
+type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; colors?: PostArtworkColorInventory[]; jogos?: Array<any>; fases?: Array<any>; updated_artworks?: number; updated_references?: number; share?: { token: string; name: string; artworks: number; assets: number; source_name: string }; preview?: PostArtworkSharePreview; imported?: { artworks: number; assets: number; ids: string[] }; error?: string }
 type GameOption = { id: string; nome: string; faseId: string; faseNome: string; grupoNome: string; numeroPartidas: number; status: string; mataMata: boolean; classificamQuantidade: number | null }
 type AssetTarget = 'project' | 'column' | 'header' | 'mvp'
 
@@ -534,6 +542,13 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const [colorDrafts, setColorDrafts] = useState<Record<string, string>>({})
   const [usageColor, setUsageColor] = useState('')
   const [replacingColor, setReplacingColor] = useState('')
+  const [shareModal, setShareModal] = useState<'share' | 'import' | ''>('')
+  const [shareScope, setShareScope] = useState<'all' | 'selected'>('all')
+  const [shareIncludeAssets, setShareIncludeAssets] = useState(true)
+  const [shareToken, setShareToken] = useState('')
+  const [shareBusy, setShareBusy] = useState(false)
+  const [importPreview, setImportPreview] = useState<PostArtworkSharePreview | null>(null)
+  const [importComplete, setImportComplete] = useState<{ artworks: number; assets: number } | null>(null)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [previewZoom, setPreviewZoom] = useState(100)
@@ -754,6 +769,72 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const selectedUsageAsset = useMemo(() => assets.find((asset) => asset.id === usageAssetId) || null, [assets, usageAssetId])
   const selectedAssetUsages = useMemo(() => selectedUsageAsset ? collectAssetUsages(items, selectedUsageAsset.url) : [], [items, selectedUsageAsset])
   const selectedUsageColor = useMemo(() => colorInventory.find((entry) => entry.color === usageColor) || null, [colorInventory, usageColor])
+
+  function closeShareModal() {
+    setShareModal('')
+    setShareBusy(false)
+    setImportPreview(null)
+    setImportComplete(null)
+  }
+
+  async function copyShareToken() {
+    if (!shareToken) return
+    try {
+      await navigator.clipboard.writeText(shareToken)
+      setFeedback('Token copiado. Envie este código para quem vai importar o modelo.')
+    } catch {
+      window.prompt('Copie o token de compartilhamento', shareToken)
+    }
+  }
+
+  async function generateShareToken() {
+    if (!items.length) return
+    const artworkIds = shareScope === 'selected' && draft ? [draft.id] : items.map((item) => item.id)
+    setShareBusy(true); setError(''); setFeedback('')
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/share`, {
+        method: 'POST',
+        body: JSON.stringify({ artwork_ids: artworkIds, include_assets: shareIncludeAssets, name: `${campeonatoNome} · Artes` }),
+      })
+      if (!body.share?.token) throw new Error('O servidor não retornou o token.')
+      setShareToken(body.share.token)
+      setFeedback(`Pacote criado com ${body.share.artworks} arte(s) e ${body.share.assets} imagem(ns).`)
+    } catch (e: any) { setError(e?.message || 'Erro ao gerar token de compartilhamento.') }
+    finally { setShareBusy(false) }
+  }
+
+  async function previewImportToken() {
+    const token = shareToken.trim()
+    if (!token) { setError('Cole o token de compartilhamento para continuar.'); return }
+    setShareBusy(true); setError(''); setFeedback(''); setImportComplete(null)
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/import`, {
+        method: 'POST',
+        body: JSON.stringify({ token, preview: true }),
+      })
+      if (!body.preview) throw new Error('Não foi possível visualizar este pacote.')
+      setImportPreview(body.preview)
+    } catch (e: any) { setImportPreview(null); setError(e?.message || 'Token inválido ou indisponível.') }
+    finally { setShareBusy(false) }
+  }
+
+  async function importSharedPackage() {
+    if (!importPreview) return
+    setShareBusy(true); setError(''); setFeedback('')
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/import`, {
+        method: 'POST',
+        body: JSON.stringify({ token: importPreview.token }),
+      })
+      const result = body.imported || { artworks: 0, assets: 0, ids: [] }
+      setImportComplete({ artworks: result.artworks, assets: result.assets })
+      await reload(result.ids?.[0])
+      await reloadAssets()
+      await reloadColors()
+      setFeedback(`${result.artworks} arte(s) importada(s). Agora você pode trocar cores e imagens em poucos cliques.`)
+    } catch (e: any) { setError(e?.message || 'Erro ao importar pacote de artes.') }
+    finally { setShareBusy(false) }
+  }
 
   async function renameProject(item: PostArtworkProject) {
     const name = window.prompt('Novo nome da arte', item.name)?.trim()
@@ -1185,7 +1266,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       <div className="post-artworks-page post-artworks-manage-page">
         <header className="post-artworks-header post-artworks-generate-header">
           <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={15} /> Voltar ao campeonato</a><small>ARTES SALVAS</small><h1>{campeonatoNome}</h1><p>Organize os templates do campeonato sem entrar no editor. Crie, encontre, visualize, renomeie, duplique ou exclua uma arte.</p></div>
-          <div className="post-artworks-header-actions"><a className="post-artworks-secondary" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
+          <div className="post-artworks-header-actions"><a className="post-artworks-secondary" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><button type="button" className="post-artworks-secondary" onClick={() => { setShareToken(''); setImportPreview(null); setImportComplete(null); setShareModal('import') }}>Importar modelo</button><button type="button" className="post-artworks-secondary" onClick={() => { setShareToken(''); setShareScope('all'); setImportPreview(null); setImportComplete(null); setShareModal('share') }} disabled={!items.length}>Compartilhar modelo</button><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
         </header>
 
         <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/biblioteca`}>Biblioteca de imagens</a></nav>
@@ -1223,6 +1304,29 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
             {draft ? <div className="post-artworks-manage-preview-actions"><a className="post-artworks-primary" href={`/campeonatos/${campeonatoId}/artes-postagem?artwork=${encodeURIComponent(draft.id)}`}>Gerar com dados</a><button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button><button type="button" className="post-artworks-secondary" onClick={() => void duplicateProject(draft)} disabled={saving}><Copy size={14} /> Duplicar</button></div> : null}
           </aside>
         </section>
+
+        {shareModal ? <div className="post-artworks-library-backdrop post-artworks-share-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) closeShareModal() }}>
+          <section className="post-artworks-share-modal">
+            <header><div><small>{shareModal === 'share' ? 'COMPARTILHAR MODELO' : 'IMPORTAR MODELO'}</small><strong>{shareModal === 'share' ? 'Pacote de artes por token' : 'Reutilizar artes de outro campeonato'}</strong><span>{shareModal === 'share' ? 'O pacote leva estrutura, cores e, se você quiser, referências das imagens. Resultados, equipes e jogadores não são compartilhados.' : 'Cole um token, confira tudo antes de importar e depois personalize cores e imagens sem abrir o editor.'}</span></div><button type="button" onClick={closeShareModal} aria-label="Fechar compartilhamento"><X size={18} /></button></header>
+            {shareModal === 'share' ? <div className="post-artworks-share-body">
+              <div className="post-artworks-share-options">
+                <label><input type="radio" checked={shareScope === 'all'} onChange={() => setShareScope('all')} /> <span><b>Todas as artes</b><small>{items.length} template(s) do campeonato</small></span></label>
+                <label className={!draft ? 'disabled' : ''}><input type="radio" checked={shareScope === 'selected'} disabled={!draft} onChange={() => setShareScope('selected')} /> <span><b>Somente a arte selecionada</b><small>{draft?.name || 'Selecione uma arte primeiro'}</small></span></label>
+                <label><input type="checkbox" checked={shareIncludeAssets} onChange={(event) => setShareIncludeAssets(event.target.checked)} /> <span><b>Incluir imagens da biblioteca</b><small>O campeonato de destino recebe as referências e poderá substituir todas depois.</small></span></label>
+              </div>
+              {shareToken ? <div className="post-artworks-share-token"><span>Token gerado</span><code>{shareToken}</code><button type="button" className="post-artworks-primary" onClick={() => void copyShareToken()}><Copy size={14} /> Copiar token</button></div> : <button type="button" className="post-artworks-primary post-artworks-share-main-action" onClick={() => void generateShareToken()} disabled={shareBusy}>{shareBusy ? <Loader2 className="spin" size={15} /> : null} Gerar token</button>}
+            </div> : <div className="post-artworks-share-body">
+              <label className="post-artworks-token-input"><span>Token de compartilhamento</span><input value={shareToken} onChange={(event) => { setShareToken(event.target.value.toUpperCase()); setImportPreview(null); setImportComplete(null) }} placeholder="DZART-XXXX-XXXX-XX" /></label>
+              {!importPreview ? <button type="button" className="post-artworks-primary post-artworks-share-main-action" onClick={() => void previewImportToken()} disabled={shareBusy || !shareToken.trim()}>{shareBusy ? <Loader2 className="spin" size={15} /> : null} Conferir modelo</button> : null}
+              {importPreview ? <div className="post-artworks-import-preview">
+                <div className="post-artworks-import-summary"><div><small>ORIGEM</small><b>{importPreview.source_name}</b></div><div><small>ARTES</small><b>{importPreview.artworks.length}</b></div><div><small>IMAGENS</small><b>{importPreview.assets.length}</b></div><div><small>CORES</small><b>{importPreview.colors.length}</b></div></div>
+                <div className="post-artworks-import-artworks"><strong>Artes do pacote</strong>{importPreview.artworks.map((artwork, index) => <span key={`${artwork.name}-${index}`}><b>{artwork.name}</b><small>{artwork.width} × {artwork.height}{artwork.slices > 1 ? ` · ${artwork.slices} fatias` : ''}</small></span>)}</div>
+                {importPreview.colors.length ? <div className="post-artworks-import-palette"><strong>Cores principais</strong><div>{importPreview.colors.slice(0, 6).map((entry) => <span key={entry.color} title={`${entry.references} uso(s)`} style={{ background: entry.color }}><i>{entry.color}</i></span>)}</div></div> : null}
+                {importComplete ? <div className="post-artworks-import-complete"><b>Importação concluída</b><span>{importComplete.artworks} arte(s) importada(s) · {importComplete.assets} nova(s) imagem(ns) adicionada(s).</span><div><a className="post-artworks-primary" href={`/campeonatos/${campeonatoId}/artes-postagem/biblioteca`}>Personalizar cores e imagens</a><button type="button" className="post-artworks-secondary" onClick={closeShareModal}>Ver artes importadas</button></div></div> : <button type="button" className="post-artworks-primary post-artworks-share-main-action" onClick={() => void importSharedPackage()} disabled={shareBusy}>{shareBusy ? <Loader2 className="spin" size={15} /> : null} Importar {importPreview.artworks.length} arte(s)</button>}
+              </div> : null}
+            </div>}
+          </section>
+        </div> : null}
 
         {libraryOpen ? <div className="post-artworks-library-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setLibraryOpen(false) }}><section className="post-artworks-library"><header><div><small>BIBLIOTECA DO CAMPEONATO</small><strong>Imagens reutilizáveis</strong><span>Consulte os assets usados nos templates sem abrir o editor.</span></div><button type="button" onClick={() => setLibraryOpen(false)} aria-label="Fechar biblioteca"><X size={18} /></button></header>{libraryError ? <div className="post-artworks-library-error">{libraryError}</div> : null}<div className="post-artworks-library-grid">{assets.map((asset) => <article key={asset.id}><div className="post-artworks-library-pick"><span className="post-artworks-library-thumb" style={{ backgroundImage: `url(${JSON.stringify(asset.url)})` }} /><b>{asset.name}</b><small>{asset.kind === 'background' ? 'Fundo de arte' : asset.kind === 'cell' ? 'Fundo de célula' : asset.kind === 'card' ? 'Fundo de card' : 'Imagem'}</small></div></article>)}{!assets.length ? <div className="post-artworks-library-empty"><Images size={28} /><strong>Nenhuma imagem salva ainda</strong><span>Os uploads usados nas artes aparecem aqui.</span></div> : null}</div></section></div> : null}
       </div>
