@@ -3434,3 +3434,18 @@ body.stream-editor-scroll-lock {
 .stream-output-inheritance{display:grid;gap:8px;padding:10px;border:1px solid var(--line);background:var(--surface-soft)}
 .stream-output-inheritance>div{display:grid;gap:2px}.stream-output-inheritance strong{font-size:11px;text-transform:uppercase;letter-spacing:.04em}.stream-output-inheritance small{font-size:10px;line-height:1.35;color:var(--muted)}
 .stream-output-inheritance.is-independent{border-style:dashed}.stream-output-inheritance .stream-secondary-btn{width:100%;justify-content:center}
+
+/* 89I — editor de postagens em abas + zoom por scroll */
+.stream-output-tools-tabs{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:#f3efe7;border:1px solid #d8d1c6}
+.stream-output-tools-tabs button{min-height:34px;border:1px solid transparent;background:transparent;color:#586273;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.stream-output-tools-tabs button.active{background:#1f252e;border-color:#1f252e;color:#fff}
+.stream-output-tools-tabs button:disabled{opacity:.4;cursor:not-allowed}
+.stream-output-tab-empty{padding:18px 12px;border:1px dashed #d8d1c6;background:#f8f6f1;color:#667085;font-size:10px;line-height:1.45;text-align:center}
+.stream-output-area-editor-tab{padding-top:10px}
+.stream-output-area-editor-tab .stream-output-local-editor{padding-top:0;border-top:0}
+.stream-output-area-config-head button[title="Abrir ferramentas de edição"]{width:auto;padding:0 9px;font-size:9px;font-weight:900;text-transform:uppercase}
+.stream-output-zoom-tools{display:flex;align-items:center;gap:3px;margin-left:auto}
+.stream-output-zoom-tools button{min-width:28px;padding:4px 6px!important;display:grid;place-items:center}
+.stream-output-zoom-tools .stream-output-zoom-value{min-width:50px;font-variant-numeric:tabular-nums}
+.stream-output-preview-shell{overscroll-behavior:contain}
+@media(max-width:1180px){.stream-output-tools-tabs{top:0}.stream-output-zoom-tools{margin-left:0}}

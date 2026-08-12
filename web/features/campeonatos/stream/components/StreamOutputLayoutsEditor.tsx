@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { ArrowDownToLine, ArrowUpToLine, Copy, Download, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
+import { ArrowDownToLine, ArrowUpToLine, Copy, Download, ImagePlus, Loader2, Maximize2, Minus, Plus, Trash2 } from 'lucide-react'
 import JSZip from 'jszip'
 import { StreamPackageStage } from './StreamPackageStage'
 import { loadStreamPackageRenderData } from '../services/stream-package-data.service'
@@ -54,6 +54,7 @@ const ASSET_OPTIONS: Array<{ key: StreamPackageAssetKey; label: string }> = [
 ]
 
 type OutputInspectorItem = 'area' | 'table' | 'header' | 'loose_image' | 'loose_text' | `column_${StreamTableColumnStyleKey}` | `scene_${string}`
+type OutputToolsTab = 'project' | 'areas' | 'edit'
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -285,6 +286,8 @@ export function StreamOutputLayoutsEditor(props: {
   const [exportError, setExportError] = useState('')
   const [outputInspectorItem, setOutputInspectorItem] = useState<OutputInspectorItem>('area')
   const [uploadingOutputAsset, setUploadingOutputAsset] = useState(false)
+  const [toolsTab, setToolsTab] = useState<OutputToolsTab>('project')
+  const [previewZoom, setPreviewZoom] = useState(1)
   const exportBoardRef = useRef<HTMLDivElement | null>(null)
   const interactionRef = useRef<AreaInteraction | null>(null)
 
@@ -302,6 +305,10 @@ export function StreamOutputLayoutsEditor(props: {
     setOutputInspectorItem('area')
   }, [activeAreaId])
 
+  useEffect(() => {
+    setPreviewZoom(1)
+  }, [activeLayoutId, activeSliceIndex])
+
   const activeLayout = props.layouts.find((layout) => layout.id === activeLayoutId) || null
   const activeArea = activeLayout?.areas.find((area) => area.id === activeAreaId) || null
   const activeAreaPack = useMemo(() => activeArea ? packForOutputArea(props.pack, activeArea) : props.pack, [activeArea, props.pack])
@@ -316,9 +323,25 @@ export function StreamOutputLayoutsEditor(props: {
   const selectedOutputSceneItem = outputInspectorItem.startsWith('scene_') ? activeAreaConfig?.sceneItems?.find((item) => item.id === outputInspectorItem.slice(6)) : null
   const viewWidth = activeLayout ? (activeSliceIndex == null ? activeLayout.width : activeLayout.sliceWidth) : 1
   const viewHeight = activeLayout ? (activeSliceIndex == null ? activeLayout.height : activeLayout.sliceHeight) : 1
-  const previewScale = activeLayout ? Math.min(1, 720 / viewWidth, 720 / viewHeight) : 1
+  const basePreviewScale = activeLayout ? Math.min(1, 720 / viewWidth, 720 / viewHeight) : 1
+  const previewScale = basePreviewScale * previewZoom
   const sliceOffsetX = activeLayout && activeSliceIndex != null && activeLayout.sliceDirection === 'horizontal' ? activeLayout.sliceWidth * activeSliceIndex : 0
   const sliceOffsetY = activeLayout && activeSliceIndex != null && activeLayout.sliceDirection === 'vertical' ? activeLayout.sliceHeight * activeSliceIndex : 0
+
+
+  function clampPreviewZoom(value: number) {
+    return Math.max(.25, Math.min(4, value))
+  }
+
+  function handlePreviewWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setPreviewZoom((current) => clampPreviewZoom(current * (event.deltaY < 0 ? 1.12 : .88)))
+  }
+
+  function chooseArea(areaId: string) {
+    setActiveAreaId(areaId)
+    setToolsTab('areas')
+  }
 
   function replaceLayout(next: StreamOutputLayout) {
     props.onChange(props.layouts.map((layout) => layout.id === next.id ? next : layout))
@@ -726,6 +749,12 @@ export function StreamOutputLayoutsEditor(props: {
       </aside>
 
       <section className="stream-output-controls">
+        <div className="stream-output-tools-tabs" role="tablist" aria-label="Ferramentas da postagem">
+          <button type="button" className={toolsTab === 'project' ? 'active' : ''} onClick={() => setToolsTab('project')}>Projeto</button>
+          <button type="button" className={toolsTab === 'areas' ? 'active' : ''} onClick={() => setToolsTab('areas')}>Áreas</button>
+          <button type="button" className={toolsTab === 'edit' ? 'active' : ''} disabled={!activeArea} onClick={() => setToolsTab('edit')}>Edição</button>
+        </div>
+        {toolsTab === 'project' ? <>
         <div className="stream-package-section-title"><div><small>Projeto de saída</small><h3>{activeLayout.name}</h3><p>Configure a imagem final sem alterar a cena usada na live.</p></div><button type="button" className="stream-package-link-btn danger" onClick={removeLayout}><Trash2 size={13} /> Excluir</button></div>
         <label>Nome<input value={activeLayout.name} onChange={(event) => patchLayout({ name: event.target.value })} /></label>
         <label>Tamanho de cada fatia<select value={`${activeLayout.sliceWidth}x${activeLayout.sliceHeight}`} onChange={(event) => {
@@ -744,12 +773,14 @@ export function StreamOutputLayoutsEditor(props: {
         <label className="stream-secondary-btn stream-output-background-upload">{uploadingBackground ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {activeLayout.backgroundUrl ? 'Trocar imagem de fundo' : 'Enviar imagem de fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadBackground(event.target.files?.[0])} /></label>
         {activeLayout.backgroundUrl ? <button type="button" className="stream-package-link-btn" onClick={() => patchLayout({ backgroundUrl: '', backgroundType: 'transparent' })}>Remover imagem de fundo</button> : null}
         <label>Formato final<select value={activeLayout.outputFormat} onChange={(event) => patchLayout({ outputFormat: event.target.value as StreamOutputLayout['outputFormat'] })}><option value="png">PNG</option><option value="jpg">JPG</option></select></label>
+        </> : null}
 
+        {toolsTab === 'areas' ? <>
         <div className="stream-output-areas-head"><div><strong>Áreas da composição</strong><small>Use a mesma overlay quantas vezes quiser, mudando somente a faixa de dados.</small></div><button type="button" className="stream-secondary-btn" onClick={addArea}><Plus size={13} /> Adicionar área</button></div>
         <div className="stream-output-area-list">
           {sortedAreas.map((area, index) => (
             <article key={area.id} className={area.id === activeAreaId ? 'active' : ''}>
-              <button type="button" className="stream-output-area-select" onClick={() => setActiveAreaId(area.id)}><b>Área {index + 1}</b><span>{STREAM_SYSTEM_OVERLAY_META[area.overlayType].name}</span><small>Itens {area.dataStart}–{area.dataEnd}</small></button>
+              <button type="button" className="stream-output-area-select" onClick={() => chooseArea(area.id)}><b>Área {index + 1}</b><span>{STREAM_SYSTEM_OVERLAY_META[area.overlayType].name}</span><small>Itens {area.dataStart}–{area.dataEnd}</small></button>
               <button type="button" className="stream-output-area-delete" onClick={() => removeArea(area.id)} aria-label={`Excluir área ${index + 1}`}><Trash2 size={12} /></button>
             </article>
           ))}
@@ -757,7 +788,7 @@ export function StreamOutputLayoutsEditor(props: {
 
         {activeArea ? (
           <div className="stream-output-area-config">
-            <div className="stream-output-area-config-head"><strong>Área selecionada</strong><div><button type="button" title="Duplicar área" onClick={() => duplicateArea(activeArea.id)}><Copy size={12} /></button><button type="button" title="Mandar para trás" onClick={() => moveAreaLayer(activeArea.id, 'back')}><ArrowDownToLine size={12} /></button><button type="button" title="Trazer para frente" onClick={() => moveAreaLayer(activeArea.id, 'front')}><ArrowUpToLine size={12} /></button></div></div>
+            <div className="stream-output-area-config-head"><strong>Área selecionada</strong><div><button type="button" title="Abrir ferramentas de edição" onClick={() => setToolsTab('edit')}>Editar</button><button type="button" title="Duplicar área" onClick={() => duplicateArea(activeArea.id)}><Copy size={12} /></button><button type="button" title="Mandar para trás" onClick={() => moveAreaLayer(activeArea.id, 'back')}><ArrowDownToLine size={12} /></button><button type="button" title="Trazer para frente" onClick={() => moveAreaLayer(activeArea.id, 'front')}><ArrowUpToLine size={12} /></button></div></div>
             <label>Overlay<select value={activeArea.overlayType} onChange={(event) => patchArea(activeArea.id, { overlayType: event.target.value as StreamOutputArea['overlayType'] })}>{STREAM_SYSTEM_OVERLAYS.map((type) => <option key={type} value={type}>{STREAM_SYSTEM_OVERLAY_META[type].name}</option>)}</select></label>
             <div className={`stream-output-inheritance${activeArea.inheritFromLive !== false ? ' is-inherited' : ' is-independent'}`}>
               <div><strong>Base visual desta postagem</strong><small>{activeArea.inheritFromLive !== false ? 'Herdando a overlay da live. Os ajustes abaixo continuam locais.' : 'Configuração própria. Mudanças na live não alteram esta postagem.'}</small></div>
@@ -771,7 +802,12 @@ export function StreamOutputLayoutsEditor(props: {
             <div className="stream-package-quad-grid"><label>X<input type="number" value={activeArea.x} onChange={(event) => patchArea(activeArea.id, { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeArea.y} onChange={(event) => patchArea(activeArea.id, { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={80} value={activeArea.width} onChange={(event) => patchArea(activeArea.id, { width: Math.max(80, Number(event.target.value) || 80) })} /></label><label>Altura<input type="number" min={80} value={activeArea.height} onChange={(event) => patchArea(activeArea.id, { height: Math.max(80, Number(event.target.value) || 80) })} /></label></div>
             <label className="stream-package-switch-row"><span><b>Manter proporção ao redimensionar</b></span><input type="checkbox" checked={activeArea.lockAspect} onChange={(event) => patchArea(activeArea.id, { lockAspect: event.target.checked })} /></label>
             <small className="stream-output-shortcuts">Arraste a área no palco. Use o canto inferior direito para redimensionar. Setas movem 1 px; Shift + seta move 10 px; Ctrl/Cmd + D duplica.</small>
+          </div>
+        ) : <div className="stream-output-tab-empty">Selecione uma área da composição para configurar.</div>}
+        </> : null}
 
+        {toolsTab === 'edit' ? (activeArea ? (
+          <div className="stream-output-area-config stream-output-area-editor-tab">
             {activeAreaConfig && activeAreaTable && activeAreaLooseImage && activeAreaLooseText ? <div className="stream-output-local-editor">
               <div className="stream-output-local-editor-head"><div><strong>Editor desta postagem</strong><small>{activeArea.inheritFromLive !== false ? 'Ajustes locais sobre a base herdada da live.' : 'Edição própria desta postagem, independente da live.'}</small></div>{activeArea.overrides ? <button type="button" title={activeArea.inheritFromLive !== false ? 'Limpar ajustes locais e usar a live' : 'Limpar ajustes próprios'} onClick={() => patchArea(activeArea.id, { overrides: undefined })}>Restaurar</button> : null}</div>
               <div className="stream-output-inspector-list">
@@ -797,7 +833,7 @@ export function StreamOutputLayoutsEditor(props: {
               {selectedOutputSceneItem ? <div className="stream-package-property-group"><div className="stream-output-scene-item-head"><b>{selectedOutputSceneItem.type === 'image' ? 'Imagem livre' : selectedOutputSceneItem.type === 'timer' ? 'Cronômetro' : selectedOutputSceneItem.type === 'round_counter' ? 'Contador de quedas' : 'Texto livre'}</b><button type="button" title="Excluir item" onClick={() => removeOutputSceneItem(selectedOutputSceneItem.id)}><Trash2 size={13} /></button></div><label className="stream-package-switch-row"><span><b>Exibir</b></span><input type="checkbox" checked={selectedOutputSceneItem.show} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { show: event.target.checked })} /></label>{selectedOutputSceneItem.type === 'image' ? <label className="stream-secondary-btn stream-package-inspector-upload">{uploadingOutputAsset ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} Enviar imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadOutputAsset('event_logo', event.target.files?.[0], selectedOutputSceneItem.id)} /></label> : <label>Texto<input value={selectedOutputSceneItem.text || ''} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { text: event.target.value })} /></label>}<div className="stream-package-quad-grid"><label>X<input type="number" value={selectedOutputSceneItem.x} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={selectedOutputSceneItem.y} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { y: Number(event.target.value) || 0 })} /></label><label>Largura<input type="number" min={20} value={selectedOutputSceneItem.width} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { width: Math.max(20, Number(event.target.value) || 20) })} /></label><label>Altura<input type="number" min={20} value={selectedOutputSceneItem.height} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { height: Math.max(20, Number(event.target.value) || 20) })} /></label>{selectedOutputSceneItem.type !== 'image' ? <><label>Tamanho<input type="number" min={8} value={selectedOutputSceneItem.fontSize || 20} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { fontSize: Math.max(8, Number(event.target.value) || 8) })} /></label><label>Cor<input type="color" value={selectedOutputSceneItem.color || '#ffffff'} onChange={(event) => patchOutputSceneItem(selectedOutputSceneItem.id, { color: event.target.value })} /></label></> : null}</div></div> : null}
             </div> : null}
           </div>
-        ) : null}
+        ) : <div className="stream-output-tab-empty">Selecione uma área e abra a aba Edição.</div>) : null}
       </section>
 
       <aside className="stream-output-preview-column">
@@ -810,9 +846,15 @@ export function StreamOutputLayoutsEditor(props: {
         <div className="stream-output-preview-tools">
           <button type="button" className={activeSliceIndex == null ? 'active' : ''} onClick={() => setActiveSliceIndex(null)}>Prancha</button>
           {Array.from({ length: activeLayout.sliceCount }, (_, index) => <button type="button" key={`slice-tool-${index}`} className={activeSliceIndex === index ? 'active' : ''} onClick={() => setActiveSliceIndex(index)}>Fatia {index + 1}</button>)}
+          <div className="stream-output-zoom-tools" aria-label="Zoom da prévia">
+            <button type="button" title="Diminuir zoom" onClick={() => setPreviewZoom((current) => clampPreviewZoom(current / 1.2))}><Minus size={12} /></button>
+            <button type="button" className="stream-output-zoom-value" title="Ajustar à tela" onClick={() => setPreviewZoom(1)}>{Math.round(previewZoom * 100)}%</button>
+            <button type="button" title="Aumentar zoom" onClick={() => setPreviewZoom((current) => clampPreviewZoom(current * 1.2))}><Plus size={12} /></button>
+            <button type="button" title="Ajustar à tela" onClick={() => setPreviewZoom(1)}><Maximize2 size={12} /></button>
+          </div>
           <label><input type="checkbox" checked={snapEnabled} onChange={(event) => setSnapEnabled(event.target.checked)} /> Snap</label>
         </div>
-        <div className="stream-output-preview-shell">
+        <div className="stream-output-preview-shell" onWheel={handlePreviewWheel} title="Use o scroll do mouse para aplicar zoom">
           <div className="stream-output-preview-viewport" style={{ width: viewWidth * previewScale, height: viewHeight * previewScale }}>
             <div
               className={`stream-output-canvas bg-${activeLayout.backgroundType}`}
