@@ -300,16 +300,27 @@ async function drawCover(ctx: CanvasRenderingContext2D, url: string, x: number, 
   }
 }
 
-async function renderArtworkCanvas(project: PostArtworkProject, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>, mvpGeneralRows: PostArtworkPlayerRow[], mvpDayRows: Record<string, PostArtworkPlayerRow[]>, booyahRows: Record<string, PostArtworkTeamRow[]> = {}, killLeaderRows: PostArtworkPlayerRow[] = []) {
+const MAX_EXPORT_RENDER_PIXELS = 40_000_000
+
+function resolveExportRenderScale(width: number, height: number) {
+  const basePixels = Math.max(1, width * height)
+  const safeScale = Math.sqrt(MAX_EXPORT_RENDER_PIXELS / basePixels)
+  return Math.max(1, Math.min(2, safeScale))
+}
+
+async function renderArtworkCanvas(project: PostArtworkProject, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>, mvpGeneralRows: PostArtworkPlayerRow[], mvpDayRows: Record<string, PostArtworkPlayerRow[]>, booyahRows: Record<string, PostArtworkTeamRow[]> = {}, killLeaderRows: PostArtworkPlayerRow[] = [], renderScale = 1) {
   const canvas = document.createElement('canvas')
-  canvas.width = project.width
-  canvas.height = project.height
+  canvas.width = Math.max(1, Math.round(project.width * renderScale))
+  canvas.height = Math.max(1, Math.round(project.height * renderScale))
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas indisponível neste navegador.')
 
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.scale(renderScale, renderScale)
   ctx.fillStyle = project.background_color || '#ffffff'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  if (project.background_url) await drawCover(ctx, project.background_url, 0, 0, canvas.width, canvas.height)
+  ctx.fillRect(0, 0, project.width, project.height)
+  if (project.background_url) await drawCover(ctx, project.background_url, 0, 0, project.width, project.height)
 
   for (const block of project.blocks.filter((item) => item.visible && (item.type === 'table_general' || item.type === 'table_day' || item.type === 'qualified_teams' || item.type === 'booyahs_day'))) {
     const style = normalizeTableStyle(block)
@@ -392,8 +403,20 @@ async function renderArtworkCanvas(project: PostArtworkProject, generalRows: Pos
   return canvas
 }
 
+function createDownsampledCanvas(source: HTMLCanvasElement, width: number, height: number, sx = 0, sy = 0, sw = source.width, sh = source.height) {
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(width))
+  canvas.height = Math.max(1, Math.round(height))
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas indisponível neste navegador.')
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+  return canvas
+}
+
 function canvasBlob(canvas: HTMLCanvasElement, format: 'png' | 'jpg') {
-  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Falha ao gerar imagem.')), format === 'jpg' ? 'image/jpeg' : 'image/png', format === 'jpg' ? .94 : undefined))
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Falha ao gerar imagem.')), format === 'jpg' ? 'image/jpeg' : 'image/png', format === 'jpg' ? .98 : undefined))
 }
 
 function downloadBlob(blob: Blob, name: string) {
@@ -753,21 +776,21 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
       setMvpDay(latestMvpDayRows)
       setBooyahDay(latestBooyahRows)
       setKillLeaders(latestKillLeaders)
-      const board = await renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders)
+      const renderScale = resolveExportRenderScale(draft.width, draft.height)
+      const board = await renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)
       const extension = draft.output_format
       if (draft.slice_count === 1) {
-        downloadBlob(await canvasBlob(board, extension), `${draft.name || 'arte'}.${extension}`)
+        const finalCanvas = createDownsampledCanvas(board, draft.width, draft.height)
+        downloadBlob(await canvasBlob(finalCanvas, extension), `${draft.name || 'arte'}.${extension}`)
         return
       }
       const zip = new JSZip()
       for (let index = 0; index < draft.slice_count; index += 1) {
-        const slice = document.createElement('canvas')
-        slice.width = draft.slice_width
-        slice.height = draft.slice_height
-        const ctx = slice.getContext('2d')!
-        const sx = draft.slice_direction === 'horizontal' ? draft.slice_width * index : 0
-        const sy = draft.slice_direction === 'vertical' ? draft.slice_height * index : 0
-        ctx.drawImage(board, sx, sy, draft.slice_width, draft.slice_height, 0, 0, draft.slice_width, draft.slice_height)
+        const sx = (draft.slice_direction === 'horizontal' ? draft.slice_width * index : 0) * renderScale
+        const sy = (draft.slice_direction === 'vertical' ? draft.slice_height * index : 0) * renderScale
+        const sw = draft.slice_width * renderScale
+        const sh = draft.slice_height * renderScale
+        const slice = createDownsampledCanvas(board, draft.slice_width, draft.slice_height, sx, sy, sw, sh)
         zip.file(`${draft.name || 'arte'}-${String(index + 1).padStart(2, '0')}.${extension}`, await canvasBlob(slice, extension))
       }
       downloadBlob(await zip.generateAsync({ type: 'blob' }), `${draft.name || 'arte'}-carrossel.zip`)
