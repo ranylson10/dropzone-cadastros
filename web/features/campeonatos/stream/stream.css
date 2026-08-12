@@ -3429,3 +3429,8 @@ body.stream-editor-scroll-lock {
 .stream-output-export-canvas .stream-output-area-preview{border:0;background:transparent;cursor:default}
 .stream-output-export-canvas .stream-output-area-stage{pointer-events:none}
 @media(max-width:860px){.stream-output-export-actions{display:grid;grid-template-columns:1fr 1fr}.stream-output-export-actions button{width:100%}}
+
+/* 89H — independência visual das postagens em relação às overlays de live */
+.stream-output-inheritance{display:grid;gap:8px;padding:10px;border:1px solid var(--line);background:var(--surface-soft)}
+.stream-output-inheritance>div{display:grid;gap:2px}.stream-output-inheritance strong{font-size:11px;text-transform:uppercase;letter-spacing:.04em}.stream-output-inheritance small{font-size:10px;line-height:1.35;color:var(--muted)}
+.stream-output-inheritance.is-independent{border-style:dashed}.stream-output-inheritance .stream-secondary-btn{width:100%;justify-content:center}

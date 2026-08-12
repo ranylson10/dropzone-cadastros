@@ -111,6 +111,7 @@ export function normalizeStreamOutputLayouts(raw: unknown): StreamOutputLayout[]
           visible: row.visible !== false,
           contentMode: row.contentMode === 'clean' ? 'clean' : 'full',
           lockAspect: row.lockAspect === true,
+          inheritFromLive: row.inheritFromLive !== false,
           ...(Object.keys(overrides).length ? { overrides } : {}),
         }
       }),

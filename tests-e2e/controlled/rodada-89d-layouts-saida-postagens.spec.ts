@@ -55,5 +55,5 @@ test('89D salva layouts no pack com normalização e schema 3', () => {
   expect(api).toContain('output_layouts')
   expect(editor).toContain('output_layouts: pack.output_layouts')
   expect(editor).toContain('schema_version: 3')
-  expect(editor).toContain('Saídas / Postagens')
+  expect(editor).toContain('>Postagens</button>')
 })

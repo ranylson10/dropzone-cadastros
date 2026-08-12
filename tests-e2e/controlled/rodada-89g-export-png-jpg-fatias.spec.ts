@@ -8,7 +8,7 @@ const exporter = readFileSync(resolve(root, 'web/features/campeonatos/stream/ser
 const css = readFileSync(resolve(root, 'web/features/campeonatos/stream/stream.css'), 'utf8')
 
 test('89G exporta a prancha na resolução real sem depender do zoom da prévia', () => {
-  expect(editor).toContain('renderStreamOutputElement(exportBoardRef.current, activeLayout.width, activeLayout.height)')
+  expect(editor).toContain('return renderStreamOutputCanvas(activeLayout, entries)')
   expect(editor).toContain('stream-output-export-canvas')
   expect(css).toContain('.stream-output-export-host')
   expect(exporter).toContain('canvas.width = width')
@@ -16,7 +16,7 @@ test('89G exporta a prancha na resolução real sem depender do zoom da prévia'
 })
 
 test('89G suporta PNG e JPG e baixa a prancha inteira', () => {
-  expect(editor).toContain('Baixar prancha')
+  expect(editor).toContain('Baixar imagem')
   expect(editor).toContain('activeLayout.outputFormat')
   expect(exporter).toContain("format === 'jpg' ? 'image/jpeg' : 'image/png'")
   expect(exporter).toContain('downloadStreamOutputBlob')
@@ -27,7 +27,7 @@ test('89G fatia carrossel horizontal ou vertical e empacota múltiplas imagens e
   expect(editor).toContain("activeLayout.sliceDirection === 'vertical'")
   expect(editor).toContain('cropStreamOutputCanvas')
   expect(editor).toContain('new JSZip()')
-  expect(editor).toContain('Baixar fatias (.zip)')
+  expect(editor).toContain('imagens (.zip)')
   expect(editor).toContain("zip.generateAsync({ type: 'blob' })")
 })
 

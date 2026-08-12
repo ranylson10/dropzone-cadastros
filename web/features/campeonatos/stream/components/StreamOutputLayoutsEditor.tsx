@@ -6,7 +6,7 @@ import JSZip from 'jszip'
 import { StreamPackageStage } from './StreamPackageStage'
 import { loadStreamPackageRenderData } from '../services/stream-package-data.service'
 import { renderStreamOutputCanvas } from '../services/stream-output-canvas-renderer'
-import { resolveStreamLooseImageConfig, resolveStreamLooseTextConfig, resolveStreamOverlayConfig, resolveStreamTableConfig } from '../services/stream-package-config'
+import { resolveStreamAsset, resolveStreamCardConfig, resolveStreamLayoutConfig, resolveStreamLooseImageConfig, resolveStreamLooseTextConfig, resolveStreamOverlayConfig, resolveStreamTableConfig } from '../services/stream-package-config'
 import { uploadPublicFile } from '@/lib/upload-public'
 import {
   cropStreamOutputCanvas,
@@ -15,6 +15,7 @@ import {
   streamOutputCanvasToBlob,
 } from '../services/stream-output-export'
 import {
+  DEFAULT_STREAM_PACKAGE_SHARED_CONFIG,
   STREAM_OUTPUT_PROFILES,
   STREAM_OVERLAY_COLUMN_META,
   STREAM_SYSTEM_OVERLAY_META,
@@ -91,15 +92,28 @@ function mergeOutputOverrides(base: StreamPackageOutputVariantConfig, patch: Str
 }
 
 function packForOutputArea(pack: StreamOverlayPackage, area: StreamOutputArea) {
-  if (!area.overrides || !Object.keys(area.overrides).length) return pack
-  const stored = pack.overlay_configs[area.overlayType] || {}
-  if (area.profileId === 'live-hd') {
-    return { ...pack, overlay_configs: { ...pack.overlay_configs, [area.overlayType]: mergeOutputOverrides(stored, area.overrides) } }
+  const overrides = area.overrides || {}
+  if (area.inheritFromLive !== false) {
+    if (!Object.keys(overrides).length) return pack
+    const stored = pack.overlay_configs[area.overlayType] || {}
+    if (area.profileId === 'live-hd') {
+      return { ...pack, overlay_configs: { ...pack.overlay_configs, [area.overlayType]: mergeOutputOverrides(stored, overrides) } }
+    }
+    const variants = { ...(stored.outputVariants || {}) }
+    variants[area.profileId] = mergeOutputOverrides(variants[area.profileId] || {}, overrides)
+    return { ...pack, overlay_configs: { ...pack.overlay_configs, [area.overlayType]: { ...stored, outputVariants: variants } } }
   }
-  const variants = { ...(stored.outputVariants || {}) }
-  variants[area.profileId] = mergeOutputOverrides(variants[area.profileId] || {}, area.overrides)
-  return { ...pack, overlay_configs: { ...pack.overlay_configs, [area.overlayType]: { ...stored, outputVariants: variants } } }
+
+  // Postagem independente: não consulta configuração da overlay de live nem o kit compartilhado.
+  // O snapshot salvo em `overrides` vira a fonte visual desta área.
+  return {
+    ...pack,
+    assets: {},
+    shared_config: DEFAULT_STREAM_PACKAGE_SHARED_CONFIG,
+    overlay_configs: { ...pack.overlay_configs, [area.overlayType]: overrides },
+  }
 }
+
 
 function newLayout(index: number): StreamOutputLayout {
   return {
@@ -162,6 +176,7 @@ function newArea(layout: StreamOutputLayout, index: number): StreamOutputArea {
     visible: true,
     contentMode: 'clean',
     lockAspect: false,
+    inheritFromLive: true,
   }
 }
 
@@ -325,6 +340,41 @@ export function StreamOutputLayoutsEditor(props: {
   function patchAreaOverrides(patch: StreamPackageOutputVariantConfig) {
     if (!activeArea) return
     patchArea(activeArea.id, { overrides: mergeOutputOverrides(activeArea.overrides || {}, patch) })
+  }
+
+
+  function makeAreaIndependent() {
+    if (!activeArea) return
+    const config = resolveStreamOverlayConfig(props.pack, activeArea.overlayType, activeArea.profileId)
+    const assetOverrides = Object.fromEntries(
+      ASSET_OPTIONS.map(({ key }) => [key, resolveStreamAsset(props.pack, activeArea.overlayType, key, activeArea.profileId)])
+        .filter(([, value]) => Boolean(value)),
+    ) as StreamPackageOutputVariantConfig['assetOverrides']
+    const snapshot: StreamPackageOutputVariantConfig = {
+      maxItems: config.maxItems,
+      tableMode: config.tableMode,
+      columns: config.columns ? [...config.columns] : undefined,
+      title: config.title,
+      columnLabels: config.columnLabels ? { ...config.columnLabels } : undefined,
+      hiddenHeaders: config.hiddenHeaders ? [...config.hiddenHeaders] : undefined,
+      sceneItems: config.sceneItems ? config.sceneItems.map((item) => ({ ...item })) : undefined,
+      assetOverrides,
+      structureOverrides: {
+        layout: { ...resolveStreamLayoutConfig(props.pack, activeArea.overlayType, activeArea.profileId) },
+        table: { ...resolveStreamTableConfig(props.pack, activeArea.overlayType, activeArea.profileId) },
+        card: { ...resolveStreamCardConfig(props.pack, activeArea.overlayType, activeArea.profileId) },
+      },
+      looseOverrides: {
+        image: { ...resolveStreamLooseImageConfig(props.pack, activeArea.overlayType, activeArea.profileId) },
+        text: { ...resolveStreamLooseTextConfig(props.pack, activeArea.overlayType, activeArea.profileId) },
+      },
+    }
+    patchArea(activeArea.id, { inheritFromLive: false, overrides: mergeOutputOverrides(snapshot, activeArea.overrides || {}) })
+  }
+
+  function inheritAreaFromLive() {
+    if (!activeArea) return
+    patchArea(activeArea.id, { inheritFromLive: true, overrides: undefined })
   }
 
   function patchAreaTable(patch: NonNullable<StreamPackageOutputVariantConfig['structureOverrides']>['table']) {
@@ -709,6 +759,12 @@ export function StreamOutputLayoutsEditor(props: {
           <div className="stream-output-area-config">
             <div className="stream-output-area-config-head"><strong>Área selecionada</strong><div><button type="button" title="Duplicar área" onClick={() => duplicateArea(activeArea.id)}><Copy size={12} /></button><button type="button" title="Mandar para trás" onClick={() => moveAreaLayer(activeArea.id, 'back')}><ArrowDownToLine size={12} /></button><button type="button" title="Trazer para frente" onClick={() => moveAreaLayer(activeArea.id, 'front')}><ArrowUpToLine size={12} /></button></div></div>
             <label>Overlay<select value={activeArea.overlayType} onChange={(event) => patchArea(activeArea.id, { overlayType: event.target.value as StreamOutputArea['overlayType'] })}>{STREAM_SYSTEM_OVERLAYS.map((type) => <option key={type} value={type}>{STREAM_SYSTEM_OVERLAY_META[type].name}</option>)}</select></label>
+            <div className={`stream-output-inheritance${activeArea.inheritFromLive !== false ? ' is-inherited' : ' is-independent'}`}>
+              <div><strong>Base visual desta postagem</strong><small>{activeArea.inheritFromLive !== false ? 'Herdando a overlay da live. Os ajustes abaixo continuam locais.' : 'Configuração própria. Mudanças na live não alteram esta postagem.'}</small></div>
+              {activeArea.inheritFromLive !== false
+                ? <button type="button" className="stream-secondary-btn" onClick={makeAreaIndependent}>Desvincular da live</button>
+                : <button type="button" className="stream-secondary-btn" onClick={inheritAreaFromLive}>Voltar a herdar da live</button>}
+            </div>
             <label>Variante visual<select value={activeArea.profileId} onChange={(event) => patchArea(activeArea.id, { profileId: event.target.value as StreamOutputArea['profileId'] })}>{STREAM_OUTPUT_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
             <label>Conteúdo da área<select value={activeArea.contentMode} onChange={(event) => patchArea(activeArea.id, { contentMode: event.target.value as StreamOutputArea['contentMode'] })}><option value="clean">Limpo · só conteúdo dinâmico</option><option value="full">Completo · inclui título/logo da cena</option></select></label>
             <div className="stream-package-quad-grid"><label>Do item<input type="number" min={1} value={activeArea.dataStart} onChange={(event) => patchArea(activeArea.id, { dataStart: Math.max(1, Number(event.target.value) || 1) })} /></label><label>Até<input type="number" min={activeArea.dataStart} value={activeArea.dataEnd} onChange={(event) => patchArea(activeArea.id, { dataEnd: Math.max(activeArea.dataStart, Number(event.target.value) || activeArea.dataStart) })} /></label></div>
@@ -717,7 +773,7 @@ export function StreamOutputLayoutsEditor(props: {
             <small className="stream-output-shortcuts">Arraste a área no palco. Use o canto inferior direito para redimensionar. Setas movem 1 px; Shift + seta move 10 px; Ctrl/Cmd + D duplica.</small>
 
             {activeAreaConfig && activeAreaTable && activeAreaLooseImage && activeAreaLooseText ? <div className="stream-output-local-editor">
-              <div className="stream-output-local-editor-head"><div><strong>Editor desta postagem</strong><small>Não altera a overlay da live.</small></div>{activeArea.overrides ? <button type="button" title="Usar o padrão da overlay" onClick={() => patchArea(activeArea.id, { overrides: undefined })}>Restaurar</button> : null}</div>
+              <div className="stream-output-local-editor-head"><div><strong>Editor desta postagem</strong><small>{activeArea.inheritFromLive !== false ? 'Ajustes locais sobre a base herdada da live.' : 'Edição própria desta postagem, independente da live.'}</small></div>{activeArea.overrides ? <button type="button" title={activeArea.inheritFromLive !== false ? 'Limpar ajustes locais e usar a live' : 'Limpar ajustes próprios'} onClick={() => patchArea(activeArea.id, { overrides: undefined })}>Restaurar</button> : null}</div>
               <div className="stream-output-inspector-list">
                 <button type="button" className={outputInspectorItem === 'table' ? 'active' : ''} onClick={() => setOutputInspectorItem('table')}>Tabela</button>
                 <button type="button" className={outputInspectorItem === 'header' ? 'active' : ''} onClick={() => setOutputInspectorItem('header')}>Legenda</button>

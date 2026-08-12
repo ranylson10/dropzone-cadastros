@@ -47,6 +47,8 @@ export type StreamOutputArea = {
   visible: boolean
   contentMode: StreamOutputAreaContentMode
   lockAspect: boolean
+  /** Quando true, a área parte da configuração da overlay de live. Quando false, usa uma cópia própria. */
+  inheritFromLive: boolean
   /** Ajustes exclusivos desta área de postagem. Nunca alteram a overlay da live. */
   overrides?: StreamPackageOutputVariantConfig
 }
