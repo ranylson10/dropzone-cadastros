@@ -37,12 +37,14 @@ test('89E mantém áreas livres e ranges independentes em qualquer fatia', () =>
   expect(outputs).toContain('activeArea.y')
 })
 
-test('89E adiciona modo limpo por área sem duplicar renderer', () => {
+test('89E mantém compatibilidade do modo limpo, mas 89L força postagem completa em 4K', () => {
   expect(types).toContain("export type StreamOutputAreaContentMode = 'full' | 'clean'")
-  expect(outputs).toContain('Limpo · só conteúdo dinâmico')
-  expect(outputs).toContain("contentOnly={props.area.contentMode === 'clean'}")
+  expect(outputs).toContain("profileId: 'png-4k'")
+  expect(outputs).toContain("contentMode: 'full'")
+  expect(outputs).toContain('outputProfileId=\"png-4k\"')
+  expect(outputs).toContain('contentOnly={false}')
   expect(stage).toContain('contentOnly?: boolean')
-  expect(stage).toContain('!props.contentOnly && looseText.show')
+  expect(outputs).not.toContain('Limpo · só conteúdo dinâmico')
   expect(outputs).not.toContain('StreamOutputStage')
 })
 

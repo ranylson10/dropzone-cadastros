@@ -43,9 +43,10 @@ test('89D cada área define faixa de dados independente para 1–12 e 13–24', 
   expect(outputs).toContain('dataEnd')
 })
 
-test('89D prévia reaproveita o mesmo StreamPackageStage e variantes existentes', () => {
+test('89D prévia reaproveita o mesmo StreamPackageStage e 89L fixa a arte em 4K', () => {
   expect(outputs).toContain('<StreamPackageStage')
-  expect(outputs).toContain('outputProfileId={props.area.profileId}')
+  expect(outputs).toContain('outputProfileId=\"png-4k\"')
+  expect(outputs).toContain('contentOnly={false}')
   expect(outputs).toContain('loadStreamPackageRenderData')
   expect(outputs).not.toContain('StreamOutputStage')
 })

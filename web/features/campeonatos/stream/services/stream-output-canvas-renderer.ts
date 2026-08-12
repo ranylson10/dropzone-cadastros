@@ -135,7 +135,8 @@ async function drawTable(context: CanvasRenderingContext2D, pack: StreamOverlayP
   const frame = STREAM_SYSTEM_OVERLAY_LAYOUTS[area.overlayType].content
   const resolvedLayout = resolveStreamLayoutConfig(pack, area.overlayType, area.profileId)
   const baseWidth = area.contentMode === 'clean' ? Math.max(80, frame.width * resolvedLayout.widthScale) : area.width
-  const visualScale = area.contentMode === 'clean' ? area.width / baseWidth : 1
+  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === area.profileId) || STREAM_OUTPUT_PROFILES[0]
+  const visualScale = area.contentMode === 'clean' ? area.width / baseWidth : entry.area.width / profile.width
   const header = table.showHeaders ? table.headerHeight * visualScale : 0
   const gap = table.rowGap * visualScale
   const rowHeight = table.rowHeight * visualScale
@@ -149,7 +150,7 @@ async function drawTable(context: CanvasRenderingContext2D, pack: StreamOverlayP
     if (style.backgroundType !== 'image' || !style.assetKey) return
     cellBackgrounds.set(column, await imageSource(resolveStreamAsset(pack, area.overlayType, style.assetKey, area.profileId)).catch(() => null))
   }))
-  context.save(); context.beginPath(); context.rect(area.x, area.y, area.width, area.height); context.clip()
+  context.save()
   if (header) { let x = area.x; context.textBaseline = 'middle'; context.textAlign = 'center'; for (let index = 0; index < columns.length; index += 1) { const column = columns[index]; context.fillStyle = table.headerColor || '#ffffff'; context.font = `${table.headerFontWeight || 800} ${Math.max(10, header * .38)}px ${table.headerFontFamily || 'Arial'}`; context.fillText(config.columnLabels?.[column] || STREAM_OVERLAY_COLUMN_META[column].label, x + scaled[index] / 2, area.y + header / 2); x += scaled[index] } }
   for (let row = 0; row < items.length; row += 1) { const y = area.y + header + row * (rowHeight + gap); if (rowBackground) context.drawImage(rowBackground, area.x, y, area.width, rowHeight); else { context.fillStyle = 'rgba(20,30,42,.88)'; context.fillRect(area.x, y, area.width, rowHeight) }
     let x = area.x; for (let index = 0; index < columns.length; index += 1) { const column = columns[index]; const style = table.columnStyles[column as keyof typeof table.columnStyles]; const width = scaled[index]; const paddingX = style.paddingX ?? 8; const paddingY = style.paddingY ?? 4; context.save(); context.globalAlpha = style.opacity ?? 1; if (style.backgroundType === 'solid') { context.fillStyle = style.backgroundColor; context.fillRect(x, y, width, rowHeight) } else if (style.backgroundType === 'gradient') fillCellGradient(context, style.backgroundGradient, x, y, width, rowHeight); else { const background = cellBackgrounds.get(column); if (background) context.drawImage(background, x, y, width, rowHeight) }

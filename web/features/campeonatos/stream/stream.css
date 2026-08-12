@@ -3370,7 +3370,7 @@ body.stream-editor-scroll-lock {
 .stream-output-preview-shell{flex:1;min-height:560px;overflow:auto;display:flex;align-items:center;justify-content:center;padding:28px;background:#171a20}
 .stream-output-canvas{position:relative;flex:0 0 auto;overflow:hidden;background-size:cover;background-position:center;box-shadow:0 12px 30px rgba(0,0,0,.3)}
 .stream-output-canvas.bg-transparent{background-color:#fff;background-image:linear-gradient(45deg,#e7e7e7 25%,transparent 25%),linear-gradient(-45deg,#e7e7e7 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e7e7e7 75%),linear-gradient(-45deg,transparent 75%,#e7e7e7 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}
-.stream-output-area-preview{position:absolute;overflow:hidden;border:1px dashed rgba(34,211,238,.85);background:rgba(0,0,0,.04)}
+.stream-output-area-preview{position:absolute;overflow:visible;border:0;background:transparent}
 .stream-output-area-stage{position:absolute;left:0;top:0;transform-origin:0 0}
 .stream-output-area-badge{position:absolute;right:3px;top:3px;background:#111827;color:#fff;font-size:8px;font-weight:900;padding:2px 4px}
 .stream-output-preview-column .stream-hint{color:#aab0b8}
@@ -3398,7 +3398,7 @@ body.stream-editor-scroll-lock {
 .stream-output-preview-viewport .stream-output-canvas{position:absolute;box-shadow:none}
 .stream-output-area-preview{touch-action:none;cursor:grab;user-select:none}
 .stream-output-area-preview:active{cursor:grabbing}
-.stream-output-area-preview.is-selected{border:2px solid #22d3ee;box-shadow:0 0 0 2px rgba(34,211,238,.2);z-index:950!important}
+.stream-output-area-preview.is-selected{border:0;box-shadow:none;z-index:950!important}
 .stream-output-area-stage{pointer-events:none}
 .stream-output-area-resize-handle{position:absolute;right:-1px;bottom:-1px;width:15px;height:15px;border:1px solid #062d33;background:#22d3ee;cursor:nwse-resize;z-index:5;padding:0}
 .stream-output-area-config-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -3465,3 +3465,7 @@ body.stream-editor-scroll-lock {
 @media(max-width:860px){.stream-output-editor{display:block}.stream-output-elements{border-top:1px solid #d9d4ca}.stream-output-element-list{grid-template-columns:1fr 1fr}}
 
 .stream-output-scale-hint{display:block;margin-top:6px;color:#6b7280;font-size:11px;line-height:1.35}
+
+.stream-output-artwork-mode{display:grid;gap:3px;padding:9px 10px;border:1px solid var(--line);background:var(--surface-soft)}
+.stream-output-artwork-mode strong{font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+.stream-output-artwork-mode small{font-size:9px;line-height:1.35;color:var(--muted)}

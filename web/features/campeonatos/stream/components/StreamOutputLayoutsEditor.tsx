@@ -18,7 +18,6 @@ import {
   DEFAULT_STREAM_PACKAGE_SHARED_CONFIG,
   STREAM_OUTPUT_PROFILES,
   STREAM_OVERLAY_COLUMN_META,
-  STREAM_SYSTEM_OVERLAY_LAYOUTS,
   STREAM_SYSTEM_OVERLAY_META,
   STREAM_SYSTEM_OVERLAYS,
   type StreamOutputArea,
@@ -116,30 +115,14 @@ function packForOutputArea(pack: StreamOverlayPackage, area: StreamOutputArea) {
 }
 
 
-function outputAreaContentBaseSize(pack: StreamOverlayPackage, area: StreamOutputArea, itemCount?: number) {
-  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === area.profileId) || STREAM_OUTPUT_PROFILES[0]
-  if (area.contentMode !== 'clean') return { width: profile.width, height: profile.height }
-
-  const meta = STREAM_SYSTEM_OVERLAY_META[area.overlayType]
-  const frame = STREAM_SYSTEM_OVERLAY_LAYOUTS[area.overlayType].content
-  const layout = resolveStreamLayoutConfig(pack, area.overlayType, area.profileId)
-  const width = Math.max(80, frame.width * layout.widthScale)
-
-  if (meta.structure === 'table') {
-    const table = resolveStreamTableConfig(pack, area.overlayType, area.profileId)
-    const count = Math.max(1, itemCount ?? (area.dataEnd - area.dataStart + 1))
-    const header = table.showHeaders ? table.headerHeight : 0
-    const rows = (count * table.rowHeight) + (Math.max(0, count - 1) * table.rowGap)
-    return { width, height: Math.max(40, header + rows) }
-  }
-
-  return { width, height: Math.max(80, frame.height * layout.heightScale) }
+function artworkArea(area: StreamOutputArea): StreamOutputArea {
+  return { ...area, profileId: 'png-4k', contentMode: 'full', lockAspect: true }
 }
 
-function outputAreaEffectiveSize(pack: StreamOverlayPackage, area: StreamOutputArea, itemCount?: number) {
-  const base = outputAreaContentBaseSize(pack, area, itemCount)
-  const scale = area.width / Math.max(1, base.width)
-  return { width: area.width, height: Math.max(40, Math.round(base.height * scale)) }
+function outputAreaEffectiveSize(_pack: StreamOverlayPackage, area: StreamOutputArea, _itemCount?: number) {
+  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === 'png-4k')!
+  const width = Math.max(80, area.width)
+  return { width, height: Math.max(45, Math.round(width * (profile.height / profile.width))) }
 }
 
 
@@ -193,7 +176,7 @@ function newArea(layout: StreamOutputLayout, index: number): StreamOutputArea {
   return {
     id: uid('area'),
     overlayType: 'standings_general',
-    profileId: 'live-hd',
+    profileId: 'png-4k',
     x,
     y,
     width: Math.max(240, layout.sliceWidth - 120),
@@ -202,7 +185,7 @@ function newArea(layout: StreamOutputLayout, index: number): StreamOutputArea {
     dataStart: 1,
     dataEnd: 12,
     visible: true,
-    contentMode: 'clean',
+    contentMode: 'full',
     lockAspect: false,
     inheritFromLive: true,
   }
@@ -238,15 +221,13 @@ function OutputAreaPreview(props: {
     return () => { active = false }
   }, [props.area.dataEnd, props.area.dataStart, props.area.overlayType, props.campeonatoId])
 
-  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === props.area.profileId) || STREAM_OUTPUT_PROFILES[0]
-  const areaPack = useMemo(() => packForOutputArea(props.pack, props.area), [props.area, props.pack])
-  const baseContentSize = outputAreaContentBaseSize(areaPack, props.area, data.items.length || undefined)
-  const effectiveSize = outputAreaEffectiveSize(areaPack, props.area, data.items.length || undefined)
+  const artArea = artworkArea(props.area)
+  const profile = STREAM_OUTPUT_PROFILES.find((item) => item.id === 'png-4k')!
+  const areaPack = useMemo(() => packForOutputArea(props.pack, artArea), [props.area, props.pack])
+  const effectiveSize = outputAreaEffectiveSize(areaPack, artArea, data.items.length || undefined)
   const displayWidth = effectiveSize.width * props.scale
   const displayHeight = effectiveSize.height * props.scale
-  const innerScale = props.area.contentMode === 'clean'
-    ? displayWidth / Math.max(1, baseContentSize.width)
-    : Math.min(displayWidth / profile.width, displayHeight / profile.height)
+  const innerScale = displayWidth / profile.width
 
   return (
     <div
@@ -273,11 +254,10 @@ function OutputAreaPreview(props: {
           preview
           canvasWidth={profile.width}
           canvasHeight={profile.height}
-          outputProfileId={props.area.profileId}
-          contentOnly={props.area.contentMode === 'clean'}
+          outputProfileId="png-4k"
+          contentOnly={false}
         />
       </div>
-      {interactive ? <span className="stream-output-area-badge">{props.area.dataStart}–{props.area.dataEnd}</span> : null}
     </div>
   )
 }
@@ -313,6 +293,19 @@ export function StreamOutputLayoutsEditor(props: {
 
   useEffect(() => {
     const nextLayouts = props.layouts.map(fitLegacyFullBoardAreasIntoSlice)
+    if (nextLayouts.some((layout, index) => layout !== props.layouts[index])) props.onChange(nextLayouts)
+  }, [props.layouts, props.onChange])
+
+  useEffect(() => {
+    const nextLayouts = props.layouts.map((layout) => {
+      let changed = false
+      const areas = layout.areas.map((area) => {
+        if (area.profileId === 'png-4k' && area.contentMode === 'full' && area.lockAspect === true) return area
+        changed = true
+        return artworkArea(area)
+      })
+      return changed ? { ...layout, areas } : layout
+    })
     if (nextLayouts.some((layout, index) => layout !== props.layouts[index])) props.onChange(nextLayouts)
   }, [props.layouts, props.onChange])
 
@@ -433,7 +426,6 @@ export function StreamOutputLayoutsEditor(props: {
     if (!activeArea) return
     patchArea(activeArea.id, {
       overrides: mergeOutputOverrides(activeArea.overrides || {}, { looseOverrides: { [section]: patch } }),
-      ...(patch.show === true ? { contentMode: 'full' } : {}),
     })
   }
 
@@ -760,11 +752,10 @@ export function StreamOutputLayoutsEditor(props: {
                 ? <button type="button" className="stream-secondary-btn" onClick={makeAreaIndependent}>Desvincular da live</button>
                 : <button type="button" className="stream-secondary-btn" onClick={inheritAreaFromLive}>Voltar a herdar da live</button>}
             </div>
-            <label>Variante visual<select value={activeArea.profileId} onChange={(event) => patchArea(activeArea.id, { profileId: event.target.value as StreamOutputArea['profileId'] })}>{STREAM_OUTPUT_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
-            <label>Conteúdo da área<select value={activeArea.contentMode} onChange={(event) => patchArea(activeArea.id, { contentMode: event.target.value as StreamOutputArea['contentMode'] })}><option value="clean">Limpo · só conteúdo dinâmico</option><option value="full">Completo · inclui título/logo da cena</option></select></label>
+            <div className="stream-output-artwork-mode"><strong>Overlay 4K completa</strong><small>A postagem sempre usa a composição completa em 3840 × 2160. Não existe variante nem caixa de recorte da overlay.</small></div>
             <div className="stream-package-quad-grid"><label>Do item<input type="number" min={1} value={activeArea.dataStart} onChange={(event) => patchArea(activeArea.id, { dataStart: Math.max(1, Number(event.target.value) || 1) })} /></label><label>Até<input type="number" min={activeArea.dataStart} value={activeArea.dataEnd} onChange={(event) => patchArea(activeArea.id, { dataEnd: Math.max(activeArea.dataStart, Number(event.target.value) || activeArea.dataStart) })} /></label></div>
             <div className="stream-package-quad-grid"><label>X<input type="number" value={activeArea.x} onChange={(event) => patchArea(activeArea.id, { x: Number(event.target.value) || 0 })} /></label><label>Y<input type="number" value={activeArea.y} onChange={(event) => patchArea(activeArea.id, { y: Number(event.target.value) || 0 })} /></label></div><label>Largura geral da overlay<input type="number" min={80} value={activeArea.width} onChange={(event) => { const width = Math.max(80, Number(event.target.value) || 80); const next = { ...activeArea, width }; const effective = outputAreaEffectiveSize(activeAreaPack, next); patchArea(activeArea.id, { width, height: effective.height, lockAspect: true }) }} /><small className="stream-output-scale-hint">Escala proporcional: largura e altura crescem juntas sem esticar a arte. Altura útil atual: {outputAreaEffectiveSize(activeAreaPack, activeArea).height}px.</small></label>
-            <small className="stream-output-shortcuts">Arraste a área no palco. Use o canto inferior direito para redimensionar. Setas movem 1 px; Shift + seta move 10 px; Ctrl/Cmd + D duplica.</small>
+            <small className="stream-output-shortcuts">Arraste a overlay livremente sobre a arte. A largura geral funciona como escala proporcional; não existe caixa de recorte. Setas movem 1 px; Shift + seta move 10 px; Ctrl/Cmd + D duplica.</small>
           </div>
         ) : <div className="stream-output-tab-empty">Selecione uma área da composição para configurar.</div>}
         </> : null}

@@ -54,7 +54,8 @@ test('89F mostra preview da prancha inteira ou de uma fatia individual', () => {
 
 test('89F continua usando StreamPackageStage e a mesma prancha persistida', () => {
   expect(outputs).toContain('<StreamPackageStage')
-  expect(outputs).toContain('contentOnly={props.area.contentMode === \'clean\'}')
+  expect(outputs).toContain('outputProfileId=\"png-4k\"')
+  expect(outputs).toContain('contentOnly={false}')
   expect(outputs).not.toContain('StreamOutputCanvasRenderer')
   expect(types).toContain('areas: StreamOutputArea[]')
 })
