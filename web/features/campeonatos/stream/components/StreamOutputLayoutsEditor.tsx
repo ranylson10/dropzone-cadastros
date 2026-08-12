@@ -60,6 +60,7 @@ const ASSET_OPTIONS: Array<{ key: StreamPackageAssetKey; label: string }> = [
 
 type OutputInspectorItem = 'area' | 'table' | 'header' | 'loose_image' | 'loose_text' | `column_${StreamTableColumnStyleKey}`
 type OutputToolsTab = 'project' | 'areas' | 'edit'
+type OutputEditorLayout = 'wide' | 'medium' | 'narrow'
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -371,8 +372,28 @@ export function StreamOutputLayoutsEditor(props: {
   const [uploadingOutputAsset, setUploadingOutputAsset] = useState(false)
   const [toolsTab, setToolsTab] = useState<OutputToolsTab>('project')
   const [previewZoom, setPreviewZoom] = useState(1)
+  const [editorLayout, setEditorLayout] = useState<OutputEditorLayout>('wide')
+  const editorRef = useRef<HTMLDivElement | null>(null)
   const exportBoardRef = useRef<HTMLDivElement | null>(null)
   const interactionRef = useRef<AreaInteraction | null>(null)
+
+  useEffect(() => {
+    const node = editorRef.current
+    if (!node) return
+
+    const applyWidth = (width: number) => {
+      const next: OutputEditorLayout = width >= 1180 ? 'wide' : width >= 780 ? 'medium' : 'narrow'
+      setEditorLayout((current) => current === next ? current : next)
+    }
+
+    applyWidth(node.getBoundingClientRect().width)
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry) applyWidth(entry.contentRect.width)
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const nextLayouts = props.layouts.map(fitLegacyFullBoardAreasIntoSlice)
@@ -778,7 +799,7 @@ export function StreamOutputLayoutsEditor(props: {
   }
 
   return (
-    <div className="stream-output-editor">
+    <div ref={editorRef} className={`stream-output-editor is-${editorLayout}`}>
       <aside className="stream-output-sidebar">
         <div className="stream-output-sidebar-head"><strong>Saídas salvas</strong><button type="button" onClick={addLayout} title="Nova saída"><Plus size={14} /></button></div>
         <div className="stream-output-layout-list">

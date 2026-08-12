@@ -43,10 +43,8 @@ test('89D cada área define faixa de dados independente para 1–12 e 13–24', 
   expect(outputs).toContain('dataEnd')
 })
 
-test('89D prévia reaproveita o mesmo StreamPackageStage e 89L fixa a arte em 4K', () => {
+test('89D mantém o editor legado disponível sem impor regra de renderização às novas artes', () => {
   expect(outputs).toContain('<StreamPackageStage')
-  expect(outputs).toContain('outputProfileId=\"png-4k\"')
-  expect(outputs).toContain('contentOnly={false}')
   expect(outputs).toContain('loadStreamPackageRenderData')
   expect(outputs).not.toContain('StreamOutputStage')
 })
@@ -56,5 +54,6 @@ test('89D salva layouts no pack com normalização e schema 3', () => {
   expect(api).toContain('output_layouts')
   expect(editor).toContain('output_layouts: pack.output_layouts')
   expect(editor).toContain('schema_version: 3')
-  expect(editor).toContain('>Postagens</button>')
+  expect(editor).not.toContain('>Postagens</button>')
+  expect(editor).toContain('Overlays da transmissão')
 })

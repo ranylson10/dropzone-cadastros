@@ -3480,3 +3480,40 @@ body.stream-editor-scroll-lock {
 @media (max-width:860px){.stream-output-transform-grid{grid-template-columns:1fr 1fr}}
 .stream-package-render-root.is-artwork-output{overflow:visible}
 .stream-package-render-root.is-artwork-output .stream-package-render-content{overflow:visible}
+
+/* Rodada 89N — workspace responsivo pela largura REAL disponível no editor */
+.stream-output-editor{width:100%;max-width:100%;min-width:0;overflow:hidden}
+.stream-output-editor>*{min-width:0}
+.stream-output-controls{min-width:0;overflow-y:auto;overflow-x:hidden}
+.stream-output-controls label,.stream-output-controls small,.stream-output-area-config,.stream-output-area-config *{max-width:100%;box-sizing:border-box}
+.stream-output-controls small,.stream-output-area-config small,.stream-output-area-config strong,.stream-output-artwork-mode small{overflow-wrap:anywhere;word-break:normal}
+.stream-output-transform-grid,.stream-package-quad-grid{min-width:0}
+.stream-output-transform-grid>* ,.stream-package-quad-grid>*{min-width:0}
+.stream-output-number-field input{width:100%;min-width:0;box-sizing:border-box}
+
+.stream-output-editor.is-wide{grid-template-columns:190px minmax(300px,320px) minmax(0,1fr) 205px}
+.stream-output-editor.is-wide .stream-output-elements{grid-column:auto;position:sticky;top:0;max-height:calc(100vh - 110px);border-left:1px solid #d9d4ca;border-top:0}
+
+.stream-output-editor.is-medium{grid-template-columns:minmax(150px,180px) minmax(270px,310px) minmax(0,1fr)}
+.stream-output-editor.is-medium .stream-output-elements{grid-column:1/-1;position:static;max-height:none;border-left:0;border-top:1px solid #d9d4ca}
+.stream-output-editor.is-medium .stream-output-element-list{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.stream-output-editor.is-medium .stream-output-elements-group-label{grid-column:1/-1}
+
+.stream-output-editor.is-narrow{display:grid;grid-template-columns:minmax(0,1fr)}
+.stream-output-editor.is-narrow .stream-output-sidebar,
+.stream-output-editor.is-narrow .stream-output-controls,
+.stream-output-editor.is-narrow .stream-output-preview-column,
+.stream-output-editor.is-narrow .stream-output-elements{grid-column:1;position:static;max-height:none;width:auto;max-width:100%;border-left:0;border-right:0}
+.stream-output-editor.is-narrow .stream-output-sidebar,
+.stream-output-editor.is-narrow .stream-output-controls,
+.stream-output-editor.is-narrow .stream-output-preview-column{border-bottom:1px solid #d9d4ca}
+.stream-output-editor.is-narrow .stream-output-preview-shell{min-height:440px}
+.stream-output-editor.is-narrow .stream-output-element-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+.stream-output-editor.is-narrow .stream-output-elements-group-label{grid-column:1/-1}
+.stream-output-editor.is-narrow .stream-output-tools-tabs{position:static}
+
+@media(max-width:560px){
+  .stream-output-editor.is-narrow .stream-output-transform-grid,
+  .stream-output-editor.is-narrow .stream-package-quad-grid{grid-template-columns:1fr}
+  .stream-output-editor.is-narrow .stream-output-element-list{grid-template-columns:1fr}
+}

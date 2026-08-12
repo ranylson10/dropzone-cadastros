@@ -8,6 +8,7 @@ import {
   Info,
   Layers3,
   MapPinned,
+  Images,
   SlidersHorizontal,
   Ticket,
   Users,
@@ -275,6 +276,7 @@ export function ChampionshipPublicView({
               <a className="button secondary" href={`/campeonatos/${profile.id}/regulamento`}>
                 <Flag size={15} /> Regulamento
               </a>
+              {authenticated ? <a className="button secondary" href={`/campeonatos/${profile.id}/artes-postagem`}><Images size={15} /> Artes para postar</a> : null}
               <ReportButton targetType="campeonato" targetId={profile.id} targetName={profile.name} />
             </div>
             <section className="champ-public-info-agenda">

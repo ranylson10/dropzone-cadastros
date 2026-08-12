@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { Check, Grid3X3, ImageIcon, ImagePlus, Loader2, Maximize2, Move, RefreshCw, Save, Timer, Trash2, Type, ZoomIn, ZoomOut } from 'lucide-react'
 import { StreamPackageStage } from './StreamPackageStage'
-import { StreamOutputLayoutsEditor } from './StreamOutputLayoutsEditor'
 import type { StreamPackageRenderData } from '../types/stream-package.types'
 import { loadStreamPackageRenderData } from '../services/stream-package-data.service'
 import {
@@ -100,7 +99,6 @@ async function authFetch(url: string, options?: RequestInit) {
 export function StreamPackageEditor(props: { campeonatoId: string }) {
   const [pack, setPack] = useState<StreamOverlayPackage>(() => normalizeStreamOverlayPackage(props.campeonatoId, {}))
   const [activeType, setActiveType] = useState<StreamSystemOverlayType>('standings_general')
-  const [workspaceMode, setWorkspaceMode] = useState<'overlays' | 'outputs'>('overlays')
   const [activePanel, setActivePanel] = useState<EditorPanel>('assets')
   const [selectedInspectorItem, setSelectedInspectorItem] = useState<PackageInspectorItem>('event_logo')
   const [loading, setLoading] = useState(true)
@@ -549,7 +547,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
       })
       setPack((prev) => ({ ...prev, updated_at: json.pack?.updated_at || prev.updated_at }))
       setNeedsSql(Boolean(json.needs_package_sql))
-      setFeedback('Pacote salvo. Overlays, variantes e saídas para postagem foram atualizadas.')
+      setFeedback('Pacote de transmissão salvo. Overlays e variantes foram atualizadas.')
     } catch (error: any) {
       setFeedback(error?.message || 'Erro ao salvar pacote.')
     } finally {
@@ -564,22 +562,14 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   return (
     <section className="stream-package-editor stream-package-editor-v2" aria-label="Editor do pacote de overlays">
       {headerSlot ? createPortal(<div className="stream-package-header-controls">
-        <div className="stream-package-header-tabs"><button type="button" className={workspaceMode === 'overlays' ? 'active' : ''} onClick={() => setWorkspaceMode('overlays')}>Overlays</button><button type="button" className={workspaceMode === 'outputs' ? 'active' : ''} onClick={() => setWorkspaceMode('outputs')}>Postagens</button></div>
+        <div className="stream-package-header-tabs"><span className="active">Overlays da transmissão</span></div>
         <span className="stream-package-count"><b>{enabledCount}</b>/{STREAM_SYSTEM_OVERLAYS.length}</span>
         <button type="button" className="stream-primary-btn" onClick={() => void savePackage()} disabled={saving || needsSql}>{saving ? <Loader2 className="spin" size={15} /> : <Save size={15} />} Salvar</button>
       </div>, headerSlot) : null}
 
-      {needsSql ? <div className="stream-error">Rode as migrations pendentes do pacote antes de salvar. Para saídas/postagens: <code>database/migrations/20260811_stream_output_layouts.sql</code>.</div> : null}
+      {needsSql ? <div className="stream-error">Rode as migrations pendentes do pacote de transmissão antes de salvar.</div> : null}
       {feedback ? <p className="stream-hint stream-package-feedback">{feedback}</p> : null}
 
-      {workspaceMode === 'outputs' ? (
-        <StreamOutputLayoutsEditor
-          campeonatoId={props.campeonatoId}
-          pack={pack}
-          layouts={pack.output_layouts}
-          onChange={(outputLayouts) => setPack((current) => ({ ...current, output_layouts: outputLayouts }))}
-        />
-      ) : (
       <div className="stream-package-workbench">
         <aside className="stream-package-scenes">
           <div className="stream-package-scenes-head">
@@ -1157,7 +1147,6 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
           </div>
         </main>
       </div>
-      )}
     </section>
   )
 }
