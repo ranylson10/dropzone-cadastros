@@ -432,6 +432,8 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   const [feedback, setFeedback] = useState('')
   const [previewZoom, setPreviewZoom] = useState(100)
   const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number; x: number; y: number } | null>(null)
+  const previewShellRef = useRef<HTMLDivElement | null>(null)
+  const panRef = useRef<{ pointerId: number; startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null)
 
   async function reloadAssets() {
     setLibraryError('')
@@ -777,11 +779,56 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   const previewScale = useMemo(() => fitPreviewScale * (previewZoom / 100), [fitPreviewScale, previewZoom])
 
 
-  function changePreviewZoom(next: number) { setPreviewZoom(Math.max(25, Math.min(400, Math.round(next)))) }
+  function changePreviewZoom(next: number, anchor?: { x: number; y: number }) {
+    const shell = previewShellRef.current
+    const nextZoom = Math.max(25, Math.min(400, Math.round(next)))
+    if (!shell || !draft) { setPreviewZoom(nextZoom); return }
+
+    const currentScale = fitPreviewScale * (previewZoom / 100)
+    const nextScale = fitPreviewScale * (nextZoom / 100)
+    const anchorX = anchor?.x ?? shell.clientWidth / 2
+    const anchorY = anchor?.y ?? shell.clientHeight / 2
+    const contentX = (shell.scrollLeft + anchorX) / Math.max(currentScale, .0001)
+    const contentY = (shell.scrollTop + anchorY) / Math.max(currentScale, .0001)
+
+    setPreviewZoom(nextZoom)
+    requestAnimationFrame(() => {
+      shell.scrollLeft = contentX * nextScale - anchorX
+      shell.scrollTop = contentY * nextScale - anchorY
+    })
+  }
 
   function handlePreviewWheel(event: ReactWheelEvent<HTMLDivElement>) {
     event.preventDefault()
-    changePreviewZoom(previewZoom + (event.deltaY < 0 ? 10 : -10))
+    const rect = event.currentTarget.getBoundingClientRect()
+    changePreviewZoom(previewZoom + (event.deltaY < 0 ? 10 : -10), { x: event.clientX - rect.left, y: event.clientY - rect.top })
+  }
+
+  function beginPan(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 && event.button !== 1) return
+    const target = event.target as HTMLElement
+    if (target.closest('.post-artworks-table-block,.post-artworks-mvp-block,.post-artworks-zoom-actions')) return
+    const shell = previewShellRef.current
+    if (!shell) return
+    event.preventDefault()
+    shell.setPointerCapture(event.pointerId)
+    panRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, scrollLeft: shell.scrollLeft, scrollTop: shell.scrollTop }
+    shell.classList.add('is-panning')
+  }
+
+  function panPreview(event: ReactPointerEvent<HTMLDivElement>) {
+    const current = panRef.current
+    const shell = previewShellRef.current
+    if (!current || !shell || current.pointerId !== event.pointerId) return
+    shell.scrollLeft = current.scrollLeft - (event.clientX - current.startX)
+    shell.scrollTop = current.scrollTop - (event.clientY - current.startY)
+  }
+
+  function endPan(event: ReactPointerEvent<HTMLDivElement>) {
+    const shell = previewShellRef.current
+    if (panRef.current?.pointerId !== event.pointerId) return
+    panRef.current = null
+    shell?.classList.remove('is-panning')
   }
 
   function beginDrag(event: ReactPointerEvent<HTMLDivElement>, block: PostArtworkBlock) {
@@ -839,8 +886,8 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
           </section>
 
           <main className="post-artworks-preview-panel">
-            <div className="post-artworks-panel-title post-artworks-preview-toolbar"><div><strong>Área de trabalho</strong><small>Arraste os blocos. Use o scroll do mouse para aproximar ou afastar.</small></div><div className="post-artworks-zoom-actions"><button type="button" onClick={() => changePreviewZoom(100)}>100%</button><button type="button" onClick={() => changePreviewZoom(previewZoom - 10)}>-</button><b>{previewZoom}%</b><button type="button" onClick={() => changePreviewZoom(previewZoom + 10)}>+</button><button type="button" onClick={() => changePreviewZoom(Math.round((1 / fitPreviewScale) * 100))}>Ajustar</button></div></div>
-            <div className="post-artworks-preview-shell" onWheel={handlePreviewWheel}>
+            <div className="post-artworks-panel-title post-artworks-preview-toolbar"><div><strong>Área de trabalho</strong><small>Arraste os blocos. Scroll dá zoom no ponto do mouse; arraste o fundo para mover a tela.</small></div><div className="post-artworks-zoom-actions"><button type="button" onClick={() => changePreviewZoom(100)}>100%</button><button type="button" onClick={() => changePreviewZoom(previewZoom - 10)}>-</button><b>{previewZoom}%</b><button type="button" onClick={() => changePreviewZoom(previewZoom + 10)}>+</button><button type="button" onClick={() => changePreviewZoom(Math.round((1 / fitPreviewScale) * 100))}>Ajustar</button></div></div>
+            <div ref={previewShellRef} className="post-artworks-preview-shell" onWheel={handlePreviewWheel} onPointerDown={beginPan} onPointerMove={panPreview} onPointerUp={endPan} onPointerCancel={endPan}>
               <div className="post-artworks-preview" style={{ width: draft.width * previewScale, height: draft.height * previewScale, backgroundColor: draft.background_color, backgroundImage: draft.background_url ? `url(${JSON.stringify(draft.background_url)})` : undefined }}>
                 {Array.from({ length: Math.max(0, draft.slice_count - 1) }, (_, index) => <span key={index} className={`post-artworks-slice-line ${draft.slice_direction}`} style={draft.slice_direction === 'horizontal' ? { left: draft.slice_width * (index + 1) * previewScale } : { top: draft.slice_height * (index + 1) * previewScale }} />)}
                 {draft.blocks.filter((block) => block.visible && (block.type === 'table_general' || block.type === 'table_day' || block.type === 'qualified_teams' || block.type === 'booyahs_day')).map((block) => {

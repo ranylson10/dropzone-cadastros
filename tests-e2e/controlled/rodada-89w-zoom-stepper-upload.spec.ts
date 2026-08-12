@@ -16,7 +16,7 @@ test('89W aumenta campos numéricos e adiciona stepper visual', () => {
 
 test('89W adiciona zoom por scroll e botões rápidos na área de trabalho', () => {
   expect(workspace).toContain('handlePreviewWheel')
-  expect(workspace).toContain('Use o scroll do mouse para aproximar ou afastar')
+  expect(workspace).toContain('Scroll dá zoom no ponto do mouse; arraste o fundo para mover a tela.')
   expect(workspace).toContain('post-artworks-zoom-actions')
   expect(workspace).toContain('Ajustar')
   expect(workspace).toContain('100%')

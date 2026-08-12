@@ -54,3 +54,9 @@
   .post-artworks-preview-toolbar{align-items:flex-start;flex-direction:column}
   .post-artworks-inline-actions{grid-template-columns:1fr}
 }
+
+/* 89X — pan livre e zoom ancorado no ponteiro */
+.post-artworks-preview-shell{display:block!important;position:relative;justify-content:initial!important;align-items:initial!important;overscroll-behavior:contain;touch-action:none;cursor:grab}
+.post-artworks-preview-shell.is-panning{cursor:grabbing;user-select:none}
+.post-artworks-preview{margin:0 auto;transform-origin:0 0}
+.post-artworks-preview-shell.is-panning .post-artworks-preview{pointer-events:none}
