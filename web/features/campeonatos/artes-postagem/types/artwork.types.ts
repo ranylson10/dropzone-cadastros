@@ -88,6 +88,8 @@ export type PostArtworkQualifiedStyle = {
   columns: number
   gap: number
   sectionGap: number
+  eliminatedOffsetX: number
+  eliminatedOffsetY: number
   backgroundType: PostArtworkCellBackgroundType
   backgroundColor: string
   backgroundUrl: string | null
