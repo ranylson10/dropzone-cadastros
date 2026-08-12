@@ -13,6 +13,7 @@ import type {
   PostArtworkMvpStyle,
   PostArtworkPlayerRow,
   PostArtworkProject,
+  PostArtworkQualifiedStyle,
   PostArtworkSliceDirection,
   PostArtworkTableColumnKey,
   PostArtworkTableColumnStyle,
@@ -33,7 +34,7 @@ type PostArtworkSharePreview = {
 }
 type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; colors?: PostArtworkColorInventory[]; jogos?: Array<any>; fases?: Array<any>; updated_artworks?: number; updated_references?: number; share?: { token: string; name: string; artworks: number; assets: number; source_name: string }; preview?: PostArtworkSharePreview; imported?: { artworks: number; assets: number; ids: string[] }; error?: string }
 type GameOption = { id: string; nome: string; faseId: string; faseNome: string; grupoNome: string; numeroPartidas: number; status: string; mataMata: boolean; classificamQuantidade: number | null }
-type AssetTarget = 'project' | 'column' | 'header' | 'mvp'
+type AssetTarget = 'project' | 'column' | 'header' | 'mvp' | 'qualified'
 
 const TABLE_COLUMN_META: Record<PostArtworkTableColumnKey, { label: string; defaultWidth: number; align: 'left' | 'center' | 'right' }> = {
   rank: { label: 'RK', defaultWidth: 74, align: 'center' },
@@ -216,10 +217,59 @@ function tableStyleWithColumns(enabledKeys: PostArtworkTableColumnKey[]) {
   return style
 }
 
+function defaultQualifiedStyle(): PostArtworkQualifiedStyle {
+  return {
+    cardWidth: 170,
+    cardHeight: 150,
+    columns: 6,
+    gap: 8,
+    sectionGap: 34,
+    backgroundType: 'color',
+    backgroundColor: '#8fce00',
+    backgroundUrl: null,
+    logoScale: 0.82,
+    showTitles: true,
+    qualifiedTitle: 'CLASSIFICADOS',
+    eliminatedTitle: 'ELIMINADOS',
+    titleColor: '#4c8f00',
+    titleFontSize: 34,
+    titleFontWeight: 900,
+  }
+}
+
+function normalizeQualifiedStyle(block: PostArtworkBlock): PostArtworkQualifiedStyle {
+  const raw = (block.style || {}) as Partial<PostArtworkQualifiedStyle>
+  return {
+    ...defaultQualifiedStyle(),
+    ...raw,
+    columns: Math.max(1, Math.min(12, Number(raw.columns) || 6)),
+    logoScale: Math.max(.1, Math.min(1, Number(raw.logoScale) || .82)),
+  }
+}
+
+function qualifiedVisualWidth(style: PostArtworkQualifiedStyle) {
+  return style.columns * style.cardWidth + Math.max(0, style.columns - 1) * style.gap
+}
+
+function qualifiedGridHeight(style: PostArtworkQualifiedStyle, count: number) {
+  if (!count) return 0
+  const rows = Math.ceil(count / style.columns)
+  return rows * style.cardHeight + Math.max(0, rows - 1) * style.gap
+}
+
+function qualifiedVisualHeight(style: PostArtworkQualifiedStyle, qualifiedCount: number, eliminatedCount: number) {
+  const titleHeight = style.showTitles ? style.titleFontSize + 12 : 0
+  const qualifiedHeight = qualifiedGridHeight(style, qualifiedCount)
+  const eliminatedHeight = qualifiedGridHeight(style, eliminatedCount)
+  return titleHeight + qualifiedHeight + (eliminatedCount ? style.sectionGap + titleHeight + eliminatedHeight : 0)
+}
+
 function createQualifiedTeamsBlock(index: number, game?: GameOption): PostArtworkBlock {
-  const style = tableStyleWithColumns(['rank', 'logo', 'name', 'points'])
+  const legacyTableStyle = tableStyleWithColumns(['rank', 'logo', 'name', 'points'])
+  const style = { ...legacyTableStyle, ...defaultQualifiedStyle() }
   const limit = game?.mataMata && game.classificamQuantidade ? game.classificamQuantidade : 12
-  return { id: uid('qualified-teams'), type: 'qualified_teams', name: `Classificados ${index + 1}`, x: 60, y: 220, width: tableVisualWidth(style), visible: true, dataStart: 1, dataEnd: limit, source: game ? { jogoId: game.id, jogoName: game.nome } : {}, style: style as unknown as Record<string, unknown> }
+  const qualifiedStyle = normalizeQualifiedStyle({ id: '', type: 'qualified_teams', name: '', x: 0, y: 0, width: 0, visible: true, style: style as unknown as Record<string, unknown> })
+  return { id: uid('qualified-teams'), type: 'qualified_teams', name: `Classificados ${index + 1}`, x: 60, y: 220, width: qualifiedVisualWidth(qualifiedStyle), visible: true, dataStart: 1, dataEnd: limit, source: game ? { jogoId: game.id, jogoName: game.nome } : {}, style: style as unknown as Record<string, unknown> }
 }
 
 function createBooyahsDayBlock(index: number, game?: GameOption): PostArtworkBlock {
@@ -229,10 +279,13 @@ function createBooyahsDayBlock(index: number, game?: GameOption): PostArtworkBlo
 
 function defaultMvpStyle(): PostArtworkMvpStyle {
   return {
+    layoutMode: 'card_table',
     cardWidth: 420, cardHeight: 560, backgroundType: 'color', backgroundColor: '#15171c', backgroundUrl: null,
     imageSize: 260, imageRadius: 18, nameColor: '#ffffff', nameFontSize: 38, nameFontWeight: 900,
     teamColor: '#c8cbd2', teamFontSize: 20, statsColor: '#ffffff', statsFontSize: 24,
     showPhoto: true, showTeam: true, showDrops: true, showKills: true, gap: 16,
+    tableWidth: 640, tableRowHeight: 58, tableRowGap: 5, tableRankWidth: 58, tableTeamWidth: 170,
+    tableBackgroundType: 'color', tableBackgroundColor: '#15171c', tableBackgroundUrl: null, tableTextColor: '#ffffff', tableFontSize: 20,
   }
 }
 
@@ -242,12 +295,33 @@ function normalizeMvpStyle(block: PostArtworkBlock): PostArtworkMvpStyle {
 
 function createMvpBlock(type: 'mvp_general' | 'mvp_day', index: number, game?: GameOption): PostArtworkBlock {
   const style = defaultMvpStyle()
-  return { id: uid(type === 'mvp_day' ? 'mvp-day' : 'mvp-general'), type, name: `${type === 'mvp_day' ? 'MVP do Jogo' : 'MVP Geral'} ${index + 1}`, x: 60, y: 160, width: style.cardWidth, visible: true, dataStart: 1, dataEnd: 1, source: type === 'mvp_day' && game ? { jogoId: game.id, jogoName: game.nome } : {}, style: style as unknown as Record<string, unknown> }
+  return { id: uid(type === 'mvp_day' ? 'mvp-day' : 'mvp-general'), type, name: `${type === 'mvp_day' ? 'MVP do Jogo' : 'MVP Geral'} ${index + 1}`, x: 60, y: 160, width: style.cardWidth, visible: true, dataStart: 1, dataEnd: type === 'mvp_general' ? 10 : 1, source: type === 'mvp_day' && game ? { jogoId: game.id, jogoName: game.nome } : {}, style: style as unknown as Record<string, unknown> }
 }
 
 function playerForBlock(block: PostArtworkBlock, general: PostArtworkPlayerRow[], day: Record<string, PostArtworkPlayerRow[]>, killLeaders: PostArtworkPlayerRow[] = []) {
   const rows = block.type === 'mvp_day' ? day[block.source?.jogoId || ''] || [] : block.type === 'kills_leaders' ? killLeaders : general
   return rows[Math.max(0, (block.dataStart || 1) - 1)] || null
+}
+
+function playerRowsForBlock(block: PostArtworkBlock, general: PostArtworkPlayerRow[], day: Record<string, PostArtworkPlayerRow[]>, killLeaders: PostArtworkPlayerRow[] = []) {
+  const rows = block.type === 'mvp_day' ? day[block.source?.jogoId || ''] || [] : block.type === 'kills_leaders' ? killLeaders : general
+  const start = Math.max(0, (block.dataStart || 1) - 1)
+  const end = Math.max(start + 1, block.dataEnd || block.dataStart || 1)
+  return rows.slice(start, end)
+}
+
+function mvpVisualWidth(block: PostArtworkBlock, style: PostArtworkMvpStyle) {
+  if (block.type !== 'mvp_general') return style.cardWidth
+  if (style.layoutMode === 'table_only') return style.tableWidth
+  return style.cardWidth + (Math.max(0, (block.dataEnd || 10) - (block.dataStart || 1)) > 0 ? style.gap + style.tableWidth : 0)
+}
+
+function mvpVisualHeight(block: PostArtworkBlock, style: PostArtworkMvpStyle) {
+  if (block.type !== 'mvp_general') return style.cardHeight
+  const count = Math.max(1, (block.dataEnd || 10) - (block.dataStart || 1) + 1)
+  const tableCount = style.layoutMode === 'table_only' ? count : Math.max(0, count - 1)
+  const tableHeight = tableCount * style.tableRowHeight + Math.max(0, tableCount - 1) * style.tableRowGap
+  return style.layoutMode === 'table_only' ? tableHeight : Math.max(style.cardHeight, tableHeight)
 }
 
 function gameOptionsFromApi(jogos: ApiPayload['jogos'], fases: ApiPayload['fases'] = []): GameOption[] {
@@ -336,6 +410,95 @@ async function drawCover(ctx: CanvasRenderingContext2D, url: string, x: number, 
   }
 }
 
+async function drawQualifiedCard(ctx: CanvasRenderingContext2D, row: PostArtworkTeamRow, style: PostArtworkQualifiedStyle, x: number, y: number) {
+  if (style.backgroundType === 'color') {
+    ctx.fillStyle = style.backgroundColor
+    ctx.fillRect(x, y, style.cardWidth, style.cardHeight)
+  } else if (style.backgroundType === 'image' && style.backgroundUrl) {
+    await drawCover(ctx, style.backgroundUrl, x, y, style.cardWidth, style.cardHeight)
+  }
+  if (!row.logo) return
+  try {
+    const logo = await loadImage(row.logo)
+    const size = Math.min(style.cardWidth, style.cardHeight) * style.logoScale
+    ctx.drawImage(logo, x + (style.cardWidth - size) / 2, y + (style.cardHeight - size) / 2, size, size)
+  } catch {}
+}
+
+async function drawQualifiedSection(ctx: CanvasRenderingContext2D, rows: PostArtworkTeamRow[], style: PostArtworkQualifiedStyle, startX: number, startY: number, title: string) {
+  let y = startY
+  if (style.showTitles) {
+    ctx.fillStyle = style.titleColor
+    ctx.font = `${style.titleFontWeight} ${style.titleFontSize}px Arial`
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    ctx.fillText(title, startX, y)
+    y += style.titleFontSize + 12
+  }
+  for (let index = 0; index < rows.length; index += 1) {
+    const column = index % style.columns
+    const line = Math.floor(index / style.columns)
+    const x = startX + column * (style.cardWidth + style.gap)
+    const cardY = y + line * (style.cardHeight + style.gap)
+    await drawQualifiedCard(ctx, rows[index], style, x, cardY)
+  }
+  return y + qualifiedGridHeight(style, rows.length)
+}
+
+async function drawMvpTable(ctx: CanvasRenderingContext2D, rows: PostArtworkPlayerRow[], style: PostArtworkMvpStyle, x: number, y: number) {
+  const killsWidth = 90
+  const nickWidth = Math.max(100, style.tableWidth - style.tableRankWidth - style.tableTeamWidth - killsWidth)
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index]
+    const rowY = y + index * (style.tableRowHeight + style.tableRowGap)
+    if (style.tableBackgroundType === 'color') {
+      ctx.fillStyle = style.tableBackgroundColor
+      ctx.fillRect(x, rowY, style.tableWidth, style.tableRowHeight)
+    } else if (style.tableBackgroundType === 'image' && style.tableBackgroundUrl) {
+      await drawCover(ctx, style.tableBackgroundUrl, x, rowY, style.tableWidth, style.tableRowHeight)
+    }
+    ctx.fillStyle = style.tableTextColor
+    ctx.font = `800 ${style.tableFontSize}px Arial`
+    ctx.textBaseline = 'middle'
+    const cy = rowY + style.tableRowHeight / 2
+    ctx.textAlign = 'center'
+    ctx.fillText(String(row.rank), x + style.tableRankWidth / 2, cy, style.tableRankWidth - 8)
+    ctx.textAlign = 'left'
+    ctx.fillText(row.nick, x + style.tableRankWidth + 10, cy, nickWidth - 16)
+    ctx.fillText(row.team || '', x + style.tableRankWidth + nickWidth + 10, cy, style.tableTeamWidth - 16)
+    ctx.textAlign = 'center'
+    ctx.fillText(String(row.kills), x + style.tableWidth - killsWidth / 2, cy, killsWidth - 8)
+  }
+}
+
+async function drawMvpCard(ctx: CanvasRenderingContext2D, player: PostArtworkPlayerRow | null, style: PostArtworkMvpStyle, x: number, startY: number) {
+  let y = startY
+  if (style.backgroundType === 'color') {
+    ctx.fillStyle = style.backgroundColor
+    ctx.fillRect(x, y, style.cardWidth, style.cardHeight)
+  } else if (style.backgroundType === 'image' && style.backgroundUrl) {
+    await drawCover(ctx, style.backgroundUrl, x, y, style.cardWidth, style.cardHeight)
+  }
+  if (!player) return
+  y += style.gap
+  if (style.showPhoto) {
+    const px = x + (style.cardWidth - style.imageSize) / 2
+    if (player.photo) {
+      try {
+        const photo = await loadImage(player.photo)
+        ctx.save(); ctx.beginPath(); ctx.roundRect(px, y, style.imageSize, style.imageSize, style.imageRadius); ctx.clip(); ctx.drawImage(photo, px, y, style.imageSize, style.imageSize); ctx.restore()
+      } catch {}
+    }
+    y += style.imageSize + style.gap
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.fillStyle = style.nameColor; ctx.font = `${style.nameFontWeight} ${style.nameFontSize}px Arial`; ctx.fillText(player.nick, x + style.cardWidth / 2, y + style.nameFontSize / 2, style.cardWidth - style.gap * 2)
+  y += style.nameFontSize + style.gap
+  if (style.showTeam && player.team) { ctx.fillStyle = style.teamColor; ctx.font = `700 ${style.teamFontSize}px Arial`; ctx.fillText(player.team, x + style.cardWidth / 2, y + style.teamFontSize / 2, style.cardWidth - style.gap * 2); y += style.teamFontSize + style.gap }
+  const stats = [style.showKills ? `${player.kills} ABATES` : '', style.showDrops ? `${player.drops} QUEDAS` : ''].filter(Boolean).join('  •  ')
+  if (stats) { ctx.fillStyle = style.statsColor; ctx.font = `800 ${style.statsFontSize}px Arial`; ctx.fillText(stats, x + style.cardWidth / 2, y + style.statsFontSize / 2, style.cardWidth - style.gap * 2) }
+}
+
 const MAX_EXPORT_RENDER_PIXELS = 40_000_000
 
 function resolveExportRenderScale(width: number, height: number) {
@@ -358,7 +521,22 @@ async function renderArtworkCanvas(project: PostArtworkProject, generalRows: Pos
   ctx.fillRect(0, 0, project.width, project.height)
   if (project.background_url) await drawCover(ctx, project.background_url, 0, 0, project.width, project.height)
 
-  for (const block of project.blocks.filter((item) => item.visible && (item.type === 'table_general' || item.type === 'table_day' || item.type === 'qualified_teams' || item.type === 'booyahs_day'))) {
+  for (const block of project.blocks.filter((item) => item.visible && item.type === 'qualified_teams')) {
+    const style = normalizeQualifiedStyle(block)
+    const rows = rowsForBlock(block, generalRows, dayRows, booyahRows)
+    const limit = Math.max(1, block.dataEnd || 6)
+    const qualifiedRows = rows.slice(0, limit)
+    const eliminatedRows = rows.slice(limit)
+    let y = block.y
+    y = await drawQualifiedSection(ctx, qualifiedRows, style, block.x, y, style.qualifiedTitle)
+    if (eliminatedRows.length) {
+      y += style.sectionGap
+      await drawQualifiedSection(ctx, eliminatedRows, style, block.x, y, style.eliminatedTitle)
+    }
+    block.width = qualifiedVisualWidth(style)
+  }
+
+  for (const block of project.blocks.filter((item) => item.visible && (item.type === 'table_general' || item.type === 'table_day' || item.type === 'booyahs_day'))) {
     const style = normalizeTableStyle(block)
     const blockRows = sliceRows(rowsForBlock(block, generalRows, dayRows, booyahRows), block)
     const columns = style.columns.filter((column) => column.enabled)
@@ -419,30 +597,20 @@ async function renderArtworkCanvas(project: PostArtworkProject, generalRows: Pos
 
   for (const block of project.blocks.filter((item) => item.visible && (item.type === 'mvp_general' || item.type === 'mvp_day' || item.type === 'kills_leaders'))) {
     const style = normalizeMvpStyle(block)
-    const player = playerForBlock(block, mvpGeneralRows, mvpDayRows, killLeaderRows)
-    const x = block.x
-    let y = block.y
-    ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(x, y, style.cardWidth, style.cardHeight)
-    if (style.backgroundType === 'image' && style.backgroundUrl) await drawCover(ctx, style.backgroundUrl, x, y, style.cardWidth, style.cardHeight)
-    if (!player) continue
-    y += style.gap
-    if (style.showPhoto) {
-      const px = x + (style.cardWidth - style.imageSize) / 2
-      if (player.photo) {
-        try {
-          const photo = await loadImage(player.photo)
-          ctx.save(); ctx.beginPath(); ctx.roundRect(px, y, style.imageSize, style.imageSize, style.imageRadius); ctx.clip(); ctx.drawImage(photo, px, y, style.imageSize, style.imageSize); ctx.restore()
-        } catch {}
+    const rows = playerRowsForBlock(block, mvpGeneralRows, mvpDayRows, killLeaderRows)
+    if (block.type === 'mvp_general') {
+      if (style.layoutMode === 'table_only') {
+        await drawMvpTable(ctx, rows, style, block.x, block.y)
+      } else {
+        await drawMvpCard(ctx, rows[0] || null, style, block.x, block.y)
+        if (rows.length > 1) await drawMvpTable(ctx, rows.slice(1), style, block.x + style.cardWidth + style.gap, block.y)
       }
-      y += style.imageSize + style.gap
+      block.width = mvpVisualWidth(block, style)
+      continue
     }
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    ctx.fillStyle = style.nameColor; ctx.font = `${style.nameFontWeight} ${style.nameFontSize}px Arial`; ctx.fillText(player.nick, x + style.cardWidth / 2, y + style.nameFontSize / 2, style.cardWidth - style.gap * 2)
-    y += style.nameFontSize + style.gap
-    if (style.showTeam && player.team) { ctx.fillStyle = style.teamColor; ctx.font = `700 ${style.teamFontSize}px Arial`; ctx.fillText(player.team, x + style.cardWidth / 2, y + style.teamFontSize / 2, style.cardWidth - style.gap * 2); y += style.teamFontSize + style.gap }
-    const stats = [style.showKills ? `${player.kills} ABATES` : '', style.showDrops ? `${player.drops} QUEDAS` : ''].filter(Boolean).join('  •  ')
-    if (stats) { ctx.fillStyle = style.statsColor; ctx.font = `800 ${style.statsFontSize}px Arial`; ctx.fillText(stats, x + style.cardWidth / 2, y + style.statsFontSize / 2, style.cardWidth - style.gap * 2) }
+    const player = playerForBlock(block, mvpGeneralRows, mvpDayRows, killLeaderRows)
+    await drawMvpCard(ctx, player, style, block.x, block.y)
+    block.width = style.cardWidth
   }
   return canvas
 }
@@ -616,6 +784,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
     if (assetTarget === 'column' && selectedColumn) patchColumn(selectedColumn.key, { backgroundType: 'image', backgroundUrl: asset.url })
     if (assetTarget === 'header' && selectedTableStyle) patchTableStyle({ headerBackgroundType: 'image', headerBackgroundUrl: asset.url })
     if (assetTarget === 'mvp' && selectedMvpStyle) patchMvpStyle({ backgroundType: 'image', backgroundUrl: asset.url })
+    if (assetTarget === 'qualified' && selectedQualifiedStyle) patchQualifiedStyle({ backgroundType: 'image', backgroundUrl: asset.url })
     setLibraryOpen(false)
   }
 
@@ -1031,7 +1200,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   }
 
   const selectedBlock = draft?.blocks.find((block) => block.id === selectedBlockId) || null
-  const selectedTableStyle = selectedBlock && (selectedBlock.type === 'table_general' || selectedBlock.type === 'table_day' || selectedBlock.type === 'qualified_teams' || selectedBlock.type === 'booyahs_day') ? normalizeTableStyle(selectedBlock) : null
+  const selectedTableStyle = selectedBlock && (selectedBlock.type === 'table_general' || selectedBlock.type === 'table_day' || selectedBlock.type === 'booyahs_day') ? normalizeTableStyle(selectedBlock) : null
+  const selectedQualifiedStyle = selectedBlock?.type === 'qualified_teams' ? normalizeQualifiedStyle(selectedBlock) : null
   const selectedMvpStyle = selectedBlock && (selectedBlock.type === 'mvp_general' || selectedBlock.type === 'mvp_day' || selectedBlock.type === 'kills_leaders') ? normalizeMvpStyle(selectedBlock) : null
   const selectedColumn = selectedTableStyle?.columns.find((column) => column.key === selectedColumnKey) || null
 
@@ -1047,10 +1217,27 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
     patchTableStyle({ columns })
   }
 
+  function patchQualifiedStyle(patch: Partial<PostArtworkQualifiedStyle>) {
+    if (!selectedBlock || !selectedQualifiedStyle) return
+    const next = { ...selectedQualifiedStyle, ...patch }
+    patchBlock(selectedBlock.id, { style: { ...(selectedBlock.style || {}), ...next } as Record<string, unknown>, width: qualifiedVisualWidth(next) })
+  }
+
   function patchMvpStyle(patch: Partial<PostArtworkMvpStyle>) {
     if (!selectedBlock || !selectedMvpStyle) return
     const next = { ...selectedMvpStyle, ...patch }
-    patchBlock(selectedBlock.id, { style: next as unknown as Record<string, unknown>, width: next.cardWidth })
+    patchBlock(selectedBlock.id, { style: next as unknown as Record<string, unknown>, width: mvpVisualWidth(selectedBlock, next) })
+  }
+
+  async function uploadQualifiedBackground(file?: File | null) {
+    if (!file || !selectedBlock || !selectedQualifiedStyle) return
+    setUploadingCell(true); setError('')
+    try {
+      const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId })
+      patchQualifiedStyle({ backgroundType: 'image', backgroundUrl: url })
+      void rememberAsset(url, file.name || 'Fundo dos cards classificados', 'card')
+    } catch (e: any) { setError(e?.message || 'Não foi possível enviar o fundo dos cards classificados.') }
+    finally { setUploadingCell(false) }
   }
 
   async function uploadMvpBackground(file?: File | null) {
@@ -1403,9 +1590,10 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
             </> : <>
               <label>Nome do bloco<input value={selectedBlock.name} onChange={(event) => patchBlock(selectedBlock.id, { name: event.target.value })} /></label>
               {(selectedBlock.type === 'table_day' || selectedBlock.type === 'booyahs_day' || selectedBlock.type === 'mvp_day' || selectedBlock.type === 'qualified_teams') ? <label>Jogo<select value={selectedBlock.source?.jogoId || ''} onChange={(event) => { const game = games.find((item) => item.id === event.target.value); patchBlock(selectedBlock.id, { source: { jogoId: event.target.value, jogoName: game?.nome || '' }, ...(selectedBlock.type === 'qualified_teams' && game?.mataMata && game.classificamQuantidade ? { dataStart: 1, dataEnd: game.classificamQuantidade } : {}) }) }}><option value="">Selecione o jogo</option>{games.filter((game) => selectedBlock.type !== 'qualified_teams' || (game.mataMata && game.classificamQuantidade)).map((game) => <option key={game.id} value={game.id}>{game.nome}{game.mataMata && game.classificamQuantidade ? ` · Top ${game.classificamQuantidade} passa` : ''}</option>)}</select></label> : null}
-              <div className="post-artworks-grid2"><label>X<EditableNumberInput value={selectedBlock.x} min={-20000} max={20000} onCommit={(value) => patchBlock(selectedBlock.id, { x: value })} /></label><label>Y<EditableNumberInput value={selectedBlock.y} min={-20000} max={20000} onCommit={(value) => patchBlock(selectedBlock.id, { y: value })} /></label>{selectedMvpStyle ? <label>Posição no ranking<EditableNumberInput value={selectedBlock.dataStart || 1} min={1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: value, dataEnd: value })} /></label> : <><label>Do item<EditableNumberInput value={selectedBlock.dataStart || 1} min={1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: value, dataEnd: Math.max(value, selectedBlock.dataEnd || value) })} /></label><label>Até<EditableNumberInput value={selectedBlock.dataEnd || 12} min={selectedBlock.dataStart || 1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataEnd: value })} /></label></>}</div>
+              <div className="post-artworks-grid2"><label>X<EditableNumberInput value={selectedBlock.x} min={-20000} max={20000} onCommit={(value) => patchBlock(selectedBlock.id, { x: value })} /></label><label>Y<EditableNumberInput value={selectedBlock.y} min={-20000} max={20000} onCommit={(value) => patchBlock(selectedBlock.id, { y: value })} /></label>{selectedBlock.type === 'qualified_teams' ? <label>Top que classifica<input value={`Top ${selectedBlock.dataEnd || 6}`} readOnly /></label> : selectedBlock.type === 'mvp_general' ? <label>Até posição<EditableNumberInput value={selectedBlock.dataEnd || 10} min={2} max={50} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: 1, dataEnd: value })} /></label> : selectedMvpStyle ? <label>Posição no ranking<EditableNumberInput value={selectedBlock.dataStart || 1} min={1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: value, dataEnd: value })} /></label> : <><label>Do item<EditableNumberInput value={selectedBlock.dataStart || 1} min={1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: value, dataEnd: Math.max(value, selectedBlock.dataEnd || value) })} /></label><label>Até<EditableNumberInput value={selectedBlock.dataEnd || 12} min={selectedBlock.dataStart || 1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataEnd: value })} /></label></>}</div>
               {selectedTableStyle ? <><div className="post-artworks-subtitle"><strong>Tabela</strong><small>Uma coluna de ranking por bloco.</small></div><div className="post-artworks-grid2"><label>Altura da linha<EditableNumberInput value={selectedTableStyle.rowHeight} min={20} max={300} onCommit={(value) => patchTableStyle({ rowHeight: value })} /></label><label>Espaço entre linhas<EditableNumberInput value={selectedTableStyle.rowGap} min={0} max={100} onCommit={(value) => patchTableStyle({ rowGap: value })} /></label><label>Gap entre células<EditableNumberInput value={selectedTableStyle.cellGap} min={0} max={100} onCommit={(value) => patchTableStyle({ cellGap: value })} /></label><label>Altura da legenda<EditableNumberInput value={selectedTableStyle.headerHeight} min={20} max={150} onCommit={(value) => patchTableStyle({ headerHeight: value })} /></label></div><label className="post-artworks-check"><input type="checkbox" checked={selectedTableStyle.showHeader} onChange={(event) => patchTableStyle({ showHeader: event.target.checked })} /> Exibir legenda</label>{selectedTableStyle.showHeader ? <><label>Fundo da legenda<select value={selectedTableStyle.headerBackgroundType} onChange={(event) => patchTableStyle({ headerBackgroundType: event.target.value as 'color' | 'image' | 'none' })}><option value="color">Cor</option><option value="image">Imagem</option><option value="none">Sem fundo</option></select></label>{selectedTableStyle.headerBackgroundType === 'color' ? <label>Cor da legenda<input type="color" value={selectedTableStyle.headerBackgroundColor} onChange={(event) => patchTableStyle({ headerBackgroundColor: event.target.value })} /></label> : null}{selectedTableStyle.headerBackgroundType === 'image' ? <div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedTableStyle.headerBackgroundUrl ? 'Trocar imagem da legenda' : 'Upload da legenda'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadHeaderBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('header')}><Images size={13} /> Biblioteca</button></div> : null}<label>Cor do texto da legenda<input type="color" value={selectedTableStyle.headerColor} onChange={(event) => patchTableStyle({ headerColor: event.target.value })} /></label></> : null}</> : null}
-              {selectedMvpStyle ? <><div className="post-artworks-subtitle"><strong>{selectedBlock.type === 'kills_leaders' ? 'Card de líder de abates' : 'Card MVP'}</strong><small>Um jogador por bloco, independente da transmissão.</small></div><div className="post-artworks-grid2"><label>Largura do card<EditableNumberInput value={selectedMvpStyle.cardWidth} min={180} max={1600} onCommit={(value) => patchMvpStyle({ cardWidth: value })} /></label><label>Altura do card<EditableNumberInput value={selectedMvpStyle.cardHeight} min={220} max={2000} onCommit={(value) => patchMvpStyle({ cardHeight: value })} /></label><label>Tamanho da foto<EditableNumberInput value={selectedMvpStyle.imageSize} min={40} max={1000} onCommit={(value) => patchMvpStyle({ imageSize: value })} /></label><label>Espaçamento<EditableNumberInput value={selectedMvpStyle.gap} min={0} max={120} onCommit={(value) => patchMvpStyle({ gap: value })} /></label></div><div className="post-artworks-mvp-checks"><label className="post-artworks-check"><input type="checkbox" checked={selectedMvpStyle.showPhoto} onChange={(event) => patchMvpStyle({ showPhoto: event.target.checked })} /> Foto</label><label className="post-artworks-check"><input type="checkbox" checked={selectedMvpStyle.showTeam} onChange={(event) => patchMvpStyle({ showTeam: event.target.checked })} /> Equipe</label><label className="post-artworks-check"><input type="checkbox" checked={selectedMvpStyle.showKills} onChange={(event) => patchMvpStyle({ showKills: event.target.checked })} /> Abates</label><label className="post-artworks-check"><input type="checkbox" checked={selectedMvpStyle.showDrops} onChange={(event) => patchMvpStyle({ showDrops: event.target.checked })} /> Quedas</label></div></> : null}
+              {selectedQualifiedStyle ? <><div className="post-artworks-subtitle"><strong>Cards de classificados</strong><small>Somente as logos: classificados em cima e eliminados embaixo.</small></div><div className="post-artworks-grid2"><label>Largura do card<EditableNumberInput value={selectedQualifiedStyle.cardWidth} min={60} max={600} onCommit={(value) => patchQualifiedStyle({ cardWidth: value })} /></label><label>Altura do card<EditableNumberInput value={selectedQualifiedStyle.cardHeight} min={60} max={600} onCommit={(value) => patchQualifiedStyle({ cardHeight: value })} /></label><label>Cards por linha<EditableNumberInput value={selectedQualifiedStyle.columns} min={1} max={12} onCommit={(value) => patchQualifiedStyle({ columns: value })} /></label><label>Espaçamento<EditableNumberInput value={selectedQualifiedStyle.gap} min={0} max={120} onCommit={(value) => patchQualifiedStyle({ gap: value })} /></label><label>Espaço entre grupos<EditableNumberInput value={selectedQualifiedStyle.sectionGap} min={0} max={300} onCommit={(value) => patchQualifiedStyle({ sectionGap: value })} /></label><label>Tamanho da logo (%)<EditableNumberInput value={Math.round(selectedQualifiedStyle.logoScale * 100)} min={10} max={100} onCommit={(value) => patchQualifiedStyle({ logoScale: value / 100 })} /></label></div><label className="post-artworks-check"><input type="checkbox" checked={selectedQualifiedStyle.showTitles} onChange={(event) => patchQualifiedStyle({ showTitles: event.target.checked })} /> Exibir títulos Classificados / Eliminados</label>{selectedQualifiedStyle.showTitles ? <><div className="post-artworks-grid2"><label>Título classificados<input value={selectedQualifiedStyle.qualifiedTitle} onChange={(event) => patchQualifiedStyle({ qualifiedTitle: event.target.value })} /></label><label>Título eliminados<input value={selectedQualifiedStyle.eliminatedTitle} onChange={(event) => patchQualifiedStyle({ eliminatedTitle: event.target.value })} /></label><label>Tamanho do título<EditableNumberInput value={selectedQualifiedStyle.titleFontSize} min={10} max={160} onCommit={(value) => patchQualifiedStyle({ titleFontSize: value })} /></label><label>Cor do título<input type="color" value={selectedQualifiedStyle.titleColor} onChange={(event) => patchQualifiedStyle({ titleColor: event.target.value })} /></label></div></> : null}<label>Fundo dos cards<select value={selectedQualifiedStyle.backgroundType} onChange={(event) => patchQualifiedStyle({ backgroundType: event.target.value as 'color' | 'image' | 'none' })}><option value="color">Cor</option><option value="image">Imagem</option><option value="none">Sem fundo</option></select></label>{selectedQualifiedStyle.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedQualifiedStyle.backgroundColor} onChange={(event) => patchQualifiedStyle({ backgroundColor: event.target.value })} /></label> : null}{selectedQualifiedStyle.backgroundType === 'image' ? <div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedQualifiedStyle.backgroundUrl ? 'Trocar fundo dos cards' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadQualifiedBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('qualified')}><Images size={13} /> Biblioteca</button></div> : null}</> : null}
+              {selectedMvpStyle ? <><div className="post-artworks-subtitle"><strong>{selectedBlock.type === 'kills_leaders' ? 'Card de líder de abates' : selectedBlock.type === 'mvp_general' ? 'MVP Geral' : 'Card MVP'}</strong><small>{selectedBlock.type === 'mvp_general' ? 'Escolha Top 1 destacado + tabela ou somente tabela.' : 'Um jogador por bloco, independente da transmissão.'}</small></div>{selectedBlock.type === 'mvp_general' ? <label>Layout do MVP Geral<select value={selectedMvpStyle.layoutMode} onChange={(event) => patchMvpStyle({ layoutMode: event.target.value as 'card_table' | 'table_only' })}><option value="card_table">Top 1 em card + tabela</option><option value="table_only">Somente tabela</option></select></label> : null}<div className="post-artworks-grid2"><label>Largura do card<EditableNumberInput value={selectedMvpStyle.cardWidth} min={180} max={1600} onCommit={(value) => patchMvpStyle({ cardWidth: value })} /></label><label>Altura do card<EditableNumberInput value={selectedMvpStyle.cardHeight} min={220} max={2000} onCommit={(value) => patchMvpStyle({ cardHeight: value })} /></label><label>Tamanho da foto<EditableNumberInput value={selectedMvpStyle.imageSize} min={40} max={1000} onCommit={(value) => patchMvpStyle({ imageSize: value })} /></label><label>Espaçamento<EditableNumberInput value={selectedMvpStyle.gap} min={0} max={120} onCommit={(value) => patchMvpStyle({ gap: value })} /></label></div><div className="post-artworks-mvp-checks"><label className="post-artworks-check"><input type="checkbox" checked={selectedMvpStyle.showPhoto} onChange={(event) => patchMvpStyle({ showPhoto: event.target.checked })} /> Foto</label><label className="post-artworks-check"><input type="checkbox" checked={selectedMvpStyle.showTeam} onChange={(event) => patchMvpStyle({ showTeam: event.target.checked })} /> Equipe</label><label className="post-artworks-check"><input type="checkbox" checked={selectedMvpStyle.showKills} onChange={(event) => patchMvpStyle({ showKills: event.target.checked })} /> Abates</label><label className="post-artworks-check"><input type="checkbox" checked={selectedMvpStyle.showDrops} onChange={(event) => patchMvpStyle({ showDrops: event.target.checked })} /> Quedas</label></div>{selectedBlock.type === 'mvp_general' ? <><div className="post-artworks-subtitle"><strong>Tabela do ranking</strong><small>{selectedMvpStyle.layoutMode === 'card_table' ? 'Exibe do Top 2 até a posição escolhida.' : 'Exibe do Top 1 até a posição escolhida.'}</small></div><div className="post-artworks-grid2"><label>Largura da tabela<EditableNumberInput value={selectedMvpStyle.tableWidth} min={260} max={1800} onCommit={(value) => patchMvpStyle({ tableWidth: value })} /></label><label>Altura da linha<EditableNumberInput value={selectedMvpStyle.tableRowHeight} min={24} max={180} onCommit={(value) => patchMvpStyle({ tableRowHeight: value })} /></label><label>Espaço entre linhas<EditableNumberInput value={selectedMvpStyle.tableRowGap} min={0} max={80} onCommit={(value) => patchMvpStyle({ tableRowGap: value })} /></label><label>Tamanho do texto<EditableNumberInput value={selectedMvpStyle.tableFontSize} min={8} max={80} onCommit={(value) => patchMvpStyle({ tableFontSize: value })} /></label><label>Cor do texto<input type="color" value={selectedMvpStyle.tableTextColor} onChange={(event) => patchMvpStyle({ tableTextColor: event.target.value })} /></label></div><label>Fundo das linhas<select value={selectedMvpStyle.tableBackgroundType} onChange={(event) => patchMvpStyle({ tableBackgroundType: event.target.value as 'color' | 'image' | 'none' })}><option value="color">Cor</option><option value="image">Imagem</option><option value="none">Sem fundo</option></select></label>{selectedMvpStyle.tableBackgroundType === 'color' ? <label>Cor das linhas<input type="color" value={selectedMvpStyle.tableBackgroundColor} onChange={(event) => patchMvpStyle({ tableBackgroundColor: event.target.value })} /></label> : null}</> : null}</> : null}
             </>}
             <div className="post-artworks-actions"><button type="button" className="post-artworks-primary" onClick={() => void saveProject()} disabled={saving}>{saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />} Salvar template</button><button type="button" className="post-artworks-download" onClick={() => void exportArtwork()} disabled={exporting}>{exporting ? <Loader2 size={14} className="spin" /> : <Download size={14} />} {draft.slice_count > 1 ? 'Baixar carrossel' : 'Baixar imagem'}</button>{selectedBlock ? <button type="button" className="post-artworks-secondary" onClick={() => setSelectedBlockId('')}>Editar projeto</button> : null}<button type="button" className="post-artworks-danger" onClick={() => void deleteProject()} disabled={saving}><Trash2 size={14} /> Excluir arte</button></div>
           </section>
@@ -1415,7 +1603,27 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
             <div ref={previewShellRef} className="post-artworks-preview-shell" onWheel={handlePreviewWheel} onPointerDown={beginPan} onPointerMove={panPreview} onPointerUp={endPan} onPointerCancel={endPan}>
               <div className="post-artworks-preview" style={{ width: draft.width * previewScale, height: draft.height * previewScale, backgroundColor: draft.background_color, backgroundImage: draft.background_url ? `url(${JSON.stringify(draft.background_url)})` : undefined }}>
                 {Array.from({ length: Math.max(0, draft.slice_count - 1) }, (_, index) => <span key={index} className={`post-artworks-slice-line ${draft.slice_direction}`} style={draft.slice_direction === 'horizontal' ? { left: draft.slice_width * (index + 1) * previewScale } : { top: draft.slice_height * (index + 1) * previewScale }} />)}
-                {draft.blocks.filter((block) => block.visible && (block.type === 'table_general' || block.type === 'table_day' || block.type === 'qualified_teams' || block.type === 'booyahs_day')).map((block) => {
+                {draft.blocks.filter((block) => block.visible && block.type === 'qualified_teams').map((block) => {
+                  const style = normalizeQualifiedStyle(block)
+                  const rows = rowsForBlock(block, standings, dayStandings, booyahDay)
+                  const limit = Math.max(1, block.dataEnd || 6)
+                  const qualifiedRows = rows.slice(0, limit)
+                  const eliminatedRows = rows.slice(limit)
+                  const cardStyle = {
+                    width: style.cardWidth * previewScale,
+                    height: style.cardHeight * previewScale,
+                    backgroundColor: style.backgroundType === 'color' ? style.backgroundColor : 'transparent',
+                    backgroundImage: style.backgroundType === 'image' && style.backgroundUrl ? `url(${JSON.stringify(style.backgroundUrl)})` : undefined,
+                  }
+                  const renderCards = (items: PostArtworkTeamRow[]) => <div className="post-artworks-qualified-grid" style={{ gridTemplateColumns: `repeat(${style.columns}, ${style.cardWidth * previewScale}px)`, gap: style.gap * previewScale }}>{items.map((row) => <div key={`${block.id}-${row.rank}`} className="post-artworks-qualified-card" style={cardStyle}>{row.logo ? <img src={row.logo} alt="" draggable={false} style={{ width: `${style.logoScale * 100}%`, height: `${style.logoScale * 100}%` }} /> : null}</div>)}</div>
+                  return <div key={block.id} className={`post-artworks-qualified-block${block.id === selectedBlockId ? ' active' : ''}`} style={{ left: block.x * previewScale, top: block.y * previewScale, width: qualifiedVisualWidth(style) * previewScale, height: qualifiedVisualHeight(style, qualifiedRows.length, eliminatedRows.length) * previewScale }} onPointerDown={(event) => beginDrag(event, block)} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>
+                    {style.showTitles ? <strong className="post-artworks-qualified-title" style={{ color: style.titleColor, fontSize: Math.max(8, style.titleFontSize * previewScale), fontWeight: style.titleFontWeight, marginBottom: 12 * previewScale }}>{style.qualifiedTitle}</strong> : null}
+                    {renderCards(qualifiedRows)}
+                    {eliminatedRows.length ? <div className="post-artworks-qualified-eliminated" style={{ marginTop: style.sectionGap * previewScale }}>{style.showTitles ? <strong className="post-artworks-qualified-title" style={{ color: style.titleColor, fontSize: Math.max(8, style.titleFontSize * previewScale), fontWeight: style.titleFontWeight, marginBottom: 12 * previewScale }}>{style.eliminatedTitle}</strong> : null}{renderCards(eliminatedRows)}</div> : null}
+                    {!rows.length ? <div className="post-artworks-no-data">{!block.source?.jogoId ? 'Selecione o jogo classificatório' : 'Sem classificação para este jogo'}</div> : null}
+                  </div>
+                })}
+                {draft.blocks.filter((block) => block.visible && (block.type === 'table_general' || block.type === 'table_day' || block.type === 'booyahs_day')).map((block) => {
                   const style = normalizeTableStyle(block)
                   const blockRows = sliceRows(rowsForBlock(block, standings, dayStandings, booyahDay), block)
                   const columns = style.columns.filter((column) => column.enabled)
@@ -1427,10 +1635,12 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
                 })}
                 {draft.blocks.filter((block) => block.visible && (block.type === 'mvp_general' || block.type === 'mvp_day' || block.type === 'kills_leaders')).map((block) => {
                   const style = normalizeMvpStyle(block)
+                  const rows = playerRowsForBlock(block, mvpGeneral, mvpDay, killLeaders)
                   const player = playerForBlock(block, mvpGeneral, mvpDay, killLeaders)
-                  return <div key={block.id} className={`post-artworks-mvp-block${block.id === selectedBlockId ? ' active' : ''}`} style={{ left: block.x * previewScale, top: block.y * previewScale, width: style.cardWidth * previewScale, height: style.cardHeight * previewScale, gap: style.gap * previewScale, backgroundColor: style.backgroundColor, backgroundImage: style.backgroundType === 'image' && style.backgroundUrl ? `url(${JSON.stringify(style.backgroundUrl)})` : undefined }} onPointerDown={(event) => beginDrag(event, block)} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>
-                    {player ? <>{style.showPhoto ? <div className="post-artworks-mvp-photo" style={{ width: style.imageSize * previewScale, height: style.imageSize * previewScale, borderRadius: style.imageRadius * previewScale }}>{player.photo ? <img src={player.photo} alt="" draggable={false} /> : <span>{player.nick.slice(0, 1)}</span>}</div> : null}<strong style={{ color: style.nameColor, fontSize: Math.max(8, style.nameFontSize * previewScale), fontWeight: style.nameFontWeight }}>{player.nick}</strong>{style.showTeam && player.team ? <small style={{ color: style.teamColor, fontSize: Math.max(7, style.teamFontSize * previewScale) }}>{player.team}</small> : null}<div className="post-artworks-mvp-stats" style={{ color: style.statsColor, fontSize: Math.max(7, style.statsFontSize * previewScale) }}>{style.showKills ? <b>{player.kills}<small>ABATES</small></b> : null}{style.showDrops ? <b>{player.drops}<small>QUEDAS</small></b> : null}</div></> : <div className="post-artworks-no-data">{block.type === 'mvp_day' && !block.source?.jogoId ? 'Selecione o jogo do MVP' : 'Sem dados de MVP'}</div>}
-                  </div>
+                  const card = (cardPlayer: PostArtworkPlayerRow | null) => <div className="post-artworks-mvp-card-inner" style={{ width: style.cardWidth * previewScale, height: style.cardHeight * previewScale, gap: style.gap * previewScale, backgroundColor: style.backgroundType === 'color' ? style.backgroundColor : 'transparent', backgroundImage: style.backgroundType === 'image' && style.backgroundUrl ? `url(${JSON.stringify(style.backgroundUrl)})` : undefined }}>{cardPlayer ? <>{style.showPhoto ? <div className="post-artworks-mvp-photo" style={{ width: style.imageSize * previewScale, height: style.imageSize * previewScale, borderRadius: style.imageRadius * previewScale }}>{cardPlayer.photo ? <img src={cardPlayer.photo} alt="" draggable={false} /> : <span>{cardPlayer.nick.slice(0, 1)}</span>}</div> : null}<strong style={{ color: style.nameColor, fontSize: Math.max(8, style.nameFontSize * previewScale), fontWeight: style.nameFontWeight }}>{cardPlayer.nick}</strong>{style.showTeam && cardPlayer.team ? <small style={{ color: style.teamColor, fontSize: Math.max(7, style.teamFontSize * previewScale) }}>{cardPlayer.team}</small> : null}<div className="post-artworks-mvp-stats" style={{ color: style.statsColor, fontSize: Math.max(7, style.statsFontSize * previewScale) }}>{style.showKills ? <b>{cardPlayer.kills}<small>ABATES</small></b> : null}{style.showDrops ? <b>{cardPlayer.drops}<small>QUEDAS</small></b> : null}</div></> : null}</div>
+                  const table = (tableRows: PostArtworkPlayerRow[]) => <div className="post-artworks-mvp-ranking-table" style={{ width: style.tableWidth * previewScale, gap: style.tableRowGap * previewScale }}>{tableRows.map((row) => <div key={`${block.id}-rank-${row.rank}`} className="post-artworks-mvp-ranking-row" style={{ height: style.tableRowHeight * previewScale, color: style.tableTextColor, fontSize: Math.max(7, style.tableFontSize * previewScale), backgroundColor: style.tableBackgroundType === 'color' ? style.tableBackgroundColor : 'transparent', backgroundImage: style.tableBackgroundType === 'image' && style.tableBackgroundUrl ? `url(${JSON.stringify(style.tableBackgroundUrl)})` : undefined }}><b style={{ width: style.tableRankWidth * previewScale }}>{row.rank}</b><strong>{row.nick}</strong><span style={{ width: style.tableTeamWidth * previewScale }}>{row.team}</span><em>{row.kills}</em></div>)}</div>
+                  if (block.type === 'mvp_general') return <div key={block.id} className={`post-artworks-mvp-block post-artworks-mvp-general${block.id === selectedBlockId ? ' active' : ''}`} style={{ left: block.x * previewScale, top: block.y * previewScale, width: mvpVisualWidth(block, style) * previewScale, height: mvpVisualHeight(block, style) * previewScale, gap: style.gap * previewScale }} onPointerDown={(event) => beginDrag(event, block)} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>{style.layoutMode === 'table_only' ? table(rows) : <>{card(rows[0] || null)}{rows.length > 1 ? table(rows.slice(1)) : null}</>}{!rows.length ? <div className="post-artworks-no-data">Sem dados de MVP</div> : null}</div>
+                  return <div key={block.id} className={`post-artworks-mvp-block${block.id === selectedBlockId ? ' active' : ''}`} style={{ left: block.x * previewScale, top: block.y * previewScale, width: style.cardWidth * previewScale, height: style.cardHeight * previewScale }} onPointerDown={(event) => beginDrag(event, block)} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>{card(player)}{!player ? <div className="post-artworks-no-data">{block.type === 'mvp_day' && !block.source?.jogoId ? 'Selecione o jogo do MVP' : 'Sem dados de MVP'}</div> : null}</div>
                 })}
                 {!draft.blocks.length ? <div className="post-artworks-canvas-empty"><strong>Adicione um bloco de estatística</strong><span>Use Tabela Geral para o acumulado ou selecione um jogo nos blocos específicos.</span></div> : null}
               </div>
@@ -1440,7 +1650,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
           <aside className="post-artworks-blocks-panel">
             <div className="post-artworks-panel-title"><strong>Blocos da arte</strong><small>Independentes da transmissão</small></div>
             <div className="post-artworks-add-blocks"><button type="button" className="post-artworks-add-block" onClick={addGeneralTable}><Plus size={14} /> Tabela Geral</button><button type="button" className="post-artworks-add-block" onClick={addDayTable}><Plus size={14} /> Tabela do Jogo</button><button type="button" className="post-artworks-add-block" onClick={addQualifiedTeams}><Plus size={14} /> Classificados</button><button type="button" className="post-artworks-add-block" onClick={addBooyahsDay}><Plus size={14} /> Booyahs do Jogo</button><button type="button" className="post-artworks-add-block" onClick={addMvpGeneral}><Plus size={14} /> MVP Geral</button><button type="button" className="post-artworks-add-block" onClick={addMvpDay}><Plus size={14} /> MVP do Jogo</button><button type="button" className="post-artworks-add-block" onClick={addKillLeaders}><Plus size={14} /> Líderes de Abates</button></div>
-            <div className="post-artworks-block-list">{draft.blocks.map((block) => <article key={block.id} className={block.id === selectedBlockId ? 'active' : ''}><button type="button" className="post-artworks-block-select" onClick={() => setSelectedBlockId(block.id)}><small>{block.type === 'table_day' ? 'TABELA DO JOGO' : block.type === 'qualified_teams' ? 'CLASSIFICADOS' : block.type === 'booyahs_day' ? 'BOOYAHS DO JOGO' : block.type === 'mvp_day' ? 'MVP DO JOGO' : block.type === 'kills_leaders' ? 'LÍDERES DE ABATES' : block.type === 'mvp_general' ? 'MVP GERAL' : 'TABELA GERAL'}</small><strong>{block.name}</strong><span>{(block.type === 'table_day' || block.type === 'booyahs_day' || block.type === 'mvp_day' || block.type === 'qualified_teams') ? `${block.source?.jogoName || 'Jogo não selecionado'} · ` : ''}{block.type === 'mvp_general' || block.type === 'mvp_day' || block.type === 'kills_leaders' ? `Top ${block.dataStart || 1}` : `Top ${block.dataStart || 1}–${block.dataEnd || 12}`}</span></button><div><button type="button" title="Duplicar e avançar a faixa" onClick={() => duplicateBlock(block)}><Copy size={13} /></button><button type="button" title="Excluir bloco" onClick={() => deleteBlock(block.id)}><Trash2 size={13} /></button></div></article>)}</div>
+            <div className="post-artworks-block-list">{draft.blocks.map((block) => <article key={block.id} className={block.id === selectedBlockId ? 'active' : ''}><button type="button" className="post-artworks-block-select" onClick={() => setSelectedBlockId(block.id)}><small>{block.type === 'table_day' ? 'TABELA DO JOGO' : block.type === 'qualified_teams' ? 'CLASSIFICADOS' : block.type === 'booyahs_day' ? 'BOOYAHS DO JOGO' : block.type === 'mvp_day' ? 'MVP DO JOGO' : block.type === 'kills_leaders' ? 'LÍDERES DE ABATES' : block.type === 'mvp_general' ? 'MVP GERAL' : 'TABELA GERAL'}</small><strong>{block.name}</strong><span>{(block.type === 'table_day' || block.type === 'booyahs_day' || block.type === 'mvp_day' || block.type === 'qualified_teams') ? `${block.source?.jogoName || 'Jogo não selecionado'} · ` : ''}{block.type === 'qualified_teams' ? `Top ${block.dataEnd || 6} passam` : block.type === 'mvp_general' ? `Top 1–${block.dataEnd || 10}` : block.type === 'mvp_day' || block.type === 'kills_leaders' ? `Top ${block.dataStart || 1}` : `Top ${block.dataStart || 1}–${block.dataEnd || 12}`}</span></button><div><button type="button" title="Duplicar e avançar a faixa" onClick={() => duplicateBlock(block)}><Copy size={13} /></button><button type="button" title="Excluir bloco" onClick={() => deleteBlock(block.id)}><Trash2 size={13} /></button></div></article>)}</div>
             {selectedBlock && selectedMvpStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>{selectedBlock.type === 'kills_leaders' ? 'Visual do líder de abates' : 'Visual do MVP'}</strong><small>Fundo, foto e textos do card.</small></div><label>Fundo<select value={selectedMvpStyle.backgroundType} onChange={(event) => patchMvpStyle({ backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedMvpStyle.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedMvpStyle.backgroundColor} onChange={(event) => patchMvpStyle({ backgroundColor: event.target.value })} /></label> : null}<div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedMvpStyle.backgroundUrl ? 'Trocar fundo do card' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadMvpBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('mvp')}><Images size={13} /> Biblioteca</button></div><div className="post-artworks-grid2"><label>Nome<EditableNumberInput value={selectedMvpStyle.nameFontSize} min={8} max={160} onCommit={(value) => patchMvpStyle({ nameFontSize: value })} /></label><label>Equipe<EditableNumberInput value={selectedMvpStyle.teamFontSize} min={8} max={120} onCommit={(value) => patchMvpStyle({ teamFontSize: value })} /></label><label>Estatísticas<EditableNumberInput value={selectedMvpStyle.statsFontSize} min={8} max={140} onCommit={(value) => patchMvpStyle({ statsFontSize: value })} /></label><label>Raio da foto<EditableNumberInput value={selectedMvpStyle.imageRadius} min={0} max={500} onCommit={(value) => patchMvpStyle({ imageRadius: value })} /></label></div><div className="post-artworks-grid2"><label>Cor do nome<input type="color" value={selectedMvpStyle.nameColor} onChange={(event) => patchMvpStyle({ nameColor: event.target.value })} /></label><label>Cor da equipe<input type="color" value={selectedMvpStyle.teamColor} onChange={(event) => patchMvpStyle({ teamColor: event.target.value })} /></label><label>Cor dos números<input type="color" value={selectedMvpStyle.statsColor} onChange={(event) => patchMvpStyle({ statsColor: event.target.value })} /></label></div></div> : null}
             {selectedBlock && selectedTableStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Colunas</strong><small>Ative, dimensione e aplique fundo por célula.</small></div><div className="post-artworks-column-tabs">{selectedTableStyle.columns.map((column) => <button type="button" key={column.key} className={selectedColumnKey === column.key ? 'active' : ''} onClick={() => setSelectedColumnKey(column.key)}>{TABLE_COLUMN_META[column.key].label || 'LOGO'}</button>)}</div>{selectedColumn ? <><label className="post-artworks-check"><input type="checkbox" checked={selectedColumn.enabled} onChange={(event) => patchColumn(selectedColumn.key, { enabled: event.target.checked })} /> Exibir coluna</label><label>Largura<EditableNumberInput value={selectedColumn.width} min={30} max={1000} onCommit={(value) => patchColumn(selectedColumn.key, { width: value })} /></label><label>Legenda<input value={selectedColumn.label} onChange={(event) => patchColumn(selectedColumn.key, { label: event.target.value })} /></label><label>Fundo<select value={selectedColumn.backgroundType} onChange={(event) => patchColumn(selectedColumn.key, { backgroundType: event.target.value as 'color' | 'image' | 'none' })}><option value="color">Cor</option><option value="image">Imagem</option><option value="none">Sem fundo</option></select></label>{selectedColumn.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedColumn.backgroundColor} onChange={(event) => patchColumn(selectedColumn.key, { backgroundColor: event.target.value })} /></label> : null}<div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedColumn.backgroundUrl ? 'Trocar fundo das células' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadColumnBackground(selectedColumn.key, event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('column')}><Images size={13} /> Biblioteca</button></div>{selectedColumn.key !== 'logo' ? <div className="post-artworks-grid2"><label>Tamanho do texto<EditableNumberInput value={selectedColumn.fontSize} min={8} max={120} onCommit={(value) => patchColumn(selectedColumn.key, { fontSize: value })} /></label><label>Peso<EditableNumberInput value={selectedColumn.fontWeight} min={100} max={900} onCommit={(value) => patchColumn(selectedColumn.key, { fontWeight: value })} /></label><label>Cor do texto<input type="color" value={selectedColumn.color} onChange={(event) => patchColumn(selectedColumn.key, { color: event.target.value })} /></label><label>Alinhamento<select value={selectedColumn.align} onChange={(event) => patchColumn(selectedColumn.key, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}</> : null}</div> : null}
           </aside>
