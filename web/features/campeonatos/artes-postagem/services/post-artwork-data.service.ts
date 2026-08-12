@@ -62,3 +62,14 @@ export function loadPostArtworkGeneralMvp(campeonatoId: string) {
 export function loadPostArtworkDayMvp(campeonatoId: string, rodadaId: string) {
   return loadPostArtworkMvp(campeonatoId, rodadaId)
 }
+
+
+export async function loadPostArtworkDayBooyahs(campeonatoId: string, rodadaId: string) {
+  const rows = await loadPostArtworkTeamStandings(campeonatoId, rodadaId)
+  return [...rows].sort((a, b) => b.booyah - a.booyah || b.kills - a.kills || b.points - a.points || a.rank - b.rank)
+}
+
+export async function loadPostArtworkKillLeaders(campeonatoId: string) {
+  const rows = await loadPostArtworkMvp(campeonatoId)
+  return [...rows].sort((a, b) => b.kills - a.kills || b.damage - a.damage || a.rank - b.rank).map((row, index) => ({ ...row, rank: index + 1 }))
+}

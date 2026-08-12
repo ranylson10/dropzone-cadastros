@@ -39,10 +39,10 @@ test('89S card MVP tem foto equipe abates quedas e visual próprio', () => {
 })
 
 test('89S preview e exportação atualizam MVP Geral e MVP do Dia', () => {
-  expect(workspace).toContain('playerForBlock(block, mvpGeneral, mvpDay)')
+  expect(workspace).toContain('playerForBlock(block, mvpGeneral, mvpDay, killLeaders)')
   expect(workspace).toContain('latestMvpGeneral')
   expect(workspace).toContain('latestMvpDayRows')
-  expect(workspace).toContain('renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows)')
+  expect(workspace).toContain('renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders)')
 })
 
 test('89S adiciona acesso destacado para Artes para postar no topo do campeonato', () => {

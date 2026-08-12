@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, ExternalLink, Filter, Folder, FolderOpen, ImageIcon, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES } from '@/lib/dropzone-constants'
@@ -1635,6 +1635,22 @@ ${params.url}`
               </div>
             </header>
 
+            <section className="champ-post-artworks-hero" aria-label="Gerador de artes do campeonato">
+              <div>
+                <span>CONTEÚDO PARA REDES SOCIAIS</span>
+                <strong>Artes para postar</strong>
+                <small>Monte tabelas, MVPs, classificados e carrosséis e baixe novamente após cada jogo com os dados atualizados.</small>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.assign(`/campeonatos/${selectedChamp.id}/artes-postagem`)}
+              >
+                <ImageIcon size={20} />
+                <span><b>Abrir gerador de imagens</b><small>Templates e estatísticas</small></span>
+                <ExternalLink size={16} />
+              </button>
+            </section>
+
             <nav className="champ-subtabs-ref champ-subtabs-compact" aria-label="Abas do campeonato">
               <div className="champ-subtabs-primary">
                 {producerTabs.filter((item) => mainTabs.includes(item.id)).map((item) => (
@@ -1663,6 +1679,15 @@ ${params.url}`
                       <span>Use os atalhos abaixo. As ferramentas avançadas continuam em “Mais ferramentas”.</span>
                     </div>
                     <div className="champ-overview-flow">
+                      <button
+                        type="button"
+                        className="is-post-artworks"
+                        onClick={() => window.location.assign(`/campeonatos/${selectedChamp.id}/artes-postagem`)}
+                      >
+                        <ImageIcon size={18} />
+                        <strong>Artes para postar</strong>
+                        <small>Tabelas, MVPs e carrosséis</small>
+                      </button>
                       <button type="button" onClick={() => setTab('grupos')}>
                         <FolderOpen size={18} />
                         <strong>Grupos e fases</strong>
