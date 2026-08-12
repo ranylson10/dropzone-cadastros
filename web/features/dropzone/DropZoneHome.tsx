@@ -187,6 +187,7 @@ export function DropZoneHome() {
     status: 'agendado',
     rodada: '',
     intervalo_minutos: '25',
+    mata_mata: false,
     classificam_quantidade: '',
     tipo_jogo: 'normal' as 'normal' | 'final',
     dia_final: '1',
@@ -1320,6 +1321,7 @@ export function DropZoneHome() {
     const totalQuedas = Number(game.numero_partidas || 0)
     if (!Number.isInteger(totalQuedas) || totalQuedas < 1) { setError('Informe uma quantidade válida de quedas.'); return false }
     if (game.grupos_ids.length < 1) { setError('Selecione pelo menos um grupo participante.'); return false }
+    if (game.tipo_jogo !== 'final' && game.mata_mata && (!Number.isInteger(Number(game.classificam_quantidade)) || Number(game.classificam_quantidade) < 1)) { setError('Informe quantas equipes passam de fase neste jogo mata-mata.'); return false }
     const mapas = game.mapas.slice(0, totalQuedas)
     if (mapas.length !== totalQuedas || mapas.some((codigo) => !codigo)) {
       setError('Selecione um mapa para cada queda.')
@@ -1355,6 +1357,8 @@ export function DropZoneHome() {
           escalacao_fecha_horas_antes: Number(game.escalacao_fecha_horas_antes || 0),
           minimo_quedas_jogadas_jogador: Number(game.minimo_partidas_jogadas_jogador || 0),
           tipo_jogo: game.tipo_jogo,
+          mata_mata: game.tipo_jogo === 'final' ? false : Boolean(game.mata_mata),
+          classificam_quantidade: game.tipo_jogo !== 'final' && game.mata_mata ? Number(game.classificam_quantidade || 0) : null,
           dia_final: game.tipo_jogo === 'final' ? Number(game.dia_final || 1) : null,
           define_campeao: game.tipo_jogo === 'final' ? Boolean(game.define_campeao) : false,
           status: game.status || 'agendado',
@@ -1370,7 +1374,7 @@ export function DropZoneHome() {
         permite_troca_jogadores: true, prazo_troca_minutos: '60', prazo_escalacao_minutos: '120',
         escalacao_abre_horas_antes: '24', escalacao_fecha_horas_antes: '2',
         minimo_partidas_jogadas_jogador: '0', status: 'agendado', rodada: '',
-        intervalo_minutos: '25', classificam_quantidade: '', tipo_jogo: 'normal', dia_final: '1', define_campeao: false,
+        intervalo_minutos: '25', mata_mata: false, classificam_quantidade: '', tipo_jogo: 'normal', dia_final: '1', define_campeao: false,
       })
       setMessage('Jogo criado com sucesso.')
       return true
@@ -1393,6 +1397,7 @@ export function DropZoneHome() {
     const totalQuedas = Number(game.numero_partidas || 0)
     if (!Number.isInteger(totalQuedas) || totalQuedas < 1) { setError('Informe uma quantidade válida de quedas.'); return false }
     if (game.grupos_ids.length < 1) { setError('Selecione pelo menos um grupo participante.'); return false }
+    if (game.tipo_jogo !== 'final' && game.mata_mata && (!Number.isInteger(Number(game.classificam_quantidade)) || Number(game.classificam_quantidade) < 1)) { setError('Informe quantas equipes passam de fase neste jogo mata-mata.'); return false }
     const mapas = game.mapas.slice(0, totalQuedas)
     if (mapas.length !== totalQuedas || mapas.some((codigo) => !codigo)) { setError('Selecione um mapa para cada queda.'); return false }
 
@@ -1422,6 +1427,8 @@ export function DropZoneHome() {
           escalacao_fecha_horas_antes: Number(game.escalacao_fecha_horas_antes || 0),
           minimo_quedas_jogadas_jogador: Number(game.minimo_partidas_jogadas_jogador || 0),
           tipo_jogo: game.tipo_jogo,
+          mata_mata: game.tipo_jogo === 'final' ? false : Boolean(game.mata_mata),
+          classificam_quantidade: game.tipo_jogo !== 'final' && game.mata_mata ? Number(game.classificam_quantidade || 0) : null,
           dia_final: game.tipo_jogo === 'final' ? Number(game.dia_final || 1) : null,
           define_campeao: game.tipo_jogo === 'final' ? Boolean(game.define_campeao) : false,
           status: game.status || 'agendado',

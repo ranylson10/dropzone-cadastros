@@ -12,6 +12,7 @@ export type CampeonatoJogoForm = {
   mapas: string
   grupos_ids: string[]
   status: string
+  mata_mata: boolean
   classificam_quantidade: string
   tipo_jogo: 'normal' | 'final'
   dia_final: string

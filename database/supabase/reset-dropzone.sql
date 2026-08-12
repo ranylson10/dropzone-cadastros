@@ -194,6 +194,8 @@ create table if not exists public.campeonato_jogos (
   mapas text[] not null default '{}',
   grupos_ids uuid[] not null default '{}',
   tipo_jogo text not null default 'normal' check (tipo_jogo in ('normal', 'final')),
+  mata_mata boolean not null default false,
+  classificam_quantidade integer check (classificam_quantidade is null or classificam_quantidade > 0),
   dia_final integer check (dia_final is null or dia_final > 0),
   define_campeao boolean not null default false,
   status text not null default 'ativo',

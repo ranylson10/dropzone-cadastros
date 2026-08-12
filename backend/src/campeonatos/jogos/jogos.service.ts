@@ -38,6 +38,8 @@ export type JogoInput = {
   escalacao_fecha_horas_antes?: number | null
   minimo_quedas_jogadas_jogador?: number
   tipo_jogo?: 'normal' | 'final'
+  mata_mata?: boolean
+  classificam_quantidade?: number | null
   dia_final?: number | null
   define_campeao?: boolean
   status?: string
@@ -245,6 +247,8 @@ async function sanitizeJogoInput(input: Partial<JogoInput>, existing?: any): Pro
     escalacao_fecha_horas_antes: fechaHoras,
     minimo_quedas_jogadas_jogador: positiveInt(input.minimo_quedas_jogadas_jogador ?? existing?.minimo_quedas_jogadas_jogador ?? 0, 'Mínimo de quedas jogadas', { allowZero: true }) as number,
     tipo_jogo: (input.tipo_jogo ?? existing?.tipo_jogo ?? 'normal') as JogoInput['tipo_jogo'],
+    mata_mata: Boolean(input.mata_mata ?? existing?.mata_mata ?? false),
+    classificam_quantidade: positiveInt(input.classificam_quantidade ?? existing?.classificam_quantidade, 'Quantidade de classificados', { nullable: true }),
     dia_final: positiveInt(input.dia_final ?? existing?.dia_final, 'Dia da final', { nullable: true }),
     define_campeao: Boolean(input.define_campeao ?? existing?.define_campeao ?? false),
     status: String(input.status ?? existing?.status ?? 'ativo').trim() || 'ativo',
@@ -339,8 +343,13 @@ export async function criarJogo(campeonatoId: string, input: Partial<JogoInput>)
   if (payload.tipo_jogo === 'final' && String((fase as any).tipo || 'normal') !== 'grande_final') {
     throw new Error('Jogos de final precisam estar vinculados à fase Grande Final.')
   }
-  if (payload.tipo_jogo === 'final') payload.dia_final = payload.dia_final || 1
-  else { payload.dia_final = null; payload.define_campeao = false }
+  if (payload.tipo_jogo === 'final') { payload.dia_final = payload.dia_final || 1; payload.mata_mata = false; payload.classificam_quantidade = null }
+  else {
+    payload.dia_final = null
+    payload.define_campeao = false
+    if (!payload.mata_mata) payload.classificam_quantidade = null
+    if (payload.mata_mata && !payload.classificam_quantidade) throw new Error('Informe quantas equipes passam de fase neste jogo mata-mata.')
+  }
   await assertRodadaContexto(campeonatoId, payload.fase_id, payload.rodada_id)
   await assertGruposDaFase(campeonatoId, payload.fase_id, payload.grupos_ids)
 
@@ -388,8 +397,13 @@ export async function atualizarJogo(campeonatoId: string, jogoId: string, input:
   if (payload.tipo_jogo === 'final' && String((fase as any).tipo || 'normal') !== 'grande_final') {
     throw new Error('Jogos de final precisam estar vinculados à fase Grande Final.')
   }
-  if (payload.tipo_jogo === 'final') payload.dia_final = payload.dia_final || 1
-  else { payload.dia_final = null; payload.define_campeao = false }
+  if (payload.tipo_jogo === 'final') { payload.dia_final = payload.dia_final || 1; payload.mata_mata = false; payload.classificam_quantidade = null }
+  else {
+    payload.dia_final = null
+    payload.define_campeao = false
+    if (!payload.mata_mata) payload.classificam_quantidade = null
+    if (payload.mata_mata && !payload.classificam_quantidade) throw new Error('Informe quantas equipes passam de fase neste jogo mata-mata.')
+  }
   await assertRodadaContexto(campeonatoId, payload.fase_id, payload.rodada_id)
   await assertGruposDaFase(campeonatoId, payload.fase_id, payload.grupos_ids)
 

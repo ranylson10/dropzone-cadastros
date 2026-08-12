@@ -32,6 +32,8 @@ export type PostArtworkTableStyle = {
 }
 
 export type PostArtworkBlockSource = {
+  jogoId?: string
+  jogoName?: string
   rodadaId?: string
   rodadaName?: string
 }

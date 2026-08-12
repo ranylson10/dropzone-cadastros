@@ -5,8 +5,8 @@ function number(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-async function loadPostArtworkTeamStandings(campeonatoId: string, rodadaId?: string): Promise<PostArtworkTeamRow[]> {
-  const query = rodadaId ? `?rodada_id=${encodeURIComponent(rodadaId)}` : ''
+async function loadPostArtworkTeamStandings(campeonatoId: string, jogoId?: string): Promise<PostArtworkTeamRow[]> {
+  const query = jogoId ? `?jogo_id=${encodeURIComponent(jogoId)}` : ''
   const response = await fetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/estatisticas/equipes${query}`, { cache: 'no-store' })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(payload?.error || 'Não foi possível carregar a tabela de equipes.')
@@ -26,13 +26,15 @@ export function loadPostArtworkGeneralStandings(campeonatoId: string) {
   return loadPostArtworkTeamStandings(campeonatoId)
 }
 
-export function loadPostArtworkDayStandings(campeonatoId: string, rodadaId: string) {
-  return loadPostArtworkTeamStandings(campeonatoId, rodadaId)
+export function loadPostArtworkGameStandings(campeonatoId: string, jogoId: string) {
+  return loadPostArtworkTeamStandings(campeonatoId, jogoId)
 }
 
+export const loadPostArtworkDayStandings = loadPostArtworkGameStandings
 
-async function loadPostArtworkMvp(campeonatoId: string, rodadaId?: string): Promise<PostArtworkPlayerRow[]> {
-  const query = rodadaId ? `?rodada_id=${encodeURIComponent(rodadaId)}` : ''
+
+async function loadPostArtworkMvp(campeonatoId: string, jogoId?: string): Promise<PostArtworkPlayerRow[]> {
+  const query = jogoId ? `?jogo_id=${encodeURIComponent(jogoId)}` : ''
   const [mvpResponse, teamsResponse] = await Promise.all([
     fetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/estatisticas/mvp${query}`, { cache: 'no-store' }),
     fetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/estatisticas/equipes${query}`, { cache: 'no-store' }),
@@ -59,15 +61,19 @@ export function loadPostArtworkGeneralMvp(campeonatoId: string) {
   return loadPostArtworkMvp(campeonatoId)
 }
 
-export function loadPostArtworkDayMvp(campeonatoId: string, rodadaId: string) {
-  return loadPostArtworkMvp(campeonatoId, rodadaId)
+export function loadPostArtworkGameMvp(campeonatoId: string, jogoId: string) {
+  return loadPostArtworkMvp(campeonatoId, jogoId)
 }
 
+export const loadPostArtworkDayMvp = loadPostArtworkGameMvp
 
-export async function loadPostArtworkDayBooyahs(campeonatoId: string, rodadaId: string) {
-  const rows = await loadPostArtworkTeamStandings(campeonatoId, rodadaId)
+
+export async function loadPostArtworkGameBooyahs(campeonatoId: string, jogoId: string) {
+  const rows = await loadPostArtworkTeamStandings(campeonatoId, jogoId)
   return [...rows].sort((a, b) => b.booyah - a.booyah || b.kills - a.kills || b.points - a.points || a.rank - b.rank)
 }
+
+export const loadPostArtworkDayBooyahs = loadPostArtworkGameBooyahs
 
 export async function loadPostArtworkKillLeaders(campeonatoId: string) {
   const rows = await loadPostArtworkMvp(campeonatoId)

@@ -158,7 +158,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
       nome: '', campeonato_id: props.campeonato.id,
       fase_id: keepPhase ? props.value.fase_id : '', rodada: '', data_jogo: '', horario: '',
       numero_partidas: '3', intervalo_minutos: '25', mapas: '', grupos_ids: [], status: 'agendado',
-      classificam_quantidade: '', tipo_jogo: 'normal', dia_final: '1', define_campeao: false, permite_troca_jogadores: true,
+      mata_mata: false, classificam_quantidade: '', tipo_jogo: 'normal', dia_final: '1', define_campeao: false, permite_troca_jogadores: true,
       prazo_troca_minutos: '60', prazo_escalacao_minutos: '120',
       escalacao_abre_horas_antes: '24', escalacao_fecha_horas_antes: '2',
       minimo_partidas_jogadas_jogador: '0',
@@ -173,7 +173,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
       data_jogo: String(game.data?.data_jogo || ''), horario: String(game.data?.horario || '').slice(0, 5),
       numero_partidas: String(game.data?.numero_partidas || 3), intervalo_minutos: String(game.data?.intervalo_minutos || 25),
       mapas: mapsArray(game.data?.mapas).join(', '), grupos_ids: Array.isArray(game.data?.grupos_ids) ? game.data.grupos_ids.map(String) : [],
-      status: String(game.data?.status || game.status || 'agendado'), classificam_quantidade: String(game.data?.classificam_quantidade || ''),
+      status: String(game.data?.status || game.status || 'agendado'), mata_mata: Boolean(game.data?.mata_mata), classificam_quantidade: String(game.data?.classificam_quantidade || ''),
       tipo_jogo: String(game.data?.tipo_jogo || 'normal') === 'final' ? 'final' : 'normal',
       dia_final: String(game.data?.dia_final || 1),
       define_campeao: Boolean(game.data?.define_campeao), permite_troca_jogadores: game.data?.permite_troca_jogadores !== false,
@@ -250,10 +250,11 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
             <Field label="Intervalo estimado (min)"><input type="number" min="1" value={props.value.intervalo_minutos} onChange={(e) => patch({ intervalo_minutos: e.target.value })} /></Field>
             {effectiveGameType === 'final'
               ? <Field label="Dia da Grande Final"><input type="number" min="1" value={props.value.dia_final} onChange={(e) => patch({ dia_final: e.target.value })} /></Field>
-              : <Field label="Equipes que avançam"><input type="number" min="0" value={props.value.classificam_quantidade} onChange={(e) => patch({ classificam_quantidade: e.target.value })} placeholder="Opcional" /></Field>}
+              : <Field label="Formato competitivo"><select value={props.value.mata_mata ? 'mata_mata' : 'pontos_corridos'} onChange={(e) => patch({ mata_mata: e.target.value === 'mata_mata', classificam_quantidade: e.target.value === 'mata_mata' ? props.value.classificam_quantidade : '' })}><option value="pontos_corridos">Pontos corridos / sem eliminação</option><option value="mata_mata">Mata-mata / classificatório</option></select></Field>}
           </div>
           <div className="mini-grid three">
-            <Field label="Tipo do jogo"><select value={effectiveGameType} disabled={isFinalPhase} onChange={(e) => patch({ tipo_jogo: e.target.value === 'final' ? 'final' : 'normal', dia_final: e.target.value === 'final' ? (props.value.dia_final || '1') : '1', define_campeao: e.target.value === 'final' ? props.value.define_campeao : false })}><option value="normal">Jogo da fase</option><option value="final" disabled={!isFinalPhase}>Jogo de final</option></select></Field>
+            <Field label="Tipo do jogo"><select value={effectiveGameType} disabled={isFinalPhase} onChange={(e) => patch({ tipo_jogo: e.target.value === 'final' ? 'final' : 'normal', mata_mata: e.target.value === 'final' ? false : props.value.mata_mata, classificam_quantidade: e.target.value === 'final' ? '' : props.value.classificam_quantidade, dia_final: e.target.value === 'final' ? (props.value.dia_final || '1') : '1', define_campeao: e.target.value === 'final' ? props.value.define_campeao : false })}><option value="normal">Jogo da fase</option><option value="final" disabled={!isFinalPhase}>Jogo de final</option></select></Field>
+            {effectiveGameType !== 'final' && props.value.mata_mata ? <Field label="Top que passa de fase"><input type="number" min="1" value={props.value.classificam_quantidade} onChange={(e) => patch({ classificam_quantidade: e.target.value })} placeholder="Ex.: 6" /></Field> : null}
             {effectiveGameType === 'final' ? <Field label="Formato"><input value={finalAccumulationMode === 'bonus_por_ranking' ? 'Point Rush' : 'Pontuação acumulada'} disabled /></Field> : null}
             {effectiveGameType === 'final' ? <Field label="Critério"><input value={finalDecisionMode === 'booyah_ouro' ? 'Champion Point' : 'Maior pontuação'} disabled /></Field> : null}
           </div>
@@ -321,7 +322,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
               <span className={`game-status ${String(game.data?.status || game.status || 'agendado')}`}>{String(game.data?.status || game.status || 'agendado').replaceAll('_', ' ')}</span>
             </button>
             {open ? <div className="game-card-details">
-              <div className="game-detail-grid"><div><span>Grupos</span><strong>{groupNames.join(' × ') || 'Não definidos'}</strong></div><div><span>Quedas</span><strong>{game.data?.numero_partidas || 1}</strong></div><div><span>Mapas</span><strong>{mapsArray(game.data?.mapas).join(', ') || 'Não definidos'}</strong></div><div><span>Etapa</span><strong>{game.data?.tipo_jogo === 'final' ? `Grande Final · Dia ${game.data?.dia_final || 1}${game.data?.define_campeao ? ' · decisivo' : ''}` : game.data?.classificam_quantidade ? `${game.data.classificam_quantidade} avançam` : 'Regra da fase'}</strong></div></div>
+              <div className="game-detail-grid"><div><span>Grupos</span><strong>{groupNames.join(' × ') || 'Não definidos'}</strong></div><div><span>Quedas</span><strong>{game.data?.numero_partidas || 1}</strong></div><div><span>Mapas</span><strong>{mapsArray(game.data?.mapas).join(', ') || 'Não definidos'}</strong></div><div><span>Etapa</span><strong>{game.data?.tipo_jogo === 'final' ? `Grande Final · Dia ${game.data?.dia_final || 1}${game.data?.define_campeao ? ' · decisivo' : ''}` : game.data?.mata_mata ? `Mata-mata · Top ${game.data?.classificam_quantidade || '?'} avança` : 'Pontos corridos · sem eliminação'}</strong></div></div>
               <div className="game-card-actions">
                 {canManageGames ? (
                   <>

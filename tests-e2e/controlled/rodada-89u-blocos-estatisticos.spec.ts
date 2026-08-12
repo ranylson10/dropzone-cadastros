@@ -7,12 +7,12 @@ const workspace = fs.readFileSync(path.join(root, 'web/features/campeonatos/arte
 const service = fs.readFileSync(path.join(root, 'web/features/campeonatos/artes-postagem/services/post-artwork-data.service.ts'), 'utf8')
 const types = fs.readFileSync(path.join(root, 'web/features/campeonatos/artes-postagem/types/artwork.types.ts'), 'utf8')
 
-test('89U adiciona Classificados Booyahs do Dia e Líderes de Abates', () => {
+test('89U adiciona Classificados Booyahs do Jogo e Líderes de Abates', () => {
   expect(types).toContain("'qualified_teams'")
   expect(types).toContain("'booyahs_day'")
   expect(types).toContain("'kills_leaders'")
   expect(workspace).toContain('Classificados')
-  expect(workspace).toContain('Booyahs do Dia')
+  expect(workspace).toContain('Booyahs do Jogo')
   expect(workspace).toContain('Líderes de Abates')
 })
 
@@ -23,11 +23,11 @@ test('89U classificados reaproveita editor de tabela mas começa só com colunas
   expect(workspace).toContain('Top ${block.dataStart || 1}–${block.dataEnd || 12}')
 })
 
-test('89U booyahs do dia usa rodada própria e ordena por booyah', () => {
+test('89U booyahs do jogo usa jogo próprio e ordena por booyah', () => {
   expect(workspace).toContain('createBooyahsDayBlock')
   expect(workspace).toContain("block.type === 'booyahs_day'")
-  expect(workspace).toContain('booyahDayRoundKey')
-  expect(service).toContain('loadPostArtworkDayBooyahs')
+  expect(workspace).toContain('booyahGameKey')
+  expect(service).toContain('loadPostArtworkGameBooyahs')
   expect(service).toContain('b.booyah - a.booyah')
   expect(service).not.toContain('/stream/')
 })
