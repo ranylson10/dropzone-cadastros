@@ -341,20 +341,18 @@ function gameOptionsFromApi(jogos: ApiPayload['jogos'], fases: ApiPayload['fases
   })).filter((game) => game.id)
 }
 
-function resolveProjectForGame(project: PostArtworkProject, game?: GameOption | null): PostArtworkProject {
-  if (!game) return cloneDraft(project)
+function resolveBlockForGame(block: PostArtworkBlock, game?: GameOption | null): PostArtworkBlock {
+  if (!game || !(block.type === 'table_day' || block.type === 'qualified_teams' || block.type === 'booyahs_day' || block.type === 'mvp_day')) return { ...block, style: structuredClone(block.style || {}) }
   return {
-    ...cloneDraft(project),
-    blocks: project.blocks.map((block) => {
-      if (!(block.type === 'table_day' || block.type === 'qualified_teams' || block.type === 'booyahs_day' || block.type === 'mvp_day')) return { ...block, style: structuredClone(block.style || {}) }
-      return {
-        ...block,
-        source: { jogoId: game.id, jogoName: game.nome },
-        ...(block.type === 'qualified_teams' && game.mataMata && game.classificamQuantidade ? { dataStart: 1, dataEnd: game.classificamQuantidade } : {}),
-        style: structuredClone(block.style || {}),
-      }
-    }),
+    ...block,
+    source: { jogoId: game.id, jogoName: game.nome },
+    ...(block.type === 'qualified_teams' && game.mataMata && game.classificamQuantidade ? { dataStart: 1, dataEnd: game.classificamQuantidade } : {}),
+    style: structuredClone(block.style || {}),
   }
+}
+
+function resolveProjectForGame(project: PostArtworkProject, game?: GameOption | null): PostArtworkProject {
+  return { ...cloneDraft(project), blocks: project.blocks.map((block) => resolveBlockForGame(block, game)) }
 }
 
 function rowsForBlock(block: PostArtworkBlock, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>, booyahRows: Record<string, PostArtworkTeamRow[]> = {}) {
@@ -680,6 +678,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const [games, setGames] = useState<GameOption[]>([])
   const [generationPhaseId, setGenerationPhaseId] = useState('')
   const [generationGameId, setGenerationGameId] = useState('')
+  const [editorReferenceGameId, setEditorReferenceGameId] = useState('')
   const [artworkSearch, setArtworkSearch] = useState('')
   const [artworkFilter, setArtworkFilter] = useState<'all' | 'tables' | 'mvp' | 'qualified' | 'other'>('all')
   const [quickPreviewUrl, setQuickPreviewUrl] = useState('')
@@ -874,7 +873,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   }, [games])
   const generationGames = useMemo(() => games.filter((game) => !generationPhaseId || game.faseId === generationPhaseId), [games, generationPhaseId])
   const generationGame = useMemo(() => games.find((game) => game.id === generationGameId) || null, [games, generationGameId])
-  const renderDraft = useMemo(() => draft ? (mode === 'generate' ? resolveProjectForGame(draft, generationGame) : draft) : null, [draft, generationGame, mode])
+  const editorReferenceGame = useMemo(() => games.find((game) => game.id === editorReferenceGameId) || null, [games, editorReferenceGameId])
+  const renderDraft = useMemo(() => draft ? (mode === 'generate' ? resolveProjectForGame(draft, generationGame) : mode === 'edit' && editorReferenceGame ? resolveProjectForGame(draft, editorReferenceGame) : draft) : null, [draft, editorReferenceGame, generationGame, mode])
 
   const dayGameKey = useMemo(() => {
     if (!renderDraft) return ''
@@ -1596,6 +1596,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
               <div className="post-artworks-grid2"><label>Largura da fatia<EditableNumberInput value={draft.slice_width} min={240} max={7680} onCommit={(value) => patchSlices({ slice_width: value })} /></label><label>Altura da fatia<EditableNumberInput value={draft.slice_height} min={240} max={7680} onCommit={(value) => patchSlices({ slice_height: value })} /></label><label>Quantidade de fatias<EditableNumberInput value={draft.slice_count} min={1} max={10} onCommit={(value) => patchSlices({ slice_count: value })} /></label><label>Direção<select value={draft.slice_direction} onChange={(event) => patchSlices({ slice_direction: event.target.value as PostArtworkSliceDirection })}><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></label></div>
               <div className="post-artworks-summary"><span>Área total</span><strong>{draft.width} × {draft.height}</strong><small>{draft.slice_count} fatia(s) de {draft.slice_width} × {draft.slice_height}</small></div>
               <label>Formato<select value={draft.output_format} onChange={(event) => patchDraft({ output_format: event.target.value as PostArtworkProject['output_format'] })}><option value="png">PNG</option><option value="jpg">JPG</option></select></label>
+              <label>Dados de pré-visualização<select value={editorReferenceGameId} onChange={(event) => setEditorReferenceGameId(event.target.value)}><option value="">Sem jogo de referência</option>{games.map((game) => <option key={game.id} value={game.id}>{game.nome}{game.grupoNome ? ` · ${game.grupoNome}` : ''}{game.mataMata && game.classificamQuantidade ? ` · Top ${game.classificamQuantidade} passa` : ''}</option>)}</select><small>Usado somente para visualizar e testar o modelo. O jogo não fica preso ao template.</small></label>
               <label>Cor base<input type="color" value={draft.background_color} onChange={(event) => patchDraft({ background_color: event.target.value })} /></label>
               <label className="post-artworks-upload">{uploading ? <Loader2 size={14} className="spin" /> : <ImagePlus size={14} />} {draft.background_url ? 'Trocar fundo da arte' : 'Enviar fundo da arte'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('project')}><Images size={14} /> Escolher da biblioteca</button>
               {draft.background_url ? <button type="button" className="post-artworks-secondary" onClick={() => patchDraft({ background_url: null })}>Remover fundo</button> : null}
@@ -1615,7 +1616,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
             <div ref={previewShellRef} className="post-artworks-preview-shell" onWheel={handlePreviewWheel} onPointerDown={beginPan} onPointerMove={panPreview} onPointerUp={endPan} onPointerCancel={endPan}>
               <div className="post-artworks-preview" style={{ width: draft.width * previewScale, height: draft.height * previewScale, backgroundColor: draft.background_color, backgroundImage: draft.background_url ? `url(${JSON.stringify(draft.background_url)})` : undefined }}>
                 {Array.from({ length: Math.max(0, draft.slice_count - 1) }, (_, index) => <span key={index} className={`post-artworks-slice-line ${draft.slice_direction}`} style={draft.slice_direction === 'horizontal' ? { left: draft.slice_width * (index + 1) * previewScale } : { top: draft.slice_height * (index + 1) * previewScale }} />)}
-                {draft.blocks.filter((block) => block.visible && block.type === 'qualified_teams').map((block) => {
+                {draft.blocks.filter((block) => block.visible && block.type === 'qualified_teams').map((rawBlock) => {
+                  const block = resolveBlockForGame(rawBlock, editorReferenceGame)
                   const style = normalizeQualifiedStyle(block)
                   const rows = rowsForBlock(block, standings, dayStandings, booyahDay)
                   const limit = Math.max(1, block.dataEnd || 6)
@@ -1635,7 +1637,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
                     {!rows.length ? <div className="post-artworks-no-data">{!block.source?.jogoId ? 'Selecione o jogo classificatório' : 'Sem classificação para este jogo'}</div> : null}
                   </div>
                 })}
-                {draft.blocks.filter((block) => block.visible && (block.type === 'table_general' || block.type === 'table_day' || block.type === 'booyahs_day')).map((block) => {
+                {draft.blocks.filter((block) => block.visible && (block.type === 'table_general' || block.type === 'table_day' || block.type === 'booyahs_day')).map((rawBlock) => {
+                  const block = resolveBlockForGame(rawBlock, editorReferenceGame)
                   const style = normalizeTableStyle(block)
                   const blockRows = sliceRows(rowsForBlock(block, standings, dayStandings, booyahDay), block)
                   const columns = style.columns.filter((column) => column.enabled)
@@ -1645,7 +1648,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
                     {!blockRows.length ? <div className="post-artworks-no-data">{(block.type === 'table_day' || block.type === 'booyahs_day') && !block.source?.jogoId ? 'Selecione o jogo do bloco' : 'Sem dados nessa faixa'}</div> : null}
                   </div>
                 })}
-                {draft.blocks.filter((block) => block.visible && (block.type === 'mvp_general' || block.type === 'mvp_day' || block.type === 'kills_leaders')).map((block) => {
+                {draft.blocks.filter((block) => block.visible && (block.type === 'mvp_general' || block.type === 'mvp_day' || block.type === 'kills_leaders')).map((rawBlock) => {
+                  const block = resolveBlockForGame(rawBlock, editorReferenceGame)
                   const style = normalizeMvpStyle(block)
                   const rows = playerRowsForBlock(block, mvpGeneral, mvpDay, killLeaders)
                   const player = playerForBlock(block, mvpGeneral, mvpDay, killLeaders)
