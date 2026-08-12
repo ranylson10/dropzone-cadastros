@@ -21,7 +21,7 @@ import type {
 } from '../types/artwork.types'
 import '../post-artworks.css'
 
-type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; jogos?: Array<any>; fases?: Array<any>; error?: string }
+type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; jogos?: Array<any>; fases?: Array<any>; updated_artworks?: number; updated_references?: number; error?: string }
 type GameOption = { id: string; nome: string; faseId: string; faseNome: string; grupoNome: string; numeroPartidas: number; status: string; mataMata: boolean; classificamQuantidade: number | null }
 type AssetTarget = 'project' | 'column' | 'header' | 'mvp'
 
@@ -462,7 +462,38 @@ function downloadBlob(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtworkId }: { campeonatoId: string; mode?: 'edit' | 'generate' | 'manage'; initialArtworkId?: string }) {
+type PostArtworkAssetUsage = { artworkId: string; artworkName: string; location: string }
+
+function collectAssetUsages(items: PostArtworkProject[], url: string): PostArtworkAssetUsage[] {
+  const usages: PostArtworkAssetUsage[] = []
+  const scan = (value: unknown, path: string[], item: PostArtworkProject, blockName?: string) => {
+    if (typeof value === 'string') {
+      if (value !== url) return
+      const joined = path.join('.')
+      let location = blockName || 'Bloco'
+      if (joined === 'background_url') location = 'Fundo do projeto'
+      else if (joined.endsWith('headerBackgroundUrl')) location = `${blockName || 'Tabela'} · Fundo da legenda`
+      else if (joined.includes('.columns.') && joined.endsWith('.backgroundUrl')) {
+        const columnIndex = Number(path[path.indexOf('columns') + 1])
+        const block = item.blocks.find((candidate) => candidate.name === blockName)
+        const rawColumns = Array.isArray((block?.style as any)?.columns) ? (block?.style as any).columns : []
+        const label = rawColumns[columnIndex]?.label || rawColumns[columnIndex]?.key || 'coluna'
+        location = `${blockName || 'Tabela'} · Coluna ${label}`
+      } else if (joined.endsWith('backgroundUrl')) location = `${blockName || 'Bloco'} · Fundo`
+      usages.push({ artworkId: item.id, artworkName: item.name, location })
+      return
+    }
+    if (Array.isArray(value)) { value.forEach((entry, index) => scan(entry, [...path, String(index)], item, blockName)); return }
+    if (value && typeof value === 'object') for (const [key, entry] of Object.entries(value as Record<string, unknown>)) scan(entry, [...path, key], item, blockName)
+  }
+  for (const item of items) {
+    scan(item.background_url, ['background_url'], item)
+    for (const block of item.blocks) scan(block.style || {}, ['blocks', block.id, 'style'], item, block.name)
+  }
+  return usages
+}
+
+export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtworkId }: { campeonatoId: string; mode?: 'edit' | 'generate' | 'manage' | 'library'; initialArtworkId?: string }) {
   const [items, setItems] = useState<PostArtworkProject[]>([])
   const [activeId, setActiveId] = useState('')
   const [draft, setDraft] = useState<PostArtworkProject | null>(null)
@@ -491,6 +522,11 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [assetTarget, setAssetTarget] = useState<AssetTarget>('project')
   const [libraryError, setLibraryError] = useState('')
+  const [libraryKindFilter, setLibraryKindFilter] = useState<'all' | PostArtworkAssetKind>('all')
+  const [libraryUploadKind, setLibraryUploadKind] = useState<PostArtworkAssetKind>('background')
+  const [usageAssetId, setUsageAssetId] = useState('')
+  const [replacingAssetId, setReplacingAssetId] = useState('')
+  const [uploadingLibrary, setUploadingLibrary] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [previewZoom, setPreviewZoom] = useState(100)
@@ -513,8 +549,10 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
     try {
       const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/assets`, { method: 'POST', body: JSON.stringify({ url, name, kind }) })
       if (body.asset) setAssets((current) => [body.asset!, ...current.filter((item) => item.id !== body.asset!.id)])
+      return body.asset || null
     } catch (e: any) {
       setLibraryError(e?.message || 'Imagem enviada, mas não foi possível salvá-la na biblioteca.')
+      return null
     }
   }
 
@@ -537,6 +575,44 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/assets/${encodeURIComponent(assetId)}`, { method: 'DELETE' })
       setAssets((current) => current.filter((item) => item.id !== assetId))
     } catch (e: any) { setLibraryError(e?.message || 'Não foi possível remover a imagem da biblioteca.') }
+  }
+
+  async function uploadLibraryAsset(file?: File | null) {
+    if (!file) return
+    setUploadingLibrary(true); setLibraryError(''); setFeedback('')
+    try {
+      const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId })
+      const asset = await rememberAsset(url, file.name || 'Imagem', libraryUploadKind)
+      if (asset) setFeedback('Imagem adicionada à biblioteca.')
+    } catch (e: any) { setLibraryError(e?.message || 'Não foi possível enviar a imagem para a biblioteca.') }
+    finally { setUploadingLibrary(false) }
+  }
+
+  async function replaceLibraryAsset(asset: PostArtworkAsset, file?: File | null) {
+    if (!file) return
+    const uses = collectAssetUsages(items, asset.url)
+    const message = uses.length ? `Substituir “${asset.name}” em ${uses.length} uso(s) de ${new Set(uses.map((use) => use.artworkId)).size} arte(s)?` : `Substituir “${asset.name}” na biblioteca?`
+    if (!window.confirm(message)) return
+    setReplacingAssetId(asset.id); setLibraryError(''); setFeedback('')
+    try {
+      const url = await uploadPublicFile(file, 'campeonato', 'produtora', { campeonatoId })
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/assets/${encodeURIComponent(asset.id)}`, { method: 'PUT', body: JSON.stringify({ url, name: file.name || asset.name }) })
+      if (body.asset) setAssets((current) => current.map((currentAsset) => currentAsset.id === asset.id ? body.asset! : currentAsset))
+      await reload(activeId)
+      setFeedback(`Imagem substituída em ${body.updated_references || 0} uso(s) de ${body.updated_artworks || 0} arte(s).`)
+    } catch (e: any) { setLibraryError(e?.message || 'Não foi possível substituir esta imagem.') }
+    finally { setReplacingAssetId('') }
+  }
+
+  async function downloadLibraryAsset(asset: PostArtworkAsset) {
+    setLibraryError('')
+    try {
+      const response = await fetch(asset.url)
+      if (!response.ok) throw new Error('download')
+      downloadBlob(await response.blob(), asset.name || 'imagem')
+    } catch {
+      window.open(asset.url, '_blank', 'noopener,noreferrer')
+    }
   }
 
   async function reload(preferredId?: string) {
@@ -639,6 +715,10 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       return !search || item.name.toLocaleLowerCase('pt-BR').includes(search)
     })
   }, [items, artworkFilter, artworkSearch])
+
+  const filteredAssets = useMemo(() => assets.filter((asset) => libraryKindFilter === 'all' || asset.kind === libraryKindFilter), [assets, libraryKindFilter])
+  const selectedUsageAsset = useMemo(() => assets.find((asset) => asset.id === usageAssetId) || null, [assets, usageAssetId])
+  const selectedAssetUsages = useMemo(() => selectedUsageAsset ? collectAssetUsages(items, selectedUsageAsset.url) : [], [items, selectedUsageAsset])
 
   async function renameProject(item: PostArtworkProject) {
     const name = window.prompt('Novo nome da arte', item.name)?.trim()
@@ -1020,6 +1100,36 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
 
   if (loading) return <div className="post-artworks-state"><Loader2 className="spin" /> Carregando artes…</div>
 
+  if (mode === 'library') {
+    return <div className="post-artworks-page post-artworks-generate-page post-artworks-library-page">
+      <header className="post-artworks-header post-artworks-generate-header">
+        <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={14} /> Voltar ao campeonato</a><small>ARTES · {campeonatoNome}</small><h1>Biblioteca de imagens</h1><p>Baixe os arquivos, veja exatamente onde cada imagem é usada e substitua todos os usos de uma vez.</p></div>
+        <div className="post-artworks-header-actions"><label className="post-artworks-primary post-artworks-library-upload-main">{uploadingLibrary ? <Loader2 className="spin" size={15} /> : <ImagePlus size={15} />} Adicionar imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadLibraryAsset(event.target.files?.[0])} /></label></div>
+      </header>
+      <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem/biblioteca`}>Biblioteca de imagens</a></nav>
+      {error ? <div className="post-artworks-alert error">{error}</div> : null}
+      {libraryError ? <div className="post-artworks-alert error">{libraryError}</div> : null}
+      {feedback ? <div className="post-artworks-alert success">{feedback}</div> : null}
+      <section className="post-artworks-library-toolbar">
+        <div className="post-artworks-library-filter"><strong>Mostrar</strong>{([['all','Todas'],['background','Fundos'],['cell','Células'],['card','Cards'],['other','Outras']] as const).map(([key,label]) => <button type="button" key={key} className={libraryKindFilter === key ? 'active' : ''} onClick={() => setLibraryKindFilter(key)}>{label}</button>)}</div>
+        <label><span>Tipo do próximo upload</span><select value={libraryUploadKind} onChange={(event) => setLibraryUploadKind(event.target.value as PostArtworkAssetKind)}><option value="background">Fundo de arte</option><option value="cell">Fundo de célula</option><option value="card">Fundo de card</option><option value="other">Outra imagem</option></select></label>
+      </section>
+      <section className="post-artworks-smart-library-grid">
+        {filteredAssets.map((asset) => {
+          const uses = collectAssetUsages(items, asset.url)
+          const artworkCount = new Set(uses.map((use) => use.artworkId)).size
+          return <article key={asset.id}>
+            <div className="post-artworks-smart-library-thumb" style={{ backgroundImage: `url(${JSON.stringify(asset.url)})` }} />
+            <div className="post-artworks-smart-library-copy"><b>{asset.name}</b><span>{asset.kind === 'background' ? 'Fundo de arte' : asset.kind === 'cell' ? 'Fundo de célula' : asset.kind === 'card' ? 'Fundo de card' : 'Imagem'}</span><small>{uses.length ? `${uses.length} uso(s) em ${artworkCount} arte(s)` : 'Ainda não usada nas artes'}</small></div>
+            <div className="post-artworks-smart-library-actions"><button type="button" onClick={() => void downloadLibraryAsset(asset)}><Download size={13} /> Baixar</button><button type="button" onClick={() => setUsageAssetId(asset.id)}>Ver usos</button><label>{replacingAssetId === asset.id ? <Loader2 className="spin" size={13} /> : <ImagePlus size={13} />} Substituir em todas<input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={Boolean(replacingAssetId)} onChange={(event) => void replaceLibraryAsset(asset, event.target.files?.[0])} /></label>{!uses.length ? <button type="button" className="danger" onClick={() => void deleteLibraryAsset(asset.id)}><Trash2 size={13} /> Remover</button> : null}</div>
+          </article>
+        })}
+        {!filteredAssets.length ? <div className="post-artworks-empty"><Images size={30} /><strong>Nenhuma imagem nesta categoria</strong><span>Adicione um arquivo aqui ou faça upload pelo editor. Tudo fica disponível para reutilização no campeonato.</span></div> : null}
+      </section>
+      {selectedUsageAsset ? <div className="post-artworks-library-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setUsageAssetId('') }}><section className="post-artworks-library post-artworks-usage-modal"><header><div><small>ONDE ESTA IMAGEM É USADA</small><strong>{selectedUsageAsset.name}</strong><span>{selectedAssetUsages.length} referência(s) encontrada(s).</span></div><button type="button" onClick={() => setUsageAssetId('')} aria-label="Fechar usos"><X size={18} /></button></header><div className="post-artworks-usage-list">{selectedAssetUsages.map((use, index) => <article key={`${use.artworkId}-${use.location}-${index}`}><div><b>{use.artworkName}</b><span>{use.location}</span></div><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor?artwork=${encodeURIComponent(use.artworkId)}`}>Editar arte</a></article>)}{!selectedAssetUsages.length ? <div className="post-artworks-library-empty"><strong>Sem usos</strong><span>Esta imagem está guardada na biblioteca, mas nenhum template atual aponta para ela.</span></div> : null}</div></section></div> : null}
+    </div>
+  }
+
   if (mode === 'manage') {
     return (
       <div className="post-artworks-page post-artworks-manage-page">
@@ -1028,7 +1138,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
           <div className="post-artworks-header-actions"><a className="post-artworks-secondary" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
         </header>
 
-        <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><button type="button" onClick={() => openAssetLibrary('project')}>Biblioteca de imagens</button></nav>
+        <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/biblioteca`}>Biblioteca de imagens</a></nav>
 
         {error ? <div className="post-artworks-alert error">{error}</div> : null}
         {feedback ? <div className="post-artworks-alert success">{feedback}</div> : null}
@@ -1074,10 +1184,10 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       <div className="post-artworks-page post-artworks-generate-page">
         <header className="post-artworks-header post-artworks-generate-header">
           <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={15} /> Voltar ao campeonato</a><small>CENTRAL DE ARTES</small><h1>{campeonatoNome}</h1><p>Selecione o jogo, confira as artes prontas com os dados atualizados e baixe. O editor só é necessário quando você quiser mudar o layout.</p></div>
-          <div className="post-artworks-header-actions"><button type="button" className="post-artworks-secondary" onClick={() => openAssetLibrary('project')}><Images size={15} /> Biblioteca de imagens</button><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
+          <div className="post-artworks-header-actions"><a className="post-artworks-secondary" href={`/campeonatos/${campeonatoId}/artes-postagem/biblioteca`}><Images size={15} /> Biblioteca de imagens</a><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
         </header>
 
-        <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><button type="button" onClick={() => openAssetLibrary('project')}>Biblioteca de imagens</button></nav>
+        <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/salvas`}>Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/biblioteca`}>Biblioteca de imagens</a></nav>
 
         {error ? <div className="post-artworks-alert error">{error}</div> : null}
         <section className="post-artworks-generate-filter">
