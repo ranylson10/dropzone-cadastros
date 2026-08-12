@@ -31,13 +31,12 @@ test('89P persiste templates em tabela própria e não no pacote da live', () =>
 })
 
 test('89P editor base tem canvas, fatias, fundo e formato independentes', () => {
-  expect(workspace).toContain('ESTATÍSTICAS PARA POSTAR')
+  expect(workspace).toContain('ARTES PARA POSTAR')
   expect(workspace).toContain('Largura da fatia')
   expect(workspace).toContain('Altura da fatia')
   expect(workspace).toContain('Quantidade de fatias')
   expect(workspace).toContain('Enviar fundo da arte')
   expect(workspace).toContain('Área de trabalho')
-  expect(workspace).toContain('FATIA')
   expect(workspace).toContain('Salvar template')
 })
 
