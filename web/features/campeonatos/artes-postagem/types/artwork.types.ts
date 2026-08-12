@@ -29,6 +29,11 @@ export type PostArtworkTableStyle = {
   columns: PostArtworkTableColumnStyle[]
 }
 
+export type PostArtworkBlockSource = {
+  rodadaId?: string
+  rodadaName?: string
+}
+
 export type PostArtworkBlock = {
   id: string
   type: PostArtworkBlockType
@@ -39,6 +44,7 @@ export type PostArtworkBlock = {
   visible: boolean
   dataStart?: number
   dataEnd?: number
+  source?: PostArtworkBlockSource
   style?: Record<string, unknown>
 }
 

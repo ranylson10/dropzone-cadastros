@@ -5,7 +5,7 @@ import JSZip from 'jszip'
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
-import { loadPostArtworkGeneralStandings } from '../services/post-artwork-data.service'
+import { loadPostArtworkDayStandings, loadPostArtworkGeneralStandings } from '../services/post-artwork-data.service'
 import type {
   PostArtworkBlock,
   PostArtworkProject,
@@ -17,7 +17,8 @@ import type {
 } from '../types/artwork.types'
 import '../post-artworks.css'
 
-type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; error?: string }
+type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; partidas?: Array<{ rodada_id?: string | null; rodada_nome?: string | null }>; error?: string }
+type RoundOption = { id: string; nome: string }
 
 const TABLE_COLUMN_META: Record<PostArtworkTableColumnKey, { label: string; defaultWidth: number; align: 'left' | 'center' | 'right' }> = {
   rank: { label: 'RK', defaultWidth: 74, align: 'center' },
@@ -131,6 +132,38 @@ function createGeneralTableBlock(index: number): PostArtworkBlock {
   }
 }
 
+function createDayTableBlock(index: number, round?: RoundOption): PostArtworkBlock {
+  const style = defaultTableStyle()
+  return {
+    id: uid('table-day'),
+    type: 'table_day',
+    name: `Tabela do Dia ${index + 1}`,
+    x: 60,
+    y: 220,
+    width: tableVisualWidth(style),
+    visible: true,
+    dataStart: 1,
+    dataEnd: 12,
+    source: round ? { rodadaId: round.id, rodadaName: round.nome } : {},
+    style: style as unknown as Record<string, unknown>,
+  }
+}
+
+function roundOptionsFromPartidas(partidas: ApiPayload['partidas']): RoundOption[] {
+  const unique = new Map<string, string>()
+  for (const partida of partidas || []) {
+    const id = String(partida.rodada_id || '')
+    if (!id) continue
+    if (!unique.has(id)) unique.set(id, String(partida.rodada_nome || `Rodada ${unique.size + 1}`))
+  }
+  return [...unique.entries()].map(([id, nome]) => ({ id, nome }))
+}
+
+function rowsForBlock(block: PostArtworkBlock, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>) {
+  if (block.type === 'table_day') return dayRows[block.source?.rodadaId || ''] || []
+  return generalRows
+}
+
 function cloneDraft(item: PostArtworkProject): PostArtworkProject {
   return { ...item, blocks: item.blocks.map((block) => ({ ...block, style: structuredClone(block.style || {}) })) }
 }
@@ -180,7 +213,7 @@ async function drawCover(ctx: CanvasRenderingContext2D, url: string, x: number, 
   }
 }
 
-async function renderArtworkCanvas(project: PostArtworkProject, rows: PostArtworkTeamRow[]) {
+async function renderArtworkCanvas(project: PostArtworkProject, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>) {
   const canvas = document.createElement('canvas')
   canvas.width = project.width
   canvas.height = project.height
@@ -191,9 +224,9 @@ async function renderArtworkCanvas(project: PostArtworkProject, rows: PostArtwor
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   if (project.background_url) await drawCover(ctx, project.background_url, 0, 0, canvas.width, canvas.height)
 
-  for (const block of project.blocks.filter((item) => item.visible && item.type === 'table_general')) {
+  for (const block of project.blocks.filter((item) => item.visible && (item.type === 'table_general' || item.type === 'table_day'))) {
     const style = normalizeTableStyle(block)
-    const blockRows = sliceRows(rows, block)
+    const blockRows = sliceRows(rowsForBlock(block, generalRows, dayRows), block)
     const columns = style.columns.filter((column) => column.enabled)
     const totalWidth = tableVisualWidth(style)
     let y = block.y
@@ -263,6 +296,8 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   const [draft, setDraft] = useState<PostArtworkProject | null>(null)
   const [campeonatoNome, setCampeonatoNome] = useState('Campeonato')
   const [standings, setStandings] = useState<PostArtworkTeamRow[]>([])
+  const [rounds, setRounds] = useState<RoundOption[]>([])
+  const [dayStandings, setDayStandings] = useState<Record<string, PostArtworkTeamRow[]>>({})
   const [selectedBlockId, setSelectedBlockId] = useState('')
   const [selectedColumnKey, setSelectedColumnKey] = useState<PostArtworkTableColumnKey>('name')
   const [loading, setLoading] = useState(true)
@@ -278,13 +313,15 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     setLoading(true)
     setError('')
     try {
-      const [body, ranking] = await Promise.all([
+      const [body, ranking, sumula] = await Promise.all([
         authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem`),
         loadPostArtworkGeneralStandings(campeonatoId).catch(() => []),
+        authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/sumula`).catch(() => ({} as ApiPayload)),
       ])
       const next = body.items || []
       setItems(next)
       setStandings(ranking)
+      setRounds(roundOptionsFromPartidas(sumula.partidas))
       setCampeonatoNome(body.campeonato?.nome || 'Campeonato')
       const nextId = preferredId || activeId || next[0]?.id || ''
       setActiveId(nextId)
@@ -297,6 +334,20 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   }
 
   useEffect(() => { void reload() }, [campeonatoId])
+
+  const dayRoundKey = useMemo(() => {
+    if (!draft) return ''
+    return [...new Set(draft.blocks.filter((block) => block.type === 'table_day').map((block) => block.source?.rodadaId).filter(Boolean))].sort().join('|')
+  }, [draft])
+
+  useEffect(() => {
+    const ids = dayRoundKey ? dayRoundKey.split('|').filter(Boolean) : []
+    if (!ids.length) { setDayStandings({}); return }
+    let active = true
+    Promise.all(ids.map(async (rodadaId) => [rodadaId, await loadPostArtworkDayStandings(campeonatoId, rodadaId).catch(() => [])] as const))
+      .then((entries) => { if (active) setDayStandings(Object.fromEntries(entries)) })
+    return () => { active = false }
+  }, [campeonatoId, dayRoundKey])
 
   function selectItem(id: string) {
     setActiveId(id)
@@ -367,6 +418,14 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     setSelectedBlockId(block.id)
   }
 
+  function addDayTable() {
+    if (!draft) return
+    const round = rounds[rounds.length - 1]
+    const block = createDayTableBlock(draft.blocks.filter((item) => item.type === 'table_day').length, round)
+    setDraft({ ...draft, blocks: [...draft.blocks, block] })
+    setSelectedBlockId(block.id)
+  }
+
   function patchBlock(blockId: string, patch: Partial<PostArtworkBlock>) {
     if (!draft) return
     setDraft({ ...draft, blocks: draft.blocks.map((block) => block.id === blockId ? { ...block, ...patch } : block) })
@@ -376,7 +435,7 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     if (!draft) return
     const nextStart = (block.dataEnd || 12) + 1
     const count = Math.max(1, (block.dataEnd || 12) - (block.dataStart || 1) + 1)
-    const copy: PostArtworkBlock = { ...structuredClone(block), id: uid('table-general'), name: `${block.name} cópia`, x: block.x + 24, y: block.y + 24, dataStart: nextStart, dataEnd: nextStart + count - 1 }
+    const copy: PostArtworkBlock = { ...structuredClone(block), id: uid(block.type === 'table_day' ? 'table-day' : 'table-general'), name: `${block.name} cópia`, x: block.x + 24, y: block.y + 24, dataStart: nextStart, dataEnd: nextStart + count - 1 }
     setDraft({ ...draft, blocks: [...draft.blocks, copy] })
     setSelectedBlockId(copy.id)
   }
@@ -388,7 +447,7 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   }
 
   const selectedBlock = draft?.blocks.find((block) => block.id === selectedBlockId) || null
-  const selectedTableStyle = selectedBlock?.type === 'table_general' ? normalizeTableStyle(selectedBlock) : null
+  const selectedTableStyle = selectedBlock && (selectedBlock.type === 'table_general' || selectedBlock.type === 'table_day') ? normalizeTableStyle(selectedBlock) : null
   const selectedColumn = selectedTableStyle?.columns.find((column) => column.key === selectedColumnKey) || null
 
   function patchTableStyle(patch: Partial<PostArtworkTableStyle>) {
@@ -418,8 +477,12 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     setExporting(true); setError('')
     try {
       const latestRows = await loadPostArtworkGeneralStandings(campeonatoId)
+      const dayIds = [...new Set(draft.blocks.filter((block) => block.type === 'table_day').map((block) => block.source?.rodadaId).filter(Boolean))] as string[]
+      const latestDayEntries = await Promise.all(dayIds.map(async (rodadaId) => [rodadaId, await loadPostArtworkDayStandings(campeonatoId, rodadaId)] as const))
+      const latestDayRows = Object.fromEntries(latestDayEntries)
       setStandings(latestRows)
-      const board = await renderArtworkCanvas(draft, latestRows)
+      setDayStandings(latestDayRows)
+      const board = await renderArtworkCanvas(draft, latestRows, latestDayRows)
       const extension = draft.output_format
       if (draft.slice_count === 1) {
         downloadBlob(await canvasBlob(board, extension), `${draft.name || 'arte'}.${extension}`)
@@ -488,6 +551,7 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
               {draft.background_url ? <button type="button" className="post-artworks-secondary" onClick={() => patchDraft({ background_url: null })}>Remover fundo</button> : null}
             </> : <>
               <label>Nome do bloco<input value={selectedBlock.name} onChange={(event) => patchBlock(selectedBlock.id, { name: event.target.value })} /></label>
+              {selectedBlock.type === 'table_day' ? <label>Rodada / dia<select value={selectedBlock.source?.rodadaId || ''} onChange={(event) => { const round = rounds.find((item) => item.id === event.target.value); patchBlock(selectedBlock.id, { source: { rodadaId: event.target.value, rodadaName: round?.nome || '' } }) }}><option value="">Selecione a rodada</option>{rounds.map((round) => <option key={round.id} value={round.id}>{round.nome}</option>)}</select></label> : null}
               <div className="post-artworks-grid2"><label>X<EditableNumberInput value={selectedBlock.x} min={-20000} max={20000} onCommit={(value) => patchBlock(selectedBlock.id, { x: value })} /></label><label>Y<EditableNumberInput value={selectedBlock.y} min={-20000} max={20000} onCommit={(value) => patchBlock(selectedBlock.id, { y: value })} /></label><label>Do item<EditableNumberInput value={selectedBlock.dataStart || 1} min={1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: value, dataEnd: Math.max(value, selectedBlock.dataEnd || value) })} /></label><label>Até<EditableNumberInput value={selectedBlock.dataEnd || 12} min={selectedBlock.dataStart || 1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataEnd: value })} /></label></div>
               {selectedTableStyle ? <><div className="post-artworks-subtitle"><strong>Tabela</strong><small>Uma coluna de ranking por bloco.</small></div><div className="post-artworks-grid2"><label>Altura da linha<EditableNumberInput value={selectedTableStyle.rowHeight} min={20} max={300} onCommit={(value) => patchTableStyle({ rowHeight: value })} /></label><label>Espaço entre linhas<EditableNumberInput value={selectedTableStyle.rowGap} min={0} max={100} onCommit={(value) => patchTableStyle({ rowGap: value })} /></label><label>Gap entre células<EditableNumberInput value={selectedTableStyle.cellGap} min={0} max={100} onCommit={(value) => patchTableStyle({ cellGap: value })} /></label><label>Altura da legenda<EditableNumberInput value={selectedTableStyle.headerHeight} min={20} max={150} onCommit={(value) => patchTableStyle({ headerHeight: value })} /></label></div><label className="post-artworks-check"><input type="checkbox" checked={selectedTableStyle.showHeader} onChange={(event) => patchTableStyle({ showHeader: event.target.checked })} /> Exibir legenda</label></> : null}
             </>}
@@ -499,25 +563,25 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
             <div className="post-artworks-preview-shell">
               <div className="post-artworks-preview" style={{ width: draft.width * previewScale, height: draft.height * previewScale, backgroundColor: draft.background_color, backgroundImage: draft.background_url ? `url(${JSON.stringify(draft.background_url)})` : undefined }}>
                 {Array.from({ length: Math.max(0, draft.slice_count - 1) }, (_, index) => <span key={index} className={`post-artworks-slice-line ${draft.slice_direction}`} style={draft.slice_direction === 'horizontal' ? { left: draft.slice_width * (index + 1) * previewScale } : { top: draft.slice_height * (index + 1) * previewScale }} />)}
-                {draft.blocks.filter((block) => block.visible && block.type === 'table_general').map((block) => {
+                {draft.blocks.filter((block) => block.visible && (block.type === 'table_general' || block.type === 'table_day')).map((block) => {
                   const style = normalizeTableStyle(block)
-                  const blockRows = sliceRows(standings, block)
+                  const blockRows = sliceRows(rowsForBlock(block, standings, dayStandings), block)
                   const columns = style.columns.filter((column) => column.enabled)
                   return <div key={block.id} className={`post-artworks-table-block${block.id === selectedBlockId ? ' active' : ''}`} style={{ left: block.x * previewScale, top: block.y * previewScale, width: tableVisualWidth(style) * previewScale, height: tableVisualHeight(style, blockRows.length) * previewScale }} onPointerDown={(event) => beginDrag(event, block)} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>
                     {style.showHeader ? <div className="post-artworks-table-row header" style={{ height: style.headerHeight * previewScale, gap: style.cellGap * previewScale, marginBottom: style.rowGap * previewScale }}>{columns.map((column) => <div key={column.key} style={{ width: column.width * previewScale, background: style.headerBackgroundColor, color: style.headerColor, fontSize: Math.max(7, 18 * previewScale) }}>{column.label}</div>)}</div> : null}
                     {blockRows.map((row) => <div key={`${block.id}-${row.rank}`} className="post-artworks-table-row" style={{ height: style.rowHeight * previewScale, gap: style.cellGap * previewScale, marginBottom: style.rowGap * previewScale }}>{columns.map((column) => <div key={column.key} className={`cell align-${column.align}`} style={{ width: column.width * previewScale, color: column.color, fontSize: Math.max(7, column.fontSize * previewScale), fontWeight: column.fontWeight, backgroundColor: column.backgroundColor, backgroundImage: column.backgroundType === 'image' && column.backgroundUrl ? `url(${JSON.stringify(column.backgroundUrl)})` : undefined }}>{column.key === 'logo' ? (row.logo ? <img src={row.logo} alt="" draggable={false} /> : null) : cellValue(row, column.key)}</div>)}</div>)}
-                    {!blockRows.length ? <div className="post-artworks-no-data">Sem dados nessa faixa</div> : null}
+                    {!blockRows.length ? <div className="post-artworks-no-data">{block.type === 'table_day' && !block.source?.rodadaId ? 'Selecione a rodada do bloco' : 'Sem dados nessa faixa'}</div> : null}
                   </div>
                 })}
-                {!draft.blocks.length ? <div className="post-artworks-canvas-empty"><strong>Adicione a Tabela Geral</strong><span>Depois duplique o bloco para criar 1–12, 13–24, 25–36 ou qualquer faixa que precisar.</span></div> : null}
+                {!draft.blocks.length ? <div className="post-artworks-canvas-empty"><strong>Adicione um bloco de estatística</strong><span>Use Tabela Geral para o acumulado ou Tabela do Dia para uma rodada específica.</span></div> : null}
               </div>
             </div>
           </main>
 
           <aside className="post-artworks-blocks-panel">
             <div className="post-artworks-panel-title"><strong>Blocos da arte</strong><small>Independentes da transmissão</small></div>
-            <button type="button" className="post-artworks-add-block" onClick={addGeneralTable}><Plus size={14} /> Tabela Geral</button>
-            <div className="post-artworks-block-list">{draft.blocks.map((block) => <article key={block.id} className={block.id === selectedBlockId ? 'active' : ''}><button type="button" className="post-artworks-block-select" onClick={() => setSelectedBlockId(block.id)}><small>TABELA GERAL</small><strong>{block.name}</strong><span>Top {block.dataStart || 1}–{block.dataEnd || 12}</span></button><div><button type="button" title="Duplicar e avançar a faixa" onClick={() => duplicateBlock(block)}><Copy size={13} /></button><button type="button" title="Excluir bloco" onClick={() => deleteBlock(block.id)}><Trash2 size={13} /></button></div></article>)}</div>
+            <div className="post-artworks-add-blocks"><button type="button" className="post-artworks-add-block" onClick={addGeneralTable}><Plus size={14} /> Tabela Geral</button><button type="button" className="post-artworks-add-block" onClick={addDayTable}><Plus size={14} /> Tabela do Dia</button></div>
+            <div className="post-artworks-block-list">{draft.blocks.map((block) => <article key={block.id} className={block.id === selectedBlockId ? 'active' : ''}><button type="button" className="post-artworks-block-select" onClick={() => setSelectedBlockId(block.id)}><small>{block.type === 'table_day' ? 'TABELA DO DIA' : 'TABELA GERAL'}</small><strong>{block.name}</strong><span>{block.type === 'table_day' ? `${block.source?.rodadaName || 'Rodada não selecionada'} · ` : ''}Top {block.dataStart || 1}–{block.dataEnd || 12}</span></button><div><button type="button" title="Duplicar e avançar a faixa" onClick={() => duplicateBlock(block)}><Copy size={13} /></button><button type="button" title="Excluir bloco" onClick={() => deleteBlock(block.id)}><Trash2 size={13} /></button></div></article>)}</div>
             {selectedBlock && selectedTableStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Colunas</strong><small>Ative, dimensione e aplique fundo por célula.</small></div><div className="post-artworks-column-tabs">{selectedTableStyle.columns.map((column) => <button type="button" key={column.key} className={selectedColumnKey === column.key ? 'active' : ''} onClick={() => setSelectedColumnKey(column.key)}>{TABLE_COLUMN_META[column.key].label || 'LOGO'}</button>)}</div>{selectedColumn ? <><label className="post-artworks-check"><input type="checkbox" checked={selectedColumn.enabled} onChange={(event) => patchColumn(selectedColumn.key, { enabled: event.target.checked })} /> Exibir coluna</label><label>Largura<EditableNumberInput value={selectedColumn.width} min={30} max={1000} onCommit={(value) => patchColumn(selectedColumn.key, { width: value })} /></label><label>Legenda<input value={selectedColumn.label} onChange={(event) => patchColumn(selectedColumn.key, { label: event.target.value })} /></label><label>Fundo<select value={selectedColumn.backgroundType} onChange={(event) => patchColumn(selectedColumn.key, { backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedColumn.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedColumn.backgroundColor} onChange={(event) => patchColumn(selectedColumn.key, { backgroundColor: event.target.value })} /></label> : <label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedColumn.backgroundUrl ? 'Trocar fundo das células' : 'Enviar fundo das células'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadColumnBackground(selectedColumn.key, event.target.files?.[0])} /></label>}{selectedColumn.key !== 'logo' ? <div className="post-artworks-grid2"><label>Tamanho do texto<EditableNumberInput value={selectedColumn.fontSize} min={8} max={120} onCommit={(value) => patchColumn(selectedColumn.key, { fontSize: value })} /></label><label>Peso<EditableNumberInput value={selectedColumn.fontWeight} min={100} max={900} onCommit={(value) => patchColumn(selectedColumn.key, { fontWeight: value })} /></label><label>Cor do texto<input type="color" value={selectedColumn.color} onChange={(event) => patchColumn(selectedColumn.key, { color: event.target.value })} /></label><label>Alinhamento<select value={selectedColumn.align} onChange={(event) => patchColumn(selectedColumn.key, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}</> : null}</div> : null}
           </aside>
         </> : <section className="post-artworks-welcome"><strong>Crie ou selecione uma arte</strong><span>O editor de redes sociais é independente da transmissão.</span></section>}
