@@ -43,7 +43,7 @@ test('89S preview e exportação atualizam MVP Geral e MVP do Jogo', () => {
   expect(workspace).toContain('playerForBlock(block, mvpGeneral, mvpDay, killLeaders)')
   expect(workspace).toContain('latestMvpGeneral')
   expect(workspace).toContain('latestMvpDayRows')
-  expect(workspace).toContain('renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)')
+  expect(workspace).toContain('renderArtworkCanvas(project, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)')
 })
 
 test('89S adiciona acesso destacado para Artes para postar no topo do campeonato', () => {

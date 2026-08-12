@@ -33,7 +33,7 @@ test('89R busca classificação filtrada por jogo sem depender da transmissão',
 test('89R prévia e exportação resolvem dados gerais e do dia separadamente', () => {
   expect(workspace).toContain('rowsForBlock(block, standings, dayStandings, booyahDay)')
   expect(workspace).toContain('latestDayRows')
-  expect(workspace).toContain('renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)')
+  expect(workspace).toContain('renderArtworkCanvas(project, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)')
   expect(workspace).toContain("if (block.type === 'table_day' || block.type === 'qualified_teams') return dayRows")
 })
 

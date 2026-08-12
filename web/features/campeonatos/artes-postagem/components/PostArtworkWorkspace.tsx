@@ -21,8 +21,8 @@ import type {
 } from '../types/artwork.types'
 import '../post-artworks.css'
 
-type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; jogos?: Array<any>; error?: string }
-type GameOption = { id: string; nome: string; mataMata: boolean; classificamQuantidade: number | null }
+type ApiPayload = { campeonato?: { id: string; nome: string }; items?: PostArtworkProject[]; item?: PostArtworkProject; assets?: PostArtworkAsset[]; asset?: PostArtworkAsset; jogos?: Array<any>; fases?: Array<any>; error?: string }
+type GameOption = { id: string; nome: string; faseId: string; faseNome: string; grupoNome: string; numeroPartidas: number; status: string; mataMata: boolean; classificamQuantidade: number | null }
 type AssetTarget = 'project' | 'column' | 'header' | 'mvp'
 
 const TABLE_COLUMN_META: Record<PostArtworkTableColumnKey, { label: string; defaultWidth: number; align: 'left' | 'center' | 'right' }> = {
@@ -240,13 +240,35 @@ function playerForBlock(block: PostArtworkBlock, general: PostArtworkPlayerRow[]
   return rows[Math.max(0, (block.dataStart || 1) - 1)] || null
 }
 
-function gameOptionsFromApi(jogos: ApiPayload['jogos']): GameOption[] {
+function gameOptionsFromApi(jogos: ApiPayload['jogos'], fases: ApiPayload['fases'] = []): GameOption[] {
+  const faseNames = new Map((fases || []).map((fase: any) => [String(fase.id || ''), String(fase.nome || 'Fase')]))
   return (jogos || []).map((game: any) => ({
     id: String(game.id || ''),
     nome: String(game.nome || 'Jogo'),
+    faseId: String(game.fase_id || ''),
+    faseNome: faseNames.get(String(game.fase_id || '')) || 'Fase',
+    grupoNome: Array.isArray(game.grupos) ? game.grupos.map((rel: any) => String(rel?.campeonato_grupos?.nome || rel?.nome || '')).filter(Boolean).join(' + ') : '',
+    numeroPartidas: Number(game.numero_partidas || 0),
+    status: String(game.status || ''),
     mataMata: Boolean(game.mata_mata),
     classificamQuantidade: game.classificam_quantidade == null ? null : Number(game.classificam_quantidade),
   })).filter((game) => game.id)
+}
+
+function resolveProjectForGame(project: PostArtworkProject, game?: GameOption | null): PostArtworkProject {
+  if (!game) return cloneDraft(project)
+  return {
+    ...cloneDraft(project),
+    blocks: project.blocks.map((block) => {
+      if (!(block.type === 'table_day' || block.type === 'qualified_teams' || block.type === 'booyahs_day' || block.type === 'mvp_day')) return { ...block, style: structuredClone(block.style || {}) }
+      return {
+        ...block,
+        source: { jogoId: game.id, jogoName: game.nome },
+        ...(block.type === 'qualified_teams' && game.mataMata && game.classificamQuantidade ? { dataStart: 1, dataEnd: game.classificamQuantidade } : {}),
+        style: structuredClone(block.style || {}),
+      }
+    }),
+  }
 }
 
 function rowsForBlock(block: PostArtworkBlock, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>, booyahRows: Record<string, PostArtworkTeamRow[]> = {}) {
@@ -440,13 +462,17 @@ function downloadBlob(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string }) {
+export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtworkId }: { campeonatoId: string; mode?: 'edit' | 'generate'; initialArtworkId?: string }) {
   const [items, setItems] = useState<PostArtworkProject[]>([])
   const [activeId, setActiveId] = useState('')
   const [draft, setDraft] = useState<PostArtworkProject | null>(null)
   const [campeonatoNome, setCampeonatoNome] = useState('Campeonato')
   const [standings, setStandings] = useState<PostArtworkTeamRow[]>([])
   const [games, setGames] = useState<GameOption[]>([])
+  const [generationPhaseId, setGenerationPhaseId] = useState('')
+  const [generationGameId, setGenerationGameId] = useState('')
+  const [quickPreviewUrl, setQuickPreviewUrl] = useState('')
+  const [quickPreviewLoading, setQuickPreviewLoading] = useState(false)
   const [dayStandings, setDayStandings] = useState<Record<string, PostArtworkTeamRow[]>>({})
   const [mvpGeneral, setMvpGeneral] = useState<PostArtworkPlayerRow[]>([])
   const [mvpDay, setMvpDay] = useState<Record<string, PostArtworkPlayerRow[]>>({})
@@ -515,21 +541,25 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     setLoading(true)
     setError('')
     try {
-      const [body, ranking, mvpRanking, killRanking, gamesPayload] = await Promise.all([
+      const [body, ranking, mvpRanking, killRanking, gamesPayload, structurePayload] = await Promise.all([
         authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem`),
         loadPostArtworkGeneralStandings(campeonatoId).catch(() => []),
         loadPostArtworkGeneralMvp(campeonatoId).catch(() => []),
         loadPostArtworkKillLeaders(campeonatoId).catch(() => []),
         authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/jogos`).catch(() => ({} as ApiPayload)),
+        authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/estrutura`).catch(() => ({} as ApiPayload)),
       ])
       const next = body.items || []
       setItems(next)
       setStandings(ranking)
       setMvpGeneral(mvpRanking)
       setKillLeaders(killRanking)
-      setGames(gameOptionsFromApi(gamesPayload.jogos))
+      const nextGames = gameOptionsFromApi(gamesPayload.jogos, structurePayload.fases)
+      setGames(nextGames)
+      setGenerationPhaseId((current) => current || nextGames[0]?.faseId || '')
+      setGenerationGameId((current) => current || nextGames[0]?.id || '')
       setCampeonatoNome(body.campeonato?.nome || 'Campeonato')
-      const nextId = preferredId || activeId || next[0]?.id || ''
+      const nextId = preferredId || initialArtworkId || activeId || next[0]?.id || ''
       setActiveId(nextId)
       const selected = next.find((item) => item.id === nextId) || null
       setDraft(selected ? cloneDraft(selected) : null)
@@ -539,12 +569,21 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { void reload(); void reloadAssets() }, [campeonatoId])
+  useEffect(() => { void reload(initialArtworkId); void reloadAssets() }, [campeonatoId, initialArtworkId])
+
+  const generationPhases = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const game of games) if (game.faseId && !seen.has(game.faseId)) seen.set(game.faseId, game.faseNome)
+    return [...seen.entries()].map(([id, nome]) => ({ id, nome }))
+  }, [games])
+  const generationGames = useMemo(() => games.filter((game) => !generationPhaseId || game.faseId === generationPhaseId), [games, generationPhaseId])
+  const generationGame = useMemo(() => games.find((game) => game.id === generationGameId) || null, [games, generationGameId])
+  const renderDraft = useMemo(() => draft ? (mode === 'generate' ? resolveProjectForGame(draft, generationGame) : draft) : null, [draft, generationGame, mode])
 
   const dayGameKey = useMemo(() => {
-    if (!draft) return ''
-    return [...new Set(draft.blocks.filter((block) => block.type === 'table_day' || block.type === 'qualified_teams').map((block) => block.source?.jogoId).filter(Boolean))].sort().join('|')
-  }, [draft])
+    if (!renderDraft) return ''
+    return [...new Set(renderDraft.blocks.filter((block) => block.type === 'table_day' || block.type === 'qualified_teams').map((block) => block.source?.jogoId).filter(Boolean))].sort().join('|')
+  }, [renderDraft])
 
   useEffect(() => {
     const ids = dayGameKey ? dayGameKey.split('|').filter(Boolean) : []
@@ -556,9 +595,9 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   }, [campeonatoId, dayGameKey])
 
   const booyahGameKey = useMemo(() => {
-    if (!draft) return ''
-    return [...new Set(draft.blocks.filter((block) => block.type === 'booyahs_day').map((block) => block.source?.jogoId).filter(Boolean))].sort().join('|')
-  }, [draft])
+    if (!renderDraft) return ''
+    return [...new Set(renderDraft.blocks.filter((block) => block.type === 'booyahs_day').map((block) => block.source?.jogoId).filter(Boolean))].sort().join('|')
+  }, [renderDraft])
 
   useEffect(() => {
     const ids = booyahGameKey ? booyahGameKey.split('|').filter(Boolean) : []
@@ -570,9 +609,9 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
   }, [campeonatoId, booyahGameKey])
 
   const mvpGameKey = useMemo(() => {
-    if (!draft) return ''
-    return [...new Set(draft.blocks.filter((block) => block.type === 'mvp_day').map((block) => block.source?.jogoId).filter(Boolean))].sort().join('|')
-  }, [draft])
+    if (!renderDraft) return ''
+    return [...new Set(renderDraft.blocks.filter((block) => block.type === 'mvp_day').map((block) => block.source?.jogoId).filter(Boolean))].sort().join('|')
+  }, [renderDraft])
 
   useEffect(() => {
     const ids = mvpGameKey ? mvpGameKey.split('|').filter(Boolean) : []
@@ -599,6 +638,20 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
       const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem`, { method: 'POST', body: JSON.stringify({ name: `Arte ${items.length + 1}` }) })
       if (body.item) await reload(body.item.id)
     } catch (e: any) { setError(e?.message || 'Erro ao criar arte.') } finally { setSaving(false) }
+  }
+
+  async function createProjectAndEdit() {
+    setSaving(true)
+    setError('')
+    try {
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem`, { method: 'POST', body: JSON.stringify({ name: `Arte ${items.length + 1}` }) })
+      if (body.item) window.location.href = `/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/editor?artwork=${encodeURIComponent(body.item.id)}`
+    } catch (e: any) { setError(e?.message || 'Erro ao criar arte.') } finally { setSaving(false) }
+  }
+
+  function openEditor(artworkId?: string) {
+    const suffix = artworkId ? `?artwork=${encodeURIComponent(artworkId)}` : ''
+    window.location.href = `/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/editor${suffix}`
   }
 
   async function saveProject() {
@@ -779,48 +832,62 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
     finally { setUploadingCell(false) }
   }
 
-  async function exportArtwork() {
-    if (!draft || exporting) return
+  async function exportArtwork(project: PostArtworkProject | null = renderDraft) {
+    if (!project || exporting) return
     setExporting(true); setError('')
     try {
       const [latestRows, latestMvpGeneral] = await Promise.all([loadPostArtworkGeneralStandings(campeonatoId), loadPostArtworkGeneralMvp(campeonatoId)])
-      const dayIds = [...new Set(draft.blocks.filter((block) => block.type === 'table_day' || block.type === 'qualified_teams').map((block) => block.source?.jogoId).filter(Boolean))] as string[]
-      const latestDayEntries = await Promise.all(dayIds.map(async (rodadaId) => [rodadaId, await loadPostArtworkGameStandings(campeonatoId, rodadaId)] as const))
+      const dayIds = [...new Set(project.blocks.filter((block) => block.type === 'table_day' || block.type === 'qualified_teams').map((block) => block.source?.jogoId).filter(Boolean))] as string[]
+      const latestDayEntries = await Promise.all(dayIds.map(async (jogoId) => [jogoId, await loadPostArtworkGameStandings(campeonatoId, jogoId)] as const))
       const latestDayRows = Object.fromEntries(latestDayEntries)
-      const booyahDayIds = [...new Set(draft.blocks.filter((block) => block.type === 'booyahs_day').map((block) => block.source?.jogoId).filter(Boolean))] as string[]
-      const latestBooyahEntries = await Promise.all(booyahDayIds.map(async (rodadaId) => [rodadaId, await loadPostArtworkGameBooyahs(campeonatoId, rodadaId)] as const))
+      const booyahDayIds = [...new Set(project.blocks.filter((block) => block.type === 'booyahs_day').map((block) => block.source?.jogoId).filter(Boolean))] as string[]
+      const latestBooyahEntries = await Promise.all(booyahDayIds.map(async (jogoId) => [jogoId, await loadPostArtworkGameBooyahs(campeonatoId, jogoId)] as const))
       const latestBooyahRows = Object.fromEntries(latestBooyahEntries)
-      const latestKillLeaders = draft.blocks.some((block) => block.type === 'kills_leaders') ? await loadPostArtworkKillLeaders(campeonatoId) : []
-      const mvpDayIds = [...new Set(draft.blocks.filter((block) => block.type === 'mvp_day').map((block) => block.source?.jogoId).filter(Boolean))] as string[]
-      const latestMvpDayEntries = await Promise.all(mvpDayIds.map(async (rodadaId) => [rodadaId, await loadPostArtworkGameMvp(campeonatoId, rodadaId)] as const))
+      const latestKillLeaders = project.blocks.some((block) => block.type === 'kills_leaders') ? await loadPostArtworkKillLeaders(campeonatoId) : []
+      const mvpDayIds = [...new Set(project.blocks.filter((block) => block.type === 'mvp_day').map((block) => block.source?.jogoId).filter(Boolean))] as string[]
+      const latestMvpDayEntries = await Promise.all(mvpDayIds.map(async (jogoId) => [jogoId, await loadPostArtworkGameMvp(campeonatoId, jogoId)] as const))
       const latestMvpDayRows = Object.fromEntries(latestMvpDayEntries)
-      setStandings(latestRows)
-      setDayStandings(latestDayRows)
-      setMvpGeneral(latestMvpGeneral)
-      setMvpDay(latestMvpDayRows)
-      setBooyahDay(latestBooyahRows)
-      setKillLeaders(latestKillLeaders)
-      const renderScale = resolveExportRenderScale(draft.width, draft.height)
-      const board = await renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)
-      const extension = draft.output_format
-      if (draft.slice_count === 1) {
-        const finalCanvas = createDownsampledCanvas(board, draft.width, draft.height)
-        downloadBlob(await canvasBlob(finalCanvas, extension), `${draft.name || 'arte'}.${extension}`)
+      setStandings(latestRows); setDayStandings(latestDayRows); setMvpGeneral(latestMvpGeneral); setMvpDay(latestMvpDayRows); setBooyahDay(latestBooyahRows); setKillLeaders(latestKillLeaders)
+      const renderScale = resolveExportRenderScale(project.width, project.height)
+      const board = await renderArtworkCanvas(project, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)
+      const extension = project.output_format
+      if (project.slice_count === 1) {
+        const finalCanvas = createDownsampledCanvas(board, project.width, project.height)
+        downloadBlob(await canvasBlob(finalCanvas, extension), `${project.name || 'arte'}.${extension}`)
         return
       }
       const zip = new JSZip()
-      for (let index = 0; index < draft.slice_count; index += 1) {
-        const sx = (draft.slice_direction === 'horizontal' ? draft.slice_width * index : 0) * renderScale
-        const sy = (draft.slice_direction === 'vertical' ? draft.slice_height * index : 0) * renderScale
-        const sw = draft.slice_width * renderScale
-        const sh = draft.slice_height * renderScale
-        const slice = createDownsampledCanvas(board, draft.slice_width, draft.slice_height, sx, sy, sw, sh)
-        zip.file(`${draft.name || 'arte'}-${String(index + 1).padStart(2, '0')}.${extension}`, await canvasBlob(slice, extension))
+      for (let index = 0; index < project.slice_count; index += 1) {
+        const sx = (project.slice_direction === 'horizontal' ? project.slice_width * index : 0) * renderScale
+        const sy = (project.slice_direction === 'vertical' ? project.slice_height * index : 0) * renderScale
+        const sw = project.slice_width * renderScale
+        const sh = project.slice_height * renderScale
+        const slice = createDownsampledCanvas(board, project.slice_width, project.slice_height, sx, sy, sw, sh)
+        zip.file(`${project.name || 'arte'}-${String(index + 1).padStart(2, '0')}.${extension}`, await canvasBlob(slice, extension))
       }
-      downloadBlob(await zip.generateAsync({ type: 'blob' }), `${draft.name || 'arte'}-carrossel.zip`)
+      downloadBlob(await zip.generateAsync({ type: 'blob' }), `${project.name || 'arte'}-carrossel.zip`)
     } catch (e: any) { setError(e?.message || 'Não foi possível gerar as imagens.') }
     finally { setExporting(false) }
   }
+
+  useEffect(() => {
+    if (mode !== 'generate' || !renderDraft) { setQuickPreviewUrl(''); return }
+    let active = true
+    let objectUrl = ''
+    setQuickPreviewLoading(true)
+    ;(async () => {
+      try {
+        const previewScale = Math.min(1, 1400 / Math.max(renderDraft.width, renderDraft.height))
+        const board = await renderArtworkCanvas(renderDraft, standings, dayStandings, mvpGeneral, mvpDay, booyahDay, killLeaders, previewScale)
+        const blob = await canvasBlob(board, 'png')
+        if (!active) return
+        objectUrl = URL.createObjectURL(blob)
+        setQuickPreviewUrl((current) => { if (current) URL.revokeObjectURL(current); return objectUrl })
+      } catch { if (active) setQuickPreviewUrl('') }
+      finally { if (active) setQuickPreviewLoading(false) }
+    })()
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [mode, renderDraft, standings, dayStandings, mvpGeneral, mvpDay, booyahDay, killLeaders])
 
   const fitPreviewScale = useMemo(() => draft ? Math.min(1, 820 / draft.width, 620 / draft.height) : 1, [draft])
   const previewScale = useMemo(() => fitPreviewScale * (previewZoom / 100), [fitPreviewScale, previewZoom])
@@ -894,10 +961,49 @@ export function PostArtworkWorkspace({ campeonatoId }: { campeonatoId: string })
 
   if (loading) return <div className="post-artworks-state"><Loader2 className="spin" /> Carregando artes…</div>
 
+  if (mode === 'generate') {
+    return (
+      <div className="post-artworks-page post-artworks-generate-page">
+        <header className="post-artworks-header post-artworks-generate-header">
+          <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={15} /> Voltar ao campeonato</a><small>CENTRAL DE ARTES</small><h1>{campeonatoNome}</h1><p>Selecione o jogo, confira as artes prontas com os dados atualizados e baixe. O editor só é necessário quando você quiser mudar o layout.</p></div>
+          <div className="post-artworks-header-actions"><button type="button" className="post-artworks-secondary" onClick={() => openAssetLibrary('project')}><Images size={15} /> Biblioteca de imagens</button><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
+        </header>
+
+        <nav className="post-artworks-generate-nav" aria-label="Navegação de artes"><a className="active" href={`/campeonatos/${campeonatoId}/artes-postagem`}>Gerar artes</a><a href="#artes-salvas">Artes salvas</a><a href={`/campeonatos/${campeonatoId}/artes-postagem/editor`}>Editor de artes</a><button type="button" onClick={() => openAssetLibrary('project')}>Biblioteca de imagens</button></nav>
+
+        {error ? <div className="post-artworks-alert error">{error}</div> : null}
+        <section className="post-artworks-generate-filter">
+          <div className="post-artworks-panel-title"><strong>Selecione a fase e o jogo</strong><small>O jogo escolhido alimenta Tabela do Jogo, Classificados, MVP e Booyahs.</small></div>
+          <div className="post-artworks-generate-filter-grid">
+            <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; const first = games.find((game) => game.faseId === faseId); setGenerationPhaseId(faseId); setGenerationGameId(first?.id || '') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
+            <label>Jogo<select value={generationGameId} onChange={(event) => setGenerationGameId(event.target.value)} disabled={!generationPhaseId}><option value="">Selecione o jogo</option>{generationGames.map((game) => <option key={game.id} value={game.id}>{game.nome}{game.grupoNome ? ` · ${game.grupoNome}` : ''}</option>)}</select></label>
+            <div className="post-artworks-generate-filter-actions"><a className={`post-artworks-secondary${generationGame ? '' : ' disabled'}`} href={generationGame ? `/campeonatos/${campeonatoId}/pontuador/${generationGame.id}` : '#'}>Abrir pontuador</a><button type="button" className="post-artworks-secondary" onClick={() => void reload(activeId)}>Atualizar dados</button></div>
+          </div>
+          {generationGame ? <div className="post-artworks-game-summary"><strong>{generationGame.nome}</strong><span>{generationGame.faseNome}{generationGame.grupoNome ? ` · ${generationGame.grupoNome}` : ''}</span><span>{generationGame.numeroPartidas || '—'} quedas</span><span>{generationGame.mataMata ? `Mata-mata · Top ${generationGame.classificamQuantidade || '—'} classifica` : 'Pontos corridos · sem eliminação'}</span></div> : <div className="post-artworks-game-summary muted">Selecione um jogo para atualizar automaticamente os blocos vinculados a jogo.</div>}
+        </section>
+
+        <section className="post-artworks-generate-content">
+          <div className="post-artworks-generate-gallery" id="artes-salvas">
+            <div className="post-artworks-generate-section-head"><div><strong>Artes salvas</strong><small>{items.length} template(s) prontos para gerar</small></div><button type="button" className="post-artworks-primary" onClick={() => void createProjectAndEdit()} disabled={saving}><Plus size={15} /> Criar arte</button></div>
+            <div className="post-artworks-generate-cards">{items.map((item) => <article key={item.id} className={item.id === activeId ? 'active' : ''}><button type="button" className="post-artworks-generate-card-main" onClick={() => selectItem(item.id)}><span className="post-artworks-generate-card-preview" style={{ backgroundColor: item.background_color, backgroundImage: item.background_url ? `url(${JSON.stringify(item.background_url)})` : undefined }} /><b>{item.name}</b><span>{item.width} × {item.height}</span><small>{item.slice_count} {item.slice_count === 1 ? 'imagem' : 'imagens'} · {item.output_format.toUpperCase()}</small></button><div className="post-artworks-generate-card-actions"><button type="button" onClick={() => selectItem(item.id)}>Visualizar</button><button type="button" onClick={() => void exportArtwork(resolveProjectForGame(item, generationGame))} disabled={exporting}>{exporting && item.id === activeId ? 'Gerando…' : 'Baixar'}</button><button type="button" onClick={() => openEditor(item.id)}>Editar</button></div></article>)}{!items.length ? <div className="post-artworks-empty"><strong>Nenhuma arte criada</strong><span>Crie a primeira arte; depois ela fica disponível aqui para gerar durante todo o campeonato.</span></div> : null}</div>
+          </div>
+
+          <aside className="post-artworks-generate-preview-panel">
+            <div className="post-artworks-generate-section-head"><div><strong>{draft?.name || 'Pré-visualização'}</strong><small>{generationGame ? `Dados: ${generationGame.nome}` : 'Selecione um jogo para conferir dados específicos'}</small></div>{draft ? <button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button> : null}</div>
+            <div className="post-artworks-generate-preview">{quickPreviewLoading ? <div className="post-artworks-state"><Loader2 className="spin" /> Atualizando prévia…</div> : quickPreviewUrl ? <img src={quickPreviewUrl} alt={`Prévia de ${draft?.name || 'arte'}`} /> : <div className="post-artworks-empty"><strong>Selecione uma arte</strong><span>A prévia aparecerá aqui sem abrir o editor.</span></div>}</div>
+            {draft ? <div className="post-artworks-generate-download"><button type="button" className="post-artworks-primary" onClick={() => void exportArtwork()} disabled={exporting}>{exporting ? <Loader2 className="spin" size={15} /> : <Download size={15} />} {draft.slice_count > 1 ? 'Baixar carrossel' : `Baixar ${draft.output_format.toUpperCase()}`}</button><button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button></div> : null}
+          </aside>
+        </section>
+
+        {libraryOpen ? <div className="post-artworks-library-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setLibraryOpen(false) }}><section className="post-artworks-library"><header><div><small>BIBLIOTECA DO CAMPEONATO</small><strong>Imagens reutilizáveis</strong><span>Visualize os assets do campeonato. A substituição global entra na etapa de biblioteca inteligente.</span></div><button type="button" onClick={() => setLibraryOpen(false)} aria-label="Fechar biblioteca"><X size={18} /></button></header>{libraryError ? <div className="post-artworks-library-error">{libraryError}</div> : null}<div className="post-artworks-library-grid">{assets.map((asset) => <article key={asset.id}><div className="post-artworks-library-pick"><span className="post-artworks-library-thumb" style={{ backgroundImage: `url(${JSON.stringify(asset.url)})` }} /><b>{asset.name}</b><small>{asset.kind === 'background' ? 'Fundo de arte' : asset.kind === 'cell' ? 'Fundo de célula' : asset.kind === 'card' ? 'Fundo de card' : 'Imagem'}</small></div></article>)}{!assets.length ? <div className="post-artworks-library-empty"><Images size={28} /><strong>Nenhuma imagem salva ainda</strong><span>Os uploads usados nas artes aparecem aqui.</span></div> : null}</div></section></div> : null}
+      </div>
+    )
+  }
+
   return (
     <div className="post-artworks-page">
       <header className="post-artworks-header">
-        <div><a href={`/campeonatos/${campeonatoId}`}><ArrowLeft size={15} /> Voltar ao campeonato</a><small>ARTES PARA POSTAR</small><h1>{campeonatoNome}</h1><p>Templates de redes sociais independentes da transmissão. O layout fica salvo; os dados são atualizados na hora de baixar.</p></div>
+        <div><a href={`/campeonatos/${campeonatoId}/artes-postagem`}><ArrowLeft size={15} /> Voltar para gerar artes</a><small>ARTES PARA POSTAR</small><h1>{campeonatoNome}</h1><p>Templates de redes sociais independentes da transmissão. O layout fica salvo; os dados são atualizados na hora de baixar.</p></div>
         <div className="post-artworks-header-actions"><button type="button" className="post-artworks-secondary" onClick={() => openAssetLibrary('project')}><Images size={15} /> Biblioteca de imagens</button><button type="button" className="post-artworks-primary" onClick={() => void createProject()} disabled={saving}><Plus size={15} /> Nova arte</button></div>
       </header>
 

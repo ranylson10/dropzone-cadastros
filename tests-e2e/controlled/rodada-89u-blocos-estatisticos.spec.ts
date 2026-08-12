@@ -45,5 +45,5 @@ test('89U preview e exportação atualizam os novos blocos sem migration', () =>
   expect(workspace).toContain('latestKillLeaders')
   expect(workspace).toContain('setBooyahDay(latestBooyahRows)')
   expect(workspace).toContain('setKillLeaders(latestKillLeaders)')
-  expect(workspace).toContain('renderArtworkCanvas(draft, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)')
+  expect(workspace).toContain('renderArtworkCanvas(project, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)')
 })
