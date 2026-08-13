@@ -75,7 +75,7 @@ export async function loadPostArtworkGameBooyahs(campeonatoId: string, jogoId: s
 
 export const loadPostArtworkDayBooyahs = loadPostArtworkGameBooyahs
 
-export async function loadPostArtworkKillLeaders(campeonatoId: string) {
-  const rows = await loadPostArtworkMvp(campeonatoId)
+export async function loadPostArtworkGameKillLeaders(campeonatoId: string, jogoId: string) {
+  const rows = await loadPostArtworkMvp(campeonatoId, jogoId)
   return [...rows].sort((a, b) => b.kills - a.kills || b.damage - a.damage || a.rank - b.rank).map((row, index) => ({ ...row, rank: index + 1 }))
 }
