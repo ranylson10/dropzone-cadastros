@@ -1210,11 +1210,6 @@ ${params.url}`
     { label: 'Grupos', value: champGroups.length },
     { label: 'Jogos', value: champGames.length },
   ]
-  const mainTabs: ProducerTab[] = ['visao', 'equipes', 'grupos', 'jogos', 'estatisticas', 'stream']
-  const extraTabs = producerTabs.filter((item) =>
-    !mainTabs.includes(item.id)
-    && (item.id !== 'calls' || String(dataText(props.selectedChamp, 'tipo')).toLowerCase() === 'xtreino')
-  )
   const nextGame = champGames
     .slice()
     .sort((a, b) => {
@@ -1664,22 +1659,14 @@ ${params.url}`
               </button>
             </section>
 
-            <nav className="champ-subtabs-ref champ-subtabs-compact" aria-label="Abas do campeonato">
+            <nav className="champ-subtabs-ref champ-subtabs-compact champ-subtabs-all" aria-label="Abas do campeonato">
               <div className="champ-subtabs-primary">
-                {producerTabs.filter((item) => mainTabs.includes(item.id)).map((item) => (
-                  <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
-                ))}
+                {producerTabs
+                  .filter((item) => item.id !== 'calls' || String(dataText(props.selectedChamp, 'tipo')).toLowerCase() === 'xtreino')
+                  .map((item) => (
+                    <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
+                  ))}
               </div>
-              {extraTabs.length ? (
-                <details className="champ-subtabs-more">
-                  <summary>Mais ferramentas</summary>
-                  <div>
-                    {extraTabs.map((item) => (
-                      <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
-                    ))}
-                  </div>
-                </details>
-              ) : null}
             </nav>
 
             <div className="champ-tab-body-ref">
@@ -1689,7 +1676,7 @@ ${params.url}`
                     <div>
                       <p className="eyebrow">Próximo passo</p>
                       <h3>Monte e opere o campeonato por etapas.</h3>
-                      <span>Use os atalhos abaixo. As ferramentas avançadas continuam em “Mais ferramentas”.</span>
+                      <span>Use as abas acima para acessar todas as ferramentas do campeonato.</span>
                     </div>
                     <div className="champ-overview-flow">
                       <button

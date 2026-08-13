@@ -1894,16 +1894,25 @@ export function DropZoneHome() {
             <section className="panel-workspace-return">
               <button type="button" onClick={() => setWorkspace('home')}>← Voltar para o início</button>
             </section>
-            <section className="account-strip account-strip-compact">
-              <div className="account-strip-head">
-                <p className="eyebrow">Conta ativa</p>
-                <strong>
-                  {account.name}{' '}
-                  <span>
-                    @{account.username}
-                    {account.public_id ? ` · ID ${account.public_id}` : ''}
-                  </span>
-                </strong>
+            <section className="account-strip account-strip-compact account-workspace-hero">
+              <div className="account-workspace-identity">
+                <div className="account-workspace-avatar" aria-hidden="true">
+                  {dataText(account, 'logo_url') || dataText(account, 'avatar_url') ? (
+                    <img src={dataText(account, 'logo_url') || dataText(account, 'avatar_url')} alt="" />
+                  ) : (
+                    <span>{(account.name || account.username || 'DZ').slice(0, 2).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="account-strip-head">
+                  <p className="eyebrow">Conta ativa</p>
+                  <strong>
+                    {account.name}{' '}
+                    <span>
+                      @{account.username}
+                      {account.public_id ? ` · ID ${account.public_id}` : ''}
+                    </span>
+                  </strong>
+                </div>
               </div>
               <div className="account-strip-metrics" role="group" aria-label="Resumo da conta">
                 <div className="metric" title="Campeonatos">
