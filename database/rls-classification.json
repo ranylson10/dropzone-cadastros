@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-05",
+  "updated_at": "2026-08-13",
   "description": "Classificação revisada das tabelas com RLS habilitado e sem policies no banco publicado. service_role_only exige acesso exclusivo por cliente administrativo com autorização prévia. legacy_controlled indica tabela preservada para compatibilidade/histórico, sem acesso direto localizado no código atual.",
   "tables": {
     "agenda_eventos": "service_role_only",
@@ -34,6 +34,10 @@
     "comprovantes_inscricao": "legacy_controlled",
     "dropzone_mapas": "service_role_only",
     "equipe_manager_convites": "service_role_only",
+    "garena_matchstats_armas": "service_role_only",
+    "garena_matchstats_habilidades": "service_role_only",
+    "garena_matchstats_importacoes": "service_role_only",
+    "garena_matchstats_jogadores": "service_role_only",
     "jogadores_temporarios": "service_role_only",
     "jogadores_temporarios_vinculacoes": "legacy_controlled",
     "lili_intent_patterns": "service_role_only",

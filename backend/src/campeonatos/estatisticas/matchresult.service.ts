@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../shared/supabase-admin'
+import { sincronizarEstatisticasGarena } from './garena-matchstats.service'
 
 export type ParsedPlayer = { ordem: number; nick: string; id_jogo: string; abates: number }
 export type ParsedTeam = { ordem: number; nome: string; posicao: number; abates: number; pontos_posicao_arquivo: number; pontos_total_arquivo: number; jogadores: ParsedPlayer[] }
@@ -267,5 +268,19 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
   const totals = await salvarPontuacaoManual(campeonatoId, userId, manualPayload)
   const { error: confirmError } = await supabaseAdmin.from('matchresult_importacoes').update({ status: 'confirmada', confirmado_por: userId, confirmado_em: new Date().toISOString() }).eq('id', importacao.id)
   if (confirmError) throw confirmError
+  // Complemento privado: nunca interfere na súmula oficial caso a fonte externa esteja indisponível.
+  try {
+    await sincronizarEstatisticasGarena({
+      campeonatoId,
+      jogoId: partida.jogo_id,
+      partidaId: partida.id,
+      produtoraId: campeonato.produtora_id,
+      matchresultImportacaoId: importacao.id,
+      nomeArquivo: body.nome_arquivo,
+      userId,
+    })
+  } catch (error) {
+    console.error('Não foi possível complementar o MatchResult com estatísticas detalhadas.', error)
+  }
   return { importacao_id: importacao.id, ...totals }
 }
