@@ -81,12 +81,17 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     expect(css).not.toContain('authenticated-home-vacancy-card:hover{transform:translateY')
   })
 
-  test('mobile prioriza fluxo de app e reduz texto secundário', () => {
+  test('mobile prioriza fluxo de app, ocupa a largura e compacta a lista', () => {
     const css = source('web/features/home/authenticated-home.css')
 
+    expect(css).toContain('.authenticated-home-intro-copy{display:none}')
     expect(css).toContain('.authenticated-home-action small{display:none}')
-    expect(css).toContain('.authenticated-home-access-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:0;overflow-x:auto}')
+    expect(css).toContain('.authenticated-home-overview{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:0 8px;overflow:visible}')
+    expect(css).toContain('.authenticated-home-section{padding:0 8px;gap:10px}')
+    expect(css).toContain('.authenticated-home-access-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:0;overflow:visible}')
     expect(css).toContain('.authenticated-home-access-card small{display:none}')
-    expect(css).toContain('.authenticated-home-vacancy-grid{grid-template-columns:1fr;gap:10px}')
+    expect(css).toContain('.authenticated-home-vacancy-grid{grid-template-columns:1fr;gap:7px}')
+    expect(css).toContain('.authenticated-home-vacancy-card{display:grid;grid-template-columns:92px minmax(0,1fr);grid-template-rows:1fr auto;min-height:128px}')
+    expect(css).toContain('.authenticated-home-vacancy-card footer{grid-column:2;grid-row:2;gap:8px;padding:3px 10px 9px}')
   })
 })
