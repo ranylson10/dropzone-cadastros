@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import './header.css'
 import './directory-hero.css'
+import './system.css'
 import { LiliGlobalLauncher } from '@/components/lili/LiliGlobalLauncher'
 import { GlobalLanguageRuntime } from '@/features/i18n/GlobalLanguageRuntime'
 

@@ -1,0 +1,130 @@
+/* Camada visual final do produto: regras compartilhadas para web, desktop e mobile web. */
+:root {
+  color-scheme: dark;
+  --ui-bg: #0c0d0f;
+  --ui-surface: #141518;
+  --ui-surface-soft: #17181b;
+  --ui-surface-raised: #1a1b1f;
+  --ui-text: #f5f3ed;
+  --ui-text-muted: #9c9a94;
+  --ui-line: #2a2c32;
+  --ui-accent: #c9b766;
+  --ui-gold: #c9b766;
+  --ui-gold-light: #dfcf85;
+  --ui-radius-sm: 6px;
+  --ui-radius-md: 10px;
+  --ui-radius-lg: 14px;
+}
+
+body {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.app-shell-main,
+.page-authenticated,
+.directory-shell,
+.public-page,
+.invite-page,
+.legal-page-shell {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.page-authenticated .panel,
+.page-authenticated .card,
+.page-authenticated .list-item,
+.page-authenticated .ref-champ-item,
+.page-authenticated .event-row,
+.directory-list-row,
+.directory-empty,
+.invite-card,
+.legal-page-card {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  box-shadow: none;
+}
+
+.page-authenticated .button:not(.secondary),
+.invite-page .button:not(.secondary),
+.public-page .button:not(.secondary) {
+  border: 1px solid var(--ui-accent);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-accent);
+  color: #17150d;
+}
+
+.page-authenticated .button.secondary,
+.page-authenticated .link-button,
+.page-authenticated .tab,
+.directory-toolbar button,
+.directory-profile-tabs button {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+  box-shadow: none;
+}
+
+.page-authenticated .tab.active,
+.directory-toolbar button.active,
+.directory-profile-tabs button.active {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  color: #17150d;
+}
+
+.page-authenticated input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+.page-authenticated select,
+.page-authenticated textarea,
+.invite-page input,
+.invite-page select,
+.invite-page textarea {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+  box-shadow: none;
+}
+
+.page-authenticated input:focus,
+.page-authenticated select:focus,
+.page-authenticated textarea:focus,
+.invite-page input:focus,
+.invite-page select:focus,
+.invite-page textarea:focus {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+  border-color: var(--ui-accent);
+}
+
+.page-authenticated .message.error,
+.invite-page .message.error {
+  border-color: rgba(224, 122, 122, .55);
+  background: rgba(224, 122, 122, .13);
+  color: #e07a7a;
+}
+
+.page-authenticated .message.success,
+.invite-page .message.success {
+  border-color: rgba(101, 185, 130, .55);
+  background: rgba(101, 185, 130, .13);
+  color: #65b982;
+}
+
+@media (max-width: 760px) {
+  .page-authenticated .shell,
+  .directory-page-body,
+  .directory-profile-content,
+  .legal-page-card {
+    width: min(100% - 20px, 100%);
+  }
+
+  .page-authenticated .panel,
+  .page-authenticated .card,
+  .directory-list-row {
+    border-radius: var(--ui-radius-sm);
+  }
+}
