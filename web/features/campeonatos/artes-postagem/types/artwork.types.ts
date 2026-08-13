@@ -86,6 +86,31 @@ export type PostArtworkTeamRow = {
 }
 
 
+
+export type PostArtworkBooyahRow = {
+  partidaId: string
+  round: string
+  mapName: string
+  mapImage: string
+  logo: string
+  name: string
+  points: number
+  kills: number
+}
+
+export type PostArtworkBooyahStyle = {
+  totalWidth: number
+  cardHeight: number
+  gap: number
+  backgroundColor: string
+  accentColor: string
+  textColor: string
+  logoScale: number
+  teamFontSize: number
+  mapFontSize: number
+  statsFontSize: number
+}
+
 export type PostArtworkQualifiedStyle = {
   cardWidth: number
   cardHeight: number

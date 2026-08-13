@@ -100,3 +100,13 @@
 .post-artworks-palette-field-swatches{display:flex;flex-wrap:wrap;gap:7px}.post-artworks-palette-field-swatches button{width:38px;height:38px;border:2px solid rgba(0,0,0,.12);border-radius:8px;cursor:pointer;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .post-artworks-palette-field-swatches button.active{outline:3px solid var(--brand);outline-offset:2px}.post-artworks-palette-field-swatches button i{position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);font-style:normal;font-size:8px;color:var(--muted);opacity:0;pointer-events:none;background:var(--surface);padding:2px 4px;border:1px solid var(--line);z-index:3}.post-artworks-palette-field-swatches button:hover i{opacity:1}
 .post-artworks-palette-field details{border:1px dashed var(--line);padding:7px 9px;background:var(--surface-soft)}.post-artworks-palette-field details.is-custom{border-color:#d59b22;background:#fff8e7}.post-artworks-palette-field summary{cursor:pointer;font-size:10px;font-weight:800;color:var(--muted)}.post-artworks-palette-field details label{margin-top:8px}.post-artworks-palette-field details small{display:block;margin-top:5px;color:var(--muted);font-size:9px}
+
+/* 92K — booyahs do jogo em cards responsivos por queda */
+.post-artworks-booyah-block{position:absolute;display:flex;align-items:stretch;cursor:grab;outline:1px solid transparent;box-sizing:border-box}
+.post-artworks-booyah-block.active{outline:2px solid #4dd8ff}
+.post-artworks-booyah-card{display:flex;min-width:0;flex-direction:column;overflow:hidden;box-sizing:border-box}
+.post-artworks-booyah-media{display:flex;align-items:center;justify-content:center;background-size:cover;background-position:center;overflow:hidden}
+.post-artworks-booyah-media img{display:block;object-fit:contain}
+.post-artworks-booyah-card>strong{display:flex;align-items:center;justify-content:center;padding:0 6px;text-align:center;line-height:1.05;overflow:hidden}
+.post-artworks-booyah-card>small{display:flex;flex:1;align-items:center;justify-content:center;padding:0 6px;text-align:center;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.post-artworks-booyah-stats{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:0 8px 6px;font-weight:900;white-space:nowrap}

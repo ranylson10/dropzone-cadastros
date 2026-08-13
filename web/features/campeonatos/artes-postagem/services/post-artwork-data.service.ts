@@ -1,27 +1,9 @@
-import { loadStreamSheet } from '../../stream/services/stream-data.service'
-import type { PostArtworkPlayerRow, PostArtworkTeamRow } from '../types/artwork.types'
+import { supabase } from '@/lib/supabase-browser'
+import type { PostArtworkBooyahRow, PostArtworkPlayerRow, PostArtworkTeamRow } from '../types/artwork.types'
 
 function number(value: unknown) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
-}
-
-function movementNumber(value: unknown) {
-  const match = String(value ?? '').match(/[+-]?\d+/)
-  return match ? Number(match[0]) || 0 : 0
-}
-
-function normalizeTeamName(value: unknown) {
-  return String(value || '').trim().toLocaleLowerCase('pt-BR')
-}
-
-async function loadMovementByTeam(campeonatoId: string, jogoId?: string) {
-  try {
-    const rows = await loadStreamSheet(campeonatoId, jogoId ? 'equipes_jogo' : 'equipes_geral', jogoId ? { jogo_id: jogoId } : undefined)
-    return new Map(rows.map((row) => [normalizeTeamName(row.cells?.nome), movementNumber(row.cells?.delta)]))
-  } catch {
-    return new Map<string, number>()
-  }
 }
 
 async function loadPostArtworkTeamStandings(campeonatoId: string, jogoId?: string): Promise<PostArtworkTeamRow[]> {
@@ -30,10 +12,8 @@ async function loadPostArtworkTeamStandings(campeonatoId: string, jogoId?: strin
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(payload?.error || 'Não foi possível carregar a tabela de equipes.')
   const equipes = Array.isArray(payload?.equipes) ? payload.equipes : []
-  const movementByTeam = await loadMovementByTeam(campeonatoId, jogoId)
   return equipes.map((row: any, index: number) => ({
     rank: number(row.colocacao) || index + 1,
-    movement: movementByTeam.get(normalizeTeamName(row.nome || row.tag)) ?? movementNumber(row.delta ?? row.variacao),
     logo: String(row.logo_url || ''),
     name: String(row.nome || row.tag || 'Equipe'),
     drops: number(row.quedas),
@@ -89,9 +69,24 @@ export function loadPostArtworkGameMvp(campeonatoId: string, jogoId: string) {
 export const loadPostArtworkDayMvp = loadPostArtworkGameMvp
 
 
-export async function loadPostArtworkGameBooyahs(campeonatoId: string, jogoId: string) {
-  const rows = await loadPostArtworkTeamStandings(campeonatoId, jogoId)
-  return [...rows].sort((a, b) => b.booyah - a.booyah || b.kills - a.kills || b.points - a.points || a.rank - b.rank)
+export async function loadPostArtworkGameBooyahs(campeonatoId: string, jogoId: string): Promise<PostArtworkBooyahRow[]> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) throw new Error('Entre na sua conta para carregar os booyahs do jogo.')
+  const response = await fetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/booyahs?jogo_id=${encodeURIComponent(jogoId)}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(payload?.error || 'Não foi possível carregar os booyahs do jogo.')
+  const items = Array.isArray(payload?.items) ? payload.items : []
+  return items.map((row: any, index: number) => ({
+    partidaId: String(row.partida_id || row.partidaId || index),
+    round: String(row.round || `QUEDA ${index + 1}`),
+    mapName: String(row.map_name || row.mapName || `Mapa ${index + 1}`),
+    mapImage: String(row.map_image || row.mapImage || ''),
+    logo: String(row.logo || ''),
+    name: String(row.name || 'Sem vencedor'),
+    points: number(row.points),
+    kills: number(row.kills),
+  }))
 }
 
 export const loadPostArtworkDayBooyahs = loadPostArtworkGameBooyahs
