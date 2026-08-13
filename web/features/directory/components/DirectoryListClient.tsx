@@ -141,14 +141,14 @@ function ChampionshipCards({
   myChampionshipIds,
   wishlistIds,
   cartIds,
-  onCartAdd,
+  onCartToggle,
   onWishlistToggle,
 }: {
   items: DirectoryItem[]
   myChampionshipIds: Set<string>
   wishlistIds: Set<string>
   cartIds: Set<string>
-  onCartAdd: (item: DirectoryItem) => void
+  onCartToggle: (item: DirectoryItem) => void
   onWishlistToggle: (item: DirectoryItem) => void
 }) {
   return (
@@ -177,15 +177,27 @@ function ChampionshipCards({
                   <small>{item.eyebrow || item.description || 'Campeonato'}</small>
                   <strong>{item.name}</strong>
                 </a>
-                <button
-                  type="button"
-                  className={`directory-champ-wish ${wishlistIds.has(item.id) ? 'active' : ''}`}
-                  aria-label={wishlistIds.has(item.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                  aria-pressed={wishlistIds.has(item.id)}
-                  onClick={() => onWishlistToggle(item)}
-                >
-                  <Heart size={17} />
-                </button>
+                <span className="directory-champ-quick-actions">
+                  <button
+                    type="button"
+                    className={`directory-champ-wish ${wishlistIds.has(item.id) ? 'active' : ''}`}
+                    aria-label={wishlistIds.has(item.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                    aria-pressed={wishlistIds.has(item.id)}
+                    onClick={() => onWishlistToggle(item)}
+                  >
+                    <Heart size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`directory-champ-cart-icon ${isInCart ? 'active' : ''}`}
+                    aria-label={isInCart ? 'Remover do carrinho' : 'Adicionar ao carrinho'}
+                    aria-pressed={isInCart}
+                    disabled={free <= 0 && !isInCart}
+                    onClick={() => onCartToggle(item)}
+                  >
+                    <ShoppingCart size={17} />
+                  </button>
+                </span>
               </div>
               <div className="directory-champ-facts">
                 <span><b>{money(item.commercial?.valor_inscricao)}</b><small>vaga</small></span>
@@ -201,8 +213,8 @@ function ChampionshipCards({
                 <button
                   type="button"
                   className={`directory-champ-cart-action${isInCart ? ' active' : ''}`}
-                  disabled={free <= 0 || isInCart}
-                  onClick={() => onCartAdd(item)}
+                  disabled={free <= 0 && !isInCart}
+                  onClick={() => onCartToggle(item)}
                 >
                   {isInCart ? 'No carrinho' : free > 0 ? 'Garantir vaga' : 'Sem vagas'} <ChevronRight size={14} />
                 </button>
@@ -232,6 +244,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const [wishlistItems, setWishlistItems] = useState<LocalCommerceItem[]>([])
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [cartPaymentMethod, setCartPaymentMethod] = useState<'pix' | 'cartao' | 'paypal'>('pix')
+  const [commerceError, setCommerceError] = useState('')
   const isChampionshipDirectory = items[0]?.kind === 'campeonatos'
 
   useEffect(() => {
@@ -295,43 +308,57 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const toggleChampFilter = (key: keyof Pick<ChampFilters, 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine'>) => {
     setChampFilters((current) => ({ ...current, [key]: !current[key] }))
   }
-  const handleCartAdd = async (item: DirectoryItem) => {
+  const handleCartToggle = async (item: DirectoryItem) => {
+    const wasInCart = cartItems.some((row) => row.id === item.id)
     const previous = cartItems
-    setCartItems((current) => optimisticCartAdd(current, item))
+    setCommerceError('')
+    setCartItems((current) => wasInCart ? current.filter((row) => row.id !== item.id) : optimisticCartAdd(current, item))
+
     if (!accessToken) {
-      setCartItems(addToCart(commerceItemFromDirectory(item), 1))
+      setCartItems(wasInCart ? removeFromCart(item.id) : addToCart(commerceItemFromDirectory(item), 1))
       return
     }
-    const response = await fetch('/api/me/commerce/cart', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campeonato_id: item.id, quantidade: 1, origem: 'direto' }),
-    }).catch(() => null)
-    const payload = response?.ok ? await response.json().catch(() => null) : null
-    if (payload?.items) {
+
+    const response = await fetch(
+      wasInCart ? `/api/me/commerce/cart?campeonato_id=${encodeURIComponent(item.id)}` : '/api/me/commerce/cart',
+      {
+        method: wasInCart ? 'DELETE' : 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        ...(wasInCart ? {} : { body: JSON.stringify({ campeonato_id: item.id, quantidade: 1, origem: 'direto' }) }),
+      },
+    ).catch(() => null)
+    const payload = response ? await response.json().catch(() => null) : null
+    if (response?.ok && payload?.items) {
       setCartItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
       return
     }
     setCartItems(previous)
+    setCommerceError(payload?.error || 'Não foi possível atualizar o carrinho. Tente novamente.')
   }
+
   const handleWishlistToggle = async (item: DirectoryItem) => {
+    const shouldFavorite = !wishlistItems.some((row) => row.id === item.id)
     const previous = wishlistItems
+    setCommerceError('')
     setWishlistItems((current) => optimisticWishlistToggle(current, item))
+
     if (!accessToken) {
       setWishlistItems(toggleWishlist(commerceItemFromDirectory(item)))
       return
     }
+
     const response = await fetch('/api/me/commerce/wishlist', {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campeonato_id: item.id, origem: 'direto' }),
+      body: JSON.stringify({ campeonato_id: item.id, favorito: shouldFavorite, origem: 'direto' }),
     }).catch(() => null)
-    const payload = response?.ok ? await response.json().catch(() => null) : null
-    if (payload?.items) {
+    const payload = response ? await response.json().catch(() => null) : null
+    if (response?.ok && payload?.items) {
       setWishlistItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
       return
     }
     setWishlistItems(previous)
+    setCommerceError(payload?.error || 'Não foi possível atualizar os favoritos. Tente novamente.')
   }
   const handleCartQuantity = async (item: LocalCommerceItem, quantity: number) => {
     if (accessToken && item.itemId) {
@@ -427,6 +454,8 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
             </details>
           </div>
 
+          {commerceError ? <p className="directory-commerce-error" role="alert">{commerceError}</p> : null}
+
           <div className="directory-market-filters" aria-label="Filtros de campeonatos">
             <div className="directory-market-filter-chips">
               <button type="button" className={champFilters.today ? 'active' : ''} onClick={() => toggleChampFilter('today')}>Hoje</button>
@@ -473,7 +502,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
           myChampionshipIds={myChampionshipIds}
           wishlistIds={wishlistIds}
           cartIds={cartIds}
-          onCartAdd={handleCartAdd}
+          onCartToggle={handleCartToggle}
           onWishlistToggle={handleWishlistToggle}
         />
       ) : (

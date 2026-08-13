@@ -88,18 +88,28 @@ export async function POST(req: NextRequest) {
     if (!campeonato) throw new Error('Campeonato nao encontrado.')
 
     const cart = await getOrCreateCart(user.id)
-    const { data: existing, error: existingError } = await supabaseAdmin
+    let existingQuery = supabaseAdmin
       .from('commerce_carrinho_itens')
       .select('id,quantidade')
       .eq('carrinho_id', cart.id)
       .eq('campeonato_id', campeonatoId)
-      .maybeSingle()
+    existingQuery = vendedorManagerId
+      ? existingQuery.eq('vendedor_manager_id', vendedorManagerId)
+      : existingQuery.is('vendedor_manager_id', null)
+    const { data: existingRows, error: existingError } = await existingQuery.order('created_at', { ascending: true }).limit(20)
     if (existingError) throw existingError
+    const existing = existingRows?.[0] || null
+
+    if ((existingRows?.length || 0) > 1) {
+      const duplicateIds = existingRows!.slice(1).map((row) => row.id)
+      const duplicateCleanup = await supabaseAdmin.from('commerce_carrinho_itens').delete().in('id', duplicateIds)
+      if (duplicateCleanup.error) throw duplicateCleanup.error
+    }
 
     const payload = {
       carrinho_id: cart.id,
       campeonato_id: campeonatoId,
-      quantidade: existing ? Math.max(1, Math.min(100, Number(existing.quantidade || 1) + quantidade)) : quantidade,
+      quantidade,
       preco_unitario_centavos: cents(campeonato.valor_inscricao),
       origem,
       vendedor_manager_id: vendedorManagerId,
@@ -148,14 +158,17 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const itemId = String(new URL(req.url).searchParams.get('item_id') || '').trim()
-    if (!itemId) throw new Error('Item obrigatorio.')
+    const params = new URL(req.url).searchParams
+    const itemId = String(params.get('item_id') || '').trim()
+    const campeonatoId = String(params.get('campeonato_id') || '').trim()
+    if (!itemId && !campeonatoId) throw new Error('Item ou campeonato obrigatorio.')
     const cart = await getOrCreateCart(user.id)
-    const { error } = await supabaseAdmin
+    let deletion = supabaseAdmin
       .from('commerce_carrinho_itens')
       .delete()
-      .eq('id', itemId)
       .eq('carrinho_id', cart.id)
+    deletion = itemId ? deletion.eq('id', itemId) : deletion.eq('campeonato_id', campeonatoId)
+    const { error } = await deletion
     if (error) throw error
 
     return NextResponse.json(await listCart(user.id))

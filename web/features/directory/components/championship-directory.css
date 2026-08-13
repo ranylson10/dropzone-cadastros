@@ -246,13 +246,15 @@
 .directory-champ-badges{position:absolute;left:8px;bottom:8px;display:flex;gap:5px}
 .directory-champ-badges b{display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border-radius:6px;background:#111214;color:var(--champ-text);font-size:8px;text-transform:uppercase}
 .directory-champ-body{display:grid;gap:10px;padding:12px}
-.directory-champ-title-row{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:8px;align-items:start}
+.directory-champ-title-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
 .directory-champ-title{display:grid;gap:2px;min-width:0;color:inherit;text-decoration:none}
 .directory-champ-title small{overflow:hidden;color:var(--champ-muted);font-size:9px;font-weight:800;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
 .directory-champ-title strong{overflow:hidden;color:var(--champ-text);font-size:18px;line-height:1.05;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
-.directory-champ-wish{display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:8px;background:var(--champ-surface-2);color:var(--champ-muted);cursor:pointer}
-.directory-champ-wish.active{color:var(--champ-accent-strong)}
+.directory-champ-quick-actions{display:flex;align-items:center;gap:4px}
+.directory-champ-wish,.directory-champ-cart-icon{display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:8px;background:var(--champ-surface-2);color:var(--champ-muted);cursor:pointer}
+.directory-champ-wish.active,.directory-champ-cart-icon.active{color:var(--champ-accent-strong)}
 .directory-champ-wish.active svg{fill:currentColor}
+.directory-champ-cart-icon:disabled{color:#5d6066;cursor:not-allowed}
 .directory-champ-facts{display:flex;align-items:center;gap:16px;min-width:0}
 .directory-champ-facts span{display:grid;gap:1px;min-width:0}
 .directory-champ-facts b{overflow:hidden;color:var(--champ-text);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
@@ -266,6 +268,7 @@
 .directory-champ-cart-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:36px;border:0;border-radius:8px;background:var(--champ-accent);color:#11130f;padding:0 12px;font-size:9px;font-weight:950;text-transform:uppercase;cursor:pointer}
 .directory-champ-cart-action:disabled{background:#282a2f;color:var(--champ-muted);cursor:not-allowed}
 .directory-champ-cart-action.active,.directory-champ-cart-action.active:disabled{background:var(--champ-accent);color:#11130f;opacity:1}
+.directory-commerce-error{width:min(100% - 6px,920px);margin:0 auto 8px;color:#ff8b8b;font-size:10px;font-weight:800}
 .directory-champ-lineup-action{display:inline-flex;width:max-content;align-items:center;gap:6px;border:0;background:transparent;color:var(--champ-accent-strong);padding:0;font-size:9px;font-weight:900;text-transform:uppercase}
 
 @media(max-width:760px){
@@ -292,10 +295,10 @@
   .directory-champ-badges{left:5px;bottom:5px;gap:3px}
   .directory-champ-badges b{padding:3px 4px;font-size:6px}
   .directory-champ-body{gap:6px;padding:8px 9px}
-  .directory-champ-title-row{grid-template-columns:minmax(0,1fr) 28px;gap:5px}
+  .directory-champ-title-row{grid-template-columns:minmax(0,1fr) auto;gap:5px}
   .directory-champ-title strong{font-size:15px}
   .directory-champ-title small{font-size:7px}
-  .directory-champ-wish{width:28px;height:28px;border-radius:7px}
+  .directory-champ-wish,.directory-champ-cart-icon{width:28px;height:28px;border-radius:7px}
   .directory-champ-facts{gap:11px}
   .directory-champ-facts b{font-size:10px}
   .directory-champ-facts small{font-size:6px}

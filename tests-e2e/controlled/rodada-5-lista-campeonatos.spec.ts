@@ -41,17 +41,24 @@ test.describe('Rodada 5 — lista de campeonatos', () => {
     expect(list).toContain("'Garantir vaga'")
     expect(list).toContain('Ver campeonato')
     expect(list).not.toContain('className="directory-champ-metrics"')
-    expect(list).not.toContain('Adicionar ao carrinho')
   })
 
-  test('carrinho e favoritos respondem no clique antes da API e reconciliam em segundo plano', () => {
+  test('carrinho e favoritos respondem no clique e persistem com intenção explícita', () => {
     const list = source('web/features/directory/components/DirectoryListClient.tsx')
-    expect(list).toContain('setCartItems((current) => optimisticCartAdd(current, item))')
-    expect(list).toContain('setWishlistItems((current) => optimisticWishlistToggle(current, item))')
-    expect(list).toContain("isInCart ? 'No carrinho'")
-    expect(list).toContain('aria-pressed={wishlistIds.has(item.id)}')
-    expect(list).toContain('setCartItems(previous)')
-    expect(list).toContain('setWishlistItems(previous)')
+    const cartApi = source('web/app/api/me/commerce/cart/route.ts')
+    const wishlistApi = source('web/app/api/me/commerce/wishlist/route.ts')
+    expect(list).toContain('const handleCartToggle = async')
+    expect(list).toContain('campeonato_id=${encodeURIComponent(item.id)}')
+    expect(list).toContain('favorito: shouldFavorite')
+    expect(list).toContain("className={`directory-champ-cart-icon ${isInCart ? 'active' : ''}`}")
+    expect(list).toContain("aria-label={isInCart ? 'Remover do carrinho' : 'Adicionar ao carrinho'}")
+    expect(list).toContain('setCommerceError(payload?.error')
+    expect(cartApi).toContain("const campeonatoId = String(params.get('campeonato_id')")
+    expect(cartApi).toContain('quantidade,')
+    expect(cartApi).not.toContain('Number(existing.quantidade || 1) + quantidade')
+    expect(wishlistApi).toContain('const favorito = body.favorito !== false')
+    expect(wishlistApi).toContain('if (favorito && !existing.data)')
+    expect(wishlistApi).toContain('if (!favorito)')
   })
 
   test('estilo do diretório fica isolado em uma única folha e não continua duplicado no globals', () => {

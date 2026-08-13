@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     const origem = ['direto', 'vendedor', 'afiliado', 'lili', 'app'].includes(String(body.origem || ''))
       ? String(body.origem)
       : 'direto'
+    const favorito = body.favorito !== false
     if (!campeonatoId) throw new Error('Campeonato obrigatorio.')
 
     const existing = await supabaseAdmin
@@ -51,20 +52,22 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('auth_user_id', user.id)
       .eq('campeonato_id', campeonatoId)
+      .limit(1)
       .maybeSingle()
     if (existing.error) throw existing.error
 
-    if (existing.data) {
-      const { error } = await supabaseAdmin
-        .from('commerce_favoritos')
-        .delete()
-        .eq('id', existing.data.id)
-        .eq('auth_user_id', user.id)
-      if (error) throw error
-    } else {
+    if (favorito && !existing.data) {
       const { error } = await supabaseAdmin
         .from('commerce_favoritos')
         .insert({ auth_user_id: user.id, campeonato_id: campeonatoId, origem })
+      if (error) throw error
+    }
+    if (!favorito) {
+      const { error } = await supabaseAdmin
+        .from('commerce_favoritos')
+        .delete()
+        .eq('auth_user_id', user.id)
+        .eq('campeonato_id', campeonatoId)
       if (error) throw error
     }
 
