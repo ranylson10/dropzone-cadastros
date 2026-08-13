@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   },
   cardSuccess: {
     borderColor: colors.success,
-    backgroundColor: '#effaf3',
+    backgroundColor: 'rgba(101, 185, 130, 0.12)',
   },
   cardDark: {
     backgroundColor: colors.brandDark,
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   cardTitleLight: {
-    color: colors.surface,
+    color: colors.ink,
   },
   cardDescription: {
     color: colors.muted,
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   cardDescriptionLight: {
-    color: '#d6dae2',
+    color: colors.muted,
   },
   cardCta: {
     color: colors.brand,

@@ -25,7 +25,7 @@ export function DirectoryHero(props: {
         {props.description ? <Text style={styles.description}>{props.description}</Text> : null}
         {props.actionLabel && props.onAction ? (
           <TouchableOpacity style={styles.action} activeOpacity={0.86} onPress={props.onAction}>
-            {props.actionIcon ? <Ionicons name={props.actionIcon} size={16} color={colors.surface} /> : null}
+            {props.actionIcon ? <Ionicons name={props.actionIcon} size={16} color={colors.onBrand} /> : null}
             <Text style={styles.actionText}>{props.actionLabel}</Text>
           </TouchableOpacity>
         ) : null}
@@ -35,14 +35,14 @@ export function DirectoryHero(props: {
 }
 
 const styles = StyleSheet.create({
-  hero: { height: 154, justifyContent: 'center', overflow: 'hidden', backgroundColor: '#071528' },
+  hero: { height: 154, justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.surface },
   heroCompact: { height: 136 },
   heroImage: { resizeMode: 'cover' },
-  shade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,9,18,.46)' },
+  shade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,13,15,.68)' },
   copy: { alignItems: 'center', paddingHorizontal: spacing.lg },
-  eyebrow: { color: 'rgba(255,255,255,.78)', fontSize: 9, fontWeight: '900', letterSpacing: 1.6, textTransform: 'uppercase' },
-  title: { marginTop: 3, color: colors.surface, fontSize: 31, lineHeight: 34, fontWeight: '900', textTransform: 'uppercase' },
-  description: { marginTop: 2, color: 'rgba(255,255,255,.82)', fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  action: { marginTop: 12, minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 15, backgroundColor: 'rgba(12,18,28,.82)', borderWidth: 1, borderColor: 'rgba(255,255,255,.34)' },
-  actionText: { color: colors.surface, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  eyebrow: { color: colors.brandLight, fontSize: 9, fontWeight: '900', letterSpacing: 1.6, textTransform: 'uppercase' },
+  title: { marginTop: 3, color: colors.ink, fontSize: 31, lineHeight: 34, fontWeight: '900', textTransform: 'uppercase' },
+  description: { marginTop: 2, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  action: { marginTop: 12, minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 15, backgroundColor: colors.brand },
+  actionText: { color: colors.onBrand, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
 })

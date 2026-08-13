@@ -1,38 +1,519 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
-import { mobileApi } from '@/lib/api'
-import { colors, spacing } from '@/theme/tokens'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { mobileApi } from "@/lib/api";
+import { colors, spacing } from "@/theme/tokens";
 
-type Props={championshipId:string;token?:string|null}
-type Answer=boolean|string|number|string[]|null
+type Props = { championshipId: string; token?: string | null };
+type Answer = boolean | string | number | string[] | null;
 
-export function ChampionshipRulebookPanel({championshipId,token}:Props){
-  const [data,setData]=useState<any>(null),[answers,setAnswers]=useState<Record<string,Answer>>({}),[confirmations,setConfirmations]=useState<Record<string,boolean>>({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[feedback,setFeedback]=useState('')
-  const apply=useCallback((json:any)=>{setData(json);setAnswers(json?.rulebook?.respostas||{});setConfirmations(json?.rulebook?.confirmacoes_alertas||{})},[])
-  const load=useCallback(async()=>{setLoading(true);try{apply(await mobileApi.championshipRulebook(championshipId,token));setError('')}catch(e:any){setError(e?.message||'Não foi possível carregar o regulamento.')}finally{setLoading(false)}},[apply,championshipId,token])
-  useEffect(()=>{void load()},[load])
-  const step=Number(data?.rulebook?.etapa_atual||0)
-  const questions=useMemo(()=>step===1?data?.questions?.etapa1||[]:step===2?data?.questions?.etapa2||[]:step===3?data?.questions?.etapa3||[]:[],[data,step])
-  const alerts=data?.engine?.alerts||data?.rulebook?.alertas||[]
-  async function save(payload:Record<string,unknown>,message?:string){setBusy(true);setError('');try{const json=await mobileApi.saveChampionshipRulebook(championshipId,payload,token);apply(json);if(message)setFeedback(message);return json}catch(e:any){setError(e?.message||'Não foi possível salvar o regulamento.');return null}finally{setBusy(false)}}
-  async function chooseProfile(profile:string){await save({perfil:profile,etapa_atual:1},'Perfil do regulamento definido.')}
-  async function go(next:number){await save({respostas:answers,confirmacoes_alertas:confirmations,etapa_atual:next})}
-  async function publish(){setBusy(true);setError('');try{await mobileApi.saveChampionshipRulebook(championshipId,{respostas:answers,confirmacoes_alertas:confirmations},token);const json=await mobileApi.publishChampionshipRulebook(championshipId,confirmations,token);apply(json);setFeedback('Regulamento publicado.')}catch(e:any){setError(e?.message||'Não foi possível publicar o regulamento.')}finally{setBusy(false)}}
-  async function reset(){setBusy(true);try{apply(await mobileApi.resetChampionshipRulebook(championshipId,token));setFeedback('Regulamento restaurado para o rascunho inicial.')}catch(e:any){setError(e?.message||'Não foi possível restaurar o regulamento.')}finally{setBusy(false)}}
-  if(loading)return <View style={styles.loading}><ActivityIndicator color={colors.brand}/></View>
-  if(!data)return <Text style={styles.error}>{error||'Regulamento indisponível.'}</Text>
-  return <View style={styles.section}>
-    <View style={styles.heading}><View><Text style={styles.title}>REGULAMENTO</Text><Text style={styles.meta}>{data.rulebook?.status||'rascunho'} · versão {data.rulebook?.versao||1}</Text></View><Text style={styles.progress}>{data.engine?.progress?.percent??0}%</Text></View>
-    {error?<Text style={styles.error}>{error}</Text>:null}{feedback?<Text style={styles.success}>{feedback}</Text>:null}
-    {step===0?<><Text style={styles.help}>Escolha o nível que servirá de base. O documento continua editável depois.</Text>{(data.catalog?.perfis||[]).map((p:any)=><TouchableOpacity key={p.id} style={styles.profile} disabled={busy} onPress={()=>void chooseProfile(p.id)}><Text style={styles.profileTitle}>{p.label}</Text><Text style={styles.meta}>{p.description}</Text></TouchableOpacity>)}</>:null}
-    {step>0&&step<=3?<><Text style={styles.step}>ETAPA {step} DE 3</Text>{questions.map((q:any)=><Question key={q.id} q={q} value={answers[q.id]} onChange={(value)=>setAnswers(current=>({...current,[q.id]:value}))}/>)}</>:null}
-    {alerts.length?<View style={styles.alertBox}><Text style={styles.alertTitle}>ALERTAS DO REGULAMENTO</Text>{alerts.map((a:any)=><View key={a.id} style={styles.alertRow}><View style={{flex:1}}><Text style={styles.alertText}>{a.message}</Text><Text style={styles.meta}>{a.severity==='blocking'?'Bloqueia publicação':'Requer confirmação'}</Text></View>{a.severity!=='blocking'?<TouchableOpacity style={[styles.confirm,confirmations[a.id]&&styles.confirmOn]} onPress={()=>setConfirmations(c=>({...c,[a.id]:!c[a.id]}))}><Text style={[styles.confirmText,confirmations[a.id]&&styles.confirmTextOn]}>{confirmations[a.id]?'CONFIRMADO':'CONFIRMAR'}</Text></TouchableOpacity>:null}</View>)}</View>:null}
-    {step>0?<View style={styles.actions}>{step>1?<TouchableOpacity style={styles.secondary} disabled={busy} onPress={()=>void go(step-1)}><Text style={styles.secondaryText}>VOLTAR</Text></TouchableOpacity>:null}{step<3?<TouchableOpacity style={styles.primary} disabled={busy} onPress={()=>void go(step+1)}><Text style={styles.primaryText}>SALVAR E CONTINUAR</Text></TouchableOpacity>:<TouchableOpacity style={styles.primary} disabled={busy||!data.engine?.canPublish} onPress={()=>void publish()}>{busy?<ActivityIndicator color={colors.surface}/>:<Text style={styles.primaryText}>PUBLICAR REGULAMENTO</Text>}</TouchableOpacity>}</View>:null}
-    {data.rulebook?.documento?.chapters?.length?<View style={styles.document}><Text style={styles.title}>DOCUMENTO GERADO</Text>{data.rulebook.documento.chapters.filter((c:any)=>c.included!==false).map((c:any)=><View key={c.id} style={styles.chapter}><Text style={styles.profileTitle}>{c.order}. {c.title}</Text><Text style={styles.meta}>{c.articles?.length||0} artigos</Text></View>)}</View>:null}
-    <TouchableOpacity disabled={busy} style={styles.reset} onPress={()=>Alert.alert('Restaurar regulamento?','As respostas atuais serão substituídas pelo rascunho inicial.',[{text:'Cancelar'},{text:'Restaurar',style:'destructive',onPress:()=>void reset()}])}><Text style={styles.resetText}>RESTAURAR RASCUNHO</Text></TouchableOpacity>
-  </View>
+export function ChampionshipRulebookPanel({ championshipId, token }: Props) {
+  const [data, setData] = useState<any>(null),
+    [answers, setAnswers] = useState<Record<string, Answer>>({}),
+    [confirmations, setConfirmations] = useState<Record<string, boolean>>({}),
+    [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [feedback, setFeedback] = useState("");
+  const apply = useCallback((json: any) => {
+    setData(json);
+    setAnswers(json?.rulebook?.respostas || {});
+    setConfirmations(json?.rulebook?.confirmacoes_alertas || {});
+  }, []);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      apply(await mobileApi.championshipRulebook(championshipId, token));
+      setError("");
+    } catch (e: any) {
+      setError(e?.message || "Não foi possível carregar o regulamento.");
+    } finally {
+      setLoading(false);
+    }
+  }, [apply, championshipId, token]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const step = Number(data?.rulebook?.etapa_atual || 0);
+  const questions = useMemo(
+    () =>
+      step === 1
+        ? data?.questions?.etapa1 || []
+        : step === 2
+          ? data?.questions?.etapa2 || []
+          : step === 3
+            ? data?.questions?.etapa3 || []
+            : [],
+    [data, step],
+  );
+  const alerts = data?.engine?.alerts || data?.rulebook?.alertas || [];
+  async function save(payload: Record<string, unknown>, message?: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const json = await mobileApi.saveChampionshipRulebook(
+        championshipId,
+        payload,
+        token,
+      );
+      apply(json);
+      if (message) setFeedback(message);
+      return json;
+    } catch (e: any) {
+      setError(e?.message || "Não foi possível salvar o regulamento.");
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function chooseProfile(profile: string) {
+    await save(
+      { perfil: profile, etapa_atual: 1 },
+      "Perfil do regulamento definido.",
+    );
+  }
+  async function go(next: number) {
+    await save({
+      respostas: answers,
+      confirmacoes_alertas: confirmations,
+      etapa_atual: next,
+    });
+  }
+  async function publish() {
+    setBusy(true);
+    setError("");
+    try {
+      await mobileApi.saveChampionshipRulebook(
+        championshipId,
+        { respostas: answers, confirmacoes_alertas: confirmations },
+        token,
+      );
+      const json = await mobileApi.publishChampionshipRulebook(
+        championshipId,
+        confirmations,
+        token,
+      );
+      apply(json);
+      setFeedback("Regulamento publicado.");
+    } catch (e: any) {
+      setError(e?.message || "Não foi possível publicar o regulamento.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function reset() {
+    setBusy(true);
+    try {
+      apply(await mobileApi.resetChampionshipRulebook(championshipId, token));
+      setFeedback("Regulamento restaurado para o rascunho inicial.");
+    } catch (e: any) {
+      setError(e?.message || "Não foi possível restaurar o regulamento.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (loading)
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  if (!data)
+    return (
+      <Text style={styles.error}>{error || "Regulamento indisponível."}</Text>
+    );
+  return (
+    <View style={styles.section}>
+      <View style={styles.heading}>
+        <View>
+          <Text style={styles.title}>REGULAMENTO</Text>
+          <Text style={styles.meta}>
+            {data.rulebook?.status || "rascunho"} · versão{" "}
+            {data.rulebook?.versao || 1}
+          </Text>
+        </View>
+        <Text style={styles.progress}>
+          {data.engine?.progress?.percent ?? 0}%
+        </Text>
+      </View>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {feedback ? <Text style={styles.success}>{feedback}</Text> : null}
+      {step === 0 ? (
+        <>
+          <Text style={styles.help}>
+            Escolha o nível que servirá de base. O documento continua editável
+            depois.
+          </Text>
+          {(data.catalog?.perfis || []).map((p: any) => (
+            <TouchableOpacity
+              key={p.id}
+              style={styles.profile}
+              disabled={busy}
+              onPress={() => void chooseProfile(p.id)}
+            >
+              <Text style={styles.profileTitle}>{p.label}</Text>
+              <Text style={styles.meta}>{p.description}</Text>
+            </TouchableOpacity>
+          ))}
+        </>
+      ) : null}
+      {step > 0 && step <= 3 ? (
+        <>
+          <Text style={styles.step}>ETAPA {step} DE 3</Text>
+          {questions.map((q: any) => (
+            <Question
+              key={q.id}
+              q={q}
+              value={answers[q.id]}
+              onChange={(value) =>
+                setAnswers((current) => ({ ...current, [q.id]: value }))
+              }
+            />
+          ))}
+        </>
+      ) : null}
+      {alerts.length ? (
+        <View style={styles.alertBox}>
+          <Text style={styles.alertTitle}>ALERTAS DO REGULAMENTO</Text>
+          {alerts.map((a: any) => (
+            <View key={a.id} style={styles.alertRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.alertText}>{a.message}</Text>
+                <Text style={styles.meta}>
+                  {a.severity === "blocking"
+                    ? "Bloqueia publicação"
+                    : "Requer confirmação"}
+                </Text>
+              </View>
+              {a.severity !== "blocking" ? (
+                <TouchableOpacity
+                  style={[
+                    styles.confirm,
+                    confirmations[a.id] && styles.confirmOn,
+                  ]}
+                  onPress={() =>
+                    setConfirmations((c) => ({ ...c, [a.id]: !c[a.id] }))
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.confirmText,
+                      confirmations[a.id] && styles.confirmTextOn,
+                    ]}
+                  >
+                    {confirmations[a.id] ? "CONFIRMADO" : "CONFIRMAR"}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {step > 0 ? (
+        <View style={styles.actions}>
+          {step > 1 ? (
+            <TouchableOpacity
+              style={styles.secondary}
+              disabled={busy}
+              onPress={() => void go(step - 1)}
+            >
+              <Text style={styles.secondaryText}>VOLTAR</Text>
+            </TouchableOpacity>
+          ) : null}
+          {step < 3 ? (
+            <TouchableOpacity
+              style={styles.primary}
+              disabled={busy}
+              onPress={() => void go(step + 1)}
+            >
+              <Text style={styles.primaryText}>SALVAR E CONTINUAR</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.primary}
+              disabled={busy || !data.engine?.canPublish}
+              onPress={() => void publish()}
+            >
+              {busy ? (
+                <ActivityIndicator color={colors.onBrand} />
+              ) : (
+                <Text style={styles.primaryText}>PUBLICAR REGULAMENTO</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : null}
+      {data.rulebook?.documento?.chapters?.length ? (
+        <View style={styles.document}>
+          <Text style={styles.title}>DOCUMENTO GERADO</Text>
+          {data.rulebook.documento.chapters
+            .filter((c: any) => c.included !== false)
+            .map((c: any) => (
+              <View key={c.id} style={styles.chapter}>
+                <Text style={styles.profileTitle}>
+                  {c.order}. {c.title}
+                </Text>
+                <Text style={styles.meta}>
+                  {c.articles?.length || 0} artigos
+                </Text>
+              </View>
+            ))}
+        </View>
+      ) : null}
+      <TouchableOpacity
+        disabled={busy}
+        style={styles.reset}
+        onPress={() =>
+          Alert.alert(
+            "Restaurar regulamento?",
+            "As respostas atuais serão substituídas pelo rascunho inicial.",
+            [
+              { text: "Cancelar" },
+              {
+                text: "Restaurar",
+                style: "destructive",
+                onPress: () => void reset(),
+              },
+            ],
+          )
+        }
+      >
+        <Text style={styles.resetText}>RESTAURAR RASCUNHO</Text>
+      </TouchableOpacity>
+    </View>
+  );
 }
 
-function Question({q,value,onChange}:{q:any;value:Answer;onChange:(v:Answer)=>void}){return <View style={styles.question}><Text style={styles.questionTitle}>{q.label}{q.required?' *':''}</Text>{q.help?<Text style={styles.meta}>{q.help}</Text>:null}{q.type==='boolean'?<View style={styles.inline}><Choice label="Sim" active={value===true} onPress={()=>onChange(true)}/><Choice label="Não" active={value===false} onPress={()=>onChange(false)}/></View>:q.type==='single'||q.type==='select'?<View style={styles.wrap}>{(q.options||[]).map((o:any)=><Choice key={o.value} label={o.label} active={value===o.value} onPress={()=>onChange(o.value)}/>)}</View>:q.type==='multi'?<View style={styles.wrap}>{(q.options||[]).map((o:any)=>{const selected=Array.isArray(value)?value:[];return <Choice key={o.value} label={o.label} active={selected.includes(o.value)} onPress={()=>onChange(selected.includes(o.value)?selected.filter(v=>v!==o.value):[...selected,o.value])}/>})}</View>:<TextInput multiline={q.type==='long_text'} keyboardType={q.type==='number'?'numeric':'default'} value={value==null?'':String(value)} onChangeText={(v)=>onChange(q.type==='number'?(v===''?null:Number(v)):v)} placeholder={q.placeholder||''} placeholderTextColor="#8a857e" style={[styles.input,q.type==='long_text'&&styles.longInput]}/>}</View>}
-function Choice({label,active,onPress}:{label:string;active:boolean;onPress:()=>void}){return <TouchableOpacity style={[styles.choice,active&&styles.choiceOn]} onPress={onPress}><Text style={[styles.choiceText,active&&styles.choiceTextOn]}>{label}</Text></TouchableOpacity>}
-const styles=StyleSheet.create({section:{marginHorizontal:spacing.md,gap:9},loading:{minHeight:64,alignItems:'center',justifyContent:'center'},heading:{marginTop:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},title:{color:colors.ink,fontSize:10,fontWeight:'900',letterSpacing:1},progress:{color:colors.brand,fontSize:20,fontWeight:'900'},meta:{marginTop:2,color:colors.muted,fontSize:8,fontWeight:'700'},help:{padding:9,color:colors.muted,backgroundColor:colors.surface,borderRadius:8,fontSize:9,fontWeight:'700'},profile:{padding:9,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,borderRadius:9},profileTitle:{color:colors.ink,fontSize:10,fontWeight:'900'},step:{color:colors.brand,fontSize:9,fontWeight:'900'},question:{gap:6,padding:9,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,borderRadius:9},questionTitle:{color:colors.ink,fontSize:9,fontWeight:'900'},input:{minHeight:40,paddingHorizontal:9,borderRadius:7,color:colors.ink,backgroundColor:'#f2eee7',borderWidth:1,borderColor:colors.line,fontWeight:'700'},longInput:{minHeight:78,paddingTop:9,textAlignVertical:'top'},inline:{flexDirection:'row',gap:5},wrap:{flexDirection:'row',flexWrap:'wrap',gap:5},choice:{paddingHorizontal:10,paddingVertical:8,backgroundColor:'#eee9e1'},choiceOn:{backgroundColor:colors.brandDark},choiceText:{color:colors.ink,fontSize:8,fontWeight:'900'},choiceTextOn:{color:colors.surface},actions:{flexDirection:'row',gap:6},primary:{flex:1,minHeight:42,borderRadius:8,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand},primaryText:{color:colors.surface,fontSize:9,fontWeight:'900'},secondary:{minWidth:84,minHeight:42,borderRadius:8,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line},secondaryText:{color:colors.ink,fontSize:9,fontWeight:'900'},alertBox:{gap:6,padding:9,backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'},alertTitle:{color:'#9a3412',fontSize:9,fontWeight:'900'},alertRow:{flexDirection:'row',gap:8,alignItems:'center'},alertText:{color:'#7c2d12',fontSize:8.5,fontWeight:'800'},confirm:{paddingHorizontal:8,paddingVertical:7,backgroundColor:'#fff'},confirmOn:{backgroundColor:'#166534'},confirmText:{color:'#9a3412',fontSize:7,fontWeight:'900'},confirmTextOn:{color:'#fff'},document:{gap:5,paddingTop:4},chapter:{padding:9,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line,borderRadius:8},reset:{minHeight:40,alignItems:'center',justifyContent:'center'},resetText:{color:'#b42318',fontSize:8,fontWeight:'900'},error:{padding:9,color:'#9a3412',backgroundColor:'#fff7ed',fontSize:9,fontWeight:'800'},success:{padding:9,color:'#166534',backgroundColor:'#effaf3',fontSize:9,fontWeight:'800'}})
+function Question({
+  q,
+  value,
+  onChange,
+}: {
+  q: any;
+  value: Answer;
+  onChange: (v: Answer) => void;
+}) {
+  return (
+    <View style={styles.question}>
+      <Text style={styles.questionTitle}>
+        {q.label}
+        {q.required ? " *" : ""}
+      </Text>
+      {q.help ? <Text style={styles.meta}>{q.help}</Text> : null}
+      {q.type === "boolean" ? (
+        <View style={styles.inline}>
+          <Choice
+            label="Sim"
+            active={value === true}
+            onPress={() => onChange(true)}
+          />
+          <Choice
+            label="Não"
+            active={value === false}
+            onPress={() => onChange(false)}
+          />
+        </View>
+      ) : q.type === "single" || q.type === "select" ? (
+        <View style={styles.wrap}>
+          {(q.options || []).map((o: any) => (
+            <Choice
+              key={o.value}
+              label={o.label}
+              active={value === o.value}
+              onPress={() => onChange(o.value)}
+            />
+          ))}
+        </View>
+      ) : q.type === "multi" ? (
+        <View style={styles.wrap}>
+          {(q.options || []).map((o: any) => {
+            const selected = Array.isArray(value) ? value : [];
+            return (
+              <Choice
+                key={o.value}
+                label={o.label}
+                active={selected.includes(o.value)}
+                onPress={() =>
+                  onChange(
+                    selected.includes(o.value)
+                      ? selected.filter((v) => v !== o.value)
+                      : [...selected, o.value],
+                  )
+                }
+              />
+            );
+          })}
+        </View>
+      ) : (
+        <TextInput
+          multiline={q.type === "long_text"}
+          keyboardType={q.type === "number" ? "numeric" : "default"}
+          value={value == null ? "" : String(value)}
+          onChangeText={(v) =>
+            onChange(q.type === "number" ? (v === "" ? null : Number(v)) : v)
+          }
+          placeholder={q.placeholder || ""}
+          placeholderTextColor="#8a857e"
+          style={[styles.input, q.type === "long_text" && styles.longInput]}
+        />
+      )}
+    </View>
+  );
+}
+function Choice({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.choice, active && styles.choiceOn]}
+      onPress={onPress}
+    >
+      <Text style={[styles.choiceText, active && styles.choiceTextOn]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+const styles = StyleSheet.create({
+  section: { marginHorizontal: spacing.md, gap: 9 },
+  loading: { minHeight: 64, alignItems: "center", justifyContent: "center" },
+  heading: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  title: {
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  progress: { color: colors.brand, fontSize: 20, fontWeight: "900" },
+  meta: { marginTop: 2, color: colors.muted, fontSize: 8, fontWeight: "700" },
+  help: {
+    padding: 9,
+    color: colors.muted,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 8,
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  profile: {
+    padding: 9,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 9,
+  },
+  profileTitle: { color: colors.ink, fontSize: 10, fontWeight: "900" },
+  step: { color: colors.brand, fontSize: 9, fontWeight: "900" },
+  question: {
+    gap: 6,
+    padding: 9,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 9,
+  },
+  questionTitle: { color: colors.ink, fontSize: 9, fontWeight: "900" },
+  input: {
+    minHeight: 40,
+    paddingHorizontal: 9,
+    borderRadius: 7,
+    color: colors.ink,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.line,
+    fontWeight: "700",
+  },
+  longInput: { minHeight: 78, paddingTop: 9, textAlignVertical: "top" },
+  inline: { flexDirection: "row", gap: 5 },
+  wrap: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
+  choice: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 6,
+  },
+  choiceOn: { backgroundColor: colors.brand },
+  choiceText: { color: colors.ink, fontSize: 8, fontWeight: "900" },
+  choiceTextOn: { color: colors.onBrand },
+  actions: { flexDirection: "row", gap: 6 },
+  primary: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.brand,
+  },
+  primaryText: { color: colors.onBrand, fontSize: 9, fontWeight: "900" },
+  secondary: {
+    minWidth: 84,
+    minHeight: 42,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  secondaryText: { color: colors.ink, fontSize: 9, fontWeight: "900" },
+  alertBox: {
+    gap: 6,
+    padding: 9,
+    backgroundColor: "rgba(212, 165, 87, .12)",
+    borderWidth: 1,
+    borderColor: "rgba(212, 165, 87, .4)",
+  },
+  alertTitle: { color: colors.warning, fontSize: 9, fontWeight: "900" },
+  alertRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  alertText: { color: colors.ink, fontSize: 8.5, fontWeight: "800" },
+  confirm: {
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 6,
+  },
+  confirmOn: { backgroundColor: colors.success },
+  confirmText: { color: colors.muted, fontSize: 7, fontWeight: "900" },
+  confirmTextOn: { color: colors.onBrand },
+  document: { gap: 5, paddingTop: 4 },
+  chapter: {
+    padding: 9,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 8,
+  },
+  reset: { minHeight: 40, alignItems: "center", justifyContent: "center" },
+  resetText: { color: colors.danger, fontSize: 8, fontWeight: "900" },
+  error: {
+    padding: 9,
+    color: colors.danger,
+    backgroundColor: "rgba(224, 122, 122, .12)",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  success: {
+    padding: 9,
+    color: colors.success,
+    backgroundColor: "rgba(101, 185, 130, .12)",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+});

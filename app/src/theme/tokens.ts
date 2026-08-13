@@ -1,15 +1,20 @@
 export const colors = {
-  background: '#f4f1ea',
-  surface: '#ffffff',
-  ink: '#111827',
-  muted: '#6b7280',
-  line: '#e5e0d5',
-  brand: '#ff4058',
-  brandDark: '#151b27',
-  gold: '#d7ae28',
-  success: '#16a34a',
-  warning: '#f97316',
-  purple: '#6d3df5',
+  background: '#0c0d0f',
+  surface: '#141518',
+  surfaceRaised: '#1a1b1f',
+  surfaceSoft: '#17181b',
+  ink: '#f5f3ed',
+  muted: '#9c9a94',
+  line: '#2a2c32',
+  brand: '#c9b766',
+  gold: '#c9b766',
+  brandLight: '#dfcf85',
+  brandDark: '#211e12',
+  onBrand: '#17150d',
+  success: '#65b982',
+  warning: '#d4a557',
+  danger: '#e07a7a',
+  info: '#8fb3d8',
 }
 
 export const spacing = {
@@ -22,9 +27,9 @@ export const spacing = {
 }
 
 export const radius = {
-  sm: 10,
-  md: 16,
-  lg: 24,
+  sm: 6,
+  md: 10,
+  lg: 14,
 }
 
 export const typography = {

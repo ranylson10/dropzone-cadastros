@@ -7,23 +7,23 @@ import { MobileAccount } from '@/lib/auth'
 import { colors } from '@/theme/tokens'
 import { MobileRoute } from '@/types/dropzone'
 
-type TabId = 'home' | 'championships' | 'teams' | 'agenda' | 'rank'
+type TabId = 'home' | 'championships' | 'teams' | 'agenda' | 'profile'
 type IconName = ComponentProps<typeof Ionicons>['name']
 
 const tabs: Array<{ id: TabId; label: string; icon: IconName; iconActive: IconName; route: MobileRoute }> = [
   { id: 'home', label: 'Início', icon: 'home-outline', iconActive: 'home', route: 'home' },
-  { id: 'championships', label: 'Camp.', icon: 'trophy-outline', iconActive: 'trophy', route: 'vacancies' },
+  { id: 'championships', label: 'Campeonatos', icon: 'trophy-outline', iconActive: 'trophy', route: 'vacancies' },
   { id: 'teams', label: 'Equipes', icon: 'people-outline', iconActive: 'people', route: 'team_directory' },
   { id: 'agenda', label: 'Agenda', icon: 'calendar-outline', iconActive: 'calendar', route: 'agenda' },
-  { id: 'rank', label: 'Rank', icon: 'podium-outline', iconActive: 'podium', route: 'rank' },
+  { id: 'profile', label: 'Perfil', icon: 'person-outline', iconActive: 'person', route: 'profile_management' },
 ]
 
 const tabByRoute: Partial<Record<MobileRoute, TabId>> = {
   home: 'home',
   search: 'home',
   dashboard: 'home',
-  profile_management: 'home',
-  profile_create: 'home',
+  profile_management: 'profile',
+  profile_create: 'profile',
   vacancies: 'championships',
   championship_public: 'championships',
   purchase_claim: 'championships',
@@ -35,14 +35,17 @@ const tabByRoute: Partial<Record<MobileRoute, TabId>> = {
   team_public: 'teams',
   team_roster: 'teams',
   team_create: 'teams',
-  player_directory: 'rank',
+  player_directory: 'teams',
   player_dashboard: 'home',
-  player_public: 'rank',
+  player_public: 'teams',
   lineup: 'teams',
   line_management: 'teams',
   invites: 'teams',
   agenda: 'agenda',
-  rank: 'rank',
+  rank: 'home',
+  wallet: 'profile',
+  commerce: 'profile',
+  seller_sales: 'profile',
 }
 
 export function AppShell(props: {
@@ -86,7 +89,7 @@ export function AppShell(props: {
             style={[styles.topActionButton, props.route === 'search' && styles.topActionButtonActive]}
             onPress={() => props.onNavigate('search')}
           >
-            <Ionicons name={props.route === 'search' ? 'search' : 'search-outline'} size={20} color={props.route === 'search' ? colors.brand : colors.surface} />
+            <Ionicons name={props.route === 'search' ? 'search' : 'search-outline'} size={20} color={props.route === 'search' ? colors.brandLight : colors.ink} />
           </TouchableOpacity>
 
           {props.isAuthenticated ? (
@@ -95,7 +98,7 @@ export function AppShell(props: {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity accessibilityLabel="Entrar" hitSlop={8} style={styles.loginButton} onPress={props.onRequestLogin}>
-              <Ionicons name="person-outline" size={19} color={colors.surface} />
+              <Ionicons name="person-outline" size={19} color={colors.ink} />
               <Text style={styles.loginButtonText}>Entrar</Text>
             </TouchableOpacity>
           )}
@@ -122,7 +125,7 @@ export function AppShell(props: {
               style={[styles.tab, active && styles.tabActive]}
               onPress={() => props.onNavigate(tab.route)}
             >
-              <Ionicons name={active ? tab.iconActive : tab.icon} size={21} color={active ? colors.brand : '#9ba6b4'} />
+              <Ionicons name={active ? tab.iconActive : tab.icon} size={21} color={active ? colors.brandLight : colors.muted} />
               <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
             </TouchableOpacity>
           )
@@ -304,50 +307,50 @@ function getInitial(name?: string | null) {
 
 const styles = StyleSheet.create({
   shell:{flex:1,backgroundColor:colors.background},
-  topbar:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:10,backgroundColor:'#0d141e',borderBottomWidth:1,borderBottomColor:'rgba(255,255,255,.07)'},
+  topbar:{minHeight:52,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:10,backgroundColor:colors.background,borderBottomWidth:1,borderBottomColor:colors.line},
   brandSide:{height:38,flexDirection:'row',alignItems:'center',gap:7,paddingHorizontal:2},
   systemLogo:{width:28,height:28},
-  brandName:{color:colors.surface,fontSize:11,fontWeight:'900',letterSpacing:1.4},
+  brandName:{color:colors.ink,fontSize:11,fontWeight:'900',letterSpacing:1.4},
   topActions:{flexDirection:'row',alignItems:'center',gap:5},
-  loginButton:{height:34,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,paddingHorizontal:10,borderRadius:8,backgroundColor:'rgba(255,255,255,.07)'},
-  loginButtonText:{color:colors.surface,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
-  topActionButton:{width:34,height:34,alignItems:'center',justifyContent:'center',borderRadius:8,backgroundColor:'rgba(255,255,255,.055)'},
-  topActionButtonActive:{backgroundColor:'rgba(255,64,88,.12)'},
-  profileAvatar:{width:34,height:34,alignItems:'center',justifyContent:'center',borderRadius:9,backgroundColor:'rgba(255,255,255,.06)',overflow:'hidden'},
-  accountImage:{backgroundColor:'#202735'},
-  avatarFallback:{alignItems:'center',justifyContent:'center',backgroundColor:'#202735'},
-  profileInitial:{color:colors.surface,fontSize:14,fontWeight:'900'},
-  profileInitialDark:{color:colors.surface},
+  loginButton:{height:34,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,paddingHorizontal:10,borderRadius:6,backgroundColor:colors.surfaceRaised},
+  loginButtonText:{color:colors.ink,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
+  topActionButton:{width:34,height:34,alignItems:'center',justifyContent:'center',borderRadius:6,backgroundColor:colors.surface},
+  topActionButtonActive:{backgroundColor:colors.surfaceRaised},
+  profileAvatar:{width:34,height:34,alignItems:'center',justifyContent:'center',borderRadius:6,backgroundColor:colors.surfaceRaised,overflow:'hidden'},
+  accountImage:{backgroundColor:colors.surfaceRaised},
+  avatarFallback:{alignItems:'center',justifyContent:'center',backgroundColor:colors.surfaceRaised},
+  profileInitial:{color:colors.ink,fontSize:14,fontWeight:'900'},
+  profileInitialDark:{color:colors.ink},
   content:{flex:1},
-  liliFab:{position:'absolute',right:12,width:46,height:46,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:colors.purple,shadowColor:'#000',shadowOpacity:.16,shadowOffset:{width:0,height:5},shadowRadius:9,elevation:5},
-  liliText:{color:colors.surface,fontSize:10,fontWeight:'900'},
-  bottomBar:{flexDirection:'row',alignItems:'stretch',paddingHorizontal:4,paddingTop:3,backgroundColor:'#0d141e',borderTopWidth:1,borderTopColor:'rgba(255,255,255,.08)'},
+  liliFab:{position:'absolute',right:12,width:46,height:46,borderRadius:10,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand},
+  liliText:{color:colors.onBrand,fontSize:10,fontWeight:'900'},
+  bottomBar:{flexDirection:'row',alignItems:'stretch',paddingHorizontal:4,paddingTop:3,backgroundColor:colors.background,borderTopWidth:1,borderTopColor:colors.line},
   tab:{flex:1,minWidth:0,minHeight:48,alignItems:'center',justifyContent:'center',gap:1,borderTopWidth:2,borderTopColor:'transparent'},
-  tabActive:{borderTopColor:colors.brand,backgroundColor:'rgba(255,255,255,.025)'},
-  tabLabel:{color:'#8f9aaa',fontSize:7,fontWeight:'800'},
-  tabLabelActive:{color:colors.surface,fontWeight:'900'},
-  modalBackdrop:{flex:1,backgroundColor:'rgba(0,0,0,.42)',alignItems:'flex-end',paddingTop:64,paddingRight:10},
-  profileMenu:{width:278,backgroundColor:colors.surface,padding:12,gap:7,borderRadius:10,borderWidth:1,borderColor:colors.line,shadowColor:'#000',shadowOpacity:.18,shadowRadius:14,elevation:7},
+  tabActive:{borderTopColor:colors.brand,backgroundColor:colors.surface},
+  tabLabel:{color:colors.muted,fontSize:7,fontWeight:'800'},
+  tabLabelActive:{color:colors.brandLight,fontWeight:'900'},
+  modalBackdrop:{flex:1,backgroundColor:'rgba(5,6,8,.82)',alignItems:'flex-end',paddingTop:64,paddingRight:10},
+  profileMenu:{width:278,backgroundColor:colors.surface,padding:12,gap:7,borderRadius:10,borderWidth:1,borderColor:colors.line},
   profileHeader:{flexDirection:'row',alignItems:'center',gap:10,paddingBottom:8,borderBottomWidth:1,borderBottomColor:colors.line},
   profileTextBlock:{flex:1},
   menuName:{color:colors.ink,fontSize:13,fontWeight:'900'},
   menuType:{color:colors.brand,fontSize:8,fontWeight:'900',textTransform:'uppercase'},
   accountOption:{minHeight:50,flexDirection:'row',alignItems:'center',gap:9,borderRadius:8,borderWidth:1,borderColor:colors.line,paddingHorizontal:9,paddingVertical:6},
-  accountOptionActive:{borderColor:'rgba(255,64,88,.42)',backgroundColor:'#fff6f7'},
+  accountOptionActive:{borderColor:colors.brand,backgroundColor:colors.surfaceRaised},
   accountCopy:{flex:1,minWidth:0},
   accountName:{color:colors.ink,fontSize:11,fontWeight:'900'},
   accountType:{color:colors.muted,fontSize:8,fontWeight:'800',textTransform:'uppercase'},
-  panelButton:{minHeight:40,alignItems:'center',justifyContent:'center',borderRadius:8,backgroundColor:colors.brandDark},
-  panelButtonText:{color:colors.surface,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
+  panelButton:{minHeight:40,alignItems:'center',justifyContent:'center',borderRadius:6,backgroundColor:colors.brand},
+  panelButtonText:{color:colors.onBrand,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
   signOutButton:{minHeight:40,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,borderRadius:8,borderWidth:1,borderColor:colors.line},
   signOutButtonText:{color:colors.muted,fontSize:9,fontWeight:'900',textTransform:'uppercase'},
   menuUtilityRow:{flexDirection:'row',gap:6},
-  menuUtilityButton:{flex:1,minHeight:38,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,borderRadius:8,backgroundColor:'#f2eee7'},
+  menuUtilityButton:{flex:1,minHeight:38,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5,borderRadius:6,backgroundColor:colors.surfaceRaised},
   menuUtilityText:{color:colors.ink,fontSize:8,fontWeight:'900',textTransform:'uppercase'},
-  languageMenu:{width:270,backgroundColor:colors.surface,borderRadius:10,borderWidth:1,borderColor:colors.line,padding:12,gap:7,shadowColor:'#000',shadowOpacity:.18,shadowRadius:14,elevation:7},
+  languageMenu:{width:270,backgroundColor:colors.surface,borderRadius:10,borderWidth:1,borderColor:colors.line,padding:12,gap:7},
   languageTitle:{color:colors.ink,fontSize:14,fontWeight:'900',textTransform:'uppercase',marginBottom:2},
   languageOption:{minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:10,paddingVertical:7,borderRadius:8,borderWidth:1,borderColor:colors.line},
-  languageOptionActive:{borderColor:'rgba(255,64,88,.42)',backgroundColor:'#fff6f7'},
+  languageOptionActive:{borderColor:colors.brand,backgroundColor:colors.surfaceRaised},
   languageOptionDisabled:{opacity:.55},
   languageName:{color:colors.ink,fontSize:11,fontWeight:'900'},
   languageHint:{marginTop:1,color:colors.muted,fontSize:8,fontWeight:'700'},
