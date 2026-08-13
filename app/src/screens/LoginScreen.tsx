@@ -1,22 +1,30 @@
-import { useState } from 'react'
-import Ionicons from '@expo/vector-icons/Ionicons'
-import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { useAuth } from '@/lib/auth'
-import { colors, spacing, typography } from '@/theme/tokens'
+import { useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import {
+  ActivityIndicator,
+  Image,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "@/lib/auth";
+import { colors, spacing, typography } from "@/theme/tokens";
 
 export function LoginScreen(props: { onCancel?: () => void }) {
-  const auth = useAuth()
-  const [localError, setLocalError] = useState('')
-  const busy = auth.authenticating
-  const error = localError || auth.authError
+  const auth = useAuth();
+  const [localError, setLocalError] = useState("");
+  const busy = auth.authenticating;
+  const error = localError || auth.authError;
 
   async function signIn() {
-    setLocalError('')
-    auth.clearAuthError()
+    setLocalError("");
+    auth.clearAuthError();
     try {
-      await auth.signInWithGoogle()
+      await auth.signInWithGoogle();
     } catch (err: any) {
-      setLocalError(err?.message || 'Não foi possível iniciar o login.')
+      setLocalError(err?.message || "Não foi possível iniciar o login.");
     }
   }
 
@@ -29,9 +37,13 @@ export function LoginScreen(props: { onCancel?: () => void }) {
           onPress={props.onCancel}
           disabled={!props.onCancel || busy}
         >
-          <Ionicons name="arrow-back" size={22} color={colors.surface} />
+          <Ionicons name="arrow-back" size={22} color={colors.ink} />
         </TouchableOpacity>
-        <Image source={require('../../assets/dropzone-icon-accent.png')} style={styles.logo} resizeMode="contain" />
+        <Image
+          source={require("../../assets/dropzone-icon-accent.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <View style={styles.iconSpacer} />
       </View>
 
@@ -49,33 +61,53 @@ export function LoginScreen(props: { onCancel?: () => void }) {
         {!auth.configured ? (
           <View style={styles.notice}>
             <Text style={styles.noticeTitle}>CONFIGURAÇÃO PENDENTE</Text>
-            <Text style={styles.noticeText}>As variáveis do Supabase ainda não estão configuradas neste app.</Text>
+            <Text style={styles.noticeText}>
+              As variáveis do Supabase ainda não estão configuradas neste app.
+            </Text>
           </View>
         ) : null}
 
         {auth.configured && !auth.redirectConfigured ? (
           <View style={styles.notice}>
             <Text style={styles.noticeTitle}>RETORNO DO LOGIN PENDENTE</Text>
-            <Text style={styles.noticeText}>O callback mobile precisa estar configurado antes de usar o Google.</Text>
+            <Text style={styles.noticeText}>
+              O callback mobile precisa estar configurado antes de usar o
+              Google.
+            </Text>
           </View>
         ) : null}
 
         {error ? (
           <View style={styles.errorBox}>
             <Text style={styles.error}>{error}</Text>
-            <TouchableOpacity onPress={() => { setLocalError(''); auth.clearAuthError() }}>
+            <TouchableOpacity
+              onPress={() => {
+                setLocalError("");
+                auth.clearAuthError();
+              }}
+            >
               <Text style={styles.retry}>TENTAR NOVAMENTE</Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
         <TouchableOpacity
-          style={[styles.googleButton, (!auth.configured || !auth.redirectConfigured || busy) && styles.disabled]}
+          style={[
+            styles.googleButton,
+            (!auth.configured || !auth.redirectConfigured || busy) &&
+              styles.disabled,
+          ]}
           onPress={signIn}
           disabled={busy || !auth.configured || !auth.redirectConfigured}
         >
-          {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="logo-google" size={21} color="#fff" />}
-          <Text style={styles.googleText}>{busy ? 'AGUARDANDO GOOGLE...' : 'ENTRAR COM GOOGLE'}</Text>
+          {busy ? (
+            <ActivityIndicator color={colors.onBrand} />
+          ) : (
+            <Ionicons name="logo-google" size={21} color={colors.onBrand} />
+          )}
+          <Text style={styles.googleText}>
+            {busy ? "AGUARDANDO GOOGLE..." : "ENTRAR COM GOOGLE"}
+          </Text>
         </TouchableOpacity>
 
         {props.onCancel && !busy ? (
@@ -85,11 +117,12 @@ export function LoginScreen(props: { onCancel?: () => void }) {
         ) : null}
 
         <Text style={styles.helper}>
-          Você pode navegar pelo conteúdo público sem conta. O login será solicitado apenas quando necessário.
+          Você pode navegar pelo conteúdo público sem conta. O login será
+          solicitado apenas quando necessário.
         </Text>
       </View>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -101,17 +134,17 @@ const styles = StyleSheet.create({
   },
   topLine: {
     minHeight: 68,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,.14)',
+    borderBottomColor: "rgba(255,255,255,.14)",
   },
   iconButton: {
     width: 44,
     height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconSpacer: { width: 44 },
   logo: { width: 42, height: 42 },
@@ -121,30 +154,30 @@ const styles = StyleSheet.create({
     paddingBottom: 34,
   },
   eyebrow: {
-    color: '#b7bec8',
+    color: colors.muted,
     fontSize: typography.tiny,
-    fontWeight: '900',
+    fontWeight: "900",
     letterSpacing: 3,
   },
   title: {
     marginTop: 8,
-    color: '#fff',
+    color: colors.ink,
     fontSize: 44,
     lineHeight: 46,
-    fontWeight: '900',
-    letterSpacing: .3,
+    fontWeight: "900",
+    letterSpacing: 0.3,
   },
   description: {
     marginTop: 12,
     maxWidth: 330,
-    color: '#b9c0ca',
+    color: colors.muted,
     fontSize: 14,
     lineHeight: 21,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   panel: {
-    marginTop: 'auto',
-    backgroundColor: '#eeeae2',
+    marginTop: "auto",
+    backgroundColor: colors.surface,
     padding: spacing.lg,
     gap: 12,
     borderTopWidth: 4,
@@ -159,74 +192,74 @@ const styles = StyleSheet.create({
   notice: {
     padding: 11,
     borderWidth: 1,
-    borderColor: '#d7c9a7',
-    backgroundColor: '#f8f0dc',
+    borderColor: colors.warning,
+    backgroundColor: "rgba(212,165,87,.13)",
   },
   noticeTitle: {
-    color: '#7c5d12',
+    color: colors.warning,
     fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: .8,
+    fontWeight: "900",
+    letterSpacing: 0.8,
   },
   noticeText: {
     marginTop: 4,
-    color: '#715f38',
+    color: colors.muted,
     fontSize: 11,
     lineHeight: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   errorBox: {
     padding: 11,
     borderWidth: 1,
-    borderColor: '#e8b7bd',
-    backgroundColor: '#fff1f2',
+    borderColor: colors.danger,
+    backgroundColor: "rgba(224,122,122,.13)",
   },
   error: {
-    color: '#9f1239',
+    color: colors.danger,
     fontSize: 11,
     lineHeight: 17,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   retry: {
     marginTop: 7,
     color: colors.ink,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   googleButton: {
     minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     backgroundColor: colors.brand,
   },
-  disabled: { opacity: .58 },
+  disabled: { opacity: 0.58 },
   googleText: {
-    color: '#fff',
+    color: colors.onBrand,
     fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: .5,
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
   guestButton: {
     minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: '#bdb6ab',
-    backgroundColor: '#e3ded5',
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceRaised,
   },
   guestText: {
     color: colors.ink,
     fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: .4,
+    fontWeight: "900",
+    letterSpacing: 0.4,
   },
   helper: {
-    color: '#746f68',
+    color: colors.muted,
     fontSize: 10,
     lineHeight: 15,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
   },
-})
+});
