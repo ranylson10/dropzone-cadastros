@@ -47,7 +47,7 @@ export function StreamWorkspace(props: { campeonatoId: string }) {
             <ArrowLeft size={16} /> Voltar
           </button>
           <div>
-            <p className="eyebrow">Stream · produção</p>
+            <p className="eyebrow">Transmissão ao vivo</p>
             <h1>
               {loadingMeta ? <Loader2 size={18} className="spin" /> : null}
               {nome || 'Campeonato'}
@@ -62,7 +62,7 @@ export function StreamWorkspace(props: { campeonatoId: string }) {
             open={sheetOpen}
             onOpenChange={setSheetOpen}
             showTrigger
-            triggerLabel="Planilha de dados"
+            triggerLabel="Dados"
           />
         </div>
       </header>

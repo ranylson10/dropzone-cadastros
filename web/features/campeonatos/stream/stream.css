@@ -593,10 +593,8 @@ body.stream-editor-scroll-lock {
 .stream-editor {
   min-height: 100vh;
   padding: 12px 14px 24px;
-  background-color: var(--bg);
-  background-image: var(--bg-texture);
-  background-size: var(--bg-texture-size);
-  color: var(--text);
+  background: var(--ui-bg, #0c0d0f);
+  color: var(--ui-text, #f5f3ed);
 }
 
 /*
@@ -645,11 +643,11 @@ body.stream-editor-scroll-lock {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  backdrop-filter: blur(10px);
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(245, 243, 237, .07);
+  background: var(--ui-bg, #0c0d0f);
 }
 
 .stream-workspace-brand {
@@ -3081,7 +3079,7 @@ body.stream-editor-scroll-lock {
 
 /* Pacote de overlays — editor único do pacote e renderer compartilhado. */
 .stream-package-editor{display:flex;flex-direction:column;gap:14px}
-.stream-package-editor{gap:0}.stream-package-header-slot{display:flex;align-items:center;min-width:0}.stream-package-header-controls{display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0}.stream-package-header-tabs{display:flex;align-items:center;gap:2px;padding:2px;border:1px solid #d8dce3;background:#f5f6f8}.stream-package-header-tabs button{min-height:28px;padding:0 7px;border:0;background:transparent;color:#68707c;font-size:9px;font-weight:900;text-transform:uppercase;white-space:nowrap;cursor:pointer}.stream-package-header-tabs button.active{background:#20242b;color:#fff}.stream-package-header-panels{overflow-x:auto;max-width:510px}.stream-package-header-controls .stream-package-count{min-height:30px;padding:0 7px;font-size:10px}.stream-package-header-controls .stream-primary-btn{min-height:30px;padding:0 9px;font-size:10px}
+.stream-package-editor{gap:0}.stream-package-header-slot{display:flex;align-items:center;min-width:0}.stream-package-header-controls{display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0}.stream-package-header-tabs{display:flex;align-items:center;gap:2px;padding:2px;border:0;border-radius:7px;background:var(--ui-surface,#141518)}.stream-package-header-tabs button{min-height:28px;padding:0 7px;border:0;border-radius:5px;background:transparent;color:#85888e;font-size:9px;font-weight:900;text-transform:uppercase;white-space:nowrap;cursor:pointer}.stream-package-header-tabs button.active{background:var(--ui-primary,#c9b766);color:#111214}.stream-package-header-panels{overflow-x:auto;max-width:510px}.stream-package-header-controls .stream-package-count{min-height:30px;padding:0 7px;font-size:10px}.stream-package-header-controls .stream-primary-btn{min-height:30px;padding:0 9px;font-size:10px}
 .stream-package-loading{display:flex;align-items:center;gap:9px}
 .stream-package-topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:20px;border:1px solid #d8dce3;background:#fff}
 .stream-package-topbar h2{margin:2px 0 4px;font-size:22px}
