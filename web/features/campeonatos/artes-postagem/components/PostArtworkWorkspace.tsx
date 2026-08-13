@@ -361,6 +361,15 @@ function projectRequiresGame(project?: PostArtworkProject | null) {
   return Boolean(project?.blocks.some((block) => GAME_DATA_BLOCK_TYPES.has(block.type)))
 }
 
+function stripDynamicGameSources(project: PostArtworkProject): PostArtworkProject {
+  return {
+    ...cloneDraft(project),
+    blocks: project.blocks.map((block) => GAME_DATA_BLOCK_TYPES.has(block.type)
+      ? { ...block, source: {}, ...(block.type === 'qualified_teams' ? { dataStart: 1, dataEnd: 0 } : {}) }
+      : { ...block, style: structuredClone(block.style || {}) }),
+  }
+}
+
 function rowsForBlock(block: PostArtworkBlock, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>, booyahRows: Record<string, PostArtworkTeamRow[]> = {}) {
   if (block.type === 'table_day' || block.type === 'qualified_teams') return dayRows[block.source?.jogoId || ''] || []
   if (block.type === 'booyahs_day') return booyahRows[block.source?.jogoId || ''] || []
@@ -1102,7 +1111,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
     setError('')
     setFeedback('')
     try {
-      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/${encodeURIComponent(draft.id)}`, { method: 'PUT', body: JSON.stringify(draft) })
+      const body = await authFetch(`/api/campeonatos/${encodeURIComponent(campeonatoId)}/artes-postagem/${encodeURIComponent(draft.id)}`, { method: 'PUT', body: JSON.stringify(stripDynamicGameSources(draft)) })
       if (body.item) {
         setItems((current) => current.map((item) => item.id === body.item!.id ? body.item! : item))
         setDraft(cloneDraft(body.item))
@@ -1153,7 +1162,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
 
   function addDayTable() {
     if (!draft) return
-    const game = games[games.length - 1]
+    const game = editorReferenceGame || undefined
     const block = createDayTableBlock(draft.blocks.filter((item) => item.type === 'table_day').length, game)
     setDraft({ ...draft, blocks: [...draft.blocks, block] })
     setSelectedBlockId(block.id)
@@ -1168,7 +1177,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
 
   function addMvpDay() {
     if (!draft) return
-    const block = createMvpBlock('mvp_day', draft.blocks.filter((item) => item.type === 'mvp_day').length, games[games.length - 1])
+    const block = createMvpBlock('mvp_day', draft.blocks.filter((item) => item.type === 'mvp_day').length, editorReferenceGame || undefined)
     setDraft({ ...draft, blocks: [...draft.blocks, block] })
     setSelectedBlockId(block.id)
   }
@@ -1176,14 +1185,14 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
 
   function addQualifiedTeams() {
     if (!draft) return
-    const block = createQualifiedTeamsBlock(draft.blocks.filter((item) => item.type === 'qualified_teams').length, games[games.length - 1])
+    const block = createQualifiedTeamsBlock(draft.blocks.filter((item) => item.type === 'qualified_teams').length, editorReferenceGame || undefined)
     setDraft({ ...draft, blocks: [...draft.blocks, block] })
     setSelectedBlockId(block.id)
   }
 
   function addBooyahsDay() {
     if (!draft) return
-    const game = games[games.length - 1]
+    const game = editorReferenceGame || undefined
     const block = createBooyahsDayBlock(draft.blocks.filter((item) => item.type === 'booyahs_day').length, game)
     setDraft({ ...draft, blocks: [...draft.blocks, block] })
     setSelectedBlockId(block.id)
@@ -1191,7 +1200,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
 
   function addKillLeaders() {
     if (!draft) return
-    const game = games[games.length - 1]
+    const game = editorReferenceGame || undefined
     const block = createMvpBlock('mvp_general', draft.blocks.filter((item) => item.type === 'kills_leaders').length)
     const next = { ...block, id: uid('kills-leaders'), type: 'kills_leaders' as const, name: `Líder de Abates do Jogo ${draft.blocks.filter((item) => item.type === 'kills_leaders').length + 1}`, source: game ? { jogoId: game.id, jogoName: game.nome } : {} }
     setDraft({ ...draft, blocks: [...draft.blocks, next] })
@@ -1575,7 +1584,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
 
         {error ? <div className="post-artworks-alert error">{error}</div> : null}
         <section className="post-artworks-generate-filter">
-          <div className="post-artworks-panel-title"><strong>Selecione a fase e o jogo</strong><small>O jogo escolhido alimenta Tabela do Jogo, Classificados, MVP e Booyahs.</small></div>
+          <div className="post-artworks-panel-title"><strong>Selecione a fase e o jogo</strong><small>O jogo escolhido alimenta Tabela do Jogo, Classificados, MVP, Booyahs e Líderes de Abates.</small></div>
           <div className="post-artworks-generate-filter-grid">
             <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; const first = games.find((game) => game.faseId === faseId); setGenerationPhaseId(faseId); setGenerationGameId(first?.id || '') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
             <label>Jogo<select value={generationGameId} onChange={(event) => setGenerationGameId(event.target.value)} disabled={!generationPhaseId}><option value="">Selecione o jogo</option>{generationGames.map((game) => <option key={game.id} value={game.id}>{game.nome}{game.grupoNome ? ` · ${game.grupoNome}` : ''}</option>)}</select></label>
@@ -1633,7 +1642,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
               {draft.background_url ? <button type="button" className="post-artworks-secondary" onClick={() => patchDraft({ background_url: null })}>Remover fundo</button> : null}
             </> : <>
               <label>Nome do bloco<input value={selectedBlock.name} onChange={(event) => patchBlock(selectedBlock.id, { name: event.target.value })} /></label>
-              {(selectedBlock.type === 'table_day' || selectedBlock.type === 'booyahs_day' || selectedBlock.type === 'mvp_day' || selectedBlock.type === 'qualified_teams' || selectedBlock.type === 'kills_leaders') ? <label>Jogo<select value={selectedBlock.source?.jogoId || ''} onChange={(event) => { const game = games.find((item) => item.id === event.target.value); patchBlock(selectedBlock.id, { source: { jogoId: event.target.value, jogoName: game?.nome || '' }, ...(selectedBlock.type === 'qualified_teams' ? { dataStart: 1, dataEnd: game?.mataMata && game.classificamQuantidade && game.classificamQuantidade > 0 ? game.classificamQuantidade : 0 } : {}) }) }}><option value="">Selecione o jogo</option>{games.filter((game) => selectedBlock.type !== 'qualified_teams' || (game.mataMata && game.classificamQuantidade)).map((game) => <option key={game.id} value={game.id}>{game.nome}{game.mataMata && game.classificamQuantidade ? ` · Top ${game.classificamQuantidade} passa` : ''}</option>)}</select></label> : null}
+              {GAME_DATA_BLOCK_TYPES.has(selectedBlock.type) ? <div className="post-artworks-summary"><span>Fonte dos dados</span><strong>Jogo dinâmico</strong><small>Use “Dados de pré-visualização” para montar o modelo. Na geração, o jogo escolhido substitui a referência sem ficar preso ao template.</small></div> : null}
               <div className="post-artworks-grid2"><label>X<EditableNumberInput value={selectedBlock.x} min={-20000} max={20000} onCommit={(value) => patchBlock(selectedBlock.id, { x: value })} /></label><label>Y<EditableNumberInput value={selectedBlock.y} min={-20000} max={20000} onCommit={(value) => patchBlock(selectedBlock.id, { y: value })} /></label>{selectedBlock.type === 'qualified_teams' ? <label>Top que classifica<input value={selectedBlock.dataEnd && selectedBlock.dataEnd > 0 ? `Top ${selectedBlock.dataEnd}` : 'Definido pelo jogo'} readOnly /></label> : selectedBlock.type === 'mvp_general' ? <label>Até posição<EditableNumberInput value={selectedBlock.dataEnd || 10} min={2} max={50} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: 1, dataEnd: value })} /></label> : selectedMvpStyle ? <label>Posição no ranking<EditableNumberInput value={selectedBlock.dataStart || 1} min={1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: value, dataEnd: value })} /></label> : <><label>Do item<EditableNumberInput value={selectedBlock.dataStart || 1} min={1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataStart: value, dataEnd: Math.max(value, selectedBlock.dataEnd || value) })} /></label><label>Até<EditableNumberInput value={selectedBlock.dataEnd || 12} min={selectedBlock.dataStart || 1} max={999} onCommit={(value) => patchBlock(selectedBlock.id, { dataEnd: value })} /></label></>}</div>
               {selectedTableStyle ? <><div className="post-artworks-subtitle"><strong>Tabela</strong><small>Uma coluna de ranking por bloco.</small></div><div className="post-artworks-grid2"><label>Altura da linha<EditableNumberInput value={selectedTableStyle.rowHeight} min={20} max={300} onCommit={(value) => patchTableStyle({ rowHeight: value })} /></label><label>Espaço entre linhas<EditableNumberInput value={selectedTableStyle.rowGap} min={0} max={100} onCommit={(value) => patchTableStyle({ rowGap: value })} /></label><label>Gap entre células<EditableNumberInput value={selectedTableStyle.cellGap} min={0} max={100} onCommit={(value) => patchTableStyle({ cellGap: value })} /></label><label>Altura da legenda<EditableNumberInput value={selectedTableStyle.headerHeight} min={20} max={150} onCommit={(value) => patchTableStyle({ headerHeight: value })} /></label></div><label className="post-artworks-check"><input type="checkbox" checked={selectedTableStyle.showHeader} onChange={(event) => patchTableStyle({ showHeader: event.target.checked })} /> Exibir legenda</label>{selectedTableStyle.showHeader ? <><label>Fundo da legenda<select value={selectedTableStyle.headerBackgroundType} onChange={(event) => patchTableStyle({ headerBackgroundType: event.target.value as 'color' | 'image' | 'none' })}><option value="color">Cor</option><option value="image">Imagem</option><option value="none">Sem fundo</option></select></label>{selectedTableStyle.headerBackgroundType === 'color' ? <label>Cor da legenda<input type="color" value={selectedTableStyle.headerBackgroundColor} onChange={(event) => patchTableStyle({ headerBackgroundColor: event.target.value })} /></label> : null}{selectedTableStyle.headerBackgroundType === 'image' ? <div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedTableStyle.headerBackgroundUrl ? 'Trocar imagem da legenda' : 'Upload da legenda'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadHeaderBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('header')}><Images size={13} /> Biblioteca</button></div> : null}<label>Cor do texto da legenda<input type="color" value={selectedTableStyle.headerColor} onChange={(event) => patchTableStyle({ headerColor: event.target.value })} /></label></> : null}</> : null}
               {selectedQualifiedStyle ? <><div className="post-artworks-subtitle"><strong>Cards de classificados</strong><small>Somente as logos: classificados em cima e eliminados embaixo.</small></div><div className="post-artworks-grid2"><label>Largura do card<EditableNumberInput value={selectedQualifiedStyle.cardWidth} min={60} max={600} onCommit={(value) => patchQualifiedStyle({ cardWidth: value })} /></label><label>Altura do card<EditableNumberInput value={selectedQualifiedStyle.cardHeight} min={60} max={600} onCommit={(value) => patchQualifiedStyle({ cardHeight: value })} /></label><label>Cards por linha<EditableNumberInput value={selectedQualifiedStyle.columns} min={1} max={12} onCommit={(value) => patchQualifiedStyle({ columns: value })} /></label><label>Espaçamento<EditableNumberInput value={selectedQualifiedStyle.gap} min={0} max={120} onCommit={(value) => patchQualifiedStyle({ gap: value })} /></label><label>Espaço entre grupos<EditableNumberInput value={selectedQualifiedStyle.sectionGap} min={0} max={300} onCommit={(value) => patchQualifiedStyle({ sectionGap: value })} /></label><label>Deslocamento X eliminados<EditableNumberInput value={selectedQualifiedStyle.eliminatedOffsetX} min={-1200} max={1200} onCommit={(value) => patchQualifiedStyle({ eliminatedOffsetX: value })} /></label><label>Deslocamento Y eliminados<EditableNumberInput value={selectedQualifiedStyle.eliminatedOffsetY} min={-600} max={1200} onCommit={(value) => patchQualifiedStyle({ eliminatedOffsetY: value })} /></label><label>Tamanho da logo (%)<EditableNumberInput value={Math.round(selectedQualifiedStyle.logoScale * 100)} min={10} max={100} onCommit={(value) => patchQualifiedStyle({ logoScale: value / 100 })} /></label></div><label className="post-artworks-check"><input type="checkbox" checked={selectedQualifiedStyle.showTitles} onChange={(event) => patchQualifiedStyle({ showTitles: event.target.checked })} /> Exibir títulos Classificados / Eliminados</label>{selectedQualifiedStyle.showTitles ? <><div className="post-artworks-grid2"><label>Título classificados<input value={selectedQualifiedStyle.qualifiedTitle} onChange={(event) => patchQualifiedStyle({ qualifiedTitle: event.target.value })} /></label><label>Título eliminados<input value={selectedQualifiedStyle.eliminatedTitle} onChange={(event) => patchQualifiedStyle({ eliminatedTitle: event.target.value })} /></label><label>Tamanho do título<EditableNumberInput value={selectedQualifiedStyle.titleFontSize} min={10} max={160} onCommit={(value) => patchQualifiedStyle({ titleFontSize: value })} /></label><label>Cor do título<input type="color" value={selectedQualifiedStyle.titleColor} onChange={(event) => patchQualifiedStyle({ titleColor: event.target.value })} /></label></div></> : null}<label>Fundo dos cards<select value={selectedQualifiedStyle.backgroundType} onChange={(event) => patchQualifiedStyle({ backgroundType: event.target.value as 'color' | 'image' | 'none' })}><option value="color">Cor</option><option value="image">Imagem</option><option value="none">Sem fundo</option></select></label>{selectedQualifiedStyle.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedQualifiedStyle.backgroundColor} onChange={(event) => patchQualifiedStyle({ backgroundColor: event.target.value })} /></label> : null}{selectedQualifiedStyle.backgroundType === 'image' ? <div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedQualifiedStyle.backgroundUrl ? 'Trocar fundo dos cards' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadQualifiedBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('qualified')}><Images size={13} /> Biblioteca</button></div> : null}</> : null}
