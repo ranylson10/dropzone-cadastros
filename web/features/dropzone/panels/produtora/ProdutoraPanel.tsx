@@ -66,7 +66,7 @@ export function ProdutoraPanel(props: {
   setGroup: (value: any) => void
   slotAssignment: { slot_id: string; fase_id: string; grupo_id: string; equipe_id: string; line_id: string; campeonato_equipe_id: string; slot_numero: string }
   setSlotAssignment: (value: any) => void
-  game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string[]; grupos_ids: string[] }
+  game: { nome: string; campeonato_id: string; fase_id: string; data_jogo: string; horario: string; numero_partidas: string; mapas: string[]; grupos_ids: string[]; mata_mata: boolean; classificam_quantidade: string; tipo_jogo: 'normal' | 'final'; dia_final: string; define_campeao: boolean; status: string; intervalo_minutos: string; permite_troca_jogadores: boolean; prazo_troca_minutos: string; prazo_escalacao_minutos: string; escalacao_abre_horas_antes: string; escalacao_fecha_horas_antes: string; minimo_partidas_jogadas_jogador: string }
   setGame: (value: any) => void
   createChampionship: (data?: CampeonatoFormValue) => Promise<boolean | DropZoneRow>
   updateChampionship: (id: string, data: CampeonatoFormValue) => Promise<DropZoneRow | undefined>
@@ -847,6 +847,19 @@ export function ProdutoraPanel(props: {
       numero_partidas: '6',
       mapas: Array(6).fill(''),
       grupos_ids: options?.groupIds || [],
+      mata_mata: false,
+      classificam_quantidade: '',
+      tipo_jogo: 'normal',
+      dia_final: '1',
+      define_campeao: false,
+      status: 'agendado',
+      intervalo_minutos: '25',
+      permite_troca_jogadores: true,
+      prazo_troca_minutos: '60',
+      prazo_escalacao_minutos: '120',
+      escalacao_abre_horas_antes: '24',
+      escalacao_fecha_horas_antes: '2',
+      minimo_partidas_jogadas_jogador: '0',
     })
     setOpenAction('game')
     window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0)
@@ -1827,6 +1840,42 @@ ${params.url}`
                         <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
                       </div>
 
+                      <div className="game-form-section game-classification-section">
+                        <div className="game-form-section-header">
+                          <div><strong>Regra de classificação</strong><small>Defina se este jogo elimina equipes e quantas avançam para a próxima fase.</small></div>
+                        </div>
+                        <div className="mini-grid two">
+                          <Field label="Formato competitivo">
+                            <select
+                              value={props.game.mata_mata ? 'mata_mata' : 'pontos_corridos'}
+                              onChange={(e) => props.setGame({
+                                ...props.game,
+                                mata_mata: e.target.value === 'mata_mata',
+                                classificam_quantidade: e.target.value === 'mata_mata' ? props.game.classificam_quantidade : '',
+                                campeonato_id: selectedChamp.id,
+                              })}
+                            >
+                              <option value="pontos_corridos">Pontos corridos / sem eliminação</option>
+                              <option value="mata_mata">Mata-mata / classificatório</option>
+                            </select>
+                          </Field>
+                          {props.game.mata_mata ? (
+                            <Field label="Quantas equipes passam">
+                              <input
+                                type="number"
+                                min="1"
+                                value={props.game.classificam_quantidade}
+                                onChange={(e) => props.setGame({ ...props.game, classificam_quantidade: e.target.value, campeonato_id: selectedChamp.id })}
+                                placeholder="Ex.: 6"
+                              />
+                            </Field>
+                          ) : (
+                            <Field label="Classificação"><input value="Sem corte de classificados" disabled /></Field>
+                          )}
+                        </div>
+                        {props.game.mata_mata ? <p className="statistics-message">As equipes do Top {props.game.classificam_quantidade || '?'} avançam; as demais ficam como eliminadas neste jogo.</p> : null}
+                      </div>
+
                       <div className="game-form-section">
                         <div className="game-form-section-header">
                           <div><strong>Mapas por queda</strong><small>Selecione um mapa para cada queda.</small></div>
@@ -1973,6 +2022,19 @@ ${params.url}`
                                             numero_partidas: String(total),
                                             mapas: normalizedMaps,
                                             grupos_ids: groupIds,
+                                            mata_mata: Boolean(gameRow.data?.mata_mata),
+                                            classificam_quantidade: gameRow.data?.classificam_quantidade == null ? '' : String(gameRow.data.classificam_quantidade),
+                                            tipo_jogo: String(gameRow.data?.tipo_jogo || 'normal') === 'final' ? 'final' : 'normal',
+                                            dia_final: String(gameRow.data?.dia_final || 1),
+                                            define_campeao: Boolean(gameRow.data?.define_campeao),
+                                            status: String(gameRow.data?.status || 'agendado'),
+                                            intervalo_minutos: String(gameRow.data?.intervalo_minutos || gameRow.data?.intervalo_quedas_minutos || 25),
+                                            permite_troca_jogadores: gameRow.data?.permite_troca_jogadores !== false,
+                                            prazo_troca_minutos: String(gameRow.data?.prazo_troca_minutos || gameRow.data?.limite_troca_minutos || 60),
+                                            prazo_escalacao_minutos: String(gameRow.data?.prazo_escalacao_minutos || gameRow.data?.limite_escalacao_minutos || 120),
+                                            escalacao_abre_horas_antes: String(gameRow.data?.escalacao_abre_horas_antes || 24),
+                                            escalacao_fecha_horas_antes: String(gameRow.data?.escalacao_fecha_horas_antes || 2),
+                                            minimo_partidas_jogadas_jogador: String(gameRow.data?.minimo_partidas_jogadas_jogador || gameRow.data?.minimo_quedas_jogadas_jogador || 0),
                                           })
                                           setOpenAction('game')
                                           window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1986,6 +2048,7 @@ ${params.url}`
                                         <div><span>Data e horário</span><strong>{dataText(gameRow, 'data_jogo') || 'Não definida'}{gameRow.data?.horario ? ` · ${String(gameRow.data.horario).slice(0, 5)}` : ''}</strong></div>
                                         <div><span>Quedas</span><strong>{total}</strong></div>
                                         <div><span>Grupos</span><strong>{groupIds.map((id) => groupName(id)).join(', ') || 'Nenhum grupo'}</strong></div>
+                                        <div><span>Classificação</span><strong>{gameRow.data?.mata_mata ? `Mata-mata · Top ${gameRow.data?.classificam_quantidade || '?'} avança` : 'Pontos corridos · sem eliminação'}</strong></div>
                                         <div className="wide"><span>Mapas</span><strong>{mapNames.join(' · ') || 'Não definidos'}</strong></div>
                                       </div>
                                     ) : null}
