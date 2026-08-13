@@ -181,7 +181,7 @@ export function AppShell({
     || false
 
   const mainClasses = useMemo(() => {
-    const parts = [mainClassName]
+    const parts = ['app-shell-main', mainClassName]
     if (showHeader && withAuthOffset) parts.push('page-authenticated')
     return parts.filter(Boolean).join(' ')
   }, [mainClassName, showHeader, withAuthOffset])

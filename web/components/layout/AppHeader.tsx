@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Globe2, LayoutDashboard, Loader2, LogOut, Menu, Plus, Shield, Wallet, X } from 'lucide-react'
+import { CalendarDays, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { DropZoneRow } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -60,9 +60,9 @@ function LockedAvatar({
     maxWidth: size,
     maxHeight: size,
     overflow: 'hidden',
-    borderRadius: '50%',
-    border: '2px solid rgba(201, 162, 39, 0.4)',
-    background: '#eef0f4',
+    borderRadius: '10px',
+    border: 0,
+    background: 'var(--ui-surface-soft, #202125)',
     flex: `0 0 ${size}px`,
     boxSizing: 'border-box',
   }
@@ -75,7 +75,7 @@ function LockedAvatar({
     maxHeight: size,
     objectFit: 'cover',
     display: 'block',
-    borderRadius: '50%',
+    borderRadius: '10px',
   }
   return (
     <span style={box} className="app-profile-avatar" data-locked-avatar={size}>
@@ -190,6 +190,15 @@ export function AppHeader({
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
 
+        {mobileOpen ? (
+          <button
+            type="button"
+            className="app-mobile-nav-backdrop"
+            aria-label="Fechar navegação"
+            onClick={() => setMobileOpen(false)}
+          />
+        ) : null}
+
         <nav className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegação principal">
           {navItems.map((item) => {
             const hasChildren = Boolean(item.children?.length)
@@ -261,6 +270,29 @@ export function AppHeader({
               ) : null}
             </div>
           ) : null}
+        </nav>
+
+        <nav className="app-mobile-dock" aria-label="Navegação rápida">
+          <a href="/" className={activeLabel === 'Início' ? 'active' : ''} onClick={() => setMobileOpen(false)}>
+            <Home size={19} aria-hidden />
+            <span>Início</span>
+          </a>
+          <a href="/campeonatos" className={activeLabel === 'Campeonatos' ? 'active' : ''} onClick={() => setMobileOpen(false)}>
+            <Trophy size={19} aria-hidden />
+            <span>Campeonatos</span>
+          </a>
+          <a href="/agenda" className={activeLabel === 'Agenda' ? 'active' : ''} onClick={() => setMobileOpen(false)}>
+            <CalendarDays size={19} aria-hidden />
+            <span>Agenda</span>
+          </a>
+          <a href="/equipes" className={activeLabel === 'Equipes' ? 'active' : ''} onClick={() => setMobileOpen(false)}>
+            <UsersRound size={19} aria-hidden />
+            <span>Equipes</span>
+          </a>
+          <button type="button" className={mobileOpen ? 'active' : ''} onClick={() => setMobileOpen((value) => !value)} aria-expanded={mobileOpen}>
+            {mobileOpen ? <X size={19} aria-hidden /> : <Menu size={19} aria-hidden />}
+            <span>Mais</span>
+          </button>
         </nav>
 
         <div className="app-global-language" data-no-translate aria-label="Language" ref={languageRef}>
