@@ -1,0 +1,130 @@
+.champ-stats{display:grid;gap:14px;color:var(--ui-text,#f5f3ed)}
+.champ-stats-head{display:flex;align-items:end;justify-content:space-between;gap:12px}
+.champ-stats-head p,.champ-stats-head h2{margin:0}
+.champ-stats-head p{margin-bottom:4px;color:var(--ui-primary,#c9b766);font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.champ-stats-head h2{font-size:22px;line-height:1}
+.champ-stats-refresh{width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:8px;background:var(--ui-surface-elevated,#1a1b1f);color:var(--ui-text,#f5f3ed);cursor:pointer}
+.champ-stats-refresh:disabled{cursor:wait}
+.champ-stats-summary{display:flex;gap:24px;align-items:center;min-height:52px;padding-block:8px;border-bottom:1px solid rgba(245,243,237,.08)}
+.champ-stats-summary span{display:grid;gap:1px}
+.champ-stats-summary strong{font-size:18px;line-height:1}
+.champ-stats-summary small{color:#85888e;font-size:8px;font-weight:850;text-transform:uppercase}
+.champ-stats-tabs{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none}
+.champ-stats-tabs::-webkit-scrollbar{display:none}
+.champ-stats-tabs button{flex:0 0 auto;min-height:36px;border:0;border-bottom:2px solid transparent;background:transparent;padding:0;color:#85888e;font:inherit;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}
+.champ-stats-tabs button.active{border-bottom-color:var(--ui-primary,#c9b766);color:var(--ui-text,#f5f3ed)}
+.champ-stats-filters,.champ-stats-share{border-radius:9px;background:var(--ui-surface,#141518)}
+.champ-stats-filters>summary,.champ-stats-share>summary{min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;padding:0 11px;color:#b9bbc0;font-size:10px;font-weight:850;text-transform:uppercase;cursor:pointer}
+.champ-stats-filters>summary::-webkit-details-marker,.champ-stats-share>summary::-webkit-details-marker{display:none}
+.champ-stats-filters>summary small{color:#73767c;font-size:8px}
+.champ-stats-filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:0 10px 10px}
+.champ-stats-filter-grid select,.champ-stats-scorer select{min-width:0;height:36px;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 9px;color:var(--ui-text,#f5f3ed);font:inherit;font-size:10px}
+.champ-stats-message{padding:8px 10px;border-radius:7px;font-size:10px;font-weight:750}
+.champ-stats-message.is-error{background:rgba(221,91,91,.12);color:#ef9b9b}
+.champ-stats-message.is-success{background:rgba(201,183,102,.1);color:#dfcf85}
+.champ-stats-loading{display:flex;align-items:center;justify-content:center;gap:6px;padding:24px;color:#85888e;font-size:10px}
+.champ-stats-ranking{overflow:hidden;border-radius:10px;background:var(--ui-surface,#141518)}
+.champ-stats-ranking-head,.champ-stats-ranking-row{display:grid;grid-template-columns:60px minmax(180px,1fr) 48px 48px 58px 66px;align-items:center;gap:6px}
+.champ-stats-ranking-head{min-height:34px;padding:0 11px;background:var(--ui-surface-elevated,#1a1b1f);color:#777a80;font-size:8px;font-weight:900;text-transform:uppercase}
+.champ-stats-ranking-row{min-height:58px;padding:6px 11px;border-bottom:1px solid rgba(245,243,237,.06)}
+.champ-stats-ranking-row:last-child{border-bottom:0}
+.champ-stats-ranking-row.is-podium{background:rgba(201,183,102,.035)}
+.champ-stats-rank{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:5px}
+.champ-stats-rank>strong{color:var(--ui-primary,#c9b766);font-size:15px}
+.statistics-variation{font-size:7px;font-weight:900}
+.statistics-variation.is-up{color:#7fc58b}
+.statistics-variation.is-down{color:#d98181}
+.statistics-variation.is-neutral{color:#666970}
+.champ-stats-team,.champ-stats-player{min-width:0;display:flex;align-items:center;gap:9px}
+.champ-stats-team>img,.champ-stats-team>span,.champ-stats-player>img,.champ-stats-player>span{width:32px;height:32px;flex:0 0 32px;display:grid;place-items:center;overflow:hidden;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);object-fit:cover;color:#777a80;font-size:11px;font-weight:900}
+.champ-stats-team>div,.champ-stats-player>div{min-width:0;display:grid;gap:1px}
+.champ-stats-team strong,.champ-stats-team small,.champ-stats-player strong,.champ-stats-player small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.champ-stats-team strong,.champ-stats-player strong{font-size:11px}
+.champ-stats-team small,.champ-stats-player small{color:#75787e;font-size:8px}
+.champ-stats-ranking-row>span{color:#a4a6ab;font-size:10px;text-align:center}
+.champ-stats-points{color:var(--ui-primary-light,#dfcf85);font-size:13px;text-align:right}
+.champ-stats-empty{margin:0;padding:30px 12px;color:#74777d;text-align:center;font-size:10px}
+.champ-stats-share{overflow:hidden}
+.champ-stats-share[open]{padding-bottom:10px}
+.champ-stats-share>div{margin-inline:10px}
+.champ-stats-mvp-list{display:grid;overflow:hidden;border-radius:10px;background:var(--ui-surface,#141518)}
+.champ-stats-mvp-list>article{min-height:58px;display:grid;grid-template-columns:60px minmax(180px,1fr) 64px 64px 72px;align-items:center;gap:7px;padding:6px 11px;border-bottom:1px solid rgba(245,243,237,.06)}
+.champ-stats-mvp-list>article:last-child{border-bottom:0}
+.champ-stats-mvp-list>article.is-podium{background:rgba(201,183,102,.035)}
+.champ-stats-mvp-list>article>span{display:grid;gap:1px;text-align:center}
+.champ-stats-mvp-list>article>span strong{font-size:11px}
+.champ-stats-mvp-list>article>span small{color:#70737a;font-size:7px;font-weight:850}
+.champ-stats-mvp-kills strong{color:var(--ui-primary-light,#dfcf85)!important;font-size:14px!important}
+.champ-stats-champion{display:grid;gap:16px;padding:16px;border-radius:10px;background:var(--ui-surface,#141518)}
+.champ-stats-champion-main{display:grid;grid-template-columns:34px 54px minmax(0,1fr);align-items:center;gap:12px}
+.champ-stats-champion-position{color:var(--ui-primary,#c9b766);font-size:28px;font-weight:950;text-align:center}
+.champ-stats-champion-logo{width:54px;height:54px;display:grid;place-items:center;overflow:hidden;border-radius:10px;background:var(--ui-surface-elevated,#1a1b1f)}
+.champ-stats-champion-logo img{width:100%;height:100%;object-fit:cover}
+.champ-stats-champion-main h3,.champ-stats-champion-main small,.champ-stats-champion-main div>span{margin:0}
+.champ-stats-champion-main small{color:var(--ui-primary,#c9b766);font-size:8px;font-weight:900;text-transform:uppercase}
+.champ-stats-champion-main h3{font-size:21px}
+.champ-stats-champion-main div>span{color:#85888e;font-size:9px}
+.champ-stats-champion-numbers{display:flex;gap:22px;padding-block:10px;border-block:1px solid rgba(245,243,237,.07)}
+.champ-stats-champion-numbers span{display:grid;gap:1px}
+.champ-stats-champion-numbers strong{font-size:16px}
+.champ-stats-champion-numbers small{color:#74777d;font-size:7px;font-weight:850;text-transform:uppercase}
+.champ-stats-lineup{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px}
+.champ-stats-lineup article{display:flex;align-items:center;gap:8px;min-width:0}
+.champ-stats-lineup img,.champ-stats-lineup article>span{width:30px;height:30px;display:grid;place-items:center;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);object-fit:cover}
+.champ-stats-lineup article div{min-width:0;display:grid}
+.champ-stats-lineup strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+.champ-stats-lineup small{color:#73767c;font-size:8px}
+.champ-stats-actions{display:flex;gap:7px}
+.champ-stats-actions button,.champ-stats-open-scorer{min-height:34px;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 11px;color:#c8c9cd;font:inherit;font-size:9px;font-weight:850;cursor:pointer}
+.champ-stats-scorer{display:grid;gap:14px;padding:14px;border-radius:10px;background:var(--ui-surface,#141518)}
+.champ-stats-scorer header{display:grid;gap:3px}
+.champ-stats-scorer header small{color:var(--ui-primary,#c9b766);font-size:8px;font-weight:900;text-transform:uppercase}
+.champ-stats-scorer header h3,.champ-stats-scorer header p{margin:0}
+.champ-stats-scorer header h3{font-size:18px}
+.champ-stats-scorer header p{color:#7e8187;font-size:9px}
+.champ-stats-scorer-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.champ-stats-scorer-fields label{display:grid;gap:4px}
+.champ-stats-scorer-fields label>span{color:#777a80;font-size:8px;font-weight:850;text-transform:uppercase}
+.champ-stats-scorer-games{display:grid}
+.champ-stats-scorer-games button{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;border-bottom:1px solid rgba(245,243,237,.06);background:transparent;padding:5px 7px;color:#aeb0b5;font:inherit;text-align:left;cursor:pointer}
+.champ-stats-scorer-games button.selected{color:var(--ui-primary-light,#dfcf85)}
+.champ-stats-scorer-games button span:first-child{display:grid;gap:1px}
+.champ-stats-scorer-games strong{font-size:10px}
+.champ-stats-scorer-games small,.champ-stats-scorer-games button>span:last-child{color:#74777d;font-size:8px}
+.champ-stats-open-scorer{justify-self:start;background:var(--ui-primary,#c9b766);color:#111214}
+.champ-stats-open-scorer:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:760px){
+.champ-stats{gap:11px}
+.champ-stats-head h2{font-size:19px}
+.champ-stats-summary{gap:0;justify-content:space-between;min-height:46px;padding-inline:2px}
+.champ-stats-summary strong{font-size:15px}
+.champ-stats-summary small{font-size:7px}
+.champ-stats-tabs{gap:15px}
+.champ-stats-filter-grid{grid-template-columns:1fr 1fr}
+.champ-stats-ranking-head{display:none}
+.champ-stats-ranking-row{min-height:54px;grid-template-columns:42px minmax(0,1fr) 32px 32px 34px 46px;gap:3px;padding:5px 7px}
+.champ-stats-rank{grid-template-columns:1fr}
+.champ-stats-rank>strong{font-size:13px}
+.statistics-variation{font-size:6px}
+.champ-stats-team{gap:6px}
+.champ-stats-team>img,.champ-stats-team>span{width:28px;height:28px;flex-basis:28px;border-radius:6px}
+.champ-stats-team strong{font-size:10px}
+.champ-stats-team small{font-size:7px}
+.champ-stats-ranking-row>span{font-size:8px}
+.champ-stats-points{font-size:11px}
+.champ-stats-mvp-list>article{min-height:54px;grid-template-columns:42px minmax(0,1fr) 38px 44px 48px;gap:3px;padding:5px 7px}
+.champ-stats-player{gap:6px}
+.champ-stats-player>img,.champ-stats-player>span{width:28px;height:28px;flex-basis:28px;border-radius:6px}
+.champ-stats-player strong{font-size:10px}
+.champ-stats-player small{font-size:7px}
+.champ-stats-mvp-list>article>span strong{font-size:9px}
+.champ-stats-mvp-kills strong{font-size:11px!important}
+.champ-stats-champion{padding:11px}
+.champ-stats-champion-main{grid-template-columns:26px 46px minmax(0,1fr);gap:8px}
+.champ-stats-champion-position{font-size:21px}
+.champ-stats-champion-logo{width:46px;height:46px}
+.champ-stats-champion-main h3{font-size:16px}
+.champ-stats-champion-numbers{justify-content:space-between;gap:5px}
+.champ-stats-lineup{grid-template-columns:repeat(2,minmax(0,1fr))}
+.champ-stats-scorer-fields{grid-template-columns:1fr}
+}

@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FileUp, Loader2, Medal, RefreshCcw, Save, Trophy } from 'lucide-react'
+import { Loader2, RefreshCcw } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { DropZoneRow } from '@/lib/types'
 import { ResultadoWhatsappCard } from './ResultadoWhatsappCard'
+import '../campeonato-estatisticas.css'
 
 type InnerTab = 'campeao' | 'geral' | 'mvp' | 'pontuador'
 type ScoringMode = 'manual' | 'matchresult'
@@ -341,159 +342,231 @@ export function CampeonatoEstatisticasTab(props: {
     } finally { setSaving(false) }
   }
 
+  const leader = teamStats[0] || null
+  const mvpLeader = mvpStats[0] || null
+  const totalDrops = teamStats.reduce((max, row) => Math.max(max, Number(row.quedas || 0)), 0)
+
   return (
-    <div className="statistics-tab-shell">
-      <div className="subtab-actionbar statistics-heading">
-        <div><p className="eyebrow">Pontuação do campeonato</p><h3>Estatísticas</h3></div>
-        <button className="button secondary" onClick={() => void loadStats()} disabled={loadingStats}><RefreshCcw size={15} /> Atualizar</button>
+    <section className="champ-stats">
+      <header className="champ-stats-head">
+        <div>
+          <p>Classificação e estatísticas</p>
+          <h2>Desempenho do campeonato</h2>
+        </div>
+        <button
+          className="champ-stats-refresh"
+          type="button"
+          onClick={() => void loadStats()}
+          disabled={loadingStats}
+          aria-label="Atualizar estatísticas"
+          title="Atualizar estatísticas"
+        >
+          <RefreshCcw size={16} />
+        </button>
+      </header>
+
+      <div className="champ-stats-summary" aria-label="Resumo da classificação">
+        <span><strong>{teamStats.length}</strong><small>equipes</small></span>
+        <span><strong>{totalDrops}</strong><small>quedas</small></span>
+        <span><strong>{leader?.pontos_total ?? 0}</strong><small>pts líder</small></span>
+        <span><strong>{mvpLeader?.abates ?? 0}</strong><small>kills MVP</small></span>
       </div>
 
-      <nav className="statistics-inner-tabs">
-        {championSummary?.final_concluida && championSummary.campeao ? <button className={tab === 'campeao' ? 'active' : ''} onClick={() => setTab('campeao')}><Trophy size={16} /> Campeão</button> : null}
-        <button className={tab === 'geral' ? 'active' : ''} onClick={() => setTab('geral')}><Trophy size={16} /> Tabela geral</button>
-        <button className={tab === 'mvp' ? 'active' : ''} onClick={() => setTab('mvp')}><Medal size={16} /> MVP</button>
-        <button className={tab === 'pontuador' ? 'active' : ''} onClick={() => setTab('pontuador')}><Save size={16} /> Pontuador</button>
+      <nav className="champ-stats-tabs" aria-label="Seções de estatísticas">
+        {championSummary?.final_concluida && championSummary.campeao ? (
+          <button className={tab === 'campeao' ? 'active' : ''} type="button" onClick={() => setTab('campeao')}>
+            Campeão
+          </button>
+        ) : null}
+        <button className={tab === 'geral' ? 'active' : ''} type="button" onClick={() => setTab('geral')}>
+          Classificação
+        </button>
+        <button className={tab === 'mvp' ? 'active' : ''} type="button" onClick={() => setTab('mvp')}>
+          MVP
+        </button>
+        <button className={tab === 'pontuador' ? 'active' : ''} type="button" onClick={() => setTab('pontuador')}>
+          Pontuador
+        </button>
       </nav>
 
       {tab !== 'pontuador' && tab !== 'campeao' ? (
-        <div className="statistics-filters">
-          <select value={filters.fase_id} onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, rodada_id: '', jogo_id: '', partida_id: '', grupo_id: '' })}>
-            <option value="">Todas as fases</option>{props.phases.map((phase) => <option key={phase.id} value={phase.id}>{String(phase.data?.nome || phase.name || 'Fase')}</option>)}
-          </select>
-          <select value={filters.grupo_id} onChange={(event) => setFilters({ ...filters, grupo_id: event.target.value })}>
-            <option value="">Todos os grupos</option>{props.groups.filter((group) => !filters.fase_id || group.data?.fase_id === filters.fase_id).map((group) => <option key={group.id} value={group.id}>{String(group.data?.nome || group.name || 'Grupo')}</option>)}
-          </select>
-          <select value={filters.rodada_id} onChange={(event) => setFilters({ ...filters, rodada_id: event.target.value, jogo_id: '', partida_id: '' })}>
-            <option value="">Todas as rodadas</option>{rounds.map((round) => <option key={round.id} value={round.id}>{round.nome}</option>)}
-          </select>
-          <select value={filters.jogo_id} onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value, partida_id: '' })}>
-            <option value="">Todos os jogos</option>{props.games.filter((game) => selectedGameIds.has(game.id)).map((game) => <option key={game.id} value={game.id}>{String(game.data?.nome || game.name || 'Jogo')}</option>)}
-          </select>
-          <select value={filters.partida_id} onChange={(event) => setFilters({ ...filters, partida_id: event.target.value })}>
-            <option value="">Todas as quedas</option>{filteredPartidas.map((partida) => <option key={partida.id} value={partida.id}>Queda {partida.numero_partida} · {partida.mapa_nome || partida.mapa || 'Mapa'}</option>)}
-          </select>
-          <select value={filters.mapa_codigo} onChange={(event) => setFilters({ ...filters, mapa_codigo: event.target.value })}>
-            <option value="">Todos os mapas</option>{props.maps.map((map) => <option key={map.codigo} value={map.codigo}>{map.nome}</option>)}
-          </select>
-        </div>
+        <details className="champ-stats-filters">
+          <summary>
+            <span>Filtros</span>
+            <small>{Object.values(filters).filter(Boolean).length ? `${Object.values(filters).filter(Boolean).length} ativos` : 'Todos os dados'}</small>
+          </summary>
+          <div className="champ-stats-filter-grid">
+            <select value={filters.fase_id} onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, rodada_id: '', jogo_id: '', partida_id: '', grupo_id: '' })}>
+              <option value="">Todas as fases</option>{props.phases.map((phase) => <option key={phase.id} value={phase.id}>{String(phase.data?.nome || phase.name || 'Fase')}</option>)}
+            </select>
+            <select value={filters.grupo_id} onChange={(event) => setFilters({ ...filters, grupo_id: event.target.value })}>
+              <option value="">Todos os grupos</option>{props.groups.filter((group) => !filters.fase_id || group.data?.fase_id === filters.fase_id).map((group) => <option key={group.id} value={group.id}>{String(group.data?.nome || group.name || 'Grupo')}</option>)}
+            </select>
+            <select value={filters.rodada_id} onChange={(event) => setFilters({ ...filters, rodada_id: event.target.value, jogo_id: '', partida_id: '' })}>
+              <option value="">Todas as rodadas</option>{rounds.map((round) => <option key={round.id} value={round.id}>{round.nome}</option>)}
+            </select>
+            <select value={filters.jogo_id} onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value, partida_id: '' })}>
+              <option value="">Todos os jogos</option>{props.games.filter((game) => selectedGameIds.has(game.id)).map((game) => <option key={game.id} value={game.id}>{String(game.data?.nome || game.name || 'Jogo')}</option>)}
+            </select>
+            <select value={filters.partida_id} onChange={(event) => setFilters({ ...filters, partida_id: event.target.value })}>
+              <option value="">Todas as quedas</option>{filteredPartidas.map((partida) => <option key={partida.id} value={partida.id}>Queda {partida.numero_partida} · {partida.mapa_nome || partida.mapa || 'Mapa'}</option>)}
+            </select>
+            <select value={filters.mapa_codigo} onChange={(event) => setFilters({ ...filters, mapa_codigo: event.target.value })}>
+              <option value="">Todos os mapas</option>{props.maps.map((map) => <option key={map.codigo} value={map.codigo}>{map.nome}</option>)}
+            </select>
+          </div>
+        </details>
       ) : null}
 
-      {error ? <div className="statistics-message error">{error}</div> : null}
-      {notice ? <div className="statistics-message success">{notice}</div> : null}
-      {loadingStats && tab !== 'pontuador' ? <div className="statistics-loading"><Loader2 className="button-spinner" /> Carregando estatísticas...</div> : null}
+      {error ? <div className="champ-stats-message is-error">{error}</div> : null}
+      {notice ? <div className="champ-stats-message is-success">{notice}</div> : null}
+      {loadingStats && tab !== 'pontuador' ? <div className="champ-stats-loading"><Loader2 className="button-spinner" size={16} /> Atualizando...</div> : null}
 
       {tab === 'campeao' && !loadingStats && championSummary?.campeao ? (
-        <section className="champion-spotlight">
-          <div className="champion-spotlight-crown">CAMPEÃO</div>
-          <div className="champion-spotlight-main">
-            <div className="champion-spotlight-logo">{championSummary.campeao.logo_url ? <img src={championSummary.campeao.logo_url} alt="" /> : <span>{championSummary.campeao.nome.slice(0, 2).toUpperCase()}</span>}</div>
-            <div className="champion-spotlight-copy"><p>Grande Final concluída</p><h2>{championSummary.campeao.nome}</h2>{championSummary.campeao.tag ? <strong>{championSummary.campeao.tag}</strong> : null}</div>
+        <section className="champ-stats-champion">
+          <div className="champ-stats-champion-main">
+            <span className="champ-stats-champion-position">1</span>
+            <span className="champ-stats-champion-logo">
+              {championSummary.campeao.logo_url ? <img src={championSummary.campeao.logo_url} alt="" /> : <strong>{championSummary.campeao.nome.slice(0, 2).toUpperCase()}</strong>}
+            </span>
+            <div>
+              <small>Campeão</small>
+              <h3>{championSummary.campeao.nome}</h3>
+              {championSummary.campeao.tag ? <span>{championSummary.campeao.tag}</span> : null}
+            </div>
           </div>
-          <div className="champion-spotlight-metrics"><div><strong>{championSummary.campeao.pontos_total}</strong><span>Pontos</span></div><div><strong>{championSummary.campeao.booyahs}</strong><span>Booyahs</span></div><div><strong>{championSummary.campeao.abates}</strong><span>Kills</span></div><div><strong>{championSummary.resumo?.quedas || championSummary.campeao.quedas}</strong><span>Quedas</span></div></div>
-          <div className="champion-lineup"><div className="champion-lineup-head"><div><p className="eyebrow">Line campeã</p><h4>Jogadores da Grande Final</h4></div>{championSummary.mvp_final ? <small>MVP da final: <b>{championSummary.mvp_final.nick}</b></small> : null}</div><div className="champion-lineup-grid">{championSummary.jogadores.map((player) => <article key={player.campeonato_jogador_id}>{player.foto_url ? <img src={player.foto_url} alt="" /> : <span className="statistics-avatar-fallback">{player.nick.slice(0,1)}</span>}<div><strong>{player.nick}</strong><small>{player.abates} kills · {player.quedas} quedas</small></div></article>)}</div>{championSummary.jogadores.length === 0 ? <p className="empty compact">Nenhum jogador com estatística registrada na Grande Final.</p> : null}</div>
-          <div className="champion-spotlight-actions"><button className="button" onClick={() => setTab('mvp')}><Medal size={15}/> Ver MVP</button><button className="button secondary" onClick={() => setTab('geral')}><Trophy size={15}/> Estatísticas do campeonato</button></div>
+          <div className="champ-stats-champion-numbers">
+            <span><strong>{championSummary.campeao.pontos_total}</strong><small>pontos</small></span>
+            <span><strong>{championSummary.campeao.booyahs}</strong><small>booyahs</small></span>
+            <span><strong>{championSummary.campeao.abates}</strong><small>kills</small></span>
+            <span><strong>{championSummary.resumo?.quedas || championSummary.campeao.quedas}</strong><small>quedas</small></span>
+          </div>
+          {championSummary.jogadores.length ? (
+            <div className="champ-stats-lineup">
+              {championSummary.jogadores.map((player) => (
+                <article key={player.campeonato_jogador_id}>
+                  {player.foto_url ? <img src={player.foto_url} alt="" /> : <span>{player.nick.slice(0, 1)}</span>}
+                  <div><strong>{player.nick}</strong><small>{player.abates} kills</small></div>
+                </article>
+              ))}
+            </div>
+          ) : null}
+          <div className="champ-stats-actions">
+            <button type="button" onClick={() => setTab('geral')}>Ver classificação</button>
+            <button type="button" onClick={() => setTab('mvp')}>Ver MVP</button>
+          </div>
         </section>
       ) : null}
 
       {tab === 'geral' && !loadingStats ? (
-        <ResultadoWhatsappCard
-          campeonatoId={props.campeonatoId}
-          campeonatoNome={props.campeonatoNome || 'Campeonato DropZone'}
-          campeonatoLogo={props.campeonatoLogo}
-          recorte={shareScope}
-          ranking={teamStats}
-        />
-      ) : null}
+        <>
+          <div className="champ-stats-ranking" role="table" aria-label="Classificação geral">
+            <div className="champ-stats-ranking-head" role="row">
+              <span>#</span><span>Equipe</span><span>QD</span><span>B!</span><span>K</span><span>PTS</span>
+            </div>
+            {teamStats.map((row) => (
+              <article className={`champ-stats-ranking-row${row.colocacao <= 3 ? ' is-podium' : ''}`} key={row.campeonato_equipe_id} role="row">
+                <div className="champ-stats-rank">
+                  <strong>{row.colocacao}</strong>
+                  <VariationCell value={row.variacao} />
+                </div>
+                <div className="champ-stats-team">
+                  {row.logo_url ? <img src={row.logo_url} alt="" /> : <span>{row.nome.slice(0, 1)}</span>}
+                  <div><strong>{row.nome}</strong><small>{row.tag || `Grupo ${groupCode(row.grupo_id, props.groups)}`}</small></div>
+                </div>
+                <span>{row.quedas}</span>
+                <span>{row.booyahs}</span>
+                <span>{row.abates}</span>
+                <strong className="champ-stats-points">{row.pontos_total}</strong>
+              </article>
+            ))}
+            {teamStats.length === 0 ? <p className="champ-stats-empty">Nenhuma pontuação registrada.</p> : null}
+          </div>
 
-      {tab === 'geral' && !loadingStats ? (
-        <div className="statistics-table-wrap"><table className="statistics-table statistics-table-compact statistics-table-ranking"><thead><tr><th>#</th><th title="Variação da posição">Δ</th><th>Equipe</th><th title="Grupo">GP</th><th title="Quedas">QD</th><th title="Booyah">B!</th><th title="Abates">KILL</th><th title="Pontos">PTS</th></tr></thead><tbody>
-          {teamStats.map((row) => <tr key={row.campeonato_equipe_id}><td><strong>{row.colocacao}</strong></td><td><VariationCell value={row.variacao} /></td><td><div className="statistics-identity">{row.logo_url ? <img src={row.logo_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nome.slice(0, 1)}</span>}<span><strong>{row.nome}</strong>{row.tag ? <small>{row.tag}</small> : null}</span></div></td><td className="statistics-code">{groupCode(row.grupo_id, props.groups)}</td><td>{row.quedas}</td><td>{row.booyahs}</td><td>{row.abates}</td><td className="statistics-total">{row.pontos_total}</td></tr>)}
-          {teamStats.length === 0 ? <tr><td colSpan={8} className="empty">Nenhuma pontuação registrada.</td></tr> : null}
-        </tbody></table></div>
+          <details className="champ-stats-share">
+            <summary>Compartilhar resultado</summary>
+            <ResultadoWhatsappCard
+              campeonatoId={props.campeonatoId}
+              campeonatoNome={props.campeonatoNome || 'Campeonato DropZone'}
+              campeonatoLogo={props.campeonatoLogo}
+              recorte={shareScope}
+              ranking={teamStats}
+            />
+          </details>
+        </>
       ) : null}
 
       {tab === 'mvp' && !loadingStats ? (
-        <div className="statistics-table-wrap"><table className="statistics-table statistics-table-compact statistics-table-mvp"><thead><tr><th>#</th><th title="Variação da posição">Δ</th><th>Jogador</th><th title="Quedas">QD</th><th title="Abates por queda">K.D</th><th title="Abates">KILL</th></tr></thead><tbody>
-          {mvpStats.map((row) => <tr key={row.campeonato_jogador_id}><td><strong>{row.colocacao}</strong></td><td><VariationCell value={row.variacao} /></td><td><div className="statistics-identity">{row.foto_url ? <img src={row.foto_url} alt="" /> : <span className="statistics-avatar-fallback">{row.nick.slice(0, 1)}</span>}<span><strong>{row.nick}</strong>{row.id_jogo ? <small>ID {row.id_jogo}</small> : null}</span></div></td><td>{row.quedas}</td><td className="statistics-code">{kdValue(row.abates, row.quedas)}</td><td className="statistics-total">{row.abates}</td></tr>)}
-          {mvpStats.length === 0 ? <tr><td colSpan={6} className="empty">Nenhuma estatística de jogador registrada.</td></tr> : null}
-        </tbody></table></div>
+        <div className="champ-stats-mvp-list">
+          {mvpStats.map((row) => (
+            <article className={row.colocacao <= 3 ? 'is-podium' : ''} key={row.campeonato_jogador_id}>
+              <div className="champ-stats-rank">
+                <strong>{row.colocacao}</strong>
+                <VariationCell value={row.variacao} />
+              </div>
+              <div className="champ-stats-player">
+                {row.foto_url ? <img src={row.foto_url} alt="" /> : <span>{row.nick.slice(0, 1)}</span>}
+                <div><strong>{row.nick}</strong><small>{row.id_jogo ? `ID ${row.id_jogo}` : row.tipo_jogador}</small></div>
+              </div>
+              <span><strong>{row.quedas}</strong><small>QD</small></span>
+              <span><strong>{kdValue(row.abates, row.quedas)}</strong><small>K.D</small></span>
+              <span className="champ-stats-mvp-kills"><strong>{row.abates}</strong><small>KILLS</small></span>
+            </article>
+          ))}
+          {mvpStats.length === 0 ? <p className="champ-stats-empty">Nenhuma estatística de jogador registrada.</p> : null}
+        </div>
       ) : null}
 
       {tab === 'pontuador' ? (
-        <div className="scorer-launcher">
-          <div className="scorer-launcher-copy">
-            <p className="eyebrow">Pontuador em tela cheia</p>
-            <h4>Selecione a fase e o jogo</h4>
-            <p>O pontuador será aberto em outra aba com todos os slots, quedas, classificação do jogo, MVP e vínculos do MatchResult.</p>
-          </div>
+        <section className="champ-stats-scorer">
+          <header>
+            <div><small>Pontuador</small><h3>Selecione o jogo</h3></div>
+            <p>A pontuação abre em uma tela dedicada com slots, quedas, MVP e MatchResult.</p>
+          </header>
 
-          <div className="scorer-launcher-fields">
+          <div className="champ-stats-scorer-fields">
             <label>
               <span>Fase</span>
-              <select
-                value={filters.fase_id}
-                onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, jogo_id: '' })}
-              >
+              <select value={filters.fase_id} onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, jogo_id: '' })}>
                 <option value="">Selecione a fase</option>
-                {props.phases.map((phase) => (
-                  <option key={phase.id} value={phase.id}>
-                    {String(phase.data?.nome || phase.name || 'Fase')}
-                  </option>
-                ))}
+                {props.phases.map((phase) => <option key={phase.id} value={phase.id}>{String(phase.data?.nome || phase.name || 'Fase')}</option>)}
               </select>
             </label>
-
             <label>
               <span>Jogo</span>
-              <select
-                value={filters.jogo_id}
-                onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value })}
-                disabled={!filters.fase_id}
-              >
+              <select value={filters.jogo_id} onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value })} disabled={!filters.fase_id}>
                 <option value="">Selecione o jogo</option>
-                {props.games
-                  .filter((game) => game.data?.fase_id === filters.fase_id)
-                  .map((game) => (
-                    <option key={game.id} value={game.id}>
-                      {String(game.data?.nome || game.name || 'Jogo')}
-                    </option>
-                  ))}
+                {props.games.filter((game) => game.data?.fase_id === filters.fase_id).map((game) => <option key={game.id} value={game.id}>{String(game.data?.nome || game.name || 'Jogo')}</option>)}
               </select>
             </label>
           </div>
 
-          <div className="scorer-launcher-list">
-            {filters.fase_id ? props.games
-              .filter((game) => game.data?.fase_id === filters.fase_id)
-              .map((game) => {
-                const selected = filters.jogo_id === game.id
-                return (
-                  <button
-                    type="button"
-                    key={game.id}
-                    className={selected ? 'selected' : ''}
-                    onClick={() => setFilters({ ...filters, jogo_id: game.id })}
-                  >
-                    <span>
-                      <strong>{String(game.data?.nome || game.name || 'Jogo')}</strong>
-                      <small>{Number(game.data?.numero_partidas || 0)} quedas</small>
-                    </span>
-                    <span>{selected ? 'Selecionado' : 'Selecionar'}</span>
-                  </button>
-                )
-              }) : <p className="empty">Selecione uma fase para listar os jogos.</p>}
-          </div>
+          {filters.fase_id ? (
+            <div className="champ-stats-scorer-games">
+              {props.games.filter((game) => game.data?.fase_id === filters.fase_id).map((game) => (
+                <button
+                  type="button"
+                  key={game.id}
+                  className={filters.jogo_id === game.id ? 'selected' : ''}
+                  onClick={() => setFilters({ ...filters, jogo_id: game.id })}
+                >
+                  <span><strong>{String(game.data?.nome || game.name || 'Jogo')}</strong><small>{Number(game.data?.numero_partidas || 0)} quedas</small></span>
+                  <span>{filters.jogo_id === game.id ? 'Selecionado' : 'Selecionar'}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <button
             type="button"
-            className="button scorer-open-button"
+            className="champ-stats-open-scorer"
             disabled={!filters.fase_id || !filters.jogo_id}
             onClick={() => window.open(`/campeonatos/${props.campeonatoId}/pontuador/${filters.jogo_id}`, '_blank', 'noopener,noreferrer')}
           >
-            Abrir pontuador em tela cheia
+            Abrir pontuador
           </button>
-        </div>
+        </section>
       ) : null}
-    </div>
+    </section>
   )
 }
