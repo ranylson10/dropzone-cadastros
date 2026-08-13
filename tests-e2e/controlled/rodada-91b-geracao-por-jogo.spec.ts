@@ -19,7 +19,6 @@ test('91B download dos cards resolve o template para o jogo selecionado', async 
 })
 
 test('91B classificados continuam obedecendo o Top do jogo selecionado', async () => {
-  expect(workspace).toContain("block.type === 'qualified_teams' && game.mataMata && game.classificamQuantidade")
-  expect(workspace).toContain('{ dataStart: 1, dataEnd: game.classificamQuantidade }')
+  expect(workspace).toContain("block.type === 'qualified_teams' ? { dataStart: 1, dataEnd: game.mataMata && game.classificamQuantidade && game.classificamQuantidade > 0 ? game.classificamQuantidade : 0 } : {}")
   expect(workspace).toContain("Mata-mata · Top ${generationGame.classificamQuantidade || '—'} classifica")
 })
