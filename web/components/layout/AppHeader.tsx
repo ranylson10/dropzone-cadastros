@@ -179,7 +179,7 @@ export function AppHeader({
           <span className="app-brand-logo">
             <SystemLogo size={44} alt="" fit="contain" variant="accent" />
           </span>
-          <span className="app-brand-copy"><strong>DROPZONE</strong><small>COMPETITIVE SYSTEM</small></span>
+          <span className="app-brand-copy"><strong>DropZone</strong><small>COMPETITIVE SYSTEM</small></span>
         </a>
 
         <button

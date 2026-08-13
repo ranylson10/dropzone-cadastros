@@ -471,27 +471,15 @@
   }
 
   .app-header-inner {
-    grid-template-columns: 40px minmax(0, 1fr) 36px 36px 36px;
+    grid-template-columns: 36px minmax(0, 1fr) 36px 36px;
     gap: 4px;
-    width: calc(100% - 12px);
+    width: calc(100% - 6px);
   }
 
-  .app-brand {
-    grid-column: 1;
-  }
-
-  .app-brand-logo,
-  .app-brand-logo img,
-  .app-brand-logo .system-logo {
-    width: 36px;
-    height: 36px;
-  }
-
-  .app-brand-logo { flex-basis: 36px; }
-  .app-brand-copy { display: none; }
   .app-mobile-toggle {
     display: grid;
-    grid-column: 5;
+    grid-column: 1;
+    grid-row: 1;
     width: 36px;
     height: 36px;
     place-items: center;
@@ -500,6 +488,37 @@
     background: transparent;
     color: var(--ui-text-soft, #c7c2b8);
   }
+
+  .app-brand {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    gap: 8px;
+    justify-self: start;
+  }
+
+  .app-brand-logo,
+  .app-brand-logo img,
+  .app-brand-logo .system-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .app-brand-logo { flex-basis: 32px; }
+  .app-brand-copy {
+    display: block;
+    min-width: 0;
+  }
+  .app-brand-copy strong {
+    display: block;
+    color: var(--ui-text, #f5f3ed);
+    font-size: 17px;
+    font-weight: 850;
+    letter-spacing: -.02em;
+    line-height: 1;
+    text-transform: none;
+  }
+  .app-brand-copy small { display: none; }
 
   .app-mobile-toggle[aria-expanded='true'] {
     background: var(--ui-surface-soft, #202125);
@@ -522,10 +541,10 @@
     left: 0;
     z-index: 124;
     display: none;
-    width: min(82vw, 320px);
+    width: min(70vw, 276px);
     max-height: none;
     overflow-y: auto;
-    padding: 16px 10px calc(18px + env(safe-area-inset-bottom));
+    padding: 14px 8px calc(18px + env(safe-area-inset-bottom));
     border: 0;
     border-radius: 0 var(--ui-radius-lg, 14px) var(--ui-radius-lg, 14px) 0;
     background: var(--ui-surface-raised, #1a1b1f);
@@ -535,20 +554,22 @@
   .app-main-nav.is-open {
     display: grid;
     align-content: start;
-    gap: 3px;
+    gap: 2px;
   }
 
   .app-main-nav > a,
   .app-main-nav .app-nav-parent {
     width: 100%;
-    min-height: 46px;
+    min-height: 42px;
     justify-content: space-between;
-    padding: 0 12px;
+    padding: 0 10px;
     border: 0;
-    border-radius: var(--ui-radius-sm, 6px);
+    border-radius: 0;
+    background: transparent;
     color: var(--ui-text-soft, #c7c2b8);
     font-size: 12px;
-    letter-spacing: .025em;
+    font-weight: 800;
+    letter-spacing: .015em;
     text-transform: none;
   }
 
@@ -558,17 +579,28 @@
   }
 
   .app-main-nav > a:hover,
-  .app-main-nav > a.active,
-  .app-main-nav .app-nav-parent:hover,
-  .app-main-nav .app-nav-parent.active {
-    background: var(--ui-surface-soft, #202125);
+  .app-main-nav .app-nav-parent:hover {
+    background: transparent;
     color: var(--ui-text, #f5f3ed);
+  }
+
+  .app-main-nav > a.active,
+  .app-main-nav .app-nav-parent.active {
+    background: transparent;
+    color: var(--ui-accent-strong, #dfcf85);
   }
 
   .app-nav-dropdown {
     display: block;
     width: 100%;
     height: auto;
+    margin: 4px 0 6px;
+  }
+
+  .app-nav-dropdown > .app-nav-parent {
+    color: var(--ui-text, #f5f3ed);
+    font-size: 13px;
+    font-weight: 900;
   }
 
   .app-nav-caret { display: none; }
@@ -578,8 +610,8 @@
     display: grid;
     width: 100%;
     min-width: 0;
-    gap: 1px;
-    padding: 0 0 4px 12px;
+    gap: 0;
+    padding: 0 0 4px 18px;
     border: 0;
     background: transparent;
     opacity: 1;
@@ -589,19 +621,40 @@
   }
 
   .app-nav-submenu a {
-    min-height: 38px;
-    padding: 8px 10px;
+    position: relative;
+    min-height: 34px;
+    padding: 6px 8px 6px 15px;
     border: 0;
     color: var(--ui-muted, #918c84);
-    font-size: 11px;
+    font-size: 10px;
+    font-weight: 650;
     text-transform: none;
+  }
+
+  .app-nav-submenu a::before {
+    content: '·';
+    position: absolute;
+    left: 3px;
+    color: var(--ui-accent, #c9b766);
+    font-size: 16px;
+    line-height: 1;
   }
 
   .app-mobile-nav-account {
     display: grid;
     gap: 2px;
-    margin-top: 4px;
-    padding-top: 4px;
+    margin-top: 12px;
+    padding-top: 8px;
+  }
+
+  .app-mobile-nav-account::before {
+    content: 'Conta';
+    padding: 0 10px 5px;
+    color: var(--ui-accent, #c9b766);
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .12em;
+    text-transform: uppercase;
   }
 
   .app-mobile-nav-account a {
@@ -693,6 +746,7 @@
 
   .app-global-language {
     grid-column: 3;
+    grid-row: 1;
     width: 36px;
     height: 36px;
   }
@@ -713,6 +767,7 @@
 
   .app-profile {
     grid-column: 4;
+    grid-row: 1;
     display: grid;
     grid-template-columns: 36px;
     gap: 0;
