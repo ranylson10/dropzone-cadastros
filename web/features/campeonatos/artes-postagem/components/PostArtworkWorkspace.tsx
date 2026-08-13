@@ -865,7 +865,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       const nextGames = gameOptionsFromApi(gamesPayload.jogos, structurePayload.fases)
       setGames(nextGames)
       setGenerationPhaseId((current) => current || nextGames[0]?.faseId || '')
-      setGenerationGameId((current) => current || nextGames[0]?.id || '')
+      setGenerationGameId((current) => current && nextGames.some((game) => game.id === current) ? current : '')
       setCampeonatoNome(body.campeonato?.nome || 'Campeonato')
       const nextId = preferredId || initialArtworkId || activeId || next[0]?.id || ''
       setActiveId(nextId)
@@ -1506,7 +1506,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
         <section className="post-artworks-generate-filter post-artworks-manage-game-filter">
           <div className="post-artworks-panel-title"><strong>Gerar com dados do jogo</strong><small>Escolha o jogo uma vez. A prévia e os downloads usam os dados desse jogo sem alterar o template salvo.</small></div>
           <div className="post-artworks-generate-filter-grid">
-            <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; const first = games.find((game) => game.faseId === faseId); setGenerationPhaseId(faseId); setGenerationGameId(first?.id || '') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
+            <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; setGenerationPhaseId(faseId); setGenerationGameId('') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
             <label>Jogo<select value={generationGameId} onChange={(event) => setGenerationGameId(event.target.value)} disabled={!generationPhaseId}><option value="">Selecione o jogo</option>{generationGames.map((game) => <option key={game.id} value={game.id}>{game.nome}{game.grupoNome ? ` · ${game.grupoNome}` : ''}</option>)}</select></label>
             <div className="post-artworks-generate-filter-actions"><button type="button" className="post-artworks-secondary" onClick={() => void reload(activeId)}>Atualizar dados</button></div>
           </div>
@@ -1586,7 +1586,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
         <section className="post-artworks-generate-filter">
           <div className="post-artworks-panel-title"><strong>Selecione a fase e o jogo</strong><small>O jogo escolhido alimenta Tabela do Jogo, Classificados, MVP, Booyahs e Líderes de Abates.</small></div>
           <div className="post-artworks-generate-filter-grid">
-            <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; const first = games.find((game) => game.faseId === faseId); setGenerationPhaseId(faseId); setGenerationGameId(first?.id || '') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
+            <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; setGenerationPhaseId(faseId); setGenerationGameId('') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
             <label>Jogo<select value={generationGameId} onChange={(event) => setGenerationGameId(event.target.value)} disabled={!generationPhaseId}><option value="">Selecione o jogo</option>{generationGames.map((game) => <option key={game.id} value={game.id}>{game.nome}{game.grupoNome ? ` · ${game.grupoNome}` : ''}</option>)}</select></label>
             <div className="post-artworks-generate-filter-actions"><a className={`post-artworks-secondary${generationGame ? '' : ' disabled'}`} href={generationGame ? `/campeonatos/${campeonatoId}/pontuador/${generationGame.id}` : '#'}>Abrir pontuador</a><button type="button" className="post-artworks-secondary" onClick={() => void reload(activeId)}>Atualizar dados</button></div>
           </div>
