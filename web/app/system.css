@@ -128,3 +128,109 @@ body {
     border-radius: var(--ui-radius-sm);
   }
 }
+
+/* Diretórios públicos e vitrine de vagas. */
+.vacancies-page {
+  min-height: 100dvh;
+  background: var(--ui-bg);
+}
+
+.vacancies-hero,
+.directory-hero-banner,
+.directory-profile-banner {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-lg);
+  background: linear-gradient(130deg, #17150d 0%, #141518 55%, #211e12 100%);
+  box-shadow: none;
+}
+
+.vacancies-hero::after {
+  height: 3px;
+  background: var(--ui-accent);
+}
+
+.vacancies-hero h1,
+.vacancies-hero .eyebrow,
+.vacancies-hero-count strong,
+.directory-hero-banner h1,
+.directory-profile-banner h1 {
+  color: var(--ui-text);
+}
+
+.vacancies-hero p,
+.vacancies-hero-count span,
+.directory-hero-banner p,
+.directory-profile-banner p {
+  color: var(--ui-text-muted);
+}
+
+.vacancies-toolbar {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+  box-shadow: none;
+}
+
+.vacancies-filter button,
+.vacancies-toolbar > select,
+.vacancies-toolbar > label {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+  box-shadow: none;
+}
+
+.vacancies-filter button.active {
+  background: var(--ui-accent);
+  color: #17150d;
+  box-shadow: none;
+}
+
+.vacancies-toolbar > label:focus-within {
+  box-shadow: 0 0 0 2px var(--ui-accent);
+}
+
+.vacancy-card {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+  box-shadow: none;
+}
+
+.vacancy-card::before { background: var(--ui-accent); }
+.vacancy-banner { border-color: var(--ui-line); }
+.vacancy-next-date,
+.vacancy-meta span,
+.vacancy-groups span,
+.vacancy-persuasion {
+  border-color: var(--ui-line);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+  box-shadow: none;
+}
+
+.vacancy-sale-line span,
+.vacancy-details-link,
+.vacancy-persuasion span { color: var(--ui-text-muted); }
+.vacancy-sale-line b,
+.vacancy-persuasion strong { color: var(--ui-text); }
+.vacancy-sale-line i { background: var(--ui-surface-soft); }
+.vacancy-sale-line em { background: var(--ui-accent); box-shadow: none; }
+.vacancy-register { background: var(--ui-accent); color: #17150d; }
+.vacancy-register:hover { background: var(--ui-gold-light); color: #17150d; }
+
+.directory-list-row,
+.directory-related-list > a,
+.directory-related-list > article {
+  border-color: var(--ui-line);
+  background: var(--ui-surface);
+  box-shadow: none;
+}
+
+@media (max-width: 700px) {
+  .vacancies-page { padding: 72px 10px 12px; }
+  .vacancies-hero { border-radius: var(--ui-radius-md); }
+  .vacancies-toolbar { position: sticky; top: 66px; z-index: 8; }
+  .vacancy-card { border-radius: var(--ui-radius-sm); }
+}
