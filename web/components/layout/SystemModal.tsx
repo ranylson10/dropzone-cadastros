@@ -54,7 +54,6 @@ export function SystemModal({
       >
         <header className="system-modal-header">
           <div>
-            <p className="eyebrow">DropZone</p>
             <h2 id="system-modal-title">{title}</h2>
             {description ? <p>{description}</p> : null}
           </div>
