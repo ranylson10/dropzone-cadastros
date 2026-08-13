@@ -8,7 +8,10 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 export const dynamic = 'force-dynamic'
 
 function dbSetupError(error: any) {
-  return /42P01|PGRST205|does not exist|42703|PGRST204/i.test(String(error?.message || error?.code || ''))
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+  if (!['42P01', 'PGRST205'].includes(code)) return false
+  return /commerce_carrinhos|commerce_carrinho_itens/i.test(message)
 }
 
 async function loadCartItem(userId: string, itemId: string) {
@@ -129,8 +132,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Pagamento online indisponivel no momento.', asaas_configured: false }, { status: 503 })
     }
     if (dbSetupError(error)) {
-      return NextResponse.json({ error: 'Rode a migration 20260808_commerce_cart_wishlist.sql.', needs_migration: true }, { status: 503 })
+      return NextResponse.json(
+        { error: 'Estrutura de carrinho não encontrada no banco.', needs_migration: true },
+        { status: 503 },
+      )
     }
-    return NextResponse.json({ error: error?.message || 'Erro ao gerar checkout do carrinho.' }, { status: 400 })
+    return NextResponse.json(
+      {
+        error: error?.message || 'Erro ao gerar checkout do carrinho.',
+        code: error?.code || null,
+      },
+      { status: 400 },
+    )
   }
 }
