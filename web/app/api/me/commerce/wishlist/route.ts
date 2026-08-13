@@ -5,23 +5,82 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 export const dynamic = 'force-dynamic'
 
 function dbSetupError(error: any) {
-  return /42P01|PGRST205|does not exist|42703|PGRST204/i.test(String(error?.message || error?.code || ''))
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+  if (!['42P01', 'PGRST205'].includes(code)) return false
+  return /commerce_favoritos/i.test(message)
+}
+
+async function championshipData(campeonatoIds: string[]) {
+  if (!campeonatoIds.length) return new Map<string, any>()
+
+  const [{ data: championships, error: championshipsError }, { data: configs, error: configsError }] = await Promise.all([
+    supabaseAdmin
+      .from('campeonatos')
+      .select('id,nome,logo_url,banner_url')
+      .in('id', campeonatoIds),
+    supabaseAdmin
+      .from('campeonato_configuracoes')
+      .select('campeonato_id,valor_inscricao,numero_vagas')
+      .in('campeonato_id', campeonatoIds),
+  ])
+
+  if (championshipsError) throw championshipsError
+  if (configsError) throw configsError
+
+  const configByChamp = new Map((configs || []).map((row: any) => [String(row.campeonato_id), row]))
+  return new Map(
+    (championships || []).map((row: any) => {
+      const config = configByChamp.get(String(row.id)) || {}
+      return [
+        String(row.id),
+        {
+          ...row,
+          valor_inscricao: config.valor_inscricao ?? null,
+          total_vagas: config.numero_vagas ?? null,
+          vagas_livres: config.numero_vagas ?? null,
+        },
+      ]
+    }),
+  )
 }
 
 async function listWishlist(userId: string) {
   const { data, error } = await supabaseAdmin
     .from('commerce_favoritos')
-    .select(`
-      id,
-      campeonato_id,
-      origem,
-      created_at,
-      campeonato:campeonatos(id,nome,logo_url,banner_url,valor_inscricao,vagas_livres,total_vagas)
-    `)
+    .select('id,campeonato_id,origem,created_at')
     .eq('auth_user_id', userId)
     .order('created_at', { ascending: false })
+
   if (error) throw error
-  return { items: data || [] }
+
+  const items = data || []
+  const championshipById = await championshipData(
+    [...new Set(items.map((row: any) => String(row.campeonato_id || '')).filter(Boolean))],
+  )
+
+  return {
+    items: items.map((row: any) => ({
+      ...row,
+      campeonato: championshipById.get(String(row.campeonato_id)) || null,
+    })),
+  }
+}
+
+function errorResponse(error: any, fallback: string) {
+  if (dbSetupError(error)) {
+    return NextResponse.json(
+      { error: 'Estrutura de favoritos não encontrada no banco.', needs_migration: true },
+      { status: 503 },
+    )
+  }
+  return NextResponse.json(
+    {
+      error: error?.message || fallback,
+      code: error?.code || null,
+    },
+    { status: 400 },
+  )
 }
 
 export async function GET(req: NextRequest) {
@@ -29,10 +88,7 @@ export async function GET(req: NextRequest) {
     const user = await getBearerUser(req)
     return NextResponse.json(await listWishlist(user.id))
   } catch (error: any) {
-    if (dbSetupError(error)) {
-      return NextResponse.json({ items: [], needs_migration: true }, { status: 503 })
-    }
-    return NextResponse.json({ error: error?.message || 'Erro ao carregar favoritos.' }, { status: 400 })
+    return errorResponse(error, 'Erro ao carregar favoritos.')
   }
 }
 
@@ -44,16 +100,25 @@ export async function POST(req: NextRequest) {
     const origem = ['direto', 'vendedor', 'afiliado', 'lili', 'app'].includes(String(body.origem || ''))
       ? String(body.origem)
       : 'direto'
-    const favorito = body.favorito !== false
+    const favorito = typeof body.favorito === 'boolean' ? body.favorito : true
     if (!campeonatoId) throw new Error('Campeonato obrigatorio.')
+
+    const { data: campeonato, error: campeonatoError } = await supabaseAdmin
+      .from('campeonatos')
+      .select('id')
+      .eq('id', campeonatoId)
+      .maybeSingle()
+
+    if (campeonatoError) throw campeonatoError
+    if (!campeonato) throw new Error('Campeonato nao encontrado.')
 
     const existing = await supabaseAdmin
       .from('commerce_favoritos')
       .select('id')
       .eq('auth_user_id', user.id)
       .eq('campeonato_id', campeonatoId)
-      .limit(1)
       .maybeSingle()
+
     if (existing.error) throw existing.error
 
     if (favorito && !existing.data) {
@@ -62,21 +127,19 @@ export async function POST(req: NextRequest) {
         .insert({ auth_user_id: user.id, campeonato_id: campeonatoId, origem })
       if (error) throw error
     }
-    if (!favorito) {
+
+    if (!favorito && existing.data) {
       const { error } = await supabaseAdmin
         .from('commerce_favoritos')
         .delete()
+        .eq('id', existing.data.id)
         .eq('auth_user_id', user.id)
-        .eq('campeonato_id', campeonatoId)
       if (error) throw error
     }
 
     return NextResponse.json(await listWishlist(user.id))
   } catch (error: any) {
-    if (dbSetupError(error)) {
-      return NextResponse.json({ error: 'Rode a migration 20260808_commerce_cart_wishlist.sql.', needs_migration: true }, { status: 503 })
-    }
-    return NextResponse.json({ error: error?.message || 'Erro ao atualizar favoritos.' }, { status: 400 })
+    return errorResponse(error, 'Erro ao atualizar favoritos.')
   }
 }
 
@@ -85,17 +148,16 @@ export async function DELETE(req: NextRequest) {
     const user = await getBearerUser(req)
     const campeonatoId = String(new URL(req.url).searchParams.get('campeonato_id') || '').trim()
     if (!campeonatoId) throw new Error('Campeonato obrigatorio.')
+
     const { error } = await supabaseAdmin
       .from('commerce_favoritos')
       .delete()
       .eq('auth_user_id', user.id)
       .eq('campeonato_id', campeonatoId)
+
     if (error) throw error
     return NextResponse.json(await listWishlist(user.id))
   } catch (error: any) {
-    if (dbSetupError(error)) {
-      return NextResponse.json({ error: 'Rode a migration 20260808_commerce_cart_wishlist.sql.', needs_migration: true }, { status: 503 })
-    }
-    return NextResponse.json({ error: error?.message || 'Erro ao remover favorito.' }, { status: 400 })
+    return errorResponse(error, 'Erro ao remover favorito.')
   }
 }
