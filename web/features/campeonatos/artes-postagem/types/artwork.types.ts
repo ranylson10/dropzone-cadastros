@@ -29,6 +29,9 @@ export type PostArtworkTableStyle = {
   headerBackgroundColor: string
   headerBackgroundUrl: string | null
   headerColor: string
+  headerFontSize: number
+  headerFontWeight: number
+  headerFontFamily: string
   columns: PostArtworkTableColumnStyle[]
 }
 
