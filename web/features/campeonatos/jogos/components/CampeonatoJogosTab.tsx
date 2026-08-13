@@ -6,6 +6,7 @@ import { Field } from '@/features/dropzone/components/form-fields'
 import { supabase } from '@/lib/supabase-browser'
 import { dataText, rowTitle } from '@/features/dropzone/utils'
 import type { CampeonatoJogoForm, CampeonatoJogosTabProps } from '../types/campeonato-jogos.types'
+import '../campeonato-jogos.css'
 
 const MAPAS = ['Bermuda', 'Purgatório', 'Kalahari', 'Alpine', 'NexTerra', 'Solara']
 
@@ -56,6 +57,26 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
     [props.grupos, props.value.fase_id],
   )
   const filteredGames = phaseFilter ? props.jogos.filter((jogo) => jogo.data?.fase_id === phaseFilter) : props.jogos
+  const gameStats = useMemo(() => {
+    const statusOf = (game: CampeonatoJogosTabProps['jogos'][number]) => String(game.data?.status || game.status || 'agendado')
+    return {
+      total: props.jogos.length,
+      agendados: props.jogos.filter((game) => ['rascunho', 'agendado', 'escalacao_aberta', 'escalacao_encerrada'].includes(statusOf(game))).length,
+      andamento: props.jogos.filter((game) => statusOf(game) === 'em_andamento').length,
+      finalizados: props.jogos.filter((game) => statusOf(game) === 'finalizado').length,
+    }
+  }, [props.jogos])
+  const phaseSections = useMemo(() => {
+    const grouped = new Map<string, { id: string; nome: string; jogos: CampeonatoJogosTabProps['jogos'] }>()
+    for (const game of filteredGames) {
+      const id = String(game.data?.fase_id || 'sem-fase')
+      const nome = phaseName(props.fases, game.data?.fase_id)
+      const current = grouped.get(id) || { id, nome, jogos: [] }
+      current.jogos.push(game)
+      grouped.set(id, current)
+    }
+    return [...grouped.values()]
+  }, [filteredGames, props.fases])
   const mapList = mapsArray(props.value.mapas)
   const count = Math.max(1, Number(props.value.numero_partidas || 1))
   const selectedPhase = props.fases.find((fase) => fase.id === props.value.fase_id)
@@ -204,22 +225,34 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
   }
 
   return (
-    <section className="games-tab">
-      <div className="games-toolbar">
-        <div><p className="eyebrow">Jogos</p><h3>Calendário, grupos e quedas</h3><small>Os grupos disponíveis são sempre limitados à fase selecionada.</small></div>
-        <div className="games-toolbar-actions">
+    <section className="champ-games">
+      <header className="champ-games-head">
+        <div>
+          <p>Jogos e resultados</p>
+          <h2>Agenda de jogos</h2>
+        </div>
+        <div className="champ-games-head-actions">
           <select value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)} aria-label="Filtrar por fase">
             <option value="">Todas as fases</option>
             {props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}</option>)}
           </select>
           {canManageGames ? (
-            <button className="button" onClick={() => { reset(false); setShowForm((current) => !current) }}><Plus size={16} /> Novo jogo</button>
+            <button type="button" className="champ-games-new" onClick={() => { reset(false); setShowForm((current) => !current) }}>
+              <Plus size={15} /> {showForm ? 'Fechar' : 'Novo jogo'}
+            </button>
           ) : null}
         </div>
+      </header>
+
+      <div className="champ-games-summary" aria-label="Resumo dos jogos">
+        <span><strong>{gameStats.total}</strong><small>jogos</small></span>
+        <span><strong>{gameStats.agendados}</strong><small>agendados</small></span>
+        <span><strong>{gameStats.andamento}</strong><small>em andamento</small></span>
+        <span><strong>{gameStats.finalizados}</strong><small>finalizados</small></span>
       </div>
 
       {showForm && canManageGames ? (
-        <div className="game-form-panel">
+        <div className="champ-games-form">
           <div className="game-form-heading"><div><p className="eyebrow">{editingId ? 'Editar jogo' : 'Novo jogo'}</p><h4>{editingId ? props.value.nome : 'Configuração do jogo'}</h4></div><button className="button secondary" onClick={() => { setShowForm(false); reset(false) }}>Fechar</button></div>
           <div className="mini-grid three">
             <Field label="Fase"><select value={props.value.fase_id} onChange={(e) => { const next = props.fases.find((fase) => fase.id === e.target.value); const final = String(next?.data?.tipo || (next as any)?.tipo || '') === 'grande_final'; patch({ fase_id: e.target.value, grupos_ids: [], tipo_jogo: final ? 'final' : 'normal', dia_final: final ? (props.value.dia_final || '1') : '1', define_campeao: final ? props.value.define_campeao : false }) }}><option value="">Selecione a fase</option>{props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}{String(fase.data?.tipo || (fase as any)?.tipo || '') === 'grande_final' ? ' · Grande Final' : ''}</option>)}</select></Field>
@@ -321,32 +354,69 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
         </div>
       ) : null}
 
-      <div className="games-list">
-        {filteredGames.map((game) => {
-          const open = openId === game.id
-          const groupNames = props.grupos.filter((grupo) => Array.isArray(game.data?.grupos_ids) && game.data.grupos_ids.includes(grupo.id)).sort(sortGroups).map(rowTitle)
-          return <article className="game-card" key={game.id}>
-            <button className="game-card-summary" onClick={() => setOpenId(open ? null : game.id)}>
-              <span className="game-card-chevron">{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</span>
-              <span className="game-card-main"><strong>{rowTitle(game)}</strong><small>{phaseName(props.fases, game.data?.fase_id)}{game.data?.rodada ? ` · Rodada ${game.data.rodada}` : ''}</small></span>
-              <span className="game-card-meta"><span><CalendarDays size={14} />{formatDate(game.data?.data_jogo)}</span><span><Clock3 size={14} />{String(game.data?.horario || '--:--').slice(0, 5)}</span></span>
-              <span className={`game-status ${String(game.data?.status || game.status || 'agendado')}`}>{String(game.data?.status || game.status || 'agendado').replaceAll('_', ' ')}</span>
-            </button>
-            {open ? <div className="game-card-details">
-              <div className="game-detail-grid"><div><span>Grupos</span><strong>{groupNames.join(' × ') || 'Não definidos'}</strong></div><div><span>Quedas</span><strong>{game.data?.numero_partidas || 1}</strong></div><div><span>Mapas</span><strong>{mapsArray(game.data?.mapas).join(', ') || 'Não definidos'}</strong></div><div><span>Etapa</span><strong>{game.data?.tipo_jogo === 'final' ? `Grande Final · Dia ${game.data?.dia_final || 1}${game.data?.define_campeao ? ' · decisivo' : ''}` : game.data?.mata_mata ? `Mata-mata · Top ${game.data?.classificam_quantidade || '?'} avança` : 'Pontos corridos · sem eliminação'}</strong></div></div>
-              <div className="game-card-actions">
-                {canManageGames ? (
-                  <>
-                    <button className="button secondary" onClick={() => startEdit(game)}><Pencil size={15} /> Editar</button>
-                    <button className="button secondary danger" onClick={() => props.deleteGame(game.id)}><Trash2 size={15} /> Excluir</button>
-                  </>
-                ) : null}
-                <button className="button secondary" disabled><Trophy size={15} /> Súmula</button>
-              </div>
-            </div> : null}
-          </article>
-        })}
-        {filteredGames.length === 0 ? <p className="empty">Nenhum jogo encontrado para este filtro.</p> : null}
+      <div className="champ-games-phases">
+        {phaseSections.length === 0 ? (
+          <p className="champ-games-empty">Nenhum jogo encontrado para este filtro.</p>
+        ) : phaseSections.map((section) => (
+          <section className="champ-games-phase" key={section.id}>
+            <header>
+              <h3>{section.nome}</h3>
+              <span>{section.jogos.length} {section.jogos.length === 1 ? 'jogo' : 'jogos'}</span>
+            </header>
+            <div className="champ-games-list">
+              {section.jogos.map((game) => {
+                const open = openId === game.id
+                const groupNames = props.grupos.filter((grupo) => Array.isArray(game.data?.grupos_ids) && game.data.grupos_ids.includes(grupo.id)).sort(sortGroups).map(rowTitle)
+                const status = String(game.data?.status || game.status || 'agendado')
+                const quedas = Math.max(1, Number(game.data?.numero_partidas || 1))
+                const mapas = mapsArray(game.data?.mapas)
+                return (
+                  <article className={`champ-game is-${status}${open ? ' is-open' : ''}`} key={game.id}>
+                    <button type="button" className="champ-game-main" onClick={() => setOpenId(open ? null : game.id)} aria-expanded={open}>
+                      <span className="champ-game-date">
+                        <strong>{formatDate(game.data?.data_jogo).slice(0, 5)}</strong>
+                        <small>{String(game.data?.horario || '--:--').slice(0, 5)}</small>
+                      </span>
+                      <span className="champ-game-copy">
+                        <strong>{rowTitle(game)}</strong>
+                        <small>{game.data?.rodada ? `Rodada ${game.data.rodada} · ` : ''}{groupNames.join(' × ') || 'Grupos não definidos'}</small>
+                      </span>
+                      <span className="champ-game-rounds"><strong>{quedas}</strong><small>quedas</small></span>
+                      <span className={`champ-game-status is-${status}`}>{status.replaceAll('_', ' ')}</span>
+                      <span className="champ-game-chevron">{open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</span>
+                    </button>
+
+                    {open ? (
+                      <div className="champ-game-details">
+                        <div className="champ-game-info">
+                          <span><small>Data</small><strong><CalendarDays size={13} /> {formatDate(game.data?.data_jogo)}</strong></span>
+                          <span><small>Horário</small><strong><Clock3 size={13} /> {String(game.data?.horario || '--:--').slice(0, 5)}</strong></span>
+                          <span><small>Formato</small><strong>{game.data?.tipo_jogo === 'final' ? `Grande Final · Dia ${game.data?.dia_final || 1}${game.data?.define_campeao ? ' · decisivo' : ''}` : game.data?.mata_mata ? `Top ${game.data?.classificam_quantidade || '?'} avança` : 'Pontos corridos'}</strong></span>
+                        </div>
+
+                        <div className="champ-game-maps" aria-label="Sequência de quedas">
+                          {Array.from({ length: quedas }, (_, index) => (
+                            <span key={index}><small>Q{index + 1}</small><strong>{mapas[index] || 'Mapa não definido'}</strong></span>
+                          ))}
+                        </div>
+
+                        <div className="champ-game-actions">
+                          {canManageGames ? (
+                            <>
+                              <button type="button" onClick={() => startEdit(game)}><Pencil size={14} /> Editar</button>
+                              <button type="button" className="danger" onClick={() => props.deleteGame(game.id)}><Trash2 size={14} /> Excluir</button>
+                            </>
+                          ) : null}
+                          <button type="button" disabled><Trophy size={14} /> Súmula</button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        ))}
       </div>
     </section>
   )

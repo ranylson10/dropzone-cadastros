@@ -1,0 +1,49 @@
+.champ-games{display:grid;gap:14px;color:var(--ui-text,#f5f3ed)}
+.champ-games-head{display:flex;align-items:end;justify-content:space-between;gap:14px}
+.champ-games-head p,.champ-games-head h2,.champ-games-phase h3{margin:0}
+.champ-games-head p{margin-bottom:4px;color:var(--ui-primary,#c9b766);font-size:9px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+.champ-games-head h2{font-size:22px;line-height:1}
+.champ-games-head-actions{display:flex;align-items:center;gap:7px}
+.champ-games-head-actions select,.champ-games-new{height:36px;border:0;border-radius:8px;background:var(--ui-surface-elevated,#1a1b1f);color:var(--ui-text,#f5f3ed);font:inherit;font-size:10px;font-weight:800}
+.champ-games-head-actions select{min-width:150px;padding:0 30px 0 10px}
+.champ-games-new{display:inline-flex;align-items:center;gap:6px;padding:0 11px;background:var(--ui-primary,#c9b766);color:#111214;cursor:pointer}
+.champ-games-summary{display:flex;gap:24px;align-items:center;min-height:52px;padding-block:8px;border-bottom:1px solid rgba(245,243,237,.08)}
+.champ-games-summary span{display:grid;gap:1px}.champ-games-summary strong{font-size:18px;line-height:1}.champ-games-summary small{color:#8d8f94;font-size:8px;font-weight:800;text-transform:uppercase}
+.champ-games-form{display:grid;gap:14px;padding:14px;border-radius:10px;background:var(--ui-surface,#141518)}
+.champ-games-form .game-form-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.champ-games-form .game-form-heading h4,.champ-games-form .game-rules-panel h4{margin:0}
+.champ-games-form .mini-grid{display:grid;gap:10px}.champ-games-form .mini-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.champ-games-form .field{display:grid;gap:5px}.champ-games-form .field>label,.champ-games-form .game-groups-field>span{color:#8d8f94;font-size:9px;font-weight:800;text-transform:uppercase}
+.champ-games-form input,.champ-games-form select{min-height:36px;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);color:var(--ui-text,#f5f3ed);padding:0 9px}
+.champ-games-form input:focus,.champ-games-form select:focus{outline:1px solid var(--ui-primary,#c9b766);outline-offset:1px}
+.champ-games-form input:disabled{color:#777a80}
+.champ-games-form .game-groups-field{display:grid;gap:7px}.champ-games-form .game-group-options{display:flex;flex-wrap:wrap;gap:6px}
+.champ-games-form .game-group-chip{min-height:31px;display:inline-flex;align-items:center;gap:5px;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 9px;color:#8d8f94;font-size:9px;font-weight:800;cursor:pointer}
+.champ-games-form .game-group-chip input{display:none}.champ-games-form .game-group-chip.selected{background:rgba(201,183,102,.12);color:var(--ui-primary-light,#dfcf85)}
+.champ-games-form .game-rules-panel{display:grid;gap:10px;padding-top:12px;border-top:1px solid rgba(245,243,237,.07)}
+.champ-games-form .final-settings-heading{display:flex;align-items:end;justify-content:space-between;gap:12px}.champ-games-form .final-settings-heading small{max-width:480px;color:#777a80;font-size:9px}
+.champ-games-form .game-map-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.champ-games-form .final-bonus-grid{display:grid;gap:6px}.champ-games-form .final-bonus-row{display:grid;grid-template-columns:70px minmax(0,1fr) auto;align-items:center;gap:7px}.champ-games-form .final-bonus-row strong{font-size:9px;color:#8d8f94}
+.champ-games-form .games-toolbar-actions{display:flex;flex-wrap:wrap;gap:6px}.champ-games-form .statistics-message{margin:0;color:#9a9ca1;font-size:10px;line-height:1.5}.champ-games-form .statistics-message.error{color:#e68181}
+.champ-games-phases{display:grid;gap:14px}.champ-games-phase{overflow:hidden;border-radius:10px;background:var(--ui-surface,#141518)}
+.champ-games-phase>header{min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:var(--ui-surface-elevated,#1a1b1f)}
+.champ-games-phase h3{font-size:13px}.champ-games-phase>header>span{color:#777a80;font-size:8px;font-weight:850;text-transform:uppercase}
+.champ-games-list{display:grid}.champ-game{border-bottom:1px solid rgba(245,243,237,.065)}.champ-game:last-child{border-bottom:0}
+.champ-game-main{width:100%;min-height:58px;display:grid;grid-template-columns:58px minmax(0,1fr) 48px auto 18px;align-items:center;gap:9px;border:0;background:transparent;padding:7px 11px;color:inherit;text-align:left;cursor:pointer}
+.champ-game-main:hover{background:rgba(245,243,237,.025)}
+.champ-game-date{display:grid;gap:1px}.champ-game-date strong{font-size:11px;color:var(--ui-primary-light,#dfcf85)}.champ-game-date small{font-size:9px;color:#777a80}
+.champ-game-copy{min-width:0;display:grid;gap:2px}.champ-game-copy strong,.champ-game-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.champ-game-copy strong{font-size:12px}.champ-game-copy small{font-size:9px;color:#777a80}
+.champ-game-rounds{display:grid;place-items:center;gap:1px}.champ-game-rounds strong{font-size:12px}.champ-game-rounds small{font-size:7px;color:#777a80;text-transform:uppercase}
+.champ-game-status{font-size:7px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:#8d8f94}.champ-game-status.is-em_andamento{color:#dfcf85}.champ-game-status.is-finalizado{color:#8ebd8e}.champ-game-status.is-cancelado{color:#e68181}
+.champ-game-chevron{display:grid;place-items:center;color:#62656b}
+.champ-game-details{display:grid;gap:11px;padding:3px 11px 12px 78px}.champ-game-info{display:flex;flex-wrap:wrap;gap:18px}.champ-game-info span{display:grid;gap:2px}.champ-game-info small{color:#686b71;font-size:8px;font-weight:800;text-transform:uppercase}.champ-game-info strong{display:flex;align-items:center;gap:4px;font-size:10px}
+.champ-game-maps{display:flex;flex-wrap:wrap;gap:5px}.champ-game-maps span{min-height:30px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 8px}.champ-game-maps small{color:var(--ui-primary,#c9b766);font-size:8px;font-weight:900}.champ-game-maps strong{font-size:9px;font-weight:750}
+.champ-game-actions{display:flex;flex-wrap:wrap;gap:6px}.champ-game-actions button{min-height:30px;display:inline-flex;align-items:center;gap:5px;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 9px;color:#c6c7cb;font:inherit;font-size:9px;font-weight:800;cursor:pointer}.champ-game-actions button.danger{color:#e68181}.champ-game-actions button:disabled{cursor:not-allowed;color:#5f6268}
+.champ-games-empty{margin:0;padding:30px 12px;color:#777a80;text-align:center;font-size:11px}
+@media(max-width:760px){
+.champ-games{gap:11px}.champ-games-head{align-items:center}.champ-games-head h2{font-size:19px}.champ-games-head-actions{gap:5px}.champ-games-head-actions select{width:36px;min-width:36px;padding:0;color:transparent;background-image:none}.champ-games-head-actions select:focus{width:150px;color:var(--ui-text,#f5f3ed);padding:0 8px}.champ-games-new{width:36px;padding:0;justify-content:center;font-size:0}.champ-games-new svg{width:16px;height:16px}
+.champ-games-summary{gap:0;justify-content:space-between;min-height:46px;padding-inline:2px}.champ-games-summary strong{font-size:15px}.champ-games-summary small{font-size:7px}
+.champ-games-form{padding:10px}.champ-games-form .mini-grid.three,.champ-games-form .game-map-grid{grid-template-columns:1fr}.champ-games-form .final-settings-heading{align-items:start;flex-direction:column}.champ-games-form .final-bonus-row{grid-template-columns:54px minmax(0,1fr)}.champ-games-form .final-bonus-row button{grid-column:2}
+.champ-games-phase>header{min-height:42px;padding:7px 9px}.champ-games-phase h3{font-size:12px}
+.champ-game-main{min-height:54px;grid-template-columns:48px minmax(0,1fr) auto 15px;gap:7px;padding:6px 8px}.champ-game-date strong{font-size:10px}.champ-game-copy strong{font-size:11px}.champ-game-copy small{font-size:8px}.champ-game-rounds{display:none}.champ-game-status{font-size:6.5px;max-width:64px;text-align:right}.champ-game-details{padding:3px 8px 10px 63px}.champ-game-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}.champ-game-info span:last-child{grid-column:1/-1}.champ-game-maps{gap:4px}.champ-game-maps span{min-height:28px;padding-inline:7px}.champ-game-actions button{min-height:29px;font-size:8px}
+}
