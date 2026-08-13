@@ -56,9 +56,9 @@ test.describe('Rodada 5 — lista de campeonatos', () => {
     expect(cartApi).toContain("const campeonatoId = String(params.get('campeonato_id')")
     expect(cartApi).toContain('quantidade,')
     expect(cartApi).not.toContain('Number(existing.quantidade || 1) + quantidade')
-    expect(wishlistApi).toContain('const favorito = body.favorito !== false')
+    expect(wishlistApi).toContain("const favorito = typeof body.favorito === 'boolean' ? body.favorito : true")
     expect(wishlistApi).toContain('if (favorito && !existing.data)')
-    expect(wishlistApi).toContain('if (!favorito)')
+    expect(wishlistApi).toContain('if (!favorito && existing.data)')
   })
 
   test('estilo do diretório fica isolado em uma única folha e não continua duplicado no globals', () => {
@@ -73,8 +73,8 @@ test.describe('Rodada 5 — lista de campeonatos', () => {
   test('mobile usa quase toda a largura e lista campeonatos em linhas compactas', () => {
     const css = source('web/features/directory/components/championship-directory.css')
     expectRule(css, '.directory-champ-card-grid', ['display:grid', 'grid-template-columns:repeat(auto-fill,minmax(285px,1fr))'])
-    expect(css).toContain('.directory-champ-card-grid{grid-template-columns:1fr;gap:5px;width:calc(100% - 6px)}')
+    expect(css).toContain('.directory-champ-card-grid{grid-template-columns:1fr;gap:7px;width:calc(100% - 20px)}')
     expect(css).toContain('.directory-champ-card{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:126px;border-radius:8px}')
-    expect(css).toContain('.champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto;width:calc(100% - 6px);gap:5px;margin-bottom:8px}')
+    expect(css).toContain('.champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto;width:calc(100% - 20px);gap:5px;margin-bottom:8px}')
   })
 })
