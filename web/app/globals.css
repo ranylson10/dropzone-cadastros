@@ -5439,6 +5439,36 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   .home-card-grid{ grid-template-columns: 1fr; gap: 10px;
   }
 }  :root{
+  /*
+   * Fundação visual 01 — nova linguagem do sistema.
+   * Estes tokens são deliberadamente independentes dos tokens legados.
+   * As próximas rodadas migram shell e componentes por camada, sem virar
+   * o sistema inteiro de uma vez e sem quebrar contraste nas telas antigas.
+   */
+  --ui-bg: #0c0d0f;
+  --ui-surface: #141518;
+  --ui-surface-raised: #1a1b1f;
+  --ui-surface-soft: #202125;
+  --ui-text: #f5f3ed;
+  --ui-text-soft: #c7c2b8;
+  --ui-muted: #918c84;
+  --ui-accent: #c9b766;
+  --ui-accent-strong: #dfcf85;
+  --ui-accent-deep: #9f8f45;
+  --ui-success: #63b67a;
+  --ui-warning: #d8a653;
+  --ui-danger: #d76c6c;
+  --ui-radius-sm: 6px;
+  --ui-radius-md: 10px;
+  --ui-radius-lg: 14px;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 24px;
+  --ui-space-6: 32px;
+  --ui-space-7: 48px;
+  --ui-shadow: none;
   color-scheme: light;
   --bg: #ece8e1;
   --bg-elevated: #e6e0d7;
