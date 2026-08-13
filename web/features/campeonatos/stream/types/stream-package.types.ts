@@ -456,7 +456,7 @@ export const DEFAULT_STREAM_OVERLAY_CONFIGS: Record<StreamSystemOverlayType, Str
     maxItems: 6,
     tableMode: 'single',
     columns: ['rank', 'logo', 'nick', 'kills'],
-    title: 'MVP do dia',
+    title: 'MVP do jogo',
   },
   mvp_round: {
     maxItems: 4,
@@ -467,7 +467,7 @@ export const DEFAULT_STREAM_OVERLAY_CONFIGS: Record<StreamSystemOverlayType, Str
   booyahs_day: {
     maxItems: 3,
     columns: ['map', 'logo', 'name', 'points', 'kills'],
-    title: 'Booyahs do dia',
+    title: 'Booyahs do jogo',
   },
   qualified_teams: {
     maxItems: 12,
@@ -514,9 +514,9 @@ export const STREAM_SYSTEM_OVERLAY_META: Record<StreamSystemOverlayType, {
   round_teams: { name: 'Resultado da queda', description: 'Resultado das equipes na queda selecionada.', structure: 'table' },
   round_players: { name: 'Jogadores da queda', description: 'Ranking individual da queda selecionada.', structure: 'table' },
   mvp_general: { name: 'MVP geral', description: 'Líderes individuais no acumulado.', structure: 'table' },
-  mvp_day: { name: 'MVP do dia', description: 'Líderes individuais no dia/jogo.', structure: 'table' },
+  mvp_day: { name: 'MVP do jogo', description: 'Líderes individuais do jogo selecionado.', structure: 'table' },
   mvp_round: { name: 'MVP da queda', description: 'Ranking individual da queda atual.', structure: 'table' },
-  booyahs_day: { name: 'Booyahs do dia', description: 'Cards das equipes vencedoras por mapa.', structure: 'cards' },
+  booyahs_day: { name: 'Booyahs do jogo', description: 'Cards das equipes vencedoras por mapa no jogo selecionado.', structure: 'cards' },
   qualified_teams: { name: 'Equipes classificadas', description: 'Cards por categoria de classificação.', structure: 'cards' },
   next_round: { name: 'Próxima queda', description: 'Mapa e identificação da próxima queda.', structure: 'hero' },
   champion: { name: 'Campeão', description: 'Cena de campeão com identidade do evento.', structure: 'hero' },

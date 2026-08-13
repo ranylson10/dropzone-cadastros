@@ -308,7 +308,7 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
 
         <div className="broadcast-row" style={{ alignItems: 'start' }}>
           <label className="broadcast-field" style={{ flex: '1 1 320px' }}>
-            <span>Jogo da live · mapas do dia</span>
+            <span>Jogo da live · fonte das estatísticas</span>
             <select
               value={activeJogoId}
               disabled={packBusy}
