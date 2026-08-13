@@ -1376,7 +1376,6 @@ ${params.url}`
       <SystemModal
         open={showCreateChamp}
         title="Novo campeonato"
-        description="Cadastre os dados básicos, informações e controles do campeonato."
         onClose={closeCreateChampionship}
         size="wide"
       >

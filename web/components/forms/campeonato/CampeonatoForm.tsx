@@ -514,9 +514,8 @@ export function CampeonatoForm({
     return (
       <div className="championship-type-step">
         <div className="championship-step-copy">
-          <p className="eyebrow">Etapa 1 de 2</p>
-          <h3>Escolha o tipo de campeonato</h3>
-          <p>O tipo define o formato inicial e ajuda o sistema a preparar a estrutura correta.</p>
+          <span className="championship-step-index">1 de 2</span>
+          <h3>Escolha o formato</h3>
         </div>
 
         <div className="championship-type-cards">
@@ -541,8 +540,8 @@ export function CampeonatoForm({
         </div>
 
         {onCancel ? (
-          <div className="button-row compact-actions">
-            <button className="button secondary" type="button" onClick={onCancel}>Cancelar</button>
+          <div className="championship-type-actions">
+            <button className="text-action-button" type="button" onClick={onCancel}>Cancelar</button>
           </div>
         ) : null}
       </div>
