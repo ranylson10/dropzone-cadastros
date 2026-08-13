@@ -550,7 +550,7 @@ export function ChampionshipCallsPanel({ championshipId, token }: Props) {
           onChangeText={setName}
           style={styles.input}
           placeholder="Nome da call"
-          placeholderTextColor="#8a857e"
+          placeholderTextColor={colors.muted}
         />
         <TextInput
           value={note}
@@ -558,7 +558,7 @@ export function ChampionshipCallsPanel({ championshipId, token }: Props) {
           style={[styles.input, styles.textarea]}
           multiline
           placeholder="Observação opcional"
-          placeholderTextColor="#8a857e"
+          placeholderTextColor={colors.muted}
         />
         <View style={styles.actions}>
           {selectedCall ? (
@@ -628,7 +628,7 @@ export function ChampionshipCallsPanel({ championshipId, token }: Props) {
                 style={styles.iconDanger}
                 onPress={() => removeCall(row)}
               >
-                <Ionicons name="trash-outline" size={16} color="#b42318" />
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
               </TouchableOpacity>
             </View>
           );
