@@ -18,6 +18,7 @@ import { SystemModal } from '@/components/layout/SystemModal'
 import { useCampeonatoEquipes } from '../hooks/useCampeonatoEquipes'
 import { campeonatoEquipesService } from '../services/campeonato-equipes.service'
 import type { CampeonatoVaga, EquipeBusca } from '../types/campeonato-equipes.types'
+import '../campeonato-equipes.css'
 
 type FiltroVaga = 'todas' | 'livre' | 'reservada' | 'ocupada'
 
@@ -94,6 +95,43 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     if (filtro === 'todas') return vagas
     return vagas.filter((vaga) => vaga.status === filtro)
   }, [data, filtro])
+
+  const gruposOperacionais = useMemo(() => {
+    const groups = new Map<string, {
+      key: string
+      faseNome: string
+      grupoNome: string
+      vagas: CampeonatoVaga[]
+      total: number
+      ocupadas: number
+      reservadas: number
+      livres: number
+    }>()
+
+    for (const vaga of vagasFiltradas) {
+      const faseNome = String(vaga.fase?.nome || 'Fase de entrada')
+      const grupoNome = String(vaga.grupo?.nome || 'Sem grupo')
+      const key = `${vaga.fase?.id || faseNome}::${vaga.grupo_id || vaga.grupo?.id || grupoNome}`
+      const current = groups.get(key) || {
+        key,
+        faseNome,
+        grupoNome,
+        vagas: [],
+        total: 0,
+        ocupadas: 0,
+        reservadas: 0,
+        livres: 0,
+      }
+      current.vagas.push(vaga)
+      current.total += 1
+      if (vaga.status === 'ocupada') current.ocupadas += 1
+      if (vaga.status === 'reservada') current.reservadas += 1
+      if (vaga.status === 'livre') current.livres += 1
+      groups.set(key, current)
+    }
+
+    return [...groups.values()]
+  }, [vagasFiltradas])
 
   function fechar() {
     setVagaAlvo(null)
@@ -357,274 +395,167 @@ Acesse: ${link}`
       : `${capacidade?.slots_ocupados ?? stats.ocupadas} preenchidas`
 
   return (
-    <section className="championship-teams-tab compact">
-      {capacidade ? (
-        <div className="teams-capacidade-bar" aria-label="Capacidade do campeonato">
-          <div>
-            <strong>{metaLabel}</strong>
-            <span>
-              {capacidade.limite_vagas != null
-                ? 'preenchidas na fase de entrada'
-                : 'preenchidas (sem limite de meta)'}
-            </span>
-          </div>
-          <div>
-            <strong>{capacidade.slots_criados}</strong>
-            <span>slots na fase de entrada</span>
-          </div>
-          <div>
-            <strong>{capacidade.slots_livres_estrutura}</strong>
-            <span>slots livres na entrada</span>
-          </div>
-          {capacidade.slots_ainda_podem_ser_criados != null ? (
-            <div>
-              <strong>{capacidade.slots_ainda_podem_ser_criados}</strong>
-              <span>ainda podem ser criados na entrada</span>
-            </div>
-          ) : null}
+    <section className="champ-registration">
+      <header className="champ-registration-head">
+        <div>
+          <p>Equipes e inscrições</p>
+          <h2>Grupos e slots</h2>
         </div>
-      ) : null}
+        <button className="champ-registration-refresh" type="button" onClick={reload} title="Atualizar inscrições" aria-label="Atualizar inscrições">
+          <RefreshCw size={16} />
+        </button>
+      </header>
 
-      <div className="teams-compact-toolbar">
-        <div className="teams-status-filters" role="tablist" aria-label="Filtrar vagas">
-          {FILTROS.map((item) => {
-            const quantidade = item.value === 'todas'
-              ? stats.total
-              : item.value === 'livre'
-                ? stats.livres
-                : item.value === 'reservada'
-                  ? stats.reservadas
-                  : stats.ocupadas
-
-            return (
-              <button
-                key={item.value}
-                type="button"
-                className={filtro === item.value ? 'active' : ''}
-                onClick={() => setFiltro(item.value)}
-                role="tab"
-                aria-selected={filtro === item.value}
-              >
-                {item.label}
-                <span>{quantidade}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="teams-toolbar-right">
-          <div className="teams-mini-stats" aria-label="Resumo das vagas">
-            <span><strong>{stats.total}</strong> slots</span>
-            <span className="is-free"><strong>{stats.livres}</strong> livres</span>
-            <span className="is-reserved"><strong>{stats.reservadas}</strong> reservadas</span>
-            <span className="is-filled"><strong>{stats.ocupadas}</strong> preenchidas</span>
-          </div>
-          <button className="teams-refresh-button" type="button" onClick={reload} title="Atualizar vagas" aria-label="Atualizar vagas">
-            <RefreshCw size={15} />
-          </button>
-        </div>
+      <div className="champ-registration-summary" aria-label="Resumo das inscrições">
+        <span><strong>{stats.ocupadas}</strong><small>inscritas</small></span>
+        <span><strong>{stats.reservadas}</strong><small>reservadas</small></span>
+        <span><strong>{stats.livres}</strong><small>livres</small></span>
+        {capacidade?.limite_vagas != null ? (
+          <span><strong>{capacidade.slots_ocupados}/{capacidade.limite_vagas}</strong><small>meta da entrada</small></span>
+        ) : (
+          <span><strong>{stats.total}</strong><small>slots</small></span>
+        )}
       </div>
 
-      {feedback ? <div className="teams-feedback">{feedback}</div> : null}
+      <nav className="champ-registration-filters" aria-label="Filtrar inscrições">
+        {FILTROS.map((item) => {
+          const quantidade = item.value === 'todas'
+            ? stats.total
+            : item.value === 'livre'
+              ? stats.livres
+              : item.value === 'reservada'
+                ? stats.reservadas
+                : stats.ocupadas
+
+          return (
+            <button
+              key={item.value}
+              type="button"
+              className={filtro === item.value ? 'active' : ''}
+              onClick={() => setFiltro(item.value)}
+              aria-pressed={filtro === item.value}
+            >
+              {item.label}<span>{quantidade}</span>
+            </button>
+          )
+        })}
+      </nav>
+
+      {feedback ? <div className="champ-registration-feedback">{feedback}</div> : null}
 
       {(data.convites_grupo || []).length > 0 ? (
-        <div className="teams-group-invites panel-soft">
-          <div className="section-head compact-head">
-            <div>
-              <p className="eyebrow">Convites de grupo</p>
-              <h3>Links sem slot fixo</h3>
-            </div>
-          </div>
-          <div className="token-list">
+        <details className="champ-registration-group-invites">
+          <summary>
+            <span>Convites de grupo</span>
+            <strong>{(data.convites_grupo || []).length}</strong>
+          </summary>
+          <div className="champ-registration-invite-list">
             {(data.convites_grupo || []).map((convite) => {
-              const grupoNome =
-                data.vagas.find((v) => v.grupo_id === convite.grupo_id)?.grupo?.nome
-                || 'Grupo'
+              const grupoNome = data.vagas.find((v) => v.grupo_id === convite.grupo_id)?.grupo?.nome || 'Grupo'
               return (
-                <div key={convite.id} className="token-card">
-                  <span>
-                    {grupoNome}
-                    {' · '}
-                    {convite.nome_equipe_reservada || 'Reserva'}
-                    {' / '}
-                    {convite.nome_line_reservada || 'Line'}
-                  </span>
-                  <strong>Expira {formatDate(convite.expira_em)}</strong>
-                  <div className="folder-actions">
-                    <button type="button" onClick={() => void copiarConviteGrupo(convite)} title="Copiar convite">
-                      <Copy size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void editarConvite(convite.id, convite.nome_equipe_reservada, convite.nome_line_reservada)}
-                      title="Editar identificações"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                    <button type="button" onClick={() => void renovar(convite.id)} title="Renovar 24h">
-                      <RefreshCw size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      className="danger"
-                      onClick={() => void cancelar(convite.id, `o convite de grupo (${convite.nome_equipe_reservada || 'reserva'})`)}
-                      title="Cancelar convite"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                <article key={convite.id}>
+                  <div>
+                    <strong>{grupoNome}</strong>
+                    <span>{convite.nome_equipe_reservada || 'Reserva'} · {convite.nome_line_reservada || 'Line'}</span>
+                    <small>Expira {formatDate(convite.expira_em)}</small>
                   </div>
-                </div>
+                  <div className="champ-registration-invite-actions">
+                    <button type="button" onClick={() => void copiarConviteGrupo(convite)} title="Copiar convite" aria-label="Copiar convite"><Copy size={15} /></button>
+                    <button type="button" onClick={() => void editarConvite(convite.id, convite.nome_equipe_reservada, convite.nome_line_reservada)} title="Editar identificações" aria-label="Editar identificações"><Pencil size={15} /></button>
+                    <button type="button" onClick={() => void renovar(convite.id)} title="Renovar 24h" aria-label="Renovar convite"><RefreshCw size={15} /></button>
+                    <button type="button" className="danger" onClick={() => void cancelar(convite.id, `o convite de grupo (${convite.nome_equipe_reservada || 'reserva'})`)} title="Cancelar convite" aria-label="Cancelar convite"><Trash2 size={15} /></button>
+                  </div>
+                </article>
               )
             })}
           </div>
-        </div>
+        </details>
       ) : null}
 
-      <div className="championship-vagas-list">
-        {vagasFiltradas.length === 0 ? (
-          <div className="vagas-empty-filter">Nenhuma vaga encontrada neste filtro.</div>
-        ) : vagasFiltradas.map((vaga) => {
-          const aberta = vagaAbertaId === vaga.id
-          const letra = vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')
-          // Unidade competitiva = line; pasta = equipe
-          const logoUrl =
-            vaga.line_logo_url
-            || vaga.campeonato_equipe?.line_logo_url
-            || vaga.campeonato_equipe?.line?.logo_url
-            || vaga.campeonato_equipe?.equipe?.logo_url
-            || null
-          const nomePrincipal = vaga.status === 'reservada'
-            ? vaga.nome_line_reservada || vaga.nome_equipe_reservada || 'Convite reservado'
-            : vaga.status === 'ocupada'
-              ? vaga.line_nome
-                || vaga.campeonato_equipe?.line_nome
-                || vaga.campeonato_equipe?.nome_exibicao
-                || vaga.campeonato_equipe?.line?.nome
-                || 'Line inscrita'
-              : `Slot ${letra}`
-          const detalhe = vaga.status === 'reservada'
-            ? [
-                vaga.nome_equipe_reservada,
-                vaga.grupo?.nome,
-                `Expira ${formatDate(vaga.reserva_expira_em)}`,
-              ].filter(Boolean).join(' · ') || 'Aguardando aceite do convite'
-            : vaga.status === 'ocupada'
-              ? [
-                  vaga.equipe_nome || vaga.campeonato_equipe?.equipe_nome || vaga.campeonato_equipe?.equipe?.nome,
-                  vaga.grupo?.nome,
-                  vaga.campeonato_equipe?.origem_entrada
-                    ? `via ${vaga.campeonato_equipe.origem_entrada}`
-                    : null,
-                ].filter(Boolean).join(' · ') || 'Line no campeonato'
-              : [vaga.fase?.nome, vaga.grupo?.nome].filter(Boolean).join(' · ') || 'Disponível'
+      <div className="champ-registration-groups">
+        {gruposOperacionais.length === 0 ? (
+          <div className="champ-registration-empty">Nenhum slot encontrado neste filtro.</div>
+        ) : gruposOperacionais.map((group) => (
+          <section className="champ-registration-group" key={group.key}>
+            <header>
+              <div>
+                <small>{group.faseNome}</small>
+                <h3>{group.grupoNome}</h3>
+              </div>
+              <span><strong>{group.ocupadas}</strong>/{group.total} preenchidos</span>
+            </header>
 
-          return (
-            <article className={`championship-vaga-row status-${vaga.status} ${aberta ? 'is-open' : ''}`} key={vaga.id}>
-              <button
-                type="button"
-                className="vaga-row-summary"
-                onClick={() => setVagaAbertaId(aberta ? null : vaga.id)}
-                aria-expanded={aberta}
-              >
-                <span className="vaga-row-number">{letra}</span>
+            <div className="champ-registration-slots">
+              {group.vagas.map((vaga) => {
+                const aberta = vagaAbertaId === vaga.id
+                const letra = vaga.slot_letra || String(vaga.numero_vaga).padStart(2, '0')
+                const logoUrl = vaga.line_logo_url || vaga.campeonato_equipe?.line_logo_url || vaga.campeonato_equipe?.line?.logo_url || vaga.campeonato_equipe?.equipe?.logo_url || null
+                const nomePrincipal = vaga.status === 'reservada'
+                  ? vaga.nome_line_reservada || vaga.nome_equipe_reservada || 'Convite reservado'
+                  : vaga.status === 'ocupada'
+                    ? vaga.line_nome || vaga.campeonato_equipe?.line_nome || vaga.campeonato_equipe?.nome_exibicao || vaga.campeonato_equipe?.line?.nome || 'Line inscrita'
+                    : 'Livre'
+                const equipeNome = vaga.equipe_nome || vaga.campeonato_equipe?.equipe_nome || vaga.campeonato_equipe?.equipe?.nome || vaga.nome_equipe_reservada || ''
+                const statusLabel = vaga.status === 'ocupada' ? 'Inscrita' : vaga.status === 'reservada' ? 'Reservada' : 'Livre'
 
-                <span className={`vaga-row-avatar status-${vaga.status}`} aria-hidden>
-                  {vaga.status === 'ocupada' && logoUrl ? (
-                    <img src={logoUrl} alt="" />
-                  ) : vaga.status === 'ocupada' ? (
-                    <Users size={18} />
-                  ) : vaga.status === 'reservada' ? (
-                    <Link2 size={16} />
-                  ) : (
-                    <span className="vaga-avatar-dot" />
-                  )}
-                </span>
+                return (
+                  <article className={`champ-registration-slot is-${vaga.status}${aberta ? ' is-open' : ''}`} key={vaga.id}>
+                    <button type="button" className="champ-registration-slot-main" onClick={() => setVagaAbertaId(aberta ? null : vaga.id)} aria-expanded={aberta}>
+                      <span className="champ-registration-slot-number">{letra}</span>
+                      <span className="champ-registration-slot-avatar" aria-hidden>
+                        {vaga.status === 'ocupada' && logoUrl ? <img src={logoUrl} alt="" /> : vaga.status === 'ocupada' ? <Users size={17} /> : vaga.status === 'reservada' ? <Link2 size={16} /> : <span />}
+                      </span>
+                      <span className="champ-registration-slot-copy">
+                        <strong>{nomePrincipal}</strong>
+                        <small>{equipeNome || (vaga.status === 'livre' ? 'Disponível para inscrição' : 'Aguardando confirmação')}</small>
+                      </span>
+                      <span className={`champ-registration-status is-${vaga.status}`}>{statusLabel}</span>
+                      <span className="champ-registration-chevron">{aberta ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</span>
+                    </button>
 
-                <span className="vaga-row-identity">
-                  <strong>{nomePrincipal}</strong>
-                  <small>{detalhe}</small>
-                </span>
+                    {aberta ? (
+                      <div className="champ-registration-slot-details">
+                        {vaga.status === 'livre' ? <p>Adicione uma line diretamente ou gere um convite para este slot.</p> : null}
 
-                <span className="vaga-row-meta">
-                  {vaga.status === 'reservada' ? (
-                    <span className="vaga-status-pill status-reservada">Reservada</span>
-                  ) : null}
-                </span>
+                        {vaga.status === 'reservada' ? (
+                          <div className="champ-registration-detail-data">
+                            <span><small>Reserva</small><strong>{vaga.nome_equipe_reservada || '-'}</strong></span>
+                            <span><small>Line</small><strong>{vaga.nome_line_reservada || '-'}</strong></span>
+                            <span><small>Validade</small><strong>{formatDate(vaga.reserva_expira_em)}</strong></span>
+                          </div>
+                        ) : null}
 
-                <span className="vaga-row-chevron">{aberta ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</span>
-              </button>
+                        {vaga.status === 'ocupada' ? <p>{equipeNome ? `${equipeNome} · ` : ''}{vaga.campeonato_equipe?.origem_entrada ? `Entrada via ${vaga.campeonato_equipe.origem_entrada}` : 'Inscrição confirmada'}</p> : null}
 
-              {aberta ? (
-                <div className="vaga-row-details">
-                  {vaga.status === 'livre' ? (
-                    <div className="vaga-detail-copy">
-                      <strong>Slot {letra} livre</strong>
-                      <span>Pesquise a equipe (pasta), escolha uma line livre ou crie uma nova line para este lugar no grupo.</span>
-                    </div>
-                  ) : null}
+                        {(data.permission.canManage || data.permission.canGenerateToken || data.permission.canRemove) ? (
+                          <div className="champ-registration-actions">
+                            {vaga.status === 'livre' ? (
+                              <>
+                                {data.permission.canManage ? <button type="button" onClick={() => abrirModal(vaga, 'adicionar')}><Search size={14} /> Adicionar line</button> : null}
+                                {data.permission.canGenerateToken ? <button type="button" onClick={() => abrirModal(vaga, 'convite')}><Link2 size={14} /> Criar convite</button> : null}
+                              </>
+                            ) : null}
 
-                  {vaga.status === 'reservada' ? (
-                    <div className="vaga-detail-grid">
-                      <span><small>Referência da reserva</small><strong>{vaga.nome_equipe_reservada || '-'}</strong></span>
-                      <span><small>Referência da line</small><strong>{vaga.nome_line_reservada || '-'}</strong></span>
-                      <span><small>Validade</small><strong>{formatDate(vaga.reserva_expira_em)}</strong></span>
-                    </div>
-                  ) : null}
+                            {vaga.status === 'reservada' && data.permission.canGenerateToken && vaga.convite ? (
+                              <>
+                                <button type="button" onClick={() => void copiarConvite(vaga)}><Copy size={14} /> Copiar</button>
+                                <button type="button" onClick={() => void editarConvite(vaga.convite!.id, vaga.nome_equipe_reservada, vaga.nome_line_reservada)}><Pencil size={14} /> Editar</button>
+                                <button type="button" onClick={() => void renovar(vaga.convite!.id)}><RefreshCw size={14} /> Renovar</button>
+                                <button type="button" className="danger" onClick={() => void cancelar(vaga.convite!.id, `a reserva do slot ${vaga.slot_letra || vaga.numero_vaga}`)}><Trash2 size={14} /> Cancelar</button>
+                              </>
+                            ) : null}
 
-                  {vaga.status === 'ocupada' ? (
-                    <div className="vaga-detail-copy">
-                      <strong>{nomePrincipal}</strong>
-                      <span>{detalhe}</span>
-                    </div>
-                  ) : null}
-
-                  {(data.permission.canManage || data.permission.canGenerateToken || data.permission.canRemove) ? (
-                    <div className="vaga-row-actions">
-                      {vaga.status === 'livre' ? (
-                        <>
-                          {data.permission.canManage ? (
-                            <button type="button" onClick={() => abrirModal(vaga, 'adicionar')}><Search size={14} /> Adicionar line</button>
-                          ) : null}
-                          {data.permission.canGenerateToken ? (
-                            <button type="button" onClick={() => abrirModal(vaga, 'convite')}><Link2 size={14} /> Criar convite</button>
-                          ) : null}
-                        </>
-                      ) : null}
-
-                      {vaga.status === 'reservada' && data.permission.canGenerateToken && vaga.convite ? (
-                        <>
-                          <button type="button" onClick={() => void copiarConvite(vaga)}><Copy size={14} /> Copiar convite</button>
-                          <button
-                            type="button"
-                            onClick={() => void editarConvite(
-                              vaga.convite!.id,
-                              vaga.nome_equipe_reservada,
-                              vaga.nome_line_reservada,
-                            )}
-                          >
-                            <Pencil size={14} /> Editar referências
-                          </button>
-                          <button type="button" onClick={() => void renovar(vaga.convite!.id)}><RefreshCw size={14} /> Renovar 24h</button>
-                          <button
-                            type="button"
-                            className="danger"
-                            onClick={() => void cancelar(vaga.convite!.id, `a reserva do slot ${vaga.slot_letra || vaga.numero_vaga}`)}
-                          >
-                            <Trash2 size={14} /> Cancelar reserva
-                          </button>
-                        </>
-                      ) : null}
-
-                      {vaga.status === 'ocupada' && (data.permission.canRemove || data.permission.canManage) ? (
-                        <button type="button" className="danger" onClick={() => void remover(vaga)}><Trash2 size={14} /> Remover line e liberar slot</button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </article>
-          )
-        })}
+                            {vaga.status === 'ocupada' && (data.permission.canRemove || data.permission.canManage) ? <button type="button" className="danger" onClick={() => void remover(vaga)}><Trash2 size={14} /> Remover line</button> : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        ))}
       </div>
 
       <SystemModal
