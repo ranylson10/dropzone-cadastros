@@ -252,6 +252,7 @@
 .directory-champ-title strong{overflow:hidden;color:var(--champ-text);font-size:18px;line-height:1.05;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
 .directory-champ-wish{display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:8px;background:var(--champ-surface-2);color:var(--champ-muted);cursor:pointer}
 .directory-champ-wish.active{color:var(--champ-accent-strong)}
+.directory-champ-wish.active svg{fill:currentColor}
 .directory-champ-facts{display:flex;align-items:center;gap:16px;min-width:0}
 .directory-champ-facts span{display:grid;gap:1px;min-width:0}
 .directory-champ-facts b{overflow:hidden;color:var(--champ-text);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
@@ -264,6 +265,7 @@
 .directory-champ-actions>a{display:inline-flex;align-items:center;gap:3px;color:var(--champ-muted);font-size:9px;font-weight:900;text-decoration:none;text-transform:uppercase}
 .directory-champ-cart-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:36px;border:0;border-radius:8px;background:var(--champ-accent);color:#11130f;padding:0 12px;font-size:9px;font-weight:950;text-transform:uppercase;cursor:pointer}
 .directory-champ-cart-action:disabled{background:#282a2f;color:var(--champ-muted);cursor:not-allowed}
+.directory-champ-cart-action.active,.directory-champ-cart-action.active:disabled{background:var(--champ-accent);color:#11130f;opacity:1}
 .directory-champ-lineup-action{display:inline-flex;width:max-content;align-items:center;gap:6px;border:0;background:transparent;color:var(--champ-accent-strong);padding:0;font-size:9px;font-weight:900;text-transform:uppercase}
 
 @media(max-width:760px){

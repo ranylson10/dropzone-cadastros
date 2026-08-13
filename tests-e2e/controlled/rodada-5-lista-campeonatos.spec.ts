@@ -44,6 +44,16 @@ test.describe('Rodada 5 — lista de campeonatos', () => {
     expect(list).not.toContain('Adicionar ao carrinho')
   })
 
+  test('carrinho e favoritos respondem no clique antes da API e reconciliam em segundo plano', () => {
+    const list = source('web/features/directory/components/DirectoryListClient.tsx')
+    expect(list).toContain('setCartItems((current) => optimisticCartAdd(current, item))')
+    expect(list).toContain('setWishlistItems((current) => optimisticWishlistToggle(current, item))')
+    expect(list).toContain("isInCart ? 'No carrinho'")
+    expect(list).toContain('aria-pressed={wishlistIds.has(item.id)}')
+    expect(list).toContain('setCartItems(previous)')
+    expect(list).toContain('setWishlistItems(previous)')
+  })
+
   test('estilo do diretório fica isolado em uma única folha e não continua duplicado no globals', () => {
     const css = source('web/features/directory/components/championship-directory.css')
     const globals = source('web/app/globals.css')
