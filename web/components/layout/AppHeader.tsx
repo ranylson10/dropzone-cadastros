@@ -118,7 +118,9 @@ export function AppHeader({
 
   useEffect(() => {
     function closeOutside(event: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false)
+      const target = event.target as HTMLElement | null
+      const mobileProfileTrigger = target?.closest('.app-mobile-profile-switcher')
+      if (profileRef.current && !profileRef.current.contains(event.target as Node) && !mobileProfileTrigger) setProfileOpen(false)
       if (languageRef.current && !languageRef.current.contains(event.target as Node)) setLanguageOpen(false)
     }
     document.addEventListener('mousedown', closeOutside)
@@ -183,7 +185,11 @@ export function AppHeader({
         <button
           className="app-mobile-toggle"
           type="button"
-          onClick={() => setMobileOpen((value) => !value)}
+          onClick={() => {
+            setProfileOpen(false)
+            setLanguageOpen(false)
+            setMobileOpen((value) => !value)
+          }}
           aria-expanded={mobileOpen}
           aria-label="Abrir menu"
         >
@@ -289,10 +295,31 @@ export function AppHeader({
             <UsersRound size={19} aria-hidden />
             <span>Equipes</span>
           </a>
-          <button type="button" className={mobileOpen ? 'active' : ''} onClick={() => setMobileOpen((value) => !value)} aria-expanded={mobileOpen}>
-            {mobileOpen ? <X size={19} aria-hidden /> : <Menu size={19} aria-hidden />}
-            <span>Mais</span>
-          </button>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              className={`app-mobile-profile-switcher ${profileOpen ? 'active' : ''}`}
+              onClick={() => {
+                setMobileOpen(false)
+                setLanguageOpen(false)
+                setProfileOpen((value) => !value)
+              }}
+              aria-expanded={profileOpen}
+              aria-label="Trocar perfil"
+            >
+              <LockedAvatar
+                src={profileImage || undefined}
+                size={24}
+                fallback={String(profileName).slice(0, 2).toUpperCase()}
+              />
+              <span>Perfil</span>
+            </button>
+          ) : (
+            <a href={loginHref} className="app-mobile-profile-switcher">
+              <UsersRound size={19} aria-hidden />
+              <span>Entrar</span>
+            </a>
+          )}
         </nav>
 
         <div className="app-global-language" data-no-translate aria-label="Language" ref={languageRef}>

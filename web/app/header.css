@@ -471,9 +471,9 @@
   }
 
   .app-header-inner {
-    grid-template-columns: 40px minmax(0, 1fr) 36px 76px;
-    gap: 5px;
-    width: calc(100% - 20px);
+    grid-template-columns: 40px minmax(0, 1fr) 36px 36px 36px;
+    gap: 4px;
+    width: calc(100% - 12px);
   }
 
   .app-brand {
@@ -489,29 +489,45 @@
 
   .app-brand-logo { flex-basis: 36px; }
   .app-brand-copy { display: none; }
-  .app-mobile-toggle { display: none; }
+  .app-mobile-toggle {
+    display: grid;
+    grid-column: 5;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 0;
+    border-radius: var(--ui-radius-sm, 6px);
+    background: transparent;
+    color: var(--ui-text-soft, #c7c2b8);
+  }
+
+  .app-mobile-toggle[aria-expanded='true'] {
+    background: var(--ui-surface-soft, #202125);
+    color: var(--ui-accent-strong, #dfcf85);
+  }
 
   .app-mobile-nav-backdrop {
     position: fixed;
-    inset: 56px 0 calc(64px + env(safe-area-inset-bottom)) 0;
-    z-index: 114;
+    inset: 56px 0 0;
+    z-index: 122;
     display: block;
     border: 0;
-    background: rgba(0, 0, 0, .58);
+    background: rgba(0, 0, 0, .56);
   }
 
   .app-main-nav {
     position: fixed;
-    right: 8px;
-    bottom: calc(70px + env(safe-area-inset-bottom));
-    left: 8px;
-    z-index: 118;
+    top: 56px;
+    bottom: 0;
+    left: 0;
+    z-index: 124;
     display: none;
-    max-height: min(68dvh, 560px);
+    width: min(82vw, 320px);
+    max-height: none;
     overflow-y: auto;
-    padding: 8px;
+    padding: 16px 10px calc(18px + env(safe-area-inset-bottom));
     border: 0;
-    border-radius: var(--ui-radius-lg, 14px);
+    border-radius: 0 var(--ui-radius-lg, 14px) var(--ui-radius-lg, 14px) 0;
     background: var(--ui-surface-raised, #1a1b1f);
     box-shadow: none;
   }
@@ -519,7 +535,7 @@
   .app-main-nav.is-open {
     display: grid;
     align-content: start;
-    gap: 2px;
+    gap: 3px;
   }
 
   .app-main-nav > a,
@@ -663,6 +679,18 @@
     color: var(--ui-accent-strong, #dfcf85);
   }
 
+  .app-mobile-dock .app-mobile-profile-switcher .app-profile-avatar,
+  .app-mobile-dock .app-mobile-profile-switcher .app-profile-avatar img {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    max-width: 24px;
+    max-height: 24px;
+    flex-basis: 24px;
+    border-radius: 7px !important;
+  }
+
   .app-global-language {
     grid-column: 3;
     width: 36px;
@@ -686,10 +714,10 @@
   .app-profile {
     grid-column: 4;
     display: grid;
-    grid-template-columns: 36px 36px;
-    gap: 4px;
-    width: 76px;
-    max-width: 76px;
+    grid-template-columns: 36px;
+    gap: 0;
+    width: 36px;
+    max-width: 36px;
   }
 
   .app-wallet-chip,
@@ -719,44 +747,49 @@
     font-size: 9px;
   }
 
-  .app-profile-trigger {
-    width: 36px;
-    min-width: 36px;
-    max-width: 36px;
-    height: 36px;
-    min-height: 36px;
-    justify-content: center;
-    gap: 0;
-    padding: 0;
-  }
+  .app-profile-trigger { display: none; }
 
-  .app-profile-trigger .app-profile-copy,
-  .app-profile-trigger > svg { display: none; }
-
-  .app-header .app-profile-avatar,
-  .app-header .app-profile-avatar img {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    min-height: 30px;
-    max-width: 30px;
-    max-height: 30px;
-    flex-basis: 30px;
-  }
-
-  .app-profile .notif-inbox-panel,
-  .app-profile-menu {
+  .app-profile .notif-inbox-panel {
     position: fixed !important;
     top: 62px !important;
-    right: 8px !important;
-    left: 8px !important;
+    right: 6px !important;
+    left: 6px !important;
     width: auto !important;
     max-width: none !important;
-    max-height: calc(100dvh - 142px) !important;
+    max-height: calc(100dvh - 130px) !important;
     border: 0 !important;
     border-radius: var(--ui-radius-lg, 14px) !important;
     background: var(--ui-surface-raised, #1a1b1f) !important;
     box-shadow: none !important;
+  }
+
+  .app-profile-menu {
+    position: fixed !important;
+    top: auto !important;
+    right: 6px !important;
+    bottom: calc(62px + env(safe-area-inset-bottom)) !important;
+    left: 6px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: min(58dvh, 520px) !important;
+    border: 0 !important;
+    border-radius: var(--ui-radius-lg, 14px) !important;
+    background: var(--ui-surface-raised, #1a1b1f) !important;
+    box-shadow: none !important;
+  }
+
+  .app-profile-menu .app-profile-menu-head,
+  .app-profile-menu .linked-account-option,
+  .app-profile-menu a,
+  .app-profile-menu button {
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--ui-text-soft, #c7c2b8) !important;
+  }
+
+  .app-profile-menu .linked-account-option.active {
+    background: var(--ui-surface-soft, #202125) !important;
+    color: var(--ui-text, #f5f3ed) !important;
   }
 
   .app-shell-main {
