@@ -135,3 +135,14 @@
 .post-artworks-controls{gap:8px}
 .post-artworks-controls>.post-artworks-panel-title{margin-bottom:0}
 @media(max-width:900px){.post-artworks-tool-section>summary{grid-template-columns:auto 1fr}.post-artworks-tool-section>summary span{display:none}.post-artworks-tool-section>summary small{text-align:right}}
+
+/* 92P — painéis do editor rolam por dentro sem tirar a área de trabalho da tela */
+@media(min-width:901px){
+  .post-artworks-workspace{align-items:start}
+  .post-artworks-list-panel,.post-artworks-controls,.post-artworks-preview-panel,.post-artworks-blocks-panel{position:sticky;top:12px;max-height:calc(100vh - 24px);box-sizing:border-box}
+  .post-artworks-list-panel,.post-artworks-controls,.post-artworks-blocks-panel{overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+  .post-artworks-preview-panel{display:flex;flex-direction:column;overflow:hidden}
+  .post-artworks-preview-panel>.post-artworks-panel-title{flex:0 0 auto}
+  .post-artworks-preview-shell{flex:1 1 auto;min-height:0;height:calc(100vh - 92px)}
+  .post-artworks-controls .post-artworks-actions{position:sticky;bottom:0;z-index:8;margin:16px 0 0;padding:10px 12px 12px;background:linear-gradient(to bottom,rgba(30,34,41,.94),#1e2229 18%);border-top:1px solid #343a44}
+}
