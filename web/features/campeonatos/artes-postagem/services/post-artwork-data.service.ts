@@ -1,8 +1,27 @@
+import { loadStreamSheet } from '../../stream/services/stream-data.service'
 import type { PostArtworkPlayerRow, PostArtworkTeamRow } from '../types/artwork.types'
 
 function number(value: unknown) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function movementNumber(value: unknown) {
+  const match = String(value ?? '').match(/[+-]?\d+/)
+  return match ? Number(match[0]) || 0 : 0
+}
+
+function normalizeTeamName(value: unknown) {
+  return String(value || '').trim().toLocaleLowerCase('pt-BR')
+}
+
+async function loadMovementByTeam(campeonatoId: string, jogoId?: string) {
+  try {
+    const rows = await loadStreamSheet(campeonatoId, jogoId ? 'equipes_jogo' : 'equipes_geral', jogoId ? { jogo_id: jogoId } : undefined)
+    return new Map(rows.map((row) => [normalizeTeamName(row.cells?.nome), movementNumber(row.cells?.delta)]))
+  } catch {
+    return new Map<string, number>()
+  }
 }
 
 async function loadPostArtworkTeamStandings(campeonatoId: string, jogoId?: string): Promise<PostArtworkTeamRow[]> {
@@ -11,8 +30,10 @@ async function loadPostArtworkTeamStandings(campeonatoId: string, jogoId?: strin
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(payload?.error || 'Não foi possível carregar a tabela de equipes.')
   const equipes = Array.isArray(payload?.equipes) ? payload.equipes : []
+  const movementByTeam = await loadMovementByTeam(campeonatoId, jogoId)
   return equipes.map((row: any, index: number) => ({
     rank: number(row.colocacao) || index + 1,
+    movement: movementByTeam.get(normalizeTeamName(row.nome || row.tag)) ?? movementNumber(row.delta ?? row.variacao),
     logo: String(row.logo_url || ''),
     name: String(row.nome || row.tag || 'Equipe'),
     drops: number(row.quedas),

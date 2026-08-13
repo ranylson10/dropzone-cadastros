@@ -1,7 +1,7 @@
 export type PostArtworkSliceDirection = 'horizontal' | 'vertical'
 export type PostArtworkOutputFormat = 'png' | 'jpg'
 export type PostArtworkBlockType = 'table_general' | 'table_day' | 'qualified_teams' | 'booyahs_day' | 'mvp_general' | 'mvp_day' | 'kills_leaders' | 'image' | 'text'
-export type PostArtworkTableColumnKey = 'rank' | 'logo' | 'name' | 'drops' | 'booyah' | 'kills' | 'points'
+export type PostArtworkTableColumnKey = 'rank' | 'movement' | 'logo' | 'name' | 'drops' | 'booyah' | 'kills' | 'points'
 export type PostArtworkCellBackgroundType = 'color' | 'image' | 'none'
 export type PostArtworkMvpLayoutMode = 'card_table' | 'table_only'
 
@@ -73,6 +73,7 @@ export type PostArtworkProject = {
 
 export type PostArtworkTeamRow = {
   rank: number
+  movement: number
   logo: string
   name: string
   drops: number

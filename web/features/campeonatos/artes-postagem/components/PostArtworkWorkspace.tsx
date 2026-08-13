@@ -38,6 +38,7 @@ type AssetTarget = 'project' | 'column' | 'header' | 'mvp' | 'qualified'
 
 const TABLE_COLUMN_META: Record<PostArtworkTableColumnKey, { label: string; defaultWidth: number; align: 'left' | 'center' | 'right' }> = {
   rank: { label: 'RK', defaultWidth: 74, align: 'center' },
+  movement: { label: 'VAR', defaultWidth: 86, align: 'center' },
   logo: { label: '', defaultWidth: 76, align: 'center' },
   name: { label: 'EQUIPE', defaultWidth: 310, align: 'left' },
   drops: { label: 'QD', defaultWidth: 82, align: 'center' },
@@ -134,7 +135,7 @@ function defaultColumn(key: PostArtworkTableColumnKey): PostArtworkTableColumnSt
   return {
     key,
     label: meta.label,
-    enabled: true,
+    enabled: key !== 'movement',
     width: meta.defaultWidth,
     align: meta.align,
     backgroundType: 'color',
@@ -370,6 +371,55 @@ function stripDynamicGameSources(project: PostArtworkProject): PostArtworkProjec
   }
 }
 
+const PROJECT_SETTINGS_BLOCK_ID = '__post_artwork_project_settings__'
+const DEFAULT_PROJECT_PALETTE = ['#8FCE00', '#15171C', '#FFFFFF']
+
+function projectPalette(project?: PostArtworkProject | null): string[] {
+  if (!project) return DEFAULT_PROJECT_PALETTE
+  const settings = project.blocks.find((block) => block.id === PROJECT_SETTINGS_BLOCK_ID)
+  const raw = Array.isArray((settings?.style as any)?.palette) ? (settings?.style as any).palette : []
+  const colors = raw.map((value: unknown) => String(value || '').toUpperCase()).filter((value: string) => /^#[0-9A-F]{6}$/.test(value))
+  return colors.length ? colors.slice(0, 6) : DEFAULT_PROJECT_PALETTE
+}
+
+function withProjectPalette(project: PostArtworkProject, colors: string[]): PostArtworkProject {
+  const palette = [...new Set(colors.map((value) => value.toUpperCase()).filter((value) => /^#[0-9A-F]{6}$/.test(value)))].slice(0, 6)
+  const settings: PostArtworkBlock = {
+    id: PROJECT_SETTINGS_BLOCK_ID,
+    type: 'text',
+    name: 'Configurações do projeto',
+    x: 0,
+    y: 0,
+    width: 0,
+    visible: false,
+    style: { palette },
+  }
+  return { ...project, blocks: [...project.blocks.filter((block) => block.id !== PROJECT_SETTINGS_BLOCK_ID), settings] }
+}
+
+function userBlocks(project?: PostArtworkProject | null) {
+  return (project?.blocks || []).filter((block) => block.id !== PROJECT_SETTINGS_BLOCK_ID)
+}
+
+function replaceColorDeep(value: unknown, from: string, to: string): unknown {
+  if (typeof value === 'string') return value.toUpperCase() === from.toUpperCase() ? to : value
+  if (Array.isArray(value)) return value.map((entry) => replaceColorDeep(entry, from, to))
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, replaceColorDeep(entry, from, to)]))
+  return value
+}
+
+function replaceProjectColor(project: PostArtworkProject, from: string, to: string) {
+  const palette = projectPalette(project).map((color) => color.toUpperCase() === from.toUpperCase() ? to.toUpperCase() : color)
+  const replaced = replaceColorDeep(project, from, to) as PostArtworkProject
+  return withProjectPalette(replaced, palette)
+}
+
+function generationCaptionForGame(campeonatoNome: string, game?: GameOption | null) {
+  if (!game) return ''
+  const parts = [campeonatoNome, game.faseNome, game.nome, game.grupoNome].map((value) => String(value || '').trim()).filter(Boolean)
+  return [...new Set(parts.map((value) => value.toUpperCase()))].join(' - ')
+}
+
 function rowsForBlock(block: PostArtworkBlock, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>, booyahRows: Record<string, PostArtworkTeamRow[]> = {}) {
   if (block.type === 'table_day' || block.type === 'qualified_teams') return dayRows[block.source?.jogoId || ''] || []
   if (block.type === 'booyahs_day') return booyahRows[block.source?.jogoId || ''] || []
@@ -396,8 +446,19 @@ function sliceRows(rows: PostArtworkTeamRow[], block: PostArtworkBlock) {
   return rows.slice(start, end)
 }
 
+function movementLabel(value: number) {
+  if (value > 0) return `▲ ${value}`
+  if (value < 0) return `▼ ${Math.abs(value)}`
+  return '—'
+}
+
+function movementClass(value: number) {
+  return value > 0 ? 'is-up' : value < 0 ? 'is-down' : 'is-same'
+}
+
 function cellValue(row: PostArtworkTeamRow, key: PostArtworkTableColumnKey) {
   if (key === 'rank') return String(row.rank)
+  if (key === 'movement') return movementLabel(row.movement)
   if (key === 'name') return row.name
   if (key === 'drops') return String(row.drops)
   if (key === 'booyah') return String(row.booyah)
@@ -522,7 +583,7 @@ function resolveExportRenderScale(width: number, height: number) {
   return Math.max(1, Math.min(2, safeScale))
 }
 
-async function renderArtworkCanvas(project: PostArtworkProject, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>, mvpGeneralRows: PostArtworkPlayerRow[], mvpDayRows: Record<string, PostArtworkPlayerRow[]>, booyahRows: Record<string, PostArtworkTeamRow[]> = {}, killLeaderRows: Record<string, PostArtworkPlayerRow[]> = {}, renderScale = 1) {
+async function renderArtworkCanvas(project: PostArtworkProject, generalRows: PostArtworkTeamRow[], dayRows: Record<string, PostArtworkTeamRow[]>, mvpGeneralRows: PostArtworkPlayerRow[], mvpDayRows: Record<string, PostArtworkPlayerRow[]>, booyahRows: Record<string, PostArtworkTeamRow[]> = {}, killLeaderRows: Record<string, PostArtworkPlayerRow[]> = {}, renderScale = 1, exportCaption = '', exportCaptionColor = '#FFFFFF') {
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(project.width * renderScale))
   canvas.height = Math.max(1, Math.round(project.height * renderScale))
@@ -593,7 +654,7 @@ async function renderArtworkCanvas(project: PostArtworkProject, generalRows: Pos
             ctx.drawImage(logo, x + (column.width - size) / 2, y + (style.rowHeight - size) / 2, size, size)
           } catch {}
         } else {
-          ctx.fillStyle = column.color
+          ctx.fillStyle = column.key === 'movement' ? (row.movement > 0 ? '#55E59A' : row.movement < 0 ? '#FF7777' : '#D9B84C') : column.color
           ctx.font = `${column.fontWeight} ${column.fontSize}px Arial`
           ctx.textBaseline = 'middle'
           ctx.textAlign = column.align
@@ -624,6 +685,14 @@ async function renderArtworkCanvas(project: PostArtworkProject, generalRows: Pos
     const player = playerForBlock(block, mvpGeneralRows, mvpDayRows, killLeaderRows)
     await drawMvpCard(ctx, player, style, block.x, block.y)
     block.width = style.cardWidth
+  }
+  if (exportCaption.trim()) {
+    const fontSize = Math.max(18, Math.round(project.width * 0.022))
+    ctx.fillStyle = exportCaptionColor
+    ctx.font = `900 ${fontSize}px Arial`
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    ctx.fillText(exportCaption.trim(), project.width * 0.03, project.height * 0.075, project.width * 0.94)
   }
   return canvas
 }
@@ -693,6 +762,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const [games, setGames] = useState<GameOption[]>([])
   const [generationPhaseId, setGenerationPhaseId] = useState('')
   const [generationGameId, setGenerationGameId] = useState('')
+  const [generationCaption, setGenerationCaption] = useState('')
+  const [generationCaptionColor, setGenerationCaptionColor] = useState('#FFFFFF')
   const [editorReferenceGameId, setEditorReferenceGameId] = useState('')
   const [artworkSearch, setArtworkSearch] = useState('')
   const [artworkFilter, setArtworkFilter] = useState<'all' | 'tables' | 'mvp' | 'qualified' | 'other'>('all')
@@ -887,6 +958,10 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const generationGames = useMemo(() => games.filter((game) => !generationPhaseId || game.faseId === generationPhaseId), [games, generationPhaseId])
   const generationGame = useMemo(() => games.find((game) => game.id === generationGameId) || null, [games, generationGameId])
   const editorReferenceGame = useMemo(() => games.find((game) => game.id === editorReferenceGameId) || null, [games, editorReferenceGameId])
+
+  useEffect(() => {
+    setGenerationCaption(generationCaptionForGame(campeonatoNome, generationGame))
+  }, [campeonatoNome, generationGame])
   const renderDraft = useMemo(() => draft ? ((mode === 'generate' || mode === 'manage') ? resolveProjectForGame(draft, generationGame) : mode === 'edit' && editorReferenceGame ? resolveProjectForGame(draft, editorReferenceGame) : draft) : null, [draft, editorReferenceGame, generationGame, mode])
 
   const dayGameKey = useMemo(() => {
@@ -1229,6 +1304,24 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
 
   const selectedBlock = draft?.blocks.find((block) => block.id === selectedBlockId) || null
   const selectedTableStyle = selectedBlock && (selectedBlock.type === 'table_general' || selectedBlock.type === 'table_day' || selectedBlock.type === 'booyahs_day') ? normalizeTableStyle(selectedBlock) : null
+  const currentPalette = useMemo(() => projectPalette(draft), [draft])
+
+  function updatePaletteColor(index: number, nextColor: string) {
+    if (!draft || !/^#[0-9a-f]{6}$/i.test(nextColor)) return
+    const from = currentPalette[index]
+    setDraft(replaceProjectColor(draft, from, nextColor.toUpperCase()))
+  }
+
+  function addPaletteColor() {
+    if (!draft || currentPalette.length >= 6) return
+    setDraft(withProjectPalette(draft, [...currentPalette, '#808080']))
+  }
+
+  function removePaletteColor(index: number) {
+    if (!draft || currentPalette.length <= 1) return
+    setDraft(withProjectPalette(draft, currentPalette.filter((_, colorIndex) => colorIndex !== index)))
+  }
+
   const selectedQualifiedStyle = selectedBlock?.type === 'qualified_teams' ? normalizeQualifiedStyle(selectedBlock) : null
   const selectedMvpStyle = selectedBlock && (selectedBlock.type === 'mvp_general' || selectedBlock.type === 'mvp_day' || selectedBlock.type === 'kills_leaders') ? normalizeMvpStyle(selectedBlock) : null
   const selectedColumn = selectedTableStyle?.columns.find((column) => column.key === selectedColumnKey) || null
@@ -1321,7 +1414,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       const latestMvpDayRows = Object.fromEntries(latestMvpDayEntries)
       setStandings(latestRows); setDayStandings(latestDayRows); setMvpGeneral(latestMvpGeneral); setMvpDay(latestMvpDayRows); setBooyahDay(latestBooyahRows); setKillLeaders(latestKillLeaders)
       const renderScale = resolveExportRenderScale(project.width, project.height)
-      const board = await renderArtworkCanvas(project, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale)
+      const board = await renderArtworkCanvas(project, latestRows, latestDayRows, latestMvpGeneral, latestMvpDayRows, latestBooyahRows, latestKillLeaders, renderScale, mode === 'edit' ? '' : generationCaption, generationCaptionColor)
       const extension = project.output_format
       if (project.slice_count === 1) {
         const finalCanvas = createDownsampledCanvas(board, project.width, project.height)
@@ -1350,7 +1443,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
     ;(async () => {
       try {
         const previewScale = Math.min(1, 1400 / Math.max(renderDraft.width, renderDraft.height))
-        const board = await renderArtworkCanvas(renderDraft, standings, dayStandings, mvpGeneral, mvpDay, booyahDay, killLeaders, previewScale)
+        const board = await renderArtworkCanvas(renderDraft, standings, dayStandings, mvpGeneral, mvpDay, booyahDay, killLeaders, previewScale, generationCaption, generationCaptionColor)
         const blob = await canvasBlob(board, 'png')
         if (!active) return
         objectUrl = URL.createObjectURL(blob)
@@ -1359,7 +1452,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
       finally { if (active) setQuickPreviewLoading(false) }
     })()
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl) }
-  }, [mode, renderDraft, standings, dayStandings, mvpGeneral, mvpDay, booyahDay, killLeaders])
+  }, [mode, renderDraft, standings, dayStandings, mvpGeneral, mvpDay, booyahDay, killLeaders, generationCaption, generationCaptionColor])
 
   const fitPreviewScale = useMemo(() => draft ? Math.min(1, 820 / draft.width, 620 / draft.height) : 1, [draft])
   const previewScale = useMemo(() => fitPreviewScale * (previewZoom / 100), [fitPreviewScale, previewZoom])
@@ -1508,6 +1601,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
           <div className="post-artworks-generate-filter-grid">
             <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; setGenerationPhaseId(faseId); setGenerationGameId('') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
             <label>Jogo<select value={generationGameId} onChange={(event) => setGenerationGameId(event.target.value)} disabled={!generationPhaseId}><option value="">Selecione o jogo</option>{generationGames.map((game) => <option key={game.id} value={game.id}>{game.nome}{game.grupoNome ? ` · ${game.grupoNome}` : ''}</option>)}</select></label>
+            <label className="post-artworks-generation-caption">Informação do jogo<input value={generationCaption} onChange={(event) => setGenerationCaption(event.target.value)} placeholder="Ex.: RW LEAGUE - SÉRIE C - R2 - GRUPO C" /><small>Este texto entra somente na imagem gerada. O template salvo não é alterado.</small></label>
+            <label className="post-artworks-generation-caption-color">Cor do texto<input type="color" value={generationCaptionColor} onChange={(event) => setGenerationCaptionColor(event.target.value)} /></label>
             <div className="post-artworks-generate-filter-actions"><button type="button" className="post-artworks-secondary" onClick={() => void reload(activeId)}>Atualizar dados</button></div>
           </div>
           {generationGame ? <div className="post-artworks-game-summary"><strong>{generationGame.nome}</strong><span>{generationGame.faseNome}{generationGame.grupoNome ? ` · ${generationGame.grupoNome}` : ''}</span><span>{generationGame.mataMata ? `Mata-mata · Top ${generationGame.classificamQuantidade || '—'} classifica` : 'Pontos corridos · sem eliminação'}</span></div> : <div className="post-artworks-game-summary muted">Selecione um jogo para gerar os templates com Tabela do Jogo, Classificados, MVP, Booyahs e Líderes de Abates atualizados.</div>}
@@ -1530,7 +1625,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
             <div className="post-artworks-manage-cards">
               {managedItems.map((item) => <article key={item.id} className={item.id === activeId ? 'active' : ''}>
                 <button type="button" className="post-artworks-manage-card-preview" onClick={() => selectItem(item.id)} style={{ backgroundColor: item.background_color, backgroundImage: item.background_url ? `url(${JSON.stringify(item.background_url)})` : undefined }} aria-label={`Visualizar ${item.name}`} />
-                <div className="post-artworks-manage-card-copy"><b>{item.name}</b><span>{item.slice_width} × {item.slice_height}{item.slice_count > 1 ? ` · ${item.slice_count} fatias` : ''}</span><small>{item.output_format.toUpperCase()} · {item.blocks.length} bloco(s)</small></div>
+                <div className="post-artworks-manage-card-copy"><b>{item.name}</b><span>{item.slice_width} × {item.slice_height}{item.slice_count > 1 ? ` · ${item.slice_count} fatias` : ''}</span><small>{item.output_format.toUpperCase()} · {userBlocks(item).length} bloco(s)</small></div>
                 <div className="post-artworks-manage-card-actions"><button type="button" onClick={() => selectItem(item.id)}>Visualizar</button><button type="button" onClick={() => void exportArtwork(resolveProjectForGame(item, generationGame))} disabled={exporting || (projectRequiresGame(item) && !generationGame)}>{exporting && item.id === activeId ? 'Gerando…' : projectRequiresGame(item) && !generationGame ? 'Selecione o jogo' : 'Baixar'}</button><button type="button" onClick={() => openEditor(item.id)}>Editar</button><button type="button" onClick={() => void renameProject(item)} disabled={saving}>Renomear</button><button type="button" onClick={() => void duplicateProject(item)} disabled={saving}><Copy size={13} /> Duplicar</button><button type="button" className="danger" onClick={() => void deleteManagedProject(item)} disabled={saving}><Trash2 size={13} /> Excluir</button></div>
               </article>)}
               {!managedItems.length ? <div className="post-artworks-empty"><strong>{items.length ? 'Nenhuma arte encontrada' : 'Nenhuma arte criada'}</strong><span>{items.length ? 'Limpe a busca ou escolha outro filtro.' : 'Crie a primeira arte para começar a montar os templates deste campeonato.'}</span></div> : null}
@@ -1588,6 +1683,8 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
           <div className="post-artworks-generate-filter-grid">
             <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; setGenerationPhaseId(faseId); setGenerationGameId('') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
             <label>Jogo<select value={generationGameId} onChange={(event) => setGenerationGameId(event.target.value)} disabled={!generationPhaseId}><option value="">Selecione o jogo</option>{generationGames.map((game) => <option key={game.id} value={game.id}>{game.nome}{game.grupoNome ? ` · ${game.grupoNome}` : ''}</option>)}</select></label>
+            <label className="post-artworks-generation-caption">Informação do jogo<input value={generationCaption} onChange={(event) => setGenerationCaption(event.target.value)} placeholder="Ex.: RW LEAGUE - SÉRIE C - R2 - GRUPO C" /><small>Este texto entra somente na imagem gerada. O template salvo não é alterado.</small></label>
+            <label className="post-artworks-generation-caption-color">Cor do texto<input type="color" value={generationCaptionColor} onChange={(event) => setGenerationCaptionColor(event.target.value)} /></label>
             <div className="post-artworks-generate-filter-actions"><a className={`post-artworks-secondary${generationGame ? '' : ' disabled'}`} href={generationGame ? `/campeonatos/${campeonatoId}/pontuador/${generationGame.id}` : '#'}>Abrir pontuador</a><button type="button" className="post-artworks-secondary" onClick={() => void reload(activeId)}>Atualizar dados</button></div>
           </div>
           {generationGame ? <div className="post-artworks-game-summary"><strong>{generationGame.nome}</strong><span>{generationGame.faseNome}{generationGame.grupoNome ? ` · ${generationGame.grupoNome}` : ''}</span><span>{generationGame.numeroPartidas || '—'} quedas</span><span>{generationGame.mataMata ? `Mata-mata · Top ${generationGame.classificamQuantidade || '—'} classifica` : 'Pontos corridos · sem eliminação'}</span></div> : <div className="post-artworks-game-summary muted">Selecione um jogo para atualizar automaticamente os blocos vinculados a jogo.</div>}
@@ -1638,6 +1735,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
               <div className="post-artworks-summary"><span>Área total</span><strong>{draft.width} × {draft.height}</strong><small>{draft.slice_count} fatia(s) de {draft.slice_width} × {draft.slice_height}</small></div>
               <label>Formato<select value={draft.output_format} onChange={(event) => patchDraft({ output_format: event.target.value as PostArtworkProject['output_format'] })}><option value="png">PNG</option><option value="jpg">JPG</option></select></label>
               <label>Cor base<input type="color" value={draft.background_color} onChange={(event) => patchDraft({ background_color: event.target.value })} /></label>
+              <div className="post-artworks-project-palette"><div className="post-artworks-subtitle"><strong>Paleta do projeto</strong><small>Use poucas cores oficiais para evitar variações acidentais. Ao trocar uma cor aqui, todos os usos iguais no template acompanham.</small></div><div className="post-artworks-project-palette-grid">{currentPalette.map((color, index) => <div key={`${color}-${index}`} className="post-artworks-project-palette-item"><input type="color" value={color} onChange={(event) => updatePaletteColor(index, event.target.value)} /><input value={color} onChange={(event) => { const value = event.target.value.toUpperCase(); if (/^#[0-9A-F]{6}$/.test(value)) updatePaletteColor(index, value) }} aria-label={`Cor ${index + 1} da paleta`} /><button type="button" onClick={() => removePaletteColor(index)} disabled={currentPalette.length <= 1} aria-label={`Remover cor ${index + 1}`}>×</button></div>)}</div>{currentPalette.length < 6 ? <button type="button" className="post-artworks-secondary" onClick={addPaletteColor}>+ Adicionar cor à paleta</button> : null}</div>
               <label className="post-artworks-upload">{uploading ? <Loader2 size={14} className="spin" /> : <ImagePlus size={14} />} {draft.background_url ? 'Trocar fundo da arte' : 'Enviar fundo da arte'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('project')}><Images size={14} /> Escolher da biblioteca</button>
               {draft.background_url ? <button type="button" className="post-artworks-secondary" onClick={() => patchDraft({ background_url: null })}>Remover fundo</button> : null}
             </> : <>
@@ -1684,7 +1782,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
                   const columns = style.columns.filter((column) => column.enabled)
                   return <div key={block.id} className={`post-artworks-table-block${block.id === selectedBlockId ? ' active' : ''}`} style={{ left: block.x * previewScale, top: block.y * previewScale, width: tableVisualWidth(style) * previewScale, height: tableVisualHeight(style, blockRows.length) * previewScale }} onPointerDown={(event) => beginDrag(event, block)} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>
                     {style.showHeader ? <div className="post-artworks-table-row header" style={{ height: style.headerHeight * previewScale, gap: style.cellGap * previewScale, marginBottom: style.rowGap * previewScale, backgroundColor: style.headerBackgroundType === 'color' ? style.headerBackgroundColor : 'transparent', backgroundImage: style.headerBackgroundType === 'image' && style.headerBackgroundUrl ? `url(${JSON.stringify(style.headerBackgroundUrl)})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>{columns.map((column) => <div key={column.key} style={{ width: column.width * previewScale, background: 'transparent', color: style.headerColor, fontSize: Math.max(7, 18 * previewScale) }}>{column.label}</div>)}</div> : null}
-                    {blockRows.map((row) => <div key={`${block.id}-${row.rank}`} className="post-artworks-table-row" style={{ height: style.rowHeight * previewScale, gap: style.cellGap * previewScale, marginBottom: style.rowGap * previewScale }}>{columns.map((column) => <div key={column.key} className={`cell align-${column.align}`} style={{ width: column.width * previewScale, color: column.color, fontSize: Math.max(7, column.fontSize * previewScale), fontWeight: column.fontWeight, backgroundColor: column.backgroundType === 'color' ? column.backgroundColor : 'transparent', backgroundImage: column.backgroundType === 'image' && column.backgroundUrl ? `url(${JSON.stringify(column.backgroundUrl)})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>{column.key === 'logo' ? (row.logo ? <img src={row.logo} alt="" draggable={false} /> : null) : cellValue(row, column.key)}</div>)}</div>)}
+                    {blockRows.map((row) => <div key={`${block.id}-${row.rank}`} className="post-artworks-table-row" style={{ height: style.rowHeight * previewScale, gap: style.cellGap * previewScale, marginBottom: style.rowGap * previewScale }}>{columns.map((column) => <div key={column.key} className={`cell align-${column.align}`} style={{ width: column.width * previewScale, color: column.color, fontSize: Math.max(7, column.fontSize * previewScale), fontWeight: column.fontWeight, backgroundColor: column.backgroundType === 'color' ? column.backgroundColor : 'transparent', backgroundImage: column.backgroundType === 'image' && column.backgroundUrl ? `url(${JSON.stringify(column.backgroundUrl)})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>{column.key === 'logo' ? (row.logo ? <img src={row.logo} alt="" draggable={false} /> : null) : column.key === 'movement' ? <span className={`post-artworks-movement ${movementClass(row.movement)}`}>{movementLabel(row.movement)}</span> : cellValue(row, column.key)}</div>)}</div>)}
                     {!blockRows.length ? <div className="post-artworks-no-data">{(block.type === 'table_day' || block.type === 'booyahs_day') && !block.source?.jogoId ? 'Selecione o jogo do bloco' : 'Sem dados nessa faixa'}</div> : null}
                   </div>
                 })}
@@ -1698,7 +1796,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
                   if (block.type === 'mvp_general') return <div key={block.id} className={`post-artworks-mvp-block post-artworks-mvp-general${block.id === selectedBlockId ? ' active' : ''}`} style={{ left: block.x * previewScale, top: block.y * previewScale, width: mvpVisualWidth(block, style) * previewScale, height: mvpVisualHeight(block, style) * previewScale, gap: style.gap * previewScale }} onPointerDown={(event) => beginDrag(event, block)} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>{style.layoutMode === 'table_only' ? table(rows) : <>{card(rows[0] || null)}{rows.length > 1 ? table(rows.slice(1)) : null}</>}{!rows.length ? <div className="post-artworks-no-data">Sem dados de MVP</div> : null}</div>
                   return <div key={block.id} className={`post-artworks-mvp-block${block.id === selectedBlockId ? ' active' : ''}`} style={{ left: block.x * previewScale, top: block.y * previewScale, width: style.cardWidth * previewScale, height: style.cardHeight * previewScale }} onPointerDown={(event) => beginDrag(event, block)} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>{card(player)}{!player ? <div className="post-artworks-no-data">{(block.type === 'mvp_day' || block.type === 'kills_leaders') && !block.source?.jogoId ? 'Selecione o jogo do bloco' : 'Sem dados de MVP'}</div> : null}</div>
                 })}
-                {!draft.blocks.length ? <div className="post-artworks-canvas-empty"><strong>Adicione um bloco de estatística</strong><span>Use Tabela Geral para o acumulado ou selecione um jogo nos blocos específicos.</span></div> : null}
+                {!userBlocks(draft).length ? <div className="post-artworks-canvas-empty"><strong>Adicione um bloco de estatística</strong><span>Use Tabela Geral para o acumulado ou selecione um jogo nos blocos específicos.</span></div> : null}
               </div>
             </div>
           </main>
@@ -1706,13 +1804,13 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
           <aside className="post-artworks-blocks-panel">
             <div className="post-artworks-panel-title"><strong>Blocos da arte</strong><small>Independentes da transmissão</small></div>
             <div className="post-artworks-add-blocks"><button type="button" className="post-artworks-add-block" onClick={addGeneralTable}><Plus size={14} /> Tabela Geral</button><button type="button" className="post-artworks-add-block" onClick={addDayTable}><Plus size={14} /> Tabela do Jogo</button><button type="button" className="post-artworks-add-block" onClick={addQualifiedTeams}><Plus size={14} /> Classificados</button><button type="button" className="post-artworks-add-block" onClick={addBooyahsDay}><Plus size={14} /> Booyahs do Jogo</button><button type="button" className="post-artworks-add-block" onClick={addMvpGeneral}><Plus size={14} /> MVP Geral</button><button type="button" className="post-artworks-add-block" onClick={addMvpDay}><Plus size={14} /> MVP do Jogo</button><button type="button" className="post-artworks-add-block" onClick={addKillLeaders}><Plus size={14} /> Líderes de Abates</button></div>
-            <div className="post-artworks-block-list">{draft.blocks.map((rawBlock) => {
+            <div className="post-artworks-block-list">{userBlocks(draft).map((rawBlock) => {
               const block = resolveBlockForGame(rawBlock, editorReferenceGame)
               const isGameDataBlock = GAME_DATA_BLOCK_TYPES.has(block.type)
               return <article key={rawBlock.id} className={rawBlock.id === selectedBlockId ? 'active' : ''}><button type="button" className="post-artworks-block-select" onClick={() => setSelectedBlockId(rawBlock.id)}><small>{block.type === 'table_day' ? 'TABELA DO JOGO' : block.type === 'qualified_teams' ? 'CLASSIFICADOS' : block.type === 'booyahs_day' ? 'BOOYAHS DO JOGO' : block.type === 'mvp_day' ? 'MVP DO JOGO' : block.type === 'kills_leaders' ? 'LÍDERES DE ABATES' : block.type === 'mvp_general' ? 'MVP GERAL' : 'TABELA GERAL'}</small><strong>{rawBlock.name}</strong><span>{isGameDataBlock ? `${editorReferenceGame ? `Prévia: ${editorReferenceGame.nome}` : 'Prévia sem jogo'} · ` : ''}{block.type === 'qualified_teams' ? (block.dataEnd && block.dataEnd > 0 ? `Top ${block.dataEnd} passam` : 'Quantidade definida pelo jogo') : block.type === 'mvp_general' ? `Top 1–${block.dataEnd || 10}` : block.type === 'mvp_day' || block.type === 'kills_leaders' ? `Top ${block.dataStart || 1}` : `Top ${block.dataStart || 1}–${block.dataEnd || 12}`}</span></button><div><button type="button" title="Duplicar e avançar a faixa" onClick={() => duplicateBlock(rawBlock)}><Copy size={13} /></button><button type="button" title="Excluir bloco" onClick={() => deleteBlock(rawBlock.id)}><Trash2 size={13} /></button></div></article>
             })}</div>
             {selectedBlock && selectedMvpStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>{selectedBlock.type === 'kills_leaders' ? 'Visual do líder de abates' : 'Visual do MVP'}</strong><small>Fundo, foto e textos do card.</small></div><label>Fundo<select value={selectedMvpStyle.backgroundType} onChange={(event) => patchMvpStyle({ backgroundType: event.target.value as 'color' | 'image' })}><option value="color">Cor</option><option value="image">Imagem</option></select></label>{selectedMvpStyle.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedMvpStyle.backgroundColor} onChange={(event) => patchMvpStyle({ backgroundColor: event.target.value })} /></label> : null}<div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedMvpStyle.backgroundUrl ? 'Trocar fundo do card' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadMvpBackground(event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('mvp')}><Images size={13} /> Biblioteca</button></div><div className="post-artworks-grid2"><label>Nome<EditableNumberInput value={selectedMvpStyle.nameFontSize} min={8} max={160} onCommit={(value) => patchMvpStyle({ nameFontSize: value })} /></label><label>Equipe<EditableNumberInput value={selectedMvpStyle.teamFontSize} min={8} max={120} onCommit={(value) => patchMvpStyle({ teamFontSize: value })} /></label><label>Estatísticas<EditableNumberInput value={selectedMvpStyle.statsFontSize} min={8} max={140} onCommit={(value) => patchMvpStyle({ statsFontSize: value })} /></label><label>Raio da foto<EditableNumberInput value={selectedMvpStyle.imageRadius} min={0} max={500} onCommit={(value) => patchMvpStyle({ imageRadius: value })} /></label></div><div className="post-artworks-grid2"><label>Cor do nome<input type="color" value={selectedMvpStyle.nameColor} onChange={(event) => patchMvpStyle({ nameColor: event.target.value })} /></label><label>Cor da equipe<input type="color" value={selectedMvpStyle.teamColor} onChange={(event) => patchMvpStyle({ teamColor: event.target.value })} /></label><label>Cor dos números<input type="color" value={selectedMvpStyle.statsColor} onChange={(event) => patchMvpStyle({ statsColor: event.target.value })} /></label></div></div> : null}
-            {selectedBlock && selectedTableStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Colunas</strong><small>Ative, dimensione e aplique fundo por célula.</small></div><div className="post-artworks-column-tabs">{selectedTableStyle.columns.map((column) => <button type="button" key={column.key} className={selectedColumnKey === column.key ? 'active' : ''} onClick={() => setSelectedColumnKey(column.key)}>{TABLE_COLUMN_META[column.key].label || 'LOGO'}</button>)}</div>{selectedColumn ? <><label className="post-artworks-check"><input type="checkbox" checked={selectedColumn.enabled} onChange={(event) => patchColumn(selectedColumn.key, { enabled: event.target.checked })} /> Exibir coluna</label><label>Largura<EditableNumberInput value={selectedColumn.width} min={30} max={1000} onCommit={(value) => patchColumn(selectedColumn.key, { width: value })} /></label><label>Legenda<input value={selectedColumn.label} onChange={(event) => patchColumn(selectedColumn.key, { label: event.target.value })} /></label><label>Fundo<select value={selectedColumn.backgroundType} onChange={(event) => patchColumn(selectedColumn.key, { backgroundType: event.target.value as 'color' | 'image' | 'none' })}><option value="color">Cor</option><option value="image">Imagem</option><option value="none">Sem fundo</option></select></label>{selectedColumn.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedColumn.backgroundColor} onChange={(event) => patchColumn(selectedColumn.key, { backgroundColor: event.target.value })} /></label> : null}<div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedColumn.backgroundUrl ? 'Trocar fundo das células' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadColumnBackground(selectedColumn.key, event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('column')}><Images size={13} /> Biblioteca</button></div>{selectedColumn.key !== 'logo' ? <div className="post-artworks-grid2"><label>Tamanho do texto<EditableNumberInput value={selectedColumn.fontSize} min={8} max={120} onCommit={(value) => patchColumn(selectedColumn.key, { fontSize: value })} /></label><label>Peso<EditableNumberInput value={selectedColumn.fontWeight} min={100} max={900} onCommit={(value) => patchColumn(selectedColumn.key, { fontWeight: value })} /></label><label>Cor do texto<input type="color" value={selectedColumn.color} onChange={(event) => patchColumn(selectedColumn.key, { color: event.target.value })} /></label><label>Alinhamento<select value={selectedColumn.align} onChange={(event) => patchColumn(selectedColumn.key, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}</> : null}</div> : null}
+            {selectedBlock && selectedTableStyle ? <div className="post-artworks-column-editor"><div className="post-artworks-subtitle"><strong>Colunas</strong><small>Ative, dimensione e aplique fundo por célula.</small></div><div className="post-artworks-column-tabs">{selectedTableStyle.columns.map((column) => <button type="button" key={column.key} className={selectedColumnKey === column.key ? 'active' : ''} onClick={() => setSelectedColumnKey(column.key)}>{TABLE_COLUMN_META[column.key].label || 'LOGO'}</button>)}</div>{selectedColumn ? <><label className="post-artworks-check"><input type="checkbox" checked={selectedColumn.enabled} onChange={(event) => patchColumn(selectedColumn.key, { enabled: event.target.checked })} /> Exibir coluna</label><label>Largura<EditableNumberInput value={selectedColumn.width} min={30} max={1000} onCommit={(value) => patchColumn(selectedColumn.key, { width: value })} /></label><label>Legenda<input value={selectedColumn.label} onChange={(event) => patchColumn(selectedColumn.key, { label: event.target.value })} /></label><div className="post-artworks-palette-shortcuts"><small>CORES DO PROJETO</small><div>{currentPalette.map((color) => <button key={color} type="button" title={`Usar ${color} no fundo`} style={{ background: color }} onClick={() => patchColumn(selectedColumn.key, { backgroundType: 'color', backgroundColor: color })} />)}</div></div><label>Fundo<select value={selectedColumn.backgroundType} onChange={(event) => patchColumn(selectedColumn.key, { backgroundType: event.target.value as 'color' | 'image' | 'none' })}><option value="color">Cor</option><option value="image">Imagem</option><option value="none">Sem fundo</option></select></label>{selectedColumn.backgroundType === 'color' ? <label>Cor do fundo<input type="color" value={selectedColumn.backgroundColor} onChange={(event) => patchColumn(selectedColumn.key, { backgroundColor: event.target.value })} /></label> : null}<div className="post-artworks-inline-actions"><label className="post-artworks-upload">{uploadingCell ? <Loader2 size={13} className="spin" /> : <ImagePlus size={13} />} {selectedColumn.backgroundUrl ? 'Trocar fundo das células' : 'Upload do fundo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => void uploadColumnBackground(selectedColumn.key, event.target.files?.[0])} /></label><button type="button" className="post-artworks-secondary post-artworks-library-button" onClick={() => openAssetLibrary('column')}><Images size={13} /> Biblioteca</button></div>{selectedColumn.key !== 'logo' ? <div className="post-artworks-grid2"><label>Tamanho do texto<EditableNumberInput value={selectedColumn.fontSize} min={8} max={120} onCommit={(value) => patchColumn(selectedColumn.key, { fontSize: value })} /></label><label>Peso<EditableNumberInput value={selectedColumn.fontWeight} min={100} max={900} onCommit={(value) => patchColumn(selectedColumn.key, { fontWeight: value })} /></label><label>Cor do texto<input type="color" value={selectedColumn.color} onChange={(event) => patchColumn(selectedColumn.key, { color: event.target.value })} /></label><label>Alinhamento<select value={selectedColumn.align} onChange={(event) => patchColumn(selectedColumn.key, { align: event.target.value as 'left' | 'center' | 'right' })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div> : null}</> : null}</div> : null}
           </aside>
         </> : <section className="post-artworks-welcome"><strong>Crie ou selecione uma arte</strong><span>O editor de redes sociais é independente da transmissão.</span></section>}
       </div>

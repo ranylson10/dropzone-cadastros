@@ -94,3 +94,24 @@
 .post-artworks-mvp-ranking-row>strong{flex:1;min-width:0;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .post-artworks-mvp-ranking-row>span{flex:0 0 auto;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .post-artworks-mvp-ranking-row>em{width:70px;flex:0 0 70px;text-align:center;font-style:normal;font-weight:900}
+
+/* 92E — paleta do projeto, variação de ranking e texto de geração */
+.post-artworks-project-palette{display:grid;gap:10px;padding:12px;border:1px solid var(--post-line,#303541);background:rgba(255,255,255,.025)}
+.post-artworks-project-palette-grid{display:grid;gap:7px}
+.post-artworks-project-palette-item{display:grid;grid-template-columns:42px 1fr 32px;gap:7px;align-items:center}
+.post-artworks-project-palette-item>input[type=color]{width:42px;height:38px;padding:2px;border:1px solid var(--post-line,#303541);background:transparent}
+.post-artworks-project-palette-item>input:not([type=color]){min-width:0;text-transform:uppercase}
+.post-artworks-project-palette-item>button{height:34px;border:1px solid var(--post-line,#303541);background:transparent;color:inherit;cursor:pointer}
+.post-artworks-project-palette-item>button:disabled{opacity:.35;cursor:not-allowed}
+.post-artworks-palette-shortcuts{display:grid;gap:6px;padding:8px 0}
+.post-artworks-palette-shortcuts>small{font-size:9px;letter-spacing:.08em;color:var(--post-muted,#89909d)}
+.post-artworks-palette-shortcuts>div{display:flex;flex-wrap:wrap;gap:6px}
+.post-artworks-palette-shortcuts button{width:30px;height:30px;border:2px solid rgba(255,255,255,.35);cursor:pointer}
+.post-artworks-movement{display:inline-flex;align-items:center;justify-content:center;gap:4px;font-variant-numeric:tabular-nums;font-weight:900}
+.post-artworks-movement.is-up{color:#55e59a}
+.post-artworks-movement.is-down{color:#ff7777}
+.post-artworks-movement.is-same{color:#d9b84c}
+.post-artworks-generation-caption{grid-column:1/-1}
+.post-artworks-generation-caption small{display:block;margin-top:5px;line-height:1.35}
+.post-artworks-generation-caption-color{max-width:130px}
+.post-artworks-generation-caption-color input[type=color]{width:100%;height:40px;padding:3px}
