@@ -1,56 +1,67 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
-import { mobileApi } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
-import { lineupDateLabel, LineupSummary, lineupSubtitle } from '@/lib/lineups'
-import { ActionCard, ScreenShell } from '@/screens/components'
-import { BroadcastDeskPanel } from '@/screens/BroadcastDeskPanel'
-import { colors, radius, spacing } from '@/theme/tokens'
-import { ScreenProps } from '@/types/dropzone'
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { mobileApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { lineupDateLabel, LineupSummary, lineupSubtitle } from "@/lib/lineups";
+import { ActionCard, ScreenShell } from "@/screens/components";
+import { BroadcastDeskPanel } from "@/screens/BroadcastDeskPanel";
+import { colors, radius, spacing } from "@/theme/tokens";
+import { ScreenProps } from "@/types/dropzone";
 
-export function MyChampionshipsScreen({ onBack, onNavigate, profileType, onSelectLineup }: ScreenProps) {
-  const auth = useAuth()
+export function MyChampionshipsScreen({
+  onBack,
+  onNavigate,
+  profileType,
+  onSelectLineup,
+}: ScreenProps) {
+  const auth = useAuth();
 
-  if (profileType === 'broadcast') {
+  if (profileType === "broadcast") {
     return (
-      <ScreenShell eyebrow="Transmissão" title="Minha mesa" description="Campeonatos autorizados, controlador e OBS em um único painel privado." onBack={onBack}>
+      <ScreenShell
+        eyebrow="Transmissão"
+        title="Minha mesa"
+        description="Campeonatos autorizados, controlador e OBS em um único painel privado."
+        onBack={onBack}
+      >
         <BroadcastDeskPanel />
       </ScreenShell>
-    )
+    );
   }
-  const [lineups, setLineups] = useState<LineupSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [lineups, setLineups] = useState<LineupSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true
-    mobileApi.lineups(auth.session?.access_token)
+    let mounted = true;
+    mobileApi
+      .lineups(auth.session?.access_token)
       .then((response) => {
-        if (!mounted) return
-        setLineups((response.escalacoes as LineupSummary[]) || [])
-        setError(null)
+        if (!mounted) return;
+        setLineups((response.escalacoes as LineupSummary[]) || []);
+        setError(null);
       })
       .catch((err) => {
-        if (!mounted) return
-        setLineups([])
-        setError(err?.message || 'Não foi possível carregar seus campeonatos.')
+        if (!mounted) return;
+        setLineups([]);
+        setError(err?.message || "Não foi possível carregar seus campeonatos.");
       })
       .finally(() => {
-        if (mounted) setLoading(false)
-      })
+        if (mounted) setLoading(false);
+      });
     return () => {
-      mounted = false
-    }
-  }, [auth.session?.access_token])
+      mounted = false;
+    };
+  }, [auth.session?.access_token]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, LineupSummary[]>()
+    const map = new Map<string, LineupSummary[]>();
     for (const lineup of lineups) {
-      const key = String(lineup.campeonato_nome || 'Campeonato')
-      map.set(key, [...(map.get(key) || []), lineup])
+      const key = String(lineup.campeonato_nome || "Campeonato");
+      map.set(key, [...(map.get(key) || []), lineup]);
     }
-    return Array.from(map.entries())
-  }, [lineups])
+    return Array.from(map.entries());
+  }, [lineups]);
 
   return (
     <ScreenShell
@@ -62,7 +73,9 @@ export function MyChampionshipsScreen({ onBack, onNavigate, profileType, onSelec
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator color={colors.brand} />
-          <Text style={styles.muted}>Buscando campeonatos do perfil {profileType}...</Text>
+          <Text style={styles.muted}>
+            Buscando campeonatos do perfil {profileType}...
+          </Text>
         </View>
       ) : null}
 
@@ -73,24 +86,32 @@ export function MyChampionshipsScreen({ onBack, onNavigate, profileType, onSelec
           title="Você ainda não tem campeonatos aqui"
           description="Entre em um campeonato com vaga aberta ou aceite um convite para começar."
           cta="Ver vagas abertas"
-          onPress={() => onNavigate('vacancies')}
+          onPress={() => onNavigate("vacancies")}
         />
       ) : null}
 
       {grouped.map(([championshipName, items]) => {
-        const first = items[0]
-        const confirmed = items.reduce((sum, item) => sum + Number(item.jogadores_confirmados || item.jogadores?.length || 0), 0)
-        const limit = items.reduce((sum, item) => sum + Number(item.limite_jogadores || 6), 0)
+        const first = items[0];
+        const confirmed = items.reduce(
+          (sum, item) =>
+            sum +
+            Number(item.jogadores_confirmados || item.jogadores?.length || 0),
+          0,
+        );
+        const limit = items.reduce(
+          (sum, item) => sum + Number(item.limite_jogadores || 6),
+          0,
+        );
         return (
           <ActionCard
             key={championshipName}
             title={championshipName}
-            description={`${items.length} line${items.length === 1 ? '' : 's'} · ${lineupSubtitle(first)} · ${confirmed}/${limit} jogadores · ${lineupDateLabel(first)}`}
+            description={`${items.length} line${items.length === 1 ? "" : "s"} · ${lineupSubtitle(first)} · ${confirmed}/${limit} jogadores · ${lineupDateLabel(first)}`}
             cta="Ações do campeonato"
-            tone={confirmed < limit ? 'warning' : 'success'}
+            tone={confirmed < limit ? "warning" : "success"}
             onPress={() => onSelectLineup?.(first)}
           />
-        )
+        );
       })}
 
       <ActionCard
@@ -100,12 +121,12 @@ export function MyChampionshipsScreen({ onBack, onNavigate, profileType, onSelec
         tone="dark"
       />
     </ScreenShell>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   loading: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -113,12 +134,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.lg,
   },
-  muted: { color: colors.muted, fontWeight: '700' },
+  muted: { color: colors.muted, fontWeight: "700" },
   warning: {
     borderRadius: radius.md,
-    backgroundColor: '#fff7ed',
-    color: '#9a3412',
-    fontWeight: '800',
+    backgroundColor: "rgba(224,122,122,.13)",
+    color: colors.danger,
+    fontWeight: "800",
     padding: spacing.md,
   },
-})
+});
