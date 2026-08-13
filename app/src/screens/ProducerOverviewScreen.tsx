@@ -44,7 +44,7 @@ export function ProducerOverviewScreen({
         const [sellerResult, walletResult, noticeResult, champResult] =
           await Promise.all([
             mobileApi.producerSellers(token),
-        mobileApi.wallet(token, 'produtora'),
+            mobileApi.wallet(token, "produtora"),
             mobileApi.notifications(token),
             mobileApi.championshipAdminList(token),
           ]);
@@ -231,7 +231,7 @@ export function ProducerOverviewScreen({
             style={styles.edit}
             onPress={() => onNavigate("profile_management")}
           >
-            <Ionicons name="create-outline" size={19} color={colors.surface} />
+            <Ionicons name="create-outline" size={19} color={colors.ink} />
           </TouchableOpacity>
         </View>
         <Text style={styles.description}>
@@ -308,7 +308,7 @@ export function ProducerOverviewScreen({
               style={styles.alert}
               onPress={() => onNavigate("invites")}
             >
-              <Ionicons name="alert-circle-outline" size={21} color="#9a3412" />
+              <Ionicons name="alert-circle-outline" size={21} color={colors.warning} />
               <View style={styles.copy}>
                 <Text style={styles.rowTitle}>
                   {notifications.nao_lidas} notificações pendentes
@@ -346,7 +346,7 @@ export function ProducerOverviewScreen({
             style={styles.primary}
             onPress={() => onManageChampionship?.(null)}
           >
-            <Ionicons name="add" size={19} color={colors.surface} />
+            <Ionicons name="add" size={19} color={colors.onBrand} />
             <Text style={styles.primaryText}>Novo campeonato</Text>
           </TouchableOpacity>
           {championships.map((item: any, index: number) => (
@@ -401,9 +401,9 @@ export function ProducerOverviewScreen({
               disabled={busy === "invite"}
             >
               {busy === "invite" ? (
-                <ActivityIndicator size="small" color={colors.surface} />
+                <ActivityIndicator size="small" color={colors.onBrand} />
               ) : (
-                <Ionicons name="person-add" size={18} color={colors.surface} />
+                <Ionicons name="person-add" size={18} color={colors.onBrand} />
               )}
             </TouchableOpacity>
           </View>
@@ -477,71 +477,74 @@ export function ProducerOverviewScreen({
                 </TouchableOpacity>
                 {expandedSellerId === String(seller.manager_id) ? (
                   <View style={styles.assignmentList}>
-                    {championships.map((championship: any, championshipIndex: number) => {
-                      const championshipId = String(
-                        championship.id || championshipIndex,
-                      );
-                      const assigned = (seller.campeonatos || []).some(
-                        (link: any) =>
-                          String(link.campeonato_id) ===
-                            String(championship.id) &&
-                          !["cancelado", "inativo"].includes(
-                            String(link.status),
-                          ),
-                      );
-                      const busyKey = `seller-champ:${String(
-                        seller.manager_id,
-                      )}:${String(championship.id)}`;
-                      return (
-                        <View
-                          key={championshipId}
-                          style={styles.assignmentRow}
-                        >
-                          <View style={styles.copy}>
-                            <Text style={styles.assignmentName} numberOfLines={1}>
-                              {championship.nome || "Campeonato"}
-                            </Text>
-                            <Text style={styles.meta}>
-                              {assigned
-                                ? "Vendedor liberado"
-                                : "Sem acesso comercial"}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            style={[
-                              styles.assignmentButton,
-                              assigned && styles.assignmentButtonDanger,
-                            ]}
-                            disabled={busy === busyKey}
-                            onPress={() =>
-                              void toggleSellerChampionship(
-                                seller,
-                                championship,
-                              )
-                            }
+                    {championships.map(
+                      (championship: any, championshipIndex: number) => {
+                        const championshipId = String(
+                          championship.id || championshipIndex,
+                        );
+                        const assigned = (seller.campeonatos || []).some(
+                          (link: any) =>
+                            String(link.campeonato_id) ===
+                              String(championship.id) &&
+                            !["cancelado", "inativo"].includes(
+                              String(link.status),
+                            ),
+                        );
+                        const busyKey = `seller-champ:${String(
+                          seller.manager_id,
+                        )}:${String(championship.id)}`;
+                        return (
+                          <View
+                            key={championshipId}
+                            style={styles.assignmentRow}
                           >
-                            {busy === busyKey ? (
-                              <ActivityIndicator
-                                size="small"
-                                color={
-                                  assigned ? "#9a3412" : colors.surface
-                                }
-                              />
-                            ) : (
+                            <View style={styles.copy}>
                               <Text
-                                style={[
-                                  styles.assignmentButtonText,
-                                  assigned &&
-                                    styles.assignmentButtonTextDanger,
-                                ]}
+                                style={styles.assignmentName}
+                                numberOfLines={1}
                               >
-                                {assigned ? "Remover" : "Liberar"}
+                                {championship.nome || "Campeonato"}
                               </Text>
-                            )}
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
+                              <Text style={styles.meta}>
+                                {assigned
+                                  ? "Vendedor liberado"
+                                  : "Sem acesso comercial"}
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              style={[
+                                styles.assignmentButton,
+                                assigned && styles.assignmentButtonDanger,
+                              ]}
+                              disabled={busy === busyKey}
+                              onPress={() =>
+                                void toggleSellerChampionship(
+                                  seller,
+                                  championship,
+                                )
+                              }
+                            >
+                              {busy === busyKey ? (
+                                <ActivityIndicator
+                                  size="small"
+                                  color={assigned ? colors.danger : colors.onBrand}
+                                />
+                              ) : (
+                                <Text
+                                  style={[
+                                    styles.assignmentButtonText,
+                                    assigned &&
+                                      styles.assignmentButtonTextDanger,
+                                  ]}
+                                >
+                                  {assigned ? "Remover" : "Liberar"}
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      },
+                    )}
                     {!championships.length ? (
                       <Empty text="Nenhum campeonato disponível para vincular." />
                     ) : null}
@@ -590,17 +593,17 @@ export function ProducerOverviewScreen({
             style={styles.primary}
             onPress={() => onNavigate("wallet")}
           >
-            <Ionicons name="wallet-outline" size={19} color={colors.surface} />
+            <Ionicons name="wallet-outline" size={19} color={colors.ink} />
             <Text style={styles.primaryText}>Carteira e comprovantes</Text>
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>ÚLTIMOS LANÇAMENTOS</Text>
           {movements.slice(0, 8).map((item: any, index: number) => (
             <View key={String(item.id || index)} style={styles.row}>
-                  <View>
+              <View>
                 <Ionicons
                   name={item.direcao === "debito" ? "arrow-up" : "arrow-down"}
                   size={20}
-                  color={item.direcao === "debito" ? "#b42318" : "#166534"}
+                  color={item.direcao === "debito" ? colors.danger : colors.success}
                 />
               </View>
               <View style={styles.copy}>
@@ -694,12 +697,12 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 4,
-    color: colors.surface,
+    color: colors.ink,
     fontSize: 21,
     fontWeight: "900",
     textTransform: "uppercase",
   },
-  description: { marginTop: 8, color: "#b9c1cc", fontSize: 11 },
+  description: { marginTop: 8, color: colors.muted, fontSize: 11 },
   edit: {
     width: 40,
     height: 40,
@@ -712,8 +715,7 @@ const styles = StyleSheet.create({
     margin: spacing.md,
     marginBottom: 8,
     flexDirection: "row",
-    gap: 1,
-    backgroundColor: colors.line,
+    gap: 6,
   },
   tab: {
     flex: 1,
@@ -721,28 +723,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 7,
   },
-  tabActive: { backgroundColor: colors.brandDark },
+  tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   tabText: {
     color: colors.muted,
     fontSize: 8,
     fontWeight: "900",
     textTransform: "uppercase",
   },
-  tabTextActive: { color: colors.surface },
+  tabTextActive: { color: colors.onBrand },
   loading: { minHeight: 65, alignItems: "center", justifyContent: "center" },
   error: {
     marginHorizontal: spacing.md,
     padding: 10,
-    color: "#9a3412",
-    backgroundColor: "#fff7ed",
+    color: colors.danger,
+    backgroundColor: "rgba(224,122,122,.13)",
     fontWeight: "800",
   },
   success: {
     marginHorizontal: spacing.md,
     padding: 10,
-    color: "#166534",
-    backgroundColor: "#effaf3",
+    color: colors.success,
+    backgroundColor: "rgba(101,185,130,.13)",
     fontWeight: "800",
   },
   section: { marginHorizontal: spacing.md, gap: 8 },
@@ -751,6 +756,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 1,
     backgroundColor: colors.line,
+    borderRadius: 10,
+    overflow: "hidden",
   },
   metric: {
     width: "49%",
@@ -797,7 +804,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 9,
     padding: 10,
-    backgroundColor: "#fff7ed",
+    backgroundColor: "rgba(212,165,87,.13)",
     borderLeftWidth: 3,
     borderLeftColor: colors.brand,
   },
@@ -818,7 +825,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   primaryText: {
-    color: colors.surface,
+    color: colors.onBrand,
     fontWeight: "900",
     textTransform: "uppercase",
   },
@@ -833,7 +840,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   rowBorderless: { flexDirection: "row", alignItems: "center", gap: 9 },
-  logo: { width: 46, height: 46, borderRadius: 6, backgroundColor: "#eee9e1" },
+  logo: { width: 46, height: 46, borderRadius: 6, backgroundColor: colors.surfaceRaised },
   fallback: { alignItems: "center", justifyContent: "center" },
   sellerHead: {
     minHeight: 48,
@@ -859,7 +866,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 8,
-    backgroundColor: "#f2eee7",
+    backgroundColor: colors.surfaceRaised,
   },
   assignmentToggle: {
     minHeight: 40,
@@ -867,7 +874,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 10,
-    backgroundColor: "#eee9e1",
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -880,7 +887,7 @@ const styles = StyleSheet.create({
   assignmentList: {
     gap: 5,
     padding: 8,
-    backgroundColor: "#f6f2eb",
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -909,17 +916,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   assignmentButtonDanger: {
-    backgroundColor: "#fff7ed",
+    backgroundColor: "rgba(224,122,122,.13)",
     borderWidth: 1,
-    borderColor: "#fed7aa",
+    borderColor: colors.danger,
   },
   assignmentButtonText: {
-    color: colors.surface,
+    color: colors.onBrand,
     fontSize: 8,
     fontWeight: "900",
     textTransform: "uppercase",
   },
-  assignmentButtonTextDanger: { color: "#9a3412" },
+  assignmentButtonTextDanger: { color: colors.danger },
   actions: { flexDirection: "row", gap: 7 },
   action: {
     flex: 1,
@@ -939,10 +946,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 9,
     borderWidth: 1,
-    borderColor: "#b42318",
+    borderColor: colors.danger,
   },
   removeText: {
-    color: "#b42318",
+    color: colors.danger,
     fontSize: 8,
     fontWeight: "900",
     textTransform: "uppercase",
@@ -953,14 +960,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: colors.brand,
   },
-  balanceLabel: { color: "#aeb7c2", fontSize: 8, fontWeight: "900" },
+  balanceLabel: { color: colors.muted, fontSize: 8, fontWeight: "900" },
   balanceValue: {
     marginTop: 5,
-    color: colors.surface,
+    color: colors.ink,
     fontSize: 28,
     fontWeight: "900",
   },
-  balanceBlocked: { marginTop: 5, color: "#aeb7c2", fontSize: 9 },
+  balanceBlocked: { marginTop: 5, color: colors.muted, fontSize: 9 },
   money: { color: colors.ink, fontSize: 11, fontWeight: "900" },
   empty: {
     minHeight: 70,
