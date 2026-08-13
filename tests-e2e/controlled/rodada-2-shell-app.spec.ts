@@ -47,7 +47,9 @@ test.describe('Rodada 2 — shell global e navegação mobile', () => {
     expect(globalCss).toContain('.page-authenticated{ padding-top: 0;')
     expect(globalCss).not.toContain('.page-authenticated{ padding-top: 88px;')
     expect(globalCss).not.toContain('.page-authenticated{ padding-top: 96px;')
-    expect(globalCss).toContain('bottom: calc(66px + env(safe-area-inset-bottom))')
+    expect(globalCss).toContain('bottom: calc(70px + env(safe-area-inset-bottom))')
+    expect((globalCss.match(/\.lili-global-launcher\{/g) || []).length).toBe(2)
+    expect(globalCss.indexOf('@media (max-width: 640px){', globalCss.indexOf('.lili-floating-chat{ position: fixed'))).toBeGreaterThan(globalCss.indexOf('.lili-global-launcher{ position: fixed'))
   })
 
 })
