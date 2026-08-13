@@ -268,28 +268,28 @@
 .directory-champ-cart-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:36px;border:0;border-radius:8px;background:var(--champ-accent);color:#11130f;padding:0 12px;font-size:9px;font-weight:950;text-transform:uppercase;cursor:pointer}
 .directory-champ-cart-action:disabled{background:#282a2f;color:var(--champ-muted);cursor:not-allowed}
 .directory-champ-cart-action.active,.directory-champ-cart-action.active:disabled{background:var(--champ-accent);color:#11130f;opacity:1}
-.directory-commerce-error{width:min(100% - 6px,920px);margin:0 auto 8px;color:#ff8b8b;font-size:10px;font-weight:800}
+.directory-commerce-error{width:min(100% - 20px,920px);margin:0 auto 8px;color:#ff8b8b;font-size:10px;font-weight:800}
 .directory-champ-lineup-action{display:inline-flex;width:max-content;align-items:center;gap:6px;border:0;background:transparent;color:var(--champ-accent-strong);padding:0;font-size:9px;font-weight:900;text-transform:uppercase}
 
 @media(max-width:760px){
   .directory-market-page{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
   .directory-market-page .directory-page-body,
   .directory-market-page .directory-page-body-with-banner{padding-bottom:18px}
-  .champ-directory-heading{width:calc(100% - 6px);padding:18px 8px 10px}
+  .champ-directory-heading{width:calc(100% - 20px);padding:18px 0 10px}
   .champ-directory-heading h1{font-size:28px}
   .champ-directory-heading p{display:none}
-  .champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto;width:calc(100% - 6px);gap:5px;margin-bottom:8px}
+  .champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto;width:calc(100% - 20px);gap:5px;margin-bottom:8px}
   .directory-market-page .directory-search{min-height:42px;padding:0 11px;border-radius:8px}
   .directory-market-page .directory-result-count{grid-column:1/-1;grid-row:2;padding:0 2px;font-size:8px}
   .directory-market-page .directory-result-count strong{font-size:12px}
   .directory-market-tool>summary{width:42px;height:42px;border-radius:8px}
-  .directory-market-tool>div{position:fixed;left:3px;right:3px;top:auto;bottom:calc(64px + env(safe-area-inset-bottom));width:auto;max-height:56dvh;border-radius:12px 12px 0 0}
-  .directory-market-filters{width:calc(100% - 6px);margin-bottom:8px;padding-left:2px;gap:4px}
+  .directory-market-tool>div{position:fixed;left:10px;right:10px;top:auto;bottom:calc(64px + env(safe-area-inset-bottom));width:auto;max-height:56dvh;border-radius:12px 12px 0 0}
+  .directory-market-filters{width:calc(100% - 20px);margin-bottom:8px;padding-left:0;gap:4px}
   .directory-market-filter-chips{gap:2px}
   .directory-market-filter-chips button{min-height:30px;padding:0 9px;font-size:8px;border-radius:7px}
   .directory-market-more>summary{min-height:30px;padding:0 9px;font-size:8px;border-radius:7px}
-  .directory-market-filter-fields{position:fixed;left:3px;right:3px;top:auto;bottom:calc(64px + env(safe-area-inset-bottom));width:auto;border-radius:12px 12px 0 0}
-  .directory-champ-card-grid{grid-template-columns:1fr;gap:5px;width:calc(100% - 6px)}
+  .directory-market-filter-fields{position:fixed;left:10px;right:10px;top:auto;bottom:calc(64px + env(safe-area-inset-bottom));width:auto;border-radius:12px 12px 0 0}
+  .directory-champ-card-grid{grid-template-columns:1fr;gap:7px;width:calc(100% - 20px)}
   .directory-champ-card{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:126px;border-radius:8px}
   .directory-champ-cover{min-height:126px;height:100%}
   .directory-champ-badges{left:5px;bottom:5px;gap:3px}
