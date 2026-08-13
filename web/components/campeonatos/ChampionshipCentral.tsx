@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, AlertCircle, AlertTriangle, BookOpen, CheckCircle2, Clock3, CreditCard, ExternalLink, Gamepad2, Info, LoaderCircle, MapPin, Trophy, Users } from 'lucide-react'
+import { Activity, AlertCircle, AlertTriangle, CheckCircle2, Clock3, ExternalLink, Gamepad2, Info, LoaderCircle, MapPin, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import './championship-central.css'
 
 type Championship = { id: string; nome: string; tipo?: string; access?: 'administration' | 'participant'; permission?: { role?: string } }
 type Summary = {
@@ -280,20 +281,20 @@ export function ChampionshipCentral() {
   }) || []
 
   const filteredLogs = summary?.logs?.filter((log) => logFilter === 'all' || log.category === logFilter) || []
+  const pendingTotal = summary
+    ? summary.cards.escalacoes.incompletas + summary.cards.grupos.incompletos + summary.cards.resultados.pendentes + summary.cards.pagamentos.pendentes
+    : 0
   const cards = summary ? [
-    ['Vagas', `${summary.cards.vagas.ocupadas}/${summary.cards.vagas.total}`, `${summary.cards.vagas.disponiveis} disponíveis`, Users],
-    ['Equipes', String(summary.cards.equipes.confirmadas), 'confirmadas', Users],
-    ['Grupos', String(summary.cards.grupos.total), `${summary.cards.grupos.incompletos} incompletos`, Trophy],
-    ['Jogos', String(summary.cards.jogos.total), `${summary.cards.jogos.sem_quedas} sem quedas`, Gamepad2],
-    ['Resultados', String(summary.cards.resultados.registrados), `${summary.cards.resultados.pendentes} pendentes`, Trophy],
-    ['Pagamentos', String(summary.cards.pagamentos.aprovados), `${summary.cards.pagamentos.pendentes} pendentes`, CreditCard],
-    ['Regulamento', summary.cards.regulamento.publicado ? 'Publicado' : 'Pendente', summary.cards.regulamento.status, BookOpen],
+    ['Vagas', `${summary.cards.vagas.ocupadas}/${summary.cards.vagas.total}`, `${summary.cards.vagas.disponiveis} livres`, Users],
+    ['Equipes', String(summary.cards.equipes.confirmadas), `${summary.cards.escalacoes.incompletas} escalações incompletas`, Users],
+    ['Jogos', String(summary.cards.jogos.total), `${summary.cards.jogos.quedas} quedas · ${summary.cards.jogos.sem_quedas} sem quedas`, Gamepad2],
+    ['Pendências', String(pendingTotal), `${summary.cards.resultados.pendentes} resultados · ${summary.cards.pagamentos.pendentes} pagamentos`, Activity],
   ] as const : []
 
   return (
     <div className="championship-central-shell">
       <header className="championship-central-header">
-        <div><small>OPERAÇÃO SEGURA</small><h1>Central do Campeonato</h1><p>Administre o campeonato ou escolha manualmente o grupo e o slot da sua equipe.</p></div>
+        <div><small>CAMPEONATOS</small><h1>Central</h1></div>
         <select value={selected} onChange={(event) => setSelected(event.target.value)} aria-label="Selecionar campeonato">
           <option value="">Selecione um campeonato</option>
           {items.map((item) => <option key={item.id} value={item.id}>{item.nome}{item.access === 'participant' ? ' · Minha equipe' : ' · Administração'}</option>)}
@@ -322,32 +323,38 @@ export function ChampionshipCentral() {
 
       {!loading && summary ? (
         <>
-          <section className="championship-central-title"><div><small>{summary.campeonato.tipo || 'Campeonato'}</small><h2>{summary.campeonato.nome}</h2></div></section>
-          <section className="championship-central-grid">{cards.map(([label, value, detail, Icon]) => <article key={label}><Icon size={18} /><small>{label}</small><strong>{value}</strong><span>{detail}</span></article>)}</section>
+          <section className="championship-central-title"><div><small>{summary.campeonato.tipo || 'Campeonato'}</small><h2>{summary.campeonato.nome}</h2></div><span>Administração</span></section>
+          <section className="championship-central-overview" aria-label="Visão geral operacional">
+            <div className="championship-central-overview-heading"><small>VISÃO GERAL</small><strong>O que precisa de atenção agora</strong></div>
+            <div className="championship-central-grid">{cards.map(([label, value, detail, Icon]) => <article key={label}><Icon size={18} /><div><small>{label}</small><strong>{value}</strong><span>{detail}</span></div></article>)}</div>
+          </section>
           <section className="championship-central-alerts">
-            <div className="championship-central-alerts-heading"><div><small>PRIORIDADES DA OPERAÇÃO</small><h3>Alertas inteligentes</h3></div><div className="championship-central-alert-counts" aria-label="Resumo dos alertas"><span className="critical">{summary.alert_summary.critical} críticos</span><span className="warning">{summary.alert_summary.warning} avisos</span><span className="info">{summary.alert_summary.info} informativos</span></div></div>
-            <div className="championship-central-alert-dashboard"><span><b>{summary.alert_summary.new}</b> novos</span><span><b>{summary.alert_summary.read}</b> lidos</span><span><b>{summary.alert_summary.resolved}</b> resolvidos</span><span><b>{summary.alert_summary.dismissed}</b> dispensados</span></div>
+            <div className="championship-central-alerts-heading"><div><small>PRIORIDADES</small><h3>Alertas</h3></div><div className="championship-central-alert-counts" aria-label="Resumo dos alertas"><span className="critical">{summary.alert_summary.critical} críticos</span><span className="warning">{summary.alert_summary.warning} avisos</span></div></div>
             <div className="championship-central-alert-filters" aria-label="Filtrar alertas inteligentes">{[['active', 'Ativos'], ['new', 'Novos'], ['read', 'Lidos'], ['closed', 'Encerrados'], ['all', 'Todos']].map(([value, label]) => <button key={value} type="button" className={alertFilter === value ? 'active' : ''} onClick={() => setAlertFilter(value)}>{label}</button>)}</div>
-            <div className="championship-central-alert-advanced">
+            <details className="championship-central-alert-more">
+              <summary>Filtros</summary>
+              <div className="championship-central-alert-advanced">
               <input value={alertAdvancedFilter.query} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, query: event.target.value })} placeholder="Buscar alerta, equipe ou jogo" />
               <select value={alertAdvancedFilter.severity} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, severity: event.target.value })}><option value="all">Todas as prioridades</option><option value="critical">Crítico</option><option value="warning">Atenção</option><option value="info">Informativo</option></select>
               <select value={alertAdvancedFilter.category} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, category: event.target.value })}><option value="all">Todas as categorias</option>{['capacity','structure','schedule','lineup','registration','payment','result','rulebook'].map((value) => <option key={value} value={value}>{alertCategoryLabel(value)}</option>)}</select>
               <select value={alertAdvancedFilter.scope} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, scope: event.target.value })}><option value="all">Todos os escopos</option><option value="championship">Campeonato</option><option value="team">Equipe</option><option value="game">Jogo</option></select>
               <input type="date" value={alertAdvancedFilter.date_from} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, date_from: event.target.value })} aria-label="Data inicial" />
               <input type="date" value={alertAdvancedFilter.date_to} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, date_to: event.target.value })} aria-label="Data final" />
-            </div>
+              </div>
+            </details>
             <div className="championship-central-alert-toolbar"><span>{filteredAlerts.length} alerta(s) exibido(s)</span><div><button type="button" disabled={alertBusy === 'bulk-read'} onClick={() => void markFilteredAlertsRead()}>Marcar novos como lidos</button><button type="button" onClick={exportAlertsCsv}>Exportar alertas CSV</button></div></div>
             {filteredAlerts.length ? <div className="championship-central-alert-list">{filteredAlerts.map((alert) => { const Icon = alert.severity === 'critical' ? AlertCircle : alert.severity === 'warning' ? AlertTriangle : Info; const status = alert.status || 'new'; return <article key={alert.id} className={`smart-alert ${alert.severity} status-${status}`}><div className="smart-alert-icon"><Icon size={19} /></div><div className="smart-alert-copy"><div className="smart-alert-title"><strong>{alert.title}</strong><span>{status === 'resolved' ? 'Resolvido' : status === 'dismissed' ? 'Dispensado' : status === 'read' ? 'Lido' : alert.severity === 'critical' ? 'Crítico' : alert.severity === 'warning' ? 'Atenção' : 'Informativo'}</span></div><div className="smart-alert-meta"><span>{alertCategoryLabel(alert.category)}</span><span>{alertScopeLabel(alert.scope)}</span>{alert.entity_label ? <span>{alert.entity_label}</span> : null}{alert.due_at ? <span>Prazo: {new Date(alert.due_at).toLocaleString('pt-BR')}</span> : null}</div><p>{alert.message}</p><small>{alert.context}</small><div className="smart-alert-guidance"><span><b>Impacto:</b> {alert.impact}</span><span><b>Ação recomendada:</b> {alert.recommendation}</span></div>{alert.status_note ? <em>{alert.status_note}</em> : null}</div><div className="smart-alert-actions"><a href={alert.href}>{alert.action}<ExternalLink size={14} /></a>{status === 'new' ? <button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'read')}>Marcar lido</button> : null}{status === 'new' || status === 'read' ? <><button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'resolved')}>Resolver</button><button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'dismissed')}>Dispensar</button></> : <button type="button" disabled={alertBusy === alert.id} onClick={() => void updateAlertStatus(alert.id, 'new')}>Reabrir</button>}</div></article> })}</div> : <div className="championship-central-alert-empty"><CheckCircle2 size={19} /><div><strong>Nenhum alerta neste filtro</strong><span>{summary.alerts.length ? 'Altere os filtros para consultar outros alertas.' : 'Nenhuma pendência acionável foi encontrada nesta leitura.'}</span></div></div>}
-            <div className="championship-central-alert-history">
-              <div><h4>Histórico de mudanças</h4><button type="button" onClick={exportAlertHistoryCsv}>Exportar histórico CSV</button></div>
+            <details className="championship-central-alert-history">
+              <summary>Histórico de alertas <span>{summary.alert_summary.resolved + summary.alert_summary.dismissed} encerrados</span></summary>
+              <div className="championship-central-history-actions"><button type="button" onClick={exportAlertHistoryCsv}>Exportar histórico CSV</button></div>
               {filteredAlertHistory.length ? filteredAlertHistory.slice(0, 100).map((row) => <article key={row.id}><span>{new Date(row.created_at).toLocaleString('pt-BR')}</span><strong>{row.alerta_chave}</strong><small>{row.status_anterior || 'new'} → {row.status_novo} · {row.alterado_por_email || row.alterado_por_auth_user_id || 'Sistema'}{row.observacao ? ` · ${row.observacao}` : ''}</small></article>) : <p>Nenhuma mudança registrada nos filtros atuais.</p>}
-            </div>
+            </details>
           </section>
-          <section className="championship-central-logs">
-            <div className="championship-central-logs-heading"><div><small>HISTÓRICO RASTREÁVEL</small><h3>Logs operacionais</h3><p>Eventos reais consolidados da estrutura, inscrições, jogos, resultados, pagamentos e segurança.</p></div><div className="championship-central-log-total"><Activity size={16} />{summary.log_summary.visible} exibidos</div></div>
+          <details className="championship-central-logs">
+            <summary className="championship-central-logs-heading"><span><Activity size={16} /> Logs operacionais</span><b>{summary.log_summary.visible}</b></summary>
             <div className="championship-central-log-filters" aria-label="Filtrar logs operacionais">{[['all', 'Todos'], ['structure', 'Estrutura'], ['team', 'Equipes'], ['lineup', 'Escalações'], ['game', 'Jogos'], ['result', 'Resultados'], ['payment', 'Pagamentos'], ['rulebook', 'Regulamento'], ['security', 'Segurança']].map(([value, label]) => <button key={value} type="button" className={logFilter === value ? 'active' : ''} onClick={() => setLogFilter(value)}>{label}</button>)}</div>
             {filteredLogs.length ? <div className="championship-central-log-list">{filteredLogs.map((log) => <article key={log.id} className={`operational-log ${log.category}`}><div className="operational-log-marker"><Clock3 size={15} /></div><div className="operational-log-copy"><div><strong>{log.title}</strong><span>{log.actor}</span></div><p>{log.detail}</p><small>{new Date(log.occurred_at).toLocaleString('pt-BR')} · fonte: {log.source}</small></div></article>)}</div> : <div className="championship-central-log-empty">Nenhum evento encontrado neste filtro.</div>}
-          </section>
+          </details>
         </>
       ) : null}
     </div>
