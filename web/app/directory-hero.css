@@ -157,7 +157,7 @@
 
 .directory-rank-toolbar > nav {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 100%;
   margin: 0;
   gap: 1px;
@@ -215,6 +215,28 @@
 .directory-rank-score {
   text-align: center;
 }
+
+.directory-tier {
+  display: inline-grid;
+  min-width: 32px;
+  min-height: 25px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #2d3947;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.directory-tier.tier-ss { background: #8c6511; }
+.directory-tier.tier-s { background: #7157a9; }
+.directory-tier.tier-a { background: #2f7881; }
+.directory-tier.tier-b { background: #47775a; }
+.directory-tier.tier-c { background: #8a7144; }
+.directory-tier.tier-d { background: #6d6870; }
+.directory-tier.tier-e { background: #4f5860; }
 
 @media (max-width: 820px) {
   .directory-page.page-authenticated,
