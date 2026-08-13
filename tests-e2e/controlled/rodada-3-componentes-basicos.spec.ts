@@ -5,14 +5,42 @@ import { resolve } from 'node:path'
 const root = resolve(__dirname, '../..')
 const source = (file: string) => readFileSync(resolve(root, file), 'utf8')
 
+const escaped = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const ruleBodies = (css: string, selector: string) => {
+  const matcher = new RegExp(`${escaped(selector)}\\s*\\{([^}]*)\\}`, 'g')
+  return [...css.matchAll(matcher)].map((match) => match[1].replace(/\s+/g, ' ').trim())
+}
+const expectRule = (css: string, selector: string, declarations: string[]) => {
+  const bodies = ruleBodies(css, selector)
+  expect(bodies.length, `regra ${selector} não encontrada`).toBeGreaterThan(0)
+  expect(
+    bodies.some((body) => declarations.every((declaration) => body.includes(declaration))),
+    `nenhuma regra ${selector} contém: ${declarations.join(', ')}`,
+  ).toBeTruthy()
+}
+
 test.describe('Rodada 3 — componentes básicos', () => {
   test('botões e campos autenticados usam a fundação visual sem bordas e sombras decorativas', () => {
     const css = source('web/app/globals.css')
 
-    expect(css).toContain('.button{ min-height: 44px; border: 0; border-radius: var(--ui-radius-sm); background: var(--ui-accent)')
+    expectRule(css, '.button', [
+      'min-height: 44px',
+      'border: 0',
+      'border-radius: var(--ui-radius-sm)',
+      'background: var(--ui-accent)',
+      'box-shadow: none',
+    ])
     expect(css).toContain('.page-authenticated input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),')
-    expect(css).toContain('.page-authenticated textarea{ border: 0; border-radius: var(--ui-radius-sm); background: rgba(16,24,32,.055)')
-    expect(css).toContain('outline: 2px solid var(--ui-accent)')
+    expectRule(css, '.page-authenticated textarea', [
+      'border: 0',
+      'border-radius: var(--ui-radius-sm)',
+      'background: var(--surface-muted)',
+      'box-shadow: none',
+    ])
+    expectRule(css, '.page-authenticated textarea:focus', [
+      'outline: 2px solid var(--ui-accent)',
+      'box-shadow: none',
+    ])
   })
 
   test('tabs autenticadas deixam de ser caixas e usam hierarquia por sublinhado', () => {
@@ -26,8 +54,26 @@ test.describe('Rodada 3 — componentes básicos', () => {
     const css = source('web/app/globals.css')
     const modal = source('web/components/layout/SystemModal.tsx')
 
-    expect(css).toContain('.system-modal{ display: flex; flex-direction: column; width: min(100%, 760px); max-height: calc(100vh - 48px); overflow: hidden; border: 0; border-radius: var(--ui-radius-lg); background: var(--ui-surface); color: var(--ui-text); box-shadow: none')
-    expect(css).toContain('.system-modal-header{ position: sticky; top: 0; z-index: 3; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 24px 10px; border: 0; background: var(--ui-surface)')
+    expectRule(css, '.system-modal', [
+      'display: flex',
+      'flex-direction: column',
+      'width: min(100%, 760px)',
+      'max-height: calc(100vh - 48px)',
+      'overflow: hidden',
+      'border: 0',
+      'border-radius: var(--ui-radius-lg)',
+      'background: var(--ui-surface)',
+      'color: var(--ui-text)',
+      'box-shadow: none',
+    ])
+    expectRule(css, '.system-modal-header', [
+      'position: sticky',
+      'top: 0',
+      'z-index: 3',
+      'display: flex',
+      'border: 0',
+      'background: var(--ui-surface)',
+    ])
     expect(css).not.toContain('background: rgba(10, 15, 25, .58); backdrop-filter: blur(9px)')
     expect(modal).not.toContain('<p className="eyebrow">DropZone</p>')
   })
@@ -50,4 +96,27 @@ test.describe('Rodada 3 — componentes básicos', () => {
 
     expect(producer).not.toContain('description="Cadastre os dados básicos, informações e controles do campeonato."')
   })
+  test('assistente inteiro do campeonato herda o modal escuro sem caixas claras ou ações redundantes', () => {
+    const css = source('web/app/globals.css')
+    const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
+
+    expect(css).toContain('.system-modal{ --surface: var(--ui-surface); --surface-soft: var(--ui-surface-soft); --surface-muted: var(--ui-surface-raised);')
+    expect(css).toContain('.form-section-card{ display: grid; gap: 14px; padding: 14px 0; border: 0; border-radius: 0; background: transparent;')
+    expect(css).toContain('.championship-wizard-steps{ display: flex; align-items: center; gap: 22px; padding: 4px 0 12px; overflow-x: auto; border: 0; background: transparent;')
+    expect(css).toContain('.championship-origin-option{ min-width: 0; min-height: 78px;')
+    expect(css).toContain('border: 0; border-radius: var(--ui-radius-sm); background: transparent; color: var(--text);')
+    expect(css).toContain('.championship-wizard-actions{ position: sticky; bottom: 0; z-index: 4; justify-content: flex-end; gap: 8px; padding: 12px 0; background: var(--surface); border: 0;')
+    expect(css).toContain('.producer-layout-ref .form-section-card{ border: 0; background: transparent; box-shadow: none;')
+
+    expect(form).toContain("· {currentPageIndex + 1} de {wizardPages.length}</strong>")
+    expect(form).toContain("<span>{String(index + 1).padStart(2, '0')}</span>{page.label}")
+    expect(form).toContain('<p className="eyebrow">Origem</p>')
+    expect(form).toContain('<strong>Nova edição</strong>')
+    expect(form).toContain('<Field label="Nome">')
+    expect(form).not.toContain('<p className="eyebrow">Dados obrigatórios</p>')
+    expect(form).not.toContain('Você preencherá apenas os campos necessários para o tipo escolhido.')
+    expect(form).not.toContain('Assistente de criação · etapa')
+    expect(form).toContain("onCancel && mode !== 'create'")
+  })
+
 })

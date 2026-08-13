@@ -588,13 +588,11 @@ export function CampeonatoForm({
     <div className="championship-form-stack">
       <div className="championship-form-progress">
         <div>
-          <p className="eyebrow">Assistente de criação · etapa {currentPageIndex + 1} de {wizardPages.length}</p>
-          <strong>{selectedType?.title || CHAMPIONSHIP_TYPE_LABELS[value.tipo as ChampionshipType] || 'Campeonato'}</strong>
-          <small>{selectedType?.description}</small>
+          <strong>{selectedType?.title || CHAMPIONSHIP_TYPE_LABELS[value.tipo as ChampionshipType] || 'Campeonato'} · {currentPageIndex + 1} de {wizardPages.length}</strong>
         </div>
         {mode === 'create' ? (
-          <button className="text-action-button" type="button" onClick={() => setStep('type')}>
-            <ArrowLeft size={15} /> Alterar tipo
+          <button className="text-action-button" type="button" onClick={() => setStep('type')} title="Alterar formato">
+            <ArrowLeft size={15} /> Formato
           </button>
         ) : null}
       </div>
@@ -608,7 +606,7 @@ export function CampeonatoForm({
               className={`${formPage === page.id ? 'active' : ''} ${index < currentPageIndex ? 'done' : ''}`}
               onClick={() => index <= currentPageIndex && setFormPage(page.id)}
             >
-              <span>{index + 1}</span>{page.label}
+              <span>{String(index + 1).padStart(2, '0')}</span>{page.label}
             </button>
           ))}
         </div>
@@ -616,7 +614,7 @@ export function CampeonatoForm({
 
       {mode === 'create' ? (
         <section className="form-section-card championship-origin-card" hidden={!pageVisible('origin')}>
-          <p className="eyebrow">Como deseja criar?</p>
+          <p className="eyebrow">Origem</p>
           <div className="championship-origin-options">
             <button
               type="button"
@@ -624,23 +622,23 @@ export function CampeonatoForm({
               onClick={() => void selectCreationOrigin('novo')}
             >
               <strong>Criar do zero</strong>
-              <small>Comece um campeonato totalmente novo.</small>
+              <small>Novo campeonato.</small>
             </button>
             <button
               type="button"
               className={value.origem_criacao === 'modelo' ? 'championship-origin-option active' : 'championship-origin-option'}
               onClick={() => void selectCreationOrigin('modelo')}
             >
-              <strong>Usar como modelo</strong>
-              <small>Copie os dados de outro {selectedType?.title?.toLocaleLowerCase('pt-BR') || 'campeonato'} e altere antes de salvar.</small>
+              <strong>Usar modelo</strong>
+              <small>Copie configurações de outro campeonato.</small>
             </button>
             <button
               type="button"
               className={value.origem_criacao === 'season' ? 'championship-origin-option active' : 'championship-origin-option'}
               onClick={() => void selectCreationOrigin('season')}
             >
-              <strong>Criar nova season</strong>
-              <small>Crie uma nova edição ligada ao histórico da competição escolhida.</small>
+              <strong>Nova edição</strong>
+              <small>Continue uma competição existente.</small>
             </button>
           </div>
 
@@ -687,27 +685,21 @@ export function CampeonatoForm({
                 </div>
               ) : null}
             </div>
-          ) : (
-            <p className="form-empty-note">Você preencherá apenas os campos necessários para o tipo escolhido.</p>
-          )}
+          ) : null}
         </section>
       ) : null}
 
       <section className="form-section-card" hidden={!pageVisible('identity')}>
-        <p className="eyebrow">Dados obrigatórios</p>
         <div className="mini-grid two">
-          <Field label="Nome do campeonato"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
-          <UploadField label="Logo do campeonato *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
-          <UploadField label="Banner do campeonato" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
+          <Field label="Nome"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
+          <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
+          <UploadField label="Banner" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
         </div>
       </section>
 
       <section className="form-section-card" hidden={!pageVisible('identity')}>
-        <p className="eyebrow">Identidade visual</p>
-        <p className="empty" style={{ margin: '0 0 12px' }}>
-          Escolha 2 cores, a intensidade do fundo e (opcional) uma imagem de background. O sistema usa a cor{' '}
-          <strong>mais escura</strong> nos botões, aplica a opacidade no BG e calcula o contraste do texto.
-        </p>
+        <p className="eyebrow">Visual</p>
+        <p className="empty" style={{ margin: '0 0 12px' }}>Cores e fundo usados na identidade do campeonato.</p>
         <div className="mini-grid two">
           <Field label="Cor A">
             <div className="color-field-row">
@@ -1195,7 +1187,7 @@ export function CampeonatoForm({
         ) : (
           <button className="button" type="button" onClick={() => void submitWithImages()} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
         )}
-        {onCancel ? <button className="button secondary" type="button" onClick={onCancel} disabled={loading}>Cancelar</button> : null}
+        {onCancel && mode !== 'create' ? <button className="button secondary" type="button" onClick={onCancel} disabled={loading}>Cancelar</button> : null}
       </div>
     </div>
   )
