@@ -29,7 +29,8 @@ test.describe('Rodada 2 — shell global e navegação mobile', () => {
     expect(header).toContain('<span>Mais</span>')
     expect(header).toContain('className="app-mobile-nav-backdrop"')
     expect(css).toContain('grid-template-columns: repeat(5, minmax(0, 1fr))')
-    expect(css).toContain('bottom: calc(6px + env(safe-area-inset-bottom))')
+    expect(css).toContain('bottom: 0')
+    expect(css).toContain('border-radius: 0')
   })
 
   test('conteúdo do shell reserva a área da navegação móvel', () => {
@@ -37,6 +38,16 @@ test.describe('Rodada 2 — shell global e navegação mobile', () => {
     const css = read('web/app/header.css')
 
     expect(shell).toContain("const parts = ['app-shell-main', mainClassName]")
-    expect(css).toContain('padding-bottom: calc(76px + env(safe-area-inset-bottom))')
+    expect(css).toContain('padding-bottom: calc(58px + env(safe-area-inset-bottom))')
   })
+
+  test('shell sticky remove offsets antigos e Lili respeita a navegação mobile', () => {
+    const globalCss = read('web/app/globals.css')
+
+    expect(globalCss).toContain('.page-authenticated{ padding-top: 0;')
+    expect(globalCss).not.toContain('.page-authenticated{ padding-top: 88px;')
+    expect(globalCss).not.toContain('.page-authenticated{ padding-top: 96px;')
+    expect(globalCss).toContain('bottom: calc(66px + env(safe-area-inset-bottom))')
+  })
+
 })

@@ -740,7 +740,7 @@
   }
   body{ background: var(--surface);
   }
-  .page-authenticated{ padding-top: 88px; width: 100%; max-width: none; padding-right: 0; padding-left: 0;
+  .page-authenticated{ padding-top: 0; width: 100%; max-width: none; padding-right: 0; padding-left: 0;
   }
   .page-authenticated > .shell,
 .page-authenticated .shell,
@@ -2072,7 +2072,7 @@ button.invite-slot-button.selected strong{ color: var(--text);
   }
   .lili-hub-card-slot .lili-hub-card-head small{ max-width: 190px;
   }
-  .lili-global-launcher{ right: 12px; bottom: 12px; min-width: 46px; padding: 0 12px;
+  .lili-global-launcher{ right: 12px; bottom: calc(66px + env(safe-area-inset-bottom)); min-width: 44px; min-height: 44px; padding: 0 10px; border: 0; box-shadow: none;
   }
   .lili-global-launcher span{ display: none;
   }
@@ -6345,7 +6345,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 .lili-rank-list article > em{ color: #17212b;
 } .lili-rank-list article > div small{ color: #7c776f;
 } .lili-rank-avatar{ width: 42px; height: 42px; border-radius: 0; overflow: hidden; background: rgba(255,255,255,.32); display: grid; place-items: center; border: 1px solid rgba(23,33,43,.08);
-} .page-authenticated{ padding-top: 96px; background: linear-gradient(180deg, rgba(16, 24, 32, .035), transparent 240px),
+} .page-authenticated{ padding-top: 0; background: linear-gradient(180deg, rgba(16, 24, 32, .035), transparent 240px),
     var(--dz-paper); --auth-panel-bg: #f3eee6; --auth-panel-bg-soft: #ece6dd; --auth-panel-bg-muted: #f7f2ea; --auth-panel-line: #d7d0c6; --auth-panel-line-strong: #c8c0b4;
 } .page-authenticated .card{ box-shadow: none; border-color: var(--auth-panel-line); background: var(--auth-panel-bg); color: #171a22;
 } .page-authenticated .list-item,
@@ -6431,7 +6431,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 
 
 
-  .page-authenticated{ padding-top: 64px;
+  .page-authenticated{ padding-top: 0;
   }
   .page-authenticated .panel-workspace-shell{ width: 100%; max-width: none; margin: 0; padding: 0;
   }
@@ -6836,7 +6836,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .lili-global-launcher{ border: 1px solid #d9c9ee; cursor: pointer;
 }
 @media (max-width: 640px){
-  .lili-floating-chat{ inset: auto 8px calc(68px + env(safe-area-inset-bottom)) 8px; width: auto; height: min(74dvh, 680px); border-radius: 22px;
+  .lili-floating-chat{ inset: auto 8px calc(62px + env(safe-area-inset-bottom)) 8px; width: auto; height: min(74dvh, 680px); border-radius: 22px;
   }
 }
 
@@ -7109,7 +7109,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   border-bottom-color:var(--dz-accent,#ff5468);
 }
 @media(max-width:760px){
-  .page-authenticated:has(.panel-workspace-shell){padding-top:56px}
+  .page-authenticated:has(.panel-workspace-shell){padding-top:0}
   .panel-workspace-shell .account-workspace-hero{grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:16px 12px}
   .panel-workspace-shell .account-workspace-avatar{width:52px;height:52px;flex-basis:52px}
   .panel-workspace-shell .account-workspace-hero .account-strip-metrics{grid-column:1/-1;width:100%;overflow-x:auto}

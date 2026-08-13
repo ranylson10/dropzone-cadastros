@@ -615,16 +615,16 @@
 
   .app-mobile-dock {
     position: fixed;
-    right: 8px;
-    bottom: calc(6px + env(safe-area-inset-bottom));
-    left: 8px;
+    right: 0;
+    bottom: 0;
+    left: 0;
     z-index: 120;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    min-height: 58px;
-    padding: 5px;
+    min-height: 54px;
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
     border: 0;
-    border-radius: var(--ui-radius-lg, 14px);
+    border-radius: 0;
     background: var(--ui-surface-raised, #1a1b1f);
     box-shadow: none;
   }
@@ -633,13 +633,13 @@
   .app-mobile-dock button {
     display: grid;
     min-width: 0;
-    min-height: 48px;
+    min-height: 46px;
     place-items: center;
     align-content: center;
     gap: 3px;
     padding: 4px 2px;
     border: 0;
-    border-radius: var(--ui-radius-md, 10px);
+    border-radius: var(--ui-radius-sm, 6px);
     background: transparent;
     color: var(--ui-muted, #918c84);
     font: inherit;
@@ -761,7 +761,7 @@
 
   .app-shell-main {
     min-height: calc(100dvh - 56px);
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
   }
 
   .app-shell-main.page-authenticated {
