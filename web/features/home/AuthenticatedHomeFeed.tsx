@@ -3,10 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
-  CalendarDays,
   ChevronRight,
   CirclePlus,
-  Coins,
   LayoutDashboard,
   ShieldCheck,
   Ticket,
@@ -15,6 +13,9 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
+import { DirectoryListClient } from '@/features/directory/components/DirectoryListClient'
+import '@/features/directory/components/championship-directory.css'
+import type { DirectoryItem } from '@/features/directory/types'
 import type { DropZoneRow } from '@/lib/types'
 import './authenticated-home.css'
 
@@ -36,38 +37,17 @@ type Vacancy = {
 type Props = {
   account: DropZoneRow
   accounts: DropZoneRow[]
-  championshipsCount: number
-  teamsCount: number
-  registrationsCount: number
   onOpenPanel: (target?: DropZoneRow) => void | Promise<void>
 }
 
 type GateKind = 'produtora' | 'equipe' | null
 
-function money(value: Vacancy['valor_inscricao']) {
-  const amount = Number(value || 0)
-  return amount <= 0 ? 'Grátis' : amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
 
-function dateLabel(value?: string | null) {
-  if (!value) return 'Data a confirmar'
-  const date = new Date(`${value}T12:00:00`)
-  if (Number.isNaN(date.getTime())) return 'Data a confirmar'
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(date)
-}
 
-function vacancyRatio(item: Vacancy) {
-  const free = Number(item.vagas_livres || 0)
-  const total = Math.max(1, Number(item.total_vagas || 1))
-  return Math.max(8, Math.min(100, (free / total) * 100))
-}
 
 export function AuthenticatedHomeFeed({
   account,
   accounts,
-  championshipsCount,
-  teamsCount,
-  registrationsCount,
   onOpenPanel,
 }: Props) {
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
@@ -91,8 +71,26 @@ export function AuthenticatedHomeFeed({
     return () => { active = false }
   }, [])
 
-  const availableVacancies = useMemo(
-    () => vacancies.reduce((sum, item) => sum + Number(item.vagas_livres || 0), 0),
+  const championshipItems = useMemo<DirectoryItem[]>(
+    () => vacancies.map((item) => ({
+      id: item.id,
+      kind: 'campeonatos',
+      name: item.nome,
+      image: item.logo_url || undefined,
+      banner: item.banner_url || undefined,
+      eyebrow: item.tipo || 'Campeonato',
+      description: item.tipo || 'Campeonato',
+      commercial: {
+        valor_inscricao: Number(item.valor_inscricao || 0),
+        premiacao: Number(item.premiacao || 0),
+        tem_live: Boolean(item.tem_live),
+        vagas_livres: Number(item.vagas_livres || 0),
+        total_vagas: Number(item.total_vagas || 0),
+        data_jogo: item.proxima_data || null,
+      },
+      meta: [],
+      searchText: `${item.nome} ${item.tipo || ''}`.toLowerCase(),
+    })),
     [vacancies],
   )
 
@@ -145,12 +143,6 @@ export function AuthenticatedHomeFeed({
         </div>
       </section>
 
-      <section className="authenticated-home-overview" aria-label="Resumo rápido">
-        <div><strong>{championshipsCount}</strong><span>campeonatos no meu acesso</span></div>
-        <div><strong>{teamsCount}</strong><span>equipes relacionadas</span></div>
-        <div><strong>{registrationsCount}</strong><span>inscrições</span></div>
-        <div><strong>{availableVacancies}</strong><span>vagas disponíveis agora</span></div>
-      </section>
 
       <section className="authenticated-home-section authenticated-home-access-section">
         <div className="authenticated-home-section-head">
@@ -192,55 +184,17 @@ export function AuthenticatedHomeFeed({
           <a href="/vagas">Ver todas <ArrowRight size={15} /></a>
         </div>
 
-        {loadingVacancies ? (
-          <div className="authenticated-home-vacancy-grid" aria-label="Carregando vagas">
-            {Array.from({ length: 4 }).map((_, index) => <div className="authenticated-home-vacancy-card is-loading" key={index} />)}
-          </div>
-        ) : vacancies.length ? (
-          <div className="authenticated-home-vacancy-grid">
-            {vacancies.slice(0, 6).map((item) => (
-              <article className="authenticated-home-vacancy-card" key={item.id}>
-                <div
-                  className="authenticated-home-vacancy-media"
-                  style={item.banner_url ? { backgroundImage: `url(${item.banner_url})` } : undefined}
-                >
-                  <span>{item.tipo || 'Campeonato'}</span>
-                  <div className="authenticated-home-vacancy-badges">
-                    {item.tem_live ? <b>Live</b> : null}
-                    {Number(item.premiacao || 0) > 0 ? <b>Prêmio</b> : null}
-                    {Number(item.vagas_livres || 0) > 0 && Number(item.vagas_livres || 0) <= 3 ? <b className="hot">Últimas</b> : null}
-                  </div>
-                  <i>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Trophy size={24} />}</i>
-                </div>
-                <div className="authenticated-home-vacancy-body">
-                  <div className="authenticated-home-vacancy-head">
-                    <small>{item.tipo || 'Campeonato'}</small>
-                    <strong>{item.nome}</strong>
-                  </div>
-                <div className="authenticated-home-vacancy-meta">
-                  <span><CalendarDays size={13} /> {dateLabel(item.proxima_data)}</span>
-                  <span>{item.proximo_horario || 'Horário a confirmar'}</span>
-                </div>
-                <div className="authenticated-home-vacancy-status">
-                  <span><b>{item.vagas_livres || 0}</b> de {item.total_vagas || 0} vagas livres</span>
-                  <strong>{money(item.valor_inscricao)}</strong>
-                </div>
-                <div className="authenticated-home-vacancy-line"><em style={{ width: `${vacancyRatio(item)}%` }} /></div>
-                </div>
-                <footer>
-                  <a href={`/campeonatos/${item.id}`}>Ver campeonato</a>
-                  <a className="buy" href={`/vagas?comprar=${item.id}`}>Garantir vaga <ArrowRight size={14} /></a>
-                </footer>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="authenticated-home-empty">
-            <Coins size={26} />
-            <strong>Nenhuma vaga aberta agora</strong>
-            <span>Os próximos campeonatos aparecerão aqui assim que abrirem inscrições.</span>
-          </div>
-        )}
+        <div className="authenticated-home-directory-preview directory-market-page">
+          {loadingVacancies ? (
+            <div className="directory-champ-card-grid authenticated-home-directory-loading" aria-label="Carregando campeonatos">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div className="directory-champ-card authenticated-home-directory-loading-card" key={index} />
+              ))}
+            </div>
+          ) : (
+            <DirectoryListClient items={championshipItems} cardsOnly />
+          )}
+        </div>
       </section>
 
       {gate ? (

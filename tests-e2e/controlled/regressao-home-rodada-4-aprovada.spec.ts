@@ -5,7 +5,7 @@ import path from 'node:path'
 const root = process.cwd()
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), 'utf8')
 
-test.describe('Regressão — Home aprovada da Rodada 4', () => {
+test.describe('Regressão — Home acumulada após padronização de Campeonatos', () => {
   test('home usa tokens dark/gold e não o tema vermelho/branco antigo', () => {
     const css = read('web/features/home/authenticated-home.css')
 
@@ -17,24 +17,27 @@ test.describe('Regressão — Home aprovada da Rodada 4', () => {
     expect(css).not.toContain('--home-paper:#f3f1ec')
   })
 
-  test('métricas e atalhos permanecem leves, sem caixas brancas', () => {
+  test('contadores foram removidos e atalhos permanecem leves', () => {
+    const home = read('web/features/home/AuthenticatedHomeFeed.tsx')
     const css = read('web/features/home/authenticated-home.css')
 
-    expect(css).toContain('.authenticated-home-overview{')
-    expect(css).toContain('gap:28px')
+    expect(home).not.toContain('authenticated-home-overview')
+    expect(home).not.toContain('championshipsCount')
+    expect(home).not.toContain('registrationsCount')
+    expect(css).not.toContain('.authenticated-home-overview{')
     expect(css).toContain('.authenticated-home-access-grid{')
     expect(css).toContain('grid-template-columns:repeat(5,minmax(0,1fr))')
     expect(css).toContain('background:transparent')
-    expect(css).not.toContain('background:var(--home-card)')
   })
 
-  test('oportunidades preservam cards escuros aprovados', () => {
-    const css = read('web/features/home/authenticated-home.css')
+  test('oportunidades usam a mesma estrutura da aba Campeonatos', () => {
+    const home = read('web/features/home/AuthenticatedHomeFeed.tsx')
+    const directory = read('web/features/directory/components/DirectoryListClient.tsx')
 
-    expect(css).toContain('background:var(--home-surface)')
-    expect(css).toContain('box-shadow:none')
-    expect(css).toContain('background:var(--home-accent)')
-    expect(css).not.toContain('linear-gradient(90deg,var(--home-accent),var(--home-gold),var(--home-purple))')
+    expect(home).toContain('<DirectoryListClient items={championshipItems} cardsOnly />')
+    expect(home).not.toContain('authenticated-home-vacancy-card')
+    expect(directory).toContain('directory-champ-card-grid')
+    expect(directory).toContain('directory-champ-card')
   })
 
   test('mobile preserva o fluxo compacto aprovado', () => {
@@ -42,8 +45,6 @@ test.describe('Regressão — Home aprovada da Rodada 4', () => {
 
     expect(css).toContain('.authenticated-home-intro-copy{display:none}')
     expect(css).toContain('.authenticated-home-section{padding:0 3px;gap:10px}')
-    expect(css).toContain('.authenticated-home-overview{display:none}')
-    expect(css).toContain('grid-template-columns:92px minmax(0,1fr)')
-    expect(css).toContain('min-height:128px')
+    expect(css).toContain('.authenticated-home-directory-preview .directory-champ-card-grid{width:100%}')
   })
 })

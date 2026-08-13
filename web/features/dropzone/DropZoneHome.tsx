@@ -1884,9 +1884,6 @@ export function DropZoneHome() {
               <AuthenticatedHomeFeed
                 account={account}
                 accounts={accounts}
-                championshipsCount={championships.length}
-                teamsCount={teams.length}
-                registrationsCount={registrations.length}
                 onOpenPanel={openProfilePanel}
               />
             ) : (

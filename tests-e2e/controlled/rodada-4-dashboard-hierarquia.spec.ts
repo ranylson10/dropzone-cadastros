@@ -66,19 +66,15 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     ].filter((item) => item !== 'box-shadow'))
   })
 
-  test('campeonato continua sendo unidade visual, mas sem card elevado ou divisões internas', () => {
-    const css = source('web/features/home/authenticated-home.css')
+  test('oportunidades reutilizam a mesma lista visual da aba Campeonatos', () => {
+    const home = source('web/features/home/AuthenticatedHomeFeed.tsx')
+    const directory = source('web/features/directory/components/DirectoryListClient.tsx')
 
-    expectRule(css, '.authenticated-home-vacancy-card', [
-      'border:0',
-      'background:var(--home-surface)',
-      'box-shadow:none',
-    ])
-    expectRule(css, '.authenticated-home-vacancy-status', [
-      'display:flex',
-      'color:var(--home-muted)',
-    ])
-    expect(css).not.toContain('authenticated-home-vacancy-card:hover{transform:translateY')
+    expect(home).toContain('<DirectoryListClient items={championshipItems} cardsOnly />')
+    expect(home).toContain("import '@/features/directory/components/championship-directory.css'")
+    expect(directory).toContain('cardsOnly = false')
+    expect(directory).toContain('const isChampionshipDirectory = cardsOnly ||')
+    expect(home).not.toContain('authenticated-home-vacancy-card')
   })
 
   test('mobile prioriza fluxo de app, ocupa a largura e compacta a lista', () => {
@@ -87,13 +83,10 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     expect(css).toContain('.authenticated-home-intro-copy{display:none}')
     expect(css).toContain('.authenticated-home-intro{min-height:0;padding:6px 3px 0;border-radius:0;background:transparent;gap:0}')
     expect(css).toContain('.authenticated-home-action small{display:none}')
-    expect(css).toContain('.authenticated-home-overview{display:none}')
     expect(css).toContain('.authenticated-home-section{padding:0 3px;gap:10px}')
     expect(css).toContain('.authenticated-home-access-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:0;overflow:visible}')
     expect(css).toContain('.authenticated-home-access-card small{display:none}')
-    expect(css).toContain('.authenticated-home-vacancy-grid{grid-template-columns:1fr;gap:7px}')
-    expect(css).toContain('.authenticated-home-vacancy-card{display:grid;grid-template-columns:92px minmax(0,1fr);grid-template-rows:1fr auto;min-height:128px}')
-    expect(css).toContain('.authenticated-home-vacancy-card footer{grid-column:2;grid-row:2;gap:8px;padding:3px 10px 9px}')
+    expect(css).toContain('.authenticated-home-directory-preview .directory-champ-card-grid{width:100%}')
   })
   test('mobile move menu para o topo, abre drawer lateral e usa perfil no dock', () => {
     const header = source('web/components/layout/AppHeader.tsx')

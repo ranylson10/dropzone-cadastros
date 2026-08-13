@@ -236,7 +236,7 @@ function ChampionshipCards({
   )
 }
 
-export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
+export function DirectoryListClient({ items, cardsOnly = false }: { items: DirectoryItem[]; cardsOnly?: boolean }) {
   const [query, setQuery] = useState('')
   const [champFilters, setChampFilters] = useState<ChampFilters>(emptyChampFilters)
   const [myChampionshipIds, setMyChampionshipIds] = useState<Set<string>>(new Set())
@@ -245,7 +245,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [cartPaymentMethod, setCartPaymentMethod] = useState<'pix' | 'cartao' | 'paypal'>('pix')
   const [commerceError, setCommerceError] = useState('')
-  const isChampionshipDirectory = items[0]?.kind === 'campeonatos'
+  const isChampionshipDirectory = cardsOnly || items[0]?.kind === 'campeonatos'
 
   useEffect(() => {
     if (!isChampionshipDirectory) return
@@ -407,7 +407,7 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
 
   return (
     <>
-      {isChampionshipDirectory ? (
+      {isChampionshipDirectory && !cardsOnly ? (
         <>
           <div className="champ-directory-tools">
             <label className="directory-search">
