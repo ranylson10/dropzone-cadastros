@@ -874,7 +874,7 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
   const generationGames = useMemo(() => games.filter((game) => !generationPhaseId || game.faseId === generationPhaseId), [games, generationPhaseId])
   const generationGame = useMemo(() => games.find((game) => game.id === generationGameId) || null, [games, generationGameId])
   const editorReferenceGame = useMemo(() => games.find((game) => game.id === editorReferenceGameId) || null, [games, editorReferenceGameId])
-  const renderDraft = useMemo(() => draft ? (mode === 'generate' ? resolveProjectForGame(draft, generationGame) : mode === 'edit' && editorReferenceGame ? resolveProjectForGame(draft, editorReferenceGame) : draft) : null, [draft, editorReferenceGame, generationGame, mode])
+  const renderDraft = useMemo(() => draft ? ((mode === 'generate' || mode === 'manage') ? resolveProjectForGame(draft, generationGame) : mode === 'edit' && editorReferenceGame ? resolveProjectForGame(draft, editorReferenceGame) : draft) : null, [draft, editorReferenceGame, generationGame, mode])
 
   const dayGameKey = useMemo(() => {
     if (!renderDraft) return ''
@@ -1473,6 +1473,16 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
         {error ? <div className="post-artworks-alert error">{error}</div> : null}
         {feedback ? <div className="post-artworks-alert success">{feedback}</div> : null}
 
+        <section className="post-artworks-generate-filter post-artworks-manage-game-filter">
+          <div className="post-artworks-panel-title"><strong>Gerar com dados do jogo</strong><small>Escolha o jogo uma vez. A prévia e os downloads usam os dados desse jogo sem alterar o template salvo.</small></div>
+          <div className="post-artworks-generate-filter-grid">
+            <label>Fase<select value={generationPhaseId} onChange={(event) => { const faseId = event.target.value; const first = games.find((game) => game.faseId === faseId); setGenerationPhaseId(faseId); setGenerationGameId(first?.id || '') }}><option value="">Selecione a fase</option>{generationPhases.map((fase) => <option key={fase.id} value={fase.id}>{fase.nome}</option>)}</select></label>
+            <label>Jogo<select value={generationGameId} onChange={(event) => setGenerationGameId(event.target.value)} disabled={!generationPhaseId}><option value="">Selecione o jogo</option>{generationGames.map((game) => <option key={game.id} value={game.id}>{game.nome}{game.grupoNome ? ` · ${game.grupoNome}` : ''}</option>)}</select></label>
+            <div className="post-artworks-generate-filter-actions"><button type="button" className="post-artworks-secondary" onClick={() => void reload(activeId)}>Atualizar dados</button></div>
+          </div>
+          {generationGame ? <div className="post-artworks-game-summary"><strong>{generationGame.nome}</strong><span>{generationGame.faseNome}{generationGame.grupoNome ? ` · ${generationGame.grupoNome}` : ''}</span><span>{generationGame.mataMata ? `Mata-mata · Top ${generationGame.classificamQuantidade || '—'} classifica` : 'Pontos corridos · sem eliminação'}</span></div> : <div className="post-artworks-game-summary muted">Selecione um jogo para gerar os templates com Tabela do Jogo, Classificados, MVP e Booyahs atualizados.</div>}
+        </section>
+
         <section className="post-artworks-manage-toolbar">
           <label className="post-artworks-manage-search"><span>Buscar arte</span><input value={artworkSearch} onChange={(event) => setArtworkSearch(event.target.value)} placeholder="Ex.: tabela geral, MVP, classificados" /></label>
           <div className="post-artworks-manage-filters" aria-label="Filtrar artes">
@@ -1491,16 +1501,16 @@ export function PostArtworkWorkspace({ campeonatoId, mode = 'edit', initialArtwo
               {managedItems.map((item) => <article key={item.id} className={item.id === activeId ? 'active' : ''}>
                 <button type="button" className="post-artworks-manage-card-preview" onClick={() => selectItem(item.id)} style={{ backgroundColor: item.background_color, backgroundImage: item.background_url ? `url(${JSON.stringify(item.background_url)})` : undefined }} aria-label={`Visualizar ${item.name}`} />
                 <div className="post-artworks-manage-card-copy"><b>{item.name}</b><span>{item.slice_width} × {item.slice_height}{item.slice_count > 1 ? ` · ${item.slice_count} fatias` : ''}</span><small>{item.output_format.toUpperCase()} · {item.blocks.length} bloco(s)</small></div>
-                <div className="post-artworks-manage-card-actions"><button type="button" onClick={() => selectItem(item.id)}>Visualizar</button><button type="button" onClick={() => openEditor(item.id)}>Editar</button><button type="button" onClick={() => void renameProject(item)} disabled={saving}>Renomear</button><button type="button" onClick={() => void duplicateProject(item)} disabled={saving}><Copy size={13} /> Duplicar</button><button type="button" className="danger" onClick={() => void deleteManagedProject(item)} disabled={saving}><Trash2 size={13} /> Excluir</button></div>
+                <div className="post-artworks-manage-card-actions"><button type="button" onClick={() => selectItem(item.id)}>Visualizar</button><button type="button" onClick={() => void exportArtwork(resolveProjectForGame(item, generationGame))} disabled={exporting}>{exporting && item.id === activeId ? 'Gerando…' : 'Baixar'}</button><button type="button" onClick={() => openEditor(item.id)}>Editar</button><button type="button" onClick={() => void renameProject(item)} disabled={saving}>Renomear</button><button type="button" onClick={() => void duplicateProject(item)} disabled={saving}><Copy size={13} /> Duplicar</button><button type="button" className="danger" onClick={() => void deleteManagedProject(item)} disabled={saving}><Trash2 size={13} /> Excluir</button></div>
               </article>)}
               {!managedItems.length ? <div className="post-artworks-empty"><strong>{items.length ? 'Nenhuma arte encontrada' : 'Nenhuma arte criada'}</strong><span>{items.length ? 'Limpe a busca ou escolha outro filtro.' : 'Crie a primeira arte para começar a montar os templates deste campeonato.'}</span></div> : null}
             </div>
           </div>
 
           <aside className="post-artworks-generate-preview-panel post-artworks-manage-preview-panel">
-            <div className="post-artworks-generate-section-head"><div><strong>{draft?.name || 'Pré-visualização'}</strong><small>{draft ? `${draft.slice_count} ${draft.slice_count === 1 ? 'imagem' : 'imagens'} · ${draft.output_format.toUpperCase()}` : 'Selecione um template'}</small></div>{draft ? <button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button> : null}</div>
+            <div className="post-artworks-generate-section-head"><div><strong>{draft?.name || 'Pré-visualização'}</strong><small>{draft ? `${draft.slice_count} ${draft.slice_count === 1 ? 'imagem' : 'imagens'} · ${draft.output_format.toUpperCase()}${generationGame ? ` · Dados: ${generationGame.nome}` : ''}` : 'Selecione um template'}</small></div>{draft ? <button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button> : null}</div>
             <div className="post-artworks-generate-preview">{quickPreviewLoading ? <div className="post-artworks-state"><Loader2 className="spin" /> Gerando prévia…</div> : quickPreviewUrl ? <img src={quickPreviewUrl} alt={`Prévia de ${draft?.name || 'arte'}`} /> : <div className="post-artworks-empty"><strong>Selecione uma arte</strong><span>Confira o template antes de abrir o editor.</span></div>}</div>
-            {draft ? <div className="post-artworks-manage-preview-actions"><a className="post-artworks-primary" href={`/campeonatos/${campeonatoId}/artes-postagem?artwork=${encodeURIComponent(draft.id)}`}>Gerar com dados</a><button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button><button type="button" className="post-artworks-secondary" onClick={() => void duplicateProject(draft)} disabled={saving}><Copy size={14} /> Duplicar</button></div> : null}
+            {draft ? <div className="post-artworks-manage-preview-actions"><button type="button" className="post-artworks-primary" onClick={() => void exportArtwork()} disabled={exporting}>{exporting ? <Loader2 className="spin" size={15} /> : <Download size={15} />} {draft.slice_count > 1 ? 'Baixar carrossel' : `Baixar ${draft.output_format.toUpperCase()}`}</button><button type="button" className="post-artworks-secondary" onClick={() => openEditor(draft.id)}>Editar arte</button><button type="button" className="post-artworks-secondary" onClick={() => void duplicateProject(draft)} disabled={saving}><Copy size={14} /> Duplicar</button></div> : null}
           </aside>
         </section>
 
