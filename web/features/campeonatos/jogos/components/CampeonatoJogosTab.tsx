@@ -248,13 +248,24 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
           <div className="mini-grid three">
             <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.value.numero_partidas} onChange={(e) => patch({ numero_partidas: e.target.value })} /></Field>
             <Field label="Intervalo estimado (min)"><input type="number" min="1" value={props.value.intervalo_minutos} onChange={(e) => patch({ intervalo_minutos: e.target.value })} /></Field>
-            {effectiveGameType === 'final'
-              ? <Field label="Dia da Grande Final"><input type="number" min="1" value={props.value.dia_final} onChange={(e) => patch({ dia_final: e.target.value })} /></Field>
-              : <Field label="Formato competitivo"><select value={props.value.mata_mata ? 'mata_mata' : 'pontos_corridos'} onChange={(e) => patch({ mata_mata: e.target.value === 'mata_mata', classificam_quantidade: e.target.value === 'mata_mata' ? props.value.classificam_quantidade : '' })}><option value="pontos_corridos">Pontos corridos / sem eliminação</option><option value="mata_mata">Mata-mata / classificatório</option></select></Field>}
+            {effectiveGameType === 'final' ? <Field label="Dia da Grande Final"><input type="number" min="1" value={props.value.dia_final} onChange={(e) => patch({ dia_final: e.target.value })} /></Field> : null}
           </div>
+
+          {effectiveGameType !== 'final' ? (
+            <div className="game-rules-panel">
+              <div className="final-settings-heading">
+                <div><p className="eyebrow">Classificação</p><h4>Regra de avanço deste jogo</h4></div>
+                <small>Essa regra também alimenta automaticamente as artes de Classificados e Eliminados.</small>
+              </div>
+              <div className="mini-grid three">
+                <Field label="Formato competitivo"><select value={props.value.mata_mata ? 'mata_mata' : 'pontos_corridos'} onChange={(e) => patch({ mata_mata: e.target.value === 'mata_mata', classificam_quantidade: e.target.value === 'mata_mata' ? props.value.classificam_quantidade : '' })}><option value="pontos_corridos">Pontos corridos / sem eliminação</option><option value="mata_mata">Mata-mata / classificatório</option></select></Field>
+                {props.value.mata_mata ? <Field label="Top que passa de fase"><input type="number" min="1" value={props.value.classificam_quantidade} onChange={(e) => patch({ classificam_quantidade: e.target.value })} placeholder="Ex.: 6" /></Field> : <Field label="Classificação"><input value="Sem corte de classificados" disabled /></Field>}
+              </div>
+            </div>
+          ) : null}
+
           <div className="mini-grid three">
             <Field label="Tipo do jogo"><select value={effectiveGameType} disabled={isFinalPhase} onChange={(e) => patch({ tipo_jogo: e.target.value === 'final' ? 'final' : 'normal', mata_mata: e.target.value === 'final' ? false : props.value.mata_mata, classificam_quantidade: e.target.value === 'final' ? '' : props.value.classificam_quantidade, dia_final: e.target.value === 'final' ? (props.value.dia_final || '1') : '1', define_campeao: e.target.value === 'final' ? props.value.define_campeao : false })}><option value="normal">Jogo da fase</option><option value="final" disabled={!isFinalPhase}>Jogo de final</option></select></Field>
-            {effectiveGameType !== 'final' && props.value.mata_mata ? <Field label="Top que passa de fase"><input type="number" min="1" value={props.value.classificam_quantidade} onChange={(e) => patch({ classificam_quantidade: e.target.value })} placeholder="Ex.: 6" /></Field> : null}
             {effectiveGameType === 'final' ? <Field label="Formato"><input value={finalAccumulationMode === 'bonus_por_ranking' ? 'Point Rush' : 'Pontuação acumulada'} disabled /></Field> : null}
             {effectiveGameType === 'final' ? <Field label="Critério"><input value={finalDecisionMode === 'booyah_ouro' ? 'Champion Point' : 'Maior pontuação'} disabled /></Field> : null}
           </div>
