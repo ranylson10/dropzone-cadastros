@@ -3,7 +3,7 @@ export type PostArtworkOutputFormat = 'png' | 'jpg'
 export type PostArtworkBlockType = 'table_general' | 'table_day' | 'qualified_teams' | 'booyahs_day' | 'mvp_general' | 'mvp_day' | 'kills_leaders' | 'image' | 'text'
 export type PostArtworkTableColumnKey = 'rank' | 'movement' | 'logo' | 'name' | 'drops' | 'booyah' | 'kills' | 'points'
 export type PostArtworkCellBackgroundType = 'color' | 'image' | 'none'
-export type PostArtworkMvpLayoutMode = 'card_table' | 'table_only'
+export type PostArtworkMvpLayoutMode = 'card_table' | 'table_only' | 'top1_only' | 'ranking_only'
 
 export type PostArtworkTableColumnStyle = {
   key: PostArtworkTableColumnKey
@@ -140,6 +140,16 @@ export type PostArtworkMvpStyle = {
   backgroundUrl: string | null
   imageSize: number
   imageRadius: number
+  photoX: number
+  photoY: number
+  photoWidth: number
+  photoHeight: number
+  photoFade: 'none' | 'top' | 'bottom' | 'left' | 'right'
+  photoFadeStrength: number
+  infoX: number
+  infoY: number
+  infoWidth: number
+  infoHeight: number
   nameColor: string
   nameFontSize: number
   nameFontWeight: number
