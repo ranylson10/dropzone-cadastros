@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronRight, Flame, Gift, Heart, Radio, Search, ShoppingCart, SlidersHorizontal, Ticket, Trophy, Users, X } from 'lucide-react'
+import { ChevronRight, Flame, Heart, Radio, Search, ShoppingCart, SlidersHorizontal, Ticket, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { addToCart, getCartItems, getWishlistItems, removeFromCart, setCartQuantity, toggleWishlist, type LocalCommerceItem } from '@/features/commerce/local-commerce'
 import { supabase } from '@/lib/supabase-browser'
@@ -140,73 +140,64 @@ function ChampionshipCards({
         const hasPrize = Number(item.commercial?.premiacao || 0) > 0
         const isMine = myChampionshipIds.has(item.id)
         return (
-          <a className="directory-champ-card" href={`/${item.kind}/${item.id}`} key={item.id}>
-            <span
+          <article className="directory-champ-card" key={item.id}>
+            <a
               className="directory-champ-cover"
-              style={item.banner ? { backgroundImage: `linear-gradient(180deg, rgba(8,12,18,.05), rgba(8,12,18,.92)), url(${item.banner})` } : undefined}
+              href={`/${item.kind}/${item.id}`}
+              style={item.banner ? { backgroundImage: `url(${item.banner})` } : undefined}
+              aria-label={`Abrir ${item.name}`}
             >
-              <em>{item.eyebrow || 'Campeonato'}</em>
               <span className="directory-champ-badges">
-                {item.commercial?.tem_live ? <b><Radio size={12} /> Live</b> : null}
-                {hasPrize ? <b><Gift size={12} /> Prêmio</b> : null}
-                {free > 0 && free <= 3 ? <b className="hot"><Flame size={12} /> Últimas</b> : null}
+                {item.commercial?.tem_live ? <b><Radio size={11} /> Live</b> : null}
+                {free > 0 && free <= 3 ? <b><Flame size={11} /> Últimas vagas</b> : null}
               </span>
-              <span className="directory-champ-logo">{item.image ? <img src={item.image} alt="" /> : <Trophy size={24} />}</span>
-              <button
-                type="button"
-                className={`directory-champ-wish ${wishlistIds.has(item.id) ? 'active' : ''}`}
-                aria-label={wishlistIds.has(item.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                onClick={(event) => {
-                  event.preventDefault()
-                  onWishlistToggle(item)
-                }}
-              >
-                <Heart size={16} />
-              </button>
-            </span>
-            <span className="directory-champ-body">
-              <span className="directory-champ-title">
-                <small>{item.description}</small>
-                <strong>{item.name}</strong>
-              </span>
-              <span className="directory-champ-metrics">
-                <span><Ticket size={14} /><b>{money(item.commercial?.valor_inscricao)}</b><small>Inscrição</small></span>
-                <span><Gift size={14} /><b>{hasPrize ? money(item.commercial?.premiacao) : '-'}</b><small>Premiação</small></span>
-                <span><Users size={14} /><b>{free}</b><small>Vagas</small></span>
-              </span>
-              <span className="directory-champ-vacancy">
-                <span><b>{free}</b> de {item.commercial?.total_vagas || 0} vagas reais</span>
+            </a>
+            <div className="directory-champ-body">
+              <div className="directory-champ-title-row">
+                <a className="directory-champ-title" href={`/${item.kind}/${item.id}`}>
+                  <small>{item.eyebrow || item.description || 'Campeonato'}</small>
+                  <strong>{item.name}</strong>
+                </a>
+                <button
+                  type="button"
+                  className={`directory-champ-wish ${wishlistIds.has(item.id) ? 'active' : ''}`}
+                  aria-label={wishlistIds.has(item.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                  onClick={() => onWishlistToggle(item)}
+                >
+                  <Heart size={17} />
+                </button>
+              </div>
+              <div className="directory-champ-facts">
+                <span><b>{money(item.commercial?.valor_inscricao)}</b><small>vaga</small></span>
+                {hasPrize ? <span><b>{money(item.commercial?.premiacao)}</b><small>prêmio</small></span> : null}
+                <span><b>{free}</b><small>livres</small></span>
+              </div>
+              <div className="directory-champ-vacancy">
                 <i><em style={{ width: `${vacancyRatio(item)}%` }} /></i>
-              </span>
-              <span className="directory-champ-footer">
-                <span>{[item.commercial?.plataforma, item.commercial?.servidor].filter(Boolean).join(' · ') || 'Formato competitivo'}</span>
-                <b>Ver campeonato <ChevronRight size={15} /></b>
-              </span>
-              <button
-                type="button"
-                className="directory-champ-cart-action"
-                disabled={free <= 0}
-                onClick={(event) => {
-                  event.preventDefault()
-                  onCartAdd(item)
-                }}
-              >
-                <ShoppingCart size={14} /> {free > 0 ? 'Adicionar ao carrinho' : 'Sem vagas'}
-              </button>
+                <small>{free} de {item.commercial?.total_vagas || 0} vagas disponíveis</small>
+              </div>
+              <div className="directory-champ-actions">
+                <a href={`/${item.kind}/${item.id}`}>Ver campeonato <ChevronRight size={14} /></a>
+                <button
+                  type="button"
+                  className="directory-champ-cart-action"
+                  disabled={free <= 0}
+                  onClick={() => onCartAdd(item)}
+                >
+                  {free > 0 ? 'Garantir vaga' : 'Sem vagas'} <ChevronRight size={14} />
+                </button>
+              </div>
               {isMine ? (
                 <button
                   type="button"
                   className="directory-champ-lineup-action"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    window.location.href = '/?painel=1&section=campeonatos'
-                  }}
+                  onClick={() => { window.location.href = '/?painel=1&section=campeonatos' }}
                 >
                   <Users size={14} /> Escalar elenco
                 </button>
               ) : null}
-            </span>
-          </a>
+            </div>
+          </article>
         )
       })}
     </div>
@@ -360,122 +351,81 @@ export function DirectoryListClient({ items }: { items: DirectoryItem[] }) {
 
   return (
     <>
-      <div className="directory-toolbar">
-        <label className="directory-search">
-          <Search size={17} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar por nome, usuário, tag ou localidade..."
-          />
-        </label>
-        <div className="directory-result-count">
-          <strong>{filtered.length}</strong>
-          <span>resultado{filtered.length === 1 ? '' : 's'}</span>
-        </div>
-      </div>
-
       {isChampionshipDirectory ? (
-        <div className="directory-market-filters" aria-label="Filtros de campeonatos">
-          <div className="directory-market-filter-chips">
-            <button type="button" className={champFilters.today ? 'active' : ''} onClick={() => toggleChampFilter('today')}>Hoje</button>
-            <button type="button" className={champFilters.free ? 'active' : ''} onClick={() => toggleChampFilter('free')}>Grátis</button>
-            <button type="button" className={champFilters.lastVacancies ? 'active' : ''} onClick={() => toggleChampFilter('lastVacancies')}>Últimas vagas</button>
-            <button type="button" className={champFilters.live ? 'active' : ''} onClick={() => toggleChampFilter('live')}>Com live</button>
-            <button type="button" className={champFilters.withPrize ? 'active' : ''} onClick={() => toggleChampFilter('withPrize')}>Com premiação</button>
-            <button type="button" className={champFilters.mine ? 'active' : ''} onClick={() => toggleChampFilter('mine')}>Meus campeonatos</button>
-          </div>
-          <div className="directory-market-filter-fields">
-            <label>
-              <SlidersHorizontal size={14} />
-              <span>Até R$</span>
+        <>
+          <div className="champ-directory-tools">
+            <label className="directory-search">
+              <Search size={18} />
               <input
-                inputMode="decimal"
-                min="0"
-                type="number"
-                value={champFilters.maxPrice}
-                onChange={(event) => setChampFilters((current) => ({ ...current, maxPrice: event.target.value }))}
-                placeholder="valor da vaga"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar campeonato"
               />
             </label>
-            <label>
-              <Gift size={14} />
-              <span>Prêmio mín.</span>
-              <input
-                inputMode="decimal"
-                min="0"
-                type="number"
-                value={champFilters.minPrize}
-                onChange={(event) => setChampFilters((current) => ({ ...current, minPrize: event.target.value }))}
-                placeholder="R$"
-              />
-            </label>
-            {hasChampFilters(champFilters) ? (
-              <button type="button" className="directory-market-clear" onClick={() => setChampFilters(emptyChampFilters)}>
-                <X size={14} /> Limpar
-              </button>
-            ) : null}
+            <span className="directory-result-count"><strong>{filtered.length}</strong> resultado{filtered.length === 1 ? '' : 's'}</span>
+            <details className="directory-market-tool directory-cart-preview">
+              <summary aria-label="Carrinho"><ShoppingCart size={18} /><b>{cartQuantity}</b></summary>
+              <div>
+                {cartItems.length ? (
+                  <>
+                    <label className="directory-cart-method">
+                      <span>Pagamento</span>
+                      <select value={cartPaymentMethod} onChange={(event) => setCartPaymentMethod(event.target.value as 'pix' | 'cartao' | 'paypal')}>
+                        <option value="pix">PIX</option>
+                        <option value="cartao">Cartão</option>
+                        <option value="paypal">PayPal</option>
+                      </select>
+                    </label>
+                    {cartItems.map((item) => (
+                      <article key={item.id}>
+                        <span>{item.image ? <img src={item.image} alt="" /> : <Ticket size={16} />}</span>
+                        <div><strong>{item.name}</strong><small>{money(item.price)} por vaga</small></div>
+                        <input aria-label={`Quantidade para ${item.name}`} min={1} max={Math.max(1, Number(item.freeSlots || 1))} type="number" value={Number(item.quantity || 1)} onChange={(event) => void handleCartQuantity(item, Number(event.target.value || 1))} />
+                        <button type="button" onClick={() => void handleCartCheckout(item)}>Comprar</button>
+                        <button type="button" onClick={() => void handleCartRemove(item)}>Remover</button>
+                      </article>
+                    ))}
+                    <p>Total: {money(cartTotal)}</p>
+                  </>
+                ) : <p>Seu carrinho está vazio.</p>}
+              </div>
+            </details>
+            <details className="directory-market-tool directory-wishlist-preview">
+              <summary aria-label="Favoritos"><Heart size={18} /><b>{wishlistItems.length}</b></summary>
+              <div>
+                {wishlistItems.length ? wishlistItems.slice(0, 6).map((item) => <a href={item.href} key={item.id}>{item.name}</a>) : <p>Nenhum favorito ainda.</p>}
+              </div>
+            </details>
           </div>
-        </div>
-      ) : null}
 
-      {isChampionshipDirectory ? (
-        <div className="directory-commerce-strip" aria-label="Carrinho e favoritos">
-          <div>
-            <strong><ShoppingCart size={15} /> Carrinho</strong>
-            <span>{cartQuantity} vaga(s) · {money(cartTotal)}</span>
-          </div>
-          <div>
-            <strong><Heart size={15} /> Favoritos</strong>
-            <span>{wishlistItems.length} campeonato(s) salvo(s)</span>
-          </div>
-          {cartItems.length ? (
-            <details className="directory-cart-preview">
-              <summary>Ver carrinho</summary>
-              <div>
-                <label className="directory-cart-method">
-                  <span>Pagamento</span>
-                  <select value={cartPaymentMethod} onChange={(event) => setCartPaymentMethod(event.target.value as 'pix' | 'cartao' | 'paypal')}>
-                    <option value="pix">PIX</option>
-                    <option value="cartao">Cartão</option>
-                    <option value="paypal">PayPal</option>
-                  </select>
-                </label>
-                {cartItems.map((item) => (
-                  <article key={item.id}>
-                    <span>{item.image ? <img src={item.image} alt="" /> : <Ticket size={16} />}</span>
-                    <div>
-                      <strong>{item.name}</strong>
-                      <small>{money(item.price)} por vaga</small>
-                    </div>
-                    <input
-                      aria-label={`Quantidade para ${item.name}`}
-                      min={1}
-                      max={Math.max(1, Number(item.freeSlots || 1))}
-                      type="number"
-                      value={Number(item.quantity || 1)}
-                      onChange={(event) => void handleCartQuantity(item, Number(event.target.value || 1))}
-                    />
-                    <button type="button" onClick={() => void handleCartCheckout(item)}>Comprar</button>
-                    <button type="button" onClick={() => void handleCartRemove(item)}>Remover</button>
-                  </article>
-                ))}
-                <p>Checkout multi-itens fica preparado aqui; por segurança, cada compra ainda usa o pagamento oficial do campeonato.</p>
+          <div className="directory-market-filters" aria-label="Filtros de campeonatos">
+            <div className="directory-market-filter-chips">
+              <button type="button" className={champFilters.today ? 'active' : ''} onClick={() => toggleChampFilter('today')}>Hoje</button>
+              <button type="button" className={champFilters.free ? 'active' : ''} onClick={() => toggleChampFilter('free')}>Grátis</button>
+              <button type="button" className={champFilters.lastVacancies ? 'active' : ''} onClick={() => toggleChampFilter('lastVacancies')}>Últimas vagas</button>
+              <button type="button" className={champFilters.live ? 'active' : ''} onClick={() => toggleChampFilter('live')}>Live</button>
+              <button type="button" className={champFilters.withPrize ? 'active' : ''} onClick={() => toggleChampFilter('withPrize')}>Premiação</button>
+              <button type="button" className={champFilters.mine ? 'active' : ''} onClick={() => toggleChampFilter('mine')}>Meus</button>
+            </div>
+            <details className="directory-market-more">
+              <summary><SlidersHorizontal size={15} /> Filtros</summary>
+              <div className="directory-market-filter-fields">
+                <label><span>Vaga até R$</span><input inputMode="decimal" min="0" type="number" value={champFilters.maxPrice} onChange={(event) => setChampFilters((current) => ({ ...current, maxPrice: event.target.value }))} placeholder="0" /></label>
+                <label><span>Prêmio mínimo</span><input inputMode="decimal" min="0" type="number" value={champFilters.minPrize} onChange={(event) => setChampFilters((current) => ({ ...current, minPrize: event.target.value }))} placeholder="R$" /></label>
+                {hasChampFilters(champFilters) ? <button type="button" className="directory-market-clear" onClick={() => setChampFilters(emptyChampFilters)}><X size={14} /> Limpar</button> : null}
               </div>
             </details>
-          ) : null}
-          {wishlistItems.length ? (
-            <details className="directory-wishlist-preview">
-              <summary>Ver favoritos</summary>
-              <div>
-                {wishlistItems.slice(0, 6).map((item) => (
-                  <a href={item.href} key={item.id}>{item.name}</a>
-                ))}
-              </div>
-            </details>
-          ) : null}
+          </div>
+        </>
+      ) : (
+        <div className="directory-toolbar">
+          <label className="directory-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nome, usuário, tag ou localidade..." />
+          </label>
+          <div className="directory-result-count"><strong>{filtered.length}</strong><span>resultado{filtered.length === 1 ? '' : 's'}</span></div>
         </div>
-      ) : null}
+      )}
 
       {filtered.length && !isChampionshipDirectory ? (
         <div className="directory-list-head" aria-hidden="true">
