@@ -127,9 +127,9 @@ export function AuthenticatedHomeFeed({
     <div className="authenticated-home">
       <section className="authenticated-home-intro">
         <div className="authenticated-home-intro-copy">
-          <span className="authenticated-home-kicker">DROPZONE COMPETITIVE</span>
-          <h1>O que você quer fazer agora?</h1>
-          <p>Encontre campeonatos, garanta vagas ou continue a gestão do seu perfil sem precisar procurar cada ferramenta.</p>
+          <span className="authenticated-home-kicker">INÍCIO</span>
+          <h1>O que você quer fazer?</h1>
+          <p>Escolha a próxima ação. O restante aparece quando você precisar.</p>
         </div>
         <div className="authenticated-home-primary-actions">
           <button type="button" className="authenticated-home-action primary" onClick={createChampionship}>
@@ -154,46 +154,35 @@ export function AuthenticatedHomeFeed({
 
       <section className="authenticated-home-section authenticated-home-access-section">
         <div className="authenticated-home-section-head">
-          <div><span>ACESSO RÁPIDO</span><h2>Minha área</h2></div>
-          <button type="button" onClick={() => void onOpenPanel(account)}>Abrir painel atual <ArrowRight size={15} /></button>
+          <div><span>CONTINUAR</span><h2>Seus atalhos</h2></div>
+          <button type="button" onClick={() => void onOpenPanel(account)}>Painel atual <ArrowRight size={15} /></button>
         </div>
 
-        <div className="authenticated-home-access-grid">
+        <div className="authenticated-home-access-grid" aria-label="Atalhos da conta">
+          <button type="button" className="authenticated-home-access-card" onClick={() => void onOpenPanel(account)}>
+            <LayoutDashboard size={20} />
+            <span><strong>Painel</strong><small>{account.name || account.username || 'Perfil ativo'}</small></span>
+          </button>
+
           <button type="button" className="authenticated-home-access-card" onClick={openTeam}>
-            <span className="authenticated-home-access-icon"><Users size={20} /></span>
-            <span><strong>Minha equipe</strong><small>{team ? 'Elenco, lines e campeonatos' : 'Crie seu perfil de equipe para começar'}</small></span>
-            <ChevronRight size={18} />
+            <Users size={20} />
+            <span><strong>Equipe</strong><small>{team ? 'Elenco e lines' : 'Criar perfil'}</small></span>
           </button>
 
           <button type="button" className="authenticated-home-access-card" onClick={openProducerPanel}>
-            <span className="authenticated-home-access-icon"><Trophy size={20} /></span>
-            <span><strong>Meus campeonatos</strong><small>{producer ? 'Criação, vendas e administração' : 'Crie uma produtora para publicar campeonatos'}</small></span>
-            <ChevronRight size={18} />
+            <Trophy size={20} />
+            <span><strong>Campeonatos</strong><small>{producer ? 'Gerenciar' : 'Criar produtora'}</small></span>
           </button>
 
-          <a className="authenticated-home-access-card" href="/agenda">
-            <span className="authenticated-home-access-icon"><CalendarDays size={20} /></span>
-            <span><strong>Agenda</strong><small>Próximos jogos e compromissos</small></span>
-            <ChevronRight size={18} />
-          </a>
-
           <a className="authenticated-home-access-card" href="/carteira">
-            <span className="authenticated-home-access-icon"><Wallet size={20} /></span>
-            <span><strong>Carteira</strong><small>Saldo, pagamentos e saques</small></span>
-            <ChevronRight size={18} />
+            <Wallet size={20} />
+            <span><strong>Carteira</strong><small>Saldo e pagamentos</small></span>
           </a>
 
           <a className="authenticated-home-access-card" href="/rank">
-            <span className="authenticated-home-access-icon"><ShieldCheck size={20} /></span>
-            <span><strong>Rank e estatísticas</strong><small>Acompanhe o cenário competitivo</small></span>
-            <ChevronRight size={18} />
+            <ShieldCheck size={20} />
+            <span><strong>Rank</strong><small>Estatísticas</small></span>
           </a>
-
-          <button type="button" className="authenticated-home-access-card" onClick={() => void onOpenPanel(account)}>
-            <span className="authenticated-home-access-icon"><LayoutDashboard size={20} /></span>
-            <span><strong>Meu painel</strong><small>Ferramentas do perfil ativo</small></span>
-            <ChevronRight size={18} />
-          </button>
         </div>
       </section>
 
@@ -213,7 +202,7 @@ export function AuthenticatedHomeFeed({
               <article className="authenticated-home-vacancy-card" key={item.id}>
                 <div
                   className="authenticated-home-vacancy-media"
-                  style={item.banner_url ? { backgroundImage: `linear-gradient(180deg, rgba(8,12,18,.05), rgba(8,12,18,.9)), url(${item.banner_url})` } : undefined}
+                  style={item.banner_url ? { backgroundImage: `url(${item.banner_url})` } : undefined}
                 >
                   <span>{item.tipo || 'Campeonato'}</span>
                   <div className="authenticated-home-vacancy-badges">
