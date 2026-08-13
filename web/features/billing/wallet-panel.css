@@ -1,0 +1,33 @@
+.wallet-panel{display:grid;gap:14px}
+.wallet-panel .section-head{margin:0}
+.wallet-summary{display:flex;align-items:center;gap:26px;min-height:52px;padding:8px 0;border-bottom:1px solid rgba(245,243,237,.08)}
+.wallet-summary span{display:grid;gap:2px}
+.wallet-summary strong{font-size:17px;line-height:1}
+.wallet-summary small{color:#7d8086;font-size:8px;font-weight:850;text-transform:uppercase}
+.wallet-withdraw{display:grid;gap:10px;padding:12px;border-radius:9px;background:var(--ui-surface,#141518)}
+.wallet-withdraw header{display:grid;gap:2px}
+.wallet-withdraw header p,.wallet-withdraw header h3{margin:0}
+.wallet-withdraw header h3{font-size:14px}
+.wallet-withdraw-actions{margin-top:0}
+.wallet-withdraw-note{display:block;color:#73767c;font-size:9px;line-height:1.45}
+.wallet-history{overflow:hidden;border-radius:9px;background:var(--ui-surface,#141518)}
+.wallet-history-head{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px;background:var(--ui-surface-elevated,#1a1b1f)}
+.wallet-history-head span{font-size:10px;font-weight:900;text-transform:uppercase}
+.wallet-history-head small{color:#74777d;font-size:8px}
+.wallet-history .admin-table-wrap{margin:0;border:0;background:transparent}
+.wallet-history table{width:100%;border-collapse:collapse}
+.wallet-history th{background:transparent;color:#777a80;font-size:8px;text-transform:uppercase}
+.wallet-history td{font-size:10px}
+.wallet-history th,.wallet-history td{border-bottom:1px solid rgba(245,243,237,.06);padding:8px 10px}
+.wallet-history tbody tr:last-child td{border-bottom:0}
+@media(max-width:640px){
+.wallet-panel{gap:11px}
+.wallet-summary{gap:0;justify-content:space-between;min-height:46px}
+.wallet-summary strong{font-size:14px}
+.wallet-summary small{font-size:7px}
+.wallet-withdraw{padding:9px}
+.wallet-withdraw .mini-grid.two{grid-template-columns:1fr}
+.wallet-history-head{padding-inline:8px}
+.wallet-history .admin-table-wrap{overflow-x:auto}
+.wallet-history table{min-width:520px}
+}

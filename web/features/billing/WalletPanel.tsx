@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Wallet } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import './wallet-panel.css'
 
 function money(centavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
@@ -111,24 +112,17 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
       {error ? <p className="message error">{error}</p> : null}
       {msg ? <p className="message">{msg}</p> : null}
 
-      <div className="player-summary-grid" style={{ marginBottom: 14 }}>
-        <div>
-          <Wallet size={18} />
-          <strong>{money(saldo)}</strong>
-          <span>Disponível</span>
-        </div>
-        <div>
-          <strong>{(data?.saques || []).filter((s: any) => s.status === 'solicitado').length}</strong>
-          <span>Saques abertos</span>
-        </div>
-        <div>
-          <strong>{(data?.lancamentos || []).length}</strong>
-          <span>Lançamentos</span>
-        </div>
+      <div className="wallet-summary">
+        <span><strong>{money(saldo)}</strong><small>disponível</small></span>
+        <span><strong>{(data?.saques || []).filter((s: any) => s.status === 'solicitado').length}</strong><small>saques abertos</small></span>
+        <span><strong>{(data?.lancamentos || []).length}</strong><small>lançamentos</small></span>
       </div>
 
-      <div className="form-section-card" style={{ marginBottom: 14 }}>
-        <p className="eyebrow">Solicitar saque (PIX)</p>
+      <section className="wallet-withdraw">
+        <header>
+          <p className="eyebrow">Saque</p>
+          <h3>Receber via PIX</h3>
+        </header>
         <div className="mini-grid two">
           <label className="field">
             <span>Valor (R$)</span>
@@ -148,7 +142,7 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
             />
           </label>
         </div>
-        <div className="button-row compact-actions" style={{ marginTop: 10 }}>
+        <div className="button-row compact-actions wallet-withdraw-actions">
           <button
             type="button"
             className="button"
@@ -161,13 +155,14 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
             Atualizar
           </button>
         </div>
-        <small className="empty" style={{ display: 'block', marginTop: 8 }}>
-          Mínimo R$ 10. O admin processa o PIX e marca como pago. Comissão de vendas cai aqui
-          automaticamente.
+        <small className="wallet-withdraw-note">
+          Mínimo R$ 10. O PIX é processado pelo administrador e as comissões de vendas entram automaticamente na carteira.
         </small>
-      </div>
+      </section>
 
-      <div className="admin-table-wrap">
+      <div className="wallet-history">
+        <div className="wallet-history-head"><span>Histórico</span><small>Movimentações da carteira</small></div>
+        <div className="admin-table-wrap">
         <table>
           <thead>
             <tr>
@@ -199,6 +194,7 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   )
