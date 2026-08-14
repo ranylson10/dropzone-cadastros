@@ -1229,3 +1229,63 @@ body .manager-dashboard .manager-empty-switch,
 body .manager-dashboard .teams-capacidade-bar{border-color:var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface-raised);color:var(--ui-text)}
 body .manager-dashboard .manager-empty-switch p,
 body .manager-dashboard .teams-capacidade-bar span{color:var(--ui-muted)}
+
+/* Workspace da produtora: navegaÃ§Ã£o e detalhes de campeonatos sem heranÃ§a clara. */
+body .producer-layout-ref{
+  --producer-ink:var(--ui-text);
+  --producer-muted:var(--ui-muted);
+  --producer-line:var(--ui-line);
+  --producer-line-soft:var(--ui-line);
+  --producer-panel:var(--ui-surface);
+  --producer-surface-strong:var(--ui-surface-raised);
+  --producer-gold:var(--ui-accent);
+  --producer-gold-deep:#a39248;
+  color:var(--ui-text);
+}
+body .producer-layout-ref > .producer-hub-nav{border-color:var(--ui-line);background:var(--ui-surface)}
+body .producer-layout-ref > .producer-hub-nav button{border-color:transparent;background:transparent;color:var(--ui-muted)}
+body .producer-layout-ref > .producer-hub-nav button:hover{background:var(--ui-surface-raised);color:var(--ui-text)}
+body .producer-layout-ref > .producer-hub-nav button.active{border-color:var(--ui-accent);background:rgba(201,183,102,.12);color:var(--ui-accent)}
+body .producer-layout-ref .producer-hub-section,
+body .producer-layout-ref .championship-nav-card,
+body .producer-layout-ref .championship-detail-card{border-color:var(--ui-line);background:var(--ui-surface);color:var(--ui-text);box-shadow:none}
+body .producer-layout-ref .producer-hub-section > header{border-bottom-color:var(--ui-line)}
+body .producer-layout-ref .producer-section-copy{color:var(--ui-muted)}
+body .producer-layout-ref .producer-simple-list > a,
+body .producer-layout-ref .producer-simple-list > button{border-bottom-color:var(--ui-line);color:var(--ui-text)}
+body .producer-layout-ref .producer-simple-list > a:hover,
+body .producer-layout-ref .producer-simple-list > button:hover{background:var(--ui-surface-raised)}
+body .producer-layout-ref .producer-simple-list > a > span,
+body .producer-layout-ref .producer-simple-list > button > span{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-accent)}
+body .producer-layout-ref .producer-simple-list small{color:var(--ui-muted)}
+body .producer-layout-ref .championship-nav-card > .section-head{border-bottom:1px solid var(--ui-line);background:#141518;color:var(--ui-text)}
+body .producer-layout-ref .championship-nav-card > .section-head h2,
+body .producer-layout-ref .championship-nav-card > .section-head svg{color:var(--ui-text)}
+body .producer-layout-ref .championship-nav-card > .section-head .eyebrow{color:var(--ui-accent)}
+body .producer-layout-ref .producer-action{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .producer-layout-ref .producer-action:hover,
+body .producer-layout-ref .producer-action.active{border-color:var(--ui-accent);background:rgba(201,183,102,.12);color:var(--ui-text)}
+body .producer-layout-ref .producer-action.primary{border-color:var(--ui-accent);background:var(--ui-accent);color:#111216}
+body .producer-layout-ref .producer-filter-popover,
+body .producer-layout-ref .producer-more-menu{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised)}
+body .producer-layout-ref .championship-type-filter button,
+body .producer-layout-ref .producer-more-menu a,
+body .producer-layout-ref .producer-more-menu button{border-color:var(--ui-line);color:var(--ui-text)}
+body .producer-layout-ref .champ-list-item{
+  border-color:var(--ui-line);
+  background:transparent;
+  color:var(--ui-text);
+}
+body .producer-layout-ref .champ-list-item:hover{background:var(--ui-surface-raised)}
+body .producer-layout-ref .champ-list-item.active{border-left-color:var(--ui-accent);background:rgba(201,183,102,.1)}
+body .producer-layout-ref .champ-list-item strong{color:var(--ui-text)}
+body .producer-layout-ref .champ-list-item small{color:var(--ui-muted)}
+body .producer-layout-ref .champ-thumb{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-accent)}
+body .producer-layout-ref .producer-tabs,
+body .producer-layout-ref .champ-subtabs-ref{border-bottom-color:var(--ui-line)}
+body .producer-layout-ref .producer-tabs button,
+body .producer-layout-ref .champ-subtabs-ref button{border-bottom-color:transparent;color:var(--ui-muted)}
+body .producer-layout-ref .producer-tabs button.active,
+body .producer-layout-ref .champ-subtabs-ref button.active{border-bottom-color:var(--ui-accent);color:var(--ui-accent)}
+body .producer-layout-ref .subtab-actionbar,
+body .producer-layout-ref .statistics-heading{border-color:var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface-raised);color:var(--ui-text)}
