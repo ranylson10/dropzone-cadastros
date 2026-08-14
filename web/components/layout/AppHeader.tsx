@@ -399,7 +399,7 @@ export function AppHeader({
                 <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {profileName}
                 </strong>
-                <small style={{ display: 'block', color: '#6b7280', fontSize: 10 }}>
+                <small style={{ display: 'block', color: 'var(--ui-muted)', fontSize: 10 }}>
                   {profileSubtitle || 'Conta DropZone'}
                 </small>
               </span>
@@ -417,16 +417,16 @@ export function AppHeader({
                   maxWidth: '90vw',
                   maxHeight: '70vh',
                   overflow: 'auto',
-                  border: '1px solid #d5dae3',
+                  border: '1px solid var(--ui-line)',
                   borderRadius: 8,
-                  background: '#fff',
-                  boxShadow: '0 18px 50px rgba(15,23,42,.16)',
+                  background: 'var(--ui-surface-raised)',
+                  boxShadow: '0 18px 50px rgba(0,0,0,.32)',
                   zIndex: 200,
                 }}
               >
-                <div className="app-profile-menu-head" style={{ padding: 14, borderBottom: '1px solid #d5dae3', background: '#f4f5f8' }}>
+                <div className="app-profile-menu-head" style={{ padding: 14, borderBottom: '1px solid var(--ui-line)', background: 'var(--ui-surface)' }}>
                   <strong>Perfis vinculados</strong>
-                  <span style={{ display: 'block', marginTop: 3, color: '#6b7280', fontSize: 11 }}>
+                  <span style={{ display: 'block', marginTop: 3, color: 'var(--ui-muted)', fontSize: 11 }}>
                     Perfis ligados à mesma conta
                   </span>
                 </div>
@@ -451,7 +451,7 @@ export function AppHeader({
                         width: '100%',
                         border: 0,
                         padding: '12px 14px',
-                        background: isActive ? '#f4f5f8' : '#fff',
+                        background: isActive ? 'var(--ui-surface-soft)' : 'transparent',
                         cursor: isActive ? 'default' : 'pointer',
                         textAlign: 'left',
                       }}
@@ -465,7 +465,7 @@ export function AppHeader({
                         <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.name}
                         </b>
-                        <small style={{ color: '#6b7280', fontSize: 11 }}>
+                        <small style={{ color: 'var(--ui-muted)', fontSize: 11 }}>
                           {isSwitching ? 'Abrindo painel...' : `${item.profile_type} · @${item.username}`}
                         </small>
                       </span>
@@ -484,10 +484,10 @@ export function AppHeader({
                     alignItems: 'center',
                     gap: 9,
                     width: '100%',
-                    borderTop: '1px solid #d5dae3',
+                    borderTop: '1px solid var(--ui-line)',
                     padding: '12px 14px',
-                    background: '#fff',
-                    color: '#171a22',
+                    background: 'transparent',
+                    color: 'var(--ui-text)',
                     textDecoration: 'none',
                     fontWeight: 800,
                   }}
@@ -506,10 +506,10 @@ export function AppHeader({
                       alignItems: 'center',
                       gap: 9,
                       width: '100%',
-                      borderTop: '1px solid #d5dae3',
+                      borderTop: '1px solid var(--ui-line)',
                       padding: '12px 14px',
-                      background: '#fff',
-                      color: '#171a22',
+                      background: 'transparent',
+                      color: 'var(--ui-text)',
                       textDecoration: 'none',
                       fontWeight: 800,
                     }}
@@ -533,9 +533,10 @@ export function AppHeader({
                       gap: 9,
                       width: '100%',
                       border: 0,
-                      borderTop: '1px solid #d5dae3',
+                      borderTop: '1px solid var(--ui-line)',
                       padding: '12px 14px',
-                      background: '#fff',
+                      background: 'transparent',
+                      color: 'var(--ui-text)',
                       cursor: 'pointer',
                       fontWeight: 700,
                     }}
@@ -552,10 +553,10 @@ export function AppHeader({
                     gap: 9,
                     width: '100%',
                     border: 0,
-                    borderTop: '1px solid #d5dae3',
+                    borderTop: '1px solid var(--ui-line)',
                     padding: '12px 14px',
-                    background: '#fff',
-                    color: '#dc2626',
+                    background: 'transparent',
+                    color: 'var(--ui-danger, #d76c6c)',
                     cursor: 'pointer',
                     fontWeight: 700,
                   }}
