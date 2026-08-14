@@ -225,7 +225,6 @@
 .champ-public .directory-public-slots .vaga-row-identity small { color: var(--champ-muted); }
 
 .champ-public .champ-public-enroll-btn,
-.champ-public .champ-artworks-hero-cta,
 .champ-public .champ-public-info-links .button {
   border-radius: 8px;
   box-shadow: none;

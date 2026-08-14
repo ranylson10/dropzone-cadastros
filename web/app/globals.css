@@ -6485,41 +6485,8 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   }
 }
 
-.champ-public-info-links .champ-artworks-cta{background:linear-gradient(135deg,#6d4aff,#8d63ff);border:1px solid rgba(255,255,255,.18);color:#fff;font-weight:900;box-shadow:0 10px 24px rgba(87,60,210,.28);transform:translateZ(0)}
-.champ-public-info-links .champ-artworks-cta:hover{filter:brightness(1.08);transform:translateY(-1px)}
-
-.champ-artworks-hero-cta{display:inline-flex;align-items:center;gap:10px;width:max-content;max-width:100%;margin-top:12px;padding:11px 15px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:linear-gradient(135deg,#6d4aff,#8d63ff);color:#fff;text-decoration:none;box-shadow:0 12px 28px rgba(74,45,190,.34)}
-.champ-artworks-hero-cta span{display:grid;gap:1px}.champ-artworks-hero-cta strong{font-size:14px;line-height:1.1}.champ-artworks-hero-cta small{font-size:11px;color:rgba(255,255,255,.82)}
-.champ-artworks-hero-cta:hover{filter:brightness(1.08);transform:translateY(-1px)}
 
 /* 89V — acesso principal ao gerador de artes dentro da gestão do campeonato */
-.champ-post-artworks-hero{
-  display:flex; align-items:center; justify-content:space-between; gap:20px;
-  margin:10px 0 12px; padding:18px 20px; border:1px solid #ff3556;
-  background:linear-gradient(110deg,#111c28 0%,#172434 58%,#25151d 100%); color:#fff;
-  box-shadow:0 8px 24px rgba(17,28,40,.14);
-}
-.champ-post-artworks-hero>div{display:grid;gap:4px;min-width:0}
-.champ-post-artworks-hero>div>span{font-size:10px;font-weight:900;letter-spacing:.16em;color:#ff4965}
-.champ-post-artworks-hero>div>strong{font-size:24px;line-height:1;text-transform:uppercase}
-.champ-post-artworks-hero>div>small{max-width:720px;color:#bfc8d2;font-size:12px;line-height:1.4}
-.champ-post-artworks-hero>button{
-  flex:0 0 auto; min-width:280px; min-height:58px; display:flex; align-items:center; gap:11px;
-  padding:10px 14px; border:0; background:#ff3556; color:#fff; cursor:pointer; text-align:left;
-  box-shadow:0 6px 16px rgba(255,53,86,.24);
-}
-.champ-post-artworks-hero>button:hover{background:#ff4965}
-.champ-post-artworks-hero>button>span{display:grid;gap:1px;flex:1}
-.champ-post-artworks-hero>button b{font-size:12px;text-transform:uppercase}
-.champ-post-artworks-hero>button small{font-size:10px;color:#fff;opacity:.78}
-.champ-overview-flow button.is-post-artworks{border-color:#ff3556;background:#111c28;color:#fff}
-.champ-overview-flow button.is-post-artworks:hover{background:#172434;border-color:#ff4965}
-.champ-overview-flow button.is-post-artworks svg{color:#ff4965}
-.champ-overview-flow button.is-post-artworks small{color:#c3cbd4}
-@media (max-width:860px){
-  .champ-post-artworks-hero{align-items:stretch;flex-direction:column}
-  .champ-post-artworks-hero>button{width:100%;min-width:0}
-}
 
 /* 92B — workspace do usuário integrado ao topo e navegação completa do campeonato */
 .page-authenticated:has(.panel-workspace-shell){
