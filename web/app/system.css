@@ -768,3 +768,40 @@ body .invite-page .invite-chat-slot.selected span{color:var(--ui-text)}
   }
   body .invite-page .invite-card:not(.invite-chat-card){padding:24px 18px}
 }
+
+/* Correio: convites e avisos precisam ser acionÃ¡veis em qualquer painel. */
+body .notif-bell-trigger{
+  border:1px solid transparent;
+  border-radius:var(--ui-radius-sm);
+  background:transparent;
+  color:var(--ui-text-soft);
+}
+body .notif-bell-trigger:hover,
+body .notif-bell-trigger[aria-expanded='true']{
+  border-color:var(--ui-line);
+  background:var(--ui-surface-raised);
+  color:var(--ui-accent);
+}
+body .notif-bell-badge{background:var(--ui-accent);color:#111216;box-shadow:0 0 0 2px var(--ui-bg)}
+body .notif-inbox-panel,
+body .lili-hub-toolbar .notif-inbox-panel{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:0 20px 52px rgba(0,0,0,.38);
+}
+body .notif-inbox-head{border-bottom-color:var(--ui-line);background:var(--ui-surface-raised)}
+body .notif-inbox-head strong{color:var(--ui-text)}
+body .notif-inbox-head small,
+body .notif-inbox-item-top time,
+body .notif-perms{color:var(--ui-muted)}
+body .notif-inbox-item{border-bottom-color:var(--ui-line);background:transparent}
+body .notif-inbox-item.is-unread{background:rgba(201,183,102,.09);box-shadow:inset 3px 0 0 var(--ui-accent)}
+body .notif-inbox-item-top strong{color:var(--ui-text)}
+body .notif-inbox-item p{color:var(--ui-text-soft)}
+body .notif-inbox-panel .empty.compact-empty{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-muted)}
+body .notif-inbox-panel .message.error.compact{border-color:rgba(215,108,108,.45);background:rgba(215,108,108,.1);color:#f0b5b5}
+body .notif-inbox-panel .button.secondary{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .notif-inbox-panel .button.secondary:hover{border-color:var(--ui-accent);background:rgba(201,183,102,.1);color:var(--ui-text)}
+body .notif-inbox-panel .button:not(.secondary){border-color:var(--ui-accent);background:var(--ui-accent);color:#111216}
