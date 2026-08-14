@@ -117,7 +117,7 @@ export function ProdutoraPanel(props: {
   const [typeFilter, setTypeFilter] = useState('todos')
   const [showChampFilters, setShowChampFilters] = useState(false)
   const [producerSection, setProducerSection] = useState<ProducerSection>('campeonatos')
-  const [championshipDetailOpen, setChampionshipDetailOpen] = useState(false)
+  const [championshipDetailOpen, setChampionshipDetailOpen] = useState(true)
   const [tab, setTab] = useState<ProducerTab>('visao')
   const [payInfo, setPayInfo] = useState<any>(null)
   const [payBusy, setPayBusy] = useState(false)
