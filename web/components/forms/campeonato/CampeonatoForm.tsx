@@ -272,6 +272,7 @@ export function CampeonatoForm({
 }) {
   const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
   const [formPage, setFormPage] = useState<'origin' | 'identity' | 'season' | 'format' | 'operation' | 'review'>('origin')
+  const [originChoice, setOriginChoice] = useState<'novo' | 'modelo' | 'season' | null>(mode === 'edit' ? value.origem_criacao : null)
   const [sourceSearch, setSourceSearch] = useState('')
   const [sourceLoading, setSourceLoading] = useState(false)
   const [sourceError, setSourceError] = useState('')
@@ -418,6 +419,7 @@ export function CampeonatoForm({
     })
     setStep('form')
     setFormPage('origin')
+    setOriginChoice(null)
     setSourceSearch('')
     setSourceError('')
   }
@@ -435,7 +437,9 @@ export function CampeonatoForm({
       .slice(0, 20)
   }, [championships, sourceSearch, value.tipo])
 
-  async function selectCreationOrigin(modeValue: 'novo' | 'modelo' | 'season') {
+  function selectCreationOrigin(modeValue: 'novo' | 'modelo' | 'season') {
+    const changedOrigin = originChoice !== null && originChoice !== modeValue
+    setOriginChoice(modeValue)
     setSourceError('')
     setSourceSearch('')
     onChange({
@@ -443,10 +447,38 @@ export function CampeonatoForm({
       origem_criacao: modeValue,
       campeonato_origem_id: '',
       franquia_origem_id: '',
-      nome_historico: modeValue === 'season' ? value.nome_historico : '',
-      temporada: modeValue === 'season' ? value.temporada : '',
-      titulo_publico: modeValue === 'season' ? value.titulo_publico : '',
-      numero_edicao: modeValue === 'season' ? value.numero_edicao : '1',
+      nome: changedOrigin ? '' : value.nome,
+      logo_url: changedOrigin ? '' : value.logo_url,
+      banner_url: changedOrigin ? '' : value.banner_url,
+      nome_historico: '',
+      temporada: '',
+      titulo_publico: '',
+      numero_edicao: '1',
+    })
+  }
+
+  function clearSourceSelection() {
+    onChange({
+      ...value,
+      campeonato_origem_id: '',
+      franquia_origem_id: '',
+      nome: '',
+      logo_url: '',
+      banner_url: '',
+      nome_historico: '',
+      temporada: '',
+      titulo_publico: '',
+      numero_edicao: '1',
+    })
+    setSourceSearch('')
+    setSourceError('')
+  }
+
+  function updateCreationName(nextName: string) {
+    onChange({
+      ...value,
+      nome: nextName,
+      titulo_publico: value.origem_criacao === 'season' ? nextName : value.titulo_publico,
     })
   }
 
@@ -467,7 +499,7 @@ export function CampeonatoForm({
         if (!response.ok) throw new Error(json.error || 'Não foi possível carregar a season escolhida.')
         franchiseId = String(json?.franchise?.id || '')
         franchiseName = String(json?.franchise?.nome || franchiseName)
-        editionNumber = Number(json?.edition?.numero_edicao || 0) + 1
+        editionNumber = json?.edition ? Number(json.edition.numero_edicao || 1) + 1 : 2
       }
 
       const copied: CampeonatoFormValue = { ...value }
@@ -494,10 +526,9 @@ export function CampeonatoForm({
       copied.franquia_origem_id = value.origem_criacao === 'season' ? franchiseId : ''
       if (value.origem_criacao === 'season') {
         copied.nome_historico = franchiseName
-        copied.numero_edicao = String(Math.max(1, editionNumber))
-        copied.temporada = `Season ${Math.max(1, editionNumber)}`
-        copied.titulo_publico = `${franchiseName} — Season ${Math.max(1, editionNumber)}`
-        copied.nome = copied.titulo_publico
+        copied.numero_edicao = String(Math.max(2, editionNumber))
+        copied.temporada = `Season ${Math.max(2, editionNumber)}`
+        copied.titulo_publico = copied.nome
       } else {
         copied.nome_historico = ''
         copied.numero_edicao = '1'
@@ -615,11 +646,7 @@ export function CampeonatoForm({
         { id: 'operation', label: 'Operação' },
       ]
     : [
-        { id: 'origin', label: 'Origem' },
-        { id: 'identity', label: 'Identidade' },
-        ...(value.origem_criacao === 'season' || value.tipo === 'liga'
-          ? [{ id: 'season' as const, label: 'Temporada' }]
-          : []),
+        { id: 'origin', label: 'Início' },
         { id: 'format' as const, label: 'Estrutura' },
         { id: 'operation', label: 'Operação' },
         { id: 'review', label: 'Revisão' },
@@ -627,8 +654,11 @@ export function CampeonatoForm({
   const currentPageIndex = Math.max(0, wizardPages.findIndex((page) => page.id === formPage))
   const pageVisible = (page: typeof formPage) => mode === 'edit' || formPage === page
   function goNext() {
-    if (formPage === 'origin' && value.origem_criacao !== 'novo' && !value.campeonato_origem_id) return
-    if (formPage === 'identity' && (!value.nome.trim() || !value.logo_url)) return
+    if (formPage === 'origin') {
+      if (!originChoice) return
+      if (value.origem_criacao !== 'novo' && !value.campeonato_origem_id) return
+      if (!value.nome.trim() || !value.logo_url) return
+    }
     const next = wizardPages[currentPageIndex + 1]
     if (next) setFormPage(next.id)
   }
@@ -636,6 +666,41 @@ export function CampeonatoForm({
     const previous = wizardPages[currentPageIndex - 1]
     if (previous) setFormPage(previous.id)
     else if (mode === 'create') setStep('type')
+  }
+
+  const selectedSource = championships.find((item) => item.id === value.campeonato_origem_id) || null
+
+  function renderGuidedIdentity() {
+    const helper = value.origem_criacao === 'season'
+      ? `Os dados vieram da season anterior. Altere o nome, logo ou banner desta nova season se quiser. Ela continuará ligada a ${value.nome_historico || 'este campeonato'}.`
+      : value.origem_criacao === 'modelo'
+        ? 'O modelo preencheu os dados iniciais. Ajuste o que quiser; este campeonato será independente do original.'
+        : 'Defina somente a identidade básica agora. As demais regras serão configuradas nas próximas etapas.'
+
+    return (
+      <div className="championship-guided-identity">
+        <div className="championship-guided-copy">
+          <span>{value.origem_criacao === 'season' ? `Nova ${value.temporada || 'season'}` : 'Identidade inicial'}</span>
+          <strong>{value.origem_criacao === 'novo' ? 'Como esse campeonato vai aparecer?' : 'Confira os dados antes de continuar'}</strong>
+          <small>{helper}</small>
+        </div>
+        <div className="mini-grid two championship-guided-identity-grid">
+          <Field label="Nome do campeonato">
+            <input
+              required
+              value={value.nome}
+              onChange={(event) => updateCreationName(event.target.value)}
+              placeholder={value.origem_criacao === 'season' ? 'Ex.: ALOE Pará' : 'Ex.: Copa ALOE'}
+            />
+          </Field>
+          <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
+        </div>
+        <div className="championship-banner-upload">
+          <UploadField label="Banner da vitrine" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
+          <p>O banner é opcional. Se enviar, ele será ajustado e compactado automaticamente.</p>
+        </div>
+      </div>
+    )
   }
 
   const showMoneyPrize = value.tipo_premiacao === 'pix' || value.tipo_premiacao === 'dinheiro'
@@ -671,82 +736,109 @@ export function CampeonatoForm({
 
       {mode === 'create' ? (
         <section className="form-section-card championship-origin-card" hidden={!pageVisible('origin')}>
-          <p className="eyebrow">Origem</p>
+          <div className="championship-guided-copy">
+            <span>Passo 1 · Como começar</span>
+            <strong>Como você quer criar este campeonato?</strong>
+            <small>Escolha uma opção. O assistente mostra somente o que você precisa preencher agora.</small>
+          </div>
+
           <div className="championship-origin-options">
             <button
               type="button"
-              className={value.origem_criacao === 'novo' ? 'championship-origin-option active' : 'championship-origin-option'}
-              onClick={() => void selectCreationOrigin('novo')}
+              className={originChoice === 'novo' ? 'championship-origin-option active' : 'championship-origin-option'}
+              onClick={() => selectCreationOrigin('novo')}
             >
-              <strong>Criar do zero</strong>
-              <small>Novo campeonato.</small>
+              <strong>Criar novo</strong>
+              <small>Comece sem reaproveitar outro campeonato.</small>
             </button>
             <button
               type="button"
-              className={value.origem_criacao === 'modelo' ? 'championship-origin-option active' : 'championship-origin-option'}
-              onClick={() => void selectCreationOrigin('modelo')}
+              className={originChoice === 'modelo' ? 'championship-origin-option active' : 'championship-origin-option'}
+              onClick={() => selectCreationOrigin('modelo')}
             >
-              <strong>Usar modelo</strong>
-              <small>Copie configurações de outro campeonato.</small>
+              <strong>Usar como modelo</strong>
+              <small>Copie a configuração de outro campeonato. O novo será independente.</small>
             </button>
             <button
               type="button"
-              className={value.origem_criacao === 'season' ? 'championship-origin-option active' : 'championship-origin-option'}
-              onClick={() => void selectCreationOrigin('season')}
+              className={originChoice === 'season' ? 'championship-origin-option active' : 'championship-origin-option'}
+              onClick={() => selectCreationOrigin('season')}
             >
-              <strong>Nova edição</strong>
-              <small>Continue uma competição existente.</small>
+              <strong>Criar nova season</strong>
+              <small>Continue um campeonato existente e mantenha todas as seasons ligadas.</small>
             </button>
           </div>
 
-          {value.origem_criacao !== 'novo' ? (
+          {originChoice === 'novo' ? renderGuidedIdentity() : null}
+
+          {originChoice === 'modelo' || originChoice === 'season' ? (
             <div className="championship-source-picker">
-              <Field label={`Pesquisar ${selectedType?.title || 'campeonato'} da sua produtora`}>
-                <input
-                  value={sourceSearch}
-                  onChange={(event) => setSourceSearch(event.target.value)}
-                  placeholder={`Digite o nome de um campeonato do tipo ${selectedType?.title || value.tipo}`}
-                />
-              </Field>
-              <div className="championship-source-results">
-                {sourceCandidates.length ? sourceCandidates.map((source) => (
-                  <button
-                    type="button"
-                    key={source.id}
-                    disabled={sourceLoading}
-                    className={value.campeonato_origem_id === source.id ? 'championship-source-item active' : 'championship-source-item'}
-                    onClick={() => void applySourceChampionship(source)}
-                  >
+              {!value.campeonato_origem_id ? (
+                <>
+                  <div className="championship-guided-copy compact">
+                    <span>{originChoice === 'season' ? 'Season anterior' : 'Modelo'}</span>
+                    <strong>{originChoice === 'season' ? 'Qual campeonato você quer continuar?' : 'Qual campeonato você quer usar como base?'}</strong>
+                    <small>
+                      {originChoice === 'season'
+                        ? 'Pesquise uma season já criada. A próxima ficará vinculada ao mesmo histórico.'
+                        : 'Pesquise um campeonato do mesmo tipo. Apenas as configurações serão copiadas.'}
+                    </small>
+                  </div>
+                  <Field label={originChoice === 'season' ? 'Pesquisar season' : 'Pesquisar modelo'}>
+                    <input
+                      autoFocus
+                      value={sourceSearch}
+                      onChange={(event) => setSourceSearch(event.target.value)}
+                      placeholder={`Digite o nome de um ${selectedType?.title || value.tipo}`}
+                    />
+                  </Field>
+                  <div className="championship-source-results">
+                    {sourceCandidates.length ? sourceCandidates.map((source) => (
+                      <button
+                        type="button"
+                        key={source.id}
+                        disabled={sourceLoading}
+                        className="championship-source-item"
+                        onClick={() => void applySourceChampionship(source)}
+                      >
+                        <span className="championship-source-logo">
+                          {String(source.data?.logo_url || '') ? <img src={String(source.data?.logo_url)} alt="" /> : <Trophy size={18} />}
+                        </span>
+                        <span className="championship-source-copy">
+                          <strong>{String(source.name || source.data?.nome || 'Campeonato')}</strong>
+                          <small>{originChoice === 'season' ? 'Usar como season anterior' : 'Usar como modelo'}</small>
+                        </span>
+                        <span className="championship-source-action">Selecionar</span>
+                      </button>
+                    )) : (
+                      <p className="form-empty-note">Nenhum campeonato desse tipo foi encontrado nesta produtora.</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="championship-source-selected">
                     <span className="championship-source-logo">
-                      {String(source.data?.logo_url || '') ? <img src={String(source.data?.logo_url)} alt="" /> : <Trophy size={18} />}
+                      {String(selectedSource?.data?.logo_url || value.logo_url || '') ? <img src={String(selectedSource?.data?.logo_url || value.logo_url)} alt="" /> : <Trophy size={18} />}
                     </span>
                     <span className="championship-source-copy">
-                      <strong>{String(source.name || source.data?.nome || 'Campeonato')}</strong>
-                      <small>{value.origem_criacao === 'season' ? 'Continuar como nova temporada' : 'Copiar como modelo independente'}</small>
+                      <small>{originChoice === 'season' ? 'Season anterior selecionada' : 'Modelo selecionado'}</small>
+                      <strong>{String(selectedSource?.name || selectedSource?.data?.nome || value.nome || 'Campeonato')}</strong>
+                      {originChoice === 'season' ? <em>Próxima edição: {value.temporada || `Season ${value.numero_edicao}`}</em> : null}
                     </span>
-                    <span className="championship-source-action">
-                      {value.campeonato_origem_id === source.id ? 'Selecionado' : 'Selecionar'}
-                    </span>
-                  </button>
-                )) : (
-                  <p className="form-empty-note">Nenhum campeonato desse tipo foi encontrado nesta produtora.</p>
-                )}
-              </div>
-              {sourceLoading ? <p className="form-empty-note">Carregando campeonato escolhido...</p> : null}
+                    <button type="button" className="text-action-button" onClick={clearSourceSelection}>Trocar</button>
+                  </div>
+                  {renderGuidedIdentity()}
+                </>
+              )}
+              {sourceLoading ? <p className="form-empty-note">Carregando dados...</p> : null}
               {sourceError ? <div className="message error">{sourceError}</div> : null}
-              {value.campeonato_origem_id ? (
-                <div className="message">
-                  {value.origem_criacao === 'season'
-                    ? 'Season anterior selecionada. Os dados foram copiados e a nova edição continuará ligada à mesma competição.'
-                    : 'Modelo selecionado. Os campos foram preenchidos, mas o novo campeonato será independente.'}
-                </div>
-              ) : null}
             </div>
           ) : null}
         </section>
       ) : null}
 
-      <section className="form-section-card" hidden={!pageVisible('identity')}>
+      <section className="form-section-card" hidden={mode !== 'edit' || !pageVisible('identity')}>
         <div className="mini-grid two">
           <Field label="Nome"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
           <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
@@ -757,7 +849,7 @@ export function CampeonatoForm({
         </div>
       </section>
 
-      <section className="form-section-card" hidden={!pageVisible('identity')}>
+      <section className="form-section-card" hidden={mode !== 'edit' || !pageVisible('identity')}>
         <p className="eyebrow">Cores do campeonato</p>
         <p className="empty" style={{ margin: '0 0 12px' }}>Escolha uma paleta ou ajuste as duas cores. A identidade usa fundo neutro para manter o sistema leve.</p>
         <div className="championship-theme-palettes" aria-label="Paletas de cores">
@@ -812,7 +904,7 @@ export function CampeonatoForm({
         </div>
       </section>
 
-      <section className="form-section-card" hidden={!pageVisible('season')}>
+      <section className="form-section-card" hidden={mode !== 'edit' || !pageVisible('season')}>
         <p className="eyebrow">Temporada e edição</p>
         <p className="empty" style={{ margin: '0 0 12px' }}>
           Use esta etapa para identificar seasons, edições anuais ou ciclos recorrentes. Os campos são opcionais.
@@ -1172,8 +1264,12 @@ export function CampeonatoForm({
           <div className="championship-review-grid">
             <div><small>Campeonato</small><strong>{value.nome || 'Não informado'}</strong></div>
             <div><small>Tipo</small><strong>{selectedType?.title || value.tipo}</strong></div>
-            <div><small>Temporada</small><strong>{value.temporada || 'Sem temporada definida'}</strong></div>
-            <div><small>Edição</small><strong>{value.numero_edicao || '1'}</strong></div>
+            {value.origem_criacao === 'season' ? (
+              <>
+                <div><small>Histórico</small><strong>{value.nome_historico || 'Campeonato de origem'}</strong></div>
+                <div><small>Season</small><strong>{value.temporada || `Season ${value.numero_edicao || '2'}`}</strong></div>
+              </>
+            ) : null}
             <div><small>Vagas</small><strong>{value.numero_vagas || 'Não definidas'}</strong></div>
             <div><small>Fases iniciais</small><strong>{Math.max(1, Number(value.numero_fases) || 1)}</strong></div>
             <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
@@ -1247,7 +1343,21 @@ export function CampeonatoForm({
       <div className="button-row championship-wizard-actions">
         {mode === 'create' ? <button className="button secondary" type="button" onClick={goBack} disabled={loading}>Voltar</button> : null}
         {mode === 'create' && formPage !== 'review' ? (
-          <button className="button" type="button" onClick={goNext} disabled={loading || (formPage === 'origin' && value.origem_criacao !== 'novo' && !value.campeonato_origem_id) || (formPage === 'identity' && (!value.nome.trim() || !value.logo_url))}>Continuar</button>
+          <button
+            className="button"
+            type="button"
+            onClick={goNext}
+            disabled={loading || (
+              formPage === 'origin' && (
+                !originChoice ||
+                (value.origem_criacao !== 'novo' && !value.campeonato_origem_id) ||
+                !value.nome.trim() ||
+                !value.logo_url
+              )
+            )}
+          >
+            Continuar
+          </button>
         ) : (
           <button className="button" type="button" onClick={() => void submitWithImages()} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
         )}

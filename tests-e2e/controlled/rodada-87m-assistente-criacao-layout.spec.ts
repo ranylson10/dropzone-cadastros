@@ -16,16 +16,24 @@ test.describe('Rodada 87M — assistente de criação', () => {
   test('logos dos modelos possuem limite fixo e não ampliam os cards', () => {
     const css = source('web/app/globals.css')
     expect(css).toContain('.championship-source-logo img')
-    expect(css).toContain('max-width: 72px')
-    expect(css).toContain('max-height: 72px')
+    expect(css).toContain('max-width: 46px')
+    expect(css).toContain('max-height: 46px')
     expect(css).toContain('object-fit: contain')
+  })
+
+  test('assistente abre somente o caminho escolhido', () => {
+    const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
+    expect(form).toContain("const [originChoice, setOriginChoice]")
+    expect(form).toContain("originChoice === 'novo' ? renderGuidedIdentity() : null")
+    expect(form).toContain("originChoice === 'modelo' || originChoice === 'season'")
+    expect(form).toContain('Como você quer criar este campeonato?')
   })
 
   test('lista de modelos tem rolagem própria e ação clara', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
     const css = source('web/app/globals.css')
     expect(form).toContain('championship-source-action')
-    expect(css).toContain('max-height: min(360px, 44vh)')
-    expect(css).toContain('overflow-y: auto')
+    expect(css).toMatch(/\.championship-source-results\{[^}]*max-height:[^;}]+/)
+    expect(css).toMatch(/\.championship-source-results\{[^}]*overflow-y:\s*auto/)
   })
 })
