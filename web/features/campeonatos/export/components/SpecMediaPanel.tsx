@@ -614,6 +614,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
         </p>
       ) : null}
 
+      <div className="spec-production-layout">
       <div className="spec-workspace">
         <div className="spec-canvas-col">
           <div
@@ -716,6 +717,27 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
             </div>
           ) : null}
 
+          {(isLogo ? activeLogo : activePhoto) ? (
+            <div className="spec-tool-block spec-source-tool">
+              <h5>Arquivo deste item</h5>
+              <p className="export-help">Troque somente o arquivo selecionado sem sair da prévia.</p>
+              <label className="spec-upload-btn">
+                <Upload size={14} />
+                Trocar {isLogo ? 'logo' : 'foto'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={disabled || Boolean(busy)}
+                  onChange={(e) => {
+                    const item = isLogo ? activeLogo : activePhoto
+                    if (item) void replaceSource(isLogo ? 'logo' : 'photo', item.key, e.target.files?.[0] || null)
+                  }}
+                />
+              </label>
+            </div>
+          ) : null}
+
           {isLogo && activeLogo ? (
             <div className="spec-tool-block">
               <h5>Cor desta logo</h5>
@@ -784,7 +806,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
         </div>
       </div>
 
-      <div className="spec-list-block">
+      <aside className="spec-list-block" aria-label={isLogo ? 'Lista de logos' : 'Lista de fotos'}>
         <h5>
           {isLogo
             ? `Lista de logos (${logos.length}) — remova as que não precisa ajustar`
@@ -926,6 +948,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
             </table>
           )}
         </div>
+      </aside>
       </div>
     </section>
   )
