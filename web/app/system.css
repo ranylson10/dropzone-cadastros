@@ -6,6 +6,7 @@
   --ui-surface-soft: #17181b;
   --ui-surface-raised: #1a1b1f;
   --ui-text: #f5f3ed;
+  --ui-text-soft: #c7c2b8;
   --ui-text-muted: #9c9a94;
   --ui-line: #2a2c32;
   --ui-accent: #c9b766;
@@ -856,3 +857,91 @@ body .report-modal textarea:focus{outline:2px solid var(--ui-accent);outline-off
   body .manager-add-champ-modal,
   body .line-transfer-modal{border-radius:var(--ui-radius-md)}
 }
+
+/* Lili: assistente integrado ao produto, e nÃ£o uma segunda identidade visual. */
+body .lili-hub-page{
+  --lh-primary:var(--ui-accent);
+  --lh-primary-dark:#a39248;
+  --lh-bg:var(--ui-bg);
+  --lh-text:var(--ui-text);
+  background:radial-gradient(circle at 12% 0%,rgba(201,183,102,.1),transparent 32%),var(--ui-bg);
+  color:var(--ui-text);
+}
+body .lili-hub-header{border-bottom:1px solid var(--ui-line);background:#141518;color:var(--ui-text);box-shadow:none}
+body .lili-hub-avatar,
+body .lili-hub-mini-avatar{border:1px solid rgba(201,183,102,.5);background:var(--ui-accent);color:#111216;box-shadow:none}
+body .lili-hub-header button,
+body .lili-profile-trigger,
+body .lili-language-switch,
+body .lili-hub-toolbar .notif-bell-trigger{
+  border:1px solid var(--ui-line);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .lili-language-switch button{color:var(--ui-muted)}
+body .lili-language-switch button.is-active{background:var(--ui-accent);color:#111216;box-shadow:none}
+body .lili-profile-trigger:hover,
+body .lili-hub-header button:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft)}
+body .lili-profile-avatar{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-soft);color:var(--ui-accent)}
+body .lili-profile-avatar.small{border-color:var(--ui-line);background:var(--ui-surface-raised)}
+body .lili-profile-menu{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:0 18px 50px rgba(0,0,0,.35);
+}
+body .lili-profile-menu-title,
+body .lili-profile-menu > button small{color:var(--ui-muted)}
+body .lili-profile-menu > button{background:transparent;color:var(--ui-text)}
+body .lili-profile-menu > button:hover,
+body .lili-profile-menu > button.is-active{background:var(--ui-surface-raised)}
+body .lili-hub-bubble,
+body .lili-hub-typing{
+  border:1px solid var(--ui-line);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .lili-hub-message.user .lili-hub-bubble{background:rgba(201,183,102,.16);border-color:var(--ui-accent);color:var(--ui-text)}
+body .lili-hub-typing i{background:var(--ui-accent)}
+body .lili-hub-actions button,
+body .lili-hub-card button{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .lili-hub-actions button.primary,
+body .lili-hub-card button.primary,
+body .lili-hub-login{
+  border-color:var(--ui-accent);
+  background:var(--ui-accent);
+  color:#111216;
+  box-shadow:none;
+}
+body .lili-hub-card{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .lili-hub-card-head > span{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-accent)}
+body .lili-hub-card-head small,
+body .lili-hub-card dt{color:var(--ui-muted)}
+body .lili-hub-badges span,
+body .lili-rulebook-article > span{background:rgba(201,183,102,.14);color:var(--ui-accent)}
+body .lili-rulebook-article{border-color:var(--ui-line);background:var(--ui-surface-raised)}
+body .lili-rulebook-article > p{color:var(--ui-text-soft)}
+body .lili-payment-countdown{border-color:rgba(201,183,102,.55);background:rgba(201,183,102,.12);color:var(--ui-text)}
+body .lili-payment-qr{border-color:var(--ui-line);background:var(--ui-surface-raised)}
+body .lili-payment-qr strong{color:var(--ui-text)}
+body .lili-payment-qr small{color:var(--ui-muted)}
+body .lili-hub-composer{border-top-color:var(--ui-line);background:rgba(20,21,24,.96)}
+body .lili-hub-composer input{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .lili-hub-composer input:focus{border-color:var(--ui-accent);box-shadow:0 0 0 2px rgba(201,183,102,.18)}
+body .lili-hub-composer button{background:var(--ui-accent);color:#111216}
+body .lili-global-launcher{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:0 10px 28px rgba(0,0,0,.3)}
+body .lili-global-launcher:hover{border-color:var(--ui-accent);box-shadow:0 10px 28px rgba(0,0,0,.3)}
