@@ -469,3 +469,37 @@ body .bank-wallet-page .message{border-color:var(--ui-line);border-radius:var(--
   body .bank-wallet-tabs button{min-height:38px;font-size:10px}
   body .bank-section{padding:12px;border-radius:var(--ui-radius-sm)}
 }
+
+/* Painel administrativo: tabelas e mÃ©tricas seguem o mesmo sistema visual
+   operacional, evitando alternÃ¢ncia com as superfÃ­cies claras legadas. */
+body .system-admin-page{min-height:100dvh;background:var(--ui-bg);color:var(--ui-text)}
+body .system-admin-header{
+  max-width:1500px;
+  border:1px solid var(--ui-line);
+  border-left:3px solid var(--ui-accent);
+  border-radius:var(--ui-radius-lg);
+  background:linear-gradient(130deg,#17150d 0%,#141518 58%,#211e12 100%);
+}
+body .system-admin-header button{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .system-admin-tabs{gap:4px;padding:4px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface)}
+body .system-admin-tabs button{border:0;border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text-muted)}
+body .system-admin-tabs button.active{border:0;background:var(--ui-accent);color:#17150d}
+body .admin-metric-grid article,
+body .admin-infra-grid article,
+body .admin-publication-grid article,
+body .admin-report-list article,
+body .admin-section{border:1px solid var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface);color:var(--ui-text);box-shadow:none}
+body .admin-section > header{border-bottom-color:var(--ui-line)}
+body .admin-table-wrap{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface);overflow:auto}
+body .admin-table-wrap th{border-bottom-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text-muted)}
+body .admin-table-wrap td{border-bottom-color:var(--ui-line);color:var(--ui-text)}
+body .admin-table-wrap tbody tr:hover td{background:var(--ui-surface-soft)}
+body .admin-row-actions button{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+
+@media(max-width:760px){
+  body .system-admin-page{padding:74px 10px 18px}
+  body .system-admin-header{padding:14px;border-radius:var(--ui-radius-md)}
+  body .system-admin-tabs{overflow-x:auto}
+  body .admin-metric-grid,body .admin-infra-grid{grid-template-columns:1fr;gap:8px}
+  body .admin-section{padding:12px;border-radius:var(--ui-radius-sm)}
+}
