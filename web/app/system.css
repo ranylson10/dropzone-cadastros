@@ -503,3 +503,63 @@ body .admin-row-actions button{border-color:var(--ui-line);border-radius:var(--u
   body .admin-metric-grid,body .admin-infra-grid{grid-template-columns:1fr;gap:8px}
   body .admin-section{padding:12px;border-radius:var(--ui-radius-sm)}
 }
+
+/* Base dos painÃ©is autenticados. Alguns painÃ©is antigos redefiniam as
+   variÃ¡veis compartilhadas para bege; esta camada mantÃ©m todas as contas no
+   mesmo ambiente escuro sem alterar a lÃ³gica de cada perfil. */
+body .page-authenticated{
+  --auth-panel-bg:var(--ui-surface);
+  --auth-panel-bg-soft:var(--ui-surface-soft);
+  --auth-panel-bg-muted:var(--ui-surface-raised);
+  --auth-panel-line:var(--ui-line);
+  --auth-panel-line-strong:var(--ui-line);
+  color:var(--ui-text);
+}
+body .page-authenticated .card,
+body .page-authenticated .panel,
+body .page-authenticated .panel-soft,
+body .page-authenticated .compact-row,
+body .page-authenticated .group-mini-card,
+body .page-authenticated .invite-preview,
+body .page-authenticated .account-strip,
+body .page-authenticated .inline-action-panel{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .page-authenticated .panel-soft,
+body .page-authenticated .invite-preview,
+body .page-authenticated .inline-action-panel{background:var(--ui-surface-soft)}
+body .page-authenticated .card strong,
+body .page-authenticated .panel strong,
+body .page-authenticated .compact-row strong,
+body .page-authenticated .account-strip strong{color:var(--ui-text)}
+body .page-authenticated .card small,
+body .page-authenticated .card span,
+body .page-authenticated .panel small,
+body .page-authenticated .panel span,
+body .page-authenticated .compact-row small,
+body .page-authenticated .account-strip small{color:var(--ui-text-muted)}
+body .page-authenticated .token-card,
+body .page-authenticated .team-dashboard .token-card,
+body .page-authenticated .producer-layout-ref .token-card{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .page-authenticated .team-dashboard .lineup-token-card code{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
+
+@media(max-width:760px){
+  body .page-authenticated .card,
+  body .page-authenticated .panel,
+  body .page-authenticated .panel-soft,
+  body .page-authenticated .compact-row,
+  body .page-authenticated .group-mini-card,
+  body .page-authenticated .invite-preview,
+  body .page-authenticated .account-strip,
+  body .page-authenticated .inline-action-panel{border-radius:var(--ui-radius-sm)}
+}
