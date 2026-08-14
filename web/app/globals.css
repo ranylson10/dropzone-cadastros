@@ -6834,6 +6834,37 @@ body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-s
 body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-subtabs-all button{border-right:0;border-bottom:2px solid transparent;color:var(--ui-text-muted)}
 body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-subtabs-all button.active{border-bottom-color:var(--ui-accent);background:transparent;color:var(--ui-text)}
 
+/* Championship workspace overview: use the same dark operational language as the rest of the panel. */
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-panel{gap:26px;padding:4px 0 18px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-card{padding:0;border:0;background:transparent}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-card.is-main{gap:16px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-card h3{color:var(--ui-text);font-size:clamp(22px,2.2vw,30px)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-card>div>span,.page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-card>span{color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button{min-height:78px;padding:12px;border:0;border-left:2px solid var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button:hover{border-left-color:var(--ui-accent);background:rgba(201,183,102,.09)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button:disabled{opacity:.48;background:var(--ui-surface)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button svg{color:var(--ui-accent)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button strong{color:var(--ui-text);font-size:11px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button small{color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist-head{align-items:center;margin:0 0 9px;padding:0 0 10px;border-bottom:1px solid var(--ui-line)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist-head h3{color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist-head>span{padding:0;background:transparent;color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist button{min-height:58px;padding:10px;border:0;border-left:2px solid var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist button:hover{border-left-color:var(--ui-accent);background:rgba(201,183,102,.09)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist button.is-done svg{color:#53d5a4}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist button.is-pending svg{color:var(--ui-accent)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist strong{color:var(--ui-text);font-size:10px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist small{color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-status{gap:6px;padding:10px 0;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-status span{padding:4px 10px;border-left:1px solid var(--ui-line);background:transparent;color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-status strong{color:var(--ui-text);font-size:22px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-status small{color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-subtabs-more summary{border:0;border-bottom:1px solid var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-subtabs-more[open] summary{background:rgba(201,183,102,.12);border-color:var(--ui-accent);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-subtabs-more>div{border:1px solid var(--ui-line);background:var(--ui-surface-raised);box-shadow:0 18px 40px rgba(0,0,0,.36)}
+
 @media(max-width:900px){
   body .page-authenticated:has(.producer-layout-ref) > .shell.panel-workspace-shell{width:calc(100% - 20px);margin:10px auto 28px}
   body .page-authenticated:has(.producer-layout-ref) .account-workspace-hero{grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px}
@@ -6849,4 +6880,5 @@ body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-s
   body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .detail-logo-ref{width:52px;height:52px}
   body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .detail-stats-ref{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;margin-top:8px}
   body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .detail-stat{padding:8px 6px;text-align:center}
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow,body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-checklist{grid-template-columns:1fr 1fr}
 }
