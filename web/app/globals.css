@@ -420,7 +420,11 @@
   }
   .advanced-choice-notices .button{ width: 100%;
   }
-  .championship-review-grid{ grid-template-columns: 1fr;
+  .championship-review-grid{ grid-template-columns:1fr; column-gap:0;
+  }
+  .championship-review-grid > div:nth-last-child(-n+2){ border-bottom:1px solid var(--ui-line);
+  }
+  .championship-review-grid > div:last-child{ border-bottom:0;
   }
   .structure-workspace-toggle{ align-items: flex-start;
   }
@@ -4725,9 +4729,12 @@ textarea::placeholder{ color: color-mix(in srgb, var(--muted) 90%, transparent);
 } .advanced-choice-timeline-main p{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 2px 0; font-size: 12px;
 } .advanced-choice-timeline-main p span{ padding: 7px; border: 1px solid var(--border); background: var(--surface);
 } .advanced-choice-timeline-main em{ font-size: 12px; font-style: normal; color: var(--text);
-} .championship-review-grid{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
-} .championship-review-grid > div{ display: grid; gap: 4px; padding: 12px; border: 1px solid #e4e7ec; background: #fff;
-} .championship-review-grid small{ color: #667085; text-transform: uppercase; font-size: 10px; font-weight: 800;
+} .championship-review-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:28px; row-gap:0; border-top:1px solid var(--ui-line); border-bottom:1px solid var(--ui-line); background:transparent;
+} .championship-review-grid > div{ display:grid; gap:4px; min-width:0; padding:13px 0; border:0; border-bottom:1px solid var(--ui-line); background:transparent; box-shadow:none;
+} .championship-review-grid > div:nth-last-child(-n+2){ border-bottom:0;
+} .championship-review-grid small{ color:var(--ui-text-muted); text-transform:uppercase; font-size:9px; font-weight:850; letter-spacing:.06em;
+} .championship-review-grid strong{ min-width:0; color:var(--ui-text); font-size:13px; line-height:1.35; overflow-wrap:anywhere;
+} .championship-review-card > .form-empty-note{ margin:12px 0 0; padding:0; border:0; background:transparent; color:var(--ui-text-muted); text-align:left; font-size:10px; line-height:1.5;
 } .structure-workspace{ display: grid; gap: 12px;
 } .structure-workspace-intro{ padding: 14px; border: 1px solid #e4e7ec; background: #fff;
 } .structure-workspace-intro h3{ margin: 2px 0 6px;
