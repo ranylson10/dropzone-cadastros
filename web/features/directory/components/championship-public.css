@@ -442,7 +442,7 @@ body .champ-public .champ-public-panel-head > svg{color:var(--ui-accent)}
 body .champ-public .champ-public-panel-head strong{color:var(--ui-text)}
 body .champ-public .champ-public-panel-head small{color:var(--ui-text-muted)}
 body .champ-public .champ-public-info-grid{
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:repeat(6,minmax(0,1fr));
   gap:0;
   padding:0;
   border:0;
@@ -454,11 +454,13 @@ body .champ-public .champ-public-info-card:nth-child(even),
 body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 2),
 body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 3){
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
-  align-items:center;
-  min-height:52px;
-  padding:0 12px 0 0;
+  grid-template-columns:1fr;
+  align-content:center;
+  gap:6px;
+  min-height:58px;
+  padding:10px 12px;
   border:0;
+  border-right:1px solid var(--ui-line);
   border-bottom:1px solid var(--ui-line);
   border-radius:0;
   background:transparent;
@@ -466,7 +468,8 @@ body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 3){
 }
 body .champ-public .champ-public-info-card:nth-child(even),
 body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 2),
-body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 3){padding:0 0 0 12px;border-left:1px solid var(--ui-line);background:transparent}
+body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 3){padding:10px 12px;border-left:0;background:transparent}
+body .champ-public .champ-public-info-card:nth-child(6n){border-right:0}
 body .champ-public .champ-public-info-card:hover{background:var(--ui-surface-soft)}
 body .champ-public .champ-public-info-card small{color:var(--ui-text-muted)}
 body .champ-public .champ-public-info-card strong{color:var(--ui-text)}
@@ -499,9 +502,10 @@ body .champ-public .champ-public-info-agenda .agenda-sequence{background:var(--u
   body .champ-public .champ-public-banner{border-radius:var(--ui-radius-md)}
   body .champ-public .champ-public-nav{gap:2px;padding:3px}
   body .champ-public .champ-public-nav-btn.active{background:var(--ui-accent);color:#17150d}
-  body .champ-public .champ-public-info-grid{grid-template-columns:1fr;gap:0;padding:0}
+  body .champ-public .champ-public-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding:0}
   body .champ-public .champ-public-info-card,
   body .champ-public .champ-public-info-card:nth-child(even),
   body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 2),
-  body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 3){grid-template-columns:minmax(104px,.8fr) minmax(0,1.2fr);min-height:44px;padding:8px 0;border-left:0}
+  body .champ-public .champ-public-info .champ-public-info-card:nth-child(4n + 3){grid-template-columns:1fr;align-content:center;gap:5px;min-height:54px;padding:9px 10px;border-left:0;border-right:1px solid var(--ui-line)}
+  body .champ-public .champ-public-info-card:nth-child(2n){border-right:0}
 }

@@ -61,7 +61,7 @@
 
 .champ-public .champ-public-profile-facts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
   gap: 0;
   align-self: stretch;
   margin: 0;
@@ -70,7 +70,7 @@
 }
 
 .champ-public .champ-public-profile-facts div { padding: 12px 16px; border-bottom: 1px solid var(--champ-line); background: transparent; }
-.champ-public .champ-public-profile-facts div:nth-last-child(-n + 2) { border-bottom: 0; }
+.champ-public .champ-public-profile-facts div:nth-last-child(-n + 4) { border-bottom: 0; }
 .champ-public .champ-public-profile-facts dt { color: var(--champ-muted); font-size: 8px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .champ-public .champ-public-profile-facts dd { margin: 5px 0 0; color: var(--champ-ink); font-size: 12px; font-weight: 800; }
 

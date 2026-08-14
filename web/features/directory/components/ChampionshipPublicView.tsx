@@ -8,7 +8,6 @@ import {
   Info,
   Layers3,
   MapPinned,
-  Images,
   SlidersHorizontal,
   Ticket,
   Users,
@@ -203,7 +202,6 @@ export function ChampionshipPublicView({
               <small>{profile.eyebrow || 'Campeonato'}</small>
               <h1>{profile.name}</h1>
               {profile.description ? <p className="directory-profile-desc">{profile.description}</p> : null}
-              {authenticated ? <a className="champ-artworks-hero-cta" href={`/campeonatos/${profile.id}/artes-postagem`}><Images size={18} /><span><strong>Artes para postar</strong><small>Crie e baixe tabelas, MVPs e carrosséis</small></span></a> : null}
               {canEnroll ? (
                 <div className="champ-public-enroll">
                   <div className="champ-public-enroll-meta">
@@ -282,7 +280,6 @@ export function ChampionshipPublicView({
               <a className="button secondary" href={`/campeonatos/${profile.id}/regulamento`}>
                 <Flag size={15} /> Regulamento
               </a>
-              {authenticated ? <a className="button champ-artworks-cta" href={`/campeonatos/${profile.id}/artes-postagem`}><Images size={15} /> Artes para postar</a> : null}
               <ReportButton targetType="campeonato" targetId={profile.id} targetName={profile.name} />
             </div>
             <section className="champ-public-info-agenda">
