@@ -7006,3 +7006,31 @@ body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .seller-
   body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row .vaga-row-summary>.vaga-row-identity:nth-last-of-type(1){display:none}
   body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-content{padding-left:8px}
 }
+
+/* Legacy game folders used by the Jogos tab. These are separate from the newer
+   game cards above, so they need their own dark surface treatment. */
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-structure{gap:12px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-card,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-card{overflow:hidden;border:0;border-radius:0;background:var(--ui-surface-raised);box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-card>.phase-folder-row{background:var(--ui-surface);border-bottom:1px solid var(--ui-line)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-row{background:var(--ui-surface-raised);border-bottom:1px solid var(--ui-line);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-row:hover,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-card>.phase-folder-row:hover{background:rgba(201,183,102,.08)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-row .folder-toggle,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-row .folder-toggle strong,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-row .folder-toggle svg{color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-row .folder-toggle small{color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-list-in-phase{gap:0;padding:0;background:var(--ui-surface-raised)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-quick-group-row{padding:10px 12px;border-bottom:1px solid var(--ui-line);background:var(--ui-surface);color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-quick-group-row button{min-height:30px;border:0;border-bottom:2px solid transparent;border-radius:0;background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-quick-group-row button:hover{border-bottom-color:var(--ui-accent);background:rgba(201,183,102,.1);color:var(--ui-accent-light)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-details{gap:1px;border-top:1px solid var(--ui-line);background:var(--ui-line)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-details>div{min-height:70px;background:var(--ui-surface);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-details span{color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-details strong{color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-list-in-phase>.empty{margin:0;padding:24px 12px;background:var(--ui-surface-raised);color:var(--ui-text-muted)}
+
+@media(max-width:900px){
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-details{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-details>div{min-height:58px;padding:10px}
+}
