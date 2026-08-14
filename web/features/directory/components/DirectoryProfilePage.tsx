@@ -8,6 +8,8 @@ import type { DirectoryKind } from '../types'
 import { ChampionshipPublicView } from './ChampionshipPublicView'
 import { DirectoryProfileTabs } from './DirectoryProfileTabs'
 import { TeamLinesWorkspace } from '@/components/equipes/TeamLinesWorkspace'
+import { CompetitiveProfilePanel } from './CompetitiveProfilePanel'
+import './competitive-profile.css'
 
 export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; id: string }) {
   const profile = await getDirectoryProfile(kind, id)
@@ -40,39 +42,36 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
       loadSession
       mainClassName={`directory-profile-page compact-profile directory-theme-${kind} page page-authenticated`}
     >
-      <div className="directory-page-body directory-page-body-with-banner directory-immersive-shell">
-        <section className={`directory-profile-banner directory-immersive-profile-hero theme-${kind} is-compact`} data-theme={kind}>
-          <span className="directory-hero-character" aria-hidden="true" />
-          <div className="directory-profile-banner-inner directory-immersive-profile-content">
-            <a className="directory-back on-banner" href={`/${kind}`}>
+      <div className="directory-page-body directory-page-body-with-banner directory-immersive-shell profile-command-page">
+        <section className={`profile-command-hero theme-${kind}`} data-theme={kind}>
+          <div className="profile-command-inner">
+            <a className="directory-back" href={`/${kind}`}>
               <ArrowLeft size={15} /> Voltar para {config.title.toLowerCase()}
             </a>
-            <div className="directory-profile-hero compact on-banner">
-              <span className="directory-profile-avatar">
+            <div className="profile-command-main">
+              <span className="profile-command-avatar">
                 {profile.image ? <img src={profile.image} alt="" decoding="async" /> : <b>{profile.name.slice(0, 2).toUpperCase()}</b>}
               </span>
-              <div className="directory-profile-copy">
+              <div className="profile-command-copy">
                 <small>{profile.eyebrow || config.singular}</small>
                 <h1>{profile.name}</h1>
                 {profile.username ? <strong>@{profile.username}</strong> : null}
-                {profile.description ? (
-                  <p className="directory-profile-desc">{profile.description}</p>
-                ) : null}
-                <div className="directory-profile-toolbar">
-                  <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
-                </div>
+                {profile.description ? <p>{profile.description}</p> : null}
               </div>
-            </div>
-            <div className="directory-profile-details compact on-banner">
+              <dl className="profile-command-facts">
               {profile.details.map((item) => (
-                <div key={item.label} className={item.label === 'Sobre' ? 'directory-profile-about' : undefined}>
-                  <small>{item.label}</small>
-                  <strong>{item.value}</strong>
-                </div>
+                <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>
               ))}
+              </dl>
+            </div>
+            <div className="profile-command-actions">
+              {profile.competitive ? <a href="#desempenho">Desempenho</a> : null}
+              {profile.actions?.map((action) => <a key={action.label} className={action.variant === 'primary' ? 'primary' : ''} href={action.href}>{action.label}</a>)}
+              <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
             </div>
           </div>
         </section>
+        <CompetitiveProfilePanel profile={profile} />
         <DirectoryProfileTabs
           sections={profile.sections}
           agenda={

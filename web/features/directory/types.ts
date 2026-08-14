@@ -89,6 +89,14 @@ export type DirectoryProfile = DirectoryItem & {
     rounds: Array<{ id: string; label: string; gameId?: string | null; mapCode?: string | null }>
     maps: Array<{ id: string; label: string }>
   }
+  competitive?: {
+    label: string
+    score?: number | null
+    tier?: string | null
+    metrics: Array<{ label: string; value: string }>
+    highlights: Array<{ label: string; value: string }>
+    trend: Array<{ label: string; abates: number; dano: number; assistencias: number }>
+  } | null
   sections: Array<{
     title: string
     layout?: 'list' | 'table' | 'stats' | 'structure'

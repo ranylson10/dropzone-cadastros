@@ -29,6 +29,7 @@ import {
 } from './DirectoryProfileTabs'
 import '@/app/vagas/vagas.css'
 import './championship-public.css'
+import './championship-profile.css'
 
 type TabId = 'info' | 'equipes' | 'jogadores' | 'estatisticas'
 
@@ -231,6 +232,11 @@ export function ChampionshipPublicView({
                 </div>
               ) : null}
             </div>
+            <dl className="champ-public-profile-facts">
+              {profile.details.filter((item) => ['Tipo', 'Formato', 'Premiação', 'Vagas livres'].includes(item.label)).map((item) => (
+                <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>
+              ))}
+            </dl>
           </div>
 
           <nav className="champ-public-nav" aria-label="Seções do campeonato">

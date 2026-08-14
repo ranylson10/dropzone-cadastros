@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
+import { carregarRankingTiers } from '@backend/ranking/tier-ranking.service'
 import type { DirectoryItem, DirectoryKind, DirectoryProfile } from './types'
 
 function text(value: unknown, fallback = '') { return String(value ?? fallback).trim() }
@@ -32,6 +33,94 @@ const DIRECTORY_MAX_ROWS = 10000
 
 function normalized(value: unknown) {
   return String(value ?? '').trim().toLowerCase()
+}
+
+function compactNumber(value: unknown) {
+  return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value || 0))
+}
+
+function integer(value: unknown) {
+  const result = Number(value || 0)
+  return Number.isFinite(result) ? result : 0
+}
+
+async function competitiveProfile(kind: 'equipes' | 'jogadores', id: string) {
+  const ranking = await carregarRankingTiers().catch(() => null)
+  const isPlayer = kind === 'jogadores'
+  let rankRows: any[] = []
+  let statsRows: any[] = []
+
+  if (isPlayer) {
+    rankRows = (ranking?.players || []).filter((row: any) => String(row.jogador_id) === id)
+    const { data, error } = await supabaseAdmin
+      .from('garena_matchstats_jogadores')
+      .select('importacao_id,abates,dano,assistencias,garena_matchstats_importacoes(partida_id,concluida_em)')
+      .eq('jogador_id', id)
+      .limit(1000)
+    if (!error) statsRows = data || []
+  } else {
+    const { data: participations, error: participationError } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id')
+      .eq('equipe_id', id)
+      .neq('status', 'deletado')
+      .limit(1000)
+    const participationIds = (participations || []).map((row: any) => String(row.id)).filter(Boolean)
+    rankRows = (ranking?.teams || []).filter((row: any) => String(row.equipe_id) === id)
+    if (!participationError && participationIds.length) {
+      const { data, error } = await supabaseAdmin
+        .from('garena_matchstats_jogadores')
+        .select('importacao_id,abates,dano,assistencias,garena_matchstats_importacoes(partida_id,concluida_em)')
+        .in('campeonato_equipe_id', participationIds)
+        .limit(10000)
+      if (!error) statsRows = data || []
+    }
+  }
+
+  const aggregate = (field: string) => rankRows.reduce((total, row) => total + integer(row[field]), 0)
+  const principal = rankRows.sort((a, b) => integer(b.score) - integer(a.score))[0] || null
+  const byFall = new Map<string, { label: string; date: string; abates: number; dano: number; assistencias: number }>()
+  for (const row of statsRows) {
+    const imported: any = Array.isArray(row.garena_matchstats_importacoes) ? row.garena_matchstats_importacoes[0] : row.garena_matchstats_importacoes
+    const key = String(imported?.partida_id || row.importacao_id)
+    const current = byFall.get(key) || { label: `Q${byFall.size + 1}`, date: String(imported?.concluida_em || ''), abates: 0, dano: 0, assistencias: 0 }
+    current.abates += integer(row.abates)
+    current.dano += integer(row.dano)
+    current.assistencias += integer(row.assistencias)
+    byFall.set(key, current)
+  }
+  const trend = [...byFall.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-8).map(({ label, abates, dano, assistencias }) => ({ label, abates, dano, assistencias }))
+
+  if (isPlayer) {
+    const row = principal
+    return {
+      label: 'Perfil gamer · dados oficiais', tier: row?.tier || null, score: row?.score || null,
+      metrics: [
+        { label: 'Abates', value: String(aggregate('abates')) }, { label: 'Dano total', value: compactNumber(aggregate('dano')) },
+        { label: 'Assistências', value: String(aggregate('assistencias')) }, { label: 'Headshots', value: String(aggregate('headshots')) },
+        { label: 'Sobrevivência', value: `${compactNumber(aggregate('sobrevivencia_segundos'))} s` }, { label: 'Quedas', value: String(aggregate('quedas')) },
+      ],
+      highlights: [
+        { label: 'Arma mais usada', value: row?.arma_mais_usada || '' },
+        { label: 'Habilidade ativa', value: [row?.habilidade_ativa?.personagem, row?.habilidade_ativa?.habilidade].filter(Boolean).join(' · ') },
+        { label: 'Passivas', value: (row?.habilidades_passivas || []).map((item: any) => item.habilidade || item.personagem).filter(Boolean).join(' · ') },
+        { label: 'Função', value: row?.funcao || '' },
+      ], trend,
+    }
+  }
+
+  return {
+    label: 'Elenco · dados oficiais', tier: principal?.tier || null, score: principal?.score || null,
+    metrics: [
+      { label: 'Pontos', value: String(aggregate('pontos')) }, { label: 'Abates', value: String(aggregate('abates')) },
+      { label: 'Dano do elenco', value: compactNumber(aggregate('dano')) }, { label: 'Assistências', value: String(aggregate('assistencias')) },
+      { label: 'Booyahs', value: String(aggregate('booyahs')) }, { label: 'Quedas', value: String(aggregate('quedas')) },
+    ],
+    highlights: [
+      { label: 'Headshots', value: String(aggregate('headshots')) }, { label: 'Knockdowns', value: String(aggregate('knockdowns')) },
+      { label: 'Paredes de gel', value: String(aggregate('gel_usado')) }, { label: 'Kits médicos', value: String(aggregate('kits_medicos')) },
+    ], trend,
+  }
 }
 
 async function rowsPlain(table: string) {
@@ -222,6 +311,7 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   let theme: DirectoryProfile['theme'] = null
   let enrollment: DirectoryProfile['enrollment'] = null
   let statsFilters: DirectoryProfile['statsFilters'] = undefined
+  let competitive: DirectoryProfile['competitive'] = null
 
   if (kind === 'campeonatos') {
     const [championships, phases, groups, slots, games, rounds, participations, teams, teamLines, championshipPlayers, players, temporaryPlayers, teamStats, mvpStats, configs] = await Promise.all([
@@ -514,11 +604,13 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     const [lines, participations, championships] = await Promise.all([rows('equipe_lines'), rows('campeonato_equipes'), rows('campeonatos')])
     const championshipById = new Map(championships.map((row: any) => [row.id, row]))
     sections.push({ title: 'Lines', items: lines.filter((x: any) => x.equipe_id === id).map((line: any) => ({ id: line.id, title: line.nome, subtitle: first(line.tag, statusLabel(line.status)), image: first(line.logo_url) })) })
+    competitive = await competitiveProfile('equipes', id)
     sections.push({ title: 'Campeonatos', items: participations.filter((x: any) => x.equipe_id === id).map((entry: any) => { const champ: any = championshipById.get(entry.campeonato_id); return { id: entry.id, title: first(champ?.nome, 'Campeonato'), subtitle: entry.slot_numero ? `Slot ${entry.slot_numero}` : statusLabel(entry.status), image: first(champ?.logo_url), href: champ ? `/campeonatos/${champ.id}` : undefined } }) })
   } else if (kind === 'jogadores') {
     const [regs, championships, teams] = await Promise.all([rows('campeonato_jogadores'), rows('campeonatos'), rows('equipes')])
     const champById = new Map(championships.map((row: any) => [row.id, row]))
     const teamById = new Map(teams.map((row: any) => [row.id, row]))
+    competitive = await competitiveProfile('jogadores', id)
     sections.push({ title: 'Participações', items: regs.filter((x: any) => x.jogador_id === id && x.status !== 'deletado').map((reg: any) => { const champ: any = champById.get(reg.campeonato_id); const team: any = teamById.get(reg.equipe_id); return { id: reg.id, title: first(champ?.nome, 'Campeonato'), subtitle: [team?.nome, reg.funcao].filter(Boolean).join(' · '), image: first(champ?.logo_url), href: champ ? `/campeonatos/${champ.id}` : undefined } }) })
   } else if (kind === 'produtoras') {
     const items = await rows('campeonatos')
@@ -545,5 +637,6 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     theme,
     enrollment,
     statsFilters,
+    competitive,
   }
 }
