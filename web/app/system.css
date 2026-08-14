@@ -1165,3 +1165,67 @@ body .player-dashboard .team-line-card:hover{border-color:var(--ui-accent);backg
 body .player-dashboard .team-line-card img{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised)}
 body .player-dashboard .team-line-card span{color:var(--ui-muted)}
 body .player-dashboard .empty{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-muted)}
+
+/* Painel de manager: navegaÃ§Ã£o, operaÃ§Ã£o e vendas usam os mesmos estados. */
+body .manager-dashboard .manager-hub-header,
+body .manager-dashboard .manager-hub-header-compact{border-bottom-color:var(--ui-line)}
+body .manager-dashboard .manager-mode-chip{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .manager-dashboard .manager-mode-chip:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft)}
+body .manager-dashboard .manager-mode-chip.active{border-color:var(--ui-accent);background:var(--ui-accent);color:#111216;box-shadow:none}
+body .manager-dashboard .manager-mode-count{background:rgba(201,183,102,.16);color:var(--ui-accent)}
+body .manager-dashboard .manager-mode-chip.active .manager-mode-count{background:#111216;color:var(--ui-accent)}
+body .manager-dashboard .manager-subnav,
+body .manager-dashboard .manager-champ-tabs{border-bottom-color:var(--ui-line)}
+body .manager-dashboard .manager-subnav button,
+body .manager-dashboard .manager-champ-tabs button{border-bottom-color:transparent;color:var(--ui-muted)}
+body .manager-dashboard .manager-subnav button:hover,
+body .manager-dashboard .manager-champ-tabs button:hover{color:var(--ui-text);background:var(--ui-surface-raised)}
+body .manager-dashboard .manager-subnav button.active,
+body .manager-dashboard .manager-champ-tabs button.active{border-bottom-color:var(--ui-accent);background:transparent;color:var(--ui-accent)}
+body .manager-dashboard .manager-profile-card,
+body .manager-dashboard .manager-champ-panel,
+body .manager-dashboard .manager-detail-panel,
+body .manager-dashboard .manager-detail-block,
+body .manager-dashboard .manager-vendas-row,
+body .manager-dashboard .manager-grupo-card,
+body .manager-dashboard .manager-jogo-card,
+body .manager-dashboard .manager-flow-step,
+body .manager-dashboard .manager-hub-quick-item{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .manager-dashboard .manager-profile-card:hover,
+body .manager-dashboard .manager-champ-panel:hover,
+body .manager-dashboard .manager-detail-panel:hover,
+body .manager-dashboard .manager-hub-quick-item:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft)}
+body .manager-dashboard .manager-profile-card::before{background:var(--ui-accent)}
+body .manager-dashboard .manager-profile-avatar,
+body .manager-dashboard .manager-detail-thumb,
+body .manager-dashboard .manager-champ-logo,
+body .manager-dashboard .manager-vendas-row-logo{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-accent)}
+body .manager-dashboard .manager-profile-copy small,
+body .manager-dashboard .manager-detail-meta small,
+body .manager-dashboard .manager-vendas-row-copy span,
+body .manager-dashboard .manager-vendas-row-copy small,
+body .manager-dashboard .manager-grupo-card span,
+body .manager-dashboard .manager-grupo-card small,
+body .manager-dashboard .manager-jogo-card span,
+body .manager-dashboard .manager-jogo-card small,
+body .manager-dashboard .manager-flow-step-copy span{color:var(--ui-muted)}
+body .manager-dashboard .manager-perm-chip{border-color:rgba(201,183,102,.35);border-radius:999px;background:rgba(201,183,102,.12);color:var(--ui-accent)}
+body .manager-dashboard .manager-perm-chip.muted{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-muted)}
+body .manager-dashboard .manager-flow-step.is-done{border-color:rgba(101,185,130,.42);background:rgba(101,185,130,.1)}
+body .manager-dashboard .manager-flow-step.is-done .manager-flow-step-icon{color:#8ed0a5}
+body .manager-dashboard .manager-empty-switch,
+body .manager-dashboard .teams-capacidade-bar{border-color:var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .manager-dashboard .manager-empty-switch p,
+body .manager-dashboard .teams-capacidade-bar span{color:var(--ui-muted)}
