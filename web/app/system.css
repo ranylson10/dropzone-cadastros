@@ -429,3 +429,43 @@ body .directory-page:not(.directory-market-page) .directory-list-row .directory-
     background:var(--ui-surface-soft);
   }
 }
+
+/* Carteira: a operaÃ§Ã£o financeira usa a mesma superfÃ­cie escura do painel,
+   mantendo destaque apenas para saldo e aÃ§Ã£o principal. */
+body .bank-wallet-page{min-height:100dvh;background:var(--ui-bg);color:var(--ui-text)}
+body .bank-wallet-shell{width:min(1180px,calc(100% - 32px));padding:28px 0 48px;gap:12px}
+body .bank-wallet-hero{
+  padding:20px 22px;
+  border:1px solid var(--ui-line);
+  border-left:3px solid var(--ui-accent);
+  border-radius:var(--ui-radius-lg);
+  background:linear-gradient(130deg,#17150d 0%,#141518 58%,#211e12 100%);
+}
+body .bank-wallet-refresh{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .bank-balance-card{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  box-shadow:none;
+}
+body .bank-chip-btn{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .bank-chip-btn.primary{border-color:var(--ui-accent);background:var(--ui-accent);color:#17150d}
+body .bank-wallet-tabs{gap:4px;padding:4px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface);margin-top:0}
+body .bank-wallet-tabs button{border:0;border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text-muted)}
+body .bank-wallet-tabs button.active{border:0;background:var(--ui-accent);color:#17150d}
+body .bank-section{border:1px solid var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface);color:var(--ui-text);box-shadow:none}
+body .bank-section h2{color:var(--ui-text)}
+body .bank-section h3,body .bank-tx-empty,body .bank-tx-body small,body .bank-hint{color:var(--ui-text-muted)}
+body .bank-tx-list > li{border-bottom-color:var(--ui-line)}
+body .bank-tx-icon{border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .bank-form-card input,body .bank-form-card select{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .bank-form-card label > span{color:var(--ui-text-muted)}
+body .bank-wallet-page .message{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+
+@media(max-width:760px){
+  body .bank-wallet-shell{width:calc(100% - 20px);padding:74px 0 18px}
+  body .bank-wallet-hero{padding:16px;border-radius:var(--ui-radius-md)}
+  body .bank-wallet-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .bank-wallet-tabs button{min-height:38px;font-size:10px}
+  body .bank-section{padding:12px;border-radius:var(--ui-radius-sm)}
+}
