@@ -1125,3 +1125,43 @@ body .team-dashboard .team-line-card span,
 body .team-dashboard .lineup-token-card span{color:var(--ui-muted)}
 body .team-dashboard .lineup-token-card code,
 body .team-dashboard .lineup-invite-preview{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+
+/* Painel de jogador: leitura imediata de participaÃ§Ãµes e acesso Ã  equipe. */
+body .player-dashboard .manager-champ-tabs{border-bottom-color:var(--ui-line)}
+body .player-dashboard .manager-champ-tabs button{border-bottom-color:transparent;color:var(--ui-muted)}
+body .player-dashboard .manager-champ-tabs button:hover{color:var(--ui-text);background:var(--ui-surface-raised)}
+body .player-dashboard .manager-champ-tabs button.active{border-bottom-color:var(--ui-accent);background:transparent;color:var(--ui-accent)}
+body .player-dashboard .player-summary-grid > *{
+  border:1px solid var(--ui-line);
+  border-left:3px solid var(--ui-accent);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .player-dashboard .player-summary-grid > *::before{display:none}
+body .player-dashboard .player-summary-grid svg{color:var(--ui-accent)}
+body .player-dashboard .player-summary-grid strong{color:var(--ui-text)}
+body .player-dashboard .player-summary-grid span{color:var(--ui-muted)}
+body .player-dashboard .cards .card{
+  border:1px solid var(--ui-line);
+  border-left:3px solid transparent;
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .player-dashboard .cards .card:hover{border-left-color:var(--ui-accent);background:var(--ui-surface-soft)}
+body .player-dashboard .cards .card p,
+body .player-dashboard .cards .card span{color:var(--ui-muted)}
+body .player-dashboard .team-line-card{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .player-dashboard .team-line-card:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft)}
+body .player-dashboard .team-line-card img{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised)}
+body .player-dashboard .team-line-card span{color:var(--ui-muted)}
+body .player-dashboard .empty{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-muted)}
