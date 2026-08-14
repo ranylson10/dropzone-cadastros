@@ -665,6 +665,14 @@ export function ProdutoraPanel(props: {
       numero_vagas: String(dataText(champ, 'numero_vagas') || ''),
       numero_fases: String(dataText(champ, 'numero_fases') || champ.data?.numero_fases || '1'),
       nomes_fases: Array.isArray(champ.data?.nomes_fases) ? champ.data.nomes_fases.map(String) : ['Fase 1'],
+      estrutura_planejada: Array.isArray(champ.data?.estrutura_planejada)
+        ? champ.data.estrutura_planejada.map((phase: any) => ({
+          nome: String(phase?.nome || ''),
+          grupos: String(phase?.grupos || 1),
+          equipes_por_grupo: String(phase?.equipes_por_grupo || 12),
+          classificam_por_grupo: String(phase?.classificam_por_grupo || ''),
+        }))
+        : [],
       formato: String(dataText(champ, 'formato') || ''),
       plataforma: String(dataText(champ, 'plataforma') || ''),
       servidor: String(dataText(champ, 'servidor') || ''),
@@ -754,15 +762,28 @@ export function ProdutoraPanel(props: {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     if (!token) throw new Error('Sessão expirada ao criar fases iniciais.')
-    for (const [index, nome] of names.entries()) {
-      const response = await fetch(`/api/campeonatos/${campeonatoId}/estrutura`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_phase', nome, ordem: index + 1 }),
-      })
-      const json = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(json.error || `Não foi possível criar a fase ${index + 1}.`)
-    }
+    const plan = Array.isArray(form.estrutura_planejada) && form.estrutura_planejada.length
+      ? form.estrutura_planejada.slice(0, count)
+      : names.map((nome) => ({ nome, grupos: '1', equipes_por_grupo: form.numero_vagas || '12', classificam_por_grupo: '' }))
+    const phasePayload = plan.map((phase, index) => {
+      const groups = Math.max(1, Math.min(26, Number(phase.grupos) || 1))
+      const slots = Math.max(1, Math.min(52, Number(phase.equipes_por_grupo) || 12))
+      return {
+        nome: String(phase.nome || names[index]).trim() || `Fase ${index + 1}`,
+        ordem: index + 1,
+        grupos: Array.from({ length: groups }, (_, groupIndex) => ({
+          nome: groups === 1 ? 'Grupo único' : `Grupo ${String.fromCharCode(65 + groupIndex)}`,
+          slots,
+        })),
+      }
+    })
+    const response = await fetch(`/api/campeonatos/${campeonatoId}/estrutura`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create_bulk', fases: phasePayload }),
+    })
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(json.error || 'Não foi possível criar a estrutura inicial.')
     await props.reloadStructure?.()
   }
 

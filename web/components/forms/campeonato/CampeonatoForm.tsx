@@ -20,6 +20,7 @@ export type CampeonatoFormValue = {
   numero_vagas: string
   numero_fases: string
   nomes_fases: string[]
+  estrutura_planejada: CampeonatoStructurePhase[]
   formato: string
   plataforma: string
   servidor: string
@@ -72,6 +73,13 @@ export type CampeonatoFormValue = {
   }>
 }
 
+export type CampeonatoStructurePhase = {
+  nome: string
+  grupos: string
+  equipes_por_grupo: string
+  classificam_por_grupo: string
+}
+
 export type CampeonatoWhatsappContact = {
   id: string
   nome: string
@@ -101,6 +109,7 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   numero_vagas: '',
   numero_fases: '1',
   nomes_fases: ['Fase 1'],
+  estrutura_planejada: [],
   formato: '',
   plataforma: '',
   servidor: '',
@@ -198,6 +207,25 @@ const THEME_PALETTES = [
 
 function defaultFormat(type: string) {
   return TYPE_OPTIONS.find((option) => option.type === type)?.format || ''
+}
+
+function suggestedPhaseName(type: string, index: number, total: number) {
+  if (total === 1) return type === 'diario' ? 'Rodada única' : type === 'copa' ? 'Fase classificatória' : 'Fase 1'
+  if (index === total - 1) return 'Final'
+  return index === 0 ? 'Fase classificatória' : `Fase ${index + 1}`
+}
+
+function defaultStructurePlan(type: string, count = 1, current: CampeonatoStructurePhase[] = []) {
+  return Array.from({ length: count }, (_, index) => {
+    const existing = current[index]
+    const isCup = type === 'copa'
+    return {
+      nome: existing?.nome || suggestedPhaseName(type, index, count),
+      grupos: existing?.grupos || (isCup && index === 0 ? '8' : '1'),
+      equipes_por_grupo: existing?.equipes_por_grupo || (type === 'confronto' ? '2' : '12'),
+      classificam_por_grupo: existing?.classificam_por_grupo || (isCup && index < count - 1 ? '6' : ''),
+    }
+  })
 }
 
 function moneyDisplay(value: string) {
@@ -335,10 +363,12 @@ export function CampeonatoForm({
   function updateInitialPhaseCount(raw: string) {
     const count = Math.max(1, Math.min(12, Number(raw) || 1))
     const current = Array.isArray(value.nomes_fases) ? value.nomes_fases : []
+    const structurePlan = defaultStructurePlan(value.tipo, count, value.estrutura_planejada)
     onChange({
       ...value,
       numero_fases: String(count),
-      nomes_fases: Array.from({ length: count }, (_, index) => current[index] || phaseNameSuggestion(index, count)),
+      nomes_fases: Array.from({ length: count }, (_, index) => current[index] || structurePlan[index]?.nome || phaseNameSuggestion(index, count)),
+      estrutura_planejada: structurePlan,
     })
   }
 
@@ -350,6 +380,18 @@ export function CampeonatoForm({
       nomes_fases: Array.from({ length: count }, (_, itemIndex) =>
         itemIndex === index ? name : current[itemIndex] || phaseNameSuggestion(itemIndex, count),
       ),
+      estrutura_planejada: defaultStructurePlan(value.tipo, count, value.estrutura_planejada).map((phase, itemIndex) => itemIndex === index ? { ...phase, nome: name } : phase),
+    })
+  }
+
+  function updateStructurePhase(index: number, patch: Partial<CampeonatoStructurePhase>) {
+    const count = Math.max(1, Math.min(12, Number(value.numero_fases) || 1))
+    const next = defaultStructurePlan(value.tipo, count, value.estrutura_planejada)
+      .map((phase, itemIndex) => itemIndex === index ? { ...phase, ...patch } : phase)
+    onChange({
+      ...value,
+      estrutura_planejada: next,
+      nomes_fases: next.map((phase, itemIndex) => phase.nome || phaseNameSuggestion(itemIndex, count)),
     })
   }
 
@@ -362,6 +404,7 @@ export function CampeonatoForm({
       numero_vagas: value.numero_vagas || (type === 'copa' ? '96' : type === 'confronto' ? '2' : '12'),
       numero_fases: value.numero_fases || '1',
       nomes_fases: value.nomes_fases?.length ? value.nomes_fases : ['Fase 1'],
+      estrutura_planejada: defaultStructurePlan(type, 1),
       plataforma: value.plataforma || 'mobile',
       servidor: value.servidor || 'Brasil',
       vagas_por_equipe: value.vagas_por_equipe || '4',
@@ -430,7 +473,7 @@ export function CampeonatoForm({
       const copied: CampeonatoFormValue = { ...value }
       const copyKeys: Array<keyof CampeonatoFormValue> = [
         'nome', 'logo_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
-        'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'formato', 'plataforma', 'servidor', 'tipo_premiacao',
+        'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'plataforma', 'servidor', 'tipo_premiacao',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
         'permite_jogador_multiplas_equipes', 'permite_troca_jogadores', 'data_limite_trocas',
         'data_limite_inscricao', 'aceita_novas_inscricoes_equipes', 'contatos_whatsapp',
@@ -876,19 +919,29 @@ export function CampeonatoForm({
             </div>
           </div>
           <p className="form-empty-note">
-            As vagas comerciais contam somente a fase de entrada. Fases posteriores são avanço/classificação e não entram como vagas livres.
+            A montagem abaixo cria fases, grupos e slots automaticamente. As vagas comerciais contam somente a fase de entrada; as próximas recebem classificados.
           </p>
-          <div className="mini-grid three">
-            {Array.from({ length: Math.max(1, Math.min(12, Number(value.numero_fases) || 1)) }).map((_, index) => (
-              <Field label={`Nome da fase ${index + 1}`} key={index}>
-                <input
-                  value={(Array.isArray(value.nomes_fases) ? value.nomes_fases[index] : '') || phaseNameSuggestion(index, Number(value.numero_fases) || 1)}
-                  onChange={(event) => updateInitialPhaseName(index, event.target.value)}
-                  placeholder={`Fase ${index + 1}`}
-                />
-              </Field>
-            ))}
-          </div>
+          {defaultStructurePlan(value.tipo, Math.max(1, Math.min(12, Number(value.numero_fases) || 1)), value.estrutura_planejada).map((phase, index) => (
+            <div className="championship-structure-phase" key={index}>
+              <span>Fase {index + 1}</span>
+              <div className="mini-grid four">
+                <Field label="Nome da fase">
+                  <input value={phase.nome} onChange={(event) => updateStructurePhase(index, { nome: event.target.value })} placeholder={`Fase ${index + 1}`} />
+                </Field>
+                <Field label="Grupos">
+                  <input type="number" min="1" max="26" value={phase.grupos} onChange={(event) => updateStructurePhase(index, { grupos: event.target.value })} />
+                </Field>
+                <Field label="Equipes por grupo">
+                  <input type="number" min="1" max="52" value={phase.equipes_por_grupo} onChange={(event) => updateStructurePhase(index, { equipes_por_grupo: event.target.value })} />
+                </Field>
+                {value.tipo === 'copa' && index < Math.max(1, Number(value.numero_fases) || 1) - 1 ? (
+                  <Field label="Classificam por grupo">
+                    <input type="number" min="1" max="51" value={phase.classificam_por_grupo} onChange={(event) => updateStructurePhase(index, { classificam_por_grupo: event.target.value })} placeholder="Ex.: 6" />
+                  </Field>
+                ) : <div className="championship-structure-summary">{Number(phase.grupos || 0) * Number(phase.equipes_por_grupo || 0) || 0} vagas nesta fase</div>}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

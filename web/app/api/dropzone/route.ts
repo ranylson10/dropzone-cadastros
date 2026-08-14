@@ -288,6 +288,13 @@ const THEME_COLOR_KEYS = [
   'bg_opacidade',
 ] as const
 
+const OPTIONAL_STRUCTURE_KEYS = [
+  'estrutura_planejada',
+  'liga_usa_divisoes',
+  'liga_nome_agrupamento',
+  'liga_divisoes',
+] as const
+
 function championshipConfigurationPayload(data: Record<string, any>, campeonatoId: string) {
   const permiteTroca = Boolean(data.permite_troca_jogadores)
   return {
@@ -325,8 +332,38 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     paypal_moedas: Array.isArray(data.paypal_moedas)
       ? [...new Set(data.paypal_moedas.map((item: unknown) => String(item).toUpperCase()).filter((item: string) => ['BRL', 'USD', 'EUR'].includes(item)))]
       : ['BRL', 'USD', 'EUR'],
+    estrutura_planejada: normalizeStructurePlan(data.estrutura_planejada),
+    liga_usa_divisoes: Boolean(data.liga_usa_divisoes),
+    liga_nome_agrupamento: String(data.liga_nome_agrupamento || 'Divisões').trim().slice(0, 60) || 'Divisões',
+    liga_divisoes: normalizeLeagueDivisions(data.liga_divisoes),
     ...buildThemeColumns(data),
   }
+}
+
+function normalizeStructurePlan(value: unknown) {
+  if (!Array.isArray(value)) return []
+  if (value.length > 12) throw new Error('A estrutura inicial aceita no máximo 12 fases.')
+  return value.map((item, index) => {
+    const nome = String((item as any)?.nome || '').trim().slice(0, 100) || `Fase ${index + 1}`
+    const grupos = Math.max(1, Math.min(26, Number.parseInt(String((item as any)?.grupos || '1'), 10) || 1))
+    const equipesPorGrupo = Math.max(1, Math.min(52, Number.parseInt(String((item as any)?.equipes_por_grupo || '12'), 10) || 12))
+    const classificamRaw = String((item as any)?.classificam_por_grupo || '').trim()
+    const classificam = classificamRaw
+      ? Math.max(1, Math.min(equipesPorGrupo, Number.parseInt(classificamRaw, 10) || 1))
+      : null
+    return { nome, grupos, equipes_por_grupo: equipesPorGrupo, classificam_por_grupo: classificam }
+  })
+}
+
+function normalizeLeagueDivisions(value: unknown) {
+  if (!Array.isArray(value)) return []
+  if (value.length > 12) throw new Error('A liga aceita no máximo 12 divisões.')
+  return value.map((item, index) => ({
+    id: String((item as any)?.id || crypto.randomUUID()).slice(0, 80),
+    nome: String((item as any)?.nome || '').trim().slice(0, 80) || `Divisão ${index + 1}`,
+    codigo: String((item as any)?.codigo || '').trim().slice(0, 30),
+    ordem: index + 1,
+  }))
 }
 
 function normalizeHexColor(value: unknown, fallback: string) {
@@ -375,7 +412,7 @@ function isMissingThemeColumnError(error: any) {
   return (
     code === '42703' ||
     code === 'PGRST204' ||
-    THEME_COLOR_KEYS.some((key) => message.includes(key)) ||
+    [...THEME_COLOR_KEYS, ...OPTIONAL_STRUCTURE_KEYS].some((key) => message.includes(key)) ||
     /column .* does not exist/i.test(message)
   )
 }
@@ -393,6 +430,7 @@ async function saveChampionshipConfiguration(payload: Record<string, any>) {
 
   const withoutTheme = { ...payload }
   for (const key of THEME_COLOR_KEYS) delete withoutTheme[key]
+  for (const key of OPTIONAL_STRUCTURE_KEYS) delete withoutTheme[key]
   const retry = await supabaseAdmin
     .from('campeonato_configuracoes')
     .upsert(withoutTheme, { onConflict: 'campeonato_id' })
@@ -401,7 +439,7 @@ async function saveChampionshipConfiguration(payload: Record<string, any>) {
   if (retry.error) throw retry.error
   return {
     data: retry.data,
-    warning: 'Colunas de tema ainda não existem. Rode database/migrations/20260716_campeonato_cores_tema.sql',
+    warning: 'Colunas de configuração ainda não existem. Rode as migrations mais recentes de campeonato.',
   }
 }
 
