@@ -94,6 +94,7 @@ export type DirectoryProfile = DirectoryItem & {
     score?: number | null
     tier?: string | null
     metrics: Array<{ label: string; value: string }>
+    averages: Array<{ label: string; value: string }>
     highlights: Array<{ label: string; value: string }>
     trend: Array<{ label: string; abates: number; dano: number; assistencias: number }>
   } | null

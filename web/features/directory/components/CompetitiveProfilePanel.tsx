@@ -29,16 +29,21 @@ export function CompetitiveProfilePanel({ profile }: { profile: DirectoryProfile
         </article>)}
       </div>
 
+      <div className="competitive-average-grid" aria-label="Médias por partida">
+        <strong>Média por partida</strong>
+        {competitive.averages.map((average) => <span key={average.label}><small>{average.label}</small><b>{average.value}</b></span>)}
+      </div>
+
       <div className="competitive-profile-detail-grid">
         <section className="competitive-loadout">
-          <header><Sparkles size={15} /><strong>Destaques da Garena</strong></header>
+          <header><Sparkles size={15} /><strong>Dados Garena</strong></header>
           <dl>
             {competitive.highlights.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value || 'Sem dados'}</dd></div>)}
           </dl>
         </section>
         <section className="competitive-trend">
-          <header><Activity size={15} /><strong>Média por queda</strong></header>
-          {competitive.trend.length ? <div className="competitive-bars" aria-label="Histórico de desempenho por queda">
+          <header><Activity size={15} /><strong>Histórico por partida</strong></header>
+          {competitive.trend.length ? <div className="competitive-bars" aria-label="Histórico de desempenho por partida">
             {competitive.trend.map((item) => <div key={item.label} className="competitive-bar-item" title={`${item.label}: ${item.abates} abates, ${item.dano.toLocaleString('pt-BR')} dano`}>
               <span className="competitive-bar-stack">
                 <i style={{ height: `${Math.max(8, item.abates / maximum * 100)}%` }} />
