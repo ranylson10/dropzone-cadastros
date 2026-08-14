@@ -334,3 +334,98 @@ body {
   .vacancies-toolbar { position: sticky; top: 66px; z-index: 8; }
   .vacancy-card { border-radius: var(--ui-radius-sm); }
 }
+
+/* Lista compartilhada dos diretÃ³rios pÃºblicos. A antiga folha clara ainda
+   alternava algumas linhas, quebrando o padrÃ£o em equipes, jogadores e managers. */
+body .directory-page:not(.directory-market-page) .directory-toolbar {
+  width:min(1240px,calc(100% - 32px));
+  margin:0 auto 12px;
+  padding:0 0 12px;
+  border-bottom:1px solid var(--ui-line);
+}
+body .directory-page:not(.directory-market-page) .directory-search {
+  min-height:46px;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text-muted);
+  box-shadow:none;
+}
+body .directory-page:not(.directory-market-page) .directory-search input{
+  color:var(--ui-text);
+  background:transparent;
+}
+body .directory-page:not(.directory-market-page) .directory-search input::placeholder{color:var(--ui-text-muted)}
+body .directory-page:not(.directory-market-page) .directory-search:focus-within{
+  border-color:var(--ui-accent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--ui-accent) 25%,transparent);
+}
+body .directory-page:not(.directory-market-page) .directory-result-count{
+  min-height:46px;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text-muted);
+}
+body .directory-page:not(.directory-market-page) .directory-result-count strong{color:var(--ui-text)}
+body .directory-page:not(.directory-market-page) .directory-list-head{
+  width:min(1240px,calc(100% - 32px));
+  min-height:38px;
+  margin:0 auto 6px;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text-muted);
+}
+body .directory-page:not(.directory-market-page) .directory-list-head-meta em{
+  border-left-color:var(--ui-line);
+  color:var(--ui-text-muted);
+}
+body .directory-page:not(.directory-market-page) .directory-list:not(.directory-rank-list){
+  gap:6px;
+  border:0;
+  background:transparent;
+}
+body .directory-page:not(.directory-market-page) .directory-list-row,
+body .directory-page:not(.directory-market-page) .directory-list-row:nth-child(even){
+  min-height:66px;
+  border:1px solid var(--ui-line);
+  border-left:3px solid transparent;
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .directory-page:not(.directory-market-page) .directory-list-row:hover{
+  border-left-color:var(--ui-accent);
+  background:var(--ui-surface-soft);
+  box-shadow:none;
+}
+body .directory-page:not(.directory-market-page) .directory-list-row .directory-list-main > small,
+body .directory-page:not(.directory-market-page) .directory-list-row .directory-list-main > span{color:var(--ui-text-muted)}
+body .directory-page:not(.directory-market-page) .directory-list-row .directory-list-main > strong{color:var(--ui-text)}
+body .directory-page:not(.directory-market-page) .directory-list-row .directory-list-meta{
+  color:var(--ui-text-muted);
+}
+body .directory-page:not(.directory-market-page) .directory-list-row .directory-list-meta em{
+  border-left-color:var(--ui-line);
+}
+body .directory-page:not(.directory-market-page) .directory-list-row .directory-list-meta b,
+body .directory-page:not(.directory-market-page) .directory-list-row .directory-list-arrow{color:var(--ui-text)}
+
+@media (max-width:760px){
+  body .directory-page:not(.directory-market-page) .directory-toolbar,
+  body .directory-page:not(.directory-market-page) .directory-list-head{width:calc(100% - 20px)}
+  body .directory-page:not(.directory-market-page) .directory-list-head{display:none}
+  body .directory-page:not(.directory-market-page) .directory-list-row,
+  body .directory-page:not(.directory-market-page) .directory-list-row:nth-child(even){
+    border:1px solid var(--ui-line);
+    border-left:2px solid transparent;
+    border-radius:var(--ui-radius-sm);
+    background:var(--ui-surface);
+  }
+  body .directory-page:not(.directory-market-page) .directory-list-row:hover{
+    border-left-color:var(--ui-accent);
+    background:var(--ui-surface-soft);
+  }
+}

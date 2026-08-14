@@ -243,6 +243,56 @@
   background:#1a1b1f center/cover no-repeat;
   text-decoration:none;
 }
+.directory-champ-cover-empty{
+  position:absolute;
+  inset:0;
+  display:grid;
+  align-content:center;
+  justify-items:start;
+  gap:7px;
+  padding:18px;
+  overflow:hidden;
+  background:
+    linear-gradient(130deg,rgba(201,183,102,.18),transparent 48%),
+    linear-gradient(145deg,#252117 0%,#151619 62%,#101113 100%);
+  color:var(--champ-text);
+}
+.directory-champ-cover-empty::after{
+  position:absolute;
+  right:-16px;
+  bottom:-38px;
+  color:rgba(201,183,102,.09);
+  content:'DZ';
+  font-size:132px;
+  font-weight:950;
+  letter-spacing:-.12em;
+  line-height:1;
+}
+.directory-champ-cover-empty b,
+.directory-champ-cover-empty small{position:relative;z-index:1}
+.directory-champ-cover-empty b{
+  display:grid;
+  width:48px;
+  height:48px;
+  place-items:center;
+  border:1px solid rgba(223,207,133,.46);
+  border-radius:var(--ui-radius-sm,6px);
+  background:rgba(12,13,15,.62);
+  color:var(--champ-accent-strong);
+  font-size:17px;
+  letter-spacing:.04em;
+}
+.directory-champ-cover-empty small{
+  max-width:75%;
+  overflow:hidden;
+  color:var(--champ-muted);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.09em;
+  text-overflow:ellipsis;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
 .directory-champ-badges{position:absolute;left:8px;bottom:8px;display:flex;gap:5px}
 .directory-champ-badges b{display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border-radius:6px;background:#111214;color:var(--champ-text);font-size:8px;text-transform:uppercase}
 .directory-champ-body{display:grid;gap:10px;padding:12px}
@@ -292,6 +342,9 @@
   .directory-champ-card-grid{grid-template-columns:1fr;gap:7px;width:calc(100% - 20px)}
   .directory-champ-card{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:126px;border-radius:8px}
   .directory-champ-cover{min-height:126px;height:100%}
+  .directory-champ-cover-empty{padding:12px}
+  .directory-champ-cover-empty b{width:38px;height:38px;font-size:14px}
+  .directory-champ-cover-empty::after{right:-11px;bottom:-22px;font-size:98px}
   .directory-champ-badges{left:5px;bottom:5px;gap:3px}
   .directory-champ-badges b{padding:3px 4px;font-size:6px}
   .directory-champ-body{gap:6px;padding:8px 9px}
