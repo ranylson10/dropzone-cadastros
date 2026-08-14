@@ -37,6 +37,7 @@ export default function AdminPage() {
   const [saques, setSaques] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [tab, setTab] = useState<Tab>('overview')
   const [search, setSearch] = useState('')
   const [aprovFilter, setAprovFilter] = useState('pendente')
@@ -241,6 +242,29 @@ export default function AdminPage() {
     }
   }
 
+  async function reconcileGarena() {
+    setBusyId('garena-reconcile')
+    setError('')
+    setNotice('')
+    try {
+      const res = await fetch('/api/admin/garena/reconciliar', {
+        method: 'POST',
+        headers: await headers(),
+        body: JSON.stringify({}),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      const completed = (json.resultados || []).filter((item: any) => item.status === 'concluida').length
+      const failed = (json.resultados || []).filter((item: any) => item.status === 'falhou').length
+      if (failed) throw new Error(`${completed} MatchResult(s) sincronizados; ${failed} falharam e podem ser revisados no pontuador.`)
+      setNotice(`${completed} MatchResult(s) antigos sincronizados com a Garena.`)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId('')
+    }
+  }
+
   if (loading && !data) return <DropzoneLoader label="Carregando administração" />
 
   const metrics = data?.metrics || {}
@@ -286,6 +310,7 @@ export default function AdminPage() {
       </nav>
 
       {error ? <div className="admin-feedback error">{error}</div> : null}
+      {notice ? <div className="admin-feedback">{notice}</div> : null}
 
       {tab === 'overview' ? (
         <>
@@ -355,6 +380,21 @@ export default function AdminPage() {
                 <span>{infra.storage_objects || 0} arquivos</span>
               </div>
             </article>
+          </section>
+          <section className="admin-section">
+            <header>
+              <div>
+                <p>Dados competitivos</p>
+                <h2>Reconciliação Garena</h2>
+              </div>
+              <button type="button" disabled={busyId === 'garena-reconcile'} onClick={() => void reconcileGarena()}>
+                <RefreshCw size={15} className={busyId === 'garena-reconcile' ? 'spin' : ''} />
+                {busyId === 'garena-reconcile' ? 'Sincronizando...' : 'Sincronizar MatchResults pendentes'}
+              </button>
+            </header>
+            <p className="admin-feedback" style={{ borderColor: 'var(--line)' }}>
+              Busca somente súmulas antigas confirmadas que ainda não possuem dados detalhados da Garena. A pontuação oficial e a escalação não são alteradas.
+            </p>
           </section>
         </>
       ) : null}
