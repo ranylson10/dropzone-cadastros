@@ -199,18 +199,20 @@ export function buildPlayerNameOverwrite(
     Color: string
   }> = []
 
-  // ordem estável de equipes para TeamID
+  // No SPEC, cada line inscrita é uma equipe de jogo independente.
   const teamOrder: Array<{ id: string; nome: string }> = []
   const teamSeen = new Set<string>()
   let skipped = 0
 
   for (const eq of data.equipes || []) {
     for (const line of eq.lines || []) {
-      if (!teamSeen.has(eq.id)) {
-        teamSeen.add(eq.id)
-        teamOrder.push({ id: eq.id, nome: eq.nome })
+      const lineId = String(line.participacao_id || line.id || `${eq.id}:${line.nome}`)
+      const lineName = line.nome_exibicao || line.nome || eq.nome
+      if (!teamSeen.has(lineId)) {
+        teamSeen.add(lineId)
+        teamOrder.push({ id: lineId, nome: lineName })
       }
-      const tag = cleanTag(line.tag || eq.tag, eq.nome)
+      const tag = cleanTag(line.tag || eq.tag, lineName)
       for (const jog of line.jogadores || []) {
         const playerId = parsePlayerId(jog.id_jogo)
         if (playerId == null) {

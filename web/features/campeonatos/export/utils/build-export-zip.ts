@@ -28,16 +28,15 @@ function slugify(value: string) {
 }
 
 function buildEquipesRows(data: CampeonatoExportPayload) {
-  // CSV enxuto: só nome e tag da equipe (uma linha por equipe)
+  // A unidade de competição é a line inscrita, não a organização mãe.
   const rows: Array<Record<string, unknown>> = []
-  const seen = new Set<string>()
   for (const eq of data.equipes || []) {
-    if (seen.has(eq.id)) continue
-    seen.add(eq.id)
-    rows.push({
-      nome_equipe: eq.nome || '',
-      tag: eq.tag || '',
-    })
+    for (const line of eq.lines || []) {
+      rows.push({
+        nome_line: line.nome_exibicao || line.nome || eq.nome || '',
+        tag: line.tag || eq.tag || '',
+      })
+    }
   }
   return rows
 }
@@ -148,7 +147,7 @@ export async function buildExportZip(
 
   if (modo === 'completo' || modo === 'tabelas') {
     const tabelas = folder.folder('tabelas')!
-    tabelas.file('equipes-lines.csv', toCsv(buildEquipesRows(data)))
+    tabelas.file('lines.csv', toCsv(buildEquipesRows(data)))
     tabelas.file('jogadores.csv', toCsv(buildJogadoresRows(data)))
     tabelas.file('lista.txt', buildListaTxt(data))
     tabelas.file(

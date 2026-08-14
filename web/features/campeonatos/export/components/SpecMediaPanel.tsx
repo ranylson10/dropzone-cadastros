@@ -597,7 +597,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
         </>
       ) : (
         <div className="section-head">
-          <h4>{focus === 'logos' ? 'Logos das equipes · 300×300' : `Fotos dos jogadores · ${PHOTO_W}×${PHOTO_H}`}</h4>
+          <h4>{focus === 'logos' ? 'Logos das lines · 300×300' : `Fotos dos jogadores · ${PHOTO_W}×${PHOTO_H}`}</h4>
           <small>
             {focus === 'logos'
               ? 'fundo, margens, zoom/posição, cor · ZIP e backup'

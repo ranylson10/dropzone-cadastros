@@ -18,6 +18,7 @@ import {
 import { campeonatoExportService } from '../services/campeonato-export.service'
 import type {
   CampeonatoExportPayload,
+  ExportLine,
   ExportPacoteModo,
 } from '../types/campeonato-export.types'
 import {
@@ -47,14 +48,15 @@ const EXPORT_NOTES: {
   short: string
   step: number
 }[] = [
-  { id: 'equipes', label: 'Arquivos equipes', short: 'Equipes', step: 1 },
+  { id: 'equipes', label: 'Arquivos lines', short: 'Lines', step: 1 },
   { id: 'jogadores', label: 'Arquivos jogadores', short: 'Jogadores', step: 2 },
-  { id: 'logos', label: 'Logos equipes', short: 'Logos', step: 3 },
+  { id: 'logos', label: 'Logos lines', short: 'Logos', step: 3 },
   { id: 'fotos', label: 'Fotos jogadores', short: 'Fotos', step: 4 },
 ]
 
 type EditEquipe = {
   id: string
+  equipeId: string
   nome: string
   tag: string
 }
@@ -62,11 +64,16 @@ type EditEquipe = {
 type EditJogador = {
   key: string
   equipeId: string
+  lineKey: string
   tag_equipe: string
   nick: string
   id_jogo: string
   funcao: string
   localidade: string
+}
+
+function exportLineKey(equipeId: string, line: ExportLine) {
+  return String(line.participacao_id || line.id || `${equipeId}:${line.nome}`)
 }
 
 function downloadText(filename: string, content: string, mime: string) {
@@ -77,17 +84,20 @@ function buildEditState(payload: CampeonatoExportPayload) {
   const equipes: EditEquipe[] = []
   const jogadores: EditJogador[] = []
   for (const eq of payload.equipes || []) {
-    equipes.push({
-      id: eq.id,
-      nome: eq.nome || '',
-      tag: eq.tag || '',
-    })
     for (const line of eq.lines || []) {
+      const lineKey = exportLineKey(eq.id, line)
       const tagLine = line.tag || eq.tag || ''
+      equipes.push({
+        id: lineKey,
+        equipeId: eq.id,
+        nome: line.nome_exibicao || line.nome || eq.nome || '',
+        tag: tagLine,
+      })
       for (const jog of line.jogadores || []) {
         jogadores.push({
           key: `${eq.id}:${line.participacao_id}:${jog.id}`,
           equipeId: eq.id,
+          lineKey,
           tag_equipe: tagLine,
           nick: jog.nick || '',
           id_jogo: jog.id_jogo || '',
@@ -106,71 +116,45 @@ function applyEdits(
   equipesEdit: EditEquipe[],
   jogadoresEdit: EditJogador[],
 ): CampeonatoExportPayload {
-  const eqMap = new Map(equipesEdit.map((e) => [e.id, e]))
+  const lineMap = new Map(equipesEdit.map((e) => [e.id, e]))
   const jogByKey = new Map(jogadoresEdit.map((j) => [j.key, j]))
 
   const equipes = (source.equipes || []).map((eq) => {
-    const edit = eqMap.get(eq.id)
-    const nome = edit?.nome ?? eq.nome
-    const tag = edit?.tag ?? eq.tag
     return {
       ...eq,
-      nome,
-      tag,
-      lines: (eq.lines || []).map((line) => ({
-        ...line,
-        tag: line.tag ? (edit?.tag ?? line.tag) : tag,
-        jogadores: (line.jogadores || []).map((jog) => {
-          const key = `${eq.id}:${line.participacao_id}:${jog.id}`
-          const je = jogByKey.get(key)
-          if (!je) return jog
-          return {
-            ...jog,
-            nick: je.nick,
-            id_jogo: je.id_jogo,
-            funcao: je.funcao,
-            localidade: je.localidade,
-          }
-        }),
-      })),
+      lines: (eq.lines || []).map((line) => {
+        const edit = lineMap.get(exportLineKey(eq.id, line))
+        const first = line.jogadores[0]
+        const firstEdit = first ? jogByKey.get(`${eq.id}:${line.participacao_id}:${first.id}`) : null
+        const nome = edit?.nome ?? line.nome_exibicao ?? line.nome
+        return {
+          ...line,
+          nome,
+          nome_exibicao: nome,
+          tag: firstEdit?.tag_equipe || edit?.tag || line.tag || eq.tag,
+          jogadores: (line.jogadores || []).map((jog) => {
+            const editJogador = jogByKey.get(`${eq.id}:${line.participacao_id}:${jog.id}`)
+            return editJogador
+              ? {
+                ...jog,
+                nick: editJogador.nick,
+                id_jogo: editJogador.id_jogo,
+                funcao: editJogador.funcao,
+                localidade: editJogador.localidade,
+              }
+              : jog
+          }),
+        }
+      }),
     }
   })
 
-  // se o adm mudou a tag da equipe, propaga para jogadores sem tag de line
-  for (const j of jogadoresEdit) {
-    const eq = eqMap.get(j.equipeId)
-    if (eq && !j.tag_equipe) j.tag_equipe = eq.tag
-  }
-
-  // re-apply tag_equipe edits onto lines when tag_equipe differs
-  const equipesFinal = equipes.map((eq) => ({
-    ...eq,
-    lines: eq.lines.map((line) => ({
-      ...line,
-      jogadores: line.jogadores.map((jog) => {
-        const key = `${eq.id}:${line.participacao_id}:${jog.id}`
-        const je = jogByKey.get(key)
-        if (!je) return jog
-        // se tag_equipe foi editada no jogador, grava na line.tag para o SPEC usar
-        return jog
-      }),
-      // tag efetiva para SPEC: se todos jogadores da line têm mesma tag_equipe editada
-      tag: (() => {
-        const first = line.jogadores[0]
-        if (!first) return line.tag || eq.tag
-        const key = `${eq.id}:${line.participacao_id}:${first.id}`
-        const je = jogByKey.get(key)
-        return je?.tag_equipe || line.tag || eq.tag
-      })(),
-    })),
-  }))
-
   return {
     ...source,
-    equipes: equipesFinal,
+    equipes,
     resumo: {
       ...source.resumo,
-      total_equipes: equipesFinal.length,
+      total_lines: equipesEdit.length,
       total_jogadores: jogadoresEdit.length,
     },
   }
@@ -210,7 +194,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     const { equipes, jogadores } = buildEditState(payload)
     if (ov?.equipes) {
       for (const e of equipes) {
-        const b = ov.equipes[e.id]
+        const b = ov.equipes[e.id] || ov.equipes[e.equipeId]
         if (b?.nome != null) e.nome = String(b.nome)
         if (b?.tag != null) e.tag = String(b.tag)
       }
@@ -337,12 +321,12 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     setGrupoIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
-  function patchEquipe(id: string, field: 'nome' | 'tag', value: string) {
+  function patchLine(id: string, field: 'nome' | 'tag', value: string) {
     setEquipesEdit((prev) => prev.map((e) => (e.id === id ? { ...e, [field]: value } : e)))
-    // se mudou tag da equipe, atualiza tag_equipe dos jogadores daquela equipe
+    // A tag da line é a tag operacional que segue para os seus jogadores.
     if (field === 'tag') {
       setJogadoresEdit((prev) =>
-        prev.map((j) => (j.equipeId === id ? { ...j, tag_equipe: value } : j)),
+        prev.map((j) => (j.lineKey === id ? { ...j, tag_equipe: value } : j)),
       )
     }
   }
@@ -372,8 +356,8 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
   function baixarCsvEquipes() {
     if (!equipesEdit.length) return
     downloadText(
-      `tabela-equipes-${baseName}.csv`,
-      toCsv(equipesEdit.map((e) => ({ nome_equipe: e.nome, tag: e.tag }))),
+      `tabela-lines-${baseName}.csv`,
+      toCsv(equipesEdit.map((e) => ({ nome_line: e.nome, tag: e.tag }))),
       'text/csv;charset=utf-8',
     )
   }
@@ -409,7 +393,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
       })
       downloadText('PlayerNameOverwrite.json', content, 'application/json;charset=utf-8')
       setSpecMsg(
-        `Gerado: ${stats.players} jogadores · ${stats.teams} equipes`
+        `Gerado: ${stats.players} jogadores · ${stats.teams} lines`
         + (stats.skipped ? ` · ${stats.skipped} sem id_jogo` : '')
         + ` · PlayerNation=${nationSource === 'localidade' ? 'cidade' : 'função'}`,
       )
@@ -454,7 +438,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
         team_color: teamColor,
         text_colors: textColors,
       })
-      setSpecMsg('Edições de equipes/jogadores salvas neste campeonato.')
+      setSpecMsg('Edições de lines/jogadores salvas neste campeonato.')
       setBackupHint('Backup de texto atualizado.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao salvar backup de texto.')
@@ -563,7 +547,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
           ) : null}
 
           <div className="export-mini-stats">
-            <span><b>{equipesEdit.length}</b> eq</span>
+            <span><b>{equipesEdit.length}</b> lines</span>
             <span><b>{jogadoresEdit.length}</b> jog</span>
           </div>
         </div>
@@ -611,13 +595,13 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
         ))}
       </nav>
 
-      {/* ——— 1. ARQUIVOS EQUIPES ——— */}
+      {/* ——— 1. ARQUIVOS LINES ——— */}
       {note === 'equipes' ? (
         <section className="export-section export-section-compact">
           <div className="section-head">
             <h4>
               <Users size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
-              Arquivos equipes
+              Arquivos lines
             </h4>
             <small>edite nome/tag · baixe CSV · salve no campeonato</small>
           </div>
@@ -625,7 +609,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
             <table className="export-table export-table-edit">
               <thead>
                 <tr>
-                  <th>Nome da equipe</th>
+                  <th>Nome da line</th>
                   <th>Tag</th>
                 </tr>
               </thead>
@@ -636,20 +620,20 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
                       <input
                         className="export-cell-input"
                         value={eq.nome}
-                        onChange={(e) => patchEquipe(eq.id, 'nome', e.target.value)}
+                        onChange={(e) => patchLine(eq.id, 'nome', e.target.value)}
                       />
                     </td>
                     <td>
                       <input
                         className="export-cell-input export-cell-input-sm"
                         value={eq.tag}
-                        onChange={(e) => patchEquipe(eq.id, 'tag', e.target.value)}
+                        onChange={(e) => patchLine(eq.id, 'tag', e.target.value)}
                       />
                     </td>
                   </tr>
                 ))}
                 {!equipesEdit.length ? (
-                  <tr><td colSpan={2}>Nenhuma equipe no escopo.</td></tr>
+                  <tr><td colSpan={2}>Nenhuma line no escopo.</td></tr>
                 ) : null}
               </tbody>
             </table>
@@ -661,7 +645,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
               disabled={!canDownload || Boolean(busy) || !equipesEdit.length}
               onClick={baixarCsvEquipes}
             >
-              <Download size={14} /> CSV equipes
+              <Download size={14} /> CSV lines
             </button>
             <button
               className="button secondary small"
@@ -805,7 +789,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
                 <input type="color" value={roleColor} onChange={(e) => setRoleColor(e.target.value)} />
               </label>
               <label className="export-color-field">
-                <span>Cor equipe</span>
+                <span>Cor da line</span>
                 <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} />
               </label>
               <label className="export-color-field">
@@ -881,7 +865,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
         </>
       ) : null}
 
-      {/* ——— 3. LOGOS EQUIPES ——— */}
+      {/* ——— 3. LOGOS LINES ——— */}
       {note === 'logos' && editedPayload ? (
         <SpecMediaPanel
           campeonatoId={campeonatoId}

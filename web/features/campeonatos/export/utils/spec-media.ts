@@ -131,11 +131,12 @@ export function buildSpecLogoItems(data: CampeonatoExportPayload): SpecLogoItem[
       if (codigo == null) continue
 
       const logoUrl = line.logo_url || eq.logo_url || null
+      const lineName = line.nome_exibicao || line.nome || eq.nome
       items.push({
         key: line.participacao_id || `${eq.id}-${line.id || letter}`,
         equipeId: eq.id,
-        equipeNome: eq.nome,
-        lineNome: line.nome,
+        equipeNome: lineName,
+        lineNome: lineName,
         slotLetra: letter,
         codigo,
         logoUrl,
@@ -155,6 +156,7 @@ export function buildSpecPhotoItems(data: CampeonatoExportPayload): SpecPhotoIte
 
   for (const eq of data.equipes || []) {
     for (const line of eq.lines || []) {
+      const lineName = line.nome_exibicao || line.nome || eq.nome
       for (const jog of line.jogadores || []) {
         const idJogo = String(jog.id_jogo || '').replace(/\D/g, '')
         if (!idJogo || seenIds.has(idJogo)) continue
@@ -165,7 +167,7 @@ export function buildSpecPhotoItems(data: CampeonatoExportPayload): SpecPhotoIte
           idJogo,
           fotoUrl: jog.foto_url || null,
           sourceUrl: jog.foto_url || null,
-          equipeNome: eq.nome,
+          equipeNome: lineName,
           ...DEFAULT_TRANSFORM,
         })
       }
