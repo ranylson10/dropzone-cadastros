@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('dropzoneLive', {
+  session: () => ipcRenderer.invoke('auth:session'),
+  login: (input) => ipcRenderer.invoke('auth:login', input),
+  logout: () => ipcRenderer.invoke('auth:logout'),
+  championships: () => ipcRenderer.invoke('auth:championships'),
   listLives: () => ipcRenderer.invoke('lives:list'),
   createLive: (input) => ipcRenderer.invoke('lives:create', input),
   saveLive: (live) => ipcRenderer.invoke('lives:save', live),

@@ -24,7 +24,7 @@ function defaultLayout() {
 }
 
 function defaultStore() {
-  return { version: 1, lives: [] }
+  return { version: 2, auth: null, lives: [] }
 }
 
 function demoCache() {
@@ -42,10 +42,8 @@ function demoCache() {
 }
 
 function cleanOrigin(value) {
-  const raw = String(value || DEFAULT_ORIGIN).trim().replace(/\/$/, '')
-  const parsed = new URL(raw)
-  if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('Endereço do DropZone inválido.')
-  return parsed.origin
+  if (value && String(value).trim().replace(/\/$/, '') !== DEFAULT_ORIGIN) throw new Error('Este aplicativo funciona somente com o DropZone.')
+  return DEFAULT_ORIGIN
 }
 
 function safeLive(live) {
@@ -88,6 +86,41 @@ async function saveStore(next) {
   return next
 }
 
+async function requireAuth() {
+  const store = await loadStore()
+  if (!store.auth?.accessToken || !store.auth?.userId) throw new Error('Entre com sua conta DropZone para usar o editor.')
+  return { store, auth: store.auth }
+}
+
+async function remoteJson(pathname, options = {}) {
+  const response = await fetch(`${DEFAULT_ORIGIN}${pathname}`, {
+    method: options.method || 'GET',
+    headers: {
+      Accept: 'application/json',
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      ...(options.profileType ? { 'x-profile-type': options.profileType } : {}),
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+    signal: AbortSignal.timeout(options.timeout || 15_000),
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(payload.error || 'Não foi possível falar com o DropZone.')
+  return payload
+}
+
+async function authorizedChampionships(auth) {
+  const payload = await remoteJson('/api/lili/campeonatos', { token: auth.accessToken, profileType: auth.profileType })
+  return (payload.items || []).filter((item) => item.relationship === 'admin' && item.permission && (
+    item.permission.role === 'owner'
+    || item.permission.role === 'manager'
+    || item.permission.canManage
+    || item.permission.canOrganizeGroups
+    || item.permission.canManageGames
+    || item.permission.canScore
+  ))
+}
+
 async function cacheAsset(remoteUrl) {
   if (!remoteUrl) return ''
   let url
@@ -112,27 +145,27 @@ async function cacheAsset(remoteUrl) {
 }
 
 async function syncLive(liveId) {
-  const store = await loadStore()
+  const { store, auth } = await requireAuth()
   const index = store.lives.findIndex((live) => live.id === safeLive(liveId))
   if (index < 0) throw new Error('Live não encontrada.')
   const live = store.lives[index]
   if (!live.campeonatoId) throw new Error('Informe o ID do campeonato antes de sincronizar.')
-  const origin = cleanOrigin(live.origin)
-  const endpoint = `${origin}/api/campeonatos/${encodeURIComponent(live.campeonatoId)}`
-  const [teamsResponse, playersResponse] = await Promise.all([
-    fetch(`${endpoint}/estatisticas/equipes`, { signal: AbortSignal.timeout(15_000) }),
-    fetch(`${endpoint}/estatisticas/mvp`, { signal: AbortSignal.timeout(15_000) })
-  ])
-  if (!teamsResponse.ok) throw new Error('Não foi possível buscar as estatísticas das equipes.')
-  const teamsPayload = await teamsResponse.json()
-  const playersPayload = playersResponse.ok ? await playersResponse.json() : { jogadores: [] }
-  const teams = await Promise.all((teamsPayload.equipes || []).slice(0, 60).map(async (team, position) => ({
+  if (live.ownerId !== auth.userId) throw new Error('Esta produção não pertence à conta conectada.')
+  const available = await authorizedChampionships(auth)
+  if (!available.some((item) => String(item.id) === String(live.campeonatoId))) {
+    throw new Error('Sua conta não tem acesso de produção a este campeonato.')
+  }
+  const payload = await remoteJson(`/api/desktop/campeonatos/${encodeURIComponent(live.campeonatoId)}/estatisticas`, {
+    token: auth.accessToken,
+    profileType: auth.profileType,
+  })
+  const teams = await Promise.all((payload.equipes || []).slice(0, 60).map(async (team, position) => ({
     ...team,
     posicao: Number(team.colocacao ?? team.posicao ?? position + 1),
     nome: String(team.nome || team.line_nome || 'Equipe'),
     logo_local: await cacheAsset(team.logo_url)
   })))
-  const players = await Promise.all((playersPayload.jogadores || []).slice(0, 60).map(async (player, position) => ({
+  const players = await Promise.all((payload.jogadores || []).slice(0, 60).map(async (player, position) => ({
     ...player,
     posicao: Number(player.colocacao ?? position + 1),
     nick: String(player.nick || player.nome || 'Jogador'),
@@ -178,7 +211,7 @@ async function outputHandler(req, res) {
   const match = url.pathname.match(/^\/(?:overlay|state)\/([a-zA-Z0-9-]{8,80})$/)
   if (!match) { res.writeHead(404); return res.end('Not found') }
   const live = store.lives.find((item) => item.id === match[1])
-  if (!live) { res.writeHead(404); return res.end('Live not found') }
+  if (!live || !store.auth?.userId || live.ownerId !== store.auth.userId) { res.writeHead(404); return res.end('Live not found') }
   if (url.pathname.startsWith('/state/')) {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
     return res.end(JSON.stringify(live))
@@ -197,16 +230,47 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'))
 }
 
-ipcMain.handle('lives:list', async () => (await loadStore()).lives)
-ipcMain.handle('lives:create', async (_event, input) => {
+ipcMain.handle('auth:session', async () => {
   const store = await loadStore()
-  const live = { id: crypto.randomUUID(), name: String(input?.name || 'Nova live').slice(0, 80), campeonatoId: String(input?.campeonatoId || '').trim(), origin: cleanOrigin(input?.origin), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), layout: defaultLayout(), cache: demoCache() }
+  if (!store.auth?.accessToken) return { signedIn: false }
+  try {
+    const profile = await remoteJson('/api/me', { token: store.auth.accessToken, profileType: store.auth.profileType })
+    store.auth = { ...store.auth, userId: profile.user.id, account: profile.account, accounts: profile.accounts }
+    await saveStore(store)
+    return { signedIn: true, account: store.auth.account, accounts: store.auth.accounts }
+  } catch {
+    store.auth = null
+    await saveStore(store)
+    return { signedIn: false }
+  }
+})
+ipcMain.handle('auth:login', async (_event, input) => {
+  const profileType = String(input?.profileType || 'produtora')
+  const login = String(input?.login || '').trim()
+  const password = String(input?.password || '')
+  if (!login || !password) throw new Error('Informe seu login e senha.')
+  const payload = await remoteJson('/api/auth/login', { method: 'POST', body: { profile_type: profileType, login, password } })
+  const token = payload.session?.access_token
+  if (!token) throw new Error('O DropZone não retornou uma sessão válida.')
+  const profile = await remoteJson('/api/me', { token, profileType })
+  const store = await loadStore()
+  store.auth = { accessToken: token, refreshToken: payload.session?.refresh_token || null, profileType, userId: profile.user.id, account: profile.account, accounts: profile.accounts }
+  await saveStore(store)
+  return { account: profile.account, accounts: profile.accounts }
+})
+ipcMain.handle('auth:logout', async () => { const store = await loadStore(); store.auth = null; await saveStore(store); return true })
+ipcMain.handle('auth:championships', async () => { const { auth } = await requireAuth(); return authorizedChampionships(auth) })
+ipcMain.handle('lives:list', async () => { const { store, auth } = await requireAuth(); return store.lives.filter((live) => live.ownerId === auth.userId) })
+ipcMain.handle('lives:create', async (_event, input) => {
+  const { store, auth } = await requireAuth()
+  const live = { id: crypto.randomUUID(), ownerId: auth.userId, name: String(input?.name || 'Nova live').slice(0, 80), campeonatoId: String(input?.campeonatoId || '').trim(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), layout: defaultLayout(), cache: demoCache() }
   store.lives.unshift(live); await saveStore(store); return live
 })
-ipcMain.handle('lives:save', async (_event, next) => { const store = await loadStore(); const index = store.lives.findIndex((live) => live.id === safeLive(next?.id)); if (index < 0) throw new Error('Live não encontrada.'); const current = store.lives[index]; const live = { ...current, name: String(next.name || current.name).slice(0,80), campeonatoId: String(next.campeonatoId || current.campeonatoId).trim(), origin: cleanOrigin(next.origin || current.origin), layout: next.layout || current.layout, updatedAt: new Date().toISOString() }; store.lives[index] = live; await saveStore(store); return live })
-ipcMain.handle('lives:delete', async (_event, liveId) => { const store = await loadStore(); store.lives = store.lives.filter((live) => live.id !== safeLive(liveId)); await saveStore(store); return true })
+ipcMain.handle('lives:save', async (_event, next) => { const { store, auth } = await requireAuth(); const index = store.lives.findIndex((live) => live.id === safeLive(next?.id)); if (index < 0 || store.lives[index].ownerId !== auth.userId) throw new Error('Live não encontrada.'); const current = store.lives[index]; const live = { ...current, name: String(next.name || current.name).slice(0,80), campeonatoId: String(next.campeonatoId || current.campeonatoId).trim(), layout: next.layout || current.layout, updatedAt: new Date().toISOString() }; store.lives[index] = live; await saveStore(store); return live })
+ipcMain.handle('lives:delete', async (_event, liveId) => { const { store, auth } = await requireAuth(); store.lives = store.lives.filter((live) => live.id !== safeLive(liveId) || live.ownerId !== auth.userId); await saveStore(store); return true })
 ipcMain.handle('lives:sync', async (_event, liveId) => syncLive(liveId))
 ipcMain.handle('assets:import-image', async () => {
+  await requireAuth()
   const picked = await dialog.showOpenDialog(mainWindow, {
     title: 'Importar imagem para a arte local',
     properties: ['openFile'],
@@ -223,9 +287,16 @@ ipcMain.handle('assets:import-image', async () => {
   await fs.copyFile(source, path.join(assetsPath(), filename))
   return { src: `/asset/${encodeURIComponent(filename)}`, name: path.basename(source) }
 })
-ipcMain.handle('output:url', async (_event, liveId) => `http://127.0.0.1:${OUTPUT_PORT}/overlay/${safeLive(liveId)}`)
-ipcMain.handle('lives:export-png', async (_event, liveId) => {
+ipcMain.handle('output:url', async (_event, liveId) => {
+  const { store, auth } = await requireAuth()
   const id = safeLive(liveId)
+  if (!store.lives.some((live) => live.id === id && live.ownerId === auth.userId)) throw new Error('Live não encontrada.')
+  return `http://127.0.0.1:${OUTPUT_PORT}/overlay/${id}`
+})
+ipcMain.handle('lives:export-png', async (_event, liveId) => {
+  const { store, auth } = await requireAuth()
+  const id = safeLive(liveId)
+  if (!store.lives.some((live) => live.id === id && live.ownerId === auth.userId)) throw new Error('Live não encontrada.')
   const capture = new BrowserWindow({
     show: false,
     width: 1920,

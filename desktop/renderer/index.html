@@ -4,79 +4,31 @@
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: http://127.0.0.1:*; frame-src http://127.0.0.1:*; style-src 'self'; script-src 'self'" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DropZone Live Local</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>DropZone Live Local</title><link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <header class="app-header">
-        <div class="brand"><span class="brand-mark">DZ</span><span><b>DropZone</b><small>COMPETITIVE SYSTEM</small></span></div>
-        <div class="header-context"><span class="live-dot"></span> ESTÚDIO LOCAL <em>·</em> dados e artes neste computador</div>
-        <button id="new-live" class="button button-primary">+ Criar arte / live</button>
-      </header>
+    <section id="login-gate" class="login-gate hidden">
+      <form id="login-form" class="login-card">
+        <div class="dz-mark">DZ</div><h1>DropZone Live</h1><p>Entre com sua conta para abrir suas produções.</p>
+        <label>Perfil<select id="login-profile"><option value="produtora">Produtora</option><option value="manager">Manager</option><option value="broadcast">Broadcast</option><option value="equipe">Equipe</option><option value="jogador">Jogador</option></select></label>
+        <label>Login ou e-mail<input id="login-name" autocomplete="username" required /></label>
+        <label>Senha<input id="login-password" type="password" autocomplete="current-password" required /></label>
+        <button class="accent" type="submit">Entrar</button><small id="login-error"></small>
+      </form>
+    </section>
 
-      <div class="app-body">
-        <aside class="sidebar">
-          <p class="nav-title">PRODUÇÕES</p>
-          <nav id="live-list" class="live-list"></nav>
-          <div class="sidebar-footer"><span class="live-dot"></span><div><b>Modo local</b><small>Projetos protegidos neste PC</small></div></div>
-        </aside>
-
-        <main class="workspace">
-          <header class="workspace-head">
-            <div><p id="live-eyebrow" class="eyebrow">DROPZONE LIVE LOCAL</p><h1 id="live-title">Suas artes, no seu computador</h1><p id="live-subtitle">Crie uma arte de teste agora ou sincronize os dados de um campeonato depois.</p></div>
-            <div class="top-actions">
-              <button id="sync-live" class="button button-secondary" disabled>↻ Atualizar dados</button>
-              <button id="export-png" class="button button-secondary" disabled>Exportar PNG</button>
-              <button id="copy-output" class="button button-primary" disabled>Copiar saída OBS</button>
-            </div>
-          </header>
-
-          <section id="empty-state" class="empty-state">
-            <div class="empty-symbol">✦</div><p class="eyebrow">ESTÚDIO DE ARTES</p><h2>Crie uma arte para testar agora</h2><p>O projeto já abre com uma classificação demonstrativa. Você pode escrever, importar uma imagem do PC, exportar PNG ou conectar um campeonato.</p><button id="empty-new-live" class="button button-primary">Criar arte de teste</button>
-          </section>
-
-          <section id="editor" class="editor hidden">
-            <aside class="panel data-panel">
-              <div class="panel-head"><p class="eyebrow">DADOS</p><h2>Campeonato</h2></div>
-              <p class="hint">Sem ID, a arte usa os dados demonstrativos. Informe o ID somente quando quiser sincronizar o campeonato.</p>
-              <label>Nome da produção<input id="live-name" maxlength="80" /></label>
-              <label>ID do campeonato<input id="championship-id" placeholder="Opcional para testar" /></label>
-              <label>Servidor de dados<input id="origin" /></label>
-              <button id="save-live" class="button button-secondary wide">Salvar projeto local</button>
-              <div class="data-separator"></div>
-              <div class="panel-head compact"><p class="eyebrow">CAMPOS DA TABELA</p><span>clique para incluir</span></div>
-              <div id="fields" class="field-list"></div>
-              <button id="delete-live" class="button button-danger wide">Excluir desta máquina</button>
-            </aside>
-
-            <section class="canvas-area">
-              <div class="canvas-toolbar"><span><i></i> PRÉVIA LOCAL · 1920 × 1080</span><span id="sync-status">Dados demonstrativos</span></div>
-              <div class="canvas-stage"><iframe id="overlay-preview" title="Prévia da arte local"></iframe></div>
-              <div class="output-bar"><span>OBS / vMix Browser Source</span><code id="output-url">—</code><button id="open-output" class="text-button">Abrir</button></div>
-            </section>
-
-            <aside class="panel blocks-panel">
-              <div class="panel-head"><p class="eyebrow">COMPOSIÇÃO</p><h2>Camadas</h2></div>
-              <div class="block-actions"><button data-add="text">T Texto</button><button data-add="table">▦ Tabela</button><button id="add-image">▣ Imagem</button></div>
-              <div id="block-list" class="block-list"></div>
-              <div id="block-editor" class="block-editor"></div>
-            </aside>
-          </section>
-        </main>
-      </div>
+    <div id="app" class="app hidden">
+      <header class="menu"><div class="brand"><span>DZ</span><b>DropZone Live</b></div><nav><button>Arquivo</button><button class="active">Início</button><button>Estilo</button><button>Dados</button></nav><div class="account"><span id="account-name"></span><button id="logout" title="Sair">↪</button></div></header>
+      <section class="ribbon"><div class="ribbon-tools"><button id="new-live" title="Nova produção">＋</button><button id="save-live" title="Salvar">▣</button><button id="sync-live" title="Atualizar dados">↻</button><button id="export-png" title="Exportar PNG">⇩</button><button id="copy-output" title="Copiar link OBS/vMix">⧉</button></div><div class="ribbon-sep"></div><select id="championship-select" title="Campeonato autorizado"><option value="">Arte livre</option></select><div class="ribbon-sep"></div><div id="quick-properties" class="quick-properties"><input id="tool-x" type="number" title="X" placeholder="X" /><input id="tool-y" type="number" title="Y" placeholder="Y" /><input id="tool-w" type="number" title="Largura" placeholder="L" /><input id="tool-h" type="number" title="Altura" placeholder="A" /></div><span id="sync-status" class="status">—</span></section>
+      <main id="workspace" class="workspace hidden">
+        <aside class="toolrail"><button data-add="text" title="Texto">T</button><button data-add="table" title="Tabela">▦</button><button id="add-image" title="Imagem local">▣</button></aside>
+        <section class="canvas-wrap"><div class="canvas-title"><span id="live-title">Sem título</span><button id="open-output" title="Abrir saída">↗</button></div><div id="design-surface" class="design-surface"><iframe id="overlay-preview" title="Prévia local"></iframe><div id="selection-layer" class="selection-layer"></div></div><div class="canvas-footer"><code id="output-url">—</code></div></section>
+        <aside class="layers"><header><button id="add-layer" title="Adicionar">＋</button><span>Camadas</span></header><div id="block-list" class="block-list"></div><div id="block-editor" class="block-editor"></div></aside>
+      </main>
+      <section id="empty-state" class="empty hidden"><button id="empty-new-live" class="accent">Criar produção</button></section>
     </div>
 
-    <dialog id="live-dialog">
-      <form method="dialog" id="create-form">
-        <p class="eyebrow">NOVA PRODUÇÃO</p><h2>Começar uma arte local</h2><p>Você já terá dados de demonstração para testar a cena. O ID do campeonato é opcional.</p>
-        <label>Nome da arte / live<input id="new-live-name" required maxlength="80" placeholder="Ex.: RLF Cup · Dia 1" /></label>
-        <label>ID do campeonato<input id="new-championship-id" placeholder="Cole o ID quando quiser sincronizar" /></label>
-        <label>Servidor DropZone<input id="new-origin" value="https://dropzone-cadastros.vercel.app" required /></label>
-        <footer><button value="cancel" class="button button-secondary">Cancelar</button><button id="create-live" value="default" class="button button-primary">Criar e testar</button></footer>
-      </form>
-    </dialog>
-    <div id="toast" class="toast hidden"></div>
-    <script src="renderer.js"></script>
+    <dialog id="live-dialog"><form method="dialog" id="create-form"><h2>Nova produção</h2><input id="new-live-name" required maxlength="80" placeholder="Nome" /><select id="new-championship-select"><option value="">Arte livre</option></select><footer><button value="cancel">Cancelar</button><button class="accent" value="default">Criar</button></footer></form></dialog>
+    <div id="toast" class="toast hidden"></div><script src="renderer.js"></script>
   </body>
 </html>
