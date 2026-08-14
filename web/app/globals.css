@@ -339,6 +339,21 @@
 }.championship-guided-match-row>b{ color:var(--ui-text-muted); font-size:10px; font-weight:800;
 }.championship-guided-match-row>em{ min-width:76px; color:var(--ui-accent-light); font-size:10px; font-style:normal; font-weight:900; text-align:right;
 }
+
+.championship-guided-operation{ display:grid; gap:22px;
+}.championship-guided-decision{ display:grid; gap:12px; padding:16px 0; border-top:1px solid var(--ui-line);
+}.championship-guided-decision:last-of-type{ border-bottom:1px solid var(--ui-line);
+}.championship-guided-decision-copy{ display:grid; gap:3px;
+}.championship-guided-decision-copy strong{ color:var(--ui-text); font-size:13px;
+}.championship-guided-decision-copy small{ color:var(--ui-text-muted); font-size:10px; line-height:1.45;
+}.championship-guided-choice-row{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; max-width:520px;
+}.championship-guided-choice-row.three{ grid-template-columns:repeat(3,minmax(0,1fr)); max-width:720px;
+}.championship-guided-choice-row button{ min-height:42px; padding:8px 12px; border:0; border-radius:var(--ui-radius-sm); background:var(--ui-surface-raised); color:var(--ui-text-muted); font-size:10px; font-weight:850; text-transform:uppercase; cursor:pointer;
+}.championship-guided-choice-row button:hover{ background:rgba(201,183,102,.08); color:var(--ui-text);
+}.championship-guided-choice-row button.active{ background:rgba(201,183,102,.14); color:var(--ui-accent-light); outline:1px solid rgba(201,183,102,.42);
+}.championship-guided-field{ max-width:420px;
+}.championship-guided-prize{ display:grid; gap:14px; max-width:760px;
+}
 @media (max-width: 760px){
   .page{ padding: 10px;
   }
@@ -6858,6 +6873,9 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   .championship-guided-question-grid{ grid-template-columns:1fr;
   }
   .championship-guided-question-grid.two{ grid-template-columns:1fr;
+  }
+  .championship-guided-choice-row,
+  .championship-guided-choice-row.three{ grid-template-columns:1fr; max-width:none;
   }
   .championship-guided-match-row{ grid-template-columns:minmax(0,1fr) auto; gap:6px 10px;
   }

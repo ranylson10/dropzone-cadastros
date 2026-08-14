@@ -635,6 +635,17 @@ export function CampeonatoForm({
     })
   }
 
+  function updateGuidedEntry(isPaid: boolean) {
+    onChange({
+      ...value,
+      valor_inscricao: isPaid ? (value.valor_inscricao || '0.00') : '',
+    })
+  }
+
+  function updateGuidedPrize(nextType: 'sem_premiacao' | 'pix' | 'brinde') {
+    updatePrizeType(nextType)
+  }
+
   function addWhatsappContact() {
     update('contatos_whatsapp', [
       ...value.contatos_whatsapp,
@@ -1350,7 +1361,130 @@ export function CampeonatoForm({
         </section>
       ) : null}
 
-      <section className="form-section-card" hidden={!pageVisible('operation')}>
+      {mode === 'create' && (value.tipo === 'diario' || value.tipo === 'copa') ? (
+        <section className="form-section-card championship-guided-operation" hidden={!pageVisible('operation')}>
+          <div className="championship-guided-copy">
+            <span>Passo 4 · Inscrição e premiação</span>
+            <strong>Como será a entrada e o prêmio?</strong>
+            <small>Defina só o essencial agora. Pagamentos, contatos de venda e regras avançadas podem ser ajustados depois na gestão do campeonato.</small>
+          </div>
+
+          <div className="championship-guided-decision">
+            <div className="championship-guided-decision-copy">
+              <strong>A inscrição é gratuita ou paga?</strong>
+              <small>Se for paga, informe somente o valor por vaga.</small>
+            </div>
+            <div className="championship-guided-choice-row">
+              <button
+                type="button"
+                className={!value.valor_inscricao || Number(value.valor_inscricao) <= 0 ? 'active' : ''}
+                onClick={() => updateGuidedEntry(false)}
+              >
+                Gratuita
+              </button>
+              <button
+                type="button"
+                className={Number(value.valor_inscricao) > 0 ? 'active' : ''}
+                onClick={() => updateGuidedEntry(true)}
+              >
+                Paga
+              </button>
+            </div>
+
+            {Number(value.valor_inscricao) > 0 ? (
+              <div className="championship-guided-field">
+                <Field label="Valor da inscrição">
+                  <input
+                    inputMode="numeric"
+                    value={moneyDisplay(value.valor_inscricao)}
+                    onChange={(event) => update('valor_inscricao', moneyValue(event.target.value))}
+                    placeholder="R$ 0,00"
+                  />
+                </Field>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="championship-guided-decision">
+            <div className="championship-guided-decision-copy">
+              <strong>Vai ter premiação?</strong>
+              <small>Escolha o tipo. A distribuição pode ser definida agora quando houver prêmio em dinheiro.</small>
+            </div>
+            <div className="championship-guided-choice-row three">
+              <button
+                type="button"
+                className={value.tipo_premiacao === 'sem_premiacao' ? 'active' : ''}
+                onClick={() => updateGuidedPrize('sem_premiacao')}
+              >
+                Sem premiação
+              </button>
+              <button
+                type="button"
+                className={(value.tipo_premiacao === 'pix' || value.tipo_premiacao === 'dinheiro') ? 'active' : ''}
+                onClick={() => updateGuidedPrize('pix')}
+              >
+                Dinheiro / PIX
+              </button>
+              <button
+                type="button"
+                className={value.tipo_premiacao === 'brinde' ? 'active' : ''}
+                onClick={() => updateGuidedPrize('brinde')}
+              >
+                Brinde
+              </button>
+            </div>
+
+            {showMoneyPrize ? (
+              <div className="championship-guided-prize">
+                <Field label="Valor total da premiação">
+                  <input
+                    inputMode="numeric"
+                    value={moneyDisplay(value.premiacao)}
+                    onChange={(event) => update('premiacao', moneyValue(event.target.value))}
+                    placeholder="R$ 0,00"
+                  />
+                </Field>
+                {Number(value.premiacao || 0) > 0 ? (
+                  <PremiacaoDivisaoEditor
+                    totalPremiacao={value.premiacao}
+                    value={value.divisao_premiacao}
+                    onChange={(serialized) => update('divisao_premiacao', serialized)}
+                    disabled={loading}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+
+            {showGiftPrize ? (
+              <div className="championship-guided-field">
+                <Field label="Qual é o brinde?">
+                  <textarea
+                    value={value.descricao_premiacao}
+                    onChange={(event) => update('descricao_premiacao', event.target.value)}
+                    placeholder="Ex.: troféu, camisa personalizada e kit gamer"
+                  />
+                </Field>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="championship-guided-preview">
+            <span>Resumo</span>
+            <strong>
+              {Number(value.valor_inscricao) > 0 ? `${moneyDisplay(value.valor_inscricao)} por vaga` : 'Inscrição gratuita'}
+              {' · '}
+              {showMoneyPrize && value.premiacao
+                ? `${moneyDisplay(value.premiacao)} em premiação`
+                : showGiftPrize && value.descricao_premiacao
+                  ? 'Premiação em brinde'
+                  : 'Sem premiação'}
+            </strong>
+            <small>As demais regras operacionais continuam disponíveis depois que o campeonato for criado.</small>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="form-section-card" hidden={!pageVisible('operation') || (mode === 'create' && (value.tipo === 'diario' || value.tipo === 'copa'))}>
         <p className="eyebrow">Premiação e inscrição</p>
         <div className="mini-grid three">
           <Field label="Tipo de premiação">
@@ -1402,7 +1536,7 @@ export function CampeonatoForm({
         </div>
       </section>
 
-      <section className="form-section-card" hidden={!pageVisible('operation')}>
+      <section className="form-section-card" hidden={!pageVisible('operation') || (mode === 'create' && (value.tipo === 'diario' || value.tipo === 'copa'))}>
         <p className="eyebrow">Controle de inscrições</p>
         <div className="mini-grid three">
           <Field label="Vagas por equipe"><input type="number" min="1" value={value.vagas_por_equipe} onChange={(e) => update('vagas_por_equipe', e.target.value)} /></Field>
@@ -1419,7 +1553,7 @@ export function CampeonatoForm({
         ) : null}
       </section>
 
-      <section className="form-section-card" hidden={!pageVisible('operation')}>
+      <section className="form-section-card" hidden={!pageVisible('operation') || (mode === 'create' && (value.tipo === 'diario' || value.tipo === 'copa'))}>
         <div className="form-section-heading">
           <div>
             <p className="eyebrow">Pagamento da vaga</p>
@@ -1480,7 +1614,7 @@ export function CampeonatoForm({
         ) : null}
       </section>
 
-      <section className="form-section-card whatsapp-contacts-section" hidden={!pageVisible('operation')}>
+      <section className="form-section-card whatsapp-contacts-section" hidden={!pageVisible('operation') || (mode === 'create' && (value.tipo === 'diario' || value.tipo === 'copa'))}>
         <div className="form-section-heading">
           <div><p className="eyebrow">Venda de vagas</p><strong>Contatos do WhatsApp</strong></div>
           <button className="button secondary" type="button" onClick={addWhatsappContact}><Plus size={15} /> Adicionar contato</button>
@@ -1532,6 +1666,24 @@ export function CampeonatoForm({
                     : `${value.partidas_por_jogo || '—'} no jogo`}
                 </strong>
               </div>
+            ) : null}
+            {(value.tipo === 'diario' || value.tipo === 'copa') ? (
+              <>
+                <div>
+                  <small>Inscrição</small>
+                  <strong>{Number(value.valor_inscricao) > 0 ? moneyDisplay(value.valor_inscricao) : 'Gratuita'}</strong>
+                </div>
+                <div>
+                  <small>Premiação</small>
+                  <strong>
+                    {showMoneyPrize && value.premiacao
+                      ? moneyDisplay(value.premiacao)
+                      : showGiftPrize && value.descricao_premiacao
+                        ? value.descricao_premiacao
+                        : 'Sem premiação'}
+                  </strong>
+                </div>
+              </>
             ) : null}
             {value.tipo === 'liga' ? (
               <div><small>Organização</small><strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} ${value.liga_nome_agrupamento || 'divisões'}` : 'Liga simples'}</strong></div>
