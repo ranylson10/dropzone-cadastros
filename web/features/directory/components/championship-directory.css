@@ -301,7 +301,7 @@
 .directory-champ-title small{overflow:hidden;color:var(--champ-muted);font-size:9px;font-weight:800;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
 .directory-champ-title strong{overflow:hidden;color:var(--champ-text);font-size:18px;line-height:1.05;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
 .directory-champ-quick-actions{display:flex;align-items:center;gap:4px}
-.directory-champ-wish,.directory-champ-cart-icon{display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:8px;background:var(--champ-surface-2);color:var(--champ-muted);cursor:pointer}
+.directory-champ-wish,.directory-champ-cart-icon{position:relative;z-index:1;display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:8px;background:var(--champ-surface-2);color:var(--champ-muted);cursor:pointer;touch-action:manipulation}
 .directory-champ-wish.active,.directory-champ-cart-icon.active{color:var(--champ-accent-strong)}
 .directory-champ-wish.active svg{fill:currentColor}
 .directory-champ-cart-icon:disabled{color:#5d6066;cursor:not-allowed}

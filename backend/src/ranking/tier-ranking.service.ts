@@ -35,6 +35,7 @@ type PlayerNode = ScoreNode & {
   dano: number
   assistencias: number
   revives: number
+  armas: Map<string, { nome: string; abates: number; dano: number }>
 }
 
 type ChampionshipNode = ScoreNode & {
@@ -132,8 +133,19 @@ function createPlayer(key: string, row: any): PlayerNode {
   return {
     ...node(key), jogador_id: text(row.jogador_id) || null, id_jogo: text(row.id_jogo || row.id_jogo_snapshot) || null,
     nick: text(row.nick || row.nick_snapshot) || 'Jogador', foto_url: text(row.foto_url || row.avatar_url) || null,
-    equipes: new Set(), campeonatos: new Set(), quedas: new Set(), abates: 0, dano: 0, assistencias: 0, revives: 0,
+    equipes: new Set(), campeonatos: new Set(), quedas: new Set(), abates: 0, dano: 0, assistencias: 0, revives: 0, armas: new Map(),
   }
+}
+
+function chunks<T>(items: T[], size: number) {
+  const result: T[][] = []
+  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size))
+  return result
+}
+
+function armaMaisUsada(armas: PlayerNode['armas']) {
+  return [...armas.values()]
+    .sort((a, b) => b.abates - a.abates || b.dano - a.dano || a.nome.localeCompare(b.nome))[0]?.nome || null
 }
 
 function createChampionship(row: any): ChampionshipNode {
@@ -170,7 +182,7 @@ export async function carregarRankingTiers() {
   const championshipIds = [...championshipMap.keys()]
   if (!championshipIds.length) return emptyRanking()
 
-  const [teamsResult, playersResult, participationsResult, rosterResult] = await Promise.all([
+  const [teamsResult, playersResult, participationsResult, rosterResult, garenaImportsResult] = await Promise.all([
     supabaseAdmin.from('campeonato_estatisticas_equipes_detalhe').select('*').in('campeonato_id', championshipIds).limit(50000),
     supabaseAdmin.from('campeonato_estatisticas_mvp_detalhe').select('*').in('campeonato_id', championshipIds).limit(100000),
     supabaseAdmin
@@ -185,8 +197,14 @@ export async function carregarRankingTiers() {
       .in('campeonato_id', championshipIds)
       .neq('status', 'deletado')
       .limit(100000),
+    supabaseAdmin
+      .from('garena_matchstats_importacoes')
+      .select('id')
+      .in('campeonato_id', championshipIds)
+      .eq('status', 'concluida')
+      .limit(50000),
   ])
-  for (const result of [teamsResult, playersResult, participationsResult, rosterResult]) if (result.error) throw result.error
+  for (const result of [teamsResult, playersResult, participationsResult, rosterResult, garenaImportsResult]) if (result.error) throw result.error
 
   const teams = new Map<string, TeamNode>()
   const players = new Map<string, PlayerNode>()
@@ -248,6 +266,28 @@ export async function carregarRankingTiers() {
     players.get(playerId)?.equipes.add(team)
     teams.get(team)?.jogadores.add(playerId)
     championship.jogadores.add(playerId)
+  }
+
+  const garenaImportIds = (garenaImportsResult.data || []).map((row: any) => text(row.id)).filter(Boolean)
+  for (const importIds of chunks(garenaImportIds, 100)) {
+    const { data: matchstatsRows, error: matchstatsError } = await supabaseAdmin
+      .from('garena_matchstats_jogadores')
+      .select('jogador_id,player_id,garena_matchstats_armas(arma,abates,dano)')
+      .in('importacao_id', importIds)
+      .limit(100000)
+    if (matchstatsError) throw matchstatsError
+    for (const row of matchstatsRows || []) {
+      const player = players.get(text(row.jogador_id)) || players.get(text(row.player_id))
+      if (!player) continue
+      for (const weapon of ((row as any).garena_matchstats_armas || [])) {
+        const nome = text(weapon.arma)
+        if (!nome) continue
+        const current = player.armas.get(nome) || { nome, abates: 0, dano: 0 }
+        current.abates += number(weapon.abates)
+        current.dano += number(weapon.dano)
+        player.armas.set(nome, current)
+      }
+    }
   }
 
   const playerQuality = percentile([...players.values()].map(player => {
@@ -312,7 +352,7 @@ export async function carregarRankingTiers() {
     metodologia: { iteracoes: ITERACOES, base: 'desempenho oficial', influencia: 'qualidade cruzada com limites', premiacao_maxima: 16 },
     players: rankRows([...players.values()], (a, b) => b.abates - a.abates || b.dano - a.dano).map(player => ({
       key: player.key, rank: player.rank, score: player.score, tier: player.tier, jogador_id: player.jogador_id, nick: player.nick, id_jogo: player.id_jogo, foto_url: player.foto_url, avatar_url: player.foto_url,
-      quedas: player.quedas.size, abates: player.abates, dano: player.dano, assistencias: player.assistencias, revives: player.revives,
+      quedas: player.quedas.size, abates: player.abates, dano: player.dano, assistencias: player.assistencias, revives: player.revives, arma_mais_usada: armaMaisUsada(player.armas),
       score_base: round(player.base), influencia_equipes: round(average(player.equipeScores) || 0), influencia_campeonatos: round(average(player.campeonatoScores) || 0),
     })),
     teams: rankRows([...teams.values()].filter(team => team.quedas.size || team.jogadores.size), (a, b) => b.pontos - a.pontos || b.abates - a.abates).map(team => ({

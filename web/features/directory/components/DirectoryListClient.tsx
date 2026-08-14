@@ -197,7 +197,11 @@ function ChampionshipCards({
                     aria-label={isInCart ? 'Remover do carrinho' : 'Adicionar ao carrinho'}
                     aria-pressed={isInCart}
                     disabled={free <= 0 && !isInCart}
-                    onClick={() => onCartToggle(item)}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      onCartToggle(item)
+                    }}
                   >
                     <ShoppingCart size={17} />
                   </button>
@@ -214,14 +218,9 @@ function ChampionshipCards({
               </div>
               <div className="directory-champ-actions">
                 <a href={`/${item.kind}/${item.id}`}>Ver campeonato <ChevronRight size={14} /></a>
-                <button
-                  type="button"
-                  className={`directory-champ-cart-action${isInCart ? ' active' : ''}`}
-                  disabled={free <= 0 && !isInCart}
-                  onClick={() => onCartToggle(item)}
-                >
-                  {isInCart ? 'No carrinho' : free > 0 ? 'Garantir vaga' : 'Sem vagas'} <ChevronRight size={14} />
-                </button>
+                <a className="directory-champ-cart-action" href={`/${item.kind}/${item.id}`}>
+                  {free > 0 ? 'Garantir vaga' : 'Ver campeonato'} <ChevronRight size={14} />
+                </a>
               </div>
               {isMine ? (
                 <button
