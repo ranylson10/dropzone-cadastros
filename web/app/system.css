@@ -946,3 +946,24 @@ body .lili-hub-composer input:focus{border-color:var(--ui-accent);box-shadow:0 0
 body .lili-hub-composer button{background:var(--ui-accent);color:#111216}
 body .lili-global-launcher{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:0 10px 28px rgba(0,0,0,.3)}
 body .lili-global-launcher:hover{border-color:var(--ui-accent);box-shadow:0 10px 28px rgba(0,0,0,.3)}
+body .lili-floating-chat{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-lg);
+  background:var(--ui-surface);
+  box-shadow:0 24px 70px rgba(0,0,0,.42);
+}
+body .lili-floating-chat > header{border-bottom:1px solid var(--ui-line);background:#141518;color:var(--ui-text)}
+body .lili-floating-chat > header button{border:1px solid var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .lili-floating-chat > header button:hover{border-color:var(--ui-accent);color:var(--ui-accent)}
+body .lili-floating-chat iframe{background:var(--ui-bg)}
+body .lili-hub-tabs{border-bottom-color:var(--ui-line);background:var(--ui-surface)}
+body .lili-hub-tabs button{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-muted)}
+body .lili-hub-tabs button.is-active{border-color:var(--ui-accent);background:var(--ui-accent);color:#111216}
+body .lili-hub-panel{background:var(--ui-bg);color:var(--ui-text)}
+body .lili-team-empty,
+body .lili-team-feedback{border-color:var(--ui-line);background:var(--ui-surface);color:var(--ui-text)}
+body .lili-team-empty span{color:var(--ui-muted)}
+
+@media(max-width:640px){
+  body .lili-floating-chat{border-radius:var(--ui-radius-md)}
+}
