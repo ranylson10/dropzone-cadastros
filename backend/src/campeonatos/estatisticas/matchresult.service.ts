@@ -87,48 +87,6 @@ async function garantirMembroDaLine(input: {
   return roster.id as string
 }
 
-/**
- * O MatchResult representa a escalação usada naquela queda. Jogadores de
- * MatchResults anteriores que ficaram ativos na mesma participação ocupavam
- * todos os slots e impediam a entrada do elenco atual. Mantemos o histórico,
- * mas liberamos somente os membros automáticos que não aparecem mais no arquivo.
- */
-async function sincronizarElencoAutomaticoDaParticipacao(input: {
-  campeonatoEquipeId: string
-  lineId: string | null
-  idsJogoAtuais: string[]
-}) {
-  const idsAtuais = new Set(input.idsJogoAtuais.map(normalizeName).filter(Boolean))
-  const { data: ativos, error } = await supabaseAdmin
-    .from('campeonato_jogadores')
-    .select('id,equipe_jogador_id,id_jogo')
-    .eq('campeonato_equipe_id', input.campeonatoEquipeId)
-    .eq('origem', 'matchresult')
-    .eq('status', 'ativo')
-  if (error) throw error
-
-  const anteriores = (ativos || []).filter((item: any) => !idsAtuais.has(normalizeName(item.id_jogo || '')))
-  if (!anteriores.length) return
-
-  const idsParticipacao = anteriores.map((item: any) => item.id)
-  const idsElenco = anteriores.map((item: any) => item.equipe_jogador_id).filter(Boolean)
-  const { error: deactivateError } = await supabaseAdmin
-    .from('campeonato_jogadores')
-    .update({ status: 'inativo', updated_at: new Date().toISOString() })
-    .in('id', idsParticipacao)
-  if (deactivateError) throw deactivateError
-
-  if (input.lineId && idsElenco.length) {
-    const { error: lineError } = await supabaseAdmin
-      .from('equipe_line_jogadores')
-      .update({ status: 'inativo', updated_at: new Date().toISOString() })
-      .eq('line_id', input.lineId)
-      .eq('status', 'ativo')
-      .in('equipe_jogador_id', idsElenco)
-    if (lineError) throw lineError
-  }
-}
-
 function errorMessage(error: unknown) {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object' && 'message' in error) return String((error as any).message || 'Erro desconhecido.')
@@ -289,12 +247,6 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
     const team: any = teamValue
     const { data: ce, error: ceError } = await supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,grupo_id').eq('id', team.campeonato_equipe_id).eq('campeonato_id', campeonatoId).single()
     if (ceError) throw ceError
-
-    await sincronizarElencoAutomaticoDaParticipacao({
-      campeonatoEquipeId: ce.id,
-      lineId: ce.line_id || null,
-      idsJogoAtuais: team.jogadores.map((player: any) => String(player.id_jogo || '')),
-    })
 
     const { data: importTeam, error: importTeamError } = await supabaseAdmin.from('matchresult_importacoes_equipes').insert({
       importacao_id: importacao.id,

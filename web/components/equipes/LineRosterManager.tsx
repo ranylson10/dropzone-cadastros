@@ -167,6 +167,11 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
   }
 
   const memberIds = useMemo(() => new Set((data?.members || []).map((row: any) => String(row.id))), [data])
+  const formationExcesses = useMemo(() => (data?.events || []).map((event: any) => ({
+    id: String(event.id),
+    championship: String(event.campeonato?.nome || 'Campeonato'),
+    excess: Math.max(0, Number((drafts[event.id] || []).length) - Number(event.limite_jogadores || 0)),
+  })).filter((item: any) => item.excess > 0), [data?.events, drafts])
 
   function toggleFormation(eventId: string, playerId: string) {
     setDrafts((current) => {
@@ -192,7 +197,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
   if (!data) return <div className="line-roster-message error">{message || 'Line indisponível.'}</div>
 
   return <div className={`line-roster-manager ${compact ? 'compact' : ''}`}>
-    <div className="line-roster-head">
+      <div className="line-roster-head">
       {onBack ? <button type="button" className="icon-action" onClick={onBack}><ArrowLeft size={17}/></button> : null}
       <div><strong>{line.nome}</strong><span>{data.members?.length || 0} jogador(es) · {data.events?.length || 0} campeonato(s)</span></div>
     </div>
@@ -208,6 +213,8 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
         </div>
         {data.transfer.allowed && data.permissions?.pode_editar ? <button type="button" className="line-small-action" onClick={() => { setTransferOpen(true); setTransferTarget(null); setTransferTeams([]); setTransferQuery('') }}><Send size={14}/> Transferir line</button> : null}
       </div>
+
+    {formationExcesses.length ? <div className="line-roster-message warning"><span>{formationExcesses.map((item: any) => `${item.championship}: ${item.excess} excedente(s) registrado(s)`).join(' · ')}. Os jogadores permanecem no elenco e na line; ajuste somente a formação quando necessário.</span></div> : null}
       <div className="line-transfer-summary">
         {data.transfer.allowed ? <>
           <strong>{data.transfer.championships?.length || 0} campeonato(s) serão preservados</strong>
@@ -274,7 +281,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
                 })}
               </div>
               {event.pode_alterar ? <button type="button" className="line-save-formation" disabled={Boolean(busy) || draft.length > event.limite_jogadores} onClick={() => void act('save_formation', { campeonato_equipe_id: event.id, players: draft }, `formation:${event.id}`)}>{busy === `formation:${event.id}` ? <Loader2 className="spin" size={16}/> : <Save size={16}/>} Salvar formação</button> : null}
-              {draft.length > event.limite_jogadores ? <small className="line-limit-error">Remova {draft.length - event.limite_jogadores} jogador(es) para respeitar o limite.</small> : null}
+              {draft.length > event.limite_jogadores ? <small className="line-limit-error">Há {draft.length - event.limite_jogadores} excedente(s) registrado(s) pelo MatchResult. Eles continuam no elenco; para salvar uma nova formação, selecione apenas os jogadores que jogarão.</small> : null}
             </div> : null}
           </article>
         })}
