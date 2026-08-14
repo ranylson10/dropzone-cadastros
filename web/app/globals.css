@@ -6703,6 +6703,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 }
 
 .form-section-card{ display: grid; gap: 14px; padding: 14px 0; border: 0; border-radius: 0; background: transparent;
+}.championship-form-stack > [hidden]{ display: none !important;
 }
 .producer-layout-ref .form-section-card{ border: 0; background: transparent; box-shadow: none;
 }
