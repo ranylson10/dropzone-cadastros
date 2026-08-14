@@ -86,6 +86,7 @@ export function LiliRankHub() {
       <div className="directory-list directory-rank-list">
         {rows.map((row) => {
           const image = row.logo_url || row.foto_url || row.avatar_url || ''
+          const hasMedia = Number(row.rank || 0) <= 3
           const title = mode === 'players' ? row.nick : row.nome
           const detail = mode === 'teams'
             ? [row.tag, `${row.quedas} quedas`, `${row.abates || 0} abates`].filter(Boolean).join(' · ')
@@ -95,7 +96,7 @@ export function LiliRankHub() {
           const score = Number(row.score || 0).toFixed(1)
 
           return <article
-            className="directory-list-row directory-list-row-compact directory-rank-row"
+            className={`directory-list-row directory-list-row-compact directory-rank-row${hasMedia ? ' rank-featured' : ' rank-text-only'}`}
             key={row.key}
             role="button"
             tabIndex={0}
@@ -104,7 +105,7 @@ export function LiliRankHub() {
             onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedRow(row) } }}
           >
             <b className="directory-rank-mobile-position">{row.rank}</b>
-            <span className="directory-list-media">{image ? <img src={image} alt="" /> : mode === 'teams' ? <Shield size={18} /> : mode === 'players' ? <Swords size={18} /> : <Trophy size={18} />}</span>
+            {hasMedia ? <span className="directory-list-media">{image ? <img src={image} alt="" decoding="async" /> : mode === 'teams' ? <Shield size={18} /> : mode === 'players' ? <Swords size={18} /> : <Trophy size={18} />}</span> : null}
             <span className="directory-list-main"><small>{modeLabel}</small><strong>{title}</strong><span>{detail}</span></span>
             <span className="directory-list-meta">
               <em data-label="Posição"><b className="directory-rank-position">#{row.rank}</b></em>

@@ -49,7 +49,7 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
             </a>
             <div className="directory-profile-hero compact on-banner">
               <span className="directory-profile-avatar">
-                {profile.image ? <img src={profile.image} alt="" /> : <b>{profile.name.slice(0, 2).toUpperCase()}</b>}
+                {profile.image ? <img src={profile.image} alt="" decoding="async" /> : <b>{profile.name.slice(0, 2).toUpperCase()}</b>}
               </span>
               <div className="directory-profile-copy">
                 <small>{profile.eyebrow || config.singular}</small>

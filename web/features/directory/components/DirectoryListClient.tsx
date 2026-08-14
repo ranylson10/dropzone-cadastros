@@ -163,13 +163,11 @@ function ChampionshipCards({
             <a
               className="directory-champ-cover"
               href={`/${item.kind}/${item.id}`}
-              style={item.banner ? { backgroundImage: `url(${item.banner})` } : undefined}
               aria-label={`Abrir ${item.name}`}
             >
-              {!item.banner ? <span className="directory-champ-cover-empty" aria-hidden="true">
-                <b>{item.name.slice(0, 2).toUpperCase()}</b>
-                <small>{item.eyebrow || 'Campeonato'}</small>
-              </span> : null}
+              <span className="directory-champ-cover-empty" aria-hidden="true">
+                {item.image ? <img src={item.image} alt="" loading="lazy" decoding="async" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}
+              </span>
               <span className="directory-champ-badges">
                 {item.commercial?.tem_live ? <b><Radio size={11} /> Live</b> : null}
                 {free > 0 && free <= 3 ? <b><Flame size={11} /> Últimas vagas</b> : null}

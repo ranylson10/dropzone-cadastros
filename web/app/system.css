@@ -472,6 +472,86 @@ body .bank-wallet-page .message{border-color:var(--ui-line);border-radius:var(--
   body .bank-section{padding:12px;border-radius:var(--ui-radius-sm)}
 }
 
+/* Economia de mídia: o ranking reserva imagens somente para o pódio. */
+body .directory-rank-list .directory-rank-row.rank-text-only > .directory-list-main{grid-column:1 / 3}
+
+@media(max-width:760px){
+  body .directory-rank-list .directory-rank-row.rank-text-only,
+  body .directory-rank-list .directory-rank-row.rank-text-only:nth-child(even){grid-template-columns:24px minmax(0,1fr) auto}
+  body .directory-rank-list .directory-rank-row.rank-text-only > .directory-rank-mobile-position{grid-column:1}
+  body .directory-rank-list .directory-rank-row.rank-text-only > .directory-list-main{grid-column:2}
+  body .directory-rank-list .directory-rank-row.rank-text-only > .directory-rank-mobile-score{grid-column:3}
+}
+
+/* Perfis internos: identidade por logo e informação, não por banner de fundo. */
+body .directory-profile-page .directory-profile-banner,
+body .directory-profile-page[class*='directory-theme-'] .directory-profile-banner{
+  width:min(1240px,calc(100% - 32px));
+  min-height:0;
+  margin:0 auto;
+  overflow:visible;
+  border:0;
+  border-bottom:1px solid var(--ui-line);
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  color:var(--ui-text);
+}
+body .directory-profile-page .directory-profile-banner::before,
+body .directory-profile-page .directory-profile-banner::after,
+body .directory-profile-page .directory-profile-banner .directory-hero-character{display:none}
+body .directory-profile-page .directory-profile-banner .directory-profile-banner-inner{
+  width:100%;
+  padding:14px 0 16px;
+}
+body .directory-profile-page .directory-back.on-banner{color:var(--ui-text-muted);text-shadow:none}
+body .directory-profile-page .directory-back.on-banner:hover{color:var(--ui-text)}
+body .directory-profile-page .directory-profile-hero.compact.on-banner{
+  grid-template-columns:64px minmax(0,1fr) minmax(190px,auto);
+  gap:14px;
+  align-items:center;
+  padding:0;
+}
+body .directory-profile-page .directory-profile-hero.on-banner .directory-profile-avatar{
+  width:64px;
+  height:64px;
+  border:1px solid var(--ui-line);
+  border-radius:10px;
+  background:var(--ui-surface-raised);
+  box-shadow:none;
+  color:var(--ui-accent);
+}
+body .directory-profile-page .directory-profile-hero.on-banner .directory-profile-avatar img{object-fit:cover}
+body .directory-profile-page .directory-profile-banner .directory-profile-copy > small{color:var(--ui-text-muted);text-shadow:none}
+body .directory-profile-page .directory-profile-banner .directory-profile-copy h1,
+body .directory-profile-page .directory-profile-hero.compact.on-banner h1{color:var(--ui-text);text-shadow:none}
+body .directory-profile-page .directory-profile-banner .directory-profile-copy > p,
+body .directory-profile-page .directory-profile-banner .directory-profile-copy > strong{color:var(--ui-text-muted);text-shadow:none}
+body .directory-profile-page .directory-profile-details.on-banner{
+  grid-column:auto;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  margin:0;
+  border:0;
+  border-left:1px solid var(--ui-line);
+  border-radius:0;
+  background:transparent;
+}
+body .directory-profile-page .directory-profile-details.on-banner div{padding:4px 10px;border-left:1px solid var(--ui-line)}
+body .directory-profile-page .directory-profile-details.on-banner div:first-child{border-left:0}
+body .directory-profile-page .directory-profile-details.on-banner small{color:var(--ui-text-muted)}
+body .directory-profile-page .directory-profile-details.on-banner strong{color:var(--ui-text);text-shadow:none}
+body .directory-profile-page .directory-profile-toolbar .directory-report-button{border-color:var(--ui-line);background:transparent;color:var(--ui-text-muted)}
+
+@media(max-width:760px){
+  body .directory-profile-page .directory-profile-banner,
+  body .directory-profile-page[class*='directory-theme-'] .directory-profile-banner{width:calc(100% - 20px)}
+  body .directory-profile-page .directory-profile-banner .directory-profile-banner-inner{padding:10px 0 12px}
+  body .directory-profile-page .directory-profile-hero.compact.on-banner{grid-template-columns:52px minmax(0,1fr);gap:10px}
+  body .directory-profile-page .directory-profile-hero.on-banner .directory-profile-avatar{width:52px;height:52px}
+  body .directory-profile-page .directory-profile-details.on-banner{grid-column:1 / -1;margin-top:8px;border-top:1px solid var(--ui-line);border-left:0}
+  body .directory-profile-page .directory-profile-details.on-banner div{padding:7px 6px}
+}
+
 /* Painel administrativo: tabelas e mÃ©tricas seguem o mesmo sistema visual
    operacional, evitando alternÃ¢ncia com as superfÃ­cies claras legadas. */
 body .system-admin-page{min-height:100dvh;background:var(--ui-bg);color:var(--ui-text)}

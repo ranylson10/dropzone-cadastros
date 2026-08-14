@@ -170,13 +170,12 @@ export function ChampionshipPublicView({
         cor_principal: profile.theme?.cor_principal,
         cor_secundaria: profile.theme?.cor_secundaria,
         bg_opacidade: profile.theme?.bg_opacidade,
-        bg_image_url: profile.theme?.bg_image_url,
+        bg_image_url: null,
       }),
     [
       profile.theme?.cor_principal,
       profile.theme?.cor_secundaria,
       profile.theme?.bg_opacidade,
-      profile.theme?.bg_image_url,
     ],
   )
 
@@ -194,7 +193,7 @@ export function ChampionshipPublicView({
           <div className="directory-profile-hero compact on-banner champ-public-hero">
             <span className="directory-profile-avatar">
               {profile.image ? (
-                <img src={profile.image} alt="" />
+                <img src={profile.image} alt="" decoding="async" />
               ) : (
                 <b>{profile.name.slice(0, 2).toUpperCase()}</b>
               )}
