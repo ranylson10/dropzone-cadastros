@@ -177,9 +177,12 @@ export function AppHeader({
       <div className="app-header-inner">
         <a className="app-brand" href="/" aria-label="DropZone — início">
           <span className="app-brand-logo">
-            <SystemLogo size={44} alt="" fit="contain" variant="accent" />
+            <SystemLogo size={44} alt="" fit="contain" variant="default" />
           </span>
-          <span className="app-brand-copy"><strong>DropZone</strong><small>COMPETITIVE SYSTEM</small></span>
+          <span className="app-brand-copy">
+            <strong aria-label="DropZone"><span>Drop</span><span>Zone</span></strong>
+            <small>COMPETITIVE SYSTEM</small>
+          </span>
         </a>
 
         <button

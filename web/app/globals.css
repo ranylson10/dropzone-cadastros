@@ -7121,3 +7121,10 @@ body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card 
   body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-meta .button svg{width:15px;height:15px}
   body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-perm-grid.compact{grid-template-columns:1fr 1fr}
 }
+
+/* O atalho da Lili fica acima da barra de navega\u00e7\u00e3o no celular. Assim ele nunca
+   cobre o seletor de perfil nem intercepta o toque do \u00faltimo item da barra. */
+@media(max-width:760px){
+  .lili-global-launcher{right:12px;bottom:calc(82px + env(safe-area-inset-bottom));width:50px;min-width:50px;height:50px;min-height:50px;justify-content:center;padding:0;border-radius:50%}
+  .lili-floating-chat{inset:auto 8px calc(78px + env(safe-area-inset-bottom)) 8px}
+}
