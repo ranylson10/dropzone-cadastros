@@ -140,11 +140,13 @@
 .premiacao-budget strong{font-size:14px}
 .premiacao-budget .ok strong{color:#15803d}
 .premiacao-budget .over strong{color:#b91c1c}
-.premiacao-divisao-list{display:grid;gap:10px}
-.premiacao-divisao-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
-.premiacao-divisao-field{display:grid;gap:4px}
-.premiacao-divisao-field span{font-size:11px;font-weight:800;color:var(--muted)}
-.premiacao-divisao-field input{min-height:38px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);padding:0 10px}
+.premiacao-divisao-list{display:grid;gap:12px}
+.premiacao-divisao-row{display:grid;grid-template-columns:minmax(240px,1.15fr) minmax(220px,.9fr) 42px;gap:12px;align-items:start}
+.premiacao-divisao-field{display:grid;grid-template-rows:16px 42px auto;gap:5px;min-width:0}
+.premiacao-divisao-field span{display:flex;align-items:end;min-height:16px;font-size:11px;font-weight:800;color:var(--muted)}
+.premiacao-divisao-field input{width:100%;min-width:0;min-height:42px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);padding:0 11px}
+.premiacao-divisao-field small{min-height:15px;line-height:15px}
+.premiacao-divisao-remove{width:42px;height:42px;margin-top:21px;align-self:start}
 .premiacao-divisao-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .premiacao-rest-tag{font-style:normal;font-weight:800;font-size:11px;margin-left:6px;opacity:.85}
 .premiacao-over-warn{font-size:12px;font-weight:800;color:#b91c1c}
@@ -156,7 +158,11 @@
   .rulebook-viewer-body{grid-template-columns:1fr}
   .rulebook-toc{position:static;max-height:none}
 }
-@media(max-width:700px){.premiacao-divisao-row{grid-template-columns:1fr}}
+@media(max-width:700px){
+  .premiacao-divisao-row{grid-template-columns:minmax(0,1fr) 42px;gap:8px 10px}
+  .premiacao-divisao-field{grid-column:1/-1}
+  .premiacao-divisao-remove{grid-column:2;margin-top:0;justify-self:end}
+}
 @media(max-width:800px){
   .rulebook-viewer-body{grid-template-columns:1fr}
   .rulebook-toc{position:static;max-height:none}

@@ -91,11 +91,12 @@ function normalizeItems(raw: unknown[]): PremiacaoDivisaoItem[] {
   return raw
     .map((item, index) => {
       const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
-      const nome = String(row.nome || row.name || row.label || `Posição ${index + 1}`).trim()
+      const nomeRaw = String(row.nome ?? row.name ?? row.label ?? `Posição ${index + 1}`)
+      const nome = nomeRaw.trim() ? nomeRaw : `Posição ${index + 1}`
       const valor = parseMoneyNumber(row.valor ?? row.value ?? row.amount ?? 0)
       return {
         id: String(row.id || newDivisaoId()),
-        nome: nome || `Posição ${index + 1}`,
+        nome,
         valor,
       }
     })
@@ -106,10 +107,12 @@ export function serializeDivisaoPremiacao(items: PremiacaoDivisaoItem[]): string
   const clean = items
     .map((i) => ({
       id: i.id || newDivisaoId(),
-      nome: String(i.nome || '').trim(),
+      // Não aplicar trim durante a digitação. O editor serializa a cada tecla e
+      // remover o espaço final aqui impede escrever nomes como "MVP GERAL".
+      nome: String(i.nome ?? ''),
       valor: Math.round(parseMoneyNumber(i.valor) * 100) / 100,
     }))
-    .filter((i) => i.nome)
+    .filter((i) => i.nome.trim())
   if (!clean.length) return ''
   return JSON.stringify(clean)
 }

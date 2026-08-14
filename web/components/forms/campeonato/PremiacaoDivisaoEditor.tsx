@@ -143,7 +143,7 @@ export function PremiacaoDivisaoEditor({
               </label>
               <button
                 type="button"
-                className="icon-action-button danger"
+                className="icon-action-button danger premiacao-divisao-remove"
                 disabled={disabled}
                 title="Remover divisão"
                 onClick={() => removeItem(item.id)}
