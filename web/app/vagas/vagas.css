@@ -273,3 +273,157 @@
   .vacancy-card-body{grid-template-columns:1fr;padding:13px}
   .vacancy-next-date,.vacancy-register{grid-column:1;grid-row:auto}
 }
+
+/* Camada final da vitrine: elimina a sobreposicao das versoes antigas e usa o
+   mesmo sistema visual das paginas publicas (ranking, diretorios e agenda). */
+body .vacancies-page{
+  padding:32px 18px 38px;
+  background:var(--ui-bg);
+  color:var(--ui-text);
+}
+body .vacancies-page .vacancies-hero{
+  min-height:132px;
+  padding:22px 26px;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-lg);
+  background:linear-gradient(130deg,#17150d 0%,#141518 55%,#211e12 100%);
+  box-shadow:none;
+}
+body .vacancies-page .vacancies-hero::after{
+  content:"";
+  position:absolute;
+  inset:auto 0 0;
+  width:100%;
+  height:3px;
+  border:0;
+  border-radius:0;
+  background:var(--ui-accent);
+  transform:none;
+}
+body .vacancies-page .vacancies-hero h1{
+  max-width:760px;
+  color:var(--ui-text);
+  font-size:clamp(27px,3vw,38px);
+  line-height:1.03;
+}
+body .vacancies-page .vacancies-hero p{color:var(--ui-text-muted)}
+body .vacancies-page .vacancies-hero .eyebrow{color:var(--ui-accent)}
+body .vacancies-page .vacancies-hero-count{
+  min-width:148px;
+  padding:12px 14px;
+  border:1px solid var(--ui-line-strong);
+  border-radius:var(--ui-radius-sm);
+  background:rgba(255,255,255,.035);
+  backdrop-filter:none;
+}
+body .vacancies-page .vacancies-hero-count svg{color:var(--ui-accent)}
+body .vacancies-page .vacancies-hero-count strong{color:var(--ui-text)}
+body .vacancies-page .vacancies-hero-count span{color:var(--ui-text-muted)}
+
+body .vacancies-page .vacancies-toolbar{
+  margin-top:10px;
+  padding:7px;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  box-shadow:none;
+}
+body .vacancies-page .vacancies-filter button,
+body .vacancies-page .vacancies-toolbar > select,
+body .vacancies-page .vacancies-toolbar > label{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .vacancies-page .vacancies-filter button.active{
+  background:var(--ui-accent);
+  color:#17150d;
+  box-shadow:none;
+}
+body .vacancies-page .vacancies-toolbar > label:focus-within{
+  border-color:var(--ui-accent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--ui-accent) 25%,transparent);
+}
+body .vacancies-page .vacancies-toolbar input{background:transparent;color:var(--ui-text)}
+body .vacancies-page .vacancies-toolbar input::placeholder{color:var(--ui-text-muted)}
+body .vacancies-page .vacancies-toolbar option{background:var(--ui-surface);color:var(--ui-text)}
+
+body .vacancies-page .vacancies-grid{gap:14px;margin-top:14px}
+body .vacancies-page .vacancy-card{
+  overflow:hidden;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  box-shadow:none;
+}
+body .vacancies-page .vacancy-card::before{background:var(--ui-accent);opacity:1}
+body .vacancies-page .vacancy-card:hover{
+  transform:translateY(-2px);
+  border-color:var(--ui-line-strong);
+  box-shadow:0 14px 30px rgba(0,0,0,.16);
+}
+body .vacancies-page .vacancy-banner{
+  height:180px;
+  border:0;
+  border-bottom:1px solid var(--ui-line);
+  background:var(--ui-surface-soft);
+}
+body .vacancies-page .vacancy-card-body{gap:8px 12px;padding:14px 16px}
+body .vacancies-page .vacancy-card-body h2{color:var(--ui-text);font-size:18px}
+body .vacancies-page .vacancy-card-body header p{color:var(--ui-accent)}
+body .vacancies-page .vacancy-card-body > header img{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-soft);
+}
+body .vacancies-page .vacancy-next-date,
+body .vacancies-page .vacancy-meta span,
+body .vacancies-page .vacancy-groups span,
+body .vacancies-page .vacancy-persuasion{
+  border-color:var(--ui-line);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .vacancies-page .vacancy-next-date{border-radius:var(--ui-radius-sm)}
+body .vacancies-page .vacancy-next-date small,
+body .vacancies-page .vacancy-next-date span,
+body .vacancies-page .vacancy-sale-line span,
+body .vacancies-page .vacancy-details-link,
+body .vacancies-page .vacancy-persuasion span{color:var(--ui-text-muted)}
+body .vacancies-page .vacancy-sale-line b,
+body .vacancies-page .vacancy-persuasion strong{color:var(--ui-text)}
+body .vacancies-page .vacancy-sale-line i{background:var(--ui-surface-soft)}
+body .vacancies-page .vacancy-sale-line em{background:var(--ui-accent);box-shadow:none}
+body .vacancies-page .vacancy-groups b{color:var(--ui-accent)}
+body .vacancies-page .vacancy-commercial-badges span{
+  border:1px solid var(--ui-line);
+  background:var(--ui-surface-soft);
+  color:var(--ui-text-muted);
+}
+body .vacancies-page .vacancy-register{
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-accent);
+  color:#17150d;
+  box-shadow:none;
+}
+body .vacancies-page .vacancy-register:hover{background:var(--ui-gold-light);color:#17150d}
+body .vacancies-page .vacancy-details-link:hover{color:var(--ui-accent)}
+body .vacancies-page .vacancies-empty{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text-muted);
+}
+
+@media(max-width:700px){
+  body .vacancies-page{padding:74px 10px 18px}
+  body .vacancies-page .vacancies-hero{padding:18px 16px;border-radius:var(--ui-radius-md)}
+  body .vacancies-page .vacancies-hero h1{font-size:28px}
+  body .vacancies-page .vacancies-toolbar{top:66px}
+  body .vacancies-page .vacancy-card{border-radius:var(--ui-radius-sm)}
+  body .vacancies-page .vacancy-banner{height:205px}
+  body .vacancies-page .vacancy-card-body{padding:13px}
+}
