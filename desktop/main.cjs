@@ -49,7 +49,7 @@ function cleanOrigin(value) {
 }
 
 function safeLive(live) {
-  const id = String(live?.id || '')
+  const id = String(typeof live === 'string' ? live : live?.id || '')
   if (!id || !/^[a-zA-Z0-9-]{8,80}$/.test(id)) throw new Error('Live inválida.')
   return id
 }
@@ -152,7 +152,7 @@ function escapeHtml(value) {
 function overlayHtml(live) {
   const payload = JSON.stringify(live).replace(/</g, '\\u003c')
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-    *{box-sizing:border-box}html,body,#stage{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,sans-serif}.block{position:absolute}.title{font-weight:900;letter-spacing:.04em;text-transform:uppercase}.image{display:block}.table{padding:24px;background:#0d1322e8;border:1px solid #c9b766;box-shadow:0 18px 70px #0008}.table h2{margin:0 0 14px;font-size:25px;letter-spacing:.08em}.table-row{height:52px;display:grid;align-items:center;gap:10px;padding:0 13px;border-top:1px solid #ffffff18;font-size:22px;font-weight:700}.table-row:nth-child(even){background:#ffffff08}.table-row img{width:35px;height:35px;object-fit:contain}.muted{color:#c4bc9b;font-size:16px}
+    *{box-sizing:border-box}html,body,#stage{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;color:#f5f3ed;font-family:Arial,sans-serif}.block{position:absolute}.title{font-weight:900;letter-spacing:.04em;text-transform:uppercase}.image{display:block}.table{padding:24px;background:#0d1322e8;border:1px solid #c9b766;box-shadow:0 18px 70px #0008}.table h2{margin:0 0 14px;color:#f5f3ed;font-size:25px;letter-spacing:.08em}.table-row{height:52px;display:grid;align-items:center;gap:10px;padding:0 13px;border-top:1px solid #ffffff18;font-size:22px;font-weight:700}.table-row:nth-child(even){background:#ffffff08}.table-row img{width:35px;height:35px;object-fit:contain}.muted{color:#c4bc9b;font-size:16px}
   </style></head><body><div id="stage"></div><script>
     let live=${payload}; const stage=document.getElementById('stage');
     const fields={posicao:'POS',logo:'',nome:'EQUIPE',abates:'ABT',pontos_total:'PTS',booyahs:'B!',quedas:'QD',dano:'DANO',assistencias:'AST'};

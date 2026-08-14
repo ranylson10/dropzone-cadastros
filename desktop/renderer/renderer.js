@@ -23,6 +23,12 @@ function toast(message, tone = '') {
   toast.timer = setTimeout(() => el.toast.classList.add('hidden'), 3600)
 }
 
+function userMessage(error, fallback) {
+  return String(error?.message || fallback || 'Ocorreu um erro.')
+    .replace(/^Error invoking remote method '[^']+': Error:\s*/i, '')
+    .replace(/^Error:\s*/i, '')
+}
+
 function ensureLayout() {
   if (!current.layout) current.layout = { width: 1920, height: 1080, background: '#080b13', blocks: [] }
   if (!Array.isArray(current.layout.blocks)) current.layout.blocks = []
@@ -102,7 +108,7 @@ function bindBlockEditor(block) {
 
 async function persistCurrent(show = false) {
   if (!current) return
-  try { current = await api.saveLive(current); updateLiveInList(current); if (show) toast('Projeto salvo neste computador.') } catch (error) { toast(error.message || 'Não foi possível salvar.', 'error') }
+  try { current = await api.saveLive(current); updateLiveInList(current); if (show) toast('Projeto salvo neste computador.') } catch (error) { toast(userMessage(error, 'Não foi possível salvar.'), 'error') }
 }
 function stageChanged() {
   clearTimeout(saveTimer); saveTimer = setTimeout(() => void persistCurrent(false), 280)
@@ -128,7 +134,7 @@ async function saveCurrent(show = true) {
 function createBlock(type, image) {
   ensureLayout(); const offset = current.layout.blocks.length * 24
   let block
-  if (type === 'table') block = { id: crypto.randomUUID(), type: 'table', x: 100 + offset, y: 170 + offset, width: 1080, height: 640, title: 'CLASSIFICAÇÃO', columns: ['posicao', 'logo', 'nome', 'abates', 'pontos_total'] }
+  if (type === 'table') block = { id: crypto.randomUUID(), type: 'table', x: 1260, y: 178 + Math.min(offset, 180), width: 580, height: 620, title: 'CLASSIFICAÇÃO', columns: ['posicao', 'logo', 'nome', 'abates', 'pontos_total'] }
   else if (type === 'image') block = { id: crypto.randomUUID(), type: 'image', x: 1350, y: 70 + offset, width: 420, height: 220, src: image.src, name: image.name, fit: 'contain', opacity: 1 }
   else block = { id: crypto.randomUUID(), type: 'text', x: 100 + offset, y: 70 + offset, width: 1200, height: 80, text: 'NOVO TEXTO', color: '#f5f3ed', size: 42 }
   current.layout.blocks.push(block); el.blockList.dataset.selected = block.id; renderBlocks(); stageChanged()
@@ -140,7 +146,7 @@ async function importImageInto(existingBlock) {
     if (!image) return
     if (existingBlock) { existingBlock.src = image.src; existingBlock.name = image.name; renderBlocks(); stageChanged() }
     else createBlock('image', image)
-  } catch (error) { toast(error.message || 'Não foi possível importar a imagem.', 'error') }
+  } catch (error) { toast(userMessage(error, 'Não foi possível importar a imagem.'), 'error') }
 }
 
 async function sync() {
@@ -148,7 +154,7 @@ async function sync() {
   if (!current.campeonatoId) return toast('Informe e salve o ID do campeonato antes de atualizar os dados.', 'warn')
   $('#sync-live').disabled = true; $('#sync-live').textContent = '↻ Atualizando…'
   try { current = await api.syncLive(current.id); updateLiveInList(current); toast(`${current.cache?.teams?.length || 0} equipes e logos sincronizados neste PC.`); render() }
-  catch (error) { toast(error.message || 'Falha ao atualizar os dados.', 'error') }
+  catch (error) { toast(userMessage(error, 'Falha ao atualizar os dados.'), 'error') }
   finally { $('#sync-live').disabled = false; $('#sync-live').textContent = '↻ Atualizar dados' }
 }
 
@@ -157,12 +163,12 @@ function escape(value) { return String(value ?? '').replace(/[&<>"']/g, (char) =
 function escapeAttr(value) { return escape(value) }
 
 $('#new-live').onclick = openDialog; $('#empty-new-live').onclick = openDialog
-$('#create-form').addEventListener('submit', async (event) => { event.preventDefault(); try { const live = await api.createLive({ name: $('#new-live-name').value, campeonatoId: $('#new-championship-id').value, origin: $('#new-origin').value }); el.dialog.close(); await refreshLives(live.id); toast('Arte criada com dados demonstrativos. Pode editar e testar agora.') } catch (error) { toast(error.message || 'Não foi possível criar.', 'error') } })
+$('#create-form').addEventListener('submit', async (event) => { event.preventDefault(); try { const live = await api.createLive({ name: $('#new-live-name').value, campeonatoId: $('#new-championship-id').value, origin: $('#new-origin').value }); el.dialog.close(); await refreshLives(live.id); toast('Arte criada com dados demonstrativos. Pode editar e testar agora.') } catch (error) { toast(userMessage(error, 'Não foi possível criar.'), 'error') } })
 $('#sync-live').onclick = sync; $('#save-live').onclick = () => void saveCurrent(true)
-$('#export-png').onclick = async () => { if (!current) return; try { const savedPath = await api.exportPng(current.id); if (savedPath) toast('PNG salvo localmente: ' + savedPath) } catch (error) { toast(error.message || 'Não foi possível exportar o PNG.', 'error') } }
+$('#export-png').onclick = async () => { if (!current) return; try { const savedPath = await api.exportPng(current.id); if (savedPath) toast('PNG salvo localmente: ' + savedPath) } catch (error) { toast(userMessage(error, 'Não foi possível exportar o PNG.'), 'error') } }
 $('#copy-output').onclick = async () => { if (!current) return; const url = await api.outputUrl(current.id); await api.copy(url); toast('URL local copiada para OBS ou vMix.') }
 $('#open-output').onclick = async () => { if (current) await api.open(await api.outputUrl(current.id)) }
 $('#delete-live').onclick = async () => { if (!current || !confirm(`Excluir “${current.name}” deste PC?`)) return; await api.deleteLive(current.id); current = null; await refreshLives(); toast('Produção removida deste PC.') }
 for (const button of document.querySelectorAll('[data-add]')) button.onclick = () => createBlock(button.dataset.add)
 $('#add-image').onclick = () => void importImageInto()
-refreshLives().catch((error) => toast(error.message || 'Falha ao abrir os projetos locais.', 'error'))
+refreshLives().catch((error) => toast(userMessage(error, 'Falha ao abrir os projetos locais.'), 'error'))
