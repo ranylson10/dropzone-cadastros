@@ -48,6 +48,10 @@ function idKey(value: unknown) {
   return String(value ?? '').trim()
 }
 
+function normalizedName(value: unknown) {
+  return String(value ?? '').normalize('NFKC').replace(/[\u00A0\u3164\uFFA0]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
 function requireSuccess(error: { message: string } | null) {
   if (error) throw new Error(error.message)
 }
@@ -93,24 +97,43 @@ async function fetchMatchStats(matchId: string): Promise<JsonRecord> {
   return payload
 }
 
-async function findPlayerLinks(importacaoId: string) {
-  const { data: jogadores, error: jogadoresError } = await supabaseAdmin
+async function findPlayerLinks(importacaoId: string, campeonatoId: string) {
+  const [{ data: jogadores, error: jogadoresError }, { data: equipes, error: equipesError }, { data: participacoes, error: participacoesError }] = await Promise.all([
+    supabaseAdmin
     .from('matchresult_importacoes_jogadores')
     .select('id_jogo,campeonato_jogador_id,jogador_id,jogador_temporario_id,importacao_equipe_id')
-    .eq('importacao_id', importacaoId)
-  requireSuccess(jogadoresError)
-  const { data: equipes, error: equipesError } = await supabaseAdmin
+    .eq('importacao_id', importacaoId),
+    supabaseAdmin
     .from('matchresult_importacoes_equipes')
-    .select('id,campeonato_equipe_id')
-    .eq('importacao_id', importacaoId)
+    .select('id,campeonato_equipe_id,nome_normalizado')
+    .eq('importacao_id', importacaoId),
+    supabaseAdmin
+    .from('campeonato_jogadores')
+    .select('id,id_jogo,campeonato_equipe_id,jogador_id,jogador_temporario_id,status')
+    .eq('campeonato_id', campeonatoId)
+    .neq('status', 'deletado')
+    .not('id_jogo', 'is', null),
+  ])
+  requireSuccess(jogadoresError)
   requireSuccess(equipesError)
+  requireSuccess(participacoesError)
   const teamsByImportId = new Map((equipes || []).map((item: any) => [item.id, item.campeonato_equipe_id]))
-  return new Map((jogadores || []).map((item: any) => [idKey(item.id_jogo), {
+  const teamsByName = new Map((equipes || []).map((item: any) => [normalizedName(item.nome_normalizado), item.campeonato_equipe_id]))
+  const links = new Map((participacoes || []).map((item: any) => [idKey(item.id_jogo), {
+    campeonato_jogador_id: item.id,
+    jogador_id: item.jogador_id,
+    jogador_temporario_id: item.jogador_temporario_id,
+    campeonato_equipe_id: item.campeonato_equipe_id,
+  }]))
+  // The import-specific link is the strongest source; existing championship
+  // participation repairs older MatchResults that were interrupted midway.
+  for (const item of jogadores || []) links.set(idKey(item.id_jogo), {
     campeonato_jogador_id: item.campeonato_jogador_id,
     jogador_id: item.jogador_id,
     jogador_temporario_id: item.jogador_temporario_id,
     campeonato_equipe_id: teamsByImportId.get(item.importacao_equipe_id) || null,
-  }]))
+  })
+  return { links, teamsByName }
 }
 
 async function markImportFailure(importacaoId: string, error: unknown) {
@@ -155,7 +178,7 @@ export async function sincronizarEstatisticasGarena(context: MatchStatsContext) 
   if (!importacao) throw new Error('Não foi possível preparar a importação de estatísticas detalhadas.')
 
   try {
-    const [payload, links] = await Promise.all([fetchMatchStats(matchId), findPlayerLinks(context.matchresultImportacaoId)])
+    const [payload, linkedData] = await Promise.all([fetchMatchStats(matchId), findPlayerLinks(context.matchresultImportacaoId, context.campeonatoId)])
     const importedPlayers = extractPlayers(payload)
     if (!importedPlayers.length) throw new Error('A partida foi encontrada, mas ainda não possui jogadores disponíveis.')
 
@@ -168,14 +191,15 @@ export async function sincronizarEstatisticasGarena(context: MatchStatsContext) 
 
     const rows = importedPlayers.map(({ player, equipe }) => {
       const playerId = idKey(player.player_id)
-      const link = links.get(playerId)
+      const link = linkedData.links.get(playerId)
+      const teamFromName = linkedData.teamsByName.get(normalizedName(player.team_name || equipe.team_name)) || null
       return {
         importacao_id: importacao.id,
         player_id: playerId,
         campeonato_jogador_id: link?.campeonato_jogador_id || null,
         jogador_id: link?.jogador_id || null,
         jogador_temporario_id: link?.jogador_temporario_id || null,
-        campeonato_equipe_id: link?.campeonato_equipe_id || null,
+        campeonato_equipe_id: link?.campeonato_equipe_id || teamFromName,
         nick_snapshot: text(player.player_name) || playerId,
         equipe_snapshot: text(player.team_name) || text(equipe.team_name),
         posicao_equipe: integer(player.match_rank || equipe.match_rank),
