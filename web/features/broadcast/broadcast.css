@@ -520,11 +520,9 @@
   color: var(--muted);
 }
 
-.broadcast-desk-url code {
+.broadcast-desk-url small {
   font-size: 0.78rem;
-  word-break: break-all;
-  color: var(--text);
-  opacity: 0.9;
+  color: var(--muted);
 }
 
 .broadcast-control-section-label {

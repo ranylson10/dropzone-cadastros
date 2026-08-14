@@ -7034,3 +7034,30 @@ body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-li
   body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-details{grid-template-columns:repeat(2,minmax(0,1fr))}
   body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-folder-details>div{min-height:58px;padding:10px}
 }
+
+/* Every personal workspace uses the compact account header. It prevents the old
+   full-viewport strip from appearing in team, player, manager and stream panels. */
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) > .shell.panel-workspace-shell{width:min(1420px,calc(100% - 32px));max-width:1420px;margin:18px auto 48px}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .panel-workspace-return{padding:0 0 10px;border:0;background:transparent}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .panel-workspace-return button{color:var(--ui-text-muted)}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero{grid-template-columns:minmax(0,1fr) auto auto;gap:16px;min-height:0;margin:0 0 14px;padding:14px 16px;border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-surface);color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero::after{display:none}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-avatar{width:56px;height:56px;flex-basis:56px;border:1px solid rgba(201,183,102,.45);border-radius:50%;background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:none}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .eyebrow{color:var(--ui-accent)}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-head strong{font-size:25px;color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-head strong span{color:var(--ui-text-muted)}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics{gap:0;padding:0;border:0}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics .metric{min-width:72px;min-height:34px;padding:0 12px;border-left:1px solid var(--ui-line)}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics .metric svg,
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics .metric b{color:var(--ui-accent)}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics .metric span{color:var(--ui-text-muted)}
+body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-action{border:0;border-radius:9px;background:var(--ui-surface-raised);color:var(--ui-text)}
+
+@media(max-width:900px){
+  body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) > .shell.panel-workspace-shell{width:calc(100% - 20px);margin:10px auto 28px}
+  body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero{grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px}
+  body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-avatar{width:50px;height:50px;flex-basis:50px}
+  body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-head strong{font-size:21px}
+  body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;padding-top:10px;border-top:1px solid var(--ui-line)}
+  body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics .metric{min-width:0;padding:0 7px;justify-content:center}
+}

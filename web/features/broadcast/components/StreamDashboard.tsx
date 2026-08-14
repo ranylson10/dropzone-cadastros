@@ -145,7 +145,7 @@ export function StreamDashboard(props: { profileName?: string }) {
   function copy(text: string, okMsg: string) {
     void navigator.clipboard.writeText(text).then(
       () => setFeedback(okMsg),
-      () => setFeedback(text),
+      () => setFeedback('Não foi possível copiar automaticamente. Tente novamente.'),
     )
   }
 
@@ -241,7 +241,7 @@ export function StreamDashboard(props: { profileName?: string }) {
             <div className="broadcast-desk-urls">
               <div className="broadcast-desk-url">
                 <span>Controlador</span>
-                <code>{controlUrl}</code>
+                <small>Link privado pronto para uso.</small>
                 <div className="broadcast-row">
                   <button type="button" className="stream-secondary-btn" onClick={() => copy(controlUrl, 'Link do controlador copiado.')}>
                     <Copy size={14} /> Copiar
@@ -253,7 +253,7 @@ export function StreamDashboard(props: { profileName?: string }) {
               </div>
               <div className="broadcast-desk-url">
                 <span>Overlay OBS (Browser Source)</span>
-                <code>{obsUrl}</code>
+                <small>Link privado pronto para copiar no OBS.</small>
                 <div className="broadcast-row">
                   <button type="button" className="stream-secondary-btn" onClick={() => copy(obsUrl, 'Link OBS copiado.')}>
                     <Copy size={14} /> Copiar
