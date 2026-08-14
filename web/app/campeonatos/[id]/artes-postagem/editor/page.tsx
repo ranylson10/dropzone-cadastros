@@ -1,9 +1,9 @@
 import { AppShell } from '@/components/layout'
-import { PostArtworkWorkspace } from '@/features/campeonatos/artes-postagem'
+import { LocalStudioHandoff } from '@/components/local-studio/LocalStudioHandoff'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ artwork?: string }> }) {
-  const [{ id }, query] = await Promise.all([params, searchParams])
-  return <AppShell activeLabel="Editor de artes" loadSession mainClassName="page page-authenticated"><PostArtworkWorkspace campeonatoId={id} mode="edit" initialArtworkId={query.artwork} /></AppShell>
+  const [{ id }] = await Promise.all([params, searchParams])
+  return <AppShell activeLabel="Estúdio local" loadSession mainClassName="page page-authenticated"><LocalStudioHandoff campeonatoId={id} kind="artes" /></AppShell>
 }

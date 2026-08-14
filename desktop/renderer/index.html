@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: http://127.0.0.1:*; frame-src http://127.0.0.1:*; style-src 'self'; script-src 'self'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DropZone Live Local</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand"><span>◈</span><div><b>DROPZONE</b><small>LIVE LOCAL</small></div></div>
+        <button id="new-live" class="primary wide">＋ Nova live</button>
+        <div class="sidebar-label">SUAS LIVES</div>
+        <nav id="live-list" class="live-list"></nav>
+        <div class="sidebar-foot"><span class="dot"></span> Dados e projetos protegidos neste PC</div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div><small id="live-eyebrow">DROPZONE LIVE LOCAL</small><h1 id="live-title">Selecione uma live</h1></div>
+          <div class="top-actions">
+            <button id="sync-live" class="secondary" disabled>↻ Sincronizar dados</button>
+            <button id="export-png" class="secondary" disabled>▧ Exportar PNG</button>
+            <button id="copy-output" class="primary" disabled>▣ Copiar saída OBS</button>
+          </div>
+        </header>
+
+        <section id="empty-state" class="empty-state">
+          <div class="empty-icon">◈</div><h2>Crie a sua primeira live local</h2><p>Conecte um campeonato, sincronize estatísticas e monte a cena no seu computador. Logos e dados ficam em cache local.</p><button id="empty-new-live" class="primary">Criar live</button>
+        </section>
+
+        <section id="editor" class="editor hidden">
+          <aside class="inspector source-panel">
+            <div class="panel-heading"><small>DADOS DISPONÍVEIS</small><strong>Tabela de equipes</strong></div>
+            <p class="hint">Arraste blocos e escolha quais informações cada tabela mostra.</p>
+            <div id="fields" class="field-list"></div>
+            <hr />
+            <div class="panel-heading"><small>FONTE</small><strong>Campeonato</strong></div>
+            <label>Nome da live<input id="live-name" maxlength="80" /></label>
+            <label>ID do campeonato<input id="championship-id" placeholder="Cole o ID do campeonato" /></label>
+            <label>Servidor de dados<input id="origin" /></label>
+            <button id="save-live" class="secondary wide">Salvar projeto local</button>
+            <button id="delete-live" class="danger wide">Excluir live deste PC</button>
+          </aside>
+
+          <section class="stage-wrap">
+            <div class="stage-toolbar"><span><i></i> PRÉVIA LOCAL · 1920 × 1080</span><span id="sync-status">Aguardando sincronização</span></div>
+            <div class="stage-frame"><iframe id="overlay-preview" title="Prévia da overlay local"></iframe></div>
+            <div class="output-bar"><span>OBS / vMix Browser Source</span><code id="output-url">—</code><button id="open-output" class="link">Abrir</button></div>
+          </section>
+
+          <aside class="inspector blocks-panel">
+            <div class="panel-heading"><small>CONSTRUIR CENA</small><strong>Blocos</strong></div>
+            <div class="block-actions"><button data-add="text">T Texto</button><button data-add="table">▦ Tabela</button></div>
+            <div id="block-list" class="block-list"></div>
+            <div id="block-editor" class="block-editor"></div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="live-dialog">
+      <form method="dialog" id="create-form">
+        <header><small>NOVA PRODUÇÃO</small><h2>Criar live local</h2><p>Você poderá importar logos e estatísticas do campeonato com um clique.</p></header>
+        <label>Nome da live<input id="new-live-name" required maxlength="80" placeholder="Ex.: RLF Cup · Dia 1" /></label>
+        <label>ID do campeonato<input id="new-championship-id" placeholder="ID no DropZone" /></label>
+        <label>Servidor DropZone<input id="new-origin" value="https://dropzone-cadastros.vercel.app" required /></label>
+        <footer><button value="cancel" class="secondary">Cancelar</button><button id="create-live" value="default" class="primary">Criar live</button></footer>
+      </form>
+    </dialog>
+    <div id="toast" class="toast hidden"></div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

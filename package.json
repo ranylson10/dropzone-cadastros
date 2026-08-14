@@ -36,7 +36,9 @@
     "testar:tudo": "node scripts/testes/testar-tudo.mjs",
     "audit:dropzone:full:orchestrated": "node scripts/testes/executar.mjs --full --skip-quality",
     "mobile:go": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1",
-    "mobile:go:tunnel": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1 -Tunnel"
+    "mobile:go:tunnel": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1 -Tunnel",
+    "desktop:dev": "npm --prefix desktop run dev",
+    "desktop:package:win": "npm --prefix desktop run package:win"
   },
   "devDependencies": {
     "depcheck": "^1.4.7",
