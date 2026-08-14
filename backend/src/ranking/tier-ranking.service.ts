@@ -332,7 +332,11 @@ export async function carregarRankingTiers() {
       const team = teamKeyFromMatchstats ? teams.get(teamKeyFromMatchstats) : null
       if (team) somarDetalhesGarena(team, row)
       if (!player) continue
-      somarDetalhesGarena(player, row, false)
+      // O MatchResult oficial entrega abates e colocação, mas não contém dano,
+      // assistência ou revive. Para o jogador, a Garena é a fonte oficial de
+      // todos os detalhes; ignorá-los aqui deixava combinações impossíveis,
+      // como assistência com dano zerado.
+      somarDetalhesGarena(player, row)
       for (const weapon of ((row as any).garena_matchstats_armas || [])) {
         const nome = text(weapon.arma)
         if (!nome) continue
