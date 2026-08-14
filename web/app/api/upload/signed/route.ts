@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
-const MAX_VIDEO_SIZE = 40 * 1024 * 1024
+const MAX_VIDEO_SIZE = 12 * 1024 * 1024
 
 function safeName(value: string) {
   return String(value || 'arquivo')
@@ -32,7 +32,13 @@ function normalizeMedia(contentType: string, fileName: string) {
     return { kind: 'video' as const, contentType: 'video/mp4', ext: 'mp4', max: MAX_VIDEO_SIZE }
   }
   // imagens → sempre png no storage (cliente já converte quando preciso)
-  if (ct.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(name)) {
+  if (ct.includes('image/webp') || name.endsWith('.webp')) {
+    return { kind: 'image' as const, contentType: 'image/webp', ext: 'webp', max: MAX_IMAGE_SIZE }
+  }
+  if (ct.includes('image/jpeg') || /\.jpe?g$/i.test(name)) {
+    return { kind: 'image' as const, contentType: 'image/jpeg', ext: 'jpg', max: MAX_IMAGE_SIZE }
+  }
+  if (ct.includes('image/png') || name.endsWith('.png')) {
     return { kind: 'image' as const, contentType: 'image/png', ext: 'png', max: MAX_IMAGE_SIZE }
   }
   throw new Error('Formato não suportado. Use PNG/JPG ou vídeo MP4/WebM.')
@@ -43,8 +49,8 @@ async function ensureBucket(bucket: string, allowVideo: boolean) {
     public: true,
     fileSizeLimit: `${allowVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE}`,
     allowedMimeTypes: allowVideo
-      ? ['image/png', 'video/mp4', 'video/webm']
-      : ['image/png'],
+      ? ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'video/webm']
+      : ['image/png', 'image/jpeg', 'image/webp'],
   }
   const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets()
   if (listError) throw new Error(`Storage/listBuckets: ${listError.message}`)
@@ -89,7 +95,7 @@ export async function POST(req: NextRequest) {
     if (size > 0 && size > media.max) {
       throw new Error(
         media.kind === 'video'
-          ? 'Video muito pesado. Limite: 40 MB.'
+          ? 'Video muito pesado. Limite: 12 MB. Comprima-o ou use uma imagem de fundo.'
           : 'Imagem muito pesada. Limite: 5 MB.',
       )
     }

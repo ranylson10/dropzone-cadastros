@@ -8,20 +8,6 @@ import { uploadPublicMedia } from '@/lib/upload-public'
 import '../stream.css'
 import '@/features/broadcast/broadcast.css'
 
-async function fileToPngFile(file: File): Promise<File> {
-  if (/image\/png/i.test(file.type)) return file
-  const bitmap = await createImageBitmap(file)
-  const canvas = document.createElement('canvas')
-  canvas.width = bitmap.width
-  canvas.height = bitmap.height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas indisponível.')
-  ctx.drawImage(bitmap, 0, 0)
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
-  if (!blob) throw new Error('Falha ao converter PNG.')
-  return new File([blob], (file.name || 'fundo').replace(/\.\w+$/, '') + '.png', { type: 'image/png' })
-}
-
 async function authFetch(url: string, options?: RequestInit) {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -220,16 +206,15 @@ export function CampeonatoStreamTab(props: { campeonatoId: string }) {
       const name = file.name || ''
       if (/^video\//i.test(file.type) || /\.(mp4|webm|mov)$/i.test(name)) {
         if (!/\.(mp4|webm|mov)$/i.test(name) && !/mp4|webm|quicktime/i.test(file.type)) {
-          throw new Error('Use vídeo MP4 ou WebM (até 40 MB).')
+          throw new Error('Use vídeo MP4 ou WebM (até 12 MB).')
         }
-        if (file.size > 40 * 1024 * 1024) throw new Error('Vídeo muito pesado. Limite: 40 MB.')
+        if (file.size > 12 * 1024 * 1024) throw new Error('Vídeo muito pesado. Limite: 12 MB. Comprima-o ou use uma imagem de fundo.')
         const res = await uploadPublicMedia(file, 'campeonato', 'produtora')
         uploadedUrl = res.url
         nextType = 'video'
       } else {
-        if (file.size > 8 * 1024 * 1024) throw new Error('Imagem muito pesada. Use até ~5–8 MB.')
-        const png = await fileToPngFile(file)
-        const res = await uploadPublicMedia(png, 'campeonato', 'produtora')
+        if (file.size > 12 * 1024 * 1024) throw new Error('Imagem muito pesada. Use até 12 MB; ela será otimizada antes do envio.')
+        const res = await uploadPublicMedia(file, 'campeonato', 'produtora')
         uploadedUrl = res.url
       }
       if (!uploadedUrl) throw new Error('Upload concluído sem URL pública.')

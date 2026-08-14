@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { StreamPackageStage } from '@/features/campeonatos/stream/components/StreamPackageStage'
+import { cachedStorageMediaUrl } from '@/lib/upload-public'
 import type {
   StreamOverlayPackage,
   StreamPackageRenderData,
@@ -36,12 +37,13 @@ function LiveBackground(props: { pack: ObsPack | null }) {
   const bgType = props.pack?.bg_type || 'none'
   const bgUrl = String(props.pack?.bg_url || '').trim()
   if (bgType === 'none' || !bgUrl) return null
+  const deliveryUrl = cachedStorageMediaUrl(bgUrl)
 
   if (bgType === 'video') {
-    return <video key={bgUrl} className="broadcast-obs-bg-media" src={bgUrl} autoPlay muted loop playsInline />
+    return <video key={deliveryUrl} className="broadcast-obs-bg-media" src={deliveryUrl} autoPlay muted loop playsInline />
   }
 
-  return <img key={bgUrl} className="broadcast-obs-bg-media" src={bgUrl} alt="" />
+  return <img key={deliveryUrl} className="broadcast-obs-bg-media" src={deliveryUrl} alt="" />
 }
 
 export default function BroadcastObsPage() {

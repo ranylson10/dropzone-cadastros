@@ -18,9 +18,12 @@ type UploadPayload = {
 
 const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
-const MAX_CHAMPIONSHIP_IMAGE_SIZE = 15 * 1024 * 1024
-const MAX_VIDEO_SIZE = 25 * 1024 * 1024
+const MAX_CHAMPIONSHIP_IMAGE_SIZE = 5 * 1024 * 1024
+const MAX_VIDEO_SIZE = 12 * 1024 * 1024
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff])
+const WEBP_RIFF_SIGNATURE = Buffer.from('RIFF')
+const WEBP_FORMAT_SIGNATURE = Buffer.from('WEBP')
 
 function cleanHeader(value: string) {
   return String(value || '').replace(/^\uFEFF/, '').trim()
@@ -40,8 +43,17 @@ function safeName(value: string) {
 
 type DecodedUpload = {
   buffer: Buffer
-  contentType: 'image/png' | 'video/mp4' | 'video/webm'
-  ext: 'png' | 'mp4' | 'webm'
+  contentType: 'image/png' | 'image/jpeg' | 'image/webp' | 'video/mp4' | 'video/webm'
+  ext: 'png' | 'jpg' | 'webp' | 'mp4' | 'webm'
+}
+
+function imageFormat(buffer: Buffer): Pick<DecodedUpload, 'contentType' | 'ext'> | null {
+  if (buffer.subarray(0, 8).equals(PNG_SIGNATURE)) return { contentType: 'image/png', ext: 'png' }
+  if (buffer.subarray(0, 3).equals(JPEG_SIGNATURE)) return { contentType: 'image/jpeg', ext: 'jpg' }
+  if (buffer.subarray(0, 4).equals(WEBP_RIFF_SIGNATURE) && buffer.subarray(8, 12).equals(WEBP_FORMAT_SIGNATURE)) {
+    return { contentType: 'image/webp', ext: 'webp' }
+  }
+  return null
 }
 
 function decodeUpload(payload: UploadPayload): DecodedUpload {
@@ -73,18 +85,13 @@ function decodeUpload(payload: UploadPayload): DecodedUpload {
     }
   }
 
-  if (header && !header.includes('image/png') && !header.includes('image/')) {
+  if (header && !header.includes('image/')) {
     throw new Error('Formato nao suportado. Use PNG/JPG ou video MP4/WebM.')
   }
-  if (header.includes('image/') && !header.includes('image/png')) {
-    throw new Error('A imagem final precisa estar em PNG.')
-  }
-
-  return {
-    buffer: Buffer.from(b64.replace(/\s/g, ''), 'base64'),
-    contentType: 'image/png',
-    ext: 'png',
-  }
+  const buffer = Buffer.from(b64.replace(/\s/g, ''), 'base64')
+  const format = imageFormat(buffer)
+  if (!format) throw new Error('Imagem invalida. Use PNG, JPG ou WebP.')
+  return { buffer, ...format }
 }
 
 async function ensureBucket(bucket: string, allowVideo: boolean) {
@@ -92,8 +99,8 @@ async function ensureBucket(bucket: string, allowVideo: boolean) {
     public: true,
     fileSizeLimit: `${allowVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE}`,
     allowedMimeTypes: allowVideo
-      ? ['image/png', 'video/mp4', 'video/webm']
-      : ['image/png'],
+      ? ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'video/webm']
+      : ['image/png', 'image/jpeg', 'image/webp'],
   }
 
   const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets()
@@ -127,7 +134,7 @@ async function uploadToStorage(
       apikey: cleanHeader(serviceRoleKey),
       Authorization: `Bearer ${cleanHeader(serviceRoleKey)}`,
       'Content-Type': contentType,
-      'Cache-Control': '31536000',
+      'Cache-Control': 'max-age=31536000',
       'x-upsert': 'false',
     },
     body: new Uint8Array(buffer),
@@ -173,15 +180,13 @@ export async function POST(req: NextRequest) {
         const limitMb = Math.round(imageLimit / 1024 / 1024)
         throw new Error(`Imagem muito pesada. Limite para este envio: ${limitMb} MB.`)
       }
-      if (!decoded.buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
-        throw new Error('Imagem invalida. Recorte novamente para gerar PNG antes de enviar.')
-      }
+      if (!imageFormat(decoded.buffer)) throw new Error('Imagem invalida. Use PNG, JPG ou WebP.')
     }
 
     await ensureBucket(bucket, isVideo || bucket === 'campeonato')
 
     const baseName =
-      safeName(payload.file_name || bucket).replace(/\.(png|mp4|webm)$/i, '') || bucket
+      safeName(payload.file_name || bucket).replace(/\.(png|jpe?g|webp|mp4|webm)$/i, '') || bucket
     const path = `${Date.now()}-${crypto.randomUUID()}-${baseName}.${decoded.ext}`
 
     await uploadToStorage(bucket, path, decoded.buffer, decoded.contentType)
