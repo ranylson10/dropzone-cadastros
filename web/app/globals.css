@@ -7061,3 +7061,63 @@ body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboar
   body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;padding-top:10px;border-top:1px solid var(--ui-line)}
   body .page-authenticated:has(.team-dashboard,.player-dashboard,.manager-dashboard,.broadcast-page) .account-workspace-hero .account-strip-metrics .metric{min-width:0;padding:0 7px;justify-content:center}
 }
+
+/* Team workspace operational tabs. Lines and staff reuse legacy registration
+   rows, therefore their old light palette must be explicitly neutralized. */
+body .page-authenticated:has(.team-dashboard) .team-dashboard .subtab-actionbar,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .inline-action-panel{border:0;border-bottom:1px solid var(--ui-line);border-radius:0;background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:none}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .subtab-actionbar h3,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .subtab-actionbar strong{color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .subtab-actionbar .eyebrow{color:var(--ui-accent)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .panel-tab-body>.empty{padding:8px 0;color:var(--ui-text-muted);background:transparent}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .championship-vagas-list{border:0;background:transparent;box-shadow:none}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .championship-vaga-row,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .championship-vagas-list>.championship-vaga-row{border:0;border-bottom:1px solid var(--ui-line);border-left:2px solid #53b98d;border-radius:0;background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:none}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .championship-vaga-row.status-reservada{border-left-color:var(--ui-accent)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .championship-vaga-row:hover,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .championship-vaga-row.is-open{background:rgba(201,183,102,.08)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-summary{background:transparent;color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-summary:hover{background:transparent;filter:none}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-number,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-identity strong{color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-number:before,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-identity small,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-meta{color:var(--ui-text-muted)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-avatar{border:0;border-radius:7px;background:var(--ui-surface);color:var(--ui-text-muted)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-status-pill{border:0;background:rgba(83,185,141,.15);color:#8bddb7}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-meta .button,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-row-edit .vaga-row-actions button{border:0;border-radius:7px;background:var(--ui-surface);color:var(--ui-text-muted);box-shadow:none}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-meta .button:hover,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-row-edit .vaga-row-actions button:hover{background:rgba(201,183,102,.12);color:var(--ui-accent)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-meta .button.danger,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-row-edit .vaga-row-actions button.danger{color:#ee9292}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-details,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-line-inline-detail{border-top:1px solid var(--ui-line);background:var(--ui-surface);color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-row-edit,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-perm-grid{background:transparent;color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-perm-item{border:0;background:var(--ui-surface-raised);color:var(--ui-text-muted)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .staff-tab select,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .staff-tab input,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .inline-action-panel input{border:0;background:var(--ui-surface);color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .staff-search-card,
+body .page-authenticated:has(.team-dashboard) .team-dashboard .staff-search-results{border:0;background:var(--ui-surface-raised);color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .staff-search-card.selected{background:rgba(201,183,102,.12);color:var(--ui-accent-light)}
+
+/* The roster is intentionally a fast, scan-friendly list rather than cards. */
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-grid{display:grid;grid-template-columns:1fr;gap:0;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line);background:transparent}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card{display:grid;grid-template-columns:42px minmax(0,1fr);gap:10px;min-height:58px;padding:8px 0;border:0;border-bottom:1px solid var(--ui-line);border-radius:0;background:transparent;color:var(--ui-text);box-shadow:none}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card:last-child{border-bottom:0}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card::before{display:none}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card:hover{background:rgba(201,183,102,.06)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card img{width:42px;height:42px;border:0;border-radius:50%;background:var(--ui-surface-raised)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card div{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:14px;align-items:center;min-width:0}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card strong{grid-column:1;color:var(--ui-text)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card span{grid-column:1;color:var(--ui-text-muted)}
+body .page-authenticated:has(.team-dashboard) .team-dashboard .team-player-card small{grid-column:2;grid-row:1 / span 2;margin:0;color:var(--ui-accent-light);text-align:right}
+
+@media(max-width:760px){
+  body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-summary{grid-template-columns:34px 38px minmax(0,1fr) auto 20px;gap:7px;padding:7px 8px}
+  body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-meta .button{width:30px;min-width:30px;padding:0;font-size:0}
+  body .page-authenticated:has(.team-dashboard) .team-dashboard .vaga-row-meta .button svg{width:15px;height:15px}
+  body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-perm-grid.compact{grid-template-columns:1fr 1fr}
+}
