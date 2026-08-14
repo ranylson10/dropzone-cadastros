@@ -5,7 +5,7 @@ const REQUEST_TIMEOUT_MS = 12_000
 
 type JsonRecord = Record<string, unknown>
 
-type MatchStatsContext = {
+export type MatchStatsContext = {
   campeonatoId: string
   jogoId: string
   partidaId: string
@@ -121,6 +121,10 @@ async function markImportFailure(importacaoId: string, error: unknown) {
   }).eq('id', importacaoId)
 }
 
+function failureMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Não foi possível consultar as estatísticas detalhadas.'
+}
+
 /**
  * Server-only enrichment triggered after the official MatchResult was confirmed.
  * Errors are deliberately isolated so the official scoring is never affected.
@@ -225,6 +229,31 @@ export async function sincronizarEstatisticasGarena(context: MatchStatsContext) 
     return { status: 'concluida' as const, jogadores: rows.length }
   } catch (error) {
     await markImportFailure(importacao.id, error)
-    return { status: 'falhou' as const }
+    return { status: 'falhou' as const, erro: failureMessage(error) }
   }
+}
+
+/**
+ * Allows a score manager to retry the private Garena enrichment for a MatchResult
+ * that was already confirmed. It never alters the official score or the roster.
+ */
+export async function sincronizarEstatisticasGarenaDaImportacao(importacaoId: string, userId: string) {
+  const { data: importacao, error } = await supabaseAdmin
+    .from('matchresult_importacoes')
+    .select('id,campeonato_id,jogo_id,partida_id,produtora_id,nome_arquivo,status')
+    .eq('id', importacaoId)
+    .maybeSingle()
+  requireSuccess(error)
+  if (!importacao) throw new Error('MatchResult não encontrado.')
+  if (importacao.status !== 'confirmada') throw new Error('Confirme o MatchResult antes de sincronizar os dados detalhados.')
+
+  return sincronizarEstatisticasGarena({
+    campeonatoId: importacao.campeonato_id,
+    jogoId: importacao.jogo_id,
+    partidaId: importacao.partida_id,
+    produtoraId: importacao.produtora_id,
+    matchresultImportacaoId: importacao.id,
+    nomeArquivo: importacao.nome_arquivo,
+    userId,
+  })
 }

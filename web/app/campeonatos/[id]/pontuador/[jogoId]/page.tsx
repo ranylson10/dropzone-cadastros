@@ -323,7 +323,7 @@ export default function PontuadorJogoPage() {
         body: JSON.stringify({ vinculos: vinculosPayload }),
       }).catch(() => null)
 
-      await request(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, equipes: linkedTeams.map((team: Row) => {
+      const confirmation = await request<{ garena?: { status?: string; jogadores?: number; erro?: string } }>(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, equipes: linkedTeams.map((team: Row) => {
         const teamId = previewLinks[team.nome_normalizado]
         const edit = edits[teamId]
         return { nome: team.nome, campeonato_equipe_id: teamId, posicao: number(edit?.posicao || team.posicao), abates: number(edit?.abates || team.abates), punicao_pontos: Math.min(number(edit?.punicao), 0), punicao_motivo: edit?.motivo || '', jogadores: team.jogadores.map((player: Row) => ({ ordem: player.ordem, nick: player.nick, id_jogo: player.id_jogo, abates: player.abates })) }
@@ -331,10 +331,36 @@ export default function PontuadorJogoPage() {
       // trava a queda após aplicar MR
       await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' }).catch(() => null)
       setPreview(null); setMatchContent(''); setMatchName(''); setPreviewLinks({})
-      setNotice('Match Result confirmado, vínculos gravados e queda travada. Use Editar para alterar.')
+      const garenaNotice = confirmation.garena?.status === 'concluida'
+        ? ` Dados detalhados da Garena integrados para ${confirmation.garena.jogadores || 0} jogadores.`
+        : confirmation.garena?.status === 'ignorado'
+          ? ' Este arquivo não contém um ID oficial da Garena para detalhes.'
+          : confirmation.garena?.status === 'falhou'
+            ? ` A súmula foi salva, mas os dados Garena falharam: ${confirmation.garena.erro || 'tente sincronizar novamente.'}`
+            : ''
+      setNotice(`Match Result confirmado, vínculos gravados e queda travada. Use Editar para alterar.${garenaNotice}`)
       await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao confirmar Match Result.') }
     finally { setSaving(false) }
+  }
+
+  async function syncGarenaDetails() {
+    if (!selectedDropId) return
+    setSaving(true); setError(''); setNotice('')
+    try {
+      const result = await request<{ status: string; jogadores?: number }>(`/api/campeonatos/${params.id}/sumula/matchresult/sincronizar`, {
+        method: 'POST', body: JSON.stringify({ partida_id: selectedDropId }),
+      })
+      if (result.status === 'ignorado') {
+        setNotice('Este MatchResult não possui um ID oficial da Garena no nome do arquivo.')
+      } else {
+        setNotice(`Dados detalhados da Garena sincronizados para ${result.jogadores || 0} jogadores. O ranking e os cards serão atualizados ao abrir novamente.`)
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível sincronizar os dados detalhados.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function setQuedaAtual(quedaId: string) {
@@ -440,6 +466,9 @@ export default function PontuadorJogoPage() {
         ) : null}
         <button className="button secondary" onClick={() => void load()} disabled={loading}>
           <RefreshCcw size={15}/> Atualizar
+        </button>
+        <button className="button secondary" onClick={() => void syncGarenaDetails()} disabled={saving || !isLocked} title="Importa dano, assistências, armas e habilidades do MatchResult confirmado">
+          <RefreshCcw size={15}/> Dados Garena
         </button>
         {isLocked ? (
           <button className="button" onClick={() => void unlockEdit()} disabled={saving}>

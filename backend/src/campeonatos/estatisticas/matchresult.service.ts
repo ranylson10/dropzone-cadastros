@@ -374,8 +374,9 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
   const { error: confirmError } = await supabaseAdmin.from('matchresult_importacoes').update({ status: 'confirmada', confirmado_por: userId, confirmado_em: new Date().toISOString() }).eq('id', importacao.id)
   if (confirmError) throw confirmError
   // Complemento privado: nunca interfere na súmula oficial caso a fonte externa esteja indisponível.
+  let garena: Awaited<ReturnType<typeof sincronizarEstatisticasGarena>> = { status: 'ignorado' }
   try {
-    await sincronizarEstatisticasGarena({
+    garena = await sincronizarEstatisticasGarena({
       campeonatoId,
       jogoId: partida.jogo_id,
       partidaId: partida.id,
@@ -387,7 +388,7 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
   } catch (error) {
     console.error('Não foi possível complementar o MatchResult com estatísticas detalhadas.', error)
   }
-  return { importacao_id: importacao.id, ...totals }
+  return { importacao_id: importacao.id, garena, ...totals }
   } catch (error) {
     const message = errorMessage(error)
     await supabaseAdmin.from('matchresult_importacoes').update({
