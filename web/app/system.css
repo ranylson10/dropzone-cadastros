@@ -625,3 +625,146 @@ body .login-portal .login-create-grid span{color:var(--ui-text-muted)}
 @media(max-width:760px){
   body .login-portal .login-portal-panel{border-radius:var(--ui-radius-md)}
 }
+
+/* Convites pÃºblicos: a primeira entrada tambÃ©m precisa parecer parte do produto. */
+body .invite-page,
+body .invite-entry-page,
+body .invite-page-normal,
+body .invite-page-chat{
+  --dz-bg:var(--ui-bg);
+  --dz-page-bg:var(--ui-bg);
+  --dz-surface:var(--ui-surface);
+  --dz-surface-soft:var(--ui-surface-raised);
+  --dz-border:var(--ui-line);
+  --dz-text:var(--ui-text);
+  --dz-text-muted:var(--ui-muted);
+  --dz-primary:var(--ui-accent);
+  --dz-btn:var(--ui-accent);
+  --dz-btn-text:#111216;
+  --dz-accent-soft:rgba(201,183,102,.13);
+  background:var(--ui-bg);
+  color:var(--ui-text);
+}
+body .invite-page:not(.invite-page-chat){
+  padding:clamp(20px,5vw,56px);
+  background-image:radial-gradient(circle at 12% 8%,rgba(201,183,102,.1),transparent 30%);
+}
+body .invite-page.champ-theme,
+body .invite-page.champ-theme:has(.invite-chat-card){
+  background-color:var(--ui-bg);
+  background-image:radial-gradient(circle at 12% 8%,rgba(201,183,102,.1),transparent 30%);
+  color:var(--ui-text);
+}
+body .invite-page .invite-card,
+body .invite-page.champ-theme .invite-card,
+body .invite-entry-choice{
+  border:1px solid var(--ui-line);
+  border-top:3px solid var(--ui-accent);
+  border-radius:var(--ui-radius-lg);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:0 24px 64px rgba(0,0,0,.3);
+}
+body .invite-page .invite-card{overflow:hidden}
+body .invite-page .invite-card h1,
+body .invite-page .invite-card h2,
+body .invite-entry-choice h1,
+body .invite-page.champ-theme h1,
+body .invite-page.champ-theme h2,
+body .invite-page.champ-theme p,
+body .invite-page.champ-theme strong{color:var(--ui-text)}
+body .invite-page .invite-details,
+body .invite-page .invite-auth-box,
+body .invite-page .invite-current-team,
+body .invite-page .invite-mini-stats,
+body .invite-page .invite-normal-link,
+body .invite-page .invite-inline-detail,
+body .invite-page .invite-chat-context,
+body .invite-page .invite-chat-slot-list{
+  border-color:var(--ui-line);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .invite-page .invite-details > *,
+body .invite-page .invite-mini-stats > *{border-color:var(--ui-line)}
+body .invite-page .invite-entry-copy,
+body .invite-page .invite-entry-brand p,
+body .invite-page .invite-section-copy,
+body .invite-page .invite-message,
+body .invite-page .invite-chat-hint,
+body .invite-page .invite-normal-list small,
+body .invite-page .invite-inline-detail-head small,
+body .invite-page .invite-chat-result-copy small,
+body .invite-page .invite-chat-player-result small{color:var(--ui-muted)}
+body .invite-page .invite-mini-stats strong,
+body .invite-page .invite-entry-kicker,
+body .invite-page .invite-chat-bubble > strong,
+body .invite-page .invite-chat-result-action,
+body .invite-page .invite-chat-text-action{color:var(--ui-accent)}
+body .invite-page .invite-confirm,
+body .invite-page .invite-entry-action.primary,
+body .invite-page .invite-chat-option.primary,
+body .invite-page .invite-chat-send,
+body .invite-page.champ-theme .invite-confirm,
+body .invite-page.champ-theme .button:not(.secondary):not(.danger){
+  border-color:var(--ui-accent);
+  background:var(--ui-accent);
+  color:#111216;
+}
+body .invite-page .button.secondary,
+body .invite-page .invite-entry-action:not(.primary),
+body .invite-page .invite-normal-list button,
+body .invite-page .invite-chat-option:not(.primary),
+body .invite-page .invite-chat-quick-reply,
+body .invite-page .invite-chat-result-row,
+body .invite-page .invite-chat-slot,
+body .invite-page .invite-chat-input input,
+body .invite-page.champ-theme .button.secondary{
+  border-color:var(--ui-line);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .invite-page .invite-entry-action:not(.primary):hover,
+body .invite-page .invite-normal-list button:hover,
+body .invite-page .invite-chat-option:not(.primary):hover,
+body .invite-page .invite-chat-quick-reply:hover,
+body .invite-page .invite-chat-result-row:hover{
+  border-color:var(--ui-accent);
+  background:rgba(201,183,102,.1);
+}
+body .invite-page .invite-chat-card::before{
+  background:#161719;
+  border-bottom:1px solid var(--ui-line);
+  color:var(--ui-accent);
+}
+body .invite-page .invite-chat-bubble,
+body .invite-page .invite-chat-link,
+body .invite-page .invite-typing{
+  border-color:var(--ui-line);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .invite-page .invite-chat-bubble.user,
+body .invite-page .invite-chat-slot.selected,
+body .invite-page .invite-chat-quick-reply.selected{
+  border-color:var(--ui-accent);
+  background:rgba(201,183,102,.16);
+  color:var(--ui-text);
+}
+body .invite-page .invite-chat-slot.selected strong,
+body .invite-page .invite-chat-slot.selected span{color:var(--ui-text)}
+
+@media(max-width:640px){
+  body .invite-page:not(.invite-page-chat){padding:0}
+  body .invite-page .invite-card,
+  body .invite-entry-choice{
+    width:100%;
+    min-height:100dvh;
+    border-right:0;
+    border-bottom:0;
+    border-left:0;
+    border-radius:0;
+  }
+  body .invite-page .invite-card:not(.invite-chat-card){padding:24px 18px}
+}
