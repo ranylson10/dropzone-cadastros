@@ -22,6 +22,10 @@ export type CampeonatoFormValue = {
   nomes_fases: string[]
   estrutura_planejada: CampeonatoStructurePhase[]
   formato: string
+  /** Quantidade padrão de partidas em cada jogo criado pelo assistente */
+  partidas_por_jogo?: string
+  /** Quantidade de partidas da final quando for diferente das fases anteriores */
+  partidas_final?: string
   plataforma: string
   servidor: string
   tipo_premiacao: string
@@ -111,6 +115,8 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   nomes_fases: ['Fase 1'],
   estrutura_planejada: [],
   formato: '',
+  partidas_por_jogo: '4',
+  partidas_final: '6',
   plataforma: '',
   servidor: '',
   tipo_premiacao: 'sem_premiacao',
@@ -303,7 +309,7 @@ export function CampeonatoForm({
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
-  const [formPage, setFormPage] = useState<'origin' | 'identity' | 'season' | 'format' | 'operation' | 'review'>('origin')
+  const [formPage, setFormPage] = useState<'origin' | 'identity' | 'season' | 'format' | 'matches' | 'operation' | 'review'>('origin')
   const [originChoice, setOriginChoice] = useState<'novo' | 'modelo' | 'season' | null>(mode === 'edit' ? value.origem_criacao : null)
   const [sourceSearch, setSourceSearch] = useState('')
   const [sourceLoading, setSourceLoading] = useState(false)
@@ -480,6 +486,8 @@ export function CampeonatoForm({
       numero_fases: String(guidedPlan.length),
       nomes_fases: guidedPlan.map((phase) => phase.nome),
       estrutura_planejada: guidedPlan,
+      partidas_por_jogo: type === 'diario' || type === 'copa' ? (value.partidas_por_jogo || '4') : value.partidas_por_jogo,
+      partidas_final: type === 'copa' ? (value.partidas_final || '6') : value.partidas_final,
       plataforma: value.plataforma || 'mobile',
       servidor: value.servidor || 'Brasil',
       vagas_por_equipe: value.vagas_por_equipe || '4',
@@ -579,7 +587,7 @@ export function CampeonatoForm({
       const copied: CampeonatoFormValue = { ...value }
       const copyKeys: Array<keyof CampeonatoFormValue> = [
         'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
-        'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'plataforma', 'servidor', 'tipo_premiacao',
+        'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final', 'plataforma', 'servidor', 'tipo_premiacao',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
         'permite_jogador_multiplas_equipes', 'permite_troca_jogadores', 'data_limite_trocas',
         'data_limite_inscricao', 'aceita_novas_inscricoes_equipes', 'contatos_whatsapp',
@@ -722,6 +730,9 @@ export function CampeonatoForm({
     : [
         { id: 'origin', label: 'Início' },
         { id: 'format' as const, label: 'Estrutura' },
+        ...((value.tipo === 'diario' || value.tipo === 'copa')
+          ? [{ id: 'matches' as const, label: 'Partidas' }]
+          : []),
         { id: 'operation', label: 'Operação' },
         { id: 'review', label: 'Revisão' },
       ]
@@ -739,6 +750,10 @@ export function CampeonatoForm({
       if (Number(first.classificam_por_grupo) >= Number(first.equipes_por_grupo)) return
     }
     if (formPage === 'format' && value.tipo === 'diario' && Number(value.numero_vagas) < 2) return
+    if (formPage === 'matches' && (value.tipo === 'diario' || value.tipo === 'copa')) {
+      if (Number(value.partidas_por_jogo || 0) < 1) return
+      if (value.tipo === 'copa' && Number(value.partidas_final || 0) < 1) return
+    }
     const next = wizardPages[currentPageIndex + 1]
     if (next) setFormPage(next.id)
   }
@@ -1228,6 +1243,113 @@ export function CampeonatoForm({
         )}
       </section>
 
+      {mode === 'create' && (value.tipo === 'diario' || value.tipo === 'copa') ? (
+        <section className="form-section-card" hidden={!pageVisible('matches')}>
+          {value.tipo === 'diario' ? (
+            <div className="championship-guided-matches">
+              <div className="championship-guided-copy">
+                <span>Passo 3 · Partidas</span>
+                <strong>Quantas partidas terá este jogo?</strong>
+                <small>O Diário possui somente um jogo. Informe quantas partidas serão disputadas até encerrar o evento.</small>
+              </div>
+
+              <div className="championship-guided-question">
+                <Field label="Partidas no jogo">
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={value.partidas_por_jogo || '4'}
+                    onChange={(event) => update('partidas_por_jogo', event.target.value)}
+                    placeholder="Ex.: 4"
+                  />
+                </Field>
+                <div className="championship-guided-quick-options" aria-label="Sugestões de partidas">
+                  {[4, 6, 8].map((amount) => (
+                    <button
+                      type="button"
+                      key={amount}
+                      className={Number(value.partidas_por_jogo || 0) === amount ? 'active' : ''}
+                      onClick={() => update('partidas_por_jogo', String(amount))}
+                    >
+                      {amount} partidas
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="championship-guided-preview">
+                <span>Resumo do Diário</span>
+                <strong>1 jogo · {value.partidas_por_jogo || '0'} partidas</strong>
+                <small>{value.numero_vagas || '0'} equipes disputam todas as partidas juntas.</small>
+              </div>
+            </div>
+          ) : (
+            <div className="championship-guided-matches">
+              <div className="championship-guided-copy">
+                <span>Passo 3 · Partidas</span>
+                <strong>Quantas partidas terá cada jogo da Copa?</strong>
+                <small>Use uma quantidade padrão para as fases e, se quiser, uma quantidade diferente na Final.</small>
+              </div>
+
+              <div className="championship-guided-question-grid two">
+                <Field label="Partidas por jogo nas fases">
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={value.partidas_por_jogo || '4'}
+                    onChange={(event) => update('partidas_por_jogo', event.target.value)}
+                    placeholder="Ex.: 4"
+                  />
+                </Field>
+                <Field label="Partidas na Final">
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={value.partidas_final || value.partidas_por_jogo || '6'}
+                    onChange={(event) => update('partidas_final', event.target.value)}
+                    placeholder="Ex.: 6"
+                  />
+                </Field>
+              </div>
+
+              <div className="championship-guided-match-flow" aria-label="Jogos e partidas calculados da Copa">
+                {value.estrutura_planejada.map((phase, index) => {
+                  const isFinal = index === value.estrutura_planejada.length - 1
+                  const games = Math.max(1, Number(phase.grupos || 1))
+                  const matches = Math.max(1, Number(isFinal ? value.partidas_final : value.partidas_por_jogo) || 1)
+                  return (
+                    <div className="championship-guided-match-row" key={`${phase.nome}-${index}-matches`}>
+                      <span>
+                        <strong>{phase.nome}</strong>
+                        <small>{games} {games === 1 ? 'jogo' : 'jogos'}</small>
+                      </span>
+                      <b>{matches} {matches === 1 ? 'partida' : 'partidas'} por jogo</b>
+                      <em>{games * matches} partidas</em>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="championship-guided-preview">
+                <span>Total previsto</span>
+                <strong>
+                  {value.estrutura_planejada.reduce((total, phase, index) => {
+                    const isFinal = index === value.estrutura_planejada.length - 1
+                    const games = Math.max(1, Number(phase.grupos || 1))
+                    const matches = Math.max(1, Number(isFinal ? value.partidas_final : value.partidas_por_jogo) || 1)
+                    return total + (games * matches)
+                  }, 0)} partidas na Copa
+                </strong>
+                <small>Esse total é recalculado automaticamente se você voltar e alterar a estrutura.</small>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
+
       <section className="form-section-card" hidden={!pageVisible('operation')}>
         <p className="eyebrow">Premiação e inscrição</p>
         <div className="mini-grid three">
@@ -1401,6 +1523,16 @@ export function CampeonatoForm({
             <div><small>Vagas</small><strong>{value.numero_vagas || 'Não definidas'}</strong></div>
             <div><small>Fases iniciais</small><strong>{Math.max(1, Number(value.numero_fases) || 1)}</strong></div>
             <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
+            {(value.tipo === 'diario' || value.tipo === 'copa') ? (
+              <div>
+                <small>Partidas</small>
+                <strong>
+                  {value.tipo === 'copa'
+                    ? `${value.partidas_por_jogo || '—'} por jogo · ${value.partidas_final || value.partidas_por_jogo || '—'} na final`
+                    : `${value.partidas_por_jogo || '—'} no jogo`}
+                </strong>
+              </div>
+            ) : null}
             {value.tipo === 'liga' ? (
               <div><small>Organização</small><strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} ${value.liga_nome_agrupamento || 'divisões'}` : 'Liga simples'}</strong></div>
             ) : null}
