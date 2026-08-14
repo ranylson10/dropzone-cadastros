@@ -103,12 +103,13 @@ export async function uploadPublicFile(
   context?: UploadContext,
 ): Promise<string> {
   // arquivos maiores → upload assinado direto no Storage
-  if (file.size > 900_000) {
-    const media = await uploadPublicMedia(file, bucket, profileType, context)
+  const uploadFile = await optimizeImageForStorage(file)
+  if (uploadFile.size > 900_000) {
+    const media = await uploadPublicMedia(uploadFile, bucket, profileType, context)
     return media.url
   }
 
-  const dataUrl = await fileToDataUrl(file)
+  const dataUrl = await fileToDataUrl(uploadFile)
   const headers = await authHeaders(profileType)
 
   const res = await fetch('/api/upload', {
@@ -119,8 +120,8 @@ export async function uploadPublicFile(
     },
     body: JSON.stringify({
       bucket,
-      file_name: file.name || `${bucket}.png`,
-      content_type: file.type || 'image/png',
+      file_name: uploadFile.name || `${bucket}.webp`,
+      content_type: uploadFile.type || 'image/webp',
       data_url: dataUrl,
       entity_id: context?.entityId || null,
       campeonato_id: context?.campeonatoId || currentCampeonatoId(bucket),

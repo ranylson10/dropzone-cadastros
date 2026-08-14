@@ -968,6 +968,7 @@ export async function POST(req: NextRequest) {
       const data = body.data || {}
       const nome = String(body.name || data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
+      const bannerUrl = String(data.banner_url || '').trim() || null
       if (!nome) throw new Error('Informe o nome do campeonato.')
       if (!logoUrl) throw new Error('Envie a logo do campeonato.')
 
@@ -978,7 +979,7 @@ export async function POST(req: NextRequest) {
         nome,
         tipo: normalizeChampionshipType(data.tipo),
         logo_url: logoUrl,
-        banner_url: null,
+        banner_url: bannerUrl,
         criado_por: user.id,
         produtora_id: account.id,
         status: 'ativo',
@@ -1500,8 +1501,9 @@ export async function PATCH(req: NextRequest) {
       }
       const nome = String(data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
+      const bannerUrl = String(data.banner_url || '').trim() || null
       if (!nome || !logoUrl) throw new Error('Informe nome e logo do campeonato.')
-      const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({ nome, logo_url: logoUrl, banner_url: null, tipo: normalizeChampionshipType(data.tipo) }).eq('id', id).select('*').single()
+      const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({ nome, logo_url: logoUrl, banner_url: bannerUrl, tipo: normalizeChampionshipType(data.tipo) }).eq('id', id).select('*').single()
       if (error) throw error
       const { data: configuration, warning } = await saveChampionshipConfiguration(
         championshipConfigurationPayload(data, id),

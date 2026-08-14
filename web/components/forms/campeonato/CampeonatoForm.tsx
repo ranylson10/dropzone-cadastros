@@ -472,7 +472,7 @@ export function CampeonatoForm({
 
       const copied: CampeonatoFormValue = { ...value }
       const copyKeys: Array<keyof CampeonatoFormValue> = [
-        'nome', 'logo_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
+        'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
         'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'plataforma', 'servidor', 'tipo_premiacao',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
         'permite_jogador_multiplas_equipes', 'permite_troca_jogadores', 'data_limite_trocas',
@@ -488,7 +488,6 @@ export function CampeonatoForm({
         if (sourceField !== undefined && sourceField !== null) (copied as any)[key] = sourceField
       }
       copied.tipo = value.tipo
-      copied.banner_url = ''
       copied.bg_image_url = ''
       copied.campeonato_origem_id = source.id
       copied.origem_criacao = value.origem_criacao
@@ -563,7 +562,7 @@ export function CampeonatoForm({
     const resolvedValue: CampeonatoFormValue = {
       ...value,
       logo_url: await resolvePendingImageUpload(value.logo_url),
-      banner_url: '',
+      banner_url: await resolvePendingImageUpload(value.banner_url),
       bg_image_url: '',
     }
     onChange(resolvedValue)
@@ -751,6 +750,10 @@ export function CampeonatoForm({
         <div className="mini-grid two">
           <Field label="Nome"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
           <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
+        </div>
+        <div className="championship-banner-upload">
+          <UploadField label="Banner da vitrine" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
+          <p>Formato 4:5. Ajuste a imagem antes de salvar; ela será convertida para WebP e compactada automaticamente.</p>
         </div>
       </section>
 

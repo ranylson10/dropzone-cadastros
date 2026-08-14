@@ -216,11 +216,12 @@ async function rows(table: string) {
 
 export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[]> {
   if (kind === 'campeonatos') {
-    const [items, configs, phases, slots] = await Promise.all([
+    const [items, configs, phases, slots, games] = await Promise.all([
       rows('campeonatos'),
       rows('campeonato_configuracoes'),
       rows('campeonato_fases'),
       rows('campeonato_slots'),
+      rows('campeonato_jogos'),
     ])
     const configByChamp = new Map(configs.map((row: any) => [row.campeonato_id, row]))
     return items.map((row: any) => {
@@ -251,6 +252,9 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
         : entrySlots.length > 0
           ? Math.max(0, entrySlots.length - occupiedSlots)
           : null
+      const nextGame = games
+        .filter((game: any) => game.campeonato_id === row.id && normalized(game.status || 'ativo') === 'ativo' && String(game.data_jogo || '') >= new Date().toISOString().slice(0, 10))
+        .sort((a: any, b: any) => `${a.data_jogo || '9999'} ${a.horario || ''}`.localeCompare(`${b.data_jogo || '9999'} ${b.horario || ''}`))[0]
       return {
         id: row.id, kind, name, image: first(row.logo_url), banner: first(row.banner_url), eyebrow: tipo,
         description: first(config.formato, `${tipo} competitivo`),
@@ -262,7 +266,7 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
           total_vagas: officialTotal || (entrySlots.length || null),
           plataforma: config.plataforma || null,
           servidor: config.servidor || null,
-          data_jogo: config.data_jogo || row.data_jogo || row.data_inicio || null,
+          data_jogo: nextGame?.data_jogo || config.data_jogo || row.data_jogo || row.data_inicio || null,
           data_limite_inscricao: config.data_limite_inscricao || row.data_limite_inscricao || null,
         },
         meta: [

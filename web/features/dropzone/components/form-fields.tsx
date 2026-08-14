@@ -8,7 +8,9 @@ const uploadTargets = {
   produtora: { width: 500, height: 500, kindLabel: 'logo' },
   equipe: { width: 500, height: 500, kindLabel: 'logo' },
   campeonato: { width: 500, height: 500, kindLabel: 'logo' },
-  campeonato_banner: { width: 1080, height: 1920, kindLabel: 'banner' },
+  // Vitrine do campeonato: proporção 4:5, preparada localmente antes do upload.
+  // 1200×1500 mantém boa nitidez em telas grandes sem enviar um arquivo pesado.
+  campeonato_banner: { width: 1200, height: 1500, kindLabel: 'banner 4:5' },
   jogador: { width: 500, height: 600, kindLabel: 'foto' },
   manager: { width: 500, height: 600, kindLabel: 'foto' },
   broadcast: { width: 500, height: 600, kindLabel: 'foto' },
@@ -271,9 +273,10 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
       const safeLeft = Number.isFinite(displayLeft) ? displayLeft : 0
       const safeTop = Number.isFinite(displayTop) ? displayTop : 0
       ctx.drawImage(image, safeLeft * scale, safeTop * scale, safeDrawW * scale, safeDrawH * scale)
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
-      if (!blob) throw new Error('Nao foi possivel gerar o PNG final.')
-      const croppedFile = new File([blob], `${bucket}-${Date.now()}.png`, { type: 'image/png' })
+      // O recorte final já sai compacto para reduzir armazenamento e egress.
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82))
+      if (!blob) throw new Error('Nao foi possivel gerar a imagem final.')
+      const croppedFile = new File([blob], `${bucket}-${Date.now()}.webp`, { type: 'image/webp' })
       if (isPendingImageUpload(value)) discardPendingImageUpload(value)
       const previewUrl = URL.createObjectURL(croppedFile)
       pendingImageUploads.set(previewUrl, { file: croppedFile, bucket, upload: onUpload })
@@ -301,7 +304,7 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
           {value ? <img src={value} alt="" /> : <Upload size={24} />}
         </label>
         <div className="upload-hint-row">
-          <small>{target.kindLabel.toUpperCase()} · PNG · {target.width}x{target.height}</small>
+          <small>{target.kindLabel.toUpperCase()} · WEBP OTIMIZADO · {target.width}x{target.height}</small>
           {value ? <button type="button" className="inline-icon-button" onClick={() => { discardPendingImageUpload(value); onChange('') }}><Trash2 size={15} /> Remover</button> : null}
         </div>
 

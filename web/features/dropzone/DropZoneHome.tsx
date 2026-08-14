@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, Loader2, Pencil, Send, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { uploadPublicFile as uploadStoragePublicFile } from '@/lib/upload-public'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
 import { Field, LocationSearch, UploadField, resolvePendingImageUpload } from './components/form-fields'
@@ -671,36 +672,19 @@ export function DropZoneHome() {
     setLoading(true)
     setError('')
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(String(reader.result || ''))
-        reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'))
-        reader.readAsDataURL(file)
-      })
-      const token = await getToken()
       // Preferir o tipo do formulário (cadastro/multi-perfil), senão o perfil ativo.
       // Ex.: criando Broadcast com conta Produtora logada → x-profile-type = broadcast
       const uploadProfileType = profileType || account?.profile_type || null
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders(token, uploadProfileType) },
-        body: JSON.stringify({
-          bucket,
-          file_name: file.name || `${bucket}.png`,
-          content_type: 'image/png',
-          data_url: dataUrl,
-          upload_intent: bucket === 'campeonato'
-            ? 'create_campeonato'
-            : linkingProfile
-              ? 'create_profile'
-              : null,
-        }),
+      const url = await uploadStoragePublicFile(file, bucket, uploadProfileType, {
+        uploadIntent: bucket === 'campeonato'
+          ? 'create_campeonato'
+          : linkingProfile
+            ? 'create_profile'
+            : null,
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Erro ao enviar arquivo.')
       setMessage('Arquivo enviado.')
-      return String(json.url || '')
+      return url
     } catch (err: any) {
       setError(err?.message || 'Erro ao enviar arquivo.')
       // Propaga para o cropper mostrar o erro (antes só fechava em silêncio)

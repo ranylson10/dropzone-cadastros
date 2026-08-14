@@ -32,6 +32,14 @@ function moneyNumber(value: unknown) {
   return Number.isFinite(number) && number > 0 ? number : 0
 }
 
+function nextGameLabel(value: unknown) {
+  const raw = String(value || '').trim()
+  if (!raw) return 'Data a confirmar'
+  const date = new Date(raw.length === 10 ? `${raw}T12:00:00` : raw)
+  if (Number.isNaN(date.getTime())) return 'Data a confirmar'
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
 function commerceItemFromDirectory(item: DirectoryItem): LocalCommerceItem {
   return {
     id: item.id,
@@ -160,7 +168,7 @@ function ChampionshipCards({
               aria-label={`Abrir ${item.name}`}
             >
               <span className="directory-champ-cover-empty" aria-hidden="true">
-                {item.image ? <img src={item.image} alt="" loading="lazy" decoding="async" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}
+                {item.banner || item.image ? <img src={item.banner || item.image} alt="" loading="lazy" decoding="async" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}
               </span>
               <span className="directory-champ-badges">
                 {item.commercial?.tem_live ? <b><Radio size={11} /> Live</b> : null}
@@ -204,6 +212,7 @@ function ChampionshipCards({
                 {hasPrize ? <span><b>{money(item.commercial?.premiacao)}</b><small>prêmio</small></span> : null}
                 <span><b>{free}</b><small>livres</small></span>
               </div>
+              <div className="directory-champ-next-game">Próximo jogo: <b>{nextGameLabel(item.commercial?.data_jogo)}</b></div>
               <div className="directory-champ-vacancy">
                 <small>{free} de {item.commercial?.total_vagas || 0} vagas disponíveis</small>
               </div>

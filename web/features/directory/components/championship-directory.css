@@ -422,3 +422,45 @@
   .directory-market-page .directory-champ-facts span + span{padding-left:9px}
   .directory-market-page .directory-champ-cart-action{min-height:29px;padding:0 8px;font-size:7px}
 }
+
+/* Vitrine de campeonatos: banner 4:5 inteiro, informações sobre o degradê e
+   nenhum conteúdo pesado fora do necessário para a decisão de entrada. */
+.directory-market-page .directory-champ-card-grid{grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:12px;width:min(1180px,calc(100% - 32px))}
+.directory-market-page .directory-champ-card{position:relative;display:block;min-height:0;aspect-ratio:4/5;overflow:hidden;border:1px solid var(--champ-surface-2);border-radius:14px;background:var(--champ-surface);color:var(--champ-text)}
+.directory-market-page .directory-champ-card:hover{background:var(--champ-surface);border-color:rgba(201,183,102,.6);transform:translateY(-2px)}
+.directory-market-page .directory-champ-cover{position:absolute;inset:0;display:block;width:auto;height:auto;min-height:0;background:var(--champ-surface)}
+.directory-market-page .directory-champ-cover-empty{position:absolute;inset:0;display:grid;width:auto;height:auto;padding:0;border:0;border-radius:0;background:var(--champ-surface)}
+.directory-market-page .directory-champ-cover-empty img{display:block;width:100%;height:100%;object-fit:contain;background:var(--champ-surface)}
+.directory-market-page .directory-champ-cover-empty b{width:100%;height:100%;font-size:28px;background:linear-gradient(145deg,#252117,#101113);color:var(--champ-accent-strong)}
+.directory-market-page .directory-champ-cover-empty::after,.directory-market-page .directory-champ-badges{display:none}
+.directory-market-page .directory-champ-body{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:18px;background:linear-gradient(180deg,rgba(9,10,12,0) 28%,rgba(9,10,12,.32) 48%,rgba(9,10,12,.96) 100%)}
+.directory-market-page .directory-champ-title-row{display:block;min-width:0}
+.directory-market-page .directory-champ-title{display:grid;gap:4px;color:var(--champ-text)}
+.directory-market-page .directory-champ-title small{color:var(--champ-accent-strong);font-size:9px;letter-spacing:.11em}
+.directory-market-page .directory-champ-title strong{color:var(--champ-text);font-size:20px;line-height:1.02;white-space:normal;text-wrap:balance}
+.directory-market-page .directory-champ-quick-actions{position:absolute;top:10px;right:10px;display:flex;gap:5px}
+.directory-market-page .directory-champ-wish,.directory-market-page .directory-champ-cart-icon{width:32px;height:32px;border:0;border-radius:50%;background:rgba(12,13,15,.72);backdrop-filter:blur(8px);color:var(--champ-text)}
+.directory-market-page .directory-champ-wish.active,.directory-market-page .directory-champ-cart-icon.active{background:var(--champ-accent);color:#17150d}
+.directory-market-page .directory-champ-facts{display:flex;gap:0;align-items:stretch}
+.directory-market-page .directory-champ-facts span{min-width:0;padding:0 10px 0 0}
+.directory-market-page .directory-champ-facts span:first-child{display:none}
+.directory-market-page .directory-champ-facts span:last-child{order:-1;padding:0 10px 0 0;border-right:1px solid rgba(255,255,255,.22)}
+.directory-market-page .directory-champ-facts span + span{padding-left:10px;border-left:0}
+.directory-market-page .directory-champ-facts b{color:var(--champ-text);font-size:12px}
+.directory-market-page .directory-champ-facts small{color:var(--champ-muted);font-size:8px;letter-spacing:.09em}
+.directory-market-page .directory-champ-next-game{color:var(--champ-muted);font-size:10px;font-weight:700}
+.directory-market-page .directory-champ-next-game b{color:var(--champ-text);font-weight:900}
+.directory-market-page .directory-champ-vacancy,.directory-market-page .directory-champ-actions,.directory-market-page .directory-champ-lineup-action{display:none}
+
+@media(max-width:760px){
+  .directory-market-page .directory-champ-card-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:calc(100% - 20px)}
+  .directory-market-page .directory-champ-card{border-radius:10px}
+  .directory-market-page .directory-champ-body{gap:6px;padding:12px}
+  .directory-market-page .directory-champ-title strong{font-size:15px}
+  .directory-market-page .directory-champ-title small{font-size:7px}
+  .directory-market-page .directory-champ-facts b{font-size:10px}
+  .directory-market-page .directory-champ-facts small{font-size:6px}
+  .directory-market-page .directory-champ-next-game{font-size:8px}
+  .directory-market-page .directory-champ-quick-actions{top:7px;right:7px;gap:3px}
+  .directory-market-page .directory-champ-wish,.directory-market-page .directory-champ-cart-icon{width:27px;height:27px}
+}
