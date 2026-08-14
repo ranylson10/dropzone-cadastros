@@ -563,3 +563,65 @@ body .page-authenticated .team-dashboard .lineup-token-card code{border-color:va
   body .page-authenticated .account-strip,
   body .page-authenticated .inline-action-panel{border-radius:var(--ui-radius-sm)}
 }
+
+/* Portal de login: preserva a imagem de entrada, mas elimina o painel claro
+   para que autenticação e escolha de perfil sejam parte do mesmo produto. */
+body .login-portal{background:var(--ui-bg);color:var(--ui-text)}
+body .login-portal .login-portal-panel{
+  border:1px solid var(--ui-line);
+  border-top:4px solid var(--ui-accent);
+  border-radius:var(--ui-radius-lg);
+  background:rgba(20,21,24,.97);
+  color:var(--ui-text);
+  box-shadow:0 28px 70px rgba(0,0,0,.32);
+}
+body .login-portal .login-panel-step,
+body .login-portal .login-portal-kicker{color:var(--ui-accent)}
+body .login-portal .login-auth-step h2,
+body .login-portal .login-profile-head h2,
+body .login-portal .login-portal-loading strong{color:var(--ui-text)}
+body .login-portal .login-auth-step > p,
+body .login-portal .login-profile-head p,
+body .login-portal .login-security-note,
+body .login-portal .login-portal-loading span{color:var(--ui-text-muted)}
+body .login-portal .login-auth-step .social-login-button{
+  border:1px solid var(--ui-accent);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-accent);
+  color:#17150d;
+}
+body .login-portal .login-auth-step .social-login-button:hover{background:var(--ui-gold-light);transform:none}
+body .login-portal .login-security-note svg,
+body .login-portal .login-portal-loading svg{color:var(--ui-accent)}
+body .login-portal .login-change-account{color:var(--ui-text-muted)}
+body .login-portal .login-change-account:hover{color:var(--ui-accent)}
+body .login-portal .login-profile-card,
+body .login-portal .login-no-profile{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .login-portal .login-profile-card:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft);transform:translateY(-1px)}
+body .login-portal .login-profile-card.admin{border-color:var(--ui-accent);background:#17150d;color:var(--ui-text)}
+body .login-portal .login-profile-avatar{border-radius:var(--ui-radius-sm);background:var(--ui-surface-soft);color:var(--ui-accent)}
+body .login-portal .login-profile-card-copy small{color:var(--ui-accent)}
+body .login-portal .login-profile-card-copy span,
+body .login-portal .login-no-profile p{color:var(--ui-text-muted)}
+body .login-portal .login-create-area{border-top-color:var(--ui-line)}
+body .login-portal .login-create-title{color:var(--ui-text)}
+body .login-portal .login-create-title svg,
+body .login-portal .login-create-grid svg{color:var(--ui-accent)}
+body .login-portal .login-create-grid button{
+  border:1px solid var(--ui-line);
+  border-left:3px solid transparent;
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .login-portal .login-create-grid button:hover{border-left-color:var(--ui-accent);background:var(--ui-surface-soft)}
+body .login-portal .login-create-grid span{color:var(--ui-text-muted)}
+
+@media(max-width:760px){
+  body .login-portal .login-portal-panel{border-radius:var(--ui-radius-md)}
+}
