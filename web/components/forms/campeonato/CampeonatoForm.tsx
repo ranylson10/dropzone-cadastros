@@ -121,8 +121,8 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   pagamento_whatsapp_ativo: true,
   cartao_max_parcelas: '1',
   paypal_moedas: ['BRL', 'USD', 'EUR'],
-  cor_principal: '#ff4655',
-  cor_secundaria: '#17191d',
+  cor_principal: '#c9b766',
+  cor_secundaria: '#141518',
   bg_opacidade: '18',
   bg_image_url: '',
   cor_texto_clara: '#ffffff',
@@ -187,6 +187,14 @@ const TYPE_OPTIONS: Array<{
     icon: Swords,
   },
 ]
+
+const THEME_PALETTES = [
+  { name: 'DropZone', primary: '#c9b766', secondary: '#141518' },
+  { name: 'Arena', primary: '#d94d5c', secondary: '#191317' },
+  { name: 'Elite', primary: '#3b82f6', secondary: '#111827' },
+  { name: 'Tático', primary: '#22a06b', secondary: '#112119' },
+  { name: 'Pro', primary: '#8b5cf6', secondary: '#181326' },
+] as const
 
 function defaultFormat(type: string) {
   return TYPE_OPTIONS.find((option) => option.type === type)?.format || ''
@@ -351,6 +359,13 @@ export function CampeonatoForm({
       ...value,
       tipo: type,
       formato: nextFormat,
+      numero_vagas: value.numero_vagas || (type === 'copa' ? '96' : type === 'confronto' ? '2' : '12'),
+      numero_fases: value.numero_fases || '1',
+      nomes_fases: value.nomes_fases?.length ? value.nomes_fases : ['Fase 1'],
+      plataforma: value.plataforma || 'mobile',
+      servidor: value.servidor || 'Brasil',
+      vagas_por_equipe: value.vagas_por_equipe || '4',
+      jogadores_por_vaga: value.jogadores_por_vaga || '4',
       origem_criacao: 'novo',
       campeonato_origem_id: '',
       franquia_origem_id: '',
@@ -414,14 +429,14 @@ export function CampeonatoForm({
 
       const copied: CampeonatoFormValue = { ...value }
       const copyKeys: Array<keyof CampeonatoFormValue> = [
-        'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
+        'nome', 'logo_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
         'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'formato', 'plataforma', 'servidor', 'tipo_premiacao',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
         'permite_jogador_multiplas_equipes', 'permite_troca_jogadores', 'data_limite_trocas',
         'data_limite_inscricao', 'aceita_novas_inscricoes_equipes', 'contatos_whatsapp',
         'pagamento_pix_ativo', 'pagamento_cartao_ativo', 'pagamento_paypal_ativo',
         'pagamento_whatsapp_ativo', 'cartao_max_parcelas', 'paypal_moedas',
-        'cor_principal', 'cor_secundaria', 'bg_opacidade', 'bg_image_url',
+        'cor_principal', 'cor_secundaria', 'bg_opacidade',
         'recurso_export', 'recurso_stream', 'recurso_rulebook', 'recurso_stats', 'recurso_broadcast',
         'liga_usa_divisoes', 'liga_nome_agrupamento', 'liga_divisoes',
       ]
@@ -430,6 +445,8 @@ export function CampeonatoForm({
         if (sourceField !== undefined && sourceField !== null) (copied as any)[key] = sourceField
       }
       copied.tipo = value.tipo
+      copied.banner_url = ''
+      copied.bg_image_url = ''
       copied.campeonato_origem_id = source.id
       copied.origem_criacao = value.origem_criacao
       copied.franquia_origem_id = value.origem_criacao === 'season' ? franchiseId : ''
@@ -503,8 +520,8 @@ export function CampeonatoForm({
     const resolvedValue: CampeonatoFormValue = {
       ...value,
       logo_url: await resolvePendingImageUpload(value.logo_url),
-      banner_url: await resolvePendingImageUpload(value.banner_url),
-      bg_image_url: await resolvePendingImageUpload(value.bg_image_url),
+      banner_url: '',
+      bg_image_url: '',
     }
     onChange(resolvedValue)
     await onSubmit(resolvedValue)
@@ -514,7 +531,7 @@ export function CampeonatoForm({
     return (
       <div className="championship-type-step">
         <div className="championship-step-copy">
-          <span className="championship-step-index">1 de 2</span>
+          <span className="championship-step-index">Criação guiada</span>
           <h3>Escolha o formato</h3>
         </div>
 
@@ -552,7 +569,7 @@ export function CampeonatoForm({
     ? [
         { id: 'identity', label: 'Identidade' },
         { id: 'season', label: 'Temporada' },
-        { id: 'format', label: 'Formato' },
+        { id: 'format', label: 'Estrutura' },
         { id: 'operation', label: 'Operação' },
       ]
     : [
@@ -561,9 +578,7 @@ export function CampeonatoForm({
         ...(value.origem_criacao === 'season' || value.tipo === 'liga'
           ? [{ id: 'season' as const, label: 'Temporada' }]
           : []),
-        ...(['liga', 'xtreino', 'confronto'].includes(value.tipo)
-          ? [{ id: 'format' as const, label: value.tipo === 'liga' ? 'Liga' : 'Formato' }]
-          : []),
+        { id: 'format' as const, label: 'Estrutura' },
         { id: 'operation', label: 'Operação' },
         { id: 'review', label: 'Revisão' },
       ]
@@ -693,71 +708,57 @@ export function CampeonatoForm({
         <div className="mini-grid two">
           <Field label="Nome"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
           <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
-          <UploadField label="Banner" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
         </div>
       </section>
 
       <section className="form-section-card" hidden={!pageVisible('identity')}>
-        <p className="eyebrow">Visual</p>
-        <p className="empty" style={{ margin: '0 0 12px' }}>Cores e fundo usados na identidade do campeonato.</p>
-        <div className="mini-grid two">
-          <Field label="Cor A">
-            <div className="color-field-row">
-              <input type="color" value={value.cor_principal || '#ff4655'} onChange={(e) => update('cor_principal', e.target.value)} />
-              <input value={value.cor_principal || ''} onChange={(e) => update('cor_principal', e.target.value)} placeholder="#ff4655" />
-            </div>
-          </Field>
-          <Field label="Cor B">
-            <div className="color-field-row">
-              <input type="color" value={value.cor_secundaria || '#17191d'} onChange={(e) => update('cor_secundaria', e.target.value)} />
-              <input value={value.cor_secundaria || ''} onChange={(e) => update('cor_secundaria', e.target.value)} placeholder="#17191d" />
-            </div>
-          </Field>
+        <p className="eyebrow">Cores do campeonato</p>
+        <p className="empty" style={{ margin: '0 0 12px' }}>Escolha uma paleta ou ajuste as duas cores. A identidade usa fundo neutro para manter o sistema leve.</p>
+        <div className="championship-theme-palettes" aria-label="Paletas de cores">
+          {THEME_PALETTES.map((palette) => {
+            const isActive = value.cor_principal.toLowerCase() === palette.primary && value.cor_secundaria.toLowerCase() === palette.secondary
+            return (
+              <button
+                key={palette.name}
+                type="button"
+                className={isActive ? 'championship-theme-palette active' : 'championship-theme-palette'}
+                onClick={() => onChange({ ...value, cor_principal: palette.primary, cor_secundaria: palette.secondary, bg_opacidade: '18', bg_image_url: '' })}
+              >
+                <span><i style={{ background: palette.primary }} /><i style={{ background: palette.secondary }} /></span>
+                {palette.name}
+              </button>
+            )
+          })}
         </div>
-        <div className="mini-grid two" style={{ marginTop: 12 }}>
-          <Field label={`Opacidade do fundo (${value.bg_opacidade || 18}%)`}>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={Number(value.bg_opacidade || 18)}
-              onChange={(e) => update('bg_opacidade', e.target.value)}
-            />
-            <div className="color-field-row" style={{ marginTop: 8 }}>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={value.bg_opacidade || '18'}
-                onChange={(e) => update('bg_opacidade', e.target.value)}
-                style={{ gridColumn: '1 / -1' }}
-              />
+        <div className="mini-grid two">
+          <Field label="Cor principal">
+            <div className="color-field-row">
+              <input type="color" value={value.cor_principal || '#c9b766'} onChange={(e) => update('cor_principal', e.target.value)} />
+              <input value={value.cor_principal || ''} onChange={(e) => update('cor_principal', e.target.value)} placeholder="#c9b766" />
             </div>
           </Field>
-          <UploadField
-            label="Imagem de fundo (opcional)"
-            value={value.bg_image_url}
-            bucket="campeonato"
-            onChange={(url) => update('bg_image_url', url)}
-            onUpload={uploadPublicFile}
-          />
+          <Field label="Cor de apoio">
+            <div className="color-field-row">
+              <input type="color" value={value.cor_secundaria || '#141518'} onChange={(e) => update('cor_secundaria', e.target.value)} />
+              <input value={value.cor_secundaria || ''} onChange={(e) => update('cor_secundaria', e.target.value)} placeholder="#141518" />
+            </div>
+          </Field>
         </div>
         <div
           className="champ-theme-preview champ-theme"
           style={championshipThemeStyle({
             cor_principal: value.cor_principal,
             cor_secundaria: value.cor_secundaria,
-            bg_opacidade: value.bg_opacidade,
-            bg_image_url: value.bg_image_url,
+            bg_opacidade: '18',
+            bg_image_url: '',
           })}
         >
-          <div className="champ-theme-preview-banner">Prévia do banner</div>
+          <div className="champ-theme-preview-banner">Prévia da identidade</div>
           <div className="champ-theme-preview-body">
             <div>
               <strong>Área clara do layout</strong>
               <small style={{ display: 'block', marginTop: 4, opacity: 0.75 }}>
-                Botão = cor mais escura · BG com {value.bg_opacidade || 18}%
+                As cores aparecem em títulos, indicadores e ações principais.
               </small>
             </div>
             <button type="button" className="champ-theme-preview-btn">Botão principal</button>
@@ -787,7 +788,14 @@ export function CampeonatoForm({
       </section>
 
       <section className="form-section-card" hidden={!pageVisible('format')}>
-        <p className="eyebrow">Formato inicial</p>
+        <p className="eyebrow">Estrutura inicial</p>
+        <p className="form-empty-note">
+          {value.tipo === 'diario' && 'Um grupo e um jogo. Depois você define o número de partidas na aba Jogos.'}
+          {value.tipo === 'copa' && 'Defina a entrada da copa. Depois crie os grupos e, em cada jogo, indique quantas equipes avançam.'}
+          {value.tipo === 'liga' && 'Defina as fases e as séries. Promoção, rebaixamento, grupos e vagas diretas continuam na organização da liga.'}
+          {value.tipo === 'xtreino' && 'Defina a estrutura base do treino. Grupos e jogos podem ser ajustados depois.'}
+          {value.tipo === 'confronto' && 'Defina o modo e a estrutura do confronto direto entre as equipes.'}
+        </p>
         <div className="mini-grid three">
           <Field label="Limite de vagas (meta)">
             <input

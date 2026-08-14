@@ -286,7 +286,6 @@ const THEME_COLOR_KEYS = [
   'cor_texto_clara',
   'cor_texto_escura',
   'bg_opacidade',
-  'bg_image_url',
 ] as const
 
 function championshipConfigurationPayload(data: Record<string, any>, campeonatoId: string) {
@@ -340,23 +339,22 @@ function normalizeHexColor(value: unknown, fallback: string) {
   return fallback
 }
 
-/** Tema: cores + opacidade do BG + imagem. Contraste de texto é calculado na UI. */
+/** Tema: somente cores. Imagens de fundo não são persistidas para manter o carregamento leve. */
 function buildThemeColumns(data: Record<string, any>) {
-  const primary = normalizeHexColor(data.cor_principal, '#ff4655')
-  const secondary = normalizeHexColor(data.cor_secundaria, '#17191d')
+  const primary = normalizeHexColor(data.cor_principal, '#c9b766')
+  const secondary = normalizeHexColor(data.cor_secundaria, '#141518')
   const onLight = contrastTextForBg('#f7f8fa')
   const opacityRaw = Number(data.bg_opacidade)
   const bgOpacidade = Number.isFinite(opacityRaw)
     ? Math.min(100, Math.max(0, Math.round(opacityRaw)))
     : 18
-  const bgImage = String(data.bg_image_url || '').trim() || null
   return {
     cor_principal: primary,
     cor_secundaria: secondary,
     cor_texto_clara: '#ffffff',
     cor_texto_escura: onLight,
     bg_opacidade: bgOpacidade,
-    bg_image_url: bgImage,
+    bg_image_url: null,
   }
 }
 
@@ -932,7 +930,6 @@ export async function POST(req: NextRequest) {
       const data = body.data || {}
       const nome = String(body.name || data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
-      const bannerUrl = String(data.banner_url || '').trim()
       if (!nome) throw new Error('Informe o nome do campeonato.')
       if (!logoUrl) throw new Error('Envie a logo do campeonato.')
 
@@ -943,7 +940,7 @@ export async function POST(req: NextRequest) {
         nome,
         tipo: normalizeChampionshipType(data.tipo),
         logo_url: logoUrl,
-        banner_url: bannerUrl || null,
+        banner_url: null,
         criado_por: user.id,
         produtora_id: account.id,
         status: 'ativo',
@@ -1465,9 +1462,8 @@ export async function PATCH(req: NextRequest) {
       }
       const nome = String(data.nome || '').trim()
       const logoUrl = String(data.logo_url || '').trim()
-      const bannerUrl = String(data.banner_url || '').trim()
       if (!nome || !logoUrl) throw new Error('Informe nome e logo do campeonato.')
-      const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({ nome, logo_url: logoUrl, banner_url: bannerUrl || null, tipo: normalizeChampionshipType(data.tipo) }).eq('id', id).select('*').single()
+      const { data: updated, error } = await supabaseAdmin.from('campeonatos').update({ nome, logo_url: logoUrl, banner_url: null, tipo: normalizeChampionshipType(data.tipo) }).eq('id', id).select('*').single()
       if (error) throw error
       const { data: configuration, warning } = await saveChampionshipConfiguration(
         championshipConfigurationPayload(data, id),

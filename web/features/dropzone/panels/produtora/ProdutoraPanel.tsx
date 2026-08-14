@@ -657,7 +657,7 @@ export function ProdutoraPanel(props: {
       nome: rowTitle(champ),
       tipo: String(dataText(champ, 'tipo') || 'copa'),
       logo_url: String(dataText(champ, 'logo_url') || ''),
-      banner_url: String(dataText(champ, 'banner_url') || ''),
+      banner_url: '',
       premiacao: String(dataText(champ, 'premiacao') || ''),
       valor_inscricao: String(dataText(champ, 'valor_inscricao') || ''),
       descricao_premiacao: String(dataText(champ, 'descricao_premiacao') || ''),
@@ -685,14 +685,14 @@ export function ProdutoraPanel(props: {
       pagamento_whatsapp_ativo: champ.data?.pagamento_whatsapp_ativo !== false,
       cartao_max_parcelas: String(champ.data?.cartao_max_parcelas || 1),
       paypal_moedas: Array.isArray(champ.data?.paypal_moedas) && champ.data.paypal_moedas.length ? champ.data.paypal_moedas.map(String) : ['BRL', 'USD', 'EUR'],
-      cor_principal: String(dataText(champ, 'cor_principal') || '#ff4655'),
-      cor_secundaria: String(dataText(champ, 'cor_secundaria') || '#17191d'),
+      cor_principal: String(dataText(champ, 'cor_principal') || '#c9b766'),
+      cor_secundaria: String(dataText(champ, 'cor_secundaria') || '#141518'),
       bg_opacidade: String(
         champ.data?.bg_opacidade != null && champ.data?.bg_opacidade !== ''
           ? champ.data.bg_opacidade
           : 18,
       ),
-      bg_image_url: String(dataText(champ, 'bg_image_url') || ''),
+      bg_image_url: '',
       // texto claro/escuro é calculado automaticamente pelo sistema
       cor_texto_clara: '#ffffff',
       cor_texto_escura: '#17191d',

@@ -3092,6 +3092,11 @@ button.invite-slot-button.selected strong{ color: var(--text);
 } .seller-invite-modal .staff-search-results{ margin-top: 0;
 } .color-field-row{ display: grid; grid-template-columns: 48px 1fr; gap: 8px; align-items: center;
 } .color-field-row input[type="color"]{ width: 48px; height: 40px; padding: 2px; border: 1px solid var(--line); background: var(--surface); cursor: pointer;
+} .championship-theme-palettes{ display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 4px;
+} .championship-theme-palette{ display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 9px; border: 0; border-radius: 8px; background: var(--ui-surface-raised, var(--surface-soft)); color: var(--ui-text, var(--text)); font: inherit; font-size: 10px; font-weight: 800; text-transform: uppercase; cursor: pointer;
+} .championship-theme-palette:hover,.championship-theme-palette.active{ outline: 1px solid var(--ui-gold, var(--brand));
+} .championship-theme-palette > span{ display: flex; overflow: hidden; width: 24px; height: 16px; border-radius: 4px;
+} .championship-theme-palette i{ flex: 1; display: block;
 } .champ-theme-preview{ margin-top: 14px; border: 1px solid var(--dz-border, #e4e7ec); overflow: hidden; background-color: var(--dz-bg, #f4f5f7); background-image: linear-gradient(var(--dz-bg-overlay, transparent), var(--dz-bg-overlay, transparent)),
     var(--dz-bg-image, none); background-size: cover; background-position: center;
 } .champ-theme-preview-banner{ background: linear-gradient(135deg, var(--dz-banner-from, var(--dz-primary, var(--brand))), var(--dz-banner-to, var(--dz-secondary, #17191d))); color: var(--dz-on-banner, var(--dz-on-dark, #fff)); padding: 16px 18px; font-weight: 800; font-size: 13px;
