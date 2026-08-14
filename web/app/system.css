@@ -507,7 +507,7 @@ body .directory-profile-page .directory-profile-banner .directory-profile-banner
 body .directory-profile-page .directory-back.on-banner{color:var(--ui-text-muted);text-shadow:none}
 body .directory-profile-page .directory-back.on-banner:hover{color:var(--ui-text)}
 body .directory-profile-page .directory-profile-hero.compact.on-banner{
-  grid-template-columns:64px minmax(0,1fr) minmax(190px,auto);
+  grid-template-columns:64px minmax(0,1fr);
   gap:14px;
   align-items:center;
   padding:0;
@@ -528,15 +528,15 @@ body .directory-profile-page .directory-profile-hero.compact.on-banner h1{color:
 body .directory-profile-page .directory-profile-banner .directory-profile-copy > p,
 body .directory-profile-page .directory-profile-banner .directory-profile-copy > strong{color:var(--ui-text-muted);text-shadow:none}
 body .directory-profile-page .directory-profile-details.on-banner{
-  grid-column:auto;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  margin:0;
+  width:100%;
+  grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+  margin:10px 0 0;
   border:0;
-  border-left:1px solid var(--ui-line);
+  border-top:1px solid var(--ui-line);
   border-radius:0;
   background:transparent;
 }
-body .directory-profile-page .directory-profile-details.on-banner div{padding:4px 10px;border-left:1px solid var(--ui-line)}
+body .directory-profile-page .directory-profile-details.on-banner div{padding:8px 10px;border-left:1px solid var(--ui-line)}
 body .directory-profile-page .directory-profile-details.on-banner div:first-child{border-left:0}
 body .directory-profile-page .directory-profile-details.on-banner small{color:var(--ui-text-muted)}
 body .directory-profile-page .directory-profile-details.on-banner strong{color:var(--ui-text);text-shadow:none}
@@ -548,7 +548,7 @@ body .directory-profile-page .directory-profile-toolbar .directory-report-button
   body .directory-profile-page .directory-profile-banner .directory-profile-banner-inner{padding:10px 0 12px}
   body .directory-profile-page .directory-profile-hero.compact.on-banner{grid-template-columns:52px minmax(0,1fr);gap:10px}
   body .directory-profile-page .directory-profile-hero.on-banner .directory-profile-avatar{width:52px;height:52px}
-  body .directory-profile-page .directory-profile-details.on-banner{grid-column:1 / -1;margin-top:8px;border-top:1px solid var(--ui-line);border-left:0}
+  body .directory-profile-page .directory-profile-details.on-banner{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px;border-top:1px solid var(--ui-line);border-left:0}
   body .directory-profile-page .directory-profile-details.on-banner div{padding:7px 6px}
 }
 

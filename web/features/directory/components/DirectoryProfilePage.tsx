@@ -62,14 +62,14 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
                   <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
                 </div>
               </div>
-              <div className="directory-profile-details compact on-banner">
-                {profile.details.map((item) => (
-                  <div key={item.label} className={item.label === 'Sobre' ? 'directory-profile-about' : undefined}>
-                    <small>{item.label}</small>
-                    <strong>{item.value}</strong>
-                  </div>
-                ))}
-              </div>
+            </div>
+            <div className="directory-profile-details compact on-banner">
+              {profile.details.map((item) => (
+                <div key={item.label} className={item.label === 'Sobre' ? 'directory-profile-about' : undefined}>
+                  <small>{item.label}</small>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
             </div>
           </div>
         </section>
