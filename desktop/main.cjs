@@ -1,8 +1,10 @@
 const { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } = require('electron')
 const crypto = require('node:crypto')
+const fsSync = require('node:fs')
 const fs = require('node:fs/promises')
 const http = require('node:http')
 const path = require('node:path')
+const { spawn } = require('node:child_process')
 
 const OUTPUT_PORT = 19386
 const DEFAULT_ORIGIN = 'https://dropzone-cadastros.vercel.app'
@@ -70,6 +72,25 @@ function isAllowedProtocolUrl(value) {
 
 function sendAuthEvent(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
+}
+
+/** O login social usa o Chrome normal quando disponivel, preservando a conta Google ja conectada. */
+async function openGoogleLogin(url) {
+  if (process.platform === 'win32') {
+    const candidates = [
+      process.env.PROGRAMFILES && path.join(process.env.PROGRAMFILES, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      process.env['PROGRAMFILES(X86)'] && path.join(process.env['PROGRAMFILES(X86)'], 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    ].filter(Boolean)
+    const chromePath = candidates.find((candidate) => fsSync.existsSync(candidate))
+    if (chromePath) {
+      const browser = spawn(chromePath, ['--new-window', url], { detached: true, stdio: 'ignore', windowsHide: false })
+      browser.unref()
+      return 'chrome'
+    }
+  }
+  await shell.openExternal(url)
+  return 'default'
 }
 
 function safeLive(live) {
@@ -295,8 +316,8 @@ ipcMain.handle('auth:google:start', async (_event, input) => {
   if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co')) {
     throw new Error('O DropZone nao retornou um link seguro do Google.')
   }
-  await shell.openExternal(url)
-  return { started: true }
+  const browser = await openGoogleLogin(url)
+  return { started: true, browser }
 })
 ipcMain.handle('auth:logout', async () => { const store = await loadStore(); store.auth = null; await saveStore(store); return true })
 ipcMain.handle('auth:championships', async () => { const { auth } = await requireAuth(); return authorizedChampionships(auth) })

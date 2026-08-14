@@ -1,7 +1,7 @@
 {
   "name": "dropzone-live-local",
   "productName": "DropZone Live Local",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "author": "DropZone",
   "private": true,
   "description": "Editor local de overlays e artes do DropZone.",
