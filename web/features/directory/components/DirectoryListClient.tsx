@@ -27,12 +27,6 @@ function money(value: unknown) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
 }
 
-function vacancyRatio(item: DirectoryItem) {
-  const free = Number(item.commercial?.vagas_livres || 0)
-  const total = Math.max(1, Number(item.commercial?.total_vagas || 1))
-  return Math.max(6, Math.min(100, (free / total) * 100))
-}
-
 function moneyNumber(value: unknown) {
   const number = Number(value)
   return Number.isFinite(number) && number > 0 ? number : 0
@@ -211,7 +205,6 @@ function ChampionshipCards({
                 <span><b>{free}</b><small>livres</small></span>
               </div>
               <div className="directory-champ-vacancy">
-                <i><em style={{ width: `${vacancyRatio(item)}%` }} /></i>
                 <small>{free} de {item.commercial?.total_vagas || 0} vagas disponíveis</small>
               </div>
               <div className="directory-champ-actions">
