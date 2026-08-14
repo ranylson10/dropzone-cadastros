@@ -21,6 +21,26 @@ type TeamNode = ScoreNode & {
   pontos: number
   abates: number
   booyahs: number
+  dano: number
+  assistencias: number
+  revives: number
+  headshots: number
+  knockdowns: number
+  sobrevivencia_segundos: number
+  distancia_movida: number
+  distancia_max_abate: number
+  granadas_usadas: number
+  gel_usado: number
+  kits_medicos: number
+}
+
+type AbilityUsage = {
+  tipo: string
+  personagem: string | null
+  habilidade: string
+  usos: number
+  pick_times: number
+  pick_rate: number
 }
 
 type PlayerNode = ScoreNode & {
@@ -36,6 +56,16 @@ type PlayerNode = ScoreNode & {
   assistencias: number
   revives: number
   armas: Map<string, { nome: string; abates: number; dano: number }>
+  habilidades: Map<string, AbilityUsage>
+  funcao: string | null
+  headshots: number
+  knockdowns: number
+  sobrevivencia_segundos: number
+  distancia_movida: number
+  distancia_max_abate: number
+  granadas_usadas: number
+  gel_usado: number
+  kits_medicos: number
 }
 
 type ChampionshipNode = ScoreNode & {
@@ -126,6 +156,7 @@ function createTeam(key: string, row: any): TeamNode {
     ...node(key), equipe_id: text(row.equipe_id) || null, line_id: text(row.line_id) || null,
     nome: text(row.nome_exibicao || row.line_nome || row.equipe_nome) || 'Equipe', tag: text(row.line_tag || row.equipe_tag) || null,
     logo_url: text(row.line_logo_url || row.equipe_logo_url) || null, campeonatos: new Set(), jogadores: new Set(), quedas: new Set(), pontos: 0, abates: 0, booyahs: 0,
+    dano: 0, assistencias: 0, revives: 0, headshots: 0, knockdowns: 0, sobrevivencia_segundos: 0, distancia_movida: 0, distancia_max_abate: 0, granadas_usadas: 0, gel_usado: 0, kits_medicos: 0,
   }
 }
 
@@ -133,7 +164,8 @@ function createPlayer(key: string, row: any): PlayerNode {
   return {
     ...node(key), jogador_id: text(row.jogador_id) || null, id_jogo: text(row.id_jogo || row.id_jogo_snapshot) || null,
     nick: text(row.nick || row.nick_snapshot) || 'Jogador', foto_url: text(row.foto_url || row.avatar_url) || null,
-    equipes: new Set(), campeonatos: new Set(), quedas: new Set(), abates: 0, dano: 0, assistencias: 0, revives: 0, armas: new Map(),
+    equipes: new Set(), campeonatos: new Set(), quedas: new Set(), abates: 0, dano: 0, assistencias: 0, revives: 0, armas: new Map(), habilidades: new Map(), funcao: text(row.funcao) || null,
+    headshots: 0, knockdowns: 0, sobrevivencia_segundos: 0, distancia_movida: 0, distancia_max_abate: 0, granadas_usadas: 0, gel_usado: 0, kits_medicos: 0,
   }
 }
 
@@ -146,6 +178,22 @@ function chunks<T>(items: T[], size: number) {
 function armaMaisUsada(armas: PlayerNode['armas']) {
   return [...armas.values()]
     .sort((a, b) => b.abates - a.abates || b.dano - a.dano || a.nome.localeCompare(b.nome))[0]?.nome || null
+}
+
+function habilidadesMaisUsadas(habilidades: PlayerNode['habilidades'], tipo: string, limite: number) {
+  return [...habilidades.values()]
+    .filter(habilidade => habilidade.tipo === tipo)
+    .sort((a, b) => b.usos - a.usos || b.pick_times - a.pick_times || b.pick_rate - a.pick_rate || a.habilidade.localeCompare(b.habilidade))
+    .slice(0, limite)
+}
+
+function somarDetalhesGarena(target: any, row: any, incluirBase = true) {
+  const fields = incluirBase
+    ? ['dano', 'assistencias', 'revives', 'headshots', 'knockdowns', 'sobrevivencia_segundos', 'distancia_movida', 'distancia_max_abate', 'granadas_usadas', 'gel_usado', 'kits_medicos']
+    : ['headshots', 'knockdowns', 'sobrevivencia_segundos', 'distancia_movida', 'distancia_max_abate', 'granadas_usadas', 'gel_usado', 'kits_medicos']
+  for (const field of fields) {
+    target[field] = number(target[field]) + number(row[field])
+  }
 }
 
 function createChampionship(row: any): ChampionshipNode {
@@ -193,7 +241,7 @@ export async function carregarRankingTiers() {
       .limit(50000),
     supabaseAdmin
       .from('campeonato_jogadores')
-      .select('campeonato_id,campeonato_equipe_id,jogador_id,jogador_temporario_id,id_jogo,nick,status')
+      .select('campeonato_id,campeonato_equipe_id,jogador_id,jogador_temporario_id,id_jogo,nick,funcao,status')
       .in('campeonato_id', championshipIds)
       .neq('status', 'deletado')
       .limit(100000),
@@ -263,7 +311,9 @@ export async function carregarRankingTiers() {
     const playerId = playerKey(row)
     const team = teamByParticipation.get(text(row.campeonato_equipe_id))
     if (!championship || !playerId || !team || !players.has(playerId)) continue
-    players.get(playerId)?.equipes.add(team)
+    const player = players.get(playerId)!
+    player.equipes.add(team)
+    if (!player.funcao) player.funcao = text(row.funcao) || null
     teams.get(team)?.jogadores.add(playerId)
     championship.jogadores.add(playerId)
   }
@@ -272,13 +322,17 @@ export async function carregarRankingTiers() {
   for (const importIds of chunks(garenaImportIds, 100)) {
     const { data: matchstatsRows, error: matchstatsError } = await supabaseAdmin
       .from('garena_matchstats_jogadores')
-      .select('jogador_id,player_id,garena_matchstats_armas(arma,abates,dano)')
+      .select('jogador_id,jogador_temporario_id,player_id,campeonato_equipe_id,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,granadas_usadas,gel_usado,kits_medicos,garena_matchstats_armas(arma,abates,dano),garena_matchstats_habilidades(tipo,personagem,habilidade,usos,pick_times,pick_rate)')
       .in('importacao_id', importIds)
       .limit(100000)
     if (matchstatsError) throw matchstatsError
     for (const row of matchstatsRows || []) {
-      const player = players.get(text(row.jogador_id)) || players.get(text(row.player_id))
+      const player = players.get(text(row.jogador_id)) || players.get(text(row.jogador_temporario_id)) || players.get(text(row.player_id))
+      const teamKeyFromMatchstats = teamByParticipation.get(text(row.campeonato_equipe_id))
+      const team = teamKeyFromMatchstats ? teams.get(teamKeyFromMatchstats) : null
+      if (team) somarDetalhesGarena(team, row)
       if (!player) continue
+      somarDetalhesGarena(player, row, false)
       for (const weapon of ((row as any).garena_matchstats_armas || [])) {
         const nome = text(weapon.arma)
         if (!nome) continue
@@ -286,6 +340,17 @@ export async function carregarRankingTiers() {
         current.abates += number(weapon.abates)
         current.dano += number(weapon.dano)
         player.armas.set(nome, current)
+      }
+      for (const skill of ((row as any).garena_matchstats_habilidades || [])) {
+        const tipo = text(skill.tipo)
+        const habilidade = text(skill.habilidade)
+        if (!tipo || !habilidade) continue
+        const key = `${tipo}:${habilidade}`
+        const current = player.habilidades.get(key) || { tipo, personagem: text(skill.personagem) || null, habilidade, usos: 0, pick_times: 0, pick_rate: 0 }
+        current.usos += number(skill.usos)
+        current.pick_times += number(skill.pick_times)
+        current.pick_rate += number(skill.pick_rate)
+        player.habilidades.set(key, current)
       }
     }
   }
@@ -352,12 +417,17 @@ export async function carregarRankingTiers() {
     metodologia: { iteracoes: ITERACOES, base: 'desempenho oficial', influencia: 'qualidade cruzada com limites', premiacao_maxima: 16 },
     players: rankRows([...players.values()], (a, b) => b.abates - a.abates || b.dano - a.dano).map(player => ({
       key: player.key, rank: player.rank, score: player.score, tier: player.tier, jogador_id: player.jogador_id, nick: player.nick, id_jogo: player.id_jogo, foto_url: player.foto_url, avatar_url: player.foto_url,
-      quedas: player.quedas.size, abates: player.abates, dano: player.dano, assistencias: player.assistencias, revives: player.revives, arma_mais_usada: armaMaisUsada(player.armas),
+      funcao: player.funcao,
+      equipes: [...player.equipes].map(key => teams.get(key)).filter((team): team is TeamNode => Boolean(team)).map(team => ({ id: team.key, nome: team.nome, tag: team.tag, line_id: team.line_id })),
+      quedas: player.quedas.size, abates: player.abates, dano: player.dano, assistencias: player.assistencias, revives: player.revives,
+      headshots: player.headshots, knockdowns: player.knockdowns, sobrevivencia_segundos: player.sobrevivencia_segundos, distancia_movida: player.distancia_movida, distancia_max_abate: player.distancia_max_abate, granadas_usadas: player.granadas_usadas, gel_usado: player.gel_usado, kits_medicos: player.kits_medicos,
+      arma_mais_usada: armaMaisUsada(player.armas), habilidade_ativa: habilidadesMaisUsadas(player.habilidades, 'ativa', 1)[0] || null, habilidades_passivas: habilidadesMaisUsadas(player.habilidades, 'passiva', 3),
       score_base: round(player.base), influencia_equipes: round(average(player.equipeScores) || 0), influencia_campeonatos: round(average(player.campeonatoScores) || 0),
     })),
     teams: rankRows([...teams.values()].filter(team => team.quedas.size || team.jogadores.size), (a, b) => b.pontos - a.pontos || b.abates - a.abates).map(team => ({
       key: team.key, rank: team.rank, score: team.score, tier: team.tier, equipe_id: team.equipe_id, line_id: team.line_id, nome: team.nome, tag: team.tag, logo_url: team.logo_url,
       quedas: team.quedas.size, booyahs: team.booyahs, abates: team.abates, pontos: round(team.pontos), jogadores: team.jogadores.size,
+      dano: team.dano, assistencias: team.assistencias, revives: team.revives, headshots: team.headshots, knockdowns: team.knockdowns, sobrevivencia_segundos: team.sobrevivencia_segundos, distancia_movida: team.distancia_movida, distancia_max_abate: team.distancia_max_abate, granadas_usadas: team.granadas_usadas, gel_usado: team.gel_usado, kits_medicos: team.kits_medicos,
       score_base: round(team.base), influencia_jogadores: round(average(team.jogadorScores) || 0), influencia_campeonatos: round(average(team.campeonatoScores) || 0),
     })),
     championships: rankRows([...championshipMap.values()].filter(championship => championship.participantes.size || championship.quedas.size), (a, b) => b.participantes.size - a.participantes.size || b.quedas.size - a.quedas.size).map(championship => ({

@@ -8,6 +8,85 @@ export function normalizeName(value: string) {
   return value.normalize('NFKC').replace(/[\u00A0\u3164\uFFA0]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
+async function garantirMembroDaLine(input: {
+  equipeId: string
+  lineId: string | null
+  jogadorId: string | null
+  jogadorTemporarioId: string | null
+  nick: string
+  idJogo: string
+  funcao: string | null
+  adicionadoPor: string
+}) {
+  const { equipeId, lineId, jogadorId, jogadorTemporarioId, nick, idJogo, funcao, adicionadoPor } = input
+  let profile: any = null
+  if (jogadorId) {
+    const { data, error } = await supabaseAdmin
+      .from('jogadores')
+      .select('auth_user_id,avatar_url,funcao,localidade')
+      .eq('id', jogadorId)
+      .maybeSingle()
+    if (error) throw error
+    profile = data
+  }
+
+  let rosterQuery = supabaseAdmin.from('equipe_jogadores').select('id').eq('equipe_id', equipeId)
+  rosterQuery = jogadorId ? rosterQuery.eq('jogador_id', jogadorId) : rosterQuery.eq('jogador_temporario_id', jogadorTemporarioId)
+  let { data: roster, error: rosterError } = await rosterQuery.maybeSingle()
+  if (rosterError) throw rosterError
+
+  const rosterPayload = {
+    jogador_auth_user_id: profile?.auth_user_id || null,
+    jogador_id: jogadorId,
+    jogador_temporario_id: jogadorTemporarioId,
+    nick,
+    foto_url: profile?.avatar_url || null,
+    id_jogo: idJogo,
+    funcao: funcao || profile?.funcao || 'rush',
+    localidade: profile?.localidade || null,
+    origem: 'matchresult',
+    status: 'ativo',
+    updated_at: new Date().toISOString(),
+  }
+  if (roster?.id) {
+    const { error } = await supabaseAdmin.from('equipe_jogadores').update(rosterPayload).eq('id', roster.id)
+    if (error) throw error
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from('equipe_jogadores')
+      .insert({ equipe_id: equipeId, ...rosterPayload })
+      .select('id')
+      .single()
+    if (error) throw error
+    roster = data
+  }
+  if (!roster?.id) throw new Error('Nao foi possivel vincular o jogador ao elenco da equipe.')
+
+  if (lineId) {
+    const { data: lineMember, error: lineMemberError } = await supabaseAdmin
+      .from('equipe_line_jogadores')
+      .select('id')
+      .eq('line_id', lineId)
+      .eq('equipe_jogador_id', roster.id)
+      .eq('status', 'ativo')
+      .maybeSingle()
+    if (lineMemberError) throw lineMemberError
+    if (!lineMember?.id) {
+      const { error } = await supabaseAdmin.from('equipe_line_jogadores').insert({
+        equipe_id: equipeId,
+        line_id: lineId,
+        equipe_jogador_id: roster.id,
+        status: 'ativo',
+        adicionado_por: adicionadoPor,
+      })
+      if (error?.code !== '23505') {
+        if (error) throw error
+      }
+    }
+  }
+  return roster.id as string
+}
+
 export function parseMatchResult(content: string): ParsedTeam[] {
   const teams: ParsedTeam[] = []
   let current: ParsedTeam | null = null
@@ -223,7 +302,18 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
         }
       }
 
-      let participationQuery = supabaseAdmin.from('campeonato_jogadores').select('id').eq('campeonato_id', campeonatoId).eq('campeonato_equipe_id', ce.id).eq('status', 'ativo')
+      const equipeJogadorId = await garantirMembroDaLine({
+        equipeId: ce.equipe_id,
+        lineId: ce.line_id || null,
+        jogadorId: jogadorId || null,
+        jogadorTemporarioId: tempId || null,
+        nick: player.nick,
+        idJogo: player.id_jogo,
+        funcao: null,
+        adicionadoPor: userId,
+      })
+
+      let participationQuery = supabaseAdmin.from('campeonato_jogadores').select('id,equipe_jogador_id').eq('campeonato_id', campeonatoId).eq('campeonato_equipe_id', ce.id).eq('status', 'ativo')
       participationQuery = jogadorId ? participationQuery.eq('jogador_id', jogadorId) : participationQuery.eq('jogador_temporario_id', tempId)
       let { data: participation } = await participationQuery.maybeSingle()
       if (!participation) {
@@ -234,6 +324,7 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
           line_id: ce.line_id,
           jogador_id: jogadorId || null,
           jogador_temporario_id: tempId || null,
+          equipe_jogador_id: equipeJogadorId,
           nick: player.nick,
           id_jogo: player.id_jogo,
           funcao: 'rush',
@@ -241,10 +332,17 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
           criado_automaticamente: true,
           criado_por: userId,
           status: 'ativo',
-        }).select('id').single()
+        }).select('id,equipe_jogador_id').single()
         if (createError) throw createError
         participation = created
+      } else if (participation.equipe_jogador_id !== equipeJogadorId) {
+        const { error: updateParticipationError } = await supabaseAdmin
+          .from('campeonato_jogadores')
+          .update({ equipe_jogador_id: equipeJogadorId, equipe_id: ce.equipe_id, line_id: ce.line_id, updated_at: new Date().toISOString() })
+          .eq('id', participation.id)
+        if (updateParticipationError) throw updateParticipationError
       }
+      if (!participation?.id) throw new Error('Nao foi possivel vincular o jogador a participacao do campeonato.')
 
       await supabaseAdmin.from('matchresult_importacoes_jogadores').insert({
         importacao_id: importacao.id,

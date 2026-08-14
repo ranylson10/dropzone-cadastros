@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
         .eq('status', 'ativo'),
       supabaseAdmin
         .from('equipe_jogadores')
-        .select('id,equipe_id,nick,id_jogo,funcao,foto_url,localidade,status,jogador_auth_user_id')
+        .select('id,equipe_id,nick,id_jogo,funcao,foto_url,localidade,status,jogador_auth_user_id,jogador_id,jogador_temporario_id,origem')
         .eq('equipe_id', equipeId)
         .eq('status', 'ativo')
         .order('nick'),
@@ -69,8 +69,8 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
 
     const campMap = new Map((camps || []).map((c) => [c.id, c]))
     const rosterMap = new Map((roster || []).map((player:any) => {
-      const { jogador_auth_user_id: authId, ...publicPlayer } = player
-      return [player.id, { ...publicPlayer, jogador_id: authId ? profileByAuth.get(authId) || null : null }]
+      const { jogador_auth_user_id: authId, jogador_id: jogadorId, ...publicPlayer } = player
+      return [player.id, { ...publicPlayer, jogador_id: jogadorId || (authId ? profileByAuth.get(authId) || null : null) }]
     }))
     const membersByLine = new Map<string, any[]>()
     for (const membership of memberships || []) {

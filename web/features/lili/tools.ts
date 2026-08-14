@@ -1186,7 +1186,7 @@ export async function getTeamOperationsOverview(teamId: string): Promise<TeamOpe
       .order('created_at', { ascending: true }),
     supabaseAdmin
       .from('equipe_jogadores')
-      .select('id,equipe_id,jogador_auth_user_id,nick,foto_url,id_jogo,funcao,localidade,origem,status,created_at,updated_at')
+      .select('id,equipe_id,jogador_auth_user_id,jogador_id,jogador_temporario_id,nick,foto_url,id_jogo,funcao,localidade,origem,status,created_at,updated_at')
       .eq('equipe_id', teamId)
       .eq('status', 'ativo')
       .order('created_at', { ascending: true }),

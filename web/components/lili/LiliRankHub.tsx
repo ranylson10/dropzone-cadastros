@@ -7,15 +7,29 @@ type RankMode = 'teams' | 'players' | 'championships'
 type RankRow = Record<string, any>
 type RankingData = { teams: RankRow[]; players: RankRow[]; championships: RankRow[] }
 
+function skillLabel(skill: any) {
+  if (!skill) return 'Sem dados importados'
+  return [skill.personagem, skill.habilidade].filter(Boolean).join(' - ') || 'Sem dados importados'
+}
+
 function rankMetrics(mode: RankMode, row: RankRow) {
   if (mode === 'players') return [
     ['Abates', row.abates || 0], ['Dano', Number(row.dano || 0).toLocaleString('pt-BR')],
-    ['Assistencias', row.assistencias || 0], ['Revives', row.revives || 0], ['Quedas', row.quedas || 0],
-    ['Arma mais usada', row.arma_mais_usada || 'Sem dados importados'],
+    ['Assistencias', row.assistencias || 0], ['Revives', row.revives || 0], ['Quedas', row.quedas || 0], ['Funcao', row.funcao || 'Nao definida'],
+    ['Equipe', (row.equipes || []).map((team: any) => [team.tag, team.nome].filter(Boolean).join(' - ')).join(', ') || 'Sem equipe vinculada'],
+    ['Arma mais usada', row.arma_mais_usada || 'Sem dados importados'], ['Habilidade ativa', skillLabel(row.habilidade_ativa)],
+    ['Passivas mais usadas', (row.habilidades_passivas || []).map(skillLabel).join(' | ') || 'Sem dados importados'],
+    ['Headshots', row.headshots || 0], ['Knockdowns', row.knockdowns || 0], ['Sobrevivencia', `${Number(row.sobrevivencia_segundos || 0).toLocaleString('pt-BR')} s`],
+    ['Distancia movida', `${Number(row.distancia_movida || 0).toLocaleString('pt-BR')} m`], ['Maior distancia de abate', `${Number(row.distancia_max_abate || 0).toLocaleString('pt-BR')} m`],
+    ['Granadas usadas', row.granadas_usadas || 0], ['Paredes de gel', row.gel_usado || 0], ['Kits medicos', row.kits_medicos || 0],
   ]
   if (mode === 'teams') return [
     ['Pontos', Number(row.pontos || 0).toLocaleString('pt-BR')], ['Abates', row.abates || 0],
-    ['Booyahs', row.booyahs || 0], ['Jogadores', row.jogadores || 0], ['Quedas', row.quedas || 0],
+    ['Dano do elenco', Number(row.dano || 0).toLocaleString('pt-BR')], ['Assistencias', row.assistencias || 0], ['Revives', row.revives || 0],
+    ['Booyahs', row.booyahs || 0], ['Jogadores', row.jogadores || 0], ['Quedas', row.quedas || 0], ['Headshots', row.headshots || 0],
+    ['Knockdowns', row.knockdowns || 0], ['Sobrevivencia', `${Number(row.sobrevivencia_segundos || 0).toLocaleString('pt-BR')} s`],
+    ['Distancia movida', `${Number(row.distancia_movida || 0).toLocaleString('pt-BR')} m`], ['Maior distancia de abate', `${Number(row.distancia_max_abate || 0).toLocaleString('pt-BR')} m`],
+    ['Granadas usadas', row.granadas_usadas || 0], ['Paredes de gel', row.gel_usado || 0], ['Kits medicos', row.kits_medicos || 0],
   ]
   return [
     ['Equipes', row.participantes || 0], ['Jogadores', row.jogadores || 0],
