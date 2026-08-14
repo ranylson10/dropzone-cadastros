@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('dropzoneLive', {
   championships: () => ipcRenderer.invoke('auth:championships'),
   listLives: () => ipcRenderer.invoke('lives:list'),
   createLive: (input) => ipcRenderer.invoke('lives:create', input),
+  previewLive: (live) => ipcRenderer.invoke('lives:preview', live),
   saveLive: (live) => ipcRenderer.invoke('lives:save', live),
   deleteLive: (id) => ipcRenderer.invoke('lives:delete', id),
   syncLive: (id) => ipcRenderer.invoke('lives:sync', id),
