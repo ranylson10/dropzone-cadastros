@@ -2,7 +2,13 @@ import { supabase } from '@/lib/supabase-browser'
 import { authHeaders } from '@/features/dropzone/utils'
 import type { AgendaEventForm, AgendaItem, AgendaScope } from '../types/agenda.types'
 
-type AgendaFetchResult = { items: AgendaItem[]; setup_required: boolean; error?: string }
+type AgendaFetchResult = {
+  items: AgendaItem[]
+  setup_required: boolean
+  can_manage: boolean
+  managed_championships: Array<{ id: string; nome: string }>
+  error?: string
+}
 const agendaCache = new Map<string, { expiresAt: number; value: AgendaFetchResult }>()
 const agendaPending = new Map<string, Promise<AgendaFetchResult>>()
 
@@ -43,8 +49,13 @@ export async function fetchAgenda(params: {
     const res = await fetch(`/api/agenda?${qs.toString()}`, { headers, cache: 'no-store' })
     const json = await res.json().catch(() => ({}))
     const value: AgendaFetchResult = !res.ok
-      ? { items: [], setup_required: false, error: json.error || 'Erro ao carregar agenda.' }
-      : { items: (json.items || []) as AgendaItem[], setup_required: Boolean(json.setup_required) }
+      ? { items: [], setup_required: false, can_manage: false, managed_championships: [], error: json.error || 'Erro ao carregar agenda.' }
+      : {
+          items: (json.items || []) as AgendaItem[],
+          setup_required: Boolean(json.setup_required),
+          can_manage: Boolean(json.can_manage),
+          managed_championships: Array.isArray(json.managed_championships) ? json.managed_championships : [],
+        }
 
     if (!value.error) agendaCache.set(cacheKey, { expiresAt: Date.now() + 30_000, value })
     return value

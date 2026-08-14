@@ -150,6 +150,8 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [setupRequired, setSetupRequired] = useState(false)
+  const [canManage, setCanManage] = useState(false)
+  const [managedChampionships, setManagedChampionships] = useState<Array<{ id: string; nome: string }>>([])
   const [selectedDate, setSelectedDate] = useState(todayISO())
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -157,10 +159,8 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [selected, setSelected] = useState<AgendaItem | null>(null)
   const [defaults, setDefaults] = useState<Partial<AgendaEventForm>>({})
 
-  const canCreate = props.canCreate !== undefined
-    ? Boolean(props.canCreate)
-    : props.scope === 'me'
-  const contextualMode = Boolean(props.compact && !canCreate)
+  const canCreate = Boolean(props.canCreate && canManage)
+  const contextualMode = !canCreate
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -180,6 +180,8 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
     if (result.error) setError(result.error)
     setItems(result.items)
     setSetupRequired(result.setup_required)
+    setCanManage(result.can_manage)
+    setManagedChampionships(result.managed_championships)
     setLoading(false)
   }, [props.scope, props.scopeId, year, month, contextualMode])
 
@@ -286,7 +288,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
             return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
           })()
         : '20:00',
-      campeonato_id: props.scope === 'campeonato' ? props.scopeId || '' : '',
+      campeonato_id: props.scope === 'campeonato' ? props.scopeId || '' : managedChampionships[0]?.id || '',
       equipe_id: props.scope === 'equipe' ? props.scopeId || '' : '',
       visibilidade:
         props.scope === 'campeonato'
@@ -301,7 +303,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
 
   function openItem(item: AgendaItem) {
     setSelected(item)
-    if (item.source === 'livre' && item.editable) {
+    if (canCreate && item.source === 'livre' && item.editable) {
       setModalMode('edit')
     } else {
       setModalMode('view')
@@ -601,8 +603,8 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
         onDelete={canCreate ? handleDelete : undefined}
+        championships={managedChampionships}
       />
     </div>
   )
 }
-

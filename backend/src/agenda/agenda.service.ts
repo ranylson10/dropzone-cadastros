@@ -50,6 +50,13 @@ export type ListAgendaParams = {
   authUserId?: string | null
 }
 
+type AgendaListResult = {
+  items: AgendaItem[]
+  setup_required: boolean
+  can_manage: boolean
+  managed_championships: Array<{ id: string; nome: string }>
+}
+
 const PRESET_COLORS = [
   '#3b82f6', // azul
   '#ef4444', // vermelho
@@ -323,6 +330,7 @@ async function resolveUserContext(authUserId: string) {
   const producerIds = accounts.filter((a) => a.profile_type === 'produtora').map((a) => a.id)
 
   const campeonatoIds = new Set<string>()
+  const managedChampionshipIds = new Set<string>()
   const equipeIds = new Set<string>(teamIds)
 
   // Produtora → campeonatos
@@ -331,7 +339,10 @@ async function resolveUserContext(authUserId: string) {
       .from('campeonatos')
       .select('id')
       .in('produtora_id', producerIds)
-    for (const row of data || []) campeonatoIds.add(row.id)
+    for (const row of data || []) {
+      campeonatoIds.add(row.id)
+      managedChampionshipIds.add(row.id)
+    }
   }
 
   // Campeonatos criados pelo usuário
@@ -340,7 +351,10 @@ async function resolveUserContext(authUserId: string) {
       .from('campeonatos')
       .select('id')
       .eq('criado_por', authUserId)
-    for (const row of data || []) campeonatoIds.add(row.id)
+    for (const row of data || []) {
+      campeonatoIds.add(row.id)
+      managedChampionshipIds.add(row.id)
+    }
   }
 
   // Manager → equipes
@@ -376,9 +390,19 @@ async function resolveUserContext(authUserId: string) {
 
   return {
     campeonatoIds: [...campeonatoIds],
+    managedChampionshipIds: [...managedChampionshipIds],
     equipeIds: [...equipeIds],
     accounts,
   }
+}
+
+async function assertCanManageChampionshipAgenda(authUserId: string, campeonatoId: string | null | undefined) {
+  const championshipId = nonEmpty(campeonatoId, 'Campeonato')
+  const context = await resolveUserContext(authUserId)
+  if (!context.managedChampionshipIds.includes(championshipId)) {
+    throw new Error('Somente o responsavel pelo campeonato pode alterar a agenda.')
+  }
+  return championshipId
 }
 
 async function listTeamGames(equipeId: string, from: string, to: string) {
@@ -411,7 +435,7 @@ async function listTeamGames(equipeId: string, from: string, to: string) {
   })
 }
 
-export async function listAgenda(params: ListAgendaParams): Promise<{ items: AgendaItem[]; setup_required: boolean }> {
+export async function listAgenda(params: ListAgendaParams): Promise<AgendaListResult> {
   const from = nonEmpty(params.from, 'Data inicial')
   const to = nonEmpty(params.to, 'Data final')
   if (!isDate(from) || !isDate(to)) throw new Error('Intervalo de datas inválido.')
@@ -421,6 +445,8 @@ export async function listAgenda(params: ListAgendaParams): Promise<{ items: Age
   let games: any[] = []
   let freeRows: any[] = []
   let setupRequired = false
+  let canManage = false
+  let managedChampionshipIds: string[] = []
 
   if (params.scope === 'campeonato') {
     const campeonatoId = nonEmpty(params.scopeId, 'Campeonato')
@@ -450,6 +476,8 @@ export async function listAgenda(params: ListAgendaParams): Promise<{ items: Age
     // scope=me
     if (!authUserId) throw new Error('Faça login para ver sua agenda.')
     const ctx = await resolveUserContext(authUserId)
+    canManage = ctx.managedChampionshipIds.length > 0
+    managedChampionshipIds = ctx.managedChampionshipIds
     games = await listGamesByChampionshipIds(ctx.campeonatoIds, from, to)
     const free = await listFreeEvents({ from, to, authUserId })
     freeRows = free.items
@@ -484,16 +512,24 @@ export async function listAgenda(params: ListAgendaParams): Promise<{ items: Age
     return a.horario_inicio.localeCompare(b.horario_inicio)
   })
 
-  return { items, setup_required: setupRequired }
+  const managedNames = canManage ? await loadChampionshipNames(managedChampionshipIds) : new Map<string, string>()
+  const managedChampionships = managedChampionshipIds
+    .map((id) => ({ id, nome: managedNames.get(id) || 'Campeonato' }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+
+  return { items, setup_required: setupRequired, can_manage: canManage, managed_championships: managedChampionships }
 }
 
 export async function createAgendaEvent(authUserId: string, input: AgendaEventInput) {
   const payload = sanitizeEventInput(input)
+  const campeonatoId = await assertCanManageChampionshipAgenda(authUserId, payload.campeonato_id)
   const { data, error } = await supabaseAdmin
     .from('agenda_eventos')
     .insert({
       auth_user_id: authUserId,
       ...payload,
+      campeonato_id: campeonatoId,
+      visibilidade: 'campeonato',
       updated_at: new Date().toISOString(),
     })
     .select('*')
@@ -533,6 +569,8 @@ export async function updateAgendaEvent(authUserId: string, id: string, input: P
     campeonato_id: input.campeonato_id !== undefined ? input.campeonato_id : existing.campeonato_id,
     equipe_id: input.equipe_id !== undefined ? input.equipe_id : existing.equipe_id,
   })
+  payload.campeonato_id = await assertCanManageChampionshipAgenda(authUserId, payload.campeonato_id)
+  payload.visibilidade = 'campeonato'
 
   const { data, error } = await supabaseAdmin
     .from('agenda_eventos')
@@ -550,7 +588,7 @@ export async function deleteAgendaEvent(authUserId: string, id: string) {
   const eventId = nonEmpty(id, 'ID do evento')
   const { data: existing, error: findError } = await supabaseAdmin
     .from('agenda_eventos')
-    .select('id, auth_user_id')
+    .select('id, auth_user_id, campeonato_id')
     .eq('id', eventId)
     .maybeSingle()
 
@@ -560,6 +598,8 @@ export async function deleteAgendaEvent(authUserId: string, id: string) {
   if (findError) throw findError
   if (!existing) throw new Error('Evento não encontrado.')
   if (existing.auth_user_id !== authUserId) throw new Error('Você não pode excluir este evento.')
+
+  await assertCanManageChampionshipAgenda(authUserId, existing.campeonato_id)
 
   const { error } = await supabaseAdmin
     .from('agenda_eventos')

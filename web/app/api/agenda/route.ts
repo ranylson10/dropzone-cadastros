@@ -67,6 +67,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       items: result.items,
       setup_required: result.setup_required,
+      can_manage: result.can_manage,
+      managed_championships: result.managed_championships,
       range: { from, to, year, month },
       scope,
       scope_id: scopeId || null,

@@ -48,6 +48,7 @@ export function AgendaEventModal({
   onClose,
   onSave,
   onDelete,
+  championships = [],
 }: {
   open: boolean
   mode: 'create' | 'edit' | 'view'
@@ -57,6 +58,7 @@ export function AgendaEventModal({
   onClose: () => void
   onSave: (form: AgendaEventForm) => Promise<void> | void
   onDelete?: (id: string) => Promise<void> | void
+  championships?: Array<{ id: string; nome: string }>
 }) {
   const [form, setForm] = useState<AgendaEventForm>(EMPTY_FORM)
   const [error, setError] = useState('')
@@ -94,6 +96,7 @@ export function AgendaEventModal({
       if (!form.titulo.trim()) throw new Error('Informe o título.')
       if (!form.data_evento) throw new Error('Informe a data.')
       if (!form.horario_inicio) throw new Error('Informe o horário de início.')
+      if (!form.campeonato_id) throw new Error('Selecione o campeonato.')
       await onSave(form)
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar.')
@@ -236,6 +239,15 @@ export function AgendaEventModal({
           </div>
 
           <div className="agenda-form-grid">
+            <Field label="Campeonato">
+              <select
+                value={form.campeonato_id}
+                onChange={(e) => setForm((c) => ({ ...c, campeonato_id: e.target.value }))}
+              >
+                <option value="">Selecione um campeonato</option>
+                {championships.map((championship) => <option key={championship.id} value={championship.id}>{championship.nome}</option>)}
+              </select>
+            </Field>
             <Field label="Tipo">
               <select
                 value={form.tipo}
