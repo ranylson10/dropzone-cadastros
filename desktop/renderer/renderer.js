@@ -7,6 +7,14 @@ const el = { app: $('#app'), gate: $('#login-gate'), workspace: $('#workspace'),
 function message(error, fallback) { return String(error?.message || fallback || 'Ocorreu um erro.').replace(/^Error invoking remote method '[^']+': Error:\s*/i, '').replace(/^Error:\s*/i, '') }
 function toast(text, tone = '') { el.toast.textContent = text; el.toast.className = `toast ${tone}`; clearTimeout(toast.timer); toast.timer = setTimeout(() => el.toast.classList.add('hidden'), 3400) }
 function layout() { if (!current.layout) current.layout = { width: 1920, height: 1080, background: '#080b13', blocks: [] }; if (!Array.isArray(current.layout.blocks)) current.layout.blocks = [] }
+function ensureArtboard() {
+  const surface = $('#design-surface')
+  if (!surface || $('#artboard')) return
+  const artboard = document.createElement('div')
+  artboard.id = 'artboard'; artboard.className = 'artboard'
+  surface.append(artboard)
+  artboard.append(el.preview, el.layer)
+}
 function selectedId() { return el.list.dataset.selected || '' }
 function selected() { return current?.layout?.blocks?.find((b) => b.id === selectedId()) || null }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, Number(value) || min)) }
@@ -47,16 +55,31 @@ function renderLayers() {
 }
 function layerName(b) { return b.type === 'text' ? b.text || 'Texto' : b.type === 'table' ? b.title || 'Tabela' : b.name || 'Imagem' }
 function renderSelection() {
-  const selectedBlock = selected(); const scaleX = 100 / 1920, scaleY = 100 / 1080
-  el.layer.innerHTML = current.layout.blocks.map((b) => `<div data-select="${b.id}" class="select-box ${b.id === selectedBlock?.id ? 'active' : ''}" style="left:${b.x * scaleX}%;top:${b.y * scaleY}%;width:${b.width * scaleX}%;height:${b.height * scaleY}%"></div>`).join('')
-  for (const node of el.layer.querySelectorAll('[data-select]')) node.addEventListener('pointerdown', startDrag)
+  const selectedBlock = selected(); const scaleX = (el.layer.clientWidth || 1920) / 1920; const scaleY = (el.layer.clientHeight || 1080) / 1080
+  const px = (value) => Number(value).toFixed(2)
+  el.layer.innerHTML = current.layout.blocks.map((b) => `<div data-select="${b.id}" class="select-box ${b.id === selectedBlock?.id ? 'active' : ''}" style="left:${px(b.x * scaleX)}px;top:${px(b.y * scaleY)}px;width:${px(b.width * scaleX)}px;height:${px(b.height * scaleY)}px"><span class="move-grip" title="Arrastar camada"></span><span class="resize-handle" data-resize="se" title="Redimensionar"></span></div>`).join('')
+  for (const node of el.layer.querySelectorAll('[data-select]')) {
+    node.addEventListener('pointerdown', startDrag)
+    node.querySelector('[data-resize]')?.addEventListener('pointerdown', (event) => startDrag(event, true))
+  }
 }
-function startDrag(event) {
-  event.preventDefault(); const id = event.currentTarget.dataset.select; const block = current.layout.blocks.find((b) => b.id === id); if (!block) return
-  el.list.dataset.selected = id; renderLayers(); renderInspector(); renderSelection()
-  const surface = $('#design-surface').getBoundingClientRect(); const start = { x: event.clientX, y: event.clientY, blockX: block.x, blockY: block.y }
-  const move = (e) => { block.x = clamp(start.blockX + ((e.clientX - start.x) / surface.width) * 1920, 0, 1920 - block.width); block.y = clamp(start.blockY + ((e.clientY - start.y) / surface.height) * 1080, 0, 1080 - block.height); renderSelection(); setQuickProperties() }
-  const end = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); stageChanged() }
+function startDrag(event, forceResize = false) {
+  event.preventDefault(); event.stopPropagation()
+  const selectionNode = event.currentTarget?.matches?.('[data-select]') ? event.currentTarget : event.target?.closest?.('[data-select]')
+  const id = selectionNode?.dataset?.select; const block = current.layout.blocks.find((b) => b.id === id); if (!block || !selectionNode) return
+  const resizing = forceResize || event.target?.dataset?.resize === 'se'
+  el.list.dataset.selected = id; renderLayers(); renderInspector()
+  for (const node of el.layer.querySelectorAll('[data-select]')) node.classList.toggle('active', node === selectionNode)
+  const artboard = $('#artboard').getBoundingClientRect(); const start = { x: event.clientX, y: event.clientY, blockX: block.x, blockY: block.y, width: block.width, height: block.height }
+  selectionNode.setPointerCapture?.(event.pointerId)
+  const move = (e) => {
+    const dx = ((e.clientX - start.x) / artboard.width) * 1920; const dy = ((e.clientY - start.y) / artboard.height) * 1080
+    if (resizing) { block.width = clamp(start.width + dx, 48, 1920 - block.x); block.height = clamp(start.height + dy, 34, 1080 - block.y) }
+    else { block.x = clamp(start.blockX + dx, 0, 1920 - block.width); block.y = clamp(start.blockY + dy, 0, 1080 - block.height) }
+    selectionNode.style.left = `${(block.x / 1920) * el.layer.clientWidth}px`; selectionNode.style.top = `${(block.y / 1080) * el.layer.clientHeight}px`
+    selectionNode.style.width = `${(block.width / 1920) * el.layer.clientWidth}px`; selectionNode.style.height = `${(block.height / 1080) * el.layer.clientHeight}px`; setQuickProperties()
+  }
+  const end = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); selectionNode.releasePointerCapture?.(event.pointerId); renderSelection(); stageChanged() }
   window.addEventListener('pointermove', move); window.addEventListener('pointerup', end, { once: true })
 }
 function renderInspector() {
@@ -87,4 +110,4 @@ $('#new-live').onclick = () => { $('#new-live-name').value = ''; $('#new-champio
 $('#create-form').addEventListener('submit', async (event) => { event.preventDefault(); try { current = await api.createLive({ name: $('#new-live-name').value, campeonatoId: $('#new-championship-select').value }); lives.unshift(current); el.dialog.close(); render() } catch (e) { toast(message(e, 'Não foi possível criar.'), 'error') } })
 $('#save-live').onclick = () => void persist(true); $('#sync-live').onclick = async () => { if (!current?.campeonatoId) return toast('Escolha um campeonato autorizado.', 'warn'); try { current = await api.syncLive(current.id); lives = lives.map((x) => x.id === current.id ? current : x); render() } catch (e) { toast(message(e, 'Não foi possível atualizar.'), 'error') } }
 $('#export-png').onclick = async () => { if (!current) return; try { const file = await api.exportPng(current.id); if (file) toast('PNG salvo') } catch (e) { toast(message(e, 'Não foi possível exportar.'), 'error') } }; $('#copy-output').onclick = async () => { if (current) { const url = await api.outputUrl(current.id); await api.copy(url); toast('Link copiado') } }; $('#open-output').onclick = async () => { if (current) await api.open(await api.outputUrl(current.id)) }
-$('#championship-select').addEventListener('change', (e) => { if (!current) return; current.campeonatoId = e.target.value; stageChanged() }); for (const node of document.querySelectorAll('[data-add]')) node.onclick = () => void create(node.dataset.add); $('#add-image').onclick = () => void importImage(); bindQuickProperties(); boot()
+ensureArtboard(); window.addEventListener('resize', () => { if (current) renderSelection() }); $('#championship-select').addEventListener('change', (e) => { if (!current) return; current.campeonatoId = e.target.value; stageChanged() }); for (const node of document.querySelectorAll('[data-add]')) node.onclick = () => void create(node.dataset.add); $('#add-image').onclick = () => void importImage(); bindQuickProperties(); boot()
