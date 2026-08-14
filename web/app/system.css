@@ -1074,3 +1074,54 @@ body .scale-chat-login{border-color:var(--ui-line);border-radius:var(--ui-radius
 body .scale-chat-actions{background:linear-gradient(180deg,transparent,var(--ui-bg) 28%)}
 body .scale-chat-page .invite-chat-player-result{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
 body .scale-chat-page .scale-chat-slot-number{background:var(--ui-surface);color:var(--ui-accent);box-shadow:none}
+
+/* Painel de equipe: elenco, lines e convites em superfÃ­cies operacionais consistentes. */
+body .team-dashboard .team-command-center article{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+}
+body .team-dashboard .team-command-center article > span{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-accent)}
+body .team-dashboard .team-command-center article.needs-action > span{border-color:rgba(215,108,108,.45);background:rgba(215,108,108,.14);color:#e89a9a}
+body .team-dashboard .team-command-center strong{color:var(--ui-text)}
+body .team-dashboard .team-command-center small{color:var(--ui-muted)}
+body .team-dashboard .team-next-game-card{border:1px solid var(--ui-line);border-left:3px solid var(--ui-accent);border-radius:var(--ui-radius-md);background:#141518;color:var(--ui-text)}
+body .team-dashboard .team-next-game-card .eyebrow{color:var(--ui-accent)}
+body .team-dashboard .team-panel-tabs{border-bottom-color:var(--ui-line)}
+body .team-dashboard .team-panel-tabs button{border-bottom-color:transparent;color:var(--ui-muted)}
+body .team-dashboard .team-panel-tabs button:hover{color:var(--ui-text);background:var(--ui-surface-raised)}
+body .team-dashboard .team-panel-tabs button.active{border-bottom-color:var(--ui-accent);color:var(--ui-accent);background:transparent}
+body .team-dashboard .team-championship-card,
+body .team-dashboard .team-line-card,
+body .team-dashboard .team-player-card,
+body .team-dashboard .lineup-token-card,
+body .team-dashboard .lineup-token-list,
+body .team-dashboard .lineup-invite-result,
+body .team-dashboard .staff-search-results,
+body .team-dashboard .token-card{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .team-dashboard .team-championship-card:hover,
+body .team-dashboard .team-line-card:hover,
+body .team-dashboard .team-player-card:hover,
+body .team-dashboard .token-card:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft)}
+body .team-dashboard .team-championship-head{border-color:var(--ui-line);color:var(--ui-text)}
+body .team-dashboard .team-championship-quick-actions,
+body .team-dashboard .team-line-inline-detail{border-color:var(--ui-line);background:var(--ui-surface-raised)}
+body .team-dashboard .team-championship-quick-actions button,
+body .team-dashboard .team-championship-quick-actions a{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface);color:var(--ui-text)}
+body .team-dashboard .team-championship-quick-actions button:first-child{border-color:var(--ui-accent);background:var(--ui-accent);color:#111216}
+body .team-dashboard .team-player-card img,
+body .team-dashboard .team-line-card img{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised)}
+body .team-dashboard .team-player-card small,
+body .team-dashboard .team-player-card span,
+body .team-dashboard .team-line-card small,
+body .team-dashboard .team-line-card span,
+body .team-dashboard .lineup-token-card span{color:var(--ui-muted)}
+body .team-dashboard .lineup-token-card code,
+body .team-dashboard .lineup-invite-preview{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
