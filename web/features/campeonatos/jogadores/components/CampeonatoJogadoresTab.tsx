@@ -160,7 +160,7 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
               setFiltroLineId('')
             }}
             aria-label="Filtrar por equipe"
-            style={{ minHeight: 34, border: '1px solid #dfe2e7', padding: '0 10px', background: '#fff' }}
+            style={{ minHeight: 34, padding: '0 10px' }}
           >
             <option value="">Todas as equipes</option>
             {equipesOpts.map(([id, nome]) => (
@@ -171,7 +171,7 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
             value={filtroLineId}
             onChange={(e) => setFiltroLineId(e.target.value)}
             aria-label="Filtrar por line"
-            style={{ minHeight: 34, border: '1px solid #dfe2e7', padding: '0 10px', background: '#fff' }}
+            style={{ minHeight: 34, padding: '0 10px' }}
           >
             <option value="">Todas as lines</option>
             {linesOpts.map(([id, nome]) => (

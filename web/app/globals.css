@@ -6912,3 +6912,97 @@ body .page-authenticated:has(.producer-layout-ref) .spec-production-layout .expo
   body .page-authenticated:has(.producer-layout-ref) .spec-production-layout .spec-canvas-col{min-height:300px;padding:12px}
   body .page-authenticated:has(.producer-layout-ref) .spec-production-layout .spec-tools-col{grid-template-columns:1fr}
 }
+
+/* Championship operational tabs: the old components still share class names with
+   legacy light screens. Keep every state and every tab in the approved dark UI. */
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-admin-actions{display:flex;align-items:center;gap:7px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-admin-actions .icon-action-button{display:inline-flex;align-items:center;justify-content:center;gap:0;width:36px;height:36px;min-height:36px;padding:0;border:0;border-radius:8px;background:var(--ui-surface-raised);color:var(--ui-text-muted);box-shadow:none;font-size:0;cursor:pointer}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-admin-actions .icon-action-button svg{width:16px;height:16px;color:currentColor}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-admin-actions .icon-action-button:hover:not(:disabled){background:rgba(201,183,102,.12);color:var(--ui-accent)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-admin-actions .icon-action-button.danger:hover:not(:disabled){background:rgba(221,112,112,.12);color:#ee9292}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-admin-actions .icon-action-button:disabled{opacity:.42;cursor:not-allowed}
+
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-tab-loading,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-tab-error{min-height:116px;border:0;border-bottom:1px solid var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text-muted);box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-tab-error{color:#ee9292}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vagas-empty-filter{padding:28px 12px;border-bottom:1px solid var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-compact-toolbar{min-height:42px;padding:0 0 10px;border-bottom:1px solid var(--ui-line)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-status-filters{gap:2px}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-status-filters button{min-height:34px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--ui-text-muted);box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-status-filters button:hover{background:rgba(201,183,102,.07);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-status-filters button.active{border-bottom-color:var(--ui-accent);background:rgba(201,183,102,.1);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-status-filters button span{border:0;background:rgba(245,243,237,.1);color:inherit}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-toolbar-right select,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-refresh-button{border:0;border-radius:7px;background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-toolbar-right select{outline:0}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-toolbar-right select:focus{box-shadow:inset 0 -2px 0 var(--ui-accent)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-toolbar-right option{background:#1a1b1f;color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-refresh-button:hover{background:rgba(201,183,102,.12);color:var(--ui-accent)}
+
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vagas-list{border:0;background:transparent;box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vagas-list>.championship-vaga-row{border:0;border-bottom:1px solid var(--ui-line);border-left:2px solid transparent;border-radius:0;background:var(--ui-surface-raised);box-shadow:none;color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row.status-livre{border-left-color:#75808e;background:var(--ui-surface-raised)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row.status-reservada{border-left-color:var(--ui-accent);background:var(--ui-surface-raised)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row.status-ocupada{border-left-color:#53b98d;background:var(--ui-surface-raised)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row:hover,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row.is-open{background:rgba(201,183,102,.08)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-summary{background:transparent;color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-summary:hover{background:transparent;filter:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-number,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-identity strong{color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-number:before,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-identity small,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-meta{color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-avatar,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .lineup-player-avatar{border:0;background:var(--ui-surface);color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-status-pill{border:0;background:rgba(245,243,237,.09);color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-status-pill.status-completa{background:rgba(83,185,141,.14);color:#8bddb7}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-status-pill.status-parcial{background:rgba(201,183,102,.15);color:var(--ui-accent-light)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-status-pill.status-pendente{background:rgba(238,146,146,.13);color:#eea0a0}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .vaga-row-details{border-top:1px solid var(--ui-line);background:var(--ui-surface)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .lineup-player-row{border-bottom-color:var(--ui-line);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .lineup-player-row small{color:var(--ui-text-muted)}
+
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder{border:0;border-left:2px solid var(--ui-accent);border-radius:0;background:var(--ui-surface-raised);box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-row,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .group-folder-row{border-bottom:1px solid var(--ui-line);background:var(--ui-surface);color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-row .folder-toggle,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-row .folder-toggle strong,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-row .folder-toggle svg,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .group-folder-row .folder-toggle{color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-row .folder-toggle small,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .group-folder-row .folder-toggle small{color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .group-folder{border:0;border-left:1px solid var(--ui-line);border-radius:0;background:var(--ui-surface);box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-content{background:transparent}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .group-folder .championship-vaga-row,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .group-folder .championship-vaga-row.status-livre,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .group-folder .championship-vaga-row.status-reservada,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .group-folder .championship-vaga-row.status-ocupada{background:transparent;border-bottom-color:var(--ui-line)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .folder-actions>button:not(.button){border:0;background:var(--ui-surface-raised);color:var(--ui-text-muted)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .folder-actions>button:not(.button):hover{background:rgba(201,183,102,.12);color:var(--ui-accent)}
+
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .subtab-actionbar,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .inline-action-panel,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-card,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-card-summary,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-card-details,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-form-panel,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-rules-panel{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:none}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-card:hover .game-card-summary,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .game-card.is-open .game-card-summary{background:rgba(201,183,102,.08)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .seller-tab .seller-row-edit,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .seller-tab .seller-perm-grid,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .seller-tab .vaga-detail-grid{border-color:var(--ui-line);background:transparent;color:var(--ui-text)}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .seller-tab input,
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .seller-tab select{border:0;background:var(--ui-surface-raised);color:var(--ui-text)}
+
+@media(max-width:900px){
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-admin-actions{align-self:start}
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-compact-toolbar{gap:8px}
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .teams-toolbar-right select{flex:1;min-width:130px}
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row .vaga-row-summary{grid-template-columns:36px minmax(0,1fr) auto!important;gap:8px}
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row .vaga-row-summary>.vaga-row-meta{display:none}
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .championship-vaga-row .vaga-row-summary>.vaga-row-identity:nth-last-of-type(1){display:none}
+  body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .phase-folder-content{padding-left:8px}
+}
