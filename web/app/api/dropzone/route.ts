@@ -351,7 +351,30 @@ function normalizeStructurePlan(value: unknown) {
     const classificam = classificamRaw
       ? Math.max(1, Math.min(equipesPorGrupo, Number.parseInt(classificamRaw, 10) || 1))
       : null
-    return { nome, grupos, equipes_por_grupo: equipesPorGrupo, classificam_por_grupo: classificam }
+    const rawFinalDays = Array.isArray((item as any)?.final_dias_config) ? (item as any).final_dias_config : []
+    const finalDiasConfig = rawFinalDays.slice(0, 15).map((day: any, dayIndex: number) => ({
+      dia: dayIndex + 1,
+      quedas: Math.max(1, Math.min(30, Number.parseInt(String(day?.quedas || '1'), 10) || 1)),
+    }))
+    const finalFormatRaw = String((item as any)?.final_formato || '').trim()
+    const finalFormato = ['pontos_corridos', 'champion_point', 'point_rush', 'point_rush_champion_point', 'personalizado'].includes(finalFormatRaw) ? finalFormatRaw : null
+    const bonusRanking = Array.isArray((item as any)?.final_bonus_ranking)
+      ? (item as any).final_bonus_ranking.slice(0, 30).map((bonus: any, bonusIndex: number) => ({
+          posicao: bonusIndex + 1,
+          pontos_bonus: Math.max(0, Number(bonus?.pontos_bonus || 0)),
+        }))
+      : []
+    return {
+      nome,
+      grupos,
+      equipes_por_grupo: equipesPorGrupo,
+      classificam_por_grupo: classificam,
+      ...(finalDiasConfig.length ? { final_dias_config: finalDiasConfig } : {}),
+      ...(finalFormato ? { final_formato: finalFormato } : {}),
+      ...((item as any)?.final_champion_point_pontos ? { final_champion_point_pontos: Math.max(1, Number((item as any).final_champion_point_pontos)) } : {}),
+      ...((item as any)?.final_point_rush_dias ? { final_point_rush_dias: Math.max(1, Math.min(15, Number((item as any).final_point_rush_dias))) } : {}),
+      ...(bonusRanking.length ? { final_bonus_ranking: bonusRanking } : {}),
+    }
   })
 }
 

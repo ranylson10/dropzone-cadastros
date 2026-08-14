@@ -653,6 +653,21 @@ export function ProdutoraPanel(props: {
   }
 
   function championshipToForm(champ: DropZoneRow): CampeonatoFormValue {
+    const structurePlan = Array.isArray(champ.data?.estrutura_planejada)
+      ? champ.data.estrutura_planejada.map((phase: any) => ({
+          nome: String(phase?.nome || ''),
+          grupos: String(phase?.grupos || 1),
+          equipes_por_grupo: String(phase?.equipes_por_grupo || 12),
+          classificam_por_grupo: String(phase?.classificam_por_grupo || ''),
+          final_dias_config: Array.isArray(phase?.final_dias_config) ? phase.final_dias_config.map((day: any, index: number) => ({ dia: index + 1, quedas: String(day?.quedas || 1) })) : undefined,
+          final_formato: phase?.final_formato,
+          final_champion_point_pontos: phase?.final_champion_point_pontos == null ? undefined : String(phase.final_champion_point_pontos),
+          final_point_rush_dias: phase?.final_point_rush_dias == null ? undefined : String(phase.final_point_rush_dias),
+          final_bonus_ranking: Array.isArray(phase?.final_bonus_ranking) ? phase.final_bonus_ranking.map((item: any, index: number) => ({ posicao: index + 1, pontos_bonus: String(item?.pontos_bonus ?? '') })) : undefined,
+        }))
+      : []
+    const finalPlan = structurePlan.at(-1)
+    const finalDays = Array.isArray(finalPlan?.final_dias_config) && finalPlan.final_dias_config.length ? finalPlan.final_dias_config : [{ dia: 1, quedas: '6' }]
     return {
       nome: rowTitle(champ),
       tipo: String(dataText(champ, 'tipo') || 'copa'),
@@ -665,15 +680,18 @@ export function ProdutoraPanel(props: {
       numero_vagas: String(dataText(champ, 'numero_vagas') || ''),
       numero_fases: String(dataText(champ, 'numero_fases') || champ.data?.numero_fases || '1'),
       nomes_fases: Array.isArray(champ.data?.nomes_fases) ? champ.data.nomes_fases.map(String) : ['Fase 1'],
-      estrutura_planejada: Array.isArray(champ.data?.estrutura_planejada)
-        ? champ.data.estrutura_planejada.map((phase: any) => ({
-          nome: String(phase?.nome || ''),
-          grupos: String(phase?.grupos || 1),
-          equipes_por_grupo: String(phase?.equipes_por_grupo || 12),
-          classificam_por_grupo: String(phase?.classificam_por_grupo || ''),
-        }))
-        : [],
+      estrutura_planejada: structurePlan,
       formato: String(dataText(champ, 'formato') || ''),
+      partidas_por_jogo: String(champ.data?.partidas_por_jogo || '4'),
+      partidas_final: String(finalDays.reduce((sum: number, day: any) => sum + Math.max(1, Number(day.quedas || 1)), 0)),
+      final_dias: String(finalDays.length),
+      final_dias_config: finalDays,
+      final_quedas_por_dia: String(finalDays[0]?.quedas || '6'),
+      final_formato: (finalPlan?.final_formato || 'pontos_corridos') as CampeonatoFormValue['final_formato'],
+      final_champion_point_pontos: String(finalPlan?.final_champion_point_pontos || '160'),
+      final_point_rush_dias: String(finalPlan?.final_point_rush_dias || '1'),
+      final_bonus_ranking: Array.isArray(finalPlan?.final_bonus_ranking) ? finalPlan.final_bonus_ranking : [],
+      final_observacoes: '',
       plataforma: String(dataText(champ, 'plataforma') || ''),
       servidor: String(dataText(champ, 'servidor') || ''),
       tipo_premiacao: String(dataText(champ, 'tipo_premiacao') || ''),
@@ -768,9 +786,13 @@ export function ProdutoraPanel(props: {
     const phasePayload = plan.map((phase, index) => {
       const groups = Math.max(1, Math.min(26, Number(phase.grupos) || 1))
       const slots = Math.max(1, Math.min(52, Number(phase.equipes_por_grupo) || 12))
+      const isGrandeFinal = form.tipo === 'copa' && index === plan.length - 1
       return {
         nome: String(phase.nome || names[index]).trim() || `Fase ${index + 1}`,
         ordem: index + 1,
+        tipo: isGrandeFinal ? 'grande_final' : 'normal',
+        grande_final: isGrandeFinal,
+        final_slots: isGrandeFinal ? slots : undefined,
         grupos: Array.from({ length: groups }, (_, groupIndex) => ({
           nome: groups === 1 ? 'Grupo único' : `Grupo ${String.fromCharCode(65 + groupIndex)}`,
           slots,
@@ -784,6 +806,34 @@ export function ProdutoraPanel(props: {
     })
     const json = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(json.error || 'Não foi possível criar a estrutura inicial.')
+
+    if (form.tipo === 'copa') {
+      const finalPhase = Array.isArray(json.fases) ? json.fases.find((fase: any) => String(fase?.tipo || '') === 'grande_final') : null
+      const finalPlan = form.estrutura_planejada.at(-1)
+      if (finalPhase?.id && finalPlan) {
+        const finalFormat = String(finalPlan.final_formato || form.final_formato || 'pontos_corridos')
+        const usesChampionPoint = finalFormat === 'champion_point' || finalFormat === 'point_rush_champion_point'
+        const usesPointRush = finalFormat === 'point_rush' || finalFormat === 'point_rush_champion_point'
+        const configResponse = await fetch(`/api/campeonatos/${campeonatoId}/fases/${finalPhase.id}/configuracao-jogos`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            modo_decisao: usesChampionPoint ? 'booyah_ouro' : 'pontuacao_normal',
+            modo_acumulacao: usesPointRush ? 'bonus_por_ranking' : 'acumulado',
+            booyah_ouro_pontos_limite: usesChampionPoint ? Number(finalPlan.final_champion_point_pontos || form.final_champion_point_pontos || 160) : null,
+            booyah_ouro_queda_minima: null,
+            booyah_ouro_desempate_final: 'maior_pontuacao',
+            jogo_decisivo_id: null,
+            bonus_ranking: usesPointRush
+              ? (finalPlan.final_bonus_ranking || form.final_bonus_ranking || []).filter((item) => item.pontos_bonus !== '').map((item) => ({ posicao: item.posicao, pontos_bonus: Number(item.pontos_bonus || 0) }))
+              : [],
+          }),
+        })
+        const configJson = await configResponse.json().catch(() => ({}))
+        if (!configResponse.ok) throw new Error(configJson.error || 'A estrutura foi criada, mas não foi possível salvar as regras da Final.')
+      }
+    }
+
     await props.reloadStructure?.()
   }
 

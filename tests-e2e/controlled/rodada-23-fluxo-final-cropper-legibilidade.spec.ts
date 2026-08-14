@@ -32,12 +32,14 @@ test.describe('Rodada 23 — fluxo, final, cropper e legibilidade', () => {
     expect(form).toContain('Vagas disponíveis')
   })
 
-  test('Final da Copa tem dias, quedas por dia, formato e observações', () => {
+  test('Final da Copa tem dias, quedas por dia configuráveis, formato e observações', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
     expect(form).toContain('Dias de Final')
-    expect(form).toContain('Quedas por dia')
+    expect(form).toContain('final_dias_config')
+    expect(form).toContain('Quedas neste dia')
     expect(form).toContain('Formato da Final')
     expect(form).toContain('Champion Point')
+    expect(form).toContain('Point Rush')
     expect(form).toContain('Observações da Final (opcional)')
   })
 

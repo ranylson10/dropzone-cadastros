@@ -633,8 +633,7 @@ export async function obterConfiguracaoFase(campeonatoId: string, faseId: string
 export async function atualizarConfiguracaoFase(campeonatoId: string, faseId: string, input: FaseConfiguracaoInput) {
   await assertCampeonatoFase(campeonatoId, faseId)
 
-  if (input.modo_acumulacao === 'bonus_por_ranking') {
-    if (!input.jogo_decisivo_id) throw new Error('Selecione o jogo decisivo do Point Rush.')
+  if (input.modo_acumulacao === 'bonus_por_ranking' && input.jogo_decisivo_id) {
     const { data: decisivo, error: decisivoError } = await supabaseAdmin
       .from('campeonato_jogos')
       .select('id')

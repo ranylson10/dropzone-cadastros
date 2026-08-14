@@ -7371,3 +7371,30 @@ body .championship-guided-final-summary strong{color:var(--ui-text);font-size:18
   body .championship-guided-final-summary>div{border-right:0;border-bottom:1px solid var(--ui-line)}
   body .championship-guided-final-summary>div:last-child{border-bottom:0}
 }
+
+
+/* Rodada 25 — Final por dia, Champion Point e Point Rush. */
+body .championship-final-days{display:grid;gap:7px;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+body .championship-final-day-row{display:grid;grid-template-columns:72px minmax(180px,320px) 100px;gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ui-line)}
+body .championship-final-day-row:last-child{border-bottom:0}
+body .championship-final-day-row>span{display:grid;gap:2px}
+body .championship-final-day-row>span small{color:var(--ui-text-muted);font-size:8px;font-weight:900;text-transform:uppercase}
+body .championship-final-day-row>span strong{color:var(--ui-text);font-size:18px}
+body .championship-final-day-row>em{color:var(--ui-accent-light);font-size:11px;font-style:normal;font-weight:900;text-align:right}
+body .championship-final-rule{border-bottom:1px solid var(--ui-line)}
+body .championship-final-bonus-editor{display:grid;gap:6px;max-width:620px}
+body .championship-final-bonus-head,
+body .championship-final-bonus-row{display:grid;grid-template-columns:minmax(100px,.6fr) minmax(160px,1fr) 42px;gap:8px;align-items:center}
+body .championship-final-bonus-head{padding:0 0 5px;color:var(--ui-text-muted);font-size:9px;font-weight:900;text-transform:uppercase}
+body .championship-final-bonus-row{min-height:42px}
+body .championship-final-bonus-row strong{color:var(--ui-text);font-size:11px}
+body .championship-final-bonus-row input{min-height:40px}
+body .championship-final-bonus-row .icon-action-button{width:40px;height:40px}
+body .championship-final-bonus-add{justify-self:start;margin-top:3px}
+body .championship-wizard-error{margin:0 0 8px}
+@media(max-width:760px){
+  body .championship-final-day-row{grid-template-columns:56px minmax(0,1fr);gap:8px 10px}
+  body .championship-final-day-row>em{grid-column:2;text-align:left}
+  body .championship-final-bonus-head{display:none}
+  body .championship-final-bonus-row{grid-template-columns:minmax(82px,.5fr) minmax(0,1fr) 40px}
+}

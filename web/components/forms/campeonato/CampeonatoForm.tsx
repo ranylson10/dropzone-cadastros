@@ -29,8 +29,12 @@ export type CampeonatoFormValue = {
   /** Quantidade de partidas da final quando for diferente das fases anteriores */
   partidas_final?: string
   final_dias?: string
+  final_dias_config?: Array<{ dia: number; quedas: string }>
   final_quedas_por_dia?: string
-  final_formato?: 'pontos_corridos' | 'champion_point' | 'personalizado'
+  final_formato?: 'pontos_corridos' | 'champion_point' | 'point_rush' | 'point_rush_champion_point' | 'personalizado'
+  final_champion_point_pontos?: string
+  final_point_rush_dias?: string
+  final_bonus_ranking?: Array<{ posicao: number; pontos_bonus: string }>
   final_observacoes?: string
   plataforma: string
   servidor: string
@@ -88,6 +92,11 @@ export type CampeonatoStructurePhase = {
   grupos: string
   equipes_por_grupo: string
   classificam_por_grupo: string
+  final_dias_config?: Array<{ dia: number; quedas: string }>
+  final_formato?: CampeonatoFormValue['final_formato']
+  final_champion_point_pontos?: string
+  final_point_rush_dias?: string
+  final_bonus_ranking?: Array<{ posicao: number; pontos_bonus: string }>
 }
 
 export type CampeonatoWhatsappContact = {
@@ -125,8 +134,16 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   partidas_por_jogo: '4',
   partidas_final: '6',
   final_dias: '1',
+  final_dias_config: [{ dia: 1, quedas: '6' }],
   final_quedas_por_dia: '6',
   final_formato: 'pontos_corridos',
+  final_champion_point_pontos: '160',
+  final_point_rush_dias: '1',
+  final_bonus_ranking: [
+    { posicao: 1, pontos_bonus: '12' },
+    { posicao: 2, pontos_bonus: '9' },
+    { posicao: 3, pontos_bonus: '8' },
+  ],
   final_observacoes: '',
   plataforma: '',
   servidor: '',
@@ -328,6 +345,7 @@ export function CampeonatoForm({
   const [quote, setQuote] = useState<PriceQuote | null>(null)
   const [quoteError, setQuoteError] = useState('')
   const [quoteLoading, setQuoteLoading] = useState(false)
+  const [wizardError, setWizardError] = useState('')
 
   useEffect(() => {
     setStep(mode === 'edit' ? 'form' : 'type')
@@ -472,6 +490,17 @@ export function CampeonatoForm({
     const perGroup = String(Math.max(2, Number(perGroupRaw) || 12))
     const advance = String(Math.max(1, Math.min(Number(perGroup) - 1, Number(advanceRaw) || 6)))
     const plan = guidedCupPlan(total, perGroup, advance)
+    const previousFinal = value.estrutura_planejada.at(-1)
+    if (plan.length && previousFinal) {
+      plan[plan.length - 1] = {
+        ...plan[plan.length - 1],
+        final_dias_config: previousFinal.final_dias_config,
+        final_formato: previousFinal.final_formato,
+        final_champion_point_pontos: previousFinal.final_champion_point_pontos,
+        final_point_rush_dias: previousFinal.final_point_rush_dias,
+        final_bonus_ranking: previousFinal.final_bonus_ranking,
+      }
+    }
     onChange({
       ...value,
       numero_vagas: total,
@@ -500,8 +529,16 @@ export function CampeonatoForm({
       partidas_por_jogo: type === 'diario' || type === 'copa' ? (value.partidas_por_jogo || '4') : value.partidas_por_jogo,
       partidas_final: type === 'copa' ? (value.partidas_final || '6') : value.partidas_final,
       final_dias: type === 'copa' ? (value.final_dias || '1') : value.final_dias,
+      final_dias_config: type === 'copa'
+        ? (Array.isArray(value.final_dias_config) && value.final_dias_config.length ? value.final_dias_config : [{ dia: 1, quedas: value.final_quedas_por_dia || value.partidas_final || '6' }])
+        : value.final_dias_config,
       final_quedas_por_dia: type === 'copa' ? (value.final_quedas_por_dia || value.partidas_final || '6') : value.final_quedas_por_dia,
       final_formato: type === 'copa' ? (value.final_formato || 'pontos_corridos') : value.final_formato,
+      final_champion_point_pontos: type === 'copa' ? (value.final_champion_point_pontos || '160') : value.final_champion_point_pontos,
+      final_point_rush_dias: type === 'copa' ? (value.final_point_rush_dias || '1') : value.final_point_rush_dias,
+      final_bonus_ranking: type === 'copa'
+        ? (Array.isArray(value.final_bonus_ranking) && value.final_bonus_ranking.length ? value.final_bonus_ranking : [{ posicao: 1, pontos_bonus: '12' }, { posicao: 2, pontos_bonus: '9' }, { posicao: 3, pontos_bonus: '8' }])
+        : value.final_bonus_ranking,
       final_observacoes: type === 'copa' ? (value.final_observacoes || '') : value.final_observacoes,
       inscricao_paga: value.inscricao_paga ?? Number(value.valor_inscricao) > 0,
       plataforma: value.plataforma || 'mobile',
@@ -604,7 +641,8 @@ export function CampeonatoForm({
       const copyKeys: Array<keyof CampeonatoFormValue> = [
         'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
         'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final',
-        'final_dias', 'final_quedas_por_dia', 'final_formato', 'final_observacoes', 'plataforma', 'servidor', 'tipo_premiacao', 'inscricao_paga',
+        'final_dias', 'final_dias_config', 'final_quedas_por_dia', 'final_formato', 'final_champion_point_pontos',
+        'final_point_rush_dias', 'final_bonus_ranking', 'final_observacoes', 'plataforma', 'servidor', 'tipo_premiacao', 'inscricao_paga',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
         'permite_jogador_multiplas_equipes', 'permite_troca_jogadores', 'data_limite_trocas',
         'data_limite_inscricao', 'aceita_novas_inscricoes_equipes', 'contatos_whatsapp',
@@ -664,12 +702,71 @@ export function CampeonatoForm({
     updatePrizeType(nextType)
   }
 
-  function updateCupFinal(patch: Partial<Pick<CampeonatoFormValue, 'final_dias' | 'final_quedas_por_dia' | 'final_formato' | 'final_observacoes'>>) {
-    const next = { ...value, ...patch }
-    const days = Math.max(1, Number(next.final_dias || 1))
-    const perDay = Math.max(1, Number(next.final_quedas_por_dia || 1))
-    next.partidas_final = String(days * perDay)
+  function updateCupFinal(patch: Partial<Pick<
+    CampeonatoFormValue,
+    'final_dias' | 'final_dias_config' | 'final_quedas_por_dia' | 'final_formato' |
+    'final_champion_point_pontos' | 'final_point_rush_dias' | 'final_bonus_ranking' | 'final_observacoes'
+  >>) {
+    const next: CampeonatoFormValue = { ...value, ...patch }
+    const days = Math.max(1, Math.min(15, Number(next.final_dias || 1)))
+    const sourceDays = Array.isArray(next.final_dias_config) ? next.final_dias_config : []
+    const fallback = String(Math.max(1, Number(next.final_quedas_por_dia || value.partidas_final || 6)))
+    const dayPlan = Array.from({ length: days }, (_, index) => {
+      const day = index + 1
+      const existing = sourceDays.find((item) => Number(item.dia) === day)
+      return { dia: day, quedas: String(Math.max(1, Number(existing?.quedas || fallback))) }
+    })
+    const totalFalls = dayPlan.reduce((sum, item) => sum + Math.max(1, Number(item.quedas || 1)), 0)
+    next.final_dias = String(days)
+    next.final_dias_config = dayPlan
+    next.final_quedas_por_dia = dayPlan[0]?.quedas || fallback
+    next.partidas_final = String(totalFalls)
+
+    const finalIndex = next.estrutura_planejada.length - 1
+    if (finalIndex >= 0) {
+      next.estrutura_planejada = next.estrutura_planejada.map((phase, index) => index === finalIndex ? {
+        ...phase,
+        final_dias_config: dayPlan,
+        final_formato: next.final_formato,
+        final_champion_point_pontos: next.final_champion_point_pontos,
+        final_point_rush_dias: next.final_point_rush_dias,
+        final_bonus_ranking: next.final_bonus_ranking,
+      } : phase)
+    }
+    setWizardError('')
     onChange(next)
+  }
+
+  function updateFinalDayFalls(day: number, raw: string) {
+    const current = Array.isArray(value.final_dias_config) ? value.final_dias_config : []
+    const nextDays = Array.from({ length: Math.max(1, Number(value.final_dias || 1)) }, (_, index) => {
+      const currentDay = index + 1
+      const existing = current.find((item) => Number(item.dia) === currentDay)
+      return {
+        dia: currentDay,
+        quedas: currentDay === day ? raw : String(existing?.quedas || value.final_quedas_por_dia || '6'),
+      }
+    })
+    updateCupFinal({ final_dias_config: nextDays })
+  }
+
+  function addFinalBonusPosition() {
+    const current = Array.isArray(value.final_bonus_ranking) ? value.final_bonus_ranking : []
+    updateCupFinal({ final_bonus_ranking: [...current, { posicao: current.length + 1, pontos_bonus: '' }] })
+  }
+
+  function updateFinalBonusPosition(index: number, pontos: string) {
+    const current = Array.isArray(value.final_bonus_ranking) ? value.final_bonus_ranking : []
+    updateCupFinal({ final_bonus_ranking: current.map((item, itemIndex) => itemIndex === index ? { ...item, pontos_bonus: pontos } : item) })
+  }
+
+  function removeFinalBonusPosition(index: number) {
+    const current = Array.isArray(value.final_bonus_ranking) ? value.final_bonus_ranking : []
+    updateCupFinal({
+      final_bonus_ranking: current
+        .filter((_, itemIndex) => itemIndex !== index)
+        .map((item, itemIndex) => ({ ...item, posicao: itemIndex + 1 })),
+    })
   }
 
   function addWhatsappContact() {
@@ -788,28 +885,38 @@ export function CampeonatoForm({
   const currentPageIndex = Math.max(0, wizardPages.findIndex((page) => page.id === formPage))
   const pageVisible = (page: typeof formPage) => mode === 'edit' || formPage === page
   function goNext() {
+    setWizardError('')
     if (formPage === 'origin') {
-      if (!originChoice) return
-      if (value.origem_criacao !== 'novo' && !value.campeonato_origem_id) return
-      if (!value.nome.trim() || !value.logo_url) return
+      if (!originChoice) return setWizardError('Escolha como deseja criar o campeonato.')
+      if (value.origem_criacao !== 'novo' && !value.campeonato_origem_id) return setWizardError('Selecione o campeonato de origem.')
+      if (!value.nome.trim() || !value.logo_url) return setWizardError('Informe o nome e envie a logo para continuar.')
     }
     if (formPage === 'format' && value.tipo === 'copa') {
       const first = value.estrutura_planejada[0]
-      if (!first || Number(value.numero_vagas) < 2 || Number(first.equipes_por_grupo) < 2 || Number(first.classificam_por_grupo) < 1) return
-      if (Number(first.classificam_por_grupo) >= Number(first.equipes_por_grupo)) return
+      if (!first || Number(value.numero_vagas) < 2 || Number(first.equipes_por_grupo) < 2 || Number(first.classificam_por_grupo) < 1) return setWizardError('Confira vagas, equipes por grupo e quantas avançam.')
+      if (Number(first.classificam_por_grupo) >= Number(first.equipes_por_grupo)) return setWizardError('A quantidade que avança precisa ser menor que o total de equipes do grupo.')
     }
-    if (formPage === 'format' && value.tipo === 'diario' && Number(value.numero_vagas) < 2) return
     if (formPage === 'operation' && (value.tipo === 'diario' || value.tipo === 'copa')) {
-      if (Number(value.numero_vagas) < 2) return
-      if (value.inscricao_paga && Number(value.valor_inscricao || 0) <= 0) return
+      if (Number(value.numero_vagas) < 2) return setWizardError('Informe pelo menos 2 equipes/vagas.')
+      if (value.inscricao_paga && Number(value.valor_inscricao || 0) <= 0) return setWizardError('A inscrição está marcada como paga. Informe um valor maior que R$ 0,00 ou selecione Gratuita.')
+      if (showMoneyPrize && Number(value.premiacao || 0) <= 0) return setWizardError('Informe o valor da premiação ou selecione Sem premiação.')
+      if (showGiftPrize && !value.descricao_premiacao.trim()) return setWizardError('Descreva o brinde da premiação para continuar.')
     }
-    if (formPage === 'matches' && value.tipo === 'diario' && Number(value.partidas_por_jogo || 0) < 1) return
+    if (formPage === 'matches' && value.tipo === 'diario' && Number(value.partidas_por_jogo || 0) < 1) return setWizardError('Informe quantas quedas terá o Diário.')
     if (formPage === 'matches' && value.tipo === 'copa') {
-      if (Number(value.final_dias || 0) < 1 || Number(value.final_quedas_por_dia || 0) < 1) return
+      const dayPlan = Array.isArray(value.final_dias_config) ? value.final_dias_config : []
+      if (Number(value.final_dias || 0) < 1 || dayPlan.length !== Number(value.final_dias)) return setWizardError('Confira a quantidade de dias da Final.')
+      if (dayPlan.some((item) => Number(item.quedas || 0) < 1)) return setWizardError('Informe quantas quedas serão disputadas em cada dia da Final.')
+      const usesChampionPoint = value.final_formato === 'champion_point' || value.final_formato === 'point_rush_champion_point'
+      const usesPointRush = value.final_formato === 'point_rush' || value.final_formato === 'point_rush_champion_point'
+      if (usesChampionPoint && Number(value.final_champion_point_pontos || 0) <= 0) return setWizardError('Informe a pontuação necessária para ativar o Champion Point.')
+      if (usesPointRush && Number(value.final_point_rush_dias || 0) < 1) return setWizardError('Informe quantos dias usarão o formato Point Rush.')
+      if (usesPointRush && (!value.final_bonus_ranking?.length || value.final_bonus_ranking.every((item) => item.pontos_bonus === ''))) return setWizardError('Defina pelo menos um bônus por posição para o Point Rush.')
     }
     const next = wizardPages[currentPageIndex + 1]
     if (next) setFormPage(next.id)
   }
+
   function goBack() {
     const previous = wizardPages[currentPageIndex - 1]
     if (previous) setFormPage(previous.id)
@@ -1354,39 +1461,84 @@ export function CampeonatoForm({
               <div className="championship-guided-copy">
                 <span>Configuração da Final</span>
                 <strong>Como será disputada a Final?</strong>
-                <small>A Final pode ter vários dias e uma quantidade própria de quedas, independente das fases anteriores.</small>
+                <small>Configure cada dia separadamente. Essas escolhas serão reaproveitadas quando os jogos da Grande Final forem criados.</small>
               </div>
 
               <div className="championship-guided-final-grid">
                 <Field label="Dias de Final">
                   <input type="number" min="1" max="15" value={value.final_dias || '1'} onChange={(event) => updateCupFinal({ final_dias: event.target.value })} placeholder="Ex.: 2" />
                 </Field>
-                <Field label="Quedas por dia">
-                  <input type="number" min="1" max="20" value={value.final_quedas_por_dia || '6'} onChange={(event) => updateCupFinal({ final_quedas_por_dia: event.target.value })} placeholder="Ex.: 5" />
-                </Field>
                 <Field label="Formato da Final">
                   <select value={value.final_formato || 'pontos_corridos'} onChange={(event) => updateCupFinal({ final_formato: event.target.value as CampeonatoFormValue['final_formato'] })}>
                     <option value="pontos_corridos">Pontos corridos</option>
                     <option value="champion_point">Champion Point</option>
+                    <option value="point_rush">Point Rush</option>
+                    <option value="point_rush_champion_point">Point Rush + Champion Point</option>
                     <option value="personalizado">Personalizado</option>
                   </select>
                 </Field>
+                <Field label="Equipes na Final"><input value={value.estrutura_planejada.at(-1)?.equipes_por_grupo || '12'} disabled /></Field>
               </div>
 
-              <div className="championship-guided-final-summary">
-                <div><small>Equipes na Final</small><strong>{value.estrutura_planejada.at(-1)?.equipes_por_grupo || '12'}</strong></div>
-                <div><small>Dias</small><strong>{value.final_dias || '1'}</strong></div>
-                <div><small>Total de quedas</small><strong>{Math.max(1, Number(value.final_dias || 1)) * Math.max(1, Number(value.final_quedas_por_dia || 1))}</strong></div>
+              <div className="championship-final-days">
+                {(value.final_dias_config || [{ dia: 1, quedas: value.final_quedas_por_dia || '6' }]).map((day) => (
+                  <div className="championship-final-day-row" key={day.dia}>
+                    <span><small>Dia</small><strong>{day.dia}</strong></span>
+                    <Field label="Quedas neste dia">
+                      <input type="number" min="1" max="30" value={day.quedas} onChange={(event) => updateFinalDayFalls(day.dia, event.target.value)} placeholder="Ex.: 6" />
+                    </Field>
+                    <em>{day.quedas || '0'} quedas</em>
+                  </div>
+                ))}
               </div>
+
+              {(value.final_formato === 'champion_point' || value.final_formato === 'point_rush_champion_point') ? (
+                <div className="championship-guided-decision championship-final-rule">
+                  <div className="championship-guided-decision-copy">
+                    <strong>Champion Point</strong>
+                    <small>Ao atingir essa pontuação, a equipe fica elegível para fechar o campeonato com BOOYAH.</small>
+                  </div>
+                  <div className="championship-guided-field">
+                    <Field label="Pontos para ativar">
+                      <input type="number" min="1" step="1" value={value.final_champion_point_pontos || '160'} onChange={(event) => updateCupFinal({ final_champion_point_pontos: event.target.value })} placeholder="Ex.: 160" />
+                    </Field>
+                  </div>
+                </div>
+              ) : null}
+
+              {(value.final_formato === 'point_rush' || value.final_formato === 'point_rush_champion_point') ? (
+                <div className="championship-guided-decision championship-final-rule">
+                  <div className="championship-guided-decision-copy">
+                    <strong>Point Rush</strong>
+                    <small>Defina quantos dias usarão o formato e qual bônus cada colocação leva para a etapa decisiva.</small>
+                  </div>
+                  <div className="championship-guided-field">
+                    <Field label="Dias de Point Rush">
+                      <input type="number" min="1" max={Math.max(1, Number(value.final_dias || 1))} value={value.final_point_rush_dias || '1'} onChange={(event) => updateCupFinal({ final_point_rush_dias: event.target.value })} />
+                    </Field>
+                  </div>
+                  <div className="championship-final-bonus-editor">
+                    <div className="championship-final-bonus-head"><span>Posição</span><span>Bônus de pontos</span></div>
+                    {(value.final_bonus_ranking || []).map((item, index) => (
+                      <div className="championship-final-bonus-row" key={`${item.posicao}-${index}`}>
+                        <strong>TOP {item.posicao}</strong>
+                        <input type="number" min="0" step="1" value={item.pontos_bonus} onChange={(event) => updateFinalBonusPosition(index, event.target.value)} placeholder="Ex.: 12" />
+                        <button type="button" className="icon-action-button danger" onClick={() => removeFinalBonusPosition(index)} aria-label={`Remover TOP ${item.posicao}`}><Trash2 size={15} /></button>
+                      </div>
+                    ))}
+                    <button type="button" className="button secondary championship-final-bonus-add" onClick={addFinalBonusPosition}><Plus size={14} /> Adicionar posição</button>
+                  </div>
+                </div>
+              ) : null}
 
               <Field label="Observações da Final (opcional)">
-                <textarea value={value.final_observacoes || ''} onChange={(event) => updateCupFinal({ final_observacoes: event.target.value })} placeholder="Ex.: Dia 1 com 5 quedas; Dia 2 até Champion Point; regra especial de desempate..." />
+                <textarea value={value.final_observacoes || ''} onChange={(event) => updateCupFinal({ final_observacoes: event.target.value })} placeholder="Ex.: Dia 1 com 6 quedas; Dia 2 com 10; regra especial de desempate..." />
               </Field>
 
-              <div className="championship-guided-preview">
-                <span>Resumo da Final</span>
-                <strong>{value.final_dias || '1'} dia(s) · {value.final_quedas_por_dia || '0'} quedas por dia · {value.partidas_final || '0'} quedas previstas</strong>
-                <small>Datas e horários específicos podem ser definidos depois na organização.</small>
+              <div className="championship-guided-final-summary">
+                <div><small>Dias</small><strong>{value.final_dias || '1'}</strong></div>
+                <div><small>Total de quedas</small><strong>{value.partidas_final || '0'}</strong></div>
+                <div><small>Formato</small><strong>{value.final_formato === 'champion_point' ? 'Champion Point' : value.final_formato === 'point_rush' ? 'Point Rush' : value.final_formato === 'point_rush_champion_point' ? 'Point Rush + CP' : value.final_formato === 'personalizado' ? 'Personalizado' : 'Pontos corridos'}</strong></div>
               </div>
             </div>
           )}
@@ -1724,7 +1876,7 @@ export function CampeonatoForm({
             {value.tipo === 'copa' ? (
               <div>
                 <small>Final</small>
-                <strong>{value.final_dias || '1'} dia(s) · {value.final_quedas_por_dia || '0'} quedas/dia · {value.partidas_final || '0'} no total</strong>
+                <strong>{(value.final_dias_config || []).map((day) => `Dia ${day.dia}: ${day.quedas} quedas`).join(' · ') || `${value.final_dias || '1'} dia(s)`}{' · '}{value.partidas_final || '0'} no total</strong>
               </div>
             ) : null}
             {(value.tipo === 'diario' || value.tipo === 'copa') ? (
@@ -1812,6 +1964,7 @@ export function CampeonatoForm({
         </section>
       ) : null}
 
+      {wizardError ? <div className="message error championship-wizard-error">{wizardError}</div> : null}
       <div className="button-row championship-wizard-actions">
         {mode === 'create' ? <button className="button secondary" type="button" onClick={goBack} disabled={loading}>Voltar</button> : null}
         {mode === 'create' && formPage !== 'review' ? (
