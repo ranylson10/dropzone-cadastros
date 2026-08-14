@@ -805,3 +805,54 @@ body .notif-inbox-panel .message.error.compact{border-color:rgba(215,108,108,.45
 body .notif-inbox-panel .button.secondary{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
 body .notif-inbox-panel .button.secondary:hover{border-color:var(--ui-accent);background:rgba(201,183,102,.1);color:var(--ui-text)}
 body .notif-inbox-panel .button:not(.secondary){border-color:var(--ui-accent);background:var(--ui-accent);color:#111216}
+
+/* Modais legados: mesma superfÃ­cie e contraste dos modais novos, sem mexer nos fluxos. */
+body .auth-overlay,
+body .invite-modal-backdrop,
+body .report-modal-backdrop,
+body .cropper-overlay,
+body .manager-add-champ-overlay,
+body .line-transfer-modal-backdrop{background:rgba(5,6,8,.78);backdrop-filter:blur(7px)}
+body .auth-modal,
+body .cropper-modal,
+body .invite-modal,
+body .report-modal,
+body .manager-add-champ-modal,
+body .line-transfer-modal{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-lg);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:0 24px 64px rgba(0,0,0,.38);
+}
+body .invite-modal > header span,
+body .line-transfer-modal > header span{color:var(--ui-muted)}
+body .invite-modal > header button,
+body .report-modal > header > button{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .team-slot-modal input,
+body .team-slot-modal select,
+body .report-modal select,
+body .report-modal textarea{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .team-slot-modal input:focus,
+body .team-slot-modal select:focus,
+body .report-modal select:focus,
+body .report-modal textarea:focus{outline:2px solid var(--ui-accent);outline-offset:1px;border-color:var(--ui-accent)}
+
+@media(max-width:640px){
+  body .auth-modal,
+  body .cropper-modal,
+  body .invite-modal,
+  body .report-modal,
+  body .manager-add-champ-modal,
+  body .line-transfer-modal{border-radius:var(--ui-radius-md)}
+}
