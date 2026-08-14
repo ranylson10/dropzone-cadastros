@@ -1,1 +1,248 @@
-.champ-public-hero{grid-template-columns:76px minmax(0,1fr) minmax(280px,auto)!important;align-items:center!important}.champ-public-profile-facts{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:1px;align-self:stretch;margin:0;background:rgba(255,255,255,.14)}.champ-public-profile-facts div{padding:11px 13px;background:rgba(7,13,20,.34)}.champ-public-profile-facts dt{font-size:8px;color:rgba(255,255,255,.58);font-weight:900;text-transform:uppercase;letter-spacing:.08em}.champ-public-profile-facts dd{margin:5px 0 0;color:#fff;font-weight:800;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}@media(max-width:850px){.champ-public-hero{grid-template-columns:58px minmax(0,1fr)!important}.champ-public-profile-facts{display:none}}
+/* Campeonato usa o mesmo perfil escuro; a cor configurada só aparece como detalhe. */
+.champ-public {
+  --champ-ink: #f5f3ed;
+  --champ-muted: #9298a3;
+  --champ-line: rgba(255, 255, 255, .1);
+  --champ-surface: #12151a;
+  --champ-gold: #d7c461;
+  padding-bottom: 52px;
+  background: #0b0d10;
+}
+
+.champ-public .directory-profile-banner {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--champ-line);
+  border-radius: 0;
+  background: var(--champ-surface) !important;
+  box-shadow: none;
+}
+
+.champ-public .directory-profile-banner::before,
+.champ-public .directory-profile-banner::after,
+.champ-public .directory-hero-character { display: none !important; }
+
+.champ-public .directory-profile-banner-inner {
+  width: min(1240px, calc(100% - 32px));
+  padding: 20px 0 0;
+}
+
+.champ-public .directory-back.on-banner {
+  margin: 0 0 20px;
+  color: var(--champ-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.champ-public .champ-public-hero {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) minmax(280px, auto) !important;
+  align-items: center !important;
+  gap: 16px;
+  padding-bottom: 20px;
+}
+
+.champ-public .directory-profile-avatar {
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  border: 1px solid rgba(215, 196, 97, .48);
+  border-radius: 999px;
+  background: #1d222a;
+}
+
+.champ-public .directory-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.champ-public .directory-profile-copy small { color: var(--champ-muted); font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.champ-public .directory-profile-copy h1 { margin: 4px 0; color: var(--champ-ink); font-size: clamp(28px, 4vw, 46px); line-height: .98; letter-spacing: -.04em; text-transform: uppercase; }
+.champ-public .directory-profile-copy > .directory-profile-desc { margin: 8px 0 0; color: #c7cbd1; font-size: 13px; line-height: 1.45; text-shadow: none; }
+
+.champ-public .champ-public-profile-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 0;
+  align-self: stretch;
+  margin: 0;
+  border-left: 1px solid var(--champ-line);
+  background: transparent;
+}
+
+.champ-public .champ-public-profile-facts div { padding: 12px 16px; border-bottom: 1px solid var(--champ-line); background: transparent; }
+.champ-public .champ-public-profile-facts div:nth-last-child(-n + 2) { border-bottom: 0; }
+.champ-public .champ-public-profile-facts dt { color: var(--champ-muted); font-size: 8px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.champ-public .champ-public-profile-facts dd { margin: 5px 0 0; color: var(--champ-ink); font-size: 12px; font-weight: 800; }
+
+.champ-public .champ-public-nav {
+  display: flex;
+  gap: 0;
+  min-height: 46px;
+  margin-top: 0;
+  overflow-x: auto;
+  border: 0;
+  border-top: 1px solid var(--champ-line);
+  border-bottom: 1px solid var(--champ-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.champ-public .champ-public-nav-btn {
+  min-width: auto;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 7px;
+  padding: 0 15px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--champ-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .075em;
+}
+
+.champ-public .champ-public-nav-btn.active,
+.champ-public .champ-public-nav-btn:hover {
+  border-color: transparent;
+  border-bottom-color: var(--champ-gold);
+  background: transparent;
+  box-shadow: none;
+  color: var(--champ-ink);
+}
+
+.champ-public .champ-public-nav-btn::after { display: none; }
+.champ-public .champ-public-nav-count { min-width: 18px; height: 17px; margin-left: 0; padding: 0 4px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--champ-muted); font-size: 8px; }
+
+.champ-public .champ-public-panel {
+  width: min(1240px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--champ-ink);
+}
+
+.champ-public .champ-public-info { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.champ-public .champ-public-panel-head { padding-bottom: 15px; border-bottom: 1px solid var(--champ-line); color: var(--champ-ink); }
+.champ-public .champ-public-panel-head small { color: var(--champ-muted); }
+.champ-public .champ-public-panel-head svg { color: var(--champ-gold); }
+
+.champ-public .champ-public-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 16px;
+  border-top: 1px solid var(--champ-line);
+  border-bottom: 1px solid var(--champ-line);
+  background: transparent;
+}
+
+.champ-public .champ-public-info-card {
+  min-height: 82px;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  padding: 14px 16px;
+  border: 0;
+  border-right: 1px solid var(--champ-line);
+  border-top: 0;
+  border-left: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.champ-public .champ-public-info-card:nth-child(3n) { border-right: 0; }
+.champ-public .champ-public-info-card small { color: var(--champ-muted); font-size: 8px; }
+.champ-public .champ-public-info-card strong { color: var(--champ-ink); font-size: 15px; }
+
+.champ-public .directory-related-list,
+.champ-public .champ-public-team-list,
+.champ-public .champ-public-player-list,
+.champ-public .directory-public-slots {
+  gap: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.champ-public .directory-related-list > a,
+.champ-public .directory-related-list > article,
+.champ-public .champ-public-team-row,
+.champ-public .champ-public-player-row,
+.champ-public .directory-public-slot,
+.champ-public .directory-public-slots .championship-vaga-row {
+  min-height: 66px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--champ-line);
+  border-left: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  color: var(--champ-ink);
+}
+
+.champ-public .directory-related-list > a:hover,
+.champ-public .champ-public-team-row:hover,
+.champ-public .champ-public-player-row:hover,
+.champ-public .directory-public-slots .championship-vaga-row:hover {
+  transform: none;
+  border-left: 0;
+  background: rgba(255,255,255,.025) !important;
+  box-shadow: none;
+}
+
+.champ-public .directory-related-list > a > span,
+.champ-public .directory-related-list > article > span,
+.champ-public .champ-public-team-row > span,
+.champ-public .champ-public-player-row > span,
+.champ-public .directory-public-slots .vaga-row-avatar {
+  border: 0;
+  border-radius: 999px;
+  background: #1a1e24;
+}
+
+.champ-public .directory-related-list strong,
+.champ-public .champ-public-team-copy strong,
+.champ-public .champ-public-player-copy strong,
+.champ-public .directory-public-slots .vaga-row-identity strong { color: var(--champ-ink); }
+.champ-public .directory-related-list small,
+.champ-public .directory-related-list em,
+.champ-public .champ-public-team-copy small,
+.champ-public .champ-public-player-copy small,
+.champ-public .directory-public-slots .vaga-row-identity small { color: var(--champ-muted); }
+
+.champ-public .champ-public-enroll-btn,
+.champ-public .champ-artworks-hero-cta,
+.champ-public .champ-public-info-links .button {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+@media (max-width: 850px) {
+  .champ-public .directory-profile-banner-inner,
+  .champ-public .champ-public-panel { width: calc(100% - 24px); }
+  .champ-public .directory-profile-banner-inner { padding-top: 14px; }
+  .champ-public .champ-public-hero { grid-template-columns: 60px minmax(0, 1fr) !important; gap: 12px; padding-bottom: 16px; }
+  .champ-public .directory-profile-avatar { width: 60px; height: 60px; }
+  .champ-public .directory-profile-copy h1 { font-size: 25px; }
+  .champ-public .directory-profile-copy > .directory-profile-desc { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 12px; }
+  .champ-public .champ-public-profile-facts { display: none; }
+  .champ-public .champ-public-nav-btn { min-height: 44px; padding: 0 12px; }
+  .champ-public .champ-public-panel { padding-top: 20px; }
+  .champ-public .champ-public-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .champ-public .champ-public-info-card:nth-child(3n) { border-right: 1px solid var(--champ-line); }
+  .champ-public .champ-public-info-card:nth-child(2n) { border-right: 0; }
+}
