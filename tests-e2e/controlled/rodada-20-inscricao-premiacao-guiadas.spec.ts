@@ -19,7 +19,9 @@ test.describe('Rodada 20 — inscrição e premiação guiadas', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
 
     expect(form).toContain('function updateGuidedEntry')
-    expect(form).toContain("valor_inscricao: isPaid ? (value.valor_inscricao || '0.00') : ''")
+    expect(form).toContain('inscricao_paga?: boolean')
+    expect(form).toContain('inscricao_paga: isPaid')
+    expect(form).toContain("valor_inscricao: isPaid ? value.valor_inscricao : ''")
     expect(form).toContain('Valor da inscrição')
   })
 
@@ -45,7 +47,7 @@ test.describe('Rodada 20 — inscrição e premiação guiadas', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
 
     expect(form).toContain('<small>Inscrição</small>')
-    expect(form).toContain("<strong>{Number(value.valor_inscricao) > 0 ? moneyDisplay(value.valor_inscricao) : 'Gratuita'}</strong>")
+    expect(form).toContain("<strong>{value.inscricao_paga ? (moneyDisplay(value.valor_inscricao) || 'Paga · valor pendente') : 'Gratuita'}</strong>")
     expect(form).toContain('<small>Premiação</small>')
   })
 

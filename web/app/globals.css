@@ -7344,3 +7344,30 @@ body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .produce
     min-height: 72px;
   }
 }
+
+
+/* Rodada 23 — legibilidade e configuração de final no assistente. */
+@media (min-width:901px){
+  body .championship-guided-copy > strong{font-size:16px;line-height:1.25}
+  body .championship-guided-copy > small{font-size:12px;line-height:1.55}
+  body .championship-guided-decision-copy strong{font-size:15px}
+  body .championship-guided-decision-copy small{font-size:12px;line-height:1.5}
+  body .championship-guided-operation .field > label,
+  body .championship-guided-matches .field > label,
+  body .championship-guided-structure .field > label{font-size:11px}
+  body .championship-guided-choice-row button{font-size:11px}
+  body .championship-guided-preview small,
+  body .championship-guided-note{font-size:11px}
+}
+body .championship-guided-final-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+body .championship-guided-final-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+body .championship-guided-final-summary>div{display:grid;gap:3px;padding:12px 14px;border-right:1px solid var(--ui-line);background:transparent}
+body .championship-guided-final-summary>div:last-child{border-right:0}
+body .championship-guided-final-summary small{color:var(--ui-text-muted);font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+body .championship-guided-final-summary strong{color:var(--ui-text);font-size:18px}
+@media(max-width:760px){
+  body .championship-guided-final-grid{grid-template-columns:1fr}
+  body .championship-guided-final-summary{grid-template-columns:1fr}
+  body .championship-guided-final-summary>div{border-right:0;border-bottom:1px solid var(--ui-line)}
+  body .championship-guided-final-summary>div:last-child{border-bottom:0}
+}

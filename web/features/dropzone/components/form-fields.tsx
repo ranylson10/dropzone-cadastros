@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Minus, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Check, Minus, Plus, RotateCcw, Trash2, Upload, X } from 'lucide-react'
 
 const uploadTargets = {
   produtora: { width: 500, height: 500, kindLabel: 'logo' },
@@ -317,26 +317,30 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
               </div>
 
               <div className="cropper-workspace">
-                <div
-                  className="cropper-frame cropper-frame-interactive"
-                  style={{ width: previewWidth, height: previewHeight }}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerEnd}
-                  onPointerCancel={handlePointerEnd}
-                  onWheel={handleWheel}
-                >
-                  {sourceUrl ? <img src={sourceUrl} draggable={false} alt="Prévia" onLoad={(event) => {
-                    const element = event.currentTarget
-                    setNaturalSize({ width: element.naturalWidth, height: element.naturalHeight })
-                  }} style={{ width: drawWidth, height: drawHeight, left: displayLeft, top: displayTop }} /> : null}
-                  <span className="cropper-drag-hint">Arraste para posicionar</span>
+                <div className="cropper-canvas-column">
+                  <div
+                    className="cropper-frame cropper-frame-interactive"
+                    style={{ width: previewWidth, height: previewHeight }}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerEnd}
+                    onPointerCancel={handlePointerEnd}
+                    onWheel={handleWheel}
+                  >
+                    {sourceUrl ? <img src={sourceUrl} draggable={false} alt="Prévia" onLoad={(event) => {
+                      const element = event.currentTarget
+                      setNaturalSize({ width: element.naturalWidth, height: element.naturalHeight })
+                    }} style={{ width: drawWidth, height: drawHeight, left: displayLeft, top: displayTop }} /> : null}
+                    <span className="cropper-drag-hint">Arraste para posicionar</span>
+                  </div>
                 </div>
-                <div className="cropper-zoom-controls" aria-label="Controles de zoom">
-                  <button type="button" onClick={() => updateZoom(zoom - 0.15)} aria-label="Diminuir"><Minus size={19} /></button>
-                  <span>{Math.round(zoom * 100)}%</span>
-                  <button type="button" onClick={() => updateZoom(zoom + 0.15)} aria-label="Aumentar"><Plus size={19} /></button>
-                </div>
+                <aside className="cropper-side-controls" aria-label="Zoom da imagem">
+                  <button type="button" onClick={() => updateZoom(zoom + 0.15)} aria-label="Aumentar imagem"><Plus size={18} /></button>
+                  <input className="cropper-zoom-slider" type="range" min="100" max="400" step="5" value={Math.round(zoom * 100)} onChange={(event) => updateZoom(Number(event.target.value) / 100)} aria-label="Aumentar ou diminuir imagem" />
+                  <strong>{Math.round(zoom * 100)}%</strong>
+                  <button type="button" onClick={() => updateZoom(zoom - 0.15)} aria-label="Diminuir imagem"><Minus size={18} /></button>
+                  <button type="button" className="cropper-reset-button" onClick={() => { setZoom(1); setOffsetX(0); setOffsetY(0) }} aria-label="Centralizar e restaurar imagem" title="Centralizar e restaurar"><RotateCcw size={16} /></button>
+                </aside>
               </div>
               <p className="cropper-touch-note">No computador, arraste com o mouse e use +/− ou a roda. No celular, arraste e use dois dedos para ampliar.</p>
               {cropError ? <p className="message error" style={{ margin: '0 0 10px' }}>{cropError}</p> : null}

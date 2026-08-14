@@ -15,6 +15,8 @@ export type CampeonatoFormValue = {
   banner_url: string
   premiacao: string
   valor_inscricao: string
+  /** Estado explícito para selecionar "Paga" antes de informar o valor. */
+  inscricao_paga?: boolean
   descricao_premiacao: string
   divisao_premiacao: string
   numero_vagas: string
@@ -26,6 +28,10 @@ export type CampeonatoFormValue = {
   partidas_por_jogo?: string
   /** Quantidade de partidas da final quando for diferente das fases anteriores */
   partidas_final?: string
+  final_dias?: string
+  final_quedas_por_dia?: string
+  final_formato?: 'pontos_corridos' | 'champion_point' | 'personalizado'
+  final_observacoes?: string
   plataforma: string
   servidor: string
   tipo_premiacao: string
@@ -108,6 +114,7 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   banner_url: '',
   premiacao: '',
   valor_inscricao: '',
+  inscricao_paga: false,
   descricao_premiacao: '',
   divisao_premiacao: '',
   numero_vagas: '',
@@ -117,6 +124,10 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   formato: '',
   partidas_por_jogo: '4',
   partidas_final: '6',
+  final_dias: '1',
+  final_quedas_por_dia: '6',
+  final_formato: 'pontos_corridos',
+  final_observacoes: '',
   plataforma: '',
   servidor: '',
   tipo_premiacao: 'sem_premiacao',
@@ -488,6 +499,11 @@ export function CampeonatoForm({
       estrutura_planejada: guidedPlan,
       partidas_por_jogo: type === 'diario' || type === 'copa' ? (value.partidas_por_jogo || '4') : value.partidas_por_jogo,
       partidas_final: type === 'copa' ? (value.partidas_final || '6') : value.partidas_final,
+      final_dias: type === 'copa' ? (value.final_dias || '1') : value.final_dias,
+      final_quedas_por_dia: type === 'copa' ? (value.final_quedas_por_dia || value.partidas_final || '6') : value.final_quedas_por_dia,
+      final_formato: type === 'copa' ? (value.final_formato || 'pontos_corridos') : value.final_formato,
+      final_observacoes: type === 'copa' ? (value.final_observacoes || '') : value.final_observacoes,
+      inscricao_paga: value.inscricao_paga ?? Number(value.valor_inscricao) > 0,
       plataforma: value.plataforma || 'mobile',
       servidor: value.servidor || 'Brasil',
       vagas_por_equipe: value.vagas_por_equipe || '4',
@@ -587,7 +603,8 @@ export function CampeonatoForm({
       const copied: CampeonatoFormValue = { ...value }
       const copyKeys: Array<keyof CampeonatoFormValue> = [
         'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
-        'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final', 'plataforma', 'servidor', 'tipo_premiacao',
+        'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final',
+        'final_dias', 'final_quedas_por_dia', 'final_formato', 'final_observacoes', 'plataforma', 'servidor', 'tipo_premiacao', 'inscricao_paga',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
         'permite_jogador_multiplas_equipes', 'permite_troca_jogadores', 'data_limite_trocas',
         'data_limite_inscricao', 'aceita_novas_inscricoes_equipes', 'contatos_whatsapp',
@@ -638,12 +655,21 @@ export function CampeonatoForm({
   function updateGuidedEntry(isPaid: boolean) {
     onChange({
       ...value,
-      valor_inscricao: isPaid ? (value.valor_inscricao || '0.00') : '',
+      inscricao_paga: isPaid,
+      valor_inscricao: isPaid ? value.valor_inscricao : '',
     })
   }
 
   function updateGuidedPrize(nextType: 'sem_premiacao' | 'pix' | 'brinde') {
     updatePrizeType(nextType)
+  }
+
+  function updateCupFinal(patch: Partial<Pick<CampeonatoFormValue, 'final_dias' | 'final_quedas_por_dia' | 'final_formato' | 'final_observacoes'>>) {
+    const next = { ...value, ...patch }
+    const days = Math.max(1, Number(next.final_dias || 1))
+    const perDay = Math.max(1, Number(next.final_quedas_por_dia || 1))
+    next.partidas_final = String(days * perDay)
+    onChange(next)
   }
 
   function addWhatsappContact() {
@@ -738,15 +764,27 @@ export function CampeonatoForm({
         { id: 'format', label: 'Estrutura' },
         { id: 'operation', label: 'Operação' },
       ]
-    : [
-        { id: 'origin', label: 'Início' },
-        { id: 'format' as const, label: 'Estrutura' },
-        ...((value.tipo === 'diario' || value.tipo === 'copa')
-          ? [{ id: 'matches' as const, label: 'Partidas' }]
-          : []),
-        { id: 'operation', label: 'Operação' },
-        { id: 'review', label: 'Revisão' },
-      ]
+    : value.tipo === 'copa'
+      ? [
+          { id: 'origin', label: 'Início' },
+          { id: 'operation', label: 'Vagas e prêmio' },
+          { id: 'format' as const, label: 'Fases e grupos' },
+          { id: 'matches' as const, label: 'Final' },
+          { id: 'review', label: 'Revisão' },
+        ]
+      : value.tipo === 'diario'
+        ? [
+            { id: 'origin', label: 'Início' },
+            { id: 'operation', label: 'Vagas e prêmio' },
+            { id: 'matches' as const, label: 'Quedas' },
+            { id: 'review', label: 'Revisão' },
+          ]
+        : [
+            { id: 'origin', label: 'Início' },
+            { id: 'format' as const, label: 'Estrutura' },
+            { id: 'operation', label: 'Operação' },
+            { id: 'review', label: 'Revisão' },
+          ]
   const currentPageIndex = Math.max(0, wizardPages.findIndex((page) => page.id === formPage))
   const pageVisible = (page: typeof formPage) => mode === 'edit' || formPage === page
   function goNext() {
@@ -761,9 +799,13 @@ export function CampeonatoForm({
       if (Number(first.classificam_por_grupo) >= Number(first.equipes_por_grupo)) return
     }
     if (formPage === 'format' && value.tipo === 'diario' && Number(value.numero_vagas) < 2) return
-    if (formPage === 'matches' && (value.tipo === 'diario' || value.tipo === 'copa')) {
-      if (Number(value.partidas_por_jogo || 0) < 1) return
-      if (value.tipo === 'copa' && Number(value.partidas_final || 0) < 1) return
+    if (formPage === 'operation' && (value.tipo === 'diario' || value.tipo === 'copa')) {
+      if (Number(value.numero_vagas) < 2) return
+      if (value.inscricao_paga && Number(value.valor_inscricao || 0) <= 0) return
+    }
+    if (formPage === 'matches' && value.tipo === 'diario' && Number(value.partidas_por_jogo || 0) < 1) return
+    if (formPage === 'matches' && value.tipo === 'copa') {
+      if (Number(value.final_dias || 0) < 1 || Number(value.final_quedas_por_dia || 0) < 1) return
     }
     const next = wizardPages[currentPageIndex + 1]
     if (next) setFormPage(next.id)
@@ -1132,8 +1174,20 @@ export function CampeonatoForm({
               })}
             </div>
 
+            <div className="championship-guided-question">
+              <Field label="Quedas por jogo nas fases">
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={value.partidas_por_jogo || '4'}
+                  onChange={(event) => update('partidas_por_jogo', event.target.value)}
+                  placeholder="Ex.: 4"
+                />
+              </Field>
+            </div>
             <p className="championship-guided-note">
-              As partidas de cada jogo serão definidas na próxima etapa. Aqui estamos montando apenas o caminho das equipes.
+              Aqui você define a progressão das fases. A Final tem configuração própria na próxima etapa.
             </p>
           </div>
         ) : (
@@ -1259,13 +1313,13 @@ export function CampeonatoForm({
           {value.tipo === 'diario' ? (
             <div className="championship-guided-matches">
               <div className="championship-guided-copy">
-                <span>Passo 3 · Partidas</span>
-                <strong>Quantas partidas terá este jogo?</strong>
-                <small>O Diário possui somente um jogo. Informe quantas partidas serão disputadas até encerrar o evento.</small>
+                <span>Quedas do Diário</span>
+                <strong>Quantas quedas terá este jogo?</strong>
+                <small>O Diário possui somente um jogo. Informe quantas quedas serão disputadas até encerrar o evento.</small>
               </div>
 
               <div className="championship-guided-question">
-                <Field label="Partidas no jogo">
+                <Field label="Quedas no jogo">
                   <input
                     type="number"
                     min="1"
@@ -1275,7 +1329,7 @@ export function CampeonatoForm({
                     placeholder="Ex.: 4"
                   />
                 </Field>
-                <div className="championship-guided-quick-options" aria-label="Sugestões de partidas">
+                <div className="championship-guided-quick-options" aria-label="Sugestões de quedas">
                   {[4, 6, 8].map((amount) => (
                     <button
                       type="button"
@@ -1283,7 +1337,7 @@ export function CampeonatoForm({
                       className={Number(value.partidas_por_jogo || 0) === amount ? 'active' : ''}
                       onClick={() => update('partidas_por_jogo', String(amount))}
                     >
-                      {amount} partidas
+                      {amount} quedas
                     </button>
                   ))}
                 </div>
@@ -1291,70 +1345,48 @@ export function CampeonatoForm({
 
               <div className="championship-guided-preview">
                 <span>Resumo do Diário</span>
-                <strong>1 jogo · {value.partidas_por_jogo || '0'} partidas</strong>
+                <strong>1 jogo · {value.partidas_por_jogo || '0'} quedas</strong>
                 <small>{value.numero_vagas || '0'} equipes disputam todas as partidas juntas.</small>
               </div>
             </div>
           ) : (
-            <div className="championship-guided-matches">
+            <div className="championship-guided-matches championship-guided-final">
               <div className="championship-guided-copy">
-                <span>Passo 3 · Partidas</span>
-                <strong>Quantas partidas terá cada jogo da Copa?</strong>
-                <small>Use uma quantidade padrão para as fases e, se quiser, uma quantidade diferente na Final.</small>
+                <span>Configuração da Final</span>
+                <strong>Como será disputada a Final?</strong>
+                <small>A Final pode ter vários dias e uma quantidade própria de quedas, independente das fases anteriores.</small>
               </div>
 
-              <div className="championship-guided-question-grid two">
-                <Field label="Partidas por jogo nas fases">
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={value.partidas_por_jogo || '4'}
-                    onChange={(event) => update('partidas_por_jogo', event.target.value)}
-                    placeholder="Ex.: 4"
-                  />
+              <div className="championship-guided-final-grid">
+                <Field label="Dias de Final">
+                  <input type="number" min="1" max="15" value={value.final_dias || '1'} onChange={(event) => updateCupFinal({ final_dias: event.target.value })} placeholder="Ex.: 2" />
                 </Field>
-                <Field label="Partidas na Final">
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={value.partidas_final || value.partidas_por_jogo || '6'}
-                    onChange={(event) => update('partidas_final', event.target.value)}
-                    placeholder="Ex.: 6"
-                  />
+                <Field label="Quedas por dia">
+                  <input type="number" min="1" max="20" value={value.final_quedas_por_dia || '6'} onChange={(event) => updateCupFinal({ final_quedas_por_dia: event.target.value })} placeholder="Ex.: 5" />
+                </Field>
+                <Field label="Formato da Final">
+                  <select value={value.final_formato || 'pontos_corridos'} onChange={(event) => updateCupFinal({ final_formato: event.target.value as CampeonatoFormValue['final_formato'] })}>
+                    <option value="pontos_corridos">Pontos corridos</option>
+                    <option value="champion_point">Champion Point</option>
+                    <option value="personalizado">Personalizado</option>
+                  </select>
                 </Field>
               </div>
 
-              <div className="championship-guided-match-flow" aria-label="Jogos e partidas calculados da Copa">
-                {value.estrutura_planejada.map((phase, index) => {
-                  const isFinal = index === value.estrutura_planejada.length - 1
-                  const games = Math.max(1, Number(phase.grupos || 1))
-                  const matches = Math.max(1, Number(isFinal ? value.partidas_final : value.partidas_por_jogo) || 1)
-                  return (
-                    <div className="championship-guided-match-row" key={`${phase.nome}-${index}-matches`}>
-                      <span>
-                        <strong>{phase.nome}</strong>
-                        <small>{games} {games === 1 ? 'jogo' : 'jogos'}</small>
-                      </span>
-                      <b>{matches} {matches === 1 ? 'partida' : 'partidas'} por jogo</b>
-                      <em>{games * matches} partidas</em>
-                    </div>
-                  )
-                })}
+              <div className="championship-guided-final-summary">
+                <div><small>Equipes na Final</small><strong>{value.estrutura_planejada.at(-1)?.equipes_por_grupo || '12'}</strong></div>
+                <div><small>Dias</small><strong>{value.final_dias || '1'}</strong></div>
+                <div><small>Total de quedas</small><strong>{Math.max(1, Number(value.final_dias || 1)) * Math.max(1, Number(value.final_quedas_por_dia || 1))}</strong></div>
               </div>
+
+              <Field label="Observações da Final (opcional)">
+                <textarea value={value.final_observacoes || ''} onChange={(event) => updateCupFinal({ final_observacoes: event.target.value })} placeholder="Ex.: Dia 1 com 5 quedas; Dia 2 até Champion Point; regra especial de desempate..." />
+              </Field>
 
               <div className="championship-guided-preview">
-                <span>Total previsto</span>
-                <strong>
-                  {value.estrutura_planejada.reduce((total, phase, index) => {
-                    const isFinal = index === value.estrutura_planejada.length - 1
-                    const games = Math.max(1, Number(phase.grupos || 1))
-                    const matches = Math.max(1, Number(isFinal ? value.partidas_final : value.partidas_por_jogo) || 1)
-                    return total + (games * matches)
-                  }, 0)} partidas na Copa
-                </strong>
-                <small>Esse total é recalculado automaticamente se você voltar e alterar a estrutura.</small>
+                <span>Resumo da Final</span>
+                <strong>{value.final_dias || '1'} dia(s) · {value.final_quedas_por_dia || '0'} quedas por dia · {value.partidas_final || '0'} quedas previstas</strong>
+                <small>Datas e horários específicos podem ser definidos depois na organização.</small>
               </div>
             </div>
           )}
@@ -1371,27 +1403,49 @@ export function CampeonatoForm({
 
           <div className="championship-guided-decision">
             <div className="championship-guided-decision-copy">
+              <strong>{value.tipo === 'copa' ? 'Quantas vagas terá a Copa?' : 'Quantas equipes vão jogar?'}</strong>
+              <small>{value.tipo === 'copa' ? 'Informe o total de equipes que entram na primeira fase.' : 'No Diário todas as equipes disputam o mesmo jogo.'}</small>
+            </div>
+            <div className="championship-guided-field">
+              <Field label={value.tipo === 'copa' ? 'Vagas disponíveis' : 'Equipes no Diário'}>
+                <input
+                  type="number"
+                  min="2"
+                  max="500"
+                  value={value.numero_vagas}
+                  onChange={(event) => {
+                    if (value.tipo === 'copa') updateGuidedCup(event.target.value)
+                    else updateGuidedDaily(event.target.value)
+                  }}
+                  placeholder={value.tipo === 'copa' ? 'Ex.: 96' : 'Ex.: 12 ou 15'}
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="championship-guided-decision">
+            <div className="championship-guided-decision-copy">
               <strong>A inscrição é gratuita ou paga?</strong>
               <small>Se for paga, informe somente o valor por vaga.</small>
             </div>
             <div className="championship-guided-choice-row">
               <button
                 type="button"
-                className={!value.valor_inscricao || Number(value.valor_inscricao) <= 0 ? 'active' : ''}
+                className={!value.inscricao_paga ? 'active' : ''}
                 onClick={() => updateGuidedEntry(false)}
               >
                 Gratuita
               </button>
               <button
                 type="button"
-                className={Number(value.valor_inscricao) > 0 ? 'active' : ''}
+                className={value.inscricao_paga ? 'active' : ''}
                 onClick={() => updateGuidedEntry(true)}
               >
                 Paga
               </button>
             </div>
 
-            {Number(value.valor_inscricao) > 0 ? (
+            {value.inscricao_paga ? (
               <div className="championship-guided-field">
                 <Field label="Valor da inscrição">
                   <input
@@ -1471,7 +1525,7 @@ export function CampeonatoForm({
           <div className="championship-guided-preview">
             <span>Resumo</span>
             <strong>
-              {Number(value.valor_inscricao) > 0 ? `${moneyDisplay(value.valor_inscricao)} por vaga` : 'Inscrição gratuita'}
+              {value.inscricao_paga ? `${moneyDisplay(value.valor_inscricao) || 'Valor pendente'} por vaga` : 'Inscrição gratuita'}
               {' · '}
               {showMoneyPrize && value.premiacao
                 ? `${moneyDisplay(value.premiacao)} em premiação`
@@ -1662,16 +1716,22 @@ export function CampeonatoForm({
                 <small>Partidas</small>
                 <strong>
                   {value.tipo === 'copa'
-                    ? `${value.partidas_por_jogo || '—'} por jogo · ${value.partidas_final || value.partidas_por_jogo || '—'} na final`
-                    : `${value.partidas_por_jogo || '—'} no jogo`}
+                    ? `${value.partidas_por_jogo || '—'} quedas por jogo nas fases`
+                    : `${value.partidas_por_jogo || '—'} quedas no jogo`}
                 </strong>
+              </div>
+            ) : null}
+            {value.tipo === 'copa' ? (
+              <div>
+                <small>Final</small>
+                <strong>{value.final_dias || '1'} dia(s) · {value.final_quedas_por_dia || '0'} quedas/dia · {value.partidas_final || '0'} no total</strong>
               </div>
             ) : null}
             {(value.tipo === 'diario' || value.tipo === 'copa') ? (
               <>
                 <div>
                   <small>Inscrição</small>
-                  <strong>{Number(value.valor_inscricao) > 0 ? moneyDisplay(value.valor_inscricao) : 'Gratuita'}</strong>
+                  <strong>{value.inscricao_paga ? (moneyDisplay(value.valor_inscricao) || 'Paga · valor pendente') : 'Gratuita'}</strong>
                 </div>
                 <div>
                   <small>Premiação</small>
