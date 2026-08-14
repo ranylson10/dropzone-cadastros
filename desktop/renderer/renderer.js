@@ -22,6 +22,11 @@ async function boot() {
   } catch (error) { showLogin(message(error, 'Não foi possível confirmar sua sessão.')) }
 }
 function showLogin(error = '') { el.app.classList.add('hidden'); el.gate.classList.remove('hidden'); $('#login-error').textContent = error }
+async function finishLogin(session) {
+  $('#account-name').textContent = session.account?.name || session.account?.username || 'Conta DropZone'
+  el.app.classList.remove('hidden'); el.gate.classList.add('hidden')
+  championships = await api.championships(); renderChampionships(); await refreshLives()
+}
 function renderChampionships() {
   const options = championships.map((item) => `<option value="${escape(item.id)}">${escape(item.nome || 'Campeonato')}</option>`).join('')
   $('#championship-select').innerHTML = '<option value="">Arte livre</option>' + options
@@ -73,7 +78,10 @@ async function create(type, image) { if (!current) return; layout(); const n = c
 async function importImage(block) { try { const image = await api.importImage(); if (!image) return; if (block) { block.src = image.src; block.name = image.name; render(); stageChanged() } else await create('image', image) } catch (e) { toast(message(e, 'Não foi possível importar a imagem.'), 'error') } }
 function escape(v) { return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) } function escapeAttr(v) { return escape(v) }
 
-$('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const button = $('#login-form button'); button.disabled = true; try { const session = await api.login({ profileType: $('#login-profile').value, login: $('#login-name').value, password: $('#login-password').value }); $('#account-name').textContent = session.account?.name || session.account?.username || 'Conta DropZone'; el.app.classList.remove('hidden'); el.gate.classList.add('hidden'); championships = await api.championships(); renderChampionships(); await refreshLives() } catch (e) { $('#login-error').textContent = message(e, 'Não foi possível entrar.') } finally { button.disabled = false } })
+$('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const button = $('#login-form button[type=submit]'); button.disabled = true; try { await finishLogin(await api.login({ profileType: $('#login-profile').value, login: $('#login-name').value, password: $('#login-password').value })) } catch (e) { $('#login-error').textContent = message(e, 'Não foi possível entrar.') } finally { button.disabled = false } })
+$('#google-login').addEventListener('click', async () => { const button = $('#google-login'); button.disabled = true; $('#login-error').textContent = ''; try { await api.loginWithGoogle({ profileType: $('#login-profile').value }); $('#login-error').textContent = 'Conclua o login na janela do Google. O app será aberto automaticamente.' } catch (e) { $('#login-error').textContent = message(e, 'Não foi possível abrir o Google.'); button.disabled = false } })
+api.onAuthChanged((session) => { $('#google-login').disabled = false; void finishLogin(session).catch((e) => showLogin(message(e, 'Não foi possível abrir suas produções.'))) })
+api.onAuthError((error) => { $('#google-login').disabled = false; showLogin(message({ message: error }, 'Não foi possível concluir o login Google.')) })
 $('#logout').onclick = async () => { await api.logout(); lives = []; current = null; showLogin() }
 $('#new-live').onclick = () => { $('#new-live-name').value = ''; $('#new-championship-select').value = ''; el.dialog.showModal() }; $('#empty-new-live').onclick = $('#new-live').onclick
 $('#create-form').addEventListener('submit', async (event) => { event.preventDefault(); try { current = await api.createLive({ name: $('#new-live-name').value, campeonatoId: $('#new-championship-select').value }); lives.unshift(current); el.dialog.close(); render() } catch (e) { toast(message(e, 'Não foi possível criar.'), 'error') } })

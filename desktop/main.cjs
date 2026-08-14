@@ -6,9 +6,12 @@ const path = require('node:path')
 
 const OUTPUT_PORT = 19386
 const DEFAULT_ORIGIN = 'https://dropzone-cadastros.vercel.app'
+const OAUTH_PROTOCOL = 'dropzone-live'
+const OAUTH_CALLBACK = `${OAUTH_PROTOCOL}://auth/callback`
 let mainWindow = null
 let outputServer = null
 let storeCache = null
+let startupProtocolUrl = process.argv.find((value) => String(value).startsWith(`${OAUTH_PROTOCOL}://`)) || null
 
 function defaultLayout() {
   return {
@@ -44,6 +47,29 @@ function demoCache() {
 function cleanOrigin(value) {
   if (value && String(value).trim().replace(/\/$/, '') !== DEFAULT_ORIGIN) throw new Error('Este aplicativo funciona somente com o DropZone.')
   return DEFAULT_ORIGIN
+}
+
+function cleanProfileType(value) {
+  const profileType = String(value || 'produtora').trim()
+  if (!['produtora', 'equipe', 'jogador', 'manager', 'broadcast'].includes(profileType)) return 'produtora'
+  return profileType
+}
+
+function protocolUrlFromArgs(commandLine = []) {
+  return commandLine.find((value) => String(value).startsWith(`${OAUTH_PROTOCOL}://`)) || null
+}
+
+function isAllowedProtocolUrl(value) {
+  try {
+    const url = new URL(value)
+    return url.protocol === `${OAUTH_PROTOCOL}:` && url.hostname === 'auth' && url.pathname === '/callback'
+  } catch {
+    return false
+  }
+}
+
+function sendAuthEvent(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
 }
 
 function safeLive(live) {
@@ -245,7 +271,7 @@ ipcMain.handle('auth:session', async () => {
   }
 })
 ipcMain.handle('auth:login', async (_event, input) => {
-  const profileType = String(input?.profileType || 'produtora')
+  const profileType = cleanProfileType(input?.profileType)
   const login = String(input?.login || '').trim()
   const password = String(input?.password || '')
   if (!login || !password) throw new Error('Informe seu login e senha.')
@@ -257,6 +283,20 @@ ipcMain.handle('auth:login', async (_event, input) => {
   store.auth = { accessToken: token, refreshToken: payload.session?.refresh_token || null, profileType, userId: profile.user.id, account: profile.account, accounts: profile.accounts }
   await saveStore(store)
   return { account: profile.account, accounts: profile.accounts }
+})
+ipcMain.handle('auth:google:start', async (_event, input) => {
+  const store = await loadStore()
+  store.oauthPendingProfileType = cleanProfileType(input?.profileType)
+  await saveStore(store)
+  const payload = await remoteJson('/api/desktop/auth/google/start', { method: 'POST', body: {} })
+  const url = String(payload.url || '')
+  let parsed
+  try { parsed = new URL(url) } catch { throw new Error('O DropZone nao retornou um link seguro do Google.') }
+  if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co')) {
+    throw new Error('O DropZone nao retornou um link seguro do Google.')
+  }
+  await shell.openExternal(url)
+  return { started: true }
 })
 ipcMain.handle('auth:logout', async () => { const store = await loadStore(); store.auth = null; await saveStore(store); return true })
 ipcMain.handle('auth:championships', async () => { const { auth } = await requireAuth(); return authorizedChampionships(auth) })
@@ -322,6 +362,82 @@ ipcMain.handle('lives:export-png', async (_event, liveId) => {
 ipcMain.handle('system:copy', (_event, value) => clipboard.writeText(String(value || '')))
 ipcMain.handle('system:open', (_event, value) => shell.openExternal(String(value || '')))
 
-app.whenReady().then(() => { startOutputServer(); createWindow() })
+async function completeGoogleLogin(protocolUrl) {
+  if (!isAllowedProtocolUrl(protocolUrl)) return
+  const parsed = new URL(protocolUrl)
+  const params = new URLSearchParams(parsed.hash.replace(/^#/, ''))
+  const oauthError = params.get('error_description') || params.get('error')
+  if (oauthError) {
+    sendAuthEvent('auth:oauth-error', 'O Google nao concluiu o login: ' + oauthError)
+    return
+  }
+  const accessToken = params.get('access_token') || ''
+  const refreshToken = params.get('refresh_token') || ''
+  if (!accessToken || !refreshToken) {
+    sendAuthEvent('auth:oauth-error', 'O retorno do Google nao trouxe uma sessao valida.')
+    return
+  }
+  try {
+    const store = await loadStore()
+    const profileType = cleanProfileType(store.oauthPendingProfileType)
+    const profile = await remoteJson('/api/me', { token: accessToken, profileType })
+    store.auth = {
+      accessToken,
+      refreshToken,
+      profileType: profile.account?.profile_type || profileType,
+      userId: profile.user.id,
+      account: profile.account,
+      accounts: profile.accounts,
+    }
+    delete store.oauthPendingProfileType
+    await saveStore(store)
+    sendAuthEvent('auth:changed', { account: store.auth.account, accounts: store.auth.accounts })
+  } catch (error) {
+    const store = await loadStore()
+    delete store.oauthPendingProfileType
+    await saveStore(store)
+    sendAuthEvent('auth:oauth-error', error?.message || 'Nao foi possivel confirmar sua conta DropZone.')
+  }
+}
+
+function focusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.focus()
+}
+
+function registerProtocolHandler() {
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) app.setAsDefaultProtocolClient(OAUTH_PROTOCOL, process.execPath, [path.resolve(process.argv[1])])
+    return
+  }
+  app.setAsDefaultProtocolClient(OAUTH_PROTOCOL)
+}
+
+registerProtocolHandler()
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_event, commandLine) => {
+    const protocolUrl = protocolUrlFromArgs(commandLine)
+    focusMainWindow()
+    if (protocolUrl) void completeGoogleLogin(protocolUrl)
+  })
+  app.on('open-url', (event, protocolUrl) => {
+    event.preventDefault()
+    focusMainWindow()
+    void completeGoogleLogin(protocolUrl)
+  })
+  app.whenReady().then(async () => {
+    startOutputServer()
+    createWindow()
+    if (startupProtocolUrl) {
+      const protocolUrl = startupProtocolUrl
+      startupProtocolUrl = null
+      await completeGoogleLogin(protocolUrl)
+    }
+  })
+}
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
 app.on('before-quit', () => outputServer?.close())

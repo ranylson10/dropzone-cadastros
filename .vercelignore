@@ -4,6 +4,7 @@ app/android/app/build
 app/android/.kotlin
 app/android/**/.cxx
 dist-mobile
+desktop
 node_modules
 web/node_modules
 app/node_modules
