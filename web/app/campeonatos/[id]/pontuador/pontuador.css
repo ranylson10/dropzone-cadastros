@@ -121,3 +121,67 @@
 .scorer-sheet-workspace.is-drop-locked .vinculo-chip {
   background: rgba(234, 179, 8, 0.2);
 }
+
+/* Linguagem operacional do pontuador: contraste para leitura em live. */
+.scorer-workspace,
+.scorer-sheet-workspace {
+  background: var(--ui-bg, #0c0d0f);
+  color: var(--ui-text, #f5f3ed);
+}
+
+.scorer-workspace-header {
+  border-color: var(--ui-line, #2a2c32);
+  border-radius: var(--ui-radius-md, 10px);
+  background: var(--ui-surface, #141518);
+  color: var(--ui-text, #f5f3ed);
+  box-shadow: none;
+}
+
+.scorer-brand p,
+.scorer-brand small { color: var(--ui-muted, #9c9a94); }
+.scorer-brand > img,
+.scorer-team > img,
+.scorer-team > span { border-color: var(--ui-line, #2a2c32); border-radius: var(--ui-radius-sm, 6px); background: var(--ui-surface-raised, #1a1b1f); }
+
+.scorer-sheet-toolbar {
+  border-color: var(--ui-line, #2a2c32);
+  border-radius: var(--ui-radius-md, 10px);
+  background: var(--ui-surface, #141518);
+}
+
+.scorer-sheet-toolbar button,
+.scorer-scope-switch select {
+  border-color: var(--ui-line, #2a2c32);
+  border-radius: var(--ui-radius-sm, 6px);
+  background: var(--ui-surface-raised, #1a1b1f);
+  color: var(--ui-text, #f5f3ed);
+}
+
+.scorer-sheet-toolbar button:hover { border-color: var(--ui-accent, #c9b766); background: var(--ui-surface-soft, #17181b); }
+.scorer-sheet-toolbar button.active { border-color: var(--ui-accent, #c9b766); background: var(--ui-accent, #c9b766); color: #111216; }
+.scorer-drop-tabs button.is-current-drop { box-shadow: inset 0 -3px 0 var(--ui-accent, #c9b766); }
+.drop-atual-badge { background: var(--ui-accent, #c9b766); color: #111216; }
+
+.scorer-feedback.error { border-color: rgba(215,108,108,.5); background: rgba(215,108,108,.12); color: #f0b5b5; }
+.scorer-feedback.success { border-color: rgba(101,185,130,.5); background: rgba(101,185,130,.12); color: #a6dfb8; }
+.scorer-match-strip { border-color: rgba(201,183,102,.45); border-radius: var(--ui-radius-sm, 6px); background: var(--ui-surface, #141518); color: var(--ui-text, #f5f3ed); }
+.scorer-match-strip small { color: var(--ui-muted, #9c9a94); }
+
+.scorer-edit-table-wrap { border-color: var(--ui-line, #2a2c32); border-radius: var(--ui-radius-md, 10px); background: var(--ui-surface, #141518); }
+.scorer-edit-table th,
+.scorer-sheet-table th:nth-child(-n+8),
+.scorer-sheet-table th:nth-child(n+9) { border-color: var(--ui-line, #2a2c32); background: var(--ui-surface-raised, #1a1b1f); color: var(--ui-muted, #9c9a94); }
+.scorer-edit-table td { border-color: var(--ui-line, #2a2c32); color: var(--ui-text, #f5f3ed); }
+.scorer-edit-table tr:hover td { background: var(--ui-surface-soft, #17181b); }
+.scorer-edit-table input,
+.scorer-sheet-workspace .vinculo-select { border-color: var(--ui-line, #2a2c32); border-radius: var(--ui-radius-sm, 6px); background: var(--ui-surface-raised, #1a1b1f); color: var(--ui-text, #f5f3ed); }
+.scorer-edit-table input:focus { outline-color: var(--ui-accent, #c9b766); border-color: var(--ui-accent, #c9b766); }
+.scorer-edit-table .score-total,
+.scorer-sheet-table .rank-cell,
+.scorer-sheet-table .drop-points-cell { background: rgba(201,183,102,.13); color: var(--ui-accent, #c9b766); }
+.scorer-sheet-workspace .is-empty td,
+.scorer-sheet-workspace .is-empty .rank-cell { background: var(--ui-surface-raised, #1a1b1f); color: var(--ui-muted, #9c9a94); }
+.scorer-sheet-workspace.is-drop-locked .scorer-edit-table input:disabled { border-color: var(--ui-line, #2a2c32); background: var(--ui-surface-soft, #17181b); color: var(--ui-text-soft, #c7c2b8); }
+.scorer-sheet-workspace .vinculo-chip { border: 1px solid var(--ui-line, #2a2c32); border-radius: var(--ui-radius-sm, 6px); background: var(--ui-surface-raised, #1a1b1f); color: var(--ui-text, #f5f3ed); }
+.scorer-sheet-workspace.is-drop-locked .vinculo-chip { border-color: rgba(201,183,102,.45); background: rgba(201,183,102,.13); }
+.scorer-sheet-workspace .vinculo-empty { color: var(--ui-muted, #9c9a94); }
