@@ -1,6 +1,14 @@
 /* Broadcast / Stream — CSS local */
 
 .broadcast-page {
+  --surface: var(--ui-surface, #141518);
+  --surface-soft: var(--ui-surface-raised, #1a1b1f);
+  --surface-muted: var(--ui-surface-raised, #1a1b1f);
+  --line: var(--ui-line, #2a2c32);
+  --text: var(--ui-text, #f5f3ed);
+  --muted: var(--ui-muted, #9c9a94);
+  --brand: var(--ui-accent, #c9b766);
+  --danger: #d76c6c;
   max-width: 960px;
   margin: 0 auto;
   padding: 16px 14px 40px;
@@ -19,6 +27,8 @@
   padding: 14px;
   border: 1px solid var(--line);
   background: var(--surface);
+  border-radius: var(--ui-radius-md, 10px);
+  color: var(--text);
 }
 
 .broadcast-card h2 {
@@ -51,6 +61,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   background: var(--surface-soft);
+  border-radius: var(--ui-radius-sm, 6px);
 }
 
 .broadcast-list strong {
@@ -85,6 +96,26 @@
   font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
+  border-radius: var(--ui-radius-sm, 6px);
+}
+
+.broadcast-page .stream-primary-btn {
+  border-color: var(--brand);
+  border-radius: var(--ui-radius-sm, 6px);
+  background: var(--brand);
+  color: #111216;
+}
+
+.broadcast-page .stream-secondary-btn {
+  border-color: var(--line);
+  border-radius: var(--ui-radius-sm, 6px);
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.broadcast-page .stream-secondary-btn:hover {
+  border-color: var(--brand);
+  background: rgba(201, 183, 102, .1);
 }
 
 /* Controlador */
