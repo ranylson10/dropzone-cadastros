@@ -1029,3 +1029,48 @@ body .public-home-redesign .public-home-footer nav a:hover{color:var(--ui-accent
 @media(max-width:640px){
   body .public-home-redesign .public-home-footer{align-items:flex-start;flex-direction:column;gap:12px}
 }
+
+/* EscalaÃ§Ã£o por link: dois modos de uso, uma sÃ³ identidade visual. */
+body .scale-mode-page,
+body .scale-chat-page,
+body .scale-normal-page{
+  --scale-purple:var(--ui-accent);
+  --scale-purple-dark:#a39248;
+  --scale-purple-soft:rgba(201,183,102,.12);
+  --scale-ink:var(--ui-text);
+  --scale-muted:var(--ui-muted);
+  background:radial-gradient(circle at 12% 8%,rgba(201,183,102,.1),transparent 30%),var(--ui-bg);
+  color:var(--ui-text);
+}
+body .scale-mode-card{
+  border:1px solid var(--ui-line);
+  border-top:3px solid var(--ui-accent);
+  border-radius:var(--ui-radius-lg);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:0 24px 64px rgba(0,0,0,.3);
+}
+body .scale-mode-card > p:last-of-type,
+body .scale-mode-option small{color:var(--ui-muted)}
+body .scale-mode-icon{border:1px solid rgba(201,183,102,.45);border-radius:var(--ui-radius-md);background:var(--ui-accent);color:#111216}
+body .scale-mode-option{
+  border-color:var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .scale-mode-option:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft)}
+body .scale-mode-option.assistant{border-color:var(--ui-accent);background:var(--ui-accent);color:#111216}
+body .scale-mode-option.assistant small{color:#3d3927}
+body .scale-chat-header{border-bottom:1px solid var(--ui-line);background:#141518;color:var(--ui-text);box-shadow:none}
+body .scale-chat-header button{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .scale-chat-header button:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft);transform:none}
+body .scale-chat-page .invite-chat-bubble{border-color:var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .scale-chat-page .invite-chat-bubble.user{border-color:var(--ui-accent);background:rgba(201,183,102,.16);color:var(--ui-text);box-shadow:none}
+body .scale-chat-page .invite-chat-option{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .scale-chat-page .invite-chat-option.primary{border-color:var(--ui-accent);background:var(--ui-accent);color:#111216}
+body .scale-chat-page .invite-chat-option:hover{border-color:var(--ui-accent);background:rgba(201,183,102,.1);box-shadow:none;transform:none}
+body .scale-chat-login{border-color:var(--ui-line);border-radius:var(--ui-radius-md);background:var(--ui-surface);box-shadow:none}
+body .scale-chat-actions{background:linear-gradient(180deg,transparent,var(--ui-bg) 28%)}
+body .scale-chat-page .invite-chat-player-result{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
+body .scale-chat-page .scale-chat-slot-number{background:var(--ui-surface);color:var(--ui-accent);box-shadow:none}
