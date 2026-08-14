@@ -32,7 +32,8 @@ test.describe('Rodada 87B — origem, modelo e nova season', () => {
   test('Diário e Copa seguem para estrutura sem etapa técnica de season', () => {
     const source = read('web/components/forms/campeonato/CampeonatoForm.tsx')
     expect(source).toContain("value.tipo === 'diario' && 'Um grupo e um jogo.")
-    expect(source).toContain("value.tipo === 'copa' && 'Defina a entrada da copa.")
+    expect(source).toContain("mode === 'create' && value.tipo === 'copa'")
+    expect(source).toContain('Como começa esta Copa?')
     expect(source).toContain("{ id: 'origin', label: 'Início' }")
     expect(source).toContain("{ id: 'format' as const, label: 'Estrutura' }")
     expect(source).not.toContain("...(value.origem_criacao === 'season' || value.tipo === 'liga'")

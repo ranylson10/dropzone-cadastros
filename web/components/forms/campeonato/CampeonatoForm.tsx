@@ -228,6 +228,38 @@ function defaultStructurePlan(type: string, count = 1, current: CampeonatoStruct
   })
 }
 
+function guidedCupPlan(totalRaw: string, perGroupRaw: string, advanceRaw: string): CampeonatoStructurePhase[] {
+  const total = Math.max(2, Number(totalRaw) || 96)
+  const perGroup = Math.max(2, Number(perGroupRaw) || 12)
+  const advance = Math.max(1, Math.min(perGroup - 1, Number(advanceRaw) || 6))
+  const phases: CampeonatoStructurePhase[] = []
+  let teams = total
+  let guard = 0
+
+  while (teams > perGroup && guard < 10) {
+    const groups = Math.max(1, Math.ceil(teams / perGroup))
+    const qualified = groups * advance
+    phases.push({
+      nome: phases.length === 0 ? 'Fase classificatória' : `Fase ${phases.length + 1}`,
+      grupos: String(groups),
+      equipes_por_grupo: String(perGroup),
+      classificam_por_grupo: String(advance),
+    })
+    if (qualified >= teams) break
+    teams = qualified
+    guard += 1
+  }
+
+  phases.push({
+    nome: 'Final',
+    grupos: '1',
+    equipes_por_grupo: String(Math.max(2, teams)),
+    classificam_por_grupo: '',
+  })
+
+  return phases
+}
+
 function moneyDisplay(value: string) {
   if (!value) return ''
   const parsed = Number(value)
@@ -396,16 +428,58 @@ export function CampeonatoForm({
     })
   }
 
+  function updateGuidedDaily(totalRaw: string) {
+    const total = String(Math.max(2, Number(totalRaw) || 12))
+    const plan: CampeonatoStructurePhase[] = [{
+      nome: 'Rodada única',
+      grupos: '1',
+      equipes_por_grupo: total,
+      classificam_por_grupo: '',
+    }]
+    onChange({
+      ...value,
+      numero_vagas: total,
+      numero_fases: '1',
+      nomes_fases: ['Rodada única'],
+      estrutura_planejada: plan,
+      formato: 'Grupo único / jogo único',
+    })
+  }
+
+  function updateGuidedCup(
+    totalRaw = value.numero_vagas || '96',
+    perGroupRaw = value.estrutura_planejada[0]?.equipes_por_grupo || '12',
+    advanceRaw = value.estrutura_planejada[0]?.classificam_por_grupo || '6',
+  ) {
+    const total = String(Math.max(2, Number(totalRaw) || 96))
+    const perGroup = String(Math.max(2, Number(perGroupRaw) || 12))
+    const advance = String(Math.max(1, Math.min(Number(perGroup) - 1, Number(advanceRaw) || 6)))
+    const plan = guidedCupPlan(total, perGroup, advance)
+    onChange({
+      ...value,
+      numero_vagas: total,
+      numero_fases: String(plan.length),
+      nomes_fases: plan.map((phase) => phase.nome),
+      estrutura_planejada: plan,
+      formato: 'Mata-mata',
+    })
+  }
+
   function selectType(type: ChampionshipType) {
     const nextFormat = defaultFormat(type)
+    const guidedPlan = type === 'copa'
+      ? guidedCupPlan('96', '12', '6')
+      : type === 'diario'
+        ? [{ nome: 'Rodada única', grupos: '1', equipes_por_grupo: '12', classificam_por_grupo: '' }]
+        : defaultStructurePlan(type, 1)
     onChange({
       ...value,
       tipo: type,
       formato: nextFormat,
-      numero_vagas: value.numero_vagas || (type === 'copa' ? '96' : type === 'confronto' ? '2' : '12'),
-      numero_fases: value.numero_fases || '1',
-      nomes_fases: value.nomes_fases?.length ? value.nomes_fases : ['Fase 1'],
-      estrutura_planejada: defaultStructurePlan(type, 1),
+      numero_vagas: type === 'copa' ? '96' : type === 'confronto' ? '2' : '12',
+      numero_fases: String(guidedPlan.length),
+      nomes_fases: guidedPlan.map((phase) => phase.nome),
+      estrutura_planejada: guidedPlan,
       plataforma: value.plataforma || 'mobile',
       servidor: value.servidor || 'Brasil',
       vagas_por_equipe: value.vagas_por_equipe || '4',
@@ -659,6 +733,12 @@ export function CampeonatoForm({
       if (value.origem_criacao !== 'novo' && !value.campeonato_origem_id) return
       if (!value.nome.trim() || !value.logo_url) return
     }
+    if (formPage === 'format' && value.tipo === 'copa') {
+      const first = value.estrutura_planejada[0]
+      if (!first || Number(value.numero_vagas) < 2 || Number(first.equipes_por_grupo) < 2 || Number(first.classificam_por_grupo) < 1) return
+      if (Number(first.classificam_por_grupo) >= Number(first.equipes_por_grupo)) return
+    }
+    if (formPage === 'format' && value.tipo === 'diario' && Number(value.numero_vagas) < 2) return
     const next = wizardPages[currentPageIndex + 1]
     if (next) setFormPage(next.id)
   }
@@ -926,179 +1006,227 @@ export function CampeonatoForm({
       </section>
 
       <section className="form-section-card" hidden={!pageVisible('format')}>
-        <p className="eyebrow">Estrutura inicial</p>
-        <p className="form-empty-note">
-          {value.tipo === 'diario' && 'Um grupo e um jogo. Depois você define o número de partidas na aba Jogos.'}
-          {value.tipo === 'copa' && 'Defina a entrada da copa. Depois crie os grupos e, em cada jogo, indique quantas equipes avançam.'}
-          {value.tipo === 'liga' && 'Defina as fases e as séries. Promoção, rebaixamento, grupos e vagas diretas continuam na organização da liga.'}
-          {value.tipo === 'xtreino' && 'Defina a estrutura base do treino. Grupos e jogos podem ser ajustados depois.'}
-          {value.tipo === 'confronto' && 'Defina o modo e a estrutura do confronto direto entre as equipes.'}
-        </p>
-        <div className="mini-grid three">
-          <Field label="Limite de vagas (meta)">
-            <input
-              type="number"
-              min="1"
-              value={value.numero_vagas}
-              onChange={(e) => update('numero_vagas', e.target.value)}
-              placeholder="Ex.: 96 — não cria slots; só limita"
-            />
-          </Field>
-
-          <Field label="Fases iniciais">
-            <input
-              type="number"
-              min="1"
-              max="12"
-              value={value.numero_fases || '1'}
-              onChange={(e) => updateInitialPhaseCount(e.target.value)}
-              placeholder="Ex.: 2"
-            />
-          </Field>
-
-          {value.tipo === 'liga' ? (
-            <Field label="Modelo da liga">
-              <select
-                value={value.liga_usa_divisoes ? 'divisoes' : 'simples'}
-                onChange={(event) => {
-                  const useDivisions = event.target.value === 'divisoes'
-                  onChange({
-                    ...value,
-                    liga_usa_divisoes: useDivisions,
-                    liga_divisoes: useDivisions && !value.liga_divisoes.length
-                      ? [{ id: crypto.randomUUID(), nome: 'Divisão 1', codigo: '', ordem: 1 }]
-                      : value.liga_divisoes,
-                    formato: useDivisions ? 'Liga híbrida por divisões' : 'Pontos corridos',
-                  })
-                }}
-              >
-                <option value="simples">Liga simples — pontos corridos</option>
-                <option value="divisoes">Liga com divisões, séries ou categorias</option>
-              </select>
-            </Field>
-          ) : value.tipo === 'xtreino' ? (
-            <Field label="Formato do X-Treino">
-              <select value={value.formato} onChange={(e) => update('formato', e.target.value)}>
-                <option value="Jogo único">Jogo único</option>
-                <option value="Mata-mata">Mata-mata</option>
-                <option value="Pontos corridos">Pontos corridos</option>
-              </select>
-            </Field>
-          ) : value.tipo === 'confronto' ? (
-            <Field label="Modo do confronto">
-              <select value={value.formato} onChange={(e) => update('formato', e.target.value)}>
-                <option value="Confronto direto 4x4 - Tático">Tático</option>
-                <option value="Confronto direto 4x4 - UMP">UMP</option>
-                <option value="Confronto direto 4x4 - Personalizado">Personalizado</option>
-              </select>
-            </Field>
-          ) : (
-            <Field label="Formato definido pelo tipo"><input value={value.tipo === 'copa' ? 'Mata-mata' : 'Jogo único'} readOnly /></Field>
-          )}
-
-          <Field label="Plataforma">
-            <select value={value.plataforma} onChange={(e) => update('plataforma', e.target.value)}>
-              <option value="">Selecione</option>
-              <option value="mobile">Mobile</option>
-              <option value="emulador">Emulador</option>
-              <option value="misto">Misto</option>
-            </select>
-          </Field>
-          <Field label="Servidor"><input value={value.servidor} onChange={(e) => update('servidor', e.target.value)} placeholder="Ex.: Brasil" /></Field>
-        </div>
-        <div className="form-initial-phases">
-          <div className="form-section-heading">
-            <div>
-              <p className="eyebrow">Sincronização com Grupos e fases</p>
-              <strong>Estas fases serão criadas automaticamente</strong>
+        {mode === 'create' && value.tipo === 'diario' ? (
+          <div className="championship-guided-structure">
+            <div className="championship-guided-copy">
+              <span>Passo 2 · Estrutura</span>
+              <strong>Quantas equipes vão jogar este Diário?</strong>
+              <small>Diário é direto: um grupo, um jogo e todas as equipes jogam juntas. As partidas desse jogo entram na próxima etapa.</small>
             </div>
-          </div>
-          <p className="form-empty-note">
-            A montagem abaixo cria fases, grupos e slots automaticamente. As vagas comerciais contam somente a fase de entrada; as próximas recebem classificados.
-          </p>
-          {defaultStructurePlan(value.tipo, Math.max(1, Math.min(12, Number(value.numero_fases) || 1)), value.estrutura_planejada).map((phase, index) => (
-            <div className="championship-structure-phase" key={index}>
-              <span>Fase {index + 1}</span>
-              <div className="mini-grid four">
-                <Field label="Nome da fase">
-                  <input value={phase.nome} onChange={(event) => updateStructurePhase(index, { nome: event.target.value })} placeholder={`Fase ${index + 1}`} />
-                </Field>
-                <Field label="Grupos">
-                  <input type="number" min="1" max="26" value={phase.grupos} onChange={(event) => updateStructurePhase(index, { grupos: event.target.value })} />
-                </Field>
-                <Field label="Equipes por grupo">
-                  <input type="number" min="1" max="52" value={phase.equipes_por_grupo} onChange={(event) => updateStructurePhase(index, { equipes_por_grupo: event.target.value })} />
-                </Field>
-                {value.tipo === 'copa' && index < Math.max(1, Number(value.numero_fases) || 1) - 1 ? (
-                  <Field label="Classificam por grupo">
-                    <input type="number" min="1" max="51" value={phase.classificam_por_grupo} onChange={(event) => updateStructurePhase(index, { classificam_por_grupo: event.target.value })} placeholder="Ex.: 6" />
-                  </Field>
-                ) : <div className="championship-structure-summary">{Number(phase.grupos || 0) * Number(phase.equipes_por_grupo || 0) || 0} vagas nesta fase</div>}
+
+            <div className="championship-guided-question">
+              <Field label="Equipes no jogo">
+                <input
+                  type="number"
+                  min="2"
+                  max="52"
+                  value={value.numero_vagas}
+                  onChange={(event) => updateGuidedDaily(event.target.value)}
+                  placeholder="Ex.: 12 ou 15"
+                />
+              </Field>
+              <div className="championship-guided-quick-options" aria-label="Sugestões de equipes">
+                {[12, 15].map((amount) => (
+                  <button
+                    type="button"
+                    key={amount}
+                    className={Number(value.numero_vagas) === amount ? 'active' : ''}
+                    onClick={() => updateGuidedDaily(String(amount))}
+                  >
+                    {amount} equipes
+                  </button>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+
+            <div className="championship-guided-preview">
+              <span>Estrutura que será criada</span>
+              <strong>1 grupo · {value.numero_vagas || '0'} equipes · 1 jogo</strong>
+              <small>Na próxima etapa você informa quantas partidas esse jogo terá.</small>
+            </div>
+          </div>
+        ) : mode === 'create' && value.tipo === 'copa' ? (
+          <div className="championship-guided-structure">
+            <div className="championship-guided-copy">
+              <span>Passo 2 · Estrutura</span>
+              <strong>Como começa esta Copa?</strong>
+              <small>Informe somente a entrada. O sistema calcula os grupos e mostra como as equipes avançam até a final.</small>
+            </div>
+
+            <div className="championship-guided-question-grid">
+              <Field label="Equipes inscritas">
+                <input
+                  type="number"
+                  min="2"
+                  max="500"
+                  value={value.numero_vagas}
+                  onChange={(event) => updateGuidedCup(event.target.value)}
+                  placeholder="Ex.: 96"
+                />
+              </Field>
+              <Field label="Equipes por grupo">
+                <input
+                  type="number"
+                  min="2"
+                  max="52"
+                  value={value.estrutura_planejada[0]?.equipes_por_grupo || '12'}
+                  onChange={(event) => updateGuidedCup(value.numero_vagas, event.target.value)}
+                  placeholder="Ex.: 12"
+                />
+              </Field>
+              <Field label="Avançam por grupo">
+                <input
+                  type="number"
+                  min="1"
+                  max={Math.max(1, Number(value.estrutura_planejada[0]?.equipes_por_grupo || 12) - 1)}
+                  value={value.estrutura_planejada[0]?.classificam_por_grupo || '6'}
+                  onChange={(event) => updateGuidedCup(
+                    value.numero_vagas,
+                    value.estrutura_planejada[0]?.equipes_por_grupo || '12',
+                    event.target.value,
+                  )}
+                  placeholder="Ex.: 6"
+                />
+              </Field>
+            </div>
+
+            <div className="championship-guided-flow" aria-label="Progressão calculada da Copa">
+              {value.estrutura_planejada.map((phase, index) => {
+                const teams = Number(phase.grupos || 0) * Number(phase.equipes_por_grupo || 0)
+                const classified = phase.classificam_por_grupo
+                  ? Number(phase.grupos || 0) * Number(phase.classificam_por_grupo || 0)
+                  : 0
+                return (
+                  <div className="championship-guided-flow-step" key={`${phase.nome}-${index}`}>
+                    <span>{phase.nome}</span>
+                    <strong>{phase.grupos} {Number(phase.grupos) === 1 ? 'grupo' : 'grupos'} · {teams} equipes</strong>
+                    {classified ? <small>{phase.classificam_por_grupo} avançam por grupo → {classified} classificadas</small> : <small>Última fase da Copa</small>}
+                  </div>
+                )
+              })}
+            </div>
+
+            <p className="championship-guided-note">
+              As partidas de cada jogo serão definidas na próxima etapa. Aqui estamos montando apenas o caminho das equipes.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="eyebrow">Estrutura inicial</p>
+            <p className="form-empty-note">
+              {value.tipo === 'liga' && 'Defina as fases e as séries. Promoção, rebaixamento, grupos e vagas diretas continuam na organização da liga.'}
+              {value.tipo === 'xtreino' && 'Defina a estrutura base do treino. Grupos e jogos podem ser ajustados depois.'}
+              {value.tipo === 'confronto' && 'Defina o modo e a estrutura do confronto direto entre as equipes.'}
+              {value.tipo === 'diario' && 'Um grupo e um jogo.'}
+              {value.tipo === 'copa' && 'Estrutura eliminatória da Copa.'}
+            </p>
+            <div className="mini-grid three">
+              <Field label="Limite de vagas (meta)">
+                <input
+                  type="number"
+                  min="1"
+                  value={value.numero_vagas}
+                  onChange={(e) => update('numero_vagas', e.target.value)}
+                  placeholder="Ex.: 96"
+                />
+              </Field>
+
+              <Field label="Fases iniciais">
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={value.numero_fases || '1'}
+                  onChange={(e) => updateInitialPhaseCount(e.target.value)}
+                  placeholder="Ex.: 2"
+                />
+              </Field>
+
+              {value.tipo === 'liga' ? (
+                <Field label="Modelo da liga">
+                  <select
+                    value={value.liga_usa_divisoes ? 'divisoes' : 'simples'}
+                    onChange={(event) => {
+                      const useDivisions = event.target.value === 'divisoes'
+                      onChange({
+                        ...value,
+                        liga_usa_divisoes: useDivisions,
+                        liga_divisoes: useDivisions && !value.liga_divisoes.length
+                          ? [{ id: crypto.randomUUID(), nome: 'Divisão 1', codigo: '', ordem: 1 }]
+                          : value.liga_divisoes,
+                        formato: useDivisions ? 'Liga híbrida por divisões' : 'Pontos corridos',
+                      })
+                    }}
+                  >
+                    <option value="simples">Liga simples — pontos corridos</option>
+                    <option value="divisoes">Liga com divisões, séries ou categorias</option>
+                  </select>
+                </Field>
+              ) : value.tipo === 'xtreino' ? (
+                <Field label="Formato do X-Treino">
+                  <select value={value.formato} onChange={(e) => update('formato', e.target.value)}>
+                    <option value="Jogo único">Jogo único</option>
+                    <option value="Mata-mata">Mata-mata</option>
+                    <option value="Pontos corridos">Pontos corridos</option>
+                  </select>
+                </Field>
+              ) : value.tipo === 'confronto' ? (
+                <Field label="Modo do confronto">
+                  <select value={value.formato} onChange={(e) => update('formato', e.target.value)}>
+                    <option value="Confronto direto 4x4 - Tático">Tático</option>
+                    <option value="Confronto direto 4x4 - UMP">UMP</option>
+                    <option value="Confronto direto 4x4 - Personalizado">Personalizado</option>
+                  </select>
+                </Field>
+              ) : (
+                <Field label="Formato definido pelo tipo"><input value={value.tipo === 'copa' ? 'Mata-mata' : 'Jogo único'} readOnly /></Field>
+              )}
+
+              <Field label="Plataforma">
+                <select value={value.plataforma} onChange={(e) => update('plataforma', e.target.value)}>
+                  <option value="">Selecione</option>
+                  <option value="mobile">Mobile</option>
+                  <option value="emulador">Emulador</option>
+                  <option value="misto">Misto</option>
+                </select>
+              </Field>
+              <Field label="Servidor"><input value={value.servidor} onChange={(e) => update('servidor', e.target.value)} placeholder="Ex.: Brasil" /></Field>
+            </div>
+            <div className="form-initial-phases">
+              <div className="form-section-heading">
+                <div>
+                  <p className="eyebrow">Sincronização com Grupos e fases</p>
+                  <strong>Estas fases serão criadas automaticamente</strong>
+                </div>
+              </div>
+              <p className="form-empty-note">
+                A montagem abaixo cria fases, grupos e slots automaticamente. As vagas comerciais contam somente a fase de entrada; as próximas recebem classificados.
+              </p>
+              {defaultStructurePlan(value.tipo, Math.max(1, Math.min(12, Number(value.numero_fases) || 1)), value.estrutura_planejada).map((phase, index) => (
+                <div className="championship-structure-phase" key={index}>
+                  <span>Fase {index + 1}</span>
+                  <div className="mini-grid four">
+                    <Field label="Nome da fase">
+                      <input value={phase.nome} onChange={(event) => updateInitialPhaseName(index, event.target.value)} placeholder={phaseNameSuggestion(index, Number(value.numero_fases) || 1)} />
+                    </Field>
+                    <Field label="Grupos">
+                      <input type="number" min="1" max="26" value={phase.grupos} onChange={(event) => updateStructurePhase(index, { grupos: event.target.value })} />
+                    </Field>
+                    <Field label="Equipes por grupo">
+                      <input type="number" min="1" max="52" value={phase.equipes_por_grupo} onChange={(event) => updateStructurePhase(index, { equipes_por_grupo: event.target.value })} />
+                    </Field>
+                    {index < Math.max(1, Number(value.numero_fases) || 1) - 1 ? (
+                      <Field label="Classificam por grupo">
+                        <input type="number" min="1" max="51" value={phase.classificam_por_grupo} onChange={(event) => updateStructurePhase(index, { classificam_por_grupo: event.target.value })} placeholder="Ex.: 6" />
+                      </Field>
+                    ) : <div className="championship-structure-summary">{Number(phase.grupos || 0) * Number(phase.equipes_por_grupo || 0) || 0} vagas nesta fase</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </section>
-
-      {value.tipo === 'liga' && pageVisible('format') && value.liga_usa_divisoes ? (
-        <section className="form-section-card league-organization-card">
-          <div className="form-section-heading">
-            <div>
-              <p className="eyebrow">Organização da liga</p>
-              <strong>Defina como os níveis serão chamados</strong>
-            </div>
-          </div>
-          <p className="form-empty-note">
-            Você pode usar Série A/B/C, Bronze/Prata/Ouro, Elite/Challenger ou qualquer nome próprio.
-          </p>
-          <div className="mini-grid two">
-            <Field label="Nome do agrupamento">
-              <select
-                value={['Séries', 'Divisões', 'Categorias', 'Níveis', 'Conferências', 'Circuitos'].includes(value.liga_nome_agrupamento) ? value.liga_nome_agrupamento : 'Personalizado'}
-                onChange={(event) => update('liga_nome_agrupamento', event.target.value === 'Personalizado' ? '' : event.target.value)}
-              >
-                <option value="Divisões">Divisões</option>
-                <option value="Séries">Séries</option>
-                <option value="Categorias">Categorias</option>
-                <option value="Níveis">Níveis</option>
-                <option value="Conferências">Conferências</option>
-                <option value="Circuitos">Circuitos</option>
-                <option value="Personalizado">Nome personalizado</option>
-              </select>
-            </Field>
-            <Field label="Nome exibido">
-              <input
-                value={value.liga_nome_agrupamento}
-                onChange={(event) => update('liga_nome_agrupamento', event.target.value)}
-                placeholder="Ex.: Copas, Faixas ou Classes"
-              />
-            </Field>
-          </div>
-          <div className="league-division-list">
-            {value.liga_divisoes.map((division, index) => (
-              <div className="league-division-row" key={division.id}>
-                <span className="league-division-order">{index + 1}</span>
-                <Field label="Nome">
-                  <input value={division.nome} onChange={(event) => updateLeagueDivision(division.id, { nome: event.target.value })} placeholder="Ex.: Ouro" />
-                </Field>
-                <Field label="Código opcional">
-                  <input value={division.codigo} onChange={(event) => updateLeagueDivision(division.id, { codigo: event.target.value })} placeholder="Ex.: OURO" />
-                </Field>
-                <button className="inline-icon-button" type="button" onClick={() => removeLeagueDivision(division.id)} aria-label={`Remover ${division.nome || 'divisão'}`}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button className="button secondary" type="button" onClick={addLeagueDivision}>
-            <Plus size={15} /> Adicionar {value.liga_nome_agrupamento.replace(/s$/i, '').toLocaleLowerCase('pt-BR') || 'divisão'}
-          </button>
-          <p className="form-empty-note">
-            Datas, vendas, fases, promoção e rebaixamento de cada item serão configurados na próxima etapa da criação da Liga.
-          </p>
-        </section>
-      ) : null}
-
 
       <section className="form-section-card" hidden={!pageVisible('operation')}>
         <p className="eyebrow">Premiação e inscrição</p>
