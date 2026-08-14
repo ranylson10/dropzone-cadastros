@@ -34,19 +34,19 @@ export function DropzoneLoader({ label = 'Carregando', compact = false }: Dropzo
           <path
             className="dz-face dz-face-left"
             d="M45 64 82 42c4-2 7 0 7 4v48c0 3-2 5-4 7l-36 21c-4 2-7 0-7-4V70c0-3 1-5 3-6Z"
-            fill="#ff6a7c"
+            fill="#dfcf85"
           />
           {/* face direita */}
           <path
             className="dz-face dz-face-right"
             d="m135 64-37-22c-4-2-7 0-7 4v48c0 3 2 5 4 7l36 21c4 2 7 0 7-4V70c0-3-1-5-3-6Z"
-            fill="#ff4655"
+            fill="#c9b766"
           />
           {/* base */}
           <path
             className="dz-face dz-face-bottom"
             d="m86 105-31 18c-4 2-4 6 0 8l31 18c3 2 6 2 9 0l31-18c4-2 4-6 0-8l-31-18c-3-2-6-2-9 0Z"
-            fill="#b72d40"
+            fill="#9e8e49"
           />
         </svg>
       </div>
