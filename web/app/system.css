@@ -114,6 +114,95 @@ body {
   color: #65b982;
 }
 
+/* Diretórios e ranking: encerram a herança clara das primeiras telas públicas. */
+.directory-page[class*='directory-theme-'] .directory-hero-banner,
+.directory-profile-page[class*='directory-theme-'] .directory-profile-banner,
+.directory-page.directory-theme-rank .directory-rank-hero {
+  border-color: var(--ui-line);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: none;
+  background:
+    linear-gradient(90deg, rgba(7, 8, 10, .9) 0%, rgba(7, 8, 10, .58) 42%, rgba(7, 8, 10, .76) 100%),
+    var(--dz-directory-hero-image, none) center / cover no-repeat,
+    var(--ui-surface);
+}
+
+.directory-rank-toolbar > nav {
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+}
+
+.directory-rank-toolbar > nav button,
+.directory-rank-refresh {
+  border-color: transparent;
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text-muted);
+}
+
+.directory-rank-toolbar > nav button:hover,
+.directory-rank-refresh:hover {
+  border-color: var(--ui-line);
+  background: var(--ui-surface-soft);
+  color: var(--ui-text);
+}
+
+.directory-rank-toolbar > nav button.active {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  color: #17150d;
+  box-shadow: none;
+}
+
+.directory-list.directory-rank-list {
+  gap: 6px;
+  border: 0;
+  background: transparent;
+}
+
+.directory-rank-list .directory-rank-row,
+.directory-rank-list .directory-rank-row:nth-child(even) {
+  min-height: 68px;
+  border: 1px solid var(--ui-line);
+  border-left: 3px solid transparent;
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+}
+
+.directory-rank-list .directory-rank-row:hover {
+  border-left-color: var(--ui-accent);
+  background: var(--ui-surface-soft);
+}
+
+.directory-rank-table .directory-list-head {
+  min-height: 38px;
+  margin-bottom: 6px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text-muted);
+}
+
+.directory-rank-table .directory-list-head em { color: var(--ui-text-muted); }
+.directory-rank-list .directory-list-main > strong { color: var(--ui-text); }
+.directory-rank-list .directory-list-main > small,
+.directory-rank-list .directory-list-main > span { color: var(--ui-text-muted); }
+.directory-rank-list .directory-rank-mobile-position,
+.directory-rank-list .directory-rank-mobile-score,
+.directory-rank-list .directory-rank-position,
+.directory-rank-list .directory-rank-score { color: var(--ui-text); }
+.directory-rank-list .directory-rank-position { color: var(--ui-gold); }
+
+.directory-rank-loading { display: grid; gap: 6px; }
+.directory-rank-loading span { display: block; height: 68px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-md); background: linear-gradient(90deg, var(--ui-surface) 0%, var(--ui-surface-raised) 50%, var(--ui-surface) 100%); background-size: 200% 100%; animation: system-rank-loading 1.1s ease-in-out infinite; }
+.directory-rank-loading span:nth-child(2) { animation-delay: .08s; }.directory-rank-loading span:nth-child(3) { animation-delay: .16s; }.directory-rank-loading span:nth-child(4) { animation-delay: .24s; }.directory-rank-loading span:nth-child(5) { animation-delay: .32s; }
+
+@keyframes system-rank-loading { to { background-position: -200% 0; } }
+
 @media (max-width: 760px) {
   .page-authenticated .shell,
   .directory-page-body,
@@ -127,6 +216,17 @@ body {
   .directory-list-row {
     border-radius: var(--ui-radius-sm);
   }
+
+  .directory-page[class*='directory-theme-'] .directory-hero-banner,
+  .directory-profile-page[class*='directory-theme-'] .directory-profile-banner,
+  .directory-page.directory-theme-rank .directory-rank-hero { border-radius: var(--ui-radius-md); }
+
+  .directory-rank-toolbar > nav { gap: 2px; padding: 3px; }
+  .directory-rank-toolbar > nav button { min-height: 38px; padding-inline: 5px; font-size: 10px; }
+  .directory-rank-toolbar > nav button svg { width: 14px; height: 14px; }
+  .directory-rank-list .directory-rank-row,
+  .directory-rank-list .directory-rank-row:nth-child(even) { min-height: 58px; border-radius: var(--ui-radius-sm); }
+  .directory-rank-loading span { height: 58px; border-radius: var(--ui-radius-sm); }
 }
 
 /* Diretórios públicos e vitrine de vagas. */

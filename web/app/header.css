@@ -804,6 +804,31 @@
 
   .app-profile-trigger { display: none; }
 
+  /* Visitante: a grade reserva 36 px para a ação de entrar; o rótulo longo não pode vazar da tela. */
+  .app-profile:has(.app-header-login) {
+    display: block;
+    width: 36px;
+    max-width: 36px;
+  }
+
+  .app-profile .app-header-login {
+    display: grid;
+    width: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    place-items: center;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+  }
+
+  .app-profile .app-header-login::before {
+    content: '↪';
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
   .app-profile .notif-inbox-panel {
     position: fixed !important;
     top: 62px !important;

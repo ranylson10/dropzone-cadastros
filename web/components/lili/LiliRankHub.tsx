@@ -36,14 +36,15 @@ export function LiliRankHub() {
     <section className="directory-rank-table">
       <div className="directory-rank-toolbar">
         <nav aria-label="Tipo de ranking">
-          <button type="button" className={mode === 'teams' ? 'active' : ''} onClick={() => setMode('teams')}><Shield size={16} /> Equipes</button>
-          <button type="button" className={mode === 'players' ? 'active' : ''} onClick={() => setMode('players')}><Swords size={16} /> Jogadores</button>
-          <button type="button" className={mode === 'championships' ? 'active' : ''} onClick={() => setMode('championships')}><Trophy size={16} /> Campeonatos</button>
+          <button type="button" aria-pressed={mode === 'teams'} className={mode === 'teams' ? 'active' : ''} onClick={() => setMode('teams')}><Shield size={16} /> Equipes</button>
+          <button type="button" aria-pressed={mode === 'players'} className={mode === 'players' ? 'active' : ''} onClick={() => setMode('players')}><Swords size={16} /> Jogadores</button>
+          <button type="button" aria-pressed={mode === 'championships'} className={mode === 'championships' ? 'active' : ''} onClick={() => setMode('championships')}><Trophy size={16} /> Campeonatos</button>
         </nav>
         <button className="directory-rank-refresh" type="button" onClick={() => void load()} aria-label="Atualizar ranking"><RefreshCw className={loading ? 'spin' : ''} size={16} /></button>
       </div>
 
       {error ? <div className="lili-team-feedback error">{error}</div> : null}
+      {loading ? <div className="directory-rank-loading" role="status" aria-live="polite"><span /><span /><span /><span /><span /></div> : null}
       {!loading && !rows.length ? <div className="lili-team-empty"><Medal size={34} /><strong>Ranking ainda vazio</strong><span>Os tiers surgem depois dos primeiros resultados oficiais.</span></div> : null}
 
       {rows.length ? <div className="directory-list-head" aria-hidden="true"><span className="directory-list-head-main">{modeLabel}</span><span className="directory-list-head-meta"><em>Posição</em><em>Tier</em><em>Score</em></span></div> : null}
