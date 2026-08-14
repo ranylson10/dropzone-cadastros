@@ -967,3 +967,65 @@ body .lili-team-empty span{color:var(--ui-muted)}
 @media(max-width:640px){
   body .lili-floating-chat{border-radius:var(--ui-radius-md)}
 }
+
+/* Home pÃºblica: descoberta, compra e informaÃ§Ã£o institucional no mesmo percurso. */
+body .public-home-redesign{
+  --dz-paper:var(--ui-bg);
+  --dz-surface:var(--ui-surface);
+  --dz-white:var(--ui-surface);
+  --dz-line:var(--ui-line);
+  --dz-ink:var(--ui-text);
+  --dz-muted:var(--ui-muted);
+  --dz-accent:var(--ui-accent);
+  background:var(--ui-bg);
+  color:var(--ui-text);
+}
+body .public-home-redesign .public-home-alert{background:#17150d;color:var(--ui-text);border-bottom:1px solid rgba(201,183,102,.28)}
+body .public-home-redesign .public-home-alert a{color:var(--ui-accent)}
+body .public-home-redesign .public-home-access,
+body .public-home-redesign .public-home-search button,
+body .public-home-redesign .featured-badge,
+body .public-home-redesign .featured-cta a,
+body .public-home-redesign .urgent-list > a > b{background:var(--ui-accent);color:#111216}
+body .public-home-redesign .public-home-search{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);box-shadow:none}
+body .public-home-redesign .public-home-search input{color:var(--ui-text)}
+body .public-home-redesign .featured-championship,
+body .public-home-redesign .home-champ-card,
+body .public-home-redesign .home-card-skeleton,
+body .public-home-redesign .category-grid button{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+  box-shadow:none;
+}
+body .public-home-redesign .featured-details{border-color:var(--ui-line);background:var(--ui-surface-raised)}
+body .public-home-redesign .featured-details span,
+body .public-home-redesign .featured-cta small,
+body .public-home-redesign .home-champ-meta span,
+body .public-home-redesign .home-vacancy-line > span,
+body .public-home-redesign .category-grid span,
+body .public-home-redesign .home-empty-state span{color:var(--ui-muted)}
+body .public-home-redesign .home-filter-row{border-bottom-color:var(--ui-line)}
+body .public-home-redesign .home-filter-row button{color:var(--ui-muted)}
+body .public-home-redesign .home-filter-row button.active{background:var(--ui-accent);color:#111216;box-shadow:none}
+body .public-home-redesign .home-champ-card:hover,
+body .public-home-redesign .category-grid button:hover{border-color:var(--ui-accent);background:var(--ui-surface-soft);color:var(--ui-text)}
+body .public-home-redesign .home-vacancy-line i{background:var(--ui-line)}
+body .public-home-redesign .home-vacancy-line em{background:var(--ui-accent)}
+body .public-home-redesign .home-champ-content footer a,
+body .public-home-redesign .category-grid button > svg:first-child{color:var(--ui-accent)}
+body .public-home-redesign .home-urgent-section{background:#141518}
+body .public-home-redesign .urgent-list > a{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface);color:var(--ui-text)}
+body .public-home-redesign .urgent-list > a:hover{border-color:var(--ui-accent);background:var(--ui-surface-raised);transform:none}
+body .public-home-redesign .home-categories{background:var(--ui-surface-soft)}
+body .public-home-redesign .home-how{border:1px solid var(--ui-line);border-radius:var(--ui-radius-lg);background:#141518;box-shadow:none}
+body .public-home-redesign .home-how > button{border:1px solid var(--ui-accent);border-radius:var(--ui-radius-sm);background:var(--ui-accent);color:#111216}
+body .public-home-redesign .public-home-footer{border-color:var(--ui-line);color:var(--ui-muted)}
+body .public-home-redesign .public-home-footer nav{display:flex;gap:14px;align-items:center}
+body .public-home-redesign .public-home-footer nav a{color:var(--ui-muted);font-size:11px}
+body .public-home-redesign .public-home-footer nav a:hover{color:var(--ui-accent)}
+
+@media(max-width:640px){
+  body .public-home-redesign .public-home-footer{align-items:flex-start;flex-direction:column;gap:12px}
+}

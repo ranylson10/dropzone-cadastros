@@ -117,7 +117,11 @@ export function PublicChampionshipHome({ onAccess }: Props) {
 
       <section className="home-how"><div><span className="home-kicker">Simples do início ao fim</span><h2>Escolha, garanta e jogue</h2></div><ol><li><b>1</b><span><strong>Encontre</strong><small>Use data, valor e formato.</small></span></li><li><b>2</b><span><strong>Garanta a vaga</strong><small>Inscrição rápida e segura.</small></span></li><li><b>3</b><span><strong>Acompanhe</strong><small>Escalação, grupos e jogos.</small></span></li></ol><button type="button" onClick={onAccess}>Acessar meu painel <ArrowRight size={16} /></button></section>
 
-      <footer className="public-home-footer"><div className="public-home-brand"><SystemLogo size={34} alt="DropZone" variant="accent" /><span><b>DropZone</b><small>Onde campeonatos acontecem</small></span></div><span>© 2026 DropZone</span></footer>
+      <footer className="public-home-footer">
+        <div className="public-home-brand"><SystemLogo size={34} alt="DropZone" variant="accent" /><span><b>DropZone</b><small>Onde campeonatos acontecem</small></span></div>
+        <nav aria-label="Links institucionais"><a href="/termos-de-servico">Termos</a><a href="/politica-de-privacidade">Privacidade</a></nav>
+        <span>© 2026 DropZone</span>
+      </footer>
     </main>
   )
 }
