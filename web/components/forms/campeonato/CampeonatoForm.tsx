@@ -21,6 +21,12 @@ export type CampeonatoFormValue = {
   divisao_premiacao: string
   numero_vagas: string
   diario_equipes_por_horario?: string
+  /** Sistema de pontuação usado em todas as súmulas deste campeonato. */
+  sistema_pontuacao_tipo: 'garena' | 'personalizado'
+  sistema_pontuacao_nome: string
+  pontuacao_equipes_por_partida: string
+  pontos_colocacao: string[]
+  pontos_por_abate: string
   numero_fases: string
   nomes_fases: string[]
   estrutura_planejada: CampeonatoStructurePhase[]
@@ -122,6 +128,14 @@ export const WHATSAPP_COUNTRIES = [
   { pais: 'Paraguai', bandeira: '🇵🇾', ddi: '+595' },
 ] as const
 
+export const OFFICIAL_GARENA_SCORING = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0] as const
+
+function scoringPointsForCount(count: number, source: ReadonlyArray<string | number> = []) {
+  return Array.from({ length: Math.max(2, Math.min(15, count)) }, (_, index) =>
+    source[index] == null ? '' : String(source[index]),
+  )
+}
+
 export const emptyCampeonatoForm: CampeonatoFormValue = {
   nome: '',
   tipo: '',
@@ -134,6 +148,11 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   divisao_premiacao: '',
   numero_vagas: '',
   diario_equipes_por_horario: '12',
+  sistema_pontuacao_tipo: 'garena',
+  sistema_pontuacao_nome: 'Oficial Garena',
+  pontuacao_equipes_por_partida: '12',
+  pontos_colocacao: OFFICIAL_GARENA_SCORING.map(String),
+  pontos_por_abate: '1',
   numero_fases: '1',
   nomes_fases: ['Fase 1'],
   estrutura_planejada: [],
@@ -344,7 +363,7 @@ export function CampeonatoForm({
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
-  const [formPage, setFormPage] = useState<'origin' | 'identity' | 'season' | 'format' | 'matches' | 'operation' | 'review'>('origin')
+  const [formPage, setFormPage] = useState<'origin' | 'identity' | 'season' | 'format' | 'matches' | 'operation' | 'scoring' | 'review'>('origin')
   const [originChoice, setOriginChoice] = useState<'novo' | 'modelo' | 'season' | null>(mode === 'edit' ? value.origem_criacao : null)
   const [sourceSearch, setSourceSearch] = useState('')
   const [sourceLoading, setSourceLoading] = useState(false)
@@ -561,6 +580,11 @@ export function CampeonatoForm({
       formato: nextFormat,
       numero_vagas: type === 'copa' ? '96' : type === 'confronto' ? '2' : '12',
       diario_equipes_por_horario: type === 'diario' ? (value.diario_equipes_por_horario || '12') : value.diario_equipes_por_horario,
+      sistema_pontuacao_tipo: value.sistema_pontuacao_tipo || 'garena',
+      sistema_pontuacao_nome: value.sistema_pontuacao_nome || 'Oficial Garena',
+      pontuacao_equipes_por_partida: value.pontuacao_equipes_por_partida || '12',
+      pontos_colocacao: value.pontos_colocacao?.length ? value.pontos_colocacao : OFFICIAL_GARENA_SCORING.map(String),
+      pontos_por_abate: value.pontos_por_abate || '1',
       numero_fases: String(guidedPlan.length),
       nomes_fases: guidedPlan.map((phase) => phase.nome),
       estrutura_planejada: guidedPlan,
@@ -682,7 +706,8 @@ export function CampeonatoForm({
       const copied: CampeonatoFormValue = { ...value }
       const copyKeys: Array<keyof CampeonatoFormValue> = [
         'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
-        'divisao_premiacao', 'numero_vagas', 'diario_equipes_por_horario', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final',
+        'divisao_premiacao', 'numero_vagas', 'diario_equipes_por_horario', 'sistema_pontuacao_tipo', 'sistema_pontuacao_nome',
+        'pontuacao_equipes_por_partida', 'pontos_colocacao', 'pontos_por_abate', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final',
         'final_dias', 'final_dias_config', 'final_quedas_por_dia', 'final_formato', 'final_champion_point_pontos',
         'final_point_rush_dias', 'final_bonus_ranking', 'final_observacoes', 'plataforma', 'servidor', 'tipo_premiacao', 'inscricao_paga',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
@@ -697,6 +722,15 @@ export function CampeonatoForm({
       for (const key of copyKeys) {
         const sourceField = sourceValue(source, key)
         if (sourceField !== undefined && sourceField !== null) (copied as any)[key] = sourceField
+      }
+      if (sourceValue(source, 'sistema_pontuacao_tipo') == null) {
+        const copiedPoints = Array.isArray(copied.pontos_colocacao) ? copied.pontos_colocacao : []
+        const matchesOfficial = copiedPoints.length === OFFICIAL_GARENA_SCORING.length
+          && copiedPoints.every((point, index) => Number(point) === OFFICIAL_GARENA_SCORING[index])
+          && Number(copied.pontos_por_abate || 1) === 1
+        copied.sistema_pontuacao_tipo = matchesOfficial ? 'garena' : 'personalizado'
+        copied.sistema_pontuacao_nome = matchesOfficial ? 'Oficial Garena' : 'Personalizada'
+        copied.pontuacao_equipes_por_partida = String(copiedPoints.length || 12)
       }
       copied.tipo = value.tipo
       copied.bg_image_url = ''
@@ -720,6 +754,52 @@ export function CampeonatoForm({
     } finally {
       setSourceLoading(false)
     }
+  }
+
+  function setScoringMode(nextMode: CampeonatoFormValue['sistema_pontuacao_tipo']) {
+    if (nextMode === 'garena') {
+      onChange({
+        ...value,
+        sistema_pontuacao_tipo: 'garena',
+        sistema_pontuacao_nome: 'Oficial Garena',
+        pontuacao_equipes_por_partida: '12',
+        pontos_colocacao: OFFICIAL_GARENA_SCORING.map(String),
+        pontos_por_abate: '1',
+      })
+      return
+    }
+
+    const count = Math.max(2, Math.min(15, Number(value.pontuacao_equipes_por_partida || 12) || 12))
+    onChange({
+      ...value,
+      sistema_pontuacao_tipo: 'personalizado',
+      sistema_pontuacao_nome: value.sistema_pontuacao_tipo === 'personalizado' ? value.sistema_pontuacao_nome : '',
+      pontuacao_equipes_por_partida: String(count),
+      pontos_colocacao: scoringPointsForCount(count, value.pontos_colocacao?.length ? value.pontos_colocacao : OFFICIAL_GARENA_SCORING),
+      pontos_por_abate: value.pontos_por_abate || '1',
+    })
+  }
+
+  function updateScoringTeamCount(rawCount: string) {
+    if (!rawCount) {
+      onChange({ ...value, pontuacao_equipes_por_partida: '' })
+      return
+    }
+    const count = Math.max(2, Math.min(15, Number(rawCount) || 12))
+    onChange({
+      ...value,
+      pontuacao_equipes_por_partida: String(count),
+      pontos_colocacao: scoringPointsForCount(count, value.pontos_colocacao),
+    })
+  }
+
+  function updatePlacementPoint(index: number, rawPoint: string) {
+    const next = scoringPointsForCount(
+      value.sistema_pontuacao_tipo === 'garena' ? 12 : Number(value.pontuacao_equipes_por_partida || 12),
+      value.pontos_colocacao,
+    )
+    next[index] = rawPoint.replace(/[^0-9-]/g, '')
+    update('pontos_colocacao', next)
   }
 
   function updatePrizeType(nextType: string) {
@@ -963,11 +1043,13 @@ export function CampeonatoForm({
         { id: 'season', label: 'Temporada' },
         { id: 'format', label: 'Estrutura' },
         { id: 'operation', label: 'Operação' },
+        { id: 'scoring', label: 'Pontuação' },
       ]
     : value.tipo === 'copa'
       ? [
           { id: 'origin', label: 'Início' },
           { id: 'operation', label: 'Vagas e prêmio' },
+          { id: 'scoring', label: 'Pontuação' },
           { id: 'format' as const, label: 'Fases e grupos' },
           { id: 'matches' as const, label: 'Final' },
           { id: 'review', label: 'Revisão' },
@@ -976,6 +1058,7 @@ export function CampeonatoForm({
         ? [
             { id: 'origin', label: 'Início' },
             { id: 'operation', label: 'Vagas e prêmio' },
+            { id: 'scoring', label: 'Pontuação' },
             { id: 'matches' as const, label: 'Quedas' },
             { id: 'format' as const, label: 'Horários' },
             { id: 'review', label: 'Revisão' },
@@ -984,12 +1067,14 @@ export function CampeonatoForm({
         ? [
             { id: 'origin', label: 'Início' },
             { id: 'format' as const, label: 'Séries' },
+            { id: 'scoring', label: 'Pontuação' },
             { id: 'review', label: 'Revisão' },
           ]
         : [
             { id: 'origin', label: 'Início' },
             { id: 'format' as const, label: 'Estrutura' },
             { id: 'operation', label: 'Operação' },
+            { id: 'scoring', label: 'Pontuação' },
             { id: 'review', label: 'Revisão' },
           ]
   const currentPageIndex = Math.max(0, wizardPages.findIndex((page) => page.id === formPage))
@@ -1024,6 +1109,15 @@ export function CampeonatoForm({
       if (value.inscricao_paga && Number(value.valor_inscricao || 0) <= 0) return setWizardError('A inscrição está marcada como paga. Informe um valor maior que R$ 0,00 ou selecione Gratuita.')
       if (showMoneyPrize && Number(value.premiacao || 0) <= 0) return setWizardError('Informe o valor da premiação ou selecione Sem premiação.')
       if (showGiftPrize && !value.descricao_premiacao.trim()) return setWizardError('Descreva o brinde da premiação para continuar.')
+    }
+    if (formPage === 'scoring') {
+      if (value.sistema_pontuacao_tipo === 'personalizado') {
+        const count = Number(value.pontuacao_equipes_por_partida || 0)
+        if (count < 2 || count > 15) return setWizardError('A pontuação personalizada precisa ter entre 2 e 15 posições.')
+        if (!value.sistema_pontuacao_nome.trim()) return setWizardError('Dê um nome ao sistema de pontuação personalizado.')
+        if (value.pontos_colocacao.length !== count) return setWizardError('Confira a quantidade de posições do sistema de pontuação.')
+      }
+      if (Number(value.pontos_por_abate || 0) < 0) return setWizardError('O valor por abate não pode ser negativo.')
     }
     if (formPage === 'matches' && value.tipo === 'diario' && Number(value.partidas_por_jogo || 0) < 1) return setWizardError('Informe quantas quedas terá o Diário.')
     if (formPage === 'matches' && value.tipo === 'copa') {
@@ -1301,6 +1395,106 @@ export function CampeonatoForm({
             <input type="number" min="1" value={value.numero_edicao} onChange={(event) => update('numero_edicao', event.target.value)} />
           </Field>
         </div>
+      </section>
+
+      <section className="form-section-card championship-scoring-card" hidden={!pageVisible('scoring')}>
+        <div className="championship-guided-copy">
+          <span>Sistema de pontuação</span>
+          <strong>Como os resultados vão valer pontos?</strong>
+          <small>O MatchResult entrega colocação e abates. Aqui o DropZone define quantos pontos cada posição e cada abate valem.</small>
+        </div>
+
+        <div className="championship-scoring-mode-choice">
+          <button
+            type="button"
+            className={value.sistema_pontuacao_tipo === 'garena' ? 'active' : ''}
+            onClick={() => setScoringMode('garena')}
+          >
+            <strong>Oficial Garena</strong>
+            <small>12 equipes · tabela oficial · 1 ponto por abate.</small>
+          </button>
+          <button
+            type="button"
+            className={value.sistema_pontuacao_tipo === 'personalizado' ? 'active' : ''}
+            onClick={() => setScoringMode('personalizado')}
+          >
+            <strong>Personalizada</strong>
+            <small>Crie seu próprio sistema para jogos com até 15 equipes.</small>
+          </button>
+        </div>
+
+        {value.sistema_pontuacao_tipo === 'personalizado' ? (
+          <div className="championship-scoring-custom-head">
+            <Field label="Nome do sistema">
+              <input
+                value={value.sistema_pontuacao_nome}
+                onChange={(event) => update('sistema_pontuacao_nome', event.target.value)}
+                placeholder="Ex.: Pontuação Liga Paraense"
+              />
+            </Field>
+            <Field label="Equipes por partida">
+              <input
+                type="number"
+                min="2"
+                max="15"
+                value={value.pontuacao_equipes_por_partida}
+                onChange={(event) => updateScoringTeamCount(event.target.value)}
+                placeholder="Ex.: 15"
+              />
+            </Field>
+            <Field label="Pontos por abate">
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={value.pontos_por_abate}
+                onChange={(event) => update('pontos_por_abate', event.target.value)}
+                placeholder="Ex.: 1"
+              />
+            </Field>
+          </div>
+        ) : (
+          <div className="championship-scoring-official-summary">
+            <div><small>Sistema</small><strong>Oficial Garena</strong></div>
+            <div><small>Equipes</small><strong>12</strong></div>
+            <div><small>Abate</small><strong>1 ponto</strong></div>
+          </div>
+        )}
+
+        <div className="championship-scoring-table">
+          <div className="championship-scoring-table-head">
+            <span>Colocação</span>
+            <span>Pontos</span>
+          </div>
+          {scoringPointsForCount(
+            value.sistema_pontuacao_tipo === 'garena' ? 12 : Number(value.pontuacao_equipes_por_partida || 12),
+            value.sistema_pontuacao_tipo === 'garena' ? OFFICIAL_GARENA_SCORING : value.pontos_colocacao,
+          ).map((points, index) => (
+            <div className="championship-scoring-row" key={`scoring-position-${index + 1}`}>
+              <span>
+                <small>{index === 0 ? 'BOOYAH' : 'TOP'}</small>
+                <strong>{index + 1}º</strong>
+              </span>
+              {value.sistema_pontuacao_tipo === 'garena' ? (
+                <strong>{points || '0'}</strong>
+              ) : (
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={points}
+                  onChange={(event) => updatePlacementPoint(index, event.target.value)}
+                  placeholder="0"
+                  aria-label={`Pontos do ${index + 1}º lugar`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <p className="championship-guided-note">
+          Posição sem valor preenchido conta como 0 ponto. Os abates continuam sendo lidos do KillScore da equipe no MatchResult.
+        </p>
       </section>
 
       <section className="form-section-card" hidden={!pageVisible('format')}>
@@ -2105,6 +2299,14 @@ export function CampeonatoForm({
             <div><small>Vagas</small><strong>{value.tipo === 'diario' ? `${value.numero_vagas || '0'} total · ${value.diario_equipes_por_horario || '12'} por horário` : value.numero_vagas || 'Não definidas'}</strong></div>
             {value.tipo !== 'diario' ? <div><small>Fases iniciais</small><strong>{Math.max(1, Number(value.numero_fases) || 1)}</strong></div> : null}
             <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
+            <div>
+              <small>Pontuação</small>
+              <strong>{value.sistema_pontuacao_tipo === 'garena' ? 'Oficial Garena' : (value.sistema_pontuacao_nome || 'Personalizada')}</strong>
+            </div>
+            <div>
+              <small>Regra de abate</small>
+              <strong>{value.pontos_por_abate || '0'} ponto(s) por abate · {value.sistema_pontuacao_tipo === 'garena' ? 12 : value.pontuacao_equipes_por_partida} posições</strong>
+            </div>
             {(value.tipo === 'diario' || value.tipo === 'copa') ? (
               <div>
                 <small>Partidas</small>

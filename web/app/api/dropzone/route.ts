@@ -293,10 +293,48 @@ const OPTIONAL_STRUCTURE_KEYS = [
   'liga_usa_divisoes',
   'liga_nome_agrupamento',
   'liga_divisoes',
+  'sistema_pontuacao_tipo',
+  'sistema_pontuacao_nome',
 ] as const
+
+const OFFICIAL_GARENA_SCORING = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0] as const
+
+function normalizeScoring(data: Record<string, any>) {
+  const type = String(data.sistema_pontuacao_tipo || 'garena').trim().toLowerCase() === 'personalizado'
+    ? 'personalizado'
+    : 'garena'
+  if (type === 'garena') {
+    return {
+      sistema_pontuacao_tipo: 'garena',
+      sistema_pontuacao_nome: 'Oficial Garena',
+      pontos_colocacao: [...OFFICIAL_GARENA_SCORING],
+      pontos_por_abate: 1,
+    }
+  }
+
+  const teamCount = Math.max(2, Math.min(15, Number.parseInt(String(data.pontuacao_equipes_por_partida || '12'), 10) || 12))
+  const rawPoints = Array.isArray(data.pontos_colocacao) ? data.pontos_colocacao : []
+  const placementPoints = Array.from({ length: teamCount }, (_, index) => {
+    const point = Number(rawPoints[index] ?? 0)
+    if (!Number.isFinite(point)) return 0
+    return Math.max(0, Math.trunc(point))
+  })
+  const killPoints = Number(data.pontos_por_abate ?? 1)
+  const name = String(data.sistema_pontuacao_nome || '').trim().slice(0, 80)
+  if (!name) throw new Error('Informe o nome do sistema de pontuação personalizado.')
+  if (!Number.isFinite(killPoints) || killPoints < 0) throw new Error('O valor por abate precisa ser zero ou maior.')
+
+  return {
+    sistema_pontuacao_tipo: 'personalizado',
+    sistema_pontuacao_nome: name,
+    pontos_colocacao: placementPoints,
+    pontos_por_abate: killPoints,
+  }
+}
 
 function championshipConfigurationPayload(data: Record<string, any>, campeonatoId: string) {
   const permiteTroca = Boolean(data.permite_troca_jogadores)
+  const scoring = normalizeScoring(data)
   return {
     campeonato_id: campeonatoId,
     premiacao: String(data.premiacao || '').trim() || null,
@@ -304,6 +342,10 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     descricao_premiacao: String(data.descricao_premiacao || '').trim() || null,
     divisao_premiacao: String(data.divisao_premiacao || '').trim() || null,
     numero_vagas: nullablePositiveInteger(data.numero_vagas),
+    sistema_pontuacao_tipo: scoring.sistema_pontuacao_tipo,
+    sistema_pontuacao_nome: scoring.sistema_pontuacao_nome,
+    pontos_colocacao: scoring.pontos_colocacao,
+    pontos_por_abate: scoring.pontos_por_abate,
     formato: String(data.formato || '').trim() || null,
     plataforma: (() => {
       const value = String(data.plataforma || '').trim().toLowerCase()

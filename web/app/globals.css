@@ -7494,3 +7494,80 @@ body .championship-review-wide{grid-column:1/-1}
   body .championship-league-series-fields{grid-template-columns:1fr}
   body .championship-league-series-index strong{font-size:16px}
 }
+
+/* Rodada 29 — sistema de pontuação compartilhado. */
+body .championship-scoring-card{display:grid;gap:18px}
+body .championship-scoring-mode-choice{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  max-width:760px;
+}
+body .championship-scoring-mode-choice button{
+  display:grid;
+  gap:5px;
+  min-height:88px;
+  padding:15px 16px;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  text-align:left;
+  cursor:pointer;
+}
+body .championship-scoring-mode-choice button strong{font-size:14px}
+body .championship-scoring-mode-choice button small{font-size:11px;line-height:1.45;color:var(--ui-text-muted)}
+body .championship-scoring-mode-choice button.active{
+  border-color:var(--ui-accent);
+  background:rgba(201,183,102,.13);
+}
+body .championship-scoring-custom-head{
+  display:grid;
+  grid-template-columns:minmax(220px,1.4fr) minmax(140px,.6fr) minmax(140px,.6fr);
+  gap:10px;
+  align-items:end;
+}
+body .championship-scoring-official-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1px;
+  background:var(--ui-line);
+  border-top:1px solid var(--ui-line);
+  border-bottom:1px solid var(--ui-line);
+}
+body .championship-scoring-official-summary>div{
+  display:grid;
+  gap:3px;
+  padding:11px 12px;
+  background:var(--ui-surface);
+}
+body .championship-scoring-official-summary small{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ui-text-muted)}
+body .championship-scoring-official-summary strong{font-size:13px;color:var(--ui-text)}
+body .championship-scoring-table{
+  display:grid;
+  max-width:620px;
+  border-top:1px solid var(--ui-line);
+}
+body .championship-scoring-table-head,
+body .championship-scoring-row{
+  display:grid;
+  grid-template-columns:minmax(160px,1fr) 150px;
+  align-items:center;
+  gap:12px;
+  min-height:48px;
+  border-bottom:1px solid var(--ui-line);
+}
+body .championship-scoring-table-head{min-height:34px;color:var(--ui-text-muted);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+body .championship-scoring-row>span{display:flex;align-items:center;gap:9px}
+body .championship-scoring-row>span small{min-width:54px;color:var(--ui-accent-light);font-size:9px;font-weight:900;letter-spacing:.06em}
+body .championship-scoring-row>span strong{font-size:13px;color:var(--ui-text)}
+body .championship-scoring-row>strong{font-size:14px;color:var(--ui-text)}
+body .championship-scoring-row input{width:100%;height:36px}
+@media(max-width:760px){
+  body .championship-scoring-mode-choice{grid-template-columns:1fr}
+  body .championship-scoring-custom-head{grid-template-columns:1fr}
+  body .championship-scoring-official-summary{grid-template-columns:1fr}
+  body .championship-scoring-table{max-width:none}
+  body .championship-scoring-table-head,
+  body .championship-scoring-row{grid-template-columns:minmax(130px,1fr) 110px}
+}

@@ -670,6 +670,18 @@ export function ProdutoraPanel(props: {
       : []
     const finalPlan = structurePlan.at(-1)
     const finalDays = Array.isArray(finalPlan?.final_dias_config) && finalPlan.final_dias_config.length ? finalPlan.final_dias_config : [{ dia: 1, quedas: '6' }]
+    const officialGarenaPoints = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0]
+    const savedScoringPoints = Array.isArray(champ.data?.pontos_colocacao) && champ.data.pontos_colocacao.length
+      ? champ.data.pontos_colocacao.map((point: any) => String(point ?? '0'))
+      : officialGarenaPoints.map(String)
+    const savedKillPoints = String(champ.data?.pontos_por_abate ?? '1')
+    const explicitScoringType = String(champ.data?.sistema_pontuacao_tipo || '')
+    const matchesOfficialGarena = savedScoringPoints.length === officialGarenaPoints.length
+      && savedScoringPoints.every((point: string, index: number) => Number(point) === officialGarenaPoints[index])
+      && Number(savedKillPoints) === 1
+    const scoringType: CampeonatoFormValue['sistema_pontuacao_tipo'] = explicitScoringType === 'personalizado'
+      ? 'personalizado'
+      : explicitScoringType === 'garena' || matchesOfficialGarena ? 'garena' : 'personalizado'
     return {
       nome: rowTitle(champ),
       tipo: String(dataText(champ, 'tipo') || 'copa'),
@@ -681,6 +693,11 @@ export function ProdutoraPanel(props: {
       divisao_premiacao: String(dataText(champ, 'divisao_premiacao') || ''),
       numero_vagas: String(dataText(champ, 'numero_vagas') || ''),
       diario_equipes_por_horario: String(String(dataText(champ, 'tipo') || '') === 'diario' ? (structurePlan[0]?.equipes_por_grupo || dataText(champ, 'numero_vagas') || '12') : '12'),
+      sistema_pontuacao_tipo: scoringType,
+      sistema_pontuacao_nome: String(champ.data?.sistema_pontuacao_nome || (scoringType === 'garena' ? 'Oficial Garena' : 'Personalizada')),
+      pontuacao_equipes_por_partida: String(savedScoringPoints.length || 12),
+      pontos_colocacao: savedScoringPoints,
+      pontos_por_abate: savedKillPoints,
       numero_fases: String(dataText(champ, 'numero_fases') || champ.data?.numero_fases || '1'),
       nomes_fases: Array.isArray(champ.data?.nomes_fases) ? champ.data.nomes_fases.map(String) : ['Fase 1'],
       estrutura_planejada: structurePlan,
