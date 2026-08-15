@@ -7398,3 +7398,24 @@ body .championship-wizard-error{margin:0 0 8px}
   body .championship-final-bonus-head{display:none}
   body .championship-final-bonus-row{grid-template-columns:minmax(82px,.5fr) minmax(0,1fr) 40px}
 }
+
+
+/* Rodada 26 — Diário por horários/grupos independentes. */
+body .championship-daily-schedules{display:grid;gap:18px}
+body .championship-daily-schedule-list{display:grid;gap:7px;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+body .championship-daily-schedule-row{display:grid;grid-template-columns:44px minmax(180px,260px) minmax(140px,1fr) 42px;gap:12px;align-items:center;min-height:66px;padding:8px 0;border-bottom:1px solid var(--ui-line)}
+body .championship-daily-schedule-row:last-child{border-bottom:0}
+body .championship-daily-schedule-index{color:var(--ui-accent-light);font-size:11px;font-weight:900;text-align:center}
+body .championship-daily-schedule-meta{display:grid;gap:2px}
+body .championship-daily-schedule-meta strong{color:var(--ui-text);font-size:12px}
+body .championship-daily-schedule-meta small{color:var(--ui-text-muted);font-size:10px}
+body .championship-daily-add-schedule{justify-self:start}
+body .phase-folder-hidden-shell>.phase-folder-content{padding-top:0}
+body .structure-hidden-phase-note{display:grid;gap:3px;padding:10px 0 12px;border-bottom:1px solid var(--ui-line)}
+body .structure-hidden-phase-note strong{color:var(--ui-text);font-size:13px}
+body .structure-hidden-phase-note small{color:var(--ui-text-muted);font-size:10px}
+@media(max-width:760px){
+  body .championship-daily-schedule-row{grid-template-columns:34px minmax(0,1fr) 40px;gap:8px}
+  body .championship-daily-schedule-meta{grid-column:2}
+  body .championship-daily-schedule-row>.icon-action-button{grid-column:3;grid-row:1/3}
+}

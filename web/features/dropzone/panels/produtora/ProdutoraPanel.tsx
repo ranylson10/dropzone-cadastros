@@ -659,6 +659,8 @@ export function ProdutoraPanel(props: {
           grupos: String(phase?.grupos || 1),
           equipes_por_grupo: String(phase?.equipes_por_grupo || 12),
           classificam_por_grupo: String(phase?.classificam_por_grupo || ''),
+          oculta: phase?.oculta === true,
+          diario_horarios: Array.isArray(phase?.diario_horarios) ? phase.diario_horarios.map((item: any, index: number) => ({ id: String(item?.id || `horario-${index + 1}`), horario: String(item?.horario || '') })) : undefined,
           final_dias_config: Array.isArray(phase?.final_dias_config) ? phase.final_dias_config.map((day: any, index: number) => ({ dia: index + 1, quedas: String(day?.quedas || 1) })) : undefined,
           final_formato: phase?.final_formato,
           final_champion_point_pontos: phase?.final_champion_point_pontos == null ? undefined : String(phase.final_champion_point_pontos),
@@ -678,6 +680,7 @@ export function ProdutoraPanel(props: {
       descricao_premiacao: String(dataText(champ, 'descricao_premiacao') || ''),
       divisao_premiacao: String(dataText(champ, 'divisao_premiacao') || ''),
       numero_vagas: String(dataText(champ, 'numero_vagas') || ''),
+      diario_equipes_por_horario: String(String(dataText(champ, 'tipo') || '') === 'diario' ? (structurePlan[0]?.equipes_por_grupo || dataText(champ, 'numero_vagas') || '12') : '12'),
       numero_fases: String(dataText(champ, 'numero_fases') || champ.data?.numero_fases || '1'),
       nomes_fases: Array.isArray(champ.data?.nomes_fases) ? champ.data.nomes_fases.map(String) : ['Fase 1'],
       estrutura_planejada: structurePlan,
@@ -780,22 +783,35 @@ export function ProdutoraPanel(props: {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     if (!token) throw new Error('Sessão expirada ao criar fases iniciais.')
-    const plan = Array.isArray(form.estrutura_planejada) && form.estrutura_planejada.length
+    const plan: CampeonatoFormValue['estrutura_planejada'] = Array.isArray(form.estrutura_planejada) && form.estrutura_planejada.length
       ? form.estrutura_planejada.slice(0, count)
       : names.map((nome) => ({ nome, grupos: '1', equipes_por_grupo: form.numero_vagas || '12', classificam_por_grupo: '' }))
     const phasePayload = plan.map((phase, index) => {
-      const groups = Math.max(1, Math.min(26, Number(phase.grupos) || 1))
+      const schedules = form.tipo === 'diario' && Array.isArray(phase.diario_horarios) ? phase.diario_horarios : []
+      const groups = form.tipo === 'diario'
+        ? Math.max(1, Math.min(26, schedules.length || Number(phase.grupos) || 1))
+        : Math.max(1, Math.min(26, Number(phase.grupos) || 1))
       const slots = Math.max(1, Math.min(52, Number(phase.equipes_por_grupo) || 12))
       const isGrandeFinal = form.tipo === 'copa' && index === plan.length - 1
+      const isHiddenDailyPhase = form.tipo === 'diario' && index === 0
+      const groupNameForSchedule = (raw: string, groupIndex: number) => {
+        if (!raw) return `Horário ${groupIndex + 1}`
+        const [hour, minute] = raw.split(':')
+        return minute === '00' ? `${hour}h` : `${hour}h${minute}`
+      }
       return {
-        nome: String(phase.nome || names[index]).trim() || `Fase ${index + 1}`,
+        nome: isHiddenDailyPhase ? 'Fase 1' : String(phase.nome || names[index]).trim() || `Fase ${index + 1}`,
         ordem: index + 1,
         tipo: isGrandeFinal ? 'grande_final' : 'normal',
         grande_final: isGrandeFinal,
+        oculta: isHiddenDailyPhase,
         final_slots: isGrandeFinal ? slots : undefined,
         grupos: Array.from({ length: groups }, (_, groupIndex) => ({
-          nome: groups === 1 ? 'Grupo único' : `Grupo ${String.fromCharCode(65 + groupIndex)}`,
+          nome: isHiddenDailyPhase
+            ? groupNameForSchedule(schedules[groupIndex]?.horario || '', groupIndex)
+            : groups === 1 ? 'Grupo único' : `Grupo ${String.fromCharCode(65 + groupIndex)}`,
           slots,
+          ...(isHiddenDailyPhase && schedules[groupIndex]?.horario ? { horario: schedules[groupIndex].horario } : {}),
         })),
       }
     })
@@ -1735,8 +1751,8 @@ ${params.url}`
                     <div className="champ-overview-flow">
                       <button type="button" onClick={() => setTab('grupos')}>
                         <FolderOpen size={18} />
-                        <strong>Grupos e fases</strong>
-                        <small>{champPhases.length ? `${champPhases.length} fase(s), ${champGroups.length} grupo(s)` : 'Comece criando a estrutura'}</small>
+                        <strong>{String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'diario' ? 'Horários' : 'Grupos e fases'}</strong>
+                        <small>{String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'diario' ? (champGroups.length ? `${champGroups.length} horário(s) configurado(s)` : 'Configure os horários dos jogos') : (champPhases.length ? `${champPhases.length} fase(s), ${champGroups.length} grupo(s)` : 'Comece criando a estrutura')}</small>
                       </button>
                       <button type="button" onClick={() => setTab('equipes')}>
                         <Users size={18} />

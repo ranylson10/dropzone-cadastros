@@ -20,6 +20,7 @@ export type CampeonatoFormValue = {
   descricao_premiacao: string
   divisao_premiacao: string
   numero_vagas: string
+  diario_equipes_por_horario?: string
   numero_fases: string
   nomes_fases: string[]
   estrutura_planejada: CampeonatoStructurePhase[]
@@ -92,6 +93,8 @@ export type CampeonatoStructurePhase = {
   grupos: string
   equipes_por_grupo: string
   classificam_por_grupo: string
+  oculta?: boolean
+  diario_horarios?: Array<{ id: string; horario: string }>
   final_dias_config?: Array<{ dia: number; quedas: string }>
   final_formato?: CampeonatoFormValue['final_formato']
   final_champion_point_pontos?: string
@@ -127,6 +130,7 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   descricao_premiacao: '',
   divisao_premiacao: '',
   numero_vagas: '',
+  diario_equipes_por_horario: '12',
   numero_fases: '1',
   nomes_fases: ['Fase 1'],
   estrutura_planejada: [],
@@ -463,22 +467,52 @@ export function CampeonatoForm({
     })
   }
 
-  function updateGuidedDaily(totalRaw: string) {
-    const total = String(Math.max(2, Number(totalRaw) || 12))
+  function normalizedDailySchedules(source = value.estrutura_planejada[0]?.diario_horarios) {
+    return Array.isArray(source) && source.length
+      ? source.map((item, index) => ({ id: String(item.id || `horario-${index + 1}`), horario: String(item.horario || '') }))
+      : [{ id: 'horario-1', horario: '19:00' }]
+  }
+
+  function updateGuidedDaily(capacityRaw: string, schedulesRaw = normalizedDailySchedules()) {
+    const capacity = Math.max(2, Math.min(52, Number(capacityRaw) || 12))
+    const schedules = normalizedDailySchedules(schedulesRaw)
+    const totalVacancies = capacity * schedules.length
     const plan: CampeonatoStructurePhase[] = [{
-      nome: 'Rodada única',
-      grupos: '1',
-      equipes_por_grupo: total,
+      nome: 'Fase 1',
+      grupos: String(schedules.length),
+      equipes_por_grupo: String(capacity),
       classificam_por_grupo: '',
+      oculta: true,
+      diario_horarios: schedules,
     }]
     onChange({
       ...value,
-      numero_vagas: total,
+      numero_vagas: String(totalVacancies),
+      diario_equipes_por_horario: String(capacity),
       numero_fases: '1',
-      nomes_fases: ['Rodada única'],
+      nomes_fases: ['Fase 1'],
       estrutura_planejada: plan,
-      formato: 'Grupo único / jogo único',
+      formato: 'Jogos únicos por horário',
     })
+  }
+
+  function addDailySchedule() {
+    const schedules = normalizedDailySchedules()
+    const last = schedules.at(-1)?.horario || '18:00'
+    const [hourRaw, minuteRaw] = last.split(':')
+    const nextHour = (Number(hourRaw || 18) + 1) % 24
+    const suggested = `${String(nextHour).padStart(2, '0')}:${String(Number(minuteRaw || 0)).padStart(2, '0')}`
+    updateGuidedDaily(value.diario_equipes_por_horario || '12', [...schedules, { id: crypto.randomUUID(), horario: suggested }])
+  }
+
+  function updateDailySchedule(id: string, horario: string) {
+    updateGuidedDaily(value.diario_equipes_por_horario || '12', normalizedDailySchedules().map((item) => item.id === id ? { ...item, horario } : item))
+  }
+
+  function removeDailySchedule(id: string) {
+    const schedules = normalizedDailySchedules().filter((item) => item.id !== id)
+    if (!schedules.length) return setWizardError('O Diário precisa ter pelo menos um horário.')
+    updateGuidedDaily(value.diario_equipes_por_horario || '12', schedules)
   }
 
   function updateGuidedCup(
@@ -516,13 +550,14 @@ export function CampeonatoForm({
     const guidedPlan = type === 'copa'
       ? guidedCupPlan('96', '12', '6')
       : type === 'diario'
-        ? [{ nome: 'Rodada única', grupos: '1', equipes_por_grupo: '12', classificam_por_grupo: '' }]
+        ? [{ nome: 'Fase 1', grupos: '1', equipes_por_grupo: '12', classificam_por_grupo: '', oculta: true, diario_horarios: [{ id: 'horario-1', horario: '19:00' }] }]
         : defaultStructurePlan(type, 1)
     onChange({
       ...value,
       tipo: type,
       formato: nextFormat,
       numero_vagas: type === 'copa' ? '96' : type === 'confronto' ? '2' : '12',
+      diario_equipes_por_horario: type === 'diario' ? (value.diario_equipes_por_horario || '12') : value.diario_equipes_por_horario,
       numero_fases: String(guidedPlan.length),
       nomes_fases: guidedPlan.map((phase) => phase.nome),
       estrutura_planejada: guidedPlan,
@@ -640,7 +675,7 @@ export function CampeonatoForm({
       const copied: CampeonatoFormValue = { ...value }
       const copyKeys: Array<keyof CampeonatoFormValue> = [
         'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
-        'divisao_premiacao', 'numero_vagas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final',
+        'divisao_premiacao', 'numero_vagas', 'diario_equipes_por_horario', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final',
         'final_dias', 'final_dias_config', 'final_quedas_por_dia', 'final_formato', 'final_champion_point_pontos',
         'final_point_rush_dias', 'final_bonus_ranking', 'final_observacoes', 'plataforma', 'servidor', 'tipo_premiacao', 'inscricao_paga',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
@@ -874,6 +909,7 @@ export function CampeonatoForm({
             { id: 'origin', label: 'Início' },
             { id: 'operation', label: 'Vagas e prêmio' },
             { id: 'matches' as const, label: 'Quedas' },
+            { id: 'format' as const, label: 'Horários' },
             { id: 'review', label: 'Revisão' },
           ]
         : [
@@ -890,6 +926,12 @@ export function CampeonatoForm({
       if (!originChoice) return setWizardError('Escolha como deseja criar o campeonato.')
       if (value.origem_criacao !== 'novo' && !value.campeonato_origem_id) return setWizardError('Selecione o campeonato de origem.')
       if (!value.nome.trim() || !value.logo_url) return setWizardError('Informe o nome e envie a logo para continuar.')
+    }
+    if (formPage === 'format' && value.tipo === 'diario') {
+      const schedules = normalizedDailySchedules()
+      if (!schedules.length) return setWizardError('Adicione pelo menos um horário para o Diário.')
+      if (schedules.some((item) => !/^\d{2}:\d{2}$/.test(item.horario))) return setWizardError('Preencha todos os horários do Diário.')
+      if (new Set(schedules.map((item) => item.horario)).size !== schedules.length) return setWizardError('Os horários do Diário não podem se repetir.')
     }
     if (formPage === 'format' && value.tipo === 'copa') {
       const first = value.estrutura_planejada[0]
@@ -1182,42 +1224,39 @@ export function CampeonatoForm({
 
       <section className="form-section-card" hidden={!pageVisible('format')}>
         {mode === 'create' && value.tipo === 'diario' ? (
-          <div className="championship-guided-structure">
+          <div className="championship-guided-structure championship-daily-schedules">
             <div className="championship-guided-copy">
-              <span>Passo 2 · Estrutura</span>
-              <strong>Quantas equipes vão jogar este Diário?</strong>
-              <small>Diário é direto: um grupo, um jogo e todas as equipes jogam juntas. As partidas desse jogo entram na próxima etapa.</small>
+              <span>Última configuração</span>
+              <strong>Quais horários estarão disponíveis?</strong>
+              <small>Cada horário funciona como um grupo independente. Internamente o sistema mantém uma Fase 1 oculta para preservar pontuação, jogos e slots.</small>
             </div>
 
-            <div className="championship-guided-question">
-              <Field label="Equipes no jogo">
-                <input
-                  type="number"
-                  min="2"
-                  max="52"
-                  value={value.numero_vagas}
-                  onChange={(event) => updateGuidedDaily(event.target.value)}
-                  placeholder="Ex.: 12 ou 15"
-                />
-              </Field>
-              <div className="championship-guided-quick-options" aria-label="Sugestões de equipes">
-                {[12, 15].map((amount) => (
-                  <button
-                    type="button"
-                    key={amount}
-                    className={Number(value.numero_vagas) === amount ? 'active' : ''}
-                    onClick={() => updateGuidedDaily(String(amount))}
-                  >
-                    {amount} equipes
+            <div className="championship-daily-schedule-list">
+              {normalizedDailySchedules().map((item, index) => (
+                <div className="championship-daily-schedule-row" key={item.id}>
+                  <span className="championship-daily-schedule-index">{String(index + 1).padStart(2, '0')}</span>
+                  <Field label={`Horário ${index + 1}`}>
+                    <input type="time" value={item.horario} onChange={(event) => updateDailySchedule(item.id, event.target.value)} />
+                  </Field>
+                  <div className="championship-daily-schedule-meta">
+                    <strong>{value.diario_equipes_por_horario || '12'} equipes</strong>
+                    <small>{value.partidas_por_jogo || '0'} quedas</small>
+                  </div>
+                  <button type="button" className="icon-action-button danger" disabled={normalizedDailySchedules().length <= 1} onClick={() => removeDailySchedule(item.id)} aria-label={`Remover horário ${index + 1}`}>
+                    <Trash2 size={15} />
                   </button>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
+
+            <button type="button" className="button secondary championship-daily-add-schedule" onClick={addDailySchedule}>
+              <Plus size={14} /> Adicionar horário
+            </button>
 
             <div className="championship-guided-preview">
-              <span>Estrutura que será criada</span>
-              <strong>1 grupo · {value.numero_vagas || '0'} equipes · 1 jogo</strong>
-              <small>Na próxima etapa você informa quantas partidas esse jogo terá.</small>
+              <span>Estrutura interna</span>
+              <strong>{normalizedDailySchedules().length} horário(s) · {value.numero_vagas || '0'} vagas no total</strong>
+              <small>{normalizedDailySchedules().map((item) => item.horario || '--:--').join(' · ')} · A Fase 1 será criada oculta e cada horário será um grupo independente.</small>
             </div>
           </div>
         ) : mode === 'create' && value.tipo === 'copa' ? (
@@ -1555,16 +1594,16 @@ export function CampeonatoForm({
 
           <div className="championship-guided-decision">
             <div className="championship-guided-decision-copy">
-              <strong>{value.tipo === 'copa' ? 'Quantas vagas terá a Copa?' : 'Quantas equipes vão jogar?'}</strong>
-              <small>{value.tipo === 'copa' ? 'Informe o total de equipes que entram na primeira fase.' : 'No Diário todas as equipes disputam o mesmo jogo.'}</small>
+              <strong>{value.tipo === 'copa' ? 'Quantas vagas terá a Copa?' : 'Quantas equipes cabem em cada horário?'}</strong>
+              <small>{value.tipo === 'copa' ? 'Informe o total de equipes que entram na primeira fase.' : 'Cada horário será um jogo independente com essa quantidade de equipes.'}</small>
             </div>
             <div className="championship-guided-field">
-              <Field label={value.tipo === 'copa' ? 'Vagas disponíveis' : 'Equipes no Diário'}>
+              <Field label={value.tipo === 'copa' ? 'Vagas disponíveis' : 'Equipes por horário'}>
                 <input
                   type="number"
                   min="2"
                   max="500"
-                  value={value.numero_vagas}
+                  value={value.tipo === 'diario' ? (value.diario_equipes_por_horario || '12') : value.numero_vagas}
                   onChange={(event) => {
                     if (value.tipo === 'copa') updateGuidedCup(event.target.value)
                     else updateGuidedDaily(event.target.value)
@@ -1860,8 +1899,8 @@ export function CampeonatoForm({
                 <div><small>Season</small><strong>{value.temporada || `Season ${value.numero_edicao || '2'}`}</strong></div>
               </>
             ) : null}
-            <div><small>Vagas</small><strong>{value.numero_vagas || 'Não definidas'}</strong></div>
-            <div><small>Fases iniciais</small><strong>{Math.max(1, Number(value.numero_fases) || 1)}</strong></div>
+            <div><small>Vagas</small><strong>{value.tipo === 'diario' ? `${value.numero_vagas || '0'} total · ${value.diario_equipes_por_horario || '12'} por horário` : value.numero_vagas || 'Não definidas'}</strong></div>
+            {value.tipo !== 'diario' ? <div><small>Fases iniciais</small><strong>{Math.max(1, Number(value.numero_fases) || 1)}</strong></div> : null}
             <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
             {(value.tipo === 'diario' || value.tipo === 'copa') ? (
               <div>
@@ -1872,6 +1911,9 @@ export function CampeonatoForm({
                     : `${value.partidas_por_jogo || '—'} quedas no jogo`}
                 </strong>
               </div>
+            ) : null}
+            {value.tipo === 'diario' ? (
+              <div><small>Horários</small><strong>{normalizedDailySchedules().map((item) => item.horario).join(' · ')}</strong></div>
             ) : null}
             {value.tipo === 'copa' ? (
               <div>
@@ -1901,7 +1943,7 @@ export function CampeonatoForm({
               <div><small>Organização</small><strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} ${value.liga_nome_agrupamento || 'divisões'}` : 'Liga simples'}</strong></div>
             ) : null}
           </div>
-          <p className="form-empty-note">As fases iniciais serão criadas automaticamente. Depois você ajusta grupos, slots, datas e progressão na aba Grupos e fases.</p>
+          <p className="form-empty-note">{value.tipo === 'diario' ? 'A Fase 1 será criada internamente e ficará oculta. Na organização você verá diretamente os horários como grupos independentes.' : 'As fases iniciais serão criadas automaticamente. Depois você ajusta grupos, slots, datas e progressão na aba Grupos e fases.'}</p>
         </section>
       ) : null}
 

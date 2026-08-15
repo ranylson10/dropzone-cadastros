@@ -351,6 +351,13 @@ function normalizeStructurePlan(value: unknown) {
     const classificam = classificamRaw
       ? Math.max(1, Math.min(equipesPorGrupo, Number.parseInt(classificamRaw, 10) || 1))
       : null
+    const diarioHorarios = Array.isArray((item as any)?.diario_horarios)
+      ? (item as any).diario_horarios.slice(0, 26).map((schedule: any, scheduleIndex: number) => {
+          const raw = String(schedule?.horario || '').trim()
+          const horario = /^([01]\d|2[0-3]):[0-5]\d$/.test(raw) ? raw : `${String(Math.min(23, 19 + scheduleIndex)).padStart(2, '0')}:00`
+          return { id: String(schedule?.id || `horario-${scheduleIndex + 1}`).slice(0, 80), horario }
+        })
+      : []
     const rawFinalDays = Array.isArray((item as any)?.final_dias_config) ? (item as any).final_dias_config : []
     const finalDiasConfig = rawFinalDays.slice(0, 15).map((day: any, dayIndex: number) => ({
       dia: dayIndex + 1,
@@ -369,6 +376,8 @@ function normalizeStructurePlan(value: unknown) {
       grupos,
       equipes_por_grupo: equipesPorGrupo,
       classificam_por_grupo: classificam,
+      ...((item as any)?.oculta === true ? { oculta: true } : {}),
+      ...(diarioHorarios.length ? { diario_horarios: diarioHorarios } : {}),
       ...(finalDiasConfig.length ? { final_dias_config: finalDiasConfig } : {}),
       ...(finalFormato ? { final_formato: finalFormato } : {}),
       ...((item as any)?.final_champion_point_pontos ? { final_champion_point_pontos: Math.max(1, Number((item as any).final_champion_point_pontos)) } : {}),

@@ -21,7 +21,7 @@ import { GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { campeonatoEquipesService } from '@/features/campeonatos/equipes/services/campeonato-equipes.service'
 import type { CampeonatoVaga, EquipeBusca } from '@/features/campeonatos/equipes/types/campeonato-equipes.types'
 
-type Fase = { id: string; nome: string; ordem?: number; tipo?: 'normal' | 'grande_final' }
+type Fase = { id: string; nome: string; ordem?: number; tipo?: 'normal' | 'grande_final'; oculta?: boolean; data?: { oculta?: boolean } }
 type Grupo = {
   id: string
   nome: string
@@ -781,11 +781,12 @@ export function CampeonatoEstruturaTab({
               ? gruposOrdenados.filter((g) => !g.fase_id)
               : gruposOrdenados.filter((g) => g.fase_id === phase.id)
           if (phase.id === 'sem-fase' && groupsOfPhase.length === 0 && fasesOrdenadas.length > 0) return null
-          const phaseOpen = openPhases[phase.id] !== false
+          const phaseHidden = Boolean((phase as Fase).oculta || (phase as Fase).data?.oculta)
+          const phaseOpen = phaseHidden || openPhases[phase.id] !== false
 
           return (
-            <section className="phase-folder" key={phase.id}>
-              <header className="folder-row phase-folder-row">
+            <section className={phaseHidden ? 'phase-folder phase-folder-hidden-shell' : 'phase-folder'} key={phase.id}>
+              {!phaseHidden ? <header className="folder-row phase-folder-row">
                 <button
                   type="button"
                   className="folder-toggle"
@@ -848,7 +849,12 @@ export function CampeonatoEstruturaTab({
                     </button>
                   </div>
                 ) : null}
-              </header>
+              </header> : (
+                <div className="structure-hidden-phase-note">
+                  <strong>Horários</strong>
+                  <small>Cada horário abaixo é um grupo independente. A Fase 1 fica oculta e existe somente para o motor do campeonato.</small>
+                </div>
+              )}
 
               {phaseOpen ? (
                 <div className="phase-folder-content">
