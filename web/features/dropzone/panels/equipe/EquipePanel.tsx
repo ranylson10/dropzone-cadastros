@@ -201,6 +201,37 @@ function relationLabel(value: number | null, positiveText: string, negativeText:
   return `${intensity} · ${value >= 0 ? positiveText : negativeText}`
 }
 
+function buildTrainingTechnicalEfficiency(training: TeamTraining) {
+  const weapons = new Map<string, { nome: string; abates: number; dano: number; usos: number; precisao: number; amostras: number }>()
+  const skills = new Map<string, { chave: string; personagem: string; habilidade: string; partidas: number; usos: number }>()
+  for (const drop of training.quedas_detalhe) {
+    for (const player of drop.jogadores_detalhados) {
+      for (const weapon of player.armas || []) {
+        const nome = String(weapon.arma || 'Arma não identificada')
+        const current = weapons.get(nome) || { nome, abates: 0, dano: 0, usos: 0, precisao: 0, amostras: 0 }
+        current.abates += Number(weapon.abates || 0)
+        current.dano += Number(weapon.dano || 0)
+        current.usos += 1
+        if (Number(weapon.precisao_percentual || 0) > 0) { current.precisao += Number(weapon.precisao_percentual); current.amostras += 1 }
+        weapons.set(nome, current)
+      }
+      for (const skill of player.habilidades || []) {
+        const personagem = String(skill.personagem || '')
+        const habilidade = String(skill.habilidade || 'Habilidade')
+        const chave = `${personagem}:${habilidade}`
+        const current = skills.get(chave) || { chave, personagem, habilidade, partidas: 0, usos: 0 }
+        current.partidas += 1
+        current.usos += Number(skill.usos || 0)
+        skills.set(chave, current)
+      }
+    }
+  }
+  return {
+    weapons: [...weapons.values()].map((row) => ({ ...row, precisao_media: row.amostras ? row.precisao / row.amostras : null })).sort((a, b) => b.abates - a.abates || b.dano - a.dano).slice(0, 6),
+    skills: [...skills.values()].sort((a, b) => b.partidas - a.partidas || b.usos - a.usos).slice(0, 6),
+  }
+}
+
 function buildTrainingCrossAnalytics(training: TeamTraining) {
   const validPosition = training.quedas_detalhe.filter((drop) => Number(drop.posicao || 0) > 0)
   const survival = (drop: TeamTraining['quedas_detalhe'][number]) => {
@@ -1045,6 +1076,7 @@ Acesse: ${url}`
                 const isOpen = trainingExpanded === training.campeonato_equipe_id
                 const analytics = buildTrainingAnalytics(training)
                 const crossAnalytics = buildTrainingCrossAnalytics(training)
+                const technicalEfficiency = buildTrainingTechnicalEfficiency(training)
                 return (
                   <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
                     <button
@@ -1172,6 +1204,29 @@ Acesse: ${url}`
                               ))}
                             </div>
                           </div>
+
+                          {(technicalEfficiency.weapons.length || technicalEfficiency.skills.length) ? (
+                            <div className="team-training-technical-efficiency">
+                              <div className="team-training-player-head">
+                                <strong>Eficiência técnica</strong>
+                                <small>Armas e habilidades agregadas da equipe neste treino.</small>
+                              </div>
+                              <div className="team-training-technical-grid">
+                                <div>
+                                  <strong>Armas</strong>
+                                  {technicalEfficiency.weapons.map((weapon) => (
+                                    <span key={weapon.nome}><b>{weapon.nome}</b><small>{weapon.abates} K · {Math.round(weapon.dano).toLocaleString('pt-BR')} dano · {weapon.precisao_media === null ? '—' : `${weapon.precisao_media.toFixed(1)}% precisão`}</small></span>
+                                  ))}
+                                </div>
+                                <div>
+                                  <strong>Habilidades</strong>
+                                  {technicalEfficiency.skills.map((skill) => (
+                                    <span key={skill.chave}><b>{skill.habilidade}</b><small>{skill.personagem || 'Personagem'} · {skill.partidas} registros</small></span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
 
                           {crossAnalytics.jogadores.length ? (
                             <div className="team-training-player-performance">

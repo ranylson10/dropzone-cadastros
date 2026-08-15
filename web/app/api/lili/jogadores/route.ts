@@ -211,6 +211,75 @@ export async function GET(req: NextRequest) {
       booyahs: total.booyahs + row.booyahs,
     }), { partidas: 0, abates: 0, dano: 0, assistencias: 0, revives: 0, booyahs: 0 })
 
+    // Telemetria privada do próprio jogador. O account acima já foi validado contra
+    // os perfis pertencentes ao usuário autenticado, portanto não aceitamos jogador_id arbitrário.
+    const formationIds = (formations || []).map((row: any) => String(row.id || '')).filter(Boolean)
+    const garenaRowsById = new Map<string, any>()
+
+    const { data: garenaByPlayer, error: garenaByPlayerError } = await supabaseAdmin
+      .from('garena_matchstats_jogadores')
+      .select('id,importacao_id,player_id,campeonato_jogador_id,jogador_id,campeonato_equipe_id,nick_snapshot,posicao_equipe,abates,assistencias,dano,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,precisao_percentual,taxa_headshot_kill_percentual,precisao_headshot_percentual,revives,membros_revividos,membros_resgatados,granadas_usadas,abates_granada,dano_granada,gel_usado,gel_destruido,kits_medicos')
+      .eq('jogador_id', account.id)
+      .limit(10000)
+    if (garenaByPlayerError && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(garenaByPlayerError.code || '')) throw garenaByPlayerError
+    for (const row of garenaByPlayer || []) garenaRowsById.set(String(row.id), row)
+
+    if (formationIds.length) {
+      const { data: garenaByFormation, error: garenaByFormationError } = await supabaseAdmin
+        .from('garena_matchstats_jogadores')
+        .select('id,importacao_id,player_id,campeonato_jogador_id,jogador_id,campeonato_equipe_id,nick_snapshot,posicao_equipe,abates,assistencias,dano,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,precisao_percentual,taxa_headshot_kill_percentual,precisao_headshot_percentual,revives,membros_revividos,membros_resgatados,granadas_usadas,abates_granada,dano_granada,gel_usado,gel_destruido,kits_medicos')
+        .in('campeonato_jogador_id', formationIds)
+        .limit(10000)
+      if (garenaByFormationError && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(garenaByFormationError.code || '')) throw garenaByFormationError
+      for (const row of garenaByFormation || []) garenaRowsById.set(String(row.id), row)
+    }
+
+    const garenaRows = [...garenaRowsById.values()]
+    const garenaImportIds = [...new Set(garenaRows.map((row: any) => row.importacao_id).filter(Boolean))]
+    const garenaRowIds = garenaRows.map((row: any) => row.id).filter(Boolean)
+    const [garenaImportsResult, garenaWeaponsResult, garenaSkillsResult] = await Promise.all([
+      garenaImportIds.length
+        ? supabaseAdmin.from('garena_matchstats_importacoes').select('id,campeonato_id,partida_id,status,concluida_em').in('id', garenaImportIds)
+        : Promise.resolve({ data: [] as any[], error: null }),
+      garenaRowIds.length
+        ? supabaseAdmin.from('garena_matchstats_armas').select('jogador_matchstats_id,ordem,weapon_id,arma,abates,dano,headshots,precisao_percentual,precisao_headshot_percentual').in('jogador_matchstats_id', garenaRowIds)
+        : Promise.resolve({ data: [] as any[], error: null }),
+      garenaRowIds.length
+        ? supabaseAdmin.from('garena_matchstats_habilidades').select('jogador_matchstats_id,tipo,ordem,skill_id,personagem,habilidade,usos,informacao,pick_times,pick_rate').in('jogador_matchstats_id', garenaRowIds)
+        : Promise.resolve({ data: [] as any[], error: null }),
+    ])
+    if (garenaImportsResult.error) throw garenaImportsResult.error
+    if (garenaWeaponsResult.error) throw garenaWeaponsResult.error
+    if (garenaSkillsResult.error) throw garenaSkillsResult.error
+
+    const importMap = new Map((garenaImportsResult.data || []).map((row: any) => [String(row.id), row]))
+    const weaponsMap = new Map<string, any[]>()
+    for (const row of garenaWeaponsResult.data || []) {
+      const key = String(row.jogador_matchstats_id || '')
+      weaponsMap.set(key, [...(weaponsMap.get(key) || []), row])
+    }
+    const skillsMap = new Map<string, any[]>()
+    for (const row of garenaSkillsResult.data || []) {
+      const key = String(row.jogador_matchstats_id || '')
+      skillsMap.set(key, [...(skillsMap.get(key) || []), row])
+    }
+    const telemetryMap = new Map<string, any>()
+    for (const row of garenaRows) {
+      const imp: any = importMap.get(String(row.importacao_id || ''))
+      const key = `${imp?.campeonato_id || ''}:${imp?.partida_id || ''}`
+      if (!imp?.campeonato_id || !imp?.partida_id) continue
+      telemetryMap.set(key, {
+        ...row,
+        armas: (weaponsMap.get(String(row.id)) || []).sort((a: any, b: any) => Number(a.ordem || 0) - Number(b.ordem || 0)),
+        habilidades: (skillsMap.get(String(row.id)) || []).sort((a: any, b: any) => Number(a.ordem || 0) - Number(b.ordem || 0)),
+      })
+    }
+
+    const enrichedMatchHistory = matchHistory.map((row: any) => ({
+      ...row,
+      telemetria: telemetryMap.get(`${row.campeonato_id || ''}:${row.partida_id || ''}`) || null,
+    }))
+
     return NextResponse.json({
       player: {
         id: account.id,
@@ -232,7 +301,7 @@ export async function GET(req: NextRequest) {
         activeChampionships: playerFormations.filter((row: any) => isActive(row.campeonato?.status)),
         statistics,
         statisticsByChampionship,
-        matchHistory,
+        matchHistory: enrichedMatchHistory,
       },
     })
   } catch (error: any) {
