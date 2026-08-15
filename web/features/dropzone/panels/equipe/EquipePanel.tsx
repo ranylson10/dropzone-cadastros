@@ -55,6 +55,34 @@ type TeamTraining = {
     primeira_safe: string
     segunda_safe: string
     anotacao_atualizada_em?: string | null
+    telemetria_garena: boolean
+    jogadores_detalhados: Array<{
+      player_id: string
+      campeonato_jogador_id?: string | null
+      nick: string
+      abates: number
+      assistencias: number
+      dano: number
+      headshots: number
+      knockdowns: number
+      sobrevivencia_segundos: number
+      distancia_movida: number
+      distancia_max_abate: number
+      precisao_percentual: number
+      taxa_headshot_kill_percentual: number
+      precisao_headshot_percentual: number
+      revives: number
+      membros_revividos: number
+      membros_resgatados: number
+      granadas_usadas: number
+      abates_granada: number
+      dano_granada: number
+      gel_usado: number
+      gel_destruido: number
+      kits_medicos: number
+      armas: Array<{ arma: string; abates: number; dano: number; headshots: number; precisao_percentual: number }>
+      habilidades: Array<{ tipo: string; personagem: string; habilidade: string; usos: number }>
+    }>
   }>
   jogadores: Array<{
     campeonato_jogador_id: string
@@ -837,6 +865,69 @@ Acesse: ${url}`
                                   </div>
                                 </header>
 
+                                {drop.telemetria_garena ? (
+                                  <details className="team-training-telemetry">
+                                    <summary>
+                                      <span><Activity size={14} /><strong>Telemetria Garena</strong></span>
+                                      <small>{drop.jogadores_detalhados.length} jogador(es) · privado</small>
+                                    </summary>
+                                    <div className="team-training-telemetry-players">
+                                      {drop.jogadores_detalhados.map((player) => {
+                                        const minutes = Math.floor(player.sobrevivencia_segundos / 60)
+                                        const seconds = player.sobrevivencia_segundos % 60
+                                        return (
+                                          <article className="team-training-telemetry-player" key={`${drop.partida_id}:${player.player_id}`}>
+                                            <header>
+                                              <strong>{player.nick}</strong>
+                                              <span>{player.abates} K · {Math.round(player.dano).toLocaleString('pt-BR')} dano</span>
+                                            </header>
+                                            <div className="team-training-telemetry-metrics">
+                                              <span><b>{player.assistencias}</b><small>assist.</small></span>
+                                              <span><b>{player.headshots}</b><small>headshots</small></span>
+                                              <span><b>{player.knockdowns}</b><small>knocks</small></span>
+                                              <span><b>{player.precisao_percentual.toFixed(1)}%</b><small>precisão</small></span>
+                                              <span><b>{minutes}:{String(seconds).padStart(2, '0')}</b><small>sobreviv.</small></span>
+                                              <span><b>{player.revives}</b><small>revives</small></span>
+                                            </div>
+                                            {player.armas.length ? (
+                                              <div className="team-training-telemetry-line">
+                                                <small>Armas</small>
+                                                <div>{player.armas.map((weapon, index) => (
+                                                  <span key={`${player.player_id}:weapon:${index}`}>
+                                                    <b>{weapon.arma}</b> {weapon.abates} K · {Math.round(weapon.dano).toLocaleString('pt-BR')} dano · {weapon.precisao_percentual.toFixed(1)}%
+                                                  </span>
+                                                ))}</div>
+                                              </div>
+                                            ) : null}
+                                            {player.habilidades.length ? (
+                                              <div className="team-training-telemetry-line">
+                                                <small>Habilidades</small>
+                                                <div>{player.habilidades.map((skill, index) => (
+                                                  <span key={`${player.player_id}:skill:${index}`}>
+                                                    <b>{skill.personagem || skill.habilidade || 'Habilidade'}</b>{skill.habilidade && skill.personagem ? ` · ${skill.habilidade}` : ''}<em>{skill.tipo}</em>
+                                                  </span>
+                                                ))}</div>
+                                              </div>
+                                            ) : null}
+                                            <div className="team-training-telemetry-secondary">
+                                              <span>Distância {Math.round(player.distancia_movida).toLocaleString('pt-BR')} m</span>
+                                              <span>Maior abate {Math.round(player.distancia_max_abate).toLocaleString('pt-BR')} m</span>
+                                              <span>Granadas {player.granadas_usadas}</span>
+                                              <span>Gel {player.gel_usado}</span>
+                                              <span>Kits {player.kits_medicos}</span>
+                                            </div>
+                                          </article>
+                                        )
+                                      })}
+                                    </div>
+                                  </details>
+                                ) : (
+                                  <div className="team-training-telemetry-waiting">
+                                    <Activity size={14} />
+                                    <span>Telemetria detalhada ainda não disponível para esta queda.</span>
+                                  </div>
+                                )}
+
                                 {(training.configuracao_analise.call_fixa || training.configuracao_analise.primeira_safe || training.configuracao_analise.segunda_safe) ? (
                                   <div className="team-training-drop-notes">
                                     {training.configuracao_analise.call_fixa ? (
@@ -902,7 +993,7 @@ Acesse: ${url}`
                         </div>
 
                         <p className="team-training-next-note">
-                          Call e safes já ficam vinculadas a cada queda de forma privada. Armas, habilidades e gráficos entram nas próximas rodadas usando o MatchStats da Garena.
+                          Call, safes e telemetria detalhada ficam privadas para a equipe. Os gráficos entram na próxima rodada usando esta mesma base por queda.
                         </p>
                       </div>
                     ) : null}

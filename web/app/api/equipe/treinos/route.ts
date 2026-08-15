@@ -71,10 +71,78 @@ export async function GET(req: NextRequest) {
     if (configResult.error) throw configResult.error
     if (annotationsResult.error) throw annotationsResult.error
 
+    // Telemetria detalhada da Garena: continua privada e só é carregada depois
+    // de confirmar que a participação pertence a uma equipe controlada pelo usuário.
+    const { data: garenaImportacoes, error: garenaImportacoesError } = await supabaseAdmin
+      .from('garena_matchstats_importacoes')
+      .select('id,campeonato_id,partida_id,status,concluida_em')
+      .in('campeonato_id', xtreinoCampeonatoIds)
+      .eq('status', 'concluida')
+    if (garenaImportacoesError) throw garenaImportacoesError
+
+    const garenaImportacaoIds = (garenaImportacoes || []).map((item: any) => String(item.id)).filter(Boolean)
+    let garenaJogadores: any[] = []
+    let garenaArmas: any[] = []
+    let garenaHabilidades: any[] = []
+    if (garenaImportacaoIds.length) {
+      const { data, error } = await supabaseAdmin
+        .from('garena_matchstats_jogadores')
+        .select('id,importacao_id,player_id,campeonato_jogador_id,jogador_id,jogador_temporario_id,campeonato_equipe_id,nick_snapshot,equipe_snapshot,posicao_equipe,abates,assistencias,dano,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,precisao_percentual,taxa_headshot_kill_percentual,precisao_headshot_percentual,revives,membros_revividos,membros_resgatados,granadas_usadas,abates_granada,dano_granada,gel_usado,gel_destruido,kits_medicos,abates_veiculo,abates_oleo,mudanca_posicao')
+        .in('importacao_id', garenaImportacaoIds)
+        .in('campeonato_equipe_id', participacaoIds)
+      if (error) throw error
+      garenaJogadores = data || []
+
+      const garenaJogadorIds = garenaJogadores.map((item: any) => String(item.id)).filter(Boolean)
+      if (garenaJogadorIds.length) {
+        const [armasResult, habilidadesResult] = await Promise.all([
+          supabaseAdmin
+            .from('garena_matchstats_armas')
+            .select('jogador_matchstats_id,ordem,weapon_id,arma,abates,dano,headshots,precisao_percentual,precisao_headshot_percentual')
+            .in('jogador_matchstats_id', garenaJogadorIds),
+          supabaseAdmin
+            .from('garena_matchstats_habilidades')
+            .select('jogador_matchstats_id,tipo,ordem,skill_id,personagem,habilidade,usos,informacao,pick_times,pick_rate')
+            .in('jogador_matchstats_id', garenaJogadorIds),
+        ])
+        if (armasResult.error) throw armasResult.error
+        if (habilidadesResult.error) throw habilidadesResult.error
+        garenaArmas = armasResult.data || []
+        garenaHabilidades = habilidadesResult.data || []
+      }
+    }
+
     const campeonatoById = new Map(xtreinos.map((item: any) => [String(item.id), item]))
     const configByCampeonato = new Map((configResult.data || []).map((item: any) => [String(item.campeonato_id), item]))
     const resumoByParticipacao = new Map((resumosResult.data || []).map((item: any) => [String(item.campeonato_equipe_id), item]))
     const annotationByDrop = new Map((annotationsResult.data || []).map((item: any) => [`${item.campeonato_equipe_id}:${item.partida_id}`, item]))
+    const garenaPartidaByImportacao = new Map((garenaImportacoes || []).map((item: any) => [String(item.id), String(item.partida_id || '')]))
+    const armasByJogadorMatchstats = new Map<string, any[]>()
+    for (const row of garenaArmas) {
+      const key = String(row.jogador_matchstats_id || '')
+      if (!key) continue
+      armasByJogadorMatchstats.set(key, [...(armasByJogadorMatchstats.get(key) || []), row])
+    }
+    const habilidadesByJogadorMatchstats = new Map<string, any[]>()
+    for (const row of garenaHabilidades) {
+      const key = String(row.jogador_matchstats_id || '')
+      if (!key) continue
+      habilidadesByJogadorMatchstats.set(key, [...(habilidadesByJogadorMatchstats.get(key) || []), row])
+    }
+    const garenaByParticipacaoPartida = new Map<string, any[]>()
+    for (const row of garenaJogadores) {
+      const participacaoId = String(row.campeonato_equipe_id || '')
+      const partidaId = garenaPartidaByImportacao.get(String(row.importacao_id || '')) || ''
+      if (!participacaoId || !partidaId) continue
+      const key = `${participacaoId}:${partidaId}`
+      const jogadorMatchstatsId = String(row.id || '')
+      garenaByParticipacaoPartida.set(key, [...(garenaByParticipacaoPartida.get(key) || []), {
+        ...row,
+        armas: (armasByJogadorMatchstats.get(jogadorMatchstatsId) || []).sort((a: any, b: any) => Number(a.ordem || 0) - Number(b.ordem || 0)),
+        habilidades: (habilidadesByJogadorMatchstats.get(jogadorMatchstatsId) || []).sort((a: any, b: any) => Number(a.ordem || 0) - Number(b.ordem || 0)),
+      }])
+    }
+
     const teamRowsByParticipacao = new Map<string, any[]>()
     for (const row of equipesStatsResult.data || []) {
       const key = String((row as any).campeonato_equipe_id || '')
@@ -132,6 +200,7 @@ export async function GET(req: NextRequest) {
           const partidaId = String(row.partida_id || '')
           const dropPlayers = playersByDrop.get(partidaId) || []
           const annotation: any = annotationByDrop.get(`${participacaoId}:${partidaId}`)
+          const garenaPlayers = garenaByParticipacaoPartida.get(`${participacaoId}:${partidaId}`) || []
           return {
             partida_id: partidaId,
             jogo_id: row.jogo_id || null,
@@ -148,6 +217,45 @@ export async function GET(req: NextRequest) {
             primeira_safe: annotation?.primeira_safe || '',
             segunda_safe: annotation?.segunda_safe || '',
             anotacao_atualizada_em: annotation?.updated_at || null,
+            telemetria_garena: garenaPlayers.length > 0,
+            jogadores_detalhados: garenaPlayers.map((player: any) => ({
+              player_id: String(player.player_id || ''),
+              campeonato_jogador_id: player.campeonato_jogador_id || null,
+              nick: String(player.nick_snapshot || 'Jogador'),
+              abates: Number(player.abates || 0),
+              assistencias: Number(player.assistencias || 0),
+              dano: Number(player.dano || 0),
+              headshots: Number(player.headshots || 0),
+              knockdowns: Number(player.knockdowns || 0),
+              sobrevivencia_segundos: Number(player.sobrevivencia_segundos || 0),
+              distancia_movida: Number(player.distancia_movida || 0),
+              distancia_max_abate: Number(player.distancia_max_abate || 0),
+              precisao_percentual: Number(player.precisao_percentual || 0),
+              taxa_headshot_kill_percentual: Number(player.taxa_headshot_kill_percentual || 0),
+              precisao_headshot_percentual: Number(player.precisao_headshot_percentual || 0),
+              revives: Number(player.revives || 0),
+              membros_revividos: Number(player.membros_revividos || 0),
+              membros_resgatados: Number(player.membros_resgatados || 0),
+              granadas_usadas: Number(player.granadas_usadas || 0),
+              abates_granada: Number(player.abates_granada || 0),
+              dano_granada: Number(player.dano_granada || 0),
+              gel_usado: Number(player.gel_usado || 0),
+              gel_destruido: Number(player.gel_destruido || 0),
+              kits_medicos: Number(player.kits_medicos || 0),
+              armas: player.armas.map((weapon: any) => ({
+                arma: String(weapon.arma || weapon.weapon_id || 'Arma'),
+                abates: Number(weapon.abates || 0),
+                dano: Number(weapon.dano || 0),
+                headshots: Number(weapon.headshots || 0),
+                precisao_percentual: Number(weapon.precisao_percentual || 0),
+              })),
+              habilidades: player.habilidades.map((skill: any) => ({
+                tipo: String(skill.tipo || ''),
+                personagem: String(skill.personagem || ''),
+                habilidade: String(skill.habilidade || ''),
+                usos: Number(skill.usos || 0),
+              })),
+            })),
           }
         })
         .filter((row: any) => row.partida_id)
