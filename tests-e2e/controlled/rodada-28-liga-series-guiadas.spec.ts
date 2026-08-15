@@ -5,29 +5,29 @@ import path from 'node:path'
 const root = process.cwd()
 const source = (relative: string) => fs.readFileSync(path.join(root, relative), 'utf8')
 
-test.describe('Rodada 28 — Liga guiada por séries', () => {
-  test('Liga usa fluxo curto Início, Séries e Revisão', () => {
+test.describe('Rodada 28 — Liga guiada por organização', () => {
+  test('Liga usa fluxo curto Início, Organização e Revisão', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
     expect(form).toContain("value.tipo === 'liga'")
-    expect(form).toContain("{ id: 'format' as const, label: 'Séries' }")
+    expect(form).toContain("{ id: 'format' as const, label: 'Organização' }")
     expect(form).toContain("{ id: 'review', label: 'Revisão' }")
   })
 
-  test('usuário escolhe série única ou múltiplas séries', () => {
+  test('usuário escolhe liga simples ou com agrupamentos', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
-    expect(form).toContain('Esta Liga possui séries?')
-    expect(form).toContain('Série única')
-    expect(form).toContain('Possui séries')
+    expect(form).toContain('Como a Liga será organizada?')
+    expect(form).toContain('Liga simples')
+    expect(form).toContain('Liga com agrupamentos')
     expect(form).toContain('setLeagueModel')
   })
 
-  test('cada série começa somente com quatro dados essenciais', () => {
+  test('cada agrupamento começa somente com quatro dados essenciais', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
     expect(form).toContain('Nome da série')
     expect(form).toContain('Equipes')
     expect(form).toContain('Inscrição por equipe')
     expect(form).toContain('Premiação')
-    expect(form).toContain('Adicionar série')
+    expect(form).toContain('Adicionar item')
   })
 
   test('modelo com séries nasce com A, B e C', () => {

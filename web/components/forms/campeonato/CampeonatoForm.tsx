@@ -231,6 +231,22 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   liga_divisoes: [],
 }
 
+
+const LEAGUE_GROUPING_OPTIONS = ['Séries', 'Divisões', 'Categorias', 'Níveis', 'Conferências', 'Circuitos'] as const
+
+function leagueGroupingItemLabel(grouping: string, index: number) {
+  const normalized = String(grouping || '').trim()
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  if (normalized === 'Séries') return index < alphabet.length ? `Série ${alphabet[index]}` : `Série ${index + 1}`
+  if (normalized === 'Divisões') return `Divisão ${index + 1}`
+  if (normalized === 'Categorias') return `Categoria ${index + 1}`
+  if (normalized === 'Níveis') return `Nível ${index + 1}`
+  if (normalized === 'Conferências') return `Conferência ${index + 1}`
+  if (normalized === 'Circuitos') return `Circuito ${index + 1}`
+  const base = normalized.replace(/s$/i, '') || 'Grupo'
+  return `${base} ${index + 1}`
+}
+
 const TYPE_OPTIONS: Array<{
   type: ChampionshipType
   title: string
@@ -931,9 +947,8 @@ export function CampeonatoForm({
     update('contatos_whatsapp', value.contatos_whatsapp.filter((contact) => contact.id !== id))
   }
 
-  function leagueSeriesLabel(index: number) {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    return index < alphabet.length ? `Série ${alphabet[index]}` : `Série ${index + 1}`
+  function leagueSeriesLabel(index: number, grouping = value.liga_nome_agrupamento) {
+    return leagueGroupingItemLabel(grouping || 'Séries', index)
   }
 
   function createLeagueSeries(index: number): CampeonatoFormValue['liga_divisoes'][number] {
@@ -941,7 +956,7 @@ export function CampeonatoForm({
     return {
       id: crypto.randomUUID(),
       nome,
-      codigo: value.liga_usa_divisoes ? nome.replace('Série ', '').trim() : 'UNICA',
+      codigo: value.liga_usa_divisoes ? String.fromCharCode(65 + Math.min(index, 25)) : 'UNICA',
       ordem: index + 1,
       equipes: '12',
       valor_inscricao: '',
@@ -950,13 +965,16 @@ export function CampeonatoForm({
   }
 
   function setLeagueModel(useSeries: boolean) {
+    const grouping = value.liga_nome_agrupamento && value.liga_nome_agrupamento !== 'Série'
+      ? value.liga_nome_agrupamento
+      : 'Séries'
     const divisions = useSeries
       ? (value.liga_usa_divisoes && value.liga_divisoes.length > 1
           ? value.liga_divisoes
           : [0, 1, 2].map((index) => ({
               id: crypto.randomUUID(),
-              nome: leagueSeriesLabel(index),
-              codigo: leagueSeriesLabel(index).replace('Série ', '').trim(),
+              nome: leagueSeriesLabel(index, grouping),
+              codigo: String.fromCharCode(65 + index),
               ordem: index + 1,
               equipes: '12',
               valor_inscricao: '',
@@ -975,11 +993,21 @@ export function CampeonatoForm({
     onChange({
       ...value,
       liga_usa_divisoes: useSeries,
-      liga_nome_agrupamento: useSeries ? 'Séries' : 'Série',
+      liga_nome_agrupamento: useSeries ? grouping : 'Série',
       liga_divisoes: divisions,
       numero_vagas: String(divisions.reduce((sum, item) => sum + Math.max(0, Number(item.equipes || 0)), 0)),
       formato: useSeries ? 'Liga por séries' : 'Liga de série única',
     })
+  }
+
+  function updateLeagueGrouping(nextGrouping: string) {
+    const previousGrouping = value.liga_nome_agrupamento || 'Séries'
+    const divisions = value.liga_divisoes.map((division, index) => {
+      const previousSuggested = leagueGroupingItemLabel(previousGrouping, index)
+      const shouldRename = !division.nome.trim() || division.nome.trim() === previousSuggested
+      return shouldRename ? { ...division, nome: leagueGroupingItemLabel(nextGrouping, index) } : division
+    })
+    onChange({ ...value, liga_nome_agrupamento: nextGrouping, liga_divisoes: divisions })
   }
 
   function addLeagueDivision() {
@@ -1105,7 +1133,7 @@ export function CampeonatoForm({
         : value.tipo === 'liga'
         ? [
             { id: 'origin', label: 'Início' },
-            { id: 'format' as const, label: 'Séries' },
+            { id: 'format' as const, label: 'Organização' },
             { id: 'scoring', label: 'Pontuação' },
             { id: 'review', label: 'Revisão' },
           ]
@@ -1139,11 +1167,11 @@ export function CampeonatoForm({
       if (new Set(schedules.map((item) => item.horario)).size !== schedules.length) return setWizardError('Os horários do Diário não podem se repetir.')
     }
     if (formPage === 'format' && value.tipo === 'liga') {
-      if (!value.liga_divisoes.length) return setWizardError('Adicione pelo menos uma série à Liga.')
-      if (value.liga_divisoes.some((division) => !division.nome.trim())) return setWizardError('Todas as séries precisam de um nome.')
-      if (value.liga_divisoes.some((division) => Number(division.equipes || 0) < 2)) return setWizardError('Cada série precisa ter pelo menos 2 equipes.')
+      if (!value.liga_divisoes.length) return setWizardError('Adicione pelo menos um agrupamento à Liga.')
+      if (value.liga_divisoes.some((division) => !division.nome.trim())) return setWizardError('Todos os agrupamentos da Liga precisam de um nome.')
+      if (value.liga_divisoes.some((division) => Number(division.equipes || 0) < 2)) return setWizardError('Cada agrupamento precisa ter pelo menos 2 equipes.')
       const leagueNames = value.liga_divisoes.map((division) => division.nome.trim().toLocaleLowerCase('pt-BR'))
-      if (new Set(leagueNames).size !== leagueNames.length) return setWizardError('As séries da Liga não podem ter nomes repetidos.')
+      if (new Set(leagueNames).size !== leagueNames.length) return setWizardError('Os agrupamentos da Liga não podem ter nomes repetidos.')
     }
     if (formPage === 'format' && value.tipo === 'xtreino') {
       if (Number(value.numero_vagas || 0) < 2 || Number(value.numero_vagas || 0) > 15) return setWizardError('O Xtreino precisa ter entre 2 e 15 equipes por sala.')
@@ -1722,8 +1750,8 @@ export function CampeonatoForm({
           <div className="championship-guided-structure championship-league-series">
             <div className="championship-guided-copy">
               <span>Estrutura da Liga</span>
-              <strong>Esta Liga possui séries?</strong>
-              <small>Comece somente pela estrutura principal. Classificatórias, acesso, rebaixamento e confrontos serão configurados nas próximas etapas.</small>
+              <strong>Como a Liga será organizada?</strong>
+              <small>Use uma série única ou separe a competição em séries, divisões, categorias, níveis, conferências, circuitos ou um nome próprio.</small>
             </div>
 
             <div className="championship-league-model-choice">
@@ -1732,25 +1760,48 @@ export function CampeonatoForm({
                 className={!value.liga_usa_divisoes ? 'active' : ''}
                 onClick={() => setLeagueModel(false)}
               >
-                <strong>Série única</strong>
-                <small>Todas as equipes disputam a mesma divisão.</small>
+                <strong>Liga simples</strong>
+                <small>Série única · todas as equipes disputam a mesma tabela.</small>
               </button>
               <button
                 type="button"
                 className={value.liga_usa_divisoes ? 'active' : ''}
                 onClick={() => setLeagueModel(true)}
               >
-                <strong>Possui séries</strong>
-                <small>Ex.: Série A, Série B e Série C.</small>
+                <strong>Liga com agrupamentos</strong>
+                <small>Ex.: Série A/B/C ou Bronze/Prata/Ouro.</small>
               </button>
             </div>
 
+            {value.liga_usa_divisoes ? (
+              <div className="mini-grid two">
+                <Field label="Nome do agrupamento">
+                  <select
+                    value={(LEAGUE_GROUPING_OPTIONS as readonly string[]).includes(value.liga_nome_agrupamento) ? value.liga_nome_agrupamento : '__custom__'}
+                    onChange={(event) => updateLeagueGrouping(event.target.value === '__custom__' ? 'Faixas' : event.target.value)}
+                  >
+                    {LEAGUE_GROUPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                    <option value="__custom__">Nome personalizado</option>
+                  </select>
+                </Field>
+                {!(LEAGUE_GROUPING_OPTIONS as readonly string[]).includes(value.liga_nome_agrupamento) ? (
+                  <Field label="Nome personalizado">
+                    <input
+                      value={value.liga_nome_agrupamento}
+                      onChange={(event) => updateLeagueGrouping(event.target.value)}
+                      placeholder="Ex.: Faixas (Bronze/Prata/Ouro)"
+                    />
+                  </Field>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="championship-league-series-head">
               <div>
-                <span>{value.liga_usa_divisoes ? 'Séries da Liga' : 'Configuração da série'}</span>
-                <strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} séries` : 'Série única'}</strong>
+                <span>{value.liga_usa_divisoes ? `${value.liga_nome_agrupamento || 'Agrupamentos'} da Liga` : 'Configuração da série'}</span>
+                <strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} itens` : 'Série única'}</strong>
               </div>
-              <small>{value.numero_vagas || '0'} equipes somando todas as séries</small>
+              <small>{value.numero_vagas || '0'} equipes no total</small>
             </div>
 
             <div className="championship-league-series-list">
@@ -1762,11 +1813,11 @@ export function CampeonatoForm({
                   </div>
 
                   <div className="championship-league-series-fields">
-                    <Field label="Nome da série">
+                    <Field label={value.liga_usa_divisoes ? `Nome do item` : 'Nome da série'}>
                       <input
                         value={division.nome}
                         onChange={(event) => updateLeagueDivision(division.id, { nome: event.target.value })}
-                        placeholder={value.liga_usa_divisoes ? `Ex.: Série ${String.fromCharCode(65 + index)}` : 'Ex.: Liga Principal'}
+                        placeholder={value.liga_usa_divisoes ? `Ex.: ${leagueSeriesLabel(index)}` : 'Ex.: Liga Principal'}
                       />
                     </Field>
                     <Field label="Equipes">
@@ -1803,7 +1854,7 @@ export function CampeonatoForm({
                       className="icon-action-button danger championship-league-series-remove"
                       disabled={value.liga_divisoes.length <= 1}
                       onClick={() => removeLeagueDivision(division.id)}
-                      aria-label={`Remover ${division.nome || `série ${index + 1}`}`}
+                      aria-label={`Remover ${division.nome || `item ${index + 1}`}`}
                     >
                       <Trash2 size={15} />
                     </button>
@@ -1814,7 +1865,7 @@ export function CampeonatoForm({
 
             {value.liga_usa_divisoes ? (
               <button type="button" className="button secondary championship-league-add-series" onClick={addLeagueDivision}>
-                <Plus size={14} /> Adicionar série
+                <Plus size={14} /> Adicionar item
               </button>
             ) : null}
 
@@ -1822,7 +1873,7 @@ export function CampeonatoForm({
               <span>Resumo da Liga</span>
               <strong>
                 {value.liga_usa_divisoes
-                  ? `${value.liga_divisoes.length} séries · ${value.numero_vagas || '0'} equipes`
+                  ? `${value.liga_divisoes.length} itens em ${value.liga_nome_agrupamento || 'agrupamentos'} · ${value.numero_vagas || '0'} equipes`
                   : `${value.liga_divisoes[0]?.nome || 'Série única'} · ${value.liga_divisoes[0]?.equipes || '0'} equipes`}
               </strong>
               <small>
@@ -1836,11 +1887,7 @@ export function CampeonatoForm({
           <>
             <p className="eyebrow">Estrutura inicial</p>
             <p className="form-empty-note">
-              {value.tipo === 'liga' && 'Defina as fases e as séries. Promoção, rebaixamento, grupos e vagas diretas continuam na organização da liga.'}
-              {value.tipo === 'xtreino' && 'Defina a estrutura base do treino. Grupos e jogos podem ser ajustados depois.'}
               {value.tipo === 'confronto' && 'Defina o modo e a estrutura do confronto direto entre as equipes.'}
-              {value.tipo === 'diario' && 'Um grupo e um jogo.'}
-              {value.tipo === 'copa' && 'Estrutura eliminatória da Copa.'}
             </p>
             <div className="mini-grid three">
               <Field label="Limite de vagas (meta)">
@@ -1864,43 +1911,7 @@ export function CampeonatoForm({
                 />
               </Field>
 
-              {value.tipo === 'liga' ? (
-                <Field label="Modelo da liga">
-                  <select
-                    value={value.liga_usa_divisoes ? 'divisoes' : 'simples'}
-                    onChange={(event) => {
-                      const useDivisions = event.target.value === 'divisoes'
-                      onChange({
-                        ...value,
-                        liga_usa_divisoes: useDivisions,
-                        liga_divisoes: useDivisions && !value.liga_divisoes.length
-                          ? [{
-                              id: crypto.randomUUID(),
-                              nome: 'Série A',
-                              codigo: 'A',
-                              ordem: 1,
-                              equipes: '12',
-                              valor_inscricao: '',
-                              premiacao: '',
-                            }]
-                          : value.liga_divisoes,
-                        formato: useDivisions ? 'Liga híbrida por divisões' : 'Pontos corridos',
-                      })
-                    }}
-                  >
-                    <option value="simples">Liga simples — pontos corridos</option>
-                    <option value="divisoes">Liga com divisões, séries ou categorias</option>
-                  </select>
-                </Field>
-              ) : value.tipo === 'xtreino' ? (
-                <Field label="Formato do X-Treino">
-                  <select value={value.formato} onChange={(e) => update('formato', e.target.value)}>
-                    <option value="Jogo único">Jogo único</option>
-                    <option value="Mata-mata">Mata-mata</option>
-                    <option value="Pontos corridos">Pontos corridos</option>
-                  </select>
-                </Field>
-              ) : value.tipo === 'confronto' ? (
+              {value.tipo === 'confronto' ? (
                 <Field label="Modo do confronto">
                   <select value={value.formato} onChange={(e) => update('formato', e.target.value)}>
                     <option value="Confronto direto 4x4 - Tático">Tático</option>
@@ -2462,14 +2473,14 @@ export function CampeonatoForm({
               <>
                 <div>
                   <small>Organização</small>
-                  <strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} séries` : 'Série única'}</strong>
+                  <strong>{value.liga_usa_divisoes ? `${value.liga_divisoes.length} itens em ${value.liga_nome_agrupamento || 'agrupamentos'}` : 'Série única'}</strong>
                 </div>
                 <div>
                   <small>Equipes</small>
                   <strong>{value.numero_vagas || '0'} no total</strong>
                 </div>
                 <div className="championship-review-wide">
-                  <small>Séries</small>
+                  <small>{value.liga_usa_divisoes ? (value.liga_nome_agrupamento || 'Agrupamentos') : 'Série'}</small>
                   <strong>{value.liga_divisoes.map((division) => `${division.nome} · ${division.equipes} equipes`).join(' | ')}</strong>
                 </div>
               </>
@@ -2479,7 +2490,7 @@ export function CampeonatoForm({
             {value.tipo === 'diario'
               ? 'A Fase 1 será criada internamente e ficará oculta. Na organização você verá diretamente os horários como grupos independentes.'
               : value.tipo === 'liga'
-                ? 'Nesta etapa serão salvas somente as séries. A formação das equipes, classificatórias, acesso, rebaixamento e fases serão configurados em seguida.'
+                ? 'Nesta etapa será salva a organização principal da Liga. Formação das equipes, classificatórias, acesso, rebaixamento e fases serão configurados em seguida.'
                 : 'As fases iniciais serão criadas automaticamente. Depois você ajusta grupos, slots, datas e progressão na aba Grupos e fases.'}
           </p>
         </section>

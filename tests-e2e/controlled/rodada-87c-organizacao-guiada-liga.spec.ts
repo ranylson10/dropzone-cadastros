@@ -9,8 +9,8 @@ test.describe('Rodada 87C — organização guiada de ligas', () => {
   test('liga permite estrutura simples ou agrupamentos personalizados', async () => {
     const form = read('web/components/forms/campeonato/CampeonatoForm.tsx')
 
-    expect(form).toContain('Liga simples — pontos corridos')
-    expect(form).toContain('Liga com divisões, séries ou categorias')
+    expect(form).toContain('Liga simples')
+    expect(form).toContain('Liga com agrupamentos')
     expect(form).toContain('Nome do agrupamento')
     expect(form).toContain('Nome personalizado')
     expect(form).toContain('Bronze/Prata/Ouro')
@@ -20,9 +20,10 @@ test.describe('Rodada 87C — organização guiada de ligas', () => {
   test('tipos simples não recebem estrutura avançada de liga', async () => {
     const form = read('web/components/forms/campeonato/CampeonatoForm.tsx')
 
-    expect(form).toContain("value.tipo === 'liga' && pageVisible('format')")
+    expect(form).toContain("value.tipo === 'liga' ? (")
     expect(form).toContain("value.tipo === 'copa' ? 'Mata-mata' : 'Jogo único'")
-    expect(form).toContain('Formato do X-Treino')
+    expect(form).toContain("value.tipo === 'xtreino' ? (")
+    expect(form).toContain('Resumo do Xtreino')
     expect(form).toContain('Modo do confronto')
     expect(form).not.toContain('distribuição automática')
   })

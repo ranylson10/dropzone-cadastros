@@ -392,7 +392,7 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     estrutura_planejada: normalizeStructurePlan(data.estrutura_planejada),
     liga_usa_divisoes: Boolean(data.liga_usa_divisoes),
     liga_nome_agrupamento: String(data.liga_nome_agrupamento || 'Divisões').trim().slice(0, 60) || 'Divisões',
-    liga_divisoes: normalizeLeagueDivisions(data.liga_divisoes),
+    liga_divisoes: normalizeLeagueDivisions(data.liga_divisoes, String(data.liga_nome_agrupamento || 'Divisões')),
     ...buildThemeColumns(data),
   }
 }
@@ -444,12 +444,14 @@ function normalizeStructurePlan(value: unknown) {
   })
 }
 
-function normalizeLeagueDivisions(value: unknown) {
+function normalizeLeagueDivisions(value: unknown, grouping = 'Divisões') {
   if (!Array.isArray(value)) return []
-  if (value.length > 12) throw new Error('A liga aceita no máximo 12 divisões.')
+  if (value.length > 12) throw new Error('A liga aceita no máximo 12 agrupamentos.')
+  const labels: Record<string, string> = { Séries: 'Série', Divisões: 'Divisão', Categorias: 'Categoria', Níveis: 'Nível', Conferências: 'Conferência', Circuitos: 'Circuito' }
+  const baseLabel = labels[grouping] || String(grouping || 'Grupo').replace(/s$/i, '') || 'Grupo'
   return value.map((item, index) => ({
     id: String((item as any)?.id || crypto.randomUUID()).slice(0, 80),
-    nome: String((item as any)?.nome || '').trim().slice(0, 80) || `Série ${index + 1}`,
+    nome: String((item as any)?.nome || '').trim().slice(0, 80) || `${baseLabel} ${index + 1}`,
     codigo: String((item as any)?.codigo || '').trim().slice(0, 30),
     ordem: index + 1,
     equipes: String(Math.max(2, Math.min(200, Number((item as any)?.equipes || 12)))),
