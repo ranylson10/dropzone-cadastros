@@ -224,6 +224,44 @@ export function JogadorPanel(props: {
     booyahs: sum.booyahs + (row.booyah ? 1 : 0),
   }), { partidas: 0, abates: 0, dano: 0, assistencias: 0, revives: 0, booyahs: 0 }), [filteredMatches])
 
+  const historyAnalytics = useMemo(() => {
+    const allMatches = performance?.matchHistory || []
+    const chronological = [...allMatches].reverse()
+    const average = (rows: PlayerMatch[], valueOf: (row: PlayerMatch) => number | null) => {
+      const values = rows.map(valueOf).filter((value): value is number => value !== null && Number.isFinite(value))
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+    }
+    const recent = chronological.slice(-5)
+    const previous = chronological.slice(-10, -5)
+    const recentMetrics = {
+      partidas: recent.length,
+      kills: average(recent, (row) => Number(row.abates || 0)),
+      dano: average(recent, (row) => Number(row.dano || 0)),
+      colocacao: average(recent, (row) => Number(row.posicao || 0) > 0 ? Number(row.posicao) : null),
+      sobrevivencia: average(recent, (row) => Number(row.telemetria?.sobrevivencia_segundos || 0) > 0 ? Number(row.telemetria?.sobrevivencia_segundos) : null),
+    }
+    const previousMetrics = {
+      kills: average(previous, (row) => Number(row.abates || 0)),
+      dano: average(previous, (row) => Number(row.dano || 0)),
+      colocacao: average(previous, (row) => Number(row.posicao || 0) > 0 ? Number(row.posicao) : null),
+      sobrevivencia: average(previous, (row) => Number(row.telemetria?.sobrevivencia_segundos || 0) > 0 ? Number(row.telemetria?.sobrevivencia_segundos) : null),
+    }
+    const championshipGroups = new Map<string, PlayerMatch[]>()
+    for (const row of allMatches) championshipGroups.set(String(row.campeonato_id), [...(championshipGroups.get(String(row.campeonato_id)) || []), row])
+    const championships = [...championshipGroups.entries()].map(([id, rows]) => ({
+      id,
+      nome: rows[0]?.campeonato?.nome || 'Campeonato',
+      tipo: rows[0]?.campeonato?.tipo || '',
+      partidas: rows.length,
+      kills_media: average(rows, (row) => Number(row.abates || 0)) || 0,
+      dano_media: average(rows, (row) => Number(row.dano || 0)) || 0,
+      colocacao_media: average(rows, (row) => Number(row.posicao || 0) > 0 ? Number(row.posicao) : null),
+    })).sort((a, b) => (a.colocacao_media ?? 99) - (b.colocacao_media ?? 99) || b.kills_media - a.kills_media)
+    const bestMap = analytics.maps[0] || null
+    const worstMap = analytics.maps.length > 1 ? analytics.maps[analytics.maps.length - 1] : null
+    return { recentMetrics, previousMetrics, championships, bestMap, worstMap }
+  }, [performance, analytics.maps])
+
   const championshipOptions = performance?.statisticsByChampionship || []
 
   return (
@@ -282,10 +320,27 @@ export function JogadorPanel(props: {
                   <TrendChart title="Colocação" subtitle="resultado da equipe" points={chronologicalMatches.map((row, index) => ({ label: `Q${row.numero_partida || index + 1}`, value: row.posicao || null }))} format={(value) => `${Math.round(value)}º`} lowerIsBetter />
                 </div>
 
+                <section className="player-performance-recent">
+                  <div className="player-performance-section-head"><Activity size={16} /><span><strong>Momento recente</strong><small>últimas {historyAnalytics.recentMetrics.partidas || 0} partidas comparadas ao bloco anterior</small></span></div>
+                  <div className="player-performance-recent-grid">
+                    <span><small>kills/partida</small><b>{historyAnalytics.recentMetrics.kills === null ? '—' : historyAnalytics.recentMetrics.kills.toFixed(1)}</b><em>{historyAnalytics.previousMetrics.kills === null || historyAnalytics.recentMetrics.kills === null ? 'sem comparação' : `${historyAnalytics.recentMetrics.kills >= historyAnalytics.previousMetrics.kills ? '↑' : '↓'} ${Math.abs(historyAnalytics.recentMetrics.kills - historyAnalytics.previousMetrics.kills).toFixed(1)}`}</em></span>
+                    <span><small>dano/partida</small><b>{historyAnalytics.recentMetrics.dano === null ? '—' : Math.round(historyAnalytics.recentMetrics.dano).toLocaleString('pt-BR')}</b><em>{historyAnalytics.previousMetrics.dano === null || historyAnalytics.recentMetrics.dano === null ? 'sem comparação' : `${historyAnalytics.recentMetrics.dano >= historyAnalytics.previousMetrics.dano ? '↑' : '↓'} ${Math.round(Math.abs(historyAnalytics.recentMetrics.dano - historyAnalytics.previousMetrics.dano)).toLocaleString('pt-BR')}`}</em></span>
+                    <span><small>colocação média</small><b>{historyAnalytics.recentMetrics.colocacao === null ? '—' : historyAnalytics.recentMetrics.colocacao.toFixed(1)}</b><em>{historyAnalytics.previousMetrics.colocacao === null || historyAnalytics.recentMetrics.colocacao === null ? 'sem comparação' : `${historyAnalytics.recentMetrics.colocacao <= historyAnalytics.previousMetrics.colocacao ? '↑' : '↓'} ${Math.abs(historyAnalytics.recentMetrics.colocacao - historyAnalytics.previousMetrics.colocacao).toFixed(1)}`}</em></span>
+                    <span><small>sobrevivência</small><b>{formatSurvival(historyAnalytics.recentMetrics.sobrevivencia || 0)}</b><em>{historyAnalytics.previousMetrics.sobrevivencia === null || historyAnalytics.recentMetrics.sobrevivencia === null ? 'sem comparação' : `${historyAnalytics.recentMetrics.sobrevivencia >= historyAnalytics.previousMetrics.sobrevivencia ? '↑' : '↓'} ${formatSurvival(Math.abs(historyAnalytics.recentMetrics.sobrevivencia - historyAnalytics.previousMetrics.sobrevivencia))}`}</em></span>
+                  </div>
+                </section>
+
+                {championshipFilter === 'todos' && historyAnalytics.championships.length > 1 ? (
+                  <section className="player-performance-championships">
+                    <div className="player-performance-section-head"><BarChart3 size={16} /><span><strong>Comparação por campeonato</strong><small>médias individuais e posição da equipe</small></span></div>
+                    <div className="player-performance-championship-list">{historyAnalytics.championships.map((row) => <div key={row.id}><strong>{row.nome}</strong><span>{row.partidas} partidas</span><b>{row.kills_media.toFixed(1)} K</b><span>{Math.round(row.dano_media).toLocaleString('pt-BR')} dano</span><span>{row.colocacao_media === null ? '—' : `${row.colocacao_media.toFixed(1)} pos.`}</span></div>)}</div>
+                  </section>
+                ) : null}
+
                 <div className="player-performance-sections">
                   <section><div className="player-performance-section-head"><Target size={16} /><span><strong>Leitura técnica</strong><small>telemetria Garena</small></span></div><div className="player-performance-tech"><span><b>{analytics.headshots}</b><small>headshots</small></span><span><b>{analytics.knockdowns}</b><small>knockdowns</small></span><span><b>{totals.revives}</b><small>revives</small></span><span><b>{totals.booyahs}</b><small>booyahs</small></span></div></section>
 
-                  <section><div className="player-performance-section-head"><Activity size={16} /><span><strong>Por mapa</strong><small>médias do jogador</small></span></div><div className="player-performance-list">{analytics.maps.length ? analytics.maps.map((map) => <div key={map.nome}><strong>{map.nome}</strong><span>{map.partidas} partidas</span><b>{map.abates_media.toFixed(1)} K</b><small>{Math.round(map.dano_media).toLocaleString('pt-BR')} dano · {map.colocacao_media === null ? '—' : `${map.colocacao_media.toFixed(1)} pos.`}</small></div>) : <p className="empty">Sem partidas por mapa ainda.</p>}</div></section>
+                  <section><div className="player-performance-section-head"><Activity size={16} /><span><strong>Por mapa</strong><small>médias do jogador</small></span></div>{historyAnalytics.bestMap ? <div className="player-performance-map-reading"><span><small>melhor leitura</small><b>{historyAnalytics.bestMap.nome}</b></span>{historyAnalytics.worstMap ? <span><small>ponto de atenção</small><b>{historyAnalytics.worstMap.nome}</b></span> : null}</div> : null}<div className="player-performance-list">{analytics.maps.length ? analytics.maps.map((map) => <div key={map.nome}><strong>{map.nome}</strong><span>{map.partidas} partidas</span><b>{map.abates_media.toFixed(1)} K</b><small>{Math.round(map.dano_media).toLocaleString('pt-BR')} dano · {map.colocacao_media === null ? '—' : `${map.colocacao_media.toFixed(1)} pos.`}</small></div>) : <p className="empty">Sem partidas por mapa ainda.</p>}</div></section>
 
                   <section><div className="player-performance-section-head"><Swords size={16} /><span><strong>Armas</strong><small>mais eficientes no histórico filtrado</small></span></div><div className="player-performance-list">{analytics.weapons.length ? analytics.weapons.map((weapon) => <div key={weapon.nome}><strong>{weapon.nome}</strong><span>{weapon.usos} partidas</span><b>{weapon.abates} K</b><small>{Math.round(weapon.dano).toLocaleString('pt-BR')} dano · {weapon.precisao_media === null ? '—' : `${weapon.precisao_media.toFixed(1)}% precisão`}</small></div>) : <p className="empty">Sem telemetria de armas ainda.</p>}</div></section>
 

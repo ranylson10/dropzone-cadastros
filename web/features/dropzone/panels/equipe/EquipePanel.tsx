@@ -201,6 +201,35 @@ function relationLabel(value: number | null, positiveText: string, negativeText:
   return `${intensity} · ${value >= 0 ? positiveText : negativeText}`
 }
 
+function buildTrainingRecentForm(training: TeamTraining) {
+  const drops = training.quedas_detalhe
+  const recent = drops.slice(-3)
+  const previous = drops.slice(-6, -3)
+  const avg = (rows: typeof drops, get: (row: typeof drops[number]) => number | null) => {
+    const values = rows.map(get).filter((value): value is number => value !== null && Number.isFinite(value))
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+  }
+  const survival = (row: typeof drops[number]) => {
+    const values = row.jogadores_detalhados.map((player) => Number(player.sobrevivencia_segundos || 0)).filter((value) => value > 0)
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+  }
+  return {
+    amostras: recent.length,
+    atual: {
+      abates: avg(recent, (row) => row.abates),
+      dano: avg(recent, (row) => row.dano),
+      colocacao: avg(recent, (row) => Number(row.posicao || 0) > 0 ? Number(row.posicao) : null),
+      sobrevivencia: avg(recent, survival),
+    },
+    anterior: {
+      abates: avg(previous, (row) => row.abates),
+      dano: avg(previous, (row) => row.dano),
+      colocacao: avg(previous, (row) => Number(row.posicao || 0) > 0 ? Number(row.posicao) : null),
+      sobrevivencia: avg(previous, survival),
+    },
+  }
+}
+
 function buildTrainingTechnicalEfficiency(training: TeamTraining) {
   const weapons = new Map<string, { nome: string; abates: number; dano: number; usos: number; precisao: number; amostras: number }>()
   const skills = new Map<string, { chave: string; personagem: string; habilidade: string; partidas: number; usos: number }>()
@@ -1077,6 +1106,7 @@ Acesse: ${url}`
                 const analytics = buildTrainingAnalytics(training)
                 const crossAnalytics = buildTrainingCrossAnalytics(training)
                 const technicalEfficiency = buildTrainingTechnicalEfficiency(training)
+                const recentForm = buildTrainingRecentForm(training)
                 return (
                   <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
                     <button
@@ -1148,6 +1178,16 @@ Acesse: ${url}`
                             />
                           </div>
 
+                          <div className="team-training-recent-form">
+                            <div className="team-training-player-head"><strong>Momento recente</strong><small>Últimas {recentForm.amostras} quedas comparadas às 3 anteriores.</small></div>
+                            <div className="team-training-recent-grid">
+                              <span><small>kills/queda</small><b>{recentForm.atual.abates === null ? '—' : recentForm.atual.abates.toFixed(1)}</b><em>{recentForm.anterior.abates === null || recentForm.atual.abates === null ? 'sem comparação' : `${recentForm.atual.abates >= recentForm.anterior.abates ? '↑' : '↓'} ${Math.abs(recentForm.atual.abates - recentForm.anterior.abates).toFixed(1)}`}</em></span>
+                              <span><small>dano/queda</small><b>{recentForm.atual.dano === null ? '—' : Math.round(recentForm.atual.dano).toLocaleString('pt-BR')}</b><em>{recentForm.anterior.dano === null || recentForm.atual.dano === null ? 'sem comparação' : `${recentForm.atual.dano >= recentForm.anterior.dano ? '↑' : '↓'} ${Math.round(Math.abs(recentForm.atual.dano - recentForm.anterior.dano)).toLocaleString('pt-BR')}`}</em></span>
+                              <span><small>posição média</small><b>{recentForm.atual.colocacao === null ? '—' : recentForm.atual.colocacao.toFixed(1)}</b><em>{recentForm.anterior.colocacao === null || recentForm.atual.colocacao === null ? 'sem comparação' : `${recentForm.atual.colocacao <= recentForm.anterior.colocacao ? '↑' : '↓'} ${Math.abs(recentForm.atual.colocacao - recentForm.anterior.colocacao).toFixed(1)}`}</em></span>
+                              <span><small>sobrevivência</small><b>{recentForm.atual.sobrevivencia === null ? '—' : `${Math.round(recentForm.atual.sobrevivencia / 60)} min`}</b><em>{recentForm.anterior.sobrevivencia === null || recentForm.atual.sobrevivencia === null ? 'sem comparação' : `${recentForm.atual.sobrevivencia >= recentForm.anterior.sobrevivencia ? '↑' : '↓'} ${Math.round(Math.abs(recentForm.atual.sobrevivencia - recentForm.anterior.sobrevivencia) / 60)} min`}</em></span>
+                            </div>
+                          </div>
+
                           {analytics.mapas.length ? (
                             <div className="team-training-breakdown">
                               <div className="team-training-player-head">
@@ -1215,13 +1255,13 @@ Acesse: ${url}`
                                 <div>
                                   <strong>Armas</strong>
                                   {technicalEfficiency.weapons.map((weapon) => (
-                                    <span key={weapon.nome}><b>{weapon.nome}</b><small>{weapon.abates} K · {Math.round(weapon.dano).toLocaleString('pt-BR')} dano · {weapon.precisao_media === null ? '—' : `${weapon.precisao_media.toFixed(1)}% precisão`}</small></span>
+                                    <span key={weapon.nome}><b>{weapon.nome}</b><small>{weapon.abates} K · {Math.round(weapon.dano).toLocaleString('pt-BR')} dano · {weapon.usos ? `${(weapon.abates / weapon.usos).toFixed(1)} K/uso` : '—'} · {weapon.precisao_media === null ? '—' : `${weapon.precisao_media.toFixed(1)}% precisão`}</small></span>
                                   ))}
                                 </div>
                                 <div>
                                   <strong>Habilidades</strong>
                                   {technicalEfficiency.skills.map((skill) => (
-                                    <span key={skill.chave}><b>{skill.habilidade}</b><small>{skill.personagem || 'Personagem'} · {skill.partidas} registros</small></span>
+                                    <span key={skill.chave}><b>{skill.habilidade}</b><small>{skill.personagem || 'Personagem'} · {skill.partidas} registros · {skill.usos} usos</small></span>
                                   ))}
                                 </div>
                               </div>

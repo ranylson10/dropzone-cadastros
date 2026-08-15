@@ -7885,3 +7885,40 @@ body .team-training-technical-grid>div>span{display:grid;gap:1px;padding:6px 0;b
 body .team-training-technical-grid b{font-size:9px;color:var(--ui-accent-light)}
 body .team-training-technical-grid small{font-size:8px;color:var(--ui-text-muted)}
 @media(max-width:760px){body .team-training-technical-grid{grid-template-columns:1fr}}
+
+/* Rodada 39 — comparação histórica e momento recente */
+body .player-performance-recent,
+body .player-performance-championships,
+body .team-training-recent-form{display:grid;gap:8px}
+body .player-performance-recent-grid,
+body .team-training-recent-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+body .player-performance-recent-grid>span,
+body .team-training-recent-grid>span{display:grid;gap:2px;padding:10px 12px;border-left:1px solid var(--ui-line)}
+body .player-performance-recent-grid>span:first-child,
+body .team-training-recent-grid>span:first-child{border-left:0}
+body .player-performance-recent-grid small,
+body .team-training-recent-grid small{font-size:8px;color:var(--ui-text-muted);text-transform:uppercase;letter-spacing:.04em}
+body .player-performance-recent-grid b,
+body .team-training-recent-grid b{font-size:14px;color:var(--ui-text)}
+body .player-performance-recent-grid em,
+body .team-training-recent-grid em{font-size:8px;color:var(--ui-accent-light);font-style:normal}
+body .player-performance-championship-list{display:grid;border-top:1px solid var(--ui-line)}
+body .player-performance-championship-list>div{display:grid;grid-template-columns:minmax(150px,1.3fr) repeat(4,minmax(72px,.65fr));gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--ui-line)}
+body .player-performance-championship-list strong{font-size:10px;color:var(--ui-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body .player-performance-championship-list span{font-size:8px;color:var(--ui-text-muted);text-align:right}
+body .player-performance-championship-list b{font-size:10px;color:var(--ui-accent-light);text-align:right}
+body .player-performance-map-reading{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+body .player-performance-map-reading>span{display:grid;gap:2px}
+body .player-performance-map-reading small{font-size:8px;color:var(--ui-text-muted);text-transform:uppercase}
+body .player-performance-map-reading b{font-size:10px;color:var(--ui-accent-light)}
+@media(max-width:760px){
+  body .player-performance-recent-grid,
+  body .team-training-recent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .player-performance-recent-grid>span:nth-child(3),
+  body .team-training-recent-grid>span:nth-child(3){border-left:0;border-top:1px solid var(--ui-line)}
+  body .player-performance-recent-grid>span:nth-child(4),
+  body .team-training-recent-grid>span:nth-child(4){border-top:1px solid var(--ui-line)}
+  body .player-performance-championship-list>div{grid-template-columns:minmax(0,1fr) repeat(2,64px);gap:7px}
+  body .player-performance-championship-list>div>span:nth-of-type(3),
+  body .player-performance-championship-list>div>span:nth-of-type(4){display:none}
+}
