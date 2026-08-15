@@ -1997,7 +1997,7 @@ ${params.url}`
                     {orderedChampPhases.map((phase) => {
                       const gamesOfPhase = champGames.filter((game) => game.data?.fase_id === phase.id)
                       const groupsOfPhase = orderedChampGroups.filter((group) => group.data?.fase_id === phase.id)
-                      const phaseOpen = openGamePhases[phase.id] !== false
+                      const phaseOpen = openGamePhases[phase.id] === true
                       return (
                         <section className="folder-card phase-folder-card" key={phase.id}>
                           <header className="folder-row phase-folder-row">

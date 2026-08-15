@@ -782,7 +782,7 @@ export function CampeonatoEstruturaTab({
               : gruposOrdenados.filter((g) => g.fase_id === phase.id)
           if (phase.id === 'sem-fase' && groupsOfPhase.length === 0 && fasesOrdenadas.length > 0) return null
           const phaseHidden = Boolean((phase as Fase).oculta || (phase as Fase).data?.oculta)
-          const phaseOpen = phaseHidden || openPhases[phase.id] !== false
+          const phaseOpen = phaseHidden || openPhases[phase.id] === true
 
           return (
             <section className={phaseHidden ? 'phase-folder phase-folder-hidden-shell' : 'phase-folder'} key={phase.id}>
@@ -964,7 +964,7 @@ export function CampeonatoEstruturaTab({
                     const slotsOfGroup = slots
                       .filter((s) => s.grupo_id === group.id)
                       .sort((a, b) => Number(a.slot_numero || 0) - Number(b.slot_numero || 0))
-                    const groupOpen = openGroups[group.id] !== false
+                    const groupOpen = openGroups[group.id] === true
                     const slotCount = Number(group.slots_total || group.slots || slotsOfGroup.length || 12)
 
                     return (
