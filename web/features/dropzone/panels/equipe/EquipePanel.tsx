@@ -261,6 +261,55 @@ function buildTrainingTechnicalEfficiency(training: TeamTraining) {
   }
 }
 
+function buildTrainingObjectiveReading(training: TeamTraining) {
+  type Reading = { kind: 'positive' | 'attention' | 'neutral'; title: string; text: string }
+  const strengths: Reading[] = []
+  const attentions: Reading[] = []
+  const notes: Reading[] = []
+  const analytics = buildTrainingAnalytics(training)
+  const recent = buildTrainingRecentForm(training)
+  const technical = buildTrainingTechnicalEfficiency(training)
+
+  const compareHigher = (title: string, current: number | null, previous: number | null, minAbsolute: number, minRelative: number, format: (diff: number) => string) => {
+    if (recent.amostras < 3 || current === null || previous === null || previous <= 0) return
+    const diff = current - previous
+    const relative = diff / previous
+    if (diff >= minAbsolute && relative >= minRelative) strengths.push({ kind: 'positive', title, text: `Melhora recente de ${format(diff)}.` })
+    if (diff <= -minAbsolute && relative <= -minRelative) attentions.push({ kind: 'attention', title, text: `Queda recente de ${format(Math.abs(diff))}.` })
+  }
+
+  compareHigher('Eliminações', recent.atual.abates, recent.anterior.abates, 0.5, 0.10, (diff) => `${diff.toFixed(1)} kills/queda`)
+  compareHigher('Pressão de dano', recent.atual.dano, recent.anterior.dano, 250, 0.10, (diff) => `${Math.round(diff).toLocaleString('pt-BR')} dano/queda`)
+  compareHigher('Sobrevivência', recent.atual.sobrevivencia, recent.anterior.sobrevivencia, 45, 0.08, (diff) => `${Math.round(diff / 60)} min`)
+
+  if (recent.amostras >= 3 && recent.atual.colocacao !== null && recent.anterior.colocacao !== null) {
+    const diff = recent.anterior.colocacao - recent.atual.colocacao
+    if (diff >= 1) strengths.push({ kind: 'positive', title: 'Colocação', text: `A média recente melhorou ${diff.toFixed(1)} posições.` })
+    if (diff <= -1) attentions.push({ kind: 'attention', title: 'Colocação', text: `A média recente piorou ${Math.abs(diff).toFixed(1)} posições.` })
+  }
+
+  const maps = analytics.mapas.filter((map) => map.quedas >= 2 && map.colocacao_media !== null)
+  if (maps.length >= 2) {
+    const best = maps[0]
+    const worst = maps[maps.length - 1]
+    strengths.push({ kind: 'positive', title: 'Mapa mais consistente', text: `${best.nome}: ${best.colocacao_media!.toFixed(1)} de posição média em ${best.quedas} quedas.` })
+    if (worst.nome !== best.nome && (worst.colocacao_media! - best.colocacao_media!) >= 1.5) attentions.push({ kind: 'attention', title: 'Mapa para revisar', text: `${worst.nome}: ${worst.colocacao_media!.toFixed(1)} de posição média em ${worst.quedas} quedas.` })
+  }
+
+  const weapon = technical.weapons
+    .filter((row) => row.usos >= 3)
+    .map((row) => ({ ...row, killsPerUse: row.abates / row.usos }))
+    .sort((a, b) => b.killsPerUse - a.killsPerUse || b.abates - a.abates)[0]
+  if (weapon) strengths.push({ kind: 'positive', title: 'Arma mais eficiente', text: `${weapon.nome}: ${weapon.killsPerUse.toFixed(1)} K/uso em ${weapon.usos} registros.` })
+
+  const survivalInsight = buildTrainingCrossAnalytics(training).insights.find((row) => row.titulo === 'Sobrevivência × colocação')
+  if (survivalInsight && survivalInsight.coeficiente !== null && Math.abs(survivalInsight.coeficiente) >= 0.4) {
+    notes.push({ kind: 'neutral', title: 'Sobrevivência × colocação', text: survivalInsight.leitura })
+  }
+
+  return { strengths: strengths.slice(0, 3), attentions: attentions.slice(0, 3), notes: notes.slice(0, 2) }
+}
+
 function buildTrainingCrossAnalytics(training: TeamTraining) {
   const validPosition = training.quedas_detalhe.filter((drop) => Number(drop.posicao || 0) > 0)
   const survival = (drop: TeamTraining['quedas_detalhe'][number]) => {
@@ -1107,6 +1156,7 @@ Acesse: ${url}`
                 const crossAnalytics = buildTrainingCrossAnalytics(training)
                 const technicalEfficiency = buildTrainingTechnicalEfficiency(training)
                 const recentForm = buildTrainingRecentForm(training)
+                const objectiveReading = buildTrainingObjectiveReading(training)
                 return (
                   <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
                     <button
@@ -1176,6 +1226,15 @@ Acesse: ${url}`
                               points={analytics.trend.map((point) => ({ label: point.label, value: point.sobrevivencia }))}
                               format={(value) => `${Math.round(value / 60)} min`}
                             />
+                          </div>
+
+                          <div className="performance-objective-reading team-objective-reading">
+                            <div className="team-training-player-head"><strong>Leitura objetiva</strong><small>Regras transparentes aplicadas somente aos dados privados deste treino.</small></div>
+                            <div className="performance-objective-columns">
+                              <div><strong>Pontos fortes</strong>{objectiveReading.strengths.length ? objectiveReading.strengths.map((item) => <span className="is-positive" key={`${item.title}:${item.text}`}><b>{item.title}</b><small>{item.text}</small></span>) : <small className="empty">Ainda sem amostra suficiente para destacar um ponto forte.</small>}</div>
+                              <div><strong>Pontos de atenção</strong>{objectiveReading.attentions.length ? objectiveReading.attentions.map((item) => <span className="is-attention" key={`${item.title}:${item.text}`}><b>{item.title}</b><small>{item.text}</small></span>) : <small className="empty">Nenhum alerta objetivo no recorte atual.</small>}</div>
+                            </div>
+                            {objectiveReading.notes.length ? <div className="performance-objective-notes">{objectiveReading.notes.map((item) => <span key={`${item.title}:${item.text}`}><b>{item.title}</b><small>{item.text}</small></span>)}</div> : null}
                           </div>
 
                           <div className="team-training-recent-form">

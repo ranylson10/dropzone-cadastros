@@ -262,6 +262,61 @@ export function JogadorPanel(props: {
     return { recentMetrics, previousMetrics, championships, bestMap, worstMap }
   }, [performance, analytics.maps])
 
+  const objectiveReading = useMemo(() => {
+    type Reading = { kind: 'positive' | 'attention' | 'neutral'; title: string; text: string }
+    const strengths: Reading[] = []
+    const attentions: Reading[] = []
+    const notes: Reading[] = []
+    const recent = historyAnalytics.recentMetrics
+    const previous = historyAnalytics.previousMetrics
+    const enoughRecent = recent.partidas >= 3
+
+    const compareHigher = (title: string, current: number | null, before: number | null, minAbsolute: number, minRelative: number, unit: string) => {
+      if (!enoughRecent || current === null || before === null || before <= 0) return
+      const diff = current - before
+      const relative = diff / before
+      if (diff >= minAbsolute && relative >= minRelative) strengths.push({ kind: 'positive', title, text: `Subiu ${unit === 'dano' ? Math.round(diff).toLocaleString('pt-BR') : diff.toFixed(1)} ${unit} no recorte recente.` })
+      if (diff <= -minAbsolute && relative <= -minRelative) attentions.push({ kind: 'attention', title, text: `Caiu ${unit === 'dano' ? Math.round(Math.abs(diff)).toLocaleString('pt-BR') : Math.abs(diff).toFixed(1)} ${unit} no recorte recente.` })
+    }
+
+    compareHigher('Poder de eliminação', recent.kills, previous.kills, 0.3, 0.12, 'kills/partida')
+    compareHigher('Pressão de dano', recent.dano, previous.dano, 150, 0.10, 'dano')
+    compareHigher('Tempo vivo', recent.sobrevivencia, previous.sobrevivencia, 45, 0.08, 'segundos')
+
+    if (enoughRecent && recent.colocacao !== null && previous.colocacao !== null) {
+      const diff = previous.colocacao - recent.colocacao
+      if (diff >= 1) strengths.push({ kind: 'positive', title: 'Resultado recente', text: `A colocação média melhorou ${diff.toFixed(1)} posições.` })
+      if (diff <= -1) attentions.push({ kind: 'attention', title: 'Resultado recente', text: `A colocação média piorou ${Math.abs(diff).toFixed(1)} posições.` })
+    }
+
+    const mapsWithSample = analytics.maps.filter((map) => map.partidas >= 2 && map.colocacao_media !== null)
+    if (mapsWithSample.length >= 2) {
+      const best = mapsWithSample[0]
+      const worst = mapsWithSample[mapsWithSample.length - 1]
+      strengths.push({ kind: 'positive', title: 'Mapa mais consistente', text: `${best.nome}: ${best.colocacao_media!.toFixed(1)} de posição média em ${best.partidas} partidas.` })
+      if (worst.nome !== best.nome && (worst.colocacao_media! - best.colocacao_media!) >= 1.5) attentions.push({ kind: 'attention', title: 'Mapa para revisar', text: `${worst.nome}: ${worst.colocacao_media!.toFixed(1)} de posição média em ${worst.partidas} partidas.` })
+    }
+
+    const efficientWeapon = analytics.weapons
+      .filter((weapon) => weapon.usos >= 2)
+      .map((weapon) => ({ ...weapon, killsPerUse: weapon.abates / weapon.usos }))
+      .sort((a, b) => b.killsPerUse - a.killsPerUse || b.abates - a.abates)[0]
+    if (efficientWeapon) strengths.push({ kind: 'positive', title: 'Arma mais eficiente', text: `${efficientWeapon.nome}: ${efficientWeapon.killsPerUse.toFixed(1)} K/uso em ${efficientWeapon.usos} registros.` })
+
+    const validSurvival = filteredMatches.filter((row) => Number(row.posicao || 0) > 0 && Number(row.telemetria?.sobrevivencia_segundos || 0) > 0)
+    const topRows = validSurvival.filter((row) => Number(row.posicao) <= 5)
+    const otherRows = validSurvival.filter((row) => Number(row.posicao) > 5)
+    const avgSurvival = (rows: PlayerMatch[]) => rows.length ? rows.reduce((sum, row) => sum + Number(row.telemetria?.sobrevivencia_segundos || 0), 0) / rows.length : null
+    const topSurvival = avgSurvival(topRows)
+    const otherSurvival = avgSurvival(otherRows)
+    if (topRows.length >= 2 && otherRows.length >= 2 && topSurvival !== null && otherSurvival !== null) {
+      const diff = topSurvival - otherSurvival
+      if (Math.abs(diff) >= 60) notes.push({ kind: 'neutral', title: 'Sobrevivência × resultado', text: diff > 0 ? `Nas chegadas ao top 5, você sobreviveu em média ${formatSurvival(diff)} a mais.` : `Nas chegadas ao top 5, você sobreviveu em média ${formatSurvival(Math.abs(diff))} a menos; vale revisar como as eliminações acontecem.` })
+    }
+
+    return { strengths: strengths.slice(0, 3), attentions: attentions.slice(0, 3), notes: notes.slice(0, 2) }
+  }, [historyAnalytics, analytics.maps, analytics.weapons, filteredMatches])
+
   const championshipOptions = performance?.statisticsByChampionship || []
 
   return (
@@ -319,6 +374,15 @@ export function JogadorPanel(props: {
                   <TrendChart title="Sobrevivência" subtitle="tempo vivo por partida" points={chronologicalMatches.map((row, index) => ({ label: `Q${row.numero_partida || index + 1}`, value: row.telemetria?.sobrevivencia_segundos || null }))} format={formatSurvival} />
                   <TrendChart title="Colocação" subtitle="resultado da equipe" points={chronologicalMatches.map((row, index) => ({ label: `Q${row.numero_partida || index + 1}`, value: row.posicao || null }))} format={(value) => `${Math.round(value)}º`} lowerIsBetter />
                 </div>
+
+                <section className="performance-objective-reading player-objective-reading">
+                  <div className="player-performance-section-head"><Activity size={16} /><span><strong>Leitura objetiva</strong><small>Regras transparentes baseadas no seu histórico; sem análise generativa.</small></span></div>
+                  <div className="performance-objective-columns">
+                    <div><strong>Pontos fortes</strong>{objectiveReading.strengths.length ? objectiveReading.strengths.map((item) => <span className="is-positive" key={`${item.title}:${item.text}`}><b>{item.title}</b><small>{item.text}</small></span>) : <small className="empty">Ainda sem amostra suficiente para destacar um ponto forte.</small>}</div>
+                    <div><strong>Pontos de atenção</strong>{objectiveReading.attentions.length ? objectiveReading.attentions.map((item) => <span className="is-attention" key={`${item.title}:${item.text}`}><b>{item.title}</b><small>{item.text}</small></span>) : <small className="empty">Nenhum alerta objetivo no recorte atual.</small>}</div>
+                  </div>
+                  {objectiveReading.notes.length ? <div className="performance-objective-notes">{objectiveReading.notes.map((item) => <span key={`${item.title}:${item.text}`}><b>{item.title}</b><small>{item.text}</small></span>)}</div> : null}
+                </section>
 
                 <section className="player-performance-recent">
                   <div className="player-performance-section-head"><Activity size={16} /><span><strong>Momento recente</strong><small>últimas {historyAnalytics.recentMetrics.partidas || 0} partidas comparadas ao bloco anterior</small></span></div>

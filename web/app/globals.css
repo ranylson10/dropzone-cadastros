@@ -7922,3 +7922,18 @@ body .player-performance-map-reading b{font-size:10px;color:var(--ui-accent-ligh
   body .player-performance-championship-list>div>span:nth-of-type(3),
   body .player-performance-championship-list>div>span:nth-of-type(4){display:none}
 }
+
+/* Rodada 40 — leitura objetiva automática de desempenho */
+.performance-objective-reading{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.07)}
+.performance-objective-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:12px}
+.performance-objective-columns>div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.performance-objective-columns>div>strong{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#d8d5ca}
+.performance-objective-columns span,.performance-objective-notes span{display:flex;flex-direction:column;gap:2px;padding:8px 0}
+.performance-objective-columns span+span,.performance-objective-notes span+span{border-top:1px solid rgba(255,255,255,.055)}
+.performance-objective-columns span b,.performance-objective-notes b{font-size:13px;color:#f1efe7}
+.performance-objective-columns span small,.performance-objective-notes small{font-size:12px;line-height:1.45;color:#9e9b91}
+.performance-objective-columns .is-positive b{color:#c9b766}
+.performance-objective-columns .is-attention b{color:#e7b28d}
+.performance-objective-notes{margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.055)}
+.performance-objective-columns .empty{padding:8px 0;color:#77746b}
+@media(max-width:760px){.performance-objective-columns{grid-template-columns:1fr;gap:12px}.performance-objective-reading{margin-top:14px;padding-top:13px}}
