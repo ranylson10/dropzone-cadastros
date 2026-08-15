@@ -295,6 +295,11 @@ const OPTIONAL_STRUCTURE_KEYS = [
   'liga_divisoes',
   'sistema_pontuacao_tipo',
   'sistema_pontuacao_nome',
+  'xtreino_call_fixa',
+  'xtreino_registra_primeira_safe',
+  'xtreino_registra_segunda_safe',
+  'xtreino_mapas',
+  'partidas_por_jogo',
 ] as const
 
 const OFFICIAL_GARENA_SCORING = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0] as const
@@ -346,6 +351,16 @@ function championshipConfigurationPayload(data: Record<string, any>, campeonatoI
     sistema_pontuacao_nome: scoring.sistema_pontuacao_nome,
     pontos_colocacao: scoring.pontos_colocacao,
     pontos_por_abate: scoring.pontos_por_abate,
+    xtreino_call_fixa: Boolean(data.xtreino_call_fixa),
+    xtreino_registra_primeira_safe: data.xtreino_registra_primeira_safe !== false,
+    xtreino_registra_segunda_safe: data.xtreino_registra_segunda_safe !== false,
+    xtreino_mapas: Array.isArray(data.xtreino_mapas)
+      ? Array.from(new Set<string>(data.xtreino_mapas
+          .map((item: unknown) => String(item).trim().toLowerCase())
+          .filter((item: string) => ['bermuda', 'purgatorio', 'kalahari', 'alpine', 'nexterra', 'solara'].includes(item))))
+          .slice(0, 6)
+      : [],
+    partidas_por_jogo: Math.max(1, Math.min(20, Number.parseInt(String(data.partidas_por_jogo || '4'), 10) || 4)),
     formato: String(data.formato || '').trim() || null,
     plataforma: (() => {
       const value = String(data.plataforma || '').trim().toLowerCase()

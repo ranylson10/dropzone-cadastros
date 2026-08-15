@@ -27,6 +27,11 @@ export type CampeonatoFormValue = {
   pontuacao_equipes_por_partida: string
   pontos_colocacao: string[]
   pontos_por_abate: string
+  /** Configuração específica de Xtreino para análise competitiva. */
+  xtreino_call_fixa?: boolean
+  xtreino_registra_primeira_safe?: boolean
+  xtreino_registra_segunda_safe?: boolean
+  xtreino_mapas?: string[]
   numero_fases: string
   nomes_fases: string[]
   estrutura_planejada: CampeonatoStructurePhase[]
@@ -130,6 +135,15 @@ export const WHATSAPP_COUNTRIES = [
 
 export const OFFICIAL_GARENA_SCORING = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0] as const
 
+const XTREINO_MAP_OPTIONS = [
+  { value: 'bermuda', label: 'Bermuda' },
+  { value: 'purgatorio', label: 'Purgatório' },
+  { value: 'kalahari', label: 'Kalahari' },
+  { value: 'alpine', label: 'Alpine' },
+  { value: 'nexterra', label: 'Nexterra' },
+  { value: 'solara', label: 'Solara' },
+] as const
+
 function scoringPointsForCount(count: number, source: ReadonlyArray<string | number> = []) {
   return Array.from({ length: Math.max(2, Math.min(15, count)) }, (_, index) =>
     source[index] == null ? '' : String(source[index]),
@@ -153,6 +167,10 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   pontuacao_equipes_por_partida: '12',
   pontos_colocacao: OFFICIAL_GARENA_SCORING.map(String),
   pontos_por_abate: '1',
+  xtreino_call_fixa: false,
+  xtreino_registra_primeira_safe: true,
+  xtreino_registra_segunda_safe: true,
+  xtreino_mapas: ['bermuda', 'purgatorio', 'kalahari'],
   numero_fases: '1',
   nomes_fases: ['Fase 1'],
   estrutura_planejada: [],
@@ -585,10 +603,16 @@ export function CampeonatoForm({
       pontuacao_equipes_por_partida: value.pontuacao_equipes_por_partida || '12',
       pontos_colocacao: value.pontos_colocacao?.length ? value.pontos_colocacao : OFFICIAL_GARENA_SCORING.map(String),
       pontos_por_abate: value.pontos_por_abate || '1',
+      xtreino_call_fixa: type === 'xtreino' ? (value.xtreino_call_fixa ?? false) : value.xtreino_call_fixa,
+      xtreino_registra_primeira_safe: type === 'xtreino' ? (value.xtreino_registra_primeira_safe ?? true) : value.xtreino_registra_primeira_safe,
+      xtreino_registra_segunda_safe: type === 'xtreino' ? (value.xtreino_registra_segunda_safe ?? true) : value.xtreino_registra_segunda_safe,
+      xtreino_mapas: type === 'xtreino'
+        ? (Array.isArray(value.xtreino_mapas) && value.xtreino_mapas.length ? value.xtreino_mapas : ['bermuda', 'purgatorio', 'kalahari'])
+        : value.xtreino_mapas,
       numero_fases: String(guidedPlan.length),
       nomes_fases: guidedPlan.map((phase) => phase.nome),
       estrutura_planejada: guidedPlan,
-      partidas_por_jogo: type === 'diario' || type === 'copa' ? (value.partidas_por_jogo || '4') : value.partidas_por_jogo,
+      partidas_por_jogo: type === 'diario' || type === 'copa' || type === 'xtreino' ? (value.partidas_por_jogo || '4') : value.partidas_por_jogo,
       partidas_final: type === 'copa' ? (value.partidas_final || '6') : value.partidas_final,
       final_dias: type === 'copa' ? (value.final_dias || '1') : value.final_dias,
       final_dias_config: type === 'copa'
@@ -707,7 +731,8 @@ export function CampeonatoForm({
       const copyKeys: Array<keyof CampeonatoFormValue> = [
         'nome', 'logo_url', 'banner_url', 'premiacao', 'valor_inscricao', 'descricao_premiacao',
         'divisao_premiacao', 'numero_vagas', 'diario_equipes_por_horario', 'sistema_pontuacao_tipo', 'sistema_pontuacao_nome',
-        'pontuacao_equipes_por_partida', 'pontos_colocacao', 'pontos_por_abate', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final',
+        'pontuacao_equipes_por_partida', 'pontos_colocacao', 'pontos_por_abate', 'xtreino_call_fixa', 'xtreino_registra_primeira_safe',
+        'xtreino_registra_segunda_safe', 'xtreino_mapas', 'numero_fases', 'nomes_fases', 'estrutura_planejada', 'formato', 'partidas_por_jogo', 'partidas_final',
         'final_dias', 'final_dias_config', 'final_quedas_por_dia', 'final_formato', 'final_champion_point_pontos',
         'final_point_rush_dias', 'final_bonus_ranking', 'final_observacoes', 'plataforma', 'servidor', 'tipo_premiacao', 'inscricao_paga',
         'tem_trofeu', 'tem_live', 'vagas_por_equipe', 'jogadores_por_vaga',
@@ -988,6 +1013,20 @@ export function CampeonatoForm({
     })
   }
 
+  function updateXtreinoTeams(raw: string) {
+    const teams = String(Math.max(2, Math.min(15, Number(raw) || 12)))
+    const plan = value.estrutura_planejada.length
+      ? value.estrutura_planejada.map((phase, index) => index === 0 ? { ...phase, equipes_por_grupo: teams, grupos: '1' } : phase)
+      : [{ nome: 'Fase 1', grupos: '1', equipes_por_grupo: teams, classificam_por_grupo: '' }]
+    onChange({ ...value, numero_vagas: teams, numero_fases: '1', nomes_fases: ['Fase 1'], estrutura_planejada: plan })
+  }
+
+  function toggleXtreinoMap(mapCode: string) {
+    const current = Array.isArray(value.xtreino_mapas) ? value.xtreino_mapas : []
+    const next = current.includes(mapCode) ? current.filter((item) => item !== mapCode) : [...current, mapCode]
+    update('xtreino_mapas', next)
+  }
+
   async function submitWithImages() {
     const resolvedValue: CampeonatoFormValue = {
       ...value,
@@ -1070,6 +1109,13 @@ export function CampeonatoForm({
             { id: 'scoring', label: 'Pontuação' },
             { id: 'review', label: 'Revisão' },
           ]
+        : value.tipo === 'xtreino'
+          ? [
+              { id: 'origin', label: 'Início' },
+              { id: 'format' as const, label: 'Configuração' },
+              { id: 'scoring', label: 'Pontuação' },
+              { id: 'review', label: 'Revisão' },
+            ]
         : [
             { id: 'origin', label: 'Início' },
             { id: 'format' as const, label: 'Estrutura' },
@@ -1098,6 +1144,11 @@ export function CampeonatoForm({
       if (value.liga_divisoes.some((division) => Number(division.equipes || 0) < 2)) return setWizardError('Cada série precisa ter pelo menos 2 equipes.')
       const leagueNames = value.liga_divisoes.map((division) => division.nome.trim().toLocaleLowerCase('pt-BR'))
       if (new Set(leagueNames).size !== leagueNames.length) return setWizardError('As séries da Liga não podem ter nomes repetidos.')
+    }
+    if (formPage === 'format' && value.tipo === 'xtreino') {
+      if (Number(value.numero_vagas || 0) < 2 || Number(value.numero_vagas || 0) > 15) return setWizardError('O Xtreino precisa ter entre 2 e 15 equipes por sala.')
+      if (Number(value.partidas_por_jogo || 0) < 1 || Number(value.partidas_por_jogo || 0) > 20) return setWizardError('Informe entre 1 e 20 quedas para o Xtreino.')
+      if (!Array.isArray(value.xtreino_mapas) || !value.xtreino_mapas.length) return setWizardError('Selecione pelo menos um mapa para o Xtreino.')
     }
     if (formPage === 'format' && value.tipo === 'copa') {
       const first = value.estrutura_planejada[0]
@@ -1610,6 +1661,62 @@ export function CampeonatoForm({
             <p className="championship-guided-note">
               Aqui você define a progressão das fases. A Final tem configuração própria na próxima etapa.
             </p>
+          </div>
+        ) : value.tipo === 'xtreino' ? (
+          <div className="championship-guided-structure championship-xtreino-config">
+            <div className="championship-guided-copy">
+              <span>Configuração do Xtreino</span>
+              <strong>Como este treino será disputado e analisado?</strong>
+              <small>Defina a sala e quais informações de contexto serão registradas. A pontuação é configurada no próximo passo.</small>
+            </div>
+
+            <div className="championship-xtreino-grid">
+              <Field label="Equipes por sala">
+                <input type="number" min="2" max="15" value={value.numero_vagas || '12'} onChange={(event) => updateXtreinoTeams(event.target.value)} />
+              </Field>
+              <Field label="Quedas por jogo">
+                <input type="number" min="1" max="20" value={value.partidas_por_jogo || '4'} onChange={(event) => update('partidas_por_jogo', event.target.value)} />
+              </Field>
+              <Field label="Plataforma">
+                <select value={value.plataforma} onChange={(event) => update('plataforma', event.target.value)}>
+                  <option value="mobile">Mobile</option>
+                  <option value="emulador">Emulador</option>
+                  <option value="misto">Misto</option>
+                </select>
+              </Field>
+              <Field label="Servidor"><input value={value.servidor} onChange={(event) => update('servidor', event.target.value)} placeholder="Ex.: Brasil" /></Field>
+            </div>
+
+            <div className="championship-xtreino-analysis-options">
+              <button type="button" className={value.xtreino_call_fixa ? 'active' : ''} onClick={() => update('xtreino_call_fixa', !value.xtreino_call_fixa)}>
+                <strong>Call fixa</strong>
+                <small>{value.xtreino_call_fixa ? 'Sim · as calls fazem parte da leitura do treino.' : 'Não · a call pode variar entre as quedas.'}</small>
+              </button>
+              <button type="button" className={value.xtreino_registra_primeira_safe ? 'active' : ''} onClick={() => update('xtreino_registra_primeira_safe', !value.xtreino_registra_primeira_safe)}>
+                <strong>Registrar 1ª safe</strong>
+                <small>Usar a primeira zona segura nas análises privadas da equipe.</small>
+              </button>
+              <button type="button" className={value.xtreino_registra_segunda_safe ? 'active' : ''} onClick={() => update('xtreino_registra_segunda_safe', !value.xtreino_registra_segunda_safe)}>
+                <strong>Registrar 2ª safe</strong>
+                <small>Usar a segunda zona segura nas análises privadas da equipe.</small>
+              </button>
+            </div>
+
+            <div className="championship-xtreino-maps">
+              <div className="form-section-heading"><div><span className="eyebrow">Mapas do treino</span><strong>Quais mapas podem aparecer nas quedas?</strong></div></div>
+              <div className="championship-xtreino-map-options">
+                {XTREINO_MAP_OPTIONS.map((map) => {
+                  const selected = (value.xtreino_mapas || []).includes(map.value)
+                  return <button key={map.value} type="button" className={selected ? 'active' : ''} onClick={() => toggleXtreinoMap(map.value)}>{map.label}</button>
+                })}
+              </div>
+            </div>
+
+            <div className="championship-guided-preview">
+              <span>Resumo do Xtreino</span>
+              <strong>{value.numero_vagas || '12'} equipes · {value.partidas_por_jogo || '4'} quedas</strong>
+              <small>{(value.xtreino_mapas || []).map((code) => XTREINO_MAP_OPTIONS.find((map) => map.value === code)?.label || code).join(' · ') || 'Nenhum mapa selecionado'} · Call fixa: {value.xtreino_call_fixa ? 'sim' : 'não'}.</small>
+            </div>
           </div>
         ) : value.tipo === 'liga' ? (
           <div className="championship-guided-structure championship-league-series">
@@ -2299,6 +2406,13 @@ export function CampeonatoForm({
             <div><small>Vagas</small><strong>{value.tipo === 'diario' ? `${value.numero_vagas || '0'} total · ${value.diario_equipes_por_horario || '12'} por horário` : value.numero_vagas || 'Não definidas'}</strong></div>
             {value.tipo !== 'diario' ? <div><small>Fases iniciais</small><strong>{Math.max(1, Number(value.numero_fases) || 1)}</strong></div> : null}
             <div><small>Formato</small><strong>{value.formato || defaultFormat(value.tipo)}</strong></div>
+            {value.tipo === 'xtreino' ? (
+              <>
+                <div><small>Treino</small><strong>{value.partidas_por_jogo || '0'} quedas · {value.xtreino_call_fixa ? 'call fixa' : 'call variável'}</strong></div>
+                <div><small>Safes analisadas</small><strong>{[value.xtreino_registra_primeira_safe ? '1ª safe' : '', value.xtreino_registra_segunda_safe ? '2ª safe' : ''].filter(Boolean).join(' · ') || 'Nenhuma'}</strong></div>
+                <div className="championship-review-wide"><small>Mapas</small><strong>{(value.xtreino_mapas || []).map((code) => XTREINO_MAP_OPTIONS.find((map) => map.value === code)?.label || code).join(' · ') || 'Nenhum'}</strong></div>
+              </>
+            ) : null}
             <div>
               <small>Pontuação</small>
               <strong>{value.sistema_pontuacao_tipo === 'garena' ? 'Oficial Garena' : (value.sistema_pontuacao_nome || 'Personalizada')}</strong>

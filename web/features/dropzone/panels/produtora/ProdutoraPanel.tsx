@@ -698,6 +698,12 @@ export function ProdutoraPanel(props: {
       pontuacao_equipes_por_partida: String(savedScoringPoints.length || 12),
       pontos_colocacao: savedScoringPoints,
       pontos_por_abate: savedKillPoints,
+      xtreino_call_fixa: champ.data?.xtreino_call_fixa === true,
+      xtreino_registra_primeira_safe: champ.data?.xtreino_registra_primeira_safe !== false,
+      xtreino_registra_segunda_safe: champ.data?.xtreino_registra_segunda_safe !== false,
+      xtreino_mapas: Array.isArray(champ.data?.xtreino_mapas) && champ.data.xtreino_mapas.length
+        ? champ.data.xtreino_mapas.map(String)
+        : ['bermuda', 'purgatorio', 'kalahari'],
       numero_fases: String(dataText(champ, 'numero_fases') || champ.data?.numero_fases || '1'),
       nomes_fases: Array.isArray(champ.data?.nomes_fases) ? champ.data.nomes_fases.map(String) : ['Fase 1'],
       estrutura_planejada: structurePlan,

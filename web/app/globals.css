@@ -7705,3 +7705,29 @@ body .team-training-next-note{
   body .team-training-player{grid-template-columns:30px minmax(0,1fr) 54px}
   body .team-training-player>span:nth-child(n+4){display:none}
 }
+
+/* Rodada 32 — configuração guiada do Xtreino. */
+body .championship-xtreino-config{display:grid;gap:20px}
+body .championship-xtreino-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end}
+body .championship-xtreino-analysis-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+body .championship-xtreino-analysis-options button{
+  display:grid;gap:5px;min-height:92px;padding:15px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);color:var(--ui-text);text-align:left;cursor:pointer
+}
+body .championship-xtreino-analysis-options button strong{font-size:13px}
+body .championship-xtreino-analysis-options button small{font-size:10px;line-height:1.45;color:var(--ui-text-muted)}
+body .championship-xtreino-analysis-options button.active{border-color:var(--ui-accent);background:rgba(201,183,102,.13)}
+body .championship-xtreino-maps{display:grid;gap:10px;padding-top:2px}
+body .championship-xtreino-map-options{display:flex;flex-wrap:wrap;gap:8px}
+body .championship-xtreino-map-options button{
+  min-height:38px;padding:0 14px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:transparent;color:var(--ui-text-muted);font-weight:800;cursor:pointer
+}
+body .championship-xtreino-map-options button.active{border-color:var(--ui-accent);background:rgba(201,183,102,.13);color:var(--ui-accent-light)}
+@media(max-width:1000px){
+  body .championship-xtreino-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  body .championship-xtreino-grid,body .championship-xtreino-analysis-options{grid-template-columns:1fr}
+  body .championship-xtreino-analysis-options button{min-height:76px}
+  body .championship-xtreino-map-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+}
