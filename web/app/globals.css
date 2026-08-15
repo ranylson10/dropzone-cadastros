@@ -7571,3 +7571,137 @@ body .championship-scoring-row input{width:100%;height:36px}
   body .championship-scoring-table-head,
   body .championship-scoring-row{grid-template-columns:minmax(130px,1fr) 110px}
 }
+
+
+/* Rodada 31 — Treinos privados no painel da equipe. */
+body .team-trainings-tab{display:grid;gap:18px}
+body .team-training-privacy{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:12px 0;
+  border-top:1px solid var(--ui-line);
+  border-bottom:1px solid var(--ui-line);
+  color:var(--ui-text-muted);
+}
+body .team-training-privacy>svg{flex:0 0 auto;color:var(--ui-accent);margin-top:1px}
+body .team-training-privacy>div{display:grid;gap:3px}
+body .team-training-privacy strong{color:var(--ui-text);font-size:12px}
+body .team-training-privacy span{font-size:11px;line-height:1.45}
+body .team-training-empty{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:92px;
+  padding:14px 0;
+  color:var(--ui-text-muted);
+  border-bottom:1px solid var(--ui-line);
+}
+body .team-training-empty svg{color:var(--ui-accent)}
+body .team-training-empty>div{display:grid;gap:4px}
+body .team-training-empty strong{color:var(--ui-text);font-size:13px}
+body .team-training-empty span{font-size:11px}
+body .team-training-list{display:grid;border-top:1px solid var(--ui-line)}
+body .team-training-row{display:grid;border-bottom:1px solid var(--ui-line)}
+body .team-training-summary{
+  width:100%;
+  display:grid;
+  grid-template-columns:42px minmax(180px,1fr) repeat(3,minmax(74px,96px)) 28px;
+  gap:12px;
+  align-items:center;
+  padding:13px 4px;
+  border:0;
+  background:transparent;
+  color:var(--ui-text);
+  text-align:left;
+  cursor:pointer;
+}
+body .team-training-summary:hover{background:var(--ui-surface-soft)}
+body .team-training-summary>img{
+  width:38px;
+  height:38px;
+  object-fit:cover;
+  border-radius:9px;
+  background:var(--ui-surface-raised);
+}
+body .team-training-identity{display:grid;gap:3px;min-width:0}
+body .team-training-identity strong{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .team-training-identity small{color:var(--ui-text-muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .team-training-metric{display:grid;gap:2px;text-align:center}
+body .team-training-metric b{font-size:13px}
+body .team-training-metric small{color:var(--ui-text-muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em}
+body .team-training-summary>svg{justify-self:end;color:var(--ui-text-muted);transition:transform .18s ease}
+body .team-training-summary>svg.rotated{transform:rotate(180deg)}
+body .team-training-details{
+  display:grid;
+  gap:16px;
+  padding:4px 4px 18px 58px;
+}
+body .team-training-private-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:12px;
+}
+body .team-training-private-head>div{display:grid;gap:4px}
+body .team-training-private-head span{display:flex;align-items:center;gap:5px;color:var(--ui-accent-light);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+body .team-training-private-head strong{font-size:15px}
+body .team-training-private-head>a{display:flex;align-items:center;gap:4px;color:var(--ui-accent-light);font-size:11px;font-weight:800}
+body .team-training-kpis{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:1px;
+  background:var(--ui-line);
+  border-top:1px solid var(--ui-line);
+  border-bottom:1px solid var(--ui-line);
+}
+body .team-training-kpis>article{display:grid;gap:5px;padding:11px 10px;background:var(--ui-surface)}
+body .team-training-kpis small{color:var(--ui-text-muted);font-size:9px}
+body .team-training-kpis strong{font-size:15px}
+body .team-training-player-list{display:grid;border-top:1px solid var(--ui-line)}
+body .team-training-player-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px 0;
+}
+body .team-training-player-head strong{font-size:12px}
+body .team-training-player-head small{color:var(--ui-text-muted);font-size:10px}
+body .team-training-player{
+  display:grid;
+  grid-template-columns:34px minmax(140px,1fr) repeat(4,minmax(64px,92px));
+  gap:10px;
+  align-items:center;
+  padding:10px 0;
+  border-top:1px solid var(--ui-line);
+}
+body .team-training-player>img{width:31px;height:31px;object-fit:cover;border-radius:8px;background:var(--ui-surface-raised)}
+body .team-training-player>span{display:grid;gap:2px}
+body .team-training-player>span:nth-child(n+3){text-align:center}
+body .team-training-player strong,body .team-training-player b{font-size:11px}
+body .team-training-player small{color:var(--ui-text-muted);font-size:9px}
+body .team-training-next-note{
+  margin:0;
+  padding-top:3px;
+  color:var(--ui-text-muted);
+  font-size:10px;
+  line-height:1.5;
+}
+@media(max-width:900px){
+  body .team-training-summary{grid-template-columns:38px minmax(150px,1fr) repeat(2,64px) 24px}
+  body .team-training-summary .team-training-metric:nth-of-type(4){display:none}
+  body .team-training-details{padding-left:0}
+  body .team-training-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  body .team-training-player{grid-template-columns:32px minmax(120px,1fr) repeat(2,64px)}
+  body .team-training-player>span:nth-child(5),
+  body .team-training-player>span:nth-child(6){display:none}
+}
+@media(max-width:620px){
+  body .team-training-summary{grid-template-columns:34px minmax(0,1fr) 52px 22px;gap:8px;padding:12px 0}
+  body .team-training-summary .team-training-metric:nth-of-type(3),
+  body .team-training-summary .team-training-metric:nth-of-type(4){display:none}
+  body .team-training-private-head{align-items:start}
+  body .team-training-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .team-training-player{grid-template-columns:30px minmax(0,1fr) 54px}
+  body .team-training-player>span:nth-child(n+4){display:none}
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronRight, Copy, Link2, Loader2, Medal, Pencil, Plus, Search, Send, Shield, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { Activity, CalendarDays, ChevronDown, ChevronRight, Copy, Link2, Loader2, LockKeyhole, Medal, Pencil, Plus, Search, Send, Shield, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
@@ -11,6 +11,41 @@ import { uploadPublicFile } from '@/lib/upload-public'
 import { dataText, rowTitle } from '../../utils'
 import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
+
+
+type TeamTraining = {
+  campeonato_id: string
+  campeonato_equipe_id: string
+  equipe_id: string
+  nome: string
+  logo_url?: string | null
+  status?: string | null
+  line_nome?: string | null
+  grupo_nome?: string | null
+  fase_nome?: string | null
+  data_inicio?: string | null
+  data_fim?: string | null
+  quedas: number
+  booyahs: number
+  abates: number
+  pontos_total: number
+  colocacao_media: number | null
+  melhor_posicao: number | null
+  dano: number
+  assistencias: number
+  revives: number
+  jogadores: Array<{
+    campeonato_jogador_id: string
+    nick: string
+    id_jogo?: string | null
+    foto_url?: string | null
+    quedas: number
+    abates: number
+    dano: number
+    assistencias: number
+    revives: number
+  }>
+}
 
 type Lineup = {
   campeonato_equipe_id: string
@@ -60,7 +95,7 @@ export function EquipePanel(props: {
   loading: boolean
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
-  const [tab, setTab] = useState<'campeonatos' | 'lines' | 'jogadores' | 'convites' | 'staff' | 'config'>('campeonatos')
+  const [tab, setTab] = useState<'campeonatos' | 'treinos' | 'lines' | 'jogadores' | 'convites' | 'staff' | 'config'>('campeonatos')
   const [lineups, setLineups] = useState<Lineup[]>([])
   const [expanded, setExpanded] = useState<string>('')
   const [lineupLoading, setLineupLoading] = useState(false)
@@ -71,6 +106,10 @@ export function EquipePanel(props: {
   const [inviteExpiresAt, setInviteExpiresAt] = useState('')
   const [copiedLineupId, setCopiedLineupId] = useState('')
   const [rosterInvite, setRosterInvite] = useState<{ teamId: string; teamName: string; texto: string } | null>(null)
+  const [trainings, setTrainings] = useState<TeamTraining[]>([])
+  const [trainingExpanded, setTrainingExpanded] = useState('')
+  const [trainingLoading, setTrainingLoading] = useState(false)
+  const [trainingError, setTrainingError] = useState('')
 
   // Staff / managers
   const [staffTeamId, setStaffTeamId] = useState('')
@@ -126,7 +165,7 @@ export function EquipePanel(props: {
 
   useEffect(() => {
     const section = new URLSearchParams(window.location.search).get('section')
-    if (section === 'campeonatos' || section === 'lines' || section === 'jogadores' || section === 'convites' || section === 'staff' || section === 'config') {
+    if (section === 'campeonatos' || section === 'treinos' || section === 'lines' || section === 'jogadores' || section === 'convites' || section === 'staff' || section === 'config') {
       setTab(section)
     }
   }, [])
@@ -138,6 +177,10 @@ export function EquipePanel(props: {
   useEffect(() => {
     if (tab === 'staff' && staffTeamId) void loadStaff()
   }, [tab, staffTeamId])
+
+  useEffect(() => {
+    if (tab === 'treinos' && trainings.length === 0 && !trainingLoading) void loadTrainings()
+  }, [tab])
 
   useEffect(() => {
     if (tab === 'staff' && !showStaffTools) setTab('campeonatos')
@@ -327,6 +370,26 @@ export function EquipePanel(props: {
       setStaffError(err?.message || 'Erro ao salvar permissões.')
     } finally {
       setStaffBusy(false)
+    }
+  }
+
+  async function loadTrainings() {
+    setTrainingLoading(true)
+    setTrainingError('')
+    try {
+      const token = await authToken()
+      const response = await fetch('/api/equipe/treinos', {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || 'Erro ao carregar treinos.')
+      setTrainings(Array.isArray(json.treinos) ? json.treinos : [])
+    } catch (error: any) {
+      setTrainingError(error?.message || 'Erro ao carregar treinos.')
+      setTrainings([])
+    } finally {
+      setTrainingLoading(false)
     }
   }
 
@@ -539,6 +602,7 @@ Acesse: ${url}`
         </div>
         <div className="tabs panel-tabs team-panel-tabs">
           <button className={`tab ${tab === 'campeonatos' ? 'active' : ''}`} onClick={() => setTab('campeonatos')}>Campeonatos</button>
+          <button className={`tab ${tab === 'treinos' ? 'active' : ''}`} onClick={() => setTab('treinos')}>Treinos</button>
           <button className={`tab ${tab === 'lines' ? 'active' : ''}`} onClick={() => setTab('lines')}>Lines</button>
           <button className={`tab ${tab === 'jogadores' ? 'active' : ''}`} onClick={() => setTab('jogadores')}>Jogadores</button>
           <button className={`tab ${tab === 'convites' ? 'active' : ''}`} onClick={() => setTab('convites')}>Convites</button>
@@ -607,6 +671,110 @@ Acesse: ${url}`
             })}
           </div>
         </div> : null}
+
+        {tab === 'treinos' ? (
+          <div className="panel-tab-body team-trainings-tab">
+            <div className="team-section-title">
+              <div>
+                <p className="eyebrow">Desempenho competitivo</p>
+                <h3>Treinos da equipe</h3>
+                <small>Resultados gerais podem aparecer na tabela do treino. A análise detalhada abaixo é privada da própria equipe.</small>
+              </div>
+              <button className="button secondary compact" type="button" onClick={() => void loadTrainings()} disabled={trainingLoading}>
+                {trainingLoading ? <Loader2 className="spin" size={14} /> : <Activity size={14} />} Atualizar
+              </button>
+            </div>
+
+            <div className="team-training-privacy">
+              <LockKeyhole size={17} />
+              <div>
+                <strong>Análise privada</strong>
+                <span>Dano, assistências, revives e desempenho individual ficam visíveis somente para a própria equipe e usuários autorizados.</span>
+              </div>
+            </div>
+
+            {trainingError ? <div className="message error">{trainingError}</div> : null}
+            {trainingLoading && trainings.length === 0 ? <p className="empty">Carregando treinos...</p> : null}
+            {!trainingLoading && trainings.length === 0 ? (
+              <div className="team-training-empty">
+                <Trophy size={21} />
+                <div>
+                  <strong>Nenhum Xtreino encontrado</strong>
+                  <span>Quando a equipe participar de um campeonato do tipo Xtreino, ele aparecerá aqui automaticamente.</span>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="team-training-list">
+              {trainings.map((training) => {
+                const isOpen = trainingExpanded === training.campeonato_equipe_id
+                return (
+                  <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
+                    <button
+                      type="button"
+                      className="team-training-summary"
+                      onClick={() => setTrainingExpanded(isOpen ? '' : training.campeonato_equipe_id)}
+                      aria-expanded={isOpen}
+                    >
+                      <img src={training.logo_url || '/favicon.ico'} alt="" />
+                      <span className="team-training-identity">
+                        <strong>{training.nome}</strong>
+                        <small>{[training.line_nome, training.fase_nome, training.grupo_nome].filter(Boolean).join(' · ') || 'Xtreino'}</small>
+                      </span>
+                      <span className="team-training-metric"><b>{training.quedas}</b><small>quedas</small></span>
+                      <span className="team-training-metric"><b>{training.abates}</b><small>abates</small></span>
+                      <span className="team-training-metric"><b>{training.melhor_posicao ? `${training.melhor_posicao}º` : '—'}</b><small>melhor</small></span>
+                      <ChevronDown className={isOpen ? 'rotated' : ''} size={18} />
+                    </button>
+
+                    {isOpen ? (
+                      <div className="team-training-details">
+                        <div className="team-training-private-head">
+                          <div>
+                            <span><LockKeyhole size={14} /> Privado da equipe</span>
+                            <strong>Resumo de desempenho</strong>
+                          </div>
+                          <a href={`/campeonatos/${training.campeonato_id}`}>Ver Xtreino <ChevronRight size={14} /></a>
+                        </div>
+
+                        <div className="team-training-kpis">
+                          <article><small>Colocação média</small><strong>{training.colocacao_media ? training.colocacao_media.toFixed(1) : '—'}</strong></article>
+                          <article><small>Booyahs</small><strong>{training.booyahs}</strong></article>
+                          <article><small>Pontos</small><strong>{training.pontos_total}</strong></article>
+                          <article><small>Dano</small><strong>{Math.round(training.dano).toLocaleString('pt-BR')}</strong></article>
+                          <article><small>Assistências</small><strong>{training.assistencias}</strong></article>
+                          <article><small>Revives</small><strong>{training.revives}</strong></article>
+                        </div>
+
+                        <div className="team-training-player-list">
+                          <div className="team-training-player-head">
+                            <strong>Jogadores</strong>
+                            <small>Dados agregados das quedas disponíveis</small>
+                          </div>
+                          {training.jogadores.length === 0 ? <p className="empty">Ainda não há estatísticas individuais processadas.</p> : null}
+                          {training.jogadores.map((player) => (
+                            <div className="team-training-player" key={player.campeonato_jogador_id}>
+                              <img src={player.foto_url || '/favicon.ico'} alt="" />
+                              <span><strong>{player.nick}</strong><small>{player.id_jogo ? `ID ${player.id_jogo}` : `${player.quedas} queda(s)`}</small></span>
+                              <span><b>{player.abates}</b><small>Kills</small></span>
+                              <span><b>{Math.round(player.dano).toLocaleString('pt-BR')}</b><small>Dano</small></span>
+                              <span><b>{player.assistencias}</b><small>Assist.</small></span>
+                              <span><b>{player.revives}</b><small>Revives</small></span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <p className="team-training-next-note">
+                          Armas, habilidades, safes e análise por mapa entram nas próximas rodadas usando o MatchStats da Garena, sem expor esses dados às outras equipes.
+                        </p>
+                      </div>
+                    ) : null}
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
 
         {tab === 'lines' ? (
           <EquipeLinesEditor
