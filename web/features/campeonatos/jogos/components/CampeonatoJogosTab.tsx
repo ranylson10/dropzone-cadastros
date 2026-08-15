@@ -9,6 +9,14 @@ import type { CampeonatoJogoForm, CampeonatoJogosTabProps } from '../types/campe
 import '../campeonato-jogos.css'
 
 const MAPAS = ['Bermuda', 'Purgatório', 'Kalahari', 'Alpine', 'NexTerra', 'Solara']
+const XTREINO_MAP_LABELS: Record<string, string> = {
+  bermuda: 'Bermuda',
+  purgatorio: 'Purgatório',
+  kalahari: 'Kalahari',
+  alpine: 'Alpine',
+  nexterra: 'NexTerra',
+  solara: 'Solara',
+}
 
 function phaseName(fases: CampeonatoJogosTabProps['fases'], id: unknown) {
   return rowTitle(fases.find((fase) => fase.id === id)) || 'Sem fase'
@@ -77,50 +85,21 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
     }
     return [...grouped.values()]
   }, [filteredGames, props.fases])
+  const isXtreino = String(props.campeonato.data?.tipo || '').toLowerCase() === 'xtreino'
+  const xtreinoMaps = Array.isArray(props.campeonato.data?.xtreino_mapas)
+    ? props.campeonato.data.xtreino_mapas.map((value) => XTREINO_MAP_LABELS[String(value).toLowerCase()] || String(value)).filter(Boolean)
+    : []
+  const xtreinoDrops = Math.max(1, Math.min(20, Number(props.campeonato.data?.partidas_por_jogo || 4)))
   const mapList = mapsArray(props.value.mapas)
   const count = Math.max(1, Number(props.value.numero_partidas || 1))
+
+  function buildXtreinoRotation(total: number, current: string[] = []) {
+    if (!xtreinoMaps.length) return Array.from({ length: total }, (_, index) => current[index] || '')
+    return Array.from({ length: total }, (_, index) => current[index] || xtreinoMaps[index % xtreinoMaps.length] || '')
+  }
   const selectedPhase = props.fases.find((fase) => fase.id === props.value.fase_id)
   const isFinalPhase = String(selectedPhase?.data?.tipo || (selectedPhase as any)?.tipo || '') === 'grande_final'
   const effectiveGameType: 'normal' | 'final' = isFinalPhase ? 'final' : props.value.tipo_jogo
-  const finalPlan = useMemo(() => {
-    const structure = Array.isArray(props.campeonato.data?.estrutura_planejada) ? props.campeonato.data.estrutura_planejada : []
-    return structure.length ? structure[structure.length - 1] as any : null
-  }, [props.campeonato.data?.estrutura_planejada])
-  const plannedFinalDays = useMemo<Array<{ dia: number; quedas: number }>>(
-    () => Array.isArray(finalPlan?.final_dias_config)
-      ? finalPlan.final_dias_config.map((day: any, index: number) => ({ dia: index + 1, quedas: Math.max(1, Number(day?.quedas || 1)) }))
-      : [],
-    [finalPlan],
-  )
-  const plannedPointRushDays = Math.max(0, Number(finalPlan?.final_point_rush_dias || 0))
-
-  function plannedFallsForFinalDay(day: number) {
-    return plannedFinalDays.find((item) => item.dia === day)?.quedas || Math.max(1, Number(props.value.numero_partidas || 1))
-  }
-
-  function selectGamePhase(phaseId: string) {
-    const next = props.fases.find((fase) => fase.id === phaseId)
-    const final = String(next?.data?.tipo || (next as any)?.tipo || '') === 'grande_final'
-    const day = final ? 1 : Number(props.value.dia_final || 1)
-    const falls = final ? plannedFallsForFinalDay(day) : Math.max(1, Number(props.value.numero_partidas || 1))
-    patch({
-      fase_id: phaseId,
-      grupos_ids: [],
-      tipo_jogo: final ? 'final' : 'normal',
-      dia_final: final ? String(day) : '1',
-      numero_partidas: final ? String(falls) : props.value.numero_partidas,
-      define_campeao: final ? (plannedFinalDays.length <= 1) : false,
-    })
-  }
-
-  function selectFinalDay(raw: string) {
-    const day = Math.max(1, Math.min(Math.max(1, plannedFinalDays.length || 15), Number(raw || 1)))
-    patch({
-      dia_final: String(day),
-      numero_partidas: String(plannedFallsForFinalDay(day)),
-      define_campeao: plannedFinalDays.length ? day === plannedFinalDays.length : props.value.define_campeao,
-    })
-  }
 
   useEffect(() => {
     if (!isFinalPhase || !selectedPhase?.id) return
@@ -137,32 +116,29 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar a configuração da Grande Final.')
       const config = payload.configuracao || {}
-      const plannedFormat = String(finalPlan?.final_formato || '')
-      const plannedChampionPoint = plannedFormat === 'champion_point' || plannedFormat === 'point_rush_champion_point'
-      const plannedPointRush = plannedFormat === 'point_rush' || plannedFormat === 'point_rush_champion_point'
-      setFinalDecisionMode(config.modo_decisao === 'booyah_ouro' || plannedChampionPoint ? 'booyah_ouro' : 'pontuacao_normal')
-      setFinalPointsLimit(config.booyah_ouro_pontos_limite == null ? String(finalPlan?.final_champion_point_pontos || '') : String(config.booyah_ouro_pontos_limite))
-      setFinalAccumulationMode(config.modo_acumulacao === 'bonus_por_ranking' || plannedPointRush ? 'bonus_por_ranking' : 'acumulado')
+      setFinalDecisionMode(config.modo_decisao === 'booyah_ouro' ? 'booyah_ouro' : 'pontuacao_normal')
+      setFinalPointsLimit(config.booyah_ouro_pontos_limite == null ? '' : String(config.booyah_ouro_pontos_limite))
+      setFinalAccumulationMode(config.modo_acumulacao === 'bonus_por_ranking' ? 'bonus_por_ranking' : 'acumulado')
       setFinalDecisiveGameId(String(config.jogo_decisivo_id || ''))
       setFinalBonusRanking(Array.isArray(config.bonus_ranking) && config.bonus_ranking.length
         ? config.bonus_ranking.map((item: any) => ({ posicao: Number(item.posicao), pontos_bonus: String(item.pontos_bonus ?? '') }))
-        : Array.isArray(finalPlan?.final_bonus_ranking) && finalPlan.final_bonus_ranking.length
-          ? finalPlan.final_bonus_ranking.map((item: any, index: number) => ({ posicao: index + 1, pontos_bonus: String(item.pontos_bonus ?? '') }))
-          : [{ posicao: 1, pontos_bonus: '' }])
+        : [{ posicao: 1, pontos_bonus: '' }])
     }).catch((cause) => {
       if (cause?.name !== 'AbortError') setFinalConfigError(cause instanceof Error ? cause.message : 'Erro ao carregar configuração da final.')
     }).finally(() => {
       if (!controller.signal.aborted) setFinalConfigLoading(false)
     })
     return () => controller.abort()
-  }, [isFinalPhase, selectedPhase?.id, props.campeonato.id, finalPlan])
+  }, [isFinalPhase, selectedPhase?.id, props.campeonato.id])
 
   async function saveFinalConfig() {
     if (!isFinalPhase || !selectedPhase?.id) return
     if (finalDecisionMode === 'booyah_ouro' && (!Number(finalPointsLimit) || Number(finalPointsLimit) <= 0)) {
       throw new Error('Informe a pontuação mínima para ativar o Champion Point.')
     }
-    // O planejamento do Point Rush pode ser salvo antes de existir o jogo decisivo.
+    if (finalAccumulationMode === 'bonus_por_ranking' && !finalDecisiveGameId) {
+      throw new Error('Selecione o jogo decisivo do Point Rush.')
+    }
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     if (!token) throw new Error('Sessão expirada. Entre novamente.')
@@ -187,10 +163,6 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
 
   async function applyPointRushBonus() {
     if (!isFinalPhase || !selectedPhase?.id || finalAccumulationMode !== 'bonus_por_ranking') return
-    if (!finalDecisiveGameId) {
-      setFinalConfigError('Crie os jogos da Final e selecione o jogo decisivo do Point Rush antes de aplicar o bônus.')
-      return
-    }
     setFinalConfigError('')
     setFinalBonusMessage('')
     try {
@@ -223,8 +195,13 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
   function reset(keepPhase = true) {
     props.setValue({
       nome: '', campeonato_id: props.campeonato.id,
-      fase_id: keepPhase ? props.value.fase_id : '', rodada: '', data_jogo: '', horario: '',
-      numero_partidas: '3', intervalo_minutos: '25', mapas: '', grupos_ids: [], status: 'agendado',
+      fase_id: keepPhase ? props.value.fase_id : (isXtreino && props.fases.length === 1 ? props.fases[0].id : ''), rodada: '', data_jogo: '', horario: '',
+      numero_partidas: String(isXtreino ? xtreinoDrops : 3), intervalo_minutos: '25',
+      mapas: isXtreino ? buildXtreinoRotation(xtreinoDrops).join(', ') : '',
+      grupos_ids: isXtreino && props.fases.length === 1
+        ? props.grupos.filter((group) => group.data?.fase_id === props.fases[0]?.id).map((group) => group.id)
+        : [],
+      status: 'agendado',
       mata_mata: false, classificam_quantidade: '', tipo_jogo: 'normal', dia_final: '1', define_campeao: false, permite_troca_jogadores: true,
       prazo_troca_minutos: '60', prazo_escalacao_minutos: '120',
       escalacao_abre_horas_antes: '24', escalacao_fecha_horas_antes: '2',
@@ -301,7 +278,7 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
         <div className="champ-games-form">
           <div className="game-form-heading"><div><p className="eyebrow">{editingId ? 'Editar jogo' : 'Novo jogo'}</p><h4>{editingId ? props.value.nome : 'Configuração do jogo'}</h4></div><button className="button secondary" onClick={() => { setShowForm(false); reset(false) }}>Fechar</button></div>
           <div className="mini-grid three">
-            <Field label="Fase"><select value={props.value.fase_id} onChange={(e) => selectGamePhase(e.target.value)}><option value="">Selecione a fase</option>{props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}{String(fase.data?.tipo || (fase as any)?.tipo || '') === 'grande_final' ? ' · Grande Final' : ''}</option>)}</select></Field>
+            <Field label="Fase"><select value={props.value.fase_id} onChange={(e) => { const next = props.fases.find((fase) => fase.id === e.target.value); const final = String(next?.data?.tipo || (next as any)?.tipo || '') === 'grande_final'; patch({ fase_id: e.target.value, grupos_ids: [], tipo_jogo: final ? 'final' : 'normal', dia_final: final ? (props.value.dia_final || '1') : '1', define_campeao: final ? props.value.define_campeao : false }) }}><option value="">Selecione a fase</option>{props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}{String(fase.data?.tipo || (fase as any)?.tipo || '') === 'grande_final' ? ' · Grande Final' : ''}</option>)}</select></Field>
             <Field label="Rodada"><input type="number" min="1" value={props.value.rodada} onChange={(e) => patch({ rodada: e.target.value })} placeholder="Ex.: 1" /></Field>
             <Field label="Nome do jogo"><input value={props.value.nome} onChange={(e) => patch({ nome: e.target.value })} placeholder="Ex.: Jogo 1 — A x B" /></Field>
           </div>
@@ -325,19 +302,15 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
           </div>
 
           <div className="mini-grid three">
-            <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.value.numero_partidas} onChange={(e) => patch({ numero_partidas: e.target.value })} /></Field>
+            <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.value.numero_partidas} onChange={(e) => {
+              const total = Math.max(1, Math.min(20, Number(e.target.value || 1)))
+              patch({
+                numero_partidas: e.target.value,
+                mapas: isXtreino ? buildXtreinoRotation(total, mapList).join(', ') : props.value.mapas,
+              })
+            }} /></Field>
             <Field label="Intervalo estimado (min)"><input type="number" min="1" value={props.value.intervalo_minutos} onChange={(e) => patch({ intervalo_minutos: e.target.value })} /></Field>
-            {effectiveGameType === 'final' ? (
-              <Field label="Dia da Grande Final">
-                {plannedFinalDays.length ? (
-                  <select value={props.value.dia_final} onChange={(e) => selectFinalDay(e.target.value)}>
-                    {plannedFinalDays.map((day) => <option key={day.dia} value={day.dia}>Dia {day.dia} · {day.quedas} quedas</option>)}
-                  </select>
-                ) : (
-                  <input type="number" min="1" value={props.value.dia_final} onChange={(e) => selectFinalDay(e.target.value)} />
-                )}
-              </Field>
-            ) : null}
+            {effectiveGameType === 'final' ? <Field label="Dia da Grande Final"><input type="number" min="1" value={props.value.dia_final} onChange={(e) => patch({ dia_final: e.target.value })} /></Field> : null}
           </div>
 
           {effectiveGameType !== 'final' ? (
@@ -358,13 +331,6 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
             {effectiveGameType === 'final' ? <Field label="Formato"><input value={finalAccumulationMode === 'bonus_por_ranking' ? 'Point Rush' : 'Pontuação acumulada'} disabled /></Field> : null}
             {effectiveGameType === 'final' ? <Field label="Critério"><input value={finalDecisionMode === 'booyah_ouro' ? 'Champion Point' : 'Maior pontuação'} disabled /></Field> : null}
           </div>
-
-          {effectiveGameType === 'final' && plannedFinalDays.length ? (
-            <div className="statistics-message">
-              Planejamento da Final: {plannedFinalDays.map((day) => `Dia ${day.dia}: ${day.quedas} quedas`).join(' · ')}
-              {plannedPointRushDays > 0 ? ` · Point Rush: ${plannedPointRushDays} dia(s)` : ''}
-            </div>
-          ) : null}
 
           {effectiveGameType === 'final' ? (
             <div className="game-rules-panel final-settings-panel">
@@ -393,6 +359,13 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
                 </>
               ) : <p className="statistics-message">Na final acumulada, todos os pontos de todos os dias contam normalmente até a última queda.</p>}
               {finalConfigError ? <p className="statistics-message error">{finalConfigError}</p> : null}
+            </div>
+          ) : null}
+
+          {isXtreino ? (
+            <div className="xtreino-game-plan">
+              <div><strong>Plano do XTreino aplicado</strong><small>{count} quedas com rotação automática. Os mapas continuam editáveis.</small></div>
+              <span>{mapList.slice(0, count).join(' → ') || 'Configure os mapas do XTreino'}</span>
             </div>
           ) : null}
 

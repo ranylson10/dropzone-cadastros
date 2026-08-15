@@ -7731,3 +7731,12 @@ body .championship-xtreino-map-options button.active{border-color:var(--ui-accen
   body .championship-xtreino-analysis-options button{min-height:76px}
   body .championship-xtreino-map-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+
+/* Rodada 33 — plano operacional do XTreino. */
+.xtreino-game-plan{display:grid;gap:8px;padding:11px 0;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+.xtreino-game-plan>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.xtreino-game-plan strong{font-size:12px;color:var(--ui-text)}
+.xtreino-game-plan small{font-size:10px;color:var(--ui-text-muted)}
+.xtreino-game-plan>span{font-size:11px;color:var(--ui-accent-light);line-height:1.5;word-break:break-word}
+@media(max-width:760px){.xtreino-game-plan>div{display:grid;gap:3px}}

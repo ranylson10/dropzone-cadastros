@@ -953,19 +953,35 @@ export function ProdutoraPanel(props: {
     return rowTitle(champPhases.find((row) => row.id === id)) || 'Sem fase'
   }
 
+  function xtreinoMapRotation(total: number, current: string[] = []) {
+    const configured = Array.isArray(selectedChamp?.data?.xtreino_mapas)
+      ? selectedChamp.data.xtreino_mapas.map(String).filter(Boolean)
+      : []
+    if (!configured.length) return Array.from({ length: total }, (_, index) => current[index] || '')
+    return Array.from({ length: total }, (_, index) => current[index] || configured[index % configured.length] || '')
+  }
+
   function startCreateGame(options?: { phaseId?: string; groupIds?: string[]; name?: string }) {
     if (!selectedChamp) return
+    const isXtreino = String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino'
+    const xtreinoDrops = Math.max(1, Math.min(20, Number(selectedChamp.data?.partidas_por_jogo || 4)))
+    const defaultPhaseId = options?.phaseId || (isXtreino ? orderedChampPhases[0]?.id || '' : '')
+    const defaultGroupIds = options?.groupIds || (isXtreino && defaultPhaseId
+      ? champGroups.filter((group) => String(group.data?.fase_id || '') === defaultPhaseId).map((group) => group.id)
+      : [])
+    const defaultDrops = isXtreino ? xtreinoDrops : 6
+    const defaultMaps = isXtreino ? xtreinoMapRotation(defaultDrops) : Array(defaultDrops).fill('')
     setTab('jogos')
     setEditingGameId('')
     props.setGame({
-      nome: options?.name || '',
+      nome: options?.name || (isXtreino ? `Treino ${champGames.length + 1}` : ''),
       campeonato_id: selectedChamp.id,
-      fase_id: options?.phaseId || '',
+      fase_id: defaultPhaseId,
       data_jogo: '',
       horario: '',
-      numero_partidas: '6',
-      mapas: Array(6).fill(''),
-      grupos_ids: options?.groupIds || [],
+      numero_partidas: String(defaultDrops),
+      mapas: defaultMaps,
+      grupos_ids: defaultGroupIds,
       mata_mata: false,
       classificam_quantidade: '',
       tipo_jogo: 'normal',
@@ -1913,7 +1929,18 @@ ${params.url}`
                           </select>
                         </Field>
                         <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Jogo 1 - A x B" /></Field>
-                        <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => { const total = Math.max(1, Number(e.target.value || 1)); props.setGame({ ...props.game, numero_partidas: e.target.value, mapas: Array.from({ length: total }, (_, index) => props.game.mapas[index] || ''), campeonato_id: selectedChamp.id }) }} /></Field>
+                        <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => {
+                          const total = Math.max(1, Math.min(20, Number(e.target.value || 1)))
+                          const isXtreino = String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino'
+                          props.setGame({
+                            ...props.game,
+                            numero_partidas: e.target.value,
+                            mapas: isXtreino
+                              ? xtreinoMapRotation(total, props.game.mapas)
+                              : Array.from({ length: total }, (_, index) => props.game.mapas[index] || ''),
+                            campeonato_id: selectedChamp.id,
+                          })
+                        }} /></Field>
                       </div>
                       <div className="mini-grid two">
                         <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
@@ -1955,6 +1982,16 @@ ${params.url}`
                         </div>
                         {props.game.mata_mata ? <p className="statistics-message">As equipes do Top {props.game.classificam_quantidade || '?'} avançam; as demais ficam como eliminadas neste jogo.</p> : null}
                       </div>
+
+                      {String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino' ? (
+                        <div className="xtreino-game-plan">
+                          <div>
+                            <strong>Plano do XTreino aplicado</strong>
+                            <small>{props.game.numero_partidas || '0'} quedas · rotação automática dos mapas configurados. Você pode alterar qualquer queda manualmente.</small>
+                          </div>
+                          <span>{props.game.mapas.filter(Boolean).map((code) => mapCatalog.find((mapa) => mapa.codigo === code)?.nome || code).join(' → ') || 'Configure os mapas do XTreino'}</span>
+                        </div>
+                      ) : null}
 
                       <div className="game-form-section">
                         <div className="game-form-section-header">
