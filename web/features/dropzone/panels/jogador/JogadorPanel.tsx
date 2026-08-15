@@ -54,6 +54,7 @@ type PlayerPerformance = {
 }
 
 type TrendPoint = { label: string; value: number | null }
+type PerformancePeriod = 'all' | '5' | '10' | '20'
 
 function TrendChart(props: { title: string; subtitle: string; points: TrendPoint[]; format: (value: number) => string; lowerIsBetter?: boolean }) {
   const available = props.points.filter((point): point is { label: string; value: number } => point.value !== null && Number.isFinite(point.value))
@@ -113,6 +114,7 @@ export function JogadorPanel(props: {
   const [performanceLoading, setPerformanceLoading] = useState(false)
   const [performanceError, setPerformanceError] = useState('')
   const [championshipFilter, setChampionshipFilter] = useState('todos')
+  const [performancePeriod, setPerformancePeriod] = useState<PerformancePeriod>('all')
 
   useEffect(() => {
     if (tab === 'desempenho' && !performance && !performanceLoading) void loadPerformance()
@@ -143,7 +145,12 @@ export function JogadorPanel(props: {
     return championshipFilter === 'todos' ? rows : rows.filter((row) => String(row.campeonato_id) === championshipFilter)
   }, [performance, championshipFilter])
 
-  const chronologicalMatches = useMemo(() => [...filteredMatches].reverse(), [filteredMatches])
+  const periodMatches = useMemo(() => {
+    if (performancePeriod === 'all') return filteredMatches
+    return filteredMatches.slice(0, Number(performancePeriod))
+  }, [filteredMatches, performancePeriod])
+
+  const chronologicalMatches = useMemo(() => [...periodMatches].reverse(), [periodMatches])
 
   const analytics = useMemo(() => {
     const mapGroups = new Map<string, PlayerMatch[]>()
@@ -156,7 +163,7 @@ export function JogadorPanel(props: {
     let headshots = 0
     let knockdowns = 0
 
-    for (const match of filteredMatches) {
+    for (const match of periodMatches) {
       const map = String(match.mapa_nome || match.mapa_codigo || 'Mapa não definido')
       mapGroups.set(map, [...(mapGroups.get(map) || []), match])
       const telemetry = match.telemetria
@@ -213,19 +220,19 @@ export function JogadorPanel(props: {
       headshots,
       knockdowns,
     }
-  }, [filteredMatches])
+  }, [periodMatches])
 
-  const totals = useMemo(() => filteredMatches.reduce((sum, row) => ({
+  const totals = useMemo(() => periodMatches.reduce((sum, row) => ({
     partidas: sum.partidas + 1,
     abates: sum.abates + Number(row.abates || 0),
     dano: sum.dano + Number(row.dano || 0),
     assistencias: sum.assistencias + Number(row.assistencias || 0),
     revives: sum.revives + Number(row.revives || 0),
     booyahs: sum.booyahs + (row.booyah ? 1 : 0),
-  }), { partidas: 0, abates: 0, dano: 0, assistencias: 0, revives: 0, booyahs: 0 }), [filteredMatches])
+  }), { partidas: 0, abates: 0, dano: 0, assistencias: 0, revives: 0, booyahs: 0 }), [periodMatches])
 
   const historyAnalytics = useMemo(() => {
-    const allMatches = performance?.matchHistory || []
+    const allMatches = periodMatches
     const chronological = [...allMatches].reverse()
     const average = (rows: PlayerMatch[], valueOf: (row: PlayerMatch) => number | null) => {
       const values = rows.map(valueOf).filter((value): value is number => value !== null && Number.isFinite(value))
@@ -260,7 +267,7 @@ export function JogadorPanel(props: {
     const bestMap = analytics.maps[0] || null
     const worstMap = analytics.maps.length > 1 ? analytics.maps[analytics.maps.length - 1] : null
     return { recentMetrics, previousMetrics, championships, bestMap, worstMap }
-  }, [performance, analytics.maps])
+  }, [periodMatches, analytics.maps])
 
   const objectiveReading = useMemo(() => {
     type Reading = { kind: 'positive' | 'attention' | 'neutral'; title: string; text: string }
@@ -303,7 +310,7 @@ export function JogadorPanel(props: {
       .sort((a, b) => b.killsPerUse - a.killsPerUse || b.abates - a.abates)[0]
     if (efficientWeapon) strengths.push({ kind: 'positive', title: 'Arma mais eficiente', text: `${efficientWeapon.nome}: ${efficientWeapon.killsPerUse.toFixed(1)} K/uso em ${efficientWeapon.usos} registros.` })
 
-    const validSurvival = filteredMatches.filter((row) => Number(row.posicao || 0) > 0 && Number(row.telemetria?.sobrevivencia_segundos || 0) > 0)
+    const validSurvival = periodMatches.filter((row) => Number(row.posicao || 0) > 0 && Number(row.telemetria?.sobrevivencia_segundos || 0) > 0)
     const topRows = validSurvival.filter((row) => Number(row.posicao) <= 5)
     const otherRows = validSurvival.filter((row) => Number(row.posicao) > 5)
     const avgSurvival = (rows: PlayerMatch[]) => rows.length ? rows.reduce((sum, row) => sum + Number(row.telemetria?.sobrevivencia_segundos || 0), 0) / rows.length : null
@@ -315,7 +322,7 @@ export function JogadorPanel(props: {
     }
 
     return { strengths: strengths.slice(0, 3), attentions: attentions.slice(0, 3), notes: notes.slice(0, 2) }
-  }, [historyAnalytics, analytics.maps, analytics.weapons, filteredMatches])
+  }, [historyAnalytics, analytics.maps, analytics.weapons, periodMatches])
 
   const championshipOptions = performance?.statisticsByChampionship || []
 
@@ -355,8 +362,11 @@ export function JogadorPanel(props: {
             {!performanceLoading && !performanceError && performance ? (
               <>
                 <div className="player-performance-head">
-                  <div><p className="eyebrow">Privado</p><h3>Meu desempenho</h3><small>Telemetria e histórico visíveis somente no seu perfil de jogador.</small></div>
-                  <label><span>Campeonato</span><select value={championshipFilter} onChange={(event) => setChampionshipFilter(event.target.value)}><option value="todos">Todos</option>{championshipOptions.map((row: any) => <option key={row.campeonato_id} value={row.campeonato_id}>{row.campeonato?.nome || 'Campeonato'}</option>)}</select></label>
+                  <div><p className="eyebrow">Privado</p><h3>Meu desempenho</h3><small>Telemetria e histórico visíveis somente no seu perfil de jogador. O período escolhido recalcula toda a análise abaixo.</small></div>
+                  <div className="player-performance-filters">
+                    <label><span>Campeonato</span><select value={championshipFilter} onChange={(event) => setChampionshipFilter(event.target.value)}><option value="todos">Todos</option>{championshipOptions.map((row: any) => <option key={row.campeonato_id} value={row.campeonato_id}>{row.campeonato?.nome || 'Campeonato'}</option>)}</select></label>
+                    <label><span>Período</span><select value={performancePeriod} onChange={(event) => setPerformancePeriod(event.target.value as PerformancePeriod)}><option value="5">Últimas 5</option><option value="10">Últimas 10</option><option value="20">Últimas 20</option><option value="all">Tudo</option></select></label>
+                  </div>
                 </div>
 
                 <div className="player-performance-metrics">

@@ -7646,7 +7646,11 @@ body .team-training-private-head{
 body .team-training-private-head>div{display:grid;gap:4px}
 body .team-training-private-head span{display:flex;align-items:center;gap:5px;color:var(--ui-accent-light);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
 body .team-training-private-head strong{font-size:15px}
-body .team-training-private-head>a{display:flex;align-items:center;gap:4px;color:var(--ui-accent-light);font-size:11px;font-weight:800}
+body .team-training-period-actions{display:flex!important;align-items:end;gap:10px}
+body .team-training-period-actions label{display:grid;gap:3px;min-width:130px}
+body .team-training-period-actions label>span{color:var(--ui-text-muted);font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+body .team-training-period-actions select{min-height:34px;padding:0 9px;border:1px solid var(--ui-line);border-radius:8px;background:var(--ui-surface-raised);color:var(--ui-text)}
+body .team-training-period-actions>a{display:flex;align-items:center;gap:4px;min-height:34px;color:var(--ui-accent-light);font-size:11px;font-weight:800}
 body .team-training-kpis{
   display:grid;
   grid-template-columns:repeat(6,minmax(0,1fr));
@@ -7842,6 +7846,7 @@ body .team-training-player-map-list b{font-size:9px}
 body .player-performance{display:grid;gap:12px;margin-top:4px}
 body .player-performance-head{display:flex;align-items:end;justify-content:space-between;gap:16px;padding:2px 0 4px}
 body .player-performance-head>div{display:grid;gap:2px}
+body .player-performance-head .player-performance-filters{display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,.7fr);gap:8px;min-width:360px}
 body .player-performance-head h3{margin:0;color:var(--ui-text);font-size:18px}
 body .player-performance-head small{color:var(--ui-text-muted);font-size:9px}
 body .player-performance-head label{display:grid;gap:4px;min-width:210px}
@@ -7872,6 +7877,10 @@ body .player-performance-list small{grid-column:1/-1;font-size:8px;color:var(--u
 @media(max-width:760px){
   body .player-performance-head{align-items:stretch;flex-direction:column}
   body .player-performance-head label{min-width:0;width:100%}
+  body .player-performance-head .player-performance-filters{grid-template-columns:1fr 1fr;min-width:0;width:100%}
+  body .team-training-private-head{align-items:stretch}
+  body .team-training-period-actions{align-items:stretch;flex-direction:column}
+  body .team-training-period-actions label{min-width:0;width:100%}
   body .player-performance-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
   body .player-performance-metrics>span:nth-child(4){border-left:0}
   body .player-performance-sections{grid-template-columns:1fr}
@@ -7937,3 +7946,6 @@ body .player-performance-map-reading b{font-size:10px;color:var(--ui-accent-ligh
 .performance-objective-notes{margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.055)}
 .performance-objective-columns .empty{padding:8px 0;color:#77746b}
 @media(max-width:760px){.performance-objective-columns{grid-template-columns:1fr;gap:12px}.performance-objective-reading{margin-top:14px;padding-top:13px}}
+
+/* Rodada 41 — análise por período */
+body .player-performance-filters select,body .team-training-period-actions select{cursor:pointer}

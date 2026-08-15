@@ -111,6 +111,27 @@ type TrainingBreakdown = {
   dano_media: number
 }
 
+type TrainingPerformancePeriod = 'all' | '5' | '10' | '20'
+
+function scopeTrainingPeriod(training: TeamTraining, period: TrainingPerformancePeriod): TeamTraining {
+  if (period === 'all') return training
+  return { ...training, quedas_detalhe: training.quedas_detalhe.slice(-Number(period)) }
+}
+
+function buildTrainingPeriodKpis(training: TeamTraining) {
+  const drops = training.quedas_detalhe
+  const positions = drops.map((drop) => Number(drop.posicao || 0)).filter((value) => value > 0)
+  return {
+    quedas: drops.length,
+    colocacao_media: positions.length ? positions.reduce((sum, value) => sum + value, 0) / positions.length : null,
+    booyahs: drops.reduce((sum, drop) => sum + (drop.booyah ? 1 : 0), 0),
+    pontos_total: drops.reduce((sum, drop) => sum + Number(drop.pontos_total || 0), 0),
+    dano: drops.reduce((sum, drop) => sum + Number(drop.dano || 0), 0),
+    assistencias: drops.reduce((sum, drop) => sum + Number(drop.assistencias || 0), 0),
+    revives: drops.reduce((sum, drop) => sum + Number(drop.revives || 0), 0),
+  }
+}
+
 function buildTrainingAnalytics(training: TeamTraining) {
   const drops = training.quedas_detalhe
   const trend = drops.map((drop) => {
@@ -510,6 +531,7 @@ export function EquipePanel(props: {
   const [trainingError, setTrainingError] = useState('')
   const [trainingDropSaving, setTrainingDropSaving] = useState('')
   const [trainingDropSaved, setTrainingDropSaved] = useState('')
+  const [trainingPerformancePeriod, setTrainingPerformancePeriod] = useState<TrainingPerformancePeriod>('all')
 
   // Staff / managers
   const [staffTeamId, setStaffTeamId] = useState('')
@@ -1152,11 +1174,13 @@ Acesse: ${url}`
             <div className="team-training-list">
               {trainings.map((training) => {
                 const isOpen = trainingExpanded === training.campeonato_equipe_id
-                const analytics = buildTrainingAnalytics(training)
-                const crossAnalytics = buildTrainingCrossAnalytics(training)
-                const technicalEfficiency = buildTrainingTechnicalEfficiency(training)
-                const recentForm = buildTrainingRecentForm(training)
-                const objectiveReading = buildTrainingObjectiveReading(training)
+                const analyzedTraining = scopeTrainingPeriod(training, trainingPerformancePeriod)
+                const periodKpis = buildTrainingPeriodKpis(analyzedTraining)
+                const analytics = buildTrainingAnalytics(analyzedTraining)
+                const crossAnalytics = buildTrainingCrossAnalytics(analyzedTraining)
+                const technicalEfficiency = buildTrainingTechnicalEfficiency(analyzedTraining)
+                const recentForm = buildTrainingRecentForm(analyzedTraining)
+                const objectiveReading = buildTrainingObjectiveReading(analyzedTraining)
                 return (
                   <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
                     <button
@@ -1183,22 +1207,25 @@ Acesse: ${url}`
                             <span><LockKeyhole size={14} /> Privado da equipe</span>
                             <strong>Resumo de desempenho</strong>
                           </div>
-                          <a href={`/campeonatos/${training.campeonato_id}`}>Ver Xtreino <ChevronRight size={14} /></a>
+                          <div className="team-training-period-actions">
+                            <label><span>Período analisado</span><select value={trainingPerformancePeriod} onChange={(event) => setTrainingPerformancePeriod(event.target.value as TrainingPerformancePeriod)}><option value="5">Últimas 5</option><option value="10">Últimas 10</option><option value="20">Últimas 20</option><option value="all">Tudo</option></select></label>
+                            <a href={`/campeonatos/${training.campeonato_id}`}>Ver Xtreino <ChevronRight size={14} /></a>
+                          </div>
                         </div>
 
                         <div className="team-training-kpis">
-                          <article><small>Colocação média</small><strong>{training.colocacao_media ? training.colocacao_media.toFixed(1) : '—'}</strong></article>
-                          <article><small>Booyahs</small><strong>{training.booyahs}</strong></article>
-                          <article><small>Pontos</small><strong>{training.pontos_total}</strong></article>
-                          <article><small>Dano</small><strong>{Math.round(training.dano).toLocaleString('pt-BR')}</strong></article>
-                          <article><small>Assistências</small><strong>{training.assistencias}</strong></article>
-                          <article><small>Revives</small><strong>{training.revives}</strong></article>
+                          <article><small>Colocação média</small><strong>{periodKpis.colocacao_media ? periodKpis.colocacao_media.toFixed(1) : '—'}</strong></article>
+                          <article><small>Booyahs</small><strong>{periodKpis.booyahs}</strong></article>
+                          <article><small>Pontos</small><strong>{periodKpis.pontos_total}</strong></article>
+                          <article><small>Dano</small><strong>{Math.round(periodKpis.dano).toLocaleString('pt-BR')}</strong></article>
+                          <article><small>Assistências</small><strong>{periodKpis.assistencias}</strong></article>
+                          <article><small>Revives</small><strong>{periodKpis.revives}</strong></article>
                         </div>
 
                         <section className="team-training-analytics" aria-label="Gráficos privados de desempenho">
                           <div className="team-training-player-head">
                             <strong>Evolução do treino</strong>
-                            <small>Leitura privada por queda. Os gráficos usam somente resultados e telemetria desta equipe.</small>
+                            <small>Leitura privada por queda. Todo o bloco abaixo respeita o período selecionado.</small>
                           </div>
                           <div className="team-training-chart-grid">
                             <TrainingTrendChart
@@ -1366,9 +1393,9 @@ Acesse: ${url}`
                             <small>Call e leitura de safe ficam privadas para sua equipe.</small>
                           </div>
 
-                          {training.quedas_detalhe.length === 0 ? (
+                          {analyzedTraining.quedas_detalhe.length === 0 ? (
                             <p className="empty">As quedas aparecerão aqui depois que o resultado for processado.</p>
-                          ) : training.quedas_detalhe.map((drop) => {
+                          ) : analyzedTraining.quedas_detalhe.map((drop) => {
                             const saveKey = `${training.campeonato_equipe_id}:${drop.partida_id}`
                             return (
                               <article className="team-training-drop" key={drop.partida_id}>
