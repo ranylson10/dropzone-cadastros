@@ -2,10 +2,21 @@ import { supabaseAdmin } from '../../shared/supabase-admin'
 import { sincronizarEstatisticasGarena } from './garena-matchstats.service'
 
 export type ParsedPlayer = { ordem: number; nick: string; id_jogo: string; abates: number }
-export type ParsedTeam = { ordem: number; nome: string; posicao: number; abates: number; pontos_posicao_arquivo: number; pontos_total_arquivo: number; jogadores: ParsedPlayer[] }
+export type ParsedTeam = { ordem: number; nome: string; posicao: number; abates: number; pontos_posicao_arquivo: number; pontos_total_arquivo: number; jogadores: ParsedPlayer[]; abates_jogadores: number; jogadores_contagem: number; abates_conferem: boolean; diferenca_abates: number }
 
 export function normalizeName(value: string) {
   return value.normalize('NFKC').replace(/[\u00A0\u3164\uFFA0]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+export function auditarAbatesEquipe(team: { abates: number; jogadores: Array<{ abates: number }> }) {
+  const abatesJogadores = team.jogadores.reduce((sum, player) => sum + Number(player.abates || 0), 0)
+  const killScore = Number(team.abates || 0)
+  return {
+    abates_jogadores: abatesJogadores,
+    jogadores_contagem: team.jogadores.length,
+    abates_conferem: abatesJogadores === killScore,
+    diferenca_abates: abatesJogadores - killScore,
+  }
 }
 
 async function garantirMembroDaLine(input: {
@@ -109,6 +120,10 @@ export function parseMatchResult(content: string): ParsedTeam[] {
         pontos_posicao_arquivo: Number(teamMatch[4]),
         pontos_total_arquivo: Number(teamMatch[5]),
         jogadores: [],
+        abates_jogadores: 0,
+        jogadores_contagem: 0,
+        abates_conferem: true,
+        diferenca_abates: 0,
       }
       teams.push(current)
       continue
@@ -124,7 +139,7 @@ export function parseMatchResult(content: string): ParsedTeam[] {
     }
   }
   if (!teams.length) throw new Error('O arquivo não contém equipes no formato MatchResult esperado.')
-  return teams
+  return teams.map((team) => ({ ...team, ...auditarAbatesEquipe(team) }))
 }
 
 export async function previewMatchResult(campeonatoId: string, partidaId: string, content: string) {
@@ -214,6 +229,7 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
       const idChanged = normalizeName(suppliedPlayer.id_jogo) !== normalizeName(player.id_jogo)
       return { ...player, nick: String(suppliedPlayer.nick || player.nick).trim(), id_jogo: String(suppliedPlayer.id_jogo || player.id_jogo).trim(), abates: Math.max(Number(suppliedPlayer.abates ?? player.abates), 0), jogador_id: idChanged ? null : player.jogador_id, jogador_temporario_id: idChanged ? null : player.jogador_temporario_id }
     })
+    Object.assign(team, auditarAbatesEquipe(team))
   }
 
   preview.equipes = preview.equipes.filter((team: any) => Boolean(team.campeonato_equipe_id))

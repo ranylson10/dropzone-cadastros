@@ -185,3 +185,10 @@
 .scorer-sheet-workspace .vinculo-chip { border: 1px solid var(--ui-line, #2a2c32); border-radius: var(--ui-radius-sm, 6px); background: var(--ui-surface-raised, #1a1b1f); color: var(--ui-text, #f5f3ed); }
 .scorer-sheet-workspace.is-drop-locked .vinculo-chip { border-color: rgba(201,183,102,.45); background: rgba(201,183,102,.13); }
 .scorer-sheet-workspace .vinculo-empty { color: var(--ui-muted, #9c9a94); }
+
+/* Rodada 30 — auditoria KillScore x soma dos KILL. */
+.match-kill-audit { display: block; margin-top: 3px; font-size: 10px; font-weight: 700; line-height: 1.35; }
+.match-kill-audit.is-ok { color: #8fc7a3; }
+.match-kill-audit.is-warning { color: #e6bd6f; }
+.match-player-review article > header { align-items: flex-start; }
+.match-player-review article > header small.match-kill-audit { grid-column: 1 / -1; }
