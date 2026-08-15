@@ -7740,3 +7740,28 @@ body .championship-xtreino-map-options button.active{border-color:var(--ui-accen
 .xtreino-game-plan small{font-size:10px;color:var(--ui-text-muted)}
 .xtreino-game-plan>span{font-size:11px;color:var(--ui-accent-light);line-height:1.5;word-break:break-word}
 @media(max-width:760px){.xtreino-game-plan>div{display:grid;gap:3px}}
+
+/* Rodada 34 — análise privada por queda do XTreino. */
+body .team-training-drops{display:grid;gap:10px;margin-top:4px}
+body .team-training-drop{display:grid;gap:12px;padding:13px 0;border-top:1px solid var(--ui-line)}
+body .team-training-drop>header{display:flex;align-items:center;justify-content:space-between;gap:14px}
+body .team-training-drop>header>span{display:flex;align-items:center;gap:9px;min-width:150px}
+body .team-training-drop>header>span>b{color:var(--ui-accent-light);font-size:11px}
+body .team-training-drop>header>span>strong{color:var(--ui-text);font-size:13px}
+body .team-training-drop>header>div{display:flex;align-items:center;justify-content:flex-end;gap:18px;flex-wrap:wrap}
+body .team-training-drop>header>div>span{display:grid;gap:1px;text-align:right}
+body .team-training-drop>header>div b{color:var(--ui-text);font-size:12px}
+body .team-training-drop>header>div small{color:var(--ui-text-muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em}
+body .team-training-drop-notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end}
+body .team-training-drop-notes .button{min-height:40px;white-space:nowrap}
+body .team-training-drop-disabled{margin:0;color:var(--ui-text-muted);font-size:11px}
+@media(max-width:900px){
+  body .team-training-drop>header{display:grid;align-items:start}
+  body .team-training-drop>header>div{justify-content:flex-start;gap:14px}
+  body .team-training-drop>header>div>span{text-align:left}
+  body .team-training-drop-notes{grid-template-columns:1fr 1fr}
+}
+@media(max-width:620px){
+  body .team-training-drop-notes{grid-template-columns:1fr}
+  body .team-training-drop-notes .button{width:100%}
+}

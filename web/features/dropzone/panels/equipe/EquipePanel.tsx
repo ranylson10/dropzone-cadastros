@@ -34,6 +34,28 @@ type TeamTraining = {
   dano: number
   assistencias: number
   revives: number
+  configuracao_analise: {
+    call_fixa: boolean
+    primeira_safe: boolean
+    segunda_safe: boolean
+  }
+  quedas_detalhe: Array<{
+    partida_id: string
+    jogo_id?: string | null
+    numero_partida: number
+    mapa_codigo?: string | null
+    posicao: number | null
+    abates: number
+    pontos_total: number
+    booyah: boolean
+    dano: number
+    assistencias: number
+    revives: number
+    call_nome: string
+    primeira_safe: string
+    segunda_safe: string
+    anotacao_atualizada_em?: string | null
+  }>
   jogadores: Array<{
     campeonato_jogador_id: string
     nick: string
@@ -110,6 +132,8 @@ export function EquipePanel(props: {
   const [trainingExpanded, setTrainingExpanded] = useState('')
   const [trainingLoading, setTrainingLoading] = useState(false)
   const [trainingError, setTrainingError] = useState('')
+  const [trainingDropSaving, setTrainingDropSaving] = useState('')
+  const [trainingDropSaved, setTrainingDropSaved] = useState('')
 
   // Staff / managers
   const [staffTeamId, setStaffTeamId] = useState('')
@@ -390,6 +414,50 @@ export function EquipePanel(props: {
       setTrainings([])
     } finally {
       setTrainingLoading(false)
+    }
+  }
+
+  function patchTrainingDrop(campeonatoEquipeId: string, partidaId: string, patch: Record<string, string>) {
+    setTrainings((current) => current.map((training) => training.campeonato_equipe_id !== campeonatoEquipeId
+      ? training
+      : {
+          ...training,
+          quedas_detalhe: training.quedas_detalhe.map((drop) => drop.partida_id === partidaId ? { ...drop, ...patch } : drop),
+        }))
+    setTrainingDropSaved('')
+  }
+
+  async function saveTrainingDrop(training: TeamTraining, drop: TeamTraining['quedas_detalhe'][number]) {
+    const key = `${training.campeonato_equipe_id}:${drop.partida_id}`
+    setTrainingDropSaving(key)
+    setTrainingDropSaved('')
+    setTrainingError('')
+    try {
+      const token = await authToken()
+      const response = await fetch('/api/equipe/treinos', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campeonato_equipe_id: training.campeonato_equipe_id,
+          partida_id: drop.partida_id,
+          call_nome: drop.call_nome,
+          primeira_safe: drop.primeira_safe,
+          segunda_safe: drop.segunda_safe,
+        }),
+      })
+      const json = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(json.error || 'Erro ao salvar análise da queda.')
+      const saved = json.anotacao || {}
+      patchTrainingDrop(training.campeonato_equipe_id, drop.partida_id, {
+        call_nome: String(saved.call_nome || ''),
+        primeira_safe: String(saved.primeira_safe || ''),
+        segunda_safe: String(saved.segunda_safe || ''),
+      })
+      setTrainingDropSaved(key)
+    } catch (error: any) {
+      setTrainingError(error?.message || 'Erro ao salvar análise da queda.')
+    } finally {
+      setTrainingDropSaving('')
     }
   }
 
@@ -746,6 +814,75 @@ Acesse: ${url}`
                           <article><small>Revives</small><strong>{training.revives}</strong></article>
                         </div>
 
+                        <div className="team-training-drops">
+                          <div className="team-training-player-head">
+                            <strong>Análise por queda</strong>
+                            <small>Call e leitura de safe ficam privadas para sua equipe.</small>
+                          </div>
+
+                          {training.quedas_detalhe.length === 0 ? (
+                            <p className="empty">As quedas aparecerão aqui depois que o resultado for processado.</p>
+                          ) : training.quedas_detalhe.map((drop) => {
+                            const saveKey = `${training.campeonato_equipe_id}:${drop.partida_id}`
+                            return (
+                              <article className="team-training-drop" key={drop.partida_id}>
+                                <header>
+                                  <span><b>Q{drop.numero_partida || '?'}</b><strong>{drop.mapa_codigo || 'Mapa não definido'}</strong></span>
+                                  <div>
+                                    <span><b>{drop.posicao ? `${drop.posicao}º` : '—'}</b><small>posição</small></span>
+                                    <span><b>{drop.abates}</b><small>kills</small></span>
+                                    <span><b>{Math.round(drop.dano).toLocaleString('pt-BR')}</b><small>dano</small></span>
+                                    <span><b>{drop.assistencias}</b><small>assist.</small></span>
+                                    <span><b>{drop.revives}</b><small>revives</small></span>
+                                  </div>
+                                </header>
+
+                                {(training.configuracao_analise.call_fixa || training.configuracao_analise.primeira_safe || training.configuracao_analise.segunda_safe) ? (
+                                  <div className="team-training-drop-notes">
+                                    {training.configuracao_analise.call_fixa ? (
+                                      <Field label="Call">
+                                        <input
+                                          value={drop.call_nome}
+                                          onChange={(event) => patchTrainingDrop(training.campeonato_equipe_id, drop.partida_id, { call_nome: event.target.value })}
+                                          placeholder="Ex.: Clock Tower"
+                                        />
+                                      </Field>
+                                    ) : null}
+                                    {training.configuracao_analise.primeira_safe ? (
+                                      <Field label="1ª safe">
+                                        <input
+                                          value={drop.primeira_safe}
+                                          onChange={(event) => patchTrainingDrop(training.campeonato_equipe_id, drop.partida_id, { primeira_safe: event.target.value })}
+                                          placeholder="Anote a leitura da 1ª safe"
+                                        />
+                                      </Field>
+                                    ) : null}
+                                    {training.configuracao_analise.segunda_safe ? (
+                                      <Field label="2ª safe">
+                                        <input
+                                          value={drop.segunda_safe}
+                                          onChange={(event) => patchTrainingDrop(training.campeonato_equipe_id, drop.partida_id, { segunda_safe: event.target.value })}
+                                          placeholder="Anote a leitura da 2ª safe"
+                                        />
+                                      </Field>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      className="button secondary compact"
+                                      disabled={trainingDropSaving === saveKey}
+                                      onClick={() => void saveTrainingDrop(training, drop)}
+                                    >
+                                      {trainingDropSaving === saveKey ? 'Salvando...' : trainingDropSaved === saveKey ? 'Salvo' : 'Salvar análise'}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <p className="team-training-drop-disabled">Este XTreino não foi configurado para registrar call ou safes.</p>
+                                )}
+                              </article>
+                            )
+                          })}
+                        </div>
+
                         <div className="team-training-player-list">
                           <div className="team-training-player-head">
                             <strong>Jogadores</strong>
@@ -765,7 +902,7 @@ Acesse: ${url}`
                         </div>
 
                         <p className="team-training-next-note">
-                          Armas, habilidades, safes e análise por mapa entram nas próximas rodadas usando o MatchStats da Garena, sem expor esses dados às outras equipes.
+                          Call e safes já ficam vinculadas a cada queda de forma privada. Armas, habilidades e gráficos entram nas próximas rodadas usando o MatchStats da Garena.
                         </p>
                       </div>
                     ) : null}
