@@ -484,6 +484,120 @@ function buildTrainingCrossAnalytics(training: TeamTraining) {
   return { insights, jogadores }
 }
 
+
+type SquadPlayerEvolution = {
+  chave: string
+  nick: string
+  status: 'growing' | 'stable' | 'declining' | 'insufficient'
+  score: number
+  quedas: number
+  killsAtual: number | null
+  killsAnterior: number | null
+  danoAtual: number | null
+  danoAnterior: number | null
+  sobrevivenciaAtual: number | null
+  sobrevivenciaAnterior: number | null
+  melhorMapa: string | null
+  armaEficiente: string | null
+}
+
+function buildSquadPlayerEvolution(training: TeamTraining) {
+  type DropPlayer = TeamTraining['quedas_detalhe'][number]['jogadores_detalhados'][number]
+  type PlayerHistory = { nick: string; rows: Array<{ drop: TeamTraining['quedas_detalhe'][number]; player: DropPlayer }> }
+  const histories = new Map<string, PlayerHistory>()
+
+  for (const drop of training.quedas_detalhe) {
+    for (const player of drop.jogadores_detalhados) {
+      const key = player.player_id || player.campeonato_jogador_id || player.nick
+      const current = histories.get(key) || { nick: player.nick, rows: [] }
+      current.rows.push({ drop, player })
+      histories.set(key, current)
+    }
+  }
+
+  const avg = (rows: PlayerHistory['rows'], get: (row: PlayerHistory['rows'][number]) => number) => {
+    const values = rows.map(get).filter((value) => Number.isFinite(value) && value >= 0)
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+  }
+
+  const players: SquadPlayerEvolution[] = [...histories.entries()].map(([chave, history]) => {
+    const recent = history.rows.slice(-5)
+    const previous = history.rows.slice(-10, -5)
+    const killsAtual = avg(recent, (row) => Number(row.player.abates || 0))
+    const killsAnterior = previous.length === 5 ? avg(previous, (row) => Number(row.player.abates || 0)) : null
+    const danoAtual = avg(recent, (row) => Number(row.player.dano || 0))
+    const danoAnterior = previous.length === 5 ? avg(previous, (row) => Number(row.player.dano || 0)) : null
+    const sobrevivenciaAtual = avg(recent, (row) => Number(row.player.sobrevivencia_segundos || 0))
+    const sobrevivenciaAnterior = previous.length === 5 ? avg(previous, (row) => Number(row.player.sobrevivencia_segundos || 0)) : null
+
+    let score = 0
+    if (recent.length === 5 && previous.length === 5) {
+      const compare = (current: number | null, before: number | null, absolute: number, relative: number) => {
+        if (current === null || before === null) return 0
+        const diff = current - before
+        const rel = before > 0 ? diff / before : diff > 0 ? 1 : 0
+        if (diff >= absolute && rel >= relative) return 1
+        if (diff <= -absolute && rel <= -relative) return -1
+        return 0
+      }
+      score += compare(killsAtual, killsAnterior, 0.25, 0.10)
+      score += compare(danoAtual, danoAnterior, 150, 0.10)
+      score += compare(sobrevivenciaAtual, sobrevivenciaAnterior, 30, 0.08)
+    }
+
+    const mapStats = new Map<string, { quedas: number; kills: number; dano: number }>()
+    const weaponStats = new Map<string, { usos: number; kills: number; dano: number }>()
+    for (const row of history.rows) {
+      const mapName = String(row.drop.mapa_codigo || '').trim()
+      if (mapName) {
+        const map = mapStats.get(mapName) || { quedas: 0, kills: 0, dano: 0 }
+        map.quedas += 1
+        map.kills += Number(row.player.abates || 0)
+        map.dano += Number(row.player.dano || 0)
+        mapStats.set(mapName, map)
+      }
+      for (const weapon of row.player.armas || []) {
+        const name = String(weapon.arma || '').trim()
+        if (!name) continue
+        const current = weaponStats.get(name) || { usos: 0, kills: 0, dano: 0 }
+        current.usos += 1
+        current.kills += Number(weapon.abates || 0)
+        current.dano += Number(weapon.dano || 0)
+        weaponStats.set(name, current)
+      }
+    }
+
+    const bestMap = [...mapStats.entries()]
+      .filter(([, row]) => row.quedas >= 2)
+      .map(([nome, row]) => ({ nome, efficiency: row.kills / row.quedas, damage: row.dano / row.quedas }))
+      .sort((a, b) => b.efficiency - a.efficiency || b.damage - a.damage)[0]
+    const bestWeapon = [...weaponStats.entries()]
+      .filter(([, row]) => row.usos >= 2)
+      .map(([nome, row]) => ({ nome, efficiency: row.kills / row.usos, damage: row.dano / row.usos }))
+      .sort((a, b) => b.efficiency - a.efficiency || b.damage - a.damage)[0]
+
+    const status: SquadPlayerEvolution['status'] = recent.length < 5 || previous.length < 5
+      ? 'insufficient'
+      : score >= 2 ? 'growing'
+      : score <= -2 ? 'declining'
+      : 'stable'
+
+    return {
+      chave, nick: history.nick, status, score, quedas: history.rows.length,
+      killsAtual, killsAnterior, danoAtual, danoAnterior, sobrevivenciaAtual, sobrevivenciaAnterior,
+      melhorMapa: bestMap?.nome || null, armaEficiente: bestWeapon?.nome || null,
+    }
+  }).sort((a, b) => {
+    const order = { growing: 0, stable: 1, declining: 2, insufficient: 3 } as const
+    return order[a.status] - order[b.status] || b.score - a.score || b.quedas - a.quedas
+  })
+
+  const comparable = players.filter((player) => player.status !== 'insufficient')
+  const destaque = [...comparable].sort((a, b) => b.score - a.score)[0] || null
+  const atencao = [...comparable].sort((a, b) => a.score - b.score)[0] || null
+  return { players, destaque: destaque && destaque.score > 0 ? destaque : null, atencao: atencao && atencao.score < 0 ? atencao : null }
+}
+
 function TrainingTrendChart(props: {
   title: string
   subtitle: string
@@ -1255,6 +1369,7 @@ Acesse: ${url}`
                 const objectiveReading = buildTrainingObjectiveReading(analyzedTraining)
                 const longEvolution5 = buildTrainingLongEvolution(analyzedTraining, 5)
                 const longEvolution10 = buildTrainingLongEvolution(analyzedTraining, 10)
+                const squadPlayerEvolution = buildSquadPlayerEvolution(analyzedTraining)
                 const performanceGoals = buildObjectivePerformanceGoals(analyzedTraining.quedas_detalhe.map((drop) => {
                   const survival = drop.jogadores_detalhados
                     .map((player) => Number(player.sobrevivencia_segundos || 0))
@@ -1465,6 +1580,38 @@ Acesse: ${url}`
                                     <span key={skill.chave}><b>{skill.habilidade}</b><small>{skill.personagem || 'Personagem'} · {skill.partidas} registros · {skill.usos} usos</small></span>
                                   ))}
                                 </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {squadPlayerEvolution.players.length ? (
+                            <div className="team-squad-evolution">
+                              <div className="team-training-player-head">
+                                <strong>Evolução do elenco</strong>
+                                <small>Últimas 5 quedas de cada jogador × 5 anteriores. Status combina kills, dano e sobrevivência.</small>
+                              </div>
+                              {(squadPlayerEvolution.destaque || squadPlayerEvolution.atencao) ? (
+                                <div className="team-squad-evolution-highlights">
+                                  {squadPlayerEvolution.destaque ? <span><small>Mais evoluiu</small><strong>{squadPlayerEvolution.destaque.nick}</strong></span> : null}
+                                  {squadPlayerEvolution.atencao ? <span><small>Ponto de atenção</small><strong>{squadPlayerEvolution.atencao.nick}</strong></span> : null}
+                                </div>
+                              ) : null}
+                              <div className="team-squad-evolution-list">
+                                {squadPlayerEvolution.players.map((player) => {
+                                  const statusLabel = player.status === 'growing' ? 'Crescendo' : player.status === 'declining' ? 'Caindo' : player.status === 'stable' ? 'Estável' : 'Amostra insuficiente'
+                                  const deltaKills = player.killsAtual !== null && player.killsAnterior !== null ? player.killsAtual - player.killsAnterior : null
+                                  const deltaDamage = player.danoAtual !== null && player.danoAnterior !== null ? player.danoAtual - player.danoAnterior : null
+                                  return (
+                                    <article key={player.chave} className={`team-squad-evolution-row is-${player.status}`}>
+                                      <div><strong>{player.nick}</strong><small>{player.quedas} quedas analisadas</small></div>
+                                      <span className="team-squad-evolution-status">{statusLabel}</span>
+                                      <span><b>{player.killsAtual === null ? '—' : player.killsAtual.toFixed(1)}</b><small>K/queda {deltaKills === null ? '' : `· ${deltaKills >= 0 ? '+' : ''}${deltaKills.toFixed(1)}`}</small></span>
+                                      <span><b>{player.danoAtual === null ? '—' : Math.round(player.danoAtual).toLocaleString('pt-BR')}</b><small>dano {deltaDamage === null ? '' : `· ${deltaDamage >= 0 ? '+' : ''}${Math.round(deltaDamage).toLocaleString('pt-BR')}`}</small></span>
+                                      <span><b>{player.melhorMapa || '—'}</b><small>melhor mapa</small></span>
+                                      <span><b>{player.armaEficiente || '—'}</b><small>arma eficiente</small></span>
+                                    </article>
+                                  )
+                                })}
                               </div>
                             </div>
                           ) : null}

@@ -7994,3 +7994,26 @@ body .performance-goal-progress i{display:block;height:100%;background:var(--ui-
   body .performance-goals-grid{grid-template-columns:1fr}
   body .performance-goal{padding:10px}
 }
+
+/* Rodada 44 — evolução privada do elenco */
+body .team-squad-evolution{display:grid;gap:8px;margin-top:2px}
+body .team-squad-evolution-highlights{display:flex;gap:18px;padding:8px 0;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+body .team-squad-evolution-highlights>span{display:grid;gap:2px;min-width:140px}
+body .team-squad-evolution-highlights small{font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:var(--ui-text-muted)}
+body .team-squad-evolution-highlights strong{font-size:11px;color:var(--ui-text)}
+body .team-squad-evolution-list{display:grid}
+body .team-squad-evolution-row{display:grid;grid-template-columns:minmax(130px,1.25fr) 92px repeat(4,minmax(70px,.7fr));gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ui-line)}
+body .team-squad-evolution-row>div{display:grid;gap:2px;min-width:0}
+body .team-squad-evolution-row>div>strong{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body .team-squad-evolution-row>div>small,body .team-squad-evolution-row>span small{font-size:8px;color:var(--ui-text-muted)}
+body .team-squad-evolution-row>span:not(.team-squad-evolution-status){display:grid;gap:1px;text-align:right;min-width:0}
+body .team-squad-evolution-row>span b{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body .team-squad-evolution-status{font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:var(--ui-text-muted)}
+body .team-squad-evolution-row.is-growing .team-squad-evolution-status{color:var(--ui-accent-light)}
+body .team-squad-evolution-row.is-declining .team-squad-evolution-status{color:#e0a39d}
+@media(max-width:760px){
+  body .team-squad-evolution-highlights{gap:10px}
+  body .team-squad-evolution-row{grid-template-columns:minmax(0,1fr) 78px 58px 74px;gap:7px}
+  body .team-squad-evolution-row>span:nth-of-type(4),body .team-squad-evolution-row>span:nth-of-type(5){display:none}
+  body .team-squad-evolution-row>span:not(.team-squad-evolution-status){text-align:right}
+}
