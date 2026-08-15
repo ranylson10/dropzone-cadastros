@@ -749,6 +749,78 @@ function buildSquadSynergy(training: TeamTraining) {
   }
 }
 
+
+type TacticalCompositionContext = {
+  chave: string
+  nomes: string[]
+  mapa: string
+  call: string
+  quedas: number
+  colocacao_media: number | null
+  kills_media: number
+  dano_media: number
+  sobrevivencia_media: number | null
+  top3_rate: number
+}
+
+function buildTacticalCompositionContexts(training: TeamTraining) {
+  type Drop = TeamTraining['quedas_detalhe'][number]
+  const contexts = new Map<string, { nomes: string[]; mapa: string; call: string; rows: Drop[] }>()
+
+  for (const drop of training.quedas_detalhe) {
+    const mapa = String(drop.mapa_codigo || '').trim()
+    const call = String(drop.call_nome || '').trim()
+    if (!mapa || !call) continue
+
+    const players = drop.jogadores_detalhados
+      .map((player) => ({
+        key: String(player.player_id || player.campeonato_jogador_id || player.nick).trim(),
+        nick: String(player.nick || 'Jogador').trim() || 'Jogador',
+      }))
+      .filter((player, index, all) => player.key && all.findIndex((candidate) => candidate.key === player.key) === index)
+      .sort((a, b) => a.key.localeCompare(b.key))
+    if (!players.length) continue
+
+    const compositionKey = players.map((player) => player.key).join('|')
+    const key = `${mapa.toLocaleLowerCase('pt-BR')}::${call.toLocaleLowerCase('pt-BR')}::${compositionKey}`
+    const current = contexts.get(key) || {
+      nomes: players.map((player) => player.nick),
+      mapa,
+      call,
+      rows: [],
+    }
+    current.rows.push(drop)
+    contexts.set(key, current)
+  }
+
+  const rows: TacticalCompositionContext[] = [...contexts.entries()].map(([chave, entry]) => {
+    const positions = entry.rows.map((row) => Number(row.posicao || 0)).filter((value) => value > 0)
+    const survival = entry.rows.flatMap((row) => row.jogadores_detalhados
+      .map((player) => Number(player.sobrevivencia_segundos || 0))
+      .filter((value) => value > 0))
+    const top3 = entry.rows.filter((row) => Boolean(row.booyah || (row.posicao && row.posicao <= 3))).length
+    return {
+      chave,
+      nomes: entry.nomes,
+      mapa: entry.mapa,
+      call: entry.call,
+      quedas: entry.rows.length,
+      colocacao_media: positions.length ? positions.reduce((sum, value) => sum + value, 0) / positions.length : null,
+      kills_media: entry.rows.reduce((sum, row) => sum + Number(row.abates || 0), 0) / entry.rows.length,
+      dano_media: entry.rows.reduce((sum, row) => sum + Number(row.dano || 0), 0) / entry.rows.length,
+      sobrevivencia_media: survival.length ? survival.reduce((sum, value) => sum + value, 0) / survival.length : null,
+      top3_rate: (top3 / entry.rows.length) * 100,
+    }
+  }).filter((row) => row.quedas >= 2)
+    .sort((a, b) => b.top3_rate - a.top3_rate || (a.colocacao_media ?? 99) - (b.colocacao_media ?? 99) || b.kills_media - a.kills_media || b.dano_media - a.dano_media)
+
+  return {
+    contexts: rows.slice(0, 8),
+    best: rows[0] || null,
+    totalContexts: rows.length,
+  }
+}
+
 function TrainingTrendChart(props: {
   title: string
   subtitle: string
@@ -1522,6 +1594,7 @@ Acesse: ${url}`
                 const longEvolution10 = buildTrainingLongEvolution(analyzedTraining, 10)
                 const squadPlayerEvolution = buildSquadPlayerEvolution(analyzedTraining)
                 const squadSynergy = buildSquadSynergy(analyzedTraining)
+                const tacticalContexts = buildTacticalCompositionContexts(analyzedTraining)
                 const performanceGoals = buildObjectivePerformanceGoals(analyzedTraining.quedas_detalhe.map((drop) => {
                   const survival = drop.jogadores_detalhados
                     .map((player) => Number(player.sobrevivencia_segundos || 0))
@@ -1772,6 +1845,38 @@ Acesse: ${url}`
                                 </details>
                               ) : null}
                               <p className="team-squad-synergy-note">Dependência é sinal de concentração estatística, não julgamento do atleta. Destaques exigem pelo menos 2 quedas com a mesma combinação.</p>
+                            </div>
+                          ) : null}
+
+                          {tacticalContexts.contexts.length ? (
+                            <div className="team-tactical-contexts">
+                              <div className="team-training-player-head">
+                                <strong>Composição × mapa × call</strong>
+                                <small>Contextos táticos privados com pelo menos 2 quedas usando a mesma composição, mapa e call.</small>
+                              </div>
+                              {tacticalContexts.best ? (
+                                <div className="team-tactical-context-highlight">
+                                  <span><small>Melhor contexto</small><strong>{tacticalContexts.best.mapa} · {tacticalContexts.best.call}</strong></span>
+                                  <span><small>Composição</small><strong>{tacticalContexts.best.nomes.join(' · ')}</strong></span>
+                                  <span><small>Top 3 / Booyah</small><strong>{tacticalContexts.best.top3_rate.toFixed(0)}%</strong></span>
+                                </div>
+                              ) : null}
+                              <details className="team-tactical-context-list">
+                                <summary>Ver contextos comparáveis <ChevronDown size={14} /></summary>
+                                <div>
+                                  {tacticalContexts.contexts.map((context) => (
+                                    <article key={context.chave}>
+                                      <div><strong>{context.mapa} · {context.call}</strong><small>{context.nomes.join(' · ')}</small></div>
+                                      <span><b>{context.quedas}</b><small>quedas</small></span>
+                                      <span><b>{context.colocacao_media === null ? '—' : context.colocacao_media.toFixed(1)}</b><small>posição</small></span>
+                                      <span><b>{context.kills_media.toFixed(1)}</b><small>K/queda</small></span>
+                                      <span><b>{Math.round(context.dano_media).toLocaleString('pt-BR')}</b><small>dano</small></span>
+                                      <span><b>{context.sobrevivencia_media === null ? '—' : `${Math.floor(context.sobrevivencia_media / 60)}m ${Math.round(context.sobrevivencia_media % 60)}s`}</b><small>sobrevivência</small></span>
+                                    </article>
+                                  ))}
+                                </div>
+                              </details>
+                              <p className="team-tactical-context-note">Calls sem anotação não entram no cruzamento. O destaque considera primeiro top 3/booyah, depois colocação, kills e dano.</p>
                             </div>
                           ) : null}
 
