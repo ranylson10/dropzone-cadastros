@@ -1595,6 +1595,8 @@ Acesse: ${url}`
                 const squadPlayerEvolution = buildSquadPlayerEvolution(analyzedTraining)
                 const squadSynergy = buildSquadSynergy(analyzedTraining)
                 const tacticalContexts = buildTacticalCompositionContexts(analyzedTraining)
+                const trajectoryLabel = longEvolution5.status === 'crescimento' ? 'Crescimento' : longEvolution5.status === 'queda' ? 'Queda' : longEvolution5.status === 'estavel' ? 'Estável' : 'Amostra curta'
+                const balanceLabel = squadSynergy.balance === 'equilibrada' ? 'Equilibrada' : squadSynergy.balance === 'atencao' ? 'Atenção' : squadSynergy.balance === 'dependente' ? 'Dependente' : 'Amostra curta'
                 const performanceGoals = buildObjectivePerformanceGoals(analyzedTraining.quedas_detalhe.map((drop) => {
                   const survival = drop.jogadores_detalhados
                     .map((player) => Number(player.sobrevivencia_segundos || 0))
@@ -1647,7 +1649,28 @@ Acesse: ${url}`
                           <article><small>Revives</small><strong>{periodKpis.revives}</strong></article>
                         </div>
 
-                        <section className="team-training-analytics" aria-label="Gráficos privados de desempenho">
+                        <section className="team-training-technical-summary" aria-label="Resumo técnico do treino">
+                          <div className="team-training-player-head">
+                            <strong>Resumo técnico</strong>
+                            <small>O essencial do período primeiro. Abra as análises avançadas apenas quando precisar aprofundar.</small>
+                          </div>
+                          <div className="team-training-technical-summary-grid">
+                            <article className={`is-${longEvolution5.status}`}><small>Trajetória</small><strong>{trajectoryLabel}</strong><span>{longEvolution5.blocks.length ? `blocos de 5 · ${longEvolution5.blocks.length} completos` : 'precisa de 10 quedas'}</span></article>
+                            <article className={`is-${squadSynergy.balance}`}><small>Equilíbrio da line</small><strong>{balanceLabel}</strong><span>{squadSynergy.players.length > 1 ? `${squadSynergy.dependency.toFixed(0)}% maior concentração` : 'sem amostra suficiente'}</span></article>
+                            <article><small>Melhor contexto</small><strong>{tacticalContexts.best ? `${tacticalContexts.best.mapa} · ${tacticalContexts.best.call}` : 'Ainda sem contexto'}</strong><span>{tacticalContexts.best ? `${tacticalContexts.best.quedas} quedas · ${tacticalContexts.best.top3_rate.toFixed(0)}% top 3/booyah` : 'exige 2 quedas com mapa + call + composição'}</span></article>
+                            <article><small>Elenco</small><strong>{squadPlayerEvolution.destaque ? `${squadPlayerEvolution.destaque.nick} em evolução` : 'Sem destaque consolidado'}</strong><span>{squadPlayerEvolution.atencao ? `${squadPlayerEvolution.atencao.nick} pede atenção` : 'nenhum alerta individual consolidado'}</span></article>
+                          </div>
+                          {(objectiveReading.strengths[0] || objectiveReading.attentions[0]) ? <div className="team-training-technical-reading">
+                            {objectiveReading.strengths[0] ? <span className="is-positive"><small>Ponto forte</small><strong>{objectiveReading.strengths[0].title}</strong><em>{objectiveReading.strengths[0].text}</em></span> : null}
+                            {objectiveReading.attentions[0] ? <span className="is-attention"><small>Ponto de atenção</small><strong>{objectiveReading.attentions[0].title}</strong><em>{objectiveReading.attentions[0].text}</em></span> : null}
+                          </div> : null}
+                        </section>
+
+                        <details className="team-training-analytics team-training-advanced">
+                          <summary className="team-training-advanced-toggle">
+                            <span><strong>Análises avançadas</strong><small>Gráficos, evolução, metas, correlações, line, contexto tático e jogadores</small></span>
+                            <ChevronDown size={16} />
+                          </summary>
                           <div className="team-training-player-head">
                             <strong>Evolução do treino</strong>
                             <small>Leitura privada por queda. Todo o bloco abaixo respeita o período selecionado.</small>
@@ -1944,7 +1967,7 @@ Acesse: ${url}`
                               </div>
                             </div>
                           ) : null}
-                        </section>
+                        </details>
 
                         <div className="team-training-drops">\n                          <div className="team-training-player-head">
                             <strong>Análise por queda</strong>

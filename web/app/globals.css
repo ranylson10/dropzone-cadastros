@@ -8081,3 +8081,43 @@ body .team-tactical-context-note{margin:0;line-height:1.45}
  body .team-tactical-context-list article{grid-template-columns:minmax(0,1fr) 48px 56px 58px;gap:6px}
  body .team-tactical-context-list article>span:nth-of-type(4),body .team-tactical-context-list article>span:nth-of-type(5){display:none}
 }
+
+/* Rodada 47 — resumo técnico e organização progressiva do XTreino */
+body .team-training-technical-summary{display:grid;gap:9px;padding-top:2px}
+body .team-training-technical-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--ui-line);gap:1px}
+body .team-training-technical-summary-grid>article{display:grid;align-content:start;gap:3px;min-width:0;padding:11px 12px;background:var(--ui-surface)}
+body .team-training-technical-summary-grid small,body .team-training-technical-reading small{font-size:8px;color:var(--ui-text-muted);text-transform:uppercase;letter-spacing:.045em}
+body .team-training-technical-summary-grid strong{font-size:11px;color:var(--ui-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .team-training-technical-summary-grid span{font-size:8px;color:var(--ui-text-muted);line-height:1.4}
+body .team-training-technical-summary-grid>article.is-crescimento strong,body .team-training-technical-summary-grid>article.is-equilibrada strong{color:var(--ui-accent-light)}
+body .team-training-technical-summary-grid>article.is-queda strong,body .team-training-technical-summary-grid>article.is-dependente strong{color:#e0a39d}
+body .team-training-technical-summary-grid>article.is-atencao strong{color:#e7b28d}
+body .team-training-technical-reading{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--ui-line)}
+body .team-training-technical-reading>span{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;align-items:center;padding:9px 12px;background:var(--ui-surface)}
+body .team-training-technical-reading strong{font-size:10px;color:var(--ui-text)}
+body .team-training-technical-reading em{grid-column:1/-1;font-size:8px;font-style:normal;color:var(--ui-text-muted);line-height:1.4}
+body .team-training-technical-reading .is-positive strong{color:var(--ui-accent-light)}
+body .team-training-technical-reading .is-attention strong{color:#e7b28d}
+body .team-training-advanced{padding-top:0}
+body .team-training-advanced:not([open])>*:not(summary){display:none}
+body .team-training-advanced-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line);cursor:pointer;list-style:none}
+body .team-training-advanced-toggle::-webkit-details-marker{display:none}
+body .team-training-advanced-toggle>span{display:grid;gap:2px;min-width:0}
+body .team-training-advanced-toggle strong{font-size:11px;color:var(--ui-text)}
+body .team-training-advanced-toggle small{font-size:8px;color:var(--ui-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .team-training-advanced-toggle>svg{flex:0 0 auto;color:var(--ui-text-muted);transition:transform .18s ease}
+body .team-training-advanced[open]>.team-training-advanced-toggle>svg{transform:rotate(180deg)}
+body .team-training-advanced[open]>.team-training-advanced-toggle{margin-bottom:2px}
+@media(max-width:900px){
+  body .team-training-technical-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  body .team-training-technical-summary{gap:7px}
+  body .team-training-technical-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .team-training-technical-summary-grid>article{padding:9px 8px}
+  body .team-training-technical-summary-grid strong{font-size:10px}
+  body .team-training-technical-reading{grid-template-columns:1fr}
+  body .team-training-technical-reading>span{padding:8px}
+  body .team-training-advanced-toggle{padding:10px 0}
+  body .team-training-advanced-toggle small{max-width:250px}
+}
