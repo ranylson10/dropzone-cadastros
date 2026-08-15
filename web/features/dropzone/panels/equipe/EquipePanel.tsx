@@ -10,6 +10,7 @@ import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { dataText, rowTitle } from '../../utils'
 import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
+import { buildObjectivePerformanceGoals } from '../../performance-goals'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
 
 
@@ -192,6 +193,14 @@ type TrainingPlayerAnalytics = {
   assistencias: number
   sobrevivencia_media: number | null
   mapas: Array<{ nome: string; quedas: number; abates_media: number; dano_media: number }>
+}
+
+function formatTrainingGoalValue(key: string, value: number | null) {
+  if (value === null) return '—'
+  if (key === 'dano') return Math.round(value).toLocaleString('pt-BR')
+  if (key === 'sobrevivencia') return `${Math.floor(value / 60)}m ${String(Math.round(value % 60)).padStart(2, '0')}s`
+  if (key === 'colocacao') return `${value.toFixed(1)} pos.`
+  return `${value.toFixed(1)} K`
 }
 
 function pearsonCorrelation(pairs: Array<[number, number]>) {
@@ -1246,6 +1255,17 @@ Acesse: ${url}`
                 const objectiveReading = buildTrainingObjectiveReading(analyzedTraining)
                 const longEvolution5 = buildTrainingLongEvolution(analyzedTraining, 5)
                 const longEvolution10 = buildTrainingLongEvolution(analyzedTraining, 10)
+                const performanceGoals = buildObjectivePerformanceGoals(analyzedTraining.quedas_detalhe.map((drop) => {
+                  const survival = drop.jogadores_detalhados
+                    .map((player) => Number(player.sobrevivencia_segundos || 0))
+                    .filter((value) => value > 0)
+                  return {
+                    kills: Number(drop.abates || 0),
+                    dano: Number(drop.dano || 0),
+                    colocacao: Number(drop.posicao || 0) > 0 ? Number(drop.posicao) : null,
+                    sobrevivencia: survival.length ? survival.reduce((sum, value) => sum + value, 0) / survival.length : null,
+                  }
+                }))
                 return (
                   <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
                     <button
@@ -1334,6 +1354,21 @@ Acesse: ${url}`
                               ))}
                             </div>
                           </div>
+
+                          <section className="performance-goals team-performance-goals">
+                            <div className="team-training-player-head"><strong>Metas pelo histórico da equipe</strong><small>Últimas 5 quedas contra os blocos anteriores. O alvo é o melhor bloco real já alcançado.</small></div>
+                            <div className="performance-goals-grid">
+                              {performanceGoals.map((goal) => (
+                                <article className={`performance-goal is-${goal.status}`} key={goal.key}>
+                                  <div className="performance-goal-head"><strong>{goal.label}</strong><em>{goal.status === 'atingida' ? 'Atingida' : goal.status === 'proxima' ? 'Próxima' : goal.status === 'em_construcao' ? 'Em construção' : 'Amostra insuficiente'}</em></div>
+                                  {goal.status === 'insuficiente' ? <small>São necessárias pelo menos 10 quedas no recorte atual.</small> : <>
+                                    <div className="performance-goal-values"><span><small>Atual</small><b>{formatTrainingGoalValue(goal.key, goal.current)}</b></span><span><small>Referência</small><b>{formatTrainingGoalValue(goal.key, goal.reference)}</b></span><span><small>Alvo histórico</small><b>{formatTrainingGoalValue(goal.key, goal.target)}</b></span></div>
+                                    <div className="performance-goal-progress" aria-label={`Progresso da meta de ${goal.label}`}><i style={{ width: `${goal.progress ?? 0}%` }} /></div>
+                                  </>}
+                                </article>
+                              ))}
+                            </div>
+                          </section>
 
                           <div className="performance-objective-reading team-objective-reading">
                             <div className="team-training-player-head"><strong>Leitura objetiva</strong><small>Regras transparentes aplicadas somente aos dados privados deste treino.</small></div>

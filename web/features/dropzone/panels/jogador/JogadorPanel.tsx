@@ -7,6 +7,7 @@ import { dataText, rowTitle } from '../../utils'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 import { supabase } from '@/lib/supabase-browser'
+import { buildObjectivePerformanceGoals } from '../../performance-goals'
 
 type PlayerTelemetry = {
   abates: number
@@ -391,6 +392,21 @@ export function JogadorPanel(props: {
     ten: buildPlayerLongEvolution(periodMatches, 10),
   }), [periodMatches])
 
+  const performanceGoals = useMemo(() => buildObjectivePerformanceGoals(chronologicalMatches.map((row) => ({
+    kills: Number(row.abates || 0),
+    dano: Number(row.dano || 0),
+    colocacao: Number(row.posicao || 0) > 0 ? Number(row.posicao) : null,
+    sobrevivencia: Number(row.telemetria?.sobrevivencia_segundos || 0) > 0 ? Number(row.telemetria?.sobrevivencia_segundos) : null,
+  }))), [chronologicalMatches])
+
+  const formatGoalValue = (key: string, value: number | null) => {
+    if (value === null) return '—'
+    if (key === 'dano') return Math.round(value).toLocaleString('pt-BR')
+    if (key === 'sobrevivencia') return formatSurvival(value)
+    if (key === 'colocacao') return `${value.toFixed(1)} pos.`
+    return `${value.toFixed(1)} K`
+  }
+
   const championshipOptions = performance?.statisticsByChampionship || []
 
   return (
@@ -463,6 +479,21 @@ export function JogadorPanel(props: {
                         </div>
                         {evolution.blocks.length ? <div className="performance-long-evolution-list">{evolution.blocks.map((block, index) => <div key={`${evolution.blockSize}:${block.label}`}><strong>B{index + 1}</strong><span>{block.kills === null ? '—' : block.kills.toFixed(1)} K</span><span>{block.dano === null ? '—' : Math.round(block.dano).toLocaleString('pt-BR')} dano</span><span>{block.colocacao === null ? '—' : `${block.colocacao.toFixed(1)} pos.`}</span><span>{block.sobrevivencia === null ? '—' : formatSurvival(block.sobrevivencia)}</span></div>)}</div> : <small className="empty">Ainda não há dois blocos completos para comparar.</small>}
                       </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="performance-goals player-performance-goals">
+                  <div className="player-performance-section-head"><Target size={16} /><span><strong>Metas pelo seu histórico</strong><small>Últimas 5 contra os blocos anteriores. O alvo é o seu melhor bloco real, sem percentual inventado.</small></span></div>
+                  <div className="performance-goals-grid">
+                    {performanceGoals.map((goal) => (
+                      <article className={`performance-goal is-${goal.status}`} key={goal.key}>
+                        <div className="performance-goal-head"><strong>{goal.label}</strong><em>{goal.status === 'atingida' ? 'Atingida' : goal.status === 'proxima' ? 'Próxima' : goal.status === 'em_construcao' ? 'Em construção' : 'Amostra insuficiente'}</em></div>
+                        {goal.status === 'insuficiente' ? <small>São necessárias pelo menos 10 partidas no recorte atual.</small> : <>
+                          <div className="performance-goal-values"><span><small>Atual</small><b>{formatGoalValue(goal.key, goal.current)}</b></span><span><small>Referência</small><b>{formatGoalValue(goal.key, goal.reference)}</b></span><span><small>Alvo histórico</small><b>{formatGoalValue(goal.key, goal.target)}</b></span></div>
+                          <div className="performance-goal-progress" aria-label={`Progresso da meta de ${goal.label}`}><i style={{ width: `${goal.progress ?? 0}%` }} /></div>
+                        </>}
+                      </article>
                     ))}
                   </div>
                 </section>

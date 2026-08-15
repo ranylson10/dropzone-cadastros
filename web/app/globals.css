@@ -7972,3 +7972,25 @@ body .performance-long-evolution-list span{font-size:8px;color:var(--ui-text-mut
   body .performance-long-evolution-list>div{grid-template-columns:30px repeat(2,minmax(0,1fr))}
   body .performance-long-evolution-list>div>span:nth-of-type(3),body .performance-long-evolution-list>div>span:nth-of-type(4){display:none}
 }
+
+/* Rodada 43 — metas objetivas pelo próprio histórico */
+body .performance-goals{display:grid;gap:10px;padding-top:4px}
+body .performance-goals-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+body .performance-goal{display:grid;gap:9px;padding:11px 12px;background:var(--ui-surface)}
+body .performance-goal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+body .performance-goal-head strong{font-size:10px;color:var(--ui-text)}
+body .performance-goal-head em{font-size:8px;font-style:normal;text-transform:uppercase;letter-spacing:.05em;color:var(--ui-text-muted)}
+body .performance-goal.is-atingida .performance-goal-head em{color:var(--ui-accent-light)}
+body .performance-goal.is-proxima .performance-goal-head em{color:#d8d5ca}
+body .performance-goal.is-em_construcao .performance-goal-head em{color:#e7b28d}
+body .performance-goal>small{font-size:9px;color:var(--ui-text-muted)}
+body .performance-goal-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-top:7px;border-top:1px solid var(--ui-line)}
+body .performance-goal-values>span{display:grid;gap:2px;min-width:0}
+body .performance-goal-values small{font-size:7px;text-transform:uppercase;letter-spacing:.05em;color:var(--ui-text-muted)}
+body .performance-goal-values b{font-size:10px;color:var(--ui-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .performance-goal-progress{height:3px;overflow:hidden;background:rgba(255,255,255,.07)}
+body .performance-goal-progress i{display:block;height:100%;background:var(--ui-accent);transition:width .2s ease}
+@media(max-width:760px){
+  body .performance-goals-grid{grid-template-columns:1fr}
+  body .performance-goal{padding:10px}
+}
