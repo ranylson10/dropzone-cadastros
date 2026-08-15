@@ -7949,3 +7949,26 @@ body .player-performance-map-reading b{font-size:10px;color:var(--ui-accent-ligh
 
 /* Rodada 41 — análise por período */
 body .player-performance-filters select,body .team-training-period-actions select{cursor:pointer}
+
+
+/* Rodada 42 — evolução longa em blocos */
+body .performance-long-evolution{display:grid;gap:10px;padding-top:4px}
+body .performance-long-evolution-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+body .performance-long-evolution-group{display:grid;align-content:start;gap:7px;padding:10px 12px;background:var(--ui-surface)}
+body .performance-long-evolution-head{display:flex;align-items:start;justify-content:space-between;gap:10px}
+body .performance-long-evolution-head>span{display:grid;gap:1px}
+body .performance-long-evolution-head b{font-size:10px;color:var(--ui-text)}
+body .performance-long-evolution-head small{font-size:8px;color:var(--ui-text-muted)}
+body .performance-long-evolution-head em{font-size:8px;font-style:normal;text-transform:uppercase;letter-spacing:.05em;color:var(--ui-text-muted);white-space:nowrap}
+body .performance-long-evolution-head em.is-crescimento{color:var(--ui-accent-light)}
+body .performance-long-evolution-head em.is-queda{color:#e7b28d}
+body .performance-long-evolution-head em.is-estavel{color:#b9b6ab}
+body .performance-long-evolution-list{display:grid;border-top:1px solid var(--ui-line)}
+body .performance-long-evolution-list>div{display:grid;grid-template-columns:36px repeat(4,minmax(0,1fr));gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid var(--ui-line)}
+body .performance-long-evolution-list strong{font-size:9px;color:var(--ui-accent-light)}
+body .performance-long-evolution-list span{font-size:8px;color:var(--ui-text-muted);text-align:right;white-space:nowrap}
+@media(max-width:760px){
+  body .performance-long-evolution-groups{grid-template-columns:1fr}
+  body .performance-long-evolution-list>div{grid-template-columns:30px repeat(2,minmax(0,1fr))}
+  body .performance-long-evolution-list>div>span:nth-of-type(3),body .performance-long-evolution-list>div>span:nth-of-type(4){display:none}
+}

@@ -222,6 +222,69 @@ function relationLabel(value: number | null, positiveText: string, negativeText:
   return `${intensity} · ${value >= 0 ? positiveText : negativeText}`
 }
 
+type TrainingLongEvolutionBlock = {
+  label: string
+  kills: number | null
+  dano: number | null
+  colocacao: number | null
+  sobrevivencia: number | null
+}
+
+type TrainingLongEvolution = {
+  blockSize: 5 | 10
+  blocks: TrainingLongEvolutionBlock[]
+  status: 'crescimento' | 'estavel' | 'queda' | 'insuficiente'
+}
+
+function buildTrainingLongEvolution(training: TeamTraining, blockSize: 5 | 10): TrainingLongEvolution {
+  const drops = training.quedas_detalhe
+  const completeCount = Math.floor(drops.length / blockSize)
+  if (completeCount < 2) return { blockSize, blocks: [], status: 'insuficiente' }
+  const usable = drops.slice(drops.length - completeCount * blockSize)
+  const avg = (rows: typeof drops, get: (row: typeof drops[number]) => number | null) => {
+    const values = rows.map(get).filter((value): value is number => value !== null && Number.isFinite(value))
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+  }
+  const survival = (row: typeof drops[number]) => {
+    const values = row.jogadores_detalhados.map((player) => Number(player.sobrevivencia_segundos || 0)).filter((value) => value > 0)
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+  }
+  const blocks: TrainingLongEvolutionBlock[] = []
+  for (let index = 0; index < usable.length; index += blockSize) {
+    const sample = usable.slice(index, index + blockSize)
+    blocks.push({
+      label: `${index + 1}–${index + sample.length}`,
+      kills: avg(sample, (row) => Number(row.abates || 0)),
+      dano: avg(sample, (row) => Number(row.dano || 0)),
+      colocacao: avg(sample, (row) => Number(row.posicao || 0) > 0 ? Number(row.posicao) : null),
+      sobrevivencia: avg(sample, survival),
+    })
+  }
+  const first = blocks[0]
+  const last = blocks[blocks.length - 1]
+  let score = 0
+  let signals = 0
+  const higher = (current: number | null, start: number | null, tolerance: number) => {
+    if (current === null || start === null || start <= 0) return
+    signals += 1
+    const relative = (current - start) / start
+    if (relative >= tolerance) score += 1
+    else if (relative <= -tolerance) score -= 1
+  }
+  higher(last.kills, first.kills, 0.08)
+  higher(last.dano, first.dano, 0.08)
+  higher(last.sobrevivencia, first.sobrevivencia, 0.06)
+  if (last.colocacao !== null && first.colocacao !== null && first.colocacao > 0) {
+    signals += 1
+    const relativeImprovement = (first.colocacao - last.colocacao) / first.colocacao
+    if (relativeImprovement >= 0.08) score += 1
+    else if (relativeImprovement <= -0.08) score -= 1
+  }
+  const normalized = signals ? score / signals : 0
+  const status = signals < 2 ? 'insuficiente' : normalized >= 0.25 ? 'crescimento' : normalized <= -0.25 ? 'queda' : 'estavel'
+  return { blockSize, blocks, status }
+}
+
 function buildTrainingRecentForm(training: TeamTraining) {
   const drops = training.quedas_detalhe
   const recent = drops.slice(-3)
@@ -1181,6 +1244,8 @@ Acesse: ${url}`
                 const technicalEfficiency = buildTrainingTechnicalEfficiency(analyzedTraining)
                 const recentForm = buildTrainingRecentForm(analyzedTraining)
                 const objectiveReading = buildTrainingObjectiveReading(analyzedTraining)
+                const longEvolution5 = buildTrainingLongEvolution(analyzedTraining, 5)
+                const longEvolution10 = buildTrainingLongEvolution(analyzedTraining, 10)
                 return (
                   <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
                     <button
@@ -1253,6 +1318,21 @@ Acesse: ${url}`
                               points={analytics.trend.map((point) => ({ label: point.label, value: point.sobrevivencia }))}
                               format={(value) => `${Math.round(value / 60)} min`}
                             />
+                          </div>
+
+                          <div className="performance-long-evolution team-long-evolution">
+                            <div className="team-training-player-head"><strong>Evolução longa</strong><small>Blocos completos reduzem o peso de uma queda isolada e mostram a trajetória do treino.</small></div>
+                            <div className="performance-long-evolution-groups">
+                              {[longEvolution5, longEvolution10].map((evolution) => (
+                                <div className="performance-long-evolution-group" key={evolution.blockSize}>
+                                  <div className="performance-long-evolution-head">
+                                    <span><b>Blocos de {evolution.blockSize}</b><small>{evolution.blocks.length ? `${evolution.blocks.length} blocos completos` : `mínimo de ${evolution.blockSize * 2} quedas`}</small></span>
+                                    <em className={`is-${evolution.status}`}>{evolution.status === 'crescimento' ? 'Crescimento' : evolution.status === 'queda' ? 'Queda' : evolution.status === 'estavel' ? 'Estável' : 'Amostra insuficiente'}</em>
+                                  </div>
+                                  {evolution.blocks.length ? <div className="performance-long-evolution-list">{evolution.blocks.map((block, index) => <div key={`${evolution.blockSize}:${block.label}`}><strong>B{index + 1}</strong><span>{block.kills === null ? '—' : block.kills.toFixed(1)} K</span><span>{block.dano === null ? '—' : Math.round(block.dano).toLocaleString('pt-BR')} dano</span><span>{block.colocacao === null ? '—' : `${block.colocacao.toFixed(1)} pos.`}</span><span>{block.sobrevivencia === null ? '—' : `${Math.round(block.sobrevivencia / 60)} min`}</span></div>)}</div> : <small className="empty">Ainda não há dois blocos completos para comparar.</small>}
+                                </div>
+                              ))}
+                            </div>
                           </div>
 
                           <div className="performance-objective-reading team-objective-reading">

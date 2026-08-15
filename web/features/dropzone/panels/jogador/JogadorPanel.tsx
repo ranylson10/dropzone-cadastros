@@ -89,6 +89,68 @@ function TrendChart(props: { title: string; subtitle: string; points: TrendPoint
   )
 }
 
+type LongEvolutionBlock = {
+  label: string
+  sample: number
+  kills: number | null
+  dano: number | null
+  colocacao: number | null
+  sobrevivencia: number | null
+}
+
+type LongEvolutionSummary = {
+  blockSize: 5 | 10
+  blocks: LongEvolutionBlock[]
+  status: 'crescimento' | 'estavel' | 'queda' | 'insuficiente'
+  score: number
+}
+
+function buildPlayerLongEvolution(rows: PlayerMatch[], blockSize: 5 | 10): LongEvolutionSummary {
+  const chronological = [...rows].reverse()
+  const completeCount = Math.floor(chronological.length / blockSize)
+  if (completeCount < 2) return { blockSize, blocks: [], status: 'insuficiente', score: 0 }
+  const usable = chronological.slice(chronological.length - completeCount * blockSize)
+  const average = (sample: PlayerMatch[], get: (row: PlayerMatch) => number | null) => {
+    const values = sample.map(get).filter((value): value is number => value !== null && Number.isFinite(value))
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+  }
+  const blocks: LongEvolutionBlock[] = []
+  for (let index = 0; index < usable.length; index += blockSize) {
+    const sample = usable.slice(index, index + blockSize)
+    blocks.push({
+      label: `${index + 1}–${index + sample.length}`,
+      sample: sample.length,
+      kills: average(sample, (row) => Number(row.abates || 0)),
+      dano: average(sample, (row) => Number(row.dano || 0)),
+      colocacao: average(sample, (row) => Number(row.posicao || 0) > 0 ? Number(row.posicao) : null),
+      sobrevivencia: average(sample, (row) => Number(row.telemetria?.sobrevivencia_segundos || 0) > 0 ? Number(row.telemetria?.sobrevivencia_segundos) : null),
+    })
+  }
+  const first = blocks[0]
+  const last = blocks[blocks.length - 1]
+  let score = 0
+  let signals = 0
+  const higher = (current: number | null, start: number | null, tolerance: number) => {
+    if (current === null || start === null || start <= 0) return
+    signals += 1
+    const relative = (current - start) / start
+    if (relative >= tolerance) score += 1
+    else if (relative <= -tolerance) score -= 1
+  }
+  higher(last.kills, first.kills, 0.08)
+  higher(last.dano, first.dano, 0.08)
+  higher(last.sobrevivencia, first.sobrevivencia, 0.06)
+  if (last.colocacao !== null && first.colocacao !== null && first.colocacao > 0) {
+    signals += 1
+    const relativeImprovement = (first.colocacao - last.colocacao) / first.colocacao
+    if (relativeImprovement >= 0.08) score += 1
+    else if (relativeImprovement <= -0.08) score -= 1
+  }
+  const normalized = signals ? score / signals : 0
+  const status = signals < 2 ? 'insuficiente' : normalized >= 0.25 ? 'crescimento' : normalized <= -0.25 ? 'queda' : 'estavel'
+  return { blockSize, blocks, status, score: normalized }
+}
+
 function formatSurvival(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '—'
   const minutes = Math.floor(seconds / 60)
@@ -324,6 +386,11 @@ export function JogadorPanel(props: {
     return { strengths: strengths.slice(0, 3), attentions: attentions.slice(0, 3), notes: notes.slice(0, 2) }
   }, [historyAnalytics, analytics.maps, analytics.weapons, periodMatches])
 
+  const longEvolution = useMemo(() => ({
+    five: buildPlayerLongEvolution(periodMatches, 5),
+    ten: buildPlayerLongEvolution(periodMatches, 10),
+  }), [periodMatches])
+
   const championshipOptions = performance?.statisticsByChampionship || []
 
   return (
@@ -384,6 +451,21 @@ export function JogadorPanel(props: {
                   <TrendChart title="Sobrevivência" subtitle="tempo vivo por partida" points={chronologicalMatches.map((row, index) => ({ label: `Q${row.numero_partida || index + 1}`, value: row.telemetria?.sobrevivencia_segundos || null }))} format={formatSurvival} />
                   <TrendChart title="Colocação" subtitle="resultado da equipe" points={chronologicalMatches.map((row, index) => ({ label: `Q${row.numero_partida || index + 1}`, value: row.posicao || null }))} format={(value) => `${Math.round(value)}º`} lowerIsBetter />
                 </div>
+
+                <section className="performance-long-evolution player-long-evolution">
+                  <div className="player-performance-section-head"><Activity size={16} /><span><strong>Evolução longa</strong><small>Blocos completos mostram trajetória sem supervalorizar uma partida isolada.</small></span></div>
+                  <div className="performance-long-evolution-groups">
+                    {[longEvolution.five, longEvolution.ten].map((evolution) => (
+                      <div className="performance-long-evolution-group" key={evolution.blockSize}>
+                        <div className="performance-long-evolution-head">
+                          <span><b>Blocos de {evolution.blockSize}</b><small>{evolution.blocks.length ? `${evolution.blocks.length} blocos completos` : `mínimo de ${evolution.blockSize * 2} partidas`}</small></span>
+                          <em className={`is-${evolution.status}`}>{evolution.status === 'crescimento' ? 'Crescimento' : evolution.status === 'queda' ? 'Queda' : evolution.status === 'estavel' ? 'Estável' : 'Amostra insuficiente'}</em>
+                        </div>
+                        {evolution.blocks.length ? <div className="performance-long-evolution-list">{evolution.blocks.map((block, index) => <div key={`${evolution.blockSize}:${block.label}`}><strong>B{index + 1}</strong><span>{block.kills === null ? '—' : block.kills.toFixed(1)} K</span><span>{block.dano === null ? '—' : Math.round(block.dano).toLocaleString('pt-BR')} dano</span><span>{block.colocacao === null ? '—' : `${block.colocacao.toFixed(1)} pos.`}</span><span>{block.sobrevivencia === null ? '—' : formatSurvival(block.sobrevivencia)}</span></div>)}</div> : <small className="empty">Ainda não há dois blocos completos para comparar.</small>}
+                      </div>
+                    ))}
+                  </div>
+                </section>
 
                 <section className="performance-objective-reading player-objective-reading">
                   <div className="player-performance-section-head"><Activity size={16} /><span><strong>Leitura objetiva</strong><small>Regras transparentes baseadas no seu histórico; sem análise generativa.</small></span></div>
