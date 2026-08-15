@@ -598,6 +598,157 @@ function buildSquadPlayerEvolution(training: TeamTraining) {
   return { players, destaque: destaque && destaque.score > 0 ? destaque : null, atencao: atencao && atencao.score < 0 ? atencao : null }
 }
 
+
+type SquadSynergyPlayerShare = {
+  chave: string
+  nick: string
+  quedas: number
+  kills: number
+  dano: number
+  killsShare: number
+  danoShare: number
+}
+
+type SquadSynergyCombo = {
+  chave: string
+  nomes: string[]
+  quedas: number
+  melhoresQuedas: number
+  colocacao_media: number | null
+  kills_media: number
+}
+
+type SquadSynergyComposition = {
+  chave: string
+  nomes: string[]
+  mapa: string | null
+  quedas: number
+  colocacao_media: number | null
+  kills_media: number
+  dano_media: number
+}
+
+function buildSquadSynergy(training: TeamTraining) {
+  type Drop = TeamTraining['quedas_detalhe'][number]
+  const playerTotals = new Map<string, { nick: string; quedas: number; kills: number; dano: number }>()
+  const pairRows = new Map<string, { nomes: string[]; rows: Drop[]; best: number }>()
+  const trioRows = new Map<string, { nomes: string[]; rows: Drop[]; best: number }>()
+  const compositionRows = new Map<string, { nomes: string[]; mapa: string | null; rows: Drop[] }>()
+
+  const identity = (player: Drop['jogadores_detalhados'][number]) => ({
+    key: String(player.player_id || player.campeonato_jogador_id || player.nick).trim(),
+    nick: String(player.nick || 'Jogador').trim() || 'Jogador',
+  })
+  const combinations = <T,>(items: T[], size: number): T[][] => {
+    const result: T[][] = []
+    const walk = (start: number, picked: T[]) => {
+      if (picked.length === size) { result.push(picked); return }
+      for (let index = start; index < items.length; index += 1) walk(index + 1, [...picked, items[index]])
+    }
+    walk(0, [])
+    return result
+  }
+
+  for (const drop of training.quedas_detalhe) {
+    const players = drop.jogadores_detalhados
+      .map((player) => ({ ...identity(player), row: player }))
+      .filter((player, index, all) => player.key && all.findIndex((candidate) => candidate.key === player.key) === index)
+      .sort((a, b) => a.key.localeCompare(b.key))
+    if (!players.length) continue
+
+    for (const player of players) {
+      const current = playerTotals.get(player.key) || { nick: player.nick, quedas: 0, kills: 0, dano: 0 }
+      current.quedas += 1
+      current.kills += Number(player.row.abates || 0)
+      current.dano += Number(player.row.dano || 0)
+      playerTotals.set(player.key, current)
+    }
+
+    const isBestDrop = Boolean(drop.booyah || (drop.posicao && drop.posicao <= 3))
+    for (const size of [2, 3] as const) {
+      if (players.length < size) continue
+      for (const combo of combinations(players, size)) {
+        const key = combo.map((player) => player.key).join('|')
+        const target = size === 2 ? pairRows : trioRows
+        const current = target.get(key) || { nomes: combo.map((player) => player.nick), rows: [], best: 0 }
+        current.rows.push(drop)
+        if (isBestDrop) current.best += 1
+        target.set(key, current)
+      }
+    }
+
+    const compositionKey = players.map((player) => player.key).join('|')
+    const nomes = players.map((player) => player.nick)
+    const mapa = String(drop.mapa_codigo || '').trim() || null
+    const globalKey = `all:${compositionKey}`
+    const global = compositionRows.get(globalKey) || { nomes, mapa: null, rows: [] }
+    global.rows.push(drop)
+    compositionRows.set(globalKey, global)
+    if (mapa) {
+      const mapKey = `${mapa}:${compositionKey}`
+      const byMap = compositionRows.get(mapKey) || { nomes, mapa, rows: [] }
+      byMap.rows.push(drop)
+      compositionRows.set(mapKey, byMap)
+    }
+  }
+
+  const totalKills = [...playerTotals.values()].reduce((sum, row) => sum + row.kills, 0)
+  const totalDamage = [...playerTotals.values()].reduce((sum, row) => sum + row.dano, 0)
+  const players: SquadSynergyPlayerShare[] = [...playerTotals.entries()].map(([chave, row]) => ({
+    chave,
+    nick: row.nick,
+    quedas: row.quedas,
+    kills: row.kills,
+    dano: row.dano,
+    killsShare: totalKills > 0 ? (row.kills / totalKills) * 100 : 0,
+    danoShare: totalDamage > 0 ? (row.dano / totalDamage) * 100 : 0,
+  })).sort((a, b) => b.killsShare - a.killsShare || b.danoShare - a.danoShare)
+
+  const maxKillShare = players.reduce((max, row) => Math.max(max, row.killsShare), 0)
+  const maxDamageShare = players.reduce((max, row) => Math.max(max, row.danoShare), 0)
+  const dependency = Math.max(maxKillShare, maxDamageShare)
+  const balance = players.length < 2 ? 'insuficiente' : dependency >= 50 ? 'dependente' : dependency >= 40 ? 'atencao' : 'equilibrada'
+
+  const summarizeCombo = (source: typeof pairRows): SquadSynergyCombo[] => [...source.entries()].map(([chave, entry]) => {
+    const positions = entry.rows.map((row) => Number(row.posicao || 0)).filter((value) => value > 0)
+    return {
+      chave,
+      nomes: entry.nomes,
+      quedas: entry.rows.length,
+      melhoresQuedas: entry.best,
+      colocacao_media: positions.length ? positions.reduce((sum, value) => sum + value, 0) / positions.length : null,
+      kills_media: entry.rows.reduce((sum, row) => sum + Number(row.abates || 0), 0) / entry.rows.length,
+    }
+  }).filter((row) => row.quedas >= 2).sort((a, b) => b.melhoresQuedas - a.melhoresQuedas || (a.colocacao_media ?? 99) - (b.colocacao_media ?? 99) || b.kills_media - a.kills_media)
+
+  const summarizeComposition = (): SquadSynergyComposition[] => [...compositionRows.entries()].map(([chave, entry]) => {
+    const positions = entry.rows.map((row) => Number(row.posicao || 0)).filter((value) => value > 0)
+    return {
+      chave,
+      nomes: entry.nomes,
+      mapa: entry.mapa,
+      quedas: entry.rows.length,
+      colocacao_media: positions.length ? positions.reduce((sum, value) => sum + value, 0) / positions.length : null,
+      kills_media: entry.rows.reduce((sum, row) => sum + Number(row.abates || 0), 0) / entry.rows.length,
+      dano_media: entry.rows.reduce((sum, row) => sum + Number(row.dano || 0), 0) / entry.rows.length,
+    }
+  }).filter((row) => row.quedas >= 2).sort((a, b) => (a.colocacao_media ?? 99) - (b.colocacao_media ?? 99) || b.kills_media - a.kills_media || b.dano_media - a.dano_media)
+
+  const compositions = summarizeComposition()
+  const overallCompositions = compositions.filter((row) => row.mapa === null)
+  const mapCompositions = compositions.filter((row) => row.mapa !== null)
+
+  return {
+    players,
+    balance,
+    dependency,
+    pairs: summarizeCombo(pairRows).slice(0, 4),
+    trios: summarizeCombo(trioRows).slice(0, 4),
+    bestComposition: overallCompositions[0] || null,
+    mapCompositions: mapCompositions.slice(0, 6),
+  }
+}
+
 function TrainingTrendChart(props: {
   title: string
   subtitle: string
@@ -1370,6 +1521,7 @@ Acesse: ${url}`
                 const longEvolution5 = buildTrainingLongEvolution(analyzedTraining, 5)
                 const longEvolution10 = buildTrainingLongEvolution(analyzedTraining, 10)
                 const squadPlayerEvolution = buildSquadPlayerEvolution(analyzedTraining)
+                const squadSynergy = buildSquadSynergy(analyzedTraining)
                 const performanceGoals = buildObjectivePerformanceGoals(analyzedTraining.quedas_detalhe.map((drop) => {
                   const survival = drop.jogadores_detalhados
                     .map((player) => Number(player.sobrevivencia_segundos || 0))
@@ -1581,6 +1733,45 @@ Acesse: ${url}`
                                   ))}
                                 </div>
                               </div>
+                            </div>
+                          ) : null}
+
+                          {squadSynergy.players.length ? (
+                            <div className="team-squad-synergy">
+                              <div className="team-training-player-head">
+                                <strong>Sinergia da line</strong>
+                                <small>Participação real por queda. Composições usam somente jogadores que atuaram juntos.</small>
+                              </div>
+                              <div className="team-squad-synergy-summary">
+                                <span><small>Equilíbrio</small><strong>{squadSynergy.balance === 'equilibrada' ? 'Equilibrada' : squadSynergy.balance === 'atencao' ? 'Atenção' : squadSynergy.balance === 'dependente' ? 'Dependente' : 'Amostra insuficiente'}</strong></span>
+                                <span><small>Maior dependência</small><strong>{squadSynergy.players.length > 1 ? `${squadSynergy.dependency.toFixed(0)}%` : '—'}</strong></span>
+                                <span><small>Composição consistente</small><strong>{squadSynergy.bestComposition ? squadSynergy.bestComposition.nomes.join(' · ') : 'Amostra insuficiente'}</strong></span>
+                              </div>
+
+                              <div className="team-squad-synergy-share">
+                                {squadSynergy.players.map((player) => (
+                                  <article key={player.chave}>
+                                    <div><strong>{player.nick}</strong><small>{player.quedas} quedas</small></div>
+                                    <span><b>{player.killsShare.toFixed(0)}%</b><small>dos kills</small></span>
+                                    <span><b>{player.danoShare.toFixed(0)}%</b><small>do dano</small></span>
+                                  </article>
+                                ))}
+                              </div>
+
+                              {(squadSynergy.pairs.length || squadSynergy.trios.length) ? (
+                                <div className="team-squad-synergy-combos">
+                                  {squadSynergy.pairs.length ? <div><strong>Duplas nos melhores resultados</strong>{squadSynergy.pairs.map((combo) => <span key={combo.chave}><b>{combo.nomes.join(' + ')}</b><small>{combo.quedas} juntas · {combo.melhoresQuedas} top 3/booyah · {combo.colocacao_media === null ? '—' : combo.colocacao_media.toFixed(1)} pos. média</small></span>)}</div> : null}
+                                  {squadSynergy.trios.length ? <div><strong>Trios nos melhores resultados</strong>{squadSynergy.trios.map((combo) => <span key={combo.chave}><b>{combo.nomes.join(' + ')}</b><small>{combo.quedas} juntos · {combo.melhoresQuedas} top 3/booyah · {combo.colocacao_media === null ? '—' : combo.colocacao_media.toFixed(1)} pos. média</small></span>)}</div> : null}
+                                </div>
+                              ) : null}
+
+                              {squadSynergy.mapCompositions.length ? (
+                                <details className="team-squad-synergy-maps">
+                                  <summary>Composição por mapa <ChevronDown size={14} /></summary>
+                                  <div>{squadSynergy.mapCompositions.map((composition) => <span key={composition.chave}><b>{composition.mapa}</b><small>{composition.nomes.join(' · ')} · {composition.quedas} quedas · {composition.colocacao_media === null ? '—' : composition.colocacao_media.toFixed(1)} pos. · {composition.kills_media.toFixed(1)} K/queda</small></span>)}</div>
+                                </details>
+                              ) : null}
+                              <p className="team-squad-synergy-note">Dependência é sinal de concentração estatística, não julgamento do atleta. Destaques exigem pelo menos 2 quedas com a mesma combinação.</p>
                             </div>
                           ) : null}
 
