@@ -97,6 +97,117 @@ type TeamTraining = {
   }>
 }
 
+
+type TrainingTrendPoint = {
+  label: string
+  value: number | null
+}
+
+type TrainingBreakdown = {
+  nome: string
+  quedas: number
+  colocacao_media: number | null
+  abates_media: number
+  dano_media: number
+}
+
+function buildTrainingAnalytics(training: TeamTraining) {
+  const drops = training.quedas_detalhe
+  const trend = drops.map((drop) => {
+    const survivalValues = drop.jogadores_detalhados
+      .map((player) => Number(player.sobrevivencia_segundos || 0))
+      .filter((value) => value > 0)
+    return {
+      label: `Q${drop.numero_partida || '?'}`,
+      colocacao: drop.posicao,
+      abates: drop.abates,
+      dano: drop.dano,
+      sobrevivencia: survivalValues.length
+        ? survivalValues.reduce((sum, value) => sum + value, 0) / survivalValues.length
+        : null,
+    }
+  })
+
+  const summarize = (nameOf: (drop: TeamTraining['quedas_detalhe'][number]) => string) => {
+    const groups = new Map<string, TeamTraining['quedas_detalhe']>()
+    for (const drop of drops) {
+      const name = nameOf(drop).trim()
+      if (!name) continue
+      groups.set(name, [...(groups.get(name) || []), drop])
+    }
+    return [...groups.entries()].map(([nome, rows]): TrainingBreakdown => {
+      const positions = rows.map((row) => row.posicao).filter((value): value is number => Boolean(value && value > 0))
+      return {
+        nome,
+        quedas: rows.length,
+        colocacao_media: positions.length ? positions.reduce((sum, value) => sum + value, 0) / positions.length : null,
+        abates_media: rows.reduce((sum, row) => sum + row.abates, 0) / rows.length,
+        dano_media: rows.reduce((sum, row) => sum + row.dano, 0) / rows.length,
+      }
+    }).sort((a, b) => (a.colocacao_media ?? 99) - (b.colocacao_media ?? 99) || b.abates_media - a.abates_media)
+  }
+
+  return {
+    trend,
+    mapas: summarize((drop) => drop.mapa_codigo || 'Mapa não definido'),
+    calls: summarize((drop) => drop.call_nome || ''),
+  }
+}
+
+function TrainingTrendChart(props: {
+  title: string
+  subtitle: string
+  points: TrainingTrendPoint[]
+  format: (value: number) => string
+  lowerIsBetter?: boolean
+}) {
+  const available = props.points.filter((point): point is { label: string; value: number } => point.value !== null && Number.isFinite(point.value))
+  if (available.length < 2) {
+    return (
+      <article className="team-training-chart is-empty">
+        <div><strong>{props.title}</strong><small>{props.subtitle}</small></div>
+        <span>Dados insuficientes</span>
+      </article>
+    )
+  }
+
+  const rawValues = available.map((point) => point.value)
+  const min = Math.min(...rawValues)
+  const max = Math.max(...rawValues)
+  const spread = Math.max(1, max - min)
+  const width = 320
+  const height = 96
+  const padX = 8
+  const padY = 10
+  const plotWidth = width - padX * 2
+  const plotHeight = height - padY * 2
+  const coords = available.map((point, index) => {
+    const x = available.length === 1 ? width / 2 : padX + (index / (available.length - 1)) * plotWidth
+    const normalized = (point.value - min) / spread
+    const yValue = props.lowerIsBetter ? normalized : 1 - normalized
+    const y = padY + yValue * plotHeight
+    return { ...point, x, y }
+  })
+  const path = coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ')
+  const latest = available[available.length - 1]
+
+  return (
+    <article className="team-training-chart">
+      <div className="team-training-chart-head">
+        <span><strong>{props.title}</strong><small>{props.subtitle}</small></span>
+        <b>{props.format(latest.value)}</b>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${props.title} por queda`}>
+        <path className="team-training-chart-line" d={path} />
+        {coords.map((point) => <circle key={`${point.label}:${point.x}`} className="team-training-chart-point" cx={point.x} cy={point.y} r="3" />)}
+      </svg>
+      <div className="team-training-chart-labels">
+        {available.map((point) => <span key={point.label}>{point.label}</span>)}
+      </div>
+    </article>
+  )
+}
+
 type Lineup = {
   campeonato_equipe_id: string
   campeonato_id: string
@@ -804,6 +915,7 @@ Acesse: ${url}`
             <div className="team-training-list">
               {trainings.map((training) => {
                 const isOpen = trainingExpanded === training.campeonato_equipe_id
+                const analytics = buildTrainingAnalytics(training)
                 return (
                   <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
                     <button
@@ -842,8 +954,81 @@ Acesse: ${url}`
                           <article><small>Revives</small><strong>{training.revives}</strong></article>
                         </div>
 
-                        <div className="team-training-drops">
+                        <section className="team-training-analytics" aria-label="Gráficos privados de desempenho">
                           <div className="team-training-player-head">
+                            <strong>Evolução do treino</strong>
+                            <small>Leitura privada por queda. Os gráficos usam somente resultados e telemetria desta equipe.</small>
+                          </div>
+                          <div className="team-training-chart-grid">
+                            <TrainingTrendChart
+                              title="Colocação"
+                              subtitle="posição por queda"
+                              points={analytics.trend.map((point) => ({ label: point.label, value: point.colocacao }))}
+                              format={(value) => `${Math.round(value)}º`}
+                              lowerIsBetter
+                            />
+                            <TrainingTrendChart
+                              title="Kills"
+                              subtitle="abates por queda"
+                              points={analytics.trend.map((point) => ({ label: point.label, value: point.abates }))}
+                              format={(value) => String(Math.round(value))}
+                            />
+                            <TrainingTrendChart
+                              title="Dano"
+                              subtitle="dano da equipe por queda"
+                              points={analytics.trend.map((point) => ({ label: point.label, value: point.dano }))}
+                              format={(value) => Math.round(value).toLocaleString('pt-BR')}
+                            />
+                            <TrainingTrendChart
+                              title="Sobrevivência"
+                              subtitle="média dos jogadores"
+                              points={analytics.trend.map((point) => ({ label: point.label, value: point.sobrevivencia }))}
+                              format={(value) => `${Math.round(value / 60)} min`}
+                            />
+                          </div>
+
+                          {analytics.mapas.length ? (
+                            <div className="team-training-breakdown">
+                              <div className="team-training-player-head">
+                                <strong>Por mapa</strong>
+                                <small>Comparação das quedas já processadas.</small>
+                              </div>
+                              <div className="team-training-breakdown-list">
+                                {analytics.mapas.map((mapa) => (
+                                  <article key={mapa.nome}>
+                                    <strong>{mapa.nome}</strong>
+                                    <span><b>{mapa.quedas}</b><small>quedas</small></span>
+                                    <span><b>{mapa.colocacao_media ? mapa.colocacao_media.toFixed(1) : '—'}</b><small>posição média</small></span>
+                                    <span><b>{mapa.abates_media.toFixed(1)}</b><small>kills/queda</small></span>
+                                    <span><b>{Math.round(mapa.dano_media).toLocaleString('pt-BR')}</b><small>dano/queda</small></span>
+                                  </article>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {analytics.calls.length ? (
+                            <div className="team-training-breakdown team-training-call-breakdown">
+                              <div className="team-training-player-head">
+                                <strong>Por call</strong>
+                                <small>Somente calls anotadas pela própria equipe.</small>
+                              </div>
+                              <div className="team-training-breakdown-list">
+                                {analytics.calls.map((call) => (
+                                  <article key={call.nome}>
+                                    <strong>{call.nome}</strong>
+                                    <span><b>{call.quedas}</b><small>quedas</small></span>
+                                    <span><b>{call.colocacao_media ? call.colocacao_media.toFixed(1) : '—'}</b><small>posição média</small></span>
+                                    <span><b>{call.abates_media.toFixed(1)}</b><small>kills/queda</small></span>
+                                    <span><b>{Math.round(call.dano_media).toLocaleString('pt-BR')}</b><small>dano/queda</small></span>
+                                  </article>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </section>
+
+                        <div className="team-training-drops">\n                          <div className="team-training-player-head">
                             <strong>Análise por queda</strong>
                             <small>Call e leitura de safe ficam privadas para sua equipe.</small>
                           </div>
@@ -993,7 +1178,7 @@ Acesse: ${url}`
                         </div>
 
                         <p className="team-training-next-note">
-                          Call, safes e telemetria detalhada ficam privadas para a equipe. Os gráficos entram na próxima rodada usando esta mesma base por queda.
+                          Call, safes, telemetria e gráficos de desempenho ficam privados para a própria equipe.
                         </p>
                       </div>
                     ) : null}

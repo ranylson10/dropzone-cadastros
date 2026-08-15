@@ -7766,3 +7766,34 @@ body .team-training-drop-disabled{margin:0;color:var(--ui-text-muted);font-size:
   body .team-training-drop-notes .button{width:100%}
 }
 \n\n/* Rodada 35 — telemetria privada da Garena por jogador/queda. */\nbody .team-training-telemetry{display:grid;border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}\nbody .team-training-telemetry>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;cursor:pointer;list-style:none}\nbody .team-training-telemetry>summary::-webkit-details-marker{display:none}\nbody .team-training-telemetry>summary>span{display:flex;align-items:center;gap:6px;color:var(--ui-accent-light)}\nbody .team-training-telemetry>summary strong{font-size:11px}\nbody .team-training-telemetry>summary small{color:var(--ui-text-muted);font-size:9px}\nbody .team-training-telemetry-players{display:grid}\nbody .team-training-telemetry-player{display:grid;gap:10px;padding:12px 0;border-top:1px solid var(--ui-line)}\nbody .team-training-telemetry-player>header{display:flex;align-items:center;justify-content:space-between;gap:10px}\nbody .team-training-telemetry-player>header strong{font-size:12px}\nbody .team-training-telemetry-player>header span{color:var(--ui-text-muted);font-size:10px}\nbody .team-training-telemetry-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--ui-line)}\nbody .team-training-telemetry-metrics>span{display:grid;gap:2px;padding:8px;background:var(--ui-surface);text-align:center}\nbody .team-training-telemetry-metrics b{font-size:11px}\nbody .team-training-telemetry-metrics small{color:var(--ui-text-muted);font-size:8px;text-transform:uppercase}\nbody .team-training-telemetry-line{display:grid;grid-template-columns:74px minmax(0,1fr);gap:10px;align-items:start}\nbody .team-training-telemetry-line>small{color:var(--ui-text-muted);font-size:9px;font-weight:800;text-transform:uppercase}\nbody .team-training-telemetry-line>div{display:flex;flex-wrap:wrap;gap:6px}\nbody .team-training-telemetry-line>div>span{display:inline-flex;align-items:center;gap:4px;padding:5px 7px;border-radius:6px;background:var(--ui-surface-raised);font-size:9px;color:var(--ui-text-muted)}\nbody .team-training-telemetry-line b{color:var(--ui-text);font-size:9px}\nbody .team-training-telemetry-line em{font-style:normal;color:var(--ui-accent-light);font-size:8px;text-transform:uppercase}\nbody .team-training-telemetry-secondary{display:flex;flex-wrap:wrap;gap:10px;color:var(--ui-text-muted);font-size:9px}\nbody .team-training-telemetry-waiting{display:flex;align-items:center;gap:7px;padding:9px 0;color:var(--ui-text-muted);font-size:10px;border-top:1px solid var(--ui-line)}\n@media(max-width:760px){\n  body .team-training-telemetry-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}\n  body .team-training-telemetry-line{grid-template-columns:1fr}\n  body .team-training-telemetry-player>header{align-items:flex-start}\n}\n
+/* Rodada 36 — gráficos privados de desempenho do XTreino. */
+body .team-training-analytics{display:grid;gap:12px;padding-top:4px}
+body .team-training-chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+body .team-training-chart{display:grid;gap:8px;min-width:0;padding:11px 12px;background:var(--ui-surface)}
+body .team-training-chart.is-empty{align-content:space-between;min-height:132px}
+body .team-training-chart.is-empty>div{display:grid;gap:2px}
+body .team-training-chart.is-empty>span{color:var(--ui-text-muted);font-size:10px}
+body .team-training-chart-head{display:flex;align-items:start;justify-content:space-between;gap:10px}
+body .team-training-chart-head>span{display:grid;gap:2px}
+body .team-training-chart-head strong{font-size:11px;color:var(--ui-text)}
+body .team-training-chart-head small{font-size:8px;color:var(--ui-text-muted)}
+body .team-training-chart-head>b{font-size:13px;color:var(--ui-accent-light)}
+body .team-training-chart svg{display:block;width:100%;height:96px;overflow:visible}
+body .team-training-chart-line{fill:none;stroke:var(--ui-accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+body .team-training-chart-point{fill:var(--ui-bg);stroke:var(--ui-accent-light);stroke-width:2;vector-effect:non-scaling-stroke}
+body .team-training-chart-labels{display:flex;justify-content:space-between;gap:4px;overflow:hidden}
+body .team-training-chart-labels span{color:var(--ui-text-muted);font-size:8px;white-space:nowrap}
+body .team-training-breakdown{display:grid;gap:7px;margin-top:2px}
+body .team-training-breakdown-list{display:grid;border-top:1px solid var(--ui-line)}
+body .team-training-breakdown-list>article{display:grid;grid-template-columns:minmax(130px,1.4fr) repeat(4,minmax(70px,.7fr));gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ui-line)}
+body .team-training-breakdown-list>article>strong{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .team-training-breakdown-list>article>span{display:grid;gap:1px;text-align:right}
+body .team-training-breakdown-list b{font-size:10px}
+body .team-training-breakdown-list small{color:var(--ui-text-muted);font-size:8px;text-transform:uppercase;letter-spacing:.03em}
+@media(max-width:760px){
+  body .team-training-chart-grid{grid-template-columns:1fr}
+  body .team-training-chart{padding:10px 8px}
+  body .team-training-breakdown-list>article{grid-template-columns:minmax(0,1fr) repeat(2,62px);gap:8px}
+  body .team-training-breakdown-list>article>span:nth-child(4),
+  body .team-training-breakdown-list>article>span:nth-child(5){display:none}
+}
