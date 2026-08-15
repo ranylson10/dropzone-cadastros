@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     const { data: campeonatos, error: campeonatosError } = await supabaseAdmin
       .from('campeonatos')
-      .select('id,nome,tipo,logo_url,status,data_inicio,data_fim')
+      .select('id,nome,tipo,logo_url,status,created_at')
       .in('id', campeonatoIds)
     if (campeonatosError) throw campeonatosError
 
@@ -271,8 +271,7 @@ export async function GET(req: NextRequest) {
         line_nome: resumo?.line_nome || null,
         grupo_nome: resumo?.grupo_nome || null,
         fase_nome: resumo?.fase_nome || null,
-        data_inicio: campeonato?.data_inicio || null,
-        data_fim: campeonato?.data_fim || null,
+        created_at: campeonato?.created_at || null,
         configuracao_analise: {
           call_fixa: Boolean(config?.xtreino_call_fixa),
           primeira_safe: Boolean(config?.xtreino_registra_primeira_safe),
@@ -292,7 +291,7 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    treinos.sort((a: any, b: any) => String(b.data_inicio || b.nome).localeCompare(String(a.data_inicio || a.nome)))
+    treinos.sort((a: any, b: any) => String(b.created_at || b.nome).localeCompare(String(a.created_at || a.nome)))
     return NextResponse.json({ treinos })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao carregar treinos da equipe.' }, { status: 400 })
