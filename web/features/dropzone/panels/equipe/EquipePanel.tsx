@@ -154,6 +154,134 @@ function buildTrainingAnalytics(training: TeamTraining) {
   }
 }
 
+type TrainingCrossInsight = {
+  titulo: string
+  descricao: string
+  coeficiente: number | null
+  amostras: number
+  leitura: string
+}
+
+type TrainingPlayerAnalytics = {
+  chave: string
+  nick: string
+  quedas: number
+  abates: number
+  dano: number
+  assistencias: number
+  sobrevivencia_media: number | null
+  mapas: Array<{ nome: string; quedas: number; abates_media: number; dano_media: number }>
+}
+
+function pearsonCorrelation(pairs: Array<[number, number]>) {
+  const clean = pairs.filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
+  if (clean.length < 3) return null
+  const meanX = clean.reduce((sum, [x]) => sum + x, 0) / clean.length
+  const meanY = clean.reduce((sum, [, y]) => sum + y, 0) / clean.length
+  let numerator = 0
+  let sumX = 0
+  let sumY = 0
+  for (const [x, y] of clean) {
+    const dx = x - meanX
+    const dy = y - meanY
+    numerator += dx * dy
+    sumX += dx * dx
+    sumY += dy * dy
+  }
+  const denominator = Math.sqrt(sumX * sumY)
+  if (!denominator) return 0
+  return Math.max(-1, Math.min(1, numerator / denominator))
+}
+
+function relationLabel(value: number | null, positiveText: string, negativeText: string) {
+  if (value === null) return 'Dados insuficientes'
+  const strength = Math.abs(value)
+  if (strength < 0.2) return 'Sem relação clara'
+  const intensity = strength >= 0.7 ? 'forte' : strength >= 0.4 ? 'moderada' : 'leve'
+  return `${intensity} · ${value >= 0 ? positiveText : negativeText}`
+}
+
+function buildTrainingCrossAnalytics(training: TeamTraining) {
+  const validPosition = training.quedas_detalhe.filter((drop) => Number(drop.posicao || 0) > 0)
+  const survival = (drop: TeamTraining['quedas_detalhe'][number]) => {
+    const values = drop.jogadores_detalhados.map((player) => Number(player.sobrevivencia_segundos || 0)).filter((value) => value > 0)
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+  }
+
+  const damageKillsPairs = training.quedas_detalhe
+    .filter((drop) => Number.isFinite(drop.dano) && Number.isFinite(drop.abates))
+    .map((drop): [number, number] => [drop.dano, drop.abates])
+  const killsPlacementPairs = validPosition.map((drop): [number, number] => [drop.abates, -Number(drop.posicao)])
+  const survivalPlacementPairs = validPosition
+    .map((drop) => [survival(drop), -Number(drop.posicao)] as const)
+    .filter((pair): pair is [number, number] => pair[0] !== null)
+
+  const insights: TrainingCrossInsight[] = [
+    {
+      titulo: 'Dano × kills',
+      descricao: 'se o dano está virando eliminações',
+      coeficiente: pearsonCorrelation(damageKillsPairs),
+      amostras: damageKillsPairs.length,
+      leitura: '',
+    },
+    {
+      titulo: 'Kills × colocação',
+      descricao: 'relação entre eliminações e melhor posição',
+      coeficiente: pearsonCorrelation(killsPlacementPairs),
+      amostras: killsPlacementPairs.length,
+      leitura: '',
+    },
+    {
+      titulo: 'Sobrevivência × colocação',
+      descricao: 'se permanecer vivo acompanha resultado',
+      coeficiente: pearsonCorrelation(survivalPlacementPairs),
+      amostras: survivalPlacementPairs.length,
+      leitura: '',
+    },
+  ]
+  insights[0].leitura = relationLabel(insights[0].coeficiente, 'mais dano acompanha mais kills', 'mais dano não acompanha mais kills')
+  insights[1].leitura = relationLabel(insights[1].coeficiente, 'mais kills acompanham melhor colocação', 'mais kills não acompanham melhor colocação')
+  insights[2].leitura = relationLabel(insights[2].coeficiente, 'mais sobrevivência acompanha melhor colocação', 'mais sobrevivência não acompanha melhor colocação')
+
+  const players = new Map<string, { nick: string; quedas: number; abates: number; dano: number; assistencias: number; sobrevivencia: number[]; mapas: Map<string, { quedas: number; abates: number; dano: number }> }>()
+  for (const drop of training.quedas_detalhe) {
+    for (const player of drop.jogadores_detalhados) {
+      const key = player.player_id || player.campeonato_jogador_id || player.nick
+      const current = players.get(key) || { nick: player.nick, quedas: 0, abates: 0, dano: 0, assistencias: 0, sobrevivencia: [] as number[], mapas: new Map<string, { quedas: number; abates: number; dano: number }>() }
+      current.quedas += 1
+      current.abates += Number(player.abates || 0)
+      current.dano += Number(player.dano || 0)
+      current.assistencias += Number(player.assistencias || 0)
+      if (Number(player.sobrevivencia_segundos || 0) > 0) current.sobrevivencia.push(Number(player.sobrevivencia_segundos))
+      const mapName = (drop.mapa_codigo || 'Mapa não definido').trim()
+      const map = current.mapas.get(mapName) || { quedas: 0, abates: 0, dano: 0 }
+      map.quedas += 1
+      map.abates += Number(player.abates || 0)
+      map.dano += Number(player.dano || 0)
+      current.mapas.set(mapName, map)
+      players.set(key, current)
+    }
+  }
+
+  const jogadores: TrainingPlayerAnalytics[] = [...players.entries()].map(([chave, player]) => ({
+    chave,
+    nick: player.nick,
+    quedas: player.quedas,
+    abates: player.abates,
+    dano: player.dano,
+    assistencias: player.assistencias,
+    sobrevivencia_media: player.sobrevivencia.length ? player.sobrevivencia.reduce((sum, value) => sum + value, 0) / player.sobrevivencia.length : null,
+    mapas: [...player.mapas.entries()].map(([nome, map]) => ({
+      nome,
+      quedas: map.quedas,
+      abates_media: map.abates / map.quedas,
+      dano_media: map.dano / map.quedas,
+    })).sort((a, b) => b.abates_media - a.abates_media || b.dano_media - a.dano_media),
+  })).sort((a, b) => b.abates - a.abates || b.dano - a.dano)
+
+  return { insights, jogadores }
+}
+
 function TrainingTrendChart(props: {
   title: string
   subtitle: string
@@ -916,6 +1044,7 @@ Acesse: ${url}`
               {trainings.map((training) => {
                 const isOpen = trainingExpanded === training.campeonato_equipe_id
                 const analytics = buildTrainingAnalytics(training)
+                const crossAnalytics = buildTrainingCrossAnalytics(training)
                 return (
                   <article className={`team-training-row ${isOpen ? 'is-open' : ''}`} key={training.campeonato_equipe_id}>
                     <button
@@ -1022,6 +1151,56 @@ Acesse: ${url}`
                                     <span><b>{call.abates_media.toFixed(1)}</b><small>kills/queda</small></span>
                                     <span><b>{Math.round(call.dano_media).toLocaleString('pt-BR')}</b><small>dano/queda</small></span>
                                   </article>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="team-training-cross">
+                            <div className="team-training-player-head">
+                              <strong>Leituras cruzadas</strong>
+                              <small>Correlação entre quedas da própria equipe. Serve como pista de tendência, não como causa automática.</small>
+                            </div>
+                            <div className="team-training-cross-grid">
+                              {crossAnalytics.insights.map((insight) => (
+                                <article key={insight.titulo} className={insight.coeficiente === null ? 'is-empty' : ''}>
+                                  <span><strong>{insight.titulo}</strong><small>{insight.descricao}</small></span>
+                                  <b>{insight.coeficiente === null ? '—' : insight.coeficiente.toFixed(2)}</b>
+                                  <p>{insight.leitura}</p>
+                                  <small>{insight.amostras} quedas comparadas</small>
+                                </article>
+                              ))}
+                            </div>
+                          </div>
+
+                          {crossAnalytics.jogadores.length ? (
+                            <div className="team-training-player-performance">
+                              <div className="team-training-player-head">
+                                <strong>Desempenho por jogador</strong>
+                                <small>Totais do treino e leitura por mapa usando somente a telemetria privada.</small>
+                              </div>
+                              <div className="team-training-player-performance-list">
+                                {crossAnalytics.jogadores.map((player) => (
+                                  <details key={player.chave}>
+                                    <summary>
+                                      <strong>{player.nick}</strong>
+                                      <span><b>{player.abates}</b><small>kills</small></span>
+                                      <span><b>{Math.round(player.dano).toLocaleString('pt-BR')}</b><small>dano</small></span>
+                                      <span><b>{player.assistencias}</b><small>assist.</small></span>
+                                      <span><b>{player.sobrevivencia_media ? `${Math.round(player.sobrevivencia_media / 60)} min` : '—'}</b><small>sobreviv.</small></span>
+                                      <ChevronDown size={15} />
+                                    </summary>
+                                    <div className="team-training-player-map-list">
+                                      {player.mapas.map((mapa) => (
+                                        <article key={`${player.chave}:${mapa.nome}`}>
+                                          <strong>{mapa.nome}</strong>
+                                          <span><b>{mapa.quedas}</b><small>quedas</small></span>
+                                          <span><b>{mapa.abates_media.toFixed(1)}</b><small>kills/queda</small></span>
+                                          <span><b>{Math.round(mapa.dano_media).toLocaleString('pt-BR')}</b><small>dano/queda</small></span>
+                                        </article>
+                                      ))}
+                                    </div>
+                                  </details>
                                 ))}
                               </div>
                             </div>

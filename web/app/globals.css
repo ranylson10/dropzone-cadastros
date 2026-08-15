@@ -7797,3 +7797,43 @@ body .team-training-breakdown-list small{color:var(--ui-text-muted);font-size:8p
   body .team-training-breakdown-list>article>span:nth-child(4),
   body .team-training-breakdown-list>article>span:nth-child(5){display:none}
 }
+
+/* Rodada 37 — cruzamentos privados de desempenho do XTreino */
+body .team-training-cross,
+body .team-training-player-performance{display:grid;gap:7px;margin-top:2px}
+body .team-training-cross-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+body .team-training-cross-grid>article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 10px;align-items:start;padding:11px 12px;background:var(--ui-surface)}
+body .team-training-cross-grid>article>span{display:grid;gap:2px;min-width:0}
+body .team-training-cross-grid>article>span strong{font-size:11px;color:var(--ui-text)}
+body .team-training-cross-grid>article>span small,
+body .team-training-cross-grid>article>small{font-size:8px;color:var(--ui-text-muted)}
+body .team-training-cross-grid>article>b{font-size:15px;color:var(--ui-accent-light)}
+body .team-training-cross-grid>article>p{grid-column:1/-1;margin:2px 0 0;font-size:9px;color:var(--ui-text)}
+body .team-training-cross-grid>article>small{grid-column:1/-1}
+body .team-training-cross-grid>article.is-empty>b,
+body .team-training-cross-grid>article.is-empty>p{color:var(--ui-text-muted)}
+body .team-training-player-performance-list{display:grid;border-top:1px solid var(--ui-line)}
+body .team-training-player-performance-list>details{border-bottom:1px solid var(--ui-line)}
+body .team-training-player-performance-list>details>summary{display:grid;grid-template-columns:minmax(140px,1.3fr) repeat(4,minmax(64px,.65fr)) 18px;gap:10px;align-items:center;padding:10px 0;cursor:pointer;list-style:none}
+body .team-training-player-performance-list>details>summary::-webkit-details-marker{display:none}
+body .team-training-player-performance-list>details>summary>strong{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .team-training-player-performance-list>details>summary>span{display:grid;gap:1px;text-align:right}
+body .team-training-player-performance-list>details>summary b{font-size:10px}
+body .team-training-player-performance-list>details>summary small,
+body .team-training-player-map-list small{font-size:8px;color:var(--ui-text-muted);text-transform:uppercase;letter-spacing:.03em}
+body .team-training-player-performance-list>details>summary svg{color:var(--ui-text-muted);transition:transform .18s ease}
+body .team-training-player-performance-list>details[open]>summary svg{transform:rotate(180deg)}
+body .team-training-player-map-list{display:grid;padding:0 0 8px 18px}
+body .team-training-player-map-list>article{display:grid;grid-template-columns:minmax(120px,1fr) repeat(3,minmax(70px,.7fr));gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--ui-line)}
+body .team-training-player-map-list>article>strong{font-size:10px}
+body .team-training-player-map-list>article>span{display:grid;gap:1px;text-align:right}
+body .team-training-player-map-list b{font-size:9px}
+@media (max-width:700px){
+  body .team-training-cross-grid{grid-template-columns:1fr}
+  body .team-training-player-performance-list>details>summary{grid-template-columns:minmax(0,1fr) repeat(2,58px) 16px;gap:7px}
+  body .team-training-player-performance-list>details>summary>span:nth-of-type(3),
+  body .team-training-player-performance-list>details>summary>span:nth-of-type(4){display:none}
+  body .team-training-player-map-list{padding-left:8px}
+  body .team-training-player-map-list>article{grid-template-columns:minmax(0,1fr) repeat(2,62px);gap:7px}
+  body .team-training-player-map-list>article>span:nth-child(4){display:none}
+}
