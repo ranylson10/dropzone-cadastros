@@ -24,8 +24,7 @@ type TeamTraining = {
   line_nome?: string | null
   grupo_nome?: string | null
   fase_nome?: string | null
-  data_inicio?: string | null
-  data_fim?: string | null
+  created_at?: string | null
   quedas: number
   booyahs: number
   abates: number

@@ -73,42 +73,48 @@ export async function GET(req: NextRequest) {
 
     // Telemetria detalhada da Garena: continua privada e só é carregada depois
     // de confirmar que a participação pertence a uma equipe controlada pelo usuário.
-    const { data: garenaImportacoes, error: garenaImportacoesError } = await supabaseAdmin
+    // É enriquecimento opcional: falha da Garena nunca invalida MatchResult/estatísticas oficiais.
+    let garenaImportacoes: any[] = []
+    let garenaJogadores: any[] = []
+    let garenaArmas: any[] = []
+    let garenaHabilidades: any[] = []
+
+    const garenaImportacoesResult = await supabaseAdmin
       .from('garena_matchstats_importacoes')
       .select('id,campeonato_id,partida_id,status,concluida_em')
       .in('campeonato_id', xtreinoCampeonatoIds)
       .eq('status', 'concluida')
-    if (garenaImportacoesError) throw garenaImportacoesError
 
-    const garenaImportacaoIds = (garenaImportacoes || []).map((item: any) => String(item.id)).filter(Boolean)
-    let garenaJogadores: any[] = []
-    let garenaArmas: any[] = []
-    let garenaHabilidades: any[] = []
-    if (garenaImportacaoIds.length) {
-      const { data, error } = await supabaseAdmin
-        .from('garena_matchstats_jogadores')
-        .select('id,importacao_id,player_id,campeonato_jogador_id,jogador_id,jogador_temporario_id,campeonato_equipe_id,nick_snapshot,equipe_snapshot,posicao_equipe,abates,assistencias,dano,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,precisao_percentual,taxa_headshot_kill_percentual,precisao_headshot_percentual,revives,membros_revividos,membros_resgatados,granadas_usadas,abates_granada,dano_granada,gel_usado,gel_destruido,kits_medicos,abates_veiculo,abates_oleo,mudanca_posicao')
-        .in('importacao_id', garenaImportacaoIds)
-        .in('campeonato_equipe_id', participacaoIds)
-      if (error) throw error
-      garenaJogadores = data || []
+    if (!garenaImportacoesResult.error) {
+      garenaImportacoes = garenaImportacoesResult.data || []
+      const garenaImportacaoIds = garenaImportacoes.map((item: any) => String(item.id)).filter(Boolean)
 
-      const garenaJogadorIds = garenaJogadores.map((item: any) => String(item.id)).filter(Boolean)
-      if (garenaJogadorIds.length) {
-        const [armasResult, habilidadesResult] = await Promise.all([
-          supabaseAdmin
-            .from('garena_matchstats_armas')
-            .select('jogador_matchstats_id,ordem,weapon_id,arma,abates,dano,headshots,precisao_percentual,precisao_headshot_percentual')
-            .in('jogador_matchstats_id', garenaJogadorIds),
-          supabaseAdmin
-            .from('garena_matchstats_habilidades')
-            .select('jogador_matchstats_id,tipo,ordem,skill_id,personagem,habilidade,usos,informacao,pick_times,pick_rate')
-            .in('jogador_matchstats_id', garenaJogadorIds),
-        ])
-        if (armasResult.error) throw armasResult.error
-        if (habilidadesResult.error) throw habilidadesResult.error
-        garenaArmas = armasResult.data || []
-        garenaHabilidades = habilidadesResult.data || []
+      if (garenaImportacaoIds.length) {
+        const garenaJogadoresResult = await supabaseAdmin
+          .from('garena_matchstats_jogadores')
+          .select('id,importacao_id,player_id,campeonato_jogador_id,jogador_id,jogador_temporario_id,campeonato_equipe_id,nick_snapshot,equipe_snapshot,posicao_equipe,abates,assistencias,dano,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,precisao_percentual,taxa_headshot_kill_percentual,precisao_headshot_percentual,revives,membros_revividos,membros_resgatados,granadas_usadas,abates_granada,dano_granada,gel_usado,gel_destruido,kits_medicos,abates_veiculo,abates_oleo,mudanca_posicao')
+          .in('importacao_id', garenaImportacaoIds)
+          .in('campeonato_equipe_id', participacaoIds)
+
+        if (!garenaJogadoresResult.error) {
+          garenaJogadores = garenaJogadoresResult.data || []
+          const garenaJogadorIds = garenaJogadores.map((item: any) => String(item.id)).filter(Boolean)
+
+          if (garenaJogadorIds.length) {
+            const [armasResult, habilidadesResult] = await Promise.all([
+              supabaseAdmin
+                .from('garena_matchstats_armas')
+                .select('jogador_matchstats_id,ordem,weapon_id,arma,abates,dano,headshots,precisao_percentual,precisao_headshot_percentual')
+                .in('jogador_matchstats_id', garenaJogadorIds),
+              supabaseAdmin
+                .from('garena_matchstats_habilidades')
+                .select('jogador_matchstats_id,tipo,ordem,skill_id,personagem,habilidade,usos,informacao,pick_times,pick_rate')
+                .in('jogador_matchstats_id', garenaJogadorIds),
+            ])
+            garenaArmas = armasResult.error ? [] : (armasResult.data || [])
+            garenaHabilidades = habilidadesResult.error ? [] : (habilidadesResult.data || [])
+          }
+        }
       }
     }
 
