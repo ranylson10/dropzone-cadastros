@@ -745,6 +745,9 @@ export function ProdutoraPanel(props: {
             nome: String(division?.nome || ''),
             codigo: String(division?.codigo || ''),
             ordem: Number(division?.ordem || index + 1),
+            equipes: String(division?.equipes || '12'),
+            valor_inscricao: String(division?.valor_inscricao || ''),
+            premiacao: String(division?.premiacao || ''),
           }))
         : [],
     }
@@ -774,6 +777,12 @@ export function ProdutoraPanel(props: {
   }
 
   async function createInitialPhases(campeonatoId: string, form: CampeonatoFormValue) {
+    // A Liga monta a estrutura física somente depois que cada série tiver
+    // formação e formato definidos. Não criar uma "Fase 1" genérica aqui.
+    if (form.tipo === 'liga') {
+      await props.reloadStructure?.()
+      return
+    }
     const count = Math.max(1, Math.min(12, Number(form.numero_fases) || 1))
     const names = Array.from({ length: count }, (_, index) =>
       String((Array.isArray(form.nomes_fases) ? form.nomes_fases[index] : '') || `Fase ${index + 1}`).trim() || `Fase ${index + 1}`,

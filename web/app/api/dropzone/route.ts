@@ -392,9 +392,12 @@ function normalizeLeagueDivisions(value: unknown) {
   if (value.length > 12) throw new Error('A liga aceita no máximo 12 divisões.')
   return value.map((item, index) => ({
     id: String((item as any)?.id || crypto.randomUUID()).slice(0, 80),
-    nome: String((item as any)?.nome || '').trim().slice(0, 80) || `Divisão ${index + 1}`,
+    nome: String((item as any)?.nome || '').trim().slice(0, 80) || `Série ${index + 1}`,
     codigo: String((item as any)?.codigo || '').trim().slice(0, 30),
     ordem: index + 1,
+    equipes: String(Math.max(2, Math.min(200, Number((item as any)?.equipes || 12)))),
+    valor_inscricao: String(Math.max(0, Number((item as any)?.valor_inscricao || 0))),
+    premiacao: String(Math.max(0, Number((item as any)?.premiacao || 0))),
   }))
 }
 
