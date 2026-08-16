@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Copy, ImagePlus, Link2, Loader2, Pencil, Plus, Save, ShieldCheck, Upload, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ChevronDown, ChevronRight, Copy, ImagePlus, Loader2, Plus, Save, ShieldCheck, Trash2, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
 import './provisional-teams.css'
@@ -11,18 +11,22 @@ type Team = any
 
 function parseBulk(text: string): Row[] {
   const seen = new Set<string>()
-  return text.split(/\r?\n/).flatMap((raw) => {
+  const rows = text.split(/\r?\n/).flatMap((raw) => {
     const line = raw.trim()
     if (!line) return []
     const parts = line.includes('\t') ? line.split('\t') : line.includes('|') ? line.split('|') : line.includes(';') ? line.split(';') : [line]
     const nome = String(parts[0] || '').trim().replace(/\s+/g, ' ')
     const tag = String(parts[1] || '').trim().toUpperCase()
     if (!nome) return []
-    const key = nome.toLocaleLowerCase('pt-BR')
+    const normalizedName = nome.toLocaleLowerCase('pt-BR')
+    const normalizedTag = tag.toLocaleLowerCase('pt-BR')
+    if ((normalizedName === 'nome' || normalizedName === 'equipe' || normalizedName === 'nome da equipe') && (!tag || normalizedTag === 'tag')) return []
+    const key = normalizedName
     if (seen.has(key)) return []
     seen.add(key)
     return [{ nome, tag }]
-  }).slice(0, 100)
+  })
+  return rows.slice(0, 100)
 }
 
 export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: (file: File, bucket: string) => Promise<string> }) {
@@ -32,13 +36,13 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   const [message, setMessage] = useState('')
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkText, setBulkText] = useState('')
+  const [bulkRows, setBulkRows] = useState<Row[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [selectedLine, setSelectedLine] = useState<any>(null)
   const [draft, setDraft] = useState<any>({})
   const [lineDraft, setLineDraft] = useState({ nome: '', tag: '' })
   const [accessToken, setAccessToken] = useState('')
 
-  const preview = useMemo(() => parseBulk(bulkText), [bulkText])
   const selected = teams.find((team) => team.id === selectedId) || null
 
   async function auth() {
@@ -84,15 +88,28 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   }, [selectedId, teams])
 
   async function createBulk() {
-    if (!preview.length) return
+    if (!bulkRows.length) return
     setBusy('bulk'); setMessage('')
     try {
-      const payload = await request('/api/produtora/equipes-provisorias', { method: 'POST', body: JSON.stringify({ equipes: preview }) })
-      setBulkText(''); setBulkOpen(false)
+      const payload = await request('/api/produtora/equipes-provisorias', { method: 'POST', body: JSON.stringify({ equipes: bulkRows }) })
+      setBulkText(''); setBulkRows([]); setBulkOpen(false)
       setMessage(`${payload.criadas || 0} equipe(s) criada(s).${payload.existentes ? ` ${payload.existentes} nome(s) já existiam e não foram duplicados.` : ''}`)
       await load()
     } catch (error: any) { setMessage(error?.message || 'Não foi possível criar as equipes.') }
     finally { setBusy('') }
+  }
+
+  function changeBulkText(value: string) {
+    setBulkText(value)
+    setBulkRows(parseBulk(value))
+  }
+
+  function updateBulkRow(index: number, patch: Partial<Row>) {
+    setBulkRows((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row))
+  }
+
+  function removeBulkRow(index: number) {
+    setBulkRows((current) => current.filter((_, rowIndex) => rowIndex !== index))
   }
 
   async function saveTeam() {
@@ -146,10 +163,15 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
 
     {bulkOpen ? <div className="provisional-bulk">
       <div className="provisional-bulk-copy"><strong>Cole direto da planilha</strong><span>Use duas colunas: Nome e TAG. Também aceitamos “Nome | TAG”, ponto e vírgula ou somente o nome.</span></div>
-      <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} placeholder={'Fluxo\tFLX\nTropa do Pará\tTPA\nAmazon Cria\tAMZ'} rows={8}/>
-      <div className="provisional-preview-head"><strong>{preview.length} equipe(s) prontas</strong><span>Nada é salvo até você confirmar.</span></div>
-      {preview.length ? <div className="provisional-preview">{preview.map((row, index) => <div key={`${row.nome}-${index}`}><span>{index + 1}</span><strong>{row.nome}</strong><em>{row.tag || 'TAG automática'}</em></div>)}</div> : null}
-      <div className="provisional-actions"><button type="button" className="button secondary" onClick={() => { setBulkText(''); setBulkOpen(false) }}>Cancelar</button><button type="button" className="button" disabled={!preview.length || busy === 'bulk'} onClick={() => void createBulk()}>{busy === 'bulk' ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} Criar {preview.length || ''} equipes</button></div>
+      <textarea value={bulkText} onChange={(e) => changeBulkText(e.target.value)} placeholder={'Nome\tTAG\nFluxo\tFLX\nTropa do Pará\tTPA\nAmazon Cria\tAMZ'} rows={8}/>
+      <div className="provisional-preview-head"><strong>{bulkRows.length} equipe(s) prontas</strong><span>Nada é salvo até você confirmar. Edite a prévia se a planilha precisar de correção.</span></div>
+      {bulkRows.length ? <div className="provisional-preview editable">{bulkRows.map((row, index) => <div key={`${index}-${row.nome}`}>
+        <span>{index + 1}</span>
+        <input aria-label={`Nome da equipe ${index + 1}`} value={row.nome} onChange={(event) => updateBulkRow(index, { nome: event.target.value })}/>
+        <input aria-label={`TAG da equipe ${index + 1}`} value={row.tag} placeholder="Automática" onChange={(event) => updateBulkRow(index, { tag: event.target.value.toUpperCase() })}/>
+        <button type="button" className="provisional-remove-row" aria-label={`Remover equipe ${index + 1}`} onClick={() => removeBulkRow(index)}><Trash2 size={14}/></button>
+      </div>)}</div> : null}
+      <div className="provisional-actions"><button type="button" className="button secondary" onClick={() => { setBulkText(''); setBulkRows([]); setBulkOpen(false) }}>Cancelar</button><button type="button" className="button" disabled={!bulkRows.length || busy === 'bulk' || bulkRows.some((row) => !row.nome.trim())} onClick={() => void createBulk()}>{busy === 'bulk' ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} Criar {bulkRows.length || ''} equipes</button></div>
     </div> : null}
 
     {!teams.length ? <div className="provisional-empty"><ShieldCheck size={28}/><strong>Nenhuma equipe aguardando responsável</strong><span>Quando uma equipe for reivindicada ou incorporada, ela desaparece automaticamente daqui.</span></div> : null}
@@ -167,14 +189,14 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
         {selectedId === team.id ? <div className="provisional-manager">
           <div className="provisional-edit-grid">
             <label><span>Nome</span><input value={draft.nome || ''} onChange={(e) => setDraft((d: any) => ({ ...d, nome: e.target.value }))}/></label>
-            <label><span>TAG</span><input value={draft.tag || ''} onChange={(e) => setDraft((d: any) => ({ ...d, tag: e.target.value.toUpperCase() }))}/></label>
+            <label><span>TAG *</span><input value={draft.tag || ''} onChange={(e) => setDraft((d: any) => ({ ...d, tag: e.target.value.toUpperCase() }))}/></label>
             <label className="wide"><span>Localidade</span><input value={draft.localidade || ''} onChange={(e) => setDraft((d: any) => ({ ...d, localidade: e.target.value }))} placeholder="Belém - PA"/></label>
             <label className="wide"><span>Bio</span><textarea value={draft.bio || ''} onChange={(e) => setDraft((d: any) => ({ ...d, bio: e.target.value }))} rows={2}/></label>
           </div>
           <div className="provisional-manager-actions">
             <label className="button secondary"><ImagePlus size={15}/>{busy === 'logo' ? 'Enviando...' : 'Adicionar logo'}<input type="file" accept="image/*" hidden onChange={(e) => void uploadLogo(e.target.files?.[0])}/></label>
             {draft.logo_url ? <span className="provisional-logo-preview"><img src={draft.logo_url} alt="Prévia da logo"/></span> : null}
-            <button type="button" className="button" disabled={busy === 'team'} onClick={() => void saveTeam()}><Save size={15}/> Salvar informações</button>
+            <button type="button" className="button" disabled={busy === 'team' || !String(draft.nome || '').trim() || !String(draft.tag || '').trim()} onClick={() => void saveTeam()}><Save size={15}/> Salvar informações</button>
           </div>
 
           <div className="provisional-lines">
