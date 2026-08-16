@@ -12,7 +12,7 @@ function safePath(parts: string[]) {
 
 async function deliver(req: NextRequest, context: { params: Promise<{ bucket: string; path: string[] }> }) {
   const { bucket, path } = await context.params
-  if (!PUBLIC_BUCKETS.has(bucket) || !safePath(path)) return new NextResponse('NÃ£o encontrado.', { status: 404 })
+  if (!PUBLIC_BUCKETS.has(bucket) || !safePath(path)) return new NextResponse('Não encontrado.', { status: 404 })
 
   const objectPath = path.map(encodeURIComponent).join('/')
   const source = `${String(supabaseUrl).replace(/\/$/, '')}/storage/v1/object/public/${encodeURIComponent(bucket)}/${objectPath}`
@@ -21,7 +21,7 @@ async function deliver(req: NextRequest, context: { params: Promise<{ bucket: st
     headers: range ? { Range: range } : undefined,
     next: { revalidate: CACHE_SECONDS },
   })
-  if (!upstream.ok && upstream.status !== 206) return new NextResponse('NÃ£o encontrado.', { status: upstream.status })
+  if (!upstream.ok && upstream.status !== 206) return new NextResponse('Não encontrado.', { status: upstream.status })
 
   const headers = new Headers({
     'Cache-Control': `public, max-age=${CACHE_SECONDS}, immutable`,

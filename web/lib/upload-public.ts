@@ -4,9 +4,9 @@ const PUBLIC_MEDIA_CACHE_SECONDS = 31_536_000
 const MAX_IMAGE_EDGE = 2_560
 
 /**
- * Entrega um objeto pÃºblico pelo cache do prÃ³prio app. Ãštil para cenas OBS,
- * nas quais uma revalidaÃ§Ã£o do CDN do Storage a cada atualizaÃ§Ã£o vira egress.
- * URLs externas e valores antigos que nÃ£o sejam do nosso Storage nÃ£o mudam.
+ * Entrega um objeto público pelo cache do próprio app. Útil para cenas OBS,
+ * nas quais uma revalidação do CDN do Storage a cada atualizaÃ§Ã£o vira egress.
+ * URLs externas e valores antigos que não sejam do nosso Storage não mudam.
  */
 export function cachedStorageMediaUrl(value: string) {
   const raw = String(value || '').trim()
@@ -29,7 +29,7 @@ function isOptimizableImage(file: File) {
   return /^(image\/(png|jpe?g|webp))$/i.test(file.type)
 }
 
-/** Reduz imagens antes do envio; GIF e SVG ficam intactos para preservar animaÃ§Ã£o e vetores. */
+/** Reduz imagens antes do envio; GIF e SVG ficam intactos para preservar animação e vetores. */
 async function optimizeImageForStorage(file: File): Promise<File> {
   if (!isOptimizableImage(file) || typeof document === 'undefined') return file
 
@@ -38,7 +38,7 @@ async function optimizeImageForStorage(file: File): Promise<File> {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const element = new Image()
       element.onload = () => resolve(element)
-      element.onerror = () => reject(new Error('NÃ£o foi possÃ­vel preparar a imagem.'))
+      element.onerror = () => reject(new Error('Não foi possível preparar a imagem.'))
       element.src = sourceUrl
     })
     const largestSide = Math.max(image.naturalWidth, image.naturalHeight)
@@ -53,12 +53,12 @@ async function optimizeImageForStorage(file: File): Promise<File> {
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
 
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.84))
-    // MantÃ©m o original se WebP nÃ£o estiver disponÃ­vel ou nÃ£o trouxer economia.
+    // Mantém o original se WebP não estiver disponível ou não trouxer economia.
     if (!blob || blob.size >= file.size) return file
     const baseName = (file.name || 'imagem').replace(/\.[^.]+$/, '') || 'imagem'
     return new File([blob], `${baseName}.webp`, { type: 'image/webp', lastModified: file.lastModified })
   } catch {
-    // A economia de banda nÃ£o pode impedir um upload vÃ¡lido.
+    // A economia de banda não pode impedir um upload válido.
     return file
   } finally {
     URL.revokeObjectURL(sourceUrl)
@@ -170,7 +170,7 @@ export async function uploadPublicMedia(
     method: 'PUT',
     headers: {
       'Content-Type': String(signed.content_type || contentType),
-      // O caminho tem UUID e nunca Ã© sobrescrito: pode ser cacheado por longo prazo.
+      // O caminho tem UUID e nunca é sobrescrito: pode ser cacheado por longo prazo.
       'Cache-Control': `max-age=${PUBLIC_MEDIA_CACHE_SECONDS}`,
     },
     body: uploadFile,

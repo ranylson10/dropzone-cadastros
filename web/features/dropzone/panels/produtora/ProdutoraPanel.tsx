@@ -591,10 +591,10 @@ export function ProdutoraPanel(props: {
           note: financialNote[compraId] || '',
         }),
       })
-      setFinancialMsg('RevisÃ£o financeira atualizada.')
+      setFinancialMsg('Revisão financeira atualizada.')
       await loadFinancialReviews()
     } catch (error: any) {
-      setFinancialError(error?.message || 'Erro ao atualizar revisÃ£o.')
+      setFinancialError(error?.message || 'Erro ao atualizar revisão.')
     } finally {
       setFinancialBusy((value) => ({ ...value, [compraId]: false }))
     }
@@ -1389,10 +1389,8 @@ ${params.url}`
     return [phaseLabel, rowTitle(group)].filter(Boolean).join(' · ') || 'Disponível'
   }
 
-  const totalPlayers = 0
   const stats = [
     { label: 'Equipes', value: props.selectedChampTeams.length },
-    { label: 'Jogadores', value: totalPlayers },
     { label: 'Fases', value: champPhases.length },
     { label: 'Grupos', value: champGroups.length },
     { label: 'Jogos', value: champGames.length },
@@ -1408,7 +1406,7 @@ ${params.url}`
   const operationalChecklist = selectedChamp ? [
     {
       done: Boolean(dataText(selectedChamp, 'nome') || selectedChamp.name) && Boolean(dataText(selectedChamp, 'logo_url')),
-      title: 'Dados bÃ¡sicos',
+      title: 'Dados básicos',
       detail: 'Nome e logo do campeonato.',
       action: () => startEditChampionship(selectedChamp),
     },
@@ -1432,14 +1430,14 @@ ${params.url}`
     },
     {
       done: champRegistrationLinks.length > 0,
-      title: 'DivulgaÃ§Ã£o',
+      title: 'Divulgação',
       detail: champRegistrationLinks.length > 0 ? `${champRegistrationLinks.length} link(s) gerado(s).` : 'Gere um link de vaga ou convite.',
       action: () => { setTab('links'); setOpenAction('link') },
     },
     {
       done: approved,
-      title: 'PublicaÃ§Ã£o',
-      detail: approved ? 'Campeonato liberado.' : 'Aguardando aprovaÃ§Ã£o ou pagamento.',
+      title: 'Publicação',
+      detail: approved ? 'Campeonato liberado.' : 'Aguardando aprovação ou pagamento.',
       action: () => startEditChampionship(selectedChamp),
     },
   ] : []
@@ -1461,7 +1459,7 @@ ${params.url}`
         <button type="button" className={producerSection === 'campeonatos' ? 'active' : ''} onClick={() => setProducerSection('campeonatos')}><Trophy size={17} /><span>Campeonatos</span></button>
         <button type="button" className={producerSection === 'staff' ? 'active' : ''} onClick={() => setProducerSection('staff')}><Users size={17} /><span>Equipe interna</span></button>
         <button type="button" className={producerSection === 'vendedores' ? 'active' : ''} onClick={() => setProducerSection('vendedores')}><BriefcaseBusiness size={17} /><span>Vendedores</span></button>
-        <button type="button" className={producerSection === 'vagas' ? 'active' : ''} onClick={() => setProducerSection('vagas')}><Store size={17} /><span>PÃ¡gina de vagas</span></button>
+        <button type="button" className={producerSection === 'vagas' ? 'active' : ''} onClick={() => setProducerSection('vagas')}><Store size={17} /><span>Página de vagas</span></button>
       </nav>
 
       {producerSection === 'staff' ? (
@@ -1924,7 +1922,7 @@ ${params.url}`
                         <p className="eyebrow">Checklist operacional</p>
                         <h3>O que falta para rodar?</h3>
                       </div>
-                      <span>{operationalChecklist.filter((item) => item.done).length}/{operationalChecklist.length} concluÃ­dos</span>
+                      <span>{operationalChecklist.filter((item) => item.done).length}/{operationalChecklist.length} concluídos</span>
                     </div>
                     <div className="champ-overview-checklist">
                       {operationalChecklist.map((item) => (
@@ -2281,8 +2279,8 @@ ${params.url}`
                     <div className="subtab-actionbar">
                       <div>
                         <p className="eyebrow">Financeiro</p>
-                        <h3>RevisÃµes de reembolso e chargeback</h3>
-                        <span>Quando uma vaga paga sofre estorno, o organizador decide se mantÃ©m a inscriÃ§Ã£o ou pede regularizaÃ§Ã£o.</span>
+                        <h3>Revisões de reembolso e chargeback</h3>
+                        <span>Quando uma vaga paga sofre estorno, o organizador decide se mantém a inscrição ou pede regularização.</span>
                       </div>
                       <button className="button secondary" type="button" disabled={financialLoading} onClick={() => void loadFinancialReviews()}>
                         {financialLoading ? 'Atualizando...' : 'Atualizar'}
@@ -2291,8 +2289,8 @@ ${params.url}`
 
                     {financialError ? <div className="message error">{financialError}</div> : null}
                     {financialMsg ? <div className="message success">{financialMsg}</div> : null}
-                    {financialLoading ? <p className="empty">Carregando revisÃµes financeiras...</p> : null}
-                    {allEmpty ? <p className="empty">Nenhuma pendÃªncia financeira neste campeonato.</p> : null}
+                    {financialLoading ? <p className="empty">Carregando revisões financeiras...</p> : null}
+                    {allEmpty ? <p className="empty">Nenhuma pendência financeira neste campeonato.</p> : null}
 
                     {pending.length ? (
                       <section className="panel">
@@ -2314,15 +2312,15 @@ ${params.url}`
                                 <div className="manager-vendas-row-copy">
                                   <strong>{item.equipe?.nome || item.participacao?.nome_exibicao || 'Equipe inscrita'}</strong>
                                   <span>
-                                    {formatMoneyCentavos(item.valor_centavos)} Â· {waiting ? 'aguardando regularizaÃ§Ã£o' : 'revisÃ£o pendente'}
+                                    {formatMoneyCentavos(item.valor_centavos)} · {waiting ? 'aguardando regularização' : 'revisão pendente'}
                                   </span>
                                   <small>
-                                    Motivo: {item.revisao_motivo || 'estorno'} Â· iniciado em {formatDateTime(item.revisao_iniciada_em)}
+                                    Motivo: {item.revisao_motivo || 'estorno'} · iniciado em {formatDateTime(item.revisao_iniciada_em)}
                                   </small>
                                   <textarea
                                     value={financialNote[item.id] || ''}
                                     onChange={(event) => setFinancialNote((value) => ({ ...value, [item.id]: event.target.value }))}
-                                    placeholder="ObservaÃ§Ã£o interna ou mensagem para a equipe"
+                                    placeholder="Observação interna ou mensagem para a equipe"
                                     rows={2}
                                     style={{ marginTop: 8, width: '100%' }}
                                   />
@@ -2331,10 +2329,10 @@ ${params.url}`
                                   {!waiting ? (
                                     <>
                                       <button className="button small" type="button" disabled={busy} onClick={() => void decideFinancialReview(item.id, 'manter_inscricao')}>
-                                        Manter inscriÃ§Ã£o
+                                        Manter inscrição
                                       </button>
                                       <button className="button small secondary" type="button" disabled={busy} onClick={() => void decideFinancialReview(item.id, 'solicitar_regularizacao')}>
-                                        Pedir regularizaÃ§Ã£o
+                                        Pedir regularização
                                       </button>
                                     </>
                                   ) : (
@@ -2354,8 +2352,8 @@ ${params.url}`
                       <section className="panel">
                         <div className="section-head compact-head">
                           <div>
-                            <p className="eyebrow">HistÃ³rico</p>
-                            <h2>Ãšltimas decisÃµes</h2>
+                            <p className="eyebrow">Histórico</p>
+                            <h2>Últimas decisões</h2>
                           </div>
                         </div>
                         <div className="manager-vendas-list">
@@ -2366,7 +2364,7 @@ ${params.url}`
                               </div>
                               <div className="manager-vendas-row-copy">
                                 <strong>{item.equipe?.nome || item.participacao?.nome_exibicao || 'Equipe inscrita'}</strong>
-                                <span>{formatMoneyCentavos(item.valor_centavos)} Â· {item.revisao_decisao || item.revisao_status}</span>
+                                <span>{formatMoneyCentavos(item.valor_centavos)} · {item.revisao_decisao || item.revisao_status}</span>
                                 <small>Decidido em {formatDateTime(item.revisao_decidida_em)}</small>
                               </div>
                             </article>
