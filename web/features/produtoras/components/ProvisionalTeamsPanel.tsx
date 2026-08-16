@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Archive, ChevronDown, ChevronRight, Copy, ImagePlus, Loader2, Pencil, Plus, Save, ShieldCheck, Trash2, Trophy, Users } from 'lucide-react'
+import { Archive, ChevronDown, ChevronRight, Copy, ImagePlus, Loader2, Pencil, Plus, Save, Search, ShieldCheck, Trash2, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
 import './provisional-teams.css'
@@ -45,8 +45,14 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   const [lineDraft, setLineDraft] = useState({ nome: '', tag: '' })
   const [lineEdit, setLineEdit] = useState<any>({})
   const [accessToken, setAccessToken] = useState('')
+  const [query, setQuery] = useState('')
+  const [rosterOpen, setRosterOpen] = useState(false)
 
   const selected = teams.find((team) => team.id === selectedId) || null
+  const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR')
+  const visibleTeams = normalizedQuery
+    ? teams.filter((team) => [team.nome, team.tag, team.localidade, team.cidade, team.estado].some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(normalizedQuery)))
+    : teams
 
   async function auth() {
     const { data } = await supabase.auth.getSession()
@@ -78,12 +84,12 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       const payload = await request('/api/produtora/equipes-provisorias')
       setTeams(payload.equipes || [])
       if (selectedId && !(payload.equipes || []).some((team: Team) => team.id === selectedId)) {
-        setSelectedId(''); setSelectedLine(null); setManagerTab('dados')
+        setSelectedId(''); setSelectedLine(null); setRosterOpen(false); setManagerTab('dados')
       } else if (selectedLine) {
         const currentTeam = (payload.equipes || []).find((team: Team) => team.id === selectedId)
         const currentLine = currentTeam?.lines?.find((line: any) => line.id === selectedLine.id)
         if (currentLine) setSelectedLine(currentLine)
-        else setSelectedLine(null)
+        else { setSelectedLine(null); setRosterOpen(false) }
       }
     } catch (error: any) { setMessage(error?.message || 'Erro ao carregar equipes provisórias.') }
     finally { setLoading(false) }
@@ -181,6 +187,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       await request(`/api/equipes/${selected.id}/lines?line_id=${encodeURIComponent(selectedLine.id)}`, { method: 'DELETE' })
       setMessage('Line arquivada.')
       setSelectedLine(null)
+      setRosterOpen(false)
       await load()
     } catch (error: any) { setMessage(error?.message || 'Não foi possível arquivar a line.') }
     finally { setBusy('') }
@@ -194,11 +201,11 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   }
 
   function openTeam(teamId: string) {
-    if (selectedId === teamId) { setSelectedId(''); setSelectedLine(null); return }
-    setSelectedId(teamId); setSelectedLine(null); setManagerTab('dados')
+    if (selectedId === teamId) { setSelectedId(''); setSelectedLine(null); setRosterOpen(false); return }
+    setSelectedId(teamId); setSelectedLine(null); setRosterOpen(false); setManagerTab('dados')
   }
 
-  function openLine(line: any) { setSelectedLine(line); setManagerTab('lines') }
+  function openLine(line: any, openRoster = false) { setSelectedLine(line); setRosterOpen(openRoster); setManagerTab('lines') }
 
   if (loading) return <section className="provisional-teams"><div className="provisional-loading"><Loader2 className="spin" size={18}/> Carregando equipes provisórias...</div></section>
 
@@ -223,10 +230,16 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       <div className="provisional-actions"><button type="button" className="button secondary" onClick={() => { setBulkText(''); setBulkRows([]); setBulkOpen(false) }}>Cancelar</button><button type="button" className="button" disabled={!bulkRows.length || busy === 'bulk' || bulkRows.some((row) => !row.nome.trim())} onClick={() => void createBulk()}>{busy === 'bulk' ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} Criar {bulkRows.length || ''} equipes</button></div>
     </div> : null}
 
+    {teams.length ? <div className="provisional-toolbar">
+      <label className="provisional-search"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar equipe, TAG ou localidade"/>{query ? <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}><X size={14}/></button> : null}</label>
+      <span>{visibleTeams.length === teams.length ? `${teams.length} aguardando responsável` : `${visibleTeams.length} de ${teams.length} equipes`}</span>
+    </div> : null}
+
     {!teams.length ? <div className="provisional-empty"><ShieldCheck size={28}/><strong>Nenhuma equipe aguardando responsável</strong><span>Quando uma equipe for reivindicada ou incorporada, ela desaparece automaticamente daqui.</span></div> : null}
+    {teams.length && !visibleTeams.length ? <div className="provisional-empty compact"><Search size={22}/><strong>Nenhuma equipe encontrada</strong><span>Tente buscar pelo nome, TAG ou localidade.</span></div> : null}
 
     <div className="provisional-list">
-      {teams.map((team) => <article key={team.id} className={selectedId === team.id ? 'open' : ''}>
+      {visibleTeams.map((team) => <article key={team.id} className={selectedId === team.id ? 'open' : ''}>
         <button type="button" className="provisional-team-row" onClick={() => openTeam(team.id)}>
           <span className="provisional-logo">{team.logo_url ? <img src={team.logo_url} alt=""/> : String(team.tag || team.nome || 'EQ').slice(0, 2)}</span>
           <div><strong>{team.nome}</strong><span>{team.tag || 'Sem TAG'} · {team.lines?.length || 0} line(s) · {team.participacoes?.length || 0} campeonato(s)</span></div>
@@ -263,7 +276,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
           {managerTab === 'lines' ? <div className="provisional-lines provisional-manager-section">
             <div className="provisional-subhead"><div><strong>Lines e jogadores</strong><span>Crie, edite e organize as lines. Convites podem ser gerados por line e por campeonato.</span></div><Users size={18}/></div>
             <div className="provisional-new-line"><input placeholder="Nome da nova line" value={lineDraft.nome} onChange={(e) => setLineDraft((d) => ({ ...d, nome: e.target.value }))}/><input placeholder="TAG" value={lineDraft.tag} onChange={(e) => setLineDraft((d) => ({ ...d, tag: e.target.value.toUpperCase() }))}/><button type="button" className="button secondary" disabled={!lineDraft.nome.trim() || busy === 'line'} onClick={() => void createLine()}><Plus size={14}/> Criar line</button></div>
-            <div className="provisional-line-list">{(team.lines || []).map((line: any) => <button key={line.id} type="button" onClick={() => openLine(line)} className={selectedLine?.id === line.id ? 'active' : ''}><span className="provisional-line-logo">{line.logo_url ? <img src={line.logo_url} alt=""/> : String(line.tag || line.nome || 'L').slice(0, 2)}</span><span><strong>{line.nome}</strong><small>{line.tag || team.tag || 'Sem TAG'}</small></span><ChevronRight size={15}/></button>)}</div>
+            <div className="provisional-line-list">{(team.lines || []).map((line: any) => <button key={line.id} type="button" onClick={() => openLine(line, false)} className={selectedLine?.id === line.id ? 'active' : ''}><span className="provisional-line-logo">{line.logo_url ? <img src={line.logo_url} alt=""/> : String(line.tag || line.nome || 'L').slice(0, 2)}</span><span><strong>{line.nome}</strong><small>{line.tag || team.tag || 'Sem TAG'}</small></span><ChevronRight size={15}/></button>)}</div>
 
             {selectedLine ? <div className="provisional-line-editor">
               <div className="provisional-subhead"><div><strong>Editar line</strong><span>Nome, TAG e logo são da própria line e não alteram o histórico.</span></div></div>
@@ -272,11 +285,12 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
                 <label className="button secondary"><ImagePlus size={14}/>{busy === 'line-logo' ? 'Enviando...' : 'Logo da line'}<input type="file" accept="image/*" hidden onChange={(e) => void uploadLineLogo(e.target.files?.[0])}/></label>
                 {lineEdit.logo_url ? <span className="provisional-logo-preview"><img src={lineEdit.logo_url} alt="Prévia da logo da line"/></span> : null}
                 <button type="button" className="button secondary" disabled={busy === 'line-edit' || !String(lineEdit.nome || '').trim()} onClick={() => void saveLine()}><Save size={14}/> Salvar line</button>
+                <button type="button" className="button secondary" onClick={() => setRosterOpen((value) => !value)}><Users size={14}/> {rosterOpen ? 'Fechar jogadores' : 'Jogadores e convites'}</button>
                 <button type="button" className="button secondary provisional-danger" disabled={busy === 'line-archive'} onClick={() => void archiveLine()}><Archive size={14}/> Arquivar</button>
               </div>
             </div> : null}
 
-            {selectedLine && accessToken ? <LineRosterManager accessToken={accessToken} equipeId={team.id} line={selectedLine} compact onChanged={() => void load()} onBack={() => setSelectedLine(null)}/> : null}
+            {selectedLine && rosterOpen && accessToken ? <div className="provisional-roster-wrap"><LineRosterManager accessToken={accessToken} equipeId={team.id} line={selectedLine} compact onChanged={() => void load()} onBack={() => setRosterOpen(false)}/></div> : null}
           </div> : null}
 
           {managerTab === 'campeonatos' ? <div className="provisional-championships provisional-manager-section">
@@ -286,7 +300,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
               return <article key={participacao.id}>
                 <span className="provisional-championship-logo">{participacao.campeonato?.logo_url ? <img src={participacao.campeonato.logo_url} alt=""/> : 'C'}</span>
                 <div><strong>{participacao.campeonato?.nome || 'Campeonato'}</strong><small>{line ? `${line.nome}${line.tag ? ` · ${line.tag}` : ''}` : 'Line não identificada'}</small></div>
-                {line ? <button type="button" className="button secondary" onClick={() => openLine(line)}><Users size={14}/> Jogadores e convites</button> : null}
+                {line ? <button type="button" className="button secondary" onClick={() => openLine(line, true)}><Users size={14}/> Jogadores e convites</button> : null}
               </article>
             })}</div> : <div className="provisional-empty compact"><Trophy size={22}/><strong>Sem participação vinculada</strong><span>Quando uma line desta equipe entrar em campeonato, ela aparecerá aqui.</span></div>}
           </div> : null}
