@@ -25,3 +25,11 @@ test('card 4:5 preenche a capa sem bordas de contain', () => {
   const css = source('web/features/directory/components/championship-directory.css')
   expect(css).toContain('object-fit:cover;object-position:center')
 })
+
+
+test('proxy de mídia consegue servir bucket privado por URL assinada', () => {
+  const route = source('web/app/api/media/[bucket]/[...path]/route.ts')
+  expect(route).toContain("import { supabaseAdmin, supabaseUrl } from '@backend/shared/supabase-admin'")
+  expect(route).toContain("supabaseAdmin.storage.from(bucket).createSignedUrl(storagePath, 60)")
+  expect(route).toContain("upstream = await fetch(signed.signedUrl")
+})

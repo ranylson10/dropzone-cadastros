@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseUrl } from '@backend/shared/supabase-admin'
+import { supabaseAdmin, supabaseUrl } from '@backend/shared/supabase-admin'
 
 export const runtime = 'nodejs'
 
@@ -17,10 +17,21 @@ async function deliver(req: NextRequest, context: { params: Promise<{ bucket: st
   const objectPath = path.map(encodeURIComponent).join('/')
   const source = `${String(supabaseUrl).replace(/\/$/, '')}/storage/v1/object/public/${encodeURIComponent(bucket)}/${objectPath}`
   const range = req.headers.get('range')
-  const upstream = await fetch(source, {
+  let upstream = await fetch(source, {
     headers: range ? { Range: range } : undefined,
     next: { revalidate: CACHE_SECONDS },
   })
+
+  // Alguns buckets de mídia são intencionalmente privados no Storage. O app ainda
+  // pode exibir arquivos de perfil/vitrine porque esta rota restringe os buckets
+  // permitidos e assina somente o objeto solicitado, por poucos segundos.
+  if (!upstream.ok && upstream.status !== 206) {
+    const storagePath = path.join('/')
+    const { data: signed, error } = await supabaseAdmin.storage.from(bucket).createSignedUrl(storagePath, 60)
+    if (error || !signed?.signedUrl) return new NextResponse('Não encontrado.', { status: upstream.status || 404 })
+    upstream = await fetch(signed.signedUrl, { headers: range ? { Range: range } : undefined })
+  }
+
   if (!upstream.ok && upstream.status !== 206) return new NextResponse('Não encontrado.', { status: upstream.status })
 
   const headers = new Headers({
