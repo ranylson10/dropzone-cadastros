@@ -57,7 +57,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
       const { data: sessionData } = await supabase.auth.getSession()
       const accessToken = sessionData.session?.access_token
       if (!accessToken) throw new Error('Entre com sua conta para continuar.')
-      if (modo === 'incorporar' && !destinoId) throw new Error('Escolha a equipe que receberá a line histórica.')
+      if (modo === 'incorporar' && !destinoId) throw new Error('Escolha a equipe que receberá o histórico desta equipe.')
 
       const response = await fetch(`/api/equipes/reivindicacao/${encodeURIComponent(token)}`, {
         method: 'POST',
@@ -69,7 +69,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
 
       setSuccess(modo === 'assumir'
         ? 'Equipe vinculada à sua conta. O histórico competitivo foi preservado.'
-        : 'Line histórica incorporada à sua equipe. Campeonatos e estatísticas continuam ligados à mesma line.')
+        : 'Histórico incorporado à sua equipe. Lines, campeonatos e estatísticas foram preservados.')
       await load()
     } catch (cause: any) {
       setError(cause?.message || 'Não foi possível concluir a reivindicação.')
@@ -107,7 +107,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
           <span><small>Participações</small><strong>{data.participacoes || 0}</strong></span>
         </div>
 
-        {lineNames.length ? <p className="historical-team-lines">Line: <strong>{lineNames.join(', ')}</strong></p> : null}
+        {lineNames.length ? <p className="historical-team-lines">Lines: <strong>{lineNames.join(', ')}</strong></p> : null}
         {error ? <div className="message error">{error}</div> : null}
         {success ? <div className="message">{success}</div> : null}
 
@@ -121,7 +121,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
         ) : !hasTeam ? (
           <div className="historical-team-action">
             <h2>Assumir esta equipe</h2>
-            <p>Ela será vinculada ao seu login exatamente como está, incluindo a mesma line e todo o histórico existente.</p>
+            <p>Ela será vinculada ao seu login exatamente como está, incluindo suas lines, jogadores e todo o histórico existente.</p>
             <button className="button" type="button" disabled={submitting} onClick={() => void submit('assumir')}>
               {submitting ? <Loader2 className="spin" size={16} /> : <Check size={16} />} Assumir equipe
             </button>
@@ -129,7 +129,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
         ) : (
           <div className="historical-team-action">
             <h2>Você já possui equipe</h2>
-            <p>Você pode incorporar a line histórica a uma das suas equipes. A equipe provisória será encerrada, mas a line, os campeonatos e as estatísticas serão preservados.</p>
+            <p>Você pode incorporar o histórico desta equipe a uma das suas equipes. A equipe provisória será encerrada, mas suas lines, campeonatos, jogadores e estatísticas serão preservados.</p>
             <label className="field">
               <span>Equipe de destino</span>
               <select value={destinoId} onChange={(event) => setDestinoId(event.target.value)}>
@@ -137,7 +137,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
               </select>
             </label>
             <button className="button" type="button" disabled={submitting || !destinoId} onClick={() => void submit('incorporar')}>
-              {submitting ? <Loader2 className="spin" size={16} /> : <Users size={16} />} Incorporar line histórica
+              {submitting ? <Loader2 className="spin" size={16} /> : <Users size={16} />} Incorporar histórico da equipe
             </button>
             <a className="button secondary" href={buildLoginHref(null, returnTo, true)}>Usar outra conta</a>
           </div>

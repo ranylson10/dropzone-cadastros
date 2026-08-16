@@ -42,7 +42,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
       .from('equipe_lines')
       .select('id,nome,tag,logo_url,status')
       .eq('equipe_id', equipe.id)
-      .neq('status', 'arquivado')
+      .neq('status', 'inativo')
       .order('created_at')
     if (linesError) throw linesError
 
