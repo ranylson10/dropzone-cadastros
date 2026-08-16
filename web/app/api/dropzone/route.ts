@@ -449,15 +449,33 @@ function normalizeLeagueDivisions(value: unknown, grouping = 'Divisões') {
   if (value.length > 12) throw new Error('A liga aceita no máximo 12 agrupamentos.')
   const labels: Record<string, string> = { Séries: 'Série', Divisões: 'Divisão', Categorias: 'Categoria', Níveis: 'Nível', Conferências: 'Conferência', Circuitos: 'Circuito' }
   const baseLabel = labels[grouping] || String(grouping || 'Grupo').replace(/s$/i, '') || 'Grupo'
-  return value.map((item, index) => ({
-    id: String((item as any)?.id || crypto.randomUUID()).slice(0, 80),
-    nome: String((item as any)?.nome || '').trim().slice(0, 80) || `${baseLabel} ${index + 1}`,
-    codigo: String((item as any)?.codigo || '').trim().slice(0, 30),
-    ordem: index + 1,
-    equipes: String(Math.max(2, Math.min(200, Number((item as any)?.equipes || 12)))),
-    valor_inscricao: String(Math.max(0, Number((item as any)?.valor_inscricao || 0))),
-    premiacao: String(Math.max(0, Number((item as any)?.premiacao || 0))),
-  }))
+  const allowedEntryTypes = new Set(['mantida', 'promovida', 'rebaixada', 'classificatoria_aberta', 'vaga_paga', 'convite_direto'])
+  return value.map((item, index) => {
+    const id = String((item as any)?.id || crypto.randomUUID()).slice(0, 80)
+    const equipes = Math.max(2, Math.min(200, Number((item as any)?.equipes || 12)))
+    const rawEntries = Array.isArray((item as any)?.entradas) ? (item as any).entradas.slice(0, 12) : []
+    const entradas = rawEntries.map((entry: any) => {
+      const tipo = String(entry?.tipo || '').trim()
+      if (!allowedEntryTypes.has(tipo)) throw new Error('Forma de entrada inválida na Liga.')
+      const quantidade = Math.max(1, Math.min(equipes, Number(entry?.quantidade || 1)))
+      const origemAgrupamentoId = String(entry?.origem_agrupamento_id || '').trim().slice(0, 80)
+      if ((tipo === 'promovida' || tipo === 'rebaixada') && !origemAgrupamentoId) throw new Error('Promoção e rebaixamento precisam informar o agrupamento de origem.')
+      if (origemAgrupamentoId === id) throw new Error('Um agrupamento não pode usar a si mesmo como origem.')
+      return { id: String(entry?.id || crypto.randomUUID()).slice(0, 80), tipo, quantidade: String(quantidade), origem_agrupamento_id: origemAgrupamentoId }
+    })
+    const entryTotal = entradas.reduce((sum: number, entry: { quantidade: string }) => sum + Number(entry.quantidade || 0), 0)
+    if (entryTotal > equipes) throw new Error('As formas de entrada não podem ultrapassar o total de equipes do agrupamento.')
+    return {
+      id,
+      nome: String((item as any)?.nome || '').trim().slice(0, 80) || `${baseLabel} ${index + 1}`,
+      codigo: String((item as any)?.codigo || '').trim().slice(0, 30),
+      ordem: index + 1,
+      equipes: String(equipes),
+      valor_inscricao: String(Math.max(0, Number((item as any)?.valor_inscricao || 0))),
+      premiacao: String(Math.max(0, Number((item as any)?.premiacao || 0))),
+      entradas,
+    }
+  })
 }
 
 function normalizeHexColor(value: unknown, fallback: string) {

@@ -36,11 +36,12 @@ test.describe('Rodada 28 — Liga guiada por organização', () => {
     expect(form).toContain('[0, 1, 2].map')
   })
 
-  test('API persiste equipes inscrição e premiação em liga_divisoes', () => {
+  test('API persiste equipes inscrição premiação e formas de entrada em liga_divisoes', () => {
     const api = source('web/app/api/dropzone/route.ts')
-    expect(api).toContain('equipes: String(Math.max(2')
+    expect(api).toContain('equipes: String(equipes)')
     expect(api).toContain('valor_inscricao: String(Math.max(0')
     expect(api).toContain('premiacao: String(Math.max(0')
+    expect(api).toContain('entradas,')
   })
 
   test('edição recarrega os novos dados das séries', () => {

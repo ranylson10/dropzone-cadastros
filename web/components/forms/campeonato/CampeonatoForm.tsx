@@ -99,6 +99,12 @@ export type CampeonatoFormValue = {
     equipes: string
     valor_inscricao: string
     premiacao: string
+    entradas: Array<{
+      id: string
+      tipo: 'mantida' | 'promovida' | 'rebaixada' | 'classificatoria_aberta' | 'vaga_paga' | 'convite_direto'
+      quantidade: string
+      origem_agrupamento_id: string
+    }>
   }>
 }
 
@@ -233,6 +239,14 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
 
 
 const LEAGUE_GROUPING_OPTIONS = ['Séries', 'Divisões', 'Categorias', 'Níveis', 'Conferências', 'Circuitos'] as const
+const LEAGUE_ENTRY_OPTIONS = [
+  { value: 'mantida', label: 'Mantidas da temporada anterior' },
+  { value: 'promovida', label: 'Promovidas' },
+  { value: 'rebaixada', label: 'Rebaixadas' },
+  { value: 'classificatoria_aberta', label: 'Classificatória aberta' },
+  { value: 'vaga_paga', label: 'Vaga paga' },
+  { value: 'convite_direto', label: 'Convite direto' },
+] as const
 
 function leagueGroupingItemLabel(grouping: string, index: number) {
   const normalized = String(grouping || '').trim()
@@ -655,7 +669,7 @@ export function CampeonatoForm({
       liga_divisoes: type === 'liga'
         ? (value.liga_divisoes.length
             ? value.liga_divisoes
-            : [{ id: crypto.randomUUID(), nome: 'Série única', codigo: 'UNICA', ordem: 1, equipes: '12', valor_inscricao: '', premiacao: '' }])
+            : [{ id: crypto.randomUUID(), nome: 'Série única', codigo: 'UNICA', ordem: 1, equipes: '12', valor_inscricao: '', premiacao: '', entradas: [{ id: crypto.randomUUID(), tipo: 'classificatoria_aberta', quantidade: '12', origem_agrupamento_id: '' }] }])
         : [],
     })
     setStep('form')
@@ -783,6 +797,9 @@ export function CampeonatoForm({
         copied.numero_edicao = String(Math.max(2, editionNumber))
         copied.temporada = `Season ${Math.max(2, editionNumber)}`
         copied.titulo_publico = copied.nome
+        if (copied.tipo === 'liga') {
+          copied.liga_divisoes = copied.liga_divisoes.map((division) => ({ ...division, entradas: [] }))
+        }
       } else {
         copied.nome_historico = ''
         copied.numero_edicao = '1'
@@ -961,6 +978,7 @@ export function CampeonatoForm({
       equipes: '12',
       valor_inscricao: '',
       premiacao: '',
+      entradas: [{ id: crypto.randomUUID(), tipo: 'classificatoria_aberta', quantidade: '12', origem_agrupamento_id: '' }],
     }
   }
 
@@ -979,6 +997,7 @@ export function CampeonatoForm({
               equipes: '12',
               valor_inscricao: '',
               premiacao: '',
+              entradas: [{ id: crypto.randomUUID(), tipo: 'classificatoria_aberta' as const, quantidade: '12', origem_agrupamento_id: '' }],
             })))
       : [{
           id: value.liga_divisoes[0]?.id || crypto.randomUUID(),
@@ -988,6 +1007,9 @@ export function CampeonatoForm({
           equipes: value.liga_divisoes[0]?.equipes || '12',
           valor_inscricao: value.liga_divisoes[0]?.valor_inscricao || '',
           premiacao: value.liga_divisoes[0]?.premiacao || '',
+          entradas: value.liga_divisoes[0]?.entradas?.length
+            ? value.liga_divisoes[0].entradas
+            : [{ id: crypto.randomUUID(), tipo: 'classificatoria_aberta' as const, quantidade: value.liga_divisoes[0]?.equipes || '12', origem_agrupamento_id: '' }],
         }]
 
     onChange({
@@ -1021,12 +1043,51 @@ export function CampeonatoForm({
   }
 
   function updateLeagueDivision(id: string, patch: Partial<CampeonatoFormValue['liga_divisoes'][number]>) {
-    const divisions = value.liga_divisoes.map((division) => division.id === id ? { ...division, ...patch } : division)
+    const divisions = value.liga_divisoes.map((division) => {
+      if (division.id !== id) return division
+      const next = { ...division, ...patch }
+      if (patch.equipes !== undefined && division.entradas?.length === 1) {
+        next.entradas = [{ ...division.entradas[0], quantidade: patch.equipes }]
+      }
+      return next
+    })
     onChange({
       ...value,
       liga_divisoes: divisions,
       numero_vagas: String(divisions.reduce((sum, item) => sum + Math.max(0, Number(item.equipes || 0)), 0)),
     })
+  }
+
+  function leagueEntryTotal(division: CampeonatoFormValue['liga_divisoes'][number]) {
+    return (division.entradas || []).reduce((sum, entry) => sum + Math.max(0, Number(entry.quantidade || 0)), 0)
+  }
+
+  function addLeagueEntry(divisionId: string) {
+    const division = value.liga_divisoes.find((item) => item.id === divisionId)
+    if (!division) return
+    const used = new Set((division.entradas || []).map((entry) => entry.tipo))
+    const nextType = LEAGUE_ENTRY_OPTIONS.find((option) => !used.has(option.value))?.value || 'convite_direto'
+    updateLeagueDivision(divisionId, {
+      entradas: [...(division.entradas || []), { id: crypto.randomUUID(), tipo: nextType, quantidade: '1', origem_agrupamento_id: '' }],
+    })
+  }
+
+  function updateLeagueEntry(divisionId: string, entryId: string, patch: Partial<CampeonatoFormValue['liga_divisoes'][number]['entradas'][number]>) {
+    const division = value.liga_divisoes.find((item) => item.id === divisionId)
+    if (!division) return
+    const entries = (division.entradas || []).map((entry) => {
+      if (entry.id !== entryId) return entry
+      const next = { ...entry, ...patch }
+      if (patch.tipo && patch.tipo !== 'promovida' && patch.tipo !== 'rebaixada') next.origem_agrupamento_id = ''
+      return next
+    })
+    updateLeagueDivision(divisionId, { entradas: entries })
+  }
+
+  function removeLeagueEntry(divisionId: string, entryId: string) {
+    const division = value.liga_divisoes.find((item) => item.id === divisionId)
+    if (!division) return
+    updateLeagueDivision(divisionId, { entradas: (division.entradas || []).filter((entry) => entry.id !== entryId) })
   }
 
   function removeLeagueDivision(id: string) {
@@ -1172,6 +1233,14 @@ export function CampeonatoForm({
       if (value.liga_divisoes.some((division) => Number(division.equipes || 0) < 2)) return setWizardError('Cada agrupamento precisa ter pelo menos 2 equipes.')
       const leagueNames = value.liga_divisoes.map((division) => division.nome.trim().toLocaleLowerCase('pt-BR'))
       if (new Set(leagueNames).size !== leagueNames.length) return setWizardError('Os agrupamentos da Liga não podem ter nomes repetidos.')
+      for (const division of value.liga_divisoes) {
+        const entries = division.entradas || []
+        if (!entries.length) return setWizardError(`Defina como as equipes entram em ${division.nome}.`)
+        if (entries.some((entry) => Number(entry.quantidade || 0) < 1)) return setWizardError(`Todas as origens de ${division.nome} precisam ter pelo menos 1 equipe.`)
+        if (leagueEntryTotal(division) !== Number(division.equipes || 0)) return setWizardError(`${division.nome} precisa distribuir exatamente ${division.equipes} equipes entre as formas de entrada.`)
+        if (entries.some((entry) => (entry.tipo === 'promovida' || entry.tipo === 'rebaixada') && !entry.origem_agrupamento_id)) return setWizardError(`Informe o agrupamento de origem das equipes promovidas ou rebaixadas em ${division.nome}.`)
+        if (entries.some((entry) => entry.origem_agrupamento_id === division.id)) return setWizardError(`${division.nome} não pode usar o próprio agrupamento como origem.`)
+      }
     }
     if (formPage === 'format' && value.tipo === 'xtreino') {
       if (Number(value.numero_vagas || 0) < 2 || Number(value.numero_vagas || 0) > 15) return setWizardError('O Xtreino precisa ter entre 2 e 15 equipes por sala.')
@@ -1848,6 +1917,37 @@ export function CampeonatoForm({
                     </Field>
                   </div>
 
+                  <details className="championship-league-entry-plan">
+                    <summary>
+                      <span>Entrada das equipes</span>
+                      <strong>{leagueEntryTotal(division)}/{division.equipes || '0'} definidas</strong>
+                    </summary>
+                    <div className="championship-league-entry-list">
+                      {(division.entradas || []).map((entry) => (
+                        <div className="championship-league-entry-row" key={entry.id}>
+                          <Field label="Forma de entrada">
+                            <select value={entry.tipo} onChange={(event) => updateLeagueEntry(division.id, entry.id, { tipo: event.target.value as typeof entry.tipo })}>
+                              {LEAGUE_ENTRY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            </select>
+                          </Field>
+                          <Field label="Equipes">
+                            <input type="number" min="1" max={division.equipes || '200'} value={entry.quantidade} onChange={(event) => updateLeagueEntry(division.id, entry.id, { quantidade: event.target.value })} />
+                          </Field>
+                          {(entry.tipo === 'promovida' || entry.tipo === 'rebaixada') ? (
+                            <Field label="Agrupamento de origem">
+                              <select value={entry.origem_agrupamento_id} onChange={(event) => updateLeagueEntry(division.id, entry.id, { origem_agrupamento_id: event.target.value })}>
+                                <option value="">Selecione</option>
+                                {value.liga_divisoes.filter((item) => item.id !== division.id).map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
+                              </select>
+                            </Field>
+                          ) : <div />}
+                          <button type="button" className="icon-action-button danger" onClick={() => removeLeagueEntry(division.id, entry.id)} aria-label={`Remover forma de entrada de ${division.nome}`}><Trash2 size={14} /></button>
+                        </div>
+                      ))}
+                      <button type="button" className="button secondary championship-league-entry-add" onClick={() => addLeagueEntry(division.id)}><Plus size={14} /> Adicionar forma de entrada</button>
+                    </div>
+                  </details>
+
                   {value.liga_usa_divisoes ? (
                     <button
                       type="button"
@@ -2481,7 +2581,7 @@ export function CampeonatoForm({
                 </div>
                 <div className="championship-review-wide">
                   <small>{value.liga_usa_divisoes ? (value.liga_nome_agrupamento || 'Agrupamentos') : 'Série'}</small>
-                  <strong>{value.liga_divisoes.map((division) => `${division.nome} · ${division.equipes} equipes`).join(' | ')}</strong>
+                  <strong>{value.liga_divisoes.map((division) => `${division.nome} · ${division.equipes} equipes · ${leagueEntryTotal(division)}/${division.equipes} entradas`).join(' | ')}</strong>
                 </div>
               </>
             ) : null}

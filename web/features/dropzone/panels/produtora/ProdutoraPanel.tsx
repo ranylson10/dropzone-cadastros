@@ -771,6 +771,14 @@ export function ProdutoraPanel(props: {
             equipes: String(division?.equipes || '12'),
             valor_inscricao: String(division?.valor_inscricao || ''),
             premiacao: String(division?.premiacao || ''),
+            entradas: Array.isArray(division?.entradas)
+              ? division.entradas.map((entry: any, entryIndex: number) => ({
+                  id: String(entry?.id || `entry-${entryIndex + 1}`),
+                  tipo: String(entry?.tipo || 'classificatoria_aberta') as any,
+                  quantidade: String(entry?.quantidade || '1'),
+                  origem_agrupamento_id: String(entry?.origem_agrupamento_id || ''),
+                }))
+              : [],
           }))
         : [],
     }
