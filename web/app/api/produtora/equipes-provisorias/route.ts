@@ -105,6 +105,7 @@ export async function PATCH(req: NextRequest) {
     }
     if (body.email_contato !== undefined) patch.email_contato = String(body.email_contato || '').trim() || null
     if (patch.nome === null) throw new Error('Nome da equipe é obrigatório.')
+    if (patch.tag === null) throw new Error('TAG da equipe é obrigatória.')
     if (patch.tag) patch.tag = String(patch.tag).toUpperCase()
 
     const { data, error } = await supabaseAdmin.from('equipes').update(patch).eq('id', equipeId).is('auth_user_id', null).is('dono_auth_user_id', null).select('*').single()
