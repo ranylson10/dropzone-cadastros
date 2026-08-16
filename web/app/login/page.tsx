@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { ArrowRight, Loader2, LogOut, Plus, ShieldCheck, UserRound } from 'lucide-react'
+import { ArrowRight, Loader2, LogOut, Mail, Plus, ShieldCheck, UserRound } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { supabase } from '@/lib/supabase-browser'
@@ -30,6 +30,7 @@ const profileDescriptions: Record<ProfileType, string> = {
 const PROFILE_TYPES: ProfileType[] = ['produtora', 'equipe', 'jogador', 'manager', 'broadcast']
 
 type LoginStage = 'checking' | 'authenticate' | 'profiles'
+type EmailMode = 'entrar' | 'criar' | 'recuperar' | 'confirmacao-enviada' | 'recuperacao-enviada'
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -39,13 +40,75 @@ function profileImage(profile: DropZoneRow) {
   return String(profile.data?.logo_url || profile.data?.avatar_url || '')
 }
 
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function passwordIssue(password: string) {
+  if (password.length < 8) return 'Use pelo menos 8 caracteres.'
+  if (!/[a-z]/.test(password)) return 'Inclua pelo menos uma letra minúscula.'
+  if (!/[A-Z]/.test(password)) return 'Inclua pelo menos uma letra maiúscula.'
+  if (!/\d/.test(password)) return 'Inclua pelo menos um número.'
+  return ''
+}
+
+function friendlyAuthError(message: string) {
+  if (/invalid login credentials/i.test(message)) return 'E-mail ou senha incorretos.'
+  if (/email not confirmed/i.test(message)) return 'Confirme seu e-mail antes de entrar.'
+  if (/user already registered|already registered/i.test(message)) return 'Este e-mail já possui uma conta. Entre ou recupere sua senha.'
+  if (/password should be at least/i.test(message)) return 'A senha não atende aos requisitos de segurança.'
+  if (/rate limit|too many requests/i.test(message)) return 'Muitas tentativas. Aguarde um pouco e tente novamente.'
+  return message || 'Não foi possível concluir a autenticação.'
+}
+
+async function loadAccounts(currentSession: Session) {
+  let lastError = 'Não foi possível carregar seus perfis.'
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const response = await fetch('/api/me', {
+      headers: { Authorization: `Bearer ${currentSession.access_token}` },
+      cache: 'no-store',
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (response.ok || response.status === 404) {
+      const rows = Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : []
+      return rows as DropZoneRow[]
+    }
+    if (response.status === 401 && /conta nao encontrada|conta não encontrada/i.test(String(payload.error || ''))) {
+      return [] as DropZoneRow[]
+    }
+    lastError = payload.error || lastError
+    if (![401, 429, 500, 502, 503, 504].includes(response.status)) break
+    await wait(700 + attempt * 900)
+  }
+  throw new Error(lastError)
+}
+
+async function checkAdmin(currentSession: Session) {
+  try {
+    const response = await fetch('/api/admin/session', {
+      headers: { Authorization: `Bearer ${currentSession.access_token}` },
+      cache: 'no-store',
+    })
+    const payload = await response.json().catch(() => ({}))
+    return Boolean(payload.isAdmin)
+  } catch {
+    return false
+  }
+}
+
 export default function LoginPage() {
   const [stage, setStage] = useState<LoginStage>('checking')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [session, setSession] = useState<Session | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [openingProfile, setOpeningProfile] = useState<string | null>(null)
+  const [emailMode, setEmailMode] = useState<EmailMode>('entrar')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [emailLoading, setEmailLoading] = useState(false)
   const [params, setParams] = useState({
     returnTo: '/',
     profileType: null as ReturnType<typeof parseProfileType>,
@@ -54,49 +117,25 @@ export default function LoginPage() {
 
   const accountName = useMemo(() => {
     const metadata = session?.user?.user_metadata || {}
-    return String(metadata.full_name || metadata.name || session?.user?.email || 'Conta Google')
+    return String(metadata.full_name || metadata.name || session?.user?.email || 'Conta DropZone')
   }, [session])
+
+  async function openAuthenticatedSession(currentSession: Session) {
+    const [userAccounts, adminAccess] = await Promise.all([
+      loadAccounts(currentSession),
+      checkAdmin(currentSession),
+    ])
+    setSession(currentSession)
+    setAccounts(userAccounts)
+    setIsAdmin(adminAccess)
+    setStage('profiles')
+  }
 
   useEffect(() => {
     let active = true
     const safetyTimer = window.setTimeout(() => {
       if (active) setStage('authenticate')
     }, 12000)
-
-    async function loadAccounts(currentSession: Session) {
-      let lastError = 'Não foi possível carregar seus perfis.'
-      for (let attempt = 0; attempt < 4; attempt += 1) {
-        const response = await fetch('/api/me', {
-          headers: { Authorization: `Bearer ${currentSession.access_token}` },
-          cache: 'no-store',
-        })
-        const payload = await response.json().catch(() => ({}))
-        if (response.ok || response.status === 404) {
-          const rows = Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : []
-          return rows as DropZoneRow[]
-        }
-        if (response.status === 401 && /conta nao encontrada|conta não encontrada|conta não encontrada/i.test(String(payload.error || ''))) {
-          return [] as DropZoneRow[]
-        }
-        lastError = payload.error || lastError
-        if (![401, 429, 500, 502, 503, 504].includes(response.status)) break
-        await wait(700 + attempt * 900)
-      }
-      throw new Error(lastError)
-    }
-
-    async function checkAdmin(currentSession: Session) {
-      try {
-        const response = await fetch('/api/admin/session', {
-          headers: { Authorization: `Bearer ${currentSession.access_token}` },
-          cache: 'no-store',
-        })
-        const payload = await response.json().catch(() => ({}))
-        return Boolean(payload.isAdmin)
-      } catch {
-        return false
-      }
-    }
 
     async function initialize() {
       const search = new URLSearchParams(window.location.search)
@@ -113,7 +152,11 @@ export default function LoginPage() {
       const profileType = parseProfileType(search.get('profileType')) || parseProfileType(storedProfile)
       const switchAccount = search.get('switch') === '1'
       const complete = search.get('complete') === '1'
-      if (active) setParams({ returnTo, profileType, switchAccount })
+      const passwordUpdated = search.get('passwordUpdated') === '1'
+      if (active) {
+        setParams({ returnTo, profileType, switchAccount })
+        if (passwordUpdated) setNotice('Senha atualizada. Entre com seu e-mail e a nova senha.')
+      }
 
       if (complete) {
         try {
@@ -170,7 +213,7 @@ export default function LoginPage() {
         const currentSession = await waitForCompleteSession()
 
         if (!currentSession) {
-          if (complete) throw new Error('Não consegui confirmar sua sessão após o Google. Toque em entrar novamente e aguarde a página terminar de carregar.')
+          if (complete) throw new Error('Não consegui confirmar sua sessão após a autenticação. Entre novamente e aguarde a página terminar de carregar.')
           if (active) setStage('authenticate')
           return
         }
@@ -201,6 +244,98 @@ export default function LoginPage() {
     }
   }, [])
 
+  async function handleEmailAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (emailMode === 'confirmacao-enviada' || emailMode === 'recuperacao-enviada') return
+
+    setEmailLoading(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const normalizedEmail = normalizeEmail(email)
+      if (!normalizedEmail || !normalizedEmail.includes('@')) throw new Error('Informe um e-mail válido.')
+
+      if (emailMode === 'entrar') {
+        if (!password) throw new Error('Informe sua senha.')
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        })
+        if (signInError || !data.session) throw new Error(friendlyAuthError(signInError?.message || 'Sessão não criada.'))
+        await openAuthenticatedSession(data.session)
+        return
+      }
+
+      if (emailMode === 'criar') {
+        const issue = passwordIssue(password)
+        if (issue) throw new Error(issue)
+        if (password !== confirmPassword) throw new Error('A confirmação da senha não confere.')
+
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/login?complete=1`,
+          },
+        })
+        if (signUpError) throw new Error(friendlyAuthError(signUpError.message))
+
+        if (data.session) {
+          await openAuthenticatedSession(data.session)
+          return
+        }
+
+        setEmail(normalizedEmail)
+        setEmailMode('confirmacao-enviada')
+        setNotice(`Enviamos a confirmação para ${normalizedEmail}. Abra o e-mail para ativar sua conta.`)
+        return
+      }
+
+      if (emailMode === 'recuperar') {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+          redirectTo: `${window.location.origin}/atualizar-senha`,
+        })
+        if (resetError) throw new Error(friendlyAuthError(resetError.message))
+        setEmail(normalizedEmail)
+        setEmailMode('recuperacao-enviada')
+        setNotice(`Se existe uma conta com ${normalizedEmail}, enviamos o link para redefinir a senha.`)
+      }
+    } catch (cause: unknown) {
+      setError(friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível concluir a autenticação.'))
+    } finally {
+      setEmailLoading(false)
+    }
+  }
+
+  async function resendConfirmation() {
+    setEmailLoading(true)
+    setError('')
+    setNotice('')
+    try {
+      const normalizedEmail = normalizeEmail(email)
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: normalizedEmail,
+        options: { emailRedirectTo: `${window.location.origin}/login?complete=1` },
+      })
+      if (resendError) throw resendError
+      setNotice(`Novo e-mail de confirmação enviado para ${normalizedEmail}.`)
+    } catch (cause: unknown) {
+      setError(friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível reenviar a confirmação.'))
+    } finally {
+      setEmailLoading(false)
+    }
+  }
+
+  function changeEmailMode(nextMode: EmailMode) {
+    setEmailMode(nextMode)
+    setPassword('')
+    setConfirmPassword('')
+    setError('')
+    setNotice('')
+  }
+
   function openProfile(profile: DropZoneRow) {
     if (!profile.profile_type) return
     setOpeningProfile(profile.id)
@@ -222,13 +357,24 @@ export default function LoginPage() {
     window.location.assign(`/?${next.toString()}`)
   }
 
-  async function changeGoogleAccount() {
+  async function changeAccount() {
     await signOutEverywhere().catch(() => undefined)
     setSession(null)
     setAccounts([])
     setIsAdmin(false)
+    setEmailMode('entrar')
+    setPassword('')
+    setConfirmPassword('')
     setStage('authenticate')
   }
+
+  const authTitle = emailMode === 'criar'
+    ? 'CRIE SUA CONTA'
+    : emailMode === 'recuperar' || emailMode === 'recuperacao-enviada'
+      ? 'RECUPERE SUA SENHA'
+      : emailMode === 'confirmacao-enviada'
+        ? 'CONFIRME SEU E-MAIL'
+        : 'ENTRE COM SUA CONTA'
 
   return (
     <AppShell header="never" withAuthOffset={false} mainClassName="login-portal" activeLabel="Início">
@@ -245,7 +391,7 @@ export default function LoginPage() {
           <div className="login-portal-copy">
             <span className="login-portal-kicker">Acesso competitivo centralizado</span>
             <h1>ENTRE. ESCOLHA SEU PERFIL. COMPITA.</h1>
-            <p>Uma única conta Google conecta todos os seus perfis no DropZone. Depois da autenticação, você escolhe exatamente onde deseja entrar.</p>
+            <p>Uma única conta conecta todos os seus perfis no DropZone. Entre com Google ou e-mail e escolha exatamente onde deseja acessar.</p>
           </div>
 
           <div className="login-portal-panel">
@@ -260,11 +406,101 @@ export default function LoginPage() {
             {stage === 'authenticate' ? (
               <div className="login-auth-step">
                 <span className="login-panel-step">PASSO 01</span>
-                <h2>ENTRE COM SUA CONTA</h2>
-                <p>Use o Google para confirmar sua identidade. Nenhum tipo de perfil precisa ser escolhido agora.</p>
-                <SocialLogin profileType={null} returnTo={params.returnTo} />
-                <div className="login-security-note"><ShieldCheck size={16} /><span>Autenticação segura. Seus perfis aparecem somente depois do login.</span></div>
+                <h2>{authTitle}</h2>
+                <p>
+                  {emailMode === 'criar'
+                    ? 'Cadastre seu e-mail. Depois da confirmação, você escolhe e cria seu primeiro perfil DropZone.'
+                    : emailMode === 'recuperar' || emailMode === 'recuperacao-enviada'
+                      ? 'Informe o e-mail da sua conta para receber o link de recuperação.'
+                      : emailMode === 'confirmacao-enviada'
+                        ? 'Sua conta foi criada e aguarda a confirmação do endereço de e-mail.'
+                        : 'Use Google ou e-mail para confirmar sua identidade. O perfil é escolhido depois do login.'}
+                </p>
+
+                {emailMode === 'entrar' ? (
+                  <>
+                    <SocialLogin profileType={null} returnTo={params.returnTo} />
+                    <div className="login-auth-divider"><span>ou</span></div>
+                  </>
+                ) : null}
+
+                <form className="login-email-form" onSubmit={handleEmailAuth}>
+                  {emailMode !== 'confirmacao-enviada' && emailMode !== 'recuperacao-enviada' ? (
+                    <label className="login-email-field">
+                      <span>E-mail</span>
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        inputMode="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="voce@email.com"
+                        required
+                      />
+                    </label>
+                  ) : (
+                    <div className="login-email-sent"><Mail size={22} /><strong>{email}</strong></div>
+                  )}
+
+                  {emailMode === 'entrar' || emailMode === 'criar' ? (
+                    <label className="login-email-field">
+                      <span>Senha</span>
+                      <input
+                        type="password"
+                        autoComplete={emailMode === 'criar' ? 'new-password' : 'current-password'}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="Sua senha"
+                        required
+                      />
+                    </label>
+                  ) : null}
+
+                  {emailMode === 'criar' ? (
+                    <>
+                      <label className="login-email-field">
+                        <span>Confirmar senha</span>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          value={confirmPassword}
+                          onChange={(event) => setConfirmPassword(event.target.value)}
+                          placeholder="Repita a senha"
+                          required
+                        />
+                      </label>
+                      <small className="login-password-hint">Mínimo de 8 caracteres, com letra minúscula, maiúscula e número.</small>
+                    </>
+                  ) : null}
+
+                  {emailMode === 'entrar' ? (
+                    <button type="button" className="login-email-link forgot" onClick={() => changeEmailMode('recuperar')}>Esqueci minha senha</button>
+                  ) : null}
+
+                  {emailMode === 'confirmacao-enviada' ? (
+                    <button type="button" className="login-email-primary" disabled={emailLoading} onClick={() => void resendConfirmation()}>
+                      {emailLoading ? <Loader2 className="spin" size={16} /> : null}
+                      Reenviar confirmação
+                    </button>
+                  ) : emailMode === 'recuperacao-enviada' ? null : (
+                    <button type="submit" className="login-email-primary" disabled={emailLoading}>
+                      {emailLoading ? <Loader2 className="spin" size={16} /> : null}
+                      {emailMode === 'criar' ? 'Criar conta com e-mail' : emailMode === 'recuperar' ? 'Enviar link de recuperação' : 'Entrar com e-mail'}
+                    </button>
+                  )}
+                </form>
+
+                <div className="login-email-switch">
+                  {emailMode === 'entrar' ? (
+                    <button type="button" onClick={() => changeEmailMode('criar')}>Ainda não tem conta? <strong>Criar conta</strong></button>
+                  ) : (
+                    <button type="button" onClick={() => changeEmailMode('entrar')}>← Voltar para entrar</button>
+                  )}
+                </div>
+
+                {notice ? <div className="message">{notice}</div> : null}
                 {error ? <div className="message error">{error}</div> : null}
+                <div className="login-security-note"><ShieldCheck size={16} /><span>Autenticação segura pelo Supabase. Confirmações e recuperações são enviadas pelo e-mail oficial do DropZone.</span></div>
               </div>
             ) : null}
 
@@ -276,7 +512,7 @@ export default function LoginPage() {
                     <h2>ESCOLHA SEU PERFIL</h2>
                     <p>Conta autenticada como <strong>{accountName}</strong></p>
                   </div>
-                  <button type="button" className="login-change-account" onClick={() => void changeGoogleAccount()}>
+                  <button type="button" className="login-change-account" onClick={() => void changeAccount()}>
                     <LogOut size={15} /> Trocar conta
                   </button>
                 </div>

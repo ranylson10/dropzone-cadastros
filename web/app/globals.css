@@ -5596,6 +5596,39 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .login-auth-step .social-login-stack{ margin-top: 28px;
 } .login-auth-step .social-login-button{ width: 100%; min-height: 56px; border: 0; border-radius: 0; background: var(--dz-accent, #ff5468); color: #fff; justify-content: center; font-size: 13px; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; box-shadow: none;
 } .login-auth-step .social-login-button:hover{ background: #e7485b; transform: translateY(-2px);
+} .login-auth-divider{ display: flex; align-items: center; gap: 10px; margin: 18px 0; color: #8a9098; font-size: 9px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+} .login-auth-divider::before,
+.login-auth-divider::after{ content: ""; height: 1px; flex: 1; background: #d9d5cd;
+} .login-email-form{ display: grid; gap: 12px;
+} .login-email-field{ display: grid; gap: 6px;
+} .login-email-field > span{ color: #4d5661; font-size: 9px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase;
+} .login-email-field input{ width: 100%; min-height: 48px; border: 1px solid #d9d5cd; border-radius: 0; background: #fff; color: #151a22; padding: 0 13px; font: inherit; font-size: 13px; outline: none;
+} .login-email-field input:focus{ border-color: var(--dz-accent, #ff5468);
+} .login-email-primary{ min-height: 50px; border: 0; border-radius: 0; background: #151a22; color: #fff; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; font-size: 11px; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+} .login-email-primary:hover{ background: var(--dz-accent, #ff5468);
+} .login-email-primary:disabled{ cursor: wait; opacity: .65;
+} .login-email-link{ width: max-content; border: 0; background: transparent; color: #5f6873; padding: 0; font-size: 10px; font-weight: 850; cursor: pointer;
+} .login-email-link:hover{ color: var(--dz-accent, #ff5468);
+} .login-email-switch{ margin-top: 14px; text-align: center;
+} .login-email-switch button{ border: 0; background: transparent; color: #5f6873; padding: 4px 0; font-size: 10px; cursor: pointer;
+} .login-email-switch button strong{ color: var(--dz-accent, #ff5468);
+} .login-password-hint{ margin-top: -3px; color: #7a818a; font-size: 9px; line-height: 1.45;
+} .login-email-sent{ min-height: 62px; display: flex; align-items: center; gap: 10px; background: #fff; border-left: 3px solid var(--dz-accent, #ff5468); padding: 12px 14px; color: #20262f;
+} .login-email-sent svg{ color: var(--dz-accent, #ff5468);
+} .login-email-sent strong{ min-width: 0; overflow-wrap: anywhere; font-size: 12px;
+} .login-auth-step > .message{ margin-top: 14px;
+} .password-reset-stage{ grid-template-columns: 1fr;
+} .password-reset-card{ position: relative; z-index: 1; width: min(480px, 100%); display: grid; gap: 16px; padding: clamp(28px, 5vw, 46px); border-top: 6px solid var(--dz-accent, #ff5468); background: rgba(247,244,238,.98); color: #151a22; box-shadow: 0 36px 90px rgba(0,0,0,.3);
+} .password-reset-card h1{ margin: -2px 0 4px; font-size: clamp(30px, 4vw, 44px); line-height: .96; letter-spacing: -.035em;
+} .password-reset-success,
+.password-reset-invalid{ min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; color: #5f6873;
+} .password-reset-success svg,
+.password-reset-invalid svg{ color: var(--dz-accent, #ff5468);
+} .password-reset-success strong,
+.password-reset-invalid strong{ color: #151a22; font-size: 16px; text-transform: uppercase;
+} .password-reset-success span,
+.password-reset-invalid span{ font-size: 11px;
+} .password-reset-invalid a{ margin-top: 6px; color: var(--dz-accent, #ff5468); font-size: 10px; font-weight: 900; text-transform: uppercase; text-decoration: none;
 } .login-security-note{ margin-top: 18px; display: flex; align-items: flex-start; gap: 8px; color: #69717c; font-size: 11px; line-height: 1.45;
 } .login-security-note svg{ flex: 0 0 auto; color: var(--dz-accent, #ff5468);
 } .login-profile-step{ width: 100%; padding: clamp(28px, 4vw, 52px); max-height: min(82vh, 760px); overflow-y: auto;
