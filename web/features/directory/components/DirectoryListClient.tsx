@@ -4,6 +4,7 @@ import { ChevronRight, Flame, Heart, Radio, Search, ShoppingCart, SlidersHorizon
 import { useEffect, useMemo, useState } from 'react'
 import { addToCart, getCartItems, getWishlistItems, removeFromCart, setCartQuantity, toggleWishlist, type LocalCommerceItem } from '@/features/commerce/local-commerce'
 import { supabase } from '@/lib/supabase-browser'
+import { cachedStorageMediaUrl } from '@/lib/upload-public'
 import type { DirectoryItem } from '../types'
 
 function getMetaLabels(items: DirectoryItem[]) {
@@ -160,6 +161,7 @@ function ChampionshipCards({
         const hasPrize = Number(item.commercial?.premiacao || 0) > 0
         const isMine = myChampionshipIds.has(item.id)
         const isInCart = cartIds.has(item.id)
+        const coverUrl = cachedStorageMediaUrl(item.banner || item.image || '')
         return (
           <article className="directory-champ-card" key={item.id}>
             <a
@@ -168,7 +170,7 @@ function ChampionshipCards({
               aria-label={`Abrir ${item.name}`}
             >
               <span className="directory-champ-cover-empty" aria-hidden="true">
-                {item.banner || item.image ? <img src={item.banner || item.image} alt="" loading="lazy" decoding="async" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}
+                {coverUrl ? <img src={coverUrl} alt="" loading="lazy" decoding="async" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}
               </span>
               <span className="directory-champ-badges">
                 {item.commercial?.tem_live ? <b><Radio size={11} /> Live</b> : null}

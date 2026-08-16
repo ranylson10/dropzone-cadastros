@@ -430,7 +430,7 @@
 .directory-market-page .directory-champ-card:hover{background:var(--champ-surface);border-color:rgba(201,183,102,.6);transform:translateY(-2px)}
 .directory-market-page .directory-champ-cover{position:absolute;inset:0;display:block;width:auto;height:auto;min-height:0;background:var(--champ-surface)}
 .directory-market-page .directory-champ-cover-empty{position:absolute;inset:0;display:grid;width:auto;height:auto;padding:0;border:0;border-radius:0;background:var(--champ-surface)}
-.directory-market-page .directory-champ-cover-empty img{display:block;width:100%;height:100%;object-fit:contain;background:var(--champ-surface)}
+.directory-market-page .directory-champ-cover-empty img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;background:var(--champ-surface)}
 .directory-market-page .directory-champ-cover-empty b{width:100%;height:100%;font-size:28px;background:linear-gradient(145deg,#252117,#101113);color:var(--champ-accent-strong)}
 .directory-market-page .directory-champ-cover-empty::after,.directory-market-page .directory-champ-badges{display:none}
 .directory-market-page .directory-champ-body{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:18px;background:linear-gradient(180deg,rgba(9,10,12,0) 28%,rgba(9,10,12,.32) 48%,rgba(9,10,12,.96) 100%)}
