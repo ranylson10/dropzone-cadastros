@@ -17,10 +17,20 @@ import {
 import { SystemModal } from '@/components/layout/SystemModal'
 import { useCampeonatoEquipes } from '../hooks/useCampeonatoEquipes'
 import { campeonatoEquipesService } from '../services/campeonato-equipes.service'
-import type { CampeonatoVaga, EquipeBusca } from '../types/campeonato-equipes.types'
+import type { CampeonatoVaga, EquipeBusca, LigaEntradaTipo } from '../types/campeonato-equipes.types'
 import '../campeonato-equipes.css'
 
 type FiltroVaga = 'todas' | 'livre' | 'reservada' | 'ocupada'
+
+
+const LIGA_ENTRY_LABELS: Record<LigaEntradaTipo, string> = {
+  mantida: 'Mantida',
+  promovida: 'Promovida',
+  rebaixada: 'Rebaixada',
+  classificatoria_aberta: 'Classificatória aberta',
+  vaga_paga: 'Vaga paga',
+  convite_direto: 'Convite direto',
+}
 
 const FILTROS: Array<{ value: FiltroVaga; label: string }> = [
   { value: 'todas', label: 'Todas' },
@@ -79,6 +89,8 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
   const [processando, setProcessando] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [linkGerado, setLinkGerado] = useState('')
+  const [origemEntrada, setOrigemEntrada] = useState<LigaEntradaTipo | ''>('')
+  const [preparandoLiga, setPreparandoLiga] = useState(false)
 
   const stats = useMemo(() => {
     const vagas = data?.vagas || []
@@ -133,6 +145,53 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     return [...groups.values()]
   }, [vagasFiltradas])
 
+  const ligaDivisaoAlvo = useMemo(() => {
+    if (!data?.liga || !vagaAlvo?.grupo?.nome) return null
+    const target = vagaAlvo.grupo.nome.trim().toLocaleLowerCase('pt-BR')
+    return data.liga.divisoes.find((item) => item.nome.trim().toLocaleLowerCase('pt-BR') === target) || null
+  }, [data?.liga, vagaAlvo?.grupo?.nome])
+
+  function ligaDivisionForGroup(groupName: string) {
+    const target = groupName.trim().toLocaleLowerCase('pt-BR')
+    return data?.liga?.divisoes.find((item) => item.nome.trim().toLocaleLowerCase('pt-BR') === target) || null
+  }
+
+  function origemBase(value?: string | null) {
+    return String(value || '').replace(/^liga_/, '') as LigaEntradaTipo
+  }
+
+  function origemLabel(value?: string | null) {
+    const base = origemBase(value)
+    return LIGA_ENTRY_LABELS[base] || String(value || '').replace(/^liga_/, '').replaceAll('_', ' ')
+  }
+
+  function ligaOriginUsed(tipo: LigaEntradaTipo) {
+    if (!vagaAlvo?.grupo_id) return 0
+    return (data?.vagas || []).filter((vaga) => vaga.grupo_id === vagaAlvo.grupo_id && vaga.status === 'ocupada' && origemBase(vaga.campeonato_equipe?.origem_entrada) === tipo).length
+  }
+
+  async function prepararEstruturaLiga() {
+    if (!data?.liga?.divisoes.length) return
+    setPreparandoLiga(true)
+    setFeedback('')
+    try {
+      await campeonatoEquipesService.prepararLiga(campeonatoId, {
+        action: 'create_bulk',
+        fases: [{
+          nome: 'Liga',
+          ordem: 1,
+          grupos: data.liga.divisoes.map((division) => ({ nome: division.nome, slots: Number(division.equipes || 0) })),
+        }],
+      })
+      await reload()
+      setFeedback('Agrupamentos da Liga preparados. Agora escolha as equipes de cada origem.')
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Erro ao preparar agrupamentos da Liga.')
+    } finally {
+      setPreparandoLiga(false)
+    }
+  }
+
   function fechar() {
     setVagaAlvo(null)
     setModo(null)
@@ -146,6 +205,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     setFixarSlot(true)
     setFeedback('')
     setLinkGerado('')
+    setOrigemEntrada('')
   }
 
   function abrirModal(vaga: CampeonatoVaga, proximoModo: 'adicionar' | 'convite') {
@@ -154,6 +214,17 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     setFixarSlot(true)
     setFeedback('')
     setLinkGerado('')
+    if (proximoModo === 'adicionar' && data?.liga) {
+      const target = vaga.grupo?.nome?.trim().toLocaleLowerCase('pt-BR') || ''
+      const division = data.liga.divisoes.find((item) => item.nome.trim().toLocaleLowerCase('pt-BR') === target)
+      const available = division?.entradas.find((entry) => {
+        const used = (data.vagas || []).filter((item) => item.grupo_id === vaga.grupo_id && item.status === 'ocupada' && origemBase(item.campeonato_equipe?.origem_entrada) === entry.tipo).length
+        return used < Number(entry.quantidade || 0)
+      })
+      setOrigemEntrada(available?.tipo || division?.entradas[0]?.tipo || '')
+    } else {
+      setOrigemEntrada('')
+    }
   }
 
   async function copiarTexto(texto: string) {
@@ -189,6 +260,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
         equipe_id: equipe.id,
         line_id: lineId || null,
         nome_line: nomeLine,
+        ...(origemEntrada ? { origem_entrada: origemEntrada } : {}),
       })
       await reload()
       fechar()
@@ -472,9 +544,22 @@ Acesse: ${link}`
         </details>
       ) : null}
 
+      {data.liga && data.vagas.length === 0 && data.permission.canManage ? (
+        <div className="champ-league-setup">
+          <div>
+            <small>Formação operacional</small>
+            <strong>Preparar {data.liga.nome_agrupamento.toLocaleLowerCase('pt-BR')}</strong>
+            <span>{data.liga.divisoes.map((item) => `${item.nome} · ${item.equipes} vagas`).join(' · ')}</span>
+          </div>
+          <button className="button" type="button" onClick={() => void prepararEstruturaLiga()} disabled={preparandoLiga}>
+            {preparandoLiga ? <Loader2 className="spin" size={15} /> : null} Preparar agrupamentos
+          </button>
+        </div>
+      ) : null}
+
       <div className="champ-registration-groups">
         {gruposOperacionais.length === 0 ? (
-          <div className="champ-registration-empty">Nenhum slot encontrado neste filtro.</div>
+          <div className="champ-registration-empty">{data.liga && data.vagas.length === 0 ? 'Prepare os agrupamentos para liberar os slots da Liga.' : 'Nenhum slot encontrado neste filtro.'}</div>
         ) : gruposOperacionais.map((group) => (
           <section className="champ-registration-group" key={group.key}>
             <header>
@@ -484,6 +569,19 @@ Acesse: ${link}`
               </div>
               <span><strong>{group.ocupadas}</strong>/{group.total} preenchidos</span>
             </header>
+            {(() => {
+              const division = ligaDivisionForGroup(group.grupoNome)
+              if (!division?.entradas.length) return null
+              const occupied = group.vagas.filter((vaga) => vaga.status === 'ocupada')
+              return (
+                <div className="champ-league-entry-progress" aria-label={`Formação de ${group.grupoNome}`}>
+                  {division.entradas.map((entry) => {
+                    const used = occupied.filter((vaga) => origemBase(vaga.campeonato_equipe?.origem_entrada) === entry.tipo).length
+                    return <span key={entry.id}><small>{LIGA_ENTRY_LABELS[entry.tipo]}</small><strong>{used}/{entry.quantidade}</strong></span>
+                  })}
+                </div>
+              )
+            })()}
 
             <div className="champ-registration-slots">
               {group.vagas.map((vaga) => {
@@ -525,7 +623,7 @@ Acesse: ${link}`
                           </div>
                         ) : null}
 
-                        {vaga.status === 'ocupada' ? <p>{equipeNome ? `${equipeNome} · ` : ''}{vaga.campeonato_equipe?.origem_entrada ? `Entrada via ${vaga.campeonato_equipe.origem_entrada}` : 'Inscrição confirmada'}</p> : null}
+                        {vaga.status === 'ocupada' ? <p>{equipeNome ? `${equipeNome} · ` : ''}{vaga.campeonato_equipe?.origem_entrada ? `Entrada via ${origemLabel(vaga.campeonato_equipe.origem_entrada)}` : 'Inscrição confirmada'}</p> : null}
 
                         {(data.permission.canManage || data.permission.canGenerateToken || data.permission.canRemove) ? (
                           <div className="champ-registration-actions">
@@ -576,6 +674,17 @@ Acesse: ${link}`
         <div className="team-slot-modal">
           {modo === 'adicionar' ? (
             <>
+              {data.liga && ligaDivisaoAlvo ? (
+                <label className="field champ-league-origin-field">
+                  <span>Origem desta vaga · {ligaDivisaoAlvo.nome}</span>
+                  <select value={origemEntrada} onChange={(event) => setOrigemEntrada(event.target.value as LigaEntradaTipo)}>
+                    {ligaDivisaoAlvo.entradas.map((entry) => {
+                      const used = ligaOriginUsed(entry.tipo)
+                      return <option key={entry.id} value={entry.tipo} disabled={used >= Number(entry.quantidade || 0)}>{LIGA_ENTRY_LABELS[entry.tipo]} · {used}/{entry.quantidade}</option>
+                    })}
+                  </select>
+                </label>
+              ) : null}
               <div className="team-search-row">
                 <input
                   value={busca}
@@ -594,6 +703,7 @@ Acesse: ${link}`
                     <button
                       className={equipe?.id === item.id ? 'selected' : ''}
                       key={item.id}
+                      disabled={Boolean(data.liga && item.lines.some((line) => line.ja_inscrita))}
                       onClick={() => {
                         setEquipe(item)
                         const livre = item.lines.find((line) => !line.ja_inscrita)
@@ -603,7 +713,7 @@ Acesse: ${link}`
                     >
                       <span>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Users size={18} />}</span>
                       <strong>{item.nome}</strong>
-                      <small>{item.tag || 'Sem tag'} · {item.lines.filter((l) => !l.ja_inscrita).length} line(s) livre(s)</small>
+                      <small>{data.liga && item.lines.some((line) => line.ja_inscrita) ? 'Já ocupa um agrupamento desta Liga' : `${item.tag || 'Sem tag'} · ${item.lines.filter((l) => !l.ja_inscrita).length} line(s) livre(s)`}</small>
                     </button>
                   ))}
                 </div>

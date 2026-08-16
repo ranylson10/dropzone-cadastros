@@ -85,3 +85,19 @@
 .champ-registration-invite-list article{grid-template-columns:minmax(0,1fr)}
 .champ-registration-invite-actions{justify-content:flex-start}
 }
+.champ-league-setup{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border-radius:9px;background:var(--ui-surface,#141518)}
+.champ-league-setup>div{display:grid;gap:3px;min-width:0}
+.champ-league-setup small{color:var(--ui-primary,#c9b766);font-size:8px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.champ-league-setup strong{font-size:13px}
+.champ-league-setup span{overflow:hidden;color:#85888e;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.champ-league-entry-progress{display:flex;gap:14px;overflow-x:auto;padding:7px 12px;border-bottom:1px solid rgba(245,243,237,.055);scrollbar-width:none}
+.champ-league-entry-progress::-webkit-scrollbar{display:none}
+.champ-league-entry-progress span{flex:0 0 auto;display:flex;align-items:center;gap:5px}
+.champ-league-entry-progress small{color:#777a80;font-size:8px;font-weight:750}
+.champ-league-entry-progress strong{color:var(--ui-primary,#c9b766);font-size:9px}
+.champ-league-origin-field{margin-bottom:4px}
+@media(max-width:760px){
+.champ-league-setup{align-items:stretch;display:grid;padding:10px}
+.champ-league-setup .button{width:100%}
+.champ-league-entry-progress{gap:11px;padding-inline:9px}
+}

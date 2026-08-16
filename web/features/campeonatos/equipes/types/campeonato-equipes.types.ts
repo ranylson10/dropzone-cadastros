@@ -1,5 +1,22 @@
 export type VagaStatus = 'livre' | 'reservada' | 'ocupada' | 'bloqueada'
 
+export type LigaEntradaTipo = 'mantida' | 'promovida' | 'rebaixada' | 'classificatoria_aberta' | 'vaga_paga' | 'convite_direto'
+
+export type LigaEntradaPlano = {
+  id: string
+  tipo: LigaEntradaTipo
+  quantidade: string
+  origem_agrupamento_id: string
+}
+
+export type LigaDivisaoOperacional = {
+  id: string
+  nome: string
+  codigo: string
+  equipes: string
+  entradas: LigaEntradaPlano[]
+}
+
 export type CampeonatoEquipeResumo = {
   id: string
   equipe_id: string | null
@@ -86,6 +103,7 @@ export type CampeonatoEquipesPayload = {
   /** Convites de grupo (sem slot fixo) — não aparecem em nenhum assento */
   convites_grupo?: ConviteResumo[]
   capacidade?: CampeonatoCapacidade | null
+  liga?: { nome_agrupamento: string; divisoes: LigaDivisaoOperacional[] } | null
   permission: {
     canView: boolean
     /** Adicionar line diretamente no slot */

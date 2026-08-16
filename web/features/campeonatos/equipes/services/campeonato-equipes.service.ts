@@ -20,6 +20,7 @@ export const campeonatoEquipesService = {
   listar: (campeonatoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes`),
   buscarEquipes: (campeonatoId: string, termo: string) => request(`/api/campeonatos/${campeonatoId}/equipes/busca?q=${encodeURIComponent(termo)}`),
   adicionar: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/equipes`, { method: 'POST', body: JSON.stringify(body) }),
+  prepararLiga: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/estrutura`, { method: 'POST', body: JSON.stringify(body) }),
   remover: (campeonatoId: string, participacaoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes?participacao_id=${encodeURIComponent(participacaoId)}`, { method: 'DELETE' }),
   criarConvite: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/convites-equipe`, { method: 'POST', body: JSON.stringify(body) }),
   renovarConvite: (campeonatoId: string, tokenId: string) => request(`/api/campeonatos/${campeonatoId}/convites-equipe/${tokenId}/renovar`, { method: 'POST' }),

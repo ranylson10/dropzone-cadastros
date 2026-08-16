@@ -120,6 +120,24 @@ async function loadSolicitacoes(campeonatoId: string) {
   }))
 }
 
+
+const LIGA_ENTRY_TYPES = new Set(['mantida', 'promovida', 'rebaixada', 'classificatoria_aberta', 'vaga_paga', 'convite_direto'])
+
+async function loadLigaConfig(campeonatoId: string, canManage: boolean) {
+  if (!canManage) return null
+  const [{ data: campeonato, error: campeonatoError }, { data: config, error: configError }] = await Promise.all([
+    supabaseAdmin.from('campeonatos').select('tipo').eq('id', campeonatoId).maybeSingle(),
+    supabaseAdmin.from('campeonato_configuracoes').select('liga_nome_agrupamento,liga_divisoes').eq('campeonato_id', campeonatoId).maybeSingle(),
+  ])
+  if (campeonatoError) throw campeonatoError
+  if (configError) throw configError
+  if (!campeonato || String((campeonato as any).tipo || '') !== 'liga' || !config) return null
+  return {
+    nome_agrupamento: String((config as any).liga_nome_agrupamento || 'Agrupamentos'),
+    divisoes: Array.isArray((config as any).liga_divisoes) ? (config as any).liga_divisoes : [],
+  }
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
@@ -144,7 +162,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const includeInviteToken = Boolean(permission.canGenerateToken)
 
     // liberarExpirados em paralelo com a leitura (não serializa a tela)
-    const [, { data: campeonato, error: campError }, viewResult, convitesRes, capacidade, solicitacoes] = await Promise.all([
+    const [, { data: campeonato, error: campError }, viewResult, convitesRes, capacidade, solicitacoes, liga] = await Promise.all([
       liberarExpirados(id),
       supabaseAdmin.from('campeonatos').select('id, nome, logo_url').eq('id', id).is('deleted_at', null).single(),
       listSlotsLinesView(id),
@@ -158,6 +176,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         .order('created_at', { ascending: false }),
       getCampeonatoCapacidade(id).catch(() => null),
       permission.canManage ? loadSolicitacoes(id) : Promise.resolve([]),
+      loadLigaConfig(id, permission.canManage),
     ])
     if (campError) throw campError
 
@@ -268,6 +287,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         permission: permissionPublicPayload(permission),
         capacidade,
         solicitacoes,
+        liga,
         vagas,
         convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item, null, { includeToken: includeInviteToken })),
         modelo: {
@@ -426,6 +446,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       permission: permissionPublicPayload(permission),
       capacidade,
       solicitacoes,
+      liga,
       vagas: [...slotsWithParticipations, ...orphanParticipations],
       convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item, null, { includeToken: includeInviteToken })),
       modelo: {
@@ -558,6 +579,51 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const { data: equipe } = await supabaseAdmin.from('equipes').select('id, nome, tag, logo_url').eq('id', equipeId).single()
     if (!equipe) throw new Error('Equipe não encontrada.')
 
+    let origem = permission.role === 'seller' ? 'vendedor' : 'organizador'
+    const ligaConfig = await loadLigaConfig(id, permission.canManage)
+    if (ligaConfig) {
+      const requestedOrigin = String(body.origem_entrada || '').trim()
+      if (!LIGA_ENTRY_TYPES.has(requestedOrigin)) throw new Error('Escolha a origem da equipe neste agrupamento da Liga.')
+
+      const { data: grupo, error: grupoError } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .select('id,nome')
+        .eq('id', slot.grupo_id)
+        .eq('campeonato_id', id)
+        .maybeSingle()
+      if (grupoError) throw grupoError
+      if (!grupo) throw new Error('Agrupamento da Liga não encontrado para este slot.')
+
+      const division = ligaConfig.divisoes.find((item: any) => String(item?.nome || '').trim().toLocaleLowerCase('pt-BR') === String(grupo.nome || '').trim().toLocaleLowerCase('pt-BR'))
+      if (!division) throw new Error('Este grupo não corresponde a um agrupamento configurado da Liga.')
+      const planned = (Array.isArray(division.entradas) ? division.entradas : []).filter((entry: any) => String(entry?.tipo || '') === requestedOrigin)
+      const quota = planned.reduce((sum: number, entry: any) => sum + Math.max(0, Number(entry?.quantidade || 0)), 0)
+      if (quota < 1) throw new Error('Esta origem não possui vagas planejadas neste agrupamento.')
+
+      const normalizedOrigin = `liga_${requestedOrigin}`
+      const { count: usedOrigin, error: usedOriginError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id', { count: 'exact', head: true })
+        .eq('campeonato_id', id)
+        .eq('grupo_id', slot.grupo_id)
+        .eq('origem_entrada', normalizedOrigin)
+        .eq('status', 'ativo')
+      if (usedOriginError) throw usedOriginError
+      if (Number(usedOrigin || 0) >= quota) throw new Error(`A cota desta origem já foi preenchida (${usedOrigin}/${quota}).`)
+
+      const { data: duplicateTeam, error: duplicateTeamError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id,grupo_id')
+        .eq('campeonato_id', id)
+        .eq('equipe_id', equipeId)
+        .eq('status', 'ativo')
+        .limit(1)
+        .maybeSingle()
+      if (duplicateTeamError) throw duplicateTeamError
+      if (duplicateTeam) throw new Error('Esta equipe já ocupa uma vaga em outro agrupamento desta Liga.')
+      origem = normalizedOrigin
+    }
+
     // Unidade competitiva = line. Pasta = equipe.
     const resolved = await resolveLineForInscricao({
       equipeId,
@@ -568,7 +634,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       logoUrl: equipe.logo_url,
     })
 
-    const origem = permission.role === 'seller' ? 'vendedor' : 'organizador'
     // Escrita enxuta: campeonato_id + line_id + slot_id
     const participacao = await inserirParticipacaoNoSlot({
       campeonatoId: id,
