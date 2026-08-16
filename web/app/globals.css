@@ -2239,7 +2239,7 @@ button.invite-slot-button.selected strong{ color: var(--text);
   }
   .producer-layout-ref .champ-subtabs-ref{ margin-top: 8px;
   }
-  .producer-hub-nav{ position: sticky; top: 64px; z-index: 20; grid-template-columns: repeat(4,minmax(0,1fr)); margin: 0; padding: 0 4px; background: var(--surface);
+  .producer-hub-nav{ position: sticky; top: 64px; z-index: 20; grid-template-columns: repeat(5,minmax(0,1fr)); margin: 0; padding: 0 4px; background: var(--surface);
   }
   .producer-hub-nav button{ min-height: 48px; gap: 4px; font-size: 8px;
   }
@@ -5299,7 +5299,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 }   .page-authenticated .section-head h2{ margin: 0; font-size: clamp(24px, 3vw, 40px); letter-spacing: -.025em;
 } .page-authenticated .button:not(.secondary){ border-color: var(--dz-accent); background: var(--dz-accent); color: #fff;
 } .producer-layout-ref{ display: block; grid-template-columns: minmax(260px,330px) minmax(0,1fr); gap: 14px; align-items: start; --producer-bg: #e4e7ea; --producer-surface: #f7f4ee; --producer-surface-strong: #dfe3e7; --producer-panel: var(--dz-paper); --producer-ink: #1c2026; --producer-muted: #646b74; --producer-gold: var(--dz-accent); --producer-gold-deep: #d83d52; --producer-line: rgba(16,24,32,.16); --producer-line-soft: rgba(16,24,32,.10); padding: 0; background: transparent; border: 0; border-radius: 0;
-} .producer-hub-nav{ display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 0; margin: 0 0 12px; padding: 0; border-bottom: 1px solid rgba(16,24,32,.16); background: transparent; border: 0;
+} .producer-hub-nav{ display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 0; margin: 0 0 12px; padding: 0; border-bottom: 1px solid rgba(16,24,32,.16); background: transparent; border: 0;
 } .producer-hub-nav button{ display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 52px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #646a72; font-size: 11px; font-weight: 900; text-transform: uppercase; cursor: pointer; border-radius: 0; border-bottom-width: 4px;
 } .producer-hub-nav button.active{ border-bottom-color: var(--dz-accent); color: var(--dz-ink);
 } .producer-hub-section{ display: grid; gap: 18px; padding: 22px 0 34px; border-bottom: 1px solid var(--line); border: 0;

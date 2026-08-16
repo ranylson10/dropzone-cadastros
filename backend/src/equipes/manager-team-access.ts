@@ -7,7 +7,7 @@ export type ControllableEquipe = {
   username?: string | null
   logo_url?: string | null
   tag?: string | null
-  papel: 'dono' | 'staff'
+  papel: 'dono' | 'staff' | 'produtora_provisoria'
   permissoes: {
     pode_ver: boolean
     pode_editar: boolean
@@ -83,8 +83,49 @@ export async function listControllableEquipes(
       })
   }
 
-  // dono tem prioridade se aparecer nos dois
+  const producerIds = accounts.filter((a) => a.profile_type === 'produtora').map((a) => a.id).filter(Boolean)
+  let provisoria: ControllableEquipe[] = []
+
+  if (producerIds.length) {
+    const { data: tokens, error } = await supabaseAdmin
+      .from('tokens')
+      .select('equipe_id,produtora_id,status,usado')
+      .eq('tipo', 'reivindicacao_equipe_historica')
+      .in('produtora_id', producerIds)
+      .eq('status', 'ativo')
+      .eq('usado', false)
+    if (error) throw error
+
+    const equipeIds = [...new Set((tokens || []).map((row) => row.equipe_id).filter(Boolean))]
+    const { data: equipes, error: equipesError } = equipeIds.length
+      ? await supabaseAdmin
+          .from('equipes')
+          .select('id,nome,username,logo_url,tag,status,auth_user_id,dono_auth_user_id')
+          .in('id', equipeIds)
+      : { data: [] as any[], error: null }
+    if (equipesError) throw equipesError
+
+    provisoria = (equipes || [])
+      .filter((e: any) => e.status === 'ativo' && !e.auth_user_id && !e.dono_auth_user_id)
+      .map((e: any) => ({
+        id: e.id,
+        nome: e.nome || 'Equipe',
+        username: e.username || null,
+        logo_url: e.logo_url || null,
+        tag: e.tag || null,
+        papel: 'produtora_provisoria' as const,
+        permissoes: {
+          pode_ver: true,
+          pode_editar: true,
+          pode_escalar: true,
+          pode_gerar_token: true,
+        },
+      }))
+  }
+
+  // dono tem prioridade, depois staff; gestão provisória só existe enquanto a equipe não tem dono.
   const byId = new Map<string, ControllableEquipe>()
+  for (const e of provisoria) byId.set(e.id, e)
   for (const e of staff) byId.set(e.id, e)
   for (const e of owned) byId.set(e.id, e)
   return Array.from(byId.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))

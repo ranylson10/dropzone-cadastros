@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, ShieldCheck, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES } from '@/lib/dropzone-constants'
@@ -18,9 +18,10 @@ import { CampeonatoStreamTab } from '@/features/campeonatos/stream'
 import { CampeonatoCallsTab } from '@/features/campeonatos/calls'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
+import { ProvisionalTeamsPanel } from '@/features/produtoras/components/ProvisionalTeamsPanel'
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
-type ProducerSection = 'campeonatos' | 'staff' | 'vendedores' | 'vagas'
+type ProducerSection = 'campeonatos' | 'provisorias' | 'staff' | 'vendedores' | 'vagas'
 
 export function ProdutoraPanel(props: {
   account?: DropZoneRow | null
@@ -1457,10 +1458,15 @@ ${params.url}`
 
       <nav className="producer-hub-nav" aria-label="Áreas da produtora">
         <button type="button" className={producerSection === 'campeonatos' ? 'active' : ''} onClick={() => setProducerSection('campeonatos')}><Trophy size={17} /><span>Campeonatos</span></button>
+        <button type="button" className={producerSection === 'provisorias' ? 'active' : ''} onClick={() => setProducerSection('provisorias')}><ShieldCheck size={17} /><span>Equipes provisórias</span></button>
         <button type="button" className={producerSection === 'staff' ? 'active' : ''} onClick={() => setProducerSection('staff')}><Users size={17} /><span>Equipe interna</span></button>
         <button type="button" className={producerSection === 'vendedores' ? 'active' : ''} onClick={() => setProducerSection('vendedores')}><BriefcaseBusiness size={17} /><span>Vendedores</span></button>
         <button type="button" className={producerSection === 'vagas' ? 'active' : ''} onClick={() => setProducerSection('vagas')}><Store size={17} /><span>Página de vagas</span></button>
       </nav>
+
+      {producerSection === 'provisorias' ? (
+        <ProvisionalTeamsPanel uploadPublicFile={props.uploadPublicFile} />
+      ) : null}
 
       {producerSection === 'staff' ? (
         <section className="producer-hub-section">
