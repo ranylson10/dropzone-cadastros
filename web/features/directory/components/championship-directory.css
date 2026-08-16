@@ -428,9 +428,9 @@
 .directory-market-page .directory-champ-card-grid{grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:12px;width:min(1180px,calc(100% - 32px))}
 .directory-market-page .directory-champ-card{position:relative;display:block;min-height:0;aspect-ratio:4/5;overflow:hidden;border:1px solid var(--champ-surface-2);border-radius:14px;background:var(--champ-surface);color:var(--champ-text)}
 .directory-market-page .directory-champ-card:hover{background:var(--champ-surface);border-color:rgba(201,183,102,.6);transform:translateY(-2px)}
-.directory-market-page .directory-champ-cover{position:absolute;inset:0;display:block;width:auto;height:auto;min-height:0;background:var(--champ-surface)}
-.directory-market-page .directory-champ-cover-empty{position:absolute;inset:0;display:grid;width:auto;height:auto;padding:0;border:0;border-radius:0;background:var(--champ-surface)}
-.directory-market-page .directory-champ-cover-empty img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;background:var(--champ-surface)}
+.directory-market-page .directory-champ-cover{position:absolute;inset:0;display:block;width:100%;height:100%;min-height:0;background:var(--champ-surface)}
+.directory-market-page .directory-champ-cover-empty{position:absolute;inset:0;display:grid;width:100%;height:100%;padding:0;border:0;border-radius:0;background:var(--champ-surface)}
+.directory-market-page .directory-champ-cover-empty img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;background:var(--champ-surface)}
 .directory-market-page .directory-champ-cover-empty b{width:100%;height:100%;font-size:28px;background:linear-gradient(145deg,#252117,#101113);color:var(--champ-accent-strong)}
 .directory-market-page .directory-champ-cover-empty::after,.directory-market-page .directory-champ-badges{display:none}
 .directory-market-page .directory-champ-body{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:18px;background:linear-gradient(180deg,rgba(9,10,12,0) 28%,rgba(9,10,12,.32) 48%,rgba(9,10,12,.96) 100%)}

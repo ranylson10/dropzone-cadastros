@@ -21,9 +21,22 @@ test('banner do Storage passa pelo cache do próprio app', () => {
   expect(media).toContain("return `/api/media/${parts.map(encodeURIComponent).join('/')}`")
 })
 
-test('card 4:5 preenche a capa sem bordas de contain', () => {
+test('card 4:5 preserva o banner inteiro sem corte', () => {
   const css = source('web/features/directory/components/championship-directory.css')
-  expect(css).toContain('object-fit:cover;object-position:center')
+  expect(css).toContain('object-fit:contain;object-position:center')
+})
+
+test('banner da vitrine é preparado em WebP 4:5 antes do upload', () => {
+  const fields = source('web/features/dropzone/components/form-fields.tsx')
+  expect(fields).toContain("campeonato_banner: { width: 1200, height: 1500, kindLabel: 'banner 4:5' }")
+  expect(fields).toContain("canvas.toBlob(resolve, 'image/webp', 0.82)")
+})
+
+test('vitrine faz download sob demanda e a entrega fica em cache', () => {
+  const directory = source('web/features/directory/components/DirectoryListClient.tsx')
+  const mediaRoute = source('web/app/api/media/[bucket]/[...path]/route.ts')
+  expect(directory).toContain('loading="lazy"')
+  expect(mediaRoute).toContain('public, max-age=${CACHE_SECONDS}, immutable')
 })
 
 
