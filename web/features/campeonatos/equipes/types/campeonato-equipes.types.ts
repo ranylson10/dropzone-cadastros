@@ -17,6 +17,36 @@ export type LigaDivisaoOperacional = {
   entradas: LigaEntradaPlano[]
 }
 
+export type LigaSeasonCandidate = {
+  equipe_id: string
+  line_id: string
+  nome: string
+  tag: string | null
+  logo_url: string | null
+  colocacao: number
+  grupo_origem_nome: string
+}
+
+export type LigaSeasonSuggestion = {
+  divisao_id: string
+  divisao_nome: string
+  tipo: 'mantida' | 'promovida' | 'rebaixada'
+  origem_divisao_id: string
+  origem_divisao_nome: string
+  quantidade_planejada: number
+  candidatos: LigaSeasonCandidate[]
+}
+
+export type LigaSeasonPreview = {
+  previous_championship_id: string
+  previous_edition_number: number
+  previous_season: string | null
+  previous_title: string | null
+  current_edition_number: number
+  current_season: string | null
+  suggestions: LigaSeasonSuggestion[]
+}
+
 export type CampeonatoEquipeResumo = {
   id: string
   equipe_id: string | null
@@ -103,7 +133,7 @@ export type CampeonatoEquipesPayload = {
   /** Convites de grupo (sem slot fixo) — não aparecem em nenhum assento */
   convites_grupo?: ConviteResumo[]
   capacidade?: CampeonatoCapacidade | null
-  liga?: { nome_agrupamento: string; divisoes: LigaDivisaoOperacional[] } | null
+  liga?: { nome_agrupamento: string; divisoes: LigaDivisaoOperacional[]; season?: LigaSeasonPreview | null } | null
   permission: {
     canView: boolean
     /** Adicionar line diretamente no slot */

@@ -91,6 +91,7 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
   const [linkGerado, setLinkGerado] = useState('')
   const [origemEntrada, setOrigemEntrada] = useState<LigaEntradaTipo | ''>('')
   const [preparandoLiga, setPreparandoLiga] = useState(false)
+  const [aplicandoSeason, setAplicandoSeason] = useState(false)
 
   const stats = useMemo(() => {
     const vagas = data?.vagas || []
@@ -189,6 +190,28 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
       setFeedback(err instanceof Error ? err.message : 'Erro ao preparar agrupamentos da Liga.')
     } finally {
       setPreparandoLiga(false)
+    }
+  }
+
+  async function aplicarSugestoesSeasonLiga() {
+    const season = data?.liga?.season
+    if (!season?.suggestions?.length) return
+    const total = season.suggestions.reduce((sum, suggestion) => sum + suggestion.candidatos.length, 0)
+    if (!total) return
+    const confirmed = window.confirm(
+      `Confirmar ${total} equipe(s) sugerida(s) pela classificação da season anterior? As vagas abertas, pagas e por convite continuarão livres.`,
+    )
+    if (!confirmed) return
+    setAplicandoSeason(true)
+    setFeedback('')
+    try {
+      const result = await campeonatoEquipesService.aplicarSugestoesSeasonLiga(campeonatoId) as { aplicadas?: number; mensagem?: string }
+      await reload()
+      setFeedback(result.mensagem || `${result.aplicadas || total} sugestão(ões) aplicada(s).`)
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Erro ao aplicar sugestões da season.')
+    } finally {
+      setAplicandoSeason(false)
     }
   }
 
@@ -556,6 +579,69 @@ Acesse: ${link}`
           </button>
         </div>
       ) : null}
+
+      {data.liga?.season?.suggestions?.length ? (() => {
+        const season = data.liga!.season!
+        const totalCandidates = season.suggestions.reduce((sum, suggestion) => sum + suggestion.candidatos.length, 0)
+        const plannedMovement = season.suggestions.reduce((sum, suggestion) => sum + suggestion.quantidade_planejada, 0)
+        const incomplete = totalCandidates < plannedMovement
+        const canApply = data.vagas.length > 0 && stats.ocupadas === 0 && totalCandidates > 0
+        return (
+          <details className="champ-league-season-preview">
+            <summary>
+              <span>
+                <small>Nova season · sugestão pela classificação</small>
+                <strong>{season.previous_season || `Edição ${season.previous_edition_number}`} → {season.current_season || `Edição ${season.current_edition_number}`}</strong>
+              </span>
+              <em>{totalCandidates}/{plannedMovement} equipes sugeridas</em>
+            </summary>
+            <div className="champ-league-season-body">
+              <p>
+                A classificação anterior é usada somente como proposta. Nenhuma equipe muda de agrupamento até você confirmar.
+              </p>
+              {incomplete ? (
+                <div className="champ-league-season-warning">
+                  Existem cotas sem classificação suficiente na season anterior. Revise os resultados antes de confirmar.
+                </div>
+              ) : null}
+              <div className="champ-league-season-suggestions">
+                {season.suggestions.map((suggestion, index) => (
+                  <article key={`${suggestion.divisao_id}-${suggestion.tipo}-${index}`}>
+                    <header>
+                      <span>{LIGA_ENTRY_LABELS[suggestion.tipo]} · {suggestion.divisao_nome}</span>
+                      <strong>{suggestion.candidatos.length}/{suggestion.quantidade_planejada}</strong>
+                    </header>
+                    <small>Origem: {suggestion.origem_divisao_nome}</small>
+                    {suggestion.candidatos.length ? (
+                      <ul>
+                        {suggestion.candidatos.map((candidate) => (
+                          <li key={`${suggestion.tipo}-${candidate.equipe_id}`}>
+                            <span><b>{candidate.colocacao}º</b>{candidate.nome}</span>
+                            <small>{candidate.grupo_origem_nome}</small>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : <em>Sem resultado suficiente.</em>}
+                  </article>
+                ))}
+              </div>
+              <div className="champ-league-season-actions">
+                <span>
+                  {data.vagas.length === 0
+                    ? 'Prepare os agrupamentos antes de aplicar.'
+                    : stats.ocupadas > 0
+                      ? 'A aplicação em lote fica bloqueada depois de iniciar o preenchimento manual.'
+                      : `${totalCandidates} equipe(s) serão inseridas. As demais origens ficam livres para operação manual.`}
+                </span>
+                <button className="button" type="button" disabled={!canApply || incomplete || aplicandoSeason} onClick={() => void aplicarSugestoesSeasonLiga()}>
+                  {aplicandoSeason ? <Loader2 className="spin" size={15} /> : <Shield size={15} />}
+                  Revisar e confirmar sugestões
+                </button>
+              </div>
+            </div>
+          </details>
+        )
+      })() : null}
 
       <div className="champ-registration-groups">
         {gruposOperacionais.length === 0 ? (

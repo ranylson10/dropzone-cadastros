@@ -14,6 +14,7 @@ import {
   softRemoveParticipacao,
 } from '@backend/campeonatos/participacao-sync'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { listarEstatisticasEquipes } from '@backend/campeonatos/estatisticas/estatisticas.service'
 
 function hasSellerPermission(seller: any, key: string, optIn = false) {
   const value = seller?.permissoes?.[key]
@@ -138,6 +139,171 @@ async function loadLigaConfig(campeonatoId: string, canManage: boolean) {
   }
 }
 
+type LigaSeasonSuggestionCandidate = {
+  equipe_id: string
+  line_id: string
+  nome: string
+  tag: string | null
+  logo_url: string | null
+  colocacao: number
+  grupo_origem_nome: string
+}
+
+type LigaSeasonSuggestion = {
+  divisao_id: string
+  divisao_nome: string
+  tipo: 'mantida' | 'promovida' | 'rebaixada'
+  origem_divisao_id: string
+  origem_divisao_nome: string
+  quantidade_planejada: number
+  candidatos: LigaSeasonSuggestionCandidate[]
+}
+
+async function loadLigaSeasonSuggestions(campeonatoId: string, ligaConfig: any, canManage: boolean) {
+  if (!canManage || !ligaConfig?.divisoes?.length) return null
+
+  const { data: currentEdition, error: currentEditionError } = await supabaseAdmin
+    .from('campeonato_edicoes')
+    .select('id,franquia_id,numero_edicao,temporada')
+    .eq('campeonato_id', campeonatoId)
+    .maybeSingle()
+  if (currentEditionError) throw currentEditionError
+  if (!currentEdition?.franquia_id || Number(currentEdition.numero_edicao || 0) <= 1) return null
+
+  const { data: previousEdition, error: previousEditionError } = await supabaseAdmin
+    .from('campeonato_edicoes')
+    .select('id,campeonato_id,numero_edicao,temporada,titulo_publico')
+    .eq('franquia_id', currentEdition.franquia_id)
+    .lt('numero_edicao', Number(currentEdition.numero_edicao))
+    .order('numero_edicao', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (previousEditionError) throw previousEditionError
+  if (!previousEdition?.campeonato_id) return null
+
+  const previousChampionshipId = String(previousEdition.campeonato_id)
+  const [{ data: previousConfig, error: previousConfigError }, { data: previousGroups, error: previousGroupsError }] = await Promise.all([
+    supabaseAdmin.from('campeonato_configuracoes').select('liga_divisoes').eq('campeonato_id', previousChampionshipId).maybeSingle(),
+    supabaseAdmin.from('campeonato_grupos').select('id,nome').eq('campeonato_id', previousChampionshipId),
+  ])
+  if (previousConfigError) throw previousConfigError
+  if (previousGroupsError) throw previousGroupsError
+
+  const previousDivisions = Array.isArray((previousConfig as any)?.liga_divisoes) ? (previousConfig as any).liga_divisoes : []
+  const groupByDivisionId = new Map<string, any>()
+  for (const division of previousDivisions) {
+    const divisionName = String(division?.nome || '').trim().toLocaleLowerCase('pt-BR')
+    const group = (previousGroups || []).find((row: any) => String(row?.nome || '').trim().toLocaleLowerCase('pt-BR') === divisionName)
+    if (group) groupByDivisionId.set(String(division?.id || ''), group)
+  }
+
+  const sourceIds = new Set<string>()
+  for (const division of ligaConfig.divisoes || []) {
+    sourceIds.add(String(division?.id || ''))
+    for (const entry of Array.isArray(division?.entradas) ? division.entradas : []) {
+      if (['promovida', 'rebaixada'].includes(String(entry?.tipo || '')) && entry?.origem_agrupamento_id) {
+        sourceIds.add(String(entry.origem_agrupamento_id))
+      }
+    }
+  }
+
+  const rankingByDivisionId = new Map<string, any[]>()
+  for (const sourceId of sourceIds) {
+    const group = groupByDivisionId.get(sourceId)
+    if (!group?.id) continue
+    const ranking = await listarEstatisticasEquipes(previousChampionshipId, { grupoId: String(group.id) })
+    rankingByDivisionId.set(sourceId, ranking)
+  }
+
+  const promotedOut = new Map<string, number>()
+  const relegatedOut = new Map<string, number>()
+  for (const destination of ligaConfig.divisoes || []) {
+    for (const entry of Array.isArray(destination?.entradas) ? destination.entradas : []) {
+      const sourceId = String(entry?.origem_agrupamento_id || '')
+      const qty = Math.max(0, Number(entry?.quantidade || 0))
+      if (!sourceId || !qty) continue
+      if (String(entry?.tipo || '') === 'promovida') promotedOut.set(sourceId, (promotedOut.get(sourceId) || 0) + qty)
+      if (String(entry?.tipo || '') === 'rebaixada') relegatedOut.set(sourceId, (relegatedOut.get(sourceId) || 0) + qty)
+    }
+  }
+
+  const promotedOffsets = new Map<string, number>()
+  const relegatedOffsets = new Map<string, number>()
+  const suggestions: LigaSeasonSuggestion[] = []
+
+  const candidate = (row: any, groupName: string): LigaSeasonSuggestionCandidate | null => {
+    const equipeId = String(row?.equipe_id || '')
+    const lineId = String(row?.line_id || '')
+    if (!equipeId || !lineId) return null
+    return {
+      equipe_id: equipeId,
+      line_id: lineId,
+      nome: String(row?.nome || 'Equipe'),
+      tag: row?.tag ? String(row.tag) : null,
+      logo_url: row?.logo_url ? String(row.logo_url) : null,
+      colocacao: Number(row?.colocacao || 0),
+      grupo_origem_nome: groupName,
+    }
+  }
+
+  for (const destination of ligaConfig.divisoes || []) {
+    const entries = Array.isArray(destination?.entradas) ? destination.entradas : []
+    for (const entry of entries) {
+      const tipo = String(entry?.tipo || '')
+      if (!['mantida', 'promovida', 'rebaixada'].includes(tipo)) continue
+      const quantity = Math.max(0, Number(entry?.quantidade || 0))
+      if (!quantity) continue
+
+      const sourceId = tipo === 'mantida'
+        ? String(destination?.id || '')
+        : String(entry?.origem_agrupamento_id || '')
+      const sourceDivision = previousDivisions.find((item: any) => String(item?.id || '') === sourceId)
+        || (ligaConfig.divisoes || []).find((item: any) => String(item?.id || '') === sourceId)
+      const sourceName = String(sourceDivision?.nome || 'Agrupamento de origem')
+      const ranking = rankingByDivisionId.get(sourceId) || []
+      let selected: any[] = []
+
+      if (tipo === 'promovida') {
+        const offset = promotedOffsets.get(sourceId) || 0
+        const ceiling = Math.max(0, ranking.length - (relegatedOut.get(sourceId) || 0))
+        selected = ranking.slice(offset, Math.min(offset + quantity, ceiling))
+        promotedOffsets.set(sourceId, offset + quantity)
+      } else if (tipo === 'rebaixada') {
+        const offset = relegatedOffsets.get(sourceId) || 0
+        const floor = promotedOut.get(sourceId) || 0
+        const end = Math.max(floor, ranking.length - offset)
+        const start = Math.max(floor, end - quantity)
+        selected = ranking.slice(start, end)
+        relegatedOffsets.set(sourceId, offset + quantity)
+      } else {
+        const start = promotedOut.get(sourceId) || 0
+        const end = Math.max(start, ranking.length - (relegatedOut.get(sourceId) || 0))
+        selected = ranking.slice(start, end).slice(0, quantity)
+      }
+
+      suggestions.push({
+        divisao_id: String(destination?.id || ''),
+        divisao_nome: String(destination?.nome || ''),
+        tipo: tipo as LigaSeasonSuggestion['tipo'],
+        origem_divisao_id: sourceId,
+        origem_divisao_nome: sourceName,
+        quantidade_planejada: quantity,
+        candidatos: selected.map((row) => candidate(row, sourceName)).filter(Boolean) as LigaSeasonSuggestionCandidate[],
+      })
+    }
+  }
+
+  return {
+    previous_championship_id: previousChampionshipId,
+    previous_edition_number: Number(previousEdition.numero_edicao || 0),
+    previous_season: previousEdition.temporada ? String(previousEdition.temporada) : null,
+    previous_title: previousEdition.titulo_publico ? String(previousEdition.titulo_publico) : null,
+    current_edition_number: Number(currentEdition.numero_edicao || 0),
+    current_season: currentEdition.temporada ? String(currentEdition.temporada) : null,
+    suggestions,
+  }
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
@@ -180,6 +346,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     ])
     if (campError) throw campError
 
+    const ligaSeason = liga ? await loadLigaSeasonSuggestions(id, liga, permission.canManage) : null
     const nowMs = Date.now()
     // Filtra expiração no JS: PostgREST .or com ISO (dois-pontos) falhava e escondia convites válidos
     const convites = (convitesRes.error ? [] : convitesRes.data || []).filter((t) => conviteAindaValido(t, nowMs))
@@ -287,7 +454,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         permission: permissionPublicPayload(permission),
         capacidade,
         solicitacoes,
-        liga,
+        liga: liga ? { ...liga, season: ligaSeason } : null,
         vagas,
         convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item, null, { includeToken: includeInviteToken })),
         modelo: {
@@ -446,7 +613,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       permission: permissionPublicPayload(permission),
       capacidade,
       solicitacoes,
-      liga,
+      liga: liga ? { ...liga, season: ligaSeason } : null,
       vagas: [...slotsWithParticipations, ...orphanParticipations],
       convites_grupo: convitesGrupo.map((item) => mapConviteResumo(item, null, { includeToken: includeInviteToken })),
       modelo: {
@@ -532,6 +699,82 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (!permission.canManage) {
       throw new Error('Você não tem permissão para adicionar equipes. Use o link de convite gerado pelo admin/vendedor.')
     }
+
+    if (body.mode === 'apply_league_season_suggestions') {
+      const ligaConfig = await loadLigaConfig(id, true)
+      if (!ligaConfig) throw new Error('Esta operação está disponível somente para Ligas.')
+      const season = await loadLigaSeasonSuggestions(id, ligaConfig, true)
+      if (!season?.suggestions?.length) throw new Error('Nenhuma sugestão de season disponível para aplicar.')
+
+      const { count: occupiedCount, error: occupiedError } = await supabaseAdmin
+        .from('campeonato_equipes')
+        .select('id', { count: 'exact', head: true })
+        .eq('campeonato_id', id)
+        .eq('status', 'ativo')
+      if (occupiedError) throw occupiedError
+      if (Number(occupiedCount || 0) > 0) {
+        throw new Error('A aplicação automática só pode ser usada antes de preencher manualmente os agrupamentos.')
+      }
+
+      const { data: groups, error: groupsError } = await supabaseAdmin
+        .from('campeonato_grupos')
+        .select('id,nome')
+        .eq('campeonato_id', id)
+      if (groupsError) throw groupsError
+      const { data: slots, error: slotsError } = await supabaseAdmin
+        .from('campeonato_slots')
+        .select('id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status')
+        .eq('campeonato_id', id)
+        .order('slot_numero', { ascending: true })
+      if (slotsError) throw slotsError
+      if ((slots || []).some((slot: any) => String(slot.status || '') === 'reservado')) {
+        throw new Error('Existem slots reservados por convite. Cancele ou confirme as reservas antes de aplicar as sugestões da season.')
+      }
+
+      const groupByDivision = new Map<string, any>()
+      for (const division of ligaConfig.divisoes || []) {
+        const target = String(division?.nome || '').trim().toLocaleLowerCase('pt-BR')
+        const group = (groups || []).find((row: any) => String(row?.nome || '').trim().toLocaleLowerCase('pt-BR') === target)
+        if (group) groupByDivision.set(String(division?.id || ''), group)
+      }
+
+      const pending: Array<{ slot: any; candidate: LigaSeasonSuggestionCandidate; origem: string }> = []
+      const usedTeams = new Set<string>()
+      for (const suggestion of season.suggestions as LigaSeasonSuggestion[]) {
+        const group = groupByDivision.get(suggestion.divisao_id)
+        if (!group) throw new Error(`Prepare o agrupamento "${suggestion.divisao_nome}" antes de aplicar as sugestões.`)
+        const freeSlots = (slots || []).filter((slot: any) => slot.grupo_id === group.id && !slot.equipe_id && !slot.line_id)
+        const alreadyReserved = pending.filter((item) => item.slot.grupo_id === group.id).length
+        const available = freeSlots.slice(alreadyReserved)
+        if (available.length < suggestion.candidatos.length) {
+          throw new Error(`Não há slots livres suficientes em "${suggestion.divisao_nome}".`)
+        }
+        suggestion.candidatos.forEach((candidate, index) => {
+          if (usedTeams.has(candidate.equipe_id)) throw new Error(`A equipe "${candidate.nome}" apareceu em mais de uma sugestão. Revise as cotas de acesso e rebaixamento.`)
+          usedTeams.add(candidate.equipe_id)
+          pending.push({ slot: available[index], candidate, origem: `liga_${suggestion.tipo}` })
+        })
+      }
+
+      for (const item of pending) {
+        await inserirParticipacaoNoSlot({
+          campeonatoId: id,
+          slotId: String(item.slot.id),
+          lineId: item.candidate.line_id,
+          equipeId: item.candidate.equipe_id,
+          nomeExibicao: item.candidate.nome,
+          origem: item.origem,
+          criadoPor: user.id,
+        })
+      }
+
+      return NextResponse.json({
+        ok: true,
+        aplicadas: pending.length,
+        mensagem: `${pending.length} sugestão(ões) confirmada(s) na nova season.`,
+      })
+    }
+
     let sellerPermission: any = null
     if (permission.role === 'seller') {
       const { data: seller, error: sellerErr } = await supabaseAdmin

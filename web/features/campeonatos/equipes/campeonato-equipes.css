@@ -101,3 +101,34 @@
 .champ-league-setup .button{width:100%}
 .champ-league-entry-progress{gap:11px;padding-inline:9px}
 }
+.champ-league-season-preview{background:var(--ui-surface,#141518);border-radius:9px;overflow:hidden}
+.champ-league-season-preview>summary{min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;list-style:none;cursor:pointer}
+.champ-league-season-preview>summary::-webkit-details-marker{display:none}
+.champ-league-season-preview>summary>span{display:grid;gap:2px;min-width:0}
+.champ-league-season-preview>summary small{color:var(--ui-primary,#c9b766);font-size:8px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.champ-league-season-preview>summary strong{font-size:12px}
+.champ-league-season-preview>summary em{color:#8d8f94;font-size:9px;font-style:normal;font-weight:800;white-space:nowrap}
+.champ-league-season-body{display:grid;gap:10px;padding:0 12px 12px}
+.champ-league-season-body>p,.champ-league-season-actions>span{margin:0;color:#8d8f94;font-size:9px;line-height:1.45}
+.champ-league-season-warning{padding:7px 9px;border-radius:7px;background:rgba(209,168,101,.09);color:#d7b679;font-size:9px;font-weight:750}
+.champ-league-season-suggestions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.champ-league-season-suggestions article{min-width:0;padding:9px;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f)}
+.champ-league-season-suggestions article>header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.champ-league-season-suggestions article>header span{font-size:10px;font-weight:850}
+.champ-league-season-suggestions article>header strong{color:var(--ui-primary,#c9b766);font-size:9px}
+.champ-league-season-suggestions article>small,.champ-league-season-suggestions article>em{display:block;margin-top:2px;color:#777a80;font-size:8px;font-style:normal}
+.champ-league-season-suggestions ul{display:grid;gap:4px;margin:8px 0 0;padding:0;list-style:none}
+.champ-league-season-suggestions li{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.champ-league-season-suggestions li>span{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.champ-league-season-suggestions li b{color:var(--ui-primary,#c9b766);font-size:8px}
+.champ-league-season-suggestions li small{flex:0 0 auto;color:#666970;font-size:8px}
+.champ-league-season-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:2px}
+.champ-league-season-actions .button{flex:0 0 auto}
+@media(max-width:760px){
+.champ-league-season-preview>summary{min-height:48px;padding:8px 9px}
+.champ-league-season-preview>summary strong{font-size:11px}
+.champ-league-season-body{padding:0 9px 9px}
+.champ-league-season-suggestions{grid-template-columns:1fr}
+.champ-league-season-actions{align-items:stretch;display:grid}
+.champ-league-season-actions .button{width:100%}
+}
