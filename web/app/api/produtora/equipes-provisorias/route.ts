@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
     const ids = [...new Set((tokens || []).map((item) => item.equipe_id).filter(Boolean))]
     const { data: equipes, error: equipesError } = ids.length
-      ? await supabaseAdmin.from('equipes').select('id,nome,tag,logo_url,status,auth_user_id,dono_auth_user_id,localidade,cidade,estado,pais,bio').in('id', ids)
+      ? await supabaseAdmin.from('equipes').select('id,nome,tag,logo_url,status,auth_user_id,dono_auth_user_id,email_contato,localidade,cidade,estado,pais,bio').in('id', ids)
       : { data: [] as any[], error: null }
     if (equipesError) throw equipesError
     const valid = (equipes || []).filter((e: any) => e.status === 'ativo' && !e.auth_user_id && !e.dono_auth_user_id)
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     const [{ data: lines }, { data: participacoes }] = await Promise.all([
       validIds.length ? supabaseAdmin.from('equipe_lines').select('id,equipe_id,nome,tag,logo_url,status').in('equipe_id', validIds).neq('status', 'inativo') : Promise.resolve({ data: [] as any[] }),
-      validIds.length ? supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,campeonato_id,status,campeonato:campeonato_id(id,nome)').in('equipe_id', validIds).neq('status', 'removida') : Promise.resolve({ data: [] as any[] }),
+      validIds.length ? supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,campeonato_id,status,campeonato:campeonato_id(id,nome,logo_url)').in('equipe_id', validIds).neq('status', 'removida') : Promise.resolve({ data: [] as any[] }),
     ])
     const tokenByEquipe = new Map((tokens || []).map((t: any) => [String(t.equipe_id), t]))
     return NextResponse.json({
@@ -103,8 +103,8 @@ export async function PATCH(req: NextRequest) {
     for (const key of ['nome', 'tag', 'logo_url', 'localidade', 'cidade', 'estado', 'pais', 'bio']) {
       if (body[key] !== undefined) patch[key] = String(body[key] || '').trim() || null
     }
+    if (body.email_contato !== undefined) patch.email_contato = String(body.email_contato || '').trim() || null
     if (patch.nome === null) throw new Error('Nome da equipe é obrigatório.')
-    if (patch.tag === null) throw new Error('TAG da equipe é obrigatória.')
     if (patch.tag) patch.tag = String(patch.tag).toUpperCase()
 
     const { data, error } = await supabaseAdmin.from('equipes').update(patch).eq('id', equipeId).is('auth_user_id', null).is('dono_auth_user_id', null).select('*').single()
