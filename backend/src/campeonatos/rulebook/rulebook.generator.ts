@@ -484,9 +484,8 @@ export function generateDocument(input: {
         'Em caso de empate na classificação geral ou de fase, serão aplicados, nesta ordem, os seguintes critérios:',
         '1. Maior número de Booyahs (vitórias de queda);',
         '2. Maior número total de abates (kills);',
-        '3. Melhor colocação no confronto direto mais recente entre as equipes empatadas;',
-        '4. Maior número de colocações de 1º a 3º no somatório da fase;',
-        '5. Partida extra (tie-break) ou outro critério definido pela organização, se ainda persistir o empate.',
+        '3. Melhor colocação alcançada em uma queda da classificação considerada;',
+        '4. Se ainda persistir empate absoluto, a organização deverá resolver o tie-break antes de publicar o resultado final.',
       ].join('\n'),
     ),
   )

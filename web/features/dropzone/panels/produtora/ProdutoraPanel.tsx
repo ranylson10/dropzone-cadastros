@@ -159,6 +159,9 @@ export function ProdutoraPanel(props: {
   const [financialMsg, setFinancialMsg] = useState('')
   const [financialNote, setFinancialNote] = useState<Record<string, string>>({})
   const [financialBusy, setFinancialBusy] = useState<Record<string, boolean>>({})
+  const [editionLifecycle, setEditionLifecycle] = useState<{ status: string; data_fim?: string | null } | null>(null)
+  const [editionLifecycleBusy, setEditionLifecycleBusy] = useState(false)
+  const [editionLifecycleError, setEditionLifecycleError] = useState('')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -516,6 +519,47 @@ export function ProdutoraPanel(props: {
 
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
+
+  async function loadEditionLifecycle(campeonatoId: string) {
+    try {
+      const json = await sellerRequest(`/api/campeonatos/${campeonatoId}/estrutura-avancada`)
+      setEditionLifecycle(json?.edition ? { status: String(json.edition.status || ''), data_fim: json.edition.data_fim || null } : null)
+      setEditionLifecycleError('')
+    } catch (error) {
+      setEditionLifecycle(null)
+      setEditionLifecycleError(error instanceof Error ? error.message : 'Não foi possível consultar o estado da season.')
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedChamp?.id) {
+      setEditionLifecycle(null)
+      setEditionLifecycleError('')
+      return
+    }
+    void loadEditionLifecycle(selectedChamp.id)
+  }, [selectedChamp?.id])
+
+  async function updateEditionLifecycle(action: 'publish_final' | 'reopen_final') {
+    if (!selectedChamp?.id || editionLifecycleBusy) return
+    const closing = action === 'publish_final'
+    if (!window.confirm(closing
+      ? 'Encerrar este campeonato/season? Todas as quedas precisam estar finalizadas e novas inscrições serão fechadas.'
+      : 'Reabrir esta season? As inscrições continuarão fechadas até você habilitá-las novamente nas configurações.')) return
+    setEditionLifecycleBusy(true)
+    setEditionLifecycleError('')
+    try {
+      await sellerRequest(`/api/campeonatos/${selectedChamp.id}/estrutura-avancada`, {
+        method: 'POST',
+        body: JSON.stringify({ action }),
+      })
+      await loadEditionLifecycle(selectedChamp.id)
+    } catch (error) {
+      setEditionLifecycleError(error instanceof Error ? error.message : 'Não foi possível atualizar a season.')
+    } finally {
+      setEditionLifecycleBusy(false)
+    }
+  }
 
   async function loadFinancialReviews() {
     setFinancialLoading(true)
@@ -1849,6 +1893,29 @@ ${params.url}`
                         <small>Vendedores, limites e permissões</small>
                       </button>
                     </div>
+                  </section>
+
+                  <section className="champ-overview-card championship-lifecycle-card">
+                    <div className="champ-overview-checklist-head">
+                      <div>
+                        <p className="eyebrow">Encerramento</p>
+                        <h3>{editionLifecycle?.status === 'encerrada' ? 'Season encerrada' : 'Fechar resultado oficial'}</h3>
+                        <span>{editionLifecycle?.status === 'encerrada'
+                          ? `Resultado publicado${editionLifecycle.data_fim ? ` em ${editionLifecycle.data_fim}` : ''}.`
+                          : 'Usa os jogos, resultados e classificações que já existem. Não cria uma tabela paralela.'}</span>
+                      </div>
+                      {editionLifecycle ? (
+                        <button
+                          type="button"
+                          className={editionLifecycle.status === 'encerrada' ? 'button secondary' : 'button'}
+                          disabled={editionLifecycleBusy}
+                          onClick={() => void updateEditionLifecycle(editionLifecycle.status === 'encerrada' ? 'reopen_final' : 'publish_final')}
+                        >
+                          {editionLifecycleBusy ? 'Processando...' : editionLifecycle.status === 'encerrada' ? 'Reabrir season' : 'Encerrar campeonato'}
+                        </button>
+                      ) : <small>Esta edição ainda não possui vínculo de season.</small>}
+                    </div>
+                    {editionLifecycleError ? <div className="message error">{editionLifecycleError}</div> : null}
                   </section>
 
                   <section className="champ-overview-card">

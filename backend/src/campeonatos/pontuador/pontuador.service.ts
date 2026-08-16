@@ -153,7 +153,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
   ])
 
   const classificacaoOrdenada = [...(classificacaoJogo || [])]
-    .sort((a: any, b: any) => Number(b.pontos_total || 0) - Number(a.pontos_total || 0) || Number(b.booyahs || 0) - Number(a.booyahs || 0) || Number(b.abates || 0) - Number(a.abates || 0))
+    .sort((a: any, b: any) => Number(b.pontos_total || 0) - Number(a.pontos_total || 0) || Number(b.booyahs || 0) - Number(a.booyahs || 0) || Number(b.abates || 0) - Number(a.abates || 0) || Number(a.melhor_posicao ?? 999) - Number(b.melhor_posicao ?? 999))
     .map((item: any, index) => ({ ...item, colocacao: index + 1 }))
 
   return {

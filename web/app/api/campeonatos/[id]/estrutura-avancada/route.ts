@@ -516,6 +516,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
       if (error) throw error
     } else if (action === 'publish_final') {
+      const { data: championship, error: championshipError } = await supabaseAdmin
+        .from('campeonatos')
+        .select('id,tipo')
+        .eq('id', campeonatoId)
+        .maybeSingle()
+      if (championshipError) throw championshipError
+      if (!championship) throw new Error('Campeonato não encontrado.')
+
       const { data: edition, error: editionError } = await supabaseAdmin
         .from('campeonato_edicoes')
         .select('id,status,metadados')
@@ -534,12 +542,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (pendingFalls) throw new Error(`Existem ${pendingFalls} queda(s) ainda não finalizada(s). Finalize todas antes de publicar o resultado final.`)
 
       const resumoCampeao = await carregarResumoCampeao(campeonatoId)
-      const finalRanking = resumoCampeao.fase?.id
-        ? await listarEstatisticasEquipes(campeonatoId, { faseId: resumoCampeao.fase.id })
-        : await listarEstatisticasEquipes(campeonatoId, {})
-      if (!finalRanking.length) throw new Error('Não há classificação calculada para publicar.')
-      if (resumoCampeao.fase && !resumoCampeao.final_concluida) throw new Error('Finalize todas as quedas da Grande Final antes de publicar.')
-      if (resumoCampeao.aguardando_desempate || (resumoCampeao.fase && !resumoCampeao.campeao)) throw new Error('A Grande Final ainda não definiu um campeão pelas regras configuradas.')
+      const isLeague = String(championship.tipo || '').toLowerCase() === 'liga'
+      let finalRanking: any[] = []
+      if (isLeague) {
+        const { data: leagueGroups, error: leagueGroupsError } = await supabaseAdmin
+          .from('campeonato_grupos')
+          .select('id,nome')
+          .eq('campeonato_id', campeonatoId)
+        if (leagueGroupsError) throw leagueGroupsError
+        if (!leagueGroups?.length) throw new Error('A Liga ainda não possui agrupamentos para encerrar.')
+        for (const group of leagueGroups) {
+          const ranking = await listarEstatisticasEquipes(campeonatoId, { grupoId: String(group.id) })
+          if (!ranking.length) throw new Error(`O agrupamento ${group.nome || 'da Liga'} ainda não possui classificação calculada.`)
+          finalRanking.push(...ranking.map((row: any) => ({ ...row, grupo_id: group.id, grupo_nome: group.nome })))
+        }
+      } else {
+        finalRanking = resumoCampeao.fase?.id
+          ? await listarEstatisticasEquipes(campeonatoId, { faseId: resumoCampeao.fase.id })
+          : await listarEstatisticasEquipes(campeonatoId, {})
+        if (!finalRanking.length) throw new Error('Não há classificação calculada para publicar.')
+        if (resumoCampeao.fase && !resumoCampeao.final_concluida) throw new Error('Finalize todas as quedas da Grande Final antes de publicar.')
+        if (resumoCampeao.aguardando_desempate || (resumoCampeao.fase && !resumoCampeao.campeao)) throw new Error('A Grande Final ainda não definiu um campeão pelas regras configuradas.')
+      }
 
       const publishedAt = new Date().toISOString()
       const metadata = {
@@ -547,16 +571,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         final_publicado_em: publishedAt,
         final_publicado_por: user.id,
         final_total_equipes: finalRanking.length,
-        final_campeao_campeonato_equipe_id: resumoCampeao.campeao?.campeonato_equipe_id || finalRanking[0]?.campeonato_equipe_id || null,
+        final_campeao_campeonato_equipe_id: isLeague ? null : (resumoCampeao.campeao?.campeonato_equipe_id || finalRanking[0]?.campeonato_equipe_id || null),
       }
-      const [{ error: stageError }, { error: divisionError }, { error: editionUpdateError }] = await Promise.all([
+      const [{ error: stageError }, { error: divisionError }, { error: editionUpdateError }, { error: registrationError }] = await Promise.all([
         supabaseAdmin.from('campeonato_etapas').update({ status: 'encerrada', updated_at: publishedAt }).eq('edicao_id', edition.id).neq('status', 'cancelada'),
         supabaseAdmin.from('campeonato_divisoes').update({ status: 'encerrada', updated_at: publishedAt }).eq('edicao_id', edition.id).neq('status', 'cancelada'),
         supabaseAdmin.from('campeonato_edicoes').update({ status: 'encerrada', data_fim: publishedAt.slice(0, 10), metadados: metadata, updated_at: publishedAt }).eq('id', edition.id),
+        supabaseAdmin.from('campeonato_configuracoes').update({ aceita_novas_inscricoes_equipes: false }).eq('campeonato_id', campeonatoId),
       ])
       if (stageError) throw stageError
       if (divisionError) throw divisionError
       if (editionUpdateError) throw editionUpdateError
+      if (registrationError) throw registrationError
     } else if (action === 'reopen_final') {
       const { data: edition, error: editionError } = await supabaseAdmin
         .from('campeonato_edicoes')

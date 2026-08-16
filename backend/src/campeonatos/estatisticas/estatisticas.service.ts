@@ -63,7 +63,7 @@ export async function listarEstatisticasEquipes(campeonatoId: string, filters: F
   }
 
   return [...aggregate.values()]
-    .sort((a, b) => b.pontos_total - a.pontos_total || b.booyahs - a.booyahs || b.abates - a.abates)
+    .sort((a, b) => b.pontos_total - a.pontos_total || b.booyahs - a.booyahs || b.abates - a.abates || Number(a.melhor_posicao ?? 999) - Number(b.melhor_posicao ?? 999))
     .map((row, index) => ({ ...row, colocacao: index + 1 }))
 }
 
@@ -174,7 +174,7 @@ export async function carregarResumoCampeao(campeonatoId: string) {
       const pontosBonus = Number(bonusPorEquipe.get(String(row.campeonato_equipe_id || '')) || 0)
       return { ...row, pontos_bonus_final: pontosBonus, pontos_total: Number(row.pontos_total || 0) + pontosBonus }
     })
-    .sort((a: any, b: any) => b.pontos_total - a.pontos_total || b.booyahs - a.booyahs || b.abates - a.abates)
+    .sort((a: any, b: any) => b.pontos_total - a.pontos_total || b.booyahs - a.booyahs || b.abates - a.abates || Number(a.melhor_posicao ?? 999) - Number(b.melhor_posicao ?? 999))
     .map((row: any, index: number) => ({ ...row, colocacao: index + 1 }))
 
   const modoDecisao = String(configuracao?.modo_decisao || 'pontuacao_normal')
