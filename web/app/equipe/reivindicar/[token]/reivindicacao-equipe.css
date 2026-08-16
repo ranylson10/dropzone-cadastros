@@ -1,0 +1,10 @@
+.historical-team-claim-card { max-width: 620px; }
+.historical-team-claim-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; margin: 18px 0; }
+.historical-team-claim-summary span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.historical-team-claim-summary small { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .68; }
+.historical-team-claim-summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.historical-team-lines { width: 100%; }
+.historical-team-login, .historical-team-action { display: grid; gap: 12px; width: 100%; margin-top: 16px; }
+.historical-team-login h2, .historical-team-action h2 { margin: 0; }
+.historical-team-login p, .historical-team-action p { margin: 0; }
+@media (max-width: 640px) { .historical-team-claim-summary { gap: 7px; } }

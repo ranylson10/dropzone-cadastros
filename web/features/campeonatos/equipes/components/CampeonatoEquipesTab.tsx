@@ -92,6 +92,9 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
   const [origemEntrada, setOrigemEntrada] = useState<LigaEntradaTipo | ''>('')
   const [preparandoLiga, setPreparandoLiga] = useState(false)
   const [aplicandoSeason, setAplicandoSeason] = useState(false)
+  const [historicasOpen, setHistoricasOpen] = useState(false)
+  const [historicasTexto, setHistoricasTexto] = useState('')
+  const [historicasResultado, setHistoricasResultado] = useState<any[]>([])
 
   const stats = useMemo(() => {
     const vagas = data?.vagas || []
@@ -213,6 +216,58 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
     } finally {
       setAplicandoSeason(false)
     }
+  }
+
+  async function abrirHistoricas() {
+    setHistoricasOpen(true)
+    setHistoricasResultado([])
+    setFeedback('')
+    try {
+      const result = await campeonatoEquipesService.listarHistoricas(campeonatoId) as { resultados?: any[] }
+      setHistoricasResultado(result.resultados || [])
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Erro ao carregar equipes históricas.')
+    }
+  }
+
+  async function criarHistoricasEmBloco() {
+    const equipes = historicasTexto
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [nome, tag] = line.split('|').map((part) => part.trim())
+        return { nome, ...(tag ? { tag } : {}) }
+      })
+      .filter((item) => item.nome)
+
+    if (!equipes.length) {
+      setFeedback('Cole ao menos um nome de equipe, uma por linha.')
+      return
+    }
+
+    setProcessando(true)
+    setFeedback('')
+    try {
+      const result = await campeonatoEquipesService.criarHistoricasEmBloco(campeonatoId, { equipes }) as {
+        criadas?: number
+        existentes?: number
+        resultados?: any[]
+      }
+      setHistoricasResultado(result.resultados || [])
+      setFeedback(`${result.criadas || 0} equipe(s) histórica(s) criada(s). ${result.existentes || 0} nome(s) já existiam e não foram duplicados.`)
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Erro ao cadastrar equipes históricas.')
+    } finally {
+      setProcessando(false)
+    }
+  }
+
+  async function copiarLinkHistorico(row: any) {
+    if (!row?.token) return
+    const link = `${window.location.origin}/equipe/reivindicar/${row.token}`
+    const copiou = await copiarTexto(link)
+    setFeedback(copiou ? `Link de ${row.nome} copiado.` : 'Não foi possível copiar automaticamente.')
   }
 
   function fechar() {
@@ -496,9 +551,16 @@ Acesse: ${link}`
           <p>Equipes e inscrições</p>
           <h2>Grupos e slots</h2>
         </div>
-        <button className="champ-registration-refresh" type="button" onClick={reload} title="Atualizar inscrições" aria-label="Atualizar inscrições">
-          <RefreshCw size={16} />
-        </button>
+        <div className="champ-registration-head-actions">
+          {data.permission.role === 'owner' ? (
+            <button className="champ-registration-bulk" type="button" onClick={() => void abrirHistoricas()}>
+              <Users size={15} /> Cadastro em bloco
+            </button>
+          ) : null}
+          <button className="champ-registration-refresh" type="button" onClick={reload} title="Atualizar inscrições" aria-label="Atualizar inscrições">
+            <RefreshCw size={16} />
+          </button>
+        </div>
       </header>
 
       <div className="champ-registration-summary" aria-label="Resumo das inscrições">
@@ -741,6 +803,47 @@ Acesse: ${link}`
           </section>
         ))}
       </div>
+
+      <SystemModal
+        open={historicasOpen}
+        title="Cadastrar equipes históricas em bloco"
+        description="Crie equipes sem dono para campeonatos antigos. Cada equipe recebe uma line principal e um link exclusivo para o responsável reivindicar depois."
+        onClose={() => setHistoricasOpen(false)}
+        size="wide"
+      >
+        <div className="historical-team-bulk">
+          <label>
+            <span>Equipes</span>
+            <textarea
+              rows={10}
+              value={historicasTexto}
+              onChange={(event) => setHistoricasTexto(event.target.value)}
+              placeholder={'Tropa do Pará | TDP\nFênix Esports | FNX\nAmazon Cria'}
+            />
+            <small>Uma por linha. A tag é opcional: Nome da equipe | TAG. Nomes já existentes não são duplicados.</small>
+          </label>
+          <div className="historical-team-bulk-actions">
+            <button className="button" type="button" disabled={processando || !historicasTexto.trim()} onClick={() => void criarHistoricasEmBloco()}>
+              {processando ? <Loader2 className="spin" size={15} /> : <Users size={15} />} Criar equipes e links
+            </button>
+          </div>
+          {historicasResultado.length ? (
+            <div className="historical-team-bulk-results">
+              {historicasResultado.map((row) => (
+                <article key={`${row.status}-${row.equipe_id}`}>
+                  <div>
+                    <strong>{row.nome}</strong>
+                    <small>{row.status !== 'criada' ? (row.tem_dono ? 'Equipe já existe e possui responsável' : 'Equipe já existe') : row.incorporada ? 'Histórico incorporado a outra equipe' : row.reivindicada ? 'Reivindicada' : 'Aguardando responsável'}</small>
+                  </div>
+                  {row.status === 'criada' && row.token && !row.reivindicada ? (
+                    <button type="button" onClick={() => void copiarLinkHistorico(row)}><Copy size={14} /> Copiar link</button>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </SystemModal>
 
       <SystemModal
         open={Boolean(vagaAlvo && modo)}

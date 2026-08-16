@@ -20,6 +20,8 @@ export const campeonatoEquipesService = {
   listar: (campeonatoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes`),
   buscarEquipes: (campeonatoId: string, termo: string) => request(`/api/campeonatos/${campeonatoId}/equipes/busca?q=${encodeURIComponent(termo)}`),
   adicionar: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/equipes`, { method: 'POST', body: JSON.stringify(body) }),
+  listarHistoricas: (campeonatoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes/historicas`),
+  criarHistoricasEmBloco: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/equipes/historicas`, { method: 'POST', body: JSON.stringify(body) }),
   prepararLiga: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/estrutura`, { method: 'POST', body: JSON.stringify(body) }),
   aplicarSugestoesSeasonLiga: (campeonatoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes`, { method: 'POST', body: JSON.stringify({ mode: 'apply_league_season_suggestions' }) }),
   remover: (campeonatoId: string, participacaoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes?participacao_id=${encodeURIComponent(participacaoId)}`, { method: 'DELETE' }),
