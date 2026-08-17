@@ -30,7 +30,7 @@ const profileDescriptions: Record<ProfileType, string> = {
 const PROFILE_TYPES: ProfileType[] = ['produtora', 'equipe', 'jogador', 'manager', 'broadcast']
 
 type LoginStage = 'checking' | 'authenticate' | 'profiles'
-type EmailMode = 'entrar' | 'criar' | 'recuperar' | 'confirmacao-enviada' | 'recuperacao-enviada'
+type EmailMode = 'entrar' | 'criar' | 'confirmar-cadastro' | 'recuperar' | 'confirmar-recuperacao' | 'nova-senha'
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -57,7 +57,9 @@ function friendlyAuthError(message: string) {
   if (/email not confirmed/i.test(message)) return 'Confirme seu e-mail antes de entrar.'
   if (/user already registered|already registered/i.test(message)) return 'Este e-mail já possui uma conta. Entre ou recupere sua senha.'
   if (/password should be at least/i.test(message)) return 'A senha não atende aos requisitos de segurança.'
-  if (/rate limit|too many requests/i.test(message)) return 'Muitas tentativas. Aguarde um pouco e tente novamente.'
+  if (/otp.*expired|token.*expired|expired.*token/i.test(message)) return 'Este código expirou. Solicite um novo código.'
+  if (/token.*invalid|invalid.*token|otp.*invalid/i.test(message)) return 'Código inválido. Confira os 6 dígitos e tente novamente.'
+  if (/rate limit|too many requests|email rate limit/i.test(message)) return 'Muitas tentativas. Aguarde um pouco antes de solicitar outro código.'
   return message || 'Não foi possível concluir a autenticação.'
 }
 
@@ -108,6 +110,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [otpCode, setOtpCode] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
   const [params, setParams] = useState({
     returnTo: '/',
@@ -153,9 +156,11 @@ export default function LoginPage() {
       const switchAccount = search.get('switch') === '1'
       const complete = search.get('complete') === '1'
       const passwordUpdated = search.get('passwordUpdated') === '1'
+      const recoveryRequested = search.get('recovery') === '1'
       if (active) {
         setParams({ returnTo, profileType, switchAccount })
         if (passwordUpdated) setNotice('Senha atualizada. Entre com seu e-mail e a nova senha.')
+        if (recoveryRequested) setEmailMode('recuperar')
       }
 
       if (complete) {
@@ -246,8 +251,6 @@ export default function LoginPage() {
 
   async function handleEmailAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (emailMode === 'confirmacao-enviada' || emailMode === 'recuperacao-enviada') return
-
     setEmailLoading(true)
     setError('')
     setNotice('')
@@ -275,9 +278,6 @@ export default function LoginPage() {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/login?complete=1`,
-          },
         })
         if (signUpError) throw new Error(friendlyAuthError(signUpError.message))
 
@@ -287,19 +287,63 @@ export default function LoginPage() {
         }
 
         setEmail(normalizedEmail)
-        setEmailMode('confirmacao-enviada')
-        setNotice(`Enviamos a confirmação para ${normalizedEmail}. Abra o e-mail para ativar sua conta.`)
+        setOtpCode('')
+        setEmailMode('confirmar-cadastro')
+        setNotice(`Enviamos um código de 6 dígitos para ${normalizedEmail}.`)
+        return
+      }
+
+      if (emailMode === 'confirmar-cadastro') {
+        if (!/^\d{6}$/.test(otpCode)) throw new Error('Digite o código de 6 dígitos enviado para seu e-mail.')
+        const { data, error: verifyError } = await supabase.auth.verifyOtp({
+          email: normalizedEmail,
+          token: otpCode,
+          type: 'email',
+        })
+        if (verifyError || !data.session) throw new Error(friendlyAuthError(verifyError?.message || 'Código inválido ou expirado.'))
+        await openAuthenticatedSession(data.session)
         return
       }
 
       if (emailMode === 'recuperar') {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-          redirectTo: `${window.location.origin}/atualizar-senha`,
-        })
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail)
         if (resetError) throw new Error(friendlyAuthError(resetError.message))
         setEmail(normalizedEmail)
-        setEmailMode('recuperacao-enviada')
-        setNotice(`Se existe uma conta com ${normalizedEmail}, enviamos o link para redefinir a senha.`)
+        setOtpCode('')
+        setEmailMode('confirmar-recuperacao')
+        setNotice(`Se existe uma conta com ${normalizedEmail}, enviamos um código de recuperação.`)
+        return
+      }
+
+      if (emailMode === 'confirmar-recuperacao') {
+        if (!/^\d{6}$/.test(otpCode)) throw new Error('Digite o código de 6 dígitos enviado para seu e-mail.')
+        const { data, error: verifyError } = await supabase.auth.verifyOtp({
+          email: normalizedEmail,
+          token: otpCode,
+          type: 'recovery',
+        })
+        if (verifyError || !data.session) throw new Error(friendlyAuthError(verifyError?.message || 'Código inválido ou expirado.'))
+        setPassword('')
+        setConfirmPassword('')
+        setOtpCode('')
+        setEmailMode('nova-senha')
+        setNotice('Código confirmado. Defina sua nova senha.')
+        return
+      }
+
+      if (emailMode === 'nova-senha') {
+        const issue = passwordIssue(password)
+        if (issue) throw new Error(issue)
+        if (password !== confirmPassword) throw new Error('A confirmação da senha não confere.')
+
+        const { error: updateError } = await supabase.auth.updateUser({ password })
+        if (updateError) throw new Error(friendlyAuthError(updateError.message))
+
+        await supabase.auth.signOut().catch(() => undefined)
+        setPassword('')
+        setConfirmPassword('')
+        setEmailMode('entrar')
+        setNotice('Senha atualizada. Entre com seu e-mail e a nova senha.')
       }
     } catch (cause: unknown) {
       setError(friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível concluir a autenticação.'))
@@ -308,21 +352,26 @@ export default function LoginPage() {
     }
   }
 
-  async function resendConfirmation() {
+  async function resendCode(kind: 'signup' | 'recovery') {
     setEmailLoading(true)
     setError('')
     setNotice('')
     try {
       const normalizedEmail = normalizeEmail(email)
-      const { error: resendError } = await supabase.auth.resend({
-        type: 'signup',
-        email: normalizedEmail,
-        options: { emailRedirectTo: `${window.location.origin}/login?complete=1` },
-      })
-      if (resendError) throw resendError
-      setNotice(`Novo e-mail de confirmação enviado para ${normalizedEmail}.`)
+      if (kind === 'signup') {
+        const { error: resendError } = await supabase.auth.resend({
+          type: 'signup',
+          email: normalizedEmail,
+        })
+        if (resendError) throw resendError
+      } else {
+        const { error: resendError } = await supabase.auth.resetPasswordForEmail(normalizedEmail)
+        if (resendError) throw resendError
+      }
+      setOtpCode('')
+      setNotice(`Novo código enviado para ${normalizedEmail}.`)
     } catch (cause: unknown) {
-      setError(friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível reenviar a confirmação.'))
+      setError(friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível reenviar o código.'))
     } finally {
       setEmailLoading(false)
     }
@@ -332,6 +381,7 @@ export default function LoginPage() {
     setEmailMode(nextMode)
     setPassword('')
     setConfirmPassword('')
+    setOtpCode('')
     setError('')
     setNotice('')
   }
@@ -365,15 +415,16 @@ export default function LoginPage() {
     setEmailMode('entrar')
     setPassword('')
     setConfirmPassword('')
+    setOtpCode('')
     setStage('authenticate')
   }
 
   const authTitle = emailMode === 'criar'
     ? 'CRIE SUA CONTA'
-    : emailMode === 'recuperar' || emailMode === 'recuperacao-enviada'
-      ? 'RECUPERE SUA SENHA'
-      : emailMode === 'confirmacao-enviada'
-        ? 'CONFIRME SEU E-MAIL'
+    : emailMode === 'confirmar-cadastro'
+      ? 'CONFIRME SEU CÓDIGO'
+      : emailMode === 'recuperar' || emailMode === 'confirmar-recuperacao' || emailMode === 'nova-senha'
+        ? 'RECUPERE SUA SENHA'
         : 'ENTRE COM SUA CONTA'
 
   return (
@@ -409,12 +460,16 @@ export default function LoginPage() {
                 <h2>{authTitle}</h2>
                 <p>
                   {emailMode === 'criar'
-                    ? 'Cadastre seu e-mail. Depois da confirmação, você escolhe e cria seu primeiro perfil DropZone.'
-                    : emailMode === 'recuperar' || emailMode === 'recuperacao-enviada'
-                      ? 'Informe o e-mail da sua conta para receber o link de recuperação.'
-                      : emailMode === 'confirmacao-enviada'
-                        ? 'Sua conta foi criada e aguarda a confirmação do endereço de e-mail.'
-                        : 'Use Google ou e-mail para confirmar sua identidade. O perfil é escolhido depois do login.'}
+                    ? 'Cadastre seu e-mail e senha. Vamos enviar um código de 6 dígitos para confirmar sua conta.'
+                    : emailMode === 'confirmar-cadastro'
+                      ? 'Digite abaixo o código de 6 dígitos enviado para seu e-mail.'
+                      : emailMode === 'recuperar'
+                        ? 'Informe o e-mail da sua conta para receber um código de recuperação.'
+                        : emailMode === 'confirmar-recuperacao'
+                          ? 'Digite o código de recuperação enviado para seu e-mail.'
+                          : emailMode === 'nova-senha'
+                            ? 'Código confirmado. Agora defina sua nova senha.'
+                            : 'Use Google ou e-mail para confirmar sua identidade. O perfil é escolhido depois do login.'}
                 </p>
 
                 {emailMode === 'entrar' ? (
@@ -425,41 +480,60 @@ export default function LoginPage() {
                 ) : null}
 
                 <form className="login-email-form" onSubmit={handleEmailAuth}>
-                  {emailMode !== 'confirmacao-enviada' && emailMode !== 'recuperacao-enviada' ? (
-                    <label className="login-email-field">
-                      <span>E-mail</span>
-                      <input
-                        type="email"
-                        autoComplete="email"
-                        inputMode="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        placeholder="voce@email.com"
-                        required
-                      />
-                    </label>
-                  ) : (
-                    <div className="login-email-sent"><Mail size={22} /><strong>{email}</strong></div>
-                  )}
+                  {emailMode !== 'nova-senha' ? (
+                    emailMode === 'confirmar-cadastro' || emailMode === 'confirmar-recuperacao' ? (
+                      <div className="login-email-sent"><Mail size={22} /><strong>{email}</strong></div>
+                    ) : (
+                      <label className="login-email-field">
+                        <span>E-mail</span>
+                        <input
+                          type="email"
+                          autoComplete="email"
+                          inputMode="email"
+                          value={email}
+                          onChange={(event) => setEmail(event.target.value)}
+                          placeholder="voce@email.com"
+                          required
+                        />
+                      </label>
+                    )
+                  ) : null}
 
-                  {emailMode === 'entrar' || emailMode === 'criar' ? (
-                    <label className="login-email-field">
-                      <span>Senha</span>
+                  {emailMode === 'confirmar-cadastro' || emailMode === 'confirmar-recuperacao' ? (
+                    <label className="login-otp-field">
+                      <span>Código de 6 dígitos</span>
                       <input
-                        type="password"
-                        autoComplete={emailMode === 'criar' ? 'new-password' : 'current-password'}
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="Sua senha"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="000000"
+                        aria-label="Código de 6 dígitos"
                         required
                       />
                     </label>
                   ) : null}
 
-                  {emailMode === 'criar' ? (
+                  {emailMode === 'entrar' || emailMode === 'criar' || emailMode === 'nova-senha' ? (
+                    <label className="login-email-field">
+                      <span>{emailMode === 'nova-senha' ? 'Nova senha' : 'Senha'}</span>
+                      <input
+                        type="password"
+                        autoComplete={emailMode === 'entrar' ? 'current-password' : 'new-password'}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder={emailMode === 'nova-senha' ? 'Nova senha' : 'Sua senha'}
+                        required
+                      />
+                    </label>
+                  ) : null}
+
+                  {emailMode === 'criar' || emailMode === 'nova-senha' ? (
                     <>
                       <label className="login-email-field">
-                        <span>Confirmar senha</span>
+                        <span>Confirmar {emailMode === 'nova-senha' ? 'nova senha' : 'senha'}</span>
                         <input
                           type="password"
                           autoComplete="new-password"
@@ -477,30 +551,44 @@ export default function LoginPage() {
                     <button type="button" className="login-email-link forgot" onClick={() => changeEmailMode('recuperar')}>Esqueci minha senha</button>
                   ) : null}
 
-                  {emailMode === 'confirmacao-enviada' ? (
-                    <button type="button" className="login-email-primary" disabled={emailLoading} onClick={() => void resendConfirmation()}>
-                      {emailLoading ? <Loader2 className="spin" size={16} /> : null}
-                      Reenviar confirmação
-                    </button>
-                  ) : emailMode === 'recuperacao-enviada' ? null : (
-                    <button type="submit" className="login-email-primary" disabled={emailLoading}>
-                      {emailLoading ? <Loader2 className="spin" size={16} /> : null}
-                      {emailMode === 'criar' ? 'Criar conta com e-mail' : emailMode === 'recuperar' ? 'Enviar link de recuperação' : 'Entrar com e-mail'}
-                    </button>
-                  )}
+                  <button type="submit" className="login-email-primary" disabled={emailLoading}>
+                    {emailLoading ? <Loader2 className="spin" size={16} /> : null}
+                    {emailMode === 'criar'
+                      ? 'Criar conta com e-mail'
+                      : emailMode === 'confirmar-cadastro'
+                        ? 'Confirmar conta'
+                        : emailMode === 'recuperar'
+                          ? 'Enviar código de recuperação'
+                          : emailMode === 'confirmar-recuperacao'
+                            ? 'Confirmar código'
+                            : emailMode === 'nova-senha'
+                              ? 'Atualizar senha'
+                              : 'Entrar com e-mail'}
+                  </button>
+
+                  {emailMode === 'confirmar-cadastro' ? (
+                    <button type="button" className="login-email-link otp-resend" disabled={emailLoading} onClick={() => void resendCode('signup')}>Reenviar código</button>
+                  ) : null}
+                  {emailMode === 'confirmar-recuperacao' ? (
+                    <button type="button" className="login-email-link otp-resend" disabled={emailLoading} onClick={() => void resendCode('recovery')}>Reenviar código</button>
+                  ) : null}
                 </form>
 
                 <div className="login-email-switch">
                   {emailMode === 'entrar' ? (
                     <button type="button" onClick={() => changeEmailMode('criar')}>Ainda não tem conta? <strong>Criar conta</strong></button>
-                  ) : (
+                  ) : emailMode === 'confirmar-cadastro' ? (
+                    <button type="button" onClick={() => changeEmailMode('criar')}>← Alterar e-mail</button>
+                  ) : emailMode === 'confirmar-recuperacao' ? (
+                    <button type="button" onClick={() => changeEmailMode('recuperar')}>← Alterar e-mail</button>
+                  ) : emailMode === 'nova-senha' ? null : (
                     <button type="button" onClick={() => changeEmailMode('entrar')}>← Voltar para entrar</button>
                   )}
                 </div>
 
                 {notice ? <div className="message">{notice}</div> : null}
                 {error ? <div className="message error">{error}</div> : null}
-                <div className="login-security-note"><ShieldCheck size={16} /><span>Autenticação segura pelo Supabase. Confirmações e recuperações são enviadas pelo e-mail oficial do DropZone.</span></div>
+                <div className="login-security-note"><ShieldCheck size={16} /><span>Autenticação segura pelo Supabase. Códigos de confirmação e recuperação são enviados pelo e-mail oficial do DropZone.</span></div>
               </div>
             ) : null}
 

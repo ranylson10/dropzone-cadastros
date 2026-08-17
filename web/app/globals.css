@@ -5616,19 +5616,14 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .login-email-sent{ min-height: 62px; display: flex; align-items: center; gap: 10px; background: #fff; border-left: 3px solid var(--dz-accent, #ff5468); padding: 12px 14px; color: #20262f;
 } .login-email-sent svg{ color: var(--dz-accent, #ff5468);
 } .login-email-sent strong{ min-width: 0; overflow-wrap: anywhere; font-size: 12px;
+} .login-otp-field{ display: grid; gap: 7px;
+} .login-otp-field > span{ color: #4d5661; font-size: 9px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase;
+} .login-otp-field input{ width: 100%; min-height: 64px; border: 1px solid #d9d5cd; border-radius: 0; background: #fff; color: #151a22; padding: 0 18px 0 25px; font: inherit; font-size: 28px; font-weight: 950; letter-spacing: .34em; text-align: center; outline: none; font-variant-numeric: tabular-nums;
+} .login-otp-field input:focus{ border-color: var(--dz-accent, #ff5468);
+} .login-otp-field input::placeholder{ color: #c4c0b8;
+} .login-email-link.otp-resend{ justify-self: center; margin-top: 1px;
+} .login-email-link:disabled{ cursor: wait; opacity: .5;
 } .login-auth-step > .message{ margin-top: 14px;
-} .password-reset-stage{ grid-template-columns: 1fr;
-} .password-reset-card{ position: relative; z-index: 1; width: min(480px, 100%); display: grid; gap: 16px; padding: clamp(28px, 5vw, 46px); border-top: 6px solid var(--dz-accent, #ff5468); background: rgba(247,244,238,.98); color: #151a22; box-shadow: 0 36px 90px rgba(0,0,0,.3);
-} .password-reset-card h1{ margin: -2px 0 4px; font-size: clamp(30px, 4vw, 44px); line-height: .96; letter-spacing: -.035em;
-} .password-reset-success,
-.password-reset-invalid{ min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; color: #5f6873;
-} .password-reset-success svg,
-.password-reset-invalid svg{ color: var(--dz-accent, #ff5468);
-} .password-reset-success strong,
-.password-reset-invalid strong{ color: #151a22; font-size: 16px; text-transform: uppercase;
-} .password-reset-success span,
-.password-reset-invalid span{ font-size: 11px;
-} .password-reset-invalid a{ margin-top: 6px; color: var(--dz-accent, #ff5468); font-size: 10px; font-weight: 900; text-transform: uppercase; text-decoration: none;
 } .login-security-note{ margin-top: 18px; display: flex; align-items: flex-start; gap: 8px; color: #69717c; font-size: 11px; line-height: 1.45;
 } .login-security-note svg{ flex: 0 0 auto; color: var(--dz-accent, #ff5468);
 } .login-profile-step{ width: 100%; padding: clamp(28px, 4vw, 52px); max-height: min(82vh, 760px); overflow-y: auto;
