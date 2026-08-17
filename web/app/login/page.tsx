@@ -469,15 +469,8 @@ export default function LoginPage() {
                           ? 'Digite o código de recuperação enviado para seu e-mail.'
                           : emailMode === 'nova-senha'
                             ? 'Código confirmado. Agora defina sua nova senha.'
-                            : 'Use Google ou e-mail para confirmar sua identidade. O perfil é escolhido depois do login.'}
+                            : 'Entre com seu e-mail e senha. Se preferir, o acesso com Google continua disponível como alternativa.'}
                 </p>
-
-                {emailMode === 'entrar' ? (
-                  <>
-                    <SocialLogin profileType={null} returnTo={params.returnTo} />
-                    <div className="login-auth-divider"><span>ou</span></div>
-                  </>
-                ) : null}
 
                 <form className="login-email-form" onSubmit={handleEmailAuth}>
                   {emailMode !== 'nova-senha' ? (
@@ -547,10 +540,6 @@ export default function LoginPage() {
                     </>
                   ) : null}
 
-                  {emailMode === 'entrar' ? (
-                    <button type="button" className="login-email-link forgot" onClick={() => changeEmailMode('recuperar')}>Esqueci minha senha</button>
-                  ) : null}
-
                   <button type="submit" className="login-email-primary" disabled={emailLoading}>
                     {emailLoading ? <Loader2 className="spin" size={16} /> : null}
                     {emailMode === 'criar'
@@ -574,10 +563,25 @@ export default function LoginPage() {
                   ) : null}
                 </form>
 
+                {emailMode === 'entrar' ? (
+                  <>
+                    <div className="login-email-actions" aria-label="Ações da conta">
+                      <button type="button" className="login-account-action recovery" onClick={() => changeEmailMode('recuperar')}>
+                        Esqueci minha senha
+                      </button>
+                      <button type="button" className="login-account-action create" onClick={() => changeEmailMode('criar')}>
+                        Criar conta
+                      </button>
+                    </div>
+                    <div className="login-auth-divider login-auth-divider-secondary"><span>ou continue com</span></div>
+                    <div className="login-social-secondary">
+                      <SocialLogin profileType={null} returnTo={params.returnTo} />
+                    </div>
+                  </>
+                ) : null}
+
                 <div className="login-email-switch">
-                  {emailMode === 'entrar' ? (
-                    <button type="button" onClick={() => changeEmailMode('criar')}>Ainda não tem conta? <strong>Criar conta</strong></button>
-                  ) : emailMode === 'confirmar-cadastro' ? (
+                  {emailMode === 'entrar' ? null : emailMode === 'confirmar-cadastro' ? (
                     <button type="button" onClick={() => changeEmailMode('criar')}>← Alterar e-mail</button>
                   ) : emailMode === 'confirmar-recuperacao' ? (
                     <button type="button" onClick={() => changeEmailMode('recuperar')}>← Alterar e-mail</button>

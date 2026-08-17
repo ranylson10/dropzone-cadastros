@@ -5593,9 +5593,9 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 .login-profile-head h2{ margin: 8px 0 12px; color: #121820; font-size: clamp(31px, 3vw, 46px); line-height: .95; letter-spacing: -.035em;
 } .login-auth-step > p,
 .login-profile-head p{ margin: 0; color: #68707b; font-size: 13px; line-height: 1.55;
-} .login-auth-step .social-login-stack{ margin-top: 28px;
-} .login-auth-step .social-login-button{ width: 100%; min-height: 56px; border: 0; border-radius: 0; background: var(--dz-accent, #ff5468); color: #fff; justify-content: center; font-size: 13px; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; box-shadow: none;
-} .login-auth-step .social-login-button:hover{ background: #e7485b; transform: translateY(-2px);
+} .login-auth-step .social-login-stack{ margin-top: 0;
+} .login-auth-step .social-login-button{ width: 100%; min-height: 46px; border: 1px solid #cfc9bf; border-radius: 0; background: transparent; color: #3f4853; justify-content: center; font-size: 10px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; box-shadow: none;
+} .login-auth-step .social-login-button:hover{ border-color: #a7a096; background: #ebe6de; color: #151a22; transform: none;
 } .login-auth-divider{ display: flex; align-items: center; gap: 10px; margin: 18px 0; color: #8a9098; font-size: 9px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
 } .login-auth-divider::before,
 .login-auth-divider::after{ content: ""; height: 1px; flex: 1; background: #d9d5cd;
@@ -5604,12 +5604,21 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .login-email-field > span{ color: #4d5661; font-size: 9px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase;
 } .login-email-field input{ width: 100%; min-height: 48px; border: 1px solid #d9d5cd; border-radius: 0; background: #fff; color: #151a22; padding: 0 13px; font: inherit; font-size: 13px; outline: none;
 } .login-email-field input:focus{ border-color: var(--dz-accent, #ff5468);
-} .login-email-primary{ min-height: 50px; border: 0; border-radius: 0; background: #151a22; color: #fff; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; font-size: 11px; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
-} .login-email-primary:hover{ background: var(--dz-accent, #ff5468);
+} .login-email-primary{ min-height: 56px; border: 0; border-radius: 0; background: var(--dz-accent, #ff5468); color: #121820; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; font-size: 12px; font-weight: 950; letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
+} .login-email-primary:hover{ filter: brightness(.94);
 } .login-email-primary:disabled{ cursor: wait; opacity: .65;
 } .login-email-link{ width: max-content; border: 0; background: transparent; color: #5f6873; padding: 0; font-size: 10px; font-weight: 850; cursor: pointer;
 } .login-email-link:hover{ color: var(--dz-accent, #ff5468);
+} .login-email-actions{ margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+} .login-account-action{ min-height: 42px; border-radius: 0; padding: 0 12px; font: inherit; font-size: 10px; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
+} .login-account-action.recovery{ border: 1px solid #d2ccc2; background: transparent; color: #4d5661;
+} .login-account-action.recovery:hover{ border-color: #a9a297; color: #151a22;
+} .login-account-action.create{ border: 1px solid #151a22; background: #151a22; color: #fff;
+} .login-account-action.create:hover{ background: #252d37;
+} .login-auth-divider-secondary{ margin: 20px 0 12px;
+} .login-social-secondary{ margin-bottom: 2px;
 } .login-email-switch{ margin-top: 14px; text-align: center;
+} .login-email-switch:empty{ display: none;
 } .login-email-switch button{ border: 0; background: transparent; color: #5f6873; padding: 4px 0; font-size: 10px; cursor: pointer;
 } .login-email-switch button strong{ color: var(--dz-accent, #ff5468);
 } .login-password-hint{ margin-top: -3px; color: #7a818a; font-size: 9px; line-height: 1.45;
@@ -5690,6 +5699,8 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   .login-profile-head{ display: block;
   }
   .login-change-account{ margin-top: 8px;
+  }
+  .login-email-actions{ grid-template-columns: 1fr;
   }
   .login-profile-grid,
 .login-create-grid{ grid-template-columns: 1fr;

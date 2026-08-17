@@ -11,7 +11,8 @@ test('101 - login central mantém Google e entrada por email e senha', async () 
   expect(loginPage).toContain('<SocialLogin profileType={null} returnTo={params.returnTo} />')
   expect(loginPage).toContain('supabase.auth.signInWithPassword')
   expect(loginPage).toContain('Entrar com e-mail')
-  expect(loginPage).toContain('Ainda não tem conta?')
+  expect(loginPage).toContain('Esqueci minha senha')
+  expect(loginPage).toContain('Criar conta')
 })
 
 test('101 - cadastro continua usando Supabase Auth e confirmação obrigatória', async () => {

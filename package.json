@@ -38,7 +38,8 @@
     "mobile:go": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1",
     "mobile:go:tunnel": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1 -Tunnel",
     "desktop:dev": "npm --prefix desktop run dev",
-    "desktop:package:win": "npm --prefix desktop run package:win"
+    "desktop:package:win": "npm --prefix desktop run package:win",
+    "test:auth-email": "node scripts/testes/test-auth-email-delivery.mjs"
   },
   "devDependencies": {
     "depcheck": "^1.4.7",
