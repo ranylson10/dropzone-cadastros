@@ -5,25 +5,48 @@ import { join, resolve } from 'node:path'
 const baseURL = process.env.E2E_BASE_URL?.trim() || 'https://www.dpzone.site'
 const controlledDir = resolve(process.cwd(), 'tests-e2e', 'controlled')
 
-function intentionallyRemovedSpecs(): string[] {
-  if (!existsSync(controlledDir)) return []
-  return readdirSync(controlledDir)
-    .filter((name) => name.endsWith('.spec.ts'))
-    .filter((name) => {
-      try {
-        const source = readFileSync(join(controlledDir, name), 'utf8')
-        return /artes-postagem|PostArtworkWorkspace|post-artworks\.css/.test(source)
-      } catch {
-        return false
+function controlledSpecs() {
+  if (!existsSync(controlledDir)) return { staticSpecs: [] as string[], runtimeSpecs: [] as string[], removedSpecs: [] as string[] }
+  const staticSpecs: string[] = []
+  const runtimeSpecs: string[] = []
+  const removedSpecs: string[] = []
+
+  for (const name of readdirSync(controlledDir).filter((item) => item.endsWith('.spec.ts'))) {
+    try {
+      const source = readFileSync(join(controlledDir, name), 'utf8')
+      const pattern = `**/controlled/${name}`
+
+      if (/artes-postagem|PostArtworkWorkspace|post-artworks\.css/.test(source)) {
+        removedSpecs.push(pattern)
+        continue
       }
-    })
-    .map((name) => `**/controlled/${name}`)
+
+      const usesRuntime =
+        source.includes('page.')
+        || source.includes('browser.')
+        || source.includes('context.')
+        || source.includes('request.')
+        || source.includes('APIRequestContext')
+        || source.includes('({ page')
+        || source.includes('({ browser')
+        || source.includes('({ request')
+
+      if (usesRuntime) runtimeSpecs.push(pattern)
+      else staticSpecs.push(pattern)
+    } catch {
+      // Arquivo ilegível não entra silenciosamente na suíte.
+    }
+  }
+
+  return { staticSpecs, runtimeSpecs, removedSpecs }
 }
+
+const { staticSpecs, runtimeSpecs, removedSpecs } = controlledSpecs()
 
 export default defineConfig({
   testDir: './tests-e2e',
   testMatch: ['controlled/**/*.spec.ts'],
-  testIgnore: intentionallyRemovedSpecs(),
+  testIgnore: removedSpecs,
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
@@ -42,7 +65,19 @@ export default defineConfig({
     navigationTimeout: 35_000,
   },
   projects: [
-    { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'chromium-mobile', use: { ...devices['Pixel 7'] } },
+    {
+      name: 'contracts-static',
+      testMatch: staticSpecs,
+    },
+    {
+      name: 'contracts-runtime-desktop',
+      testMatch: runtimeSpecs,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'contracts-runtime-mobile',
+      testMatch: runtimeSpecs,
+      use: { ...devices['Pixel 7'] },
+    },
   ],
 })
