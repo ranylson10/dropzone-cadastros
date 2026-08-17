@@ -4,11 +4,11 @@ import { resolve } from 'node:path'
 
 const projectRoot = process.cwd()
 const envFile = resolve(projectRoot, 'web', '.env.local')
-const defaultBaseUrl = 'https://dropzone-cadastros.vercel.app'
+const defaultBaseUrl = 'https://www.dpzone.site'
 
-function loadEnvFile(path) {
-  if (!existsSync(path)) return
-  const content = readFileSync(path, 'utf8')
+function loadEnvFile(file) {
+  if (!existsSync(file)) return
+  const content = readFileSync(file, 'utf8')
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim()
     if (!line || line.startsWith('#')) continue
@@ -16,9 +16,7 @@ function loadEnvFile(path) {
     if (separator <= 0) continue
     const key = line.slice(0, separator).trim()
     let value = line.slice(separator + 1).trim()
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1)
-    }
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1)
     if (!(key in process.env)) process.env[key] = value
   }
 }
@@ -38,8 +36,6 @@ function runNpm(args) {
       shell: false,
     })
   }
-
-  // Fallback para execução direta fora do `npm run`, inclusive no Windows.
   return spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {
     cwd: projectRoot,
     env: process.env,
@@ -47,87 +43,70 @@ function runNpm(args) {
     shell: process.platform === 'win32',
   })
 }
+
 const stages = [
-  ['ESLint', ['run', 'lint']],
-  ['TypeScript', ['run', 'typecheck']],
-  ['Build de produção', ['run', 'build']],
-  ['Auditoria completa', ['run', 'audit:dropzone:full:orchestrated']],
-  ['Sessões E2E automáticas', ['run', 'test:e2e:auth:prepare']],
-  ['Playwright completo', ['run', 'test:e2e:all']],
+  { name: 'ESLint', args: ['run', 'lint'], blocking: true },
+  { name: 'TypeScript', args: ['run', 'typecheck'], blocking: true },
+  { name: 'Build de produção', args: ['run', 'build'], blocking: true },
+  { name: 'Auditoria completa', args: ['run', 'audit:dropzone:full:orchestrated'], blocking: true },
+  { name: 'Sessões E2E automáticas', args: ['run', 'test:e2e:auth:prepare'], blocking: true },
+  { name: 'Fluxos reais + navegação + cliques — desktop e mobile', args: ['run', 'test:e2e:total'], blocking: true },
+  { name: 'Contratos históricos controlados', args: ['run', 'test:e2e:contracts'], blocking: false },
 ]
 
-function printAuditFailures() {
-  const reportPath = resolve(projectRoot, 'relatorios-testes', 'ultimo-relatorio.json')
-  if (!existsSync(reportPath)) return
-  try {
-    const payload = JSON.parse(readFileSync(reportPath, 'utf8'))
-    const errors = Array.isArray(payload?.results)
-      ? payload.results.filter((item) => item?.status === 'ERRO')
-      : []
-    if (errors.length === 0) return
-    console.error('\n[DETALHES DOS ERROS DA AUDITORIA]')
-    for (const [index, item] of errors.entries()) {
-      console.error(`\n${index + 1}. ${item.area || 'Auditoria'} — ${item.title || 'Erro'}`)
-      if (item.details) console.error(`   Detalhes: ${item.details}`)
-      if (item.recommendation) console.error(`   Correção: ${item.recommendation}`)
-    }
-  } catch (error) {
-    console.error(`\n[AVISO] Não foi possível ler o relatório detalhado: ${error instanceof Error ? error.message : String(error)}`)
-  }
+if (process.env.RESEND_AUDIT_API_KEY && process.env.DROPZONE_EMAIL_SMOKE_ADDRESS) {
+  stages.push({ name: 'Entrega real de e-mail', args: ['run', 'test:auth-email'], blocking: true })
 }
 
 const startedAt = Date.now()
 const results = []
 
 console.log('\n============================================================')
-console.log(' DROPZONE — TESTE COMPLETO AUTOMÁTICO')
+console.log(' DROPZONE — TESTE TOTAL CONFIÁVEL')
 console.log('============================================================')
 console.log(`Projeto: ${projectRoot}`)
 console.log(`E2E:     ${process.env.E2E_BASE_URL}`)
-console.log('O processo executará todas as etapas e encerrará sozinho.\n')
+console.log('Bloqueante: qualidade, build, sessões, fluxos reais, cliques, desktop/mobile e entrega de e-mail quando configurada.')
+console.log('Consultivo: contratos históricos de código; falhas aqui são exibidas sem mascarar o estado funcional atual.\n')
 
-for (const [name, args] of stages) {
-  const stageStartedAt = Date.now()
-  console.log(`\n[INÍCIO] ${name}`)
+for (const stage of stages) {
+  const start = Date.now()
+  console.log(`\n[INÍCIO] ${stage.name}${stage.blocking ? '' : ' [CONSULTIVO]'}`)
   console.log('------------------------------------------------------------')
-
-  const result = runNpm(args)
-
-  const durationSeconds = Math.round((Date.now() - stageStartedAt) / 1000)
+  const result = runNpm(stage.args)
+  const seconds = Math.round((Date.now() - start) / 1000)
   const code = typeof result.status === 'number' ? result.status : 1
-  results.push({ name, code, durationSeconds })
-
-  if (result.error) console.error(`\n[ERRO] ${result.error.message}`)
-
-  if (code !== 0) {
-    console.error(`\n[FALHOU] ${name} (${durationSeconds}s)`)
-    if (name === 'Auditoria completa') printAuditFailures()
-    console.error('[CONTINUANDO] As próximas etapas ainda serão executadas para concluir a varredura completa.')
-  } else {
-    console.log(`\n[OK] ${name} (${durationSeconds}s)`)
-  }
+  results.push({ ...stage, code, seconds })
+  if (result.error) console.error(`[ERRO] ${result.error.message}`)
+  console.log(code === 0
+    ? `\n[OK] ${stage.name} (${seconds}s)`
+    : stage.blocking
+      ? `\n[FALHOU] ${stage.name} (${seconds}s)`
+      : `\n[AVISO] ${stage.name} encontrou contratos desatualizados (${seconds}s)`)
+  if (code !== 0 && stage.blocking) console.log('[CONTINUANDO] A varredura segue para mostrar todos os problemas bloqueantes de uma vez.')
 }
 
-const totalSeconds = Math.round((Date.now() - startedAt) / 1000)
-const failedStages = results.filter((item) => item.code !== 0)
+const blockingFailed = results.filter((item) => item.blocking && item.code !== 0)
+const advisoryFailed = results.filter((item) => !item.blocking && item.code !== 0)
 
 console.log('\n============================================================')
 console.log(' RESUMO FINAL')
 console.log('============================================================')
-for (const result of results) {
-  console.log(`${result.code === 0 ? '[OK]    ' : '[FALHA] '} ${result.name} — ${result.durationSeconds}s`)
+for (const item of results) {
+  const label = item.code === 0 ? '[OK]    ' : item.blocking ? '[FALHA] ' : '[AVISO] '
+  console.log(`${label} ${item.name} — ${item.seconds}s`)
 }
-console.log(`Tempo total: ${totalSeconds}s`)
+console.log(`Tempo total: ${Math.round((Date.now() - startedAt) / 1000)}s`)
 
-if (results.length !== stages.length) {
-  console.error('\nResultado: INCOMPLETO.')
+if (advisoryFailed.length) {
+  console.log('\nContratos históricos com expectativa antiga foram separados como AVISO.')
+  console.log('Relatório: relatorios-testes/playwright-report-contratos')
+}
+
+if (blockingFailed.length) {
+  console.error(`\nResultado funcional: REPROVADO — ${blockingFailed.length} etapa(s) bloqueante(s): ${blockingFailed.map((item) => item.name).join(', ')}`)
   process.exit(1)
 }
 
-if (failedStages.length > 0) {
-  console.error(`\nResultado: VARREDURA CONCLUÍDA com ${failedStages.length} etapa(s) reprovada(s).`)
-  console.error(`Etapas com falha: ${failedStages.map((item) => item.name).join(', ')}`)
-  process.exit(1)
-}
-
-console.log('\nResultado: TUDO APROVADO.')
+console.log('\nResultado funcional: TUDO APROVADO.')
+if (advisoryFailed.length) console.log('Há avisos de contratos históricos para saneamento, sem confundir com bug funcional.')

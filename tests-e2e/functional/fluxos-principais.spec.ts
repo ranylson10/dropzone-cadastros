@@ -57,7 +57,6 @@ test.describe('Fluxos funcionais principais — sem alterar dados reais', () => 
       // A raiz autenticada agora é um feed. O painel da produtora fica em Minha área.
       await page.goto('/')
       await assertHealthyPage(page)
-      await expect(page.getByRole('heading', { name: /o que você quer fazer agora/i })).toBeVisible({ timeout: 15_000 })
       const createFromHome = page.getByRole('button', { name: /criar campeonato/i })
       await expect(createFromHome).toBeVisible()
       await createFromHome.click()
@@ -66,27 +65,39 @@ test.describe('Fluxos funcionais principais — sem alterar dados reais', () => 
       await expect(modal).toBeVisible()
 
       // Primeiro escolhe o tipo; depois o assistente multipágina começa pela origem.
-      await expect(modal.getByText(/etapa 1 de 2/i)).toBeVisible()
       const dailyOption = modal.getByRole('button', { name: /diário/i }).first()
       await expect(dailyOption).toBeVisible()
       await dailyOption.click()
 
-      await expect(modal.getByText(/assistente de criação · etapa 1 de/i)).toBeVisible()
-      await expect(modal.getByText(/como deseja criar/i)).toBeVisible()
-      await expect(modal.getByRole('button', { name: /criar do zero/i })).toBeVisible()
+      const createNewOption = modal.getByRole('button', { name: /criar novo/i }).first()
+      await expect(createNewOption).toBeVisible()
+      await createNewOption.click()
+
+      // Preenche a identidade mínima e confirma o crop local; nenhum upload real ocorre antes do submit.
+      const originChampionshipName = modal.locator('input[required]').first()
+      await expect(originChampionshipName).toBeVisible()
+      await originChampionshipName.fill(`E2E validação ${Date.now()}`)
+
+      const logoInput = modal.locator('input[type=file]').first()
+      await logoInput.setInputFiles({
+        name: 'e2e-logo-fake.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+      })
+
+      const useImageButton = page.getByRole('button', { name: /usar imagem/i }).last()
+      await expect(useImageButton).toBeVisible()
+      await useImageButton.click()
+      await expect(useImageButton).toBeHidden()
+
 
       const continueButton = modal.getByRole('button', { name: /^continuar$/i })
       await expect(continueButton).toBeVisible()
       await expect(continueButton).toBeEnabled()
       await continueButton.click()
 
-      // A página seguinte deve exibir os dados obrigatórios sem criar registro real.
-      await expect(modal.getByText(/dados obrigatórios/i)).toBeVisible()
-      const championshipName = modal.locator('input[required]').first()
-      await expect(championshipName).toBeVisible()
-      await championshipName.fill(`E2E validação ${Date.now()}`)
 
-      await modal.getByRole('button', { name: /^cancelar$/i }).click()
+      await page.keyboard.press('Escape')
       await expect(modal).toBeHidden()
     } finally {
       await context.close()

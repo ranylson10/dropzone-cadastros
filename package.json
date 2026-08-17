@@ -39,7 +39,9 @@
     "mobile:go:tunnel": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1 -Tunnel",
     "desktop:dev": "npm --prefix desktop run dev",
     "desktop:package:win": "npm --prefix desktop run package:win",
-    "test:auth-email": "node scripts/testes/test-auth-email-delivery.mjs"
+    "test:e2e:total": "playwright test --config=playwright.total.config.ts",
+    "test:e2e:total:headed": "playwright test --config=playwright.total.config.ts --headed",
+    "test:e2e:contracts": "playwright test --config=playwright.contracts.config.ts"
   },
   "devDependencies": {
     "depcheck": "^1.4.7",
