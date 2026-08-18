@@ -1577,7 +1577,8 @@ ${params.url}`
           onChange={props.setChampionship}
           onSubmit={async (resolvedChampionship) => {
             const created = await props.createChampionship(resolvedChampionship)
-            if (created && typeof created !== 'boolean') {
+            if (!created) throw new Error('Não foi possível criar o campeonato.')
+            if (typeof created !== 'boolean') {
               props.setSelectedChampId(created.id)
               try {
                 await saveCreationEdition(created.id, resolvedChampionship)
@@ -1585,13 +1586,13 @@ ${params.url}`
               } catch (error) {
                 setPayMsg(error instanceof Error ? error.message : 'Campeonato criado, mas a temporada não foi salva.')
               }
-              setShowCreateChamp(false)
-              props.setChampionship({ ...emptyCampeonatoForm })
-              setCreatedChampAction(created)
-            } else if (created) {
-              setShowCreateChamp(false)
-              props.setChampionship({ ...emptyCampeonatoForm })
             }
+            return created
+          }}
+          onCreateSuccess={(result) => {
+            setShowCreateChamp(false)
+            props.setChampionship({ ...emptyCampeonatoForm })
+            if (result && typeof result !== 'boolean') setCreatedChampAction(result as DropZoneRow)
           }}
           onCancel={closeCreateChampionship}
           loading={props.loading}

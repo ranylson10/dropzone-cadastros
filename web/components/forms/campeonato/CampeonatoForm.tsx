@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, CreditCard, Dumbbell, Medal, MessageCircle, Plus, QrCode, Swords, Trash2, Trophy, WalletCards } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, Dumbbell, Loader2, Medal, MessageCircle, Plus, QrCode, Swords, Trash2, Trophy, WalletCards } from 'lucide-react'
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
 import type { DropZoneRow } from '@/lib/types'
 import { championshipThemeStyle } from '@/lib/championship-theme'
@@ -396,6 +396,7 @@ export function CampeonatoForm({
   onChange,
   onSubmit,
   onCancel,
+  onCreateSuccess,
   loading,
   mode = 'create',
   championships = [],
@@ -403,8 +404,9 @@ export function CampeonatoForm({
 }: {
   value: CampeonatoFormValue
   onChange: (value: CampeonatoFormValue) => void
-  onSubmit: (resolvedValue: CampeonatoFormValue) => void | Promise<void>
+  onSubmit: (resolvedValue: CampeonatoFormValue) => unknown | Promise<unknown>
   onCancel?: () => void
+  onCreateSuccess?: (result: unknown) => void
   loading: boolean
   mode?: 'create' | 'edit'
   championships?: DropZoneRow[]
@@ -420,6 +422,7 @@ export function CampeonatoForm({
   const [quoteError, setQuoteError] = useState('')
   const [quoteLoading, setQuoteLoading] = useState(false)
   const [wizardError, setWizardError] = useState('')
+  const [createStatus, setCreateStatus] = useState<'idle' | 'preparing' | 'saving' | 'success'>('idle')
 
   useEffect(() => {
     setStep(mode === 'edit' ? 'form' : 'type')
@@ -1117,14 +1120,27 @@ export function CampeonatoForm({
   }
 
   async function submitWithImages() {
-    const resolvedValue: CampeonatoFormValue = {
-      ...value,
-      logo_url: await resolvePendingImageUpload(value.logo_url),
-      banner_url: await resolvePendingImageUpload(value.banner_url),
-      bg_image_url: '',
+    if (mode === 'create') setCreateStatus('preparing')
+    setWizardError('')
+    try {
+      const resolvedValue: CampeonatoFormValue = {
+        ...value,
+        logo_url: await resolvePendingImageUpload(value.logo_url),
+        banner_url: await resolvePendingImageUpload(value.banner_url),
+        bg_image_url: '',
+      }
+      onChange(resolvedValue)
+      if (mode === 'create') setCreateStatus('saving')
+      const result = await onSubmit(resolvedValue)
+      if (mode === 'create') {
+        setCreateStatus('success')
+        await new Promise((resolve) => window.setTimeout(resolve, 1100))
+        onCreateSuccess?.(result)
+      }
+    } catch (error) {
+      if (mode === 'create') setCreateStatus('idle')
+      if (error instanceof Error && error.message) setWizardError(error.message)
     }
-    onChange(resolvedValue)
-    await onSubmit(resolvedValue)
   }
 
   if (step === 'type') {
@@ -1328,6 +1344,22 @@ export function CampeonatoForm({
 
   return (
     <div className="championship-form-stack">
+      {mode === 'create' && createStatus !== 'idle' ? (
+        <div className={`championship-create-status ${createStatus === 'success' ? 'success' : ''}`} role="status" aria-live="polite">
+          <div className="championship-create-status-card">
+            <div className="championship-create-status-icon">
+              {createStatus === 'success' ? <CheckCircle2 size={32} /> : <Loader2 className="spin" size={28} />}
+            </div>
+            <div className="championship-create-status-copy">
+              <strong>{createStatus === 'preparing' ? 'Preparando campeonato' : createStatus === 'saving' ? 'Criando campeonato' : 'Campeonato criado!'}</strong>
+              <span>{createStatus === 'preparing' ? 'Finalizando imagens e configurações…' : createStatus === 'saving' ? 'Salvando estrutura e dados com segurança…' : 'Tudo certo. Fechando o formulário…'}</span>
+            </div>
+            <div className="championship-create-progress" aria-hidden="true">
+              <span style={{ width: createStatus === 'preparing' ? '34%' : createStatus === 'saving' ? '78%' : '100%' }} />
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="championship-form-progress">
         <div>
           <strong>{selectedType?.title || CHAMPIONSHIP_TYPE_LABELS[value.tipo as ChampionshipType] || 'Campeonato'} · {currentPageIndex + 1} de {wizardPages.length}</strong>
@@ -2675,7 +2707,7 @@ export function CampeonatoForm({
             Continuar
           </button>
         ) : (
-          <button className="button" type="button" onClick={() => void submitWithImages()} disabled={loading}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
+          <button className="button" type="button" onClick={() => void submitWithImages()} disabled={loading || createStatus !== 'idle'}>{mode === 'edit' ? 'Salvar alterações' : 'Criar campeonato'}</button>
         )}
         {onCancel && mode !== 'create' ? <button className="button secondary" type="button" onClick={onCancel} disabled={loading}>Cancelar</button> : null}
       </div>

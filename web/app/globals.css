@@ -6892,6 +6892,28 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 }
 .championship-wizard-actions{ position: sticky; bottom: 0; z-index: 4; justify-content: flex-end; gap: 8px; padding: 12px 0; background: var(--surface); border: 0;
 }
+.championship-create-status{ position: fixed; inset: 0; z-index: 100120; display: grid; place-items: center; padding: 24px; background: rgba(7,8,10,.86); backdrop-filter: blur(8px); animation: championshipCreateFade .2s ease-out;
+}
+.championship-create-status-card{ width: min(460px,100%); display: grid; justify-items: center; gap: 14px; padding: 30px 26px 24px; border-radius: 18px; background: var(--ui-surface); text-align: center;
+}
+.championship-create-status-icon{ width: 64px; height: 64px; display: grid; place-items: center; border-radius: 50%; background: var(--ui-surface-raised); color: var(--ui-gold-light);
+}
+.championship-create-status.success .championship-create-status-icon{ animation: championshipCreateSuccess .42s cubic-bezier(.2,.8,.2,1);
+}
+.championship-create-status-copy{ display: grid; gap: 5px;
+}
+.championship-create-status-copy strong{ color: var(--ui-text); font-size: clamp(20px,3vw,28px); letter-spacing: -.025em;
+}
+.championship-create-status-copy span{ color: var(--ui-text-muted); font-size: 12px; line-height: 1.45;
+}
+.championship-create-progress{ width: 100%; height: 5px; overflow: hidden; border-radius: 999px; background: var(--ui-surface-raised);
+}
+.championship-create-progress span{ display: block; height: 100%; border-radius: inherit; background: var(--ui-gold-light); transition: width .45s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes championshipCreateFade{ from{ opacity: 0 } to{ opacity: 1 }
+}
+@keyframes championshipCreateSuccess{ 0%{ transform: scale(.74); opacity: .35 } 65%{ transform: scale(1.08) } 100%{ transform: scale(1); opacity: 1 }
+}
 
 @media (max-width: 700px){
   .system-modal-backdrop{ padding: 0; align-items: stretch;
@@ -6901,6 +6923,10 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   .system-modal-header{ padding: 14px 14px 10px;
   }
   .system-modal-content{ padding: 4px 14px 16px;
+  }
+  .championship-create-status{ padding: 18px;
+  }
+  .championship-create-status-card{ padding: 26px 18px 20px; border-radius: 14px;
   }
   .championship-type-card{ grid-template-columns: 38px minmax(0,1fr); min-height: 70px; padding: 9px 2px;
   }

@@ -145,12 +145,12 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
           data: draft,
         }),
       })
-      setChampionshipDraft({ ...emptyCampeonatoForm })
-      setShowCreateChampionship(false)
       setFeedback('Campeonato criado. Agora ele aguarda pagamento ou liberação administrativa para ser publicado.')
       await loadItems()
+      return true
     } catch (err: any) {
       setError(err?.message || 'Não foi possível criar o campeonato.')
+      return false
     } finally {
       setCreatingChampionship(false)
     }
@@ -553,7 +553,22 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
         </button>
       })}</div>
       <SystemModal open={showCreateChampionship} title="Novo campeonato pela Lili" description="Preencha todas as configurações. Esta opção está disponível somente no perfil de produtora." onClose={() => setShowCreateChampionship(false)} size="wide">
-        <CampeonatoForm value={championshipDraft} onChange={setChampionshipDraft} onSubmit={(resolvedDraft) => void createChampionship(resolvedDraft)} onCancel={() => setShowCreateChampionship(false)} loading={creatingChampionship} uploadPublicFile={uploadChampionshipFile} />
+        <CampeonatoForm
+          value={championshipDraft}
+          onChange={setChampionshipDraft}
+          onSubmit={async (resolvedDraft) => {
+            const created = await createChampionship(resolvedDraft)
+            if (!created) throw new Error('Não foi possível criar o campeonato.')
+            return created
+          }}
+          onCreateSuccess={() => {
+            setChampionshipDraft({ ...emptyCampeonatoForm })
+            setShowCreateChampionship(false)
+          }}
+          onCancel={() => setShowCreateChampionship(false)}
+          loading={creatingChampionship}
+          uploadPublicFile={uploadChampionshipFile}
+        />
       </SystemModal>
     </section>
   )
