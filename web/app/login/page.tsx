@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { ArrowRight, Loader2, LogOut, Mail, Plus, ShieldCheck, UserRound } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, Loader2, LogOut, Mail, Plus, ShieldCheck, UserRound } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { supabase } from '@/lib/supabase-browser'
@@ -103,6 +103,8 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [existingEmailDetected, setExistingEmailDetected] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
@@ -402,6 +404,8 @@ export default function LoginPage() {
     setError('')
     setNotice('')
     setExistingEmailDetected(false)
+    setShowPassword(false)
+    setShowConfirmPassword(false)
   }
 
   function openProfile(profile: DropZoneRow) {
@@ -530,14 +534,25 @@ export default function LoginPage() {
                   {emailMode === 'entrar' || emailMode === 'criar' || emailMode === 'nova-senha' ? (
                     <label className="login-email-field">
                       <span>{emailMode === 'nova-senha' ? 'Nova senha' : 'Senha'}</span>
-                      <input
-                        type="password"
-                        autoComplete={emailMode === 'entrar' ? 'current-password' : 'new-password'}
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder={emailMode === 'nova-senha' ? 'Nova senha' : 'Sua senha'}
-                        required
-                      />
+                      <span className="login-password-control">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          autoComplete={emailMode === 'entrar' ? 'current-password' : 'new-password'}
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          placeholder={emailMode === 'nova-senha' ? 'Nova senha' : 'Sua senha'}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="login-password-toggle"
+                          aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                          aria-pressed={showPassword}
+                          onClick={() => setShowPassword((value) => !value)}
+                        >
+                          {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                        </button>
+                      </span>
                     </label>
                   ) : null}
 
@@ -545,14 +560,25 @@ export default function LoginPage() {
                     <>
                       <label className="login-email-field">
                         <span>Confirmar {emailMode === 'nova-senha' ? 'nova senha' : 'senha'}</span>
-                        <input
-                          type="password"
-                          autoComplete="new-password"
-                          value={confirmPassword}
-                          onChange={(event) => setConfirmPassword(event.target.value)}
-                          placeholder="Repita a senha"
-                          required
-                        />
+                        <span className="login-password-control">
+                          <input
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            value={confirmPassword}
+                            onChange={(event) => setConfirmPassword(event.target.value)}
+                            placeholder="Repita a senha"
+                            required
+                          />
+                          <button
+                            type="button"
+                            className="login-password-toggle"
+                            aria-label={showConfirmPassword ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'}
+                            aria-pressed={showConfirmPassword}
+                            onClick={() => setShowConfirmPassword((value) => !value)}
+                          >
+                            {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                          </button>
+                        </span>
                       </label>
                       <small className="login-password-hint">Mínimo de 8 caracteres, com letra minúscula, maiúscula e número.</small>
                     </>
@@ -587,11 +613,12 @@ export default function LoginPage() {
                       <button type="button" className="login-account-action recovery" onClick={() => changeEmailMode('recuperar')}>
                         Esqueci minha senha
                       </button>
-                      <button type="button" className="login-account-action create" onClick={() => changeEmailMode('criar')}>
-                        Criar conta
-                      </button>
+                      <span className="login-create-account">
+                        Ainda não tem conta?
+                        <button type="button" onClick={() => changeEmailMode('criar')}>Criar conta</button>
+                      </span>
                     </div>
-                    <div className="login-auth-divider login-auth-divider-secondary"><span>ou continue com</span></div>
+                    <div className="login-auth-divider login-auth-divider-secondary"><span>ou</span></div>
                     <div className="login-social-secondary">
                       <SocialLogin profileType={null} returnTo={params.returnTo} />
                     </div>

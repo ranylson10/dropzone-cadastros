@@ -5604,19 +5604,28 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .login-email-field > span{ color: #4d5661; font-size: 9px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase;
 } .login-email-field input{ width: 100%; min-height: 48px; border: 1px solid #d9d5cd; border-radius: 0; background: #fff; color: #151a22; padding: 0 13px; font: inherit; font-size: 13px; outline: none;
 } .login-email-field input:focus{ border-color: var(--dz-accent, #ff5468);
+} .login-password-control{ position:relative; display:block;
+} .login-password-control input{ padding-right:48px;
+} .login-password-toggle{ position:absolute; top:50%; right:12px; translate:0 -50%; display:grid; place-items:center; width:30px; height:30px; border:0; background:transparent; color:#727983; cursor:pointer;
+} .login-password-toggle:hover{ color:#151a22;
+} .login-password-toggle:focus-visible{ outline:2px solid var(--dz-accent, #ff5468); outline-offset:2px;
 } .login-email-primary{ min-height: 56px; border: 0; border-radius: 0; background: var(--dz-accent, #ff5468); color: #121820; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; font-size: 12px; font-weight: 950; letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
 } .login-email-primary:hover{ filter: brightness(.94);
 } .login-email-primary:disabled{ cursor: wait; opacity: .65;
 } .login-email-link{ width: max-content; border: 0; background: transparent; color: #5f6873; padding: 0; font-size: 10px; font-weight: 850; cursor: pointer;
 } .login-email-link:hover{ color: var(--dz-accent, #ff5468);
-} .login-email-actions{ margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-} .login-account-action{ min-height: 42px; border-radius: 0; padding: 0 12px; font: inherit; font-size: 10px; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
-} .login-account-action.recovery{ border: 1px solid #d2ccc2; background: transparent; color: #4d5661;
-} .login-account-action.recovery:hover{ border-color: #a9a297; color: #151a22;
-} .login-account-action.create{ border: 1px solid #151a22; background: #151a22; color: #fff;
-} .login-account-action.create:hover{ background: #252d37;
-} .login-auth-divider-secondary{ margin: 20px 0 12px;
-} .login-social-secondary{ margin-bottom: 2px;
+} .login-email-actions{ margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+} .login-account-action{ border: 0; border-radius: 0; background: transparent; padding: 3px 0; font: inherit; font-size: 10px; font-weight: 850; cursor: pointer;
+} .login-account-action.recovery{ color: #69717b; text-decoration: underline; text-underline-offset: 3px;
+} .login-account-action.recovery:hover{ color: #151a22;
+} .login-create-account{ display: inline-flex; align-items: center; gap: 5px; color: #7a818a; font-size: 10px;
+} .login-create-account button{ border: 0; background: transparent; color: #151a22; padding: 3px 0; font: inherit; font-size: 10px; font-weight: 950; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+} .login-create-account button:hover{ color: var(--dz-accent, #ff5468);
+} .login-auth-divider-secondary{ margin: 18px 0 10px;
+} .login-social-secondary{ display:flex; justify-content:center; margin-bottom: 2px;
+} .login-social-secondary .social-login-stack{ width:min(300px,100%);
+} .login-social-secondary .social-login-button{ min-height:40px; font-size:9px; background:transparent; border-color:#d2ccc2; color:#626a74;
+} .login-social-secondary .social-login-button:hover{ background:#ebe6de; color:#151a22;
 } .login-email-switch{ margin-top: 14px; text-align: center;
 } .login-email-switch:empty{ display: none;
 } .login-email-switch button{ border: 0; background: transparent; color: #5f6873; padding: 4px 0; font-size: 10px; cursor: pointer;
@@ -5700,7 +5709,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   }
   .login-change-account{ margin-top: 8px;
   }
-  .login-email-actions{ grid-template-columns: 1fr;
+  .login-email-actions{ align-items:flex-start; flex-direction:column; gap:8px;
   }
   .login-profile-grid,
 .login-create-grid{ grid-template-columns: 1fr;
