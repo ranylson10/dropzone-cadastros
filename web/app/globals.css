@@ -8217,9 +8217,98 @@ body .team-training-advanced[open]>.team-training-advanced-toggle{margin-bottom:
   body .team-training-advanced-toggle small{max-width:210px}
 }
 
-.team-context-switch{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0 14px;border-bottom:1px solid var(--ui-line,var(--line))}
-.team-context-switch>div{display:grid;gap:2px;min-width:0}
-.team-context-switch span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-muted,#8d9097)}
-.team-context-switch strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.team-context-switch select{width:min(320px,42vw);min-height:38px;background:var(--ui-surface-raised,var(--surface));color:var(--ui-text,var(--text));border:1px solid var(--ui-line,var(--line));border-radius:8px;padding:0 10px}
-@media (max-width:720px){.team-context-switch{align-items:stretch;flex-direction:column}.team-context-switch select{width:100%}}
+
+/* Rodada 118 — painel operacional de desempenho da equipe */
+body .team-ops-filterbar{
+  display:grid;
+  grid-template-columns:minmax(210px,1.35fr) repeat(3,minmax(150px,.72fr));
+  gap:10px;
+  align-items:end;
+  padding:12px 0 14px;
+  border-bottom:1px solid var(--ui-line);
+}
+body .team-ops-filter-title{display:grid;align-content:end;gap:2px;min-width:0}
+body .team-ops-filter-title>span,
+body .team-ops-filterbar label>span{
+  color:var(--ui-accent-light);
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+body .team-ops-filter-title>strong{font-size:12px;color:var(--ui-text)}
+body .team-ops-filterbar label{display:grid;gap:5px;min-width:0}
+body .team-ops-filterbar select{
+  width:100%;
+  min-width:0;
+  height:38px;
+  padding:0 34px 0 11px;
+  border:1px solid var(--ui-line);
+  border-radius:7px;
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+  font:inherit;
+  font-size:11px;
+  cursor:pointer;
+}
+body .team-training-active-filter{
+  display:inline-flex;
+  align-items:center;
+  min-height:27px;
+  padding:0 9px;
+  border:1px solid var(--ui-line);
+  border-radius:999px;
+  color:var(--ui-text-muted);
+  font-size:8px;
+  white-space:nowrap;
+}
+body .team-ops-kpis{
+  grid-template-columns:repeat(8,minmax(0,1fr));
+  background:var(--ui-line);
+  gap:1px;
+  border-top:1px solid var(--ui-line);
+  border-bottom:1px solid var(--ui-line);
+}
+body .team-ops-kpis>article{
+  min-width:0;
+  min-height:78px;
+  padding:11px 10px;
+  border:0;
+  background:var(--ui-surface);
+}
+body .team-ops-kpis>article strong{font-size:18px;line-height:1.05;color:var(--ui-text)}
+body .team-ops-kpis>article small{
+  color:var(--ui-text-muted);
+  font-size:7px;
+  font-weight:700;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+body .team-ops-kpis>article span{color:var(--ui-text-muted);font-size:8px}
+body .team-ops-charts{display:grid;gap:8px;padding-top:2px}
+body .team-ops-chart-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+body .team-ops-chart-grid .team-training-chart{
+  min-height:158px;
+  padding:11px 12px;
+  border:1px solid var(--ui-line);
+  border-radius:8px;
+  background:var(--ui-surface);
+}
+body .team-ops-chart-grid .team-training-chart svg{height:96px}
+body .team-training-row:not(.is-open){opacity:.72}
+body .team-training-row.is-open{opacity:1}
+body .team-training-row.is-open>.team-training-summary{background:rgba(201,183,102,.035)}
+@media(max-width:1180px){
+  body .team-ops-filterbar{grid-template-columns:1fr 1fr}
+  body .team-ops-filter-title{grid-column:1/-1}
+  body .team-ops-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+  body .team-ops-chart-grid{grid-template-columns:1fr 1fr}
+  body .team-ops-chart-grid>*:last-child{grid-column:1/-1}
+}
+@media(max-width:760px){
+  body .team-ops-filterbar{grid-template-columns:1fr}
+  body .team-ops-filter-title{grid-column:auto}
+  body .team-ops-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .team-ops-chart-grid{grid-template-columns:1fr}
+  body .team-ops-chart-grid>*:last-child{grid-column:auto}
+}

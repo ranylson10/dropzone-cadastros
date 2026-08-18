@@ -18,7 +18,6 @@ type TeamTraining = {
   campeonato_id: string
   campeonato_equipe_id: string
   equipe_id: string
-  line_id?: string | null
   nome: string
   logo_url?: string | null
   status?: string | null
@@ -113,6 +112,15 @@ type TrainingBreakdown = {
 }
 
 type TrainingPerformancePeriod = 'all' | '5' | '10' | '20'
+type TrainingMapFilter = 'all' | string
+
+function filterTrainingByMap(training: TeamTraining, mapFilter: TrainingMapFilter): TeamTraining {
+  if (mapFilter === 'all') return training
+  return {
+    ...training,
+    quedas_detalhe: training.quedas_detalhe.filter((drop) => String(drop.mapa_codigo || '').toLowerCase() === mapFilter.toLowerCase()),
+  }
+}
 
 function scopeTrainingPeriod(training: TeamTraining, period: TrainingPerformancePeriod): TeamTraining {
   if (period === 'all') return training
@@ -941,7 +949,7 @@ export function EquipePanel(props: {
   const [trainingDropSaving, setTrainingDropSaving] = useState('')
   const [trainingDropSaved, setTrainingDropSaved] = useState('')
   const [trainingPerformancePeriod, setTrainingPerformancePeriod] = useState<TrainingPerformancePeriod>('all')
-  const [activeTeamId, setActiveTeamId] = useState('')
+  const [trainingMapFilter, setTrainingMapFilter] = useState<TrainingMapFilter>('all')
 
   // Staff / managers
   const [staffTeamId, setStaffTeamId] = useState('')
@@ -970,44 +978,30 @@ export function EquipePanel(props: {
     pode_gerar_token: false,
   })
   const [staffBusy, setStaffBusy] = useState(false)
-  const selectedTeamId = activeTeamId || props.managedTeams[0]?.id || ''
-  const selectedTeam = useMemo(() => props.managedTeams.find((team) => team.id === selectedTeamId) || props.managedTeams[0] || null, [props.managedTeams, selectedTeamId])
-  const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id === selectedTeamId), [props.teamLines, selectedTeamId])
-  const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id === selectedTeamId), [props.playerTeams, selectedTeamId])
-  const visibleLineups = useMemo(() => lineups.filter((lineup) => String(lineup.equipe_id || '') === selectedTeamId), [lineups, selectedTeamId])
-  const visibleTrainings = useMemo(() => trainings.filter((training) => training.equipe_id === selectedTeamId), [trainings, selectedTeamId])
+  const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)), [props.teamLines, props.managedTeams])
+  const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id)), [props.playerTeams, props.managedTeams])
   const showStaffTools = props.accountType !== 'manager'
   const championshipStats = useMemo(() => {
-    const championshipIds = new Set(visibleLineups.map((lineup) => lineup.campeonato_id).filter(Boolean))
-    const incomplete = visibleLineups.filter((lineup) => Number(lineup.jogadores_confirmados || 0) < Number(lineup.limite_jogadores || 0)).length
-    const activeLinks = visibleLineups.filter((lineup) => Boolean(lineup.link_token)).length
-    const nextGame = [...visibleLineups]
+    const championshipIds = new Set(lineups.map((lineup) => lineup.campeonato_id).filter(Boolean))
+    const incomplete = lineups.filter((lineup) => Number(lineup.jogadores_confirmados || 0) < Number(lineup.limite_jogadores || 0)).length
+    const activeLinks = lineups.filter((lineup) => Boolean(lineup.link_token)).length
+    const nextGame = [...lineups]
       .filter((lineup) => lineup.data_jogo)
       .sort((a, b) => `${a.data_jogo} ${a.horario || ''}`.localeCompare(`${b.data_jogo} ${b.horario || ''}`))[0]
     const playersInLineups = new Set(
-      visibleLineups.flatMap((lineup) => (lineup.jogadores || []).map((player) => String(player.id || player.jogador_id || player.equipe_jogador_id || player.nick))).filter(Boolean),
+      lineups.flatMap((lineup) => (lineup.jogadores || []).map((player) => String(player.id || player.jogador_id || player.equipe_jogador_id || player.nick))).filter(Boolean),
     )
     return {
       campeonatos: championshipIds.size,
-      lines: teamLines.length || new Set(visibleLineups.map((lineup) => lineup.line_id).filter(Boolean)).size,
+      lines: teamLines.length || new Set(lineups.map((lineup) => lineup.line_id).filter(Boolean)).size,
       jogadores: Math.max(teamPlayers.length, playersInLineups.size),
       incompletas: incomplete,
       links: activeLinks,
       nextGame,
     }
-  }, [visibleLineups, teamLines.length, teamPlayers.length])
+  }, [lineups, teamLines.length, teamPlayers.length])
 
   useEffect(() => { void loadLineups() }, [])
-
-  useEffect(() => {
-    if (!props.managedTeams.length) {
-      if (activeTeamId) setActiveTeamId('')
-      return
-    }
-    if (!activeTeamId || !props.managedTeams.some((team) => team.id === activeTeamId)) {
-      setActiveTeamId(props.managedTeams[0].id)
-    }
-  }, [props.managedTeams, activeTeamId])
 
   useEffect(() => {
     const section = new URLSearchParams(window.location.search).get('section')
@@ -1218,6 +1212,27 @@ export function EquipePanel(props: {
       setStaffBusy(false)
     }
   }
+
+  const activeTrainingFilter = useMemo(
+    () => trainings.find((training) => training.campeonato_equipe_id === trainingExpanded) || trainings[0] || null,
+    [trainings, trainingExpanded],
+  )
+
+  const trainingMapOptions = useMemo(() => {
+    if (!activeTrainingFilter) return []
+    return [...new Set(activeTrainingFilter.quedas_detalhe.map((drop) => String(drop.mapa_codigo || '').trim()).filter(Boolean))].sort()
+  }, [activeTrainingFilter])
+
+  useEffect(() => {
+    if (!trainings.length) return
+    if (!trainingExpanded || !trainings.some((training) => training.campeonato_equipe_id === trainingExpanded)) {
+      setTrainingExpanded(trainings[0].campeonato_equipe_id)
+    }
+  }, [trainings, trainingExpanded])
+
+  useEffect(() => {
+    setTrainingMapFilter('all')
+  }, [trainingExpanded])
 
   async function loadTrainings() {
     setTrainingLoading(true)
@@ -1456,23 +1471,6 @@ Acesse: ${url}`
           <div><p className="eyebrow">{props.accountType === 'manager' ? 'Manager' : 'Equipe'}</p><h2>Painel da equipe</h2></div>
           <Shield />
         </div>
-        {props.managedTeams.length > 1 ? (
-          <div className="team-context-switch">
-            <div>
-              <span>Equipe em análise</span>
-              <strong>{selectedTeam ? rowTitle(selectedTeam) : 'Equipe'}</strong>
-            </div>
-            <select value={selectedTeamId} onChange={(event) => {
-              setActiveTeamId(event.target.value)
-              setExpanded('')
-              setTrainingExpanded('')
-            }}>
-              {props.managedTeams.map((team) => (
-                <option key={team.id} value={team.id}>{rowTitle(team)}{dataText(team, 'tag') ? ` · ${dataText(team, 'tag')}` : ''}</option>
-              ))}
-            </select>
-          </div>
-        ) : null}
         <div className="team-command-center">
           <article>
             <span><Trophy size={18} /></span>
@@ -1522,9 +1520,9 @@ Acesse: ${url}`
         {tab === 'campeonatos' ? <div className="panel-tab-body">
           <div className="team-section-title"><div><p className="eyebrow">Participações</p><h3>Meus campeonatos</h3></div><button className="button secondary compact" onClick={() => void loadLineups()} disabled={lineupLoading}>Atualizar</button></div>
           {lineupLoading && lineups.length === 0 ? <p className="empty">Carregando campeonatos...</p> : null}
-          {visibleLineups.length === 0 && !lineupLoading ? <p className="empty">Esta equipe ainda não possui line inscrita em campeonato.</p> : null}
+          {lineups.length === 0 && !lineupLoading ? <p className="empty">Esta equipe ainda não possui line inscrita em campeonato.</p> : null}
           <div className="team-championship-list">
-            {visibleLineups.map((lineup) => {
+            {lineups.map((lineup) => {
               const isOpen = expanded === lineup.campeonato_equipe_id
               const slots = Array.from({ length: Number(lineup.limite_jogadores || 0) }, (_, index) => lineup.jogadores.find((player) => Number(player.slot_numero) === index + 1))
               return <article className="team-championship-card" key={lineup.campeonato_equipe_id}>
@@ -1600,9 +1598,40 @@ Acesse: ${url}`
               </div>
             </div>
 
+            {trainings.length ? (
+              <div className="team-ops-filterbar" aria-label="Filtros operacionais de desempenho">
+                <div className="team-ops-filter-title">
+                  <span>Central de análise</span>
+                  <strong>Filtre o recorte antes de ler os indicadores</strong>
+                </div>
+                <label>
+                  <span>Evento</span>
+                  <select value={trainingExpanded || trainings[0]?.campeonato_equipe_id || ''} onChange={(event) => setTrainingExpanded(event.target.value)}>
+                    {trainings.map((item) => <option key={item.campeonato_equipe_id} value={item.campeonato_equipe_id}>{item.nome}{item.line_nome ? ` · ${item.line_nome}` : ''}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span>Mapa</span>
+                  <select value={trainingMapFilter} onChange={(event) => setTrainingMapFilter(event.target.value)}>
+                    <option value="all">Todos os mapas</option>
+                    {trainingMapOptions.map((mapa) => <option key={mapa} value={mapa}>{mapa}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span>Período</span>
+                  <select value={trainingPerformancePeriod} onChange={(event) => setTrainingPerformancePeriod(event.target.value as TrainingPerformancePeriod)}>
+                    <option value="5">Últimas 5</option>
+                    <option value="10">Últimas 10</option>
+                    <option value="20">Últimas 20</option>
+                    <option value="all">Tudo</option>
+                  </select>
+                </label>
+              </div>
+            ) : null}
+
             {trainingError ? <div className="message error">{trainingError}</div> : null}
-            {trainingLoading && visibleTrainings.length === 0 ? <p className="empty">Carregando treinos...</p> : null}
-            {!trainingLoading && visibleTrainings.length === 0 ? (
+            {trainingLoading && trainings.length === 0 ? <p className="empty">Carregando treinos...</p> : null}
+            {!trainingLoading && trainings.length === 0 ? (
               <div className="team-training-empty">
                 <Trophy size={21} />
                 <div>
@@ -1613,9 +1642,9 @@ Acesse: ${url}`
             ) : null}
 
             <div className="team-training-list">
-              {visibleTrainings.map((training) => {
+              {trainings.map((training) => {
                 const isOpen = trainingExpanded === training.campeonato_equipe_id
-                const analyzedTraining = scopeTrainingPeriod(training, trainingPerformancePeriod)
+                const analyzedTraining = filterTrainingByMap(scopeTrainingPeriod(training, trainingPerformancePeriod), trainingMapFilter)
                 const periodKpis = buildTrainingPeriodKpis(analyzedTraining)
                 const analytics = buildTrainingAnalytics(analyzedTraining)
                 const crossAnalytics = buildTrainingCrossAnalytics(analyzedTraining)
@@ -1667,19 +1696,50 @@ Acesse: ${url}`
                             <strong>Resumo de desempenho</strong>
                           </div>
                           <div className="team-training-period-actions">
-                            <label><span>Período analisado</span><select value={trainingPerformancePeriod} onChange={(event) => setTrainingPerformancePeriod(event.target.value as TrainingPerformancePeriod)}><option value="5">Últimas 5</option><option value="10">Últimas 10</option><option value="20">Últimas 20</option><option value="all">Tudo</option></select></label>
-                            <a href={`/campeonatos/${training.campeonato_id}`}>Ver Xtreino <ChevronRight size={14} /></a>
+                            <span className="team-training-active-filter">{trainingMapFilter === 'all' ? 'Todos os mapas' : trainingMapFilter}</span>
+                            <span className="team-training-active-filter">{trainingPerformancePeriod === 'all' ? 'Período completo' : `Últimas ${trainingPerformancePeriod}`}</span>
+                            <a href={`/campeonatos/${training.campeonato_id}`}>Abrir evento <ChevronRight size={14} /></a>
                           </div>
                         </div>
 
-                        <div className="team-training-kpis">
-                          <article><small>Colocação média</small><strong>{periodKpis.colocacao_media ? periodKpis.colocacao_media.toFixed(1) : '—'}</strong></article>
-                          <article><small>Booyahs</small><strong>{periodKpis.booyahs}</strong></article>
-                          <article><small>Pontos</small><strong>{periodKpis.pontos_total}</strong></article>
-                          <article><small>Dano</small><strong>{Math.round(periodKpis.dano).toLocaleString('pt-BR')}</strong></article>
-                          <article><small>Assistências</small><strong>{periodKpis.assistencias}</strong></article>
-                          <article><small>Revives</small><strong>{periodKpis.revives}</strong></article>
+                        <div className="team-training-kpis team-ops-kpis">
+                          <article><small>Quedas</small><strong>{periodKpis.quedas}</strong><span>no recorte</span></article>
+                          <article><small>Colocação média</small><strong>{periodKpis.colocacao_media ? periodKpis.colocacao_media.toFixed(1) : '—'}</strong><span>posição</span></article>
+                          <article><small>Booyahs</small><strong>{periodKpis.booyahs}</strong><span>vitórias</span></article>
+                          <article><small>Pontos</small><strong>{periodKpis.pontos_total}</strong><span>acumulados</span></article>
+                          <article><small>Abates</small><strong>{analyzedTraining.quedas_detalhe.reduce((sum, drop) => sum + Number(drop.abates || 0), 0)}</strong><span>total</span></article>
+                          <article><small>Dano</small><strong>{Math.round(periodKpis.dano).toLocaleString('pt-BR')}</strong><span>{periodKpis.quedas ? `${Math.round(periodKpis.dano / periodKpis.quedas).toLocaleString('pt-BR')}/queda` : 'sem amostra'}</span></article>
+                          <article><small>Assistências</small><strong>{periodKpis.assistencias}</strong><span>total</span></article>
+                          <article><small>Revives</small><strong>{periodKpis.revives}</strong><span>total</span></article>
                         </div>
+
+                        <section className="team-ops-charts" aria-label="Gráficos principais do desempenho">
+                          <div className="team-training-player-head">
+                            <strong>Evolução operacional</strong>
+                            <small>Os gráficos principais ficam visíveis sem abrir análises avançadas.</small>
+                          </div>
+                          <div className="team-training-chart-grid team-ops-chart-grid">
+                            <TrainingTrendChart
+                              title="Colocação"
+                              subtitle="posição por queda"
+                              points={analytics.trend.map((point) => ({ label: point.label, value: point.colocacao }))}
+                              format={(value) => `${Math.round(value)}º`}
+                              lowerIsBetter
+                            />
+                            <TrainingTrendChart
+                              title="Kills"
+                              subtitle="abates por queda"
+                              points={analytics.trend.map((point) => ({ label: point.label, value: point.abates }))}
+                              format={(value) => String(Math.round(value))}
+                            />
+                            <TrainingTrendChart
+                              title="Dano"
+                              subtitle="dano da equipe por queda"
+                              points={analytics.trend.map((point) => ({ label: point.label, value: point.dano }))}
+                              format={(value) => Math.round(value).toLocaleString('pt-BR')}
+                            />
+                          </div>
+                        </section>
 
                         <section className="team-training-technical-summary" aria-label="Resumo técnico do treino">
                           <div className="team-training-player-head">
@@ -1703,38 +1763,6 @@ Acesse: ${url}`
                             <span><strong>Análises avançadas</strong><small>Gráficos, evolução, metas, correlações, line, contexto tático e jogadores</small></span>
                             <ChevronDown size={16} />
                           </summary>
-                          <div className="team-training-player-head">
-                            <strong>Evolução do treino</strong>
-                            <small>Leitura privada por queda. Todo o bloco abaixo respeita o período selecionado.</small>
-                          </div>
-                          <div className="team-training-chart-grid">
-                            <TrainingTrendChart
-                              title="Colocação"
-                              subtitle="posição por queda"
-                              points={analytics.trend.map((point) => ({ label: point.label, value: point.colocacao }))}
-                              format={(value) => `${Math.round(value)}º`}
-                              lowerIsBetter
-                            />
-                            <TrainingTrendChart
-                              title="Kills"
-                              subtitle="abates por queda"
-                              points={analytics.trend.map((point) => ({ label: point.label, value: point.abates }))}
-                              format={(value) => String(Math.round(value))}
-                            />
-                            <TrainingTrendChart
-                              title="Dano"
-                              subtitle="dano da equipe por queda"
-                              points={analytics.trend.map((point) => ({ label: point.label, value: point.dano }))}
-                              format={(value) => Math.round(value).toLocaleString('pt-BR')}
-                            />
-                            <TrainingTrendChart
-                              title="Sobrevivência"
-                              subtitle="média dos jogadores"
-                              points={analytics.trend.map((point) => ({ label: point.label, value: point.sobrevivencia }))}
-                              format={(value) => `${Math.round(value / 60)} min`}
-                            />
-                          </div>
-
                           <div className="performance-long-evolution team-long-evolution">
                             <div className="team-training-player-head"><strong>Evolução longa</strong><small>Blocos completos reduzem o peso de uma queda isolada e mostram a trajetória do treino.</small></div>
                             <div className="performance-long-evolution-groups">
