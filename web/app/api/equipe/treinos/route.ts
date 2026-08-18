@@ -86,7 +86,16 @@ export async function GET(req: NextRequest) {
       .eq('status', 'concluida')
 
     if (!garenaImportacoesResult.error) {
-      garenaImportacoes = garenaImportacoesResult.data || []
+      const latestImportByDrop = new Map<string, any>()
+      for (const item of garenaImportacoesResult.data || []) {
+        const key = `${String((item as any).campeonato_id || '')}:${String((item as any).partida_id || '')}`
+        if (!key || key === ':') continue
+        const current = latestImportByDrop.get(key)
+        const currentAt = current ? new Date(current.concluida_em || 0).getTime() : 0
+        const candidateAt = new Date((item as any).concluida_em || 0).getTime()
+        if (!current || candidateAt >= currentAt) latestImportByDrop.set(key, item)
+      }
+      garenaImportacoes = [...latestImportByDrop.values()]
       const garenaImportacaoIds = garenaImportacoes.map((item: any) => String(item.id)).filter(Boolean)
 
       if (garenaImportacaoIds.length) {
@@ -149,6 +158,13 @@ export async function GET(req: NextRequest) {
       }])
     }
 
+    const garenaRowsByParticipacao = new Map<string, any[]>()
+    for (const row of garenaJogadores) {
+      const key = String(row.campeonato_equipe_id || '')
+      if (!key) continue
+      garenaRowsByParticipacao.set(key, [...(garenaRowsByParticipacao.get(key) || []), row])
+    }
+
     const teamRowsByParticipacao = new Map<string, any[]>()
     for (const row of equipesStatsResult.data || []) {
       const key = String((row as any).campeonato_equipe_id || '')
@@ -200,7 +216,35 @@ export async function GET(req: NextRequest) {
         players.set(key, current)
       }
 
-      const jogadores = [...players.values()].sort((a: any, b: any) => b.abates - a.abates || b.dano - a.dano)
+      // Quando existe MatchStats da Garena, ele representa quem realmente jogou cada queda
+      // e também carrega dano/assistências/revives. Preferimos essa telemetria para evitar
+      // roster antigo ou estatística parcial da view de MVP.
+      const telemetryRows = garenaRowsByParticipacao.get(participacaoId) || []
+      const telemetryPlayers = new Map<string, any>()
+      for (const row of telemetryRows) {
+        const key = String(row.campeonato_jogador_id || row.player_id || row.jogador_id || row.jogador_temporario_id || row.nick_snapshot || '')
+        if (!key) continue
+        const current = telemetryPlayers.get(key) || {
+          campeonato_jogador_id: String(row.campeonato_jogador_id || key),
+          nick: String(row.nick_snapshot || 'Jogador'),
+          id_jogo: row.player_id || null,
+          foto_url: null,
+          quedas: 0,
+          abates: 0,
+          dano: 0,
+          assistencias: 0,
+          revives: 0,
+        }
+        current.quedas += 1
+        current.abates += Number(row.abates || 0)
+        current.dano += Number(row.dano || 0)
+        current.assistencias += Number(row.assistencias || 0)
+        current.revives += Number(row.revives || 0)
+        telemetryPlayers.set(key, current)
+      }
+
+      const jogadores = [...(telemetryPlayers.size ? telemetryPlayers : players).values()]
+        .sort((a: any, b: any) => b.abates - a.abates || b.dano - a.dano)
       const quedasDetalhe = teamRows
         .map((row: any) => {
           const partidaId = String(row.partida_id || '')
@@ -216,9 +260,9 @@ export async function GET(req: NextRequest) {
             abates: Number(row.abates || 0),
             pontos_total: Number(row.pontos_total || 0),
             booyah: Boolean(row.booyah),
-            dano: dropPlayers.reduce((sum: number, player: any) => sum + Number(player.dano || 0), 0),
-            assistencias: dropPlayers.reduce((sum: number, player: any) => sum + Number(player.assistencias || 0), 0),
-            revives: dropPlayers.reduce((sum: number, player: any) => sum + Number(player.revives || 0), 0),
+            dano: (garenaPlayers.length ? garenaPlayers : dropPlayers).reduce((sum: number, player: any) => sum + Number(player.dano || 0), 0),
+            assistencias: (garenaPlayers.length ? garenaPlayers : dropPlayers).reduce((sum: number, player: any) => sum + Number(player.assistencias || 0), 0),
+            revives: (garenaPlayers.length ? garenaPlayers : dropPlayers).reduce((sum: number, player: any) => sum + Number(player.revives || 0), 0),
             call_nome: annotation?.call_nome || '',
             primeira_safe: annotation?.primeira_safe || '',
             segunda_safe: annotation?.segunda_safe || '',
@@ -271,6 +315,7 @@ export async function GET(req: NextRequest) {
         campeonato_id: campeonatoId,
         campeonato_equipe_id: participacaoId,
         equipe_id: String(participacao.equipe_id),
+        line_id: participacao.line_id ? String(participacao.line_id) : null,
         nome: String(campeonato?.nome || resumo?.campeonato_nome || 'Xtreino'),
         logo_url: campeonato?.logo_url || null,
         status: campeonato?.status || null,

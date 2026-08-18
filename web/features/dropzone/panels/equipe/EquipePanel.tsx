@@ -18,6 +18,7 @@ type TeamTraining = {
   campeonato_id: string
   campeonato_equipe_id: string
   equipe_id: string
+  line_id?: string | null
   nome: string
   logo_url?: string | null
   status?: string | null
@@ -940,6 +941,7 @@ export function EquipePanel(props: {
   const [trainingDropSaving, setTrainingDropSaving] = useState('')
   const [trainingDropSaved, setTrainingDropSaved] = useState('')
   const [trainingPerformancePeriod, setTrainingPerformancePeriod] = useState<TrainingPerformancePeriod>('all')
+  const [activeTeamId, setActiveTeamId] = useState('')
 
   // Staff / managers
   const [staffTeamId, setStaffTeamId] = useState('')
@@ -968,30 +970,44 @@ export function EquipePanel(props: {
     pode_gerar_token: false,
   })
   const [staffBusy, setStaffBusy] = useState(false)
-  const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)), [props.teamLines, props.managedTeams])
-  const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id)), [props.playerTeams, props.managedTeams])
+  const selectedTeamId = activeTeamId || props.managedTeams[0]?.id || ''
+  const selectedTeam = useMemo(() => props.managedTeams.find((team) => team.id === selectedTeamId) || props.managedTeams[0] || null, [props.managedTeams, selectedTeamId])
+  const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id === selectedTeamId), [props.teamLines, selectedTeamId])
+  const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id === selectedTeamId), [props.playerTeams, selectedTeamId])
+  const visibleLineups = useMemo(() => lineups.filter((lineup) => String(lineup.equipe_id || '') === selectedTeamId), [lineups, selectedTeamId])
+  const visibleTrainings = useMemo(() => trainings.filter((training) => training.equipe_id === selectedTeamId), [trainings, selectedTeamId])
   const showStaffTools = props.accountType !== 'manager'
   const championshipStats = useMemo(() => {
-    const championshipIds = new Set(lineups.map((lineup) => lineup.campeonato_id).filter(Boolean))
-    const incomplete = lineups.filter((lineup) => Number(lineup.jogadores_confirmados || 0) < Number(lineup.limite_jogadores || 0)).length
-    const activeLinks = lineups.filter((lineup) => Boolean(lineup.link_token)).length
-    const nextGame = [...lineups]
+    const championshipIds = new Set(visibleLineups.map((lineup) => lineup.campeonato_id).filter(Boolean))
+    const incomplete = visibleLineups.filter((lineup) => Number(lineup.jogadores_confirmados || 0) < Number(lineup.limite_jogadores || 0)).length
+    const activeLinks = visibleLineups.filter((lineup) => Boolean(lineup.link_token)).length
+    const nextGame = [...visibleLineups]
       .filter((lineup) => lineup.data_jogo)
       .sort((a, b) => `${a.data_jogo} ${a.horario || ''}`.localeCompare(`${b.data_jogo} ${b.horario || ''}`))[0]
     const playersInLineups = new Set(
-      lineups.flatMap((lineup) => (lineup.jogadores || []).map((player) => String(player.id || player.jogador_id || player.equipe_jogador_id || player.nick))).filter(Boolean),
+      visibleLineups.flatMap((lineup) => (lineup.jogadores || []).map((player) => String(player.id || player.jogador_id || player.equipe_jogador_id || player.nick))).filter(Boolean),
     )
     return {
       campeonatos: championshipIds.size,
-      lines: teamLines.length || new Set(lineups.map((lineup) => lineup.line_id).filter(Boolean)).size,
+      lines: teamLines.length || new Set(visibleLineups.map((lineup) => lineup.line_id).filter(Boolean)).size,
       jogadores: Math.max(teamPlayers.length, playersInLineups.size),
       incompletas: incomplete,
       links: activeLinks,
       nextGame,
     }
-  }, [lineups, teamLines.length, teamPlayers.length])
+  }, [visibleLineups, teamLines.length, teamPlayers.length])
 
   useEffect(() => { void loadLineups() }, [])
+
+  useEffect(() => {
+    if (!props.managedTeams.length) {
+      if (activeTeamId) setActiveTeamId('')
+      return
+    }
+    if (!activeTeamId || !props.managedTeams.some((team) => team.id === activeTeamId)) {
+      setActiveTeamId(props.managedTeams[0].id)
+    }
+  }, [props.managedTeams, activeTeamId])
 
   useEffect(() => {
     const section = new URLSearchParams(window.location.search).get('section')
@@ -1440,6 +1456,23 @@ Acesse: ${url}`
           <div><p className="eyebrow">{props.accountType === 'manager' ? 'Manager' : 'Equipe'}</p><h2>Painel da equipe</h2></div>
           <Shield />
         </div>
+        {props.managedTeams.length > 1 ? (
+          <div className="team-context-switch">
+            <div>
+              <span>Equipe em análise</span>
+              <strong>{selectedTeam ? rowTitle(selectedTeam) : 'Equipe'}</strong>
+            </div>
+            <select value={selectedTeamId} onChange={(event) => {
+              setActiveTeamId(event.target.value)
+              setExpanded('')
+              setTrainingExpanded('')
+            }}>
+              {props.managedTeams.map((team) => (
+                <option key={team.id} value={team.id}>{rowTitle(team)}{dataText(team, 'tag') ? ` · ${dataText(team, 'tag')}` : ''}</option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div className="team-command-center">
           <article>
             <span><Trophy size={18} /></span>
@@ -1489,9 +1522,9 @@ Acesse: ${url}`
         {tab === 'campeonatos' ? <div className="panel-tab-body">
           <div className="team-section-title"><div><p className="eyebrow">Participações</p><h3>Meus campeonatos</h3></div><button className="button secondary compact" onClick={() => void loadLineups()} disabled={lineupLoading}>Atualizar</button></div>
           {lineupLoading && lineups.length === 0 ? <p className="empty">Carregando campeonatos...</p> : null}
-          {lineups.length === 0 && !lineupLoading ? <p className="empty">Esta equipe ainda não possui line inscrita em campeonato.</p> : null}
+          {visibleLineups.length === 0 && !lineupLoading ? <p className="empty">Esta equipe ainda não possui line inscrita em campeonato.</p> : null}
           <div className="team-championship-list">
-            {lineups.map((lineup) => {
+            {visibleLineups.map((lineup) => {
               const isOpen = expanded === lineup.campeonato_equipe_id
               const slots = Array.from({ length: Number(lineup.limite_jogadores || 0) }, (_, index) => lineup.jogadores.find((player) => Number(player.slot_numero) === index + 1))
               return <article className="team-championship-card" key={lineup.campeonato_equipe_id}>
@@ -1568,8 +1601,8 @@ Acesse: ${url}`
             </div>
 
             {trainingError ? <div className="message error">{trainingError}</div> : null}
-            {trainingLoading && trainings.length === 0 ? <p className="empty">Carregando treinos...</p> : null}
-            {!trainingLoading && trainings.length === 0 ? (
+            {trainingLoading && visibleTrainings.length === 0 ? <p className="empty">Carregando treinos...</p> : null}
+            {!trainingLoading && visibleTrainings.length === 0 ? (
               <div className="team-training-empty">
                 <Trophy size={21} />
                 <div>
@@ -1580,7 +1613,7 @@ Acesse: ${url}`
             ) : null}
 
             <div className="team-training-list">
-              {trainings.map((training) => {
+              {visibleTrainings.map((training) => {
                 const isOpen = trainingExpanded === training.campeonato_equipe_id
                 const analyzedTraining = scopeTrainingPeriod(training, trainingPerformancePeriod)
                 const periodKpis = buildTrainingPeriodKpis(analyzedTraining)
