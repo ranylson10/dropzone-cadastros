@@ -41,7 +41,7 @@ async function garantirMembroDaLine(input: {
     profile = data
   }
 
-  let rosterQuery = supabaseAdmin.from('equipe_jogadores').select('id').eq('equipe_id', equipeId)
+  let rosterQuery = supabaseAdmin.from('equipe_jogadores').select('id,origem,created_at').eq('equipe_id', equipeId)
   rosterQuery = jogadorId ? rosterQuery.eq('jogador_id', jogadorId) : rosterQuery.eq('jogador_temporario_id', jogadorTemporarioId)
   let { data: roster, error: rosterError } = await rosterQuery.maybeSingle()
   if (rosterError) throw rosterError
@@ -55,7 +55,6 @@ async function garantirMembroDaLine(input: {
     id_jogo: idJogo,
     funcao: funcao || profile?.funcao || 'rush',
     localidade: profile?.localidade || null,
-    origem: 'matchresult',
     status: 'ativo',
     updated_at: new Date().toISOString(),
   }
@@ -65,8 +64,8 @@ async function garantirMembroDaLine(input: {
   } else {
     const { data, error } = await supabaseAdmin
       .from('equipe_jogadores')
-      .insert({ equipe_id: equipeId, ...rosterPayload })
-      .select('id')
+      .insert({ equipe_id: equipeId, ...rosterPayload, origem: 'matchresult' })
+      .select('id,origem,created_at')
       .single()
     if (error) throw error
     roster = data
@@ -102,6 +101,216 @@ function errorMessage(error: unknown) {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object' && 'message' in error) return String((error as any).message || 'Erro desconhecido.')
   return String(error || 'Erro desconhecido.')
+}
+
+type ConfirmedImportSnapshot = {
+  id: string
+  created_at: string | null
+  equipes: Array<{ campeonato_equipe_id: string | null }>
+  jogadores: Array<{ campeonato_jogador_id: string | null; jogador_temporario_id: string | null; jogador_id: string | null }>
+}
+
+async function carregarImportacaoConfirmadaAnterior(partidaId: string): Promise<ConfirmedImportSnapshot | null> {
+  const { data: importacao, error } = await supabaseAdmin
+    .from('matchresult_importacoes')
+    .select('id,created_at')
+    .eq('partida_id', partidaId)
+    .eq('status', 'confirmada')
+    .maybeSingle()
+  if (error) throw error
+  if (!importacao?.id) return null
+
+  const [{ data: equipes, error: equipesError }, { data: jogadores, error: jogadoresError }] = await Promise.all([
+    supabaseAdmin
+      .from('matchresult_importacoes_equipes')
+      .select('campeonato_equipe_id')
+      .eq('importacao_id', importacao.id),
+    supabaseAdmin
+      .from('matchresult_importacoes_jogadores')
+      .select('campeonato_jogador_id,jogador_temporario_id,jogador_id')
+      .eq('importacao_id', importacao.id),
+  ])
+  if (equipesError) throw equipesError
+  if (jogadoresError) throw jogadoresError
+
+  return {
+    id: String(importacao.id),
+    created_at: importacao.created_at || null,
+    equipes: equipes || [],
+    jogadores: jogadores || [],
+  }
+}
+
+async function reconciliarSubstituicaoMatchResult(input: {
+  campeonatoId: string
+  partidaId: string
+  userId: string
+  anterior: ConfirmedImportSnapshot | null
+  equipesAtuais: string[]
+  jogadoresAtuais: string[]
+}) {
+  const { campeonatoId, partidaId, userId, anterior } = input
+  if (!anterior) return { jogadores_removidos: 0, equipes_removidas: 0, membros_removidos: 0 }
+
+  const equipesAtuais = new Set(input.equipesAtuais.filter(Boolean))
+  const jogadoresAtuais = new Set(input.jogadoresAtuais.filter(Boolean))
+  const equipesAnteriores = [...new Set(anterior.equipes.map((row) => row.campeonato_equipe_id).filter(Boolean) as string[])]
+  const jogadoresAnteriores = [...new Set(anterior.jogadores.map((row) => row.campeonato_jogador_id).filter(Boolean) as string[])]
+  const equipesObsoletas = equipesAnteriores.filter((id) => !equipesAtuais.has(id))
+  const jogadoresObsoletos = jogadoresAnteriores.filter((id) => !jogadoresAtuais.has(id))
+
+  if (jogadoresObsoletos.length) {
+    const { error } = await supabaseAdmin
+      .from('campeonato_resultados_jogadores')
+      .delete()
+      .eq('partida_id', partidaId)
+      .eq('origem', 'matchresult')
+      .in('campeonato_jogador_id', jogadoresObsoletos)
+    if (error) throw error
+  }
+
+  if (equipesObsoletas.length) {
+    const [{ error: resultError }, { error: presenceError }] = await Promise.all([
+      supabaseAdmin
+        .from('campeonato_resultados_equipes')
+        .delete()
+        .eq('partida_id', partidaId)
+        .eq('origem', 'matchresult')
+        .in('campeonato_equipe_id', equipesObsoletas),
+      supabaseAdmin
+        .from('campeonato_partidas_equipes_presenca')
+        .delete()
+        .eq('partida_id', partidaId)
+        .eq('origem', 'matchresult')
+        .in('campeonato_equipe_id', equipesObsoletas),
+    ])
+    if (resultError) throw resultError
+    if (presenceError) throw presenceError
+  }
+
+  if (!jogadoresObsoletos.length) {
+    return { jogadores_removidos: 0, equipes_removidas: equipesObsoletas.length, membros_removidos: 0 }
+  }
+
+  const { data: participacoes, error: participacoesError } = await supabaseAdmin
+    .from('campeonato_jogadores')
+    .select('id,equipe_jogador_id,jogador_temporario_id,origem,criado_automaticamente,created_at,status')
+    .eq('campeonato_id', campeonatoId)
+    .in('id', jogadoresObsoletos)
+  if (participacoesError) throw participacoesError
+
+  const automaticas = (participacoes || []).filter((row: any) => row.origem === 'matchresult' && row.criado_automaticamente === true)
+  const automaticasIds = automaticas.map((row: any) => String(row.id))
+  if (!automaticasIds.length) {
+    return { jogadores_removidos: jogadoresObsoletos.length, equipes_removidas: equipesObsoletas.length, membros_removidos: 0 }
+  }
+
+  const [resultadosRestantes, refsImportacoes, substituicoesSaida, substituicoesEntrada, historicoFormacao] = await Promise.all([
+    supabaseAdmin.from('campeonato_resultados_jogadores').select('campeonato_jogador_id').in('campeonato_jogador_id', automaticasIds),
+    supabaseAdmin.from('matchresult_importacoes_jogadores').select('campeonato_jogador_id,importacao_id').in('campeonato_jogador_id', automaticasIds).neq('importacao_id', anterior.id),
+    supabaseAdmin.from('campeonato_substituicoes').select('inscricao_saiu_id').eq('campeonato_id', campeonatoId).in('inscricao_saiu_id', automaticasIds),
+    supabaseAdmin.from('campeonato_substituicoes').select('inscricao_entrou_id').eq('campeonato_id', campeonatoId).in('inscricao_entrou_id', automaticasIds),
+    supabaseAdmin.from('equipe_formacao_historico').select('campeonato_jogador_id').eq('campeonato_id', campeonatoId).in('campeonato_jogador_id', automaticasIds),
+  ])
+  if (resultadosRestantes.error) throw resultadosRestantes.error
+  if (refsImportacoes.error) throw refsImportacoes.error
+  if (substituicoesSaida.error) throw substituicoesSaida.error
+  if (substituicoesEntrada.error) throw substituicoesEntrada.error
+  if (historicoFormacao.error) throw historicoFormacao.error
+
+  const importacaoIds = [...new Set((refsImportacoes.data || []).map((row: any) => row.importacao_id).filter(Boolean))]
+  let importacoesConfirmadas = new Set<string>()
+  if (importacaoIds.length) {
+    const { data: confirmadas, error: confirmadasError } = await supabaseAdmin
+      .from('matchresult_importacoes')
+      .select('id')
+      .in('id', importacaoIds)
+      .eq('status', 'confirmada')
+    if (confirmadasError) throw confirmadasError
+    importacoesConfirmadas = new Set((confirmadas || []).map((row: any) => String(row.id)))
+  }
+
+  const protegidos = new Set<string>()
+  for (const row of resultadosRestantes.data || []) protegidos.add(String((row as any).campeonato_jogador_id))
+  for (const row of refsImportacoes.data || []) {
+    if (importacoesConfirmadas.has(String((row as any).importacao_id))) protegidos.add(String((row as any).campeonato_jogador_id))
+  }
+  for (const row of substituicoesSaida.data || []) {
+    if ((row as any).inscricao_saiu_id) protegidos.add(String((row as any).inscricao_saiu_id))
+  }
+  for (const row of substituicoesEntrada.data || []) {
+    if ((row as any).inscricao_entrou_id) protegidos.add(String((row as any).inscricao_entrou_id))
+  }
+  for (const row of historicoFormacao.data || []) {
+    if ((row as any).campeonato_jogador_id) protegidos.add(String((row as any).campeonato_jogador_id))
+  }
+
+  const removiveis = automaticas.filter((row: any) => !protegidos.has(String(row.id)))
+  const removiveisIds = removiveis.map((row: any) => String(row.id))
+  if (!removiveisIds.length) {
+    return { jogadores_removidos: jogadoresObsoletos.length, equipes_removidas: equipesObsoletas.length, membros_removidos: 0 }
+  }
+
+  const now = new Date().toISOString()
+  const { error: removeParticipationError } = await supabaseAdmin
+    .from('campeonato_jogadores')
+    .update({ status: 'deletado', removido_em: now, removido_por: userId, updated_at: now })
+    .in('id', removiveisIds)
+  if (removeParticipationError) throw removeParticipationError
+
+  const rosterIds = [...new Set(removiveis.map((row: any) => row.equipe_jogador_id).filter(Boolean).map(String))]
+  if (!rosterIds.length) {
+    return { jogadores_removidos: jogadoresObsoletos.length, equipes_removidas: equipesObsoletas.length, membros_removidos: 0 }
+  }
+
+  const { data: activeUses, error: activeUsesError } = await supabaseAdmin
+    .from('campeonato_jogadores')
+    .select('equipe_jogador_id')
+    .in('equipe_jogador_id', rosterIds)
+    .eq('status', 'ativo')
+  if (activeUsesError) throw activeUsesError
+  const rosterEmUso = new Set((activeUses || []).map((row: any) => String(row.equipe_jogador_id)))
+  const candidatosRoster = rosterIds.filter((id) => !rosterEmUso.has(id))
+  if (!candidatosRoster.length) {
+    return { jogadores_removidos: jogadoresObsoletos.length, equipes_removidas: equipesObsoletas.length, membros_removidos: 0 }
+  }
+
+  const { data: rosterRows, error: rosterRowsError } = await supabaseAdmin
+    .from('equipe_jogadores')
+    .select('id,origem,created_at')
+    .in('id', candidatosRoster)
+    .eq('status', 'ativo')
+  if (rosterRowsError) throw rosterRowsError
+  const anteriorTs = anterior.created_at ? new Date(anterior.created_at).getTime() : 0
+  const rosterRemovivel = (rosterRows || []).filter((row: any) => {
+    if (row.origem !== 'matchresult') return false
+    if (!anteriorTs || !row.created_at) return true
+    return new Date(row.created_at).getTime() >= anteriorTs
+  }).map((row: any) => String(row.id))
+  if (!rosterRemovivel.length) {
+    return { jogadores_removidos: jogadoresObsoletos.length, equipes_removidas: equipesObsoletas.length, membros_removidos: 0 }
+  }
+
+  const [{ error: lineError }, { error: rosterError }] = await Promise.all([
+    supabaseAdmin
+      .from('equipe_line_jogadores')
+      .update({ status: 'inativo', removido_por: userId, removido_em: now, updated_at: now })
+      .in('equipe_jogador_id', rosterRemovivel)
+      .eq('status', 'ativo'),
+    supabaseAdmin
+      .from('equipe_jogadores')
+      .update({ status: 'inativo', updated_at: now })
+      .in('id', rosterRemovivel)
+      .eq('status', 'ativo'),
+  ])
+  if (lineError) throw lineError
+  if (rosterError) throw rosterError
+
+  return {
+    jogadores_removidos: jogadoresObsoletos.length,
+    equipes_removidas: equipesObsoletas.length,
+    membros_removidos: rosterRemovivel.length,
+  }
 }
 
 export function parseMatchResult(content: string): ParsedTeam[] {
@@ -242,6 +451,8 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
     throw new Error('Duas equipes do MatchResult foram vinculadas à mesma equipe do campeonato. Revise os vínculos.')
   }
 
+  const importacaoAnterior = await carregarImportacaoConfirmadaAnterior(partida.id)
+
   const { data: importacao, error: importError } = await supabaseAdmin.from('matchresult_importacoes').insert({
     produtora_id: campeonato.produtora_id,
     campeonato_id: campeonatoId,
@@ -367,7 +578,7 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
       }
       if (!participation?.id) throw new Error('Nao foi possivel vincular o jogador a participacao do campeonato.')
 
-      await supabaseAdmin.from('matchresult_importacoes_jogadores').insert({
+      const { error: importPlayerError } = await supabaseAdmin.from('matchresult_importacoes_jogadores').insert({
         importacao_id: importacao.id,
         importacao_equipe_id: importTeam.id,
         ordem: player.ordem,
@@ -380,6 +591,7 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
         jogador_temporario_id: tempId || null,
         status_vinculo: jogadorId ? 'oficial' : 'temporario',
       })
+      if (importPlayerError) throw importPlayerError
       manualTeam.jogadores.push({ campeonato_jogador_id: participation.id, abates: player.abates })
     }
     manualPayload.equipes.push(manualTeam)
@@ -387,8 +599,31 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
 
   const { salvarPontuacaoManual } = await import('./estatisticas.service')
   const totals = await salvarPontuacaoManual(campeonatoId, userId, manualPayload)
+  const reconciliacao = await reconciliarSubstituicaoMatchResult({
+    campeonatoId,
+    partidaId: partida.id,
+    userId,
+    anterior: importacaoAnterior,
+    equipesAtuais: manualPayload.equipes.map((team: any) => String(team.campeonato_equipe_id || '')).filter(Boolean),
+    jogadoresAtuais: manualPayload.equipes.flatMap((team: any) => (team.jogadores || []).map((player: any) => String(player.campeonato_jogador_id || '')).filter(Boolean)),
+  })
+
+  if (importacaoAnterior?.id) {
+    const { error: cancelPreviousError } = await supabaseAdmin
+      .from('matchresult_importacoes')
+      .update({ status: 'cancelada', updated_at: new Date().toISOString() })
+      .eq('id', importacaoAnterior.id)
+      .eq('status', 'confirmada')
+    if (cancelPreviousError) throw cancelPreviousError
+  }
+
   const { error: confirmError } = await supabaseAdmin.from('matchresult_importacoes').update({ status: 'confirmada', confirmado_por: userId, confirmado_em: new Date().toISOString() }).eq('id', importacao.id)
-  if (confirmError) throw confirmError
+  if (confirmError) {
+    if (importacaoAnterior?.id) {
+      await supabaseAdmin.from('matchresult_importacoes').update({ status: 'confirmada', updated_at: new Date().toISOString() }).eq('id', importacaoAnterior.id).eq('status', 'cancelada')
+    }
+    throw confirmError
+  }
   // Complemento privado: nunca interfere na súmula oficial caso a fonte externa esteja indisponível.
   let garena: Awaited<ReturnType<typeof sincronizarEstatisticasGarena>> = { status: 'ignorado' }
   try {
@@ -404,7 +639,7 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
   } catch (error) {
     console.error('Não foi possível complementar o MatchResult com estatísticas detalhadas.', error)
   }
-  return { importacao_id: importacao.id, garena, ...totals }
+  return { importacao_id: importacao.id, garena, reconciliacao, ...totals }
   } catch (error) {
     const message = errorMessage(error)
     await supabaseAdmin.from('matchresult_importacoes').update({

@@ -184,6 +184,11 @@ export default function PontuadorJogoPage() {
     })
   }
 
+  async function saveCurrentDrop() {
+    if (preview) return confirmMatch()
+    return saveDrop()
+  }
+
   async function saveDrop() {
     if (!data || !selectedDropId) return
     if (selectedDrop?.status === 'finalizada') {
@@ -489,9 +494,9 @@ export default function PontuadorJogoPage() {
             Editar Q{selectedDrop?.numero_partida}
           </button>
         ) : (
-          <button className="button" onClick={() => void saveDrop()} disabled={saving}>
+          <button className="button" onClick={() => void saveCurrentDrop()} disabled={saving}>
             {saving ? <Loader2 className="spin" size={15}/> : <Save size={15}/>}
-            Salvar Q{selectedDrop?.numero_partida}
+            {preview ? 'Salvar e vincular' : 'Salvar'} Q{selectedDrop?.numero_partida}
           </button>
         )}
       </div>
@@ -545,8 +550,7 @@ export default function PontuadorJogoPage() {
               : 'KillScore conferido com a soma dos KILL dos jogadores'}
           </small>
         </span>
-        <button className="button secondary" onClick={() => { setPreview(null); setMatchContent('') }}>Cancelar</button>
-        <button className="button" onClick={() => void confirmMatch()} disabled={saving}>Aplicar equipes vinculadas</button>
+        <button className="button secondary" onClick={() => { setPreview(null); setMatchContent(''); setMatchName(''); setPreviewLinks({}) }}>Cancelar</button>
       </div>
     ) : null}
 
