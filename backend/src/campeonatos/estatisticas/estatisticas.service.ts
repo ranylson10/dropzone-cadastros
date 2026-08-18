@@ -67,6 +67,60 @@ export async function listarEstatisticasEquipes(campeonatoId: string, filters: F
     .map((row, index) => ({ ...row, colocacao: index + 1 }))
 }
 
+
+async function listarMvpGarenaFallback(campeonatoId: string, filters: Filters) {
+  let importsQuery: any = supabaseAdmin
+    .from('garena_matchstats_importacoes')
+    .select('id,jogo_id,partida_id')
+    .eq('campeonato_id', campeonatoId)
+    .eq('status', 'concluida')
+  if (filters.jogoId) importsQuery = importsQuery.eq('jogo_id', filters.jogoId)
+  if (filters.partidaId) importsQuery = importsQuery.eq('partida_id', filters.partidaId)
+
+  const { data: imports, error: importsError } = await importsQuery
+  if (importsError) throw importsError
+  const importIds = (imports || []).map((row: any) => row.id)
+  if (!importIds.length) return []
+
+  const { data: rows, error } = await supabaseAdmin
+    .from('garena_matchstats_jogadores')
+    .select('campeonato_jogador_id,jogador_id,jogador_temporario_id,campeonato_equipe_id,nick_snapshot,player_id,abates,dano,assistencias,revives')
+    .in('importacao_id', importIds)
+    .not('campeonato_jogador_id', 'is', null)
+  if (error) throw error
+
+  const aggregate = new Map<string, any>()
+  for (const row of rows || []) {
+    const key = String(row.campeonato_jogador_id || '')
+    if (!key) continue
+    const current = aggregate.get(key) || {
+      campeonato_jogador_id: key,
+      jogador_id: row.jogador_id,
+      jogador_temporario_id: row.jogador_temporario_id,
+      campeonato_equipe_id: row.campeonato_equipe_id,
+      nick: row.nick_snapshot || 'Jogador',
+      id_jogo: row.player_id || null,
+      foto_url: null,
+      tipo_jogador: row.jogador_id ? 'oficial' : 'temporario',
+      quedas: 0,
+      abates: 0,
+      dano: 0,
+      assistencias: 0,
+      revives: 0,
+    }
+    current.quedas += 1
+    current.abates += Number(row.abates || 0)
+    current.dano += Number(row.dano || 0)
+    current.assistencias += Number(row.assistencias || 0)
+    current.revives += Number(row.revives || 0)
+    aggregate.set(key, current)
+  }
+
+  return [...aggregate.values()]
+    .sort((a, b) => b.abates - a.abates || b.dano - a.dano)
+    .map((row, index) => ({ ...row, colocacao: index + 1 }))
+}
+
 export async function listarEstatisticasMvp(campeonatoId: string, filters: Filters) {
   const query = applyFilters(
     supabaseAdmin
@@ -77,6 +131,9 @@ export async function listarEstatisticasMvp(campeonatoId: string, filters: Filte
   )
   const { data, error } = await query
   if (error) throw error
+  if (!(data || []).length && !filters.faseId && !filters.rodadaId && !filters.mapaCodigo && !filters.grupoId) {
+    return listarMvpGarenaFallback(campeonatoId, filters)
+  }
 
   const aggregate = new Map<string, any>()
   for (const row of data || []) {

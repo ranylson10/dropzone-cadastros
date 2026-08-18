@@ -136,6 +136,77 @@ async function findPlayerLinks(importacaoId: string, campeonatoId: string) {
   return { links, teamsByName }
 }
 
+
+async function persistirResultadosJogadoresOficiais(context: MatchStatsContext, rows: any[]) {
+  const linkedRows = rows.filter((row) => row.campeonato_jogador_id && row.campeonato_equipe_id)
+  if (!linkedRows.length) return 0
+
+  const campeonatoJogadorIds = [...new Set(linkedRows.map((row) => String(row.campeonato_jogador_id)))]
+  const campeonatoEquipeIds = [...new Set(linkedRows.map((row) => String(row.campeonato_equipe_id)))]
+
+  const [
+    { data: partida, error: partidaError },
+    { data: participacoes, error: participacoesError },
+    { data: equipes, error: equipesError },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from('campeonato_partidas')
+      .select('id,fase_id,jogo_id,grupo_id')
+      .eq('id', context.partidaId)
+      .eq('campeonato_id', context.campeonatoId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('campeonato_jogadores')
+      .select('id,campeonato_equipe_id,jogador_id,jogador_temporario_id,equipe_id,line_id,nick,id_jogo')
+      .in('id', campeonatoJogadorIds),
+    supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id,equipe_id,line_id,grupo_id')
+      .in('id', campeonatoEquipeIds),
+  ])
+  requireSuccess(partidaError)
+  requireSuccess(participacoesError)
+  requireSuccess(equipesError)
+  if (!partida) throw new Error('Não foi possível localizar a queda para consolidar as estatísticas dos jogadores.')
+
+  const participacaoById = new Map((participacoes || []).map((row: any) => [String(row.id), row]))
+  const equipeById = new Map((equipes || []).map((row: any) => [String(row.id), row]))
+  const officialRows = linkedRows.flatMap((row) => {
+    const participacao: any = participacaoById.get(String(row.campeonato_jogador_id))
+    const equipe: any = equipeById.get(String(row.campeonato_equipe_id))
+    if (!participacao || !equipe) return []
+    return [{
+      campeonato_id: context.campeonatoId,
+      fase_id: partida.fase_id,
+      jogo_id: partida.jogo_id || context.jogoId,
+      partida_id: partida.id,
+      grupo_id: equipe.grupo_id || partida.grupo_id,
+      campeonato_equipe_id: row.campeonato_equipe_id,
+      campeonato_jogador_id: row.campeonato_jogador_id,
+      jogador_id: participacao.jogador_id || row.jogador_id || null,
+      jogador_temporario_id: participacao.jogador_temporario_id || row.jogador_temporario_id || null,
+      equipe_id: participacao.equipe_id || equipe.equipe_id,
+      line_id: participacao.line_id || equipe.line_id,
+      nick_snapshot: participacao.nick || row.nick_snapshot,
+      id_jogo_snapshot: participacao.id_jogo || row.player_id,
+      abates: Number(row.abates || 0),
+      dano: Number(row.dano || 0),
+      assistencias: Number(row.assistencias || 0),
+      revives: Number(row.revives || 0),
+      origem: 'matchresult',
+      criado_por: context.userId,
+      updated_at: new Date().toISOString(),
+    }]
+  })
+
+  if (!officialRows.length) return 0
+  const { error } = await supabaseAdmin
+    .from('campeonato_resultados_jogadores')
+    .upsert(officialRows, { onConflict: 'partida_id,campeonato_jogador_id' })
+  requireSuccess(error)
+  return officialRows.length
+}
+
 async function markImportFailure(importacaoId: string, error: unknown) {
   await supabaseAdmin.from('garena_matchstats_importacoes').update({
     status: 'falhou',
@@ -218,6 +289,7 @@ export async function sincronizarEstatisticasGarena(context: MatchStatsContext) 
     const { data: savedPlayers, error: playersError } = await supabaseAdmin.from('garena_matchstats_jogadores').insert(rows).select('id,player_id')
     requireSuccess(playersError)
     const playerIds = new Map((savedPlayers || []).map((player: any) => [player.player_id, player.id]))
+    const resultadosJogadores = await persistirResultadosJogadoresOficiais(context, rows)
     const weapons: JsonRecord[] = []
     const skills: JsonRecord[] = []
     for (const { player } of importedPlayers) {
@@ -250,7 +322,7 @@ export async function sincronizarEstatisticasGarena(context: MatchStatsContext) 
       status: 'concluida', total_jogadores: rows.length, dados_brutos: payload, concluida_em: new Date().toISOString(), erro: null, updated_at: new Date().toISOString(),
     }).eq('id', importacao.id)
     requireSuccess(completedError)
-    return { status: 'concluida' as const, jogadores: rows.length }
+    return { status: 'concluida' as const, jogadores: rows.length, resultados_jogadores: resultadosJogadores }
   } catch (error) {
     await markImportFailure(importacao.id, error)
     return { status: 'falhou' as const, erro: failureMessage(error) }
