@@ -16,6 +16,18 @@ import {
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { listarEstatisticasEquipes } from '@backend/campeonatos/estatisticas/estatisticas.service'
 
+
+function apiErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) return error.message
+  if (error && typeof error === 'object') {
+    const dbError = error as { message?: unknown; code?: unknown }
+    const message = typeof dbError.message === 'string' ? dbError.message.trim() : ''
+    const code = typeof dbError.code === 'string' ? dbError.code.trim() : ''
+    if (message) return code ? `${message} [${code}]` : message
+  }
+  return fallback
+}
+
 function hasSellerPermission(seller: any, key: string, optIn = false) {
   const value = seller?.permissoes?.[key]
   if (optIn) return value === true
@@ -897,7 +909,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         : `Line "${resolved.nome}" adicionada ao slot ${slot.slot_letra || slot.slot_numero}.`,
     }, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao adicionar line.' }, { status: 400 })
+    return NextResponse.json({ error: apiErrorMessage(error, 'Erro ao adicionar line.') }, { status: 400 })
   }
 }
 
