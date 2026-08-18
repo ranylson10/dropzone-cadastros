@@ -11,6 +11,7 @@ const ACTIONABLE_NOTIFICATION_TYPES = new Set([
   'pedido_manager_campeonato',
   'convite_jogador_equipe_direto',
   'pedido_jogador_equipe',
+  'convite_escalacao_jogador',
 ])
 
 type Notif = {
@@ -21,13 +22,14 @@ type Notif = {
   status: string
   payload?: any
   created_at: string
+  read_at?: string | null
 }
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<Notif[]>([])
-  const [unread, setUnread] = useState(0)
+  const [unseen, setUnseen] = useState(0)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -38,7 +40,7 @@ export function NotificationBell() {
       const token = data.session?.access_token
       if (!token) {
         setItems([])
-        setUnread(0)
+        setUnseen(0)
         return
       }
       setLoading(true)
@@ -50,7 +52,7 @@ export function NotificationBell() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao carregar correio.')
       setItems(json.items || [])
-      setUnread(Number(json.nao_lidas || 0))
+      setUnseen(Number(json.nao_lidas || 0))
     } catch (err: any) {
       setError(err?.message || 'Erro ao carregar correio.')
     } finally {
@@ -90,8 +92,8 @@ export function NotificationBell() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao marcar notificação como lida.')
-      setItems((current) => current.map((item) => item.id === id ? { ...item, status: 'lida' } : item))
-      setUnread((current) => Math.max(0, current - 1))
+      setItems((current) => current.map((item) => item.id === id ? { ...item, status: 'lida', read_at: item.read_at || new Date().toISOString() } : item))
+      setUnseen((current) => Math.max(0, current - (items.find((item) => item.id === id)?.read_at ? 0 : 1)))
     } catch (err: any) {
       setError(err?.message || 'Erro ao marcar notificação como lida.')
     } finally {
@@ -113,8 +115,8 @@ export function NotificationBell() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao marcar avisos como lidos.')
-      setItems((current) => current.map((item) => ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo) ? item : { ...item, status: 'lida' }))
-      setUnread((current) => Math.max(0, current - routineUnread))
+      setItems((current) => current.map((item) => ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo) ? item : { ...item, status: 'lida', read_at: item.read_at || new Date().toISOString() }))
+      setUnseen(0)
     } catch (err: any) {
       setError(err?.message || 'Erro ao marcar avisos como lidos.')
     } finally {
@@ -128,17 +130,19 @@ export function NotificationBell() {
       return
     }
     setOpen(true)
+    setUnseen(0)
+    setItems((current) => current.map((item) => item.read_at ? item : { ...item, read_at: new Date().toISOString() }))
     try {
       const token = await authToken()
-      await fetch('/api/notificacoes', {
+      const res = await fetch('/api/notificacoes', {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mark_all_read: true }),
+        body: JSON.stringify({ mark_all_seen: true }),
       })
+      if (!res.ok) throw new Error('Não foi possível registrar a visualização das notificações.')
     } catch {
-      // A listagem abaixo continua disponível mesmo se a atualização falhar.
+      await load()
     }
-    await load()
   }
 
   async function archiveReadNotifications() {
@@ -179,6 +183,20 @@ export function NotificationBell() {
     }
   }
 
+  function notificationKind(tipo: string) {
+    if (tipo.includes('escalacao')) return 'Escalação'
+    if (tipo.includes('manager')) return 'Manager'
+    if (tipo.includes('jogador')) return 'Jogador'
+    if (tipo.includes('campeonato')) return 'Campeonato'
+    if (tipo.includes('equipe')) return 'Equipe'
+    return 'Aviso'
+  }
+
+  function dateLabel(value: string) {
+    const date = new Date(value)
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' · ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  }
+
   async function respond(id: string, action: 'aceitar' | 'recusar') {
     setBusyId(id)
     setError('')
@@ -208,15 +226,15 @@ export function NotificationBell() {
         onClick={() => void toggleInbox()}
       >
         <Bell size={18} />
-        {unread > 0 ? <span className="notif-bell-badge">{unread > 9 ? '9+' : unread}</span> : null}
+        {unseen > 0 ? <span className="notif-bell-badge">{unseen > 9 ? '9+' : unseen}</span> : null}
       </button>
 
       {open ? (
         <div className="notif-inbox-panel">
           <header className="notif-inbox-head">
             <div>
-              <strong>Correio</strong>
-              <small>{unread} não lida(s)</small>
+              <strong>Notificações</strong>
+              <small>{unseen ? `${unseen} nova${unseen === 1 ? '' : 's'}` : 'Tudo visto'}</small>
             </div>
             <div className="notif-inbox-head-actions">
               {items.some((item) => item.status === 'nao_lida' && !ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo)) ? (
@@ -269,11 +287,12 @@ export function NotificationBell() {
               const acceptLabel =
                 item.tipo === 'pedido_manager_campeonato' ? 'Liberar' : 'Aceitar'
               return (
-                <article key={item.id} className={`notif-inbox-item ${unreadItem ? 'is-unread' : ''}`}>
+                <article key={item.id} className={`notif-inbox-item ${!item.read_at ? 'is-unseen' : ''} ${unreadItem ? 'is-pending' : ''}`}>
                   <div className="notif-inbox-item-top">
-                    <strong>{item.titulo}</strong>
-                    <time>{new Date(item.created_at).toLocaleString('pt-BR')}</time>
+                    <span className="notif-inbox-kind">{notificationKind(item.tipo)}</span>
+                    <time>{dateLabel(item.created_at)}</time>
                   </div>
+                  <strong className="notif-inbox-title">{item.titulo}</strong>
                   {item.corpo ? <p>{item.corpo}</p> : null}
                   {actionable && permLine ? (
                     <small className="notif-perms">Permissões: {permLine || '—'}</small>

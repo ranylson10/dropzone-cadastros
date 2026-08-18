@@ -873,19 +873,21 @@ body .lili-hub-toolbar .notif-inbox-panel{
   color:var(--ui-text);
   box-shadow:0 20px 52px rgba(0,0,0,.38);
 }
-body .notif-inbox-head{border-bottom-color:var(--ui-line);background:var(--ui-surface-raised)}
+body .notif-inbox-head{border-bottom-color:var(--ui-line);background:var(--ui-surface)}
 body .notif-inbox-head strong{color:var(--ui-text)}
 body .notif-inbox-head small,
 body .notif-inbox-item-top time,
 body .notif-perms{color:var(--ui-muted)}
 body .notif-inbox-item{border-bottom-color:var(--ui-line);background:transparent}
-body .notif-inbox-item.is-unread{background:rgba(201,183,102,.09);box-shadow:inset 3px 0 0 var(--ui-accent)}
-body .notif-inbox-item-top strong{color:var(--ui-text)}
+body .notif-inbox-item.is-unseen{background:rgba(201,183,102,.055);box-shadow:inset 2px 0 0 var(--ui-accent)}
+body .notif-inbox-item.is-pending .notif-inbox-kind{color:var(--ui-accent)}
+body .notif-inbox-kind{color:var(--ui-muted)}
+body .notif-inbox-title{color:var(--ui-text)}
 body .notif-inbox-item p{color:var(--ui-text-soft)}
 body .notif-inbox-panel .empty.compact-empty{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-muted)}
 body .notif-inbox-panel .message.error.compact{border-color:rgba(215,108,108,.45);background:rgba(215,108,108,.1);color:#f0b5b5}
-body .notif-inbox-panel .button.secondary{border-color:var(--ui-line);background:var(--ui-surface-raised);color:var(--ui-text)}
-body .notif-inbox-panel .button.secondary:hover{border-color:var(--ui-accent);background:rgba(201,183,102,.1);color:var(--ui-text)}
+body .notif-inbox-panel .button.secondary{border-color:var(--ui-line);background:transparent;color:var(--ui-text-soft)}
+body .notif-inbox-panel .button.secondary:hover{border-color:var(--ui-accent);background:rgba(201,183,102,.08);color:var(--ui-text)}
 body .notif-inbox-panel .button:not(.secondary){border-color:var(--ui-accent);background:var(--ui-accent);color:#111216}
 
 /* Modais legados: mesma superfÃ­cie e contraste dos modais novos, sem mexer nos fluxos. */

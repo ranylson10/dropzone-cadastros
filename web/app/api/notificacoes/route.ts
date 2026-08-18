@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
       .from('notificacoes')
       .select('id', { count: 'exact', head: true })
       .eq('destinatario_auth_user_id', user.id)
-      .eq('status', 'nao_lida')
+      .neq('status', 'arquivada')
+      .is('read_at', null)
     if (countError && !isMissingRelation(countError)) throw countError
 
     return NextResponse.json({
@@ -47,7 +48,20 @@ export async function PATCH(req: NextRequest) {
     const user = await getBearerUser(req)
     const body = await req.json().catch(() => ({}))
     const id = String(body.id || '').trim()
+    const markAllSeen = Boolean(body.mark_all_seen)
     const markAll = Boolean(body.mark_all_read)
+
+    if (markAllSeen) {
+      const { error } = await supabaseAdmin
+        .from('notificacoes')
+        .update({ read_at: new Date().toISOString() })
+        .eq('destinatario_auth_user_id', user.id)
+        .neq('status', 'arquivada')
+        .is('read_at', null)
+      if (isMissingRelation(error)) return NextResponse.json({ ok: true, setup_required: true })
+      if (error) throw error
+      return NextResponse.json({ ok: true })
+    }
 
     if (markAll) {
       const actionableTypes = [
