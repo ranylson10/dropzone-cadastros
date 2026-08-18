@@ -103,6 +103,15 @@ export default function VacanciesPage() {
 
   const returnTo = typeof window === 'undefined' ? '/vagas' : `${window.location.pathname}${window.location.search}`
 
+  function closeBuyModal() {
+    setBuyTarget(null)
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('comprar')) {
+      url.searchParams.delete('comprar')
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+  }
+
   function openBuyModal(item: any) {
     if (!sellerFilter) {
       setBuyTarget(item)
@@ -213,7 +222,7 @@ export default function VacanciesPage() {
           vendedorManagerId={buyTarget._vendedor_manager_id || sellerFilter || null}
           returnTo={returnTo}
           authenticated={authenticated}
-          onClose={() => setBuyTarget(null)}
+          onClose={closeBuyModal}
           onRequireLogin={() => setGate(true)}
         />
       ) : null}

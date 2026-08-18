@@ -136,6 +136,20 @@ export function BuyVacancyModal({
   const cpfDigits = useMemo(() => onlyDigits(cpfCnpj), [cpfCnpj])
   const cpfReady = isValidCpfCnpjLength(cpfDigits)
 
+  const closeModal = useCallback(() => {
+    onClose()
+  }, [onClose])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      closeModal()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [closeModal])
+
   const pixSrc = useMemo(() => {
     const raw = payment?.pix_qrcode
     if (!raw) return null
@@ -315,7 +329,7 @@ export function BuyVacancyModal({
   }
 
   return (
-    <div className="report-modal-backdrop" onClick={onClose}>
+    <div className="report-modal-backdrop vacancy-buy-backdrop" role="presentation" onClick={closeModal}>
       <section
         className="report-modal vacancy-contact-modal vacancy-buy-modal"
         onClick={(event) => event.stopPropagation()}
@@ -329,7 +343,7 @@ export function BuyVacancyModal({
               {championship.proximo_grupo ? ` · ${championship.proximo_grupo}` : ''}
             </span>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar">
+          <button type="button" className="vacancy-buy-close" onClick={(event) => { event.preventDefault(); event.stopPropagation(); closeModal() }} aria-label="Fechar">
             <X size={18} />
           </button>
         </header>
