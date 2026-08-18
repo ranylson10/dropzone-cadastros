@@ -5933,7 +5933,8 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   }
   .producer-layout-ref > .message,
 .producer-layout-ref > .producer-hub-nav,
-.producer-layout-ref > .producer-hub-section{ grid-column: 1 / -1;
+.producer-layout-ref > .producer-hub-section,
+.producer-layout-ref > .provisional-teams{ grid-column: 1 / -1;
   }
   .producer-layout-ref .champ-list-item.active{ border-left-color: #ff5468; background: #313b47; box-shadow: none;
   }
@@ -6983,7 +6984,7 @@ body .page-authenticated:has(.producer-layout-ref) .account-workspace-hero .acco
 body .page-authenticated:has(.producer-layout-ref) .account-workspace-hero .account-strip-action{border-color:var(--ui-line);border-radius:9px;background:var(--ui-surface-raised);color:var(--ui-text)}
 
 body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref{display:grid;grid-template-columns:minmax(270px,310px) minmax(0,1fr);align-items:start;gap:24px}
-body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .producer-hub-nav,body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .producer-hub-section,body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .message{grid-column:1 / -1}
+body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .producer-hub-nav,body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .producer-hub-section,body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .provisional-teams,body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .message{grid-column:1 / -1}
 body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .producer-command-card{grid-column:1;position:sticky;top:82px;max-height:calc(100vh - 112px);padding:0;overflow:auto;border:0;border-radius:0;background:transparent}
 body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref > .championship-detail-card{grid-column:2;min-width:0;min-height:0;margin:0;padding:0;border:0;background:transparent}
 body .page-authenticated:has(.producer-layout-ref) .producer-command-card .section-head{padding:0 0 12px;border-bottom:1px solid var(--ui-line);background:transparent}
@@ -8242,3 +8243,8 @@ body .team-training-advanced[open]>.team-training-advanced-toggle{margin-bottom:
   body .team-training-advanced-toggle{padding:8px 0}
   body .team-training-advanced-toggle small{max-width:210px}
 }
+
+.login-existing-account-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.login-existing-account-actions button{min-height:42px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--text);font:inherit;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.login-existing-account-actions button:hover{border-color:var(--brand);color:var(--brand)}
+@media(max-width:700px){.login-existing-account-actions{grid-template-columns:1fr}}

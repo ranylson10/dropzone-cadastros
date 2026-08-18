@@ -102,6 +102,7 @@ export default function LoginPage() {
   const [stage, setStage] = useState<LoginStage>('checking')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [existingEmailDetected, setExistingEmailDetected] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
@@ -254,6 +255,7 @@ export default function LoginPage() {
     setEmailLoading(true)
     setError('')
     setNotice('')
+    setExistingEmailDetected(false)
 
     try {
       const normalizedEmail = normalizeEmail(email)
@@ -274,6 +276,21 @@ export default function LoginPage() {
         const issue = passwordIssue(password)
         if (issue) throw new Error(issue)
         if (password !== confirmPassword) throw new Error('A confirmação da senha não confere.')
+
+        const emailStatusResponse = await fetch('/api/auth/email-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: normalizedEmail }),
+          cache: 'no-store',
+        })
+        const emailStatus = await emailStatusResponse.json().catch(() => ({}))
+        if (!emailStatusResponse.ok) {
+          throw new Error(String(emailStatus?.error || 'Não foi possível validar este e-mail.'))
+        }
+        if (emailStatus?.exists) {
+          setExistingEmailDetected(true)
+          throw new Error('Este e-mail já possui uma conta no DropZone. Entre com sua senha ou recupere o acesso.')
+        }
 
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
@@ -384,6 +401,7 @@ export default function LoginPage() {
     setOtpCode('')
     setError('')
     setNotice('')
+    setExistingEmailDetected(false)
   }
 
   function openProfile(profile: DropZoneRow) {
@@ -592,6 +610,12 @@ export default function LoginPage() {
 
                 {notice ? <div className="message">{notice}</div> : null}
                 {error ? <div className="message error">{error}</div> : null}
+                {existingEmailDetected ? (
+                  <div className="login-existing-account-actions" aria-label="Conta já existente">
+                    <button type="button" onClick={() => changeEmailMode('entrar')}>Entrar com este e-mail</button>
+                    <button type="button" onClick={() => changeEmailMode('recuperar')}>Recuperar senha</button>
+                  </div>
+                ) : null}
                 <div className="login-security-note"><ShieldCheck size={16} /><span>Autenticação segura pelo Supabase. Códigos de confirmação e recuperação são enviados pelo e-mail oficial do DropZone.</span></div>
               </div>
             ) : null}
