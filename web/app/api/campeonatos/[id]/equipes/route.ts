@@ -138,13 +138,27 @@ const LIGA_ENTRY_TYPES = new Set(['mantida', 'promovida', 'rebaixada', 'classifi
 
 async function loadLigaConfig(campeonatoId: string, canManage: boolean) {
   if (!canManage) return null
-  const [{ data: campeonato, error: campeonatoError }, { data: config, error: configError }] = await Promise.all([
-    supabaseAdmin.from('campeonatos').select('tipo').eq('id', campeonatoId).maybeSingle(),
-    supabaseAdmin.from('campeonato_configuracoes').select('liga_nome_agrupamento,liga_divisoes').eq('campeonato_id', campeonatoId).maybeSingle(),
-  ])
+
+  // Primeiro identifica o tipo do campeonato. Campeonatos comuns não devem depender
+  // de colunas exclusivas de Liga na tabela de configurações.
+  const { data: campeonato, error: campeonatoError } = await supabaseAdmin
+    .from('campeonatos')
+    .select('tipo')
+    .eq('id', campeonatoId)
+    .maybeSingle()
+
   if (campeonatoError) throw campeonatoError
+  if (!campeonato || String((campeonato as any).tipo || '') !== 'liga') return null
+
+  const { data: config, error: configError } = await supabaseAdmin
+    .from('campeonato_configuracoes')
+    .select('liga_nome_agrupamento,liga_divisoes')
+    .eq('campeonato_id', campeonatoId)
+    .maybeSingle()
+
   if (configError) throw configError
-  if (!campeonato || String((campeonato as any).tipo || '') !== 'liga' || !config) return null
+  if (!config) return null
+
   return {
     nome_agrupamento: String((config as any).liga_nome_agrupamento || 'Agrupamentos'),
     divisoes: Array.isArray((config as any).liga_divisoes) ? (config as any).liga_divisoes : [],
