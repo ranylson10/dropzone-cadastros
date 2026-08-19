@@ -132,7 +132,12 @@ async function notifyLinePlayers(params: {
 export async function GET(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const teamIds = await managedTeamIds(user.id)
+    const controllableTeamIds = await managedTeamIds(user.id)
+    const requestedTeamId = String(req.nextUrl.searchParams.get('equipe_id') || '').trim()
+    if (requestedTeamId && !controllableTeamIds.includes(requestedTeamId)) {
+      return NextResponse.json({ error: 'Sem permissão nesta equipe.' }, { status: 403 })
+    }
+    const teamIds = requestedTeamId ? [requestedTeamId] : controllableTeamIds
     if (teamIds.length === 0) return NextResponse.json({ escalacoes: [] })
 
     const { data: summaries, error } = await supabaseAdmin

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, CalendarDays, ChevronDown, ChevronRight, Copy, Link2, Loader2, LockKeyhole, Medal, Pencil, Plus, Search, Send, Shield, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { Activity, CalendarDays, ChevronDown, ChevronRight, Copy, Link2, Loader2, LockKeyhole, Pencil, Plus, Search, Send, Shield, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
@@ -12,6 +12,7 @@ import { dataText, rowTitle } from '../../utils'
 import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 import { buildObjectivePerformanceGoals } from '../../performance-goals'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
+import { TeamAnalyticsDashboard } from './TeamAnalyticsDashboard'
 
 
 type TeamTraining = {
@@ -910,6 +911,7 @@ type Lineup = {
 
 export function EquipePanel(props: {
   accountType: string | null
+  activeTeamId: string
   teams: DropZoneRow[]
   managedTeams: DropZoneRow[]
   managedChampionships: DropZoneRow[]
@@ -931,7 +933,7 @@ export function EquipePanel(props: {
   loading: boolean
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
-  const [tab, setTab] = useState<'campeonatos' | 'treinos' | 'lines' | 'jogadores' | 'convites' | 'staff' | 'config'>('campeonatos')
+  const [tab, setTab] = useState<'dashboard' | 'campeonatos' | 'treinos' | 'lines' | 'jogadores' | 'convites' | 'staff' | 'config'>('dashboard')
   const [lineups, setLineups] = useState<Lineup[]>([])
   const [expanded, setExpanded] = useState<string>('')
   const [lineupLoading, setLineupLoading] = useState(false)
@@ -978,8 +980,9 @@ export function EquipePanel(props: {
     pode_gerar_token: false,
   })
   const [staffBusy, setStaffBusy] = useState(false)
-  const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id && props.managedTeams.some((team) => team.id === line.ref_id)), [props.teamLines, props.managedTeams])
-  const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id && props.managedTeams.some((team) => team.id === row.ref_id)), [props.playerTeams, props.managedTeams])
+  const activeManagedTeams = useMemo(() => props.managedTeams.filter((team) => team.id === props.activeTeamId), [props.managedTeams, props.activeTeamId])
+  const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id === props.activeTeamId), [props.teamLines, props.activeTeamId])
+  const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id === props.activeTeamId), [props.playerTeams, props.activeTeamId])
   const showStaffTools = props.accountType !== 'manager'
   const championshipStats = useMemo(() => {
     const championshipIds = new Set(lineups.map((lineup) => lineup.campeonato_id).filter(Boolean))
@@ -1001,18 +1004,24 @@ export function EquipePanel(props: {
     }
   }, [lineups, teamLines.length, teamPlayers.length])
 
-  useEffect(() => { void loadLineups() }, [])
+  useEffect(() => {
+    setLineups([])
+    setTrainings([])
+    setExpanded('')
+    setTrainingExpanded('')
+    void loadLineups()
+  }, [props.activeTeamId])
 
   useEffect(() => {
     const section = new URLSearchParams(window.location.search).get('section')
-    if (section === 'campeonatos' || section === 'treinos' || section === 'lines' || section === 'jogadores' || section === 'convites' || section === 'staff' || section === 'config') {
+    if (section === 'dashboard' || section === 'campeonatos' || section === 'treinos' || section === 'lines' || section === 'jogadores' || section === 'convites' || section === 'staff' || section === 'config') {
       setTab(section)
     }
   }, [])
 
   useEffect(() => {
-    if (props.managedTeams[0]?.id && !staffTeamId) setStaffTeamId(props.managedTeams[0].id)
-  }, [props.managedTeams, staffTeamId])
+    if (props.activeTeamId && staffTeamId !== props.activeTeamId) setStaffTeamId(props.activeTeamId)
+  }, [props.activeTeamId, staffTeamId])
 
   useEffect(() => {
     if (tab === 'staff' && staffTeamId) void loadStaff()
@@ -1239,7 +1248,7 @@ export function EquipePanel(props: {
     setTrainingError('')
     try {
       const token = await authToken()
-      const response = await fetch('/api/equipe/treinos', {
+      const response = await fetch(`/api/equipe/treinos?equipe_id=${encodeURIComponent(props.activeTeamId)}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
       })
@@ -1303,7 +1312,7 @@ export function EquipePanel(props: {
     setLineupError('')
     try {
       const token = await authToken()
-      const response = await fetch('/api/equipe/escalacoes', { headers: { Authorization: `Bearer ${token}` } })
+      const response = await fetch(`/api/equipe/escalacoes?equipe_id=${encodeURIComponent(props.activeTeamId)}`, { headers: { Authorization: `Bearer ${token}` } })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || 'Erro ao carregar escalações.')
       setLineups(json.escalacoes || [])
@@ -1471,41 +1480,8 @@ Acesse: ${url}`
           <div><p className="eyebrow">{props.accountType === 'manager' ? 'Manager' : 'Equipe'}</p><h2>Painel da equipe</h2></div>
           <Shield />
         </div>
-        <div className="team-command-center">
-          <article>
-            <span><Trophy size={18} /></span>
-            <div><strong>{championshipStats.campeonatos}</strong><small>campeonato(s)</small></div>
-          </article>
-          <article>
-            <span><Users size={18} /></span>
-            <div><strong>{championshipStats.jogadores}</strong><small>jogadores no elenco</small></div>
-          </article>
-          <article className={championshipStats.incompletas ? 'needs-action' : ''}>
-            <span><Medal size={18} /></span>
-            <div><strong>{championshipStats.incompletas}</strong><small>escalação(ões) incompleta(s)</small></div>
-          </article>
-          <article>
-            <span><Link2 size={18} /></span>
-            <div><strong>{championshipStats.links}</strong><small>link(s) ativo(s)</small></div>
-          </article>
-        </div>
-        <div className="team-next-game-card">
-          <div>
-            <p className="eyebrow">Próximo compromisso</p>
-            <strong>{championshipStats.nextGame?.campeonato_nome || 'Nenhum jogo com data definida'}</strong>
-            <span>
-              {championshipStats.nextGame
-                ? `${championshipStats.nextGame.line_nome} · ${championshipStats.nextGame.grupo_nome || 'grupo a definir'} · ${championshipStats.nextGame.data_jogo ? new Date(`${championshipStats.nextGame.data_jogo}T00:00:00`).toLocaleDateString('pt-BR') : 'data a definir'} ${championshipStats.nextGame.horario ? `às ${String(championshipStats.nextGame.horario).slice(0, 5)}` : ''}`
-                : 'Quando um campeonato tiver jogo marcado, ele aparece aqui com ação rápida.'}
-            </span>
-          </div>
-          {championshipStats.nextGame ? (
-            <button type="button" className="button compact" onClick={() => { setTab('campeonatos'); setExpanded(championshipStats.nextGame?.campeonato_equipe_id || '') }}>
-              Escalar elenco
-            </button>
-          ) : null}
-        </div>
         <div className="tabs panel-tabs team-panel-tabs">
+          <button className={`tab ${tab === 'dashboard' ? 'active' : ''}`} onClick={() => setTab('dashboard')}>Dashboard</button>
           <button className={`tab ${tab === 'campeonatos' ? 'active' : ''}`} onClick={() => setTab('campeonatos')}>Campeonatos</button>
           <button className={`tab ${tab === 'treinos' ? 'active' : ''}`} onClick={() => setTab('treinos')}>Treinos</button>
           <button className={`tab ${tab === 'lines' ? 'active' : ''}`} onClick={() => setTab('lines')}>Lines</button>
@@ -1514,6 +1490,17 @@ Acesse: ${url}`
           {showStaffTools ? <button className={`tab ${tab === 'staff' ? 'active' : ''}`} onClick={() => setTab('staff')}>Staff</button> : null}
           <button className={`tab ${tab === 'config' ? 'active' : ''}`} onClick={() => setTab('config')}>Configurações</button>
         </div>
+
+        {tab === 'dashboard' ? (
+          <TeamAnalyticsDashboard
+            equipeId={props.activeTeamId}
+            nextGame={championshipStats.nextGame}
+            onOpenNextGame={() => {
+              setTab('campeonatos')
+              setExpanded(championshipStats.nextGame?.campeonato_equipe_id || '')
+            }}
+          />
+        ) : null}
 
         {lineupError ? <div className="message error">{lineupError}</div> : null}
 
@@ -2192,7 +2179,7 @@ Acesse: ${url}`
 
         {tab === 'lines' ? (
           <EquipeLinesEditor
-            teams={props.managedTeams}
+            teams={activeManagedTeams}
             uploadPublicFile={props.uploadPublicFile}
             lineups={lineups}
           />
@@ -2200,7 +2187,7 @@ Acesse: ${url}`
 
         {tab === 'jogadores' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Elenco</p><h3>Jogadores da equipe</h3></div><span className="count-pill"><Users size={14}/>{teamPlayers.length}</span></div>{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador vinculado ao elenco.</p> : null}<div className="team-player-grid">{teamPlayers.map((row) => <article className="team-player-card" key={row.id}><img src={dataText(row, 'foto_url') || '/favicon.ico'} alt=""/><div><strong>{dataText(row, 'nick') || rowTitle(row)}</strong><span>ID {dataText(row, 'id_jogo') || '-'}</span><small>{dataText(row, 'funcao') || 'Função não informada'}</small></div></article>)}</div></div> : null}
 
-        {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Envie diretamente pelo correio ou gere um link compartilhável. O jogador pode aceitar ou recusar.</p>{props.managedTeams.map((team) => <PlayerTeamRequest key={team.id} mode="invite_player" equipeId={team.id}/>)}<div className="token-list">{props.managedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="lineup-token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <article className="lineup-token-card" key={lineup.campeonato_equipe_id}><div><span>{lineup.campeonato_nome}</span><strong>{lineup.line_nome}</strong><small>Link ativo e protegido.</small></div><div className="button-row"><button className={`button compact ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><Copy size={15}/>{copiedLineupId === lineup.campeonato_equipe_id ? 'Convite copiado' : 'Copiar convite'}</button><button className={`button secondary compact ${copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'copied' : ''}`} onClick={() => void copyLink(String(lineup.link_token), `token:${lineup.campeonato_equipe_id}`)}><Copy size={15}/>{copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'Token copiado' : 'Copiar só token'}</button></div></article>)}</div></div></div> : null}
+        {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Envie diretamente pelo correio ou gere um link compartilhável. O jogador pode aceitar ou recusar.</p>{activeManagedTeams.map((team) => <PlayerTeamRequest key={team.id} mode="invite_player" equipeId={team.id}/>)}<div className="token-list">{activeManagedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="lineup-token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <article className="lineup-token-card" key={lineup.campeonato_equipe_id}><div><span>{lineup.campeonato_nome}</span><strong>{lineup.line_nome}</strong><small>Link ativo e protegido.</small></div><div className="button-row"><button className={`button compact ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><Copy size={15}/>{copiedLineupId === lineup.campeonato_equipe_id ? 'Convite copiado' : 'Copiar convite'}</button><button className={`button secondary compact ${copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'copied' : ''}`} onClick={() => void copyLink(String(lineup.link_token), `token:${lineup.campeonato_equipe_id}`)}><Copy size={15}/>{copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'Token copiado' : 'Copiar só token'}</button></div></article>)}</div></div></div> : null}
 
         {tab === 'staff' ? (
           <div className="panel-tab-body staff-tab">
@@ -2210,9 +2197,9 @@ Acesse: ${url}`
                 <h3>Staff da equipe</h3>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                {props.managedTeams.length > 1 ? (
+                {activeManagedTeams.length > 1 ? (
                   <select value={staffTeamId} onChange={(e) => { setStaffTeamId(e.target.value); setStaffDetail(null) }}>
-                    {props.managedTeams.map((team) => (
+                    {activeManagedTeams.map((team) => (
                       <option key={team.id} value={team.id}>{rowTitle(team)}</option>
                     ))}
                   </select>
@@ -2463,7 +2450,7 @@ Acesse: ${url}`
                 <h3>Editar equipe</h3>
               </div>
             </div>
-            {props.managedTeams.map((team) => (
+            {activeManagedTeams.map((team) => (
               <div key={team.id} style={{ marginBottom: 16 }}>
                 <ProfileEditForm
                   profileType="equipe"

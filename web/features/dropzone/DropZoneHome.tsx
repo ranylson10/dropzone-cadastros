@@ -2021,6 +2021,7 @@ export function DropZoneHome() {
             {account.profile_type === 'equipe' ? (
               <EquipePanel
                 accountType={account.profile_type}
+                activeTeamId={managedTeams.find((managedTeam) => managedTeam.id === account.id)?.id || managedTeams[0]?.id || account.id}
                 teams={teams}
                 managedTeams={managedTeams}
                 managedChampionships={managedChampionships}
