@@ -81,7 +81,10 @@ async function linkUnownedAccountsByVerifiedEmail(user: { id: string; email?: st
   const cleanEmail = String(user.email || '').trim().toLowerCase()
   if (!cleanEmail || !user.email_confirmed_at) return []
 
-  const types = Object.keys(PROFILE_TABLES) as ProfileType[]
+  // No schema atual, equipe é o único perfil que pode existir sem auth_user_id
+  // (equipes provisórias/históricas). Os demais perfis já exigem auth_user_id,
+  // então consultá-los aqui só aumenta a latência do primeiro login.
+  const types: ProfileType[] = ['equipe']
   const candidates = await Promise.all(
     types.map(async (type) => {
       const table = profileTable(type)
@@ -124,13 +127,16 @@ async function linkUnownedAccountsByVerifiedEmail(user: { id: string; email?: st
 }
 
 export async function getAccountsByUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
-  const [direct, linked] = await Promise.all([
-    getAccountsByUserId(user.id),
-    linkUnownedAccountsByVerifiedEmail(user),
-  ])
+  // Caminho normal do login: primeiro busca somente os perfis que já pertencem
+  // ao auth_user_id atual. O vínculo legado por e-mail é fallback e não pode
+  // atrasar /api/me em todo F5/login de um usuário já cadastrado.
+  const direct = await getAccountsByUserId(user.id)
+  if (direct.length) return direct
 
-  if (!linked.length) return direct
-  if (!direct.length) return linked
+  const linked = await linkUnownedAccountsByVerifiedEmail(user)
+  if (!linked.length) return []
+
+  // Releitura única para devolver o mesmo formato usado pelo restante do app.
   return getAccountsByUserId(user.id)
 }
 

@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
+  let user
   try {
-    const user = await getBearerUser(req)
+    user = await getBearerUser(req)
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Nao autorizado.' }, { status: 401 })
+  }
+
+  try {
     const accounts = await getAccountsForUser(user)
-    if (!accounts.length) throw new Error('Conta nao encontrada na DropZone.')
+    if (!accounts.length) {
+      return NextResponse.json(
+        { user: { id: user.id, email: user.email }, account: null, accounts: [] },
+        { status: 404 },
+      )
+    }
 
     const requested = String(req.headers.get('x-profile-type') || '').trim()
     const account = accounts.find((item) => item.profile_type === requested) || accounts[0]
@@ -16,6 +29,11 @@ export async function GET(req: NextRequest) {
       accounts,
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Nao autorizado.' }, { status: 401 })
+    // Sessão válida não pode virar falso 401 só porque a consulta de perfis
+    // demorou/falhou. O cliente mantém o usuário autenticado e oferece retry.
+    return NextResponse.json(
+      { error: error?.message || 'Nao foi possivel carregar os perfis.' },
+      { status: 503 },
+    )
   }
 }

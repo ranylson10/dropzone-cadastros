@@ -131,6 +131,8 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
+  const [profilesLoading, setProfilesLoading] = useState(false)
+  const [profileLoadError, setProfileLoadError] = useState('')
   const [params, setParams] = useState({
     returnTo: '/',
     profileType: null as ReturnType<typeof parseProfileType>,
@@ -143,13 +145,43 @@ export default function LoginPage() {
   }, [session])
 
   async function openAuthenticatedSession(currentSession: Session) {
+    // A autenticação já está concluída neste ponto. Falha/timeout de /api/me não
+    // pode jogar o usuário de volta para o formulário como se estivesse deslogado.
     setSession(currentSession)
-    const userAccounts = await loadAccounts(currentSession)
-    setAccounts(userAccounts)
     setStage('profiles')
+    setProfilesLoading(true)
+    setProfileLoadError('')
 
-    // Admin não faz parte do caminho crítico do login. Carrega depois dos perfis.
+    // Admin também não participa do caminho crítico de carregamento dos perfis.
     void checkAdmin(currentSession).then((adminAccess) => setIsAdmin(adminAccess))
+
+    try {
+      const userAccounts = await loadAccounts(currentSession)
+      setAccounts(userAccounts)
+    } catch (cause: unknown) {
+      setAccounts([])
+      setProfileLoadError(
+        friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível carregar seus perfis.'),
+      )
+    } finally {
+      setProfilesLoading(false)
+    }
+  }
+
+  async function retryProfiles() {
+    if (!session || profilesLoading) return
+    setProfilesLoading(true)
+    setProfileLoadError('')
+    try {
+      const userAccounts = await loadAccounts(session)
+      setAccounts(userAccounts)
+    } catch (cause: unknown) {
+      setProfileLoadError(
+        friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível carregar seus perfis.'),
+      )
+    } finally {
+      setProfilesLoading(false)
+    }
   }
 
   function clearOAuthReturnState() {
@@ -266,6 +298,18 @@ export default function LoginPage() {
         }
 
         if (!active) return
+
+        // Depois que o Supabase confirmou a sessão, remove o marcador de callback.
+        // Assim um F5 não reexecuta o caminho especial do OAuth nem parece logout.
+        if (complete) {
+          const cleanUrl = new URL(window.location.href)
+          cleanUrl.searchParams.delete('complete')
+          cleanUrl.searchParams.delete('error')
+          cleanUrl.searchParams.delete('error_description')
+          cleanUrl.hash = ''
+          window.history.replaceState({}, '', `${cleanUrl.pathname}${cleanUrl.search}`)
+        }
+
         await openAuthenticatedSession(currentSession)
       } catch (cause: unknown) {
         if (!active) return
@@ -465,6 +509,8 @@ export default function LoginPage() {
     setSession(null)
     setAccounts([])
     setIsAdmin(false)
+    setProfilesLoading(false)
+    setProfileLoadError('')
     setEmailMode('entrar')
     setPassword('')
     setConfirmPassword('')
@@ -691,7 +737,20 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                {accounts.length || isAdmin ? (
+                {profilesLoading ? (
+                  <div className="login-no-profile" role="status" aria-live="polite">
+                    <Loader2 className="spin" size={28} />
+                    <strong>Carregando seus perfis</strong>
+                    <p>Sua conta já está autenticada. Estamos buscando os acessos vinculados.</p>
+                  </div>
+                ) : profileLoadError ? (
+                  <div className="login-no-profile">
+                    <UserRound size={28} />
+                    <strong>Sessão confirmada</strong>
+                    <p>{profileLoadError}</p>
+                    <button type="button" className="button" onClick={() => void retryProfiles()}>Tentar carregar perfis novamente</button>
+                  </div>
+                ) : accounts.length || isAdmin ? (
                   <div className="login-profile-grid">
                     {accounts.map((profile) => {
                       const image = profileImage(profile)
@@ -732,7 +791,7 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                <div className="login-create-area">
+                {!profilesLoading && !profileLoadError ? <div className="login-create-area">
                   <div className="login-create-title"><Plus size={16} /><span>{accounts.length ? 'Criar outro perfil' : 'Crie seu perfil'}</span></div>
                   <div className="login-create-grid">
                     {PROFILE_TYPES.filter((type) => !accounts.some((profile) => profile.profile_type === type)).map((type) => (
@@ -743,7 +802,7 @@ export default function LoginPage() {
                       </button>
                     ))}
                   </div>
-                </div>
+                </div> : null}
               </div>
             ) : null}
           </div>
