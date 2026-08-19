@@ -433,6 +433,28 @@ export function AppHeader({
                     Perfis ligados à mesma conta
                   </span>
                 </div>
+                <a
+                  href="/?painel=1"
+                  onClick={() => {
+                    setProfileOpen(false)
+                    setMobileOpen(false)
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    width: '100%',
+                    padding: '13px 14px',
+                    background: 'linear-gradient(135deg, var(--ui-primary, #c9b766), var(--ui-primary-light, #dfcf85))',
+                    color: '#171717',
+                    textDecoration: 'none',
+                    fontWeight: 900,
+                    borderBottom: '1px solid rgba(0,0,0,.22)',
+                    boxShadow: 'inset 0 -1px rgba(255,255,255,.2)',
+                  }}
+                >
+                  <LayoutDashboard size={17} strokeWidth={2.5} /> Meu painel
+                </a>
                 {accounts.map((item) => {
                   const media = profileMedia(item)
                   const isActive = item.id === activeAccountId
@@ -476,27 +498,6 @@ export function AppHeader({
                     </button>
                   )
                 })}
-                <a
-                  href="/?painel=1"
-                  onClick={() => {
-                    setProfileOpen(false)
-                    setMobileOpen(false)
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 9,
-                    width: '100%',
-                    borderTop: '1px solid var(--ui-line)',
-                    padding: '12px 14px',
-                    background: 'transparent',
-                    color: 'var(--ui-text)',
-                    textDecoration: 'none',
-                    fontWeight: 800,
-                  }}
-                >
-                  <LayoutDashboard size={16} /> Meu painel
-                </a>
                 {showWallet ? (
                   <a
                     href="/carteira"
