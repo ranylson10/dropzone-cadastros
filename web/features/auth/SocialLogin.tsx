@@ -55,7 +55,7 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
       const providerOptions: Record<SocialProvider, { scopes?: string; queryParams?: Record<string, string> }> = {
         google: {
           // Impede o Google de reutilizar silenciosamente a conta anterior.
-          queryParams: { prompt: 'select_account', access_type: 'offline' },
+          queryParams: { prompt: 'select_account' },
         },
         facebook: {
           // e-mail + perfil público (padrão Facebook Login)
@@ -71,18 +71,17 @@ export function SocialLogin({ profileType = null, returnTo = '/' }: Props) {
         provider: provider as Provider,
         options: {
           redirectTo,
-          skipBrowserRedirect: false,
+          skipBrowserRedirect: true,
           ...providerOptions[provider],
         },
       })
 
       if (oauthError) throw oauthError
 
-      // Se o cliente não redirecionar sozinho, força navegação
-      if (data?.url) {
-        window.location.assign(data.url)
-        return
-      }
+      // Controlamos o redirecionamento uma única vez para evitar navegações duplicadas.
+      if (!data?.url) throw new Error('O provedor não retornou a URL de autenticação.')
+      window.location.replace(data.url)
+      return
     } catch (cause: any) {
       const msg = String(cause?.message || '')
       const providerName = labels[provider].replace('Continuar com ', '')

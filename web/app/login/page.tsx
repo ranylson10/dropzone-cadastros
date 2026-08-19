@@ -36,6 +36,22 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+async function fetchBearerJson(path: string, currentSession: Session, timeoutMs: number) {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(path, {
+      headers: { Authorization: `Bearer ${currentSession.access_token}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+    const payload = await response.json().catch(() => ({}))
+    return { response, payload }
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 function profileImage(profile: DropZoneRow) {
   return String(profile.data?.logo_url || profile.data?.avatar_url || '')
 }
@@ -65,33 +81,33 @@ function friendlyAuthError(message: string) {
 
 async function loadAccounts(currentSession: Session) {
   let lastError = 'Não foi possível carregar seus perfis.'
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const response = await fetch('/api/me', {
-      headers: { Authorization: `Bearer ${currentSession.access_token}` },
-      cache: 'no-store',
-    })
-    const payload = await response.json().catch(() => ({}))
-    if (response.ok || response.status === 404) {
-      const rows = Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : []
-      return rows as DropZoneRow[]
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const { response, payload } = await fetchBearerJson('/api/me', currentSession, 7000)
+      if (response.ok || response.status === 404) {
+        const rows = Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : []
+        return rows as DropZoneRow[]
+      }
+      if (response.status === 401 && /conta nao encontrada|conta não encontrada/i.test(String(payload.error || ''))) {
+        return [] as DropZoneRow[]
+      }
+      lastError = payload.error || lastError
+      if (![401, 429, 500, 502, 503, 504].includes(response.status)) break
+    } catch (cause: unknown) {
+      lastError = cause instanceof DOMException && cause.name === 'AbortError'
+        ? 'O carregamento dos perfis demorou demais.'
+        : cause instanceof Error
+          ? cause.message
+          : lastError
     }
-    if (response.status === 401 && /conta nao encontrada|conta não encontrada/i.test(String(payload.error || ''))) {
-      return [] as DropZoneRow[]
-    }
-    lastError = payload.error || lastError
-    if (![401, 429, 500, 502, 503, 504].includes(response.status)) break
-    await wait(700 + attempt * 900)
+    if (attempt === 0) await wait(350)
   }
   throw new Error(lastError)
 }
 
 async function checkAdmin(currentSession: Session) {
   try {
-    const response = await fetch('/api/admin/session', {
-      headers: { Authorization: `Bearer ${currentSession.access_token}` },
-      cache: 'no-store',
-    })
-    const payload = await response.json().catch(() => ({}))
+    const { payload } = await fetchBearerJson('/api/admin/session', currentSession, 5000)
     return Boolean(payload.isAdmin)
   } catch {
     return false
@@ -127,21 +143,80 @@ export default function LoginPage() {
   }, [session])
 
   async function openAuthenticatedSession(currentSession: Session) {
-    const [userAccounts, adminAccess] = await Promise.all([
-      loadAccounts(currentSession),
-      checkAdmin(currentSession),
-    ])
     setSession(currentSession)
+    const userAccounts = await loadAccounts(currentSession)
     setAccounts(userAccounts)
-    setIsAdmin(adminAccess)
     setStage('profiles')
+
+    // Admin não faz parte do caminho crítico do login. Carrega depois dos perfis.
+    void checkAdmin(currentSession).then((adminAccess) => setIsAdmin(adminAccess))
+  }
+
+  function clearOAuthReturnState() {
+    try {
+      sessionStorage.removeItem(OAUTH_RETURN_KEY)
+      sessionStorage.removeItem(OAUTH_PROFILE_KEY)
+    } catch {
+      // O navegador pode bloquear o storage em modo privado.
+    }
   }
 
   useEffect(() => {
     let active = true
-    const safetyTimer = window.setTimeout(() => {
-      if (active) setStage('authenticate')
-    }, 12000)
+
+    async function getSessionOnce(timeoutMs: number) {
+      let timeout: number | undefined
+      try {
+        const { data, error: sessionError } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) => {
+            timeout = window.setTimeout(() => reject(new Error('Tempo esgotado ao verificar sessão.')), timeoutMs)
+          }),
+        ])
+        if (sessionError) throw sessionError
+        return data.session
+      } finally {
+        if (timeout) window.clearTimeout(timeout)
+      }
+    }
+
+    async function waitForOAuthSession(complete: boolean) {
+      const first = await getSessionOnce(3500).catch(() => null)
+      if (first || !complete) return first
+
+      return new Promise<Session | null>((resolve) => {
+        let finished = false
+        let pollTimer: number | undefined
+        let deadlineTimer: number | undefined
+        let subscription: { unsubscribe: () => void } | null = null
+
+        const finish = (nextSession: Session | null) => {
+          if (finished) return
+          finished = true
+          if (pollTimer) window.clearTimeout(pollTimer)
+          if (deadlineTimer) window.clearTimeout(deadlineTimer)
+          subscription?.unsubscribe()
+          resolve(nextSession)
+        }
+
+        const poll = async () => {
+          if (finished) return
+          const current = await supabase.auth.getSession().catch(() => ({ data: { session: null } }))
+          if (current.data.session) {
+            finish(current.data.session)
+            return
+          }
+          pollTimer = window.setTimeout(() => void poll(), 250)
+        }
+
+        const listener = supabase.auth.onAuthStateChange((_event, nextSession) => {
+          if (nextSession) finish(nextSession)
+        })
+        subscription = listener.data.subscription
+        deadlineTimer = window.setTimeout(() => finish(null), 6500)
+        void poll()
+      })
+    }
 
     async function initialize() {
       const search = new URLSearchParams(window.location.search)
@@ -160,22 +235,17 @@ export default function LoginPage() {
       const complete = search.get('complete') === '1'
       const passwordUpdated = search.get('passwordUpdated') === '1'
       const recoveryRequested = search.get('recovery') === '1'
+      const oauthError = search.get('error_description') || search.get('error') || ''
+
       if (active) {
         setParams({ returnTo, profileType, switchAccount })
         if (passwordUpdated) setNotice('Senha atualizada. Entre com seu e-mail e a nova senha.')
         if (recoveryRequested) setEmailMode('recuperar')
       }
 
-      if (complete) {
-        try {
-          sessionStorage.removeItem(OAUTH_RETURN_KEY)
-          sessionStorage.removeItem(OAUTH_PROFILE_KEY)
-        } catch {
-          // ignore
-        }
-      }
-
       try {
+        if (oauthError) throw new Error(decodeURIComponent(oauthError.replace(/\+/g, ' ')))
+
         if (switchAccount && !complete) {
           await signOutEverywhere().catch(() => undefined)
           if (active) {
@@ -186,69 +256,27 @@ export default function LoginPage() {
           return
         }
 
-        async function getSessionOnce(timeoutMs: number) {
-          const { data, error: sessionError } = await Promise.race([
-            supabase.auth.getSession(),
-            new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('Tempo esgotado ao verificar sessão.')), timeoutMs)),
-          ])
-          if (sessionError) throw sessionError
-          return data.session
-        }
-
-        async function waitForCompleteSession() {
-          const first = await getSessionOnce(8000)
-          if (first || !complete) return first
-
-          let listenerSession: Session | null = null
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-            if (nextSession) listenerSession = nextSession
-          })
-
-          try {
-            const delays = [250, 500, 900, 1300, 1800, 2400, 3200, 4200]
-            for (const delay of delays) {
-              await wait(delay)
-              if (listenerSession) return listenerSession
-              const current = await supabase.auth.getSession().catch(() => ({ data: { session: null } }))
-              if (current.data.session) return current.data.session
-            }
-            return listenerSession
-          } finally {
-            subscription.unsubscribe()
-          }
-        }
-
-        const currentSession = await waitForCompleteSession()
-
+        const currentSession = await waitForOAuthSession(complete)
         if (!currentSession) {
-          if (complete) throw new Error('Não consegui confirmar sua sessão após a autenticação. Entre novamente e aguarde a página terminar de carregar.')
+          if (complete) {
+            throw new Error('O Google retornou, mas a sessão não foi confirmada. Tente novamente; se persistir, atualize a página uma vez.')
+          }
           if (active) setStage('authenticate')
           return
         }
 
-        const [userAccounts, adminAccess] = await Promise.all([
-          loadAccounts(currentSession),
-          checkAdmin(currentSession),
-        ])
-
         if (!active) return
-        setSession(currentSession)
-        setAccounts(userAccounts)
-        setIsAdmin(adminAccess)
-        setStage('profiles')
+        await openAuthenticatedSession(currentSession)
       } catch (cause: unknown) {
         if (!active) return
-        setError(cause instanceof Error ? cause.message : 'Não foi possível concluir a autenticação.')
+        setError(friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível concluir a autenticação.'))
         setStage('authenticate')
-      } finally {
-        window.clearTimeout(safetyTimer)
       }
     }
 
     void initialize()
     return () => {
       active = false
-      window.clearTimeout(safetyTimer)
     }
   }, [])
 
@@ -410,6 +438,7 @@ export default function LoginPage() {
 
   function openProfile(profile: DropZoneRow) {
     if (!profile.profile_type) return
+    clearOAuthReturnState()
     setOpeningProfile(profile.id)
     try {
       localStorage.setItem('dropzone_active_profile_type', profile.profile_type)
@@ -421,6 +450,7 @@ export default function LoginPage() {
   }
 
   function createProfile(type: ProfileType) {
+    clearOAuthReturnState()
     const next = new URLSearchParams({
       cadastro: type,
       vincular: '1',
@@ -430,6 +460,7 @@ export default function LoginPage() {
   }
 
   async function changeAccount() {
+    clearOAuthReturnState()
     await signOutEverywhere().catch(() => undefined)
     setSession(null)
     setAccounts([])

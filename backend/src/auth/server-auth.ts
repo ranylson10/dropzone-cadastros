@@ -56,21 +56,21 @@ export function mapProfile(row: any, profileType: ProfileType): DropZoneRow {
 }
 
 export async function getAccountsByUserId(userId: string) {
-  const accounts: DropZoneRow[] = []
   const types = Object.keys(PROFILE_TABLES) as ProfileType[]
+  const results = await Promise.all(
+    types.map(async (type) => {
+      const { data, error } = await supabaseAdmin
+        .from(profileTable(type))
+        .select('*')
+        .eq('auth_user_id', userId)
+        .order('created_at', { ascending: true })
 
-  for (const type of types) {
-    const { data, error } = await supabaseAdmin
-      .from(profileTable(type))
-      .select('*')
-      .eq('auth_user_id', userId)
-      .order('created_at', { ascending: true })
+      if (error) throw error
+      return (data || []).map((row) => mapProfile(row, type))
+    }),
+  )
 
-    if (error) throw error
-    accounts.push(...(data || []).map((row) => mapProfile(row, type)))
-  }
-
-  return accounts
+  return results.flat()
 }
 
 export async function getAccountsForUser(user: { id: string }) {
@@ -81,51 +81,57 @@ async function linkUnownedAccountsByVerifiedEmail(user: { id: string; email?: st
   const cleanEmail = String(user.email || '').trim().toLowerCase()
   if (!cleanEmail || !user.email_confirmed_at) return []
 
-  const linked: DropZoneRow[] = []
   const types = Object.keys(PROFILE_TABLES) as ProfileType[]
-
-  for (const type of types) {
-    const table = profileTable(type)
-    let query = supabaseAdmin
-      .from(table)
-      .select('*')
-      .eq('email_contato', cleanEmail)
-      .is('auth_user_id', null)
-      .order('created_at', { ascending: true })
-
-    if (type === 'equipe') query = query.is('dono_auth_user_id', null)
-
-    const { data, error } = await query
-    if (error) throw error
-
-    for (const row of data || []) {
-      const payload: Record<string, any> = { auth_user_id: user.id }
-      if (type === 'equipe') payload.dono_auth_user_id = user.id
-
-      const { data: updated, error: updateError } = await supabaseAdmin
+  const candidates = await Promise.all(
+    types.map(async (type) => {
+      const table = profileTable(type)
+      let query = supabaseAdmin
         .from(table)
-        .update(payload)
-        .eq('id', row.id)
-        .is('auth_user_id', null)
         .select('*')
-        .maybeSingle()
+        .eq('email_contato', cleanEmail)
+        .is('auth_user_id', null)
+        .order('created_at', { ascending: true })
 
-      if (updateError) throw updateError
-      if (updated) linked.push(mapProfile(updated, type))
-    }
-  }
+      if (type === 'equipe') query = query.is('dono_auth_user_id', null)
 
-  return linked
+      const { data, error } = await query
+      if (error) throw error
+      return { type, table, rows: data || [] }
+    }),
+  )
+
+  const linked = await Promise.all(
+    candidates.flatMap(({ type, table, rows }) =>
+      rows.map(async (row) => {
+        const payload: Record<string, any> = { auth_user_id: user.id }
+        if (type === 'equipe') payload.dono_auth_user_id = user.id
+
+        const { data: updated, error: updateError } = await supabaseAdmin
+          .from(table)
+          .update(payload)
+          .eq('id', row.id)
+          .is('auth_user_id', null)
+          .select('*')
+          .maybeSingle()
+
+        if (updateError) throw updateError
+        return updated ? mapProfile(updated, type) : null
+      }),
+    ),
+  )
+
+  return linked.filter((item): item is DropZoneRow => Boolean(item))
 }
 
 export async function getAccountsByUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
-  const direct = await getAccountsByUserId(user.id)
-  if (direct.length) {
-    const linked = await linkUnownedAccountsByVerifiedEmail(user)
-    if (!linked.length) return direct
-    return getAccountsByUserId(user.id)
-  }
-  return linkUnownedAccountsByVerifiedEmail(user)
+  const [direct, linked] = await Promise.all([
+    getAccountsByUserId(user.id),
+    linkUnownedAccountsByVerifiedEmail(user),
+  ])
+
+  if (!linked.length) return direct
+  if (!direct.length) return linked
+  return getAccountsByUserId(user.id)
 }
 
 export async function getAccountByUserId(userId: string, preferredType?: ProfileType | null) {

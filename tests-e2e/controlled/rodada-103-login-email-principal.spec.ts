@@ -25,15 +25,14 @@ test('103 - entrar com e-mail é a ação primária visual', async () => {
 test('103 - criar conta e recuperar senha ficam visíveis como ações próprias', async () => {
   expect(loginPage).toContain('className="login-account-action recovery"')
   expect(loginPage).toContain('Esqueci minha senha')
-  expect(loginPage).toContain('className="login-account-action create"')
+  expect(loginPage).toContain('className="login-create-account"')
   expect(loginPage).toContain('Criar conta')
   expect(styles).toContain('.login-email-actions{')
-  expect(styles).toContain('.login-account-action.create{')
 })
 
 test('103 - Google fica visualmente secundário abaixo do divisor', async () => {
   expect(loginPage).toContain('login-auth-divider login-auth-divider-secondary')
-  expect(loginPage).toContain('<span>ou continue com</span>')
+  expect(loginPage).toContain('<span>ou</span>')
   expect(loginPage).toContain('login-social-secondary')
   expect(styles).toContain('.login-social-secondary{')
   expect(styles).toContain('background: transparent; color: #3f4853;')

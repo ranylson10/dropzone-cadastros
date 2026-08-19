@@ -33,6 +33,7 @@
     "mobile:typecheck": "npm --prefix app run typecheck",
     "mobile:env:sync": "node scripts/sync-mobile-env.mjs",
     "mobile:ready": "node scripts/mobile-ready.mjs",
+    "test:auth-email": "node scripts/testes/test-auth-email-delivery.mjs",
     "testar:tudo": "node scripts/testes/testar-tudo.mjs",
     "audit:dropzone:full:orchestrated": "node scripts/testes/executar.mjs --full --skip-quality",
     "mobile:go": "powershell -ExecutionPolicy Bypass -File scripts/mobile-expo-fresh.ps1",
