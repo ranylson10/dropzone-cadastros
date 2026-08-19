@@ -35,12 +35,12 @@ test('123 - acesso admin não bloqueia mais a entrada nos perfis', async () => {
   expect(adminIndex).toBeGreaterThan(profilesIndex)
 })
 
-test('123 - perfis das cinco entidades são consultados em paralelo no servidor', async () => {
+test('123 - perfis são carregados por uma única RPC no servidor', async () => {
   const accountsStart = serverAuth.indexOf('export async function getAccountsByUserId')
   const accountsEnd = serverAuth.indexOf('export async function getAccountsForUser', accountsStart)
   const accountsBlock = serverAuth.slice(accountsStart, accountsEnd)
-  expect(accountsBlock).toContain('Promise.all(')
-  expect(accountsBlock).toContain('types.map(async (type) =>')
+  expect(accountsBlock).toContain('dropzone_perfis_por_auth')
+  expect(accountsBlock).not.toContain('types.map(async (type) =>')
 
   const linkStart = serverAuth.indexOf('async function linkUnownedAccountsByVerifiedEmail')
   const linkEnd = serverAuth.indexOf('export async function getAccountsByUser(', linkStart)

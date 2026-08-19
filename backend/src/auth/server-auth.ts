@@ -55,29 +55,28 @@ export function mapProfile(row: any, profileType: ProfileType): DropZoneRow {
   }
 }
 
-export async function getAccountsByUserId(userId: string) {
-  const types = Object.keys(PROFILE_TABLES) as ProfileType[]
-  const results = await Promise.all(
-    types.map(async (type) => {
-      const { data, error } = await supabaseAdmin
-        .from(profileTable(type))
-        .select('*')
-        .eq('auth_user_id', userId)
-        .order('created_at', { ascending: true })
+export async function getAccountsByUserId(userId: string): Promise<DropZoneRow[]> {
+  // Caminho crítico do login/F5: uma única chamada ao Postgres devolve todos
+  // os perfis ligados ao auth_user_id. Evita o fan-out de cinco requests REST
+  // (produtora/equipe/jogador/manager/broadcast), que podia prender /api/me.
+  const { data, error } = await supabaseAdmin.rpc('dropzone_perfis_por_auth', {
+    p_auth_user_id: userId,
+  })
 
-      if (error) throw error
-      return (data || []).map((row) => mapProfile(row, type))
-    }),
-  )
+  if (error) throw error
 
-  return results.flat()
+  return (data || []).map((row: any) => {
+    const type = row.profile_type as ProfileType
+    const source = row.data && typeof row.data === 'object' ? row.data : row
+    return mapProfile(source, type)
+  })
 }
 
-export async function getAccountsForUser(user: { id: string }) {
+export async function getAccountsForUser(user: { id: string }): Promise<DropZoneRow[]> {
   return getAccountsByUser(user)
 }
 
-async function linkUnownedAccountsByVerifiedEmail(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
+async function linkUnownedAccountsByVerifiedEmail(user: { id: string; email?: string | null; email_confirmed_at?: string | null }): Promise<DropZoneRow[]> {
   const cleanEmail = String(user.email || '').trim().toLowerCase()
   if (!cleanEmail || !user.email_confirmed_at) return []
 
@@ -126,7 +125,7 @@ async function linkUnownedAccountsByVerifiedEmail(user: { id: string; email?: st
   return linked.filter((item): item is DropZoneRow => Boolean(item))
 }
 
-export async function getAccountsByUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null }) {
+export async function getAccountsByUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null }): Promise<DropZoneRow[]> {
   // Caminho normal do login: primeiro busca somente os perfis que já pertencem
   // ao auth_user_id atual. O vínculo legado por e-mail é fallback e não pode
   // atrasar /api/me em todo F5/login de um usuário já cadastrado.
