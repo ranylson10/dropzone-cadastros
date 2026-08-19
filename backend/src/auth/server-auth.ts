@@ -55,6 +55,29 @@ export function mapProfile(row: any, profileType: ProfileType): DropZoneRow {
   }
 }
 
+// O objeto completo do banco é usado internamente pelas rotas de negócio. Ele
+// nunca deve ser enviado como resposta de sessão: algumas tabelas possuem
+// campos operacionais/sensíveis (por exemplo, senha_dono de equipes).
+const CLIENT_PROFILE_DATA_FIELDS = [
+  'id', 'username', 'public_id', 'public_id_prefix', 'nome', 'nome_exibido',
+  'status', 'logo_url', 'avatar_url', 'foto_url', 'foto_perfil_url', 'imagem_url',
+  'tag', 'pais', 'estado', 'cidade', 'localidade', 'bio', 'papel',
+  'disponivel_recrutamento', 'funcao', 'id_jogo', 'whatsapp_url',
+  'nome_publico_vendas', 'created_at', 'updated_at',
+] as const
+
+/** Versão mínima e segura do perfil para browser/app no fluxo de login. */
+export function toClientProfile(account: DropZoneRow): DropZoneRow {
+  const source = account.data && typeof account.data === 'object' ? account.data : {}
+  const data = Object.fromEntries(
+    CLIENT_PROFILE_DATA_FIELDS
+      .filter((field) => source[field] !== undefined)
+      .map((field) => [field, source[field]]),
+  )
+
+  return { ...account, data }
+}
+
 export async function getAccountsByUserId(userId: string): Promise<DropZoneRow[]> {
   // Caminho crítico do login/F5: uma única chamada ao Postgres devolve todos
   // os perfis ligados ao auth_user_id. Evita o fan-out de cinco requests REST

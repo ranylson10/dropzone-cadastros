@@ -23,7 +23,7 @@ test('123 - callback OAuth não volta sozinho para tela de autenticação por ti
 
 test('123 - carregamento de perfis tem timeout e retry curto', async () => {
   expect(loginPage).toContain('new AbortController()')
-  expect(loginPage).toContain("fetchBearerJson('/api/me', currentSession, 7000)")
+  expect(loginPage).toContain("fetchBearerJson('/api/me', currentSession, 4_500)")
   expect(loginPage).toContain('attempt < 2')
   expect(loginPage).toContain('if (attempt === 0) await wait(350)')
 })

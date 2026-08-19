@@ -101,6 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const redirectConfigured = isValidMobileAuthRedirect()
   const mountedRef = useRef(true)
   const oauthHandlingRef = useRef(false)
+  const sessionRef = useRef<Session | null>(null)
+  const accountsRequestRef = useRef(0)
   const [loading, setLoading] = useState(true)
   const [authenticating, setAuthenticating] = useState(false)
   const [authError, setAuthError] = useState('')
@@ -108,10 +110,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<MobileAccount[]>([])
   const [activeAccountId, setActiveAccountId] = useState('')
 
+  const applySession = useCallback((nextSession: Session | null) => {
+    // Invalida qualquer resposta de /api/me que ainda esteja em trânsito ao
+    // trocar/sair da conta; ela não pode repovoar a conta anterior.
+    if (!nextSession) accountsRequestRef.current += 1
+    sessionRef.current = nextSession
+    setSession(nextSession)
+  }, [])
+
   const refreshAccounts = useCallback(async () => {
-    const accessToken = session?.access_token
+    const accessToken = sessionRef.current?.access_token
+    const requestId = ++accountsRequestRef.current
     if (!accessToken) {
-      setAccounts([])
+      if (mountedRef.current && requestId === accountsRequestRef.current) setAccounts([])
       return
     }
     const result = await dropzoneFetch<{ accounts?: any[]; account?: any }>('/api/me', {
@@ -120,9 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     const rows = result.accounts || (result.account ? [result.account] : [])
     const mapped = rows.map(mapAccount).filter((account) => account.id)
+    if (!mountedRef.current || requestId !== accountsRequestRef.current) return
     setAccounts(mapped)
     setActiveAccountId((current) => current || mapped[0]?.id || '')
-  }, [session?.access_token])
+  }, [])
 
   const handleOAuthUrl = useCallback(async (url: string | null) => {
     if (!url || !isAuthCallbackUrl(url) || oauthHandlingRef.current) return
@@ -137,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(params.code)
       if (error) throw error
       if (!data.session) throw new Error('A sessão não foi criada após o retorno do Google.')
-      if (mountedRef.current) setSession(data.session)
+      if (mountedRef.current) applySession(data.session)
     } catch (error: any) {
       if (mountedRef.current) {
         setAuthError(error?.message || 'Não foi possível concluir o login com Google.')
@@ -146,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       oauthHandlingRef.current = false
       if (mountedRef.current) setAuthenticating(false)
     }
-  }, [])
+  }, [applySession])
 
   useEffect(() => {
     mountedRef.current = true
@@ -160,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data, error }) => {
       if (!mountedRef.current) return
       if (error) setAuthError(error.message)
-      setSession(data.session)
+      applySession(data.session)
       setLoading(false)
     })
 
@@ -180,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mountedRef.current) return
-      setSession(nextSession)
+      applySession(nextSession)
       setAuthenticating(false)
       if (!nextSession) {
         setAccounts([])
@@ -195,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       appStateListener.remove()
       listener.subscription.unsubscribe()
     }
-  }, [configured, handleOAuthUrl, refreshAccounts])
+  }, [applySession, configured, handleOAuthUrl, refreshAccounts])
 
   useEffect(() => {
     if (session?.access_token) void refreshAccounts().catch(() => setAccounts([]))
@@ -245,10 +257,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!configured) return
       setAuthError('')
       await supabase.auth.signOut()
+      applySession(null)
       setAccounts([])
       setActiveAccountId('')
     },
-  }), [accounts, activeAccount, activeProfileType, authError, authenticating, configured, loading, redirectConfigured, refreshAccounts, session])
+  }), [accounts, activeAccount, activeProfileType, applySession, authError, authenticating, configured, loading, redirectConfigured, refreshAccounts, session])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

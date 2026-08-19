@@ -83,7 +83,7 @@ async function loadAccounts(currentSession: Session) {
   let lastError = 'Não foi possível carregar seus perfis.'
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const { response, payload } = await fetchBearerJson('/api/me', currentSession, 7000)
+      const { response, payload } = await fetchBearerJson('/api/me', currentSession, 4_500)
       if (response.ok || response.status === 404) {
         const rows = Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : []
         return rows as DropZoneRow[]
