@@ -3,6 +3,7 @@ import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
 import { AsaasNotConfiguredError, isAsaasConfigured } from '@backend/billing/asaas'
 import { createLiliPayPalOrder } from '@backend/billing/paypal'
 import { createVacancyPurchase } from '@backend/billing/vacancy-purchase'
+import { resolveBillingProfile } from '@backend/billing/billing-profile'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 export const dynamic = 'force-dynamic'
@@ -42,6 +43,7 @@ async function checkoutCartItem({
   account,
   method,
   cpfCnpj,
+  payerName,
   origin,
 }: {
   itemId: string
@@ -49,12 +51,13 @@ async function checkoutCartItem({
   account: any
   method: 'pix' | 'cartao' | 'paypal'
   cpfCnpj: string | null
+  payerName: string | null
   origin: string
 }) {
   const item = await loadCartItem(user.id, itemId)
   const quantity = Math.max(1, Math.min(20, Math.floor(Number(item.quantidade || 1))))
   const email = String(user.email || account?.data?.email_contato || '').trim()
-  const name = String(account?.name || user.user_metadata?.full_name || email).trim()
+  const name = String(payerName || account?.name || user.user_metadata?.full_name || email).trim()
   if (!email) throw new Error('Sua conta precisa de e-mail para gerar o pagamento.')
 
   const { compra, payment, reused } = await createVacancyPurchase({
@@ -67,7 +70,7 @@ async function checkoutCartItem({
     method,
     quantity,
     forceNew: true,
-    flexibleCheckout: true,
+    flexibleCheckout: false,
   })
 
   const paypalPayment = method === 'paypal'
@@ -154,10 +157,15 @@ export async function POST(req: NextRequest) {
       ? String(body.method || 'pix') as 'pix' | 'cartao' | 'paypal'
       : 'pix'
     if (!itemIds.length) throw new Error('Item do carrinho obrigatorio.')
-    const cpfCnpj = String(body.cpf_cnpj || '').replace(/\D/g, '')
-    if (method !== 'paypal' && ![11, 14].includes(cpfCnpj.length)) {
-      throw new Error('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido para gerar o pagamento.')
-    }
+    const fallbackName = String(account?.name || user.user_metadata?.full_name || user.email || 'Comprador').trim()
+    const billing = method === 'paypal'
+      ? null
+      : await resolveBillingProfile({
+          userId: user.id,
+          fallbackName,
+          document: body.billing_profile?.document || body.cpf_cnpj || null,
+          holderName: body.billing_profile?.name || null,
+        })
 
     const checkouts = []
     for (const itemId of itemIds) {
@@ -166,14 +174,16 @@ export async function POST(req: NextRequest) {
         user,
         account,
         method,
-        cpfCnpj: cpfCnpj || null,
+        cpfCnpj: billing?.document || null,
+        payerName: billing?.name || null,
         origin: req.nextUrl.origin,
       }))
     }
-    if (checkouts.length === 1) return NextResponse.json({ ...checkouts[0], asaas_configured: isAsaasConfigured() })
+    if (checkouts.length === 1) return NextResponse.json({ ...checkouts[0], billing_profile: billing?.public || null, asaas_configured: isAsaasConfigured() })
     return NextResponse.json({
       checkouts,
       total_centavos: checkouts.reduce((sum, checkout) => sum + Number(checkout.compra.valor_centavos || 0), 0),
+      billing_profile: billing?.public || null,
       asaas_configured: isAsaasConfigured(),
     })
   } catch (error: any) {

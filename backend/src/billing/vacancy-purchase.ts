@@ -439,10 +439,9 @@ export async function createVacancyPurchase(input: {
   }
 
   const cpfDigits = input.cpfCnpj ? String(input.cpfCnpj).replace(/\D/g, '') : ''
-  if (cpfDigits && cpfDigits.length !== 11 && cpfDigits.length !== 14) {
+  if (cpfDigits.length !== 11 && cpfDigits.length !== 14) {
     throw new Error('Para criar a cobrança é necessário informar o CPF (11 dígitos) ou CNPJ (14 dígitos) do pagador.')
   }
-  const useFlexibleCheckout = Boolean(input.flexibleCheckout && !cpfDigits)
 
   const customer = await findOrCreateCustomer({
     name: input.payerName,
@@ -459,7 +458,7 @@ export async function createVacancyPurchase(input: {
     dueDate: dueDatePlusDays(3),
     description: `${quantity} vaga${quantity > 1 ? 's' : ''} · ${champ.nome || 'Campeonato'}`.slice(0, 500),
     externalReference,
-    billingType: useFlexibleCheckout ? 'UNDEFINED' : method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
+    billingType: method === 'cartao' ? 'CREDIT_CARD' : 'PIX',
     callbackUrl: method === 'cartao' ? `${appUrl()}/vagas/compra/${encodeURIComponent(compra.token)}?payment=return` : undefined,
   })
 

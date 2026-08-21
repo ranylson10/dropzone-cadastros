@@ -8,6 +8,7 @@ import {
 } from '@backend/billing/vacancy-purchase'
 import { createLiliPayPalOrder } from '@backend/billing/paypal'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { resolveBillingProfile } from '@backend/billing/billing-profile'
 
 /**
  * POST — inicia compra de vaga online (ASAAS link + PIX).
@@ -30,13 +31,21 @@ export async function POST(req: NextRequest) {
     const email = String(user.email || account?.data?.email_contato || '').trim()
     const name = String(account?.name || user.user_metadata?.full_name || email).trim()
     if (!email) throw new Error('Sua conta precisa de e-mail para gerar o pagamento.')
+    const billing = method === 'paypal'
+      ? null
+      : await resolveBillingProfile({
+          userId: user.id,
+          fallbackName: name || 'Comprador',
+          document: body.billing_profile?.document || body.cpf_cnpj || null,
+          holderName: body.billing_profile?.name || null,
+        })
 
     const { compra, payment, reused } = await createVacancyPurchase({
       campeonatoId,
       authUserId: user.id,
-      payerName: name || 'Comprador',
+      payerName: billing?.name || name || 'Comprador',
       payerEmail: email,
-      cpfCnpj: body.cpf_cnpj ? String(body.cpf_cnpj) : null,
+      cpfCnpj: billing?.document || null,
       vendedorManagerId: body.vendedor_manager_id || null,
       method,
     })
