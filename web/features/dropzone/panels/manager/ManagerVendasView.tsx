@@ -101,6 +101,7 @@ export function ManagerVendasView(props: {
   const [buyerName, setBuyerName] = useState('')
   const [saleQuantity, setSaleQuantity] = useState('1')
   const [saleMethod, setSaleMethod] = useState<SaleMethod>('pix')
+  const [saleChannel, setSaleChannel] = useState<'whatsapp' | 'instagram' | 'tiktok' | 'link'>('whatsapp')
   const [creatingSale, setCreatingSale] = useState(false)
 
   async function authHeaders() {
@@ -179,17 +180,19 @@ export function ManagerVendasView(props: {
           referencia: buyerName,
           quantidade_vagas: Math.max(1, Math.min(20, Math.floor(Number(saleQuantity || 1)))),
           method: saleMethod,
+          canal: saleChannel,
         }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao gerar venda.')
-      setSaleFeedback('Venda gerada. Copie a mensagem e mande para o comprador.')
+      setSaleFeedback('Link de compra criado. Copie a mensagem e envie ao comprador.')
       setBuyerName('')
       setSaleQuantity('1')
       setSaleMethod('pix')
+      setSaleChannel('whatsapp')
       setSaleChamp(null)
       await loadSales()
-      if (json.mensagem) await copyText(json.mensagem, 'Mensagem da venda copiada.')
+      if (json.mensagem) await copyText(json.mensagem, 'Mensagem com link de compra copiada.')
     } catch (error: any) {
       setSalesError(error?.message || 'Erro ao gerar venda.')
     } finally {
@@ -423,7 +426,7 @@ export function ManagerVendasView(props: {
             </div>
 
             <p className="empty" style={{ marginTop: 0 }}>
-              O sistema gera o pagamento, registra a venda para este vendedor e libera o link de inscrição quando confirmar.
+              Você gera um link rastreado para o comprador. Ele entra na própria conta, paga pela DropZone e só então a vaga é liberada.
               {' '}Comissão desta vaga: {formatCommission(saleChamp)}.
             </p>
 
@@ -466,11 +469,17 @@ export function ManagerVendasView(props: {
                 <span>Quantidade de vagas</span>
                 <input type="number" min={1} max={20} value={saleQuantity} onChange={(e) => setSaleQuantity(e.target.value)} />
               </label>
+              <label className="field">
+                <span>Canal do link</span>
+                <select value={saleChannel} onChange={(event) => setSaleChannel(event.target.value as typeof saleChannel)}>
+                  <option value="whatsapp">WhatsApp</option><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="link">Outro link</option>
+                </select>
+              </label>
             </div>
 
             <div className="manager-detail-actions" style={{ marginTop: 12 }}>
               <button className="button" type="button" disabled={creatingSale} onClick={() => void createAssistedSale()}>
-                {creatingSale ? 'Gerando...' : saleMethod === 'paypal' ? 'Gerar PayPal' : saleMethod === 'cartao' ? 'Gerar cartão' : 'Gerar PIX'}
+                {creatingSale ? 'Criando link...' : 'Gerar link de compra'}
               </button>
               <button className="button secondary" type="button" onClick={() => setSaleChamp(null)}>
                 Cancelar

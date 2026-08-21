@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { createVacancyPurchase } from '@backend/billing/vacancy-purchase'
 import { isAsaasConfigured } from '@backend/billing/asaas'
-import { createLiliPayPalOrder, paypalConfigured } from '@backend/billing/paypal'
+import { paypalConfigured } from '@backend/billing/paypal'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function absolutize(req: NextRequest, path: string) {
@@ -48,15 +48,24 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
     const { managerId } = await context.params
     await requireOwnManager(managerId, user.id)
 
-    const { data: purchases, error } = await supabaseAdmin
+    const [{ data: purchases, error }, { data: assisted, error: assistedError }] = await Promise.all([
+      supabaseAdmin
       .from('sistema_compras_vaga')
       .select('id,token,campeonato_id,grupo_id,status,valor_centavos,expira_em,pago_em,liberado_em,consumido_em,created_at,updated_at,meta,pagamento_id')
       .eq('vendedor_manager_id', managerId)
       .order('created_at', { ascending: false })
-      .limit(80)
+      .limit(80),
+      supabaseAdmin
+        .from('sistema_vendas_assistidas')
+        .select('id,token,campeonato_id,quantidade_vagas,canal,referencia,status,comprador_auth_user_id,compra_vaga_id,expira_em,created_at')
+        .eq('vendedor_manager_id', managerId)
+        .order('created_at', { ascending: false })
+        .limit(80),
+    ])
     if (error) throw error
+    if (assistedError) throw assistedError
 
-    const championshipIds = [...new Set((purchases || []).map((row: any) => row.campeonato_id).filter(Boolean))]
+    const championshipIds = [...new Set([...(purchases || []), ...(assisted || [])].map((row: any) => row.campeonato_id).filter(Boolean))]
     const paymentIds = [...new Set((purchases || []).map((row: any) => row.pagamento_id).filter(Boolean))]
     const groupIds = [...new Set((purchases || []).map((row: any) => row.grupo_id).filter(Boolean))]
 
@@ -79,7 +88,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
     const payments = new Map((paymentsResult.data || []).map((row: any) => [row.id, row]))
     const groups = new Map((groupsResult.data || []).map((row: any) => [row.id, row]))
 
-    const sales = (purchases || []).map((purchase: any) => {
+    const purchaseSales = (purchases || []).map((purchase: any) => {
       const payment: any = purchase.pagamento_id ? payments.get(purchase.pagamento_id) : null
       const claimPath = `/vagas/compra/${encodeURIComponent(purchase.token)}`
       return {
@@ -122,6 +131,16 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
       }
     })
 
+    const purchasesById = new Set((purchases || []).map((purchase: any) => purchase.id))
+    const linkSales = (assisted || []).filter((entry: any) => !entry.compra_vaga_id || !purchasesById.has(entry.compra_vaga_id)).map((entry: any) => ({
+      id: entry.id, token: entry.token, status: entry.status, valor_centavos: 0,
+      created_at: entry.created_at, expira_em: entry.expira_em, pago_em: null, liberado_em: null, consumido_em: null,
+      comprador_nome: entry.referencia || null, quantidade_vagas: Number(entry.quantidade_vagas || 1), vagas_usadas: 0,
+      vagas_restantes: Number(entry.quantidade_vagas || 1), campeonato: championships.get(entry.campeonato_id) || null, grupo: null,
+      payment: null, channel: entry.canal, claim_url: absolutize(req, `/vendas/${encodeURIComponent(entry.token)}`),
+      payment_url: absolutize(req, `/vendas/${encodeURIComponent(entry.token)}`),
+    }))
+    const sales = [...linkSales, ...purchaseSales].sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)))
     return NextResponse.json({ sales, asaas_configured: isAsaasConfigured(), paypal_configured: paypalConfigured() })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao listar vendas.' }, { status: 400 })
@@ -141,95 +160,32 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
     const method = ['pix', 'cartao', 'paypal'].includes(String(body.method || 'pix'))
       ? String(body.method || 'pix') as 'pix' | 'cartao' | 'paypal'
       : 'pix'
-    const cpfCnpj = String(body.cpf_cnpj || '').replace(/\D/g, '')
-    if (!cpfCnpj) throw new Error('Informe CPF/CNPJ do comprador para gerar a cobrança.')
     const quantity = Math.max(1, Math.min(20, Math.floor(Number(body.quantidade_vagas || body.quantidade || 1))))
     const buyerName = String(body.referencia || body.comprador_nome || '').trim()
-    const payerEmail = String(user.email || manager.email_contato || '').trim()
-    if (!payerEmail) throw new Error('Cadastre um e-mail no vendedor para gerar cobranças online.')
-
-    const { compra, payment, reused } = await createVacancyPurchase({
-      campeonatoId,
-      authUserId: user.id,
-      payerName: buyerName || manager.nome || manager.username || 'Comprador',
-      payerEmail,
-      cpfCnpj: cpfCnpj || undefined,
-      vendedorManagerId: managerId,
-      method,
-      quantity,
-      forceNew: true,
-      flexibleCheckout: true,
-    })
-    const paypalPayment = method === 'paypal'
-      ? await createLiliPayPalOrder({
-          reservation: compra,
-          campeonatoNome: String(compra.meta?.campeonato_nome || 'Campeonato'),
-          amountMinor: Number(compra.valor_centavos || 0),
-          currency: 'BRL',
-          returnOrigin: req.nextUrl.origin,
-          referenceType: 'sistema_compras_vaga',
-          returnUrl: `${req.nextUrl.origin}/vagas/compra/${encodeURIComponent(compra.token)}?paypal=approved&purchase_id=${encodeURIComponent(compra.id)}`,
-          cancelUrl: `${req.nextUrl.origin}/vagas/compra/${encodeURIComponent(compra.token)}?paypal=cancelled&purchase_id=${encodeURIComponent(compra.id)}`,
-        })
-      : null
-    const resolvedPayment = paypalPayment || payment
-
+    const channel = ['whatsapp', 'instagram', 'tiktok', 'link', 'outro'].includes(String(body.canal || 'whatsapp')) ? String(body.canal || 'whatsapp') : 'whatsapp'
+    const token = `VS-${randomBytes(8).toString('base64url').toUpperCase()}`
     const now = new Date().toISOString()
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    const assistedMeta = {
-      ...(compra.meta || {}),
-      venda_assistida: true,
-      venda_assistida_status: 'aguardando_pagamento',
-      venda_assistida_gerada_em: now,
-      vendedor_manager_id: managerId,
-      vendedor_auth_user_id: user.id,
-      comprador_nome: buyerName || null,
-      comprador_email: null,
-      comprador_whatsapp: null,
-      quantidade_vagas: quantity,
-      vagas_usadas: Math.max(0, Number(compra.meta?.vagas_usadas || 0)),
-      vagas_restantes: Math.max(0, quantity - Math.max(0, Number(compra.meta?.vagas_usadas || 0))),
-      checkout_publico: true,
-    }
-    const { data: updated } = await supabaseAdmin
-      .from('sistema_compras_vaga')
-      .update({ meta: assistedMeta, expira_em: expiresAt, updated_at: now })
-      .eq('id', compra.id)
-      .select('*')
-      .maybeSingle()
-
-    const finalCompra = updated || { ...compra, meta: assistedMeta }
-    const claimPath = `/vagas/compra/${encodeURIComponent(finalCompra.token)}`
-    const claimUrl = absolutize(req, claimPath)
-    const paymentUrl = resolvedPayment?.paypal_approval_url || resolvedPayment?.asaas_invoice_url || claimUrl
+    const checkoutPath = `/vendas/${encodeURIComponent(token)}`
+    const checkoutUrl = absolutize(req, checkoutPath)
+    const { data: sale, error: saleError } = await supabaseAdmin.from('sistema_vendas_assistidas').insert({
+      token, vendedor_manager_id: managerId, vendedor_auth_user_id: user.id, campeonato_id: campeonatoId,
+      quantidade_vagas: quantity, canal: channel, referencia: buyerName || null,
+      meta: { criada_por_vendedor_em: now, metodo_sugerido: method },
+    }).select('id,token,status,quantidade_vagas,expira_em').single()
+    if (saleError) throw saleError
 
     return NextResponse.json({
-      reused: Boolean(reused),
       sale: {
-        id: finalCompra.id,
-        token: finalCompra.token,
-        status: finalCompra.status,
-        valor_centavos: finalCompra.valor_centavos,
-        payment_url: paymentUrl,
-        claim_url: claimUrl,
+        id: sale.id,
+        token: sale.token,
+        status: sale.status,
+        checkout_url: checkoutUrl,
         quantidade_vagas: quantity,
       },
-      payment: resolvedPayment
-        ? {
-            id: resolvedPayment.id,
-            status: resolvedPayment.status,
-            metodo: method,
-            provider: resolvedPayment.provider || (method === 'paypal' ? 'paypal' : 'online'),
-            invoice_url: resolvedPayment.asaas_invoice_url || null,
-            paypal_approval_url: resolvedPayment.paypal_approval_url || null,
-            pix_qrcode: resolvedPayment.asaas_pix_qrcode || null,
-            pix_payload: resolvedPayment.asaas_pix_payload || null,
-          }
-        : null,
       mensagem: [
-        `Pagamento de ${quantity} vaga${quantity > 1 ? 's' : ''}: ${paymentUrl}`,
-        `Depois do pagamento, este link libera ${quantity} inscrição${quantity > 1 ? 'ões' : ''}: ${claimUrl}`,
-        `Token: ${finalCompra.token}`,
+        `Compra de ${quantity} vaga${quantity > 1 ? 's' : ''}: ${checkoutUrl}`,
+        'Abra o link, entre na sua conta e pague com segurança pela DropZone.',
+        `Código da venda: ${sale.token}`,
       ].join('\n'),
       asaas_configured: isAsaasConfigured(),
       paypal_configured: paypalConfigured(),
