@@ -1404,6 +1404,7 @@ ${params.url}`
       return left.localeCompare(right)
     })[0]
   const approved = String(dataText(props.selectedChamp, 'aprovacao_status') || 'aprovado') === 'aprovado'
+  const finalizedGames = champGames.filter((game) => String(dataText(game, 'status')).toLowerCase() === 'finalizado').length
   const operationalChecklist = selectedChamp ? [
     {
       done: Boolean(dataText(selectedChamp, 'nome') || selectedChamp.name) && Boolean(dataText(selectedChamp, 'logo_url')),
@@ -1419,9 +1420,9 @@ ${params.url}`
     },
     {
       done: props.selectedChampTeams.length > 0,
-      title: 'Equipes',
-      detail: props.selectedChampTeams.length > 0 ? `${props.selectedChampTeams.length} line(s) inscrita(s).` : 'Adicione equipes ou gere convites.',
-      action: () => setTab('equipes'),
+      title: 'Slots e equipes',
+      detail: props.selectedChampTeams.length > 0 ? `${props.selectedChampTeams.length} line(s) inscrita(s).` : 'Escolha um grupo e preencha o primeiro slot livre.',
+      action: () => setTab('grupos'),
     },
     {
       done: champGames.length > 0,
@@ -1430,10 +1431,16 @@ ${params.url}`
       action: () => startCreateGame(),
     },
     {
-      done: champRegistrationLinks.length > 0,
-      title: 'Divulgação',
-      detail: champRegistrationLinks.length > 0 ? `${champRegistrationLinks.length} link(s) gerado(s).` : 'Gere um link de vaga ou convite.',
+      done: true,
+      title: 'Link externo (opcional)',
+      detail: champRegistrationLinks.length > 0 ? `${champRegistrationLinks.length} link(s) gerado(s).` : 'Use apenas se quiser receber inscrições externas por grupo.',
       action: () => { setTab('links'); setOpenAction('link') },
+    },
+    {
+      done: finalizedGames > 0,
+      title: 'Pontuação e resultado',
+      detail: finalizedGames > 0 ? `${finalizedGames} jogo(s) finalizado(s).` : 'Após criar o jogo, abra o pontuador e finalize as quedas.',
+      action: () => setTab('estatisticas'),
     },
     {
       done: approved,
@@ -1859,9 +1866,9 @@ ${params.url}`
                         <strong>{String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'diario' ? 'Horários' : 'Grupos e fases'}</strong>
                         <small>{String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'diario' ? (champGroups.length ? `${champGroups.length} horário(s) configurado(s)` : 'Configure os horários dos jogos') : (champPhases.length ? `${champPhases.length} fase(s), ${champGroups.length} grupo(s)` : 'Comece criando a estrutura')}</small>
                       </button>
-                      <button type="button" onClick={() => setTab('grupos')}>
+                      <button type="button" className="is-primary-action" onClick={() => setTab('grupos')}>
                         <Users size={18} />
-                        <strong>Preencher slots</strong>
+                        <strong>Inscrever equipes</strong>
                         <small>{props.selectedChampTeams.length ? `${props.selectedChampTeams.length} line(s) inscrita(s)` : 'Abra um grupo e adicione em um slot livre'}</small>
                       </button>
                       <button
@@ -1879,7 +1886,7 @@ ${params.url}`
                       >
                         <Trophy size={18} />
                         <strong>Abrir pontuador</strong>
-                        <small>{nextGame ? rowTitle(nextGame) : 'Crie um jogo primeiro'}</small>
+                        <small>{nextGame ? rowTitle(nextGame) : 'Crie um jogo para liberar o pontuador'}</small>
                       </button>
                       <button
                         type="button"

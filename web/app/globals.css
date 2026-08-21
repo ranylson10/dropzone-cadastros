@@ -6265,6 +6265,15 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .directory-list-meta em::before{ content: attr(data-label); display: block; color: #7a7267; font-size: 8px; font-weight: 900; letter-spacing: .08em; line-height: 1; text-transform: uppercase;
 } .directory-list-meta b{ font-size: 14px; color: #24313e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 900; margin-top: 0; text-align: center; width: 100%;
 } .directory-context-action{ min-height: 42px; margin-top: 14px; padding: 0 18px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border-radius: 0; box-shadow: none;
+} .championship-enrollment-launcher{ display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px; border:1px solid var(--ui-accent,#c9b766); background:rgba(201,183,102,.12); color:var(--ui-text,#fff);
+} .championship-enrollment-launcher h3{ margin:3px 0; font-size:18px;
+} .championship-enrollment-launcher>div>span{ color:var(--ui-text-muted,#aeb8c5); font-size:12px;
+} .championship-enrollment-controls{ display:flex; align-items:end; gap:10px; flex-wrap:wrap;
+} .championship-enrollment-controls label{ display:grid; gap:5px; min-width:250px; color:var(--ui-text-muted,#aeb8c5); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
+} .championship-enrollment-controls select{ min-height:40px; padding:0 10px; border:1px solid var(--ui-line,#394150); background:var(--ui-surface,#111827); color:var(--ui-text,#fff);
+} body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button.is-primary-action{ border-left-color:var(--ui-accent); background:var(--ui-accent); color:#15130b;
+} body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button.is-primary-action svg,body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button.is-primary-action strong{ color:#15130b;
+} body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button.is-primary-action small{ color:rgba(21,19,11,.75);
 } .public-home-token-entry{ display:flex; align-items:center; gap:10px; width:min(100%, 620px); min-height:48px; margin-top:10px; padding:0 8px 0 14px; border:1px solid rgba(255,255,255,.24); background:rgba(10,14,22,.66); color:rgba(255,255,255,.72); backdrop-filter:blur(8px);
 } .public-home-token-entry input{ min-width:0; flex:1; border:0; outline:0; background:transparent; color:#fff; font:inherit; font-size:13px;
 } .public-home-token-entry input::placeholder{ color:rgba(255,255,255,.52);

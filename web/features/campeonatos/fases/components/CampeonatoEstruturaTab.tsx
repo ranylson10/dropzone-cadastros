@@ -165,6 +165,7 @@ export function CampeonatoEstruturaTab({
   const [slotBusy, setSlotBusy] = useState(false)
   const [slotFeedback, setSlotFeedback] = useState('')
   const [vagasIndex, setVagasIndex] = useState<Record<string, CampeonatoVaga>>({})
+  const [enrollmentGroupId, setEnrollmentGroupId] = useState('')
 
   const canEdit = Boolean(permission.canOrganizeGroups)
   const canAdd = Boolean(permission.canManage)
@@ -225,6 +226,33 @@ export function CampeonatoEstruturaTab({
     [fases],
   )
   const gruposOrdenados = useMemo(() => [...grupos].sort(sortGroupsByName), [grupos])
+
+  const enrollmentGroups = useMemo(
+    () => [...grupos].sort((a, b) => {
+      const phaseDiff = Number(fases.find((phase) => phase.id === a.fase_id)?.ordem || 0) - Number(fases.find((phase) => phase.id === b.fase_id)?.ordem || 0)
+      return phaseDiff || sortGroupsByName(a, b)
+    }),
+    [fases, grupos],
+  )
+  const selectedEnrollmentGroup = enrollmentGroups.find((group) => group.id === enrollmentGroupId) || null
+  const enrollmentFreeSlots = selectedEnrollmentGroup
+    ? slots.filter((slot) => slot.grupo_id === selectedEnrollmentGroup.id && slotStatus(slot) === 'livre')
+    : []
+
+  useEffect(() => {
+    if (!enrollmentGroupId && enrollmentGroups[0]?.id) setEnrollmentGroupId(enrollmentGroups[0].id)
+  }, [enrollmentGroupId, enrollmentGroups])
+
+  function startEnrollmentInGroup() {
+    const slot = enrollmentFreeSlots[0]
+    if (!slot) {
+      setError('Este grupo não possui slots livres. Selecione outro grupo.')
+      return
+    }
+    setSlotAlvo(slot)
+    setSlotModo('adicionar')
+    setSlotFeedback('')
+  }
 
   function nextGroupName(phaseId: string) {
     const used = new Set(
@@ -454,6 +482,31 @@ export function CampeonatoEstruturaTab({
   return (
     <div className="ref-section-stack">
       {error ? <div className="message error">{error}</div> : null}
+
+      {canAdd && enrollmentGroups.length ? (
+        <section className="championship-enrollment-launcher">
+          <div>
+            <p className="eyebrow">Inscrições</p>
+            <h3>Inscrever equipes</h3>
+            <span>Escolha o grupo e adicione as equipes uma a uma, sem navegar por fases e slots.</span>
+          </div>
+          <div className="championship-enrollment-controls">
+            <label>
+              <span>Grupo</span>
+              <select value={enrollmentGroupId} onChange={(event) => setEnrollmentGroupId(event.target.value)}>
+                {enrollmentGroups.map((group) => {
+                  const phase = fases.find((item) => item.id === group.fase_id)
+                  const free = slots.filter((slot) => slot.grupo_id === group.id && slotStatus(slot) === 'livre').length
+                  return <option key={group.id} value={group.id}>{phase?.nome || 'Fase 1'} · {group.nome} · {free} vaga(s)</option>
+                })}
+              </select>
+            </label>
+            <button type="button" className="button" disabled={!enrollmentFreeSlots.length} onClick={startEnrollmentInGroup}>
+              {enrollmentFreeSlots.length ? `Adicionar equipe · ${enrollmentFreeSlots.length} vaga(s)` : 'Grupo sem vagas'}
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       {canEdit ? (
         <div className="structure-quick-create">
