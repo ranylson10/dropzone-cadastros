@@ -7,7 +7,9 @@ import {
   Check,
   ChevronRight,
   CirclePlus,
+  LayoutDashboard,
   Loader2,
+  Store,
   Ticket,
   Trophy,
   Users,
@@ -17,6 +19,7 @@ import { DirectoryListClient } from '@/features/directory/components/DirectoryLi
 import '@/features/directory/components/championship-directory.css'
 import type { DirectoryItem } from '@/features/directory/types'
 import type { DropZoneRow } from '@/lib/types'
+import type { ProfileType } from '@/lib/types'
 import './authenticated-home.css'
 
 type Vacancy = {
@@ -38,6 +41,7 @@ type Props = {
   account: DropZoneRow
   accounts: DropZoneRow[]
   onOpenPanel: (target?: DropZoneRow) => void | Promise<void>
+  onCreateArea?: (profileType: ProfileType) => void
 }
 
 type GateKind = 'produtora' | 'equipe' | null
@@ -66,6 +70,7 @@ export function AuthenticatedHomeFeed({
   account,
   accounts,
   onOpenPanel,
+  onCreateArea,
 }: Props) {
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [loadingVacancies, setLoadingVacancies] = useState(true)
@@ -222,6 +227,25 @@ export function AuthenticatedHomeFeed({
           {priorityLoading ? <Loader2 className="spin" size={18} /> : <CalendarDays size={18} />}
           <div><strong>{nextAgendaItem ? nextAgendaItem.titulo : isPlayer ? 'Nenhum jogo agendado' : 'Agenda da conta'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''} · ${nextAgendaItem.meta?.campeonato_nome || nextAgendaItem.meta?.equipe_nome || 'DropZone'}` : 'Acompanhe datas, jogos e compromissos em um só lugar.'}</small></div>
           <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir <ChevronRight size={16} /></a>
+        </div>
+      </section>
+
+      <section className="authenticated-home-section authenticated-home-areas" id="minhas-areas">
+        <div className="authenticated-home-section-head">
+          <div><span>MINHA CONTA</span><h2>Minhas áreas</h2></div>
+        </div>
+        <div className="authenticated-home-areas-grid">
+          {accounts.map((item) => {
+            const type = item.profile_type as ProfileType
+            const label = type === 'equipe' ? 'Minha equipe' : type === 'jogador' ? 'Perfil competitivo' : type === 'produtora' ? 'Minha produtora' : type === 'manager' ? 'Afiliados' : 'Transmissão'
+            const Icon = type === 'manager' ? Store : type === 'produtora' ? Trophy : type === 'equipe' ? Users : LayoutDashboard
+            return <button key={item.id} type="button" className="authenticated-home-area-card" onClick={() => void onOpenPanel(item)}>
+              <Icon size={19} /><span><strong>{label}</strong><small>{item.name || item.username}</small></span><ChevronRight size={16} />
+            </button>
+          })}
+          {!accounts.some((item) => item.profile_type === 'manager') && onCreateArea ? <button type="button" className="authenticated-home-area-card is-add" onClick={() => onCreateArea('manager')}>
+            <CirclePlus size={19} /><span><strong>Ativar afiliados</strong><small>Divulgue campeonatos e acompanhe vendas</small></span><ChevronRight size={16} />
+          </button> : null}
         </div>
       </section>
 

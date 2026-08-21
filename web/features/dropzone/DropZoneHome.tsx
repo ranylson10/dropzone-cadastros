@@ -1875,6 +1875,7 @@ export function DropZoneHome() {
                 account={account}
                 accounts={accounts}
                 onOpenPanel={openProfilePanel}
+                onCreateArea={startLinkedProfile}
               />
             ) : (
               <>

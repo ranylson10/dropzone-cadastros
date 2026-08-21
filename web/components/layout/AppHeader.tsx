@@ -443,7 +443,7 @@ export function AppHeader({
                   </span>
                 </div>
                 <a
-                  href="/?painel=1"
+                  href="/#minhas-areas"
                   onClick={() => {
                     setProfileOpen(false)
                     setMobileOpen(false)
@@ -464,49 +464,6 @@ export function AppHeader({
                 >
                   <LayoutDashboard size={17} strokeWidth={2.5} /> Minhas áreas
                 </a>
-                {accounts.map((item) => {
-                  const media = profileMedia(item)
-                  const isActive = item.id === activeAccountId
-                  const isSwitching = item.id === switchingAccountId
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`linked-account-option ${isActive ? 'active' : ''} ${isSwitching ? 'is-switching' : ''}`}
-                      disabled={isActive || Boolean(switchingAccountId)}
-                      onClick={() => {
-                        onSwitchAccount?.(item)
-                        setProfileOpen(false)
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        width: '100%',
-                        border: 0,
-                        padding: '12px 14px',
-                        background: isActive ? 'var(--ui-surface-soft)' : 'transparent',
-                        cursor: isActive ? 'default' : 'pointer',
-                        textAlign: 'left',
-                      }}
-                    >
-                      <LockedAvatar
-                        src={media || undefined}
-                        size={32}
-                        fallback={String(item.name || item.username || 'DZ').slice(0, 2).toUpperCase()}
-                      />
-                      <span style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                        <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.name}
-                        </b>
-                        <small style={{ color: 'var(--ui-muted)', fontSize: 11 }}>
-                          {isSwitching ? 'Abrindo área...' : `${areaLabel(item.profile_type)} · @${item.username}`}
-                        </small>
-                      </span>
-                      {isSwitching ? <Loader2 className="spin linked-account-spinner" size={15} /> : null}
-                    </button>
-                  )
-                })}
                 {showWallet ? (
                   <a
                     href="/carteira"
