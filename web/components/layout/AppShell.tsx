@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
-import type { DropZoneRow } from '@/lib/types'
+import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { AppHeader } from './AppHeader'
 import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
 import { signOutEverywhere } from '@/lib/auth-client-state'
@@ -17,7 +17,7 @@ const TYPE_LABELS: Record<string, string> = {
   produtora: 'Produtora',
   equipe: 'Equipe',
   jogador: 'Jogador',
-  manager: 'Manager',
+  manager: 'Afiliados',
 }
 
 function mediaFor(account?: DropZoneRow | null) {
@@ -46,7 +46,7 @@ export type AppShellProps = {
   activeAccountId?: string
   switchingAccountId?: string
   onSwitchAccount?: (account: DropZoneRow) => void
-  onCreateLinkedProfile?: () => void
+  onCreateLinkedProfile?: (profileType?: ProfileType) => void
   onSignOut?: () => void
   /** Se true, carrega sessão via /api/me (páginas públicas) */
   loadSession?: boolean
@@ -195,7 +195,7 @@ export function AppShell({
           profileName={account ? (account.name || account.username || 'Conta DropZone') : undefined}
           profileSubtitle={
             account
-              ? `${TYPE_LABELS[String(account.profile_type || '')] || 'Conta'} · @${account.username}`
+              ? `Conta DropZone · @${account.username}`
               : undefined
           }
           profileImage={mediaFor(account) || undefined}

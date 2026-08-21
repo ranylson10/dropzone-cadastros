@@ -95,7 +95,7 @@ const typeLabels: Record<ProfileType, string> = {
   produtora: 'Produtora',
   equipe: 'Equipe',
   jogador: 'Jogador',
-  manager: 'Manager',
+  manager: 'Afiliado',
   broadcast: 'Broadcast',
 }
 
@@ -103,7 +103,7 @@ const typeDescriptions: Record<ProfileType, string> = {
   produtora: 'Painel de campeonatos e gestao geral.',
   equipe: 'Acesso do lider para montar elenco e entrar em eventos.',
   jogador: 'Cadastro competitivo e inscricoes em partidas.',
-  manager: 'Ajudante com convite unico para operar o painel.',
+  manager: 'Área de afiliados para divulgar campeonatos e acompanhar vendas.',
   broadcast: 'Stream, narrador, comentarista ou apresentador — lives e overlays.',
 }
 
@@ -846,11 +846,11 @@ export function DropZoneHome() {
       localStorage.setItem('dropzone_active_profile_type', String(nextAccount.profile_type || ''))
       setAccount(nextAccount)
       setRows(readPanelCache(nextAccount.id))
-      setMessage(`Trocando para ${typeLabels[nextAccount.profile_type as ProfileType].toLowerCase()}...`)
+      setMessage(`Abrindo ${typeLabels[nextAccount.profile_type as ProfileType].toLowerCase()}...`)
       await loadMeAndRows(undefined, nextAccount.profile_type as ProfileType)
       setMessage('')
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível trocar de perfil.')
+      setError(err?.message || 'Não foi possível abrir esta área.')
     } finally {
       setLoading(false)
       setAccessLoadingType(null)

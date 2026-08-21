@@ -34,7 +34,7 @@ export function ManagerPanel(props: {
   const accounts = props.accounts || []
   const [mode, setMode] = useState<ManagerPanelMode>(() => normalizeManagerMode(props.initialMode))
   const [produtoraSub, setProdutoraSub] = useState<ManagerProdutoraSub>(
-    props.initialMode === 'vendas' ? 'vendas' : 'campeonatos',
+    'vendas',
   )
   const [sellerItems, setSellerItems] = useState<any[]>([])
   const [sellerLoading, setSellerLoading] = useState(false)
@@ -223,44 +223,15 @@ export function ManagerPanel(props: {
 
   return (
     <div className="dashboard manager-dashboard">
-      {/* Nav compacta — sem texto explicativo */}
+      {/* Afiliado não administra o campeonato. Esta central mostra somente
+          campanhas liberadas, vendas e o próprio perfil comercial. */}
       <section className="panel span-3 manager-hub-header manager-hub-header-compact">
         <nav className="manager-mode-nav manager-mode-nav-main" aria-label="Áreas do manager">
-          {MANAGER_CONTEXT_CARDS.map((card) => {
-            const Icon = contextIcons[card.id]
-            const active = mode === card.id
-            const count = modeCount(card.id)
-            return (
-              <button
-                key={card.id}
-                type="button"
-                className={`manager-mode-chip ${active ? 'active' : ''}`}
-                onClick={() => openMode(card.id)}
-              >
-                <Icon size={15} />
-                <span>{card.title}</span>
-                <span className="manager-mode-count">{count}</span>
-              </button>
-            )
-          })}
-        </nav>
-
-        {mode === 'produtora' ? (
+          <span className="manager-mode-chip active" aria-current="page">
+            <Trophy size={15} />
+            <span>Afiliados</span>
+          </span>
           <div className="manager-subnav">
-            <button
-              type="button"
-              className={`manager-mode-chip manager-mode-chip-sm ${produtoraSub === 'campeonatos' ? 'active' : ''}`}
-              onClick={() => setProdutoraSub('campeonatos')}
-            >
-              <Trophy size={13} /> Operação
-            </button>
-            <button
-              type="button"
-              className={`manager-mode-chip manager-mode-chip-sm ${produtoraSub === 'vendas' ? 'active' : ''}`}
-              onClick={() => setProdutoraSub('vendas')}
-            >
-              <MessageCircle size={13} /> Vendas
-            </button>
             <a
               href="/carteira"
               className="manager-mode-chip manager-mode-chip-sm"
@@ -276,7 +247,7 @@ export function ManagerPanel(props: {
               Perfil
             </button>
           </div>
-        ) : null}
+        </nav>
       </section>
 
       {mode === 'produtora' && showManagerPerfil ? (
@@ -308,8 +279,7 @@ export function ManagerPanel(props: {
       {/* ——— CAMPEONATOS (antes: produtora) ——— */}
       {mode === 'produtora' ? (
         <>
-          {produtoraSub === 'vendas' ? (
-            <ManagerVendasView
+          <ManagerVendasView
               accountId={props.account.id}
               sellerItems={sellerItems}
               sellerLoading={sellerLoading}
@@ -326,21 +296,6 @@ export function ManagerPanel(props: {
               onCopyPublicLink={copyPublicLink}
               onOpenChampionship={(id) => openChampionship(id)}
             />
-          ) : null}
-
-          {produtoraSub === 'campeonatos' ? (
-            <ManagerCampeonatosView
-              managerId={props.account.id}
-              sellerItems={sellerItems}
-              sellerLoading={sellerLoading}
-              sellerError={sellerError}
-              selectedChampId={selectedChampId}
-              setSelectedChampId={setSelectedChampIdAndRefresh}
-              tab={champTab}
-              setTab={setChampTab}
-              onRefreshUsage={() => void loadSeller()}
-            />
-          ) : null}
         </>
       ) : null}
 

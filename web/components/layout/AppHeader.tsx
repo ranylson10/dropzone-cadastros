@@ -2,7 +2,7 @@
 
 import { CalendarDays, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import type { DropZoneRow } from '@/lib/types'
+import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { APP_NAV, type AppNavItem } from './nav'
@@ -22,7 +22,7 @@ type AppHeaderProps = {
   activeAccountId?: string
   switchingAccountId?: string
   onSwitchAccount?: (account: DropZoneRow) => void
-  onCreateLinkedProfile?: () => void
+  onCreateLinkedProfile?: (profileType?: ProfileType) => void
   onSignOut?: () => void
   /** Guest CTA when not logged in */
   loginHref?: string
@@ -35,6 +35,15 @@ type AppHeaderProps = {
 
 function profileMedia(account: DropZoneRow) {
   return account.data?.logo_url || account.data?.avatar_url || ''
+}
+
+function areaLabel(type?: string | null) {
+  if (type === 'equipe') return 'Minha equipe'
+  if (type === 'jogador') return 'Perfil competitivo'
+  if (type === 'produtora') return 'Minha produtora'
+  if (type === 'manager') return 'Afiliados'
+  if (type === 'broadcast') return 'Transmissão'
+  return 'Área da conta'
 }
 
 /**
@@ -308,14 +317,14 @@ export function AppHeader({
                 setProfileOpen((value) => !value)
               }}
               aria-expanded={profileOpen}
-              aria-label="Trocar perfil"
+              aria-label="Abrir minha conta"
             >
               <LockedAvatar
                 src={profileImage || undefined}
                 size={24}
                 fallback={String(profileName).slice(0, 2).toUpperCase()}
               />
-              <span>Perfil</span>
+              <span>Conta</span>
             </button>
           ) : (
             <a href={loginHref} className="app-mobile-profile-switcher">
@@ -428,9 +437,9 @@ export function AppHeader({
                 }}
               >
                 <div className="app-profile-menu-head" style={{ padding: 14, borderBottom: '1px solid var(--ui-line)', background: 'var(--ui-surface)' }}>
-                  <strong>Perfis vinculados</strong>
+                  <strong>Minha conta</strong>
                   <span style={{ display: 'block', marginTop: 3, color: 'var(--ui-muted)', fontSize: 11 }}>
-                    Perfis ligados à mesma conta
+                    Áreas liberadas nesta conta
                   </span>
                 </div>
                 <a
@@ -453,7 +462,7 @@ export function AppHeader({
                     boxShadow: 'inset 0 -1px rgba(255,255,255,.2)',
                   }}
                 >
-                  <LayoutDashboard size={17} strokeWidth={2.5} /> Meu painel
+                  <LayoutDashboard size={17} strokeWidth={2.5} /> Minhas áreas
                 </a>
                 {accounts.map((item) => {
                   const media = profileMedia(item)
@@ -491,7 +500,7 @@ export function AppHeader({
                           {item.name}
                         </b>
                         <small style={{ color: 'var(--ui-muted)', fontSize: 11 }}>
-                          {isSwitching ? 'Abrindo painel...' : `${item.profile_type} · @${item.username}`}
+                          {isSwitching ? 'Abrindo área...' : `${areaLabel(item.profile_type)} · @${item.username}`}
                         </small>
                       </span>
                       {isSwitching ? <Loader2 className="spin linked-account-spinner" size={15} /> : null}
@@ -545,7 +554,7 @@ export function AppHeader({
                       fontWeight: 700,
                     }}
                   >
-                    <Plus size={16} /> Criar perfil vinculado
+                  <Plus size={16} /> Ativar nova área
                   </button>
                 ) : null}
                 <button
