@@ -240,6 +240,28 @@ function mapGameEvent(game: any, champName: string | null, editable = false): Ag
   }
 }
 
+function mapProjectedGame(row: any, editable = false): AgendaItem {
+  return {
+    id: `jogo:${row.jogo_id}`,
+    source: 'jogo',
+    titulo: row.titulo || 'Jogo',
+    descricao: row.campeonato_nome ? `Campeonato: ${row.campeonato_nome}` : null,
+    data: String(row.data_evento).slice(0, 10),
+    horario_inicio: normalizeTime(row.horario_inicio) || '18:00',
+    horario_fim: normalizeTime(row.horario_fim),
+    cor: colorFromSeed(String(row.campeonato_id || row.jogo_id)),
+    tipo: 'jogo',
+    editable,
+    meta: {
+      campeonato_id: row.campeonato_id,
+      campeonato_nome: row.campeonato_nome || null,
+      jogo_id: row.jogo_id,
+      status: row.status || null,
+      href: row.campeonato_id ? `/campeonatos/${row.campeonato_id}` : null,
+    },
+  }
+}
+
 async function listFreeEvents(params: {
   from: string
   to: string
@@ -427,46 +449,51 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
   if (from > to) throw new Error('Data inicial maior que a final.')
 
   const authUserId = params.authUserId || null
-  let games: any[] = []
-  const freeRows: any[] = []
-  const setupRequired = false
-  const canManage = false
-  const managedChampionshipIds: string[] = []
+  let rows: any[] = []
 
   if (params.scope === 'campeonato') {
     const campeonatoId = nonEmpty(params.scopeId, 'Campeonato')
-    games = await listGamesByChampionshipIds([campeonatoId], from, to)
+    const { data, error } = await supabaseAdmin
+      .from('agenda_compromissos')
+      .select('*')
+      .eq('campeonato_id', campeonatoId)
+      .gte('data_evento', from).lte('data_evento', to)
+      .order('data_evento').order('horario_inicio')
+    if (error) throw error
+    // A projeção possui uma linha por destinatário; no calendário público o
+    // mesmo jogo deve aparecer apenas uma vez.
+    rows = [...new Map((data || []).map((row: any) => [row.jogo_id, row])).values()]
   } else if (params.scope === 'equipe') {
     const equipeId = nonEmpty(params.scopeId, 'Equipe')
-    games = await listTeamGames(equipeId, from, to)
+    const { data, error } = await supabaseAdmin
+      .from('agenda_compromissos')
+      .select('*')
+      .eq('destino_tipo', 'equipe').eq('destino_id', equipeId)
+      .gte('data_evento', from).lte('data_evento', to)
+      .order('data_evento').order('horario_inicio')
+    if (error) throw error
+    rows = data || []
   } else {
-    // scope=me
     if (!authUserId) throw new Error('Faça login para ver sua agenda.')
-    const ctx = await resolveUserContext(authUserId)
-    games = await listGamesByChampionshipIds(ctx.campeonatoIds, from, to)
+    const accounts = await getAccountsByUserId(authUserId)
+    const teamIds = accounts.filter((account) => account.profile_type === 'equipe').map((account) => account.id)
+    const queries = [
+      supabaseAdmin.from('agenda_compromissos').select('*')
+        .eq('destino_tipo', 'usuario').eq('destino_id', authUserId)
+        .gte('data_evento', from).lte('data_evento', to),
+      teamIds.length
+        ? supabaseAdmin.from('agenda_compromissos').select('*')
+          .eq('destino_tipo', 'equipe').in('destino_id', teamIds)
+          .gte('data_evento', from).lte('data_evento', to)
+        : Promise.resolve({ data: [] as any[], error: null }),
+    ]
+    const [personal, team] = await Promise.all(queries)
+    if (personal.error) throw personal.error
+    if (team.error) throw team.error
+    rows = [...new Map([...(personal.data || []), ...(team.data || [])].map((row: any) => [row.jogo_id, row])).values()]
   }
 
-  const champIds = [
-    ...games.map((g) => g.campeonato_id),
-    ...freeRows.map((r) => r.campeonato_id),
-  ].filter(Boolean)
-  const teamIds = freeRows.map((r) => r.equipe_id).filter(Boolean)
-  const [champNames, teamNames] = await Promise.all([
-    loadChampionshipNames(champIds),
-    loadTeamNames(teamIds),
-  ])
-
-  const items: AgendaItem[] = []
-
-  for (const game of games) {
-    if (!game.data_jogo) continue
-    items.push(mapGameEvent(game, champNames.get(game.campeonato_id) || null, false))
-  }
-
-  for (const row of freeRows) {
-    const editable = Boolean(authUserId && row.auth_user_id === authUserId)
-    items.push(mapFreeEvent(row, editable, champNames, teamNames))
-  }
+  const items = rows.map((row) => mapProjectedGame(row, Boolean(authUserId && row.owner_auth_user_id === authUserId)))
 
   items.sort((a, b) => {
     const d = a.data.localeCompare(b.data)
@@ -474,9 +501,7 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
     return a.horario_inicio.localeCompare(b.horario_inicio)
   })
 
-  const managedChampionships: Array<{ id: string; nome: string }> = []
-
-  return { items, setup_required: setupRequired, can_manage: canManage, managed_championships: managedChampionships }
+  return { items, setup_required: false, can_manage: false, managed_championships: [] }
 }
 
 export async function createAgendaEvent(authUserId: string, input: AgendaEventInput) {

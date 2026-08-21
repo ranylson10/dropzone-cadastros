@@ -133,3 +133,16 @@ export async function deleteAgendaItem(id: string) {
   if (!res.ok) throw new Error(json.error || 'Erro ao excluir evento.')
   return true
 }
+
+export async function updateAgendaGame(jogoId: string, dataJogo: string, horario: string) {
+  const token = await sessionToken()
+  if (!token) throw new Error('Faça login para reorganizar um jogo.')
+  const res = await fetch('/api/agenda', {
+    method: 'PATCH',
+    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jogo_id: jogoId, data_jogo: dataJogo, horario }),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.error || 'Erro ao atualizar o jogo.')
+  return json.jogo
+}

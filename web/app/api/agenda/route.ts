@@ -4,6 +4,8 @@ import {
   listAgenda,
   type AgendaScope,
 } from '@backend/agenda/agenda.service'
+import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
+import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 function monthBounds(year: number, month: number) {
   const from = `${year}-${String(month).padStart(2, '0')}-01`
@@ -82,7 +84,30 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  return NextResponse.json({ error: 'A agenda é somente para consulta.' }, { status: 405 })
+  try {
+    const user = await getBearerUser(req)
+    const body = await req.json().catch(() => ({}))
+    const jogoId = String(body.jogo_id || '').trim()
+    const dataJogo = String(body.data_jogo || '').trim()
+    const horario = String(body.horario || '').trim()
+    if (!jogoId || !/^\d{4}-\d{2}-\d{2}$/.test(dataJogo) || !/^\d{2}:\d{2}$/.test(horario)) {
+      throw new Error('Informe jogo, data e horário válidos.')
+    }
+    const { data: jogo, error: findError } = await supabaseAdmin
+      .from('campeonato_jogos').select('id,campeonato_id').eq('id', jogoId).maybeSingle()
+    if (findError) throw findError
+    if (!jogo) throw new Error('Jogo não encontrado.')
+    const permission = await getCampeonatoPermission(user.id, jogo.campeonato_id)
+    if (!permission.canManageGames && permission.role !== 'owner') throw new Error('Você não pode reorganizar os jogos deste campeonato.')
+    const { data, error } = await supabaseAdmin
+      .from('campeonato_jogos')
+      .update({ data_jogo: dataJogo, horario, updated_at: new Date().toISOString() })
+      .eq('id', jogoId).select('id,data_jogo,horario').single()
+    if (error) throw error
+    return NextResponse.json({ ok: true, jogo: data })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao atualizar jogo.' }, { status: 400 })
+  }
 }
 
 export async function DELETE(req: NextRequest) {

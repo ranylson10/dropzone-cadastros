@@ -6,6 +6,7 @@ import {
   createAgendaItem,
   deleteAgendaItem,
   fetchAgenda,
+  updateAgendaGame,
   updateAgendaItem,
 } from '../services/agenda-client'
 import {
@@ -157,6 +158,9 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create')
   const [selected, setSelected] = useState<AgendaItem | null>(null)
   const [defaults, setDefaults] = useState<Partial<AgendaEventForm>>({})
+  const [editingGame, setEditingGame] = useState<AgendaItem | null>(null)
+  const [gameDate, setGameDate] = useState('')
+  const [gameTime, setGameTime] = useState('')
 
   // A agenda é uma única central de consulta. Datas oficiais vêm dos jogos;
   // não há mais calendário livre criado dentro de perfis ou pela página /agenda.
@@ -304,6 +308,27 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
     setModalOpen(true)
   }
 
+  function openGameEditor(item: AgendaItem) {
+    if (!item.editable || !item.meta.jogo_id) return
+    setEditingGame(item)
+    setGameDate(item.data)
+    setGameTime(item.horario_inicio.slice(0, 5))
+  }
+
+  async function saveGameSchedule() {
+    if (!editingGame?.meta.jogo_id) return
+    setSaving(true)
+    try {
+      await updateAgendaGame(editingGame.meta.jogo_id, gameDate, gameTime)
+      setEditingGame(null)
+      await load()
+    } catch (saveError: any) {
+      setError(saveError?.message || 'Não foi possível reorganizar o jogo.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleSave(form: AgendaEventForm) {
     setSaving(true)
     try {
@@ -374,6 +399,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
 
       {error ? <div className="agenda-error">{error}</div> : null}
 
+      <div className="agenda-content-grid">
       <div className={`agenda-sheet ${props.compact ? 'is-compact' : ''}`}>
         <div className="agenda-sheet-title">{title}</div>
         {!contextualMode ? (
@@ -579,6 +605,45 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
           </>
         )}
       </div>
+
+      <aside className="agenda-event-list" aria-label="Lista de eventos do mês">
+        <header>
+          <div>
+            <p className="eyebrow">Compromissos</p>
+            <h3>{items.length} evento{items.length === 1 ? '' : 's'}</h3>
+          </div>
+          <small>{MONTH_NAMES_PT[month - 1].slice(0, 3)} {year}</small>
+        </header>
+        <div className="agenda-event-list-items">
+          {items.length ? items.map((item) => (
+            <article key={`list-${item.id}`} className="agenda-event-list-item">
+              <button type="button" className="agenda-event-list-open" onClick={() => openItem(item)}>
+                <time>{item.data.slice(8, 10)}/{item.data.slice(5, 7)} · {item.horario_inicio.slice(0, 5)}</time>
+                <strong>{item.titulo}</strong>
+                <small>{item.meta.campeonato_nome || 'Campeonato'}</small>
+              </button>
+              {item.editable ? <button type="button" className="agenda-event-list-edit" onClick={() => openGameEditor(item)}>Ajustar</button> : null}
+            </article>
+          )) : <p className="agenda-event-list-empty">Nenhum jogo neste mês.</p>}
+        </div>
+      </aside>
+      </div>
+
+      {editingGame ? (
+        <section className="agenda-game-editor" role="dialog" aria-modal="true" aria-label="Reorganizar jogo">
+          <div>
+            <p className="eyebrow">Organizar jogo</p>
+            <h3>{editingGame.titulo}</h3>
+            <p>{editingGame.meta.campeonato_nome}</p>
+          </div>
+          <label>Data<input type="date" value={gameDate} onChange={(event) => setGameDate(event.target.value)} /></label>
+          <label>Horário<input type="time" value={gameTime} onChange={(event) => setGameTime(event.target.value)} /></label>
+          <div className="agenda-game-editor-actions">
+            <button type="button" className="button secondary" onClick={() => setEditingGame(null)} disabled={saving}>Cancelar</button>
+            <button type="button" className="button" onClick={() => void saveGameSchedule()} disabled={saving || !gameDate || !gameTime}>{saving ? 'Salvando...' : 'Salvar jogo'}</button>
+          </div>
+        </section>
+      ) : null}
 
       <AgendaEventModal
         open={modalOpen}
