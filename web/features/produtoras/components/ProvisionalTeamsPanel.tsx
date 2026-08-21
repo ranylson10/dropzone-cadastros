@@ -11,7 +11,6 @@ type Team = any
 type ManagerTab = 'dados' | 'lines' | 'campeonatos'
 
 function parseBulk(text: string): Row[] {
-  const seen = new Set<string>()
   const rows = text.split(/\r?\n/).flatMap((raw) => {
     const line = raw.trim()
     if (!line) return []
@@ -22,9 +21,6 @@ function parseBulk(text: string): Row[] {
     const normalizedName = nome.toLocaleLowerCase('pt-BR')
     const normalizedTag = tag.toLocaleLowerCase('pt-BR')
     if ((normalizedName === 'nome' || normalizedName === 'equipe' || normalizedName === 'nome da equipe') && (!tag || normalizedTag === 'tag')) return []
-    const key = normalizedName
-    if (seen.has(key)) return []
-    seen.add(key)
     return [{ nome, tag }]
   })
   return rows.slice(0, 100)
@@ -51,7 +47,11 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   const selected = teams.find((team) => team.id === selectedId) || null
   const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR')
   const visibleTeams = normalizedQuery
-    ? teams.filter((team) => [team.nome, team.tag, team.localidade, team.cidade, team.estado].some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(normalizedQuery)))
+    ? teams.filter((team) => {
+        const publicId = team.public_id ? `eq${team.public_id}` : ''
+        return [team.nome, team.tag, team.localidade, team.cidade, team.estado, publicId, team.public_id]
+          .some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(normalizedQuery))
+      })
     : teams
 
   async function auth() {
@@ -78,8 +78,9 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     return payload
   }
 
-  async function load() {
-    setLoading(true); setMessage('')
+  async function load(options?: { preserveMessage?: boolean }) {
+    setLoading(true)
+    if (!options?.preserveMessage) setMessage('')
     try {
       const payload = await request('/api/produtora/equipes-provisorias')
       setTeams(payload.equipes || [])
@@ -115,8 +116,8 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     try {
       const payload = await request('/api/produtora/equipes-provisorias', { method: 'POST', body: JSON.stringify({ equipes: bulkRows }) })
       setBulkText(''); setBulkRows([]); setBulkOpen(false)
-      setMessage(`${payload.criadas || 0} equipe(s) criada(s).${payload.existentes ? ` ${payload.existentes} nome(s) já existiam e não foram duplicados.` : ''}`)
-      await load()
+      setMessage(`${payload.criadas || 0} equipe(s) criada(s). Cada cadastro recebe um ID público próprio, mesmo quando nome ou TAG se repetem.`)
+      await load({ preserveMessage: true })
     } catch (error: any) { setMessage(error?.message || 'Não foi possível criar as equipes.') }
     finally { setBusy('') }
   }
@@ -131,7 +132,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     try {
       await request('/api/produtora/equipes-provisorias', { method: 'PATCH', body: JSON.stringify({ equipe_id: selected.id, ...draft }) })
       setMessage('Equipe atualizada.')
-      await load()
+      await load({ preserveMessage: true })
     } catch (error: any) { setMessage(error?.message || 'Não foi possível atualizar a equipe.') }
     finally { setBusy('') }
   }
@@ -152,7 +153,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     try {
       const payload = await request(`/api/equipes/${selected.id}/lines`, { method: 'POST', body: JSON.stringify(lineDraft) })
       setLineDraft({ nome: '', tag: '' }); setMessage('Line criada.')
-      await load()
+      await load({ preserveMessage: true })
       if (payload.line) setSelectedLine(payload.line)
     } catch (error: any) { setMessage(error?.message || 'Não foi possível criar a line.') }
     finally { setBusy('') }
@@ -165,7 +166,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       const payload = await request(`/api/equipes/${selected.id}/lines`, { method: 'PATCH', body: JSON.stringify({ line_id: selectedLine.id, ...lineEdit }) })
       setSelectedLine(payload.line || selectedLine)
       setMessage('Line atualizada.')
-      await load()
+      await load({ preserveMessage: true })
     } catch (error: any) { setMessage(error?.message || 'Não foi possível atualizar a line.') }
     finally { setBusy('') }
   }
@@ -188,7 +189,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       setMessage('Line arquivada.')
       setSelectedLine(null)
       setRosterOpen(false)
-      await load()
+      await load({ preserveMessage: true })
     } catch (error: any) { setMessage(error?.message || 'Não foi possível arquivar a line.') }
     finally { setBusy('') }
   }
@@ -231,7 +232,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     </div> : null}
 
     {teams.length ? <div className="provisional-toolbar">
-      <label className="provisional-search"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar equipe, TAG ou localidade"/>{query ? <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}><X size={14}/></button> : null}</label>
+      <label className="provisional-search"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por ID, equipe, TAG ou localidade"/>{query ? <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}><X size={14}/></button> : null}</label>
       <span>{visibleTeams.length === teams.length ? `${teams.length} aguardando responsável` : `${visibleTeams.length} de ${teams.length} equipes`}</span>
     </div> : null}
 
@@ -242,7 +243,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       {visibleTeams.map((team) => <article key={team.id} className={selectedId === team.id ? 'open' : ''}>
         <button type="button" className="provisional-team-row" onClick={() => openTeam(team.id)}>
           <span className="provisional-logo">{team.logo_url ? <img src={team.logo_url} alt=""/> : String(team.tag || team.nome || 'EQ').slice(0, 2)}</span>
-          <div><strong>{team.nome}</strong><span>{team.tag || 'Sem TAG'} · {team.lines?.length || 0} line(s) · {team.participacoes?.length || 0} campeonato(s)</span></div>
+          <div><strong>{team.nome}</strong><span>{team.tag || 'Sem TAG'} · {team.public_id ? `EQ${team.public_id} · ` : ''}{team.lines?.length || 0} line(s) · {team.participacoes?.length || 0} campeonato(s)</span></div>
           <em>Aguardando responsável</em>
           {selectedId === team.id ? <ChevronDown size={17}/> : <ChevronRight size={17}/>} 
         </button>
@@ -276,7 +277,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
           {managerTab === 'lines' ? <div className="provisional-lines provisional-manager-section">
             <div className="provisional-subhead"><div><strong>Lines e jogadores</strong><span>Crie, edite e organize as lines. Convites podem ser gerados por line e por campeonato.</span></div><Users size={18}/></div>
             <div className="provisional-new-line"><input placeholder="Nome da nova line" value={lineDraft.nome} onChange={(e) => setLineDraft((d) => ({ ...d, nome: e.target.value }))}/><input placeholder="TAG" value={lineDraft.tag} onChange={(e) => setLineDraft((d) => ({ ...d, tag: e.target.value.toUpperCase() }))}/><button type="button" className="button secondary" disabled={!lineDraft.nome.trim() || busy === 'line'} onClick={() => void createLine()}><Plus size={14}/> Criar line</button></div>
-            <div className="provisional-line-list">{(team.lines || []).map((line: any) => <button key={line.id} type="button" onClick={() => openLine(line, false)} className={selectedLine?.id === line.id ? 'active' : ''}><span className="provisional-line-logo">{line.logo_url ? <img src={line.logo_url} alt=""/> : String(line.tag || line.nome || 'L').slice(0, 2)}</span><span><strong>{line.nome}</strong><small>{line.tag || team.tag || 'Sem TAG'}</small></span><ChevronRight size={15}/></button>)}</div>
+            <div className="provisional-line-list">{(team.lines || []).map((line: any) => <button key={line.id} type="button" onClick={() => openLine(line, false)} className={selectedLine?.id === line.id ? 'active' : ''}><span className="provisional-line-logo">{line.logo_url ? <img src={line.logo_url} alt=""/> : String(line.tag || line.nome || 'L').slice(0, 2)}</span><span><strong>{line.nome}</strong><small>{line.tag || team.tag || 'Sem TAG'}{line.public_id ? ` · LN${line.public_id}` : ''}</small></span><ChevronRight size={15}/></button>)}</div>
 
             {selectedLine ? <div className="provisional-line-editor">
               <div className="provisional-subhead"><div><strong>Editar line</strong><span>Nome, TAG e logo são da própria line e não alteram o histórico.</span></div></div>

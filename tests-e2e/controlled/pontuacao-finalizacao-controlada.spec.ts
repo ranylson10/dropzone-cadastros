@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { activeAuthToken } from '../support/auth-session'
 
 type StorageState = {
   origins?: Array<{
@@ -12,25 +13,6 @@ type StorageState = {
 const produtoraAuthFile = path.resolve('tests-e2e/.auth/produtora.json')
 const adminAuthFile = path.resolve('tests-e2e/.auth/admin.json')
 const equipeAuthFile = path.resolve('tests-e2e/.auth/equipe.json')
-
-function accessTokenFromStorage(file: string, expectedOrigin: string): string {
-  const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
-  const origin = state.origins?.find((item) => item.origin === expectedOrigin)
-  for (const entry of origin?.localStorage || []) {
-    if (!entry.name?.includes('auth-token') || !entry.value) continue
-    try {
-      const parsed = JSON.parse(entry.value) as {
-        access_token?: unknown
-        currentSession?: { access_token?: unknown }
-      }
-      const token = parsed.access_token || parsed.currentSession?.access_token
-      if (typeof token === 'string' && token.length > 20) return token
-    } catch {
-      // Ignora entradas locais que não sejam uma sessão Supabase.
-    }
-  }
-  throw new Error(`Sessão não encontrada em ${file} para ${expectedOrigin}. Rode npm run testar:tudo.`)
-}
 
 function headers(token: string, profileType?: string) {
   return {
@@ -193,16 +175,16 @@ async function deleteGame(
 test.describe('Pontuação controlada — resultado, tabela, finalização e reabertura', () => {
   test.setTimeout(150_000)
 
-  test('produtora lança resultado real, valida classificação, finaliza e reabre a queda', async ({ request, baseURL }) => {
+  test('produtora lança resultado real, valida classificação, finaliza e reabre a queda', async ({ request, browser, baseURL }) => {
     test.skip(
       !fs.existsSync(produtoraAuthFile) || !fs.existsSync(adminAuthFile) || !fs.existsSync(equipeAuthFile),
       'As sessões são geradas automaticamente por npm run testar:tudo.',
     )
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
-    const produtoraToken = accessTokenFromStorage(produtoraAuthFile, origin)
-    const adminToken = accessTokenFromStorage(adminAuthFile, origin)
-    const equipeToken = accessTokenFromStorage(equipeAuthFile, origin)
+    const produtoraToken = await activeAuthToken(browser, produtoraAuthFile, '/campeonatos')
+    const adminToken = await activeAuthToken(browser, adminAuthFile, '/admin')
+    const equipeToken = await activeAuthToken(browser, equipeAuthFile, '/equipes')
     const equipeId = await getTeamId(request, origin, equipeToken)
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const line = await getOrCreateTeamLine(request, origin, equipeToken, equipeId, unique)

@@ -4,7 +4,8 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
 export async function GET(req: NextRequest) {
   try {
     const q = String(req.nextUrl.searchParams.get('q') || '').trim().replace(/^@/, '')
-    const numeric = /^\d+$/.test(q)
+    const publicIdMatch = q.match(/^(?:EQ\s*)?(\d+)$/i)
+    const publicId = publicIdMatch ? Number(publicIdMatch[1]) : null
     let query = supabaseAdmin
       .from('equipes')
       .select('id,nome,username,logo_url,tag,public_id,status,localidade,cidade,estado,pais')
@@ -15,8 +16,8 @@ export async function GET(req: NextRequest) {
       .limit(q ? 200 : 1000)
 
     if (q) {
-      query = numeric
-        ? query.eq('public_id', Number(q))
+      query = publicId !== null
+        ? query.eq('public_id', publicId)
         : query.or(`nome.ilike.%${q}%,username.ilike.%${q}%,tag.ilike.%${q}%,localidade.ilike.%${q}%,cidade.ilike.%${q}%,estado.ilike.%${q}%`)
     }
 

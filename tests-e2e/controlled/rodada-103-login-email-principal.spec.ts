@@ -17,8 +17,8 @@ test('103 - login por e-mail e senha aparece antes do Google', async () => {
 })
 
 test('103 - entrar com e-mail é a ação primária visual', async () => {
-  expect(styles).toContain('.login-email-primary{ min-height: 56px;')
-  expect(styles).toContain('background: var(--dz-accent, #ff5468);')
+  expect(styles).toMatch(/\.login-email-primary\{[^}]*min-height:\s*56px[^}]*background:\s*#dfcf85/i)
+  expect(styles).toMatch(/\.login-email-primary\{[^}]*color:\s*#11151a/i)
   expect(loginPage).toContain("'Entrar com e-mail'")
 })
 
@@ -35,11 +35,11 @@ test('103 - Google fica visualmente secundário abaixo do divisor', async () => 
   expect(loginPage).toContain('<span>ou</span>')
   expect(loginPage).toContain('login-social-secondary')
   expect(styles).toContain('.login-social-secondary{')
-  expect(styles).toContain('background: transparent; color: #3f4853;')
+  expect(styles).toMatch(/\.login-auth-step \.social-login-button\{[^}]*background:\s*#151a21[^}]*color:\s*#d5d0c6/i)
 })
 
 test('103 - ações auxiliares continuam compactas no mobile', async () => {
-  expect(styles).toContain('.login-email-actions{ grid-template-columns: 1fr;')
+  expect(styles).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.login-email-actions\{grid-template-columns:\s*1fr\}/i)
 })
 
 test('103 - smoke test real verifica Supabase, Resend e evento de entrega sem gravar segredo', async () => {

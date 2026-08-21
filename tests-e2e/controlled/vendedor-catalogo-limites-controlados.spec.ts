@@ -2,6 +2,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { acquireFileLock, releaseFileLock } from '../support/file-lock'
+import { activeAuthToken } from '../support/auth-session'
 
 const produtoraAuthFile = path.resolve('tests-e2e/.auth/produtora.json')
 const adminAuthFile = path.resolve('tests-e2e/.auth/admin.json')
@@ -14,25 +15,6 @@ type StorageState = {
     origin?: string
     localStorage?: Array<{ name?: string; value?: string }>
   }>
-}
-
-function accessTokenFromStorage(file: string, expectedOrigin: string): string {
-  const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
-  const origin = state.origins?.find((item) => item.origin === expectedOrigin)
-  for (const entry of origin?.localStorage || []) {
-    if (!entry.name?.includes('auth-token') || !entry.value) continue
-    try {
-      const parsed = JSON.parse(entry.value) as {
-        access_token?: unknown
-        currentSession?: { access_token?: unknown }
-      }
-      const token = parsed.access_token || parsed.currentSession?.access_token
-      if (typeof token === 'string' && token.length > 20) return token
-    } catch {
-      // Ignora chaves locais que não sejam sessão Supabase.
-    }
-  }
-  throw new Error(`Sessão não encontrada em ${file}. Rode npm run testar:tudo.`)
 }
 
 function headers(token: string, profileType?: string) {
@@ -134,7 +116,7 @@ async function cancelInvite(
 test.describe('Vendedor controlado — convite, catálogo público e limites', () => {
   test.setTimeout(480_000)
 
-  test('produtora vincula vendedor, publica catálogo, altera limite e remove acesso', async ({ request, page, baseURL }) => {
+  test('produtora vincula vendedor, publica catálogo, altera limite e remove acesso', async ({ request, page, browser, baseURL }) => {
     test.skip(
       ![produtoraAuthFile, adminAuthFile, managerAuthFile, equipeAuthFile].every(fs.existsSync),
       'As sessões são geradas automaticamente por npm run testar:tudo.',
@@ -143,10 +125,10 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
     await acquireFileLock(lockFile, 'vendedor')
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
-    const produtoraToken = accessTokenFromStorage(produtoraAuthFile, origin)
-    const adminToken = accessTokenFromStorage(adminAuthFile, origin)
-    const managerToken = accessTokenFromStorage(managerAuthFile, origin)
-    const equipeToken = accessTokenFromStorage(equipeAuthFile, origin)
+    const produtoraToken = await activeAuthToken(browser, produtoraAuthFile, '/campeonatos')
+    const adminToken = await activeAuthToken(browser, adminAuthFile, '/admin')
+    const managerToken = await activeAuthToken(browser, managerAuthFile, '/managers')
+    const equipeToken = await activeAuthToken(browser, equipeAuthFile, '/equipes')
     const managerId = await accountId(request, origin, managerToken, 'manager')
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const championshipName = `[E2E] Catálogo vendedor ${unique}`

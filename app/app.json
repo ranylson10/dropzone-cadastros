@@ -92,7 +92,8 @@
             "backgroundColor": "#F4F1EB"
           }
         }
-      ]
+      ],
+      "expo-video"
     ]
   }
 }

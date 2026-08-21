@@ -16,14 +16,10 @@ async function requireOwner(userId: string) {
 
 function normalizeRows(input: unknown) {
   if (!Array.isArray(input)) return []
-  const seen = new Set<string>()
   return input.flatMap((raw: any) => {
     const nome = String(raw?.nome || '').trim().replace(/\s+/g, ' ')
     const tag = String(raw?.tag || '').trim().toUpperCase()
     if (!nome) return []
-    const key = nome.toLocaleLowerCase('pt-BR')
-    if (seen.has(key)) return []
-    seen.add(key)
     return [{ nome, ...(tag ? { tag } : {}) }]
   }).slice(0, 100)
 }
@@ -44,14 +40,14 @@ export async function GET(req: NextRequest) {
 
     const ids = [...new Set((tokens || []).map((item) => item.equipe_id).filter(Boolean))]
     const { data: equipes, error: equipesError } = ids.length
-      ? await supabaseAdmin.from('equipes').select('id,nome,tag,logo_url,status,auth_user_id,dono_auth_user_id,email_contato,localidade,cidade,estado,pais,bio').in('id', ids)
+      ? await supabaseAdmin.from('equipes').select('id,nome,tag,logo_url,status,auth_user_id,dono_auth_user_id,email_contato,localidade,cidade,estado,pais,bio,public_id,public_id_prefix').in('id', ids)
       : { data: [] as any[], error: null }
     if (equipesError) throw equipesError
     const valid = (equipes || []).filter((e: any) => e.status === 'ativo' && !e.auth_user_id && !e.dono_auth_user_id)
     const validIds = valid.map((e: any) => e.id)
 
     const [{ data: lines }, { data: participacoes }] = await Promise.all([
-      validIds.length ? supabaseAdmin.from('equipe_lines').select('id,equipe_id,nome,tag,logo_url,status').in('equipe_id', validIds).neq('status', 'inativo') : Promise.resolve({ data: [] as any[] }),
+      validIds.length ? supabaseAdmin.from('equipe_lines').select('id,equipe_id,nome,tag,logo_url,status,public_id,public_id_prefix').in('equipe_id', validIds).neq('status', 'inativo') : Promise.resolve({ data: [] as any[] }),
       validIds.length ? supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,campeonato_id,status,campeonato:campeonato_id(id,nome,logo_url)').in('equipe_id', validIds).neq('status', 'removida') : Promise.resolve({ data: [] as any[] }),
     ])
     const tokenByEquipe = new Map((tokens || []).map((t: any) => [String(t.equipe_id), t]))
@@ -82,7 +78,7 @@ export async function POST(req: NextRequest) {
       p_equipes: equipes,
     })
     if (error) throw error
-    return NextResponse.json(data || { criadas: 0, existentes: 0 }, { status: 201 })
+    return NextResponse.json(data || { criadas: 0 }, { status: 201 })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Não foi possível criar as equipes provisórias.' }, { status: 400 })
   }

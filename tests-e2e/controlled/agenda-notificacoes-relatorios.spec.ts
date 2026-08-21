@@ -1,35 +1,10 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { activeAuthToken } from '../support/auth-session'
 
 const produtoraAuthFile = path.resolve('tests-e2e/.auth/produtora.json')
 const adminAuthFile = path.resolve('tests-e2e/.auth/admin.json')
-
-type StorageState = {
-  origins?: Array<{
-    origin?: string
-    localStorage?: Array<{ name?: string; value?: string }>
-  }>
-}
-
-function accessTokenFromStorage(file: string, expectedOrigin: string): string {
-  const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
-  const origin = state.origins?.find((item) => item.origin === expectedOrigin)
-  for (const entry of origin?.localStorage || []) {
-    if (!entry.name?.includes('auth-token') || !entry.value) continue
-    try {
-      const parsed = JSON.parse(entry.value) as {
-        access_token?: unknown
-        currentSession?: { access_token?: unknown }
-      }
-      const token = parsed.access_token || parsed.currentSession?.access_token
-      if (typeof token === 'string' && token.length > 20) return token
-    } catch {
-      // Ignora outras chaves do localStorage.
-    }
-  }
-  throw new Error(`Sessão não encontrada em ${file}. Rode npm run testar:tudo.`)
-}
 
 function headers(token: string, profileType: string) {
   return {
@@ -46,15 +21,15 @@ async function json(response: Awaited<ReturnType<APIRequestContext['get']>>) {
 test.describe('Agenda, notificações e relatórios — fluxo seguro e controlado', () => {
   test.setTimeout(150_000)
 
-  test('agenda faz CRUD temporário e notificações/relatórios respeitam validações', async ({ request, baseURL }) => {
+  test('agenda faz CRUD temporário e notificações/relatórios respeitam validações', async ({ request, browser, baseURL }) => {
     test.skip(
       ![produtoraAuthFile, adminAuthFile].every(fs.existsSync),
       'As sessões são geradas automaticamente por npm run testar:tudo.',
     )
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
-    const produtoraToken = accessTokenFromStorage(produtoraAuthFile, origin)
-    const adminToken = accessTokenFromStorage(adminAuthFile, origin)
+    const produtoraToken = await activeAuthToken(browser, produtoraAuthFile, '/campeonatos')
+    const adminToken = await activeAuthToken(browser, adminAuthFile, '/admin')
     const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     let eventId = ''
 
@@ -69,6 +44,20 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
         timeout: 30_000,
       })
       expect(invalidMonth.status(), 'Mês inválido deve retornar 400.').toBe(400)
+
+      const central = await request.get(`${origin}/api/central-campeonato`, {
+        headers: headers(produtoraToken, 'produtora'),
+        timeout: 30_000,
+      })
+      const centralBody = await json(central)
+      expect(
+        central.ok(),
+        `Falha ao carregar campeonatos da produtora: status=${central.status()} erro=${centralBody?.error || JSON.stringify(centralBody)}`,
+      ).toBe(true)
+      const championshipId = String(
+        centralBody?.items?.find((item: { id?: string; permission?: { role?: string } }) => item?.permission?.role === 'owner')?.id || '',
+      )
+      expect(championshipId, 'A produtora precisa possuir ao menos um campeonato próprio para testar a agenda.').not.toBe('')
 
       const invalidCreate = await request.post(`${origin}/api/agenda`, {
         headers: headers(produtoraToken, 'produtora'),
@@ -91,7 +80,8 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
           horario_inicio: '20:00',
           horario_fim: '21:00',
           tipo: 'reuniao',
-          visibilidade: 'privada',
+          visibilidade: 'campeonato',
+          campeonato_id: championshipId,
           cor: '#3b82f6',
         },
         timeout: 30_000,
@@ -101,7 +91,7 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
       eventId = String(createBody?.item?.id || '')
       expect(eventId).not.toBe('')
 
-      const list = await request.get(`${origin}/api/agenda?scope=me&year=2099&month=7`, {
+      const list = await request.get(`${origin}/api/agenda?scope=campeonato&id=${encodeURIComponent(championshipId)}&year=2099&month=7`, {
         headers: headers(produtoraToken, 'produtora'),
         timeout: 30_000,
       })
@@ -111,7 +101,7 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
       const createdItem = listBody?.items?.find((item: { id?: string }) => item.id === eventId)
       expect(createdItem).toBeTruthy()
       expect(createdItem?.editable).toBe(true)
-      expect(createdItem?.visibilidade).toBe('privada')
+      expect(createdItem?.visibilidade).toBe('campeonato')
 
       const update = await request.patch(`${origin}/api/agenda`, {
         headers: headers(produtoraToken, 'produtora'),
@@ -123,7 +113,8 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
           horario_inicio: '20:30',
           horario_fim: '21:30',
           tipo: 'treino',
-          visibilidade: 'privada',
+          visibilidade: 'campeonato',
+          campeonato_id: championshipId,
           cor: '#16a34a',
         },
         timeout: 30_000,

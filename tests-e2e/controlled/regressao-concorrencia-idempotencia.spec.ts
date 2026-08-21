@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { activeAuthToken } from '../support/auth-session'
 
 const produtoraAuthFile = path.resolve('tests-e2e/.auth/produtora.json')
 
@@ -9,28 +10,6 @@ type StorageState = {
     origin?: string
     localStorage?: Array<{ name?: string; value?: string }>
   }>
-}
-
-function accessTokenFromStorage(file: string, expectedOrigin: string): string {
-  const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
-  const origin = state.origins?.find((item) => item.origin === expectedOrigin)
-
-  for (const entry of origin?.localStorage || []) {
-    if (!entry.name?.includes('auth-token') || !entry.value) continue
-
-    try {
-      const parsed = JSON.parse(entry.value) as {
-        access_token?: unknown
-        currentSession?: { access_token?: unknown }
-      }
-      const token = parsed.access_token || parsed.currentSession?.access_token
-      if (typeof token === 'string' && token.length > 20) return token
-    } catch {
-      // Ignora chaves não relacionadas à sessão.
-    }
-  }
-
-  throw new Error(`Sessão não encontrada em ${file}. Rode npm run testar:tudo.`)
 }
 
 function headers(token: string) {
@@ -48,11 +27,11 @@ async function json(response: Awaited<ReturnType<APIRequestContext['get']>>) {
 test.describe('Regressão final — concorrência, estabilidade e idempotência segura', () => {
   test.setTimeout(180_000)
 
-  test('leituras públicas e autenticadas suportam concorrência sem respostas 5xx', async ({ request, baseURL }) => {
+  test('leituras públicas e autenticadas suportam concorrência sem respostas 5xx', async ({ request, browser, baseURL }) => {
     test.skip(!fs.existsSync(produtoraAuthFile), 'A sessão é gerada automaticamente por npm run testar:tudo.')
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
-    const token = accessTokenFromStorage(produtoraAuthFile, origin)
+    const token = await activeAuthToken(browser, produtoraAuthFile, '/campeonatos')
 
     const publicEndpoints = [
       '/api/ping',
@@ -103,11 +82,11 @@ test.describe('Regressão final — concorrência, estabilidade e idempotência 
     }
   })
 
-  test('requisições inválidas repetidas permanecem bloqueadas sem efeitos colaterais', async ({ request, baseURL }) => {
+  test('requisições inválidas repetidas permanecem bloqueadas sem efeitos colaterais', async ({ request, browser, baseURL }) => {
     test.skip(!fs.existsSync(produtoraAuthFile), 'A sessão é gerada automaticamente por npm run testar:tudo.')
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
-    const token = accessTokenFromStorage(produtoraAuthFile, origin)
+    const token = await activeAuthToken(browser, produtoraAuthFile, '/campeonatos')
     const fakeId = '00000000-0000-4000-8000-000000000077'
 
     const invalidRequests = [

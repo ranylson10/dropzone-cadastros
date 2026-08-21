@@ -2,6 +2,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { acquireFileLock, releaseFileLock } from '../support/file-lock'
+import { activeAuthToken } from '../support/auth-session'
 
 type StorageState = {
   origins?: Array<{
@@ -15,25 +16,6 @@ const adminAuthFile = path.resolve('tests-e2e/.auth/admin.json')
 const equipeAuthFile = path.resolve('tests-e2e/.auth/equipe.json')
 const jogadorAuthFile = path.resolve('tests-e2e/.auth/jogador.json')
 const lockFile = path.resolve('tests-e2e/.auth/escalacao-jogador-notificacoes.lock')
-
-function accessTokenFromStorage(file: string, expectedOrigin: string): string {
-  const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
-  const origin = state.origins?.find((item) => item.origin === expectedOrigin)
-  for (const entry of origin?.localStorage || []) {
-    if (!entry.name?.includes('auth-token') || !entry.value) continue
-    try {
-      const parsed = JSON.parse(entry.value) as {
-        access_token?: unknown
-        currentSession?: { access_token?: unknown }
-      }
-      const token = parsed.access_token || parsed.currentSession?.access_token
-      if (typeof token === 'string' && token.length > 20) return token
-    } catch {
-      // Ignora entradas que não sejam uma sessão Supabase.
-    }
-  }
-  throw new Error(`Sessão não encontrada em ${file} para ${expectedOrigin}. Rode npm run testar:tudo.`)
-}
 
 function headers(token: string, profileType?: string) {
   return {
@@ -320,7 +302,7 @@ async function findNotification(
 test.describe('Escalação do jogador por notificação — fluxo controlado', () => {
   test.setTimeout(180_000)
 
-  test('gera convite para a line, jogador confirma, depois recebe outro e recusa', async ({ request, baseURL }) => {
+  test('gera convite para a line, jogador confirma, depois recebe outro e recusa', async ({ request, browser, baseURL }) => {
     test.skip(test.info().project.name !== 'chromium-desktop', 'Fluxo controlado por API executado apenas uma vez.')
     test.skip(
       !fs.existsSync(produtoraAuthFile)
@@ -333,10 +315,10 @@ test.describe('Escalação do jogador por notificação — fluxo controlado', (
     await acquireFileLock(lockFile, 'escalação do jogador por notificação')
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
-    const produtoraToken = accessTokenFromStorage(produtoraAuthFile, origin)
-    const adminToken = accessTokenFromStorage(adminAuthFile, origin)
-    const equipeToken = accessTokenFromStorage(equipeAuthFile, origin)
-    const jogadorToken = accessTokenFromStorage(jogadorAuthFile, origin)
+    const produtoraToken = await activeAuthToken(browser, produtoraAuthFile, '/campeonatos')
+    const adminToken = await activeAuthToken(browser, adminAuthFile, '/admin')
+    const equipeToken = await activeAuthToken(browser, equipeAuthFile, '/equipes')
+    const jogadorToken = await activeAuthToken(browser, jogadorAuthFile, '/jogadores')
     const jogadorAuthUserId = authUserIdFromToken(jogadorToken)
     const equipeId = await accountId(request, origin, equipeToken, 'equipe')
     const jogadorId = await accountId(request, origin, jogadorToken, 'jogador')

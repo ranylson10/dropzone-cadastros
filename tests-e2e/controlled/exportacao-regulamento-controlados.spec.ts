@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { activeAuthToken } from '../support/auth-session'
 
 const produtoraAuthFile = path.resolve('tests-e2e/.auth/produtora.json')
 const equipeAuthFile = path.resolve('tests-e2e/.auth/equipe.json')
@@ -10,25 +11,6 @@ type StorageState = {
     origin?: string
     localStorage?: Array<{ name?: string; value?: string }>
   }>
-}
-
-function accessTokenFromStorage(file: string, expectedOrigin: string): string {
-  const state = JSON.parse(fs.readFileSync(file, 'utf8')) as StorageState
-  const origin = state.origins?.find((item) => item.origin === expectedOrigin)
-  for (const entry of origin?.localStorage || []) {
-    if (!entry.name?.includes('auth-token') || !entry.value) continue
-    try {
-      const parsed = JSON.parse(entry.value) as {
-        access_token?: unknown
-        currentSession?: { access_token?: unknown }
-      }
-      const token = parsed.access_token || parsed.currentSession?.access_token
-      if (typeof token === 'string' && token.length > 20) return token
-    } catch {
-      // Ignora chaves locais que não sejam sessão Supabase.
-    }
-  }
-  throw new Error(`Sessão não encontrada em ${file}. Rode npm run testar:tudo.`)
 }
 
 function headers(token: string, profileType: 'produtora' | 'equipe') {
@@ -78,15 +60,15 @@ async function cleanupChampionship(
 test.describe('Exportação e regulamento — acesso, overrides e limpeza controlados', () => {
   test.setTimeout(180_000)
 
-  test('produtora exporta, personaliza e cria rascunho enquanto outros perfis são bloqueados', async ({ request, baseURL }) => {
+  test('produtora exporta, personaliza e cria rascunho enquanto outros perfis são bloqueados', async ({ request, browser, baseURL }) => {
     test.skip(
       ![produtoraAuthFile, equipeAuthFile].every(fs.existsSync),
       'As sessões são geradas automaticamente por npm run testar:tudo.',
     )
 
     const origin = new URL(baseURL || 'http://localhost:3000').origin
-    const produtoraToken = accessTokenFromStorage(produtoraAuthFile, origin)
-    const equipeToken = accessTokenFromStorage(equipeAuthFile, origin)
+    const produtoraToken = await activeAuthToken(browser, produtoraAuthFile, '/campeonatos')
+    const equipeToken = await activeAuthToken(browser, equipeAuthFile, '/equipes')
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const championshipName = `[E2E] Exportação e regulamento ${unique}`
     let championshipId = ''

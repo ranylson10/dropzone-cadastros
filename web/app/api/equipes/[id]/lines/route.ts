@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
         .maybeSingle(),
       supabaseAdmin
         .from('equipe_lines')
-        .select('id,equipe_id,nome,tag,logo_url,status,created_at,updated_at')
+        .select('id,equipe_id,nome,tag,logo_url,status,public_id,public_id_prefix,created_at,updated_at')
         .eq('equipe_id', equipeId)
         .neq('status', 'inativo')
         .order('created_at', { ascending: true }),
@@ -144,7 +144,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       })
       .select('*')
       .single()
-    if (error?.code === '23505') throw new Error('Já existe uma line com esse nome nesta equipe.')
     if (error) throw error
     return NextResponse.json({ ok: true, line: data }, { status: 201 })
   } catch (error: any) {
@@ -181,7 +180,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       .eq('equipe_id', equipeId)
       .select('*')
       .single()
-    if (error?.code === '23505') throw new Error('Já existe uma line com esse nome nesta equipe.')
     if (error) throw error
     return NextResponse.json({ ok: true, line: data })
   } catch (error: any) {

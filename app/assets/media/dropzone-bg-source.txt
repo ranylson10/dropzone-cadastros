@@ -1,0 +1,9 @@
+﻿DropZone motion background
+Source: https://pixabay.com/videos/red-hud-digital-background-243825/
+Title: Red, Hud, Digital
+Creator: olenchic
+Pixabay media ID: 243825
+Original listed by source page: MP4, 3840x2160, 30 FPS.
+License/source page: Pixabay Content License; keep this note with the project for provenance.
+Runtime Home/Login use only the generated local assets; Pixabay is not contacted by the app/site.
+Generated variants: 8s, no audio, 24fps, desktop 1280px, mobile 720x1280, WebP poster.

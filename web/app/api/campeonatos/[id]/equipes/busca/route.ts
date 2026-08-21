@@ -12,25 +12,65 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     if (q.length < 2) return NextResponse.json({ equipes: [] })
 
     const termo = q.replace(/[%_,]/g, '')
-    const { data: equipes, error } = await supabaseAdmin
+    const equipePublicIdMatch = termo.match(/^(?:EQ\s*)?(\d+)$/i)
+    const linePublicIdMatch = termo.match(/^LN\s*(\d+)$/i)
+    const equipePublicId = equipePublicIdMatch ? Number(equipePublicIdMatch[1]) : null
+    const linePublicId = linePublicIdMatch ? Number(linePublicIdMatch[1]) : null
+
+    let equipesQuery = supabaseAdmin
       .from('equipes')
-      .select('id, nome, tag, logo_url')
-      .or(`nome.ilike.%${termo}%,tag.ilike.%${termo}%`)
+      .select('id, nome, tag, logo_url, public_id, public_id_prefix')
       .eq('status', 'ativo')
       .limit(15)
 
-    if (error) throw error
-    const equipeIds = (equipes || []).map((equipe) => equipe.id)
+    if (linePublicId === null) {
+      equipesQuery = equipePublicId !== null
+        ? equipesQuery.eq('public_id', equipePublicId)
+        : equipesQuery.or(`nome.ilike.%${termo}%,tag.ilike.%${termo}%`)
+    }
+
+    let equipes: any[] = []
+    let lines: any[] = []
+
+    if (linePublicId !== null) {
+      const { data: matchedLines, error: matchedLinesError } = await supabaseAdmin
+        .from('equipe_lines')
+        .select('id, equipe_id, nome, tag, logo_url, public_id, public_id_prefix')
+        .eq('public_id', linePublicId)
+        .eq('status', 'ativo')
+        .limit(15)
+      if (matchedLinesError) throw matchedLinesError
+      lines = matchedLines || []
+      const ids = [...new Set(lines.map((line) => line.equipe_id).filter(Boolean))]
+      const { data: matchedTeams, error: matchedTeamsError } = ids.length
+        ? await supabaseAdmin
+            .from('equipes')
+            .select('id, nome, tag, logo_url, public_id, public_id_prefix')
+            .in('id', ids)
+            .eq('status', 'ativo')
+        : { data: [] as any[], error: null }
+      if (matchedTeamsError) throw matchedTeamsError
+      equipes = matchedTeams || []
+    } else {
+      const { data: matchedTeams, error } = await equipesQuery
+      if (error) throw error
+      equipes = matchedTeams || []
+      const equipeIds = equipes.map((equipe) => equipe.id)
+      if (!equipeIds.length) return NextResponse.json({ equipes: [] })
+
+      const { data: matchedLines, error: linesError } = await supabaseAdmin
+        .from('equipe_lines')
+        .select('id, equipe_id, nome, tag, logo_url, public_id, public_id_prefix')
+        .in('equipe_id', equipeIds)
+        .eq('status', 'ativo')
+        .order('nome')
+      if (linesError) throw linesError
+      lines = matchedLines || []
+    }
+
+    const equipeIds = equipes.map((equipe) => equipe.id)
     if (!equipeIds.length) return NextResponse.json({ equipes: [] })
 
-    const { data: lines, error: linesError } = await supabaseAdmin
-      .from('equipe_lines')
-      .select('id, equipe_id, nome, tag, logo_url')
-      .in('equipe_id', equipeIds)
-      .eq('status', 'ativo')
-      .order('nome')
-
-    if (linesError) throw linesError
     const lineIds = (lines || []).map((line) => line.id)
 
     const { data: participacoes, error: participacoesError } = lineIds.length

@@ -22,14 +22,8 @@ function controlledSpecs() {
       }
 
       const usesRuntime =
-        source.includes('page.')
-        || source.includes('browser.')
-        || source.includes('context.')
-        || source.includes('request.')
+        /[(]\s*{\s*[^}]*\b(page|browser|context|request)\b[^}]*}\s*[)]/s.test(source)
         || source.includes('APIRequestContext')
-        || source.includes('({ page')
-        || source.includes('({ browser')
-        || source.includes('({ request')
 
       if (usesRuntime) runtimeSpecs.push(pattern)
       else staticSpecs.push(pattern)

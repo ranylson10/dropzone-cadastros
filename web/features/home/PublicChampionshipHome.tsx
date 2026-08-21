@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, CalendarDays, Clock3, Filter, Flame, Search, ShieldCheck, Sparkles, Ticket, Trophy, Users } from 'lucide-react'
 import { SystemLogo } from '@/components/brand/SystemLogo'
+import { LealtMotionScene } from '@/components/effects/LealtMotionScene'
 
 type Vacancy = {
   id: string
@@ -62,7 +63,7 @@ export function PublicChampionshipHome({ onAccess }: Props) {
   const urgent = items.filter((item) => Number(item.vagas_livres || 0) > 0 && Number(item.vagas_livres || 0) <= 3).slice(0, 4)
 
   return (
-    <main className="public-home public-home-redesign">
+    <main className="public-home public-home-redesign" data-lealt-motion-host>
       <div className="public-home-alert"><span>DROPZONE COMPETITIVE</span><strong>Vagas abertas, campeonatos e resultados em um só lugar.</strong><a href="/vagas">Ver vagas <ArrowRight size={13} /></a></div>
       <header className="public-home-header">
         <a className="public-home-brand" href="/" aria-label="DropZone início"><SystemLogo size={42} alt="DropZone" variant="accent" /><span><b>DropZone</b><small>Campeonatos</small></span></a>
@@ -70,23 +71,37 @@ export function PublicChampionshipHome({ onAccess }: Props) {
         <button type="button" className="public-home-access" onClick={onAccess}>Entrar <ArrowRight size={16} /></button>
       </header>
 
-      <section className="public-home-hero">
-        <div className="public-home-hero-media" aria-hidden="true">
-          <video autoPlay muted loop playsInline preload="metadata" poster="/login-dropzone-hero.png">
-            <source src="/videos/dropzone-home.webm" type="video/webm" />
-            <source src="/videos/dropzone-home.mp4" type="video/mp4" />
-          </video>
-        </div>
+      <div className="drop-sequence-shell" data-drop-sequence-shell>
+      <section className="public-home-hero" data-drop-sequence-stage>
+        <LealtMotionScene className="lealt-motion-home" />
         <div className="public-home-hero-overlay" aria-hidden="true" />
-        <div className="public-home-hero-copy home-reveal">
-          <span className="home-kicker"><Sparkles size={15} /> Plataforma competitiva de Free Fire</span>
-          <h1>SUA PRÓXIMA QUEDA COMEÇA AQUI.</h1>
-          <p>Descubra campeonatos, garanta vagas e acompanhe toda a competição em uma plataforma criada para o cenário mobile.</p>
-          <div className="public-home-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, tipo ou plataforma" /><button type="button" onClick={() => document.querySelector('#vagas')?.scrollIntoView({ behavior: 'smooth' })}>Buscar</button></div>
-          <div className="public-home-trust"><span><ShieldCheck size={16} /> Campeonatos aprovados</span><span><Ticket size={16} /> Compra segura</span><span><Clock3 size={16} /> Vagas em tempo real</span></div>
+
+        <div className="drop-sequence-hud" data-drop-hud aria-hidden="true">
+          <span className="drop-sequence-coordinate">DZ / 01 — LIVE COMPETITIVE</span>
+          <span className="drop-sequence-coordinate drop-sequence-coordinate-right">BR · FREE FIRE · 2026</span>
+          <span className="drop-sequence-axis drop-sequence-axis-a" />
+          <span className="drop-sequence-axis drop-sequence-axis-b" />
+          <span className="drop-sequence-zone drop-sequence-zone-a"><i /><i /><i /></span>
+          <span className="drop-sequence-zone drop-sequence-zone-b"><i /><i /></span>
+          <span className="drop-sequence-route" data-drop-route><i /><i /><i /><i /></span>
+          <div className="drop-sequence-live-status">
+            <span><i /> LIVE FEED</span><b>ZONE TRACKING</b><em>SYNC / ON</em>
+          </div>
         </div>
 
-        <div className="featured-championship home-reveal home-delay-1">
+        <div className="public-home-hero-copy" data-drop-copy>
+          <span className="home-kicker" data-drop-kicker><Sparkles size={15} /> Plataforma competitiva de Free Fire</span>
+          <h1 className="drop-sequence-title" aria-label="Sua próxima queda começa aqui.">
+            <span className="drop-sequence-line-mask"><span data-drop-line>SUA PRÓXIMA</span></span>
+            <span className="drop-sequence-line-mask drop-sequence-line-accent"><span data-drop-line>QUEDA</span></span>
+            <span className="drop-sequence-line-mask"><span data-drop-line>COMEÇA AQUI.</span></span>
+          </h1>
+          <p data-drop-description>Descubra campeonatos, garanta vagas e acompanhe toda a competição em uma plataforma criada para o cenário mobile.</p>
+          <div className="public-home-search" data-drop-search><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, tipo ou plataforma" /><button type="button" onClick={() => document.querySelector('#vagas')?.scrollIntoView({ behavior: 'smooth' })}>Buscar</button></div>
+          <div className="public-home-trust" data-drop-trust><span><ShieldCheck size={16} /> Campeonatos aprovados</span><span><Ticket size={16} /> Compra segura</span><span><Clock3 size={16} /> Vagas em tempo real</span></div>
+        </div>
+
+        <div className="featured-championship" data-drop-featured>
           {featured ? <>
             <div className="featured-media" style={featured.banner_url ? { backgroundImage: `linear-gradient(180deg, transparent, rgba(10,13,18,.9)), url(${featured.banner_url})` } : undefined}>
               <span className="featured-badge"><Flame size={14} /> Destaque</span>
@@ -96,13 +111,18 @@ export function PublicChampionshipHome({ onAccess }: Props) {
             <div className="featured-cta"><div><small>A partir de</small><strong>{money(featured.valor_inscricao)}</strong></div><a href={`/vagas?comprar=${featured.id}`}>Garantir vaga <ArrowRight size={16} /></a></div>
           </> : <div className="featured-empty"><Trophy size={34} /><strong>Novos campeonatos em breve</strong><span>Entre no sistema para acompanhar suas inscrições.</span></div>}
         </div>
-      </section>
 
-      <section className="home-stat-strip home-reveal home-delay-2">
+        <div className="drop-sequence-transition-word" data-drop-transition-word aria-hidden="true">VAGAS</div>
+        <div className="drop-sequence-curtain" data-drop-curtain aria-hidden="true"><i /><span>COMPETIÇÃO EM MOVIMENTO</span></div>
+        <div className="drop-sequence-scroll-cue" aria-hidden="true"><span>SCROLL</span><i /></div>
+      </section>
+      </div>
+
+      <section className="home-stat-strip lealt-scroll-reveal">
         <div><b>{items.length}</b><span>campeonatos com vagas</span></div><div><b>{items.reduce((sum, item) => sum + Number(item.vagas_livres || 0), 0)}</b><span>vagas disponíveis</span></div><div><b>{items.filter((item) => Number(item.valor_inscricao || 0) <= 0).length}</b><span>eventos gratuitos</span></div>
       </section>
 
-      <section id="vagas" className="public-home-section">
+      <section id="vagas" className="public-home-section lealt-scroll-reveal">
         <div className="public-section-head"><div><span className="home-kicker">Vitrine de campeonatos</span><h2>Vagas abertas</h2></div><a href="/vagas">Ver todas <ArrowRight size={15} /></a></div>
         <div className="home-filter-row"><Filter size={16} />{([['todos','Todos'],['hoje','Hoje'],['gratis','Gratuitos'],['ultimas','Últimas vagas']] as const).map(([value,label]) => <button key={value} className={filter === value ? 'active' : ''} onClick={() => setFilter(value)}>{label}</button>)}</div>
         {loading ? <div className="home-card-grid">{Array.from({ length: 4 }).map((_, index) => <div className="home-card-skeleton" key={index}><i /><b /><span /><span /></div>)}</div> : filtered.length ? <div className="home-card-grid">{filtered.slice(0, 8).map((item, index) => <article className="home-champ-card home-reveal" style={{ animationDelay: `${Math.min(index, 5) * 70}ms` }} key={item.id}>
@@ -111,13 +131,13 @@ export function PublicChampionshipHome({ onAccess }: Props) {
         </article>)}</div> : <div className="home-empty-state"><Search size={30} /><strong>Nenhum campeonato encontrado</strong><span>Tente outro filtro ou termo de busca.</span></div>}
       </section>
 
-      {urgent.length ? <section className="public-home-section home-urgent-section"><div className="public-section-head"><div><span className="home-kicker"><Flame size={14} /> Quase lotando</span><h2>Últimas vagas</h2></div></div><div className="urgent-list">{urgent.map((item) => <a href={`/vagas?comprar=${item.id}`} key={item.id}><span>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Trophy size={20} />}</span><div><strong>{item.nome}</strong><small>{dateLabel(item.proxima_data)} · {item.proximo_horario || 'horário a confirmar'}</small></div><b>{item.vagas_livres} restantes</b><ArrowRight size={17} /></a>)}</div></section> : null}
+      {urgent.length ? <section className="public-home-section home-urgent-section lealt-scroll-reveal"><div className="public-section-head"><div><span className="home-kicker"><Flame size={14} /> Quase lotando</span><h2>Últimas vagas</h2></div></div><div className="urgent-list">{urgent.map((item) => <a href={`/vagas?comprar=${item.id}`} key={item.id}><span>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Trophy size={20} />}</span><div><strong>{item.nome}</strong><small>{dateLabel(item.proxima_data)} · {item.proximo_horario || 'horário a confirmar'}</small></div><b>{item.vagas_livres} restantes</b><ArrowRight size={17} /></a>)}</div></section> : null}
 
-      <section id="tipos" className="public-home-section home-categories"><div className="public-section-head"><div><span className="home-kicker">Encontre seu formato</span><h2>Jogue do seu jeito</h2></div></div><div className="category-grid">{[['Diário','Partidas rápidas todos os dias'],['Copa','Eliminatórias e grandes finais'],['Liga','Temporadas e classificação'],['Xtreino','Treino competitivo organizado']].map(([title,text]) => <button key={title} onClick={() => { setQuery(title); document.querySelector('#vagas')?.scrollIntoView({ behavior: 'smooth' }) }}><Trophy size={20} /><strong>{title}</strong><span>{text}</span><ArrowRight size={16} /></button>)}</div></section>
+      <section id="tipos" className="public-home-section home-categories lealt-scroll-reveal"><div className="public-section-head"><div><span className="home-kicker">Encontre seu formato</span><h2>Jogue do seu jeito</h2></div></div><div className="category-grid">{[['Diário','Partidas rápidas todos os dias'],['Copa','Eliminatórias e grandes finais'],['Liga','Temporadas e classificação'],['Xtreino','Treino competitivo organizado']].map(([title,text]) => <button key={title} onClick={() => { setQuery(title); document.querySelector('#vagas')?.scrollIntoView({ behavior: 'smooth' }) }}><Trophy size={20} /><strong>{title}</strong><span>{text}</span><ArrowRight size={16} /></button>)}</div></section>
 
-      <section className="home-how"><div><span className="home-kicker">Simples do início ao fim</span><h2>Escolha, garanta e jogue</h2></div><ol><li><b>1</b><span><strong>Encontre</strong><small>Use data, valor e formato.</small></span></li><li><b>2</b><span><strong>Garanta a vaga</strong><small>Inscrição rápida e segura.</small></span></li><li><b>3</b><span><strong>Acompanhe</strong><small>Escalação, grupos e jogos.</small></span></li></ol><button type="button" onClick={onAccess}>Acessar meu painel <ArrowRight size={16} /></button></section>
+      <section className="home-how lealt-scroll-reveal"><div><span className="home-kicker">Simples do início ao fim</span><h2>Escolha, garanta e jogue</h2></div><ol><li><b>1</b><span><strong>Encontre</strong><small>Use data, valor e formato.</small></span></li><li><b>2</b><span><strong>Garanta a vaga</strong><small>Inscrição rápida e segura.</small></span></li><li><b>3</b><span><strong>Acompanhe</strong><small>Escalação, grupos e jogos.</small></span></li></ol><button type="button" onClick={onAccess}>Acessar meu painel <ArrowRight size={16} /></button></section>
 
-      <footer className="public-home-footer">
+      <footer className="public-home-footer lealt-scroll-reveal">
         <div className="public-home-brand"><SystemLogo size={34} alt="DropZone" variant="accent" /><span><b>DropZone</b><small>Onde campeonatos acontecem</small></span></div>
         <nav aria-label="Links institucionais"><a href="/termos-de-servico">Termos</a><a href="/politica-de-privacidade">Privacidade</a></nav>
         <span>© 2026 DropZone</span>

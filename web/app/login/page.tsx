@@ -5,6 +5,7 @@ import type { Session } from '@supabase/supabase-js'
 import { ArrowRight, Eye, EyeOff, Loader2, LogOut, Mail, Plus, ShieldCheck, UserRound } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { SystemLogo } from '@/components/brand/SystemLogo'
+import { LealtMotionScene } from '@/components/effects/LealtMotionScene'
 import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/auth/SocialLogin'
 import { parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
@@ -528,23 +529,34 @@ export default function LoginPage() {
 
   return (
     <AppShell header="never" withAuthOffset={false} mainClassName="login-portal" activeLabel="Início">
-      <section className="login-portal-stage">
-        <div className="login-portal-media" aria-hidden="true" />
+      <section className="login-portal-stage" data-lealt-motion-host>
+        <LealtMotionScene className="lealt-motion-login" />
         <div className="login-portal-overlay" aria-hidden="true" />
 
         <div className="login-portal-content">
-          <div className="login-portal-brand">
-            <SystemLogo size={52} alt="DropZone" variant="accent" />
-            <div><strong>DROPZONE</strong><span>COMPETITIVE SYSTEM</span></div>
+          <div className="login-portal-intro">
+            <div className="login-portal-brand">
+              <SystemLogo size={52} alt="DropZone" variant="accent" />
+              <div><strong>DROPZONE</strong><span>COMPETITIVE SYSTEM</span></div>
+            </div>
+
+            <div className="login-portal-copy lealt-scroll-reveal">
+              <span className="login-portal-kicker">Acesso competitivo centralizado</span>
+              <h1 aria-label="Entre. Escolha seu perfil. Compita.">
+                <span>ENTRE.</span>
+                <span>ESCOLHA SEU PERFIL.</span>
+                <span className="login-title-accent">COMPITA.</span>
+              </h1>
+              <p>Uma única conta conecta todos os seus perfis no DropZone. Entre com Google ou e-mail e escolha exatamente onde deseja acessar.</p>
+              <div className="login-live-telemetry" aria-hidden="true">
+                <span><i /> CONTA ÚNICA</span>
+                <span><i /> PERFIS VINCULADOS</span>
+                <span><i /> ACESSO SEGURO</span>
+              </div>
+            </div>
           </div>
 
-          <div className="login-portal-copy">
-            <span className="login-portal-kicker">Acesso competitivo centralizado</span>
-            <h1>ENTRE. ESCOLHA SEU PERFIL. COMPITA.</h1>
-            <p>Uma única conta conecta todos os seus perfis no DropZone. Entre com Google ou e-mail e escolha exatamente onde deseja acessar.</p>
-          </div>
-
-          <div className="login-portal-panel">
+          <div className="login-portal-panel lealt-scroll-reveal">
             {stage === 'checking' ? (
               <div className="login-portal-loading" role="status" aria-live="polite">
                 <Loader2 className="spin" size={30} />

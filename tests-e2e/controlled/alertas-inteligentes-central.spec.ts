@@ -1,26 +1,12 @@
 import { expect, test } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
-
-function accessTokenFromStorage(profile: string, expectedOrigin: string) {
-  const file = path.resolve(process.cwd(), 'tests-e2e', '.auth', `${profile}.json`)
-  const state = JSON.parse(fs.readFileSync(file, 'utf8'))
-  for (const origin of state.origins || []) {
-    if (origin.origin !== expectedOrigin) continue
-    for (const item of origin.localStorage || []) {
-      if (!item.name.includes('auth-token')) continue
-      const value = JSON.parse(item.value)
-      const token = value?.access_token || value?.currentSession?.access_token
-      if (token) return String(token)
-    }
-  }
-  throw new Error(`Sessão não encontrada em ${file} para ${expectedOrigin}. Rode npm run testar:tudo.`)
-}
+import { activeAuthToken } from '../support/auth-session'
 
 test.describe('Central do Campeonato — alertas inteligentes', () => {
-  test('expõe prioridades acionáveis com gravidade, contexto e atalho', async ({ request, baseURL }) => {
+  test('expõe prioridades acionáveis com gravidade, contexto e atalho', async ({ request, browser, baseURL }) => {
     const origin = String(baseURL || '').replace(/\/$/, '')
-    const token = accessTokenFromStorage('produtora', origin)
+    const token = await activeAuthToken(browser, path.resolve('tests-e2e/.auth/produtora.json'), '/campeonatos')
     const headers = { Authorization: `Bearer ${token}`, 'x-profile-type': 'produtora' }
 
     const list = await request.get(`${origin}/api/central-campeonato`, { headers })
