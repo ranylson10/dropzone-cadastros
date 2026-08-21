@@ -1118,10 +1118,10 @@
   margin: 0 0 14px;
   padding: 10px 12px;
   align-items: center;
-  border: 1px solid #c9c0b4;
-  border-radius: 0;
-  background: #e3ddd3;
-  color: #5c6570;
+  border: 1px solid rgba(216, 190, 86, .28);
+  border-radius: var(--ui-radius-sm);
+  background: #121317;
+  color: #c7c1b1;
   font-size: 11px;
 }
 
@@ -1130,10 +1130,10 @@
 }
 
 .agenda-page .agenda-sheet {
-  border: 1px solid #c9c0b4;
-  border-radius: 0;
+  border: 1px solid rgba(216, 190, 86, .26);
+  border-radius: var(--ui-radius-md);
   overflow: hidden;
-  background: #e3ddd3;
+  background: #121317;
   box-shadow: none;
 }
 
@@ -1151,7 +1151,7 @@
 }
 
 .agenda-page .agenda-sheet-scroll {
-  background: #d8d1c6;
+  background: #121317;
 }
 
 .agenda-page .agenda-sheet-table {
@@ -1176,32 +1176,32 @@
 
 .agenda-page .agenda-sheet-table tbody td {
   height: 38px;
-  border-color: #c8c0b5;
+  border-color: rgba(255, 255, 255, .08);
   border-radius: 0;
 }
 
 .agenda-page .agenda-sheet-table tbody td.day-name,
 .agenda-page .agenda-sheet-table tbody td.day-num {
-  background: #d7d0c5;
-  color: #24313e;
+  background: #18191e;
+  color: #d8be56;
 }
 
 .agenda-page .agenda-sheet-table tbody tr.is-weekend td.day-name,
 .agenda-page .agenda-sheet-table tbody tr.is-weekend td.day-num {
-  background: #cbc3b7;
+  background: #15161a;
 }
 
 .agenda-page .agenda-sheet-table tbody td.slot-cell {
-  background: #e8e3db;
-  color: #777168;
+  background: #121317;
+  color: #a8a399;
 }
 
 .agenda-page .agenda-sheet-table tbody tr:nth-child(even) td.slot-cell {
-  background: #dfd9cf;
+  background: #15161a;
 }
 
 .agenda-page .agenda-sheet-table tbody td.slot-cell:hover {
-  background: #d2cbc1;
+  background: #1c1d23;
 }
 
 .agenda-page .agenda-event-block,
@@ -1217,15 +1217,16 @@
 }
 
 .agenda-page .agenda-loading {
-  gap: 1px;
-  padding: 12px;
-  background: #d8d1c6;
+  gap: 8px;
+  min-height: 180px;
+  padding: 18px;
+  background: #121317;
 }
 
 .agenda-page .agenda-loading span {
-  height: 42px;
-  border-radius: 0;
-  background: linear-gradient(90deg, #e5dfd5, #eee9e1, #e5dfd5);
+  height: 44px;
+  border-radius: var(--ui-radius-sm);
+  background: linear-gradient(90deg, #191a20, #24252c, #191a20);
   background-size: 220% 100%;
 }
 

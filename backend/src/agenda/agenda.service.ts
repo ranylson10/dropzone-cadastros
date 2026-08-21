@@ -292,22 +292,24 @@ async function listGamesByChampionshipIds(campeonatoIds: string[], from: string,
   // Enviar todos os UUIDs em um único filtro `in` pode ultrapassar o limite da URL
   // do PostgREST e resultar em 400 mesmo quando o intervalo consultado é válido.
   const BATCH_SIZE = 50
-  const games: any[] = []
-
-  for (let index = 0; index < ids.length; index += BATCH_SIZE) {
-    const batch = ids.slice(index, index + BATCH_SIZE)
-    const { data, error } = await supabaseAdmin
-      .from('campeonato_jogos')
-      .select('*')
-      .in('campeonato_id', batch)
-      .gte('data_jogo', from)
-      .lte('data_jogo', to)
-      .order('data_jogo', { ascending: true })
-      .order('horario', { ascending: true })
-
-    if (error) throw error
-    games.push(...(data || []))
-  }
+  const batches = Array.from({ length: Math.ceil(ids.length / BATCH_SIZE) }, (_, index) =>
+    ids.slice(index * BATCH_SIZE, (index + 1) * BATCH_SIZE),
+  )
+  const results = await Promise.all(
+    batches.map(async (batch) => {
+      const { data, error } = await supabaseAdmin
+        .from('campeonato_jogos')
+        .select('*')
+        .in('campeonato_id', batch)
+        .gte('data_jogo', from)
+        .lte('data_jogo', to)
+        .order('data_jogo', { ascending: true })
+        .order('horario', { ascending: true })
+      if (error) throw error
+      return data || []
+    }),
+  )
+  const games = results.flat()
 
   return games
     .filter((game: any) => {
@@ -333,59 +335,42 @@ async function resolveUserContext(authUserId: string) {
   const managedChampionshipIds = new Set<string>()
   const equipeIds = new Set<string>(teamIds)
 
-  // Produtora → campeonatos
-  if (producerIds.length) {
-    const { data } = await supabaseAdmin
-      .from('campeonatos')
-      .select('id')
-      .in('produtora_id', producerIds)
-    for (const row of data || []) {
-      campeonatoIds.add(row.id)
-      managedChampionshipIds.add(row.id)
-    }
+  // Estas consultas não dependem umas das outras: executá-las em série fazia a
+  // agenda esperar vários round-trips ao banco antes de mostrar qualquer jogo.
+  const [producerChampions, createdChampions, managerTeams, playerEntries] = await Promise.all([
+    producerIds.length
+      ? supabaseAdmin.from('campeonatos').select('id').in('produtora_id', producerIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    supabaseAdmin.from('campeonatos').select('id').eq('criado_por', authUserId),
+    managerIds.length
+      ? supabaseAdmin.from('manager_equipe').select('equipe_id').in('manager_id', managerIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    playerIds.length
+      ? supabaseAdmin.from('campeonato_jogadores').select('campeonato_id, equipe_id').in('jogador_id', playerIds).neq('status', 'deletado')
+      : Promise.resolve({ data: [] as any[], error: null }),
+  ])
+
+  for (const row of producerChampions.data || []) {
+    campeonatoIds.add(row.id)
+    managedChampionshipIds.add(row.id)
+  }
+  for (const row of createdChampions.data || []) {
+    campeonatoIds.add(row.id)
+    managedChampionshipIds.add(row.id)
+  }
+  for (const row of managerTeams.data || []) if (row.equipe_id) equipeIds.add(row.equipe_id)
+  for (const row of playerEntries.data || []) {
+    if (row.campeonato_id) campeonatoIds.add(row.campeonato_id)
+    if (row.equipe_id) equipeIds.add(row.equipe_id)
   }
 
-  // Campeonatos criados pelo usuário
-  {
-    const { data } = await supabaseAdmin
-      .from('campeonatos')
-      .select('id')
-      .eq('criado_por', authUserId)
-    for (const row of data || []) {
-      campeonatoIds.add(row.id)
-      managedChampionshipIds.add(row.id)
-    }
-  }
-
-  // Manager → equipes
-  if (managerIds.length) {
-    const { data } = await supabaseAdmin
-      .from('manager_equipe')
-      .select('equipe_id')
-      .in('manager_id', managerIds)
-    for (const row of data || []) if (row.equipe_id) equipeIds.add(row.equipe_id)
-  }
-
-  // Equipes participantes
   if (equipeIds.size) {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('campeonato_equipes')
-      .select('campeonato_id, equipe_id, grupo_id')
+      .select('campeonato_id')
       .in('equipe_id', [...equipeIds])
+    if (error) throw error
     for (const row of data || []) if (row.campeonato_id) campeonatoIds.add(row.campeonato_id)
-  }
-
-  // Jogador inscrito
-  if (playerIds.length) {
-    const { data } = await supabaseAdmin
-      .from('campeonato_jogadores')
-      .select('campeonato_id, equipe_id')
-      .in('jogador_id', playerIds)
-      .neq('status', 'deletado')
-    for (const row of data || []) {
-      if (row.campeonato_id) campeonatoIds.add(row.campeonato_id)
-      if (row.equipe_id) equipeIds.add(row.equipe_id)
-    }
   }
 
   return {
