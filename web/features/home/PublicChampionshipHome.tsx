@@ -40,7 +40,7 @@ export function PublicChampionshipHome({ onAccess }: Props) {
   const [filter, setFilter] = useState<'todos' | 'hoje' | 'gratis' | 'ultimas'>('todos')
   const [inviteToken, setInviteToken] = useState('')
   const [inviteError, setInviteError] = useState('')
-  const [tokenEntryOpen, setTokenEntryOpen] = useState(false)
+  const [tokenEntryOpen, setTokenEntryOpen] = useState(true)
   const [inviteResolving, setInviteResolving] = useState(false)
 
   function scrollToVacancies() {
@@ -135,7 +135,7 @@ export function PublicChampionshipHome({ onAccess }: Props) {
           <div className="public-home-trust" data-drop-trust><span><ShieldCheck size={16} /> Campeonatos aprovados</span><span><Ticket size={16} /> Compra segura</span><span><Clock3 size={16} /> Vagas em tempo real</span></div>
           <div className="public-home-token-action" data-drop-trust>
             <button type="button" aria-expanded={tokenEntryOpen} aria-controls="token-inscricao" onClick={() => setTokenEntryOpen((current) => !current)}>
-              <KeyRound size={15} /> Recebeu um token de inscrição?<strong>{tokenEntryOpen ? 'Fechar' : 'Usar token'}</strong>
+              <KeyRound size={15} /> Já tem um token ou link de inscrição?<strong>{tokenEntryOpen ? 'Fechar' : 'Inserir agora'}</strong>
             </button>
           </div>
           {tokenEntryOpen ? <div className="public-home-token-entry" id="token-inscricao">

@@ -101,6 +101,14 @@
 .authenticated-home-priority-card strong{font-size:12px;text-transform:uppercase}
 .authenticated-home-priority-card small{overflow:hidden;color:var(--home-muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap}
 .authenticated-home-priority-card a{display:inline-flex;align-items:center;gap:3px;color:var(--home-accent-strong);font-size:10px;font-weight:900;text-decoration:none;text-transform:uppercase}
+.authenticated-home-command-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:10px}
+.authenticated-home-tasks{display:grid;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm,6px);background:var(--home-surface)}
+.authenticated-home-tasks>a,.authenticated-home-tasks-empty{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;min-height:58px;padding:10px 12px;border-bottom:1px solid var(--ui-line);color:var(--home-text);text-decoration:none}
+.authenticated-home-tasks>a:last-child{border-bottom:0}.authenticated-home-tasks>a:hover{background:var(--home-raised)}
+.authenticated-home-tasks>a.is-urgent{border-left:3px solid var(--home-accent);padding-left:9px}.authenticated-home-tasks span,.authenticated-home-tasks-empty span{display:grid;gap:3px;min-width:0}.authenticated-home-tasks strong{font-size:11px;text-transform:uppercase}.authenticated-home-tasks small{overflow:hidden;color:var(--home-muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap}.authenticated-home-tasks>a>svg{color:var(--home-accent)}
+.authenticated-home-tasks-empty{grid-template-columns:auto minmax(0,1fr);color:var(--home-text)}.authenticated-home-tasks-empty>svg{color:#44b980}
+.authenticated-home-token{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:center;padding:13px;border:1px solid color-mix(in srgb,var(--home-accent) 45%,var(--ui-line));border-radius:var(--ui-radius-sm,6px);background:color-mix(in srgb,var(--home-accent) 5%,var(--home-surface));color:var(--home-text)}
+.authenticated-home-token>svg{color:var(--home-accent)}.authenticated-home-token>div{display:grid;gap:2px;min-width:0}.authenticated-home-token strong{font-size:11px;text-transform:uppercase}.authenticated-home-token small{color:var(--home-muted);font-size:10px}.authenticated-home-token input{grid-column:1/-1;min-width:0;height:40px;padding:0 10px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm,6px);background:var(--home-raised);color:var(--home-text);outline:0}.authenticated-home-token input:focus{border-color:var(--home-accent)}.authenticated-home-token button{min-height:32px;padding:0 10px;border:0;border-radius:var(--ui-radius-sm,6px);background:var(--home-accent);color:#11120f;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}.authenticated-home-token-error{grid-column:1/-1!important;color:#f28b8b!important}
 .authenticated-home-areas-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
 .authenticated-home-area-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:66px;padding:12px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm,6px);background:var(--home-surface);color:var(--home-text);text-align:left;cursor:pointer}
 .authenticated-home-area-card>svg{color:var(--home-accent)}
@@ -187,6 +195,9 @@
   .authenticated-home-priority-card{min-height:62px;gap:9px;padding:10px}
   .authenticated-home-priority-card strong{font-size:10px}
   .authenticated-home-priority-card small{font-size:9px}
+  .authenticated-home-command-grid{grid-template-columns:1fr;gap:8px}
+  .authenticated-home-tasks>a,.authenticated-home-tasks-empty{min-height:54px;padding:9px}.authenticated-home-tasks strong{font-size:10px}.authenticated-home-tasks small{font-size:9px}
+  .authenticated-home-token{grid-template-columns:auto minmax(0,1fr) auto;padding:10px}.authenticated-home-token input{height:38px}.authenticated-home-token strong{font-size:10px}.authenticated-home-token small{font-size:9px}
   .authenticated-home-areas-grid{grid-template-columns:1fr;gap:6px}
   .authenticated-home-area-card{min-height:58px;padding:10px}
   .authenticated-home-access-section .authenticated-home-section-head>button{display:none}

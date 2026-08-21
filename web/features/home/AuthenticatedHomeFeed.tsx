@@ -7,6 +7,7 @@ import {
   Check,
   ChevronRight,
   CirclePlus,
+  KeyRound,
   LayoutDashboard,
   Loader2,
   Store,
@@ -52,6 +53,8 @@ type HomeNotification = {
   titulo: string
   corpo?: string | null
   status: string
+  acao_url?: string | null
+  payload?: { public_url?: string | null; expira_em?: string | null; data_jogo?: string | null; horario?: string | null }
 }
 
 type AgendaItem = {
@@ -62,6 +65,17 @@ type AgendaItem = {
   horario_fim?: string | null
   meta?: { campeonato_nome?: string | null; equipe_nome?: string | null; href?: string | null }
 }
+
+type LineupSummary = {
+  campeonato_equipe_id: string
+  campeonato_nome?: string | null
+  equipe_nome?: string | null
+  jogadores_confirmados?: number | null
+  limite_jogadores?: number | null
+  link_expira_em?: string | null
+}
+
+type HomeTask = { id: string; title: string; detail: string; href?: string; action?: () => void; urgent?: boolean }
 
 
 
@@ -79,6 +93,10 @@ export function AuthenticatedHomeFeed({
   const [agenda, setAgenda] = useState<AgendaItem[]>([])
   const [priorityLoading, setPriorityLoading] = useState(true)
   const [respondingNotification, setRespondingNotification] = useState('')
+  const [lineups, setLineups] = useState<LineupSummary[]>([])
+  const [tokenValue, setTokenValue] = useState('')
+  const [tokenBusy, setTokenBusy] = useState(false)
+  const [tokenError, setTokenError] = useState('')
 
   const producer = accounts.find((item) => item.profile_type === 'produtora')
   const isPlayer = account.profile_type === 'jogador'
@@ -108,15 +126,18 @@ export function AuthenticatedHomeFeed({
         const token = data.session?.access_token
         if (!token) return
         const headers = { Authorization: `Bearer ${token}` }
-        const [notificationsResponse, agendaResponse] = await Promise.all([
+        const [notificationsResponse, agendaResponse, lineupsResponse] = await Promise.all([
           fetch('/api/notificacoes?limit=12', { headers, cache: 'no-store' }),
           fetch('/api/agenda?scope=me&year=2026&month=1&from=2000-01-01&to=2100-12-31', { headers, cache: 'no-store' }),
+          fetch('/api/equipe/escalacoes', { headers, cache: 'no-store' }),
         ])
         const notificationsJson = await notificationsResponse.json().catch(() => ({}))
         const agendaJson = await agendaResponse.json().catch(() => ({}))
+        const lineupsJson = lineupsResponse.ok ? await lineupsResponse.json().catch(() => ({})) : {}
         if (!active) return
         setNotifications(Array.isArray(notificationsJson.items) ? notificationsJson.items : [])
         setAgenda(Array.isArray(agendaJson.items) ? agendaJson.items : [])
+        setLineups(Array.isArray(lineupsJson.escalacoes) ? lineupsJson.escalacoes : [])
       } finally {
         if (active) setPriorityLoading(false)
       }
@@ -178,6 +199,44 @@ export function AuthenticatedHomeFeed({
     item.tipo === 'convite_jogador_equipe_direto' || item.tipo === 'pedido_jogador_equipe' || item.tipo === 'convite_escalacao_jogador'
   ))
 
+  const homeTasks = useMemo<HomeTask[]>(() => {
+    const now = Date.now()
+    const tasks: HomeTask[] = []
+    for (const lineup of lineups) {
+      const required = Math.max(1, Number(lineup.limite_jogadores || 0))
+      const confirmed = Number(lineup.jogadores_confirmados || 0)
+      if (confirmed >= required) continue
+      const deadline = lineup.link_expira_em ? new Date(lineup.link_expira_em).getTime() : null
+      const hours = deadline ? Math.ceil((deadline - now) / 3_600_000) : null
+      if (deadline && hours != null && hours < 0) continue
+      tasks.push({
+        id: `lineup-${lineup.campeonato_equipe_id}`,
+        title: `Completar escalação · ${lineup.campeonato_nome || 'campeonato'}`,
+        detail: hours == null ? `${confirmed}/${required} jogadores confirmados.` : `${confirmed}/${required} jogadores · prazo em ${Math.max(1, hours)}h.`,
+        href: '/?painel=1&section=jogadores', urgent: hours != null && hours <= 24,
+      })
+    }
+    for (const notification of notifications.filter((item) => item.status === 'nao_lida').slice(0, 4)) {
+      tasks.push({ id: `notification-${notification.id}`, title: notification.titulo, detail: notification.corpo || 'Há uma ação aguardando você.', href: notification.acao_url || notification.payload?.public_url || '/agenda', urgent: /prazo|escala|convite/i.test(`${notification.titulo} ${notification.corpo || ''}`) })
+    }
+    if (nextAgendaItem) tasks.push({ id: `agenda-${nextAgendaItem.id}`, title: nextAgendaItem.titulo, detail: `Hoje/próximo: ${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}`, href: nextAgendaItem.meta?.href || '/agenda' })
+    return tasks.slice(0, 5)
+  }, [lineups, notifications, nextAgendaItem])
+
+  const submitToken = async () => {
+    const raw = tokenValue.trim()
+    if (!raw) return
+    const urlMatch = raw.match(/\/(convite\/equipe|convite\/grupo|equipe\/entrar|escala|i|vagas\/compra)\/([^/?#]+)/i)
+    if (urlMatch) { window.location.assign(`/${urlMatch[1].toLowerCase()}/${encodeURIComponent(decodeURIComponent(urlMatch[2]))}`); return }
+    setTokenBusy(true); setTokenError('')
+    try {
+      const response = await fetch(`/api/convites/resolver/${encodeURIComponent(raw.replace(/\s/g, ''))}`, { cache: 'no-store' })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload.href) throw new Error(payload.error || 'Token não reconhecido.')
+      window.location.assign(String(payload.href))
+    } catch (error: any) { setTokenError(error?.message || 'Confira o token ou cole o link completo.') } finally { setTokenBusy(false) }
+  }
+
   const acceptPriorityNotification = async () => {
     if (!playerInvite) return
     setRespondingNotification(playerInvite.id)
@@ -227,6 +286,21 @@ export function AuthenticatedHomeFeed({
           {priorityLoading ? <Loader2 className="spin" size={18} /> : <CalendarDays size={18} />}
           <div><strong>{nextAgendaItem ? nextAgendaItem.titulo : isPlayer ? 'Nenhum jogo agendado' : 'Agenda da conta'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''} · ${nextAgendaItem.meta?.campeonato_nome || nextAgendaItem.meta?.equipe_nome || 'DropZone'}` : 'Acompanhe datas, jogos e compromissos em um só lugar.'}</small></div>
           <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir <ChevronRight size={16} /></a>
+        </div>
+      </section>
+
+      <section className="authenticated-home-section authenticated-home-command-center">
+        <div className="authenticated-home-section-head"><div><span>PARA VOCÊ</span><h2>Próximas ações</h2></div><a href="/agenda">Agenda completa <ArrowRight size={15} /></a></div>
+        <div className="authenticated-home-command-grid">
+          <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
+            {priorityLoading ? <Loader2 className="spin" size={18} /> : homeTasks.length ? homeTasks.map((task) => <a className={task.urgent ? 'is-urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={16} /></a>) : <div className="authenticated-home-tasks-empty"><Check size={17}/><span><strong>Nenhuma pendência agora</strong><small>Seus próximos jogos e convites vão aparecer aqui.</small></span></div>}
+          </div>
+          <form className="authenticated-home-token" onSubmit={(event) => { event.preventDefault(); void submitToken() }}>
+            <KeyRound size={18}/><div><strong>Tem token ou link?</strong><small>Inscrição, grupo, escalação ou convite.</small></div>
+            <input value={tokenValue} onChange={(event) => { setTokenValue(event.target.value); setTokenError('') }} placeholder="Cole aqui" aria-label="Token ou link de inscrição" />
+            <button type="submit" disabled={tokenBusy}>{tokenBusy ? 'Verificando…' : 'Continuar'}</button>
+            {tokenError ? <small className="authenticated-home-token-error" role="alert">{tokenError}</small> : null}
+          </form>
         </div>
       </section>
 
