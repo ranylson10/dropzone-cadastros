@@ -156,14 +156,12 @@ export function CampeonatoEstruturaTab({
 
   // Slot: adicionar / remover line
   const [slotAlvo, setSlotAlvo] = useState<Slot | null>(null)
-  const [slotModo, setSlotModo] = useState<'adicionar' | 'convite' | null>(null)
+  const [slotModo, setSlotModo] = useState<'adicionar' | null>(null)
   const [busca, setBusca] = useState('')
   const [resultados, setResultados] = useState<EquipeBusca[]>([])
   const [equipe, setEquipe] = useState<EquipeBusca | null>(null)
   const [lineId, setLineId] = useState('')
   const [nomeLine, setNomeLine] = useState('')
-  const [refEquipe, setRefEquipe] = useState('')
-  const [refLine, setRefLine] = useState('')
   const [slotBusy, setSlotBusy] = useState(false)
   const [slotFeedback, setSlotFeedback] = useState('')
   const [vagasIndex, setVagasIndex] = useState<Record<string, CampeonatoVaga>>({})
@@ -171,7 +169,6 @@ export function CampeonatoEstruturaTab({
   const canEdit = Boolean(permission.canOrganizeGroups)
   const canAdd = Boolean(permission.canManage)
   const canRemove = Boolean(permission.canRemove)
-  const canInvite = Boolean(permission.canGenerateToken)
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!campeonatoId) return
@@ -358,8 +355,6 @@ export function CampeonatoEstruturaTab({
     setEquipe(null)
     setLineId('')
     setNomeLine('')
-    setRefEquipe('')
-    setRefLine('')
     setSlotFeedback('')
   }
 
@@ -403,36 +398,6 @@ export function CampeonatoEstruturaTab({
     }
   }
 
-  async function criarConviteSlot() {
-    if (!slotAlvo?.id || !refEquipe.trim() || !refLine.trim()) {
-      setSlotFeedback('Informe referências da equipe e da line.')
-      return
-    }
-    setSlotBusy(true)
-    setSlotFeedback('')
-    try {
-      const json = await campeonatoEquipesService.criarConvite(campeonatoId, {
-        slot_id: slotAlvo.id,
-        grupo_id: slotAlvo.grupo_id,
-        fixar_slot: true,
-        nome_equipe_reservada: refEquipe.trim(),
-        nome_line_reservada: refLine.trim(),
-      }) as any
-      const token = json.token?.token || json.convite?.token || json.token
-      if (token) {
-        const link = `${window.location.origin}/convite/equipe/${token}`
-        await navigator.clipboard?.writeText(link).catch(() => null)
-        setSlotFeedback(`Convite criado e copiado: ${link}`)
-      } else {
-        setSlotFeedback(json.mensagem || 'Convite criado.')
-      }
-      await load({ silent: true })
-    } catch (err: any) {
-      setSlotFeedback(err?.message || 'Erro ao criar convite.')
-    } finally {
-      setSlotBusy(false)
-    }
-  }
 
   async function removerDoSlot(slot: Slot) {
     const vaga = vagasIndex[slot.id]
@@ -1121,7 +1086,7 @@ export function CampeonatoEstruturaTab({
                                           .join(' · ') || group.nome
                                       : [phase.nome, group.nome].filter(Boolean).join(' · ')
 
-                                  const clickable = (status === 'livre' && (canAdd || canInvite)) || (status === 'ocupada' && canRemove)
+                                  const clickable = (status === 'livre' && canAdd) || (status === 'ocupada' && canRemove)
                                   return (
                                     <article
                                       key={slot.id}
@@ -1132,9 +1097,9 @@ export function CampeonatoEstruturaTab({
                                         className="vaga-row-summary"
                                         style={{ cursor: clickable ? 'pointer' : 'default' }}
                                         onClick={() => {
-                                          if (status === 'livre' && (canAdd || canInvite)) {
+                                          if (status === 'livre' && canAdd) {
                                             setSlotAlvo(slot)
-                                            setSlotModo(canAdd ? 'adicionar' : 'convite')
+                                            setSlotModo('adicionar')
                                             setSlotFeedback('')
                                           } else if (status === 'ocupada' && canRemove) {
                                             void removerDoSlot(slot)
@@ -1190,14 +1155,10 @@ export function CampeonatoEstruturaTab({
       <SystemModal
         open={Boolean(slotAlvo && slotModo)}
         title={
-          slotModo === 'convite'
-            ? `Convite · slot ${slotAlvo?.slot_letra || ''}`
-            : `Adicionar line · slot ${slotAlvo?.slot_letra || ''}`
+          `Adicionar line · slot ${slotAlvo?.slot_letra || ''}`
         }
         description={
-          slotModo === 'convite'
-            ? 'Gera link único para a equipe ocupar este slot.'
-            : 'Pesquise a equipe (pasta) e escolha/crie a line.'
+          'Pesquise a equipe (pasta) e escolha/crie a line para este slot.'
         }
         onClose={fecharSlot}
         size="medium"
@@ -1205,8 +1166,7 @@ export function CampeonatoEstruturaTab({
         <div className="seller-invite-modal">
           {slotFeedback ? <div className="message success">{slotFeedback}</div> : null}
 
-          {slotModo === 'adicionar' ? (
-            <>
+          <>
               <Field label="Buscar equipe">
                 <div className="staff-search-row">
                   <input
@@ -1257,38 +1217,12 @@ export function CampeonatoEstruturaTab({
                 </>
               ) : null}
               <div className="modal-form-actions">
-                {canInvite ? (
-                  <button type="button" className="button secondary" onClick={() => setSlotModo('convite')}>
-                    Gerar convite
-                  </button>
-                ) : null}
                 <button type="button" className="button secondary" onClick={fecharSlot}>Cancelar</button>
                 <button type="button" className="button" disabled={slotBusy || !equipe} onClick={() => void adicionarNoSlot()}>
                   {slotBusy ? 'Salvando...' : 'Adicionar ao slot'}
                 </button>
               </div>
-            </>
-          ) : (
-            <>
-              <Field label="Referência da equipe">
-                <input value={refEquipe} onChange={(e) => setRefEquipe(e.target.value)} placeholder="Nome interno" />
-              </Field>
-              <Field label="Referência da line">
-                <input value={refLine} onChange={(e) => setRefLine(e.target.value)} placeholder="Nome da line" />
-              </Field>
-              <div className="modal-form-actions">
-                {canAdd ? (
-                  <button type="button" className="button secondary" onClick={() => setSlotModo('adicionar')}>
-                    Adicionar direto
-                  </button>
-                ) : null}
-                <button type="button" className="button secondary" onClick={fecharSlot}>Cancelar</button>
-                <button type="button" className="button" disabled={slotBusy} onClick={() => void criarConviteSlot()}>
-                  {slotBusy ? 'Gerando...' : 'Criar convite'}
-                </button>
-              </div>
-            </>
-          )}
+          </>
         </div>
       </SystemModal>
     </div>

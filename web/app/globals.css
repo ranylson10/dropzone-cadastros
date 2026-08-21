@@ -6265,6 +6265,11 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .directory-list-meta em::before{ content: attr(data-label); display: block; color: #7a7267; font-size: 8px; font-weight: 900; letter-spacing: .08em; line-height: 1; text-transform: uppercase;
 } .directory-list-meta b{ font-size: 14px; color: #24313e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 900; margin-top: 0; text-align: center; width: 100%;
 } .directory-context-action{ min-height: 42px; margin-top: 14px; padding: 0 18px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border-radius: 0; box-shadow: none;
+} .public-home-token-entry{ display:flex; align-items:center; gap:10px; width:min(100%, 620px); min-height:48px; margin-top:10px; padding:0 8px 0 14px; border:1px solid rgba(255,255,255,.24); background:rgba(10,14,22,.66); color:rgba(255,255,255,.72); backdrop-filter:blur(8px);
+} .public-home-token-entry input{ min-width:0; flex:1; border:0; outline:0; background:transparent; color:#fff; font:inherit; font-size:13px;
+} .public-home-token-entry input::placeholder{ color:rgba(255,255,255,.52);
+} .public-home-token-entry button{ min-height:34px; border:0; padding:0 13px; background:var(--dz-accent,#ff5468); color:#fff; font:800 10px/1 inherit; letter-spacing:.06em; text-transform:uppercase; cursor:pointer;
+} .public-home-token-error{ display:block; width:min(100%,620px); margin-top:6px; color:#ffd2d8; font-size:11px;
 } .directory-list-arrow{ color: #6b7480; justify-self: end;
 } @media (max-width: 760px){
   .directory-page.page-authenticated,

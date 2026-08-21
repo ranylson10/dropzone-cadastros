@@ -15,9 +15,9 @@ export type ProducerTab =
 
 export const producerTabs: Array<{ id: ProducerTab; label: string }> = [
   { id: 'visao', label: 'Visão geral' },
-  { id: 'equipes', label: 'Equipes' },
-  { id: 'jogadores', label: 'Jogadores' },
-  { id: 'grupos', label: 'Grupos e fases' },
+  { id: 'equipes', label: 'Equipes (consulta)' },
+  { id: 'jogadores', label: 'Jogadores (consulta)' },
+  { id: 'grupos', label: 'Grupos e slots' },
   { id: 'jogos', label: 'Jogos' },
   { id: 'calls', label: 'Calls' },
   { id: 'vendedores', label: 'Vendedores' },

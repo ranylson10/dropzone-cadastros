@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, CalendarDays, Clock3, Filter, Flame, Search, ShieldCheck, Sparkles, Ticket, Trophy, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, Clock3, Filter, Flame, KeyRound, Search, ShieldCheck, Sparkles, Ticket, Trophy, Users } from 'lucide-react'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { LealtMotionScene } from '@/components/effects/LealtMotionScene'
 
@@ -38,6 +38,28 @@ export function PublicChampionshipHome({ onAccess }: Props) {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'todos' | 'hoje' | 'gratis' | 'ultimas'>('todos')
+  const [inviteToken, setInviteToken] = useState('')
+  const [inviteError, setInviteError] = useState('')
+
+  function openInviteToken() {
+    const raw = inviteToken.trim()
+    if (!raw) return
+    const urlMatch = raw.match(/\/(convite\/grupo|i|escala)\/([^/?#]+)/i)
+    if (urlMatch) {
+      window.location.assign(`/${urlMatch[1].toLowerCase()}/${encodeURIComponent(decodeURIComponent(urlMatch[2]))}`)
+      return
+    }
+    const token = raw.replace(/\s/g, '').toUpperCase()
+    if (token.startsWith('EQS-')) {
+      window.location.assign(`/convite/grupo/${encodeURIComponent(token)}`)
+      return
+    }
+    if (token.startsWith('INSC-')) {
+      window.location.assign(`/i/${encodeURIComponent(token)}`)
+      return
+    }
+    setInviteError('Token não reconhecido. Cole o link completo ou um token de grupo (EQS-) ou jogador (INSC-).')
+  }
 
   useEffect(() => {
     let active = true
@@ -98,6 +120,12 @@ export function PublicChampionshipHome({ onAccess }: Props) {
           </h1>
           <p data-drop-description>Descubra campeonatos, garanta vagas e acompanhe toda a competição em uma plataforma criada para o cenário mobile.</p>
           <div className="public-home-search" data-drop-search><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, tipo ou plataforma" /><button type="button" onClick={() => document.querySelector('#vagas')?.scrollIntoView({ behavior: 'smooth' })}>Buscar</button></div>
+          <div className="public-home-token-entry" data-drop-search>
+            <KeyRound size={17} />
+            <input value={inviteToken} onChange={(event) => { setInviteToken(event.target.value); setInviteError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openInviteToken() }} placeholder="Cole seu token ou link de inscrição" />
+            <button type="button" onClick={openInviteToken}>Usar token</button>
+          </div>
+          {inviteError ? <small className="public-home-token-error">{inviteError}</small> : null}
           <div className="public-home-trust" data-drop-trust><span><ShieldCheck size={16} /> Campeonatos aprovados</span><span><Ticket size={16} /> Compra segura</span><span><Clock3 size={16} /> Vagas em tempo real</span></div>
         </div>
 

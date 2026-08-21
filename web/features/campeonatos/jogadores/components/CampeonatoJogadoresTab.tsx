@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Loader2, RefreshCw, UserRound, Users } from 'lucide-react'
+import { Loader2, RefreshCw, Search, UserRound, Users } from 'lucide-react'
 import { useCampeonatoJogadores } from '../hooks/useCampeonatoJogadores'
 import type { JogadorEscalado, ParticipacaoJogadores, StatusEscalacao } from '../types/campeonato-jogadores.types'
 
@@ -38,6 +38,7 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todas')
   const [filtroEquipeId, setFiltroEquipeId] = useState('')
   const [filtroLineId, setFiltroLineId] = useState('')
+  const [busca, setBusca] = useState('')
   const [abertaId, setAbertaId] = useState<string | null>(null)
 
   const participacoesBase = data?.participacoes || []
@@ -64,9 +65,12 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
       if (filtroStatus !== 'todas' && p.status_escalacao !== filtroStatus) return false
       if (filtroEquipeId && p.equipe?.id !== filtroEquipeId) return false
       if (filtroLineId && p.line?.id !== filtroLineId) return false
-      return true
+      if (!busca.trim()) return true
+      const termo = busca.trim().toLocaleLowerCase('pt-BR')
+      return [p.equipe?.nome, p.line?.nome, ...(p.jogadores || []).flatMap((jogador) => [jogador.nick, jogador.id_jogo, jogador.funcao])]
+        .some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(termo))
     })
-  }, [participacoesBase, filtroStatus, filtroEquipeId, filtroLineId])
+  }, [participacoesBase, filtroStatus, filtroEquipeId, filtroLineId, busca])
 
   const players = useMemo(() => {
     const list: FlatPlayer[] = []
@@ -153,6 +157,7 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
         </div>
 
         <div className="teams-toolbar-right" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <label className="teams-inline-search"><Search size={14} /><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Pesquisar jogador" /></label>
           <select
             value={filtroEquipeId}
             onChange={(e) => {

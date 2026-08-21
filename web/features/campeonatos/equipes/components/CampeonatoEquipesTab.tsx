@@ -70,7 +70,7 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
-export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string }) {
+export function CampeonatoEquipesTab({ campeonatoId, readOnly = false }: { campeonatoId: string; readOnly?: boolean }) {
   const { data, loading, error, reload } = useCampeonatoEquipes(campeonatoId)
   const [filtro, setFiltro] = useState<FiltroVaga>('todas')
   const [vagaAbertaId, setVagaAbertaId] = useState<string | null>(null)
@@ -108,9 +108,17 @@ export function CampeonatoEquipesTab({ campeonatoId }: { campeonatoId: string })
 
   const vagasFiltradas = useMemo(() => {
     const vagas = [...(data?.vagas || [])].sort(sortVagasByStructure)
-    if (filtro === 'todas') return vagas
-    return vagas.filter((vaga) => vaga.status === filtro)
-  }, [data, filtro])
+    const porStatus = filtro === 'todas' ? vagas : vagas.filter((vaga) => vaga.status === filtro)
+    if (!readOnly || !busca.trim()) return porStatus
+    const termo = busca.trim().toLocaleLowerCase('pt-BR')
+    return porStatus.filter((vaga) => [
+      vaga.line_nome,
+      vaga.equipe_nome,
+      vaga.campeonato_equipe?.line_nome,
+      vaga.campeonato_equipe?.equipe_nome,
+      vaga.grupo?.nome,
+    ].some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(termo)))
+  }, [busca, data, filtro, readOnly])
 
   const gruposOperacionais = useMemo(() => {
     const groups = new Map<string, {
@@ -600,7 +608,9 @@ Acesse: ${link}`
 
       {feedback ? <div className="champ-registration-feedback">{feedback}</div> : null}
 
-      {(data.convites_grupo || []).length > 0 ? (
+      {readOnly ? <><div className="teams-tab-info">Consulta de equipes inscritas. Para adicionar ou remover uma line, abra <strong>Grupos e slots</strong> e selecione o slot desejado.</div><div className="team-search-row"><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Pesquisar equipe, line ou grupo" /><Search size={16} /></div></> : null}
+
+      {!readOnly && (data.convites_grupo || []).length > 0 ? (
         <details className="champ-registration-group-invites">
           <summary>
             <span>Convites de grupo</span>
@@ -773,7 +783,7 @@ Acesse: ${link}`
 
                         {vaga.status === 'ocupada' ? <p>{equipeNome ? `${equipeNome} · ` : ''}{vaga.campeonato_equipe?.origem_entrada ? `Entrada via ${origemLabel(vaga.campeonato_equipe.origem_entrada)}` : 'Inscrição confirmada'}</p> : null}
 
-                        {(data.permission.canManage || data.permission.canGenerateToken || data.permission.canRemove) ? (
+                        {!readOnly && (data.permission.canManage || data.permission.canGenerateToken || data.permission.canRemove) ? (
                           <div className="champ-registration-actions">
                             {vaga.status === 'livre' ? (
                               <>

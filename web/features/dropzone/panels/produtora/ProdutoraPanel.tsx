@@ -1859,10 +1859,10 @@ ${params.url}`
                         <strong>{String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'diario' ? 'Horários' : 'Grupos e fases'}</strong>
                         <small>{String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'diario' ? (champGroups.length ? `${champGroups.length} horário(s) configurado(s)` : 'Configure os horários dos jogos') : (champPhases.length ? `${champPhases.length} fase(s), ${champGroups.length} grupo(s)` : 'Comece criando a estrutura')}</small>
                       </button>
-                      <button type="button" onClick={() => setTab('equipes')}>
+                      <button type="button" onClick={() => setTab('grupos')}>
                         <Users size={18} />
-                        <strong>Adicionar equipes</strong>
-                        <small>{props.selectedChampTeams.length ? `${props.selectedChampTeams.length} line(s) inscrita(s)` : 'Buscar, reservar ou convidar'}</small>
+                        <strong>Preencher slots</strong>
+                        <small>{props.selectedChampTeams.length ? `${props.selectedChampTeams.length} line(s) inscrita(s)` : 'Abra um grupo e adicione em um slot livre'}</small>
                       </button>
                       <button
                         type="button"
@@ -1890,7 +1890,7 @@ ${params.url}`
                       >
                         <Link2 size={18} />
                         <strong>Gerar link</strong>
-                        <small>Vaga, grupo ou convite de entrada</small>
+                        <small>Link externo reutilizável por grupo</small>
                       </button>
                       <button type="button" onClick={() => setTab('vendedores')}>
                         <BriefcaseBusiness size={18} />
@@ -1962,7 +1962,7 @@ ${params.url}`
                 </div>
               ) : null}
 
-              {tab === 'equipes' ? <CampeonatoEquipesTab campeonatoId={selectedChamp.id} /> : null}
+              {tab === 'equipes' ? <CampeonatoEquipesTab campeonatoId={selectedChamp.id} readOnly /> : null}
 
               {tab === 'jogadores' ? <CampeonatoJogadoresTab campeonatoId={selectedChamp.id} /> : null}
 
@@ -3277,6 +3277,14 @@ ${params.url}`
                                     onClick={() => props.copyToken(fullUrl || `${window.location.origin}${path}`)}
                                   >
                                     <Copy size={14} /> Só o link
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="button secondary"
+                                    onClick={() => props.copyToken(String(link.token || ''))}
+                                    disabled={!link.token}
+                                  >
+                                    <Copy size={14} /> Só o token
                                   </button>
                                   <button
                                     type="button"
