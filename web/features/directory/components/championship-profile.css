@@ -271,3 +271,5 @@ body .champ-public .agenda-root.is-compact .agenda-sequence-event:hover{backgrou
 body .champ-public .agenda-root.is-compact .agenda-sequence-time small,body .champ-public .agenda-root.is-compact .agenda-sequence-copy small{color:var(--champ-muted)}
 body .champ-public .agenda-root.is-compact .agenda-sequence-copy strong{color:var(--champ-ink)}
 @media(max-width:760px){body .champ-public .agenda-root.is-compact .agenda-sequence-date{border-right:0;border-bottom:1px solid var(--champ-line)}body .champ-public .agenda-root.is-compact .agenda-sequence-event{min-height:52px}}
+
+.champ-public .champ-public-agenda-link{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border-top:1px solid var(--champ-line)}.champ-public .champ-public-agenda-link p{margin:0;color:var(--champ-muted);font-size:11px}.champ-public .champ-public-agenda-link .button{flex:0 0 auto}@media(max-width:650px){.champ-public .champ-public-agenda-link{display:grid;gap:10px}.champ-public .champ-public-agenda-link .button{width:100%;justify-content:center}}

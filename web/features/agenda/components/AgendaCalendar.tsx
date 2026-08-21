@@ -149,7 +149,6 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [setupRequired, setSetupRequired] = useState(false)
   const [canManage, setCanManage] = useState(false)
   const [managedChampionships, setManagedChampionships] = useState<Array<{ id: string; nome: string }>>([])
   const [selectedDate, setSelectedDate] = useState(todayISO())
@@ -159,27 +158,21 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [selected, setSelected] = useState<AgendaItem | null>(null)
   const [defaults, setDefaults] = useState<Partial<AgendaEventForm>>({})
 
-  const canCreate = Boolean(props.canCreate && canManage)
-  const contextualMode = !canCreate
+  // A agenda é uma única central de consulta. Datas oficiais vêm dos jogos;
+  // não há mais calendário livre criado dentro de perfis ou pela página /agenda.
+  const canCreate = false
+  const contextualMode = false
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
-    // Nas agendas públicas em formato de lista, carregamos todo o histórico
-    // e todos os compromissos futuros do perfil. Assim, meses anteriores
-    // não desaparecem quando o mês atual muda.
-    const rangeStart = '2000-01-01'
-    const rangeEnd = '2100-12-31'
     const result = await fetchAgenda({
       scope: props.scope,
       scopeId: props.scopeId,
       year,
       month,
-      from: contextualMode ? rangeStart : undefined,
-      to: contextualMode ? rangeEnd : undefined,
     })
     if (result.error) setError(result.error)
     setItems(result.items)
-    setSetupRequired(result.setup_required)
     setCanManage(result.can_manage)
     setManagedChampionships(result.managed_championships)
     setLoading(false)
@@ -335,7 +328,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   }
 
   const rawTitle = props.title || 'CALENDÁRIO'
-  const title = contextualMode ? rawTitle.replace(/^CALENDÁRIO/i, 'AGENDA') : rawTitle
+  const title = rawTitle.replace(/^CALENDÁRIO/i, 'AGENDA')
 
   return (
     <div className={`agenda-root ${props.compact ? 'is-compact' : ''} ${props.className || ''}`}>
@@ -376,13 +369,6 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
             <i style={{ background: '#16a34a', border: '1px dashed #fff' }} /> Agenda livre
           </span>
           {canCreate ? <span>Clique em um horário vazio para adicionar</span> : <span>Agenda somente para consulta</span>}
-        </div>
-      ) : null}
-
-      {setupRequired ? (
-        <div className="agenda-setup-banner">
-          Agenda livre ainda precisa da migration <code>20260719_agenda_eventos.sql</code> no Supabase.
-          Os jogos de campeonato já aparecem normalmente.
         </div>
       ) : null}
 

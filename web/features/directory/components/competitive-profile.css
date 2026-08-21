@@ -508,6 +508,7 @@
   color: var(--profile-muted);
   font-size: 8px;
 }
+.profile-command-page .directory-profile-tab-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 12px;border:0;background:transparent;color:var(--profile-muted);font-size:10px;font-weight:900;text-decoration:none;text-transform:uppercase}.profile-command-page .directory-profile-tab-link:hover{color:var(--profile-ink);background:rgba(255,255,255,.04)}
 
 .profile-command-page .directory-profile-tab-panel {
   padding: 8px 0 26px;

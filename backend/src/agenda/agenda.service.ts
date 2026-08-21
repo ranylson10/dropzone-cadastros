@@ -443,45 +443,22 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
 
   const authUserId = params.authUserId || null
   let games: any[] = []
-  let freeRows: any[] = []
-  let setupRequired = false
-  let canManage = false
-  let managedChampionshipIds: string[] = []
+  const freeRows: any[] = []
+  const setupRequired = false
+  const canManage = false
+  const managedChampionshipIds: string[] = []
 
   if (params.scope === 'campeonato') {
     const campeonatoId = nonEmpty(params.scopeId, 'Campeonato')
     games = await listGamesByChampionshipIds([campeonatoId], from, to)
-    const free = await listFreeEvents({
-      from,
-      to,
-      authUserId,
-      campeonatoId,
-      onlyPublicOrShared: true,
-    })
-    freeRows = free.items
-    setupRequired = free.setupRequired
   } else if (params.scope === 'equipe') {
     const equipeId = nonEmpty(params.scopeId, 'Equipe')
     games = await listTeamGames(equipeId, from, to)
-    const free = await listFreeEvents({
-      from,
-      to,
-      authUserId,
-      equipeId,
-      onlyPublicOrShared: true,
-    })
-    freeRows = free.items
-    setupRequired = free.setupRequired
   } else {
     // scope=me
     if (!authUserId) throw new Error('Faça login para ver sua agenda.')
     const ctx = await resolveUserContext(authUserId)
-    canManage = ctx.managedChampionshipIds.length > 0
-    managedChampionshipIds = ctx.managedChampionshipIds
     games = await listGamesByChampionshipIds(ctx.campeonatoIds, from, to)
-    const free = await listFreeEvents({ from, to, authUserId })
-    freeRows = free.items
-    setupRequired = free.setupRequired
   }
 
   const champIds = [
@@ -512,10 +489,7 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
     return a.horario_inicio.localeCompare(b.horario_inicio)
   })
 
-  const managedNames = canManage ? await loadChampionshipNames(managedChampionshipIds) : new Map<string, string>()
-  const managedChampionships = managedChampionshipIds
-    .map((id) => ({ id, nome: managedNames.get(id) || 'Campeonato' }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  const managedChampionships: Array<{ id: string; nome: string }> = []
 
   return { items, setup_required: setupRequired, can_manage: canManage, managed_championships: managedChampionships }
 }

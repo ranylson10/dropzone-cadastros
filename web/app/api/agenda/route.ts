@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import {
-  createAgendaEvent,
-  deleteAgendaEvent,
   listAgenda,
-  updateAgendaEvent,
   type AgendaScope,
 } from '@backend/agenda/agenda.service'
 
@@ -81,49 +78,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const user = await getBearerUser(req)
-    const body = await req.json().catch(() => ({}))
-    const created = await createAgendaEvent(user.id, body)
-    return NextResponse.json({ item: created }, { status: 201 })
-  } catch (error: any) {
-    const message = error?.message || 'Erro ao criar evento.'
-    const status = /sess[aã]o|autorizado/i.test(message) ? 401 : 400
-    return NextResponse.json({ error: message }, { status })
-  }
+  return NextResponse.json({ error: 'A agenda é somente para consulta. Os horários oficiais são definidos nos jogos do campeonato.' }, { status: 405 })
 }
 
 export async function PATCH(req: NextRequest) {
-  try {
-    const user = await getBearerUser(req)
-    const body = await req.json().catch(() => ({}))
-    const id = String(body.id || '').trim()
-    if (!id) throw new Error('ID do evento é obrigatório.')
-    const updated = await updateAgendaEvent(user.id, id, body)
-    return NextResponse.json({ item: updated })
-  } catch (error: any) {
-    const message = error?.message || 'Erro ao atualizar evento.'
-    const status = /sess[aã]o|autorizado/i.test(message) ? 401 : 400
-    return NextResponse.json({ error: message }, { status })
-  }
+  return NextResponse.json({ error: 'A agenda é somente para consulta.' }, { status: 405 })
 }
 
 export async function DELETE(req: NextRequest) {
-  try {
-    const user = await getBearerUser(req)
-    const id = String(req.nextUrl.searchParams.get('id') || '').trim()
-    if (!id) {
-      const body = await req.json().catch(() => ({}))
-      const bodyId = String(body.id || '').trim()
-      if (!bodyId) throw new Error('ID do evento é obrigatório.')
-      await deleteAgendaEvent(user.id, bodyId)
-      return NextResponse.json({ ok: true })
-    }
-    await deleteAgendaEvent(user.id, id)
-    return NextResponse.json({ ok: true })
-  } catch (error: any) {
-    const message = error?.message || 'Erro ao excluir evento.'
-    const status = /sess[aã]o|autorizado/i.test(message) ? 401 : 400
-    return NextResponse.json({ error: message }, { status })
-  }
+  return NextResponse.json({ error: 'A agenda é somente para consulta.' }, { status: 405 })
 }

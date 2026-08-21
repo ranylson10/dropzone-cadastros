@@ -2,7 +2,6 @@
 
 import { ChevronDown, ChevronRight, ExternalLink, Users } from 'lucide-react'
 import { useState } from 'react'
-import { AgendaCalendar } from '@/features/agenda'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 
 /** Slot no padrão da aba Equipes (SLOT + avatar + nome + detalhe). */
@@ -173,15 +172,10 @@ export function DirectoryProfileTabs({
     tabLabel?: string
   } | null
 }) {
-  const tabTitles = [
-    ...sections.map((item) => item.title),
-    ...(agenda ? [agenda.tabLabel || 'Agenda'] : []),
-  ]
+  const tabTitles = sections.map((item) => item.title)
   const [active, setActive] = useState(tabTitles[0] || '')
   if (!tabTitles.length) return null
 
-  const agendaLabel = agenda?.tabLabel || 'Agenda'
-  const isAgenda = Boolean(agenda && active === agendaLabel)
   const section = sections.find((item) => item.title === active) || sections[0]
 
   return (
@@ -191,33 +185,17 @@ export function DirectoryProfileTabs({
           <button
             key={item.title}
             type="button"
-            className={!isAgenda && item.title === section?.title ? 'active' : ''}
+            className={item.title === section?.title ? 'active' : ''}
             onClick={() => setActive(item.title)}
           >
             {item.title}
             <span>{item.items.length}</span>
           </button>
         ))}
-        {agenda ? (
-          <button
-            type="button"
-            className={isAgenda ? 'active' : ''}
-            onClick={() => setActive(agendaLabel)}
-          >
-            {agendaLabel}
-          </button>
-        ) : null}
+        {agenda ? <a className="directory-profile-tab-link" href={`/agenda?scope=${agenda.scope}&id=${encodeURIComponent(agenda.scopeId)}`}>{agenda.tabLabel || 'Agenda'}</a> : null}
       </div>
       <div className="directory-profile-tab-panel">
-        {isAgenda && agenda ? (
-          <AgendaCalendar
-            title={agenda.title}
-            scope={agenda.scope}
-            scopeId={agenda.scopeId}
-            canCreate={false}
-            compact
-          />
-        ) : section?.layout === 'structure' ? (
+        {section?.layout === 'structure' ? (
           <StructureTree items={section.items} />
         ) : section?.items.length ? (
           renderSectionItems(section.items)

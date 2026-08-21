@@ -15,7 +15,6 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { AgendaCalendar } from '@/features/agenda'
 import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
 import { PixIcon, WhatsAppIcon } from '@/features/billing/BrandIcons'
 import { ReportButton } from '@/features/reports/ReportButton'
@@ -314,13 +313,10 @@ export function ChampionshipPublicView({
                   <small>Datas e horários do campeonato</small>
                 </div>
               </header>
-              <AgendaCalendar
-                title={`CALENDÁRIO ${profile.name}`.toUpperCase()}
-                scope="campeonato"
-                scopeId={profile.id}
-                canCreate={false}
-                compact
-              />
+              <div className="champ-public-agenda-link">
+                <p>Consulte os jogos deste campeonato na agenda central.</p>
+                <a className="button" href={`/agenda?scope=campeonato&id=${encodeURIComponent(profile.id)}`}>Abrir agenda do campeonato</a>
+              </div>
             </section>
           </div>
         ) : null}
