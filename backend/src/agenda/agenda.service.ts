@@ -48,6 +48,7 @@ export type ListAgendaParams = {
   from: string
   to: string
   authUserId?: string | null
+  all?: boolean
 }
 
 type AgendaListResult = {
@@ -452,11 +453,12 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
   const authUserId = params.authUserId || null
   let rows: any[] = []
   let unscheduledRows: any[] = []
+  const withinRange = (query: any) => params.all ? query : query.gte('data_evento', from).lte('data_evento', to)
 
   if (params.scope === 'campeonato') {
     const campeonatoId = nonEmpty(params.scopeId, 'Campeonato')
     const [scheduled, unscheduled] = await Promise.all([
-      supabaseAdmin.from('agenda_compromissos').select('*').eq('campeonato_id', campeonatoId).gte('data_evento', from).lte('data_evento', to).order('data_evento').order('horario_inicio'),
+      withinRange(supabaseAdmin.from('agenda_compromissos').select('*').eq('campeonato_id', campeonatoId)).order('data_evento').order('horario_inicio'),
       supabaseAdmin.from('agenda_compromissos').select('*').eq('campeonato_id', campeonatoId).is('data_evento', null),
     ])
     if (scheduled.error) throw scheduled.error
@@ -468,7 +470,7 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
   } else if (params.scope === 'equipe') {
     const equipeId = nonEmpty(params.scopeId, 'Equipe')
     const [scheduled, unscheduled] = await Promise.all([
-      supabaseAdmin.from('agenda_compromissos').select('*').eq('destino_tipo', 'equipe').eq('destino_id', equipeId).gte('data_evento', from).lte('data_evento', to).order('data_evento').order('horario_inicio'),
+      withinRange(supabaseAdmin.from('agenda_compromissos').select('*').eq('destino_tipo', 'equipe').eq('destino_id', equipeId)).order('data_evento').order('horario_inicio'),
       supabaseAdmin.from('agenda_compromissos').select('*').eq('destino_tipo', 'equipe').eq('destino_id', equipeId).is('data_evento', null),
     ])
     if (scheduled.error) throw scheduled.error
@@ -480,13 +482,11 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
     const accounts = await getAccountsByUserId(authUserId)
     const teamIds = accounts.filter((account) => account.profile_type === 'equipe').map((account) => account.id)
     const queries = [
-      supabaseAdmin.from('agenda_compromissos').select('*')
-        .eq('destino_tipo', 'usuario').eq('destino_id', authUserId)
-        .gte('data_evento', from).lte('data_evento', to),
+      withinRange(supabaseAdmin.from('agenda_compromissos').select('*')
+        .eq('destino_tipo', 'usuario').eq('destino_id', authUserId)),
       teamIds.length
-        ? supabaseAdmin.from('agenda_compromissos').select('*')
-          .eq('destino_tipo', 'equipe').in('destino_id', teamIds)
-          .gte('data_evento', from).lte('data_evento', to)
+        ? withinRange(supabaseAdmin.from('agenda_compromissos').select('*')
+          .eq('destino_tipo', 'equipe').in('destino_id', teamIds))
         : Promise.resolve({ data: [] as any[], error: null }),
       supabaseAdmin.from('agenda_compromissos').select('*')
         .eq('destino_tipo', 'usuario').eq('destino_id', authUserId).is('data_evento', null),

@@ -25,8 +25,9 @@ export async function fetchAgenda(params: {
   month: number
   from?: string
   to?: string
+  all?: boolean
 }): Promise<AgendaFetchResult> {
-  const cacheKey = `${params.scope}:${params.scopeId || 'me'}:${params.from || `${params.year}-${params.month}`}:${params.to || ''}`
+  const cacheKey = `${params.scope}:${params.scopeId || 'me'}:${params.all ? 'all' : params.from || `${params.year}-${params.month}`}:${params.to || ''}`
   const cached = agendaCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.value
 
@@ -43,6 +44,7 @@ export async function fetchAgenda(params: {
     if (params.scopeId) qs.set('id', params.scopeId)
     if (params.from) qs.set('from', params.from)
     if (params.to) qs.set('to', params.to)
+    if (params.all) qs.set('list', 'all')
 
     const headers: Record<string, string> = {}
     if (token) Object.assign(headers, authHeaders(token))

@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
     const month = Number(req.nextUrl.searchParams.get('month') || new Date().getMonth() + 1)
     const fromParam = req.nextUrl.searchParams.get('from')
     const toParam = req.nextUrl.searchParams.get('to')
+    const all = req.nextUrl.searchParams.get('list') === 'all'
 
     if (!Number.isInteger(year) || year < 2000 || year > 2100) {
       throw new Error('Ano inválido.')
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
       from,
       to,
       authUserId,
+      all,
     })
 
     return NextResponse.json({

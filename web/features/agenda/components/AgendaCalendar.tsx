@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, RefreshCw } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, RefreshCw, Search } from 'lucide-react'
 import {
   createAgendaItem,
   deleteAgendaItem,
@@ -148,6 +148,8 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [month, setMonth] = useState(props.initialMonth || now.getMonth() + 1)
   const [items, setItems] = useState<AgendaItem[]>([])
   const [unscheduled, setUnscheduled] = useState<AgendaItem[]>([])
+  const [allItems, setAllItems] = useState<AgendaItem[]>([])
+  const [eventSearch, setEventSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -170,15 +172,14 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
-    const result = await fetchAgenda({
-      scope: props.scope,
-      scopeId: props.scopeId,
-      year,
-      month,
-    })
+    const [result, directory] = await Promise.all([
+      fetchAgenda({ scope: props.scope, scopeId: props.scopeId, year, month }),
+      fetchAgenda({ scope: props.scope, scopeId: props.scopeId, year, month, all: true }),
+    ])
     if (result.error) setError(result.error)
     setItems(result.items)
     setUnscheduled(result.unscheduled)
+    setAllItems([...directory.items, ...directory.unscheduled])
     setCanManage(result.can_manage)
     setManagedChampionships(result.managed_championships)
     setLoading(false)
@@ -316,6 +317,28 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
     setGameDate(item.data)
     setGameTime(item.horario_inicio.slice(0, 5))
   }
+
+  function jumpToEvent(item: AgendaItem) {
+    if (!item.data) {
+      if (item.editable) openGameEditor(item)
+      else openItem(item)
+      return
+    }
+    const [nextYear, nextMonth] = item.data.split('-').map(Number)
+    if (Number.isFinite(nextYear) && Number.isFinite(nextMonth)) {
+      setYear(nextYear)
+      setMonth(nextMonth)
+      setSelectedDate(item.data)
+    }
+  }
+
+  const visibleListItems = useMemo(() => {
+    const search = eventSearch.trim().toLocaleLowerCase('pt-BR')
+    const unique = [...new Map(allItems.map((item) => [item.id, item])).values()]
+    return unique
+      .filter((item) => !search || [item.titulo, item.meta.campeonato_nome, item.data].filter(Boolean).join(' ').toLocaleLowerCase('pt-BR').includes(search))
+      .sort((a, b) => (a.data || '9999-12-31').localeCompare(b.data || '9999-12-31') || a.horario_inicio.localeCompare(b.horario_inicio))
+  }, [allItems, eventSearch])
 
   async function saveGameSchedule() {
     if (!editingGame?.meta.jogo_id) return
@@ -612,31 +635,25 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
         <header>
           <div>
             <p className="eyebrow">Compromissos</p>
-            <h3>{items.length + unscheduled.length} compromisso{items.length + unscheduled.length === 1 ? '' : 's'}</h3>
+            <h3>{visibleListItems.length} compromisso{visibleListItems.length === 1 ? '' : 's'}</h3>
           </div>
           <small>{MONTH_NAMES_PT[month - 1].slice(0, 3)} {year}</small>
         </header>
+        <label className="agenda-event-search">
+          <Search size={14} />
+          <input value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} placeholder="Pesquisar evento ou campeonato" />
+        </label>
         <div className="agenda-event-list-items">
-          {items.length || unscheduled.length ? <>
-            {items.map((item) => (
+          {visibleListItems.length ? <>
+            {visibleListItems.map((item) => (
             <article key={`list-${item.id}`} className="agenda-event-list-item">
-              <button type="button" className="agenda-event-list-open" onClick={() => openItem(item)}>
-                <time>{item.data.slice(8, 10)}/{item.data.slice(5, 7)} · {item.horario_inicio.slice(0, 5)}</time>
+              <button type="button" className="agenda-event-list-open" onClick={() => jumpToEvent(item)}>
+                <time>{item.data ? `${item.data.slice(8, 10)}/${item.data.slice(5, 7)} · ${item.horario_inicio.slice(0, 5)}` : 'PARA AGENDAR'}</time>
                 <strong>{item.titulo}</strong>
                 <small>{item.meta.campeonato_nome || 'Campeonato'}</small>
               </button>
               {item.editable ? <button type="button" className="agenda-event-list-edit" onClick={() => openGameEditor(item)}>Ajustar</button> : null}
             </article>
-            ))}
-            {unscheduled.map((item) => (
-              <article key={`pending-${item.id}`} className="agenda-event-list-item is-pending">
-                <button type="button" className="agenda-event-list-open" onClick={() => item.editable ? openGameEditor(item) : openItem(item)}>
-                  <time>PARA AGENDAR</time>
-                  <strong>{item.titulo}</strong>
-                  <small>{item.meta.campeonato_nome || 'Campeonato'}</small>
-                </button>
-                {item.editable ? <button type="button" className="agenda-event-list-edit" onClick={() => openGameEditor(item)}>Definir</button> : null}
-              </article>
             ))}
           </> : <p className="agenda-event-list-empty">Nenhum jogo neste mês.</p>}
         </div>
