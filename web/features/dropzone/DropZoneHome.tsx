@@ -2062,6 +2062,7 @@ export function DropZoneHome() {
                 playerTeams={playerTeams}
                 teams={teams}
                 teamLines={teamLines}
+                championships={championships}
               />
             ) : null}
 
