@@ -42,6 +42,10 @@ test.describe('Commerce — carrinho e favoritos persistidos', () => {
     expect(webList).toContain('/api/me/commerce/wishlist')
     expect(webList).toContain('Authorization: `Bearer ${accessToken}`')
     expect(webList).toContain('commerceItemFromApi')
+    expect(webList).toContain('synchronizeCartForCheckout')
+    expect(webList).toContain('Preparando pagamentos…')
+    expect(webList).toContain("/?painel=1&perfil=produtora&acao=criar-campeonato")
+    expect(webList).toContain('canCreateChampionship')
 
     expect(appApi).toContain('commerceCart')
     expect(appApi).toContain('addCommerceCart')

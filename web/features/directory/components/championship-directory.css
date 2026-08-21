@@ -37,7 +37,7 @@
   position:relative;
   z-index:4;
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto auto auto;
+  grid-template-columns:minmax(0,1fr) auto auto auto auto;
   align-items:center;
   gap:8px;
   width:min(1180px,calc(100% - 32px));
@@ -85,6 +85,23 @@
   white-space:nowrap;
 }
 .directory-market-page .directory-result-count strong{color:var(--champ-text);font-size:16px}
+.directory-create-championship{
+  display:inline-flex;
+  min-height:44px;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:0 12px;
+  border-radius:10px;
+  background:var(--champ-accent);
+  color:#15140d;
+  font-size:10px;
+  font-weight:950;
+  text-decoration:none;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.directory-create-championship:hover{background:var(--champ-accent-strong)}
 .directory-market-tool{position:relative}
 .directory-market-tool>summary{
   position:relative;
@@ -156,7 +173,8 @@
 .directory-market-page .directory-cart-preview article strong{overflow:hidden;color:var(--champ-text);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
 .directory-market-page .directory-cart-preview article small{color:var(--champ-muted);font-size:9px}
 .directory-market-page .directory-cart-preview input{width:52px;min-height:32px;border:0;border-radius:7px;background:var(--champ-bg);color:var(--champ-text);text-align:center}
-.directory-market-page .directory-cart-preview article button{min-height:32px;border:0;border-radius:7px;padding:0 8px;background:var(--champ-bg);color:var(--champ-text);font-size:9px;font-weight:900;text-transform:uppercase}
+.directory-market-page .directory-cart-preview article button{min-height:32px;border:0;border-radius:7px;padding:0 8px;background:var(--champ-bg);color:var(--champ-text);font-size:9px;font-weight:900;text-transform:uppercase;cursor:pointer}
+.directory-market-page .directory-cart-preview article button:disabled,.directory-market-page .directory-cart-checkout-all:disabled{cursor:wait;opacity:.62}
 .directory-market-page .directory-cart-total{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0 2px;border-top:1px solid var(--champ-bg);color:var(--champ-muted);font-size:10px}
 .directory-market-page .directory-cart-total strong{color:var(--champ-text);font-size:13px}
 .directory-market-page .directory-cart-checkout-all{min-height:38px;border:0;border-radius:8px;background:var(--champ-accent);color:#15140d;font-size:10px;font-weight:950;text-transform:uppercase;cursor:pointer}
@@ -337,10 +355,11 @@
   .champ-directory-heading{width:calc(100% - 20px);padding:18px 0 10px}
   .champ-directory-heading h1{font-size:28px}
   .champ-directory-heading p{display:none}
-  .champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto;width:calc(100% - 20px);gap:5px;margin-bottom:8px}
+  .champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto auto;width:calc(100% - 20px);gap:5px;margin-bottom:8px}
   .directory-market-page .directory-search{min-height:42px;padding:0 11px;border-radius:8px}
   .directory-market-page .directory-result-count{grid-column:1/-1;grid-row:2;padding:0 2px;font-size:8px}
   .directory-market-page .directory-result-count strong{font-size:12px}
+  .directory-create-championship{min-height:42px;padding:0 9px;border-radius:8px;font-size:8px}
   .directory-market-tool>summary{width:42px;height:42px;border-radius:8px}
   .directory-market-tool>div{position:fixed;left:10px;right:10px;top:auto;bottom:calc(64px + env(safe-area-inset-bottom));width:auto;max-height:56dvh;border-radius:12px 12px 0 0}
   .directory-market-filters{width:calc(100% - 20px);margin-bottom:8px;padding-left:0;gap:4px}
