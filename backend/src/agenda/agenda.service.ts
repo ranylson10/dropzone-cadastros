@@ -14,6 +14,7 @@ export type AgendaItem = {
   horario_inicio: string
   horario_fim: string | null
   cor: string
+  cor_texto?: string | null
   tipo: string
   visibilidade?: string
   editable: boolean
@@ -36,6 +37,7 @@ export type AgendaEventInput = {
   horario_inicio: string
   horario_fim?: string | null
   cor?: string | null
+  cor_texto?: string | null
   tipo?: string | null
   visibilidade?: string | null
   campeonato_id?: string | null
@@ -157,6 +159,8 @@ function sanitizeEventInput(input: Partial<AgendaEventInput>) {
 
   const corRaw = String(input.cor || '#3b82f6').trim()
   const cor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(corRaw) ? corRaw : '#3b82f6'
+  const textRaw = String(input.cor_texto || '#ffffff').trim()
+  const cor_texto = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(textRaw) ? textRaw : '#ffffff'
 
   return {
     titulo: titulo.slice(0, 120),
@@ -165,6 +169,7 @@ function sanitizeEventInput(input: Partial<AgendaEventInput>) {
     horario_inicio: inicio,
     horario_fim: fim,
     cor,
+    cor_texto,
     tipo,
     visibilidade,
     campeonato_id: input.campeonato_id ? String(input.campeonato_id).trim() || null : null,
@@ -198,6 +203,7 @@ function mapFreeEvent(row: any, editable: boolean, champNames: Map<string, strin
     horario_inicio: normalizeTime(row.horario_inicio) || '00:00',
     horario_fim: normalizeTime(row.horario_fim),
     cor: row.cor || '#3b82f6',
+    cor_texto: row.cor_texto || '#ffffff',
     tipo: row.tipo || 'livre',
     visibilidade: row.visibilidade || 'privada',
     editable,
@@ -453,6 +459,8 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
   const authUserId = params.authUserId || null
   let rows: any[] = []
   let unscheduledRows: any[] = []
+  let freeRows: any[] = []
+  let canCreatePersonal = false
   const withinRange = (query: any) => params.all ? query : query.gte('data_evento', from).lte('data_evento', to)
 
   if (params.scope === 'campeonato') {
@@ -480,6 +488,7 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
   } else {
     if (!authUserId) throw new Error('Faça login para ver sua agenda.')
     const accounts = await getAccountsByUserId(authUserId)
+    canCreatePersonal = accounts.some((account) => ['jogador', 'equipe', 'manager', 'produtora'].includes(String(account.profile_type || '')))
     const teamIds = accounts.filter((account) => account.profile_type === 'equipe').map((account) => account.id)
     const queries = [
       withinRange(supabaseAdmin.from('agenda_compromissos').select('*')
@@ -502,9 +511,17 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
     if (teamUnscheduled.error) throw teamUnscheduled.error
     rows = [...new Map([...(personal.data || []), ...(team.data || [])].map((row: any) => [row.jogo_id, row])).values()]
     unscheduledRows = [...new Map([...(personalUnscheduled.data || []), ...(teamUnscheduled.data || [])].map((row: any) => [row.jogo_id, row])).values()]
+    let freeQuery = supabaseAdmin.from('agenda_eventos').select('*').eq('auth_user_id', authUserId).order('data_evento').order('horario_inicio')
+    if (!params.all) freeQuery = freeQuery.gte('data_evento', from).lte('data_evento', to)
+    const { data: personalEvents, error: personalEventsError } = await freeQuery
+    if (personalEventsError && !isMissingRelation(personalEventsError)) throw personalEventsError
+    freeRows = personalEvents || []
   }
 
-  const items = rows.map((row) => mapProjectedGame(row, Boolean(authUserId && row.owner_auth_user_id === authUserId)))
+  const items = [
+    ...rows.map((row) => mapProjectedGame(row, Boolean(authUserId && row.owner_auth_user_id === authUserId))),
+    ...freeRows.map((row) => mapFreeEvent(row, Boolean(authUserId && row.auth_user_id === authUserId), new Map(), new Map())),
+  ]
 
   items.sort((a, b) => {
     const d = a.data.localeCompare(b.data)
@@ -513,19 +530,23 @@ export async function listAgenda(params: ListAgendaParams): Promise<AgendaListRe
   })
 
   const unscheduled = unscheduledRows.map((row) => mapProjectedGame(row, Boolean(authUserId && row.owner_auth_user_id === authUserId)))
-  return { items, unscheduled, setup_required: false, can_manage: false, managed_championships: [] }
+  return { items, unscheduled, setup_required: false, can_manage: canCreatePersonal, managed_championships: [] }
 }
 
 export async function createAgendaEvent(authUserId: string, input: AgendaEventInput) {
+  const accounts = await getAccountsByUserId(authUserId)
+  if (!accounts.some((account) => ['jogador', 'equipe', 'manager', 'produtora'].includes(String(account.profile_type || '')))) {
+    throw new Error('Compromissos pessoais estão disponíveis apenas para jogadores, líderes de equipe e produtoras.')
+  }
   const payload = sanitizeEventInput(input)
-  const campeonatoId = await assertCanManageChampionshipAgenda(authUserId, payload.campeonato_id)
+  payload.campeonato_id = null
+  payload.equipe_id = null
+  payload.visibilidade = 'privada'
   const { data, error } = await supabaseAdmin
     .from('agenda_eventos')
     .insert({
       auth_user_id: authUserId,
       ...payload,
-      campeonato_id: campeonatoId,
-      visibilidade: 'campeonato',
       updated_at: new Date().toISOString(),
     })
     .select('*')
@@ -565,8 +586,9 @@ export async function updateAgendaEvent(authUserId: string, id: string, input: P
     campeonato_id: input.campeonato_id !== undefined ? input.campeonato_id : existing.campeonato_id,
     equipe_id: input.equipe_id !== undefined ? input.equipe_id : existing.equipe_id,
   })
-  payload.campeonato_id = await assertCanManageChampionshipAgenda(authUserId, payload.campeonato_id)
-  payload.visibilidade = 'campeonato'
+  payload.campeonato_id = null
+  payload.equipe_id = null
+  payload.visibilidade = 'privada'
 
   const { data, error } = await supabaseAdmin
     .from('agenda_eventos')

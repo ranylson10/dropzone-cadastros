@@ -17,6 +17,7 @@ const EMPTY_FORM: AgendaEventForm = {
   horario_inicio: '18:00',
   horario_fim: '20:00',
   cor: '#3b82f6',
+  cor_texto: '#ffffff',
   tipo: 'livre',
   visibilidade: 'privada',
   campeonato_id: '',
@@ -32,6 +33,7 @@ function itemToForm(item: AgendaItem): AgendaEventForm {
     horario_inicio: item.horario_inicio,
     horario_fim: item.horario_fim || '',
     cor: item.cor || '#3b82f6',
+    cor_texto: item.cor_texto || '#ffffff',
     tipo: item.tipo === 'jogo' ? 'livre' : item.tipo || 'livre',
     visibilidade: item.visibilidade || 'privada',
     campeonato_id: item.meta.campeonato_id || '',
@@ -76,7 +78,8 @@ export function AgendaEventModal({
       data_evento: defaults?.data_evento || new Date().toISOString().slice(0, 10),
       horario_inicio: defaults?.horario_inicio || '18:00',
       horario_fim: defaults?.horario_fim || '20:00',
-      cor: defaults?.cor || '#3b82f6',
+              cor: defaults?.cor || '#3b82f6',
+              cor_texto: defaults?.cor_texto || '#ffffff',
     })
   }, [open, item, defaults])
 
@@ -96,7 +99,6 @@ export function AgendaEventModal({
       if (!form.titulo.trim()) throw new Error('Informe o título.')
       if (!form.data_evento) throw new Error('Informe a data.')
       if (!form.horario_inicio) throw new Error('Informe o horário de início.')
-      if (!form.campeonato_id) throw new Error('Selecione o campeonato.')
       await onSave(form)
     } catch (err: any) {
       setError(err?.message || 'Não foi possível salvar.')
@@ -239,15 +241,6 @@ export function AgendaEventModal({
           </div>
 
           <div className="agenda-form-grid">
-            <Field label="Campeonato">
-              <select
-                value={form.campeonato_id}
-                onChange={(e) => setForm((c) => ({ ...c, campeonato_id: e.target.value }))}
-              >
-                <option value="">Selecione um campeonato</option>
-                {championships.map((championship) => <option key={championship.id} value={championship.id}>{championship.nome}</option>)}
-              </select>
-            </Field>
             <Field label="Tipo">
               <select
                 value={form.tipo}
@@ -260,17 +253,7 @@ export function AgendaEventModal({
                 ))}
               </select>
             </Field>
-            <Field label="Visibilidade">
-              <select
-                value={form.visibilidade}
-                onChange={(e) => setForm((c) => ({ ...c, visibilidade: e.target.value }))}
-              >
-                <option value="privada">Privada (só você)</option>
-                <option value="equipe">Equipe vinculada</option>
-                <option value="campeonato">Campeonato vinculado</option>
-                <option value="publica">Pública</option>
-              </select>
-            </Field>
+            <Field label="Visibilidade"><input value="Somente você" disabled /></Field>
           </div>
 
           <Field label="Cor no calendário">
@@ -287,6 +270,7 @@ export function AgendaEventModal({
               ))}
             </div>
           </Field>
+          <Field label="Cor do texto"><input type="color" value={form.cor_texto || '#ffffff'} onChange={(e) => setForm((c) => ({ ...c, cor_texto: e.target.value }))} /></Field>
 
           <Field label="Descrição (opcional)">
             <textarea

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import {
+  createAgendaEvent,
+  deleteAgendaEvent,
   listAgenda,
   type AgendaScope,
+  updateAgendaEvent,
 } from '@backend/agenda/agenda.service'
 import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
@@ -83,13 +86,23 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  return NextResponse.json({ error: 'A agenda é somente para consulta. Os horários oficiais são definidos nos jogos do campeonato.' }, { status: 405 })
+  try {
+    const user = await getBearerUser(req)
+    const item = await createAgendaEvent(user.id, await req.json().catch(() => ({})))
+    return NextResponse.json({ ok: true, item })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao criar compromisso.' }, { status: 400 })
+  }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const body = await req.json().catch(() => ({}))
+    if (!body.jogo_id) {
+      const item = await updateAgendaEvent(user.id, String(body.id || ''), body)
+      return NextResponse.json({ ok: true, item })
+    }
     const jogoId = String(body.jogo_id || '').trim()
     const dataJogo = String(body.data_jogo || '').trim()
     const horario = String(body.horario || '').trim()
@@ -114,5 +127,12 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  return NextResponse.json({ error: 'A agenda é somente para consulta.' }, { status: 405 })
+  try {
+    const user = await getBearerUser(req)
+    const id = String(req.nextUrl.searchParams.get('id') || '').trim()
+    await deleteAgendaEvent(user.id, id)
+    return NextResponse.json({ ok: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao excluir compromisso.' }, { status: 400 })
+  }
 }

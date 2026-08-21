@@ -150,6 +150,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [unscheduled, setUnscheduled] = useState<AgendaItem[]>([])
   const [allItems, setAllItems] = useState<AgendaItem[]>([])
   const [eventSearch, setEventSearch] = useState('')
+  const [expandedChampionship, setExpandedChampionship] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -167,7 +168,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
 
   // A agenda é uma única central de consulta. Datas oficiais vêm dos jogos;
   // não há mais calendário livre criado dentro de perfis ou pela página /agenda.
-  const canCreate = false
+  const canCreate = canManage && props.scope === 'me'
   const contextualMode = false
   const load = useCallback(async () => {
     setLoading(true)
@@ -332,13 +333,22 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
     }
   }
 
-  const visibleListItems = useMemo(() => {
+  const championshipGroups = useMemo(() => {
     const search = eventSearch.trim().toLocaleLowerCase('pt-BR')
     const unique = [...new Map(allItems.map((item) => [item.id, item])).values()]
-    return unique
-      .filter((item) => !search || [item.titulo, item.meta.campeonato_nome, item.data].filter(Boolean).join(' ').toLocaleLowerCase('pt-BR').includes(search))
-      .sort((a, b) => (a.data || '9999-12-31').localeCompare(b.data || '9999-12-31') || a.horario_inicio.localeCompare(b.horario_inicio))
+    const groups = new Map<string, { id: string; name: string; items: AgendaItem[] }>()
+    unique.filter((item) => item.source === 'jogo').forEach((item) => {
+      const id = String(item.meta.campeonato_id || item.meta.campeonato_nome || 'sem-campeonato')
+      const group = groups.get(id) || { id, name: item.meta.campeonato_nome || 'Campeonato', items: [] }
+      group.items.push(item)
+      groups.set(id, group)
+    })
+    return [...groups.values()]
+      .filter((group) => !search || `${group.name} ${group.items.map((item) => item.titulo).join(' ')}`.toLocaleLowerCase('pt-BR').includes(search))
+      .map((group) => ({ ...group, items: group.items.sort((a, b) => (a.data || '9999-12-31').localeCompare(b.data || '9999-12-31') || a.horario_inicio.localeCompare(b.horario_inicio)) }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
   }, [allItems, eventSearch])
+  const personalItems = useMemo(() => allItems.filter((item) => item.source === 'livre'), [allItems])
 
   async function saveGameSchedule() {
     if (!editingGame?.meta.jogo_id) return
@@ -600,7 +610,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
                                 <button
                                   type="button"
                                   className={`agenda-event-block ${placement.item.source === 'jogo' ? 'is-jogo' : 'is-livre'}`}
-                                  style={{ background: placement.item.cor }}
+                                  style={{ background: placement.item.cor, color: placement.item.cor_texto || '#ffffff' }}
                                   title={`${placement.item.titulo} · ${placement.item.horario_inicio}${placement.item.horario_fim ? `–${placement.item.horario_fim}` : ''}`}
                                   onClick={() => openItem(placement.item)}
                                 >
@@ -635,27 +645,26 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
         <header>
           <div>
             <p className="eyebrow">Compromissos</p>
-            <h3>{visibleListItems.length} compromisso{visibleListItems.length === 1 ? '' : 's'}</h3>
+            <h3>{championshipGroups.length} campeonato{championshipGroups.length === 1 ? '' : 's'}</h3>
           </div>
           <small>{MONTH_NAMES_PT[month - 1].slice(0, 3)} {year}</small>
         </header>
         <label className="agenda-event-search">
           <Search size={14} />
-          <input value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} placeholder="Pesquisar evento ou campeonato" />
+          <input value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} placeholder="Pesquisar campeonato" />
         </label>
         <div className="agenda-event-list-items">
-          {visibleListItems.length ? <>
-            {visibleListItems.map((item) => (
-            <article key={`list-${item.id}`} className="agenda-event-list-item">
-              <button type="button" className="agenda-event-list-open" onClick={() => jumpToEvent(item)}>
-                <time>{item.data ? `${item.data.slice(8, 10)}/${item.data.slice(5, 7)} · ${item.horario_inicio.slice(0, 5)}` : 'PARA AGENDAR'}</time>
-                <strong>{item.titulo}</strong>
-                <small>{item.meta.campeonato_nome || 'Campeonato'}</small>
-              </button>
+          {championshipGroups.length ? championshipGroups.map((group) => <section key={group.id} className="agenda-championship-group">
+            <button type="button" className="agenda-championship-toggle" onClick={() => setExpandedChampionship((current) => current === group.id ? null : group.id)}>
+              <span><strong>{group.name}</strong><small>{group.items.length} jogo{group.items.length === 1 ? '' : 's'}</small></span>
+              <span>{expandedChampionship === group.id ? '−' : '+'}</span>
+            </button>
+            {expandedChampionship === group.id ? <div className="agenda-championship-games">{group.items.map((item) => <article key={item.id} className="agenda-event-list-item">
+              <button type="button" className="agenda-event-list-open" onClick={() => jumpToEvent(item)}><time>{item.data ? `${item.data.slice(8, 10)}/${item.data.slice(5, 7)} · ${item.horario_inicio.slice(0, 5)}` : 'PARA AGENDAR'}</time><strong>{item.titulo}</strong></button>
               {item.editable ? <button type="button" className="agenda-event-list-edit" onClick={() => openGameEditor(item)}>Ajustar</button> : null}
-            </article>
-            ))}
-          </> : <p className="agenda-event-list-empty">Nenhum jogo neste mês.</p>}
+            </article>)}</div> : null}
+          </section>) : <p className="agenda-event-list-empty">Nenhum campeonato encontrado.</p>}
+          {personalItems.length ? <section className="agenda-personal-items"><p className="eyebrow">Meus compromissos</p>{personalItems.map((item) => <button type="button" key={item.id} onClick={() => openItem(item)}>{item.titulo}</button>)}</section> : null}
         </div>
       </aside>
       </div>

@@ -11,6 +11,7 @@ export type AgendaItem = {
   horario_inicio: string
   horario_fim: string | null
   cor: string
+  cor_texto?: string | null
   tipo: string
   visibilidade?: string
   editable: boolean
@@ -34,6 +35,7 @@ export type AgendaEventForm = {
   horario_inicio: string
   horario_fim: string
   cor: string
+  cor_texto?: string
   tipo: string
   visibilidade: string
   campeonato_id: string
