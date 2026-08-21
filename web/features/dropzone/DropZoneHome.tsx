@@ -417,6 +417,10 @@ export function DropZoneHome() {
         const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
         const requestedLogin = String(params.get('login') || '').trim()
         const requestedRegister = String(params.get('cadastro') || '').trim()
+        // Compatibilidade para atalhos internos antigos da Lili. Não abre
+        // seleção de perfil: só escolhe, nesta navegação, uma área já ligada
+        // à mesma conta autenticada.
+        const requestedActiveProfile = parseProfileType(String(params.get('perfil') || ''))
         // O retorno do login social pode pedir qualquer um dos cinco perfis.
         // Antes, somente equipe e jogador eram reconhecidos; produtora, manager
         // e broadcast voltavam para a seleção mesmo quando o cadastro era explícito.
@@ -568,7 +572,8 @@ export function DropZoneHome() {
         if (session) {
           try {
             const storedType = localStorage.getItem('dropzone_active_profile_type') as ProfileType | null
-            const cachedSnapshot = readPanelSnapshot(storedType)
+            const preferredType = requestedActiveProfile || storedType
+            const cachedSnapshot = readPanelSnapshot(preferredType)
             if (cachedSnapshot) {
               setAccount(cachedSnapshot.account)
               setAccounts(cachedSnapshot.accounts)
@@ -576,7 +581,7 @@ export function DropZoneHome() {
               // Libera a UI cedo com cache; loadMeAndRows atualiza em seguida
               if (!cancelled) setQueryReady(true)
             }
-            await loadMeAndRows(session.access_token, storedType)
+            await loadMeAndRows(session.access_token, preferredType)
           } catch {
             setAccount(null)
             setAccounts([])

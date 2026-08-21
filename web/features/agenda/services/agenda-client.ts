@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase-browser'
+import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 import { authHeaders } from '@/features/dropzone/utils'
 import type { AgendaEventForm, AgendaItem, AgendaScope } from '../types/agenda.types'
 
@@ -75,7 +76,10 @@ export async function fetchAgenda(params: {
 
 export async function createAgendaItem(form: AgendaEventForm) {
   const token = await sessionToken()
-  if (!token) throw new Error('Faça login para adicionar na agenda.')
+  if (!token) {
+    redirectToLogin(null, currentInternalPath())
+    throw new Error('Redirecionando para o login…')
+  }
 
   const res = await fetch('/api/agenda', {
     method: 'POST',
@@ -101,7 +105,10 @@ export async function createAgendaItem(form: AgendaEventForm) {
 
 export async function updateAgendaItem(form: AgendaEventForm) {
   const token = await sessionToken()
-  if (!token) throw new Error('Faça login para editar a agenda.')
+  if (!token) {
+    redirectToLogin(null, currentInternalPath())
+    throw new Error('Redirecionando para o login…')
+  }
   if (!form.id) throw new Error('ID do evento é obrigatório.')
 
   const res = await fetch('/api/agenda', {
@@ -129,7 +136,10 @@ export async function updateAgendaItem(form: AgendaEventForm) {
 
 export async function deleteAgendaItem(id: string) {
   const token = await sessionToken()
-  if (!token) throw new Error('Faça login para excluir da agenda.')
+  if (!token) {
+    redirectToLogin(null, currentInternalPath())
+    throw new Error('Redirecionando para o login…')
+  }
 
   const res = await fetch(`/api/agenda?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
@@ -142,7 +152,10 @@ export async function deleteAgendaItem(id: string) {
 
 export async function updateAgendaGame(jogoId: string, dataJogo: string, horario: string) {
   const token = await sessionToken()
-  if (!token) throw new Error('Faça login para reorganizar um jogo.')
+  if (!token) {
+    redirectToLogin(null, currentInternalPath())
+    throw new Error('Redirecionando para o login…')
+  }
   const res = await fetch('/api/agenda', {
     method: 'PATCH',
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },

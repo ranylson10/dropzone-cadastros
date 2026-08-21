@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Activity, AlertCircle, AlertTriangle, CheckCircle2, Clock3, ExternalLink, Gamepad2, Info, LoaderCircle, MapPin, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 import './championship-central.css'
 
 type Championship = { id: string; nome: string; tipo?: string; access?: 'administration' | 'participant'; permission?: { role?: string } }
@@ -38,7 +39,10 @@ type ChoicePayload = {
 async function authHeaders() {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
-  if (!token) throw new Error('Entre na sua conta para acessar a Central do Campeonato.')
+  if (!token) {
+    redirectToLogin(null, currentInternalPath())
+    throw new Error('Redirecionando para o login…')
+  }
   return { Authorization: `Bearer ${token}` }
 }
 

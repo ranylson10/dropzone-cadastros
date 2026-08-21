@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Wallet } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 import './wallet-panel.css'
 
 function money(centavos: number) {
@@ -28,7 +29,10 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
 
   async function headers() {
     const { data: sess } = await supabase.auth.getSession()
-    if (!sess.session) throw new Error('Faça login novamente.')
+    if (!sess.session) {
+      redirectToLogin(null, currentInternalPath())
+      throw new Error('Redirecionando para o login…')
+    }
     return {
       Authorization: `Bearer ${sess.session.access_token}`,
       'Content-Type': 'application/json',

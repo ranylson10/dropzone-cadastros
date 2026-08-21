@@ -6,6 +6,7 @@ import { ShieldCheck, Swords, Trophy } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { authHeaders } from '@/features/dropzone/utils'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { buildLoginHref } from '@/features/auth/auth-return'
 
 export default function TeamRosterInvitePage() {
   const token = String(useParams().token || '')
@@ -26,7 +27,7 @@ export default function TeamRosterInvitePage() {
     try {
       const { data } = await supabase.auth.getSession()
       if (!data.session) {
-        window.location.href = `/?perfil=jogador&returnTo=${encodeURIComponent(`/equipe/entrar/${token}`)}`
+        window.location.href = buildLoginHref('jogador', `/equipe/entrar/${encodeURIComponent(token)}`)
         return
       }
       const res = await fetch(`/api/equipes/convites-elenco/${encodeURIComponent(token)}`, { method: 'POST', headers: authHeaders(data.session.access_token, 'jogador') })

@@ -44,3 +44,18 @@ export function buildProfileCreationHref(profileType: ProfileType, returnTo = '/
   })
   return `/?${params.toString()}`
 }
+
+/** Caminho atual seguro para retomar uma ação após autenticar. */
+export function currentInternalPath() {
+  if (typeof window === 'undefined') return '/'
+  return safeInternalPath(`${window.location.pathname}${window.location.search}${window.location.hash}`)
+}
+
+/**
+ * Centraliza bloqueios de sessão no cliente. Nenhuma área protegida deve só
+ * informar que a sessão expirou: ela precisa abrir o login com o contexto.
+ */
+export function redirectToLogin(profileType?: ProfileType | null, returnTo = currentInternalPath()) {
+  if (typeof window === 'undefined') return
+  window.location.assign(buildLoginHref(profileType, returnTo))
+}

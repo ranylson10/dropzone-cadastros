@@ -49,9 +49,10 @@ test('123 - perfis são carregados por uma única RPC no servidor', async () => 
   expect(linkBlock).toContain('const linked = await Promise.all(')
 })
 
-test('123 - retorno OAuth é preservado até usuário abrir ou criar o perfil', async () => {
+test('123 - retorno OAuth é preservado até a sessão abrir o destino solicitado', async () => {
   expect(loginPage).toContain('function clearOAuthReturnState()')
-  expect(loginPage).toContain('function openProfile(profile: DropZoneRow)')
-  expect(loginPage).toContain('function createProfile(type: ProfileType)')
+  expect(loginPage).toContain('function continueToWorkspace(userAccounts: DropZoneRow[])')
+  expect(loginPage).toContain("const returnTo = safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/')")
+  expect(loginPage).toContain('window.location.replace(returnTo)')
   expect(loginPage).not.toContain('if (complete) {\n        try {\n          sessionStorage.removeItem(OAUTH_RETURN_KEY)')
 })

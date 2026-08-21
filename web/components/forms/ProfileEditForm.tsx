@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Field, UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
+import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 
 type ProfileType = 'equipe' | 'manager' | 'jogador' | 'produtora' | 'broadcast'
 
@@ -66,7 +67,10 @@ export function ProfileEditForm(props: {
     try {
       const { data } = await supabase.auth.getSession()
       const token = data.session?.access_token
-      if (!token) throw new Error('Sessão expirada.')
+      if (!token) {
+        redirectToLogin(null, currentInternalPath())
+        return
+      }
 
       const resolvedLogo = await resolvePendingImageUpload(logo)
       if (resolvedLogo !== logo) setLogo(resolvedLogo)

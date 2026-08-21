@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 
 function bytes(value: number) {
   if (!value) return '0 MB'
@@ -45,7 +46,10 @@ export default function AdminPage() {
 
   async function headers() {
     const { data: sess } = await supabase.auth.getSession()
-    if (!sess.session) throw new Error('Entre com a conta administradora.')
+    if (!sess.session) {
+      redirectToLogin(null, currentInternalPath())
+      throw new Error('Redirecionando para o login…')
+    }
     return {
       Authorization: `Bearer ${sess.session.access_token}`,
       'Content-Type': 'application/json',

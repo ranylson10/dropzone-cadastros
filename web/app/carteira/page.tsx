@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { supabase } from '@/lib/supabase-browser'
+import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 
 function money(centavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
@@ -56,7 +57,10 @@ export default function CarteiraPage() {
 
   async function headers() {
     const { data: sess } = await supabase.auth.getSession()
-    if (!sess.session) throw new Error('Faça login para acessar a carteira.')
+    if (!sess.session) {
+      redirectToLogin(null, currentInternalPath())
+      throw new Error('Redirecionando para o login…')
+    }
     return {
       Authorization: `Bearer ${sess.session.access_token}`,
       'Content-Type': 'application/json',

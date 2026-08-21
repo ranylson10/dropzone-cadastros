@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Search, Send, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 
 export function PlayerTeamRequest({ mode, equipeId, accessToken }: { mode: 'invite_player' | 'request_join'; equipeId?: string; accessToken?: string | null }) {
   const [query, setQuery] = useState('')
@@ -13,7 +14,10 @@ export function PlayerTeamRequest({ mode, equipeId, accessToken }: { mode: 'invi
   async function token() {
     if (accessToken) return accessToken
     const { data } = await supabase.auth.getSession()
-    if (!data.session?.access_token) throw new Error('Entre novamente na sua conta.')
+    if (!data.session?.access_token) {
+      redirectToLogin(null, currentInternalPath())
+      throw new Error('Redirecionando para o login…')
+    }
     return data.session.access_token
   }
 
