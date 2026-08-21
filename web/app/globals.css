@@ -6238,7 +6238,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .team-dashboard .player-team-request-title,
 .producer-layout-ref .championship-vagas-list .vaga-row-summary{ border-color: rgba(16,24,32,.12);
 } .directory-empty{ padding: 48px; text-align: center; border: 1px dashed var(--dz-line, #d7d2c8); color: #6d6b67; background: rgba(255,255,255,.56); border-radius: 0; box-shadow: none; width: min(1240px, calc(100% - 32px)); margin-left: auto; margin-right: auto; border-color: #d7d0c6;
-} .directory-toolbar{ display: grid; align-items: center; gap: 12px; margin-bottom: 12px; grid-template-columns: minmax(0, 1fr) auto; margin: 18px 0 12px; padding: 0 0 14px; border-bottom: 1px solid var(--dz-line, #d7d2c8); width: min(1240px, calc(100% - 32px)); margin-left: auto; margin-right: auto; margin-top: 0;
+} .directory-toolbar{ display: grid; align-items: center; gap: 12px; margin-bottom: 12px; grid-template-columns: minmax(0, 1fr); margin: 18px 0 12px; padding: 0 0 14px; border-bottom: 1px solid var(--dz-line, #d7d2c8); width: min(1240px, calc(100% - 32px)); margin-left: auto; margin-right: auto; margin-top: 0;
 } .directory-search{ height: 48px; border: 1px solid #c9c0b4; background: #e7e1d8; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-radius: 0; flex: 1; font-size: 15px; box-shadow: inset 0 1px 0 rgba(255,255,255,.28); transition: box-shadow .18s ease; border-color: #d8d2c8; min-width: 0;
 } .directory-search svg{ color: #56606c; flex: 0 0 auto;
 } .directory-search input{ border: 0; outline: 0; width: 100%; font: inherit; color: #22303c; background: transparent; font-size: 13px;
@@ -6246,24 +6246,25 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .directory-result-count{ font-size: 10px; color: #6e6a60; text-transform: uppercase; font-weight: 900; margin: 10px 0; white-space: nowrap; letter-spacing: .1em; display: inline-flex; align-items: baseline; gap: 6px; min-height: 48px; padding: 0 14px; border: 1px solid #c9c0b4; background: #e1dbd1;
 } .directory-result-count strong{ font-size: 15px; line-height: 1; color: #18222d;
 } .directory-result-count span{ display: inline-block;
-} .directory-list-head{ width: min(1240px, calc(100% - 32px)); margin-left: auto; margin-right: auto; display: grid; grid-template-columns: 52px minmax(0, 1.5fr) minmax(250px, auto) 18px; align-items: center; gap: 12px; min-height: 38px; padding: 0 14px; border: 1px solid #c9c0b4; border-bottom: 0; background: #d6cfc3; color: #71695d;
+} .directory-list-head{ width: min(1240px, calc(100% - 32px)); margin-left: auto; margin-right: auto; display: grid; grid-template-columns: 58px minmax(260px, 1.25fr) minmax(420px, 1.1fr) 24px; align-items: center; gap: 16px; min-height: 42px; padding: 0 16px; border: 1px solid #c9c0b4; border-bottom: 0; background: #d6cfc3; color: #71695d;
 } .directory-list-head-main{ font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; grid-column: 2;
-} .directory-list-head-meta{ display: grid; grid-template-columns: repeat(3, minmax(72px, 1fr)); gap: 14px;
+} .directory-list-head-meta{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0;
 } .directory-list-head-meta em{ font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; display: block; font-style: normal; padding-left: 12px; border-left: 1px solid rgba(24,34,45,.14); text-align: center;
 } .directory-list-head-meta em:first-child{ padding-left: 0; border-left: 0;
 } .directory-list{ display: grid; flex-direction: column; border: 1px solid #d2cbc0; background: #cfc7bb; border-radius: 0; gap: 1px; width: min(1240px, calc(100% - 32px)); margin-left: auto; margin-right: auto; overflow: hidden; box-shadow: 0 10px 24px rgba(10, 15, 20, .05); border-color: #c9c0b4;
-} .directory-list-row{ display: grid; grid-template-columns: 52px minmax(0, 1.5fr) minmax(250px, auto) 18px; align-items: center; gap: 12px; min-height: 66px; padding: 10px 14px; border-bottom: 1px solid #e7eaf0; color: #17212b; text-decoration: none; transition: transform .18s ease, background .18s ease; border: 0; border-radius: 0; background: #e3ddd3; box-shadow: none; border-left: 3px solid transparent; transform: none;
+} .directory-list-row{ display: grid; grid-template-columns: 58px minmax(260px, 1.25fr) minmax(420px, 1.1fr) 24px; align-items: center; gap: 16px; min-height: 82px; padding: 12px 16px; border-bottom: 1px solid #e7eaf0; color: #17212b; text-decoration: none; transition: transform .18s ease, background .18s ease; border: 0; border-radius: 0; background: #e3ddd3; box-shadow: none; border-left: 3px solid transparent; transform: none;
 } .directory-list-row:nth-child(even){ background: #d9d2c7;
 } .directory-list-row:hover{ background: #d2cabf; border-left: 4px solid var(--brand); padding-left: 14px; transform: none; box-shadow: none; border-left-color: var(--dz-accent, #ff5468);
 } .directory-list-main{ display: flex; flex-direction: column; min-width: 0; gap: 1px; justify-content: center;
 } .directory-list-main > small{ color: #bf5160; font-size: 10px; letter-spacing: .08em; margin-bottom: 1px;
 } .directory-list-main > strong{ color: #15202b; font-size: 16px;
 } .directory-list-main > span{ color: #56616d; margin-top: 2px; font-size: 12px; line-height: 1.25;
-} .directory-list-meta{ display: grid; grid-template-columns: repeat(3, minmax(72px, 1fr)); gap: 14px; color: var(--dz-muted, #626975); align-items: center;
-} .directory-list-meta em{ font-style: normal; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding-left: 12px; border-left: 1px solid rgba(24,34,45,.1); min-height: 40px; justify-content: center; text-align: center;
+} .directory-list-meta{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; color: var(--dz-muted, #626975); align-items: center; align-self: stretch;
+} .directory-list-meta em{ font-style: normal; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; padding: 0 12px; border-left: 1px solid rgba(24,34,45,.1); min-height: 46px; justify-content: center; text-align: center;
 } .directory-list-meta em:first-child{ padding-left: 0; border-left: 0;
-} .directory-list-meta em::before{ content: attr(data-label); display: none;
-} .directory-list-meta b{ font-size: 12px; color: #24313e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; margin-top: 0; text-align: center; width: 100%;
+} .directory-list-meta em::before{ content: attr(data-label); display: block; color: #7a7267; font-size: 8px; font-weight: 900; letter-spacing: .08em; line-height: 1; text-transform: uppercase;
+} .directory-list-meta b{ font-size: 14px; color: #24313e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 900; margin-top: 0; text-align: center; width: 100%;
+} .directory-context-action{ min-height: 42px; margin-top: 14px; padding: 0 18px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border-radius: 0; box-shadow: none;
 } .directory-list-arrow{ color: #6b7480; justify-self: end;
 } @media (max-width: 760px){
   .directory-page.page-authenticated,
@@ -6294,8 +6295,6 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   .directory-toolbar{ grid-template-columns: 1fr; gap: 8px; margin-top: 10px; padding-bottom: 10px;
   }
   .directory-search{ min-height: 44px; height: 44px; padding: 0 12px;
-  }
-  .directory-result-count{ width: 100%; min-height: 38px; justify-content: center; padding: 0 12px;
   }
   .directory-list-head{ display: none;
   }

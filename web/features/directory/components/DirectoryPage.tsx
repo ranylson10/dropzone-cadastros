@@ -26,8 +26,13 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
               <small>DIRETÓRIO PÚBLICO</small>
               <h1>{config.title}</h1>
               <p>{config.description}</p>
-              {kind === 'equipes' ? (
-                <a className="directory-context-action" href="/?login=equipe&returnTo=%2F%3Fpainel%3D1">Minha equipe</a>
+              {kind === 'equipes' || kind === 'jogadores' ? (
+                <a
+                  className="button primary directory-context-action"
+                  href={`/?login=${kind === 'equipes' ? 'equipe' : 'jogador'}&returnTo=%2F%23minhas-areas`}
+                >
+                  {kind === 'equipes' ? 'Minha equipe' : 'Meu perfil de jogo'}
+                </a>
               ) : null}
             </div>
           </section>

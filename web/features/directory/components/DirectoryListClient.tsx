@@ -486,7 +486,6 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
             <Search size={17} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nome, usuário, tag ou localidade..." />
           </label>
-          <div className="directory-result-count"><strong>{filtered.length}</strong><span>resultado{filtered.length === 1 ? '' : 's'}</span></div>
         </div>
       )}
 
