@@ -4,6 +4,7 @@ import type { AgendaEventForm, AgendaItem, AgendaScope } from '../types/agenda.t
 
 type AgendaFetchResult = {
   items: AgendaItem[]
+  unscheduled: AgendaItem[]
   setup_required: boolean
   can_manage: boolean
   managed_championships: Array<{ id: string; nome: string }>
@@ -49,9 +50,10 @@ export async function fetchAgenda(params: {
     const res = await fetch(`/api/agenda?${qs.toString()}`, { headers, cache: 'no-store' })
     const json = await res.json().catch(() => ({}))
     const value: AgendaFetchResult = !res.ok
-      ? { items: [], setup_required: false, can_manage: false, managed_championships: [], error: json.error || 'Erro ao carregar agenda.' }
+      ? { items: [], unscheduled: [], setup_required: false, can_manage: false, managed_championships: [], error: json.error || 'Erro ao carregar agenda.' }
       : {
           items: (json.items || []) as AgendaItem[],
+          unscheduled: (json.unscheduled || []) as AgendaItem[],
           setup_required: Boolean(json.setup_required),
           can_manage: Boolean(json.can_manage),
           managed_championships: Array.isArray(json.managed_championships) ? json.managed_championships : [],

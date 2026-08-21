@@ -1259,6 +1259,8 @@
 .agenda-page .agenda-event-list > header small { color: #d8be56; font-size: 10px; font-weight: 800; }
 .agenda-page .agenda-event-list-items { max-height: 480px; overflow: auto; }
 .agenda-page .agenda-event-list-item { display: flex; gap: 6px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.agenda-page .agenda-event-list-item.is-pending { background: rgba(216,190,86,.055); }
+.agenda-page .agenda-event-list-item.is-pending .agenda-event-list-open time { color: #f0a83c; }
 .agenda-page .agenda-event-list-open { min-width: 0; flex: 1; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .agenda-page .agenda-event-list-open time, .agenda-page .agenda-event-list-open strong, .agenda-page .agenda-event-list-open small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-page .agenda-event-list-open time { color: #d8be56; font-size: 10px; font-weight: 800; }

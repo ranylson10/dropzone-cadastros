@@ -147,6 +147,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   const [year, setYear] = useState(props.initialYear || now.getFullYear())
   const [month, setMonth] = useState(props.initialMonth || now.getMonth() + 1)
   const [items, setItems] = useState<AgendaItem[]>([])
+  const [unscheduled, setUnscheduled] = useState<AgendaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -177,6 +178,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
     })
     if (result.error) setError(result.error)
     setItems(result.items)
+    setUnscheduled(result.unscheduled)
     setCanManage(result.can_manage)
     setManagedChampionships(result.managed_championships)
     setLoading(false)
@@ -610,12 +612,13 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
         <header>
           <div>
             <p className="eyebrow">Compromissos</p>
-            <h3>{items.length} evento{items.length === 1 ? '' : 's'}</h3>
+            <h3>{items.length + unscheduled.length} compromisso{items.length + unscheduled.length === 1 ? '' : 's'}</h3>
           </div>
           <small>{MONTH_NAMES_PT[month - 1].slice(0, 3)} {year}</small>
         </header>
         <div className="agenda-event-list-items">
-          {items.length ? items.map((item) => (
+          {items.length || unscheduled.length ? <>
+            {items.map((item) => (
             <article key={`list-${item.id}`} className="agenda-event-list-item">
               <button type="button" className="agenda-event-list-open" onClick={() => openItem(item)}>
                 <time>{item.data.slice(8, 10)}/{item.data.slice(5, 7)} · {item.horario_inicio.slice(0, 5)}</time>
@@ -624,7 +627,18 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
               </button>
               {item.editable ? <button type="button" className="agenda-event-list-edit" onClick={() => openGameEditor(item)}>Ajustar</button> : null}
             </article>
-          )) : <p className="agenda-event-list-empty">Nenhum jogo neste mês.</p>}
+            ))}
+            {unscheduled.map((item) => (
+              <article key={`pending-${item.id}`} className="agenda-event-list-item is-pending">
+                <button type="button" className="agenda-event-list-open" onClick={() => item.editable ? openGameEditor(item) : openItem(item)}>
+                  <time>PARA AGENDAR</time>
+                  <strong>{item.titulo}</strong>
+                  <small>{item.meta.campeonato_nome || 'Campeonato'}</small>
+                </button>
+                {item.editable ? <button type="button" className="agenda-event-list-edit" onClick={() => openGameEditor(item)}>Definir</button> : null}
+              </article>
+            ))}
+          </> : <p className="agenda-event-list-empty">Nenhum jogo neste mês.</p>}
         </div>
       </aside>
       </div>

@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       items: result.items,
+      unscheduled: result.unscheduled,
       setup_required: result.setup_required,
       can_manage: result.can_manage,
       managed_championships: result.managed_championships,
