@@ -6,6 +6,7 @@ import { WhatsappContactSelector } from '@/components/forms/campeonato'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { supabase } from '@/lib/supabase-browser'
 import { PixIcon, WhatsAppIcon } from './BrandIcons'
+import { OperationProgress } from '@/components/feedback/OperationProgress'
 
 type Contact = {
   id?: string
@@ -123,6 +124,7 @@ export function BuyVacancyModal({
   const [compraToken, setCompraToken] = useState('')
   const [claimUrl, setClaimUrl] = useState('')
   const [paid, setPaid] = useState(false)
+  const [operation, setOperation] = useState<{ title: string; steps: string[]; activeStep: number } | null>(null)
 
   const valorLabel = money(championship.valor_inscricao)
   const price = Number(championship.valor_inscricao || 0)
@@ -260,6 +262,7 @@ export function BuyVacancyModal({
     }
 
     setBusy(true)
+    setOperation({ title: 'Preparando pagamento', steps: ['Validando dados', 'Criando inscrição', 'Gerando cobrança segura'], activeStep: 0 })
     try {
       const { data: session } = await supabase.auth.getSession()
       const access = session.session?.access_token
@@ -268,6 +271,7 @@ export function BuyVacancyModal({
         throw new Error(`Entre com sua conta para pagar com ${selectedPaymentLabel}.`)
       }
 
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
       const res = await fetch('/api/pagamentos/vaga', {
         method: 'POST',
         headers: {
@@ -284,6 +288,7 @@ export function BuyVacancyModal({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Não foi possível gerar o pagamento.')
 
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
       const token = String(json.compra?.token || '').trim()
       const nextClaim = String(json.claim_url || (token ? `/vagas/compra/${encodeURIComponent(token)}` : ''))
       setCompraToken(token)
@@ -316,6 +321,7 @@ export function BuyVacancyModal({
       setError(e?.message || 'Erro ao iniciar pagamento.')
     } finally {
       setBusy(false)
+      setOperation(null)
     }
   }
 
@@ -347,6 +353,8 @@ export function BuyVacancyModal({
             <X size={18} />
           </button>
         </header>
+
+        {operation ? <OperationProgress {...operation} className="vacancy-buy-operation" /> : null}
 
         {step === 'choose' ? (
           <>

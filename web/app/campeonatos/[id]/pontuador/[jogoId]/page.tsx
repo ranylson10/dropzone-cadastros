@@ -5,6 +5,7 @@ import { ArrowLeft, FileUp, Loader2, Pencil, RefreshCcw, Save, Trophy, Users, X 
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { OperationProgress } from '@/components/feedback/OperationProgress'
 import '../pontuador.css'
 
 type Row = Record<string, any>
@@ -67,6 +68,7 @@ export default function PontuadorJogoPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [operation, setOperation] = useState<{ title: string; steps: string[]; activeStep: number } | null>(null)
   const [matchName, setMatchName] = useState('')
   const [matchContent, setMatchContent] = useState('')
   const [preview, setPreview] = useState<Row | null>(null)
@@ -213,11 +215,12 @@ export default function PontuadorJogoPage() {
       }
     })
     if (!equipes.length) return setError('Preencha a posição de pelo menos uma equipe.')
-    setSaving(true); setError(''); setNotice('')
+    setSaving(true); setError(''); setNotice(''); setOperation({ title: 'Salvando queda', steps: ['Validando resultado', 'Gravando pontuação', 'Finalizando queda', 'Atualizando ranking'], activeStep: 0 })
     try {
       // 1) grava vínculos do Match Result (se houver) — não apaga aliases antigos
       await persistVinculosFromPreview()
       // 2) grava pontuação
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
       await request(`/api/campeonatos/${params.id}/sumula/manual`, {
         method: 'POST',
         body: JSON.stringify({
@@ -227,6 +230,7 @@ export default function PontuadorJogoPage() {
         }),
       })
       // 3) finaliza queda → fica só leitura
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
       const finalized = await request<{ queda?: Row }>(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' })
       setPreview(null)
       setMatchContent('')
@@ -242,34 +246,39 @@ export default function PontuadorJogoPage() {
           : partida),
       } : current)
       setSaving(false)
+      setOperation((current) => current ? { ...current, activeStep: 3 } : current)
       await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao salvar a queda.') }
-    finally { setSaving(false) }
+    finally { setSaving(false); setOperation(null) }
   }
 
   async function unlockEdit() {
     if (!selectedDropId) return
     if (!window.confirm(`Liberar edição da Q${selectedDrop?.numero_partida}?`)) return
-    setSaving(true); setError(''); setNotice('')
+    setSaving(true); setError(''); setNotice(''); setOperation({ title: 'Liberando edição', steps: ['Validando queda', 'Liberando edição', 'Atualizando tela'], activeStep: 0 })
     try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
       await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/reabrir`, { method: 'POST' })
       setNotice(`Q${selectedDrop?.numero_partida} liberada para edição.`)
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
       await load()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erro ao liberar edição.')
     } finally {
-      setSaving(false)
+      setSaving(false); setOperation(null)
     }
   }
 
   async function previewFile(file: File) {
     const content = await file.text()
-    setMatchName(file.name); setMatchContent(content); setSaving(true); setError('')
+    setMatchName(file.name); setMatchContent(content); setSaving(true); setError(''); setOperation({ title: 'Lendo Match Result', steps: ['Lendo arquivo', 'Conferindo equipes', 'Montando prévia'], activeStep: 0 })
     try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
       const result = await request<{ preview: Row }>(`/api/campeonatos/${params.id}/sumula/matchresult/preview`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, conteudo_bruto: content }) })
       setPreview(result.preview)
       const links = Object.fromEntries((result.preview.equipes || []).map((team: Row) => [team.nome_normalizado, team.campeonato_equipe_id || '']))
       setPreviewLinks(links)
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
       setEdits(current => {
         const next = { ...current }
         for (const team of result.preview.equipes || []) {
@@ -280,7 +289,7 @@ export default function PontuadorJogoPage() {
         return next
       })
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao ler Match Result.') }
-    finally { setSaving(false) }
+    finally { setSaving(false); setOperation(null) }
   }
 
   async function readMatchFile(event: ChangeEvent<HTMLInputElement>) {
@@ -329,7 +338,7 @@ export default function PontuadorJogoPage() {
     if (!preview) return
     const linkedTeams = preview.equipes.filter((team: Row) => previewLinks[team.nome_normalizado])
     if (!linkedTeams.length) return setError('Vincule pelo menos uma equipe para aplicar o Match Result.')
-    setSaving(true); setError('')
+    setSaving(true); setError(''); setOperation({ title: 'Confirmando Match Result', steps: ['Validando vínculos', 'Gravando resultados', 'Finalizando queda', 'Atualizando ranking'], activeStep: 0 })
     try {
       // registra vínculos novos (não apaga nomes antigos do histórico do jogo)
       const vinculosPayload = linkedTeams.map((team: Row) => ({
@@ -341,12 +350,14 @@ export default function PontuadorJogoPage() {
         body: JSON.stringify({ vinculos: vinculosPayload }),
       }).catch(() => null)
 
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
       const confirmation = await request<{ garena?: { status?: string; jogadores?: number; erro?: string } }>(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, equipes: linkedTeams.map((team: Row) => {
         const teamId = previewLinks[team.nome_normalizado]
         const edit = edits[teamId]
         return { nome: team.nome, campeonato_equipe_id: teamId, posicao: number(edit?.posicao || team.posicao), abates: number(edit?.abates || team.abates), punicao_pontos: Math.min(number(edit?.punicao), 0), punicao_motivo: edit?.motivo || '', jogadores: team.jogadores.map((player: Row) => ({ ordem: player.ordem, nick: player.nick, id_jogo: player.id_jogo, abates: player.abates })) }
       }) }) })
       // trava a queda após aplicar MR
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
       await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' }).catch(() => null)
       setPreview(null); setMatchContent(''); setMatchName(''); setPreviewLinks({})
       const garenaNotice = confirmation.garena?.status === 'concluida'
@@ -357,18 +368,21 @@ export default function PontuadorJogoPage() {
             ? ` A súmula foi salva, mas os dados Garena falharam: ${confirmation.garena.erro || 'tente sincronizar novamente.'}`
             : ''
       setNotice(`Match Result confirmado, vínculos gravados e queda travada. Use Editar para alterar.${garenaNotice}`)
+      setOperation((current) => current ? { ...current, activeStep: 3 } : current)
       await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao confirmar Match Result.') }
-    finally { setSaving(false) }
+    finally { setSaving(false); setOperation(null) }
   }
 
   async function syncGarenaDetails() {
     if (!selectedDropId) return
-    setSaving(true); setError(''); setNotice('')
+    setSaving(true); setError(''); setNotice(''); setOperation({ title: 'Sincronizando dados Garena', steps: ['Consultando partida', 'Integrando jogadores', 'Dados atualizados'], activeStep: 0 })
     try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
       const result = await request<{ status: string; jogadores?: number }>(`/api/campeonatos/${params.id}/sumula/matchresult/sincronizar`, {
         method: 'POST', body: JSON.stringify({ partida_id: selectedDropId }),
       })
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
       if (result.status === 'ignorado') {
         setNotice('Este MatchResult não possui um ID oficial da Garena no nome do arquivo.')
       } else {
@@ -377,31 +391,34 @@ export default function PontuadorJogoPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível sincronizar os dados detalhados.')
     } finally {
-      setSaving(false)
+      setSaving(false); setOperation(null)
     }
   }
 
   async function setQuedaAtual(quedaId: string) {
-    setSaving(true); setError(''); setNotice('')
+    setSaving(true); setError(''); setNotice(''); setOperation({ title: 'Definindo queda atual', steps: ['Validando queda', 'Atualizando overlays', 'Sincronizando tela'], activeStep: 0 })
     try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
       const res = await request<{ warning?: string }>(
         `/api/campeonatos/${params.id}/pontuador/${params.jogoId}/quedas/${quedaId}/atual`,
         { method: 'POST' },
       )
       setSelectedDropId(quedaId)
       setNotice(res.warning || 'Queda marcada como atual (overlays Stream usarão esta queda).')
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
       await load()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erro ao definir queda atual.')
     } finally {
-      setSaving(false)
+      setSaving(false); setOperation(null)
     }
   }
 
   async function marcarFalta(equipeId: string) {
     if (!selectedDropId) return
-    setSaving(true); setError('')
+    setSaving(true); setError(''); setOperation({ title: 'Registrando falta', steps: ['Validando equipe', 'Salvando presença', 'Atualizando queda'], activeStep: 0 })
     try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
       await request(
         `/api/campeonatos/${params.id}/pontuador/${params.jogoId}/quedas/${selectedDropId}/falta`,
         { method: 'POST', body: JSON.stringify({ campeonato_equipe_id: equipeId }) },
@@ -414,11 +431,12 @@ export default function PontuadorJogoPage() {
         Object.entries(current).map(([nome, teamId]) => [nome, teamId === equipeId ? '' : teamId]),
       ))
       setFaltas((f) => ({ ...f, [equipeId]: true }))
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
       setNotice('Falta registrada para a equipe nesta queda.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erro ao marcar falta.')
     } finally {
-      setSaving(false)
+      setSaving(false); setOperation(null)
     }
   }
 
@@ -501,6 +519,8 @@ export default function PontuadorJogoPage() {
         )}
       </div>
     </header>
+
+    {operation ? <OperationProgress {...operation} className="scorer-operation-progress" /> : null}
 
     <section className="scorer-sheet-toolbar">
       <div className="scorer-view-switch"><button className={view === 'equipes' ? 'active' : ''} onClick={() => setView('equipes')}><Trophy size={14}/> Equipes</button><button className={view === 'mvp' ? 'active' : ''} onClick={() => setView('mvp')}><Users size={14}/> MVP</button></div>
