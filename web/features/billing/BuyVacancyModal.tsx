@@ -446,7 +446,7 @@ export function BuyVacancyModal({
             {showLogin || (!authenticated && canPayOnline) ? (
               <div className="vacancy-buy-login">
                 <p>Para pagar online, entre com sua conta (perfil de equipe).</p>
-                <SocialLogin returnTo={returnTo} />
+                <SocialLogin profileType="equipe" returnTo={returnTo} />
               </div>
             ) : null}
           </>
@@ -520,7 +520,7 @@ export function BuyVacancyModal({
             {showLogin ? (
               <div className="vacancy-buy-login">
                 <p>Sua sessão expirou. Entre novamente para continuar.</p>
-                <SocialLogin returnTo={returnTo} />
+                <SocialLogin profileType="equipe" returnTo={returnTo} />
               </div>
             ) : null}
           </>

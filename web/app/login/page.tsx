@@ -8,7 +8,7 @@ import { SystemLogo } from '@/components/brand/SystemLogo'
 import { LealtMotionScene } from '@/components/effects/LealtMotionScene'
 import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/auth/SocialLogin'
-import { parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
+import { buildProfileCreationHref, parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
 
@@ -156,6 +156,29 @@ export default function LoginPage() {
     window.location.replace(returnTo)
   }
 
+  /**
+   * Login por convite pode autenticar uma conta que ainda não possui nenhum
+   * perfil DropZone. Nesse caso, não deixamos a pessoa parada no login: o
+   * tipo solicitado pelo próprio link abre o cadastro e, ao concluir, volta
+   * exatamente ao convite. Links que não exigem perfil (ex.: reivindicação)
+   * apenas retomam a ação original.
+   */
+  function continueWithoutProfile() {
+    const search = new URLSearchParams(window.location.search)
+    let oauthReturnTo = ''
+    let oauthProfileType: ReturnType<typeof parseProfileType> = null
+    try {
+      oauthReturnTo = sessionStorage.getItem(OAUTH_RETURN_KEY) || ''
+      oauthProfileType = parseProfileType(sessionStorage.getItem(OAUTH_PROFILE_KEY))
+    } catch {
+      // A URL ainda preserva o retorno quando o storage não está disponível.
+    }
+
+    const returnTo = safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/')
+    const profileType = parseProfileType(search.get('profileType')) || oauthProfileType || params.profileType
+    window.location.replace(profileType ? buildProfileCreationHref(profileType, returnTo) : returnTo)
+  }
+
   async function openAuthenticatedSession(currentSession: Session) {
     // A autenticação já está concluída neste ponto. Falha/timeout de /api/me não
     // pode jogar o usuário de volta para o formulário como se estivesse deslogado.
@@ -174,6 +197,8 @@ export default function LoginPage() {
         continueToWorkspace(userAccounts)
         return
       }
+      continueWithoutProfile()
+      return
     } catch (cause: unknown) {
       setAccounts([])
       setProfileLoadError(

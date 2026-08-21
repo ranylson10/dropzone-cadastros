@@ -10,6 +10,9 @@ const central = fs.readFileSync(path.join(root, 'web/components/campeonatos/Cham
 const admin = fs.readFileSync(path.join(root, 'web/app/admin/page.tsx'), 'utf8')
 const agendaClient = fs.readFileSync(path.join(root, 'web/features/agenda/services/agenda-client.ts'), 'utf8')
 const home = fs.readFileSync(path.join(root, 'web/features/dropzone/DropZoneHome.tsx'), 'utf8')
+const login = fs.readFileSync(path.join(root, 'web/app/login/page.tsx'), 'utf8')
+const vacancies = fs.readFileSync(path.join(root, 'web/app/vagas/page.tsx'), 'utf8')
+const purchase = fs.readFileSync(path.join(root, 'web/app/vagas/compra/[token]/page.tsx'), 'utf8')
 
 test('127 - bloqueios de autenticação usam um retorno interno único e seguro', () => {
   expect(authReturn).toContain('export function currentInternalPath()')
@@ -31,6 +34,14 @@ test('127 - áreas privadas e ações de agenda não deixam sessão expirada sem
 test('127 - atalhos internos antigos da Lili continuam abrindo o perfil vinculado', () => {
   expect(home).toContain("const requestedActiveProfile = parseProfileType(String(params.get('perfil') || ''))")
   expect(home).toContain('const preferredType = requestedActiveProfile || storedType')
+})
+
+test('127 - conta nova continua o convite criando apenas o perfil solicitado', () => {
+  expect(login).toContain('function continueWithoutProfile()')
+  expect(login).toContain("window.location.replace(profileType ? buildProfileCreationHref(profileType, returnTo) : returnTo)")
+  expect(login).toContain('continueWithoutProfile()')
+  expect(vacancies).toContain('<SocialLogin profileType="equipe" returnTo={returnTo} />')
+  expect(purchase).toContain('<SocialLogin profileType="equipe" returnTo={returnTo} />')
 })
 
 for (const route of ['/carteira', '/central-campeonato', '/admin']) {

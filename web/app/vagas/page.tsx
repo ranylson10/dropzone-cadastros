@@ -227,7 +227,7 @@ export default function VacanciesPage() {
         />
       ) : null}
 
-      {gate ? <div className="vacancies-access-gate"><section><button className="gate-close" onClick={continueAsGuest}><X size={18} /></button><img src="/dropzone-icon.png" alt="" /><p className="eyebrow">Identificar sua equipe</p><h2>Entre para continuar</h2><p>O login é necessário somente para pagar online ou consultar vagas da sua equipe.</p><SocialLogin returnTo={returnTo} /><button className="continue-guest" onClick={continueAsGuest}>Voltar aos campeonatos</button></section></div> : null}
+      {gate ? <div className="vacancies-access-gate"><section><button className="gate-close" onClick={continueAsGuest}><X size={18} /></button><img src="/dropzone-icon.png" alt="" /><p className="eyebrow">Identificar sua equipe</p><h2>Entre para continuar</h2><p>O login é necessário somente para pagar online ou consultar vagas da sua equipe.</p><SocialLogin profileType="equipe" returnTo={returnTo} /><button className="continue-guest" onClick={continueAsGuest}>Voltar aos campeonatos</button></section></div> : null}
     </AppShell>
   )
 }

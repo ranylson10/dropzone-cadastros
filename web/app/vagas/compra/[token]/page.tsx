@@ -271,7 +271,7 @@ export default function CompraVagaPage() {
           <h1>Entre para continuar</h1>
           <p>Use a mesma conta com a qual iniciou o pagamento para liberar o grupo e escolher o slot.</p>
           {error ? <p className="invite-message" style={{ color: '#b4232d' }}>{error}</p> : null}
-          <SocialLogin returnTo={returnTo} />
+          <SocialLogin profileType="equipe" returnTo={returnTo} />
         </div>
       </main>
     )
