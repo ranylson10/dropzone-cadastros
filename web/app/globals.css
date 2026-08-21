@@ -8470,9 +8470,9 @@ body .team-analytics-insights>p{margin:0;color:var(--ui-text-muted);font-size:8p
 
 .drop-sequence-shell{
   position:relative;
-  height:210vh;
-  min-height:1180px;
-  background:#3a1f22;
+  height:190vh;
+  min-height:1060px;
+  background:#071017;
 }
 .drop-sequence-shell .public-home-hero{
   position:sticky;
@@ -8484,7 +8484,7 @@ body .team-analytics-insights>p{margin:0;color:var(--ui-text-muted);font-size:8p
   margin:0;
   overflow:hidden;
   isolation:isolate;
-  background:linear-gradient(135deg,#3c2022 0%,#8d3944 52%,#cfa55d 100%);
+  background:linear-gradient(135deg,#071017 0%,#102337 52%,#584f25 100%);
   transform:translateZ(0);
 }
 .drop-sequence-shell .public-home-hero::before{

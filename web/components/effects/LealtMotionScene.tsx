@@ -7,7 +7,7 @@ const DROPZONE_MOTION_VIDEO_MP4 = '/media/dropzone-bg-desktop.mp4'
 const DROPZONE_MOTION_VIDEO_MOBILE = '/media/dropzone-bg-mobile.mp4'
 const DROPZONE_MOTION_POSTER = '/media/dropzone-bg-poster.webp'
 
-type NavigatorWithConnection = Navigator & { connection?: { saveData?: boolean } }
+type NavigatorWithConnection = Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
 
 export function LealtMotionScene({ className = '' }: { className?: string }) {
   const sceneRef = useRef<HTMLDivElement | null>(null)
@@ -19,7 +19,8 @@ export function LealtMotionScene({ className = '' }: { className?: string }) {
     const connection = (navigator as NavigatorWithConnection).connection
 
     const syncVideoPreference = () => {
-      setVideoEnabled(!reduceMotion.matches && !connection?.saveData)
+      const slowConnection = connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g'
+      setVideoEnabled(!reduceMotion.matches && !connection?.saveData && !slowConnection)
     }
 
     syncVideoPreference()

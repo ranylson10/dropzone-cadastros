@@ -41,6 +41,13 @@ export function PublicChampionshipHome({ onAccess }: Props) {
   const [inviteToken, setInviteToken] = useState('')
   const [inviteError, setInviteError] = useState('')
 
+  function scrollToVacancies() {
+    const target = document.querySelector('#vagas')
+    if (!target) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  }
+
   function openInviteToken() {
     const raw = inviteToken.trim()
     if (!raw) return
@@ -88,7 +95,7 @@ export function PublicChampionshipHome({ onAccess }: Props) {
     <main className="public-home public-home-redesign" data-lealt-motion-host>
       <div className="public-home-alert"><span>DROPZONE COMPETITIVE</span><strong>Vagas abertas, campeonatos e resultados em um só lugar.</strong><a href="/vagas">Ver vagas <ArrowRight size={13} /></a></div>
       <header className="public-home-header">
-        <a className="public-home-brand" href="/" aria-label="DropZone início"><SystemLogo size={42} alt="DropZone" variant="accent" /><span><b>DropZone</b><small>Campeonatos</small></span></a>
+        <a className="public-home-brand" href="/" aria-label="DropZone início"><SystemLogo size={42} alt="DropZone" /><span><b>DropZone</b><small>Campeonatos</small></span></a>
         <nav className="public-home-nav" aria-label="Navegação principal"><a href="#vagas">Vagas</a><a href="#tipos">Categorias</a><a href="/campeonatos">Resultados</a></nav>
         <button type="button" className="public-home-access" onClick={onAccess}>Entrar <ArrowRight size={16} /></button>
       </header>
@@ -119,7 +126,7 @@ export function PublicChampionshipHome({ onAccess }: Props) {
             <span className="drop-sequence-line-mask"><span data-drop-line>COMEÇA AQUI.</span></span>
           </h1>
           <p data-drop-description>Descubra campeonatos, garanta vagas e acompanhe toda a competição em uma plataforma criada para o cenário mobile.</p>
-          <div className="public-home-search" data-drop-search><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, tipo ou plataforma" /><button type="button" onClick={() => document.querySelector('#vagas')?.scrollIntoView({ behavior: 'smooth' })}>Buscar</button></div>
+          <div className="public-home-search" data-drop-search><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, tipo ou plataforma" /><button type="button" onClick={scrollToVacancies}>Buscar</button></div>
           <div className="public-home-token-entry" data-drop-search>
             <KeyRound size={17} />
             <input value={inviteToken} onChange={(event) => { setInviteToken(event.target.value); setInviteError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openInviteToken() }} placeholder="Cole seu token ou link de inscrição" />
@@ -161,12 +168,12 @@ export function PublicChampionshipHome({ onAccess }: Props) {
 
       {urgent.length ? <section className="public-home-section home-urgent-section lealt-scroll-reveal"><div className="public-section-head"><div><span className="home-kicker"><Flame size={14} /> Quase lotando</span><h2>Últimas vagas</h2></div></div><div className="urgent-list">{urgent.map((item) => <a href={`/vagas?comprar=${item.id}`} key={item.id}><span>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Trophy size={20} />}</span><div><strong>{item.nome}</strong><small>{dateLabel(item.proxima_data)} · {item.proximo_horario || 'horário a confirmar'}</small></div><b>{item.vagas_livres} restantes</b><ArrowRight size={17} /></a>)}</div></section> : null}
 
-      <section id="tipos" className="public-home-section home-categories lealt-scroll-reveal"><div className="public-section-head"><div><span className="home-kicker">Encontre seu formato</span><h2>Jogue do seu jeito</h2></div></div><div className="category-grid">{[['Diário','Partidas rápidas todos os dias'],['Copa','Eliminatórias e grandes finais'],['Liga','Temporadas e classificação'],['Xtreino','Treino competitivo organizado']].map(([title,text]) => <button key={title} onClick={() => { setQuery(title); document.querySelector('#vagas')?.scrollIntoView({ behavior: 'smooth' }) }}><Trophy size={20} /><strong>{title}</strong><span>{text}</span><ArrowRight size={16} /></button>)}</div></section>
+      <section id="tipos" className="public-home-section home-categories lealt-scroll-reveal"><div className="public-section-head"><div><span className="home-kicker">Encontre seu formato</span><h2>Jogue do seu jeito</h2></div></div><div className="category-grid">{[['Diário','Partidas rápidas todos os dias'],['Copa','Eliminatórias e grandes finais'],['Liga','Temporadas e classificação'],['Xtreino','Treino competitivo organizado']].map(([title,text]) => <button key={title} onClick={() => { setQuery(title); scrollToVacancies() }}><Trophy size={20} /><strong>{title}</strong><span>{text}</span><ArrowRight size={16} /></button>)}</div></section>
 
       <section className="home-how lealt-scroll-reveal"><div><span className="home-kicker">Simples do início ao fim</span><h2>Escolha, garanta e jogue</h2></div><ol><li><b>1</b><span><strong>Encontre</strong><small>Use data, valor e formato.</small></span></li><li><b>2</b><span><strong>Garanta a vaga</strong><small>Inscrição rápida e segura.</small></span></li><li><b>3</b><span><strong>Acompanhe</strong><small>Escalação, grupos e jogos.</small></span></li></ol><button type="button" onClick={onAccess}>Acessar meu painel <ArrowRight size={16} /></button></section>
 
       <footer className="public-home-footer lealt-scroll-reveal">
-        <div className="public-home-brand"><SystemLogo size={34} alt="DropZone" variant="accent" /><span><b>DropZone</b><small>Onde campeonatos acontecem</small></span></div>
+        <div className="public-home-brand"><SystemLogo size={34} alt="DropZone" /><span><b>DropZone</b><small>Onde campeonatos acontecem</small></span></div>
         <nav aria-label="Links institucionais"><a href="/termos-de-servico">Termos</a><a href="/politica-de-privacidade">Privacidade</a></nav>
         <span>© 2026 DropZone</span>
       </footer>
