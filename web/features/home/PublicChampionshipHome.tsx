@@ -41,6 +41,7 @@ export function PublicChampionshipHome({ onAccess }: Props) {
   const [inviteToken, setInviteToken] = useState('')
   const [inviteError, setInviteError] = useState('')
   const [tokenEntryOpen, setTokenEntryOpen] = useState(false)
+  const [inviteResolving, setInviteResolving] = useState(false)
 
   function scrollToVacancies() {
     const target = document.querySelector('#vagas')
@@ -49,24 +50,27 @@ export function PublicChampionshipHome({ onAccess }: Props) {
     target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
   }
 
-  function openInviteToken() {
+  async function openInviteToken() {
     const raw = inviteToken.trim()
     if (!raw) return
-    const urlMatch = raw.match(/\/(convite\/grupo|i|escala)\/([^/?#]+)/i)
+    const urlMatch = raw.match(/\/(convite\/equipe|convite\/grupo|equipe\/entrar|escala|i|vagas\/compra)\/([^/?#]+)/i)
     if (urlMatch) {
       window.location.assign(`/${urlMatch[1].toLowerCase()}/${encodeURIComponent(decodeURIComponent(urlMatch[2]))}`)
       return
     }
-    const token = raw.replace(/\s/g, '').toUpperCase()
-    if (token.startsWith('EQS-')) {
-      window.location.assign(`/convite/grupo/${encodeURIComponent(token)}`)
-      return
+    const token = raw.replace(/\s/g, '')
+    setInviteResolving(true)
+    setInviteError('')
+    try {
+      const response = await fetch(`/api/convites/resolver/${encodeURIComponent(token)}`, { cache: 'no-store' })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload.href) throw new Error(payload.error || 'Token não reconhecido.')
+      window.location.assign(String(payload.href))
+    } catch (error: any) {
+      setInviteError(error?.message || 'Token não reconhecido. Cole o link completo ou confira o código recebido.')
+    } finally {
+      setInviteResolving(false)
     }
-    if (token.startsWith('INSC-')) {
-      window.location.assign(`/i/${encodeURIComponent(token)}`)
-      return
-    }
-    setInviteError('Token não reconhecido. Cole o link completo ou um token de grupo (EQS-) ou jogador (INSC-).')
   }
 
   useEffect(() => {
@@ -136,8 +140,8 @@ export function PublicChampionshipHome({ onAccess }: Props) {
           </div>
           {tokenEntryOpen ? <div className="public-home-token-entry" id="token-inscricao">
             <KeyRound size={17} />
-            <input autoFocus value={inviteToken} onChange={(event) => { setInviteToken(event.target.value); setInviteError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openInviteToken() }} placeholder="Cole o token ou link de inscrição" />
-            <button type="button" onClick={openInviteToken}>Continuar</button>
+            <input autoFocus value={inviteToken} onChange={(event) => { setInviteToken(event.target.value); setInviteError('') }} onKeyDown={(event) => { if (event.key === 'Enter') void openInviteToken() }} placeholder="Cole o token ou link de inscrição" />
+            <button type="button" disabled={inviteResolving} onClick={() => void openInviteToken()}>{inviteResolving ? 'Verificando...' : 'Continuar'}</button>
             {inviteError ? <small className="public-home-token-error">{inviteError}</small> : null}
           </div> : null}
         </div>
