@@ -40,6 +40,7 @@ export function PublicChampionshipHome({ onAccess }: Props) {
   const [filter, setFilter] = useState<'todos' | 'hoje' | 'gratis' | 'ultimas'>('todos')
   const [inviteToken, setInviteToken] = useState('')
   const [inviteError, setInviteError] = useState('')
+  const [tokenEntryOpen, setTokenEntryOpen] = useState(false)
 
   function scrollToVacancies() {
     const target = document.querySelector('#vagas')
@@ -127,13 +128,18 @@ export function PublicChampionshipHome({ onAccess }: Props) {
           </h1>
           <p data-drop-description>Descubra campeonatos, garanta vagas e acompanhe toda a competição em uma plataforma criada para o cenário mobile.</p>
           <div className="public-home-search" data-drop-search><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, tipo ou plataforma" /><button type="button" onClick={scrollToVacancies}>Buscar</button></div>
-          <div className="public-home-token-entry" data-drop-search>
-            <KeyRound size={17} />
-            <input value={inviteToken} onChange={(event) => { setInviteToken(event.target.value); setInviteError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openInviteToken() }} placeholder="Cole seu token ou link de inscrição" />
-            <button type="button" onClick={openInviteToken}>Usar token</button>
-          </div>
-          {inviteError ? <small className="public-home-token-error">{inviteError}</small> : null}
           <div className="public-home-trust" data-drop-trust><span><ShieldCheck size={16} /> Campeonatos aprovados</span><span><Ticket size={16} /> Compra segura</span><span><Clock3 size={16} /> Vagas em tempo real</span></div>
+          <div className="public-home-token-action" data-drop-trust>
+            <button type="button" aria-expanded={tokenEntryOpen} aria-controls="token-inscricao" onClick={() => setTokenEntryOpen((current) => !current)}>
+              <KeyRound size={15} /> Recebeu um token de inscrição?<strong>{tokenEntryOpen ? 'Fechar' : 'Usar token'}</strong>
+            </button>
+          </div>
+          {tokenEntryOpen ? <div className="public-home-token-entry" id="token-inscricao">
+            <KeyRound size={17} />
+            <input autoFocus value={inviteToken} onChange={(event) => { setInviteToken(event.target.value); setInviteError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openInviteToken() }} placeholder="Cole o token ou link de inscrição" />
+            <button type="button" onClick={openInviteToken}>Continuar</button>
+            {inviteError ? <small className="public-home-token-error">{inviteError}</small> : null}
+          </div> : null}
         </div>
 
         <div className="featured-championship" data-drop-featured>

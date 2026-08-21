@@ -5483,6 +5483,16 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   }
   .public-home-search button{ min-height: 42px; padding: 0 13px; font-size: 10px;
   }
+  .public-home-token-action{ margin-top:12px;
+  }
+  .public-home-token-action button{ font-size:10px;
+  }
+  .public-home-token-entry{ grid-template-columns:auto minmax(0,1fr); gap:7px; padding:7px 9px;
+  }
+  .public-home-token-entry button{ grid-column:1/-1; width:100%; min-height:40px;
+  }
+  .public-home-token-error{ grid-column:1/-1;
+  }
   .public-home-trust{ display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 14px;
   }
   .public-home-trust span{ font-size: 10px; line-height: 1.25;
@@ -6274,11 +6284,15 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button.is-primary-action{ border-left-color:var(--ui-accent); background:var(--ui-accent); color:#15130b;
 } body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button.is-primary-action svg,body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button.is-primary-action strong{ color:#15130b;
 } body .page-authenticated:has(.producer-layout-ref) .producer-layout-ref .champ-overview-flow button.is-primary-action small{ color:rgba(21,19,11,.75);
-} .public-home-token-entry{ display:flex; align-items:center; gap:10px; width:min(100%, 620px); min-height:48px; margin-top:10px; padding:0 8px 0 14px; border:1px solid rgba(255,255,255,.24); background:rgba(10,14,22,.66); color:rgba(255,255,255,.72); backdrop-filter:blur(8px);
-} .public-home-token-entry input{ min-width:0; flex:1; border:0; outline:0; background:transparent; color:#fff; font:inherit; font-size:13px;
+} .public-home-token-action{ margin-top:13px;
+} .public-home-token-action button{ display:inline-flex; align-items:center; gap:7px; border:0; padding:0; background:transparent; color:rgba(255,255,255,.64); font:700 11px/1 inherit; cursor:pointer;
+} .public-home-token-action button svg{ color:var(--dz-accent);
+} .public-home-token-action button strong{ color:#dfcf85; font:900 10px/1 inherit; letter-spacing:.07em; text-transform:uppercase;
+} .public-home-token-entry{ display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px; width:min(100%, 620px); min-height:50px; margin-top:10px; padding:7px 8px 7px 14px; border:1px solid rgba(223,207,133,.42); background:rgba(7,16,23,.78); color:#dfcf85; backdrop-filter:blur(10px); box-shadow:0 12px 30px rgba(0,0,0,.16);
+} .public-home-token-entry input{ min-width:0; min-height:34px; border:0; outline:0; background:transparent; color:#fff; font:inherit; font-size:13px;
 } .public-home-token-entry input::placeholder{ color:rgba(255,255,255,.52);
-} .public-home-token-entry button{ min-height:34px; border:0; padding:0 13px; background:var(--dz-accent,#ff5468); color:#fff; font:800 10px/1 inherit; letter-spacing:.06em; text-transform:uppercase; cursor:pointer;
-} .public-home-token-error{ display:block; width:min(100%,620px); margin-top:6px; color:#ffd2d8; font-size:11px;
+} .public-home-token-entry button{ min-height:34px; border:0; padding:0 13px; background:var(--dz-accent); color:white; font:900 10px/1 inherit; letter-spacing:.06em; text-transform:uppercase; cursor:pointer;
+} .public-home-token-error{ grid-column:2/-1; margin:0 0 2px; color:#ffd2d8; font-size:11px;
 } .directory-list-arrow{ color: #6b7480; justify-self: end;
 } @media (max-width: 760px){
   .directory-page.page-authenticated,
