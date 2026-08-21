@@ -15,6 +15,12 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
   const profile = await getDirectoryProfile(kind, id)
   if (!profile) notFound()
   const config = DIRECTORY_CONFIG[kind]
+  const visibleDetails = profile.details.filter((item) => {
+    const value = String(item.value ?? '').trim()
+    return Boolean(value && value !== '-' && value !== '—')
+  })
+  const primaryDetails = visibleDetails.slice(0, 3)
+  const extraDetails = visibleDetails.slice(3)
   const reportType = {
     campeonatos: 'campeonato',
     equipes: 'equipe',
@@ -59,10 +65,11 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
                 {profile.description ? <p>{profile.description}</p> : null}
               </div>
               <dl className="profile-command-facts">
-              {profile.details.map((item) => (
+              {primaryDetails.map((item) => (
                 <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>
               ))}
               </dl>
+              {extraDetails.length ? <details className="profile-command-more-facts"><summary>Ver todos os dados <span>{extraDetails.length}</span></summary><dl>{extraDetails.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl></details> : null}
             </div>
             <div className="profile-command-actions">
               {profile.competitive ? <a href="#desempenho">Desempenho</a> : null}

@@ -52,6 +52,16 @@ function findSection(profile: DirectoryProfile, ...titles: string[]) {
   )
 }
 
+const INFO_GROUPS = [
+  { title: 'Competição', labels: ['Tipo', 'Formato', 'Plataforma', 'Servidor', 'Transmissão', 'Status'] },
+  { title: 'Inscrição e elenco', labels: ['Total de vagas', 'Vagas livres', 'Jogadores por equipe', 'Vagas por equipe', 'Reservas', 'Troca de jogadores', 'Limite para trocas', 'Inscrições até'] },
+]
+
+function hasInfoValue(value: unknown) {
+  const normalized = String(value ?? '').trim()
+  return Boolean(normalized && normalized !== '-' && normalized !== '—')
+}
+
 /** Achata fase → grupo → slot para lista com filtros. */
 function flattenStructure(section?: DirectoryProfile['sections'][number]) {
   const slots: FlatSlot[] = []
@@ -105,6 +115,14 @@ export function ChampionshipPublicView({
     if (requested === 'estatisticas') setTab('estatisticas')
   }, [])
   const [authenticated, setAuthenticated] = useState(false)
+  const visibleDetails = useMemo(() => profile.details.filter((item) => hasInfoValue(item.value)), [profile.details])
+  const highlightedDetails = useMemo(() => visibleDetails.filter((item) => ['Formato', 'Premiação', 'Total de vagas', 'Vagas livres'].includes(item.label)), [visibleDetails])
+  const detailGroups = useMemo(() => INFO_GROUPS.map((group) => ({
+    ...group,
+    items: group.labels.map((label) => visibleDetails.find((item) => item.label === label)).filter(Boolean),
+  })).filter((group) => group.items.length), [visibleDetails])
+  const groupedLabels = useMemo(() => new Set(INFO_GROUPS.flatMap((group) => group.labels)), [])
+  const extraDetails = useMemo(() => visibleDetails.filter((item) => !groupedLabels.has(item.label)), [groupedLabels, visibleDetails])
 
   const enrollment = profile.enrollment
   const canEnroll = Boolean(
@@ -268,13 +286,19 @@ export function ChampionshipPublicView({
                 <small>Dados gerais do campeonato</small>
               </div>
             </header>
-            <div className="champ-public-info-grid">
-              {profile.details.map((item) => (
-                <div key={item.label} className="champ-public-info-card">
-                  <small>{item.label}</small>
-                  <strong>{item.value}</strong>
-                </div>
+            <div className="champ-public-info-summary" aria-label="Resumo do campeonato">
+              {highlightedDetails.map((item) => <div key={item.label}><small>{item.label}</small><strong>{item.value}</strong></div>)}
+            </div>
+            <div className="champ-public-info-groups">
+              {detailGroups.map((group) => (
+                <section key={group.title}>
+                  <h3>{group.title}</h3>
+                  <dl>
+                    {group.items.map((item) => item ? <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div> : null)}
+                  </dl>
+                </section>
               ))}
+              {extraDetails.length ? <section><h3>Outros detalhes</h3><dl>{extraDetails.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl></section> : null}
             </div>
             <div className="champ-public-info-links">
               <a className="button secondary" href={`/campeonatos/${profile.id}/regulamento`}>
