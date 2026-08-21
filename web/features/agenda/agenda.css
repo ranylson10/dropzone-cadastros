@@ -1382,3 +1382,71 @@ body .agenda-page .agenda-guest-actions .button.secondary:hover{border-color:var
   body .agenda-page .agenda-guest-copy h3{font-size:17px}
   body .agenda-page .agenda-guest-copy p:last-child{font-size:11px}
 }
+
+/* A agenda pessoal é consultada principalmente no celular. A versão anterior
+   reutilizava as cores claras da planilha administrativa e quebrava a
+   continuidade visual do app escuro. Mantemos a mesma hierarquia, agora com
+   cartões e divisórias do design system do DropZone. */
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sheet{
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-md);
+  background:var(--ui-surface);
+}
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence{
+  gap:10px;
+  padding:10px;
+  background:var(--ui-surface);
+}
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-month{
+  overflow:hidden;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-surface-raised);
+}
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-month-head{
+  background:linear-gradient(90deg,rgba(201,183,102,.14),transparent 72%),var(--ui-surface-raised);
+  border-bottom:1px solid var(--ui-line);
+  color:var(--ui-text);
+}
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-month-head span,
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-date small,
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-time small,
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-copy small{
+  color:var(--ui-text-muted);
+}
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-day{
+  border-color:var(--ui-line);
+}
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-date{
+  border-color:var(--ui-line);
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-event{
+  border-top-color:var(--ui-line);
+  background:var(--ui-surface);
+  color:var(--ui-text);
+}
+body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-event:hover{
+  background:var(--ui-surface-raised);
+}
+
+@media (max-width:760px){
+  body .agenda-page .agenda-page-body{padding-top:68px}
+  body .agenda-page .agenda-root:not(.is-compact) > .agenda-toolbar{
+    border-radius:var(--ui-radius-md);
+  }
+  body .agenda-page .agenda-root:not(.is-compact) .agenda-sheet{
+    border-radius:var(--ui-radius-md);
+  }
+  body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence{
+    padding:6px;
+  }
+  body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-date{
+    padding:9px 10px;
+  }
+  body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-event{
+    min-height:58px;
+    padding:9px 10px;
+  }
+}
