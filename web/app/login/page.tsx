@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { ArrowRight, Eye, EyeOff, Loader2, LogOut, Mail, Plus, ShieldCheck, UserRound } from 'lucide-react'
+import { Eye, EyeOff, Loader2, LogOut, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { LealtMotionScene } from '@/components/effects/LealtMotionScene'
@@ -11,24 +11,6 @@ import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/aut
 import { parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
-
-const profileLabels: Record<ProfileType, string> = {
-  produtora: 'Produtora',
-  equipe: 'Equipe',
-  jogador: 'Jogador',
-  manager: 'Manager',
-  broadcast: 'Broadcast',
-}
-
-const profileDescriptions: Record<ProfileType, string> = {
-  produtora: 'Gerencie campeonatos, equipes, jogos e resultados.',
-  equipe: 'Organize elenco, lines e inscrições em campeonatos.',
-  jogador: 'Acompanhe convites, escalações e competições.',
-  manager: 'Acesse os campeonatos e permissões recebidas.',
-  broadcast: 'Controle transmissões, overlays e operações de live.',
-}
-
-const PROFILE_TYPES: ProfileType[] = ['produtora', 'equipe', 'jogador', 'manager', 'broadcast']
 
 type LoginStage = 'checking' | 'authenticate' | 'profiles'
 type EmailMode = 'entrar' | 'criar' | 'confirmar-cadastro' | 'recuperar' | 'confirmar-recuperacao' | 'nova-senha'
@@ -51,10 +33,6 @@ async function fetchBearerJson(path: string, currentSession: Session, timeoutMs:
   } finally {
     window.clearTimeout(timeout)
   }
-}
-
-function profileImage(profile: DropZoneRow) {
-  return String(profile.data?.logo_url || profile.data?.avatar_url || '')
 }
 
 function normalizeEmail(value: string) {
@@ -125,7 +103,6 @@ export default function LoginPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
-  const [openingProfile, setOpeningProfile] = useState<string | null>(null)
   const [emailMode, setEmailMode] = useState<EmailMode>('entrar')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -145,6 +122,40 @@ export default function LoginPage() {
     return String(metadata.full_name || metadata.name || session?.user?.email || 'Conta DropZone')
   }, [session])
 
+  function continueToWorkspace(userAccounts: DropZoneRow[]) {
+    const search = new URLSearchParams(window.location.search)
+    let oauthReturnTo = ''
+    let oauthProfileType: ReturnType<typeof parseProfileType> = null
+    try {
+      oauthReturnTo = sessionStorage.getItem(OAUTH_RETURN_KEY) || ''
+      oauthProfileType = parseProfileType(sessionStorage.getItem(OAUTH_PROFILE_KEY))
+    } catch {
+      // Em navegação privada, a URL continua sendo uma fonte segura de retorno.
+    }
+    const requestedType = parseProfileType(search.get('profileType')) || oauthProfileType
+    let storedType: ProfileType | null = null
+    try {
+      storedType = parseProfileType(localStorage.getItem('dropzone_active_profile_type'))
+    } catch {
+      // Em navegação privada, apenas abre a primeira área disponível.
+    }
+
+    const account = userAccounts.find((item) => item.profile_type === requestedType)
+      || userAccounts.find((item) => item.profile_type === storedType)
+      || userAccounts[0]
+    if (account?.profile_type) {
+      try {
+        localStorage.setItem('dropzone_active_profile_type', account.profile_type)
+        localStorage.setItem('dropzone_recent_profiles', JSON.stringify(userAccounts))
+      } catch {
+        // O redirecionamento não depende do cache local.
+      }
+    }
+
+    const returnTo = safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/')
+    window.location.replace(returnTo)
+  }
+
   async function openAuthenticatedSession(currentSession: Session) {
     // A autenticação já está concluída neste ponto. Falha/timeout de /api/me não
     // pode jogar o usuário de volta para o formulário como se estivesse deslogado.
@@ -159,6 +170,10 @@ export default function LoginPage() {
     try {
       const userAccounts = await loadAccounts(currentSession)
       setAccounts(userAccounts)
+      if (userAccounts.length) {
+        continueToWorkspace(userAccounts)
+        return
+      }
     } catch (cause: unknown) {
       setAccounts([])
       setProfileLoadError(
@@ -481,29 +496,6 @@ export default function LoginPage() {
     setShowConfirmPassword(false)
   }
 
-  function openProfile(profile: DropZoneRow) {
-    if (!profile.profile_type) return
-    clearOAuthReturnState()
-    setOpeningProfile(profile.id)
-    try {
-      localStorage.setItem('dropzone_active_profile_type', profile.profile_type)
-      localStorage.setItem('dropzone_recent_profiles', JSON.stringify(accounts))
-    } catch {
-      // O login continua mesmo sem cache local.
-    }
-    window.location.assign(params.returnTo || '/')
-  }
-
-  function createProfile(type: ProfileType) {
-    clearOAuthReturnState()
-    const next = new URLSearchParams({
-      cadastro: type,
-      vincular: '1',
-      returnTo: params.returnTo || '/',
-    })
-    window.location.assign(`/?${next.toString()}`)
-  }
-
   async function changeAccount() {
     clearOAuthReturnState()
     await signOutEverywhere().catch(() => undefined)
@@ -542,12 +534,12 @@ export default function LoginPage() {
 
             <div className="login-portal-copy lealt-scroll-reveal">
               <span className="login-portal-kicker">Acesso competitivo centralizado</span>
-              <h1 aria-label="Entre. Escolha seu perfil. Compita.">
+              <h1 aria-label="Entre. Acompanhe. Compita.">
                 <span>ENTRE.</span>
-                <span>ESCOLHA SEU PERFIL.</span>
+                <span>ACOMPANHE.</span>
                 <span className="login-title-accent">COMPITA.</span>
               </h1>
-              <p>Uma única conta conecta todos os seus perfis no DropZone. Entre com Google ou e-mail e escolha exatamente onde deseja acessar.</p>
+              <p>Uma única conta concentra seus campeonatos, convites e áreas cadastradas. Entre e continue de onde parou.</p>
               <div className="login-live-telemetry" aria-hidden="true">
                 <span><i /> CONTA ÚNICA</span>
                 <span><i /> PERFIS VINCULADOS</span>
@@ -741,7 +733,7 @@ export default function LoginPage() {
                 <div className="login-profile-head">
                   <div>
                     <span className="login-panel-step">PASSO 02</span>
-                    <h2>ESCOLHA SEU PERFIL</h2>
+                    <h2>ABRINDO SUA CONTA</h2>
                     <p>Conta autenticada como <strong>{accountName}</strong></p>
                   </div>
                   <button type="button" className="login-change-account" onClick={() => void changeAccount()}>
@@ -752,8 +744,8 @@ export default function LoginPage() {
                 {profilesLoading ? (
                   <div className="login-no-profile" role="status" aria-live="polite">
                     <Loader2 className="spin" size={28} />
-                    <strong>Carregando seus perfis</strong>
-                    <p>Sua conta já está autenticada. Estamos buscando os acessos vinculados.</p>
+                    <strong>Preparando seu painel</strong>
+                    <p>Sua conta já está autenticada. Estamos abrindo sua última área usada.</p>
                   </div>
                 ) : profileLoadError ? (
                   <div className="login-no-profile">
@@ -763,58 +755,18 @@ export default function LoginPage() {
                     <button type="button" className="button" onClick={() => void retryProfiles()}>Tentar carregar perfis novamente</button>
                   </div>
                 ) : accounts.length || isAdmin ? (
-                  <div className="login-profile-grid">
-                    {accounts.map((profile) => {
-                      const image = profileImage(profile)
-                      const type = profile.profile_type as ProfileType
-                      return (
-                        <button
-                          key={profile.id}
-                          type="button"
-                          className="login-profile-card"
-                          disabled={Boolean(openingProfile)}
-                          onClick={() => openProfile(profile)}
-                        >
-                          <span className="login-profile-avatar">
-                            {image ? <img src={image} alt="" /> : <UserRound size={22} />}
-                          </span>
-                          <span className="login-profile-card-copy">
-                            <small>{profileLabels[type] || 'Perfil'}</small>
-                            <strong>{profile.name || profile.username}</strong>
-                            <span>@{profile.username}</span>
-                          </span>
-                          {openingProfile === profile.id ? <Loader2 className="spin" size={18} /> : <ArrowRight size={18} />}
-                        </button>
-                      )
-                    })}
-                    {isAdmin ? (
-                      <button type="button" className="login-profile-card admin" onClick={() => window.location.assign('/admin')}>
-                        <span className="login-profile-avatar"><ShieldCheck size={22} /></span>
-                        <span className="login-profile-card-copy"><small>Sistema</small><strong>Administrador</strong><span>Controle geral da plataforma</span></span>
-                        <ArrowRight size={18} />
-                      </button>
-                    ) : null}
+                  <div className="login-no-profile" role="status" aria-live="polite">
+                    <Loader2 className="spin" size={28} />
+                    <strong>Entrando no sistema</strong>
+                    <p>Redirecionando para sua área principal.</p>
                   </div>
                 ) : (
                   <div className="login-no-profile">
                     <UserRound size={28} />
-                    <strong>Você ainda não possui um perfil</strong>
-                    <p>Crie seu primeiro perfil para começar a usar o DropZone.</p>
+                    <strong>Conta criada com sucesso</strong>
+                    <p>Você poderá cadastrar suas áreas de jogo, equipe, organização ou afiliado conforme precisar, sem trocar de conta.</p>
                   </div>
                 )}
-
-                {!profilesLoading && !profileLoadError ? <div className="login-create-area">
-                  <div className="login-create-title"><Plus size={16} /><span>{accounts.length ? 'Criar outro perfil' : 'Crie seu perfil'}</span></div>
-                  <div className="login-create-grid">
-                    {PROFILE_TYPES.filter((type) => !accounts.some((profile) => profile.profile_type === type)).map((type) => (
-                      <button key={type} type="button" onClick={() => createProfile(type)}>
-                        <strong>{profileLabels[type]}</strong>
-                        <span>{profileDescriptions[type]}</span>
-                        <ArrowRight size={15} />
-                      </button>
-                    ))}
-                  </div>
-                </div> : null}
               </div>
             ) : null}
           </div>
