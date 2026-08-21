@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
+  CalendarDays,
+  Check,
   ChevronRight,
   CirclePlus,
-  LayoutDashboard,
-  ShieldCheck,
+  Loader2,
   Ticket,
   Trophy,
   Users,
-  Wallet,
   X,
 } from 'lucide-react'
 import { DirectoryListClient } from '@/features/directory/components/DirectoryListClient'
@@ -42,6 +42,23 @@ type Props = {
 
 type GateKind = 'produtora' | 'equipe' | null
 
+type HomeNotification = {
+  id: string
+  tipo: string
+  titulo: string
+  corpo?: string | null
+  status: string
+}
+
+type AgendaItem = {
+  id: string
+  titulo: string
+  data: string
+  horario_inicio: string
+  horario_fim?: string | null
+  meta?: { campeonato_nome?: string | null; equipe_nome?: string | null; href?: string | null }
+}
+
 
 
 
@@ -53,9 +70,15 @@ export function AuthenticatedHomeFeed({
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [loadingVacancies, setLoadingVacancies] = useState(true)
   const [gate, setGate] = useState<GateKind>(null)
+  const [notifications, setNotifications] = useState<HomeNotification[]>([])
+  const [agenda, setAgenda] = useState<AgendaItem[]>([])
+  const [priorityLoading, setPriorityLoading] = useState(true)
+  const [respondingNotification, setRespondingNotification] = useState('')
 
   const producer = accounts.find((item) => item.profile_type === 'produtora')
-  const team = accounts.find((item) => item.profile_type === 'equipe')
+  const isPlayer = account.profile_type === 'jogador'
+  const isTeam = account.profile_type === 'equipe'
+  const isProducer = account.profile_type === 'produtora'
 
   useEffect(() => {
     let active = true
@@ -68,6 +91,31 @@ export function AuthenticatedHomeFeed({
       })
       .catch(() => { if (active) setVacancies([]) })
       .finally(() => { if (active) setLoadingVacancies(false) })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const { supabase } = await import('@/lib/supabase-browser')
+        const { data } = await supabase.auth.getSession()
+        const token = data.session?.access_token
+        if (!token) return
+        const headers = { Authorization: `Bearer ${token}` }
+        const [notificationsResponse, agendaResponse] = await Promise.all([
+          fetch('/api/notificacoes?limit=12', { headers, cache: 'no-store' }),
+          fetch('/api/agenda?scope=me&year=2026&month=1&from=2000-01-01&to=2100-12-31', { headers, cache: 'no-store' }),
+        ])
+        const notificationsJson = await notificationsResponse.json().catch(() => ({}))
+        const agendaJson = await agendaResponse.json().catch(() => ({}))
+        if (!active) return
+        setNotifications(Array.isArray(notificationsJson.items) ? notificationsJson.items : [])
+        setAgenda(Array.isArray(agendaJson.items) ? agendaJson.items : [])
+      } finally {
+        if (active) setPriorityLoading(false)
+      }
+    })()
     return () => { active = false }
   }, [])
 
@@ -94,14 +142,6 @@ export function AuthenticatedHomeFeed({
     [vacancies],
   )
 
-  const openProducerPanel = () => {
-    if (!producer) {
-      setGate('produtora')
-      return
-    }
-    void onOpenPanel(producer)
-  }
-
   const createChampionship = () => {
     if (!producer) {
       setGate('produtora')
@@ -113,12 +153,40 @@ export function AuthenticatedHomeFeed({
     void onOpenPanel(producer)
   }
 
-  const openTeam = () => {
-    if (!team) {
-      setGate('equipe')
-      return
+  const openPanelAt = (target: DropZoneRow, section?: string) => {
+    if (section) {
+      const url = new URL(window.location.href)
+      url.searchParams.set('section', section)
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     }
-    void onOpenPanel(team)
+    void onOpenPanel(target)
+  }
+
+  const nextAgendaItem = useMemo(() => {
+    const now = new Date()
+    return agenda
+      .filter((item) => new Date(`${item.data}T${item.horario_inicio || '00:00'}:00`) >= now)
+      .sort((a, b) => `${a.data} ${a.horario_inicio}`.localeCompare(`${b.data} ${b.horario_inicio}`))[0] || null
+  }, [agenda])
+
+  const playerInvite = notifications.find((item) => item.status === 'nao_lida' && (
+    item.tipo === 'convite_jogador_equipe_direto' || item.tipo === 'pedido_jogador_equipe' || item.tipo === 'convite_escalacao_jogador'
+  ))
+
+  const acceptPriorityNotification = async () => {
+    if (!playerInvite) return
+    setRespondingNotification(playerInvite.id)
+    try {
+      const { supabase } = await import('@/lib/supabase-browser')
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error('Sessão expirada.')
+      const response = await fetch(`/api/notificacoes/${playerInvite.id}/aceitar`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+      if (!response.ok) throw new Error('Não foi possível aceitar o convite.')
+      setNotifications((current) => current.filter((item) => item.id !== playerInvite.id))
+    } finally {
+      setRespondingNotification('')
+    }
   }
 
   return (
@@ -126,55 +194,34 @@ export function AuthenticatedHomeFeed({
       <section className="authenticated-home-intro">
         <div className="authenticated-home-intro-copy">
           <span className="authenticated-home-kicker">INÍCIO</span>
-          <h1>O que você quer fazer?</h1>
-          <p>Escolha a próxima ação. O restante aparece quando você precisar.</p>
+          <h1>{isPlayer ? 'Seu jogo começa aqui' : isTeam ? 'Organize o próximo jogo' : isProducer ? 'Seu campeonato em movimento' : 'Sua próxima ação'}</h1>
+          <p>{isPlayer ? 'Convites, escalações e sua agenda aparecem primeiro.' : isTeam ? 'Inscrição, elenco e agenda ficam à frente da gestão.' : isProducer ? 'Crie, organize e acompanhe seus campeonatos ativos.' : 'O que importa agora aparece primeiro.'}</p>
         </div>
         <div className="authenticated-home-primary-actions">
-          <button type="button" className="authenticated-home-action primary" onClick={createChampionship}>
-            <CirclePlus size={19} />
-            <span><strong>Criar campeonato</strong><small>Publique e venda vagas</small></span>
-            <ChevronRight size={18} />
-          </button>
-          <a className="authenticated-home-action" href="/vagas">
-            <Ticket size={19} />
-            <span><strong>Encontrar vaga</strong><small>Campeonatos com inscrições abertas</small></span>
-            <ChevronRight size={18} />
-          </a>
+          {isPlayer && playerInvite ? <button type="button" className="authenticated-home-action primary" onClick={() => void acceptPriorityNotification()} disabled={respondingNotification === playerInvite.id}>
+            {respondingNotification === playerInvite.id ? <Loader2 className="spin" size={19} /> : <Check size={19} />}
+            <span><strong>Aceitar convite</strong><small>{playerInvite.titulo}</small></span><ChevronRight size={18} />
+          </button> : null}
+          {isPlayer && !playerInvite ? <a className="authenticated-home-action primary" href="/agenda"><CalendarDays size={19} /><span><strong>Ver minha agenda</strong><small>Jogos e escalações programadas</small></span><ChevronRight size={18} /></a> : null}
+          {isTeam ? <a className="authenticated-home-action primary" href="/vagas"><Ticket size={19} /><span><strong>Inscrever equipe</strong><small>Campeonatos com vagas abertas</small></span><ChevronRight size={18} /></a> : null}
+          {isProducer ? <button type="button" className="authenticated-home-action primary" onClick={createChampionship}><CirclePlus size={19} /><span><strong>Criar campeonato</strong><small>Comece um novo evento</small></span><ChevronRight size={18} /></button> : null}
+          {!isPlayer && !isTeam && !isProducer ? <a className="authenticated-home-action primary" href="/vagas"><Ticket size={19} /><span><strong>Encontrar vaga</strong><small>Campeonatos com inscrições abertas</small></span><ChevronRight size={18} /></a> : null}
+
+          {isPlayer ? <a className="authenticated-home-action" href="/agenda"><CalendarDays size={19} /><span><strong>Próximo jogo</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}` : 'Confira sua disponibilidade'}</small></span><ChevronRight size={18} /></a> : null}
+          {isTeam ? <button type="button" className="authenticated-home-action" onClick={() => openPanelAt(account, 'jogadores')}><Users size={19} /><span><strong>Escalar elenco</strong><small>Prepare a equipe para jogar</small></span><ChevronRight size={18} /></button> : null}
+          {isProducer ? <button type="button" className="authenticated-home-action" onClick={() => openPanelAt(account, 'equipes')}><Users size={19} /><span><strong>Organizar equipes</strong><small>Adicionar e posicionar participantes</small></span><ChevronRight size={18} /></button> : null}
         </div>
       </section>
 
-
-      <section className="authenticated-home-section authenticated-home-access-section">
+      <section className="authenticated-home-section authenticated-home-priority-section">
         <div className="authenticated-home-section-head">
-          <div><span>CONTINUAR</span><h2>Seus atalhos</h2></div>
-          <button type="button" onClick={() => void onOpenPanel(account)}>Painel atual <ArrowRight size={15} /></button>
+          <div><span>AGORA</span><h2>{isPlayer ? 'Seu próximo compromisso' : isTeam ? 'Operação da equipe' : isProducer ? 'Campeonato ativo' : 'Continue de onde parou'}</h2></div>
+          <a href="/agenda">Ver agenda <ArrowRight size={15} /></a>
         </div>
-
-        <div className="authenticated-home-access-grid" aria-label="Atalhos da conta">
-          <button type="button" className="authenticated-home-access-card" onClick={() => void onOpenPanel(account)}>
-            <LayoutDashboard size={20} />
-            <span><strong>Painel</strong><small>{account.name || account.username || 'Perfil ativo'}</small></span>
-          </button>
-
-          <button type="button" className="authenticated-home-access-card" onClick={openTeam}>
-            <Users size={20} />
-            <span><strong>Equipe</strong><small>{team ? 'Elenco e lines' : 'Criar perfil'}</small></span>
-          </button>
-
-          <button type="button" className="authenticated-home-access-card" onClick={openProducerPanel}>
-            <Trophy size={20} />
-            <span><strong>Campeonatos</strong><small>{producer ? 'Gerenciar' : 'Criar produtora'}</small></span>
-          </button>
-
-          <a className="authenticated-home-access-card" href="/carteira">
-            <Wallet size={20} />
-            <span><strong>Carteira</strong><small>Saldo e pagamentos</small></span>
-          </a>
-
-          <a className="authenticated-home-access-card" href="/rank">
-            <ShieldCheck size={20} />
-            <span><strong>Rank</strong><small>Estatísticas</small></span>
-          </a>
+        <div className="authenticated-home-priority-card">
+          {priorityLoading ? <Loader2 className="spin" size={18} /> : <CalendarDays size={18} />}
+          <div><strong>{nextAgendaItem ? nextAgendaItem.titulo : isPlayer ? 'Nenhum jogo agendado' : 'Agenda da conta'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''} · ${nextAgendaItem.meta?.campeonato_nome || nextAgendaItem.meta?.equipe_nome || 'DropZone'}` : 'Acompanhe datas, jogos e compromissos em um só lugar.'}</small></div>
+          <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir <ChevronRight size={16} /></a>
         </div>
       </section>
 
