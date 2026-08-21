@@ -157,6 +157,13 @@
 .directory-market-page .directory-cart-preview article small{color:var(--champ-muted);font-size:9px}
 .directory-market-page .directory-cart-preview input{width:52px;min-height:32px;border:0;border-radius:7px;background:var(--champ-bg);color:var(--champ-text);text-align:center}
 .directory-market-page .directory-cart-preview article button{min-height:32px;border:0;border-radius:7px;padding:0 8px;background:var(--champ-bg);color:var(--champ-text);font-size:9px;font-weight:900;text-transform:uppercase}
+.directory-market-page .directory-cart-total{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0 2px;border-top:1px solid var(--champ-bg);color:var(--champ-muted);font-size:10px}
+.directory-market-page .directory-cart-total strong{color:var(--champ-text);font-size:13px}
+.directory-market-page .directory-cart-checkout-all{min-height:38px;border:0;border-radius:8px;background:var(--champ-accent);color:#15140d;font-size:10px;font-weight:950;text-transform:uppercase;cursor:pointer}
+.directory-market-page .directory-cart-prepared{display:grid;gap:6px;padding:10px;border-radius:8px;background:var(--champ-bg)}
+.directory-market-page .directory-cart-prepared strong{font-size:11px}
+.directory-market-page .directory-cart-prepared small{color:var(--champ-muted);font-size:9px}
+.directory-market-page .directory-cart-prepared a{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;padding:0 8px;border-radius:7px;background:var(--champ-surface);color:var(--champ-accent-strong);font-size:10px;font-weight:900;text-decoration:none}
 .directory-market-page .directory-wishlist-preview a{display:block;padding:9px 0;color:var(--champ-text);font-size:11px;font-weight:800;text-decoration:none}
 .directory-market-filters{
   display:flex;
@@ -235,7 +242,9 @@
   background:var(--champ-surface);
   color:var(--champ-text);
   box-shadow:none;
+  cursor:pointer;
 }
+.directory-champ-card:focus-visible{outline:2px solid var(--champ-accent-strong);outline-offset:3px}
 .directory-champ-cover{
   position:relative;
   display:block;

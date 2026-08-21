@@ -33,7 +33,20 @@ async function getOrCreateCart(userId: string) {
     .select('id,auth_user_id,status,created_at,updated_at')
     .single()
 
-  if (created.error) throw created.error
+  if (created.error) {
+    // O indice parcial permite apenas um carrinho ativo. Em dois cliques quase
+    // simultâneos, outro request pode criá-lo antes deste terminar.
+    if (created.error.code === '23505') {
+      const retry = await supabaseAdmin
+        .from('commerce_carrinhos')
+        .select('id,auth_user_id,status,created_at,updated_at')
+        .eq('auth_user_id', userId)
+        .eq('status', 'ativo')
+        .single()
+      if (!retry.error && retry.data) return retry.data
+    }
+    throw created.error
+  }
   return created.data
 }
 
@@ -170,7 +183,7 @@ export async function POST(req: NextRequest) {
       : await supabaseAdmin.from('commerce_carrinho_itens').insert(payload)
 
     if (result.error) throw result.error
-    return NextResponse.json(await listCart(user.id))
+    return NextResponse.json({ ok: true })
   } catch (error: any) {
     return errorResponse(error, 'Erro ao atualizar carrinho.')
   }
@@ -192,7 +205,7 @@ export async function PATCH(req: NextRequest) {
       .eq('carrinho_id', cart.id)
 
     if (error) throw error
-    return NextResponse.json(await listCart(user.id))
+    return NextResponse.json({ ok: true })
   } catch (error: any) {
     return errorResponse(error, 'Erro ao atualizar carrinho.')
   }
@@ -216,7 +229,7 @@ export async function DELETE(req: NextRequest) {
     const { error } = await query
 
     if (error) throw error
-    return NextResponse.json(await listCart(user.id))
+    return NextResponse.json({ ok: true })
   } catch (error: any) {
     return errorResponse(error, 'Erro ao remover item.')
   }

@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronRight, Flame, Heart, Radio, Search, ShoppingCart, SlidersHorizontal, Ticket, Users, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { addToCart, getCartItems, getWishlistItems, removeFromCart, setCartQuantity, toggleWishlist, type LocalCommerceItem } from '@/features/commerce/local-commerce'
 import { supabase } from '@/lib/supabase-browser'
 import { cachedStorageMediaUrl } from '@/lib/upload-public'
@@ -144,6 +144,8 @@ function ChampionshipCards({
   myChampionshipIds,
   wishlistIds,
   cartIds,
+  pendingWishlistIds,
+  pendingCartIds,
   onCartToggle,
   onWishlistToggle,
 }: {
@@ -151,6 +153,8 @@ function ChampionshipCards({
   myChampionshipIds: Set<string>
   wishlistIds: Set<string>
   cartIds: Set<string>
+  pendingWishlistIds: Set<string>
+  pendingCartIds: Set<string>
   onCartToggle: (item: DirectoryItem) => void
   onWishlistToggle: (item: DirectoryItem) => void
 }) {
@@ -162,11 +166,27 @@ function ChampionshipCards({
         const isMine = myChampionshipIds.has(item.id)
         const isInCart = cartIds.has(item.id)
         const coverUrl = cachedStorageMediaUrl(item.banner || item.image || '')
+        const championshipHref = `/${item.kind}/${item.id}`
+        const openChampionship = (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => {
+          const target = event.target as HTMLElement
+          if (target.closest('a,button,input,select,textarea,label')) return
+          if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return
+          if ('key' in event) event.preventDefault()
+          window.location.assign(championshipHref)
+        }
         return (
-          <article className="directory-champ-card" key={item.id}>
+          <article
+            className="directory-champ-card"
+            key={item.id}
+            tabIndex={0}
+            role="link"
+            aria-label={`Abrir campeonato ${item.name}`}
+            onClick={openChampionship}
+            onKeyDown={openChampionship}
+          >
             <a
               className="directory-champ-cover"
-              href={`/${item.kind}/${item.id}`}
+              href={championshipHref}
               aria-label={`Abrir ${item.name}`}
             >
               <span className="directory-champ-cover-empty" aria-hidden="true">
@@ -179,7 +199,7 @@ function ChampionshipCards({
             </a>
             <div className="directory-champ-body">
               <div className="directory-champ-title-row">
-                <a className="directory-champ-title" href={`/${item.kind}/${item.id}`}>
+                <a className="directory-champ-title" href={championshipHref}>
                   <small>{item.eyebrow || item.description || 'Campeonato'}</small>
                   <strong>{item.name}</strong>
                 </a>
@@ -189,6 +209,7 @@ function ChampionshipCards({
                     className={`directory-champ-wish ${wishlistIds.has(item.id) ? 'active' : ''}`}
                     aria-label={wishlistIds.has(item.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
                     aria-pressed={wishlistIds.has(item.id)}
+                    disabled={pendingWishlistIds.has(item.id)}
                     onClick={() => onWishlistToggle(item)}
                   >
                     <Heart size={17} />
@@ -198,7 +219,7 @@ function ChampionshipCards({
                     className={`directory-champ-cart-icon ${isInCart ? 'active' : ''}`}
                     aria-label={isInCart ? 'Remover do carrinho' : 'Adicionar ao carrinho'}
                     aria-pressed={isInCart}
-                    disabled={free <= 0 && !isInCart}
+                    disabled={(free <= 0 && !isInCart) || pendingCartIds.has(item.id)}
                     onClick={(event) => {
                       event.preventDefault()
                       event.stopPropagation()
@@ -219,8 +240,8 @@ function ChampionshipCards({
                 <small>{free} de {item.commercial?.total_vagas || 0} vagas disponíveis</small>
               </div>
               <div className="directory-champ-actions">
-                <a href={`/${item.kind}/${item.id}`}>Ver campeonato <ChevronRight size={14} /></a>
-                <a className="directory-champ-cart-action" href={`/${item.kind}/${item.id}`}>
+                <a href={championshipHref}>Ver campeonato <ChevronRight size={14} /></a>
+                <a className="directory-champ-cart-action" href={championshipHref}>
                   {free > 0 ? 'Garantir vaga' : 'Ver campeonato'} <ChevronRight size={14} />
                 </a>
               </div>
@@ -250,6 +271,9 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [cartPaymentMethod, setCartPaymentMethod] = useState<'pix' | 'cartao' | 'paypal'>('pix')
   const [commerceError, setCommerceError] = useState('')
+  const [pendingCartIds, setPendingCartIds] = useState<Set<string>>(new Set())
+  const [pendingWishlistIds, setPendingWishlistIds] = useState<Set<string>>(new Set())
+  const [preparedCheckouts, setPreparedCheckouts] = useState<Array<{ name: string; href: string }>>([])
   const isChampionshipDirectory = cardsOnly || items[0]?.kind === 'campeonatos'
 
   useEffect(() => {
@@ -314,13 +338,20 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
     setChampFilters((current) => ({ ...current, [key]: !current[key] }))
   }
   const handleCartToggle = async (item: DirectoryItem) => {
+    if (pendingCartIds.has(item.id)) return
     const wasInCart = cartItems.some((row) => row.id === item.id)
     const previous = cartItems
     setCommerceError('')
+    setPendingCartIds((current) => new Set(current).add(item.id))
     setCartItems((current) => wasInCart ? current.filter((row) => row.id !== item.id) : optimisticCartAdd(current, item))
 
     if (!accessToken) {
       setCartItems(wasInCart ? removeFromCart(item.id) : addToCart(commerceItemFromDirectory(item), 1))
+      setPendingCartIds((current) => {
+        const next = new Set(current)
+        next.delete(item.id)
+        return next
+      })
       return
     }
 
@@ -333,22 +364,32 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
       },
     ).catch(() => null)
     const payload = response ? await response.json().catch(() => null) : null
-    if (response?.ok && payload?.items) {
-      setCartItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
-      return
+    if (!response?.ok) {
+      setCartItems(previous)
+      setCommerceError(payload?.error || 'Não foi possível atualizar o carrinho. Tente novamente.')
     }
-    setCartItems(previous)
-    setCommerceError(payload?.error || 'Não foi possível atualizar o carrinho. Tente novamente.')
+    setPendingCartIds((current) => {
+      const next = new Set(current)
+      next.delete(item.id)
+      return next
+    })
   }
 
   const handleWishlistToggle = async (item: DirectoryItem) => {
+    if (pendingWishlistIds.has(item.id)) return
     const shouldFavorite = !wishlistItems.some((row) => row.id === item.id)
     const previous = wishlistItems
     setCommerceError('')
+    setPendingWishlistIds((current) => new Set(current).add(item.id))
     setWishlistItems((current) => optimisticWishlistToggle(current, item))
 
     if (!accessToken) {
       setWishlistItems(toggleWishlist(commerceItemFromDirectory(item)))
+      setPendingWishlistIds((current) => {
+        const next = new Set(current)
+        next.delete(item.id)
+        return next
+      })
       return
     }
 
@@ -358,12 +399,15 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
       body: JSON.stringify({ campeonato_id: item.id, favorito: shouldFavorite, origem: 'direto' }),
     }).catch(() => null)
     const payload = response ? await response.json().catch(() => null) : null
-    if (response?.ok && payload?.items) {
-      setWishlistItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
-      return
+    if (!response?.ok) {
+      setWishlistItems(previous)
+      setCommerceError(payload?.error || 'Não foi possível atualizar os favoritos. Tente novamente.')
     }
-    setWishlistItems(previous)
-    setCommerceError(payload?.error || 'Não foi possível atualizar os favoritos. Tente novamente.')
+    setPendingWishlistIds((current) => {
+      const next = new Set(current)
+      next.delete(item.id)
+      return next
+    })
   }
   const handleCartQuantity = async (item: LocalCommerceItem, quantity: number) => {
     if (accessToken && item.itemId) {
@@ -372,9 +416,8 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ item_id: item.itemId, quantidade: quantity }),
       }).catch(() => null)
-      const payload = response?.ok ? await response.json().catch(() => null) : null
-      if (payload?.items) {
-        setCartItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
+      if (response?.ok) {
+        setCartItems((current) => current.map((row) => row.id === item.id ? { ...row, quantity } : row))
         return
       }
     }
@@ -386,9 +429,8 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
         method: 'DELETE',
         headers: { Authorization: `Bearer ${accessToken}` },
       }).catch(() => null)
-      const payload = response?.ok ? await response.json().catch(() => null) : null
-      if (payload?.items) {
-        setCartItems(payload.items.map(commerceItemFromApi).filter((row: LocalCommerceItem) => row.id))
+      if (response?.ok) {
+        setCartItems((current) => current.filter((row) => row.id !== item.id))
         return
       }
     }
@@ -407,7 +449,31 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
     const payload = response?.ok ? await response.json().catch(() => null) : null
     const checkoutUrl = payload?.payment?.paypal_approval_url || payload?.payment?.invoice_url || payload?.claim_url
     if (checkoutUrl) window.location.href = checkoutUrl
-    else window.location.href = item.href
+    else {
+      setCommerceError(payload?.error || 'Não foi possível iniciar o pagamento. Tente novamente.')
+    }
+  }
+  const handleCartCheckoutAll = async () => {
+    const items = cartItems.filter((item) => item.itemId)
+    if (!accessToken || !items.length) {
+      if (cartItems[0]) window.location.href = cartItems[0].href
+      return
+    }
+    setCommerceError('')
+    const response = await fetch('/api/me/commerce/cart/checkout', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_ids: items.map((item) => item.itemId), method: cartPaymentMethod }),
+    }).catch(() => null)
+    const payload = response?.ok ? await response.json().catch(() => null) : null
+    if (!payload?.checkouts?.length) {
+      setCommerceError(payload?.error || 'Não foi possível preparar as inscrições. Tente novamente.')
+      return
+    }
+    setPreparedCheckouts(payload.checkouts.map((checkout: any) => ({
+      name: String(checkout.championship_name || 'Campeonato'),
+      href: String(checkout.checkout_url || checkout.claim_url),
+    })).filter((checkout: { href: string }) => Boolean(checkout.href)))
   }
 
   return (
@@ -446,7 +512,18 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
                         <button type="button" onClick={() => void handleCartRemove(item)}>Remover</button>
                       </article>
                     ))}
-                    <p>Total: {money(cartTotal)}</p>
+                    <div className="directory-cart-total">
+                      <span>{cartQuantity} {cartQuantity === 1 ? 'vaga' : 'vagas'}</span>
+                      <strong>Total: {money(cartTotal)}</strong>
+                    </div>
+                    {cartItems.length > 1 ? <button type="button" className="directory-cart-checkout-all" onClick={() => void handleCartCheckoutAll()}>Finalizar {cartItems.length} inscrições</button> : null}
+                    {preparedCheckouts.length ? (
+                      <div className="directory-cart-prepared" role="status">
+                        <strong>Inscrições preparadas</strong>
+                        <small>Conclua o pagamento de cada campeonato abaixo.</small>
+                        {preparedCheckouts.map((checkout) => <a key={`${checkout.name}-${checkout.href}`} href={checkout.href}>Pagar {checkout.name} <ChevronRight size={13} /></a>)}
+                      </div>
+                    ) : null}
                   </>
                 ) : <p>Seu carrinho está vazio.</p>}
               </div>
@@ -506,6 +583,8 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
           myChampionshipIds={myChampionshipIds}
           wishlistIds={wishlistIds}
           cartIds={cartIds}
+          pendingWishlistIds={pendingWishlistIds}
+          pendingCartIds={pendingCartIds}
           onCartToggle={handleCartToggle}
           onWishlistToggle={handleWishlistToggle}
         />

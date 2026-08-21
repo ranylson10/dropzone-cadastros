@@ -112,32 +112,25 @@ export async function POST(req: NextRequest) {
     if (campeonatoError) throw campeonatoError
     if (!campeonato) throw new Error('Campeonato nao encontrado.')
 
-    const existing = await supabaseAdmin
-      .from('commerce_favoritos')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .eq('campeonato_id', campeonatoId)
-      .maybeSingle()
-
-    if (existing.error) throw existing.error
-
-    if (favorito && !existing.data) {
+    if (favorito) {
       const { error } = await supabaseAdmin
         .from('commerce_favoritos')
         .insert({ auth_user_id: user.id, campeonato_id: campeonatoId, origem })
-      if (error) throw error
+      // Favoritar é idempotente: se outro clique/request já gravou o mesmo
+      // campeonato, o resultado correto continua sendo "favorito".
+      if (error && error.code !== '23505') throw error
     }
 
-    if (!favorito && existing.data) {
+    if (!favorito) {
       const { error } = await supabaseAdmin
         .from('commerce_favoritos')
         .delete()
-        .eq('id', existing.data.id)
         .eq('auth_user_id', user.id)
+        .eq('campeonato_id', campeonatoId)
       if (error) throw error
     }
 
-    return NextResponse.json(await listWishlist(user.id))
+    return NextResponse.json({ ok: true })
   } catch (error: any) {
     return errorResponse(error, 'Erro ao atualizar favoritos.')
   }
@@ -156,7 +149,7 @@ export async function DELETE(req: NextRequest) {
       .eq('campeonato_id', campeonatoId)
 
     if (error) throw error
-    return NextResponse.json(await listWishlist(user.id))
+    return NextResponse.json({ ok: true })
   } catch (error: any) {
     return errorResponse(error, 'Erro ao remover favorito.')
   }
