@@ -257,6 +257,7 @@ export default function CompraVagaPage() {
     if (String(raw).startsWith('data:')) return raw
     return `data:image/png;base64,${raw}`
   }, [payment?.pix_qrcode])
+  const paymentNeedsSetup = Boolean(pending && isPixPayment && !pixSrc && !payment?.pix_payload)
 
   if (loading && !data) {
     return <DropzoneLoader label="Carregando compra da vaga" />
@@ -326,7 +327,7 @@ export default function CompraVagaPage() {
           <header className="section-head">
             <div>
               <p className="eyebrow">Pagamento</p>
-              <h2>
+              <h2 className="vacancy-payment-title">
                 <PixIcon size={18} style={{ display: 'inline', marginRight: 6, color: '#32BCAD' }} />
                 {liberado || data?.consumido
                   ? 'Pago e liberado'
@@ -334,7 +335,9 @@ export default function CompraVagaPage() {
                     ? 'Aguardando PayPal'
                     : isCardPayment
                       ? 'Aguardando cartão'
-                      : 'Aguardando pagamento PIX'}
+                      : paymentNeedsSetup
+                        ? 'Pagamento PIX precisa ser gerado'
+                        : 'Aguardando PIX'}
               </h2>
             </div>
           </header>
@@ -350,6 +353,7 @@ export default function CompraVagaPage() {
                   Ver comprovante de pagamento
                 </a>
               ) : null}
+              <a className="button secondary" href="/carrinho#compras">Ver meus campeonatos pagos</a>
             </div>
           ) : (
             <>
@@ -377,6 +381,12 @@ export default function CompraVagaPage() {
                     </>
                   ) : null}
                 </div>
+              ) : paymentNeedsSetup ? (
+                <div className="vacancy-payment-retry">
+                  <strong>Não geramos um PIX sem CPF ou CNPJ válido.</strong>
+                  <span>Volte ao carrinho, preencha o documento do pagador e gere uma nova cobrança segura.</span>
+                  <a className="button" href="/carrinho">Voltar ao carrinho</a>
+                </div>
               ) : pending ? (
                 <p className="empty">
                   {isPaypalPayment
@@ -387,7 +397,7 @@ export default function CompraVagaPage() {
                 </p>
               ) : null}
 
-              {pending ? (
+              {pending && !paymentNeedsSetup ? (
                 <p className="empty" style={{ marginTop: 10 }}>
                   <Loader2 className="spin" size={14} style={{ display: 'inline', marginRight: 6 }} />
                   Após confirmar o pagamento, esta página atualiza sozinha e libera o próximo grupo com vaga.

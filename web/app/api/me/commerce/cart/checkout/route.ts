@@ -150,10 +150,14 @@ export async function POST(req: NextRequest) {
       String(body.item_id || '').trim(),
       ...(Array.isArray(body.item_ids) ? body.item_ids.map((value: unknown) => String(value || '').trim()) : []),
     ].filter(Boolean))]
-    const method = ['pix', 'cartao', 'paypal'].includes(String(body.method || 'pix'))
+  const method = ['pix', 'cartao', 'paypal'].includes(String(body.method || 'pix'))
       ? String(body.method || 'pix') as 'pix' | 'cartao' | 'paypal'
       : 'pix'
     if (!itemIds.length) throw new Error('Item do carrinho obrigatorio.')
+    const cpfCnpj = String(body.cpf_cnpj || '').replace(/\D/g, '')
+    if (method !== 'paypal' && ![11, 14].includes(cpfCnpj.length)) {
+      throw new Error('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido para gerar o pagamento.')
+    }
 
     const checkouts = []
     for (const itemId of itemIds) {
@@ -162,7 +166,7 @@ export async function POST(req: NextRequest) {
         user,
         account,
         method,
-        cpfCnpj: body.cpf_cnpj ? String(body.cpf_cnpj) : null,
+        cpfCnpj: cpfCnpj || null,
         origin: req.nextUrl.origin,
       }))
     }

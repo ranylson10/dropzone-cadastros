@@ -431,3 +431,6 @@ body .vacancies-page .vacancies-empty{
   body .vacancies-page .vacancy-banner{height:205px}
   body .vacancies-page .vacancy-card-body{padding:13px}
 }
+
+/* Compra de vaga: mensagem e estado de pagamento compactos, no padrão Lealt. */
+.vacancies-page .vacancy-payment-title{font-size:24px!important;line-height:1.1!important;letter-spacing:-.02em}.vacancies-page .vacancy-payment-retry{display:grid;gap:9px;padding:14px;border:1px solid rgba(201,183,102,.45);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised)}.vacancies-page .vacancy-payment-retry strong{color:var(--ui-text);font-size:13px}.vacancies-page .vacancy-payment-retry span{color:var(--ui-text-muted);font-size:12px;line-height:1.45}.vacancies-page .vacancy-payment-retry .button{width:max-content;min-height:36px;background:var(--ui-accent);color:#17150d}@media(max-width:700px){.vacancies-page .vacancy-payment-title{font-size:20px!important}}

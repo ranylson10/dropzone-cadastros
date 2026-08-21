@@ -39,8 +39,11 @@ export default function CarrinhoPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [method, setMethod] = useState<PaymentMethod>('pix')
   const [cpfCnpj, setCpfCnpj] = useState('')
+  const [documentError, setDocumentError] = useState('')
   const [error, setError] = useState('')
   const [preparedPayments, setPreparedPayments] = useState<Array<{ name: string; href: string }>>([])
+  const [purchases, setPurchases] = useState<any[]>([])
+  const [recommendations, setRecommendations] = useState<any[]>([])
 
   const loadRemoteCart = useCallback(async (token: string): Promise<LocalCommerceItem[]> => {
     const response = await fetch('/api/me/commerce/cart', { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
@@ -75,6 +78,17 @@ export default function CarrinhoPage() {
         await loadRemoteCart(token)
       }
       if (active) setLoading(false)
+      const [purchasesResponse, recommendationsResponse] = await Promise.all([
+        fetch('/api/me/compras/vagas', { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('/api/vagas?diretorio=1', { cache: 'no-store' }).catch(() => null),
+      ])
+      const purchasesPayload = purchasesResponse?.ok ? await purchasesResponse.json().catch(() => null) : null
+      const recommendationsPayload = recommendationsResponse?.ok ? await recommendationsResponse.json().catch(() => null) : null
+      if (active) {
+        setPurchases(Array.isArray(purchasesPayload?.items) ? purchasesPayload.items : [])
+        const cartIds = new Set([...current, ...local].map((item) => item.id))
+        setRecommendations((recommendationsPayload?.announcements || []).filter((item: any) => !cartIds.has(String(item.id))).slice(0, 5))
+      }
     })
     return () => { active = false }
   }, [loadRemoteCart])
@@ -127,9 +141,10 @@ export default function CarrinhoPage() {
       return
     }
     if (!documentReady) {
-      setError('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) para gerar o pagamento.')
+      setDocumentError('Digite um CPF com 11 dígitos ou CNPJ com 14 dígitos para continuar.')
       return
     }
+    setDocumentError('')
     setError('')
     setPreparedPayments([])
     setBusyId('checkout')
@@ -164,8 +179,10 @@ export default function CarrinhoPage() {
           {!loading && !items.length ? <div className="cart-empty"><ShoppingBag size={28}/><strong>Seu carrinho está vazio</strong><a href="/campeonatos">Ver campeonatos</a></div> : null}
           {items.map((item) => { const quantity = Math.max(1, Number(item.quantity || 1)); const itemTotal = Number(item.price || 0) * quantity; const busy = busyId === item.id; return <article className="cart-item" key={item.id}><div className="cart-item-image">{item.image ? <img src={item.image} alt="" /> : <ShoppingBag size={19}/>}</div><div className="cart-item-info"><a href={item.href}>{item.name}</a><small>{Number(item.price || 0) > 0 ? `${money(Number(item.price))} por vaga` : 'Inscrição gratuita'}</small><div className="cart-quantity"><button type="button" disabled={busy || quantity <= 1} onClick={() => void updateQuantity(item, quantity - 1)} aria-label={`Diminuir vagas em ${item.name}`}><Minus size={14}/></button><b>{quantity}</b><button type="button" disabled={busy || quantity >= Math.max(1, Number(item.freeSlots || 99))} onClick={() => void updateQuantity(item, quantity + 1)} aria-label={`Aumentar vagas em ${item.name}`}><Plus size={14}/></button></div></div><div className="cart-item-price"><strong>{money(itemTotal)}</strong><small>{Number(item.freeSlots || 0)} vagas livres</small>{Number(item.price || 0) <= 0 ? <a href={item.href}>Inscrever grátis</a> : null}</div><button type="button" className="cart-remove" disabled={busy} onClick={() => void removeItem(item)} aria-label={`Remover ${item.name}`}><Trash2 size={17}/></button></article> })}
         </div>
-        <aside className="cart-summary"><p>RESUMO DO PEDIDO</p><h2>{money(total)}</h2><div><span>Vagas</span><b>{totalVacancies}</b></div><div><span>Inscrições pagas</span><b>{paidItems.length}</b></div><div className="cart-summary-total"><span>Total a pagar</span><strong>{money(total)}</strong></div>{accessToken && paidItems.length ? <><label className="cart-field"><span>Forma de pagamento</span><select value={method} onChange={(event) => setMethod(event.target.value as PaymentMethod)}><option value="pix">PIX</option><option value="cartao">Cartão</option><option value="paypal">PayPal</option></select></label>{method !== 'paypal' ? <label className="cart-field"><span>CPF ou CNPJ do pagador</span><input value={cpfCnpj} inputMode="numeric" placeholder="Somente números" onChange={(event) => setCpfCnpj(cpfCnpjDigits(event.target.value))}/></label> : null}<button type="button" className="cart-checkout" disabled={busyId === 'checkout'} onClick={() => void checkout()}>{busyId === 'checkout' ? 'Preparando pagamento…' : `Pagar ${money(total)}`}</button></> : null}<div className="cart-secure"><ShieldCheck size={17}/><span>Pagamento protegido. Após a confirmação, você escolhe a equipe e a vaga de cada campeonato.</span></div>{preparedPayments.length ? <div className="cart-payments"><strong>Pagamentos preparados</strong><small>Há um pagamento por campeonato para manter cada inscrição vinculada corretamente.</small>{preparedPayments.map((payment) => <a key={payment.href} href={payment.href}>Pagar {payment.name}</a>)}</div> : null}</aside>
+        <aside className="cart-summary"><p>RESUMO DO PEDIDO</p><h2>{money(total)}</h2><div><span>Vagas</span><b>{totalVacancies}</b></div><div><span>Inscrições pagas</span><b>{paidItems.length}</b></div><div className="cart-summary-total"><span>Total a pagar</span><strong>{money(total)}</strong></div>{accessToken && paidItems.length ? <><label className="cart-field"><span>Forma de pagamento</span><select value={method} onChange={(event) => { setMethod(event.target.value as PaymentMethod); setDocumentError('') }}><option value="pix">PIX</option><option value="cartao">Cartão</option><option value="paypal">PayPal</option></select></label>{method !== 'paypal' ? <label className={`cart-field ${documentError ? 'has-error' : ''}`}><span>CPF ou CNPJ do pagador</span><input aria-invalid={Boolean(documentError)} value={cpfCnpj} inputMode="numeric" placeholder="Digite somente números" onChange={(event) => { setCpfCnpj(cpfCnpjDigits(event.target.value)); setDocumentError('') }}/>{documentError ? <small role="alert">{documentError}</small> : <small>Obrigatório para gerar o PIX ou checkout do cartão.</small>}</label> : null}<button type="button" className="cart-checkout" disabled={busyId === 'checkout'} onClick={() => void checkout()}>{busyId === 'checkout' ? 'Preparando pagamento…' : `Pagar ${money(total)}`}</button></> : null}<div className="cart-secure"><ShieldCheck size={17}/><span>Pagamento protegido. Cada pagamento só libera a vaga e o repasse do respectivo campeonato.</span></div>{preparedPayments.length ? <div className="cart-payments"><strong>Pagamentos preparados</strong><small>Há um pagamento por campeonato para manter cada inscrição vinculada corretamente.</small>{preparedPayments.map((payment) => <a key={payment.href} href={payment.href}>Pagar {payment.name}</a>)}</div> : null}</aside>
       </section>
+      {purchases.length ? <section className="cart-purchases" id="compras"><div><p>MINHAS COMPRAS</p><h2>Campeonatos pagos</h2></div><div>{purchases.map((purchase) => <article key={purchase.id}>{purchase.championship?.logo_url ? <img src={purchase.championship.logo_url} alt=""/> : <ShoppingBag size={17}/>}<span><strong>{purchase.championship?.nome || 'Campeonato'}</strong><small>{purchase.status === 'consumido' ? 'Inscrição concluída' : `${purchase.quantity} vaga${purchase.quantity > 1 ? 's' : ''} liberada${purchase.quantity > 1 ? 's' : ''}`}</small></span><a href={purchase.claim_url}>{purchase.status === 'consumido' ? 'Ver campeonato' : 'Fazer inscrição'}</a></article>)}</div></section> : null}
+      {recommendations.length ? <section className="cart-recommendations"><div><p>RECOMENDADO PARA VOCÊ</p><h2>Outros campeonatos com vagas</h2></div><div>{recommendations.map((item) => <a href={`/campeonatos/${item.id}`} key={item.id}>{item.logo_url ? <img src={item.logo_url} alt=""/> : <ShoppingBag size={18}/>}<strong>{item.nome}</strong><small>{Number(item.valor_inscricao || 0) > 0 ? money(Number(item.valor_inscricao)) : 'Grátis'} · {item.vagas_livres || 0} vagas</small></a>)}</div></section> : null}
     </AppShell>
   )
 }
