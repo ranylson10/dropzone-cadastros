@@ -29,7 +29,7 @@ test.describe('Rodada 5 — lista de campeonatos', () => {
     const list = source('web/features/directory/components/DirectoryListClient.tsx')
     expect(list).toContain('className="champ-directory-tools"')
     expect(list).toContain('placeholder="Buscar campeonato"')
-    expect(list).toContain('className="directory-market-tool directory-cart-preview"')
+    expect(list).toContain('className="directory-market-cart-link"')
     expect(list).toContain('className="directory-market-tool directory-wishlist-preview"')
     expect(list).toContain('className="directory-create-championship"')
     expect(list).toContain("/?painel=1&perfil=produtora&acao=criar-campeonato")

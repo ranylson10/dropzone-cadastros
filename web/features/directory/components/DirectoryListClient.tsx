@@ -1,8 +1,8 @@
 'use client'
 
-import { ChevronRight, CirclePlus, Flame, Heart, Radio, Search, ShoppingCart, SlidersHorizontal, Ticket, Users, X } from 'lucide-react'
+import { ChevronRight, CirclePlus, Flame, Heart, Radio, Search, ShoppingCart, SlidersHorizontal, Users, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
-import { addToCart, getCartItems, getWishlistItems, removeFromCart, setCartQuantity, toggleWishlist, type LocalCommerceItem } from '@/features/commerce/local-commerce'
+import { addToCart, getCartItems, getWishlistItems, removeFromCart, toggleWishlist, type LocalCommerceItem } from '@/features/commerce/local-commerce'
 import { supabase } from '@/lib/supabase-browser'
 import { cachedStorageMediaUrl } from '@/lib/upload-public'
 import type { DirectoryItem } from '../types'
@@ -269,12 +269,9 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
   const [cartItems, setCartItems] = useState<LocalCommerceItem[]>([])
   const [wishlistItems, setWishlistItems] = useState<LocalCommerceItem[]>([])
   const [accessToken, setAccessToken] = useState<string | null>(null)
-  const [cartPaymentMethod, setCartPaymentMethod] = useState<'pix' | 'cartao' | 'paypal'>('pix')
   const [commerceError, setCommerceError] = useState('')
   const [pendingCartIds, setPendingCartIds] = useState<Set<string>>(new Set())
   const [pendingWishlistIds, setPendingWishlistIds] = useState<Set<string>>(new Set())
-  const [preparedCheckouts, setPreparedCheckouts] = useState<Array<{ name: string; href: string }>>([])
-  const [checkoutPending, setCheckoutPending] = useState<string | null>(null)
   const [canCreateChampionship, setCanCreateChampionship] = useState(false)
   const isChampionshipDirectory = cardsOnly || items[0]?.kind === 'campeonatos'
 
@@ -290,24 +287,6 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
     if (remoteItems) setCartItems(remoteItems)
     return remoteItems || []
   }, [])
-
-  const synchronizeCartForCheckout = useCallback(async (): Promise<LocalCommerceItem[]> => {
-    if (!accessToken) return cartItems
-    const missingRemoteItems = cartItems.filter((item) => !item.itemId)
-    if (missingRemoteItems.length) {
-      const responses = await Promise.all(missingRemoteItems.map((item) => fetch('/api/me/commerce/cart', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campeonato_id: item.id, quantidade: item.quantity || 1, origem: 'direto' }),
-      }).catch(() => null)))
-      const failedResponse = responses.find((response) => !response?.ok)
-      if (failedResponse) {
-        const payload = await failedResponse.json().catch(() => null)
-        throw new Error(payload?.error || 'Não foi possível sincronizar o carrinho para o pagamento.')
-      }
-    }
-    return refreshRemoteCart(accessToken)
-  }, [accessToken, cartItems, refreshRemoteCart])
 
   useEffect(() => {
     if (!isChampionshipDirectory) return
@@ -385,7 +364,6 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((item) => item.id)), [wishlistItems])
   const cartIds = useMemo(() => new Set(cartItems.map((item) => item.id)), [cartItems])
   const cartQuantity = cartItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
-  const cartTotal = cartItems.reduce((sum, item) => sum + moneyNumber(item.price) * Number(item.quantity || 1), 0)
   const toggleChampFilter = (key: keyof Pick<ChampFilters, 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine'>) => {
     setChampFilters((current) => ({ ...current, [key]: !current[key] }))
   }
@@ -463,91 +441,6 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
       return next
     })
   }
-  const handleCartQuantity = async (item: LocalCommerceItem, quantity: number) => {
-    if (accessToken && item.itemId) {
-      const response = await fetch('/api/me/commerce/cart', {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_id: item.itemId, quantidade: quantity }),
-      }).catch(() => null)
-      if (response?.ok) {
-        setCartItems((current) => current.map((row) => row.id === item.id ? { ...row, quantity } : row))
-        return
-      }
-    }
-    setCartItems(setCartQuantity(item.id, quantity))
-  }
-  const handleCartRemove = async (item: LocalCommerceItem) => {
-    if (accessToken && item.itemId) {
-      const response = await fetch(`/api/me/commerce/cart?item_id=${encodeURIComponent(item.itemId)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }).catch(() => null)
-      if (response?.ok) {
-        setCartItems((current) => current.filter((row) => row.id !== item.id))
-        return
-      }
-    }
-    setCartItems(removeFromCart(item.id))
-  }
-  const handleCartCheckout = async (item: LocalCommerceItem) => {
-    if (checkoutPending) return
-    if (!accessToken) {
-      window.location.href = item.href
-      return
-    }
-    setCommerceError('')
-    setCheckoutPending(item.id)
-    try {
-      const synchronizedItems = await synchronizeCartForCheckout()
-      const synchronizedItem = synchronizedItems.find((row) => row.id === item.id)
-      if (!synchronizedItem?.itemId) throw new Error('O item ainda não foi preparado para pagamento. Tente novamente.')
-      const response = await fetch('/api/me/commerce/cart/checkout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_id: synchronizedItem.itemId, method: cartPaymentMethod }),
-      }).catch(() => null)
-      const payload = response?.ok ? await response.json().catch(() => null) : null
-      const checkoutUrl = payload?.payment?.paypal_approval_url || payload?.payment?.invoice_url || payload?.claim_url
-      if (checkoutUrl) window.location.href = checkoutUrl
-      else throw new Error(payload?.error || 'Não foi possível iniciar o pagamento. Tente novamente.')
-    } catch (error: any) {
-      setCommerceError(error?.message || 'Não foi possível iniciar o pagamento. Tente novamente.')
-    } finally {
-      setCheckoutPending(null)
-    }
-  }
-  const handleCartCheckoutAll = async () => {
-    if (checkoutPending) return
-    if (!accessToken) {
-      if (cartItems[0]) window.location.href = cartItems[0].href
-      return
-    }
-    setCommerceError('')
-    setPreparedCheckouts([])
-    setCheckoutPending('all')
-    try {
-      const synchronizedItems = await synchronizeCartForCheckout()
-      const items = synchronizedItems.filter((item) => item.itemId)
-      if (items.length !== cartItems.length) throw new Error('Nem todos os itens foram preparados para pagamento. Tente novamente.')
-      const response = await fetch('/api/me/commerce/cart/checkout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_ids: items.map((item) => item.itemId), method: cartPaymentMethod }),
-      }).catch(() => null)
-      const payload = response?.ok ? await response.json().catch(() => null) : null
-      if (!payload?.checkouts?.length) throw new Error(payload?.error || 'Não foi possível preparar as inscrições. Tente novamente.')
-      setPreparedCheckouts(payload.checkouts.map((checkout: any) => ({
-        name: String(checkout.championship_name || 'Campeonato'),
-        href: String(checkout.checkout_url || checkout.claim_url),
-      })).filter((checkout: { href: string }) => Boolean(checkout.href)))
-    } catch (error: any) {
-      setCommerceError(error?.message || 'Não foi possível preparar as inscrições. Tente novamente.')
-    } finally {
-      setCheckoutPending(null)
-    }
-  }
-
   return (
     <>
       {isChampionshipDirectory && !cardsOnly ? (
@@ -563,44 +456,7 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
             </label>
             <span className="directory-result-count"><strong>{filtered.length}</strong> resultado{filtered.length === 1 ? '' : 's'}</span>
             {canCreateChampionship ? <a className="directory-create-championship" href="/?painel=1&perfil=produtora&acao=criar-campeonato"><CirclePlus size={16} /> Criar campeonato</a> : null}
-            <details className="directory-market-tool directory-cart-preview">
-              <summary aria-label="Carrinho"><ShoppingCart size={18} /><b>{cartQuantity}</b></summary>
-              <div>
-                {cartItems.length ? (
-                  <>
-                    <label className="directory-cart-method">
-                      <span>Pagamento</span>
-                      <select value={cartPaymentMethod} onChange={(event) => setCartPaymentMethod(event.target.value as 'pix' | 'cartao' | 'paypal')}>
-                        <option value="pix">PIX</option>
-                        <option value="cartao">Cartão</option>
-                        <option value="paypal">PayPal</option>
-                      </select>
-                    </label>
-                    {cartItems.map((item) => (
-                      <article key={item.id}>
-                        <span>{item.image ? <img src={item.image} alt="" /> : <Ticket size={16} />}</span>
-                        <div><strong>{item.name}</strong><small>{money(item.price)} por vaga</small></div>
-                        <input aria-label={`Quantidade para ${item.name}`} min={1} max={Math.max(1, Number(item.freeSlots || 1))} type="number" value={Number(item.quantity || 1)} onChange={(event) => void handleCartQuantity(item, Number(event.target.value || 1))} />
-                        <button type="button" disabled={Boolean(checkoutPending)} onClick={() => void handleCartCheckout(item)}>{checkoutPending === item.id ? 'Preparando…' : 'Comprar'}</button>
-                        <button type="button" disabled={Boolean(checkoutPending)} onClick={() => void handleCartRemove(item)}>Remover</button>
-                      </article>
-                    ))}
-                    <div className="directory-cart-total">
-                      <span>{cartQuantity} {cartQuantity === 1 ? 'vaga' : 'vagas'}</span>
-                      <strong>Total: {money(cartTotal)}</strong>
-                    </div>
-                    {cartItems.length > 1 ? <button type="button" className="directory-cart-checkout-all" disabled={Boolean(checkoutPending)} onClick={() => void handleCartCheckoutAll()}>{checkoutPending === 'all' ? 'Preparando pagamentos…' : `Finalizar ${cartItems.length} inscrições`}</button> : null}
-                    {preparedCheckouts.length ? (
-                      <div className="directory-cart-prepared" role="status">
-                        <strong>Inscrições preparadas</strong>
-                        <small>Conclua o pagamento de cada campeonato abaixo.</small>
-                        {preparedCheckouts.map((checkout) => <a key={`${checkout.name}-${checkout.href}`} href={checkout.href}>Pagar {checkout.name} <ChevronRight size={13} /></a>)}
-                      </div>
-                    ) : null}
-                  </>
-                ) : <p>Seu carrinho está vazio.</p>}
-              </div>
-            </details>
+            <a className="directory-market-cart-link" href="/carrinho" aria-label={`Abrir carrinho com ${cartQuantity} vagas`}><ShoppingCart size={18} /><b>{cartQuantity}</b></a>
             <details className="directory-market-tool directory-wishlist-preview">
               <summary aria-label="Favoritos"><Heart size={18} /><b>{wishlistItems.length}</b></summary>
               <div>

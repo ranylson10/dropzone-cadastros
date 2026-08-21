@@ -84,7 +84,12 @@ async function checkoutCartItem({
     : null
   const resolvedPayment = paypalPayment || payment
   const claimUrl = `/vagas/compra/${encodeURIComponent(compra.token)}`
-  const checkoutUrl = resolvedPayment?.paypal_approval_url || resolvedPayment?.asaas_invoice_url || claimUrl
+  // PIX é concluído na nossa tela de compra: nela o usuário vê QR/copia-e-cola,
+  // acompanha a confirmação e escolhe a equipe/slot depois do pagamento. Para
+  // cartão e PayPal o provedor precisa abrir o ambiente seguro externo.
+  const checkoutUrl = method === 'pix'
+    ? claimUrl
+    : resolvedPayment?.paypal_approval_url || resolvedPayment?.asaas_invoice_url || claimUrl
 
   await supabaseAdmin
     .from('commerce_carrinho_itens')
