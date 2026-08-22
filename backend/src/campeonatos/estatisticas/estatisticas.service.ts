@@ -20,6 +20,22 @@ function applyFilters(query: any, filters: Filters) {
   return result
 }
 
+/** Acrescenta o ID público numérico da Line sem expor o UUID como ID de mídia. */
+async function attachLinePublicIds<T extends { line_id?: string | null }>(rows: T[]): Promise<Array<T & { line_public_id: number | null }>> {
+  const lineIds = [...new Set(rows.map((row) => String(row.line_id || '')).filter(Boolean))]
+  if (!lineIds.length) return rows.map((row) => ({ ...row, line_public_id: null }))
+  const { data, error } = await supabaseAdmin
+    .from('equipe_lines')
+    .select('id,public_id')
+    .in('id', lineIds)
+  if (error) throw error
+  const publicIdByLine = new Map((data || []).map((line: any) => [String(line.id), Number(line.public_id)]))
+  return rows.map((row) => ({
+    ...row,
+    line_public_id: publicIdByLine.get(String(row.line_id || '')) ?? null,
+  }))
+}
+
 export async function listarEstatisticasEquipes(campeonatoId: string, filters: Filters) {
   const query = applyFilters(
     supabaseAdmin
@@ -62,9 +78,10 @@ export async function listarEstatisticasEquipes(campeonatoId: string, filters: F
     aggregate.set(key, current)
   }
 
-  return [...aggregate.values()]
+  const rows = [...aggregate.values()]
     .sort((a, b) => b.pontos_total - a.pontos_total || b.booyahs - a.booyahs || b.abates - a.abates || Number(a.melhor_posicao ?? 999) - Number(b.melhor_posicao ?? 999))
     .map((row, index) => ({ ...row, colocacao: index + 1 }))
+  return attachLinePublicIds(rows)
 }
 
 
@@ -143,6 +160,7 @@ export async function listarEstatisticasMvp(campeonatoId: string, filters: Filte
       jogador_id: row.jogador_id,
       jogador_temporario_id: row.jogador_temporario_id,
       campeonato_equipe_id: row.campeonato_equipe_id,
+      line_id: row.line_id || null,
       nick: row.nick,
       id_jogo: row.id_jogo,
       foto_url: row.foto_url,
@@ -161,9 +179,10 @@ export async function listarEstatisticasMvp(campeonatoId: string, filters: Filte
     aggregate.set(key, current)
   }
 
-  return [...aggregate.values()]
+  const rows = [...aggregate.values()]
     .sort((a, b) => b.abates - a.abates || b.dano - a.dano)
     .map((row, index) => ({ ...row, colocacao: index + 1 }))
+  return attachLinePublicIds(rows)
 }
 
 
