@@ -208,7 +208,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         ? supabaseAdmin.from('equipes').select('id, nome, tag, logo_url').in('id', equipeIds)
         : Promise.resolve({ data: [] as any[] }),
       lineIds.length
-        ? supabaseAdmin.from('equipe_lines').select('id, nome, tag, logo_url, equipe_id').in('id', lineIds)
+        ? supabaseAdmin.from('equipe_lines').select('id, public_id, nome, tag, logo_url, equipe_id').in('id', lineIds)
         : Promise.resolve({ data: [] as any[] }),
       slotIds.length
         ? supabaseAdmin.from('campeonato_slots').select('id, slot_numero, slot_letra, grupo_id').in('id', slotIds)
@@ -337,6 +337,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
       const linePayload = {
         participacao_id: part.id,
+        public_id: line?.public_id == null ? null : Number(line.public_id),
         id: line?.id || null,
         nome: lineNome,
         tag: line?.tag || null,

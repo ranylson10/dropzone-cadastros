@@ -23,6 +23,8 @@ export type ExportJogador = {
 
 export type ExportLine = {
   participacao_id: string
+  /** Identificador numérico público e permanente da Line, usado nos arquivos de logo. */
+  public_id: number | null
   id: string | null
   nome: string
   tag: string | null

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Image as ImageIcon, Loader2, Save, Trash2, Upload, X } from 'lucide-react'
+import { Copy, Image as ImageIcon, Loader2, Save, Trash2, Upload, X } from 'lucide-react'
 import type { CampeonatoExportPayload } from '../types/campeonato-export.types'
 import { exportOverridesService } from '../services/export-overrides.service'
 import {
@@ -642,7 +642,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
           <div className="spec-canvas-meta">
             {isLogo && activeLogo ? (
               <span>
-                Slot <strong>{activeLogo.slotLetra}</strong> · <code>{activeLogo.codigo}</code>
+                Line ID <strong>{activeLogo.lineId || 'pendente'}</strong> · Slot <strong>{activeLogo.slotLetra}</strong> · <code>{activeLogo.codigo}</code>
                 {' · '}{activeLogo.equipeNome}
                 {activeLogo.tintColor ? ` · cor ${activeLogo.tintColor}` : ''}
                 {' · '}zoom {Math.round(activeLogo.zoom * 100)}%
@@ -817,6 +817,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
             <table className="export-table export-table-edit">
               <thead>
                 <tr>
+                  <th>Line ID</th>
                   <th>Slot</th>
                   <th>Código</th>
                   <th>Equipe</th>
@@ -834,6 +835,17 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                     onClick={() => setLogoKey(item.key)}
                     style={{ cursor: 'pointer' }}
                   >
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="link-button"
+                        title="Copiar ID da Line"
+                        disabled={!item.lineId}
+                        onClick={() => void navigator.clipboard?.writeText(item.lineId)}
+                      >
+                        <code>{item.lineId || '—'}</code> <Copy size={12} />
+                      </button>
+                    </td>
                     <td><strong>{item.slotLetra}</strong></td>
                     <td><code>{item.codigo}</code></td>
                     <td>
@@ -894,7 +906,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                     </td>
                   </tr>
                 ))}
-                {!logos.length ? <tr><td colSpan={7}>Lista vazia.</td></tr> : null}
+                {!logos.length ? <tr><td colSpan={8}>Lista vazia.</td></tr> : null}
               </tbody>
             </table>
           ) : (

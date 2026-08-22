@@ -56,6 +56,7 @@ const EXPORT_NOTES: {
 
 type EditEquipe = {
   id: string
+  lineId: string
   equipeId: string
   nome: string
   tag: string
@@ -89,6 +90,7 @@ function buildEditState(payload: CampeonatoExportPayload) {
       const tagLine = line.tag || eq.tag || ''
       equipes.push({
         id: lineKey,
+        lineId: line.public_id == null ? '' : String(line.public_id),
         equipeId: eq.id,
         nome: line.nome_exibicao || line.nome || eq.nome || '',
         tag: tagLine,
@@ -357,7 +359,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
     if (!equipesEdit.length) return
     downloadText(
       `tabela-lines-${baseName}.csv`,
-      toCsv(equipesEdit.map((e) => ({ nome_line: e.nome, tag: e.tag }))),
+      toCsv(equipesEdit.map((e) => ({ line_id: e.lineId, nome_line: e.nome, tag: e.tag }))),
       'text/csv;charset=utf-8',
     )
   }
@@ -368,6 +370,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
       `tabela-jogadores-${baseName}.csv`,
       toCsv(
         jogadoresEdit.map((j) => ({
+          line_id: equipesEdit.find((line) => line.id === j.lineKey)?.lineId || '',
           tag_equipe: j.tag_equipe,
           nick: j.nick,
           id_jogo: j.id_jogo,

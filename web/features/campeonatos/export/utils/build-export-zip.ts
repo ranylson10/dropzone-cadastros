@@ -33,6 +33,7 @@ function buildEquipesRows(data: CampeonatoExportPayload) {
   for (const eq of data.equipes || []) {
     for (const line of eq.lines || []) {
       rows.push({
+        line_id: line.public_id ?? '',
         nome_line: line.nome_exibicao || line.nome || eq.nome || '',
         tag: line.tag || eq.tag || '',
       })
@@ -51,6 +52,7 @@ function buildJogadoresRows(data: CampeonatoExportPayload) {
       const tagLine = line.tag || tag
       for (const jog of line.jogadores || []) {
         rows.push({
+          line_id: line.public_id ?? '',
           tag_equipe: tagLine,
           nick: jog.nick || '',
           id_jogo: jog.id_jogo || '',

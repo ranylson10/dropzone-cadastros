@@ -74,6 +74,8 @@ export function logoCodeFromLetter(letter: string): number | null {
 
 export type SpecLogoItem = {
   key: string
+  /** ID numérico público da Line; base para a logo no editor de overlays. */
+  lineId: string
   equipeId: string
   equipeNome: string
   lineNome: string
@@ -134,6 +136,7 @@ export function buildSpecLogoItems(data: CampeonatoExportPayload): SpecLogoItem[
       const lineName = line.nome_exibicao || line.nome || eq.nome
       items.push({
         key: line.participacao_id || `${eq.id}-${line.id || letter}`,
+        lineId: line.public_id == null ? '' : String(line.public_id),
         equipeId: eq.id,
         equipeNome: lineName,
         lineNome: lineName,
