@@ -79,6 +79,43 @@
   gap: 3px;
 }
 
+.scorer-drop-tab-item {
+  display: grid;
+  flex: 0 0 auto;
+  min-width: 76px;
+  border: 1px solid var(--ui-line, #2a2c32);
+  border-radius: var(--ui-radius-sm, 6px);
+  overflow: hidden;
+  background: var(--ui-surface-raised, #1a1b1f);
+}
+
+.scorer-drop-tab-item > label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--ui-line, #2a2c32);
+  color: var(--ui-muted, #9c9a94);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  cursor: pointer;
+}
+
+.scorer-drop-tab-item > label input { position: absolute; opacity: 0; pointer-events: none; }
+.scorer-drop-tab-item > label:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+.scorer-drop-tab-item > button { min-height: 38px; border: 0; border-radius: 0; }
+.scorer-drop-tab-item.is-live { border-color: #dc4d4d; box-shadow: 0 0 0 1px rgba(220,77,77,.25); }
+.scorer-drop-tab-item.is-live > label { border-color: rgba(220,77,77,.45); background: #dc4d4d; color: #fff; }
+
+.scorer-live-game.is-live {
+  border-color: #dc4d4d;
+  background: #dc4d4d;
+  color: #fff;
+}
+
 .scorer-sheet-workspace .scorer-drop-tabs {
   flex: 1 1 auto;
   min-width: 0;

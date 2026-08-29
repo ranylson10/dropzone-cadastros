@@ -67,9 +67,12 @@ function playerItem(row: any, index: number, logoByTeam?: Map<string, string>): 
   }
 }
 
-function currentPartida(partidas: any[]) {
-  let currentIndex = partidas.findIndex((row) => /em_andamento|andamento|live|ao.?vivo|em_jogo/i.test(String(row.status || '')))
-  if (currentIndex < 0) {
+function currentPartida(partidas: any[], activePartidaId?: string | null, allowFallback = true) {
+  let currentIndex = activePartidaId
+    ? partidas.findIndex((row) => String(row.id || '') === String(activePartidaId))
+    : -1
+  if (currentIndex < 0 && allowFallback) currentIndex = partidas.findIndex((row) => /em_andamento|andamento|live|ao.?vivo|em_jogo/i.test(String(row.status || '')))
+  if (currentIndex < 0 && allowFallback) {
     let lastDone = -1
     for (let index = 0; index < partidas.length; index += 1) {
       if (/finaliz|conclu|encerr|done|finished/i.test(String(partidas[index].status || ''))) lastDone = index
@@ -127,8 +130,10 @@ export async function loadPublicStreamPackageRenderData(
   await assertCampeonatoNoAr(campeonatoId)
 
   const context = await resolveStreamContext(campeonatoId)
-  const partidas = await loadPartidasForStream(campeonatoId, context.activeJogoId)
-  const partidaState = currentPartida(partidas)
+  const partidas = context.explicitState && !context.activeJogoId
+    ? []
+    : await loadPartidasForStream(campeonatoId, context.activeJogoId)
+  const partidaState = currentPartida(partidas, context.activePartidaId, !context.explicitState)
 
   if (type === 'standings_general') {
     const rows = await listarEstatisticasEquipes(campeonatoId, {})

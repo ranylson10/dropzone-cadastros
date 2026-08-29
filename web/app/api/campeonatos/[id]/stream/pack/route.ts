@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { atualizarEstadoTransmissao } from '@backend/campeonatos/stream/transmission-state.service'
 import {
   asStreamConfigObject,
   asStreamOverlayTypeList,
@@ -30,6 +31,11 @@ function missingOutputLayouts(error: any) {
   return error?.code === '42703' && message.includes('output_layouts')
 }
 
+function missingTransmissionColumns(error: any) {
+  const message = String(error?.message || '')
+  return message.includes('active_partida_id') || message.includes('live_state_version')
+}
+
 function missingPackageColumns(error: any) {
   const message = String(error?.message || '')
   return error?.code === '42703' || [
@@ -42,7 +48,7 @@ function missingPackageColumns(error: any) {
   ].some((column) => message.includes(column))
 }
 
-const PACK_SELECT = 'bg_type,bg_url,active_jogo_id,enabled_overlay_types,assets,shared_config,overlay_configs,output_layouts,schema_version,updated_at'
+const PACK_SELECT = 'bg_type,bg_url,active_jogo_id,active_partida_id,live_state_version,enabled_overlay_types,assets,shared_config,overlay_configs,output_layouts,schema_version,updated_at'
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -79,6 +85,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           needs_output_layouts_sql: true,
         }, { status: 503 })
       }
+      if (missingTransmissionColumns(error)) {
+        return NextResponse.json({
+          error: 'Rode o SQL: database/migrations/20260829_stream_transmission_state.sql',
+          needs_transmission_state_sql: true,
+        }, { status: 503 })
+      }
       if (missingPackageColumns(error)) {
         return NextResponse.json({
           error: 'Rode o SQL: database/migrations/20260810_stream_overlay_package_model.sql',
@@ -99,6 +111,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         bg_type: pack?.bg_type || 'none',
         bg_url: pack?.bg_url || null,
         active_jogo_id: pack?.active_jogo_id || null,
+        active_partida_id: pack?.active_partida_id || null,
+        live_state_version: Number(pack?.live_state_version || 0),
         updated_at: pack?.updated_at || null,
         ...normalizeStreamOverlayPackage(id, pack),
       },
@@ -169,7 +183,12 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     if (hasBgType) row.bg_type = bgType
     if (hasBgType) row.bg_url = bgType === 'none' ? null : bgUrl
     else if (hasBgUrl) row.bg_url = bgUrl
-    if (activeJogoId !== undefined) row.active_jogo_id = activeJogoId
+    if (activeJogoId !== undefined) {
+      await atualizarEstadoTransmissao(id, user.id, {
+        activeJogoId,
+        activePartidaId: undefined,
+      })
+    }
     if (hasEnabledOverlayTypes) row.enabled_overlay_types = asStreamOverlayTypeList(body.enabled_overlay_types)
     if (hasAssets) row.assets = asStreamConfigObject(body.assets)
     if (hasSharedConfig) row.shared_config = asStreamConfigObject(body.shared_config)
@@ -197,6 +216,12 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
           needs_output_layouts_sql: true,
         }, { status: 503 })
       }
+      if (missingTransmissionColumns(error)) {
+        return NextResponse.json({
+          error: 'Rode o SQL: database/migrations/20260829_stream_transmission_state.sql',
+          needs_transmission_state_sql: true,
+        }, { status: 503 })
+      }
       if (missingPackageColumns(error)) {
         return NextResponse.json({
           error: 'Rode o SQL: database/migrations/20260810_stream_overlay_package_model.sql',
@@ -217,6 +242,8 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
         bg_type: data.bg_type || 'none',
         bg_url: data.bg_url || null,
         active_jogo_id: data.active_jogo_id || null,
+        active_partida_id: data.active_partida_id || null,
+        live_state_version: Number(data.live_state_version || 0),
         updated_at: data.updated_at,
         ...normalizeStreamOverlayPackage(id, data),
       },

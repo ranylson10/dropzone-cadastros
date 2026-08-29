@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../../shared/supabase-admin'
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '../estatisticas/estatisticas.service'
+import { carregarEstadoTransmissao } from '../stream/transmission-state.service'
 
 type FiltrosJogos = {
   faseId?: string | null
@@ -145,10 +146,11 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
   if (vinculosError) throw vinculosError
 
   const mapas = Array.from(new Set((partidas || []).map((partida: any) => String(partida.mapa_codigo || '')).filter(Boolean)))
-  const [classificacaoGeral, mvpGeral, mvpJogo, ...classificacoesMapa] = await Promise.all([
+  const [classificacaoGeral, mvpGeral, mvpJogo, transmissao, ...classificacoesMapa] = await Promise.all([
     listarEstatisticasEquipes(campeonatoId, {}),
     listarEstatisticasMvp(campeonatoId, { faseId: jogo.fase_id || null }),
     listarEstatisticasMvp(campeonatoId, { jogoId }),
+    carregarEstadoTransmissao(campeonatoId),
     ...mapas.map(mapaCodigo => listarEstatisticasEquipes(campeonatoId, { mapaCodigo })),
   ])
 
@@ -172,6 +174,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
     mvp_geral: mvpGeral,
     mvp_jogo: mvpJogo,
     vinculos_matchresult: vinculos || [],
+    transmissao,
   }
 }
 
@@ -329,85 +332,4 @@ export async function marcarFaltaPontuador(
   if (error) throw error
 
   return { presenca_id: data }
-}
-
-/**
- * Define a queda atual do jogo (para overlays / stream).
- * Seta status = em_andamento nesta partida.
- * Todas as outras em_andamento do MESMO jogo voltam para agendada.
- * Status permitidos no banco: agendada | em_andamento | finalizada | cancelada
- * (NÃO existe "pendente" — por isso a troca antiga falhava e ficavam 2 ATUAIS.)
- */
-export async function definirQuedaAtual(
-  campeonatoId: string,
-  jogoId: string,
-  quedaId: string,
-) {
-  const { data: partida, error: partidaError } = await supabaseAdmin
-    .from('campeonato_partidas')
-    .select('id,status,jogo_id')
-    .eq('id', quedaId)
-    .eq('campeonato_id', campeonatoId)
-    .eq('jogo_id', jogoId)
-    .maybeSingle()
-  if (partidaError) throw partidaError
-  if (!partida) throw new Error('Queda não encontrada neste jogo.')
-
-  // 1) Remove ATUAL de todas as outras do jogo (bulk, sem updated_at pra não falhar se coluna não existir)
-  const { error: clearErr } = await supabaseAdmin
-    .from('campeonato_partidas')
-    .update({ status: 'agendada' })
-    .eq('jogo_id', jogoId)
-    .eq('campeonato_id', campeonatoId)
-    .eq('status', 'em_andamento')
-    .neq('id', quedaId)
-  if (clearErr) {
-    // fallback só por jogo_id
-    const { error: clear2 } = await supabaseAdmin
-      .from('campeonato_partidas')
-      .update({ status: 'agendada' })
-      .eq('jogo_id', jogoId)
-      .eq('status', 'em_andamento')
-      .neq('id', quedaId)
-    if (clear2) throw clear2
-  }
-
-  // 2) Marca esta como única atual
-  if (partida.status === 'finalizada') {
-    // finalizada continua finalizada, mas não pode ser a única "em_andamento"
-    // — reabre como em_andamento para ser a atual (usuário pediu troca explícita)
-    // se preferir não reabrir, avisar
-  }
-
-  const { data: updated, error: e2 } = await supabaseAdmin
-    .from('campeonato_partidas')
-    .update({ status: 'em_andamento' })
-    .eq('id', quedaId)
-    .select('*')
-    .single()
-  if (e2) throw e2
-
-  // 3) Garantia: nenhuma outra do jogo ficou em_andamento
-  const { data: aindaAtuais, error: e3 } = await supabaseAdmin
-    .from('campeonato_partidas')
-    .select('id')
-    .eq('jogo_id', jogoId)
-    .eq('status', 'em_andamento')
-    .neq('id', quedaId)
-  if (e3) throw e3
-  if (aindaAtuais?.length) {
-    const { error: forceClear } = await supabaseAdmin
-      .from('campeonato_partidas')
-      .update({ status: 'agendada' })
-      .in(
-        'id',
-        aindaAtuais.map((r) => r.id),
-      )
-    if (forceClear) throw forceClear
-  }
-
-  return {
-    partida: updated,
-    message: 'Queda atual definida. As outras deixaram de ser atuais.',
-  }
 }

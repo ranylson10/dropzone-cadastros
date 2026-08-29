@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { requireCampeonatoScore } from '@backend/campeonatos/campeonato-permissions'
-import { definirQuedaAtual } from '@backend/campeonatos/pontuador/pontuador.service'
+import { atualizarEstadoTransmissao } from '@backend/campeonatos/stream/transmission-state.service'
 
-/** Marca a queda como atual (em_andamento) — usado por overlays Stream. */
+/** Compatibilidade: define o ponteiro da transmissao sem alterar a partida. */
 export async function POST(
   _req: NextRequest,
   context: { params: Promise<{ id: string; jogoId: string; quedaId: string }> },
@@ -12,8 +12,11 @@ export async function POST(
     const { id, jogoId, quedaId } = await context.params
     const user = await getBearerUser(_req)
     await requireCampeonatoScore(user.id, id)
-    const result = await definirQuedaAtual(id, jogoId, quedaId)
-    return NextResponse.json({ ok: true, ...result })
+    const transmissao = await atualizarEstadoTransmissao(id, user.id, {
+      activeJogoId: jogoId,
+      activePartidaId: quedaId,
+    })
+    return NextResponse.json({ ok: true, transmissao })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Erro ao definir queda atual.' },

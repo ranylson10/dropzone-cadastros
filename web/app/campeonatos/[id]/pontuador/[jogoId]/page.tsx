@@ -1,7 +1,7 @@
 'use client'
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Clock3, FileUp, Loader2, Pencil, RefreshCcw, Save, Trophy, Users, X } from 'lucide-react'
+import { ArrowLeft, CircleDot, Clock3, FileUp, Loader2, Pencil, Radio, RefreshCcw, Save, Trophy, Users, X } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
@@ -12,12 +12,20 @@ type Row = Record<string, any>
 type Scope = 'geral' | 'jogo' | 'mapa'
 type View = 'equipes' | 'mvp'
 type TeamEdit = { posicao: string; abates: string; punicao: string; motivo: string; jogadores: Record<string, string> }
+type TransmissionState = {
+  active_jogo_id: string | null
+  active_partida_id: string | null
+  version: number
+  updated_at: string | null
+  updated_by: string | null
+}
 type PontuadorData = {
   campeonato: { id: string; nome: string; logo_url?: string | null; campeonato_configuracoes?: Row[] | Row | null }
   fase?: Row | null; rodada?: Row | null; jogo: Row
   partidas: Row[]; slots: Row[]; matriz: Row[]; jogadores: Row[]; resultados_jogadores: Row[]
   classificacao_geral: Row[]; classificacao_jogo: Row[]; classificacao_mapas: Record<string, Row[]>
   mvp_geral: Row[]; mvp_jogo: Row[]; vinculos_matchresult: Row[]
+  transmissao: TransmissionState
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -77,17 +85,27 @@ export default function PontuadorJogoPage() {
   const [faltas, setFaltas] = useState<Record<string, boolean>>({})
   const [publicDelayMinutes, setPublicDelayMinutes] = useState('5')
   const [savingDelay, setSavingDelay] = useState(false)
+  const [transmission, setTransmission] = useState<TransmissionState>({
+    active_jogo_id: null,
+    active_partida_id: null,
+    version: 0,
+    updated_at: null,
+    updated_by: null,
+  })
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
       const result = await request<PontuadorData>(`/api/campeonatos/${params.id}/pontuador/${params.jogoId}`)
       setData(result)
+      setTransmission(result.transmissao)
       const rawConfig = Array.isArray(result.campeonato.campeonato_configuracoes)
         ? result.campeonato.campeonato_configuracoes[0]
         : result.campeonato.campeonato_configuracoes
       setPublicDelayMinutes(String(number(rawConfig?.estatisticas_delay_segundos ?? 300) / 60))
-      const atual = result.partidas.find((p) => p.status === 'em_andamento')
+      const atual = result.transmissao.active_jogo_id === params.jogoId
+        ? result.partidas.find((p) => p.id === result.transmissao.active_partida_id)
+        : null
       setSelectedDropId((current) => current || atual?.id || result.partidas[0]?.id || '')
       setSelectedMap((current) => current || atual?.mapa_codigo || result.partidas[0]?.mapa_codigo || '')
       // faltas a partir da matriz da queda selecionada
@@ -106,6 +124,20 @@ export default function PontuadorJogoPage() {
   }, [params.id, params.jogoId])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    let active = true
+    const refresh = async () => {
+      try {
+        const result = await request<{ transmissao: TransmissionState }>(`/api/campeonatos/${params.id}/pontuador/transmissao`)
+        if (active) setTransmission(result.transmissao)
+      } catch {
+        // A tela principal continua funcional se uma atualizacao de estado falhar.
+      }
+    }
+    const interval = window.setInterval(() => void refresh(), 3000)
+    return () => { active = false; window.clearInterval(interval) }
+  }, [params.id])
 
   const selectedDrop = data?.partidas.find(drop => drop.id === selectedDropId)
   const previewKillWarnings = useMemo(
@@ -421,22 +453,48 @@ export default function PontuadorJogoPage() {
     }
   }
 
-  async function setQuedaAtual(quedaId: string) {
-    setSaving(true); setError(''); setNotice(''); setOperation({ title: 'Definindo queda atual', steps: ['Validando queda', 'Atualizando overlays', 'Sincronizando tela'], activeStep: 0 })
+  async function setJogoTransmissao() {
+    if (transmission.active_jogo_id && transmission.active_jogo_id !== params.jogoId) {
+      if (!window.confirm('Outro jogo controla a transmissao. Deseja assumir o controle com este jogo?')) return
+    }
+    setSaving(true); setError(''); setNotice('')
     try {
-      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
-      const res = await request<{ warning?: string }>(
-        `/api/campeonatos/${params.id}/pontuador/${params.jogoId}/quedas/${quedaId}/atual`,
-        { method: 'POST' },
-      )
-      setSelectedDropId(quedaId)
-      setNotice(res.warning || 'Queda marcada como atual (overlays Stream usarão esta queda).')
-      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
-      await load()
+      const result = await request<{ transmissao: TransmissionState }>(`/api/campeonatos/${params.id}/pontuador/transmissao`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          active_jogo_id: params.jogoId,
+          active_partida_id: null,
+          expected_version: transmission.version,
+        }),
+      })
+      setTransmission(result.transmissao)
+      setNotice('Este jogo agora controla a transmissao. Selecione a queda que deve ficar no ar.')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Erro ao definir queda atual.')
+      setError(cause instanceof Error ? cause.message : 'Erro ao definir jogo da transmissao.')
     } finally {
-      setSaving(false); setOperation(null)
+      setSaving(false)
+    }
+  }
+
+  async function setQuedaTransmissao(quedaId: string) {
+    if (transmission.active_jogo_id !== params.jogoId) return setError('Defina este jogo como jogo da transmissao primeiro.')
+    setSaving(true); setError(''); setNotice('')
+    try {
+      const result = await request<{ transmissao: TransmissionState }>(`/api/campeonatos/${params.id}/pontuador/transmissao`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          active_jogo_id: params.jogoId,
+          active_partida_id: quedaId,
+          expected_version: transmission.version,
+        }),
+      })
+      setTransmission(result.transmissao)
+      const queda = data?.partidas.find((item) => item.id === quedaId)
+      setNotice(`Q${queda?.numero_partida || ''} definida nas overlays. Navegar ou editar outra queda nao altera a transmissao.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro ao definir queda da transmissao.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -515,11 +573,22 @@ export default function PontuadorJogoPage() {
 
   const maps = Array.from(new Map(data.partidas.map(drop => [drop.mapa_codigo, drop.mapa_nome || drop.mapa])).entries()).filter(([code]) => code)
   const isLocked = selectedDrop?.status === 'finalizada'
+  const isTransmissionGame = transmission.active_jogo_id === params.jogoId
 
   return <main className={`scorer-workspace scorer-sheet-workspace${isLocked ? ' is-drop-locked' : ''}`}>
     <header className="scorer-workspace-header">
       <div className="scorer-brand"><button className="icon-button" onClick={() => router.back()} aria-label="Voltar"><ArrowLeft size={18}/></button>{data.campeonato.logo_url ? <img src={data.campeonato.logo_url} alt=""/> : null}<div><p>{data.fase?.nome || 'Fase'}</p><h1>{data.jogo.nome}</h1><small>{data.campeonato.nome} · {data.slots.length} slots{isLocked ? ' · Q' + selectedDrop?.numero_partida + ' travada' : ''}</small></div></div>
       <div className="scorer-header-actions">
+        <button
+          className={`button scorer-live-game${isTransmissionGame ? ' is-live' : ''}`}
+          type="button"
+          onClick={() => void setJogoTransmissao()}
+          disabled={saving || isTransmissionGame}
+          title={isTransmissionGame ? 'Este jogo controla as overlays' : 'Define este jogo como fonte das overlays'}
+        >
+          {isTransmissionGame ? <Radio size={15}/> : <CircleDot size={15}/>}
+          {isTransmissionGame ? 'Jogo no ar' : transmission.active_jogo_id ? 'Assumir transmissao' : 'Definir jogo da transmissao'}
+        </button>
         <div className="scorer-public-delay" title="Afeta somente o site publico. Overlays recebem o resultado assim que a queda e salva.">
           <Clock3 size={15}/>
           <label htmlFor="public-stats-delay">Atraso do site</label>
@@ -571,34 +640,34 @@ export default function PontuadorJogoPage() {
       <div className="scorer-scope-switch"><button className={scope === 'geral' ? 'active' : ''} onClick={() => setScope('geral')}>Geral</button><button className={scope === 'jogo' ? 'active' : ''} onClick={() => setScope('jogo')}>Jogo</button><button className={scope === 'mapa' ? 'active' : ''} onClick={() => setScope('mapa')}>Mapa</button>{scope === 'mapa' ? <select value={selectedMap} onChange={event => setSelectedMap(event.target.value)}>{maps.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select> : null}</div>
       <div className="scorer-drop-tabs">
         {data.partidas.map((drop) => {
-          const isAtual = drop.status === 'em_andamento'
+          const isAtual = isTransmissionGame && transmission.active_partida_id === drop.id
           const isSelected = selectedDropId === drop.id
           return (
-            <button
-              key={drop.id}
-              type="button"
-              className={`${isSelected ? 'active' : ''}${isAtual ? ' is-current-drop' : ''}`}
-              onClick={() => setSelectedDropId(drop.id)}
-              title={isAtual ? 'Queda atual (overlays)' : 'Clique para editar esta queda'}
-            >
-              Q{drop.numero_partida}
-              {isAtual ? <b className="drop-atual-badge">ATUAL</b> : null}
-              <small>{drop.mapa_nome || drop.mapa}</small>
-            </button>
+            <div className={`scorer-drop-tab-item${isAtual ? ' is-live' : ''}`} key={drop.id}>
+              <label title={isTransmissionGame ? `Colocar Q${drop.numero_partida} nas overlays` : 'Defina este jogo como jogo da transmissao'}>
+                <input
+                  type="radio"
+                  name="transmission-drop"
+                  checked={isAtual}
+                  disabled={!isTransmissionGame || saving}
+                  onChange={() => void setQuedaTransmissao(drop.id)}
+                />
+                <Radio size={12}/>
+                {isAtual ? 'NO AR' : 'Exibir'}
+              </label>
+              <button
+                type="button"
+                className={isSelected ? 'active' : ''}
+                onClick={() => setSelectedDropId(drop.id)}
+                title="Abrir esta queda para visualizar ou editar"
+              >
+                Q{drop.numero_partida}
+                <small>{drop.mapa_nome || drop.mapa}</small>
+              </button>
+            </div>
           )
         })}
       </div>
-      {selectedDropId ? (
-        <button
-          type="button"
-          className="button secondary scorer-set-current"
-          disabled={saving || selectedDrop?.status === 'em_andamento'}
-          onClick={() => void setQuedaAtual(selectedDropId)}
-          title="Marca esta queda como atual para as overlays Stream"
-        >
-          {selectedDrop?.status === 'em_andamento' ? 'Queda atual' : 'Definir como queda atual'}
-        </button>
-      ) : null}
     </section>
 
     {error ? <div className="scorer-feedback error">{error}<button onClick={() => setError('')}><X size={14}/></button></div> : null}

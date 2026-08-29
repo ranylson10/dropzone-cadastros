@@ -523,6 +523,11 @@ function pickCurrentAndNext(partidas: FlatPartida[]) {
 }
 
 async function loadPartidaAtual(campeonatoId: string): Promise<StreamSheetRow[]> {
+  try {
+    return rowsFromPayload(await loadDedicatedStreamSheet(campeonatoId, 'partida_atual'))
+  } catch {
+    // Compatibilidade com backend anterior.
+  }
   const partidas = await loadPartidasFlat(campeonatoId)
   const { current } = pickCurrentAndNext(partidas)
   if (!current) {
@@ -553,6 +558,11 @@ async function loadPartidaAtual(campeonatoId: string): Promise<StreamSheetRow[]>
 }
 
 async function loadProximaQueda(campeonatoId: string): Promise<StreamSheetRow[]> {
+  try {
+    return rowsFromPayload(await loadDedicatedStreamSheet(campeonatoId, 'proxima_queda'))
+  } catch {
+    // Compatibilidade com backend anterior.
+  }
   const partidas = await loadPartidasFlat(campeonatoId)
   const { next } = pickCurrentAndNext(partidas)
   if (!next) {

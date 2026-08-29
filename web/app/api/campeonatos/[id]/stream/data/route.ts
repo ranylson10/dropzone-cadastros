@@ -44,8 +44,13 @@ function groupLetter(value: unknown) {
   return (match?.[1] || raw.charAt(0)).toUpperCase()
 }
 
-function pickCurrentAndNextPartida(partidas: any[]) {
+function pickCurrentAndNextPartida(partidas: any[], activePartidaId?: string | null, allowFallback = true) {
   if (!partidas.length) return { current: null as any, next: null as any }
+  const explicitIndex = activePartidaId
+    ? partidas.findIndex((partida) => text(partida.id) === text(activePartidaId))
+    : -1
+  if (explicitIndex >= 0) return { current: partidas[explicitIndex], next: partidas[explicitIndex + 1] || null }
+  if (!allowFallback) return { current: null as any, next: null as any }
   const liveIndex = partidas.findIndex((p) => /em_andamento|andamento|live|ao.?vivo|em_jogo/i.test(text(p.status)))
   if (liveIndex >= 0) return { current: partidas[liveIndex], next: partidas[liveIndex + 1] || null }
   let lastDone = -1
@@ -134,7 +139,9 @@ async function handleGet(req: NextRequest, context: { params: Promise<{ id: stri
       : (jogoIdParam || streamCtx.activeJogoId || null)
 
     // Partidas com mapa (fonte oficial do pontuador), filtradas pelo jogo ativo
-    let partidas = await loadPartidasForStream(campeonatoId, resolvedJogoId)
+    let partidas = streamCtx.explicitState && !resolvedJogoId
+      ? []
+      : await loadPartidasForStream(campeonatoId, resolvedJogoId)
 
     // nomes dos jogos
     const jogoIds = [...new Set(partidas.map((p: any) => p.jogo_id).filter(Boolean))]
@@ -179,6 +186,8 @@ async function handleGet(req: NextRequest, context: { params: Promise<{ id: stri
 
     const contextPayload = {
       active_jogo_id: resolvedJogoId,
+      active_partida_id: streamCtx.activePartidaId,
+      explicit_state: streamCtx.explicitState,
       active_jogo: resolvedJogoId
         ? (streamCtx.activeJogo && streamCtx.activeJogo.id === resolvedJogoId
           ? streamCtx.activeJogo
@@ -269,7 +278,7 @@ async function handleGet(req: NextRequest, context: { params: Promise<{ id: stri
     }
 
     if (sheet === 'equipes_partida') {
-      const selectedPartidaId = partidaId || pickCurrentAndNextPartida(partidasNorm).current?.id || null
+      const selectedPartidaId = partidaId || pickCurrentAndNextPartida(partidasNorm, streamCtx.activePartidaId, !streamCtx.explicitState).current?.id || null
       if (!selectedPartidaId) return NextResponse.json({ rows: [], context: contextPayload, reason: 'partida_required' })
       const [equipes, slots] = await Promise.all([
         listarEstatisticasEquipes(campeonatoId, { partidaId: selectedPartidaId }),
@@ -283,7 +292,7 @@ async function handleGet(req: NextRequest, context: { params: Promise<{ id: stri
     }
 
     if (sheet === 'equipes_mapa') {
-      const picked = pickCurrentAndNextPartida(partidasNorm)
+      const picked = pickCurrentAndNextPartida(partidasNorm, streamCtx.activePartidaId, !streamCtx.explicitState)
       const target = mapaCodigo
         ? partidasNorm.find((p: any) => text(p.mapaCodigo) === mapaCodigo || text(p.mapa) === mapaCodigo)
         : (picked.next || picked.current)
@@ -322,14 +331,14 @@ async function handleGet(req: NextRequest, context: { params: Promise<{ id: stri
     }
 
     if (sheet === 'mvp_partida') {
-      const selectedPartidaId = partidaId || pickCurrentAndNextPartida(partidasNorm).current?.id || null
+      const selectedPartidaId = partidaId || pickCurrentAndNextPartida(partidasNorm, streamCtx.activePartidaId, !streamCtx.explicitState).current?.id || null
       if (!selectedPartidaId) return NextResponse.json({ jogadores: [], rows: [], context: contextPayload, reason: 'partida_required' })
       const jogadores = await listarEstatisticasMvp(campeonatoId, { partidaId: selectedPartidaId })
       return NextResponse.json({ jogadores, rows: playerStatsRows(jogadores), partida_id: selectedPartidaId, context: contextPayload })
     }
 
     if (sheet === 'jogadores_mapa') {
-      const picked = pickCurrentAndNextPartida(partidasNorm)
+      const picked = pickCurrentAndNextPartida(partidasNorm, streamCtx.activePartidaId, !streamCtx.explicitState)
       const target = mapaCodigo
         ? partidasNorm.find((p: any) => text(p.mapaCodigo) === mapaCodigo || text(p.mapa) === mapaCodigo)
         : (picked.next || picked.current)
@@ -371,7 +380,7 @@ async function handleGet(req: NextRequest, context: { params: Promise<{ id: stri
     }
 
     if (sheet === 'partida_atual') {
-      const current = pickCurrentAndNextPartida(partidasNorm).current
+      const current = pickCurrentAndNextPartida(partidasNorm, streamCtx.activePartidaId, !streamCtx.explicitState).current
       if (!current) return NextResponse.json({ rows: [], context: contextPayload })
       const totalNoJogo = partidasNorm.filter((partida: any) => partida.jogoId === current.jogoId).length
       return NextResponse.json({
@@ -391,7 +400,7 @@ async function handleGet(req: NextRequest, context: { params: Promise<{ id: stri
     }
 
     if (sheet === 'proxima_queda') {
-      const next = pickCurrentAndNextPartida(partidasNorm).next
+      const next = pickCurrentAndNextPartida(partidasNorm, streamCtx.activePartidaId, !streamCtx.explicitState).next
       if (!next) return NextResponse.json({ rows: [], context: contextPayload })
       const [equipes, jogadores] = await Promise.all([
         listarEstatisticasEquipes(campeonatoId, { mapaCodigo: next.mapaCodigo }),
