@@ -185,9 +185,9 @@ export function CampeonatoEstatisticasTab(props: {
       const query = queryString(filters)
       const suffix = query ? `?${query}` : ''
       const [teamsResult, mvpResult, championResult] = await Promise.all([
-        request<{ equipes: TeamStat[] }>(`/api/campeonatos/${props.campeonatoId}/estatisticas/equipes${suffix}`),
-        request<{ jogadores: MvpStat[] }>(`/api/campeonatos/${props.campeonatoId}/estatisticas/mvp${suffix}`),
-        request<ChampionSummary>(`/api/campeonatos/${props.campeonatoId}/estatisticas/campeao`),
+        request<{ equipes: TeamStat[] }>(`/api/campeonatos/${props.campeonatoId}/estatisticas/equipes${suffix}`, undefined, true),
+        request<{ jogadores: MvpStat[] }>(`/api/campeonatos/${props.campeonatoId}/estatisticas/mvp${suffix}`, undefined, true),
+        request<ChampionSummary>(`/api/campeonatos/${props.campeonatoId}/estatisticas/campeao`, undefined, true),
       ])
       const nextTeams = (teamsResult.equipes || []).map((row) => ({
         ...row,

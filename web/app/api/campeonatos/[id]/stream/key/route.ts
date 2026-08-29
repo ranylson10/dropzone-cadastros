@@ -23,6 +23,15 @@ function newKeyToken() {
   return randomBytes(12).toString('hex')
 }
 
+function keyPayload(req: NextRequest, campeonatoId: string, key: any) {
+  return {
+    ...key,
+    header: 'X-DropZone-Stream-Key',
+    catalog_url: `${req.nextUrl.origin}/api/campeonatos/${campeonatoId}/stream/catalog`,
+    data_url: `${req.nextUrl.origin}/api/campeonatos/${campeonatoId}/stream/data`,
+  }
+}
+
 /**
  * GET — chave Stream ativa do campeonato (ou null).
  * POST — gera / regenera chave (links antigos de streams já vinculados permanecem).
@@ -57,7 +66,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       throw error
     }
 
-    return NextResponse.json({ key: data || null })
+    return NextResponse.json({ key: data ? keyPayload(req, id, data) : null })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
   }
@@ -103,7 +112,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      if (existing) return NextResponse.json({ key: existing, created: false })
+      if (existing) return NextResponse.json({ key: keyPayload(req, id, existing), created: false })
     }
 
     const { data, error } = await supabaseAdmin
@@ -128,7 +137,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       throw error
     }
 
-    return NextResponse.json({ key: data, created: true })
+    return NextResponse.json({ key: keyPayload(req, id, data), created: true })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
   }
@@ -171,7 +180,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       return NextResponse.json({ error: 'Nenhuma chave ativa foi encontrada.' }, { status: 404 })
     }
 
-    return NextResponse.json({ key: data })
+    return NextResponse.json({ key: keyPayload(req, id, data) })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Erro' }, { status: 400 })
   }

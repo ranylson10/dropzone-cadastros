@@ -80,7 +80,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
     { data: classificacaoJogo, error: classificacaoError },
     { data: vinculos, error: vinculosError },
   ] = await Promise.all([
-    supabaseAdmin.from('campeonatos').select('id,nome,logo_url,produtora_id,campeonato_configuracoes(pontos_colocacao,pontos_por_abate)').eq('id', campeonatoId).single(),
+    supabaseAdmin.from('campeonatos').select('id,nome,logo_url,produtora_id,campeonato_configuracoes(*)').eq('id', campeonatoId).single(),
     jogo.fase_id
       ? supabaseAdmin.from('campeonato_fases').select('id,nome,ordem').eq('id', jogo.fase_id).maybeSingle()
       : Promise.resolve({ data: null, error: null } as any),

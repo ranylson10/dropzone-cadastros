@@ -7,6 +7,7 @@ type Filters = {
   partidaId?: string | null
   mapaCodigo?: string | null
   grupoId?: string | null
+  partidaIds?: string[] | null
 }
 
 function applyFilters(query: any, filters: Filters) {
@@ -17,6 +18,7 @@ function applyFilters(query: any, filters: Filters) {
   if (filters.partidaId) result = result.eq('partida_id', filters.partidaId)
   if (filters.mapaCodigo) result = result.eq('mapa_codigo', filters.mapaCodigo)
   if (filters.grupoId) result = result.eq('grupo_id', filters.grupoId)
+  if (filters.partidaIds?.length) result = result.in('partida_id', filters.partidaIds)
   return result
 }
 
@@ -93,6 +95,7 @@ async function listarMvpGarenaFallback(campeonatoId: string, filters: Filters) {
     .eq('status', 'concluida')
   if (filters.jogoId) importsQuery = importsQuery.eq('jogo_id', filters.jogoId)
   if (filters.partidaId) importsQuery = importsQuery.eq('partida_id', filters.partidaId)
+  if (filters.partidaIds?.length) importsQuery = importsQuery.in('partida_id', filters.partidaIds)
 
   const { data: imports, error: importsError } = await importsQuery
   if (importsError) throw importsError
@@ -183,6 +186,34 @@ export async function listarEstatisticasMvp(campeonatoId: string, filters: Filte
     .sort((a, b) => b.abates - a.abates || b.dano - a.dano)
     .map((row, index) => ({ ...row, colocacao: index + 1 }))
   return attachLinePublicIds(rows)
+}
+
+export async function listarEstatisticasEquipesPublicadas(campeonatoId: string, filters: Filters) {
+  const { carregarPublicacaoEstatisticas } = await import('./publicacao.service')
+  const publicacao = await carregarPublicacaoEstatisticas(campeonatoId)
+  if (filters.partidaId && !publicacao.partidas_publicadas.includes(filters.partidaId)) {
+    return { equipes: [], publicacao }
+  }
+  if (!publicacao.partidas_publicadas.length) return { equipes: [], publicacao }
+  const equipes = await listarEstatisticasEquipes(campeonatoId, {
+    ...filters,
+    partidaIds: publicacao.partidas_publicadas,
+  })
+  return { equipes, publicacao }
+}
+
+export async function listarEstatisticasMvpPublicadas(campeonatoId: string, filters: Filters) {
+  const { carregarPublicacaoEstatisticas } = await import('./publicacao.service')
+  const publicacao = await carregarPublicacaoEstatisticas(campeonatoId)
+  if (filters.partidaId && !publicacao.partidas_publicadas.includes(filters.partidaId)) {
+    return { jogadores: [], publicacao }
+  }
+  if (!publicacao.partidas_publicadas.length) return { jogadores: [], publicacao }
+  const jogadores = await listarEstatisticasMvp(campeonatoId, {
+    ...filters,
+    partidaIds: publicacao.partidas_publicadas,
+  })
+  return { jogadores, publicacao }
 }
 
 
@@ -333,6 +364,34 @@ export async function carregarResumoCampeao(campeonatoId: string) {
       modo_final: pointRush ? 'point_rush' : 'acumulado',
       jogo_decisivo: pointRush ? (jogos || []).find((row: any) => String(row.id) === jogoDecisivoId) || null : null,
     },
+  }
+}
+
+export async function carregarResumoCampeaoPublicado(campeonatoId: string) {
+  const { carregarPublicacaoEstatisticas } = await import('./publicacao.service')
+  const [resumo, publicacao] = await Promise.all([
+    carregarResumoCampeao(campeonatoId),
+    carregarPublicacaoEstatisticas(campeonatoId),
+  ])
+  if (!resumo.final_concluida || !resumo.fase?.id) return { ...resumo, publicacao }
+
+  const { data: partidas, error } = await supabaseAdmin
+    .from('campeonato_partidas')
+    .select('id')
+    .eq('campeonato_id', campeonatoId)
+    .eq('fase_id', resumo.fase.id)
+  if (error) throw error
+  const todasPublicadas = Boolean(partidas?.length)
+    && (partidas || []).every((partida: any) => publicacao.partidas_publicadas.includes(String(partida.id)))
+  if (todasPublicadas) return { ...resumo, publicacao }
+  return {
+    ...resumo,
+    final_concluida: false,
+    campeao: null,
+    jogadores: [],
+    mvp_final: null,
+    champion_point: null,
+    publicacao,
   }
 }
 

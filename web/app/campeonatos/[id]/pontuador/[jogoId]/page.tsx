@@ -1,7 +1,7 @@
 'use client'
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, FileUp, Loader2, Pencil, RefreshCcw, Save, Trophy, Users, X } from 'lucide-react'
+import { ArrowLeft, Clock3, FileUp, Loader2, Pencil, RefreshCcw, Save, Trophy, Users, X } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
@@ -75,12 +75,18 @@ export default function PontuadorJogoPage() {
   const [previewLinks, setPreviewLinks] = useState<Record<string, string>>({})
   /** equipes marcadas como falta nesta sessão/queda (além do status no banco) */
   const [faltas, setFaltas] = useState<Record<string, boolean>>({})
+  const [publicDelayMinutes, setPublicDelayMinutes] = useState('5')
+  const [savingDelay, setSavingDelay] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
       const result = await request<PontuadorData>(`/api/campeonatos/${params.id}/pontuador/${params.jogoId}`)
       setData(result)
+      const rawConfig = Array.isArray(result.campeonato.campeonato_configuracoes)
+        ? result.campeonato.campeonato_configuracoes[0]
+        : result.campeonato.campeonato_configuracoes
+      setPublicDelayMinutes(String(number(rawConfig?.estatisticas_delay_segundos ?? 300) / 60))
       const atual = result.partidas.find((p) => p.status === 'em_andamento')
       setSelectedDropId((current) => current || atual?.id || result.partidas[0]?.id || '')
       setSelectedMap((current) => current || atual?.mapa_codigo || result.partidas[0]?.mapa_codigo || '')
@@ -189,6 +195,26 @@ export default function PontuadorJogoPage() {
   async function saveCurrentDrop() {
     if (preview) return confirmMatch()
     return saveDrop()
+  }
+
+  async function savePublicDelay() {
+    const minutes = Number(publicDelayMinutes)
+    if (!Number.isFinite(minutes) || minutes < 0 || minutes > 120) {
+      return setError('O atraso publico deve ficar entre 0 e 120 minutos.')
+    }
+    setSavingDelay(true); setError(''); setNotice('')
+    try {
+      const result = await request<{ estatisticas_delay_segundos: number }>(`/api/campeonatos/${params.id}/pontuador/configuracao`, {
+        method: 'PATCH',
+        body: JSON.stringify({ estatisticas_delay_segundos: Math.round(minutes * 60) }),
+      })
+      setPublicDelayMinutes(String(result.estatisticas_delay_segundos / 60))
+      setNotice(`Site publico com ${result.estatisticas_delay_segundos / 60} min de atraso. Overlays continuam imediatas.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro ao salvar atraso publico.')
+    } finally {
+      setSavingDelay(false)
+    }
   }
 
   async function saveDrop() {
@@ -494,6 +520,24 @@ export default function PontuadorJogoPage() {
     <header className="scorer-workspace-header">
       <div className="scorer-brand"><button className="icon-button" onClick={() => router.back()} aria-label="Voltar"><ArrowLeft size={18}/></button>{data.campeonato.logo_url ? <img src={data.campeonato.logo_url} alt=""/> : null}<div><p>{data.fase?.nome || 'Fase'}</p><h1>{data.jogo.nome}</h1><small>{data.campeonato.nome} · {data.slots.length} slots{isLocked ? ' · Q' + selectedDrop?.numero_partida + ' travada' : ''}</small></div></div>
       <div className="scorer-header-actions">
+        <div className="scorer-public-delay" title="Afeta somente o site publico. Overlays recebem o resultado assim que a queda e salva.">
+          <Clock3 size={15}/>
+          <label htmlFor="public-stats-delay">Atraso do site</label>
+          <input
+            id="public-stats-delay"
+            type="number"
+            min="0"
+            max="120"
+            step="0.5"
+            value={publicDelayMinutes}
+            onChange={(event) => setPublicDelayMinutes(event.target.value)}
+            aria-label="Atraso das estatisticas publicas em minutos"
+          />
+          <span>min</span>
+          <button type="button" onClick={() => void savePublicDelay()} disabled={savingDelay} aria-label="Salvar atraso do site">
+            {savingDelay ? <Loader2 className="spin" size={14}/> : <Save size={14}/>}
+          </button>
+        </div>
         {!isLocked ? (
           <label className="button secondary scorer-file-button">
             <FileUp size={15}/> Match Result

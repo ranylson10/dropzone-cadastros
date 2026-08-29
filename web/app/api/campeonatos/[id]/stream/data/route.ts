@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBearerUser } from '@backend/auth/server-auth'
-import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
+import { authorizeStreamData } from '@backend/campeonatos/stream/stream-key-auth'
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
 import {
   loadPartidasForStream,
@@ -14,18 +13,6 @@ import { supabaseAdmin } from '@backend/shared/supabase-admin'
  * ?jogo_id= — força um jogo; se omitido, usa contexto da live (pack / auto).
  * ?scope=all — ignora filtro de jogo (todas as partidas do campeonato).
  */
-function canStream(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
-  return (
-    permission.role === 'owner'
-    || permission.role === 'manager'
-    || permission.canManage
-    || permission.canOrganizeGroups
-    || permission.canManageGames
-    || permission.canScore
-    || permission.canView
-  )
-}
-
 const MAP_IMAGES: Record<string, string> = {
   bermuda: '/images/maps/bermuda.png',
   purgatorio: '/images/maps/purgatorio.png',
@@ -94,6 +81,26 @@ function teamStatsRows(equipes: any[], slots: any[] = [], compact = false) {
   })
 }
 
+function playerStatsRows(jogadores: any[]) {
+  return jogadores.map((row: any, index: number) => {
+    const abates = Number(row.abates || 0)
+    const quedas = Number(row.quedas || 0)
+    return {
+      id: text(row.campeonato_jogador_id || row.id || `player-${index}`),
+      cells: {
+        pos: text(row.colocacao ?? index + 1),
+        foto: text(row.foto_url || ''),
+        logo: text(row.logo_url || ''),
+        tag: text(row.tag || ''),
+        nick: text(row.nick || '—'),
+        quedas: text(quedas),
+        kd: quedas > 0 ? (abates / quedas).toFixed(1).replace('.', ',') : '0,0',
+        abates: text(abates),
+      },
+    }
+  })
+}
+
 async function loadGameSlots(campeonatoId: string, jogoId?: string | null) {
   if (!jogoId) return []
   const { data, error } = await supabaseAdmin
@@ -108,14 +115,10 @@ async function loadGameSlots(campeonatoId: string, jogoId?: string | null) {
   return data || []
 }
 
-export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+async function handleGet(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getBearerUser(req)
     const { id: campeonatoId } = await context.params
-    const permission = await getCampeonatoPermission(user.id, campeonatoId)
-    if (!canStream(permission)) {
-      return NextResponse.json({ error: 'Sem permissão.' }, { status: 403 })
-    }
+    await authorizeStreamData(req, campeonatoId)
 
     const sheet = req.nextUrl.searchParams.get('sheet') || 'mapas'
     const grupoId = req.nextUrl.searchParams.get('grupo_id')
@@ -315,14 +318,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
     if (sheet === 'mvp_dia') {
       const jogadores = await listarEstatisticasMvp(campeonatoId, { jogoId: jogoIdForStats })
-      return NextResponse.json({ jogadores, context: contextPayload })
+      return NextResponse.json({ jogadores, rows: playerStatsRows(jogadores), context: contextPayload })
     }
 
     if (sheet === 'mvp_partida') {
       const selectedPartidaId = partidaId || pickCurrentAndNextPartida(partidasNorm).current?.id || null
-      if (!selectedPartidaId) return NextResponse.json({ jogadores: [], context: contextPayload, reason: 'partida_required' })
+      if (!selectedPartidaId) return NextResponse.json({ jogadores: [], rows: [], context: contextPayload, reason: 'partida_required' })
       const jogadores = await listarEstatisticasMvp(campeonatoId, { partidaId: selectedPartidaId })
-      return NextResponse.json({ jogadores, partida_id: selectedPartidaId, context: contextPayload })
+      return NextResponse.json({ jogadores, rows: playerStatsRows(jogadores), partida_id: selectedPartidaId, context: contextPayload })
     }
 
     if (sheet === 'jogadores_mapa') {
@@ -336,6 +339,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         : []
       return NextResponse.json({
         jogadores,
+        rows: playerStatsRows(jogadores),
         mapa_codigo: targetMap,
         mapa_nome: target?.mapa || targetMap,
         partida_id: target?.id || null,
@@ -343,7 +347,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       })
     }
 
-    if (sheet === 'equipes' || sheet === 'equipes_geral') {
+    if (sheet === 'equipes' || sheet === 'equipes_geral' || sheet === 'equipes_fase' || sheet === 'equipes_grupo') {
       const equipes = await listarEstatisticasEquipes(campeonatoId, {
         faseId: faseId || undefined,
         jogoId: jogoIdForStats || undefined,
@@ -351,10 +355,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         mapaCodigo: mapaCodigo || undefined,
         grupoId: grupoId || undefined,
       })
-      return NextResponse.json({ equipes, partidas: partidasNorm, context: contextPayload })
+      const slots = await loadGameSlots(campeonatoId, jogoIdForStats)
+      return NextResponse.json({ equipes, rows: teamStatsRows(equipes, slots), partidas: partidasNorm, context: contextPayload })
     }
 
-    if (sheet === 'mvp') {
+    if (sheet === 'mvp' || sheet === 'mvp_geral') {
       const jogadores = await listarEstatisticasMvp(campeonatoId, {
         faseId: faseId || undefined,
         jogoId: jogoIdForStats || undefined,
@@ -362,11 +367,82 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         mapaCodigo: mapaCodigo || undefined,
         grupoId: grupoId || undefined,
       })
-      return NextResponse.json({ jogadores, partidas: partidasNorm, context: contextPayload })
+      return NextResponse.json({ jogadores, rows: playerStatsRows(jogadores), partidas: partidasNorm, context: contextPayload })
+    }
+
+    if (sheet === 'partida_atual') {
+      const current = pickCurrentAndNextPartida(partidasNorm).current
+      if (!current) return NextResponse.json({ rows: [], context: contextPayload })
+      const totalNoJogo = partidasNorm.filter((partida: any) => partida.jogoId === current.jogoId).length
+      return NextResponse.json({
+        rows: [{
+          id: current.id,
+          cells: {
+            mapa_nome: text(current.mapa).toUpperCase(),
+            mapa_img: text(current.mapaImagem),
+            queda_atual: text(current.numero),
+            quedas_totais: text(totalNoJogo || partidasNorm.length),
+            jogo: text(current.jogoNome),
+            status: text(current.status),
+          },
+        }],
+        context: contextPayload,
+      })
+    }
+
+    if (sheet === 'proxima_queda') {
+      const next = pickCurrentAndNextPartida(partidasNorm).next
+      if (!next) return NextResponse.json({ rows: [], context: contextPayload })
+      const [equipes, jogadores] = await Promise.all([
+        listarEstatisticasEquipes(campeonatoId, { mapaCodigo: next.mapaCodigo }),
+        listarEstatisticasMvp(campeonatoId, { mapaCodigo: next.mapaCodigo }),
+      ])
+      const count = Math.max(equipes.length, jogadores.length, 1)
+      const rows = Array.from({ length: count }, (_, index) => {
+        const equipe = equipes[index]
+        const jogador = jogadores[index]
+        const abates = Number(jogador?.abates || 0)
+        const quedas = Math.max(1, Number(jogador?.quedas || 1))
+        return {
+          id: `next-${index}`,
+          cells: {
+            mapa_nome: index === 0 ? text(next.mapa).toUpperCase() : '',
+            mapa_img: index === 0 ? text(next.mapaImagem) : '',
+            queda_numero: index === 0 ? text(next.numero) : '',
+            jogo: index === 0 ? text(next.jogoNome) : '',
+            eq_nome: text(equipe?.nome || ''),
+            eq_logo: text(equipe?.logo_url || ''),
+            eq_pts: equipe ? text(equipe.pontos_total ?? 0) : '',
+            eq_abates: equipe ? text(equipe.abates ?? 0) : '',
+            eq_booyahs: equipe ? text(equipe.booyahs ?? 0) : '',
+            pl_nick: text(jogador?.nick || ''),
+            pl_abates: jogador ? text(abates) : '',
+            pl_kd: jogador ? (abates / quedas).toFixed(1).replace('.', ',') : '',
+          },
+        }
+      })
+      return NextResponse.json({ rows, context: contextPayload })
     }
 
     return NextResponse.json({ error: 'sheet inválido' }, { status: 400 })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao carregar dados stream.' }, { status: 400 })
   }
+}
+
+const STREAM_CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-DropZone-Stream-Key',
+  'Cache-Control': 'no-store',
+}
+
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const response = await handleGet(req, context)
+  for (const [name, value] of Object.entries(STREAM_CORS_HEADERS)) response.headers.set(name, value)
+  return response
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: STREAM_CORS_HEADERS })
 }
