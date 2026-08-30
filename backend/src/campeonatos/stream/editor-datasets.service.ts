@@ -444,7 +444,9 @@ async function dailyBooyahRows(
     const mapName = text(partida.mapa_nome || partida.mapa || partida.mapa_codigo || 'MISTERIOSO').trim().toUpperCase()
     const teamPublicId = winner ? (teamPublicIds.get(text(winner.equipe_id)) ?? '') : ''
     const linePublicId = winner ? (linePublicIds.get(text(winner.line_id)) ?? '') : ''
-    const team = teamsByLine.get(text(linePublicId)) || teamsByTeam.get(text(teamPublicId)) || {}
+    const team = winner
+      ? teamsByLine.get(text(winner.line_id)) || teamsByTeam.get(text(winner.equipe_id)) || {}
+      : {}
     const totals = winner
       ? playerTotals.get(`${partidaId}:${text(winner.campeonato_equipe_id)}`)
       : undefined
