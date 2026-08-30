@@ -8,6 +8,14 @@ type ScopeFilters = {
   partidaIds?: string[]
 }
 
+type NextMatchContext = {
+  queda: number
+  quedasTotais: number
+  mapa: string
+  mapaCodigo: string
+  completedPartidaIds: string[]
+}
+
 function number(value: unknown) {
   const parsed = Number(value || 0)
   return Number.isFinite(parsed) ? parsed : 0
@@ -230,6 +238,7 @@ async function loadAdvancedPlayerStats(campeonatoId: string, filters: ScopeFilte
     .eq('status', 'concluida')
   if (filters.jogoId) importsQuery = importsQuery.eq('jogo_id', filters.jogoId)
   if (filters.partidaId) importsQuery = importsQuery.eq('partida_id', filters.partidaId)
+  if (filters.partidaIds?.length) importsQuery = importsQuery.in('partida_id', filters.partidaIds)
   const { data: imports, error: importsError } = await importsQuery
   if (importsError) throw importsError
   const importIds = (imports || []).map((row: any) => row.id)
@@ -387,6 +396,105 @@ const CURRENT_MATCH_COLUMNS = [
   'queda_atual', 'mapa_atual', 'quedas_totais', 'marcador',
   'queda', 'mapa', 'estado_queda', 'queda_imagem', 'queda_imagem_numerada',
 ]
+
+const NEXT_TEAM_COLUMNS = ['proxima_queda', 'proximo_mapa', ...TEAM_COLUMNS]
+const NEXT_PLAYER_COLUMNS = ['proxima_queda', 'proximo_mapa', ...PLAYER_COLUMNS]
+const NEXT_MAP_COLUMNS = [
+  'proxima_queda', 'proximo_mapa', 'mapa_imagem', 'quedas_totais', 'quedas_realizadas_no_mapa',
+  'equipes', 'jogadores', 'booyahs', 'abates', 'dano', 'assistencias', 'revives',
+  'media_abates_por_queda', 'media_dano_por_queda', 'equipe_destaque', 'id_line_destaque',
+  'equipe_destaque_booyahs', 'equipe_destaque_abates', 'equipe_destaque_pontos',
+  'jogador_destaque', 'jogador_destaque_id', 'jogador_destaque_abates', 'jogador_destaque_dano',
+]
+
+async function nextMatchContext(
+  campeonatoId: string,
+  jogoId: string | null,
+  activePartidaId: string | null,
+): Promise<NextMatchContext | null> {
+  if (!jogoId || !activePartidaId) return null
+  const gamePartidas = await loadPartidasForStream(campeonatoId, jogoId)
+  const activeIndex = gamePartidas.findIndex(partida => text(partida.id) === text(activePartidaId))
+  const nextPartida = activeIndex >= 0 ? gamePartidas[activeIndex + 1] : null
+  if (!nextPartida) return null
+
+  const mapaCodigo = text(nextPartida.mapa_codigo).trim()
+  const mapa = text(nextPartida.mapa_nome || nextPartida.mapa || mapaCodigo || 'MISTERIOSO').trim().toUpperCase()
+  const allPartidas = await loadPartidasForStream(campeonatoId)
+  const futureGamePartidaIds = new Set(gamePartidas.slice(activeIndex + 1).map(partida => text(partida.id)))
+  const sameMapIds = allPartidas
+    .filter(partida => {
+      if (futureGamePartidaIds.has(text(partida.id))) return false
+      const candidateCode = text(partida.mapa_codigo).trim().toUpperCase()
+      const candidateName = text(partida.mapa_nome || partida.mapa || candidateCode || 'MISTERIOSO').trim().toUpperCase()
+      return mapaCodigo ? candidateCode === mapaCodigo.toUpperCase() : candidateName === mapa
+    })
+    .map(partida => text(partida.id))
+    .filter(Boolean)
+
+  let completedPartidaIds: string[] = []
+  if (sameMapIds.length) {
+    const { data, error } = await supabaseAdmin
+      .from('campeonato_resultados_equipes')
+      .select('partida_id')
+      .in('partida_id', sameMapIds)
+    if (error) throw error
+    completedPartidaIds = [...new Set((data || []).map((row: any) => text(row.partida_id)).filter(Boolean))]
+  }
+
+  return {
+    queda: number(nextPartida.numero_partida) || activeIndex + 2,
+    quedasTotais: gamePartidas.length,
+    mapa,
+    mapaCodigo,
+    completedPartidaIds,
+  }
+}
+
+function withNextMatchInfo(rows: Record<string, unknown>[], next: NextMatchContext) {
+  return rows.map(row => ({ proxima_queda:next.queda, proximo_mapa:next.mapa, ...row }))
+}
+
+function nextMapRows(
+  next: NextMatchContext | null,
+  teams: Record<string, unknown>[],
+  players: Record<string, unknown>[],
+) {
+  if (!next) return []
+  const drops = next.completedPartidaIds.length
+  const team = teams[0] || {}
+  const player = players[0] || {}
+  const kills = teams.reduce((total, row) => total + number(row.abates), 0)
+  const damage = players.reduce((total, row) => total + number(row.dano), 0)
+  const assists = players.reduce((total, row) => total + number(row.assistencias), 0)
+  const revives = players.reduce((total, row) => total + number(row.revives), 0)
+  const booyahs = teams.reduce((total, row) => total + number(row.booyahs), 0)
+  return [{
+    proxima_queda: next.queda,
+    proximo_mapa: next.mapa,
+    mapa_imagem: next.mapa,
+    quedas_totais: next.quedasTotais,
+    quedas_realizadas_no_mapa: drops,
+    equipes: teams.length,
+    jogadores: players.length,
+    booyahs,
+    abates: kills,
+    dano: damage,
+    assistencias: assists,
+    revives,
+    media_abates_por_queda: drops ? Number((kills / drops).toFixed(2)) : 0,
+    media_dano_por_queda: drops ? Number((damage / drops).toFixed(2)) : 0,
+    equipe_destaque: text(team.equipe),
+    id_line_destaque: team.id_line ?? '',
+    equipe_destaque_booyahs: number(team.booyahs),
+    equipe_destaque_abates: number(team.abates),
+    equipe_destaque_pontos: number(team.pontos),
+    jogador_destaque: text(player.nick),
+    jogador_destaque_id: text(player.id_jogo),
+    jogador_destaque_abates: number(player.abates),
+    jogador_destaque_dano: number(player.dano),
+  }]
+}
 
 async function currentMatchRows(campeonatoId: string, jogoId: string | null, activePartidaId: string | null) {
   if (!jogoId) return []
@@ -588,6 +696,16 @@ function currentMatchDataset(rows: Record<string, unknown>[]) {
   return { id:'partida-atual', name:'Informacoes da partida atual', scope:'jogo', entity:'partida', columns:CURRENT_MATCH_COLUMNS, rows }
 }
 
+function nextMatchDataset(
+  id: string,
+  name: string,
+  entity: string,
+  columns: string[],
+  rows: Record<string, unknown>[],
+) {
+  return { id, name, scope:'proxima_queda', entity, columns, rows }
+}
+
 export async function loadEditorDatasets(campeonatoId: string) {
   const context = await resolveStreamContext(campeonatoId)
   const groupNames = await loadGroupNames(campeonatoId)
@@ -602,6 +720,12 @@ export async function loadEditorDatasets(campeonatoId: string) {
     dailyBooyahRows(campeonatoId, context.activeJogoId, game.teams, groupNames),
     currentMatchRows(campeonatoId, context.activeJogoId, context.activePartidaId),
   ])
+  const next = await nextMatchContext(campeonatoId, context.activeJogoId, context.activePartidaId)
+  const nextStats = next?.completedPartidaIds.length
+    ? await scopedDatasets(campeonatoId, { partidaIds:next.completedPartidaIds }, groupNames)
+    : empty
+  const nextTeams = next ? withNextMatchInfo(nextStats.teams, next) : []
+  const nextPlayers = next ? withNextMatchInfo(nextStats.players, next) : []
 
   return {
     version: 1,
@@ -623,6 +747,9 @@ export async function loadEditorDatasets(campeonatoId: string) {
       booyahDataset(context.activeJogoId && context.activePartidaId ? booyahRows(drop) : []),
       dailyBooyahDataset(dailyBooyahs),
       currentMatchDataset(currentMatch),
+      nextMatchDataset('proxima-partida-equipes', 'Proxima partida - Equipes', 'equipes', NEXT_TEAM_COLUMNS, nextTeams),
+      nextMatchDataset('proxima-partida-jogadores', 'Proxima partida - Jogadores', 'jogadores', NEXT_PLAYER_COLUMNS, nextPlayers),
+      nextMatchDataset('proxima-partida-mapa', 'Proxima partida - Estatisticas do mapa', 'mapa', NEXT_MAP_COLUMNS, nextMapRows(next, nextStats.teams, nextStats.players)),
     ],
   }
 }
