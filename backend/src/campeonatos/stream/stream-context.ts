@@ -41,6 +41,29 @@ function asJogo(row: any): StreamJogoOption {
   }
 }
 
+async function resolvePartidaForJogo(campeonatoId: string, jogoId: string) {
+  const { data: partidas, error } = await supabaseAdmin
+    .from('campeonato_partidas')
+    .select('id,status,numero_partida')
+    .eq('campeonato_id', campeonatoId)
+    .eq('jogo_id', jogoId)
+    .order('numero_partida', { ascending: false })
+  if (error || !partidas?.length) return null
+
+  const emAndamento = partidas.find((partida: any) => /em_andamento|andamento|live/i.test(String(partida.status || '')))
+  if (emAndamento?.id) return String(emAndamento.id)
+
+  const ids = partidas.map((partida: any) => String(partida.id)).filter(Boolean)
+  const { data: resultados, error: resultadosError } = await supabaseAdmin
+    .from('campeonato_resultados_equipes')
+    .select('partida_id')
+    .in('partida_id', ids)
+  if (resultadosError) return null
+  const comResultados = new Set((resultados || []).map((resultado: any) => String(resultado.partida_id)))
+  const ultimaSalva = partidas.find((partida: any) => comResultados.has(String(partida.id)))
+  return ultimaSalva?.id ? String(ultimaSalva.id) : null
+}
+
 /**
  * Resolve o jogo ativo da live.
  * Prioridade:
@@ -105,6 +128,7 @@ export async function resolveStreamContext(campeonatoId: string): Promise<Stream
           .maybeSingle()
         activePartidaId = partida?.id ? String(partida.id) : null
       }
+      if (!activePartidaId) activePartidaId = await resolvePartidaForJogo(campeonatoId, packJogoId)
       return {
         activeJogoId: packJogoId,
         activePartidaId,
