@@ -125,7 +125,7 @@ export async function resolveStreamContext(campeonatoId: string): Promise<Stream
   try {
     const { data: livePartida } = await supabaseAdmin
       .from('campeonato_partidas')
-      .select('jogo_id')
+      .select('id,jogo_id')
       .eq('campeonato_id', campeonatoId)
       .eq('status', 'em_andamento')
       .order('numero_partida', { ascending: true })
@@ -135,7 +135,7 @@ export async function resolveStreamContext(campeonatoId: string): Promise<Stream
     if (jid && byId.has(jid)) {
       return {
         activeJogoId: jid,
-        activePartidaId: null,
+        activePartidaId: livePartida?.id ? String(livePartida.id) : null,
         explicitState: false,
         source: 'partida_em_andamento',
         activeJogo: byId.get(jid) || null,

@@ -63,7 +63,6 @@ function teamRows(teams: any[], players: any[], groupNames: Map<string, string>,
       id_line: team.line_public_id ?? '',
       equipe: text(team.nome || team.line_nome || 'Equipe'),
       tag: text(team.tag),
-      logo: text(team.logo_url),
       grupo: groupNames.get(text(team.grupo_id)) || '',
       quedas: drops,
       booyahs: number(team.booyahs),
@@ -114,7 +113,6 @@ function playerRows(players: any[], teams: any[], groupNames: Map<string, string
       id_line: player.line_public_id ?? team?.line_public_id ?? '',
       equipe: text(team?.nome || team?.line_nome || ''),
       tag: text(team?.tag),
-      logo: text(team?.logo_url),
       grupo: groupNames.get(text(team?.grupo_id)) || '',
       quedas: drops,
       abates: kills,
@@ -279,7 +277,7 @@ async function scopedDatasets(campeonatoId: string, filters: ScopeFilters, group
 }
 
 const TEAM_COLUMNS = [
-  'posicao', 'id_equipe', 'id_line', 'equipe', 'tag', 'logo', 'grupo',
+  'posicao', 'id_equipe', 'id_line', 'equipe', 'tag', 'grupo',
   'quedas', 'booyahs', 'abates', 'dano', 'assistencias', 'revives', 'headshots', 'knockdowns',
   'sobrevivencia_segundos', 'distancia_movida', 'distancia_max_abate', 'membros_revividos',
   'membros_resgatados', 'granadas_usadas', 'abates_granada', 'dano_granada', 'gel_usado',
@@ -288,7 +286,7 @@ const TEAM_COLUMNS = [
 ]
 const PLAYER_COLUMNS = [
   'posicao', 'nick', 'id_jogo', 'foto', 'tipo_jogador', 'id_equipe', 'id_line',
-  'equipe', 'tag', 'logo', 'grupo', 'quedas', 'abates',
+  'equipe', 'tag', 'grupo', 'quedas', 'abates',
   'dano', 'assistencias', 'revives', 'kd', 'media_dano', 'media_assistencias', 'headshots',
   'knockdowns', 'sobrevivencia_segundos', 'distancia_movida', 'distancia_max_abate',
   'precisao_percentual', 'taxa_headshot_kill_percentual', 'precisao_headshot_percentual',
@@ -303,13 +301,13 @@ const PLAYER_COLUMNS = [
 ]
 
 const BOOYAH_COLUMNS = [
-  'booyah', 'id_equipe', 'id_line', 'equipe_nome', 'equipe_tag', 'equipe_logo', 'equipe_grupo',
+  'booyah', 'id_equipe', 'id_line', 'equipe_nome', 'equipe_tag', 'equipe_grupo',
   'equipe_abates', 'equipe_dano', 'equipe_assistencias', 'equipe_revives',
   'equipe_headshots', 'equipe_knockdowns', 'equipe_granadas_usadas',
   'equipe_abates_granada', 'equipe_dano_granada', 'equipe_gel_usado',
   'equipe_gel_destruido', 'equipe_kits_medicos', 'equipe_pontos_posicao',
   'equipe_pontos_abates', 'equipe_pontos',
-  ...PLAYER_COLUMNS.filter(column => !['id_equipe', 'id_line', 'equipe', 'tag', 'logo', 'grupo'].includes(column)),
+  ...PLAYER_COLUMNS.filter(column => !['id_equipe', 'id_line', 'equipe', 'tag', 'grupo'].includes(column)),
 ]
 
 function booyahRows(drop: { teams: any[]; players: any[] }) {
@@ -317,23 +315,23 @@ function booyahRows(drop: { teams: any[]; players: any[] }) {
     || drop.teams.find(team => number(team.melhor_posicao) === 1)
     || drop.teams.find(team => number(team.posicao) === 1)
   if (!winner) return []
+  const winnerLineId = text(winner.id_line).trim()
+  const winnerTeamId = text(winner.id_equipe).trim()
+  const winnerName = text(winner.equipe).trim()
   return drop.players
-    .filter(player => (
-      winner.id_line !== '' && text(player.id_line) === text(winner.id_line)
-    ) || (
-      winner.id_equipe !== '' && text(player.id_equipe) === text(winner.id_equipe)
-    ) || (
-      text(player.equipe) === text(winner.equipe)
-    ))
+    .filter(player => {
+      if (winnerLineId) return text(player.id_line).trim() === winnerLineId
+      if (winnerTeamId) return text(player.id_equipe).trim() === winnerTeamId
+      return Boolean(winnerName) && text(player.equipe).trim() === winnerName
+    })
     .map(player => {
-      const playerData = Object.fromEntries(Object.entries(player).filter(([key]) => !['id_equipe', 'id_line', 'equipe', 'tag', 'logo', 'grupo'].includes(key)))
+      const playerData = Object.fromEntries(Object.entries(player).filter(([key]) => !['id_equipe', 'id_line', 'equipe', 'tag', 'grupo'].includes(key)))
       return {
         booyah:1,
         id_equipe:winner.id_equipe,
         id_line:winner.id_line,
         equipe_nome:winner.equipe,
         equipe_tag:winner.tag,
-        equipe_logo:winner.logo,
         equipe_grupo:winner.grupo,
         equipe_abates:winner.abates,
         equipe_dano:winner.dano,
