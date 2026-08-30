@@ -1,5 +1,5 @@
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '../estatisticas/estatisticas.service'
-import { resolveStreamContext } from './stream-context'
+import { loadPartidasForStream, resolveStreamContext } from './stream-context'
 import { supabaseAdmin } from '../../shared/supabase-admin'
 
 type ScopeFilters = {
@@ -36,6 +36,14 @@ async function loadTeamPublicIds(teams: any[]) {
   const { data, error } = await supabaseAdmin.from('equipes').select('id,public_id').in('id', ids)
   if (error) throw error
   return new Map((data || []).map((team: any) => [text(team.id), team.public_id ?? '']))
+}
+
+async function loadLinePublicIds(rows: any[]) {
+  const ids = [...new Set(rows.map(row => text(row.line_id)).filter(Boolean))]
+  if (!ids.length) return new Map<string, number | string>()
+  const { data, error } = await supabaseAdmin.from('equipe_lines').select('id,public_id').in('id', ids)
+  if (error) throw error
+  return new Map((data || []).map((line: any) => [text(line.id), line.public_id ?? '']))
 }
 
 async function loadPreviousScoredPartidaIds(campeonatoId: string) {
@@ -368,6 +376,105 @@ const BOOYAH_COLUMNS = [
   ...PLAYER_COLUMNS.filter(column => !['id_equipe', 'id_line', 'equipe', 'tag', 'grupo'].includes(column)),
 ]
 
+const DAILY_BOOYAH_COLUMNS = [
+  'queda', 'mapa', 'mapa_imagem', 'status_queda', 'booyah',
+  'id_equipe', 'id_line', 'equipe', 'tag', 'grupo', 'posicao',
+  'abates', 'dano', 'assistencias', 'revives', 'jogadores',
+  'pontos_posicao', 'pontos_abates', 'pontos',
+]
+
+async function dailyBooyahRows(
+  campeonatoId: string,
+  jogoId: string | null,
+  gameTeams: Record<string, unknown>[],
+  groupNames: Map<string, string>,
+) {
+  if (!jogoId) return []
+  const partidas = await loadPartidasForStream(campeonatoId, jogoId)
+  const partidaIds = partidas.map(partida => text(partida.id)).filter(Boolean)
+  if (!partidaIds.length) return []
+
+  const [{ data: teamResults, error: teamError }, { data: playerResults, error: playerError }] = await Promise.all([
+    supabaseAdmin
+      .from('campeonato_resultados_equipes')
+      .select('partida_id,campeonato_equipe_id,equipe_id,line_id,grupo_id,posicao,abates,pontos_posicao,pontos_abates,pontos_total,booyah,raw_team_name')
+      .in('partida_id', partidaIds),
+    supabaseAdmin
+      .from('campeonato_resultados_jogadores')
+      .select('partida_id,campeonato_equipe_id,campeonato_jogador_id,dano,assistencias,revives')
+      .in('partida_id', partidaIds),
+  ])
+  if (teamError) throw teamError
+  if (playerError) throw playerError
+
+  const resultRows = teamResults || []
+  const completedPartidas = new Set(resultRows.map((result: any) => text(result.partida_id)))
+  const winnerByPartida = new Map<string, any>()
+  for (const result of resultRows) {
+    const partidaId = text(result.partida_id)
+    const current = winnerByPartida.get(partidaId)
+    if (!current || Boolean(result.booyah) || (!current.booyah && number(result.posicao) < number(current.posicao))) {
+      winnerByPartida.set(partidaId, result)
+    }
+  }
+
+  const playerTotals = new Map<string, { dano: number; assistencias: number; revives: number; jogadores: Set<string> }>()
+  for (const player of playerResults || []) {
+    const key = `${text(player.partida_id)}:${text(player.campeonato_equipe_id)}`
+    const totals = playerTotals.get(key) || { dano:0, assistencias:0, revives:0, jogadores:new Set<string>() }
+    totals.dano += number(player.dano)
+    totals.assistencias += number(player.assistencias)
+    totals.revives += number(player.revives)
+    const playerId = text(player.campeonato_jogador_id)
+    if (playerId) totals.jogadores.add(playerId)
+    playerTotals.set(key, totals)
+  }
+
+  const [teamPublicIds, linePublicIds] = await Promise.all([
+    loadTeamPublicIds(resultRows),
+    loadLinePublicIds(resultRows),
+  ])
+  const teamsByLine = new Map(gameTeams.map(team => [text(team.id_line), team]))
+  const teamsByTeam = new Map(gameTeams.map(team => [text(team.id_equipe), team]))
+
+  return partidas.map((partida: any, index: number) => {
+    const partidaId = text(partida.id)
+    const completed = completedPartidas.has(partidaId)
+    const winner = winnerByPartida.get(partidaId)
+    const mapName = text(partida.mapa_nome || partida.mapa || partida.mapa_codigo || 'MISTERIOSO').trim().toUpperCase()
+    const teamPublicId = winner ? (teamPublicIds.get(text(winner.equipe_id)) ?? '') : ''
+    const linePublicId = winner ? (linePublicIds.get(text(winner.line_id)) ?? '') : ''
+    const team = teamsByLine.get(text(linePublicId)) || teamsByTeam.get(text(teamPublicId)) || {}
+    const totals = winner
+      ? playerTotals.get(`${partidaId}:${text(winner.campeonato_equipe_id)}`)
+      : undefined
+    const status = completed
+      ? 'REALIZADA'
+      : /em_andamento|andamento|live/i.test(text(partida.status)) ? 'EM ANDAMENTO' : 'PENDENTE'
+    return {
+      queda: number(partida.numero_partida) || index + 1,
+      mapa: mapName,
+      mapa_imagem: `${mapName} ${completed ? 2 : 1}`,
+      status_queda: status,
+      booyah: winner ? 1 : 0,
+      id_equipe: teamPublicId,
+      id_line: linePublicId,
+      equipe: winner ? text((team as any).equipe || winner.raw_team_name) : '',
+      tag: winner ? text((team as any).tag) : '',
+      grupo: winner ? (groupNames.get(text(winner.grupo_id)) || text((team as any).grupo)) : '',
+      posicao: winner ? number(winner.posicao) : '',
+      abates: winner ? number(winner.abates) : '',
+      dano: winner ? number(totals?.dano) : '',
+      assistencias: winner ? number(totals?.assistencias) : '',
+      revives: winner ? number(totals?.revives) : '',
+      jogadores: winner ? number(totals?.jogadores.size) : '',
+      pontos_posicao: winner ? number(winner.pontos_posicao) : '',
+      pontos_abates: winner ? number(winner.pontos_abates) : '',
+      pontos: winner ? number(winner.pontos_total) : '',
+    }
+  })
+}
+
 function booyahRows(drop: { teams: any[]; players: any[] }) {
   const winner = drop.teams.find(team => number(team.booyahs) > 0)
     || drop.teams.find(team => number(team.melhor_posicao) === 1)
@@ -435,6 +542,10 @@ function booyahDataset(rows: Record<string, unknown>[]) {
   return { id:'booyah-equipe', name:'Booyah - Equipe e jogadores', scope:'queda', entity:'booyah', columns:BOOYAH_COLUMNS, rows }
 }
 
+function dailyBooyahDataset(rows: Record<string, unknown>[]) {
+  return { id:'booyahs-do-dia', name:'Booyahs do dia', scope:'jogo', entity:'booyahs', columns:DAILY_BOOYAH_COLUMNS, rows }
+}
+
 export async function loadEditorDatasets(campeonatoId: string) {
   const context = await resolveStreamContext(campeonatoId)
   const groupNames = await loadGroupNames(campeonatoId)
@@ -445,6 +556,7 @@ export async function loadEditorDatasets(campeonatoId: string) {
     context.activeJogoId ? scopedDatasets(campeonatoId, { jogoId: context.activeJogoId }, groupNames) : Promise.resolve(empty),
     context.activePartidaId ? scopedDatasets(campeonatoId, { partidaId: context.activePartidaId }, groupNames) : Promise.resolve(empty),
   ])
+  const dailyBooyahs = await dailyBooyahRows(campeonatoId, context.activeJogoId, game.teams, groupNames)
 
   return {
     version: 1,
@@ -464,6 +576,7 @@ export async function loadEditorDatasets(campeonatoId: string) {
       dataset('jogadores-jogo', 'Jogadores (MVP) - Jogo no ar', 'jogo', 'jogadores', game.players),
       dataset('jogadores-queda', 'Jogadores (MVP) - Queda no ar', 'queda', 'jogadores', drop.players),
       booyahDataset(context.activeJogoId && context.activePartidaId ? booyahRows(drop) : []),
+      dailyBooyahDataset(dailyBooyahs),
     ],
   }
 }
