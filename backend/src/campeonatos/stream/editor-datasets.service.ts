@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../../shared/supabase-admin'
 type ScopeFilters = {
   jogoId?: string
   partidaId?: string
+  partidaIds?: string[]
 }
 
 function number(value: unknown) {
@@ -37,6 +38,40 @@ async function loadTeamPublicIds(teams: any[]) {
   return new Map((data || []).map((team: any) => [text(team.id), team.public_id ?? '']))
 }
 
+async function loadPreviousScoredPartidaIds(campeonatoId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('campeonato_resultados_equipes')
+    .select('partida_id,updated_at')
+    .eq('campeonato_id', campeonatoId)
+    .order('updated_at', { ascending: false })
+    .limit(100000)
+  if (error) throw error
+
+  const orderedIds: string[] = []
+  const seen = new Set<string>()
+  for (const result of data || []) {
+    const partidaId = text(result.partida_id)
+    if (!partidaId || seen.has(partidaId)) continue
+    seen.add(partidaId)
+    orderedIds.push(partidaId)
+  }
+  return orderedIds.slice(1)
+}
+
+function withRankingMovement(currentRows: any[], previousRows: any[], identity: (row: any) => string) {
+  const previousPositions = new Map(previousRows.map((row, index) => [identity(row), number(row.colocacao) || index + 1]))
+  return currentRows.map((row, index) => {
+    const currentPosition = number(row.colocacao) || index + 1
+    const previousPosition = previousPositions.get(identity(row))
+    const variation = previousPosition == null ? 0 : previousPosition - currentPosition
+    return {
+      ...row,
+      seta: variation > 0 ? 'SUBINDO' : variation < 0 ? 'DESCENDO' : 'MANTENDO',
+      variacao_posicao: variation,
+    }
+  })
+}
+
 function playerTotalsByTeam(players: any[]) {
   const totals = new Map<string, Record<string, number>>()
   for (const player of players) {
@@ -59,6 +94,7 @@ function teamRows(teams: any[], players: any[], groupNames: Map<string, string>,
     const points = number(team.pontos_total)
     return {
       posicao: number(team.colocacao) || index + 1,
+      ...(team.seta ? { seta:text(team.seta), variacao_posicao:number(team.variacao_posicao) } : {}),
       id_equipe: teamPublicIds.get(text(team.equipe_id)) ?? '',
       id_line: team.line_public_id ?? '',
       equipe: text(team.nome || team.line_nome || 'Equipe'),
@@ -105,6 +141,7 @@ function playerRows(players: any[], teams: any[], groupNames: Map<string, string
     const damage = number(player.dano)
     return {
       posicao: number(player.colocacao) || index + 1,
+      ...(player.seta ? { seta:text(player.seta), variacao_posicao:number(player.variacao_posicao) } : {}),
       nick: text(player.nick || 'Jogador'),
       id_jogo: text(player.id_jogo),
       foto: text(player.foto_url),
@@ -259,12 +296,30 @@ async function loadAdvancedPlayerStats(campeonatoId: string, filters: ScopeFilte
   return aggregate
 }
 
-async function scopedDatasets(campeonatoId: string, filters: ScopeFilters, groupNames: Map<string, string>) {
-  const [teams, players, advanced] = await Promise.all([
+async function scopedDatasets(
+  campeonatoId: string,
+  filters: ScopeFilters,
+  groupNames: Map<string, string>,
+  previousPartidaIds?: string[],
+) {
+  const movementEnabled = Array.isArray(previousPartidaIds)
+  const [currentTeams, currentPlayers, advanced, previousTeams, previousPlayers] = await Promise.all([
     listarEstatisticasEquipes(campeonatoId, filters),
     listarEstatisticasMvp(campeonatoId, filters),
     loadAdvancedPlayerStats(campeonatoId, filters),
+    movementEnabled && previousPartidaIds.length
+      ? listarEstatisticasEquipes(campeonatoId, { partidaIds: previousPartidaIds })
+      : Promise.resolve([]),
+    movementEnabled && previousPartidaIds.length
+      ? listarEstatisticasMvp(campeonatoId, { partidaIds: previousPartidaIds })
+      : Promise.resolve([]),
   ])
+  const teams = movementEnabled
+    ? withRankingMovement(currentTeams, previousTeams, row => text(row.campeonato_equipe_id))
+    : currentTeams
+  const players = movementEnabled
+    ? withRankingMovement(currentPlayers, previousPlayers, row => text(row.campeonato_jogador_id || row.id_jogo))
+    : currentPlayers
   const completePlayers = players.map((player: any) => ({
     ...player,
     ...(advanced.get(text(player.campeonato_jogador_id || player.jogador_id || player.jogador_temporario_id || player.id_jogo)) || {}),
@@ -299,6 +354,9 @@ const PLAYER_COLUMNS = [
   'habilidade_3_id', 'habilidade_3_tipo', 'habilidade_3_usos', 'habilidade_4',
   'habilidade_4_id', 'habilidade_4_tipo', 'habilidade_4_usos', 'pet', 'pet_id', 'pet_usos',
 ]
+const withMovementColumns = (columns: string[]) => [columns[0], 'seta', 'variacao_posicao', ...columns.slice(1)]
+const TEAM_OVERALL_COLUMNS = withMovementColumns(TEAM_COLUMNS)
+const PLAYER_OVERALL_COLUMNS = withMovementColumns(PLAYER_COLUMNS)
 
 const BOOYAH_COLUMNS = [
   'booyah', 'id_equipe', 'id_line', 'equipe_nome', 'equipe_tag', 'equipe_grupo',
@@ -353,13 +411,22 @@ function booyahRows(drop: { teams: any[]; players: any[] }) {
     })
 }
 
-function dataset(id: string, name: string, scope: string, entity: 'equipes' | 'jogadores', rows: Record<string, unknown>[]) {
+function dataset(
+  id: string,
+  name: string,
+  scope: string,
+  entity: 'equipes' | 'jogadores',
+  rows: Record<string, unknown>[],
+  movement = false,
+) {
   return {
     id,
     name,
     scope,
     entity,
-    columns: entity === 'equipes' ? TEAM_COLUMNS : PLAYER_COLUMNS,
+    columns: movement
+      ? (entity === 'equipes' ? TEAM_OVERALL_COLUMNS : PLAYER_OVERALL_COLUMNS)
+      : (entity === 'equipes' ? TEAM_COLUMNS : PLAYER_COLUMNS),
     rows,
   }
 }
@@ -371,9 +438,10 @@ function booyahDataset(rows: Record<string, unknown>[]) {
 export async function loadEditorDatasets(campeonatoId: string) {
   const context = await resolveStreamContext(campeonatoId)
   const groupNames = await loadGroupNames(campeonatoId)
+  const previousPartidaIds = await loadPreviousScoredPartidaIds(campeonatoId)
   const empty = { teams: [] as Record<string, unknown>[], players: [] as Record<string, unknown>[] }
   const [overall, game, drop] = await Promise.all([
-    scopedDatasets(campeonatoId, {}, groupNames),
+    scopedDatasets(campeonatoId, {}, groupNames, previousPartidaIds),
     context.activeJogoId ? scopedDatasets(campeonatoId, { jogoId: context.activeJogoId }, groupNames) : Promise.resolve(empty),
     context.activePartidaId ? scopedDatasets(campeonatoId, { partidaId: context.activePartidaId }, groupNames) : Promise.resolve(empty),
   ])
@@ -389,10 +457,10 @@ export async function loadEditorDatasets(campeonatoId: string) {
       source: context.source,
     },
     datasets: [
-      dataset('equipes-geral', 'Equipes - Geral', 'geral', 'equipes', overall.teams),
+      dataset('equipes-geral', 'Equipes - Geral', 'geral', 'equipes', overall.teams, true),
       dataset('equipes-jogo', 'Equipes - Jogo no ar', 'jogo', 'equipes', game.teams),
       dataset('equipes-queda', 'Equipes - Queda no ar', 'queda', 'equipes', drop.teams),
-      dataset('jogadores-geral', 'Jogadores (MVP) - Geral', 'geral', 'jogadores', overall.players),
+      dataset('jogadores-geral', 'Jogadores (MVP) - Geral', 'geral', 'jogadores', overall.players, true),
       dataset('jogadores-jogo', 'Jogadores (MVP) - Jogo no ar', 'jogo', 'jogadores', game.players),
       dataset('jogadores-queda', 'Jogadores (MVP) - Queda no ar', 'queda', 'jogadores', drop.players),
       booyahDataset(context.activeJogoId && context.activePartidaId ? booyahRows(drop) : []),
