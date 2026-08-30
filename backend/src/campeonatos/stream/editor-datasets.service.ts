@@ -126,8 +126,29 @@ function playerRows(players: any[], teams: any[]) {
       abates_oleo: number(player.abates_oleo),
       mudanca_posicao: number(player.mudanca_posicao),
       arma_principal: text(player.arma_principal),
+      arma_principal_id: text(player.arma_principal_id),
+      arma_principal_abates: number(player.arma_principal_abates),
+      arma_principal_dano: number(player.arma_principal_dano),
       habilidade_ativa: text(player.habilidade_ativa),
+      habilidade_1: text(player.habilidade_1),
+      habilidade_1_id: text(player.habilidade_1_id),
+      habilidade_1_tipo: text(player.habilidade_1_tipo),
+      habilidade_1_usos: number(player.habilidade_1_usos),
+      habilidade_2: text(player.habilidade_2),
+      habilidade_2_id: text(player.habilidade_2_id),
+      habilidade_2_tipo: text(player.habilidade_2_tipo),
+      habilidade_2_usos: number(player.habilidade_2_usos),
+      habilidade_3: text(player.habilidade_3),
+      habilidade_3_id: text(player.habilidade_3_id),
+      habilidade_3_tipo: text(player.habilidade_3_tipo),
+      habilidade_3_usos: number(player.habilidade_3_usos),
+      habilidade_4: text(player.habilidade_4),
+      habilidade_4_id: text(player.habilidade_4_id),
+      habilidade_4_tipo: text(player.habilidade_4_tipo),
+      habilidade_4_usos: number(player.habilidade_4_usos),
       pet: text(player.pet),
+      pet_id: text(player.pet_id),
+      pet_usos: number(player.pet_usos),
     }
   })
 }
@@ -155,7 +176,7 @@ async function loadAdvancedPlayerStats(campeonatoId: string, filters: ScopeFilte
 
   const { data, error } = await supabaseAdmin
     .from('garena_matchstats_jogadores')
-    .select('campeonato_jogador_id,jogador_id,jogador_temporario_id,campeonato_equipe_id,player_id,nick_snapshot,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,precisao_percentual,taxa_headshot_kill_percentual,precisao_headshot_percentual,membros_revividos,membros_resgatados,granadas_usadas,abates_granada,dano_granada,gel_usado,gel_destruido,kits_medicos,abates_veiculo,abates_oleo,mudanca_posicao,garena_matchstats_armas(arma,abates,dano),garena_matchstats_habilidades(tipo,habilidade,usos,pick_times)')
+    .select('campeonato_jogador_id,jogador_id,jogador_temporario_id,campeonato_equipe_id,player_id,nick_snapshot,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,precisao_percentual,taxa_headshot_kill_percentual,precisao_headshot_percentual,membros_revividos,membros_resgatados,granadas_usadas,abates_granada,dano_granada,gel_usado,gel_destruido,kits_medicos,abates_veiculo,abates_oleo,mudanca_posicao,garena_matchstats_armas(weapon_id,arma,abates,dano),garena_matchstats_habilidades(tipo,skill_id,personagem,habilidade,usos,pick_times)')
     .in('importacao_id', importIds)
     .limit(100000)
   if (error) throw error
@@ -182,23 +203,42 @@ async function loadAdvancedPlayerStats(campeonatoId: string, filters: ScopeFilte
     for (const weapon of row.garena_matchstats_armas || []) {
       const name = text(weapon.arma)
       if (!name) continue
-      const item = current.armas.get(name) || { name, abates: 0, dano: 0 }
+      const item = current.armas.get(name) || { id:text(weapon.weapon_id), name, abates: 0, dano: 0 }
       item.abates += number(weapon.abates); item.dano += number(weapon.dano); current.armas.set(name, item)
     }
     for (const skill of row.garena_matchstats_habilidades || []) {
       const id = `${text(skill.tipo)}:${text(skill.habilidade)}`
       if (id === ':') continue
-      const item = current.habilidades.get(id) || { tipo:text(skill.tipo), name:text(skill.habilidade), usos:0, picks:0 }
+      const item = current.habilidades.get(id) || { id:text(skill.skill_id), tipo:text(skill.tipo), personagem:text(skill.personagem), name:text(skill.habilidade), usos:0, picks:0 }
       item.usos += number(skill.usos); item.picks += number(skill.pick_times); current.habilidades.set(id, item)
     }
     aggregate.set(key, current)
   }
   for (const current of aggregate.values()) {
     for (const field of ADVANCED_AVERAGE_FIELDS) current[field] = current.partidas_detalhadas ? Number((number(current[`${field}_soma`]) / current.partidas_detalhadas).toFixed(3)) : 0
-    current.arma_principal = [...current.armas.values()].sort((a: any, b: any) => b.abates - a.abates || b.dano - a.dano)[0]?.name || ''
+    const mainWeapon = [...current.armas.values()].sort((a: any, b: any) => b.dano - a.dano || b.abates - a.abates)[0]
+    current.arma_principal = mainWeapon?.name || ''
+    current.arma_principal_id = mainWeapon?.id || ''
+    current.arma_principal_abates = number(mainWeapon?.abates)
+    current.arma_principal_dano = number(mainWeapon?.dano)
     const skills = [...current.habilidades.values()]
-    current.habilidade_ativa = skills.filter((item: any) => item.tipo === 'ativa').sort((a: any, b: any) => b.usos - a.usos || b.picks - a.picks)[0]?.name || ''
-    current.pet = skills.filter((item: any) => item.tipo === 'pet').sort((a: any, b: any) => b.usos - a.usos || b.picks - a.picks)[0]?.name || ''
+    const skillOrder: Record<string, number> = { ativa:0, passiva:1 }
+    const characterSkills = skills
+      .filter((item: any) => item.tipo === 'ativa' || item.tipo === 'passiva')
+      .sort((a: any, b: any) => (skillOrder[a.tipo] ?? 9) - (skillOrder[b.tipo] ?? 9) || b.usos - a.usos || b.picks - a.picks)
+      .slice(0, 4)
+    characterSkills.forEach((skill: any, index: number) => {
+      const position = index + 1
+      current[`habilidade_${position}`] = skill.name
+      current[`habilidade_${position}_id`] = skill.id
+      current[`habilidade_${position}_tipo`] = skill.tipo
+      current[`habilidade_${position}_usos`] = skill.usos
+    })
+    current.habilidade_ativa = characterSkills.find((item: any) => item.tipo === 'ativa')?.name || ''
+    const pet = skills.filter((item: any) => item.tipo === 'pet').sort((a: any, b: any) => b.usos - a.usos || b.picks - a.picks)[0]
+    current.pet = pet?.name || ''
+    current.pet_id = pet?.id || ''
+    current.pet_usos = number(pet?.usos)
   }
   return aggregate
 }
@@ -235,8 +275,62 @@ const PLAYER_COLUMNS = [
   'precisao_percentual', 'taxa_headshot_kill_percentual', 'precisao_headshot_percentual',
   'membros_revividos', 'membros_resgatados', 'granadas_usadas', 'abates_granada',
   'dano_granada', 'gel_usado', 'gel_destruido', 'kits_medicos', 'abates_veiculo',
-  'abates_oleo', 'mudanca_posicao', 'arma_principal', 'habilidade_ativa', 'pet',
+  'abates_oleo', 'mudanca_posicao', 'arma_principal', 'arma_principal_id',
+  'arma_principal_abates', 'arma_principal_dano', 'habilidade_ativa', 'habilidade_1',
+  'habilidade_1_id', 'habilidade_1_tipo', 'habilidade_1_usos', 'habilidade_2',
+  'habilidade_2_id', 'habilidade_2_tipo', 'habilidade_2_usos', 'habilidade_3',
+  'habilidade_3_id', 'habilidade_3_tipo', 'habilidade_3_usos', 'habilidade_4',
+  'habilidade_4_id', 'habilidade_4_tipo', 'habilidade_4_usos', 'pet', 'pet_id', 'pet_usos',
 ]
+
+const BOOYAH_COLUMNS = [
+  'jogo_id', 'partida_id', 'booyah',
+  'equipe_id', 'equipe_nome', 'equipe_tag', 'equipe_logo', 'equipe_grupo_id',
+  'equipe_abates', 'equipe_dano', 'equipe_assistencias', 'equipe_revives',
+  'equipe_headshots', 'equipe_knockdowns', 'equipe_granadas_usadas',
+  'equipe_abates_granada', 'equipe_dano_granada', 'equipe_gel_usado',
+  'equipe_gel_destruido', 'equipe_kits_medicos', 'equipe_pontos_posicao',
+  'equipe_pontos_abates', 'equipe_pontos',
+  ...PLAYER_COLUMNS.filter(column => !['equipe_id', 'equipe', 'tag', 'logo', 'grupo_id'].includes(column)),
+]
+
+function booyahRows(drop: { teams: any[]; players: any[] }, jogoId: string, partidaId: string) {
+  const winner = drop.teams.find(team => number(team.booyahs) > 0)
+    || drop.teams.find(team => number(team.melhor_posicao) === 1)
+    || drop.teams.find(team => number(team.posicao) === 1)
+  if (!winner) return []
+  return drop.players
+    .filter(player => text(player.equipe_id) === text(winner.equipe_id))
+    .map(player => {
+      const playerData = Object.fromEntries(Object.entries(player).filter(([key]) => !['equipe_id', 'equipe', 'tag', 'logo', 'grupo_id'].includes(key)))
+      return {
+        jogo_id:jogoId,
+        partida_id:partidaId,
+        booyah:1,
+        equipe_id:winner.equipe_id,
+        equipe_nome:winner.equipe,
+        equipe_tag:winner.tag,
+        equipe_logo:winner.logo,
+        equipe_grupo_id:winner.grupo_id,
+        equipe_abates:winner.abates,
+        equipe_dano:winner.dano,
+        equipe_assistencias:winner.assistencias,
+        equipe_revives:winner.revives,
+        equipe_headshots:winner.headshots,
+        equipe_knockdowns:winner.knockdowns,
+        equipe_granadas_usadas:winner.granadas_usadas,
+        equipe_abates_granada:winner.abates_granada,
+        equipe_dano_granada:winner.dano_granada,
+        equipe_gel_usado:winner.gel_usado,
+        equipe_gel_destruido:winner.gel_destruido,
+        equipe_kits_medicos:winner.kits_medicos,
+        equipe_pontos_posicao:winner.pontos_posicao,
+        equipe_pontos_abates:winner.pontos_abates,
+        equipe_pontos:winner.pontos,
+        ...playerData,
+      }
+    })
+}
 
 function dataset(id: string, name: string, scope: string, entity: 'equipes' | 'jogadores', rows: Record<string, unknown>[]) {
   return {
@@ -247,6 +341,10 @@ function dataset(id: string, name: string, scope: string, entity: 'equipes' | 'j
     columns: entity === 'equipes' ? TEAM_COLUMNS : PLAYER_COLUMNS,
     rows,
   }
+}
+
+function booyahDataset(rows: Record<string, unknown>[]) {
+  return { id:'booyah-equipe', name:'Booyah - Equipe e jogadores', scope:'queda', entity:'booyah', columns:BOOYAH_COLUMNS, rows }
 }
 
 export async function loadEditorDatasets(campeonatoId: string) {
@@ -275,6 +373,7 @@ export async function loadEditorDatasets(campeonatoId: string) {
       dataset('jogadores-geral', 'Jogadores (MVP) - Geral', 'geral', 'jogadores', overall.players),
       dataset('jogadores-jogo', 'Jogadores (MVP) - Jogo no ar', 'jogo', 'jogadores', game.players),
       dataset('jogadores-queda', 'Jogadores (MVP) - Queda no ar', 'queda', 'jogadores', drop.players),
+      booyahDataset(context.activeJogoId && context.activePartidaId ? booyahRows(drop, context.activeJogoId, context.activePartidaId) : []),
     ],
   }
 }
