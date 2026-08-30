@@ -16,6 +16,27 @@ function text(value: unknown) {
   return value == null ? '' : String(value)
 }
 
+function groupLetter(value: unknown) {
+  const raw = text(value).trim()
+  if (!raw) return ''
+  const match = raw.match(/\b([A-Za-z])\b/) || raw.match(/([A-Za-z])/)
+  return (match?.[1] || raw.charAt(0)).toUpperCase()
+}
+
+async function loadGroupNames(campeonatoId: string) {
+  const { data, error } = await supabaseAdmin.from('campeonato_grupos').select('id,nome').eq('campeonato_id', campeonatoId)
+  if (error) throw error
+  return new Map((data || []).map((group: any) => [text(group.id), groupLetter(group.nome)]))
+}
+
+async function loadTeamPublicIds(teams: any[]) {
+  const ids = [...new Set(teams.map(team => text(team.equipe_id)).filter(Boolean))]
+  if (!ids.length) return new Map<string, number | string>()
+  const { data, error } = await supabaseAdmin.from('equipes').select('id,public_id').in('id', ids)
+  if (error) throw error
+  return new Map((data || []).map((team: any) => [text(team.id), team.public_id ?? '']))
+}
+
 function playerTotalsByTeam(players: any[]) {
   const totals = new Map<string, Record<string, number>>()
   for (const player of players) {
@@ -28,7 +49,7 @@ function playerTotalsByTeam(players: any[]) {
   return totals
 }
 
-function teamRows(teams: any[], players: any[]) {
+function teamRows(teams: any[], players: any[], groupNames: Map<string, string>, teamPublicIds: Map<string, number | string>) {
   const playerTotals = playerTotalsByTeam(players)
   return teams.map((team, index) => {
     const teamId = text(team.campeonato_equipe_id)
@@ -38,13 +59,12 @@ function teamRows(teams: any[], players: any[]) {
     const points = number(team.pontos_total)
     return {
       posicao: number(team.colocacao) || index + 1,
-      equipe_id: teamId,
-      line_id: text(team.line_id),
-      line_public_id: team.line_public_id ?? '',
+      id_equipe: teamPublicIds.get(text(team.equipe_id)) ?? '',
+      id_line: team.line_public_id ?? '',
       equipe: text(team.nome || team.line_nome || 'Equipe'),
       tag: text(team.tag),
       logo: text(team.logo_url),
-      grupo_id: text(team.grupo_id),
+      grupo: groupNames.get(text(team.grupo_id)) || '',
       quedas: drops,
       booyahs: number(team.booyahs),
       abates: kills,
@@ -77,7 +97,7 @@ function teamRows(teams: any[], players: any[]) {
   })
 }
 
-function playerRows(players: any[], teams: any[]) {
+function playerRows(players: any[], teams: any[], groupNames: Map<string, string>, teamPublicIds: Map<string, number | string>) {
   const teamsById = new Map(teams.map((team: any) => [text(team.campeonato_equipe_id), team]))
   return players.map((player, index) => {
     const team = teamsById.get(text(player.campeonato_equipe_id)) as any
@@ -86,18 +106,16 @@ function playerRows(players: any[], teams: any[]) {
     const damage = number(player.dano)
     return {
       posicao: number(player.colocacao) || index + 1,
-      jogador_id: text(player.campeonato_jogador_id),
-      perfil_id: text(player.jogador_id),
-      line_public_id: player.line_public_id ?? '',
       nick: text(player.nick || 'Jogador'),
       id_jogo: text(player.id_jogo),
       foto: text(player.foto_url),
       tipo_jogador: text(player.tipo_jogador),
-      equipe_id: text(player.campeonato_equipe_id),
+      id_equipe: teamPublicIds.get(text(team?.equipe_id)) ?? '',
+      id_line: player.line_public_id ?? team?.line_public_id ?? '',
       equipe: text(team?.nome || team?.line_nome || ''),
       tag: text(team?.tag),
       logo: text(team?.logo_url),
-      grupo_id: text(team?.grupo_id),
+      grupo: groupNames.get(text(team?.grupo_id)) || '',
       quedas: drops,
       abates: kills,
       dano: damage,
@@ -243,7 +261,7 @@ async function loadAdvancedPlayerStats(campeonatoId: string, filters: ScopeFilte
   return aggregate
 }
 
-async function scopedDatasets(campeonatoId: string, filters: ScopeFilters) {
+async function scopedDatasets(campeonatoId: string, filters: ScopeFilters, groupNames: Map<string, string>) {
   const [teams, players, advanced] = await Promise.all([
     listarEstatisticasEquipes(campeonatoId, filters),
     listarEstatisticasMvp(campeonatoId, filters),
@@ -253,14 +271,15 @@ async function scopedDatasets(campeonatoId: string, filters: ScopeFilters) {
     ...player,
     ...(advanced.get(text(player.campeonato_jogador_id || player.jogador_id || player.jogador_temporario_id || player.id_jogo)) || {}),
   }))
+  const teamPublicIds = await loadTeamPublicIds(teams)
   return {
-    teams: teamRows(teams, completePlayers),
-    players: playerRows(completePlayers, teams),
+    teams: teamRows(teams, completePlayers, groupNames, teamPublicIds),
+    players: playerRows(completePlayers, teams, groupNames, teamPublicIds),
   }
 }
 
 const TEAM_COLUMNS = [
-  'posicao', 'equipe_id', 'line_id', 'line_public_id', 'equipe', 'tag', 'logo', 'grupo_id',
+  'posicao', 'id_equipe', 'id_line', 'equipe', 'tag', 'logo', 'grupo',
   'quedas', 'booyahs', 'abates', 'dano', 'assistencias', 'revives', 'headshots', 'knockdowns',
   'sobrevivencia_segundos', 'distancia_movida', 'distancia_max_abate', 'membros_revividos',
   'membros_resgatados', 'granadas_usadas', 'abates_granada', 'dano_granada', 'gel_usado',
@@ -268,8 +287,8 @@ const TEAM_COLUMNS = [
   'pontos_abates', 'pontos', 'melhor_posicao', 'media_abates', 'media_dano', 'media_pontos',
 ]
 const PLAYER_COLUMNS = [
-  'posicao', 'jogador_id', 'perfil_id', 'line_public_id', 'nick', 'id_jogo', 'foto',
-  'tipo_jogador', 'equipe_id', 'equipe', 'tag', 'logo', 'grupo_id', 'quedas', 'abates',
+  'posicao', 'nick', 'id_jogo', 'foto', 'tipo_jogador', 'id_equipe', 'id_line',
+  'equipe', 'tag', 'logo', 'grupo', 'quedas', 'abates',
   'dano', 'assistencias', 'revives', 'kd', 'media_dano', 'media_assistencias', 'headshots',
   'knockdowns', 'sobrevivencia_segundos', 'distancia_movida', 'distancia_max_abate',
   'precisao_percentual', 'taxa_headshot_kill_percentual', 'precisao_headshot_percentual',
@@ -284,34 +303,38 @@ const PLAYER_COLUMNS = [
 ]
 
 const BOOYAH_COLUMNS = [
-  'jogo_id', 'partida_id', 'booyah',
-  'equipe_id', 'equipe_nome', 'equipe_tag', 'equipe_logo', 'equipe_grupo_id',
+  'booyah', 'id_equipe', 'id_line', 'equipe_nome', 'equipe_tag', 'equipe_logo', 'equipe_grupo',
   'equipe_abates', 'equipe_dano', 'equipe_assistencias', 'equipe_revives',
   'equipe_headshots', 'equipe_knockdowns', 'equipe_granadas_usadas',
   'equipe_abates_granada', 'equipe_dano_granada', 'equipe_gel_usado',
   'equipe_gel_destruido', 'equipe_kits_medicos', 'equipe_pontos_posicao',
   'equipe_pontos_abates', 'equipe_pontos',
-  ...PLAYER_COLUMNS.filter(column => !['equipe_id', 'equipe', 'tag', 'logo', 'grupo_id'].includes(column)),
+  ...PLAYER_COLUMNS.filter(column => !['id_equipe', 'id_line', 'equipe', 'tag', 'logo', 'grupo'].includes(column)),
 ]
 
-function booyahRows(drop: { teams: any[]; players: any[] }, jogoId: string, partidaId: string) {
+function booyahRows(drop: { teams: any[]; players: any[] }) {
   const winner = drop.teams.find(team => number(team.booyahs) > 0)
     || drop.teams.find(team => number(team.melhor_posicao) === 1)
     || drop.teams.find(team => number(team.posicao) === 1)
   if (!winner) return []
   return drop.players
-    .filter(player => text(player.equipe_id) === text(winner.equipe_id))
+    .filter(player => (
+      winner.id_line !== '' && text(player.id_line) === text(winner.id_line)
+    ) || (
+      winner.id_equipe !== '' && text(player.id_equipe) === text(winner.id_equipe)
+    ) || (
+      text(player.equipe) === text(winner.equipe)
+    ))
     .map(player => {
-      const playerData = Object.fromEntries(Object.entries(player).filter(([key]) => !['equipe_id', 'equipe', 'tag', 'logo', 'grupo_id'].includes(key)))
+      const playerData = Object.fromEntries(Object.entries(player).filter(([key]) => !['id_equipe', 'id_line', 'equipe', 'tag', 'logo', 'grupo'].includes(key)))
       return {
-        jogo_id:jogoId,
-        partida_id:partidaId,
         booyah:1,
-        equipe_id:winner.equipe_id,
+        id_equipe:winner.id_equipe,
+        id_line:winner.id_line,
         equipe_nome:winner.equipe,
         equipe_tag:winner.tag,
         equipe_logo:winner.logo,
-        equipe_grupo_id:winner.grupo_id,
+        equipe_grupo:winner.grupo,
         equipe_abates:winner.abates,
         equipe_dano:winner.dano,
         equipe_assistencias:winner.assistencias,
@@ -349,11 +372,12 @@ function booyahDataset(rows: Record<string, unknown>[]) {
 
 export async function loadEditorDatasets(campeonatoId: string) {
   const context = await resolveStreamContext(campeonatoId)
+  const groupNames = await loadGroupNames(campeonatoId)
   const empty = { teams: [] as Record<string, unknown>[], players: [] as Record<string, unknown>[] }
   const [overall, game, drop] = await Promise.all([
-    scopedDatasets(campeonatoId, {}),
-    context.activeJogoId ? scopedDatasets(campeonatoId, { jogoId: context.activeJogoId }) : Promise.resolve(empty),
-    context.activePartidaId ? scopedDatasets(campeonatoId, { partidaId: context.activePartidaId }) : Promise.resolve(empty),
+    scopedDatasets(campeonatoId, {}, groupNames),
+    context.activeJogoId ? scopedDatasets(campeonatoId, { jogoId: context.activeJogoId }, groupNames) : Promise.resolve(empty),
+    context.activePartidaId ? scopedDatasets(campeonatoId, { partidaId: context.activePartidaId }, groupNames) : Promise.resolve(empty),
   ])
 
   return {
@@ -373,7 +397,7 @@ export async function loadEditorDatasets(campeonatoId: string) {
       dataset('jogadores-geral', 'Jogadores (MVP) - Geral', 'geral', 'jogadores', overall.players),
       dataset('jogadores-jogo', 'Jogadores (MVP) - Jogo no ar', 'jogo', 'jogadores', game.players),
       dataset('jogadores-queda', 'Jogadores (MVP) - Queda no ar', 'queda', 'jogadores', drop.players),
-      booyahDataset(context.activeJogoId && context.activePartidaId ? booyahRows(drop, context.activeJogoId, context.activePartidaId) : []),
+      booyahDataset(context.activeJogoId && context.activePartidaId ? booyahRows(drop) : []),
     ],
   }
 }
