@@ -383,6 +383,42 @@ const DAILY_BOOYAH_COLUMNS = [
   'pontos_posicao', 'pontos_abates', 'pontos',
 ]
 
+const CURRENT_MATCH_COLUMNS = [
+  'queda_atual', 'mapa_atual', 'quedas_totais', 'marcador',
+  'queda', 'mapa', 'estado_queda', 'queda_imagem', 'queda_imagem_numerada',
+]
+
+async function currentMatchRows(campeonatoId: string, jogoId: string | null, activePartidaId: string | null) {
+  if (!jogoId) return []
+  const partidas = await loadPartidasForStream(campeonatoId, jogoId)
+  if (!partidas.length) return []
+
+  const activeIndex = partidas.findIndex(partida => text(partida.id) === text(activePartidaId))
+  const activePartida = activeIndex >= 0 ? partidas[activeIndex] : null
+  const currentNumber = activePartida ? number(activePartida.numero_partida) || activeIndex + 1 : 0
+  const currentMap = activePartida
+    ? text(activePartida.mapa_nome || activePartida.mapa || activePartida.mapa_codigo || 'MISTERIOSO').trim().toUpperCase()
+    : ''
+  const total = partidas.length
+
+  return partidas.map((partida: any, index: number) => {
+    const dropNumber = number(partida.numero_partida) || index + 1
+    const mapName = text(partida.mapa_nome || partida.mapa || partida.mapa_codigo || 'MISTERIOSO').trim().toUpperCase()
+    const state = activeIndex < 0 ? 'FUTURA' : index < activeIndex ? 'PASSADA' : index === activeIndex ? 'ATUAL' : 'FUTURA'
+    return {
+      queda_atual: currentNumber || '',
+      mapa_atual: currentMap,
+      quedas_totais: total,
+      marcador: currentNumber ? `QUEDA ${currentNumber} DE ${total}` : `JOGO COM ${total} QUEDAS`,
+      queda: dropNumber,
+      mapa: mapName,
+      estado_queda: state,
+      queda_imagem: `QUEDA ${state}`,
+      queda_imagem_numerada: `QUEDA ${dropNumber} ${state}`,
+    }
+  })
+}
+
 async function dailyBooyahRows(
   campeonatoId: string,
   jogoId: string | null,
@@ -548,6 +584,10 @@ function dailyBooyahDataset(rows: Record<string, unknown>[]) {
   return { id:'booyahs-do-dia', name:'Booyahs do dia', scope:'jogo', entity:'booyahs', columns:DAILY_BOOYAH_COLUMNS, rows }
 }
 
+function currentMatchDataset(rows: Record<string, unknown>[]) {
+  return { id:'partida-atual', name:'Informacoes da partida atual', scope:'jogo', entity:'partida', columns:CURRENT_MATCH_COLUMNS, rows }
+}
+
 export async function loadEditorDatasets(campeonatoId: string) {
   const context = await resolveStreamContext(campeonatoId)
   const groupNames = await loadGroupNames(campeonatoId)
@@ -558,7 +598,10 @@ export async function loadEditorDatasets(campeonatoId: string) {
     context.activeJogoId ? scopedDatasets(campeonatoId, { jogoId: context.activeJogoId }, groupNames) : Promise.resolve(empty),
     context.activePartidaId ? scopedDatasets(campeonatoId, { partidaId: context.activePartidaId }, groupNames) : Promise.resolve(empty),
   ])
-  const dailyBooyahs = await dailyBooyahRows(campeonatoId, context.activeJogoId, game.teams, groupNames)
+  const [dailyBooyahs, currentMatch] = await Promise.all([
+    dailyBooyahRows(campeonatoId, context.activeJogoId, game.teams, groupNames),
+    currentMatchRows(campeonatoId, context.activeJogoId, context.activePartidaId),
+  ])
 
   return {
     version: 1,
@@ -579,6 +622,7 @@ export async function loadEditorDatasets(campeonatoId: string) {
       dataset('jogadores-queda', 'Jogadores (MVP) - Queda no ar', 'queda', 'jogadores', drop.players),
       booyahDataset(context.activeJogoId && context.activePartidaId ? booyahRows(drop) : []),
       dailyBooyahDataset(dailyBooyahs),
+      currentMatchDataset(currentMatch),
     ],
   }
 }
