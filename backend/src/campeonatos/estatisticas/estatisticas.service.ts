@@ -93,6 +93,7 @@ async function listarMvpGarenaFallback(campeonatoId: string, filters: Filters) {
     .select('id,jogo_id,partida_id')
     .eq('campeonato_id', campeonatoId)
     .eq('status', 'concluida')
+    .eq('consolidacao_oficial', true)
   if (filters.jogoId) importsQuery = importsQuery.eq('jogo_id', filters.jogoId)
   if (filters.partidaId) importsQuery = importsQuery.eq('partida_id', filters.partidaId)
   if (filters.partidaIds?.length) importsQuery = importsQuery.in('partida_id', filters.partidaIds)

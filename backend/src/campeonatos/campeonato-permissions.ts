@@ -72,6 +72,17 @@ export type CampeonatoPermission = {
   sellerPermissions: SellerPermissions | null
 }
 
+export function canUseLocalStudio(permission: CampeonatoPermission) {
+  return (
+    permission.role === 'owner'
+    || permission.role === 'manager'
+    || permission.canManage
+    || permission.canOrganizeGroups
+    || permission.canManageGames
+    || permission.canScore
+  )
+}
+
 function missingRelation(error: any) {
   return ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code || '')
 }

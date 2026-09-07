@@ -3,8 +3,8 @@
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 29 de julho de 2026
-**Estado:** Lili funciona como acesso rápido com ranking, acompanhamento e solicitações; operações avançadas abrem a seção correspondente no site. Convites jogador–equipe possuem aceite/recusa pelo correio.
+**Última atualização:** 7 de setembro de 2026
+**Estado:** Lili funciona como acesso rápido com ranking, acompanhamento e solicitações; operações avançadas abrem a seção correspondente no site. Convites jogador–equipe possuem aceite/recusa pelo correio. O contrato desktop inclui baseline histórico versionado antes de uma queda.
 
 ## 1. Objetivo do sistema
 
@@ -237,3 +237,12 @@ Ao iniciar uma nova conversa:
 3. Dividir a API genérica `dropzone/route.ts` por recurso e corrigir isolamento de dados.
 4. Extrair fases, grupos e jogos do painel legado para `web/features/campeonatos/`.
 5. Transação end-to-end na inscrição (slot + participação + uso do link).
+
+## 13. Integração DPZ Live — R03
+
+- Endpoint: `GET /api/desktop/campeonatos/{id}/baseline?jogo_id=...&partida_id=...`.
+- Autenticação: Bearer e permissão compartilhada do Studio local.
+- Corte: somente quedas do mesmo jogo com `numero_partida` menor e `status = finalizada`.
+- Pontos, kills e booyahs: agregadores oficiais existentes com `partidaIds`.
+- Identidades: `campeonato_equipe_id` e `campeonato_jogador_id`; nunca agrupar por IDs externos.
+- Detalhes e testes: `docs/DPZ_INTEGRACAO_R03_BASELINE.md`.

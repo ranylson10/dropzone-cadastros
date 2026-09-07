@@ -250,6 +250,7 @@ export async function carregarRankingTiers() {
       .select('id')
       .in('campeonato_id', championshipIds)
       .eq('status', 'concluida')
+      .eq('consolidacao_oficial', true)
       .limit(50000),
   ])
   for (const result of [teamsResult, playersResult, participationsResult, rosterResult, garenaImportsResult]) if (result.error) throw result.error

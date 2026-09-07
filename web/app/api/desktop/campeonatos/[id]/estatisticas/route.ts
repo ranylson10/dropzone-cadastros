@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
+import { canUseLocalStudio, getCampeonatoPermission } from '@backend/campeonatos/campeonato-permissions'
 import { listarEstatisticasEquipes } from '@backend/campeonatos/estatisticas/estatisticas.service'
 import { listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
-
-function canUseLocalStudio(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
-  return (
-    permission.role === 'owner'
-    || permission.role === 'manager'
-    || permission.canManage
-    || permission.canOrganizeGroups
-    || permission.canManageGames
-    || permission.canScore
-  )
-}
 
 /** Dados para o DropZone Live Local. Nunca aceita uma chave de serviço no computador. */
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {

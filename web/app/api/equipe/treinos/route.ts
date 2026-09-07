@@ -89,6 +89,7 @@ export async function GET(req: NextRequest) {
       .select('id,campeonato_id,partida_id,status,concluida_em')
       .in('campeonato_id', xtreinoCampeonatoIds)
       .eq('status', 'concluida')
+      .eq('consolidacao_oficial', true)
 
     if (!garenaImportacoesResult.error) {
       const latestImportByDrop = new Map<string, any>()

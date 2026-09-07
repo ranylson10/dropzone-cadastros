@@ -27,7 +27,16 @@ export async function GET(request: NextRequest) {
 
     const [{ data: championship }, payload] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,nome').eq('id', streamKey.campeonato_id).maybeSingle(),
-      loadEditorDatasets(String(streamKey.campeonato_id)),
+      loadEditorDatasets(
+        String(streamKey.campeonato_id),
+        request.nextUrl.searchParams.has('jogo_id') || request.nextUrl.searchParams.has('partida_id')
+          ? {
+              jogoId: String(request.nextUrl.searchParams.get('jogo_id') || ''),
+              partidaId: String(request.nextUrl.searchParams.get('partida_id') || ''),
+              faseId: String(request.nextUrl.searchParams.get('fase_id') || ''),
+            }
+          : undefined,
+      ),
     ])
 
     return NextResponse.json({

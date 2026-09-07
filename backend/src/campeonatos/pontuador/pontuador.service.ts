@@ -7,6 +7,37 @@ type FiltrosJogos = {
   rodadaId?: string | null
 }
 
+export async function carregarRosterPontuadorJogo(campeonatoId: string, jogoId: string) {
+  const [{ data: slots, error: slotsError }, { data: jogadores, error: jogadoresError }] = await Promise.all([
+    supabaseAdmin
+      .from('campeonato_pontuador_slots_jogo')
+      .select('*')
+      .eq('campeonato_id', campeonatoId)
+      .eq('jogo_id', jogoId)
+      .order('grupo_nome', { ascending: true })
+      .order('slot_numero', { ascending: true }),
+    supabaseAdmin
+      .from('campeonato_pontuador_jogadores_jogo')
+      .select('*')
+      .eq('campeonato_id', campeonatoId)
+      .eq('jogo_id', jogoId)
+      .order('campeonato_equipe_id', { ascending: true })
+      .order('slot_jogador', { ascending: true }),
+  ])
+  if (slotsError) throw slotsError
+  if (jogadoresError) throw jogadoresError
+  const participacaoIds = (slots || []).map((row: any) => row.campeonato_equipe_id).filter(Boolean)
+  const { data: participacoes, error: participacoesError } = participacaoIds.length
+    ? await supabaseAdmin.from('campeonato_equipes').select('id,slot_id').in('id', participacaoIds)
+    : { data: [], error: null }
+  if (participacoesError) throw participacoesError
+  const slotIdByParticipacao = new Map((participacoes || []).map((row: any) => [String(row.id), row.slot_id || null]))
+  return {
+    slots: (slots || []).map((row: any) => ({ ...row, slot_id: slotIdByParticipacao.get(String(row.campeonato_equipe_id || '')) || null })),
+    jogadores: jogadores || [],
+  }
+}
+
 export async function listarJogosPontuador(campeonatoId: string, filtros: FiltrosJogos = {}) {
   let query = supabaseAdmin
     .from('campeonato_jogos')
@@ -74,9 +105,8 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
     { data: fase, error: faseError },
     { data: rodada, error: rodadaError },
     { data: partidas, error: partidasError },
-    { data: slots, error: slotsError },
+    roster,
     { data: matriz, error: matrizError },
-    { data: jogadores, error: jogadoresError },
     { data: resultadosJogadores, error: resultadosJogadoresError },
     { data: classificacaoJogo, error: classificacaoError },
     { data: vinculos, error: vinculosError },
@@ -94,13 +124,7 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
       .eq('campeonato_id', campeonatoId)
       .eq('jogo_id', jogoId)
       .order('numero_partida', { ascending: true }),
-    supabaseAdmin
-      .from('campeonato_pontuador_slots_jogo')
-      .select('*')
-      .eq('campeonato_id', campeonatoId)
-      .eq('jogo_id', jogoId)
-      .order('grupo_nome', { ascending: true })
-      .order('slot_numero', { ascending: true }),
+    carregarRosterPontuadorJogo(campeonatoId, jogoId),
     supabaseAdmin
       .from('campeonato_pontuador_equipes_matriz')
       .select('*')
@@ -109,13 +133,6 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
       .order('grupo_nome', { ascending: true })
       .order('slot_numero', { ascending: true })
       .order('numero_partida', { ascending: true }),
-    supabaseAdmin
-      .from('campeonato_pontuador_jogadores_jogo')
-      .select('*')
-      .eq('campeonato_id', campeonatoId)
-      .eq('jogo_id', jogoId)
-      .order('campeonato_equipe_id', { ascending: true })
-      .order('slot_jogador', { ascending: true }),
     supabaseAdmin
       .from('campeonato_resultados_jogadores')
       .select('partida_id,campeonato_equipe_id,campeonato_jogador_id,abates,dano,assistencias,revives,origem')
@@ -138,13 +155,12 @@ export async function carregarPontuadorJogo(campeonatoId: string, jogoId: string
   if (faseError) throw faseError
   if (rodadaError) throw rodadaError
   if (partidasError) throw partidasError
-  if (slotsError) throw slotsError
   if (matrizError) throw matrizError
-  if (jogadoresError) throw jogadoresError
   if (resultadosJogadoresError) throw resultadosJogadoresError
   if (classificacaoError) throw classificacaoError
   if (vinculosError) throw vinculosError
 
+  const { slots, jogadores } = roster
   const mapas = Array.from(new Set((partidas || []).map((partida: any) => String(partida.mapa_codigo || '')).filter(Boolean)))
   const [classificacaoGeral, mvpGeral, mvpJogo, transmissao, ...classificacoesMapa] = await Promise.all([
     listarEstatisticasEquipes(campeonatoId, {}),

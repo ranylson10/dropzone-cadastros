@@ -8,6 +8,12 @@ type ScopeFilters = {
   partidaIds?: string[]
 }
 
+export type EditorDatasetContextOverride = {
+  jogoId: string
+  partidaId: string
+  faseId?: string
+}
+
 type NextMatchContext = {
   queda: number
   quedasTotais: number
@@ -109,10 +115,12 @@ function teamRows(teams: any[], players: any[], groupNames: Map<string, string>,
     const kills = number(team.abates)
     const points = number(team.pontos_total)
     return {
+      campeonato_equipe_id: teamId,
       posicao: number(team.colocacao) || index + 1,
       ...(team.seta ? { seta:text(team.seta), variacao_posicao:number(team.variacao_posicao) } : {}),
       id_equipe: teamPublicIds.get(text(team.equipe_id)) ?? '',
       id_line: team.line_public_id ?? '',
+      logo: text(team.logo_url),
       equipe: text(team.nome || team.line_nome || 'Equipe'),
       tag: text(team.tag),
       grupo: groupNames.get(text(team.grupo_id)) || '',
@@ -156,6 +164,8 @@ function playerRows(players: any[], teams: any[], groupNames: Map<string, string
     const kills = number(player.abates)
     const damage = number(player.dano)
     return {
+      campeonato_jogador_id: text(player.campeonato_jogador_id),
+      campeonato_equipe_id: text(player.campeonato_equipe_id),
       posicao: number(player.colocacao) || index + 1,
       ...(player.seta ? { seta:text(player.seta), variacao_posicao:number(player.variacao_posicao) } : {}),
       nick: text(player.nick || 'Jogador'),
@@ -236,6 +246,7 @@ async function loadAdvancedPlayerStats(campeonatoId: string, filters: ScopeFilte
     .select('id')
     .eq('campeonato_id', campeonatoId)
     .eq('status', 'concluida')
+    .eq('consolidacao_oficial', true)
   if (filters.jogoId) importsQuery = importsQuery.eq('jogo_id', filters.jogoId)
   if (filters.partidaId) importsQuery = importsQuery.eq('partida_id', filters.partidaId)
   if (filters.partidaIds?.length) importsQuery = importsQuery.in('partida_id', filters.partidaIds)
@@ -349,7 +360,7 @@ async function scopedDatasets(
 }
 
 const TEAM_COLUMNS = [
-  'posicao', 'id_equipe', 'id_line', 'equipe', 'tag', 'grupo',
+  'campeonato_equipe_id', 'posicao', 'id_equipe', 'id_line', 'logo', 'equipe', 'tag', 'grupo',
   'quedas', 'booyahs', 'abates', 'dano', 'assistencias', 'revives', 'headshots', 'knockdowns',
   'sobrevivencia_segundos', 'distancia_movida', 'distancia_max_abate', 'membros_revividos',
   'membros_resgatados', 'granadas_usadas', 'abates_granada', 'dano_granada', 'gel_usado',
@@ -357,7 +368,7 @@ const TEAM_COLUMNS = [
   'pontos_abates', 'pontos', 'melhor_posicao', 'media_abates', 'media_dano', 'media_pontos',
 ]
 const PLAYER_COLUMNS = [
-  'posicao', 'nick', 'id_jogo', 'foto', 'tipo_jogador', 'id_equipe', 'id_line',
+  'campeonato_jogador_id', 'campeonato_equipe_id', 'posicao', 'nick', 'id_jogo', 'foto', 'tipo_jogador', 'id_equipe', 'id_line',
   'equipe', 'tag', 'grupo', 'quedas', 'abates',
   'dano', 'assistencias', 'revives', 'kd', 'media_dano', 'media_assistencias', 'headshots',
   'knockdowns', 'sobrevivencia_segundos', 'distancia_movida', 'distancia_max_abate',
@@ -371,7 +382,12 @@ const PLAYER_COLUMNS = [
   'habilidade_3_id', 'habilidade_3_tipo', 'habilidade_3_usos', 'habilidade_4',
   'habilidade_4_id', 'habilidade_4_tipo', 'habilidade_4_usos', 'pet', 'pet_id', 'pet_usos',
 ]
-const withMovementColumns = (columns: string[]) => [columns[0], 'seta', 'variacao_posicao', ...columns.slice(1)]
+const withMovementColumns = (columns: string[]) => {
+  const position = columns.indexOf('posicao')
+  return position < 0
+    ? [...columns, 'seta', 'variacao_posicao']
+    : [...columns.slice(0, position + 1), 'seta', 'variacao_posicao', ...columns.slice(position + 1)]
+}
 const TEAM_OVERALL_COLUMNS = withMovementColumns(TEAM_COLUMNS)
 const PLAYER_OVERALL_COLUMNS = withMovementColumns(PLAYER_COLUMNS)
 
@@ -706,8 +722,30 @@ function nextMatchDataset(
   return { id, name, scope:'proxima_queda', entity, columns, rows }
 }
 
-export async function loadEditorDatasets(campeonatoId: string) {
+export async function loadEditorDatasets(campeonatoId: string, override?: EditorDatasetContextOverride) {
   const context = await resolveStreamContext(campeonatoId)
+  if (override) {
+    const jogoId = text(override.jogoId).trim()
+    const partidaId = text(override.partidaId).trim()
+    if (!jogoId || !partidaId) throw new Error('Informe jogo_id e partida_id para fixar o contexto do Runtime.')
+    if (!context.jogos.some(jogo => jogo.id === jogoId)) throw new Error('O jogo informado nao pertence ao campeonato da chave Stream.')
+    const faseId = text(override.faseId).trim()
+    let partidaQuery = supabaseAdmin
+      .from('campeonato_partidas')
+      .select('id')
+      .eq('id', partidaId)
+      .eq('campeonato_id', campeonatoId)
+      .eq('jogo_id', jogoId)
+    if (faseId) partidaQuery = partidaQuery.eq('fase_id', faseId)
+    const { data: partida, error } = await partidaQuery.maybeSingle()
+    if (error) throw error
+    if (!partida?.id) throw new Error('A partida informada nao pertence ao jogo e campeonato selecionados.')
+    context.activeJogoId = jogoId
+    context.activePartidaId = partidaId
+    context.activeJogo = context.jogos.find(jogo => jogo.id === jogoId) || null
+    context.explicitState = true
+    context.source = 'pack'
+  }
   const groupNames = await loadGroupNames(campeonatoId)
   const previousPartidaIds = await loadPreviousScoredPartidaIds(campeonatoId)
   const empty = { teams: [] as Record<string, unknown>[], players: [] as Record<string, unknown>[] }

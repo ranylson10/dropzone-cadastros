@@ -238,6 +238,8 @@ export async function sincronizarEstatisticasGarena(context: MatchStatsContext) 
       partida_id: context.partidaId,
       nome_arquivo: context.nomeArquivo,
       status: 'processando',
+      consolidacao_oficial: true,
+      origem: 'MatchStats Garena',
       erro: null,
       consulta_em: new Date().toISOString(),
       criado_por: context.userId,
@@ -319,7 +321,7 @@ export async function sincronizarEstatisticasGarena(context: MatchStatsContext) 
       requireSuccess(error)
     }
     const { error: completedError } = await supabaseAdmin.from('garena_matchstats_importacoes').update({
-      status: 'concluida', total_jogadores: rows.length, dados_brutos: payload, concluida_em: new Date().toISOString(), erro: null, updated_at: new Date().toISOString(),
+      status: 'concluida', consolidacao_oficial: true, total_jogadores: rows.length, dados_brutos: payload, concluida_em: new Date().toISOString(), erro: null, updated_at: new Date().toISOString(),
     }).eq('id', importacao.id)
     requireSuccess(completedError)
     return { status: 'concluida' as const, jogadores: rows.length, resultados_jogadores: resultadosJogadores }

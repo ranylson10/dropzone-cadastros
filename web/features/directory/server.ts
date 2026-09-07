@@ -54,8 +54,9 @@ async function competitiveProfile(kind: 'equipes' | 'jogadores', id: string) {
     rankRows = (ranking?.players || []).filter((row: any) => String(row.jogador_id) === id)
     const { data, error } = await supabaseAdmin
       .from('garena_matchstats_jogadores')
-      .select('importacao_id,abates,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,granadas_usadas,gel_usado,kits_medicos,precisao_percentual,garena_matchstats_importacoes(partida_id,concluida_em),garena_matchstats_armas(arma,abates,dano),garena_matchstats_habilidades(tipo,personagem,habilidade,usos,pick_times,pick_rate)')
+      .select('importacao_id,abates,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,granadas_usadas,gel_usado,kits_medicos,precisao_percentual,garena_matchstats_importacoes!inner(partida_id,concluida_em,consolidacao_oficial),garena_matchstats_armas(arma,abates,dano),garena_matchstats_habilidades(tipo,personagem,habilidade,usos,pick_times,pick_rate)')
       .eq('jogador_id', id)
+      .eq('garena_matchstats_importacoes.consolidacao_oficial', true)
       .limit(1000)
     if (!error) statsRows = data || []
   } else {
@@ -70,8 +71,9 @@ async function competitiveProfile(kind: 'equipes' | 'jogadores', id: string) {
     if (!participationError && participationIds.length) {
       const { data, error } = await supabaseAdmin
         .from('garena_matchstats_jogadores')
-        .select('importacao_id,abates,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,granadas_usadas,gel_usado,kits_medicos,precisao_percentual,garena_matchstats_importacoes(partida_id,concluida_em),garena_matchstats_armas(arma,abates,dano),garena_matchstats_habilidades(tipo,personagem,habilidade,usos,pick_times,pick_rate)')
+        .select('importacao_id,abates,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,granadas_usadas,gel_usado,kits_medicos,precisao_percentual,garena_matchstats_importacoes!inner(partida_id,concluida_em,consolidacao_oficial),garena_matchstats_armas(arma,abates,dano),garena_matchstats_habilidades(tipo,personagem,habilidade,usos,pick_times,pick_rate)')
         .in('campeonato_equipe_id', participationIds)
+        .eq('garena_matchstats_importacoes.consolidacao_oficial', true)
         .limit(10000)
       if (!error) statsRows = data || []
     }
