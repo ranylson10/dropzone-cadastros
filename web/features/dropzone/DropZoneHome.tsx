@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { ClipboardList, Loader2, Pencil, Send, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile as uploadStoragePublicFile } from '@/lib/upload-public'
@@ -8,11 +9,6 @@ import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
 import { Field, LocationSearch, UploadField, resolvePendingImageUpload } from './components/form-fields'
 import { adminProfileIcon, profileIcons } from './components/profile-icons'
-import { EquipePanel } from './panels/equipe/EquipePanel'
-import { JogadorPanel } from './panels/jogador/JogadorPanel'
-import { ManagerPanel } from './panels/manager/ManagerPanel'
-import { ProdutoraPanel } from './panels/produtora/ProdutoraPanel'
-import { BroadcastPanel } from '@/features/broadcast'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppShell, APP_NAV } from '@/components/layout'
 import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
@@ -23,8 +19,24 @@ import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
-import { PublicChampionshipHome } from '@/features/home/PublicChampionshipHome'
-import { AuthenticatedHomeFeed } from '@/features/home/AuthenticatedHomeFeed'
+
+const PublicChampionshipHome = dynamic(() => import('@/features/home/PublicChampionshipHome').then((module) => module.PublicChampionshipHome))
+const AuthenticatedHomeFeed = dynamic(() => import('@/features/home/AuthenticatedHomeFeed').then((module) => module.AuthenticatedHomeFeed))
+const ProdutoraPanel = dynamic(() => import('./panels/produtora/ProdutoraPanel').then((module) => module.ProdutoraPanel), {
+  loading: () => <DropzoneLoader label="Carregando painel da produtora" />,
+})
+const EquipePanel = dynamic(() => import('./panels/equipe/EquipePanel').then((module) => module.EquipePanel), {
+  loading: () => <DropzoneLoader label="Carregando painel da equipe" />,
+})
+const JogadorPanel = dynamic(() => import('./panels/jogador/JogadorPanel').then((module) => module.JogadorPanel), {
+  loading: () => <DropzoneLoader label="Carregando painel do jogador" />,
+})
+const ManagerPanel = dynamic(() => import('./panels/manager/ManagerPanel').then((module) => module.ManagerPanel), {
+  loading: () => <DropzoneLoader label="Carregando painel do afiliado" />,
+})
+const BroadcastPanel = dynamic(() => import('@/features/broadcast/components/BroadcastPanel').then((module) => module.BroadcastPanel), {
+  loading: () => <DropzoneLoader label="Carregando painel de transmissão" />,
+})
 
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
