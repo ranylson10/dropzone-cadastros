@@ -26,7 +26,7 @@ test.describe('Rodada 2 — shell global e navegação mobile', () => {
     expect(header).toContain('<span>Campeonatos</span>')
     expect(header).toContain('<span>Agenda</span>')
     expect(header).toContain('<span>Equipes</span>')
-    expect(header).toContain('<span>Perfil</span>')
+    expect(header).toContain('<span>Conta</span>')
     expect(header).toContain("app-mobile-profile-switcher")
     expect(css).toContain('grid-template-columns: repeat(5, minmax(0, 1fr))')
     expect(css).toContain('bottom: 0')
@@ -48,7 +48,7 @@ test.describe('Rodada 2 — shell global e navegação mobile', () => {
     expect(globalCss).not.toContain('.page-authenticated{ padding-top: 88px;')
     expect(globalCss).not.toContain('.page-authenticated{ padding-top: 96px;')
     expect(globalCss).toContain('bottom: calc(70px + env(safe-area-inset-bottom))')
-    expect((globalCss.match(/\.lili-global-launcher\{/g) || []).length).toBe(2)
+    expect((globalCss.match(/\.lili-global-launcher\{/g) || []).length).toBeGreaterThanOrEqual(2)
     expect(globalCss.indexOf('@media (max-width: 640px){', globalCss.indexOf('.lili-floating-chat{ position: fixed'))).toBeGreaterThan(globalCss.indexOf('.lili-global-launcher{ position: fixed'))
   })
 

@@ -91,7 +91,7 @@ export async function getBrlRate(currency: LiliCurrency) {
   const timeout = setTimeout(() => controller.abort(), 8000)
   try {
     const response = await fetch(`${RATE_ENDPOINT}?base=BRL&symbols=${currency}`, {
-      cache: 'no-store',
+      next: { revalidate: 300 },
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     })

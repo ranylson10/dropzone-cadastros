@@ -107,13 +107,6 @@ function timeToMinutes(value: string | null | undefined) {
   return h * 60 + m
 }
 
-function minutesToTime(total: number) {
-  const clamped = Math.max(0, Math.min(23 * 60 + 59, total))
-  const h = Math.floor(clamped / 60)
-  const m = clamped % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
-
 function colorFromSeed(seed: string) {
   let hash = 0
   for (let i = 0; i < seed.length; i += 1) {
@@ -124,16 +117,6 @@ function colorFromSeed(seed: string) {
 
 function isMissingRelation(error: any) {
   return ['42P01', 'PGRST205'].includes(String(error?.code || ''))
-}
-
-function estimateGameEnd(horario: string | null, numeroPartidas: number, intervaloMinutos?: number | null) {
-  const start = timeToMinutes(horario)
-  if (start == null) return null
-  const quedas = Math.max(1, Number(numeroPartidas) || 1)
-  const intervalo = Math.max(15, Number(intervaloMinutos) || 25)
-  // duração estimada: 1ª queda ~25min + intervalos entre quedas
-  const duration = quedas * intervalo
-  return minutesToTime(start + duration)
 }
 
 function sanitizeEventInput(input: Partial<AgendaEventInput>) {
@@ -218,36 +201,6 @@ function mapFreeEvent(row: any, editable: boolean, champNames: Map<string, strin
   }
 }
 
-function mapGameEvent(game: any, champName: string | null, editable = false): AgendaItem {
-  const inicio = normalizeTime(game.horario)
-  const fim = estimateGameEnd(
-    inicio,
-    Number(game.numero_partidas || 1),
-    game.intervalo_quedas_minutos ?? game.intervalo_minutos,
-  )
-  const seed = String(game.campeonato_id || game.id)
-  return {
-    id: `jogo:${game.id}`,
-    source: 'jogo',
-    titulo: game.nome || 'Jogo',
-    descricao: champName ? `Campeonato: ${champName}` : null,
-    data: String(game.data_jogo || '').slice(0, 10),
-    horario_inicio: inicio || '18:00',
-    horario_fim: fim,
-    cor: colorFromSeed(seed),
-    tipo: 'jogo',
-    editable,
-    meta: {
-      campeonato_id: game.campeonato_id || null,
-      campeonato_nome: champName,
-      jogo_id: game.id,
-      status: game.status || null,
-      numero_partidas: game.numero_partidas ?? null,
-      href: game.campeonato_id ? `/campeonatos/${game.campeonato_id}` : null,
-    },
-  }
-}
-
 function mapProjectedGame(row: any, editable = false): AgendaItem {
   return {
     id: `jogo:${row.jogo_id}`,
@@ -268,50 +221,6 @@ function mapProjectedGame(row: any, editable = false): AgendaItem {
       href: row.campeonato_id ? `/campeonatos/${row.campeonato_id}` : null,
     },
   }
-}
-
-async function listFreeEvents(params: {
-  from: string
-  to: string
-  authUserId?: string | null
-  campeonatoId?: string | null
-  equipeId?: string | null
-  onlyPublicOrShared?: boolean
-}) {
-  let query = supabaseAdmin
-    .from('agenda_eventos')
-    .select('*')
-    .gte('data_evento', params.from)
-    .lte('data_evento', params.to)
-    .order('data_evento', { ascending: true })
-    .order('horario_inicio', { ascending: true })
-
-  if (params.campeonatoId) {
-    query = query.eq('campeonato_id', params.campeonatoId)
-  }
-  if (params.equipeId) {
-    query = query.eq('equipe_id', params.equipeId)
-  }
-
-  const { data, error } = await query
-  if (isMissingRelation(error)) return { items: [] as any[], setupRequired: true }
-  if (error) throw error
-
-  let rows = data || []
-
-  if (params.onlyPublicOrShared) {
-    rows = rows.filter((row: any) => {
-      if (params.authUserId && row.auth_user_id === params.authUserId) return true
-      if (row.visibilidade === 'publica') return true
-      if (params.campeonatoId && row.visibilidade === 'campeonato') return true
-      if (params.equipeId && row.visibilidade === 'equipe') return true
-      return false
-    })
-  } else if (params.authUserId && !params.campeonatoId && !params.equipeId) {
-    rows = rows.filter((row: any) => row.auth_user_id === params.authUserId)
-  }
-
-  return { items: rows, setupRequired: false }
 }
 
 async function listGamesByChampionshipIds(campeonatoIds: string[], from: string, to: string) {

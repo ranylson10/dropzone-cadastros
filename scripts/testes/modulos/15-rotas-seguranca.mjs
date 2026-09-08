@@ -3,6 +3,7 @@ import path from 'node:path';
 import { ROOT, ensureReportDir, normalizePath, REPORT_DIR, result, safeRead, walk } from '../lib/util.mjs';
 
 const API_ROOT = path.join(ROOT, 'web', 'app', 'api');
+const CLASSIFICATION_FILE = path.join(ROOT, 'database', 'api-route-security-classification.json');
 const METHOD_RE = /export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\b/g;
 const WRITE_METHODS = new Set(['POST','PUT','PATCH','DELETE']);
 const AUTH_EVIDENCE = /(require(?:Auth|User|Admin|SystemAdmin|Campeonato|Produtora|Equipe|Manager)|getBearerUser|getServerAuth|getCurrentUser|getAuthenticatedUser|getCampeonatoPermission|auth\.getUser\s*\(|supabase\.auth\.getUser\s*\()/i;
@@ -10,6 +11,7 @@ const SCOPE_EVIDENCE = /(campeonato_id|campeonatoId|equipe_id|equipeId|produtora
 const TOKEN_ROUTE = /\[(?:token|tokenId)\]/i;
 const PUBLIC_ROUTE = /\/api\/(?:ping|rank|campeonatos\/busca|equipes\/busca-publica|dropzone\/public|convites\/|vendedores\/convite|stream\/live|broadcast\/obs|webhooks\/)/i;
 const DEBUG_ROUTE = /\/api\/debug(?:\/|$)/i;
+const PUBLIC_WRITE_DECISIONS = new Set(['public-auth-flow', 'public-oauth-flow', 'public-cost-controlled']);
 
 function routeOf(file) {
   return '/' + normalizePath(path.relative(path.join(ROOT, 'web', 'app'), file)).replace(/\/route\.(?:ts|js)$/, '');
@@ -17,6 +19,9 @@ function routeOf(file) {
 
 export async function executar() {
   ensureReportDir();
+  let manual = { routes: {} };
+  try { manual = JSON.parse(fs.readFileSync(CLASSIFICATION_FILE, 'utf8')); } catch {}
+  const manualRoutes = manual?.routes && typeof manual.routes === 'object' ? manual.routes : {};
   const files = walk(API_ROOT).filter((file) => /route\.(?:ts|js)$/.test(file));
   const rows = [];
   const writeWithoutAuth = [];
@@ -34,10 +39,12 @@ export async function executar() {
     const serviceRole = /(SUPABASE_SERVICE_ROLE_KEY|createAdminClient|createServiceRole|adminSupabase|getAdminSupabase)/i.test(src);
     const productionGuard = /(blockDebugRouteInProduction|NODE_ENV\s*!==?\s*['"]production['"]|NODE_ENV\s*===?\s*['"]production['"]|notFound\s*\(|status\s*:\s*404)/i.test(src);
 
-    const row = { route, file: normalizePath(path.relative(ROOT, file)), methods, hasWrite, publicCandidate, authEvidence, scopeEvidence, serviceRole, productionGuard };
+    const manualDecision = manualRoutes[route];
+    const reviewedPublicWrite = Boolean(PUBLIC_WRITE_DECISIONS.has(manualDecision?.decision) && manualDecision?.reason);
+    const row = { route, file: normalizePath(path.relative(ROOT, file)), methods, hasWrite, publicCandidate, authEvidence, scopeEvidence, serviceRole, productionGuard, manualDecision: manualDecision || null };
     rows.push(row);
 
-    if (hasWrite && !publicCandidate && !authEvidence) writeWithoutAuth.push(row);
+    if (hasWrite && !publicCandidate && !authEvidence && !reviewedPublicWrite) writeWithoutAuth.push(row);
     if (hasWrite && authEvidence && serviceRole && !scopeEvidence) protectedWithoutScope.push(row);
     if (DEBUG_ROUTE.test(route) && !productionGuard) debugUnsafe.push(row);
   }
@@ -49,6 +56,20 @@ export async function executar() {
   }
   const output = [];
   output.push(result('OK', 'Rotas', 'Inventário de API', `${rows.length} rota(s) de API analisada(s); ${rows.filter(r => r.hasWrite).length} com escrita. Relatório: relatorios-testes/matriz-rotas-seguranca.json.`));
+
+  const missingManualRoutes = Object.keys(manualRoutes).filter((route) => !rows.some((row) => row.route === route));
+  const invalidManualRoutes = Object.entries(manualRoutes)
+    .filter(([, item]) => !item || typeof item !== 'object' || !PUBLIC_WRITE_DECISIONS.has(item.decision) || !item.reason)
+    .map(([route]) => route);
+  output.push(result(
+    missingManualRoutes.length || invalidManualRoutes.length ? 'AVISO' : 'OK',
+    'Segurança de rotas',
+    'Decisões públicas revisadas',
+    missingManualRoutes.length || invalidManualRoutes.length
+      ? [missingManualRoutes.length ? `Rotas inexistentes: ${missingManualRoutes.join(', ')}` : '', invalidManualRoutes.length ? `Entradas inválidas: ${invalidManualRoutes.join(', ')}` : ''].filter(Boolean).join('. ')
+      : `${Object.keys(manualRoutes).length} endpoint(s) público(s) de escrita possuem decisão e justificativa explícitas.`,
+    missingManualRoutes.length || invalidManualRoutes.length ? 'Corrigir database/api-route-security-classification.json.' : '',
+  ));
 
   output.push(result(
     writeWithoutAuth.length ? 'AVISO' : 'OK',
@@ -70,7 +91,11 @@ export async function executar() {
     debugUnsafe.length ? 'ERRO' : 'OK',
     'Segurança de rotas',
     'Rotas debug em produção',
-    debugUnsafe.length ? debugUnsafe.map(r => r.route).join('; ') : 'Rotas /api/debug possuem bloqueio de produção/404 detectável.',
+    debugUnsafe.length
+      ? debugUnsafe.map(r => r.route).join('; ')
+      : rows.some((row) => DEBUG_ROUTE.test(row.route))
+        ? 'Rotas /api/debug possuem bloqueio de produção/404 detectável.'
+        : 'Nenhuma rota /api/debug faz parte do pacote da aplicação.',
     debugUnsafe.length ? 'Bloqueie explicitamente em production ou remova a rota.' : '',
   ));
 

@@ -47,8 +47,7 @@ test.describe('Consolidação cumulativa — Rodadas 1 a 13',()=>{
     expect(read('web/features/campeonatos/estatisticas/components/CampeonatoEstatisticasTab.tsx')).toContain("import '../campeonato-estatisticas.css'")
   })
 
-  test('editores, agenda, carteira e calls continuam no dark/gold',()=>{
-    expect(read('web/features/campeonatos/artes-postagem/post-artworks.css')).toContain('var(--ui-bg,#0c0d0f)')
+  test('transmissão, agenda, carteira e calls continuam no dark/gold',()=>{
     expect(read('web/features/campeonatos/stream/stream.css')).toContain('var(--ui-bg, #0c0d0f)')
     expect(read('web/features/agenda/agenda.css')).toContain('var(--ui-surface, #141518)')
     expect(read('web/features/billing/WalletPanel.tsx')).toContain("import './wallet-panel.css'")

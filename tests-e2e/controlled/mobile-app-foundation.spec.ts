@@ -4,6 +4,7 @@ import path from 'node:path'
 
 const root = process.cwd()
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
+const compact = (value: string) => value.replace(/\s+/g, '')
 
 test.describe('Mobile app foundation', () => {
   test('app mantém navegação nativa por perfil e backend compartilhado', async () => {
@@ -78,7 +79,7 @@ test.describe('Mobile app foundation', () => {
     expect(lineup).not.toContain('Linking.openURL')
     expect(lineup).not.toContain('WebView')
 
-    expect(tokenAction).toContain("resolvedResult.kind==='lineup'")
+    expect(compact(tokenAction)).toContain('resolvedResult.kind==="lineup"')
     expect(tokenAction).toContain('Este fluxo pode ser concluído diretamente no app.')
     expect(screens).toContain('TeamRosterScreen')
   })

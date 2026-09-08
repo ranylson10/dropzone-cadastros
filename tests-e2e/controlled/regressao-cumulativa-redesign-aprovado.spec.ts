@@ -24,9 +24,10 @@ test.describe('Regressão cumulativa — redesign aprovado', () => {
     expect(css).toContain('border: 0; border-radius: 0; background: transparent; color: var(--ui-text);')
     expect(css).not.toContain('background: rgba(10, 15, 25, .58); backdrop-filter: blur(9px)')
     expect(css).not.toContain('.championship-type-card{ width: 100%; min-height: 86px;')
-    expect(form).toContain('<span className="championship-step-index">1 de 2</span>')
+    expect(form).toContain('<span className="championship-step-index">Criação guiada</span>')
     expect(form).toContain('<h3>Escolha o formato</h3>')
-    expect(form).toContain('<strong>Nova edição</strong>')
+    expect(form).toContain('{TYPE_OPTIONS.map((option) => {')
+    expect(form).toContain('<strong>{option.title}</strong>')
   })
 
   test('central e diretório usam seus CSS próprios sem camada legada no globals', () => {

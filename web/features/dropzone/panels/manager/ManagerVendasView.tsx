@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Copy, CreditCard, ExternalLink, MessageCircle, RefreshCw, ShieldCheck, Trophy, Users } from 'lucide-react'
+import { Copy, CreditCard, ExternalLink, MessageCircle, RefreshCw, ShieldCheck, Trash2, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 
 type SellerItem = {
@@ -25,6 +25,7 @@ type SellerItem = {
 
 type AssistedSale = {
   id: string
+  kind?: 'assisted_link' | 'purchase'
   token: string
   status: string
   valor_centavos: number
@@ -69,7 +70,8 @@ function formatNextDate(item: SellerItem) {
 function saleStatusLabel(sale: AssistedSale) {
   if (sale.consumido_em || sale.status === 'consumido') return 'Inscrito no campeonato'
   if (sale.pago_em || ['pago', 'liberado'].includes(sale.status)) return 'Pago, aguardando inscrição'
-  if (sale.status === 'expirado') return 'Pagamento expirado'
+  if (['expirado', 'expirada'].includes(sale.status)) return 'Link expirado'
+  if (sale.status === 'cancelada') return 'Cancelada pelo vendedor'
   return 'Aguardando pagamento'
 }
 
@@ -103,6 +105,8 @@ export function ManagerVendasView(props: {
   const [saleMethod, setSaleMethod] = useState<SaleMethod>('pix')
   const [saleChannel, setSaleChannel] = useState<'whatsapp' | 'instagram' | 'tiktok' | 'link'>('whatsapp')
   const [creatingSale, setCreatingSale] = useState(false)
+  const [cancelSaleId, setCancelSaleId] = useState('')
+  const [cancellingSaleId, setCancellingSaleId] = useState('')
 
   async function authHeaders() {
     const { data } = await supabase.auth.getSession()
@@ -197,6 +201,29 @@ export function ManagerVendasView(props: {
       setSalesError(error?.message || 'Erro ao gerar venda.')
     } finally {
       setCreatingSale(false)
+    }
+  }
+
+  async function cancelAssistedSale(saleId: string) {
+    setCancellingSaleId(saleId)
+    setSalesError('')
+    setSaleFeedback('')
+    try {
+      const headers = await authHeaders()
+      const endpoint = ['/api/vendedores', encodeURIComponent(props.accountId), 'vendas'].join('/') + '?sale_id=' + encodeURIComponent(saleId)
+      const res = await fetch(endpoint, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao cancelar venda.')
+      setCancelSaleId('')
+      setSaleFeedback('Link de venda cancelado.')
+      await loadSales()
+    } catch (error: any) {
+      setSalesError(error?.message || 'Erro ao cancelar venda.')
+    } finally {
+      setCancellingSaleId('')
     }
   }
 
@@ -373,7 +400,9 @@ export function ManagerVendasView(props: {
         ) : null}
 
         <div className="manager-vendas-list">
-          {sales.map((sale) => (
+          {sales.map((sale) => {
+            const canCancel = sale.kind === 'assisted_link' && sale.status === 'aberta'
+            return (
             <article key={sale.id} className="manager-vendas-row">
               <div className="manager-vendas-row-logo">
                 {sale.campeonato?.logo_url ? <img src={sale.campeonato.logo_url} alt="" /> : <CreditCard size={18} />}
@@ -389,26 +418,40 @@ export function ManagerVendasView(props: {
                 </small>
               </div>
               <div className="compact-row-actions manager-vendas-row-actions">
-                <button
+                {!['cancelada', 'expirada', 'expirado'].includes(sale.status) ? <button
                   className="button small secondary"
                   type="button"
                   onClick={() => void copyText(saleMessage(sale), 'Mensagem da venda copiada.')}
                 >
                   <Copy size={14} /> Mensagem
-                </button>
-                {sale.payment_url ? (
+                </button> : null}
+                {sale.payment_url && !['cancelada', 'expirada', 'expirado'].includes(sale.status) ? (
                   <a className="button small secondary" href={sale.payment_url} target="_blank" rel="noreferrer">
                     Pagar
                   </a>
                 ) : null}
-                {sale.claim_url ? (
+                {sale.claim_url && !['cancelada', 'expirada', 'expirado'].includes(sale.status) ? (
                   <a className="button small" href={sale.claim_url} target="_blank" rel="noreferrer">
                     Inscrever
                   </a>
                 ) : null}
+                {canCancel && cancelSaleId !== sale.id ? (
+                  <button className="button small secondary" type="button" onClick={() => setCancelSaleId(sale.id)}>
+                    <Trash2 size={14} /> Cancelar link
+                  </button>
+                ) : null}
+                {canCancel && cancelSaleId === sale.id ? (
+                  <>
+                    <button className="button small secondary" type="button" disabled={cancellingSaleId === sale.id} onClick={() => setCancelSaleId('')}>Manter</button>
+                    <button className="button small secondary" type="button" disabled={cancellingSaleId === sale.id} onClick={() => void cancelAssistedSale(sale.id)}>
+                      {cancellingSaleId === sale.id ? 'Cancelando...' : 'Confirmar cancelamento'}
+                    </button>
+                  </>
+                ) : null}
               </div>
             </article>
-          ))}
+            )
+          })}
         </div>
       </section>
 

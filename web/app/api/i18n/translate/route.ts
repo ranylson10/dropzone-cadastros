@@ -2,6 +2,33 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const cache = new Map<string, string>()
 const requests = new Map<string, { count: number; resetAt: number }>()
+const RATE_WINDOW_MS = 60_000
+const RATE_LIMIT = 30
+const MAX_RATE_KEYS = 2_000
+
+function clientKey(req: NextRequest) {
+  return (req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local').slice(0, 96)
+}
+
+function consumeRateLimit(key: string, now: number) {
+  if (requests.size >= MAX_RATE_KEYS) {
+    for (const [savedKey, rate] of requests) {
+      if (rate.resetAt <= now) requests.delete(savedKey)
+    }
+    while (requests.size >= MAX_RATE_KEYS) {
+      const oldestKey = requests.keys().next().value
+      if (!oldestKey) break
+      requests.delete(oldestKey)
+    }
+  }
+  const rate = requests.get(key)
+  if (!rate || rate.resetAt <= now) {
+    requests.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS })
+    return true
+  }
+  rate.count += 1
+  return rate.count <= RATE_LIMIT
+}
 
 function stripFence(value: string) {
   return value.trim().replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim()
@@ -17,13 +44,9 @@ export async function POST(req: NextRequest) {
     if (locale === 'pt-BR') return NextResponse.json({ translations: texts })
     if (!texts.length || texts.join('').length > 6500) throw new Error('Lote de tradução inválido.')
 
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
     const now = Date.now()
-    const rate = requests.get(ip)
-    if (!rate || rate.resetAt <= now) requests.set(ip, { count: 1, resetAt: now + 60_000 })
-    else {
-      rate.count += 1
-      if (rate.count > 30) return NextResponse.json({ error: 'Muitas traduções. Aguarde um minuto.' }, { status: 429 })
+    if (!consumeRateLimit(clientKey(req), now)) {
+      return NextResponse.json({ error: 'Muitas traduções. Aguarde um minuto.' }, { status: 429 })
     }
 
     const result = new Array<string>(texts.length)

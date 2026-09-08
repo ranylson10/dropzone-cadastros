@@ -1157,19 +1157,7 @@ body .scale-chat-actions{background:linear-gradient(180deg,transparent,var(--ui-
 body .scale-chat-page .invite-chat-player-result{border-color:var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text)}
 body .scale-chat-page .scale-chat-slot-number{background:var(--ui-surface);color:var(--ui-accent);box-shadow:none}
 
-/* Painel de equipe: elenco, lines e convites em superfÃ­cies operacionais consistentes. */
-body .team-dashboard .team-command-center article{
-  border-color:var(--ui-line);
-  border-radius:var(--ui-radius-md);
-  background:var(--ui-surface);
-  color:var(--ui-text);
-}
-body .team-dashboard .team-command-center article > span{border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-accent)}
-body .team-dashboard .team-command-center article.needs-action > span{border-color:rgba(215,108,108,.45);background:rgba(215,108,108,.14);color:#e89a9a}
-body .team-dashboard .team-command-center strong{color:var(--ui-text)}
-body .team-dashboard .team-command-center small{color:var(--ui-muted)}
-body .team-dashboard .team-next-game-card{border:1px solid var(--ui-line);border-left:3px solid var(--ui-accent);border-radius:var(--ui-radius-md);background:#141518;color:var(--ui-text)}
-body .team-dashboard .team-next-game-card .eyebrow{color:var(--ui-accent)}
+/* Painel de equipe: elenco, lines e convites em superfícies operacionais consistentes. */
 body .team-dashboard .team-panel-tabs{border-bottom-color:var(--ui-line)}
 body .team-dashboard .team-panel-tabs button{border-bottom-color:transparent;color:var(--ui-muted)}
 body .team-dashboard .team-panel-tabs button:hover{color:var(--ui-text);background:var(--ui-surface-raised)}

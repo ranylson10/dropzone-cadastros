@@ -1,6 +1,12 @@
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
-import { carregarRankingTiers } from '@backend/ranking/tier-ranking.service'
+import { unstable_cache } from 'next/cache'
+import { getCachedRankingTiers } from '@/features/ranking/server'
+import { buildChampionshipDirectoryItems } from './championship-directory'
+import { buildManagerDirectoryItems } from './manager-directory'
+import { buildPlayerDirectoryItems } from './player-directory'
+import { buildProducerDirectoryItems } from './producer-directory'
+import { buildTeamDirectoryItems } from './team-directory'
 import type { DirectoryItem, DirectoryKind, DirectoryProfile } from './types'
 
 function text(value: unknown, fallback = '') { return String(value ?? fallback).trim() }
@@ -45,7 +51,7 @@ function integer(value: unknown) {
 }
 
 async function competitiveProfile(kind: 'equipes' | 'jogadores', id: string) {
-  const ranking = await carregarRankingTiers().catch(() => null)
+  const ranking = await getCachedRankingTiers().catch(() => null)
   const isPlayer = kind === 'jogadores'
   let rankRows: any[] = []
   let statsRows: any[] = []
@@ -174,14 +180,11 @@ async function competitiveProfile(kind: 'equipes' | 'jogadores', id: string) {
   }
 }
 
-async function rowsPlain(table: string) {
-  const { data, error } = await supabaseAdmin.from(table).select('*')
-  if (error) {
-    if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
-    throw error
-  }
-  return data || []
-}
+const getCompetitiveProfile = unstable_cache(
+  competitiveProfile,
+  ['directory-competitive-profile-v1'],
+  { revalidate: 30, tags: ['directory:competitive'] },
+)
 
 async function rows(table: string) {
   const collected: any[] = []
@@ -216,143 +219,288 @@ async function rows(table: string) {
   })
 }
 
+const PUBLIC_CHAMPIONSHIP_COLUMNS = 'id,nome,tipo,logo_url,banner_url,status,created_at,aprovacao_status,deleted_at'
+const PUBLIC_CHAMPIONSHIP_RELATED_COLUMNS = {
+  campeonato_configuracoes: 'campeonato_id,formato,numero_vagas,valor_inscricao,premiacao,tem_live,plataforma,servidor,data_limite_inscricao',
+  campeonato_fases: 'id,campeonato_id,ordem,status',
+  campeonato_slots: 'campeonato_id,fase_id,status,equipe_id,line_id',
+  campeonato_jogos: 'campeonato_id,status,data_jogo,horario',
+} as const
+
+function isPublicDirectoryRow(row: any) {
+  const status = normalized(row.status || 'ativo')
+  if (['suspenso', 'banido', 'excluido', 'excluído'].includes(status)) return false
+  if (row.deleted_at) return false
+  const approval = normalized(row.aprovacao_status)
+  return !approval || approval === 'aprovado'
+}
+
+type ScopedRowsFilter =
+  | { column: string; value: unknown }
+  | { column: string; values: string[] }
+
+async function scopedRows(
+  table: string,
+  filter: ScopedRowsFilter,
+  options: { plain?: boolean } = {},
+) {
+  if ('values' in filter && filter.values.length === 0) return []
+  const collected: any[] = []
+
+  for (let from = 0; from < DIRECTORY_MAX_ROWS; from += DIRECTORY_PAGE_SIZE) {
+    const to = from + DIRECTORY_PAGE_SIZE - 1
+    let query: any = supabaseAdmin.from(table).select('*')
+    query = 'values' in filter
+      ? query.in(filter.column, filter.values)
+      : query.eq(filter.column, filter.value)
+    if (!options.plain) query = query.order('created_at', { ascending: false })
+    const { data, error } = await query.range(from, to)
+
+    if (error) {
+      if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
+      throw error
+    }
+
+    const page = data || []
+    collected.push(...page)
+    if (page.length < DIRECTORY_PAGE_SIZE) break
+  }
+
+  return options.plain ? collected : collected.filter(isPublicDirectoryRow)
+}
+
+async function selectedRows(table: string, columns: string, referencedIds?: string[], referenceColumn = 'campeonato_id') {
+  if (referencedIds && referencedIds.length === 0) return []
+  let query = supabaseAdmin.from(table).select(columns)
+  if (referencedIds) query = query.in(referenceColumn, referencedIds)
+  else if (['campeonatos', 'equipes', 'jogadores', 'managers', 'produtoras'].includes(table)) query = query.order('created_at', { ascending: false })
+  const { data, error } = await query.limit(DIRECTORY_MAX_ROWS)
+  if (error) {
+    if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
+    throw error
+  }
+  return data || []
+}
+
+const listPublicChampionships = unstable_cache(
+  async (): Promise<DirectoryItem[]> => {
+    const championshipRows = await selectedRows('campeonatos', PUBLIC_CHAMPIONSHIP_COLUMNS)
+    const championships = championshipRows.filter(isPublicDirectoryRow)
+    const championshipIds = championships.map((row: any) => String(row.id)).filter(Boolean)
+    if (championshipIds.length === 0) return []
+
+    const [configs, phases, slots, games] = (await Promise.all(
+      Object.entries(PUBLIC_CHAMPIONSHIP_RELATED_COLUMNS).map(([table, columns]) =>
+        selectedRows(table, columns, championshipIds),
+      ),
+    )).map((relatedRows) => relatedRows.filter(isPublicDirectoryRow))
+
+    return buildChampionshipDirectoryItems({ championships, configs, phases, slots, games })
+  },
+  ['public-championship-directory-v2'],
+  { revalidate: 30, tags: ['directory:campeonatos'] },
+)
+
+const PUBLIC_TEAM_COLUMNS = 'id,nome,username,logo_url,tag,bio,localidade,cidade,estado,pais,status,created_at'
+const PUBLIC_TEAM_PROFILE_LINE_COLUMNS = 'id,equipe_id,nome,tag,status,logo_url,created_at'
+const PUBLIC_TEAM_PROFILE_PARTICIPATION_COLUMNS = 'id,equipe_id,campeonato_id,slot_numero,status,created_at'
+const listPublicTeams = unstable_cache(
+  async (): Promise<DirectoryItem[]> => {
+    const teamRows = await selectedRows('equipes', PUBLIC_TEAM_COLUMNS)
+    const teams = teamRows.filter(isPublicDirectoryRow)
+    const teamIds = teams.map((row: any) => String(row.id)).filter(Boolean)
+    if (teamIds.length === 0) return []
+
+    const [lines, participations] = (await Promise.all([
+      selectedRows('equipe_lines', 'equipe_id,nome,status', teamIds, 'equipe_id'),
+      selectedRows('campeonato_equipes', 'equipe_id,status', teamIds, 'equipe_id'),
+    ])).map((relatedRows) => relatedRows.filter(isPublicDirectoryRow))
+
+    return buildTeamDirectoryItems({ teams, lines, participations })
+  },
+  ['public-team-directory-v1'],
+  { revalidate: 30, tags: ['directory:equipes'] },
+)
+
+const PUBLIC_PLAYER_COLUMNS = 'id,nome,username,avatar_url,funcao,localidade,cidade,estado,pais,bio,id_jogo,status,created_at'
+const PUBLIC_PLAYER_PROFILE_REGISTRATION_COLUMNS = 'id,campeonato_id,equipe_id,jogador_id,funcao,status,created_at'
+const listPublicPlayers = unstable_cache(
+  async (): Promise<DirectoryItem[]> => {
+    const playerRows = await selectedRows('jogadores', PUBLIC_PLAYER_COLUMNS)
+    const players = playerRows.filter(isPublicDirectoryRow)
+    const playerIds = players.map((row: any) => String(row.id)).filter(Boolean)
+    if (playerIds.length === 0) return []
+
+    const registrations = (
+      await selectedRows('campeonato_jogadores', 'jogador_id,status', playerIds, 'jogador_id')
+    ).filter(isPublicDirectoryRow)
+    return buildPlayerDirectoryItems({ players, registrations })
+  },
+  ['public-player-directory-v1'],
+  { revalidate: 30, tags: ['directory:jogadores'] },
+)
+
+const getPublicPlayerProfileData = unstable_cache(
+  async (id: string) => {
+    const competitivePromise = getCompetitiveProfile('jogadores', id)
+    const registrationRows = await selectedRows(
+      'campeonato_jogadores',
+      PUBLIC_PLAYER_PROFILE_REGISTRATION_COLUMNS,
+      [id],
+      'jogador_id',
+    )
+    const registrations = registrationRows.filter(isPublicDirectoryRow)
+    const championshipIds = Array.from(new Set(
+      registrations.map((row: any) => String(row.campeonato_id || '')).filter(Boolean),
+    ))
+    const teamIds = Array.from(new Set(
+      registrations.map((row: any) => String(row.equipe_id || '')).filter(Boolean),
+    ))
+    const [championshipRows, teamRows, competitive] = await Promise.all([
+      selectedRows('campeonatos', PUBLIC_CHAMPIONSHIP_COLUMNS, championshipIds, 'id'),
+      selectedRows('equipes', PUBLIC_TEAM_COLUMNS, teamIds, 'id'),
+      competitivePromise,
+    ])
+    return {
+      registrations,
+      championships: championshipRows.filter(isPublicDirectoryRow),
+      teams: teamRows.filter(isPublicDirectoryRow),
+      competitive,
+    }
+  },
+  ['public-player-profile-v1'],
+  { revalidate: 30, tags: ['directory:jogadores'] },
+)
+
+const PUBLIC_MANAGER_COLUMNS = 'id,nome,username,avatar_url,localidade,cidade,estado,pais,bio,status,created_at'
+const PUBLIC_MANAGER_TEAM_LINK_COLUMNS = 'id,manager_id,equipe_id,status,created_at'
+const PUBLIC_MANAGER_PRODUCER_LINK_COLUMNS = 'id,manager_id,produtora_id,status,created_at'
+const PUBLIC_MANAGER_PLAYER_LINK_COLUMNS = 'id,manager_id,jogador_id,status,created_at'
+const listPublicManagers = unstable_cache(
+  async (): Promise<DirectoryItem[]> => {
+    const managerRows = await selectedRows('managers', PUBLIC_MANAGER_COLUMNS)
+    const managers = managerRows.filter(isPublicDirectoryRow)
+    const managerIds = managers.map((row: any) => String(row.id)).filter(Boolean)
+    if (managerIds.length === 0) return []
+
+    const linkRows = await Promise.all([
+      selectedRows('manager_equipe', 'manager_id,status', managerIds, 'manager_id'),
+      selectedRows('manager_produtora', 'manager_id,status', managerIds, 'manager_id'),
+      selectedRows('manager_jogador', 'manager_id,status', managerIds, 'manager_id'),
+    ])
+    const links = linkRows.flat().filter(isPublicDirectoryRow)
+    return buildManagerDirectoryItems({ managers, links })
+  },
+  ['public-manager-directory-v1'],
+  { revalidate: 30, tags: ['directory:managers'] },
+)
+
+const PUBLIC_PRODUCER_COLUMNS = 'id,auth_user_id,nome,username,logo_url,bio,localidade,cidade,estado,pais,status,created_at'
+const PUBLIC_PRODUCER_CHAMPIONSHIP_COLUMNS = 'id,criado_por,produtora_id,status,aprovacao_status,deleted_at'
+
+async function selectedProducerChampionships(columns: string, producerIds: string[], authUserIds: string[]) {
+  if (producerIds.length === 0 && authUserIds.length === 0) return []
+  const filters: string[] = []
+  if (producerIds.length) filters.push(`produtora_id.in.(${producerIds.join(',')})`)
+  if (authUserIds.length) filters.push(`criado_por.in.(${authUserIds.join(',')})`)
+  const { data, error } = await supabaseAdmin
+    .from('campeonatos')
+    .select(columns)
+    .or(filters.join(','))
+    .limit(DIRECTORY_MAX_ROWS)
+  if (error) throw error
+  return data || []
+}
+
+const listPublicProducers = unstable_cache(
+  async (): Promise<DirectoryItem[]> => {
+    const producerRows = await selectedRows('produtoras', PUBLIC_PRODUCER_COLUMNS)
+    const producers = producerRows.filter(isPublicDirectoryRow)
+    const producerIds = producers.map((row: any) => String(row.id)).filter(Boolean)
+    const authUserIds = producers.map((row: any) => String(row.auth_user_id)).filter(Boolean)
+    if (producerIds.length === 0) return []
+
+    const championshipRows = await selectedProducerChampionships(
+      PUBLIC_PRODUCER_CHAMPIONSHIP_COLUMNS,
+      producerIds,
+      authUserIds,
+    )
+    const championships = championshipRows.filter(isPublicDirectoryRow)
+    return buildProducerDirectoryItems({ producers, championships })
+  },
+  ['public-producer-directory-v1'],
+  { revalidate: 30, tags: ['directory:produtoras'] },
+)
+
+const getPublicProducerProfileData = unstable_cache(
+  async (id: string) => {
+    const producerRow: any = (
+      await selectedRows('produtoras', PUBLIC_PRODUCER_COLUMNS, [id], 'id')
+    ).find(isPublicDirectoryRow)
+    if (!producerRow) return null
+
+    const championships = (
+      await selectedProducerChampionships(
+        PUBLIC_CHAMPIONSHIP_COLUMNS,
+        [id],
+        producerRow.auth_user_id ? [String(producerRow.auth_user_id)] : [],
+      )
+    ).filter(isPublicDirectoryRow)
+    return { producerRow, championships }
+  },
+  ['public-producer-profile-v1'],
+  { revalidate: 30, tags: ['directory:produtoras'] },
+)
+
+const getPublicManagerProfileData = unstable_cache(
+  async (id: string) => {
+    const [teamLinkRows, producerLinkRows, playerLinkRows] = await Promise.all([
+      selectedRows('manager_equipe', PUBLIC_MANAGER_TEAM_LINK_COLUMNS, [id], 'manager_id'),
+      selectedRows('manager_produtora', PUBLIC_MANAGER_PRODUCER_LINK_COLUMNS, [id], 'manager_id'),
+      selectedRows('manager_jogador', PUBLIC_MANAGER_PLAYER_LINK_COLUMNS, [id], 'manager_id'),
+    ])
+    const teamLinks = teamLinkRows.filter(isPublicDirectoryRow)
+    const producerLinks = producerLinkRows.filter(isPublicDirectoryRow)
+    const playerLinks = playerLinkRows.filter(isPublicDirectoryRow)
+    const teamIds = Array.from(new Set(teamLinks.map((row: any) => String(row.equipe_id || '')).filter(Boolean)))
+    const producerIds = Array.from(new Set(producerLinks.map((row: any) => String(row.produtora_id || '')).filter(Boolean)))
+    const playerIds = Array.from(new Set(playerLinks.map((row: any) => String(row.jogador_id || '')).filter(Boolean)))
+    const [teamRows, producerRows, playerRows] = await Promise.all([
+      selectedRows('equipes', PUBLIC_TEAM_COLUMNS, teamIds, 'id'),
+      selectedRows('produtoras', PUBLIC_PRODUCER_COLUMNS, producerIds, 'id'),
+      selectedRows('jogadores', PUBLIC_PLAYER_COLUMNS, playerIds, 'id'),
+    ])
+    return {
+      teamLinks,
+      producerLinks,
+      playerLinks,
+      teams: teamRows.filter(isPublicDirectoryRow),
+      producers: producerRows.filter(isPublicDirectoryRow),
+      players: playerRows.filter(isPublicDirectoryRow),
+    }
+  },
+  ['public-manager-profile-v1'],
+  { revalidate: 30, tags: ['directory:managers'] },
+)
+
 export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[]> {
   if (kind === 'campeonatos') {
-    const [items, configs, phases, slots, games] = await Promise.all([
-      rows('campeonatos'),
-      rows('campeonato_configuracoes'),
-      rows('campeonato_fases'),
-      rows('campeonato_slots'),
-      rows('campeonato_jogos'),
-    ])
-    const configByChamp = new Map(configs.map((row: any) => [row.campeonato_id, row]))
-    return items.map((row: any) => {
-      const config: any = configByChamp.get(row.id) || {}
-      const name = first(row.nome, 'Campeonato')
-      const tipo = statusLabel(row.tipo || config.formato || 'campeonato')
-      const champPhases = phases
-        .filter((phase: any) => phase.campeonato_id === row.id)
-        .sort((a: any, b: any) => Number(a.ordem || 0) - Number(b.ordem || 0))
-      const entryOrder = champPhases.length ? Number(champPhases[0].ordem || 0) : null
-      const entryPhaseIds = new Set(
-        entryOrder == null
-          ? []
-          : champPhases
-              .filter((phase: any) => Number(phase.ordem || 0) === entryOrder)
-              .map((phase: any) => String(phase.id)),
-      )
-      const entrySlots = slots.filter(
-        (slot: any) =>
-          slot.campeonato_id === row.id
-          && normalized(slot.status) !== 'excluido'
-          && (entryPhaseIds.size === 0 || !slot.fase_id || entryPhaseIds.has(String(slot.fase_id))),
-      )
-      const occupiedSlots = entrySlots.filter((slot: any) => Boolean(slot.equipe_id || slot.line_id)).length
-      const officialTotal = Math.max(0, Math.floor(Number(config.numero_vagas || 0)))
-      const freeVacancies = officialTotal > 0
-        ? Math.max(0, officialTotal - occupiedSlots)
-        : entrySlots.length > 0
-          ? Math.max(0, entrySlots.length - occupiedSlots)
-          : null
-      const nextGame = games
-        .filter((game: any) => game.campeonato_id === row.id && normalized(game.status || 'ativo') === 'ativo' && String(game.data_jogo || '') >= new Date().toISOString().slice(0, 10))
-        .sort((a: any, b: any) => `${a.data_jogo || '9999'} ${a.horario || ''}`.localeCompare(`${b.data_jogo || '9999'} ${b.horario || ''}`))[0]
-      return {
-        id: row.id, kind, name, image: first(row.logo_url), banner: first(row.banner_url), eyebrow: tipo,
-        description: first(config.formato, `${tipo} competitivo`),
-        commercial: {
-          valor_inscricao: config.valor_inscricao != null ? Number(config.valor_inscricao) : null,
-          premiacao: config.premiacao != null ? Number(config.premiacao) : null,
-          tem_live: Boolean(config.tem_live),
-          vagas_livres: freeVacancies,
-          total_vagas: officialTotal || (entrySlots.length || null),
-          plataforma: config.plataforma || null,
-          servidor: config.servidor || null,
-          data_jogo: nextGame?.data_jogo || config.data_jogo || row.data_jogo || row.data_inicio || null,
-          data_limite_inscricao: config.data_limite_inscricao || row.data_limite_inscricao || null,
-        },
-        meta: [
-          { label: 'Inscrição', value: directoryMoney(config.valor_inscricao) },
-          { label: 'Premiação', value: directoryMoney(config.premiacao) },
-          { label: 'Vagas livres', value: freeVacancies == null ? '-' : String(freeVacancies) },
-        ],
-        searchText: [name, tipo, config.formato, config.plataforma, config.servidor].join(' ').toLowerCase(),
-      }
-    })
+    return listPublicChampionships()
   }
 
   if (kind === 'equipes') {
-    const [items, lines, participations] = await Promise.all([rows('equipes'), rows('equipe_lines'), rows('campeonato_equipes')])
-    return items.map((row: any) => {
-      const teamLines = lines.filter((line: any) => line.equipe_id === row.id)
-      const championships = participations.filter((item: any) => item.equipe_id === row.id)
-      const name = first(row.nome, 'Equipe')
-      return {
-        id: row.id, kind, name, username: text(row.username), image: first(row.logo_url), eyebrow: first(row.tag, 'Equipe'),
-        description: first(row.bio, location(row), 'Equipe competitiva cadastrada na DropZone.'),
-        meta: [
-          { label: 'Lines', value: String(teamLines.length) },
-          { label: 'Campeonatos', value: String(championships.length) },
-          { label: 'Status', value: statusLabel(row.status) },
-        ],
-        searchText: [name, row.tag, row.username, location(row), ...teamLines.map((line: any) => line.nome)].join(' ').toLowerCase(),
-      }
-    })
+    return listPublicTeams()
   }
 
   if (kind === 'jogadores') {
-    const [items, registrations] = await Promise.all([rows('jogadores'), rows('campeonato_jogadores')])
-    return items.map((row: any) => {
-      const playerRegs = registrations.filter((item: any) => item.jogador_id === row.id && item.status !== 'deletado')
-      const name = first(row.nick, row.nome, row.username, 'Jogador')
-      return {
-        id: row.id, kind, name, username: text(row.username), image: first(row.avatar_url, row.foto_url), eyebrow: first(row.funcao, 'Jogador'),
-        description: first(location(row), row.bio, 'Perfil competitivo cadastrado na DropZone.'),
-        meta: [
-          { label: 'Função', value: first(row.funcao, 'Jogador') },
-          { label: 'Campeonatos', value: String(playerRegs.length) },
-          { label: 'Status', value: statusLabel(row.status) },
-        ],
-        searchText: [name, row.username, row.id_jogo, row.funcao, location(row)].join(' ').toLowerCase(),
-      }
-    })
+    return listPublicPlayers()
   }
 
   if (kind === 'managers') {
-    const [items, teamLinks, producerLinks, playerLinks] = await Promise.all([rows('managers'), rows('manager_equipe'), rows('manager_produtora'), rows('manager_jogador')])
-    return items.map((row: any) => {
-      const name = first(row.nome, row.username, 'Manager')
-      const total = teamLinks.filter((x: any) => x.manager_id === row.id).length + producerLinks.filter((x: any) => x.manager_id === row.id).length + playerLinks.filter((x: any) => x.manager_id === row.id).length
-      return {
-        id: row.id, kind, name, username: text(row.username), image: first(row.avatar_url, row.foto_url), eyebrow: 'Manager',
-        description: first(location(row), row.bio, 'Gestor de perfis competitivos.'),
-        meta: [
-          { label: 'Vínculos', value: String(total) },
-          { label: 'Localidade', value: first(location(row), 'Não informada') },
-          { label: 'Status', value: statusLabel(row.status) },
-        ],
-        searchText: [name, row.username, location(row)].join(' ').toLowerCase(),
-      }
-    })
+    return listPublicManagers()
   }
 
-  const [items, championships] = await Promise.all([rows('produtoras'), rows('campeonatos')])
-  return items.map((row: any) => {
-    const produced = championships.filter((item: any) => item.criado_por === row.auth_user_id || item.produtora_id === row.id)
-    const name = first(row.nome, row.username, 'Produtora')
-    const bio = text(row.bio)
-    return {
-      id: row.id, kind, name, username: text(row.username), image: first(row.logo_url, row.avatar_url), eyebrow: 'Produtora',
-      // Bio pública em destaque; localidade só se não houver bio
-      description: first(bio, location(row), 'Produtora de eventos competitivos.'),
-      meta: [
-        { label: 'Campeonatos', value: String(produced.length) },
-        { label: 'Localidade', value: first(location(row), 'Não informada') },
-        { label: 'Status', value: statusLabel(row.status) },
-      ],
-      searchText: [name, row.username, bio, location(row)].join(' ').toLowerCase(),
-    }
-  })
+  return listPublicProducers()
 }
 
 export async function getDirectoryProfile(kind: DirectoryKind, id: string): Promise<DirectoryProfile | null> {
@@ -369,22 +517,40 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   let competitive: DirectoryProfile['competitive'] = null
 
   if (kind === 'campeonatos') {
-    const [championships, phases, groups, slots, games, rounds, participations, teams, teamLines, championshipPlayers, players, temporaryPlayers, teamStats, mvpStats, configs] = await Promise.all([
-      rows('campeonatos'),
-      rows('campeonato_fases'),
-      rows('campeonato_grupos'),
-      rows('campeonato_slots'),
-      rows('campeonato_jogos'),
-      rowsPlain('campeonato_partidas_com_mapa'),
-      rows('campeonato_equipes'),
-      rows('equipes'),
-      rows('equipe_lines'),
-      rows('campeonato_jogadores'),
-      rows('jogadores'),
-      rows('jogadores_temporarios'),
-      listarEstatisticasEquipes(id, {}).catch(() => []),
-      listarEstatisticasMvp(id, {}).catch(() => []),
-      rows('campeonato_configuracoes'),
+    const teamStatsPromise = listarEstatisticasEquipes(id, {}).catch(() => [])
+    const mvpStatsPromise = listarEstatisticasMvp(id, {}).catch(() => [])
+    const [championships, phases, groups, slots, games, rounds, participations, championshipPlayers, configs] = await Promise.all([
+      scopedRows('campeonatos', { column: 'id', value: id }),
+      scopedRows('campeonato_fases', { column: 'campeonato_id', value: id }),
+      scopedRows('campeonato_grupos', { column: 'campeonato_id', value: id }),
+      scopedRows('campeonato_slots', { column: 'campeonato_id', value: id }),
+      scopedRows('campeonato_jogos', { column: 'campeonato_id', value: id }),
+      scopedRows('campeonato_partidas_com_mapa', { column: 'campeonato_id', value: id }, { plain: true }),
+      scopedRows('campeonato_equipes', { column: 'campeonato_id', value: id }),
+      scopedRows('campeonato_jogadores', { column: 'campeonato_id', value: id }),
+      scopedRows('campeonato_configuracoes', { column: 'campeonato_id', value: id }),
+    ])
+    const referencedTeamIds = Array.from(new Set(
+      [...participations, ...slots].map((row: any) => String(row.equipe_id || '')).filter(Boolean),
+    ))
+    const referencedLineIds = Array.from(new Set(
+      [...participations, ...slots].map((row: any) => String(row.line_id || '')).filter(Boolean),
+    ))
+    const referencedPlayerIds = Array.from(new Set(
+      championshipPlayers.map((row: any) => String(row.jogador_id || '')).filter(Boolean),
+    ))
+    const referencedTemporaryPlayerIds = Array.from(new Set(
+      championshipPlayers
+        .map((row: any) => String(row.jogador_temporario_id || row.temporario_id || row.jogador_temp_id || ''))
+        .filter(Boolean),
+    ))
+    const [teams, teamLines, players, temporaryPlayers, teamStats, mvpStats] = await Promise.all([
+      scopedRows('equipes', { column: 'id', values: referencedTeamIds }),
+      scopedRows('equipe_lines', { column: 'id', values: referencedLineIds }),
+      scopedRows('jogadores', { column: 'id', values: referencedPlayerIds }),
+      scopedRows('jogadores_temporarios', { column: 'id', values: referencedTemporaryPlayerIds }),
+      teamStatsPromise,
+      mvpStatsPromise,
     ])
     const championship: any = championships.find((row: any) => row.id === id) || {}
     const cfg: any = configs.find((row: any) => row.campeonato_id === id) || {}
@@ -656,28 +822,47 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
       }),
     })
   } else if (kind === 'equipes') {
-    const [lines, participations, championships] = await Promise.all([rows('equipe_lines'), rows('campeonato_equipes'), rows('campeonatos')])
+    const competitivePromise = getCompetitiveProfile('equipes', id)
+    const [lineRows, participationRows] = await Promise.all([
+      selectedRows('equipe_lines', PUBLIC_TEAM_PROFILE_LINE_COLUMNS, [id], 'equipe_id'),
+      selectedRows('campeonato_equipes', PUBLIC_TEAM_PROFILE_PARTICIPATION_COLUMNS, [id], 'equipe_id'),
+    ])
+    const lines = lineRows.filter(isPublicDirectoryRow)
+    const participations = participationRows.filter(isPublicDirectoryRow)
+    const championshipIds = Array.from(new Set(
+      participations.map((row: any) => String(row.campeonato_id || '')).filter(Boolean),
+    ))
+    const [championshipRows, competitiveResult] = await Promise.all([
+      selectedRows('campeonatos', PUBLIC_CHAMPIONSHIP_COLUMNS, championshipIds, 'id'),
+      competitivePromise,
+    ])
+    const championships = championshipRows.filter(isPublicDirectoryRow)
     const championshipById = new Map(championships.map((row: any) => [row.id, row]))
     sections.push({ title: 'Lines', items: lines.filter((x: any) => x.equipe_id === id).map((line: any) => ({ id: line.id, title: line.nome, subtitle: first(line.tag, statusLabel(line.status)), image: first(line.logo_url) })) })
-    competitive = await competitiveProfile('equipes', id)
+    competitive = competitiveResult
     sections.push({ title: 'Campeonatos', items: participations.filter((x: any) => x.equipe_id === id).map((entry: any) => { const champ: any = championshipById.get(entry.campeonato_id); return { id: entry.id, title: first(champ?.nome, 'Campeonato'), subtitle: entry.slot_numero ? `Slot ${entry.slot_numero}` : statusLabel(entry.status), image: first(champ?.logo_url), href: champ ? `/campeonatos/${champ.id}` : undefined } }) })
   } else if (kind === 'jogadores') {
-    const [regs, championships, teams] = await Promise.all([rows('campeonato_jogadores'), rows('campeonatos'), rows('equipes')])
+    const playerData = await getPublicPlayerProfileData(id)
+    const regs = playerData.registrations
+    const championships = playerData.championships
+    const teams = playerData.teams
     const champById = new Map(championships.map((row: any) => [row.id, row]))
     const teamById = new Map(teams.map((row: any) => [row.id, row]))
-    competitive = await competitiveProfile('jogadores', id)
+    competitive = playerData.competitive
     sections.push({ title: 'Participações', items: regs.filter((x: any) => x.jogador_id === id && x.status !== 'deletado').map((reg: any) => { const champ: any = champById.get(reg.campeonato_id); const team: any = teamById.get(reg.equipe_id); return { id: reg.id, title: first(champ?.nome, 'Campeonato'), subtitle: [team?.nome, reg.funcao].filter(Boolean).join(' · '), image: first(champ?.logo_url), href: champ ? `/campeonatos/${champ.id}` : undefined } }) })
   } else if (kind === 'produtoras') {
-    const items = await rows('campeonatos')
-    const producerRow = (await rows('produtoras')).find((row: any) => row.id === id)
+    const producerData = await getPublicProducerProfileData(id)
+    const producerRow: any = producerData?.producerRow
+    const items = producerData?.championships || []
     const producerBio = text(producerRow?.bio)
     // Bio já aparece no banner (description); nos detalhes só se for diferente da localidade
     if (producerBio) {
       details.unshift({ label: 'Sobre', value: producerBio })
     }
-    sections.push({ title: 'Campeonatos produzidos', items: items.filter((x: any) => x.produtora_id === id || x.criado_por === producerRow?.auth_user_id).map((champ: any) => ({ id: champ.id, title: champ.nome, subtitle: statusLabel(champ.status), image: first(champ.logo_url), href: `/campeonatos/${champ.id}` })) })
+    sections.push({ title: 'Campeonatos produzidos', items: items.map((champ: any) => ({ id: champ.id, title: champ.nome, subtitle: statusLabel(champ.status), image: first(champ.logo_url), href: `/campeonatos/${champ.id}` })) })
   } else {
-    const [teamLinks, producerLinks, playerLinks, teams, producers, players] = await Promise.all([rows('manager_equipe'), rows('manager_produtora'), rows('manager_jogador'), rows('equipes'), rows('produtoras'), rows('jogadores')])
+    const managerData = await getPublicManagerProfileData(id)
+    const { teamLinks, producerLinks, playerLinks, teams, producers, players } = managerData
     const mapItems = (links: any[], collection: any[], key: string, href: string) => links.filter((x: any) => x.manager_id === id).map((link: any) => { const target = collection.find((x: any) => x.id === link[key]); return target ? { id: link.id, title: first(target.nome, target.nick, target.username), image: first(target.logo_url, target.avatar_url), href: `/${href}/${target.id}`, subtitle: statusLabel(link.status) } : null }).filter(Boolean) as any[]
     sections.push({ title: 'Equipes administradas', items: mapItems(teamLinks, teams, 'equipe_id', 'equipes') })
     sections.push({ title: 'Produtoras vinculadas', items: mapItems(producerLinks, producers, 'produtora_id', 'produtoras') })

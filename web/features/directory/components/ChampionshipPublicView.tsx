@@ -515,8 +515,10 @@ function StatsDashboard({
   const [jogoId, setJogoId] = useState('')
   const [partidaId, setPartidaId] = useState('')
   const [mapaCodigo, setMapaCodigo] = useState('')
-  const [teams, setTeams] = useState<TeamStatsRow[]>(() => sectionTeams(teamsSection))
-  const [players, setPlayers] = useState<MvpStatsRow[]>(() => sectionMvp(mvpSection))
+  const initialTeams = useMemo(() => sectionTeams(teamsSection), [teamsSection])
+  const initialPlayers = useMemo(() => sectionMvp(mvpSection), [mvpSection])
+  const [teams, setTeams] = useState<TeamStatsRow[]>(() => initialTeams)
+  const [players, setPlayers] = useState<MvpStatsRow[]>(() => initialPlayers)
   const [loading, setLoading] = useState(false)
   const [championSummary, setChampionSummary] = useState<any>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -572,10 +574,17 @@ function StatsDashboard({
     if (mapaCodigo) params.set('mapa_codigo', mapaCodigo)
 
     const controller = new AbortController()
+    const hasActiveStatsFilter = Boolean(faseId || grupoId || jogoId || partidaId || mapaCodigo)
+    const teamsRequest = hasActiveStatsFilter
+      ? fetch(`/api/campeonatos/${championshipId}/estatisticas/equipes?${params}`, { signal: controller.signal }).then((res) => res.json())
+      : Promise.resolve({ equipes: initialTeams })
+    const playersRequest = hasActiveStatsFilter
+      ? fetch(`/api/campeonatos/${championshipId}/estatisticas/mvp?${params}`, { signal: controller.signal }).then((res) => res.json())
+      : Promise.resolve({ jogadores: initialPlayers })
     setLoading(true)
     Promise.all([
-      fetch(`/api/campeonatos/${championshipId}/estatisticas/equipes?${params}`, { signal: controller.signal }).then((res) => res.json()),
-      fetch(`/api/campeonatos/${championshipId}/estatisticas/mvp?${params}`, { signal: controller.signal }).then((res) => res.json()),
+      teamsRequest,
+      playersRequest,
       fetch(`/api/campeonatos/${championshipId}/estatisticas/campeao`, { signal: controller.signal }).then((res) => res.json()),
     ])
       .then(([teamData, playerData, championData]) => {
@@ -592,7 +601,7 @@ function StatsDashboard({
       })
 
     return () => controller.abort()
-  }, [championshipId, faseId, grupoId, jogoId, partidaId, mapaCodigo])
+  }, [championshipId, faseId, grupoId, initialPlayers, initialTeams, jogoId, partidaId, mapaCodigo])
 
   const teamName = (id?: string | null) => teams.find((team) => team.campeonato_equipe_id === id)?.nome || 'Equipe não informada'
 

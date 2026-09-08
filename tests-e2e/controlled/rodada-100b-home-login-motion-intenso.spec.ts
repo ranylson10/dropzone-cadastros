@@ -6,23 +6,25 @@ const root=process.cwd()
 const read=(file:string)=>fs.readFileSync(path.join(root,file),'utf8')
 
 test.describe('Rodada 100B — intensidade preservada após linguagem tática 101B',()=>{
-  test('web mantém motion LEALT intenso sem mídia, scan ou feixe genérico',async()=>{
+  test('web mantém motion LEALT intenso com mídia leve e economia de dados',async()=>{
     const effect=read('web/components/effects/LealtMotionScene.tsx')
     const css=read('web/app/globals.css')
     const home=read('web/features/home/PublicChampionshipHome.tsx')
-    expect(effect).toContain('lealt-motion-network')
     expect(effect).toContain('lealt-motion-tracer-one')
     expect(effect).toContain('lealt-motion-pulse-one')
     expect(effect).toContain('pointermove')
     expect(effect).toContain('ScrollTrigger')
+    expect(effect).toContain('connection?.saveData')
+    expect(effect).toContain("connection?.effectiveType === '2g'")
+    expect(effect).toContain('preload="metadata"')
+    expect(effect).toContain('document.hidden')
     expect(effect).not.toContain('lealt-motion-beam')
     expect(effect).not.toContain('lealt-motion-scan')
     expect(css).toContain('@keyframes dropTracerOne')
     expect(css).toContain('@keyframes dropZoneFloat')
     expect(css).toContain('@media (prefers-reduced-motion:reduce)')
     expect(css).toMatch(/\.public-home-hero\{[^}]*overflow:\s*hidden/)
-    expect(home).not.toContain('dropzone-home.webm')
-    expect(home).not.toContain('login-dropzone-hero.png')
+    expect(home).not.toContain('<video')
   })
 
   test('mobile mantém fundo forte e motor Reanimated sem scan/flare',async()=>{

@@ -14,7 +14,9 @@ test('home pública mantém busca/acesso e evolui para Drop Sequence procedural'
   expect(source).toContain('data-drop-line')
   expect(source).toContain("fetch('/api/vagas'")
   expect(source).toContain('onClick={onAccess}')
-  expect(source).toContain("scrollIntoView({ behavior: 'smooth' })")
+  expect(source).toContain("window.matchMedia('(prefers-reduced-motion: reduce)').matches")
+  expect(source).toContain("behavior: reduceMotion ? 'auto' : 'smooth'")
+  expect(source).toContain("block: 'start'")
   expect(source).not.toContain('<video')
 })
 

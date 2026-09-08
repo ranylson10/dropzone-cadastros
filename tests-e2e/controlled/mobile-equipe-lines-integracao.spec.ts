@@ -4,11 +4,12 @@ import { expect, test } from '@playwright/test'
 
 const root=path.resolve(__dirname,'../..')
 const read=(file:string)=>fs.readFileSync(path.join(root,file),'utf8')
+const compact=(file:string)=>read(file).replace(/\s+/g,'').replace(/"/g,"'")
 
 test.describe('Mobile — integração de equipe, lines, elenco e capitão',()=>{
   test('preserva gestão de line e integra staff/convites sem criar fluxo paralelo',async()=>{
-    const roster=read('app/src/screens/TeamRosterScreen.tsx')
-    const line=read('app/src/screens/LineManagementScreen.tsx')
+    const roster=compact('app/src/screens/TeamRosterScreen.tsx')
+    const line=compact('app/src/screens/LineManagementScreen.tsx')
     const players=read('app/src/screens/TeamPlayersPanel.tsx')
     const staff=read('app/src/screens/TeamStaffPanel.tsx')
     const api=read('app/src/lib/api.ts')
@@ -23,14 +24,14 @@ test.describe('Mobile — integração de equipe, lines, elenco e capitão',()=>
     expect(line).toContain("action:inside?'remove_member':'add_member'")
     expect(line).toContain("action:'transfer_member'")
     expect(line).toContain('line_destino_id:transferDestinationLineId')
-    expect(line).toContain('TRANSFERIR PARA OUTRA LINE')
+    expect(line).toContain('TRANSFERIRPARAOUTRALINE')
 
     expect(line).toContain("action:'save_formation'")
     expect(line).toContain('tipo_formacao:draft.tipo_formacao')
     expect(line).toContain('capitao:draft.capitao')
     expect(line).toContain('toggleCaptain')
     expect(line).toContain("draft.capitao?'star':'star-outline'")
-    expect(line).toContain('Salvar formação')
+    expect(line).toContain('Salvarformação')
 
     expect(line).toContain("action:'transfer_line'")
     expect(lineRoute).toContain("action === 'transfer_member'")

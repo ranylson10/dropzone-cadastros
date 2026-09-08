@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "updated_at": "2026-09-08",
+  "routes": {
+    "/api/auth/login": {
+      "decision": "public-auth-flow",
+      "reason": "O login precisa aceitar credenciais antes de existir sessão; a autenticação e os limites de tentativa são delegados ao Supabase Auth."
+    },
+    "/api/auth/verification/confirm-reset": {
+      "decision": "public-auth-flow",
+      "reason": "A recuperação ocorre sem sessão e só altera a senha após consumo atômico de código válido, com expiração e limite de tentativas."
+    },
+    "/api/auth/verification/request": {
+      "decision": "public-auth-flow",
+      "reason": "Cadastro e recuperação começam sem sessão; a emissão limita reenvio por e-mail a um por minuto e cinco por hora."
+    },
+    "/api/currency/quote": {
+      "decision": "public-cost-controlled",
+      "reason": "A cotação é usada antes do checkout, valida moeda e valor, assina o resultado e reutiliza a taxa externa em cache por cinco minutos."
+    },
+    "/api/desktop/auth/google/start": {
+      "decision": "public-oauth-flow",
+      "reason": "O desktop precisa iniciar OAuth antes da sessão; a resposta é aceita somente quando aponta para HTTPS em domínio Supabase."
+    },
+    "/api/i18n/translate": {
+      "decision": "public-cost-controlled",
+      "reason": "A tradução atende visitantes, limita tamanho e frequência por cliente, mantém cache limitado e remove chaves expiradas do limitador."
+    }
+  }
+}

@@ -20,7 +20,7 @@ const expectRule = (css: string, selector: string, declarations: string[]) => {
 }
 
 test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
-  test('home autenticada usa a fundação dark sem bordas, sombras ou opacidades decorativas', () => {
+  test('home autenticada usa a fundação dark e superfícies consistentes', () => {
     const css = source('web/features/home/authenticated-home.css')
 
     expectRule(css, '.authenticated-home', [
@@ -28,42 +28,41 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
       '--home-surface:var(--ui-surface,#141518)',
       '--home-accent:var(--ui-accent,#c9b766)',
     ])
-    expect(css).not.toMatch(/border:\s*1px/i)
     expect(css).not.toMatch(/box-shadow:(?!none)/i)
-    expect(css).not.toContain('rgba(')
+    expect(css).toContain('border:1px solid var(--ui-line)')
     expect(css).not.toContain('nth-of-type')
   })
 
   test('ação principal aparece antes dos atalhos e oportunidades', () => {
     const home = source('web/features/home/AuthenticatedHomeFeed.tsx')
+    const view = home.slice(home.indexOf('<div className="authenticated-home">'))
 
-    const intro = home.indexOf('authenticated-home-primary-actions')
-    const shortcuts = home.indexOf('authenticated-home-access-section')
-    const opportunities = home.indexOf('Campeonatos com vagas abertas')
+    const intro = view.indexOf('authenticated-home-primary-actions')
+    const priority = view.indexOf('authenticated-home-priority-section')
+    const areas = view.indexOf('id="minhas-areas"')
+    const opportunities = view.indexOf('<h2>Campeonatos com vagas abertas</h2>')
 
-    expect(home).toContain('<h1>O que você quer fazer?</h1>')
-    expect(home).toContain('Escolha a próxima ação. O restante aparece quando você precisar.')
+    expect(home).toContain("'Seu jogo começa aqui'")
+    expect(home).toContain("'Organize o próximo jogo'")
     expect(intro).toBeGreaterThan(0)
-    expect(shortcuts).toBeGreaterThan(intro)
-    expect(opportunities).toBeGreaterThan(shortcuts)
+    expect(priority).toBeGreaterThan(intro)
+    expect(areas).toBeGreaterThan(priority)
+    expect(opportunities).toBeGreaterThan(areas)
   })
 
-  test('atalhos deixam de ser cards com descrições longas', () => {
+  test('áreas da conta ficam compactas e identificadas por perfil', () => {
     const home = source('web/features/home/AuthenticatedHomeFeed.tsx')
     const css = source('web/features/home/authenticated-home.css')
 
-    expect(home).toContain('<h2>Seus atalhos</h2>')
-    expect(home).toContain('<strong>Painel</strong>')
-    expect(home).toContain('<strong>Equipe</strong>')
-    expect(home).toContain('<strong>Campeonatos</strong>')
-    expect(home).toContain('<strong>Carteira</strong>')
-    expect(home).toContain('<strong>Rank</strong>')
-    expect(home).not.toContain('<strong>Agenda</strong>')
-    expectRule(css, '.authenticated-home-access-card', [
-      'border:0',
-      'background:transparent',
-      'box-shadow',
-    ].filter((item) => item !== 'box-shadow'))
+    expect(home).toContain('<h2>Minhas áreas</h2>')
+    expect(home).toContain("'Minha equipe'")
+    expect(home).toContain("'Perfil competitivo'")
+    expect(home).toContain("'Minha produtora'")
+    expect(home).toContain("'Afiliados'")
+    expectRule(css, '.authenticated-home-area-card', [
+      'border:1px solid var(--ui-line)',
+      'background:var(--home-surface)',
+    ])
   })
 
   test('oportunidades reutilizam a mesma lista visual da aba Campeonatos', () => {
@@ -84,8 +83,8 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     expect(css).toContain('.authenticated-home-intro{min-height:0;padding:6px 3px 0;border-radius:0;background:transparent;gap:0}')
     expect(css).toContain('.authenticated-home-action small{display:none}')
     expect(css).toContain('.authenticated-home-section{padding:0 3px;gap:10px}')
-    expect(css).toContain('.authenticated-home-access-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:0;overflow:visible}')
-    expect(css).toContain('.authenticated-home-access-card small{display:none}')
+    expect(css).toContain('.authenticated-home-areas-grid{grid-template-columns:1fr;gap:6px}')
+    expect(css).toContain('.authenticated-home-area-card{min-height:58px;padding:10px}')
     expect(css).toContain('.authenticated-home-directory-preview .directory-champ-card-grid{width:100%}')
   })
   test('mobile move menu para o topo, abre drawer lateral e usa perfil no dock', () => {
@@ -94,15 +93,16 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
 
     expect(header).toContain('className="app-mobile-toggle"')
     expect(header).toContain("className={`app-mobile-profile-switcher ${profileOpen ? 'active' : ''}`}")
-    expect(header).toContain('<span>Perfil</span>')
+    expect(header).toContain('<span>Conta</span>')
     expect(header).toContain("target?.closest('.app-mobile-profile-switcher')")
     expect(header).not.toContain('<span>Mais</span>')
     expect(css).toContain('grid-template-columns: 36px minmax(0, 1fr) 36px 36px')
     expect(css).toContain('width: min(70vw, 276px)')
     expect(css).toContain('top: 56px')
     expect(css).toContain('left: 0')
-    expect(css).toContain('bottom: calc(62px + env(safe-area-inset-bottom)) !important')
-    expect(header).toContain('<strong>DropZone</strong>')
+    expect(css).toContain('bottom: calc(62px + env(safe-area-inset-bottom))')
+    expect(css).not.toContain('!important')
+    expect(header).toContain('<strong aria-label="DropZone"><span>Drop</span><span>Zone</span></strong>')
     expect(css).toContain('grid-column: 1')
     expect(css).toContain('.app-nav-dropdown > .app-nav-parent')
     expect(css).toContain('.app-nav-submenu a::before')

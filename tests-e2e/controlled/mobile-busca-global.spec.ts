@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test'
 
 const root=path.resolve(__dirname,'../..')
 const read=(file:string)=>fs.readFileSync(path.join(root,file),'utf8')
+const compact=(value:string)=>value.replace(/\s+/g,'')
 
 test.describe('Mobile — busca global pública',()=>{
   test('navega entre campeonato, equipe e jogador sem exigir login',async()=>{
@@ -23,12 +24,12 @@ test.describe('Mobile — busca global pública',()=>{
     expect(screen).toContain('mobileApi.championshipsPublic()')
     expect(screen).toContain('mobileApi.publicTeams(term)')
     expect(screen).toContain('mobileApi.publicPlayers(term)')
-    expect(screen).toContain('setTimeout(async()=>')
-    expect(screen).toContain('},300)')
+    expect(compact(screen)).toContain('setTimeout(async()=>')
+    expect(compact(screen)).toContain('},300)')
     expect(screen).toContain("onSelectChampionship?.(toChampionshipCard(item))")
     expect(screen).toContain('onSelectTeam?.(team.id)')
     expect(screen).toContain('onSelectPlayer?.(player.id)')
-    expect(screen).toContain("term.length<2")
+    expect(compact(screen)).toContain('term.length<2')
 
     expect(api).toContain('/api/vagas?diretorio=1')
     expect(api).toContain('/api/equipes/busca-publica?q=')

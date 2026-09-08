@@ -111,3 +111,62 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Não foi possível atualizar a equipe.' }, { status: 400 })
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getBearerUser(req)
+    const produtora = await requireOwner(user.id)
+    const equipeId = String(req.nextUrl.searchParams.get('equipe_id') || '').trim()
+    if (!equipeId) throw new Error('Equipe não informada.')
+
+    const { data: token, error: tokenError } = await supabaseAdmin
+      .from('tokens')
+      .select('id,equipe_id')
+      .eq('tipo', 'reivindicacao_equipe_historica')
+      .eq('produtora_id', produtora.id)
+      .eq('equipe_id', equipeId)
+      .eq('status', 'ativo')
+      .eq('usado', false)
+      .maybeSingle()
+    if (tokenError) throw tokenError
+    if (!token) throw new Error('Esta equipe não está mais sob gestão provisória da produtora.')
+
+    const { count, error: participationError } = await supabaseAdmin
+      .from('campeonato_equipes')
+      .select('id', { count: 'exact', head: true })
+      .eq('equipe_id', equipeId)
+      .neq('status', 'removida')
+    if (participationError) throw participationError
+    if ((count || 0) > 0) {
+      return NextResponse.json(
+        { error: 'Remova a equipe dos campeonatos antes de arquivá-la.' },
+        { status: 409 },
+      )
+    }
+
+    const archivedAt = new Date().toISOString()
+    const { data: archived, error: archiveError } = await supabaseAdmin
+      .from('equipes')
+      .update({ status: 'arquivada', updated_at: archivedAt })
+      .eq('id', equipeId)
+      .eq('status', 'ativo')
+      .is('auth_user_id', null)
+      .is('dono_auth_user_id', null)
+      .select('id')
+      .maybeSingle()
+    if (archiveError) throw archiveError
+    if (!archived) throw new Error('A equipe foi reivindicada ou alterada e não pode mais ser arquivada.')
+
+    const { error: cancelError } = await supabaseAdmin
+      .from('tokens')
+      .update({ status: 'cancelado', updated_at: archivedAt })
+      .eq('id', token.id)
+      .eq('status', 'ativo')
+      .eq('usado', false)
+    if (cancelError) throw cancelError
+
+    return NextResponse.json({ ok: true, equipe_id: equipeId, status: 'arquivada' })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Não foi possível arquivar a equipe.' }, { status: 400 })
+  }
+}

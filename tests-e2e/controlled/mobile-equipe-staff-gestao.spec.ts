@@ -4,17 +4,18 @@ import { expect, test } from '@playwright/test'
 
 const root=path.resolve(__dirname,'../..')
 const read=(file:string)=>fs.readFileSync(path.join(root,file),'utf8')
+const compact=(file:string)=>read(file).replace(/\s+/g,'').replace(/"/g,"'")
 
 test.describe('Mobile — gestão nativa de staff da equipe',()=>{
   test('usa APIs oficiais para convite, permissões, remoção e cancelamento',async()=>{
-    const roster=read('app/src/screens/TeamRosterScreen.tsx')
+    const roster=compact('app/src/screens/TeamRosterScreen.tsx')
     const panel=read('app/src/screens/TeamStaffPanel.tsx')
     const api=read('app/src/lib/api.ts')
     const staffRoute=read('web/app/api/equipes/[id]/staff/route.ts')
     const invitesRoute=read('web/app/api/equipes/[id]/staff/convites/route.ts')
 
     expect(roster).toContain('TeamStaffPanel')
-    expect(roster).toContain("isOwner={selected.papel === 'dono'}")
+    expect(roster).toContain("isOwner={selected.papel==='dono'}")
 
     expect(api).toContain('teamStaff:')
     expect(api).toContain('inviteTeamStaff:')

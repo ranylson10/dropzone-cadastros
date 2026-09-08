@@ -25,8 +25,8 @@ test.describe('Regressão — Home acumulada após padronização de Campeonatos
     expect(home).not.toContain('championshipsCount')
     expect(home).not.toContain('registrationsCount')
     expect(css).not.toContain('.authenticated-home-overview{')
-    expect(css).toContain('.authenticated-home-access-grid{')
-    expect(css).toContain('grid-template-columns:repeat(5,minmax(0,1fr))')
+    expect(css).toContain('.authenticated-home-primary-actions{')
+    expect(css).toContain('grid-template-columns:1fr 1fr')
     expect(css).toContain('background:transparent')
   })
 

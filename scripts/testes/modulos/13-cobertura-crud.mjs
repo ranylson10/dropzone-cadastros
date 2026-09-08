@@ -10,7 +10,14 @@ const ACTION_SEGMENTS = new Set([
   'renovar','aplicar-bonus','vincular','atual','falta','finalizar','confirmar','preview','publish',
   'from-catalog','quote','pricing-quote','control','manual','sortear','distribuir','sincronizar',
   'reprocessar','gerar','importar','exportar','resgatar','solicitar','enviar','validar','buscar',
-  'capture','saque','pedidos','convite','convites','codes','sumula','vinculos','relacionamentos','escalacoes'
+  'capture','saque','pedidos','convite','convites','codes','sumula','vinculos','relacionamentos','escalacoes',
+  'reconciliar','historicas','resultado','reembolsos','checkout',
+]);
+
+const IMMUTABLE_FAMILIES = new Set([
+  'api/me/commerce/wishlist',
+  'api/stream/image',
+  'api/vendedores/[id]/vendas',
 ]);
 
 function routeOf(file) {
@@ -41,7 +48,7 @@ function familyOf(route, routeNames) {
 }
 
 function isTokenWorkflowRoute(route) {
-  return /\/(?:convites?\/(?:equipe|grupo)|vendedores\/convite)\/\[[^/]+\]$/i.test(route);
+  return /\/(?:convites?\/(?:equipe|grupo)|vendedores\/convite|equipes\/reivindicacao|vendas)\/\[[^/]+\]$/i.test(route);
 }
 
 function classifyFamily(item) {
@@ -49,6 +56,7 @@ function classifyFamily(item) {
   const actionOnly = segments.every((segment) => ACTION_SEGMENTS.has(segment));
   const immutable = /\/(?:quote|preview|confirmar|publish|finalizar|falta|atual|redeem|claim|signed|capture|saque)$/i.test(item.family)
     || /\/(?:convites?|pedidos)(?:\/\[id\])?$/i.test(item.family)
+    || IMMUTABLE_FAMILIES.has(item.family)
     || item.routes.every((route) => /\/(?:quote|preview|confirmar|publish|finalizar|falta|atual|redeem|claim|signed)(?:\/|$)/i.test(route.route));
   // POST em links com token representa consumo/aceite de convite, não criação de recurso.
   // Sem isso, famílias públicas como convites/equipe/[token] e vendedores/convite/[token]

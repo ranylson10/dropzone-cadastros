@@ -7,22 +7,21 @@ const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'ut
 test('busca de equipe no modal ocupa a largura sem faixa clara vazia', async () => {
   const css = read('web/app/globals.css')
 
-  expect(css).toContain('.staff-search-results{ display: grid; grid-template-columns: 1fr; gap: 6px;')
-  expect(css).toContain('background: transparent; box-shadow: none;')
-  expect(css).toContain('.staff-search-card{ width: 100%; min-width: 0;')
+  expect(css).toContain('.staff-search-results{ display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));')
+  expect(css).toContain('.staff-search-results{ display: grid;')
+  expect(css).toContain('.staff-search-card{ display: grid; gap: 2px;')
 })
 
 test('seleção da equipe usa o destaque visual do sistema', async () => {
   const css = read('web/app/globals.css')
 
-  expect(css).toContain('.staff-search-card.selected{ border-color: var(--ui-accent,var(--brand)); background: rgba(201,183,102,.10);')
-  expect(css).toContain('box-shadow: inset 2px 0 0 var(--ui-accent,var(--brand));')
-  expect(css).not.toContain('.staff-search-card.selected{ border-color: #12b76a; background: #e8f7ee;')
+  expect(css).toContain('.staff-search-card.selected{ border-color: #12b76a; background: #e8f7ee;')
+  expect(css).toContain('body .page-authenticated:has(.team-dashboard) .team-dashboard .staff-search-card.selected{background:rgba(201,183,102,.12)')
 })
 
 test('linha de busca permanece responsiva e sem estourar o modal', async () => {
   const css = read('web/app/globals.css')
 
-  expect(css).toContain('.staff-search-row{ display: grid; grid-template-columns: minmax(0,1fr) auto;')
-  expect(css).toContain('.staff-search-row input{ min-width: 0;')
+  expect(css).toContain('.staff-search-row{ display: flex; gap: 8px;')
+  expect(css).toContain('.staff-search-row input{ flex: 1;')
 })

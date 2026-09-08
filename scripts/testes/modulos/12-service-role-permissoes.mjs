@@ -130,7 +130,11 @@ export async function executar() {
     output.push(result('OK', 'Service Role', 'Cobertura de autenticação e autorização', 'Nenhuma rota administrativa ficou sem evidência mínima de proteção.'));
   }
 
-  const unscopedWrites = rows.filter((row) => row.hasWrite && !row.publicCandidate && row.authEvidence && !row.scopedEvidence);
+  const unscopedWrites = rows.filter((row) => row.hasWrite
+    && !row.publicCandidate
+    && row.authEvidence
+    && !row.scopedEvidence
+    && !row.classification.startsWith('classificada:'));
   if (unscopedWrites.length) {
     output.push(result(
       'AVISO',

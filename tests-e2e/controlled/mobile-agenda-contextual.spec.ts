@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test'
 
 const root=path.resolve(__dirname,'../..')
 const read=(file:string)=>fs.readFileSync(path.join(root,file),'utf8')
+const compact=(value:string)=>value.replace(/\s+/g,'')
 
 test.describe('Mobile — agenda contextual',()=>{
   test('usa os escopos oficiais, mantém leitura pública e CRUD autenticado',async()=>{
@@ -39,8 +40,9 @@ test.describe('Mobile — agenda contextual',()=>{
     expect(route).toContain("['me', 'campeonato', 'equipe'].includes(scope)")
     expect(service).toContain("params.scope === 'campeonato'")
     expect(service).toContain("params.scope === 'equipe'")
-    expect(service).toContain("onlyPublicOrShared: true")
-    expect(service).toContain("const editable = Boolean(authUserId && row.auth_user_id === authUserId)")
+    expect(service).toContain('mapProjectedGame')
+    expect(compact(service)).toContain('Boolean(authUserId&&row.owner_auth_user_id===authUserId)')
+    expect(service).toContain('new Map')
     expect(screen).not.toContain('WebView')
   })
 })

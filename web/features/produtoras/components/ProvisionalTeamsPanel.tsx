@@ -43,6 +43,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   const [accessToken, setAccessToken] = useState('')
   const [query, setQuery] = useState('')
   const [rosterOpen, setRosterOpen] = useState(false)
+  const [archiveId, setArchiveId] = useState('')
 
   const selected = teams.find((team) => team.id === selectedId) || null
   const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR')
@@ -137,6 +138,18 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     finally { setBusy('') }
   }
 
+  async function archiveTeam() {
+    if (!selected) return
+    setBusy('team-archive'); setMessage('')
+    try {
+      await request(`/api/produtora/equipes-provisorias?equipe_id=${encodeURIComponent(selected.id)}`, { method: 'DELETE' })
+      setMessage('Equipe provisória arquivada.')
+      setArchiveId(''); setSelectedId(''); setSelectedLine(null); setRosterOpen(false)
+      await load({ preserveMessage: true })
+    } catch (error: any) { setMessage(error?.message || 'Não foi possível arquivar a equipe.') }
+    finally { setBusy('') }
+  }
+
   async function uploadLogo(file?: File) {
     if (!file) return
     setBusy('logo'); setMessage('')
@@ -202,6 +215,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   }
 
   function openTeam(teamId: string) {
+    setArchiveId('')
     if (selectedId === teamId) { setSelectedId(''); setSelectedLine(null); setRosterOpen(false); return }
     setSelectedId(teamId); setSelectedLine(null); setRosterOpen(false); setManagerTab('dados')
   }
@@ -270,6 +284,11 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
             <div className="provisional-manager-actions">
               <label className="button secondary"><ImagePlus size={15}/>{busy === 'logo' ? 'Enviando...' : 'Adicionar logo'}<input type="file" accept="image/*" hidden onChange={(e) => void uploadLogo(e.target.files?.[0])}/></label>
               {draft.logo_url ? <span className="provisional-logo-preview"><img src={draft.logo_url} alt="Prévia da logo"/></span> : null}
+              {archiveId === selected.id ? <>
+                <span className="provisional-archive-confirm">Arquivar esta equipe sem participação?</span>
+                <button type="button" className="button secondary" disabled={busy === 'team-archive'} onClick={() => setArchiveId('')}>Cancelar</button>
+                <button type="button" className="button secondary provisional-danger" disabled={busy === 'team-archive'} onClick={() => void archiveTeam()}>{busy === 'team-archive' ? <Loader2 className="spin" size={15}/> : <Archive size={15}/>} Confirmar arquivamento</button>
+              </> : <button type="button" className="button secondary provisional-danger" disabled={busy === 'team'} onClick={() => setArchiveId(selected.id)}><Archive size={15}/> Arquivar equipe</button>}
               <button type="button" className="button" disabled={busy === 'team' || !String(draft.nome || '').trim() || !String(draft.tag || '').trim()} onClick={() => void saveTeam()}><Save size={15}/> Salvar informações</button>
             </div>
           </div> : null}

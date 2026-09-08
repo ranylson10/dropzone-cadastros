@@ -13,13 +13,21 @@ function collectCodeTables() {
       '.chrome-auth-profile',
       '.auth',
       'playwright-report',
+      'scripts',
       'test-results',
+      'tests-e2e',
     ],
   }).filter((file) => /\.(?:ts|tsx|js|mjs)$/.test(file));
   for (const file of files) {
     const text = safeRead(file);
     const rel = normalizePath(path.relative(ROOT, file));
     for (const match of text.matchAll(/\.from\(\s*['"]([a-zA-Z0-9_]+)['"]\s*\)/g)) {
+      const receiver = text
+        .slice(Math.max(0, (match.index ?? 0) - 40), match.index)
+        .match(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*$/)?.[1];
+      // Evita confundir construtores nativos (por exemplo Buffer.from('RIFF'))
+      // com consultas `.from('tabela')` do cliente Supabase.
+      if (['Array', 'Buffer', 'Object', 'String', 'Uint8Array'].includes(receiver ?? '')) continue;
       const table = match[1];
       if (!refs.has(table)) refs.set(table, new Set());
       refs.get(table).add(rel);

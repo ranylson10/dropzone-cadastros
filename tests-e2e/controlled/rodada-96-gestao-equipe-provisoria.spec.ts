@@ -26,6 +26,17 @@ test('96 - produtora pode completar dados e logo da equipe provisória', async (
   expect(panel).toContain("uploadPublicFile(file, 'equipe')")
 })
 
+test('96 - equipe provisória vazia pode ser arquivada sem apagar histórico', async () => {
+  expect(route).toContain('export async function DELETE')
+  expect(route).toContain(".from('campeonato_equipes')")
+  expect(route).toContain(".neq('status', 'removida')")
+  expect(route).toContain("status: 'arquivada'")
+  expect(route).toContain("status: 'cancelado'")
+  expect(panel).toContain('Arquivar equipe')
+  expect(panel).toContain('Confirmar arquivamento')
+  expect(panel).toContain("method: 'DELETE'")
+})
+
 test('96 - lines podem ser criadas, editadas, receber logo e ser arquivadas pela API oficial', async () => {
   expect(panel).toContain("method: 'PATCH'")
   expect(panel).toContain("method: 'DELETE'")
@@ -39,7 +50,7 @@ test('96 - campeonato abre a line participante para jogadores, formação e conv
   expect(route).toContain('campeonato:campeonato_id(id,nome,logo_url)')
   expect(panel).toContain('Jogadores e convites')
   expect(panel).toContain('gerar convite de jogador diretamente para o campeonato')
-  expect(panel).toContain('openLine(line)')
+  expect(panel).toContain('openLine(line, true)')
 })
 
 test('96 - layout mobile usa as mesmas regras do componente sem override global', async () => {

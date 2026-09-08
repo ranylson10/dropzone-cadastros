@@ -93,6 +93,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
       const claimPath = `/vagas/compra/${encodeURIComponent(purchase.token)}`
       return {
         id: purchase.id,
+        kind: 'purchase' as const,
         token: purchase.token,
         status: purchase.status,
         valor_centavos: purchase.valor_centavos,
@@ -133,7 +134,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ manager
 
     const purchasesById = new Set((purchases || []).map((purchase: any) => purchase.id))
     const linkSales = (assisted || []).filter((entry: any) => !entry.compra_vaga_id || !purchasesById.has(entry.compra_vaga_id)).map((entry: any) => ({
-      id: entry.id, token: entry.token, status: entry.status, valor_centavos: 0,
+      id: entry.id, kind: 'assisted_link' as const, token: entry.token, status: entry.status, valor_centavos: 0,
       created_at: entry.created_at, expira_em: entry.expira_em, pago_em: null, liberado_em: null, consumido_em: null,
       comprador_nome: entry.referencia || null, quantidade_vagas: Number(entry.quantidade_vagas || 1), vagas_usadas: 0,
       vagas_restantes: Number(entry.quantidade_vagas || 1), campeonato: championships.get(entry.campeonato_id) || null, grupo: null,
@@ -192,5 +193,37 @@ export async function POST(req: NextRequest, context: { params: Promise<{ manage
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao gerar venda assistida.' }, { status: 400 })
+  }
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ managerId: string }> }) {
+  try {
+    const user = await getBearerUser(req)
+    const { managerId } = await context.params
+    await requireOwnManager(managerId, user.id)
+    const saleId = String(req.nextUrl.searchParams.get('sale_id') || '').trim()
+    if (!saleId) throw new Error('Venda não informada.')
+
+    const { data: cancelled, error } = await supabaseAdmin
+      .from('sistema_vendas_assistidas')
+      .update({ status: 'cancelada', updated_at: new Date().toISOString() })
+      .eq('id', saleId)
+      .eq('vendedor_manager_id', managerId)
+      .eq('vendedor_auth_user_id', user.id)
+      .eq('status', 'aberta')
+      .is('compra_vaga_id', null)
+      .select('id,status')
+      .maybeSingle()
+    if (error) throw error
+    if (!cancelled) {
+      return NextResponse.json(
+        { error: 'Esta venda já iniciou checkout, expirou ou não pertence ao vendedor.' },
+        { status: 409 },
+      )
+    }
+
+    return NextResponse.json({ ok: true, sale: cancelled })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Erro ao cancelar venda.' }, { status: 400 })
   }
 }

@@ -9,11 +9,12 @@ test.describe('Rodada 16 — estrutura guiada de Diário e Copa', () => {
   test('Diário pede apenas equipes e fixa grupo/jogo único', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
 
-    expect(form).toContain('Quantas equipes vão jogar este Diário?')
-    expect(form).toContain("nome: 'Rodada única'")
+    expect(form).toContain('function updateGuidedDaily')
+    expect(form).toContain('diario_horarios')
+    expect(form).toContain("nome: 'Fase 1'")
     expect(form).toContain("grupos: '1'")
-    expect(form).toContain("formato: 'Grupo único / jogo único'")
-    expect(form).toContain('Na próxima etapa você informa quantas partidas esse jogo terá.')
+    expect(form).toContain("format: 'Grupo único / jogo único'")
+    expect(form).toContain('Cada horário funciona como um grupo independente.')
   })
 
   test('Copa pergunta entrada, tamanho do grupo e classificados', () => {
@@ -38,9 +39,10 @@ test.describe('Rodada 16 — estrutura guiada de Diário e Copa', () => {
   test('criação guiada não mostra editor técnico de fases para Copa ou Diário', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
 
-    expect(form).toContain("mode === 'create' && value.tipo === 'diario'")
-    expect(form).toContain("mode === 'create' && value.tipo === 'copa'")
-    expect(form).toContain("value.tipo === 'liga' && 'Defina as fases e as séries")
+    expect(form).toContain("mode === 'create' && (value.tipo === 'diario' || value.tipo === 'copa')")
+    expect(form).toContain("hidden={!pageVisible('format')}")
+    expect(form).toContain("hidden={!pageVisible('matches')}")
+    expect(form).toContain("As fases iniciais serão criadas automaticamente.")
   })
 
   test('layout da nova etapa continua compacto no mobile', () => {

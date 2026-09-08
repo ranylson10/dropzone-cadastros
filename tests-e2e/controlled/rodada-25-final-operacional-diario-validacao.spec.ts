@@ -53,11 +53,13 @@ test.describe('Rodada 25 — Final operacional e validação do Diário', () => 
     expect(service).toContain("input.modo_acumulacao === 'bonus_por_ranking' && input.jogo_decisivo_id")
   })
 
-  test('novo jogo da Final herda dia e quedas planejadas', () => {
+  test('novo jogo da Final usa configuração da fase e permite informar dia e quedas', () => {
     const games = source('web/features/campeonatos/jogos/components/CampeonatoJogosTab.tsx')
-    expect(games).toContain('plannedFinalDays')
-    expect(games).toContain('plannedFallsForFinalDay')
-    expect(games).toContain('selectFinalDay')
-    expect(games).toContain('Dia {day.dia} · {day.quedas} quedas')
+    expect(games).toContain("const isFinalPhase = String(selectedPhase?.data?.tipo")
+    expect(games).toContain("tipo_jogo: final ? 'final' : 'normal'")
+    expect(games).toContain("dia_final: final ? (props.value.dia_final || '1') : '1'")
+    expect(games).toContain('Número de quedas')
+    expect(games).toContain('Dia da Grande Final')
+    expect(games).toContain('configuracao-jogos')
   })
 })

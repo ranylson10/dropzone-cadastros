@@ -7,8 +7,10 @@ const source = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 
 test('vitrine usa banner_url atual sem depender de post-art', () => {
   const directory = source('web/features/directory/components/DirectoryListClient.tsx')
+  const championshipDirectory = source('web/features/directory/championship-directory.ts')
   const server = source('web/features/directory/server.ts')
-  expect(server).toContain('banner: first(row.banner_url)')
+  expect(server).toContain("import { buildChampionshipDirectoryItems } from './championship-directory'")
+  expect(championshipDirectory).toContain('banner: first(row.banner_url)')
   expect(directory).toContain("cachedStorageMediaUrl(item.banner || item.image || '')")
   expect(directory).not.toContain('postArtUrl')
   expect(directory).not.toContain('artes-postagem')
@@ -36,7 +38,9 @@ test('vitrine faz download sob demanda e a entrega fica em cache', () => {
   const directory = source('web/features/directory/components/DirectoryListClient.tsx')
   const mediaRoute = source('web/app/api/media/[bucket]/[...path]/route.ts')
   expect(directory).toContain('loading="lazy"')
+  expect(mediaRoute).toContain("cache: 'no-store'")
   expect(mediaRoute).toContain('public, max-age=${CACHE_SECONDS}, immutable')
+  expect(mediaRoute).toContain("'CDN-Cache-Control': `public, max-age=${CACHE_SECONDS}, immutable`")
 })
 
 

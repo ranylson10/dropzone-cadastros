@@ -66,4 +66,20 @@ test.describe('Venda assistida do vendedor — contrato controlado', () => {
       expect(billing).toContain('nextGroup.vagas_livres - activeCommercialReservations < quantity')
     })
   })
+
+  test('vendedor pode cancelar somente link aberto antes do checkout', async () => {
+    const route = read('web/app/api/vendedores/[managerId]/vendas/route.ts')
+    const view = read('web/features/dropzone/panels/manager/ManagerVendasView.tsx')
+
+    expect(route).toContain('export async function DELETE')
+    expect(route).toContain("req.nextUrl.searchParams.get('sale_id')")
+    expect(route).toContain(".eq('vendedor_manager_id', managerId)")
+    expect(route).toContain(".eq('status', 'aberta')")
+    expect(route).toContain(".is('compra_vaga_id', null)")
+    expect(route).toContain("status: 'cancelada'")
+    expect(view).toContain("sale.kind === 'assisted_link'")
+    expect(view).toContain('Cancelar link')
+    expect(view).toContain('Confirmar cancelamento')
+    expect(view).toContain("method: 'DELETE'")
+  })
 })

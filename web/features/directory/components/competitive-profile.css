@@ -539,7 +539,7 @@
   border-bottom: 1px solid var(--profile-line);
   border-left: 0;
   border-radius: 0;
-  background: transparent !important;
+  background: transparent;
   box-shadow: none;
   color: var(--profile-ink);
 }
@@ -549,7 +549,7 @@
 .profile-command-page .directory-public-slots .championship-vaga-row:hover {
   transform: none;
   border-left: 0;
-  background: rgba(255, 255, 255, .025) !important;
+  background: rgba(255, 255, 255, .025);
   box-shadow: none;
 }
 

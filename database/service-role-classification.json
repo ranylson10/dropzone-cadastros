@@ -1,10 +1,14 @@
 {
   "version": 1,
-  "updated_at": "2026-08-10",
+  "updated_at": "2026-09-08",
   "routes": {
     "api/admin/aprovacoes": {
       "decision": "system-admin",
       "reason": "Todas as operações chamam requireSystemAdmin."
+    },
+    "api/admin/garena/reconciliar": {
+      "decision": "system-admin",
+      "reason": "A escrita chama requireSystemAdmin antes de consultar ou reconciliar MatchStats."
     },
     "api/admin/moderation": {
       "decision": "system-admin",
@@ -50,21 +54,49 @@
       "decision": "public-read",
       "reason": "Leitura pública intencional do elenco de campeonato; não possui escrita."
     },
-    "api/debug/manager/[id]": {
-      "decision": "debug-admin",
-      "reason": "Bloqueada em produção e protegida por requireSystemAdmin."
+    "api/campeonatos/[id]/pontuador/configuracao": {
+      "decision": "championship-score-scoped",
+      "reason": "Exige bearer, chama requireCampeonatoScore para o id da rota e grava no mesmo campeonato_id."
     },
-    "api/debug/manager-tokens/[managerId]": {
-      "decision": "debug-admin",
-      "reason": "Bloqueada em produção e protegida por requireSystemAdmin."
+    "api/campeonatos/[id]/stream/data": {
+      "decision": "stream-key-protected",
+      "reason": "authorizeStreamData valida a chave Stream e a vincula ao campeonato da rota antes da leitura."
     },
-    "api/debug/managers": {
-      "decision": "debug-admin",
-      "reason": "Bloqueada em produção e protegida por requireSystemAdmin."
+    "api/desktop/auth/google/start": {
+      "decision": "public-auth-flow",
+      "reason": "Inicia o fluxo OAuth público e valida os parâmetros antes de emitir a URL de autenticação."
     },
     "api/equipes/convites-elenco/[token]": {
       "decision": "token-and-user",
       "reason": "GET consulta token; POST exige bearer, valida jogador e consome o token."
+    },
+    "api/equipes/busca-publica": {
+      "decision": "public-read",
+      "reason": "Busca pública somente leitura, com projeção e limite de resultados."
+    },
+    "api/escalacoes/[token]": {
+      "decision": "token-and-user",
+      "reason": "A leitura resolve o token ativo; a escrita exige bearer e joinLineupByToken valida o vínculo."
+    },
+    "api/jogadores/[id]/public": {
+      "decision": "public-read",
+      "reason": "Perfil público de jogador somente leitura e restrito ao id da rota."
+    },
+    "api/jogadores/busca-publica": {
+      "decision": "public-read",
+      "reason": "Busca pública somente leitura, com projeção e limite de resultados."
+    },
+    "api/me/commerce/cart": {
+      "decision": "user-scoped",
+      "reason": "Todos os métodos exigem bearer; as mutações usam o carrinho ligado ao auth_user_id."
+    },
+    "api/me/commerce/wishlist": {
+      "decision": "user-scoped",
+      "reason": "Todos os métodos exigem bearer e filtram favoritos pelo auth_user_id autenticado."
+    },
+    "api/media/[bucket]/[...path]": {
+      "decision": "public-read",
+      "reason": "Proxy somente leitura restrito a buckets permitidos e caminhos sem travessia."
     },
     "api/notificacoes": {
       "decision": "user-scoped",
@@ -74,9 +106,9 @@
       "decision": "user-scoped",
       "reason": "Exige bearer e cria/consulta pedidos vinculados ao usuário autenticado."
     },
-    "api/rank": {
-      "decision": "public-read",
-      "reason": "Ranking público somente leitura."
+    "api/stream/editor-data": {
+      "decision": "stream-key-protected",
+      "reason": "Exige X-DropZone-Stream-Key ativo e restringe todos os dados ao campeonato da chave."
     },
     "api/vendedores/[managerId]/vagas": {
       "decision": "public-read",

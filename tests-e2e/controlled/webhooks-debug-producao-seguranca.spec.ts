@@ -123,7 +123,7 @@ test.describe('Produção — webhooks e rotas de debug protegidas', () => {
       timeout: 30_000,
     })
     const disabledWriteBody = await json(disabledWrite)
-    expect(disabledWrite.status(), 'Endpoint antigo de escrita deve permanecer desabilitado.').toBe(404)
-    expect(String(disabledWriteBody?.error || '')).toContain('desabilitado')
+    expect(disabledWrite.status(), 'Endpoint antigo de escrita deve permanecer inexistente.').toBe(404)
+    expect(JSON.stringify(disabledWriteBody || {}).toLowerCase()).not.toContain('manager')
   })
 })

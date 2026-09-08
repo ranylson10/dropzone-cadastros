@@ -9,7 +9,9 @@ test.describe('Rodada 28 hotfix — fallback tipado das séries', () => {
   test('fallback antigo também usa o novo formato completo de liga_divisoes', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
 
-    expect(form).toContain("nome: 'Série A'")
+    expect(form).toContain("nome: 'Série única'")
+    expect(form).toContain("codigo: 'UNICA'")
+    expect(form).toContain("ordem: 1")
     expect(form).toContain("equipes: '12'")
     expect(form).toContain("valor_inscricao: ''")
     expect(form).toContain("premiacao: ''")

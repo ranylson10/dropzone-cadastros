@@ -97,7 +97,7 @@ export default function LoginPage() {
   const [stage, setStage] = useState<LoginStage>('checking')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [existingEmailDetected, setExistingEmailDetected] = useState(false)
+  const [showEmailAccessHelp, setShowEmailAccessHelp] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
@@ -370,7 +370,7 @@ export default function LoginPage() {
     setEmailLoading(true)
     setError('')
     setNotice('')
-    setExistingEmailDetected(false)
+    setShowEmailAccessHelp(false)
 
     try {
       const normalizedEmail = normalizeEmail(email)
@@ -392,21 +392,6 @@ export default function LoginPage() {
         if (issue) throw new Error(issue)
         if (password !== confirmPassword) throw new Error('A confirmação da senha não confere.')
 
-        const emailStatusResponse = await fetch('/api/auth/email-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: normalizedEmail }),
-          cache: 'no-store',
-        })
-        const emailStatus = await emailStatusResponse.json().catch(() => ({}))
-        if (!emailStatusResponse.ok) {
-          throw new Error(String(emailStatus?.error || 'Não foi possível validar este e-mail.'))
-        }
-        if (emailStatus?.exists) {
-          setExistingEmailDetected(true)
-          throw new Error('Este e-mail já possui uma conta no DropZone. Entre com sua senha ou recupere o acesso.')
-        }
-
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
@@ -421,7 +406,8 @@ export default function LoginPage() {
         setEmail(normalizedEmail)
         setOtpCode('')
         setEmailMode('confirmar-cadastro')
-        setNotice(`Enviamos um código de 6 dígitos para ${normalizedEmail}.`)
+        setShowEmailAccessHelp(true)
+        setNotice(`Se este e-mail puder ser cadastrado, enviaremos um código de 6 dígitos para ${normalizedEmail}.`)
         return
       }
 
@@ -516,7 +502,7 @@ export default function LoginPage() {
     setOtpCode('')
     setError('')
     setNotice('')
-    setExistingEmailDetected(false)
+    setShowEmailAccessHelp(false)
     setShowPassword(false)
     setShowConfirmPassword(false)
   }
@@ -743,8 +729,8 @@ export default function LoginPage() {
 
                 {notice ? <div className="message">{notice}</div> : null}
                 {error ? <div className="message error">{error}</div> : null}
-                {existingEmailDetected ? (
-                  <div className="login-existing-account-actions" aria-label="Conta já existente">
+                {showEmailAccessHelp ? (
+                  <div className="login-existing-account-actions" aria-label="Opções de acesso">
                     <button type="button" onClick={() => changeEmailMode('entrar')}>Entrar com este e-mail</button>
                     <button type="button" onClick={() => changeEmailMode('recuperar')}>Recuperar senha</button>
                   </div>

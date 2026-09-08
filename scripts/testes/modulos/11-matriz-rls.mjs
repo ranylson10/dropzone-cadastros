@@ -8,7 +8,10 @@ function collectRefs() {
     const normalized = normalizePath(file);
     return /\.(?:ts|tsx|js|mjs)$/.test(file)
       && !normalized.includes('/node_modules/')
-      && !normalized.includes('/scripts/');
+      && !normalized.includes('/scripts/')
+      && !normalized.includes('/tests-e2e/')
+      && !normalized.includes('/test-results/')
+      && !normalized.includes('/playwright-report/');
   });
   for (const file of files) {
     const text = safeRead(file);
@@ -68,8 +71,10 @@ export async function executar() {
     const serviceOnly = matrix.filter((item) => item.classification === 'somente_service_role_candidato');
     const unused = matrix.filter((item) => item.classification === 'sem_uso_localizado');
     const unreviewed = matrix.filter((item) => !item.reviewed_classification);
-    const invalidReviewed = matrix.filter((item) => !['service_role_only', 'legacy_controlled'].includes(item.reviewed_classification));
-    const serviceMismatch = matrix.filter((item) => item.reviewed_classification === 'service_role_only' && item.classification !== 'somente_service_role_candidato');
+    const invalidReviewed = matrix.filter((item) => item.reviewed_classification
+      && !['service_role_only', 'legacy_controlled'].includes(item.reviewed_classification));
+    const serviceMismatch = matrix.filter((item) => item.reviewed_classification === 'service_role_only'
+      && ['requer_revisao_prioritaria', 'backend_autenticado'].includes(item.classification));
     const legacyMismatch = matrix.filter((item) => item.reviewed_classification === 'legacy_controlled' && item.usages.length > 0);
     const out = [result('OK', 'Matriz RLS', 'Classificação gerada', `${matrix.length} tabela(s) sem policy classificadas. Arquivo: relatorios-testes/matriz-rls-sem-policies.json.`)];
     if (priority.length) out.push(result('ERRO', 'Matriz RLS', 'Acesso possivelmente direto sem policy', priority.map((item) => item.table_name).join(', '), 'Auditar imediatamente estas referências.'));

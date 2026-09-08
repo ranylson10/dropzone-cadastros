@@ -22,9 +22,11 @@ test.describe('Rodada 101/101A — Home Cinemática DropZone',()=>{
     expect(home).toContain('drop-sequence-line-accent')
     expect(home).not.toContain('<video')
     expect(home).not.toContain('/videos/dropzone-home')
-    expect(css).toContain('height:210vh')
+    expect(css).toContain('height:190vh')
     expect(css).toContain('position:sticky')
     expect(css).toContain('.lealt-motion-phase-b')
+    expect(effect).toContain('preload="metadata"')
+    expect(effect).toContain("'(prefers-reduced-motion: reduce)'")
   })
 
   test('web mantém API de vagas, busca, destaque e acesso intactos',async()=>{

@@ -5,38 +5,31 @@ import path from 'node:path'
 const root = process.cwd()
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 
-test('cadastro consulta o backend antes de chamar signUp', () => {
+test('cadastro usa o fluxo nativo sem consultar a existência do e-mail', () => {
   const source = read('web/app/login/page.tsx')
-  const statusCheck = source.indexOf("fetch('/api/auth/email-status'")
-  const signUp = source.indexOf('supabase.auth.signUp({')
 
-  expect(statusCheck).toBeGreaterThan(-1)
-  expect(signUp).toBeGreaterThan(statusCheck)
-  expect(source).toContain("if (emailStatus?.exists)")
+  expect(source).toContain('supabase.auth.signUp({')
+  expect(source).not.toContain('/api/auth/email-status')
+  expect(source).not.toContain('emailStatus?.exists')
 })
 
-test('e-mail existente não avança falsamente para o OTP', () => {
+test('resposta de cadastro não revela se a conta já existe', () => {
   const source = read('web/app/login/page.tsx')
 
-  expect(source).toContain('Este e-mail já possui uma conta no DropZone. Entre com sua senha ou recupere o acesso.')
-  expect(source).toContain('setExistingEmailDetected(true)')
+  expect(source).toContain('Se este e-mail puder ser cadastrado, enviaremos um código de 6 dígitos')
+  expect(source).toContain('setShowEmailAccessHelp(true)')
   expect(source).toContain('Entrar com este e-mail')
   expect(source).toContain('Recuperar senha')
 })
 
-test('verificação do e-mail acontece somente no servidor com supabaseAdmin', () => {
-  const route = read('web/app/api/auth/email-status/route.ts')
-
-  expect(route).toContain("import { supabaseAdmin } from '@backend/shared/supabase-admin'")
-  expect(route).toContain('supabaseAdmin.auth.admin.listUsers')
-  expect(route).toContain("email?.trim().toLowerCase() === email")
-  expect(route).toContain("'Cache-Control': 'no-store'")
+test('rota administrativa de enumeração de e-mail não faz parte da aplicação', () => {
+  expect(fs.existsSync(path.join(root, 'web/app/api/auth/email-status/route.ts'))).toBe(false)
 })
 
-test('tela mantém ações responsivas para conta existente', () => {
+test('tela mantém ações responsivas de acesso após cadastro', () => {
   const css = read('web/app/globals.css')
 
   expect(css).toContain('.login-existing-account-actions{')
   expect(css).toContain('grid-template-columns:repeat(2,minmax(0,1fr))')
-  expect(css).toContain('@media(max-width:700px){.login-existing-account-actions{grid-template-columns:1fr}}')
+  expect(css).toMatch(/\.login-email-actions,\.login-existing-account-actions\{grid-template-columns:1fr\}/)
 })

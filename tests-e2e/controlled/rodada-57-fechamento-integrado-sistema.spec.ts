@@ -34,7 +34,8 @@ test.describe('Rodada 57 — fechamento integrado do sistema', () => {
     const agendaRoute = source('web/app/api/agenda/route.ts')
 
     expect(agenda).toContain('listGamesByChampionshipIds')
-    expect(agenda).toContain('items.push(mapGameEvent(game')
+    expect(agenda).toContain('function mapProjectedGame(row: any, editable = false)')
+    expect(agenda).toContain('...rows.map((row) => mapProjectedGame(row')
     expect(agendaRoute).toContain('listAgenda({')
     expect(agenda).not.toContain('agenda_liga')
     expect(agendaRoute).not.toContain('calendario_liga')
@@ -54,7 +55,7 @@ test.describe('Rodada 57 — fechamento integrado do sistema', () => {
 
     expect(matchResult).toContain("origem: 'matchresult'")
     expect(matchResult).toContain('Não foi possível complementar o MatchResult com estatísticas detalhadas.')
-    expect(matchResult).toContain('return { importacao_id: importacao.id, garena, ...totals }')
+    expect(matchResult).toContain('return { importacao_id: importacao.id, garena, reconciliacao, ...totals }')
     expect(treinos).toContain('garenaImportacoesResult.error')
     expect(treinos).toContain('armasResult.error ? []')
     expect(treinos).toContain('habilidadesResult.error ? []')
@@ -119,7 +120,7 @@ test.describe('Rodada 57 — fechamento integrado do sistema', () => {
 
     expect(panel).not.toContain('const totalPlayers = 0')
     expect(panel).toContain('<CampeonatoJogadoresTab campeonatoId={selectedChamp.id} />')
-    expect(panel).toContain('<CampeonatoEquipesTab campeonatoId={selectedChamp.id} />')
+    expect(panel).toContain('<CampeonatoEquipesTab campeonatoId={selectedChamp.id} readOnly />')
     expect(panel).toContain('<CampeonatoEstatisticasTab')
   })
 })

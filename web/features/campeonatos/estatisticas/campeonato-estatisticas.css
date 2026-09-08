@@ -54,7 +54,7 @@
 .champ-stats-mvp-list>article>span{display:grid;gap:1px;text-align:center}
 .champ-stats-mvp-list>article>span strong{font-size:11px}
 .champ-stats-mvp-list>article>span small{color:#70737a;font-size:7px;font-weight:850}
-.champ-stats-mvp-kills strong{color:var(--ui-primary-light,#dfcf85)!important;font-size:14px!important}
+.champ-stats-mvp-kills strong{color:var(--ui-primary-light,#dfcf85);font-size:14px}
 .champ-stats-champion{display:grid;gap:16px;padding:16px;border-radius:10px;background:var(--ui-surface,#141518)}
 .champ-stats-champion-main{display:grid;grid-template-columns:34px 54px minmax(0,1fr);align-items:center;gap:12px}
 .champ-stats-champion-position{color:var(--ui-primary,#c9b766);font-size:28px;font-weight:950;text-align:center}
@@ -118,7 +118,7 @@
 .champ-stats-player strong{font-size:10px}
 .champ-stats-player small{font-size:7px}
 .champ-stats-mvp-list>article>span strong{font-size:9px}
-.champ-stats-mvp-kills strong{font-size:11px!important}
+.champ-stats-mvp-kills strong{font-size:11px}
 .champ-stats-champion{padding:11px}
 .champ-stats-champion-main{grid-template-columns:26px 46px minmax(0,1fr);gap:8px}
 .champ-stats-champion-position{font-size:21px}

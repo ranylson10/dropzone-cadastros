@@ -19,7 +19,9 @@ async function deliver(req: NextRequest, context: { params: Promise<{ bucket: st
   const range = req.headers.get('range')
   let upstream = await fetch(source, {
     headers: range ? { Range: range } : undefined,
-    next: { revalidate: CACHE_SECONDS },
+    // O Data Cache do Next rejeita objetos maiores que 2 MB. Mídia já possui
+    // chave imutável no caminho; deixe o CDN e o navegador guardarem a resposta.
+    cache: 'no-store',
   })
 
   // Alguns buckets de mídia são intencionalmente privados no Storage. O app ainda
@@ -29,13 +31,17 @@ async function deliver(req: NextRequest, context: { params: Promise<{ bucket: st
     const storagePath = path.join('/')
     const { data: signed, error } = await supabaseAdmin.storage.from(bucket).createSignedUrl(storagePath, 60)
     if (error || !signed?.signedUrl) return new NextResponse('Não encontrado.', { status: upstream.status || 404 })
-    upstream = await fetch(signed.signedUrl, { headers: range ? { Range: range } : undefined })
+    upstream = await fetch(signed.signedUrl, {
+      headers: range ? { Range: range } : undefined,
+      cache: 'no-store',
+    })
   }
 
   if (!upstream.ok && upstream.status !== 206) return new NextResponse('Não encontrado.', { status: upstream.status })
 
   const headers = new Headers({
     'Cache-Control': `public, max-age=${CACHE_SECONDS}, immutable`,
+    'CDN-Cache-Control': `public, max-age=${CACHE_SECONDS}, immutable`,
     'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream',
     'Accept-Ranges': 'bytes',
   })

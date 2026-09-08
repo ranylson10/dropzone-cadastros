@@ -8,37 +8,37 @@ const source = (relative: string) => fs.readFileSync(path.join(root, relative), 
 test.describe('Rodada 17 — partidas guiadas de Diário e Copa', () => {
   test('adiciona Partidas entre Estrutura e Operação para Diário e Copa', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
-    expect(form).toContain("{ id: 'matches' as const, label: 'Partidas' }")
-    const createWizard = form.slice(
-      form.indexOf(": [\n        { id: 'origin', label: 'Início' }"),
-      form.indexOf("const currentPageIndex"),
-    )
-    expect(createWizard.indexOf("label: 'Estrutura'")).toBeLessThan(createWizard.indexOf("label: 'Partidas'"))
-    expect(createWizard.indexOf("label: 'Partidas'")).toBeLessThan(createWizard.indexOf("label: 'Operação'"))
+    expect(form).toContain("{ id: 'matches' as const, label: 'Final' }")
+    expect(form).toContain("{ id: 'matches' as const, label: 'Quedas' }")
+    expect(form).toContain("{ id: 'format' as const, label: 'Fases e grupos' }")
+    expect(form).toContain("{ id: 'format' as const, label: 'Horários' }")
+    expect(form).toContain("{ id: 'operation', label: 'Vagas e prêmio' }")
   })
 
   test('Diário pergunta somente quantas partidas terá o jogo', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
-    expect(form).toContain('Quantas partidas terá este jogo?')
-    expect(form).toContain('Partidas no jogo')
+    expect(form).toContain('Quantas quedas terá este jogo?')
+    expect(form).toContain('Quedas no jogo')
     expect(form).toContain("value={value.partidas_por_jogo || '4'}")
     expect(form).toContain('1 jogo · {value.partidas_por_jogo')
   })
 
   test('Copa separa partidas padrão e partidas da Final', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
-    expect(form).toContain('Quantas partidas terá cada jogo da Copa?')
-    expect(form).toContain('Partidas por jogo nas fases')
-    expect(form).toContain('Partidas na Final')
-    expect(form).toContain('value.partidas_final')
+    expect(form).toContain('partidas_por_jogo?: string')
+    expect(form).toContain('partidas_final?: string')
+    expect(form).toContain("partidas_por_jogo: type === 'diario' || type === 'copa' || type === 'xtreino'")
+    expect(form).toContain('${value.partidas_por_jogo || \'—\'} quedas por jogo nas fases')
+    expect(form).toContain("{(value.final_dias_config || []).map((day) => `Dia ${day.dia}: ${day.quedas} quedas`)")
   })
 
   test('Copa calcula jogos e total de partidas a partir da estrutura', () => {
     const form = source('web/components/forms/campeonato/CampeonatoForm.tsx')
-    expect(form).toContain('championship-guided-match-flow')
-    expect(form).toContain('const games = Math.max(1, Number(phase.grupos || 1))')
-    expect(form).toContain('games * matches')
-    expect(form).toContain('Total previsto')
+    expect(form).toContain('function guidedCupPlan')
+    expect(form).toContain('const groups = Math.max(1, Math.ceil(teams / perGroup))')
+    expect(form).toContain('const qualified = groups * advance')
+    expect(form).toContain('guidedCupPlan(total, perGroup, advance)')
+    expect(form).toContain('aria-label="Progressão calculada da Copa"')
   })
 
   test('modelo e season reaproveitam configuração de partidas quando existir', () => {

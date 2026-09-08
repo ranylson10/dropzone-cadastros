@@ -367,7 +367,7 @@
 
 .app-profile-copy small {
   margin-top: 2px;
-  color: var(--ui-muted, #918c84) !important;
+  color: var(--ui-muted, #918c84);
   font-size: 10px;
 }
 
@@ -382,15 +382,15 @@
   overflow: hidden;
   flex: 0 0 40px;
   place-items: center;
-  border: 0 !important;
-  border-radius: var(--ui-radius-md, 10px) !important;
-  background: var(--ui-surface-soft, #202125) !important;
+  border: 0;
+  border-radius: var(--ui-radius-md, 10px);
+  background: var(--ui-surface-soft, #202125);
 }
 
 .app-profile-avatar img {
   width: 100%;
   height: 100%;
-  border-radius: inherit !important;
+  border-radius: inherit;
   object-fit: cover;
 }
 
@@ -752,7 +752,7 @@
     max-width: 24px;
     max-height: 24px;
     flex-basis: 24px;
-    border-radius: 7px !important;
+    border-radius: 7px;
   }
 
   .app-global-language {
@@ -843,46 +843,46 @@
   }
 
   .app-profile .notif-inbox-panel {
-    position: fixed !important;
-    top: 62px !important;
-    right: 6px !important;
-    left: 6px !important;
-    width: auto !important;
-    max-width: none !important;
-    max-height: calc(100dvh - 130px) !important;
-    border: 0 !important;
-    border-radius: var(--ui-radius-lg, 14px) !important;
-    background: var(--ui-surface-raised, #1a1b1f) !important;
-    box-shadow: none !important;
+    position: fixed;
+    top: 62px;
+    right: 6px;
+    left: 6px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 130px);
+    border: 0;
+    border-radius: var(--ui-radius-lg, 14px);
+    background: var(--ui-surface-raised, #1a1b1f);
+    box-shadow: none;
   }
 
   .app-profile-menu {
-    position: fixed !important;
-    top: auto !important;
-    right: 6px !important;
-    bottom: calc(62px + env(safe-area-inset-bottom)) !important;
-    left: 6px !important;
-    width: auto !important;
-    max-width: none !important;
-    max-height: min(58dvh, 520px) !important;
-    border: 0 !important;
-    border-radius: var(--ui-radius-lg, 14px) !important;
-    background: var(--ui-surface-raised, #1a1b1f) !important;
-    box-shadow: none !important;
+    position: fixed;
+    top: auto;
+    right: 6px;
+    bottom: calc(62px + env(safe-area-inset-bottom));
+    left: 6px;
+    width: auto;
+    max-width: none;
+    max-height: min(58dvh, 520px);
+    border: 0;
+    border-radius: var(--ui-radius-lg, 14px);
+    background: var(--ui-surface-raised, #1a1b1f);
+    box-shadow: none;
   }
 
   .app-profile-menu .app-profile-menu-head,
   .app-profile-menu .linked-account-option,
   .app-profile-menu a,
   .app-profile-menu button {
-    border: 0 !important;
-    background: transparent !important;
-    color: var(--ui-text-soft, #c7c2b8) !important;
+    border: 0;
+    background: transparent;
+    color: var(--ui-text-soft, #c7c2b8);
   }
 
   .app-profile-menu .linked-account-option.active {
-    background: var(--ui-surface-soft, #202125) !important;
-    color: var(--ui-text, #f5f3ed) !important;
+    background: var(--ui-surface-soft, #202125);
+    color: var(--ui-text, #f5f3ed);
   }
 
   .app-shell-main {

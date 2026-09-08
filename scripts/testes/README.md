@@ -14,14 +14,18 @@
 
 ## Inventário do banco publicado
 
-1. Execute `database/auditoria/rodada_2_inventario_banco.sql` no Supabase.
-2. Salve somente o JSON retornado em `relatorios-testes/banco-publicado.json`.
+Com o projeto vinculado na CLI do Supabase, execute:
+
+`node scripts/testes/atualizar-inventario-publicado.mjs`
+
+O script consulta `database/auditoria/rodada_2_inventario_banco.sql` e salva somente o
+objeto retornado em `relatorios-testes/banco-publicado.json`.
 
 ## Integridade e ON CONFLICT
 
-1. Execute `database/auditoria/rodada_3_integridade_banco.sql` no Supabase.
-2. Salve somente o JSON retornado em `relatorios-testes/integridade-publicada.json`.
-3. Rode novamente o robô.
+Execute `node scripts/testes/atualizar-integridade-publicada.mjs` e rode novamente o
+robô. O script consulta o banco vinculado e atualiza
+`relatorios-testes/integridade-publicada.json` automaticamente.
 
 O SQL da Rodada 3 é somente leitura: verifica tabelas, colunas, índices UNIQUE, duplicidades e constraints não validadas.
 
