@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
 import { assertPodeCriarSlots } from '@backend/campeonatos/capacidade'
 import {
@@ -1578,6 +1579,9 @@ export async function POST(req: NextRequest) {
       throw new Error('Tipo de cadastro invalido.')
     }
 
+    if (entityType === 'championship') {
+      revalidateTag('directory:campeonatos', { expire: 0 })
+    }
     return NextResponse.json({ row })
   } catch (error: any) {
     console.error('[dropzone POST]', {
@@ -1626,6 +1630,8 @@ export async function PATCH(req: NextRequest) {
       } catch {
         // best-effort
       }
+      revalidateTag('directory:campeonatos', { expire: 0 })
+      revalidatePath(`/campeonatos/${id}`)
       return NextResponse.json({
         row: championshipRow({ ...updated, campeonato_configuracoes: configuration }),
         ...(warning ? { warning } : {}),
@@ -1835,6 +1841,8 @@ export async function DELETE(req: NextRequest) {
       await requireChampionshipOwner(id, user.id, account.id)
       const { error } = await supabaseAdmin.from('campeonatos').update({ deleted_at: new Date().toISOString(), status: 'excluido' }).eq('id', id)
       if (error) throw error
+      revalidateTag('directory:campeonatos', { expire: 0 })
+      revalidatePath(`/campeonatos/${id}`)
     } else if (entityType === 'phase') {
       const { data, error: readError } = await supabaseAdmin.from('campeonato_fases').select('campeonato_id').eq('id', id).single(); if (readError) throw readError
       await requireChampionshipOwner(data.campeonato_id, user.id, account.id)

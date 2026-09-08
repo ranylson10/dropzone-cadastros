@@ -80,8 +80,7 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
           horario_inicio: '20:00',
           horario_fim: '21:00',
           tipo: 'reuniao',
-          visibilidade: 'campeonato',
-          campeonato_id: championshipId,
+          visibilidade: 'privada',
           cor: '#3b82f6',
         },
         timeout: 30_000,
@@ -91,7 +90,7 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
       eventId = String(createBody?.item?.id || '')
       expect(eventId).not.toBe('')
 
-      const list = await request.get(`${origin}/api/agenda?scope=campeonato&id=${encodeURIComponent(championshipId)}&year=2099&month=7`, {
+      const list = await request.get(`${origin}/api/agenda?scope=me&year=2099&month=7`, {
         headers: headers(produtoraToken, 'produtora'),
         timeout: 30_000,
       })
@@ -101,7 +100,7 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
       const createdItem = listBody?.items?.find((item: { id?: string }) => item.id === eventId)
       expect(createdItem).toBeTruthy()
       expect(createdItem?.editable).toBe(true)
-      expect(createdItem?.visibilidade).toBe('campeonato')
+      expect(createdItem?.visibilidade).toBe('privada')
 
       const update = await request.patch(`${origin}/api/agenda`, {
         headers: headers(produtoraToken, 'produtora'),
@@ -113,8 +112,7 @@ test.describe('Agenda, notificações e relatórios — fluxo seguro e controlad
           horario_inicio: '20:30',
           horario_fim: '21:30',
           tipo: 'treino',
-          visibilidade: 'campeonato',
-          campeonato_id: championshipId,
+          visibilidade: 'privada',
           cor: '#16a34a',
         },
         timeout: 30_000,

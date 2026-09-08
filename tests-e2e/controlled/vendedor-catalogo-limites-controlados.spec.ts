@@ -331,7 +331,7 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
       expect(salesBefore.ok(), `Vendedor deve conseguir listar vendas assistidas: ${salesBeforeBody?.error || salesBefore.status()}`).toBeTruthy()
       expect(Array.isArray(salesBeforeBody?.sales)).toBe(true)
 
-      const assistedWithoutCpf = await request.post(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
+      const assistedLink = await request.post(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
         headers: headers(managerToken, 'manager'),
         data: {
           campeonato_id: championshipId,
@@ -339,9 +339,18 @@ test.describe('Vendedor controlado — convite, catálogo público e limites', (
           comprador_whatsapp: '5599999999999',
         },
       })
-      const assistedWithoutCpfBody = await json(assistedWithoutCpf)
-      expect(assistedWithoutCpf.ok(), 'Venda assistida sem CPF/CNPJ deve ser bloqueada antes de criar cobrança.').toBe(false)
-      expect(String(assistedWithoutCpfBody?.error || '')).toContain('CPF/CNPJ')
+      const assistedLinkBody = await json(assistedLink)
+      expect(assistedLink.ok(), `Falha ao criar link de venda assistida: ${assistedLinkBody?.error || assistedLink.status()}`).toBe(true)
+      expect(String(assistedLinkBody?.sale?.token || '')).toMatch(/^VS-/)
+      expect(String(assistedLinkBody?.sale?.checkout_url || '')).toContain('/vendas/')
+
+      const cancelAssistedLink = await request.delete(
+        `${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas?sale_id=${encodeURIComponent(String(assistedLinkBody?.sale?.id || ''))}`,
+        { headers: headers(managerToken, 'manager') },
+      )
+      const cancelAssistedLinkBody = await json(cancelAssistedLink)
+      expect(cancelAssistedLink.ok(), `Falha ao cancelar link temporário: ${cancelAssistedLinkBody?.error || cancelAssistedLink.status()}`).toBe(true)
+      expect(cancelAssistedLinkBody?.sale?.status).toBe('cancelada')
 
       const assistedWrongAccount = await request.post(`${origin}/api/vendedores/${encodeURIComponent(managerId)}/vendas`, {
         headers: headers(equipeToken, 'equipe'),

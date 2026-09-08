@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireSystemAdmin } from '@backend/admin/admin-auth'
 import { setAprovacao, type AprovacaoStatus } from '@backend/admin/aprovacao'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(req: NextRequest) {
   try {
@@ -80,6 +81,14 @@ export async function PATCH(req: NextRequest) {
       motivo,
       adminUserId: admin.id,
     })
+
+    if (alvo === 'campeonato') {
+      revalidateTag('directory:campeonatos', { expire: 0 })
+      revalidatePath(`/campeonatos/${id}`)
+    } else {
+      revalidateTag('directory:produtoras', { expire: 0 })
+      revalidatePath(`/produtoras/${id}`)
+    }
 
     // Ao aprovar campeonato, se cobrança pendente e admin marcou pago/cortesia
     if (alvo === 'campeonato' && body.cobranca_status) {

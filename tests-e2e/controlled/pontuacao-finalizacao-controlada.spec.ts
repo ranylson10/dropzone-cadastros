@@ -311,6 +311,7 @@ test.describe('Pontuação controlada — resultado, tabela, finalização e rea
 
       const statsResponse = await request.get(
         `${origin}/api/campeonatos/${encodeURIComponent(championshipId)}/estatisticas/equipes?partida_id=${encodeURIComponent(fallId)}`,
+        { headers: headers(produtoraToken, 'produtora') },
       )
       const statsBody = await json(statsResponse)
       expect(statsResponse.ok(), `Falha ao consultar classificação: ${statsBody?.error || statsResponse.status()}`).toBeTruthy()

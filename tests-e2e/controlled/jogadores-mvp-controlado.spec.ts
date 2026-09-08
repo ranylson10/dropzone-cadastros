@@ -365,6 +365,7 @@ test.describe('Jogadores e MVP controlados — escalação, estatísticas e limp
 
       const statsResponse = await request.get(
         `${origin}/api/campeonatos/${encodeURIComponent(championshipId)}/estatisticas/equipes?partida_id=${encodeURIComponent(fallId)}`,
+        { headers: headers(produtoraToken, 'produtora') },
       )
       const statsBody = await json(statsResponse)
       expect(statsResponse.ok(), `Falha ao consultar classificação: ${statsBody?.error || statsResponse.status()}`).toBeTruthy()
@@ -377,6 +378,7 @@ test.describe('Jogadores e MVP controlados — escalação, estatísticas e limp
 
       const mvpResponse = await request.get(
         `${origin}/api/campeonatos/${encodeURIComponent(championshipId)}/estatisticas/mvp?partida_id=${encodeURIComponent(fallId)}`,
+        { headers: headers(produtoraToken, 'produtora') },
       )
       const mvpBody = await json(mvpResponse)
       expect(mvpResponse.ok(), `Falha ao consultar MVP: ${mvpBody?.error || mvpResponse.status()}`).toBeTruthy()

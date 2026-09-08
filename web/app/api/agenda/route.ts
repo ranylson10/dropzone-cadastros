@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const item = await createAgendaEvent(user.id, await req.json().catch(() => ({})))
-    return NextResponse.json({ ok: true, item })
+    return NextResponse.json({ ok: true, item }, { status: 201 })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao criar compromisso.' }, { status: 400 })
   }

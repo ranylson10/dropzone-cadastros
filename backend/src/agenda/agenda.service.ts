@@ -526,7 +526,11 @@ export async function deleteAgendaEvent(authUserId: string, id: string) {
   if (!existing) throw new Error('Evento não encontrado.')
   if (existing.auth_user_id !== authUserId) throw new Error('Você não pode excluir este evento.')
 
-  await assertCanManageChampionshipAgenda(authUserId, existing.campeonato_id)
+  // Eventos pessoais não possuem campeonato. A titularidade verificada acima é
+  // suficiente; a permissão de campeonato só se aplica aos eventos vinculados.
+  if (existing.campeonato_id) {
+    await assertCanManageChampionshipAgenda(authUserId, existing.campeonato_id)
+  }
 
   const { error } = await supabaseAdmin
     .from('agenda_eventos')
