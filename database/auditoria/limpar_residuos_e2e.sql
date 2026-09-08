@@ -23,7 +23,13 @@ where coalesce(nome_exibicao, '') ilike '%E2E%'
 delete from public.equipe_lines
 where coalesce(nome, '') ilike '%E2E%';
 
--- 3) Exclui fisicamente campeonatos E2E; dependências próprias caem pelas FKs.
+-- 3) Vendas assistidas usam ON DELETE RESTRICT e precisam sair antes do campeonato.
+delete from public.sistema_vendas_assistidas
+where campeonato_id in (
+  select id from public.campeonatos where coalesce(nome, '') ilike '[E2E]%'
+);
+
+-- 4) Exclui fisicamente campeonatos E2E; as demais dependências caem pelas FKs.
 delete from public.campeonatos
 where coalesce(nome, '') ilike '[E2E]%';
 
