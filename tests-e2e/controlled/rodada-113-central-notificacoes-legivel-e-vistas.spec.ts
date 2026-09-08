@@ -26,14 +26,14 @@ test('abrir a central registra visualização sem resolver convites pendentes', 
 
 test('central organiza tipo, título, texto e horário em hierarquia legível', () => {
   const source = read('web/components/notifications/NotificationBell.tsx')
-  const css = read('web/app/globals.css')
+  const css = read('web/app/system.css')
 
   expect(source).toContain('className="notif-inbox-kind"')
   expect(source).toContain('className="notif-inbox-title"')
   expect(source).toContain("<strong>Notificações</strong>")
   expect(source).toContain("'Tudo visto'")
-  expect(css).toContain('font-family: Arial,Helvetica,sans-serif')
-  expect(css).toContain('.notif-inbox-title{ display:block;')
+  expect(css).toContain('body .notif-inbox-kind{color:var(--ui-muted)}')
+  expect(css).toContain('body .notif-inbox-title{color:var(--ui-text)}')
 })
 
 test('somente itens novos recebem destaque visual sutil', () => {

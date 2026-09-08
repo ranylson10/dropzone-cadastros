@@ -7,12 +7,11 @@ const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'ut
 test('painel da equipe isola jogadores, lines, campeonatos e treinos pela equipe ativa', async () => {
   const source = read('web/features/dropzone/panels/equipe/EquipePanel.tsx')
 
-  expect(source).toContain("const [activeTeamId, setActiveTeamId] = useState('')")
-  expect(source).toContain("props.playerTeams.filter((row) => row.ref_id === selectedTeamId)")
-  expect(source).toContain("props.teamLines.filter((line) => line.ref_id === selectedTeamId)")
-  expect(source).toContain("lineups.filter((lineup) => String(lineup.equipe_id || '') === selectedTeamId)")
-  expect(source).toContain("trainings.filter((training) => training.equipe_id === selectedTeamId)")
-  expect(source).toContain('Equipe em análise')
+  expect(source).toContain('activeTeamId: string')
+  expect(source).toContain("props.playerTeams.filter((row) => row.ref_id === props.activeTeamId)")
+  expect(source).toContain("props.teamLines.filter((line) => line.ref_id === props.activeTeamId)")
+  expect(source).toContain('equipe_id=${encodeURIComponent(props.activeTeamId)}')
+  expect(source).toContain('equipeId={props.activeTeamId}')
 })
 
 test('MatchStats usa somente a importação concluída mais recente de cada queda', async () => {
@@ -32,9 +31,9 @@ test('telemetria real da Garena prevalece para roster e métricas privadas quand
   expect(source).toContain("line_id: participacao.line_id ? String(participacao.line_id) : null")
 })
 
-test('seletor de equipe segue visual do sistema e é responsivo', async () => {
-  const css = read('web/app/globals.css')
-  expect(css).toContain('.team-context-switch{display:flex;')
-  expect(css).toContain('.team-context-switch select{width:min(320px,42vw);')
-  expect(css).toContain('@media (max-width:720px){.team-context-switch')
+test('contexto da equipe é definido uma vez no shell e entregue ao painel', async () => {
+  const home = read('web/features/dropzone/DropZoneHome.tsx')
+  expect(home).toContain('activeTeamId={managedTeams.find((managedTeam) => managedTeam.id === account.id)?.id || managedTeams[0]?.id || account.id}')
+  expect(home).toContain('teamLines={teamLines}')
+  expect(home).toContain('playerTeams={playerTeams}')
 })

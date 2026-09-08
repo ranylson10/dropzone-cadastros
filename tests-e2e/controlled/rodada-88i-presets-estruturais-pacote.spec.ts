@@ -27,7 +27,7 @@ test.describe('Rodada 88I — presets estruturais compartilhados do pacote', () 
   test('editor aplica preset substituindo a origem compartilhada da tabela', () => {
     const editor = source('web/features/campeonatos/stream/components/StreamPackageEditor.tsx')
     expect(editor).toContain('function applyTablePreset')
-    expect(editor).toContain('table: structuredClone(preset.values)')
+    expect(editor).toContain('table: { ...structuredClone(preset.values), columnStyles: prev.shared_config.table.columnStyles }')
     expect(editor).toContain('Presets de tabela')
   })
 

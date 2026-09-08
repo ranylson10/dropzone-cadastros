@@ -6,6 +6,7 @@ const root = process.cwd()
 const loginPage = fs.readFileSync(path.join(root, 'web/app/login/page.tsx'), 'utf8')
 const resetPage = fs.readFileSync(path.join(root, 'web/app/atualizar-senha/page.tsx'), 'utf8')
 const styles = fs.readFileSync(path.join(root, 'web/app/globals.css'), 'utf8')
+const compactStyles = styles.replace(/\s+/g, '')
 
 test('102 - cadastro confirma conta com código OTP de 6 dígitos dentro do DropZone', async () => {
   expect(loginPage).toContain("setEmailMode('confirmar-cadastro')")
@@ -58,6 +59,6 @@ test('102 - campo OTP usa teclado numérico e estilo existente do login', async 
   expect(loginPage).toContain('autoComplete="one-time-code"')
   expect(loginPage).toContain('maxLength={6}')
   expect(styles).toContain('.login-otp-field input{')
-  expect(styles).toContain('letter-spacing: .34em;')
+  expect(compactStyles).toContain('letter-spacing:.34em')
   expect(styles).not.toContain('.password-reset-card{')
 })

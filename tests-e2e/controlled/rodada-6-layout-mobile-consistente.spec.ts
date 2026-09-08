@@ -22,7 +22,7 @@ test.describe('Rodada 6 — largura mobile consistente entre home e campeonatos'
   test('mobile respeita dez pixels de respiro lateral', () => {
     const css = read('web/features/directory/components/championship-directory.css')
     expect(css).toContain('.directory-champ-card-grid{grid-template-columns:1fr;gap:7px;width:calc(100% - 20px)}')
-    expect(css).toContain('.champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto;width:calc(100% - 20px)')
+    expect(css).toContain('.champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto auto;width:calc(100% - 20px)')
     expect(css).toContain('.directory-market-filters{width:calc(100% - 20px)')
     expect(css).toContain('left:10px;right:10px')
   })

@@ -17,18 +17,16 @@ test.describe('Rodada 87F — fases e tabelas competitivas', () => {
 
   test('tabela geral mostra somente grupo, quedas, booyah, abates e pontos', () => {
     const component = source('web/features/campeonatos/estatisticas/components/CampeonatoEstatisticasTab.tsx')
-    expect(component).toContain('title="Grupo">GP')
-    expect(component).toContain('title="Quedas">QD')
-    expect(component).toContain('title="Booyah">B!')
-    expect(component).toContain('title="Abates">KILL')
-    expect(component).toContain('title="Pontos">PTS')
+    expect(component).toContain('<span>Equipe</span><span>QD</span><span>B!</span><span>K</span><span>PTS</span>')
+    expect(component).toContain('row.tag || `Grupo ${groupCode(row.grupo_id, props.groups)}`')
     expect(component).not.toContain('<th>P. posição</th>')
     expect(component).not.toContain('<th>P. abates</th>')
   })
 
   test('MVP mostra somente quedas, KD e abates', () => {
     const component = source('web/features/campeonatos/estatisticas/components/CampeonatoEstatisticasTab.tsx')
-    expect(component).toContain('title="Abates por queda">K.D')
+    expect(component).toContain('<small>K.D</small>')
+    expect(component).toContain('<small>KILLS</small>')
     expect(component).toContain('kdValue(row.abates, row.quedas)')
     expect(component).not.toContain('<th>Dano</th>')
     expect(component).not.toContain('<th>Assist.</th>')

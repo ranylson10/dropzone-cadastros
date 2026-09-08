@@ -15,10 +15,10 @@ test.describe('Rodada 88E — limpeza definitiva do editor livre', () => {
     expect(api).toContain('normalizeStreamOverlayPackage')
   })
 
-  test('aba Stream aponta apenas para pacote e não lista editor antigo', () => {
+  test('aba Stream aponta para o app local e não lista editor antigo', () => {
     const tab = source('web/features/campeonatos/stream/components/CampeonatoStreamTab.tsx')
-    expect(tab).toContain('O pacote de overlays é a única origem visual da transmissão')
-    expect(tab).toContain('Abrir pacote')
+    expect(tab).toContain('O editor de artes e overlays permanece no app local.')
+    expect(tab).toContain('App local')
     expect(tab).not.toContain('listOverlays')
     expect(tab).not.toContain('deleteOverlayRemote')
     expect(tab).not.toContain('share_token')

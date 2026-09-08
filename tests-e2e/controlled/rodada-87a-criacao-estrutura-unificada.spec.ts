@@ -6,12 +6,13 @@ const root = process.cwd()
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 
 test.describe('Rodada 87A — criação guiada e estrutura unificada', () => {
-  test('formulário usa etapas, temporada e revisão antes da criação', () => {
+  test('formulário usa etapas próprias por formato e revisão antes da criação', () => {
     const source = read('web/components/forms/campeonato/CampeonatoForm.tsx')
-    expect(source).toContain("{ id: 'identity', label: 'Identidade' }")
-    expect(source).toContain("{ id: 'season', label: 'Temporada' }")
-    expect(source).toContain("{ id: 'format', label: 'Formato' }")
-    expect(source).toContain("{ id: 'operation', label: 'Operação' }")
+    expect(source).toContain('const wizardPages:')
+    expect(source).toContain("value.tipo === 'copa'")
+    expect(source).toContain("value.tipo === 'diario'")
+    expect(source).toContain("{ id: 'format' as const, label: 'Fases e grupos' }")
+    expect(source).toContain("{ id: 'operation', label: 'Vagas e prêmio' }")
     expect(source).toContain("{ id: 'review', label: 'Revisão' }")
     expect(source).toContain('Nome histórico da competição')
     expect(source).toContain('Season / temporada')
@@ -23,7 +24,7 @@ test.describe('Rodada 87A — criação guiada e estrutura unificada', () => {
     const panel = read('web/features/dropzone/panels/produtora/ProdutoraPanel.tsx')
     const workspace = read('web/features/campeonatos/estrutura-avancada/CampeonatoStructureWorkspace.tsx')
 
-    expect(tabs).toContain("{ id: 'grupos', label: 'Grupos e fases' }")
+    expect(tabs).toContain("{ id: 'grupos', label: 'Grupos e slots' }")
     expect(tabs).not.toContain("id: 'estrutura_avancada'")
     expect(panel).toContain("rawSection === 'estrutura' || rawSection === 'estrutura_avancada' ? 'grupos'")
     expect(panel).toContain("tab === 'grupos'")

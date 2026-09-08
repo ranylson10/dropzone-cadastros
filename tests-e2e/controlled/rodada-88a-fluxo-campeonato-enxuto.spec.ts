@@ -6,7 +6,7 @@ const root = process.cwd()
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 
 test.describe('Rodada 88A — fluxo enxuto do campeonato', () => {
-  test('painel da produtora abre em visão geral e guarda ferramentas avançadas', () => {
+  test('painel da produtora abre em visão geral e expõe todas as ferramentas', () => {
     const tabs = read('web/features/dropzone/panels/produtora/producer-tabs.ts')
     const panel = read('web/features/dropzone/panels/produtora/ProdutoraPanel.tsx')
 
@@ -14,10 +14,10 @@ test.describe('Rodada 88A — fluxo enxuto do campeonato', () => {
     expect(tabs).toContain("{ id: 'visao', label: 'Visão geral' }")
     expect(tabs).toContain("{ id: 'estatisticas', label: 'Pontuação' }")
     expect(panel).toContain("useState<ProducerTab>('visao')")
-    expect(panel).toContain("const mainTabs: ProducerTab[] = ['visao', 'equipes', 'grupos', 'jogos', 'estatisticas', 'stream']")
-    expect(panel).toContain('Mais ferramentas')
+    expect(panel).toContain('{producerTabs')
+    expect(panel).toContain('.map((item) => (')
     expect(panel).toContain('champ-subtabs-primary')
-    expect(panel).toContain('champ-subtabs-more')
+    expect(panel).not.toContain('champ-subtabs-more')
   })
 
   test('visão geral oferece atalhos e checklist operacional', () => {
@@ -26,7 +26,7 @@ test.describe('Rodada 88A — fluxo enxuto do campeonato', () => {
 
     expect(panel).toContain('Monte e opere o campeonato por etapas.')
     expect(panel).toContain('Grupos e fases')
-    expect(panel).toContain('Adicionar equipes')
+    expect(panel).toContain('Inscrever equipes')
     expect(panel).toContain('Criar jogo')
     expect(panel).toContain('Abrir pontuador')
     expect(panel).toContain('Gerar link')

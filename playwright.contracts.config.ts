@@ -6,8 +6,9 @@ const baseURL = process.env.E2E_BASE_URL?.trim() || 'https://www.dpzone.site'
 const controlledDir = resolve(process.cwd(), 'tests-e2e', 'controlled')
 
 function controlledSpecs() {
-  if (!existsSync(controlledDir)) return { staticSpecs: [] as string[], runtimeSpecs: [] as string[], removedSpecs: [] as string[] }
+  if (!existsSync(controlledDir)) return { staticSpecs: [] as string[], nativeMobileSpecs: [] as string[], runtimeSpecs: [] as string[], removedSpecs: [] as string[] }
   const staticSpecs: string[] = []
+  const nativeMobileSpecs: string[] = []
   const runtimeSpecs: string[] = []
   const removedSpecs: string[] = []
 
@@ -18,6 +19,11 @@ function controlledSpecs() {
 
       if (/artes-postagem|PostArtworkWorkspace|post-artworks\.css/.test(source)) {
         removedSpecs.push(pattern)
+        continue
+      }
+
+      if (name.startsWith('mobile-') || (/app\/src\//.test(source) && !/web\/app\//.test(source))) {
+        nativeMobileSpecs.push(pattern)
         continue
       }
 
@@ -32,10 +38,10 @@ function controlledSpecs() {
     }
   }
 
-  return { staticSpecs, runtimeSpecs, removedSpecs }
+  return { staticSpecs, nativeMobileSpecs, runtimeSpecs, removedSpecs }
 }
 
-const { staticSpecs, runtimeSpecs, removedSpecs } = controlledSpecs()
+const { staticSpecs, nativeMobileSpecs, runtimeSpecs, removedSpecs } = controlledSpecs()
 
 export default defineConfig({
   testDir: './tests-e2e',
@@ -62,6 +68,10 @@ export default defineConfig({
     {
       name: 'contracts-static',
       testMatch: staticSpecs,
+    },
+    {
+      name: 'contracts-native-mobile',
+      testMatch: nativeMobileSpecs,
     },
     {
       name: 'contracts-runtime-desktop',

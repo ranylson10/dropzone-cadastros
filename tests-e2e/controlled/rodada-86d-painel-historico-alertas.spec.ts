@@ -16,7 +16,7 @@ test.describe('Rodada 86D — painel e histórico dos alertas', () => {
     expect(route).toContain('alterado_por_email')
     expect(component).toContain('Marcar novos como lidos')
     expect(component).toContain('Exportar alertas CSV')
-    expect(component).toContain('Histórico de mudanças')
+    expect(component).toContain('Histórico de alertas')
     expect(component).toContain('Todas as prioridades')
     expect(migration).toContain('campeonato_alerta_historico')
   })

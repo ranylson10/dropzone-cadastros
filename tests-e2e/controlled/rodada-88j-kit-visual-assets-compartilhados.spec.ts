@@ -15,7 +15,7 @@ test.describe('Rodada 88J — kit visual e assets compartilhados', () => {
 
   test('editor trata arquivos como kit visual compartilhado', () => {
     const editor = source('web/features/campeonatos/stream/components/StreamPackageEditor.tsx')
-    expect(editor).toContain("label: 'Kit visual'")
+    expect(editor).toContain("label: 'Artes do pacote'")
     expect(editor).toContain('Kit visual compartilhado')
     expect(editor).toContain('Nenhuma overlay cria cópia própria do arquivo.')
   })

@@ -29,14 +29,16 @@ test.describe('Rodada 88A — pacote de overlays compartilhado', () => {
     expect(types).toContain('event_logo')
   })
 
-  test('workspace usa editor de pacote e interrompe criação avulsa pelo fluxo principal', () => {
+  test('workspace encaminha o pacote ao app local e interrompe criação avulsa pelo site', () => {
     const workspace = source('web/features/campeonatos/stream/components/StreamWorkspace.tsx')
     const tab = source('web/features/campeonatos/stream/components/CampeonatoStreamTab.tsx')
     const index = source('web/features/campeonatos/stream/index.ts')
 
-    expect(workspace).toContain('StreamPackageEditor')
+    expect(workspace).toContain('LocalStudioHandoff')
+    expect(workspace).toContain('kind="live"')
     expect(workspace).not.toContain('/overlays/novo')
-    expect(tab).toContain('Abrir pacote')
+    expect(tab).toContain('App local')
+    expect(tab).toContain('editor de artes e overlays permanece no app local')
     expect(tab).not.toContain('Nova overlay')
     expect(index).not.toContain('StreamOverlaysHub')
   })

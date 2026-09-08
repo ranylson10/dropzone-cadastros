@@ -49,7 +49,7 @@ test('100 - gestão individual mantém informações, lines, jogadores, convites
   expect(panel).toContain('Salvar line')
   expect(panel).toContain('Jogadores e convites')
   expect(panel).toContain('openLine(line, true)')
-  expect(panel).toContain('Buscar equipe, TAG ou localidade')
+  expect(panel).toContain('Buscar por ID, equipe, TAG ou localidade')
 })
 
 test('100 - reivindicação autenticada assume a equipe sem recriar seu histórico', async () => {

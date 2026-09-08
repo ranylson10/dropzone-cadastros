@@ -23,10 +23,10 @@ test.describe('Rodada 41 — análise por período', () => {
     expect(source).toContain("type TrainingPerformancePeriod = 'all' | '5' | '10' | '20'")
     expect(source).toContain('scopeTrainingPeriod')
     expect(source).toContain('buildTrainingPeriodKpis')
-    expect(source).toContain('const analyzedTraining = scopeTrainingPeriod(training, trainingPerformancePeriod)')
+    expect(source).toContain('const analyzedTraining = filterTrainingByMap(scopeTrainingPeriod(training, trainingPerformancePeriod), trainingMapFilter)')
     expect(source).toContain('buildTrainingObjectiveReading(analyzedTraining)')
     expect(source).toContain('analyzedTraining.quedas_detalhe.map')
-    expect(source).toContain('Período analisado')
+    expect(source).toContain("trainingPerformancePeriod === 'all' ? 'Período completo' : `Últimas ${trainingPerformancePeriod}`")
   })
 
   test('filtro permanece compacto no desktop e app-like no mobile', async () => {

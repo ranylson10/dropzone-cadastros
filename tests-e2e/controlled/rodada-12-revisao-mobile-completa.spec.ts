@@ -15,7 +15,7 @@ test.describe('Rodada 12 — revisão mobile completa', () => {
 
   test('áreas autenticadas não podem ampliar a viewport horizontal', () => {
     const css = read('web/app/globals.css')
-    expect(css).toContain('.page-authenticated{ min-width: 0; overflow-x: clip;')
+    expect(css).toContain('.page-authenticated{ padding-top: 0; min-width: 0; overflow-x: clip;')
     expect(css).toContain('.page-authenticated .content-shell,')
     expect(css).toContain('.page-authenticated .page{ min-width: 0; max-width: 100%;')
     expect(css).toContain('overflow-x: clip;')

@@ -11,15 +11,14 @@ test.describe('Rodada 36 — gráficos privados do XTreino', () => {
     expect(panel).toContain('buildTrainingAnalytics')
     expect(panel).toContain('drop.jogadores_detalhados')
     expect(panel).toContain('sobrevivencia_segundos')
-    expect(panel).toContain('Evolução do treino')
+    expect(panel).toContain('Evolução operacional')
   })
 
-  test('mostra gráficos de colocação kills dano e sobrevivência', () => {
+  test('mostra os gráficos operacionais essenciais de colocação kills e dano', () => {
     const panel = source('web/features/dropzone/panels/equipe/EquipePanel.tsx')
     expect(panel).toContain('title="Colocação"')
     expect(panel).toContain('title="Kills"')
     expect(panel).toContain('title="Dano"')
-    expect(panel).toContain('title="Sobrevivência"')
     expect(panel).toContain('lowerIsBetter')
   })
 

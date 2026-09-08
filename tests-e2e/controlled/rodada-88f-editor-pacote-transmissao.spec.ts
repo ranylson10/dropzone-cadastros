@@ -8,12 +8,12 @@ const source = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 test.describe('Rodada 88F — editor real do pacote de transmissão', () => {
   test('editor organiza overlays, configuração compartilhada e preview no mesmo workbench', () => {
     const editor = source('web/features/campeonatos/stream/components/StreamPackageEditor.tsx')
-    expect(editor).toContain('Editor de transmissão')
+    expect(editor).toContain('aria-label="Editor do pacote de overlays"')
     expect(editor).toContain('Overlays do pacote')
     expect(editor).toContain('EDITOR_PANELS')
-    expect(editor).toContain('stream-package-editor-grid')
+    expect(editor).toContain('stream-package-workbench')
     expect(editor).toContain('StreamPackageStage')
-    expect(editor).toContain('Preview ao vivo do editor')
+    expect(editor).toContain('aria-label="Ferramentas do palco"')
   })
 
   test('configurações compartilhadas aparecem uma vez por categoria', () => {

@@ -6,10 +6,11 @@ const root = path.resolve(__dirname, '../..')
 const types = fs.readFileSync(path.join(root, 'web/features/campeonatos/stream/types/stream-package.types.ts'), 'utf8')
 const publicService = fs.readFileSync(path.join(root, 'web/features/campeonatos/stream/services/stream-package-public.service.ts'), 'utf8')
 const tab = fs.readFileSync(path.join(root, 'web/features/campeonatos/stream/components/CampeonatoStreamTab.tsx'), 'utf8')
+const streamTypes = fs.readFileSync(path.join(root, 'web/features/campeonatos/stream/types/stream.types.ts'), 'utf8')
 
 test('91G overlays deixam claro que a fonte dinâmica é o jogo da live', async () => {
-  expect(tab).toContain('Jogo da live · fonte das estatísticas')
-  expect(tab).toContain('active_jogo_id: jogoVal')
+  expect(streamTypes).toContain('vazio = jogo ativo da live (auto / pack)')
+  expect(tab).toContain('O editor de artes e overlays permanece no app local.')
 })
 
 test('91G MVP e booyahs usam o jogo ativo da transmissão', async () => {

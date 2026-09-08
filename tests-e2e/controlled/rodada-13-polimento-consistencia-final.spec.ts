@@ -12,12 +12,12 @@ test.describe('Rodada 13 — polimento e consistência final', () => {
     expect(css).not.toContain('box-shadow:0 18px 44px')
     expect(css).not.toContain('backdrop-filter:blur(4px)')
     expect(css).not.toContain('background:#fff;border-top:3px solid')
-    expect(css).toContain('background:var(--ui-surface,#141518)')
+    expect(css).toContain('--home-surface:var(--ui-surface,#141518)')
   })
 
   test('ação principal da oportunidade segue o dourado do sistema', () => {
     const css = read('web/features/home/authenticated-home.css')
-    expect(css).toContain('background:var(--ui-primary,#c9b766);color:#111214')
+    expect(css).toContain('background:var(--home-accent);color:#11120f')
   })
 
   test('calls abandona controles brancos e painéis cinza antigos', () => {

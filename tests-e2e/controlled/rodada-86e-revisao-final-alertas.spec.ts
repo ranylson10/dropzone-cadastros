@@ -24,7 +24,7 @@ test.describe('Rodada 86E — revisão final dos alertas inteligentes', () => {
     expect(component).toContain('Marcar novos como lidos')
     expect(component).toContain('Exportar alertas CSV')
     expect(component).toContain('Exportar histórico CSV')
-    expect(component).toContain('Histórico de mudanças')
+    expect(component).toContain('Histórico de alertas')
     expect(component).toContain('Todas as prioridades')
     expect(component).toContain('Todas as categorias')
     expect(component).toContain('Todos os escopos')

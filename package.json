@@ -45,7 +45,8 @@
     "desktop:package:win": "npm --prefix desktop run package:win",
     "test:e2e:total": "playwright test --config=playwright.total.config.ts",
     "test:e2e:total:headed": "playwright test --config=playwright.total.config.ts --headed",
-    "test:e2e:contracts": "playwright test --config=playwright.contracts.config.ts"
+    "test:e2e:contracts": "playwright test --config=playwright.contracts.config.ts --project=contracts-static --project=contracts-runtime-desktop --project=contracts-runtime-mobile",
+    "test:e2e:contracts:mobile-native": "playwright test --config=playwright.contracts.config.ts --project=contracts-native-mobile"
   },
   "devDependencies": {
     "depcheck": "^1.4.7",

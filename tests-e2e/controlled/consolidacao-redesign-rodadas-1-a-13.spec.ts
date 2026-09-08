@@ -12,9 +12,9 @@ test.describe('Consolidação cumulativa — Rodadas 1 a 13',()=>{
     expect(css).toContain('--ui-accent: #c9b766')
     expect(css).toContain('.system-modal{ --surface: var(--ui-surface)')
     expect(css).toContain('background: var(--ui-surface); color: var(--ui-text); box-shadow: none')
-    expect(form).toContain('<span className="championship-step-index">1 de 2</span>')
+    expect(form).toContain('<span className="championship-step-index">Criação guiada</span>')
     expect(form).toContain('<h3>Escolha o formato</h3>')
-    expect(form).toContain('<strong>Nova edição</strong>')
+    expect(form).toContain('<strong>Criar nova season</strong>')
     expect(css).not.toContain('backdrop-filter: blur(9px)')
   })
 

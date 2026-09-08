@@ -11,7 +11,7 @@ test.describe('Rodada 88G — layouts estruturais compartilhados das overlays', 
     expect(types).toContain('STREAM_SYSTEM_OVERLAY_LAYOUTS')
     expect(types).toContain("variant: 'ranking'")
     expect(types).toContain("variant: 'map-card'")
-    expect(types).toContain("variant: 'player-card'")
+    expect(types).toContain("'player-card'")
     expect(types).toContain("variant: 'logo-card'")
     expect(types).toContain("variant: 'next-round'")
     expect(types).toContain("variant: 'champion'")

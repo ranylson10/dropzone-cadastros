@@ -14,7 +14,7 @@ test('94 - cadastro em bloco aceita colagem de planilha e só grava ao confirmar
   expect(panel).toContain("line.includes('|')")
   expect(panel).toContain("line.includes(';')")
   expect(panel).toContain('Nada é salvo até você confirmar.')
-  expect(panel).toContain('Criar {preview.length')
+  expect(panel).toContain('Criar {bulkRows.length')
   expect(migration).toContain('jsonb_array_length(p_equipes) > 100')
 })
 

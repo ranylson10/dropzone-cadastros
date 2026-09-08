@@ -5,6 +5,7 @@ import path from 'node:path'
 const root = process.cwd()
 const loginPage = fs.readFileSync(path.join(root, 'web/app/login/page.tsx'), 'utf8')
 const styles = fs.readFileSync(path.join(root, 'web/app/globals.css'), 'utf8')
+const compactStyles = styles.replace(/\s+/g, '')
 const smoke = fs.readFileSync(path.join(root, 'scripts/testes/test-auth-email-delivery.mjs'), 'utf8')
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 
@@ -39,7 +40,8 @@ test('103 - Google fica visualmente secundário abaixo do divisor', async () => 
 })
 
 test('103 - ações auxiliares continuam compactas no mobile', async () => {
-  expect(styles).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.login-email-actions\{grid-template-columns:\s*1fr\}/i)
+  expect(compactStyles).toContain('@media(max-width:640px)')
+  expect(compactStyles).toContain('.login-email-actions,.login-existing-account-actions{grid-template-columns:1fr}')
 })
 
 test('103 - smoke test real verifica Supabase, Resend e evento de entrega sem gravar segredo', async () => {

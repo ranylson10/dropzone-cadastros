@@ -28,7 +28,7 @@ test('93 - link pode assumir equipe ou incorporar histórico em equipe existente
   expect(migration).toContain('update public.campeonato_jogadores')
   expect(migration).toContain("set status = 'incorporada'")
   expect(claimPage).toContain('Assumir equipe')
-  expect(claimPage).toContain('Incorporar line histórica')
+  expect(claimPage).toContain('Incorporar histórico da equipe')
   expect(claimPage).toContain('Usar outra conta')
 })
 

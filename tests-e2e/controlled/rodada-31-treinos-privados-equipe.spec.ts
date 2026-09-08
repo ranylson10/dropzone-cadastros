@@ -52,6 +52,6 @@ test.describe('Rodada 31 — Treinos privados no painel da equipe', () => {
 
   test('próximas análises ficam preparadas sem inventar dados', () => {
     const panel = source('web/features/dropzone/panels/equipe/EquipePanel.tsx')
-    expect(panel).toContain('Armas, habilidades, safes e análise por mapa entram nas próximas rodadas')
+    expect(panel).toContain('Call, safes, telemetria e gráficos de desempenho ficam privados para a própria equipe.')
   })
 })

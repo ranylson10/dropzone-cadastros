@@ -6838,6 +6838,14 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 }
 .championship-wizard-actions{ position: sticky; bottom: 0; z-index: 4; justify-content: flex-end; gap: 8px; padding: 12px 0; background: var(--surface); border: 0;
 }
+.championship-form-stack{position:relative}.championship-create-status{position:absolute;inset:0;z-index:12;display:grid;place-items:center;padding:20px;background:rgba(8,10,12,.84)}
+.championship-create-status-card{width:min(420px,100%);display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;padding:22px;border:1px solid var(--ui-line);border-top:3px solid var(--ui-accent);background:var(--ui-surface-raised);color:var(--ui-text)}
+.championship-create-status-icon{display:grid;place-items:center;color:var(--ui-accent)}
+.championship-create-status-copy{display:grid;gap:4px}.championship-create-status-copy strong{font-size:14px;text-transform:uppercase}.championship-create-status-copy span{color:var(--ui-text-muted);font-size:11px}
+.championship-create-progress{grid-column:1/-1;height:4px;overflow:hidden;background:rgba(255,255,255,.08)}.championship-create-progress span{display:block;height:100%;background:var(--ui-accent);transition:width .3s ease}
+.championship-create-status.success .championship-create-status-card{animation:championshipCreateSuccess .28s ease-out}.championship-create-status.success .championship-create-status-icon{color:#67d69b}
+@keyframes championshipCreateSuccess{from{opacity:.45;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
+@media(max-width:640px){.championship-create-status{padding:10px}.championship-create-status-card{padding:18px}}
 
 @media (max-width: 700px){
   .system-modal-backdrop{ padding: 0; align-items: stretch;

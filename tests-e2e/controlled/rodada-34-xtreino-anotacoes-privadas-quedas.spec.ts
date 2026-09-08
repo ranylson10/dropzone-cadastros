@@ -46,9 +46,9 @@ test.describe('Rodada 34 — anotações privadas por queda do XTreino', () => {
     expect(route).toContain('playersByDrop')
     expect(route).toContain('row.partida_id')
     expect(route).toContain('quedas_detalhe')
-    expect(route).toContain('dano: dropPlayers.reduce')
-    expect(route).toContain('assistencias: dropPlayers.reduce')
-    expect(route).toContain('revives: dropPlayers.reduce')
+    expect(route).toContain('dano: (garenaPlayers.length ? garenaPlayers : dropPlayers).reduce')
+    expect(route).toContain('assistencias: (garenaPlayers.length ? garenaPlayers : dropPlayers).reduce')
+    expect(route).toContain('revives: (garenaPlayers.length ? garenaPlayers : dropPlayers).reduce')
   })
 
   test('painel da equipe permite anotar cada queda sem expor para outras equipes', () => {

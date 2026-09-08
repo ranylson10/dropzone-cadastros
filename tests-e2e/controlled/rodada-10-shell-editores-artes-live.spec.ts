@@ -19,11 +19,12 @@ test.describe('Rodada 10 — shell da transmissão ao vivo', () => {
     expect(css).toContain('.stream-package-header-tabs button.active{background:var(--ui-primary,#c9b766);color:#111214}')
   })
 
-  test('mantém editor, planilha e pacote de transmissão conectados', () => {
-    const source = read('web/features/campeonatos/stream/components/StreamWorkspace.tsx')
-    expect(source).toContain('<StreamPackageEditor campeonatoId={props.campeonatoId} />')
-    expect(source).toContain('<StreamSpreadsheetPanel')
-    expect(source).toContain('triggerLabel="Dados"')
-    expect(source).toContain('Transmissão ao vivo')
+  test('mantém dados no site e encaminha o editor para o aplicativo local', () => {
+    const workspace = read('web/features/campeonatos/stream/components/StreamWorkspace.tsx')
+    const tab = read('web/features/campeonatos/stream/components/CampeonatoStreamTab.tsx')
+    expect(workspace).toContain('<LocalStudioHandoff campeonatoId={props.campeonatoId} kind="live" />')
+    expect(tab).toContain('<StreamSpreadsheetPanel')
+    expect(tab).toContain('triggerLabel="Dados"')
+    expect(tab).toContain('O editor de artes e overlays permanece no app local.')
   })
 })

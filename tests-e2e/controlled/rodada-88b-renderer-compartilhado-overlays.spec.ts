@@ -18,9 +18,10 @@ test.describe('Rodada 88B — renderer compartilhado do pacote de overlays', () 
 
   test('tabelas reutilizam os mesmos assets do pacote por papel de coluna', () => {
     const stage = source('web/features/campeonatos/stream/components/StreamPackageStage.tsx')
-    for (const asset of ['table_row_bg', 'table_rank_bg', 'table_logo_bg', 'table_name_bg', 'table_stat_bg', 'table_points_bg']) {
-      expect(stage).toContain(`'${asset}'`)
-    }
+    const types = source('web/features/campeonatos/stream/types/stream-package.types.ts')
+    for (const asset of ['table_row_bg', 'table_rank_bg', 'table_logo_bg', 'table_name_bg', 'table_stat_bg', 'table_points_bg']) expect(types).toContain(`'${asset}'`)
+    expect(stage).toContain('resolveStreamAsset')
+    expect(stage).toContain('style.assetKey')
     expect(stage).toContain("mode === 'single'")
     expect(stage).toContain('Math.ceil(items.length / 2)')
   })
@@ -28,7 +29,7 @@ test.describe('Rodada 88B — renderer compartilhado do pacote de overlays', () 
   test('editor usa o renderer compartilhado no preview e permite escolher colunas', () => {
     const editor = source('web/features/campeonatos/stream/components/StreamPackageEditor.tsx')
     expect(editor).toContain('StreamPackageStage')
-    expect(editor).toContain('Preview ao vivo do editor')
+    expect(editor).toContain('aria-label="Ferramentas do palco"')
     expect(editor).toContain('Campos exibidos')
     expect(editor).toContain('STREAM_OVERLAY_COLUMN_META')
   })

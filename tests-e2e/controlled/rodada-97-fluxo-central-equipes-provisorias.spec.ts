@@ -8,7 +8,7 @@ const css = fs.readFileSync(path.join(root, 'web/features/produtoras/components/
 
 test('97 - central permite buscar rapidamente equipes provisórias por nome tag ou localidade', async () => {
   expect(panel).toContain("const [query, setQuery] = useState('')")
-  expect(panel).toContain('Buscar equipe, TAG ou localidade')
+  expect(panel).toContain('Buscar por ID, equipe, TAG ou localidade')
   expect(panel).toContain('visibleTeams.map')
   expect(panel).toContain('team.localidade')
 })

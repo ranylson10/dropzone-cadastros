@@ -88,7 +88,7 @@ test.describe('Rodada 3 — componentes básicos', () => {
     expect(css).toContain('.championship-type-card + .championship-type-card{ border-top: 1px solid rgba(245,243,237,.08);')
     expect(css).toContain('.championship-type-format{ max-width: 190px; padding: 0; border: 0; border-radius: 0; background: transparent;')
 
-    expect(form).toContain('<span className="championship-step-index">1 de 2</span>')
+    expect(form).toContain('<span className="championship-step-index">Criação guiada</span>')
     expect(form).toContain('<h3>Escolha o formato</h3>')
     expect(form).not.toContain('O tipo define o formato inicial e ajuda o sistema a preparar a estrutura correta.')
     expect(form).toContain('className="championship-type-actions"')
@@ -110,8 +110,8 @@ test.describe('Rodada 3 — componentes básicos', () => {
 
     expect(form).toContain("· {currentPageIndex + 1} de {wizardPages.length}</strong>")
     expect(form).toContain("<span>{String(index + 1).padStart(2, '0')}</span>{page.label}")
-    expect(form).toContain('<p className="eyebrow">Origem</p>')
-    expect(form).toContain('<strong>Nova edição</strong>')
+    expect(form).toContain('<span>Passo 1 · Como começar</span>')
+    expect(form).toContain('<strong>Criar nova season</strong>')
     expect(form).toContain('<Field label="Nome">')
     expect(form).not.toContain('<p className="eyebrow">Dados obrigatórios</p>')
     expect(form).not.toContain('Você preencherá apenas os campos necessários para o tipo escolhido.')

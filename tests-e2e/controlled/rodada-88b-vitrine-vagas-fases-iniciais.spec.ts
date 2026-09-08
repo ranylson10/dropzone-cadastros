@@ -54,7 +54,7 @@ test.describe('Rodada 88B — vitrine de vagas e fases iniciais', () => {
     expect(shell).toContain("nomes_fases: ['Fase 1']")
 
     expect(producer).toContain('createInitialPhases')
-    expect(producer).toContain("action: 'create_phase'")
+    expect(producer).toContain("action: 'create_bulk', fases: phasePayload")
     expect(producer).toContain('await createInitialPhases(created.id, resolvedChampionship)')
     expect(producer).toContain('reloadStructure')
   })
