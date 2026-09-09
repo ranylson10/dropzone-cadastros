@@ -38,7 +38,8 @@ test('127 - atalhos internos antigos da Lili continuam abrindo o perfil vinculad
 
 test('127 - conta nova continua o convite criando apenas o perfil solicitado', () => {
   expect(login).toContain('function continueWithoutProfile()')
-  expect(login).toContain("window.location.replace(profileType ? buildProfileCreationHref(profileType, returnTo) : returnTo)")
+  expect(login).toContain('window.location.replace(buildProfileCreationHref(profileType, returnTo))')
+  expect(login).toContain('window.location.replace(returnTo)')
   expect(login).toContain('continueWithoutProfile()')
   expect(vacancies).toContain('<SocialLogin profileType="equipe" returnTo={returnTo} />')
   expect(purchase).toContain('<SocialLogin profileType="equipe" returnTo={returnTo} />')

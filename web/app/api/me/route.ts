@@ -30,10 +30,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const accounts = await withTimeout(getAccountsForUser(user), 4_000)
+    const identity = {
+      id: user.id,
+      email: user.email,
+      name: String(user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Conta DropZone'),
+    }
     if (!accounts.length) {
       return NextResponse.json(
-        { user: { id: user.id, email: user.email }, account: null, accounts: [] },
-        { status: 404 },
+        { user: identity, account: null, accounts: [] },
+        { headers: { 'Cache-Control': 'no-store' } },
       )
     }
 
@@ -42,7 +47,7 @@ export async function GET(req: NextRequest) {
     const account = clientAccounts.find((item) => item.profile_type === requested) || clientAccounts[0]
 
     return NextResponse.json({
-      user: { id: user.id, email: user.email },
+      user: identity,
       account,
       accounts: clientAccounts,
     }, { headers: { 'Cache-Control': 'no-store' } })

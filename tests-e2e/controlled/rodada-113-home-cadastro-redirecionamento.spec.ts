@@ -24,13 +24,15 @@ test.describe('Rodada 113 — entrada, cadastro e destino autenticado', () => {
     expect(login).toContain("else if (createRequested) setEmailMode('criar')")
   })
 
-  test('conta sem perfil não retorna à home pública e administrador abre o painel', async () => {
+  test('conta autenticada entra na home sem seletor obrigatório de perfil', async () => {
     const login = read('web/app/login/page.tsx')
     const home = read('web/features/dropzone/DropZoneHome.tsx')
+    const publicHome = read('web/features/home/PublicChampionshipHome.tsx')
 
-    expect(login).toContain("window.location.replace(returnTo === '/' ? '/admin' : returnTo)")
-    expect(login).toContain("const accessParams = new URLSearchParams({ acesso: '1' })")
-    expect(home).toContain("const wantsAccessSelection = params.get('acesso') === '1'")
-    expect(home).toContain('setShowAccess(wantsAccessSelection)')
+    expect(login).toContain('window.location.replace(returnTo)')
+    expect(login).not.toContain("new URLSearchParams({ acesso: '1' })")
+    expect(home).not.toContain('Quem vai entrar?')
+    expect(home).toContain('authenticatedUser={authIdentity}')
+    expect(publicHome).toContain('Conta conectada')
   })
 })

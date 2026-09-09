@@ -5107,6 +5107,9 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 } .public-home-header .public-home-nav a{ color: white; padding: 24px 13px 21px; font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; border-bottom: 3px solid transparent;
 } .public-home-header .public-home-nav a:hover{ border-color: var(--dz-accent);
 } .public-home-auth-actions{ display:flex;align-items:center;gap:8px;margin-left:auto;
+} .public-home-account{display:flex;flex-direction:column;align-items:flex-end;max-width:220px;line-height:1.15;color:#fff;
+} .public-home-account small{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#98a2b1;
+} .public-home-account strong{margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;font-size:12px;
 } .public-home-register{border:1px solid rgba(223,207,133,.58);border-radius:2px;background:transparent;color:#dfcf85;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;
 } .public-home-register:hover{background:rgba(223,207,133,.1);border-color:#dfcf85;
 } .public-home-access{ border: 0; border-radius: 2px; background: var(--dz-accent); color: white; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 16px; cursor: pointer; transition: transform .18s ease,background .18s ease; box-shadow: none; text-transform: uppercase; letter-spacing: .06em;

@@ -84,15 +84,6 @@ async function loadAccounts(currentSession: Session) {
   throw new Error(lastError)
 }
 
-async function checkAdmin(currentSession: Session) {
-  try {
-    const { payload } = await fetchBearerJson('/api/admin/session', currentSession, 5000)
-    return Boolean(payload.isAdmin)
-  } catch {
-    return false
-  }
-}
-
 export default function LoginPage() {
   const [stage, setStage] = useState<LoginStage>('checking')
   const [error, setError] = useState('')
@@ -102,7 +93,6 @@ export default function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
-  const [isAdmin, setIsAdmin] = useState(false)
   const [emailMode, setEmailMode] = useState<EmailMode>('entrar')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -163,7 +153,7 @@ export default function LoginPage() {
    * exatamente ao convite. Links que não exigem perfil (ex.: reivindicação)
    * apenas retomam a ação original.
    */
-  function continueWithoutProfile(adminAccess = false) {
+  function continueWithoutProfile() {
     const search = new URLSearchParams(window.location.search)
     let oauthReturnTo = ''
     let oauthProfileType: ReturnType<typeof parseProfileType> = null
@@ -180,14 +170,10 @@ export default function LoginPage() {
       window.location.replace(buildProfileCreationHref(profileType, returnTo))
       return
     }
-    if (adminAccess) {
-      window.location.replace(returnTo === '/' ? '/admin' : returnTo)
-      return
-    }
-
-    const accessParams = new URLSearchParams({ acesso: '1' })
-    if (returnTo !== '/') accessParams.set('returnTo', returnTo)
-    window.location.replace(`/?${accessParams.toString()}`)
+    // A conta de acesso existe independentemente dos cadastros operacionais.
+    // Sem um contexto solicitado, entra normalmente no destino em vez de
+    // obrigar a pessoa a escolher/criar um "tipo de perfil".
+    window.location.replace(returnTo)
   }
 
   async function openAuthenticatedSession(currentSession: Session) {
@@ -199,17 +185,13 @@ export default function LoginPage() {
     setProfileLoadError('')
 
     try {
-      const [userAccounts, adminAccess] = await Promise.all([
-        loadAccounts(currentSession),
-        checkAdmin(currentSession),
-      ])
+      const userAccounts = await loadAccounts(currentSession)
       setAccounts(userAccounts)
-      setIsAdmin(adminAccess)
       if (userAccounts.length) {
         continueToWorkspace(userAccounts)
         return
       }
-      continueWithoutProfile(adminAccess)
+      continueWithoutProfile()
       return
     } catch (cause: unknown) {
       setAccounts([])
@@ -228,6 +210,8 @@ export default function LoginPage() {
     try {
       const userAccounts = await loadAccounts(session)
       setAccounts(userAccounts)
+      if (userAccounts.length) continueToWorkspace(userAccounts)
+      else continueWithoutProfile()
     } catch (cause: unknown) {
       setProfileLoadError(
         friendlyAuthError(cause instanceof Error ? cause.message : 'Não foi possível carregar seus perfis.'),
@@ -526,7 +510,6 @@ export default function LoginPage() {
     await signOutEverywhere().catch(() => undefined)
     setSession(null)
     setAccounts([])
-    setIsAdmin(false)
     setProfilesLoading(false)
     setProfileLoadError('')
     setEmailMode('entrar')
@@ -779,7 +762,7 @@ export default function LoginPage() {
                     <p>{profileLoadError}</p>
                     <button type="button" className="button" onClick={() => void retryProfiles()}>Tentar carregar perfis novamente</button>
                   </div>
-                ) : accounts.length || isAdmin ? (
+                ) : accounts.length ? (
                   <div className="login-no-profile" role="status" aria-live="polite">
                     <Loader2 className="spin" size={28} />
                     <strong>Entrando no sistema</strong>

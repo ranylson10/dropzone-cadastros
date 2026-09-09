@@ -443,7 +443,7 @@ export function AppHeader({
                   </span>
                 </div>
                 <a
-                  href="/#minhas-areas"
+                  href="/#meus-cadastros"
                   onClick={() => {
                     setProfileOpen(false)
                     setMobileOpen(false)
@@ -462,7 +462,7 @@ export function AppHeader({
                     boxShadow: 'inset 0 -1px rgba(255,255,255,.2)',
                   }}
                 >
-                  <LayoutDashboard size={17} strokeWidth={2.5} /> Minhas áreas
+                  <LayoutDashboard size={17} strokeWidth={2.5} /> Meus cadastros
                 </a>
                 {showWallet ? (
                   <a

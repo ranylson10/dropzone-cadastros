@@ -23,6 +23,8 @@ type Vacancy = {
 type Props = {
   onAccess: () => void
   onRegister: () => void
+  authenticatedUser?: { name?: string | null; email?: string | null } | null
+  onSignOut?: () => void
 }
 
 function money(value: Vacancy['valor_inscricao']) {
@@ -36,7 +38,7 @@ function dateLabel(value?: string | null) {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).format(date)
 }
 
-export function PublicChampionshipHome({ onAccess, onRegister }: Props) {
+export function PublicChampionshipHome({ onAccess, onRegister, authenticatedUser, onSignOut }: Props) {
   const [items, setItems] = useState<Vacancy[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -106,8 +108,13 @@ export function PublicChampionshipHome({ onAccess, onRegister }: Props) {
         <a className="public-home-brand" href="/" aria-label="DropZone início"><SystemLogo size={42} alt="DropZone" /><span><b>DropZone</b><small>Campeonatos</small></span></a>
         <nav className="public-home-nav" aria-label="Navegação principal"><a href="#vagas">Vagas</a><a href="#tipos">Categorias</a><a href="/campeonatos">Resultados</a></nav>
         <div className="public-home-auth-actions" aria-label="Acesso à conta">
-          <button type="button" className="public-home-register" onClick={onRegister}>Criar conta</button>
-          <button type="button" className="public-home-access" onClick={onAccess}>Entrar <ArrowRight size={16} /></button>
+          {authenticatedUser ? <>
+            <span className="public-home-account"><small>Conta conectada</small><strong>{authenticatedUser.name || authenticatedUser.email || 'Conta DropZone'}</strong></span>
+            <button type="button" className="public-home-register" onClick={onSignOut}>Sair</button>
+          </> : <>
+            <button type="button" className="public-home-register" onClick={onRegister}>Criar conta</button>
+            <button type="button" className="public-home-access" onClick={onAccess}>Entrar <ArrowRight size={16} /></button>
+          </>}
         </div>
       </header>
 
@@ -186,7 +193,7 @@ export function PublicChampionshipHome({ onAccess, onRegister }: Props) {
 
       <section id="tipos" className="public-home-section home-categories lealt-scroll-reveal"><div className="public-section-head"><div><span className="home-kicker">Encontre seu formato</span><h2>Jogue do seu jeito</h2></div></div><div className="category-grid">{[['Diário','Partidas rápidas todos os dias'],['Copa','Eliminatórias e grandes finais'],['Liga','Temporadas e classificação'],['Xtreino','Treino competitivo organizado']].map(([title,text]) => <button key={title} onClick={() => { setQuery(title); scrollToVacancies() }}><Trophy size={20} /><strong>{title}</strong><span>{text}</span><ArrowRight size={16} /></button>)}</div></section>
 
-      <section className="home-how lealt-scroll-reveal"><div><span className="home-kicker">Simples do início ao fim</span><h2>Escolha, garanta e jogue</h2></div><ol><li><b>1</b><span><strong>Encontre</strong><small>Use data, valor e formato.</small></span></li><li><b>2</b><span><strong>Garanta a vaga</strong><small>Inscrição rápida e segura.</small></span></li><li><b>3</b><span><strong>Acompanhe</strong><small>Escalação, grupos e jogos.</small></span></li></ol><button type="button" onClick={onAccess}>Acessar meu painel <ArrowRight size={16} /></button></section>
+      <section className="home-how lealt-scroll-reveal"><div><span className="home-kicker">Simples do início ao fim</span><h2>Escolha, garanta e jogue</h2></div><ol><li><b>1</b><span><strong>Encontre</strong><small>Use data, valor e formato.</small></span></li><li><b>2</b><span><strong>Garanta a vaga</strong><small>Inscrição rápida e segura.</small></span></li><li><b>3</b><span><strong>Acompanhe</strong><small>Escalação, grupos e jogos.</small></span></li></ol><button type="button" onClick={authenticatedUser ? scrollToVacancies : onAccess}>{authenticatedUser ? 'Explorar campeonatos' : 'Acessar minha conta'} <ArrowRight size={16} /></button></section>
 
       <footer className="public-home-footer lealt-scroll-reveal">
         <div className="public-home-brand"><SystemLogo size={34} alt="DropZone" /><span><b>DropZone</b><small>Onde campeonatos acontecem</small></span></div>

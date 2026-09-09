@@ -77,6 +77,7 @@ export function AppShell({
   const pathname = usePathname()
   const [sessionAccount, setSessionAccount] = useState<DropZoneRow | null>(null)
   const [sessionAccounts, setSessionAccounts] = useState<DropZoneRow[]>([])
+  const [sessionIdentity, setSessionIdentity] = useState<{ name?: string | null; email?: string | null } | null>(null)
 
   const controlled = accountProp !== undefined
   const account = controlled ? accountProp : sessionAccount
@@ -121,6 +122,7 @@ export function AppShell({
         if (activeRequest) {
           setSessionAccount(null)
           setSessionAccounts([])
+          setSessionIdentity(null)
         }
         return
       }
@@ -136,6 +138,10 @@ export function AppShell({
       if (!response.ok) return
       const payload = await response.json()
       if (!activeRequest) return
+      setSessionIdentity({
+        email: String(payload.user?.email || ''),
+        name: String(payload.user?.name || payload.user?.email || 'Conta DropZone'),
+      })
       setSessionAccount(payload.account || null)
       setSessionAccounts(payload.accounts || [])
       if (payload.account) {
@@ -162,6 +168,7 @@ export function AppShell({
     } finally {
       setSessionAccount(null)
       setSessionAccounts([])
+      setSessionIdentity(null)
       const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}` || '/'
       window.location.href = `/login?switch=1&returnTo=${encodeURIComponent(returnTo)}`
     }
@@ -177,7 +184,7 @@ export function AppShell({
   const resolvedActive = activeLabel || resolveActiveNavLabel(pathname)
   const showHeader =
     header === 'always'
-    || (header === 'auto' && (forceHeader || Boolean(account)))
+    || (header === 'auto' && (forceHeader || Boolean(account) || Boolean(sessionIdentity)))
     || false
 
   const mainClasses = useMemo(() => {
@@ -192,11 +199,11 @@ export function AppShell({
         <AppHeader
           navItems={navItems}
           activeLabel={resolvedActive}
-          profileName={account ? (account.name || account.username || 'Conta DropZone') : undefined}
+          profileName={account ? (account.name || account.username || 'Conta DropZone') : sessionIdentity?.name || undefined}
           profileSubtitle={
             account
               ? `Conta DropZone · @${account.username}`
-              : undefined
+              : sessionIdentity?.email || undefined
           }
           profileImage={mediaFor(account) || undefined}
           accounts={accounts}
@@ -204,7 +211,7 @@ export function AppShell({
           switchingAccountId={switchingAccountId}
           onSwitchAccount={onSwitchAccount || (loadSession ? defaultSwitch : undefined)}
           onCreateLinkedProfile={onCreateLinkedProfile}
-          onSignOut={account ? (onSignOutProp || defaultSignOut) : undefined}
+          onSignOut={account || sessionIdentity ? (onSignOutProp || defaultSignOut) : undefined}
           loginHref={loginHref}
           showWallet={
             Boolean(account)

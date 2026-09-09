@@ -24,9 +24,9 @@ test('124 - vínculo legado consulta somente perfil que aceita auth_user_id ause
   expect(serverAuth).toContain("const types: ProfileType[] = ['equipe']")
 })
 
-test('124 - api me separa sessão inválida de falha ao carregar perfis', async () => {
+test('124 - api me separa sessão inválida, conta básica e falha ao carregar cadastros', async () => {
   expect(meRoute).toContain("{ status: 401 }")
-  expect(meRoute).toContain("{ status: 404 }")
+  expect(meRoute).not.toContain("{ status: 404 }")
   expect(meRoute).toContain("{ status: 503 }")
   expect(meRoute).toContain("account: null, accounts: []")
 })
@@ -46,4 +46,9 @@ test('124 - callback confirmado limpa complete da URL para F5 normal', async () 
   expect(loginPage).toContain("cleanUrl.searchParams.delete('complete')")
   expect(loginPage).toContain("cleanUrl.hash = ''")
   expect(loginPage).toContain("window.history.replaceState({}, '', `${cleanUrl.pathname}${cleanUrl.search}`)")
+})
+
+test('124 - sessão válida sem cadastro operacional continua sendo uma conta autenticada', async () => {
+  expect(meRoute).toContain('account: null, accounts: []')
+  expect(meRoute).not.toContain("{ status: 404 }")
 })

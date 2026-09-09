@@ -8,12 +8,11 @@ import { uploadPublicFile as uploadStoragePublicFile } from '@/lib/upload-public
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
 import { Field, LocationSearch, UploadField, resolvePendingImageUpload } from './components/form-fields'
-import { adminProfileIcon, profileIcons } from './components/profile-icons'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppShell, APP_NAV } from '@/components/layout'
-import { authHeaders, dataText, loginSuggestion, mediaForProfile, rowTitle } from './utils'
+import { authHeaders, dataText, loginSuggestion, rowTitle } from './utils'
 import { safeInternalPath } from '@/features/auth/auth-return'
-import { getSessionWithTimeout, signOutEverywhere } from '@/lib/auth-client-state'
+import { signOutEverywhere } from '@/lib/auth-client-state'
 import { syncMobileSessionFromStorage } from '@/lib/mobile-session-bridge'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
@@ -136,7 +135,7 @@ type PanelSnapshot = {
 
 export function DropZoneHome() {
   const [mode, setMode] = useState<AuthMode>('entrar')
-  const [showAccess, setShowAccess] = useState(false)
+  const [authIdentity, setAuthIdentity] = useState<{ id: string; email: string; name: string } | null>(null)
   const [profileType, setProfileType] = useState<ProfileType>('produtora')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -175,7 +174,6 @@ export function DropZoneHome() {
   const [queryReady, setQueryReady] = useState(false)
   const [inviteReturnTo, setInviteReturnTo] = useState('')
   /** Só true se /api/admin/session confirmar (backend). Nunca confiar só no front. */
-  const [isSystemAdmin, setIsSystemAdmin] = useState(false)
   const [workspaceMode, setWorkspaceMode] = useState<'home' | 'panel'>('home')
 
   const [championship, setChampionship] = useState(emptyChampionship)
@@ -294,7 +292,6 @@ export function DropZoneHome() {
   const managedChampionships = championships.filter((row) => managedLinks.some((link) => link.parent_id === row.id))
   const playerInvite = tokens.find((row) => row.token?.toUpperCase() === playerToken.trim().toUpperCase() && PLAYER_INVITE_TYPES.has(String(row.data?.token_kind || '')))
   const myRegistrations = registrations.filter((row) => row.created_by === account?.auth_user_id)
-  const recentProfileByType = useMemo(() => Object.fromEntries(recentProfiles.map((profile) => [profile.profile_type, profile])) as Partial<Record<ProfileType, any>>, [recentProfiles])
   const passwordIssue = getPasswordIssue(password)
   const resendBlocked = loading || resendCooldown > 0
   const resendLabel = resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar código'
@@ -304,35 +301,6 @@ export function DropZoneHome() {
     const timer = window.setTimeout(() => setResendCooldown((current) => Math.max(0, current - 1)), 1000)
     return () => window.clearTimeout(timer)
   }, [resendCooldown])
-
-  // Revalida admin do sistema quando a sessão muda (nunca confiar só no front)
-  useEffect(() => {
-    let cancelled = false
-    async function checkAdmin(token?: string | null) {
-      if (!token) {
-        if (!cancelled) setIsSystemAdmin(false)
-        return
-      }
-      try {
-        const res = await fetch('/api/admin/session', {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: 'no-store',
-        })
-        const json = await res.json().catch(() => ({}))
-        if (!cancelled) setIsSystemAdmin(Boolean(json.isAdmin))
-      } catch {
-        if (!cancelled) setIsSystemAdmin(false)
-      }
-    }
-    void supabase.auth.getSession().then(({ data }) => checkAdmin(data.session?.access_token))
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      void checkAdmin(session?.access_token)
-    })
-    return () => {
-      cancelled = true
-      sub.subscription.unsubscribe()
-    }
-  }, [])
 
   useEffect(() => {
     if (!selectedChamp) return
@@ -344,69 +312,6 @@ export function DropZoneHome() {
         : (current.nome.startsWith('Grupo ') ? current.nome : 'Grupo A'),
     }))
   }, [selectedChamp?.id, selectedChamp?.data?.tipo])
-
-  async function chooseAccess(type: ProfileType, recent?: any) {
-    clearRegisterForm(type)
-    setProfileType(type)
-    setError('')
-    setMessage('')
-
-    let session: Awaited<ReturnType<typeof getSessionWithTimeout>> = null
-    try {
-      session = await getSessionWithTimeout()
-    } catch {
-      // Falha/timeout ao consultar a sessão não pode bloquear o cartão:
-      // segue como deslogado e abre o login social do tipo escolhido.
-      session = null
-    }
-
-    if (session) {
-      setLoading(true)
-      setAccessLoadingType(type)
-      try {
-        if (recent) {
-          const cachedRows = readPanelCache(recent.id)
-          setAccount(recent)
-          setRows(cachedRows)
-          setActiveAuthType(null)
-          setLinkingProfile(false)
-          await loadMeAndRows(session.access_token, type)
-          return
-        }
-
-        const availableAccounts = accounts.length
-          ? accounts
-          : await loadAccountsOnly(session.access_token)
-        const existing = availableAccounts.find((item) => item.profile_type === type)
-
-        if (existing) {
-          await loadMeAndRows(session.access_token, type)
-          setActiveAuthType(null)
-          setLinkingProfile(false)
-          return
-        }
-
-        prepareGoogleProfile(session.user, type)
-        return
-      } catch (cause: any) {
-        setError(cause?.message || 'Não foi possível abrir este perfil.')
-        return
-      } finally {
-        setLoading(false)
-        setAccessLoadingType(null)
-      }
-    }
-
-    if (recent) {
-      const media = mediaForProfile(recent)
-      setUsername(recent.username || '')
-      setName(recent.name || '')
-      setMediaUrl(media)
-    }
-    setMode('entrar')
-    setLinkingProfile(false)
-    setActiveAuthType(type)
-  }
 
   useEffect(() => {
     let cancelled = false
@@ -427,7 +332,6 @@ export function DropZoneHome() {
         const convite = String(params.get('convite') || '').trim()
         const escala = String(params.get('escala') || '').trim()
         const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
-        const wantsAccessSelection = params.get('acesso') === '1'
         const requestedLogin = String(params.get('login') || '').trim()
         const requestedRegister = String(params.get('cadastro') || '').trim()
         // Compatibilidade para atalhos internos antigos da Lili. Não abre
@@ -443,8 +347,6 @@ export function DropZoneHome() {
         const wantsNewAccount = params.get('nova_conta') === '1'
         const wantsSwitchAccount = params.get('trocar_conta') === '1'
 
-        if (!cancelled) setShowAccess(wantsAccessSelection)
-
         let hasRecentLogin = false
         try {
           const saved = localStorage.getItem('dropzone_recent_profiles')
@@ -455,27 +357,6 @@ export function DropZoneHome() {
           }
         } catch {
           // localStorage corrompido — ignora e segue
-        }
-
-        // Card "Admin do sistema" só se o backend confirmar na sessão atual
-        try {
-          const sessionPeek = await Promise.race([
-            supabase.auth.getSession(),
-            new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 4000)),
-          ])
-          const token = (sessionPeek as any)?.data?.session?.access_token
-          if (token) {
-            const res = await fetch('/api/admin/session', {
-              headers: { Authorization: `Bearer ${token}` },
-              cache: 'no-store',
-            })
-            const json = await res.json().catch(() => ({}))
-            if (!cancelled) setIsSystemAdmin(Boolean(json.isAdmin))
-          } else if (!cancelled) {
-            setIsSystemAdmin(false)
-          }
-        } catch {
-          if (!cancelled) setIsSystemAdmin(false)
         }
 
         const resolvedReturnTo = requestedReturnTo || (convite
@@ -527,6 +408,11 @@ export function DropZoneHome() {
           }
 
           if (session) {
+            setAuthIdentity({
+              id: session.user.id,
+              email: session.user.email || '',
+              name: String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || 'Conta DropZone'),
+            })
             // Login social / vinculo: se nao tem o perfil exigido (ex. equipe no convite de grupo),
             // abre o formulario de criacao em vez de mandar de volta sem perfil.
             const availableAccounts = await loadAccountsOnly(session.access_token).catch(() => [] as DropZoneRow[])
@@ -585,6 +471,11 @@ export function DropZoneHome() {
         }
 
         if (session) {
+          setAuthIdentity({
+            id: session.user.id,
+            email: session.user.email || '',
+            name: String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || 'Conta DropZone'),
+          })
           try {
             const storedType = localStorage.getItem('dropzone_active_profile_type') as ProfileType | null
             const preferredType = requestedActiveProfile || storedType
@@ -603,10 +494,10 @@ export function DropZoneHome() {
             setRows([])
           }
         } else if (!hasRecentLogin) {
+          setAuthIdentity(null)
           setAccount(null)
           setAccounts([])
           setRows([])
-          setShowAccess(false)
         }
       } catch (cause: any) {
         setError(cause?.message || 'Falha ao iniciar o acesso.')
@@ -813,8 +704,15 @@ export function DropZoneHome() {
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
 
-    const selectedAccount = meJson.account as DropZoneRow
+    const selectedAccount = meJson.account as DropZoneRow | null
     const loadedAccounts = (meJson.accounts || [selectedAccount]).filter(Boolean) as DropZoneRow[]
+    if (!selectedAccount) {
+      setAccounts([])
+      setAccount(null)
+      setRows([])
+      saveRecentProfiles([])
+      return
+    }
     if (preferredType && selectedAccount?.profile_type !== preferredType) {
       throw new Error(`Perfil de ${typeLabels[preferredType].toLowerCase()} ainda não existe nesta conta.`)
     }
@@ -1027,6 +925,7 @@ export function DropZoneHome() {
       await signOutEverywhere()
     } finally {
       setAccount(null)
+      setAuthIdentity(null)
       setAccounts([])
       setRecentProfiles([])
       setLinkingProfile(false)
@@ -1651,11 +1550,13 @@ export function DropZoneHome() {
     return <DropzoneLoader label="Carregando acesso" />
   }
 
-  if (!account && !linkingProfile && !activeAuthType && !showAccess) {
+  if (!account && !linkingProfile && !activeAuthType) {
     return (
       <PublicChampionshipHome
         onAccess={() => { window.location.href = '/login?returnTo=%2F' }}
         onRegister={() => { window.location.href = '/login?mode=criar&switch=1&returnTo=%2F' }}
+        authenticatedUser={authIdentity}
+        onSignOut={signOut}
       />
     )
   }
@@ -1670,7 +1571,6 @@ export function DropZoneHome() {
       activeAccountId={account?.id}
       switchingAccountId={switchingAccountId || undefined}
       onSwitchAccount={switchLinkedAccount}
-      onCreateLinkedProfile={startLinkedProfile}
       onSignOut={signOut}
       mainClassName={`page ${account && !linkingProfile ? 'page-authenticated' : ''}`}
       mainId="painel-inicio"
@@ -1679,87 +1579,7 @@ export function DropZoneHome() {
         <div className="shell panel-workspace-shell">
         {!account || linkingProfile ? (
           <section className="login-stage login-stage-bg">
-            <div className={`phone-shell login-free-shell ${activeAuthType ? 'auth-page' : 'select-page'}`}>
-              {!activeAuthType ? (
-                <>
-                  <div className="login-layout-header">
-                    <p className="eyebrow">Escolha seu acesso</p>
-                    <h2>Quem vai entrar?</h2>
-                  </div>
-
-                  <div className="login-workspace cards-only">
-                    <div className="login-cards-panel">
-                      <div className="profile-grid">
-                        {PROFILE_TYPES.map((type) => {
-                          const recent = recentProfileByType[type]
-                          const media = mediaForProfile(recent)
-                          return (
-                            <button
-                              key={type}
-                              type="button"
-                              className={`profile-card gamer-card ${recent ? 'has-recent' : ''} ${accessLoadingType === type ? 'is-loading' : ''}`}
-                              disabled={Boolean(accessLoadingType)}
-                              onClick={() => chooseAccess(type, recent)}
-                            >
-                              <div className="card-icon-frame">
-                                {media ? <img src={media} alt="" /> : <span>{profileIcons[type]}</span>}
-                              </div>
-                              <div className="card-copy">
-                                <div className="card-topline">{recent ? 'Acesso recente' : 'Novo acesso'}</div>
-                                <strong>{typeLabels[type]}</strong>
-                                {recent ? (
-                                  <>
-                                    <b className="recent-name">{recent.name}</b>
-                                    <small>@{recent.username}{recent.public_id ? ` · ID ${recent.public_id}` : ''}</small>
-                                  </>
-                                ) : (
-                                  <small>Acessar ou criar com Google</small>
-                                )}
-                              </div>
-                              {accessLoadingType === type ? <span className="profile-card-loading"><Loader2 className="spin" size={20} /> Abrindo painel</span> : null}
-                              <i className="card-corner" />
-                            </button>
-                          )
-                        })}
-                        {/* Perfil virtual “Admin” — só se /api/admin/session confirmar no backend */}
-                        {isSystemAdmin ? (
-                          <button
-                            type="button"
-                            className="profile-card gamer-card has-recent admin-access-card"
-                            onClick={() => {
-                              window.location.href = '/admin'
-                            }}
-                          >
-                            <div className="card-icon-frame">
-                              <span>{adminProfileIcon}</span>
-                            </div>
-                            <div className="card-copy">
-                              <div className="card-topline">Acesso recente</div>
-                              <strong>Administrador</strong>
-                              <b className="recent-name">Painel do sistema</b>
-                              <small>Aprovações, preços, saques e moderação</small>
-                            </div>
-                            <i className="card-corner" />
-                          </button>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        className="other-account-button"
-                        onClick={async () => {
-                          await signOut()
-                          clearRegisterForm('produtora')
-                          setMode('entrar')
-                          setActiveAuthType('produtora')
-                          setIsSystemAdmin(false)
-                        }}
-                      >
-                        Usar outra conta
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
+            <div className="phone-shell login-free-shell auth-page">
               <section className="auth-inline-panel auth-light-panel">
                 <div className="auth-inline-head auth-light-head">
                   <div className="auth-site-mark">
@@ -1774,35 +1594,7 @@ export function DropZoneHome() {
                   </button>
                 </div>
 
-                {linkingProfile ? (
-                  <div className="linked-profile-type-picker">
-                    <span>Escolha o tipo de perfil que será criado:</span>
-                    {PROFILE_TYPES.map((type) => {
-                      const disabled = accounts.some((item) => item.profile_type === type)
-                      return (
-                        <button
-                          key={type}
-                          type="button"
-                          disabled={disabled}
-                          className={profileType === type ? 'active' : ''}
-                          onClick={() => {
-                            const currentEmail = email
-                            const currentName = name
-                            const currentMedia = mediaUrl
-                            clearRegisterForm(type)
-                            setEmail(currentEmail)
-                            setName(currentName)
-                            setUsername(loginSuggestion(currentName))
-                            setMediaUrl(currentMedia)
-                            setMode('criar')
-                          }}
-                        >
-                          {typeLabels[type]} {disabled ? '— já existe' : ''}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : null}
+                {linkingProfile ? <p className="auth-context-note">Complete somente os dados necessários para esta ação.</p> : null}
 
                 {!linkingProfile ? (
                   <div className="google-only-auth">
@@ -1881,7 +1673,7 @@ export function DropZoneHome() {
 
                     <div className="auth-actions-row">
                       <button className="button" disabled={loading || !name.trim() || !username.trim()}>
-                        {loading ? 'Criando perfil...' : `Criar perfil de ${typeLabels[profileType].toLowerCase()}`}
+                        {loading ? 'Salvando cadastro...' : `Concluir cadastro de ${typeLabels[profileType].toLowerCase()}`}
                       </button>
                       <button type="button" className="button secondary" onClick={signOut}>Usar outra conta</button>
                     </div>
@@ -1890,7 +1682,6 @@ export function DropZoneHome() {
                 {message ? <div className="message floating">{message}</div> : null}
                 {error ? <div className="message error floating">{error}</div> : null}
               </section>
-              )}
             </div>
           </section>
         ) : (
@@ -1900,7 +1691,6 @@ export function DropZoneHome() {
                 account={account}
                 accounts={accounts}
                 onOpenPanel={openProfilePanel}
-                onCreateArea={startLinkedProfile}
               />
             ) : (
               <>

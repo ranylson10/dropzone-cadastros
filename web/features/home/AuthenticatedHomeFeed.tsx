@@ -42,7 +42,6 @@ type Props = {
   account: DropZoneRow
   accounts: DropZoneRow[]
   onOpenPanel: (target?: DropZoneRow) => void | Promise<void>
-  onCreateArea?: (profileType: ProfileType) => void
 }
 
 type GateKind = 'produtora' | 'equipe' | null
@@ -84,7 +83,6 @@ export function AuthenticatedHomeFeed({
   account,
   accounts,
   onOpenPanel,
-  onCreateArea,
 }: Props) {
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [loadingVacancies, setLoadingVacancies] = useState(true)
@@ -304,9 +302,9 @@ export function AuthenticatedHomeFeed({
         </div>
       </section>
 
-      <section className="authenticated-home-section authenticated-home-areas" id="minhas-areas">
+      <section className="authenticated-home-section authenticated-home-areas" id="meus-cadastros">
         <div className="authenticated-home-section-head">
-          <div><span>MINHA CONTA</span><h2>Minhas áreas</h2></div>
+          <div><span>MINHA CONTA</span><h2>Meus cadastros</h2></div>
         </div>
         <div className="authenticated-home-areas-grid">
           {accounts.map((item) => {
@@ -317,9 +315,6 @@ export function AuthenticatedHomeFeed({
               <Icon size={19} /><span><strong>{label}</strong><small>{item.name || item.username}</small></span><ChevronRight size={16} />
             </button>
           })}
-          {!accounts.some((item) => item.profile_type === 'manager') && onCreateArea ? <button type="button" className="authenticated-home-area-card is-add" onClick={() => onCreateArea('manager')}>
-            <CirclePlus size={19} /><span><strong>Ativar afiliados</strong><small>Divulgue campeonatos e acompanhe vendas</small></span><ChevronRight size={16} />
-          </button> : null}
         </div>
       </section>
 
@@ -348,10 +343,10 @@ export function AuthenticatedHomeFeed({
             <button type="button" className="authenticated-home-gate-close" onClick={() => setGate(null)} aria-label="Fechar"><X size={18} /></button>
             <span className="authenticated-home-gate-icon">{gate === 'produtora' ? <Trophy size={25} /> : <Users size={25} />}</span>
             <small>ANTES DE CONTINUAR</small>
-            <h2 id="authenticated-home-gate-title">{gate === 'produtora' ? 'Crie sua produtora' : 'Crie sua equipe'}</h2>
+            <h2 id="authenticated-home-gate-title">{gate === 'produtora' ? 'Cadastre sua produtora' : 'Cadastre sua equipe'}</h2>
             <p>{gate === 'produtora'
-              ? 'Para criar, vender vagas e administrar campeonatos no DropZone, primeiro você precisa ter uma produtora vinculada à sua conta.'
-              : 'Para gerenciar elenco, lines e inscrições como equipe, primeiro crie um perfil de equipe vinculado à sua conta.'}</p>
+              ? 'Para criar, vender vagas e administrar campeonatos, precisamos primeiro dos dados da sua produtora.'
+              : 'Para gerenciar elenco, lines e inscrições, precisamos primeiro dos dados da sua equipe.'}</p>
             <div className="authenticated-home-gate-actions">
               <button
                 type="button"
@@ -364,7 +359,7 @@ export function AuthenticatedHomeFeed({
                   window.location.assign(`/?cadastro=${target}&returnTo=${encodeURIComponent(returnTo)}`)
                 }}
               >
-                {gate === 'produtora' ? 'Criar minha produtora' : 'Criar minha equipe'} <ArrowRight size={16} />
+                {gate === 'produtora' ? 'Cadastrar produtora' : 'Cadastrar equipe'} <ArrowRight size={16} />
               </button>
               <button type="button" onClick={() => setGate(null)}>Agora não</button>
             </div>
