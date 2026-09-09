@@ -15,6 +15,9 @@ export async function requireUploadAccess(input: {
   uploadIntent?: 'create_profile' | 'create_campeonato' | null
 }) {
   const accounts = await getAccountsForUser(input.user)
+  // Foto da conta pertence ao usuário autenticado e não exige que ele já
+  // tenha criado equipe, jogador, produtora ou outro cadastro operacional.
+  if (input.bucket === 'account') return
   if (PROFILE_BUCKETS.has(input.bucket)) {
     if (accounts.some((account) => account.profile_type === input.bucket)) return
     // Durante a criação de um perfil vinculado a entidade ainda não existe.

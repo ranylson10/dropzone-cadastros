@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarDays, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
+import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -8,6 +8,7 @@ import { SystemLogo } from '@/components/brand/SystemLogo'
 import { APP_NAV, type AppNavItem } from './nav'
 import { supabase } from '@/lib/supabase-browser'
 import { useGlobalLocale } from '@/features/i18n/global-locale'
+import { uploadPublicFile } from '@/lib/upload-public'
 
 export type AppHeaderNavItem = AppNavItem
 
@@ -121,9 +122,47 @@ export function AppHeader({
   const [isAdmin, setIsAdmin] = useState(false)
   const [languageOpen, setLanguageOpen] = useState(false)
   const [globalLocale, changeGlobalLocale] = useGlobalLocale()
+  const [accountAvatar, setAccountAvatar] = useState(profileImage || '')
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const languageRef = useRef<HTMLDivElement>(null)
   const isAuthenticated = Boolean(profileName && onSignOut)
+
+  useEffect(() => {
+    setAccountAvatar(profileImage || '')
+  }, [profileImage])
+
+  async function changeAccountAvatar(file?: File) {
+    if (!file || avatarUploading) return
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Escolha uma imagem PNG, JPG ou WebP.')
+      return
+    }
+    setAvatarUploading(true)
+    setAvatarError('')
+    try {
+      const avatarUrl = await uploadPublicFile(file, 'account')
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error('Sessão expirada.')
+      const response = await fetch('/api/me/account', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ avatar_url: avatarUrl }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error || 'Não foi possível salvar a foto.')
+      await supabase.auth.refreshSession().catch(() => undefined)
+      setAccountAvatar(avatarUrl)
+    } catch (error: any) {
+      setAvatarError(error?.message || 'Não foi possível salvar a foto.')
+    } finally {
+      setAvatarUploading(false)
+      if (avatarInputRef.current) avatarInputRef.current.value = ''
+    }
+  }
 
   useEffect(() => {
     function closeOutside(event: MouseEvent) {
@@ -320,7 +359,7 @@ export function AppHeader({
               aria-label="Abrir minha conta"
             >
               <LockedAvatar
-                src={profileImage || undefined}
+                src={accountAvatar || undefined}
                 size={24}
                 fallback={String(profileName).slice(0, 2).toUpperCase()}
               />
@@ -403,7 +442,7 @@ export function AppHeader({
               aria-expanded={profileOpen}
             >
               <LockedAvatar
-                src={profileImage || undefined}
+                src={accountAvatar || undefined}
                 size={40}
                 fallback={String(profileName).slice(0, 2).toUpperCase()}
               />
@@ -442,6 +481,35 @@ export function AppHeader({
                     {accounts.length ? 'Cadastros disponíveis nesta conta' : 'Conta DropZone conectada'}
                   </span>
                 </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  hidden
+                  onChange={(event) => void changeAccountAvatar(event.target.files?.[0])}
+                />
+                <button
+                  type="button"
+                  disabled={avatarUploading}
+                  onClick={() => avatarInputRef.current?.click()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    width: '100%',
+                    border: 0,
+                    borderTop: '1px solid var(--ui-line)',
+                    padding: '12px 14px',
+                    background: 'transparent',
+                    color: 'var(--ui-text)',
+                    cursor: avatarUploading ? 'wait' : 'pointer',
+                    fontWeight: 800,
+                  }}
+                >
+                  {avatarUploading ? <Loader2 className="spin" size={16} /> : <Camera size={16} />}
+                  {avatarUploading ? 'Enviando foto...' : accountAvatar ? 'Alterar foto de perfil' : 'Adicionar foto de perfil'}
+                </button>
+                {avatarError ? <span role="alert" style={{ display: 'block', padding: '0 14px 11px', color: 'var(--ui-danger, #d76c6c)', fontSize: 11 }}>{avatarError}</span> : null}
                 {accounts.length ? <a
                   href="/#meus-cadastros"
                   onClick={() => {

@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
       id: user.id,
       email: user.email,
       name: String(user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Conta DropZone'),
+      avatar_url: String(user.user_metadata?.avatar_url || user.user_metadata?.picture || ''),
     }
     if (!accounts.length) {
       return NextResponse.json(

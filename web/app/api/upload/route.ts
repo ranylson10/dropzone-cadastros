@@ -16,7 +16,7 @@ type UploadPayload = {
   upload_intent?: 'create_profile' | 'create_campeonato'
 }
 
-const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
+const ALLOWED_BUCKETS = new Set(['account', 'produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const MAX_CHAMPIONSHIP_IMAGE_SIZE = 5 * 1024 * 1024
 const MAX_VIDEO_SIZE = 12 * 1024 * 1024

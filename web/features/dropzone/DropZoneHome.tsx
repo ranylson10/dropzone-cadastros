@@ -134,7 +134,7 @@ type PanelSnapshot = {
 
 export function DropZoneHome() {
   const [mode, setMode] = useState<AuthMode>('entrar')
-  const [authIdentity, setAuthIdentity] = useState<{ id: string; email: string; name: string } | null>(null)
+  const [authIdentity, setAuthIdentity] = useState<{ id: string; email: string; name: string; avatar_url: string } | null>(null)
   const [profileType, setProfileType] = useState<ProfileType>('produtora')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -411,6 +411,7 @@ export function DropZoneHome() {
               id: session.user.id,
               email: session.user.email || '',
               name: String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || 'Conta DropZone'),
+              avatar_url: String(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''),
             })
             // Login social / vinculo: se nao tem o perfil exigido (ex. equipe no convite de grupo),
             // abre o formulario de criacao em vez de mandar de volta sem perfil.
@@ -473,6 +474,7 @@ export function DropZoneHome() {
             id: session.user.id,
             email: session.user.email || '',
             name: String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || 'Conta DropZone'),
+            avatar_url: String(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''),
           })
           try {
             const storedType = localStorage.getItem('dropzone_active_profile_type') as ProfileType | null
@@ -1577,6 +1579,7 @@ export function DropZoneHome() {
       navItems={APP_NAV}
       header={account && !linkingProfile ? 'always' : 'never'}
       account={account}
+      identity={authIdentity}
       accounts={accounts}
       activeAccountId={account?.id}
       switchingAccountId={switchingAccountId || undefined}

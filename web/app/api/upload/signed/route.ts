@@ -5,7 +5,7 @@ import { requireUploadAccess } from '@backend/uploads/upload-access'
 
 export const runtime = 'nodejs'
 
-const ALLOWED_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
+const ALLOWED_BUCKETS = new Set(['account', 'produtora', 'equipe', 'jogador', 'manager', 'broadcast', 'campeonato'])
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const MAX_VIDEO_SIZE = 12 * 1024 * 1024
 
