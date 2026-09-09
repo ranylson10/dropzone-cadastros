@@ -42,6 +42,8 @@ export type AppShellProps = {
   forceHeader?: boolean
   /** Conta já resolvida (painel) — evita segundo /api/me */
   account?: DropZoneRow | null
+  /** Identidade da sessão quando ainda não existe cadastro operacional. */
+  identity?: { name?: string | null; email?: string | null } | null
   accounts?: DropZoneRow[]
   activeAccountId?: string
   switchingAccountId?: string
@@ -64,6 +66,7 @@ export function AppShell({
   header = 'always',
   forceHeader = false,
   account: accountProp,
+  identity: identityProp,
   accounts: accountsProp,
   activeAccountId,
   switchingAccountId,
@@ -82,6 +85,7 @@ export function AppShell({
   const controlled = accountProp !== undefined
   const account = controlled ? accountProp : sessionAccount
   const accounts = controlled ? (accountsProp || []) : sessionAccounts
+  const identity = identityProp || sessionIdentity
 
   // Se o editor Stream/modais deixaram overflow travado, libera no shell do sistema
   useEffect(() => {
@@ -184,7 +188,7 @@ export function AppShell({
   const resolvedActive = activeLabel || resolveActiveNavLabel(pathname)
   const showHeader =
     header === 'always'
-    || (header === 'auto' && (forceHeader || Boolean(account) || Boolean(sessionIdentity)))
+    || (header === 'auto' && (forceHeader || Boolean(account) || Boolean(identity)))
     || false
 
   const mainClasses = useMemo(() => {
@@ -199,11 +203,11 @@ export function AppShell({
         <AppHeader
           navItems={navItems}
           activeLabel={resolvedActive}
-          profileName={account ? (account.name || account.username || 'Conta DropZone') : sessionIdentity?.name || undefined}
+          profileName={account ? (account.name || account.username || 'Conta DropZone') : identity?.name || undefined}
           profileSubtitle={
             account
               ? `Conta DropZone · @${account.username}`
-              : sessionIdentity?.email || undefined
+              : identity?.email || undefined
           }
           profileImage={mediaFor(account) || undefined}
           accounts={accounts}
@@ -211,7 +215,7 @@ export function AppShell({
           switchingAccountId={switchingAccountId}
           onSwitchAccount={onSwitchAccount || (loadSession ? defaultSwitch : undefined)}
           onCreateLinkedProfile={onCreateLinkedProfile}
-          onSignOut={account || sessionIdentity ? (onSignOutProp || defaultSignOut) : undefined}
+          onSignOut={account || identity ? (onSignOutProp || defaultSignOut) : undefined}
           loginHref={loginHref}
           showWallet={
             Boolean(account)

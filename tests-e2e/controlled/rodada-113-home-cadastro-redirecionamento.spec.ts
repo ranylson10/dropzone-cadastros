@@ -7,14 +7,11 @@ const root = process.cwd()
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 
 test.describe('Rodada 113 — entrada, cadastro e destino autenticado', () => {
-  test('home pública expõe ações distintas para entrar e criar conta', async () => {
-    const home = read('web/features/home/PublicChampionshipHome.tsx')
+  test('raiz sem sessão abre o login em vez da antiga landing page', async () => {
     const controller = read('web/features/dropzone/DropZoneHome.tsx')
 
-    expect(home).toContain('className="public-home-register"')
-    expect(home).toContain('Criar conta')
-    expect(home).toContain('className="public-home-access"')
-    expect(controller).toContain('/login?mode=criar&switch=1&returnTo=%2F')
+    expect(controller).toContain("window.location.replace('/login?returnTo=%2F')")
+    expect(controller).not.toContain('PublicChampionshipHome')
   })
 
   test('login abre diretamente no cadastro quando solicitado', async () => {
@@ -27,12 +24,11 @@ test.describe('Rodada 113 — entrada, cadastro e destino autenticado', () => {
   test('conta autenticada entra na home sem seletor obrigatório de perfil', async () => {
     const login = read('web/app/login/page.tsx')
     const home = read('web/features/dropzone/DropZoneHome.tsx')
-    const publicHome = read('web/features/home/PublicChampionshipHome.tsx')
 
     expect(login).toContain('window.location.replace(returnTo)')
     expect(login).not.toContain("new URLSearchParams({ acesso: '1' })")
     expect(home).not.toContain('Quem vai entrar?')
-    expect(home).toContain('authenticatedUser={authIdentity}')
-    expect(publicHome).toContain('Conta conectada')
+    expect(home).toContain('identity={authIdentity}')
+    expect(home).toContain('<AuthenticatedHomeFeed account={null} accounts={[]}')
   })
 })

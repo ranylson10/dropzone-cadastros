@@ -19,7 +19,6 @@ import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 
-const PublicChampionshipHome = dynamic(() => import('@/features/home/PublicChampionshipHome').then((module) => module.PublicChampionshipHome))
 const AuthenticatedHomeFeed = dynamic(() => import('@/features/home/AuthenticatedHomeFeed').then((module) => module.AuthenticatedHomeFeed))
 const ProdutoraPanel = dynamic(() => import('./panels/produtora/ProdutoraPanel').then((module) => module.ProdutoraPanel), {
   loading: () => <DropzoneLoader label="Carregando painel da produtora" />,
@@ -464,9 +463,8 @@ export function DropZoneHome() {
           setAccount(null)
           setAccounts([])
           setRows([])
-          if (!hasRecentLogin) {
-            setMode('entrar')
-          }
+          setMode('entrar')
+          window.location.replace('/login?returnTo=%2F')
           return
         }
 
@@ -493,11 +491,12 @@ export function DropZoneHome() {
             setAccounts([])
             setRows([])
           }
-        } else if (!hasRecentLogin) {
+        } else {
           setAuthIdentity(null)
           setAccount(null)
           setAccounts([])
           setRows([])
+          window.location.replace('/login?returnTo=%2F')
         }
       } catch (cause: any) {
         setError(cause?.message || 'Falha ao iniciar o acesso.')
@@ -505,6 +504,7 @@ export function DropZoneHome() {
         setAccounts([])
         setRows([])
         setMode('entrar')
+        window.location.replace('/login?returnTo=%2F')
       } finally {
         if (!cancelled) {
           setQueryReady(true)
@@ -1551,13 +1551,23 @@ export function DropZoneHome() {
   }
 
   if (!account && !linkingProfile && !activeAuthType) {
+    if (!authIdentity) return <DropzoneLoader label="Abrindo acesso" />
     return (
-      <PublicChampionshipHome
-        onAccess={() => { window.location.href = '/login?returnTo=%2F' }}
-        onRegister={() => { window.location.href = '/login?mode=criar&switch=1&returnTo=%2F' }}
-        authenticatedUser={authIdentity}
+      <AppShell
+        activeLabel="Início"
+        navItems={APP_NAV}
+        header="always"
+        account={null}
+        accounts={[]}
+        identity={authIdentity}
         onSignOut={signOut}
-      />
+        mainClassName="page page-authenticated"
+        mainId="painel-inicio"
+      >
+        <div className="shell panel-workspace-shell">
+          <AuthenticatedHomeFeed account={null} accounts={[]} onOpenPanel={openProfilePanel} />
+        </div>
+      </AppShell>
     )
   }
 

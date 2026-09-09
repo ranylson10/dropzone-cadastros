@@ -39,7 +39,7 @@ type Vacancy = {
 }
 
 type Props = {
-  account: DropZoneRow
+  account: DropZoneRow | null
   accounts: DropZoneRow[]
   onOpenPanel: (target?: DropZoneRow) => void | Promise<void>
 }
@@ -97,11 +97,15 @@ export function AuthenticatedHomeFeed({
   const [tokenError, setTokenError] = useState('')
 
   const producer = accounts.find((item) => item.profile_type === 'produtora')
-  const isPlayer = account.profile_type === 'jogador'
-  const isTeam = account.profile_type === 'equipe'
-  const isProducer = account.profile_type === 'produtora'
+  const isPlayer = account?.profile_type === 'jogador'
+  const isTeam = account?.profile_type === 'equipe'
+  const isProducer = account?.profile_type === 'produtora'
 
   useEffect(() => {
+    if (!account) {
+      setPriorityLoading(false)
+      return
+    }
     let active = true
     fetch('/api/vagas', { cache: 'no-store' })
       .then((response) => response.json())
@@ -113,7 +117,7 @@ export function AuthenticatedHomeFeed({
       .catch(() => { if (active) setVacancies([]) })
       .finally(() => { if (active) setLoadingVacancies(false) })
     return () => { active = false }
-  }, [])
+  }, [account])
 
   useEffect(() => {
     let active = true
@@ -268,14 +272,15 @@ export function AuthenticatedHomeFeed({
           {isTeam ? <a className="authenticated-home-action primary" href="/vagas"><Ticket size={19} /><span><strong>Inscrever equipe</strong><small>Campeonatos com vagas abertas</small></span><ChevronRight size={18} /></a> : null}
           {isProducer ? <button type="button" className="authenticated-home-action primary" onClick={createChampionship}><CirclePlus size={19} /><span><strong>Criar campeonato</strong><small>Comece um novo evento</small></span><ChevronRight size={18} /></button> : null}
           {!isPlayer && !isTeam && !isProducer ? <a className="authenticated-home-action primary" href="/vagas"><Ticket size={19} /><span><strong>Encontrar vaga</strong><small>Campeonatos com inscrições abertas</small></span><ChevronRight size={18} /></a> : null}
+          {!account ? <button type="button" className="authenticated-home-action" onClick={createChampionship}><CirclePlus size={19} /><span><strong>Criar campeonato</strong><small>Cadastre a produtora quando continuar</small></span><ChevronRight size={18} /></button> : null}
 
           {isPlayer ? <a className="authenticated-home-action" href="/agenda"><CalendarDays size={19} /><span><strong>Próximo jogo</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}` : 'Confira sua disponibilidade'}</small></span><ChevronRight size={18} /></a> : null}
-          {isTeam ? <button type="button" className="authenticated-home-action" onClick={() => openPanelAt(account, 'jogadores')}><Users size={19} /><span><strong>Escalar elenco</strong><small>Prepare a equipe para jogar</small></span><ChevronRight size={18} /></button> : null}
-          {isProducer ? <button type="button" className="authenticated-home-action" onClick={() => openPanelAt(account, 'equipes')}><Users size={19} /><span><strong>Organizar equipes</strong><small>Adicionar e posicionar participantes</small></span><ChevronRight size={18} /></button> : null}
+          {isTeam && account ? <button type="button" className="authenticated-home-action" onClick={() => openPanelAt(account, 'jogadores')}><Users size={19} /><span><strong>Escalar elenco</strong><small>Prepare a equipe para jogar</small></span><ChevronRight size={18} /></button> : null}
+          {isProducer && account ? <button type="button" className="authenticated-home-action" onClick={() => openPanelAt(account, 'equipes')}><Users size={19} /><span><strong>Organizar equipes</strong><small>Adicionar e posicionar participantes</small></span><ChevronRight size={18} /></button> : null}
         </div>
       </section>
 
-      <section className="authenticated-home-section authenticated-home-priority-section">
+      {account ? <section className="authenticated-home-section authenticated-home-priority-section">
         <div className="authenticated-home-section-head">
           <div><span>AGORA</span><h2>{isPlayer ? 'Seu próximo compromisso' : isTeam ? 'Operação da equipe' : isProducer ? 'Campeonato ativo' : 'Continue de onde parou'}</h2></div>
           <a href="/agenda">Ver agenda <ArrowRight size={15} /></a>
@@ -285,14 +290,14 @@ export function AuthenticatedHomeFeed({
           <div><strong>{nextAgendaItem ? nextAgendaItem.titulo : isPlayer ? 'Nenhum jogo agendado' : 'Agenda da conta'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''} · ${nextAgendaItem.meta?.campeonato_nome || nextAgendaItem.meta?.equipe_nome || 'DropZone'}` : 'Acompanhe datas, jogos e compromissos em um só lugar.'}</small></div>
           <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir <ChevronRight size={16} /></a>
         </div>
-      </section>
+      </section> : null}
 
       <section className="authenticated-home-section authenticated-home-command-center">
-        <div className="authenticated-home-section-head"><div><span>PARA VOCÊ</span><h2>Próximas ações</h2></div><a href="/agenda">Agenda completa <ArrowRight size={15} /></a></div>
+        <div className="authenticated-home-section-head"><div><span>PARA VOCÊ</span><h2>Próximas ações</h2></div>{account ? <a href="/agenda">Agenda completa <ArrowRight size={15} /></a> : null}</div>
         <div className="authenticated-home-command-grid">
-          <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
+          {account ? <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
             {priorityLoading ? <Loader2 className="spin" size={18} /> : homeTasks.length ? homeTasks.map((task) => <a className={task.urgent ? 'is-urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={16} /></a>) : <div className="authenticated-home-tasks-empty"><Check size={17}/><span><strong>Nenhuma pendência agora</strong><small>Seus próximos jogos e convites vão aparecer aqui.</small></span></div>}
-          </div>
+          </div> : null}
           <form className="authenticated-home-token" onSubmit={(event) => { event.preventDefault(); void submitToken() }}>
             <KeyRound size={18}/><div><strong>Tem token ou link?</strong><small>Inscrição, grupo, escalação ou convite.</small></div>
             <input value={tokenValue} onChange={(event) => { setTokenValue(event.target.value); setTokenError('') }} placeholder="Cole aqui" aria-label="Token ou link de inscrição" />
@@ -302,7 +307,7 @@ export function AuthenticatedHomeFeed({
         </div>
       </section>
 
-      <section className="authenticated-home-section authenticated-home-areas" id="meus-cadastros">
+      {accounts.length ? <section className="authenticated-home-section authenticated-home-areas" id="meus-cadastros">
         <div className="authenticated-home-section-head">
           <div><span>MINHA CONTA</span><h2>Meus cadastros</h2></div>
         </div>
@@ -316,7 +321,7 @@ export function AuthenticatedHomeFeed({
             </button>
           })}
         </div>
-      </section>
+      </section> : null}
 
       <section className="authenticated-home-section">
         <div className="authenticated-home-section-head">

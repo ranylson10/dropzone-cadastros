@@ -439,10 +439,10 @@ export function AppHeader({
                 <div className="app-profile-menu-head" style={{ padding: 14, borderBottom: '1px solid var(--ui-line)', background: 'var(--ui-surface)' }}>
                   <strong>Minha conta</strong>
                   <span style={{ display: 'block', marginTop: 3, color: 'var(--ui-muted)', fontSize: 11 }}>
-                    Áreas liberadas nesta conta
+                    {accounts.length ? 'Cadastros disponíveis nesta conta' : 'Conta DropZone conectada'}
                   </span>
                 </div>
-                <a
+                {accounts.length ? <a
                   href="/#meus-cadastros"
                   onClick={() => {
                     setProfileOpen(false)
@@ -463,7 +463,7 @@ export function AppHeader({
                   }}
                 >
                   <LayoutDashboard size={17} strokeWidth={2.5} /> Meus cadastros
-                </a>
+                </a> : null}
                 {showWallet ? (
                   <a
                     href="/carteira"
